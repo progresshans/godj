@@ -29,12 +29,14 @@ type ModelField struct {
 // The caller supplies only a model value when encoding each row. The reader
 // receives a detached field, so it cannot change subsequent projections.
 type ModelEncoder[M any] struct {
-	spec   Spec
-	fields []ir.Field
-	read   func(M, ir.Field) (query.Value, bool)
+	spec     Spec
+	fields   []ir.Field
+	read     func(M, ir.Field) (query.Value, bool)
+	many     map[string]ir.ManyToManyField
+	readMany func(M, ir.ManyToManyField) ([]int64, bool)
 }
 
-func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (query.Value, bool)) (ModelEncoder[M], error) {
+func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (query.Value, bool), related ...func(M, ir.ManyToManyField) ([]int64, bool)) (ModelEncoder[M], error) {
 	if !spec.valid || read == nil {
 		return ModelEncoder[M]{}, invalidConfig("model", "invalid projection")
 	}
@@ -45,8 +47,25 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 		}
 		byName[field.Name] = field
 	}
+	many, err := modelCollections(model, byName)
+	if err != nil {
+		return ModelEncoder[M]{}, err
+	}
+	if len(related) > 1 || len(related) == 1 && related[0] == nil {
+		return ModelEncoder[M]{}, invalidConfig("model.collections", "invalid collection reader")
+	}
+	var readMany func(M, ir.ManyToManyField) ([]int64, bool)
+	if len(related) == 1 {
+		readMany = related[0]
+	}
 	fields := make([]ir.Field, len(spec.fields))
 	for index, field := range spec.fields {
+		if _, collection := many[field.name]; collection {
+			if field.kind != FieldIntegerList || field.nullable || readMany == nil {
+				return ModelEncoder[M]{}, invalidConfig("model."+field.name, "collection requires an integer list and explicit reader")
+			}
+			continue
+		}
 		metadata, found := byName[field.name]
 		if !found {
 			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "unknown field")
@@ -58,7 +77,7 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 		}
 		fields[index] = metadata.Clone()
 	}
-	return ModelEncoder[M]{spec: spec, fields: fields, read: read}, nil
+	return ModelEncoder[M]{spec: spec, fields: fields, read: read, many: many, readMany: readMany}, nil
 }
 
 // Encode validates output types, nullability and lengths without applying
@@ -70,6 +89,14 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 	members := make([]Member, 0, len(encoder.fields))
 	for index, metadata := range encoder.fields {
 		field := encoder.spec.fields[index]
+		if collection, found := encoder.many[field.name]; found {
+			keys, present := encoder.readMany(value, collection.Clone())
+			if !present {
+				return Value{}, invalidValue(field.name, "missing collection value")
+			}
+			members = append(members, MemberOf(field.name, Integers(keys...)))
+			continue
+		}
 		scalar, found := encoder.read(value, metadata.Clone())
 		if !found {
 			return Value{}, invalidValue(field.name, "missing model value")
@@ -143,8 +170,30 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		}
 		byName[field.Name] = field
 	}
+	many, err := modelCollections(model, byName)
+	if err != nil {
+		return Spec{}, err
+	}
 	fields := make([]Field, 0, len(selected))
 	for _, selection := range selected {
+		if _, collection := many[selection.Name]; collection {
+			options := []FieldOption{}
+			if selection.ReadOnly {
+				options = append(options, WithReadOnly())
+			}
+			if selection.Optional {
+				options = append(options, WithRequired(false))
+			}
+			if selection.AllowEmpty {
+				return Spec{}, invalidConfig("model."+selection.Name, "string-only option applied to a collection")
+			}
+			field, err := IntegerListField(selection.Name, options...)
+			if err != nil {
+				return Spec{}, err
+			}
+			fields = append(fields, field)
+			continue
+		}
 		field, found := byName[selection.Name]
 		if !found {
 			return Spec{}, invalidConfig("model."+selection.Name, "unknown model field")

@@ -164,6 +164,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			t.Fatalf("Helpdesk generated client left %d tickets, want two original and five created", len(tickets))
 		}
 		selectedCount, createdCount := 0, 0
+		var collectionOwnerID int64
 		wantJSON := map[string]string{"Consumer ticket": `{"":340282366920938463463374607431768211455,"nested":[null,false,"\u003cscript\u003edata\u003c/script\u003e"]}`, "Urgent priority": "", "Low priority": "", "Zero priority": "", "Null priority": ""}
 		wantPriority := map[string]*int64{
 			"Consumer ticket": nil, "Null priority": nil,
@@ -190,6 +191,9 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Zero priority": nil, "Null priority": nil,
 		}
 		for _, stored := range tickets {
+			if stored.Subject == "Consumer ticket" && stored.CategoryID == category.ID {
+				collectionOwnerID = stored.ID
+			}
 			if stored.CategoryID == category.ID {
 				selectedCount++
 			}
@@ -275,7 +279,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			t.Errorf("generated Label CRUD/scope final state differs: %v", err)
 		}
 		links, err := helpdeskmodels.TicketLabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketLabelFields.ID.Asc()).All(t.Context())
-		if err != nil || len(links) != 2 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID {
+		if err != nil || len(links) != 3 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID {
 			t.Fatalf("generated link lifecycle/cascade final state differs: %v", err)
 		}
 

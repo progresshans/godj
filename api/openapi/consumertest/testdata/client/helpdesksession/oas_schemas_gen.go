@@ -2533,6 +2533,7 @@ type Ticket struct {
 	ExpectedCost      NilString   `json:"expected_cost"`
 	ExternalReference NilUUID     `json:"external_reference"`
 	ExternalPayload   jx.Raw      `json:"external_payload"`
+	Labels            []int64     `json:"labels"`
 }
 
 // GetID returns the value of ID.
@@ -2615,6 +2616,11 @@ func (s *Ticket) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
 }
 
+// GetLabels returns the value of Labels.
+func (s *Ticket) GetLabels() []int64 {
+	return s.Labels
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -2695,6 +2701,11 @@ func (s *Ticket) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
 }
 
+// SetLabels sets the value of Labels.
+func (s *Ticket) SetLabels(val []int64) {
+	s.Labels = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
@@ -2715,6 +2726,7 @@ type TicketCreate struct {
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
 	ExternalPayload   jx.Raw                     `json:"external_payload"`
+	Labels            []int64                    `json:"labels"`
 }
 
 // GetSubject returns the value of Subject.
@@ -2787,6 +2799,11 @@ func (s *TicketCreate) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
 }
 
+// GetLabels returns the value of Labels.
+func (s *TicketCreate) GetLabels() []int64 {
+	return s.Labels
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -2855,6 +2872,11 @@ func (s *TicketCreate) SetExternalReference(val OptNilUUID) {
 // SetExternalPayload sets the value of ExternalPayload.
 func (s *TicketCreate) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *TicketCreate) SetLabels(val []int64) {
+	s.Labels = val
 }
 
 type TicketCreatePriority int64
@@ -3167,6 +3189,7 @@ type TicketPatch struct {
 	ExpectedCost      OptNilString              `json:"expected_cost"`
 	ExternalReference OptNilUUID                `json:"external_reference"`
 	ExternalPayload   jx.Raw                    `json:"external_payload"`
+	Labels            []int64                   `json:"labels"`
 }
 
 // GetSubject returns the value of Subject.
@@ -3239,6 +3262,11 @@ func (s *TicketPatch) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
 }
 
+// GetLabels returns the value of Labels.
+func (s *TicketPatch) GetLabels() []int64 {
+	return s.Labels
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -3309,6 +3337,11 @@ func (s *TicketPatch) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
 }
 
+// SetLabels sets the value of Labels.
+func (s *TicketPatch) SetLabels(val []int64) {
+	s.Labels = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -3342,6 +3375,7 @@ type TicketUpdate struct {
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
 	ExternalPayload   jx.Raw                     `json:"external_payload"`
+	Labels            []int64                    `json:"labels"`
 }
 
 // GetSubject returns the value of Subject.
@@ -3414,6 +3448,11 @@ func (s *TicketUpdate) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
 }
 
+// GetLabels returns the value of Labels.
+func (s *TicketUpdate) GetLabels() []int64 {
+	return s.Labels
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -3482,6 +3521,11 @@ func (s *TicketUpdate) SetExternalReference(val OptNilUUID) {
 // SetExternalPayload sets the value of ExternalPayload.
 func (s *TicketUpdate) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *TicketUpdate) SetLabels(val []int64) {
+	s.Labels = val
 }
 
 type TicketUpdatePriority int64

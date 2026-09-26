@@ -5,8 +5,8 @@ Category–Ticket–ServiceReport 관계 모델에 선택형 Form/Admin, 읽기 
 
 Ticket.labels는 기존 TicketLabel을 explicit through로 선언한다. `0020_ticket_labels`는 관계 metadata만 추가하며
 기존 연결 행·ID·sequence를 보존한다. Generated forward/reverse collection 접근자를 사용할 수 있다.
-현재 Ticket의 Form/Admin/API 필드 목록에는 labels를 아직 공개하지 않았으며, 기존 TicketLabel CRUD는 유지한다.
-실제 컬렉션 저장·권한·응답 통합은 [GDJ-0099](../../work/0099-many-to-many-and-ticket-label-collections.md)에서 이어간다.
+Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고, API는 labels 정수 배열을 받는다.
+기존 TicketLabel CRUD도 같은 연결 행을 사용한다. 구현과 환경별 통합 상태는 [GDJ-0099](../../work/0099-many-to-many-and-ticket-label-collections.md)를 따른다.
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 `application.API(authentication)`으로 API를 한 번 조합한 뒤 `api.Routes()`를 Web 설정에 연결한다.
@@ -68,14 +68,15 @@ Form/API payload는 4096 byte·깊이 14로 제한한다. Native JSONB의 숫자
 실제 DB 결과를 다시 읽어 detail/list 응답 한도까지 transaction 안에서 검사하고 실패하면 생성·수정 모두 rollback한다.
 [JSON 값과 입력 경계](../../docs/adr/0071-json-values-and-native-storage-boundaries.md)를 따른다.
 `PUT /api/tickets/<id>/`는 subject가 필수이고 생략한 closed는 false다. `PATCH`는 제출한 필드만 수정하며 default를 넣지 않는다.
-양쪽 모두 생략한 nullable field는 보존하고 명시적 null은 비운다. ChangeTicket 권한·CSRF·category 범위를 검사하며,
+양쪽 모두 생략한 nullable field는 보존하고 명시적 null은 비운다. ChangeTicket·ViewLabel 권한·CSRF·category 범위를 검사하며,
 같은 transaction에서 현재 행을 확인하고 바뀐 값만 저장한다.
 본문은 4096바이트로 제한하고 중복 JSON member와 뒤따르는 데이터를 거절한다.
 기본 조합에는 Accept negotiation middleware가 없으므로 문서도 406을 광고하지 않는다.
 
 `GET /api/tickets/<id>/`는 `ViewTicket` 권한과 서버가 배정한 Category 범위를 확인한 뒤 티켓과 Category를
-하나의 JOIN 조회로 반환한다. 응답의 `ticket`은 id/subject/details/closed/category/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload, `category`는 id/name만 포함한다.
-티켓 조회 권한에는 그 티켓의 Category 이름 조회가 포함된다. 별도 Category Admin은 `ViewCategory` 권한을 요구한다.
+하나의 JOIN으로 읽고, 같은 Category의 라벨 키를 한 번의 추가 prefetch로 읽는다.
+응답의 `ticket`은 id/subject/details/closed/category/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload/labels, `category`는 id/name만 포함한다.
+티켓 조회 권한에는 그 티켓의 Category 이름과 해당 범위의 라벨 ID 조회가 포함된다. 별도 Category/Label 조회는 각각 `ViewCategory`/`ViewLabel`을 요구한다.
 없는 티켓과 다른 Category의 티켓은 모두 404이며, 인증·권한 거부 시 제품 데이터 조회를 실행하지 않는다.
 
 ServiceReport는 티켓별 선택적인 작업 보고서다. `ticket`은 필수 OneToOne(PROTECT), `summary`는 필수 여러 줄 Text,
@@ -161,7 +162,21 @@ Ticket/Label 삭제는 공통 관계 삭제기를 사용한다. 연결 행만 CA
 ServiceReport가 Ticket을 보호하면 연결 삭제 전에 전체 삭제를 거부한다. API의 확정된 보호 결과는 400 `__all__/protected`이며
 rollback 불확실성이나 취소와 함께 온 보호 오류는 500이다. 모든 unsafe 요청에 CSRF가 필요하다.
 `TicketLabel`, `TicketLabelCreate`, `TicketLabelUpdate`, `TicketLabelPatch`, `TicketLabelList`와 독립 ogen client가 CRUD·권한·CSRF·
-양쪽 삭제·PROTECT·endpoint 보존을 소비한다. 일반 ManyToMany 선언/manager/add/remove/set는 후속 기능이다.
+양쪽 삭제·PROTECT·endpoint 보존을 소비한다. Ticket.labels는 같은 through를 사용하는 일반 ManyToMany 선언과 Set을 소비한다.
+
+Ticket의 `labels`는 선택적인 non-null int64 JSON 배열이다. POST 생략은 빈 집합, PUT/PATCH 생략은 기존 집합 보존,
+명시적 `[]`는 전체 해제다. 순서와 중복 입력은 허용하지만 저장·응답은 ID 오름차순의 중복 없는 집합이다.
+응답에는 항상 `labels`가 있고 빈 집합은 `[]`다. 숫자 문자열·소수·bool·null·중첩 배열은 거부한다.
+POST는 AddTicket+ViewLabel, PUT/PATCH는 ChangeTicket+ViewLabel을 본문 해석 전에 확인한다.
+전체 desired set의 모든 양수 키가 선택 Category에 있어야 하며 하나라도 부적합하면 scalar와 전체 집합을 모두 보존한다.
+유지한 연결은 ID를 유지한다. 연결 자체 CRUD의 Add/ChangeTicketLabel 권한과 owner 편집 권한은 별도다.
+
+Admin의 선택 누락은 빈 집합으로 해석한다. Bounded HTML 본문에서 CSRF 토큰을 추출한 뒤 인증·권한을 확인하고,
+그 이후에 필드 검증·후보/owner 조회를 실행한다. JSON API의 본문 읽기 전 검사와 이 transport 순서를 혼동하지 않는다.
+두 경로 모두 저장 transaction에서 현재 owner Category·전체 후보 Category와 admitted principal의 쓰기 권한을 다시 확인한다.
+Scalar·collection Set·실제 응답 재조회/encode를 같은 RelationAtomic에 묶어 늦은 실패·취소를 rollback한다.
+Commit/rollback outcome unknown은 성공이나 확정된 400/404로 바꾸거나 재시도하지 않는다.
+Runtime을 통해 쓰는 두 연결의 전체 교체는 같은 DB fence를 따른다. 비협력 raw writer까지 이 보장을 확장하지 않는다.
 
 ```sh
 go test ./examples/helpdesk -count=1

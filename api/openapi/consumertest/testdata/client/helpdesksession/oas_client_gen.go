@@ -160,7 +160,9 @@ type Invoker interface {
 	//
 	// The identifier must be positive. The selected category is fixed by the application. Viewing a ticket
 	// includes its category identity and name; a separate category-view permission is not required.
-	// Authentication and permission checks precede the joined lookup.
+	// Authentication and permission checks precede the joined lookup. Labels are positive label
+	// identifiers in the selected category, sorted by identifier; viewing this owned relation does not
+	// require the standalone label-view permission.
 	//
 	// GET /api/tickets/{id}/
 	HelpdeskTicketDetail(ctx context.Context, params HelpdeskTicketDetailParams) (HelpdeskTicketDetailRes, error)
@@ -243,6 +245,10 @@ type Invoker interface {
 	// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
 	// rolls back the update. The target must belong to the application's selected category. The current
 	// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+	// ChangeTicket and ViewLabel are required before parsing. Omitted labels preserve membership in both
+	// PUT and PATCH; an explicit empty array clears it. Null and non-integer members are rejected.
+	// Positive labels must all belong to the selected category. The complete desired set and admitted
+	// permissions are rechecked in the scalar write transaction. Retained links keep their identities.
 	// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
 	// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
 	// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
@@ -267,6 +273,10 @@ type Invoker interface {
 	// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
 	// rolls back the update. The target must belong to the application's selected category. The current
 	// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+	// ChangeTicket and ViewLabel are required before parsing. Omitted labels preserve membership in both
+	// PUT and PATCH; an explicit empty array clears it. Null and non-integer members are rejected.
+	// Positive labels must all belong to the selected category. The complete desired set and admitted
+	// permissions are rechecked in the scalar write transaction. Retained links keep their identities.
 	// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
 	// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
 	// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
@@ -1901,7 +1911,9 @@ func (c *Client) sendHelpdeskTicketDelete(ctx context.Context, params HelpdeskTi
 //
 // The identifier must be positive. The selected category is fixed by the application. Viewing a ticket
 // includes its category identity and name; a separate category-view permission is not required.
-// Authentication and permission checks precede the joined lookup.
+// Authentication and permission checks precede the joined lookup. Labels are positive label
+// identifiers in the selected category, sorted by identifier; viewing this owned relation does not
+// require the standalone label-view permission.
 //
 // GET /api/tickets/{id}/
 func (c *Client) HelpdeskTicketDetail(ctx context.Context, params HelpdeskTicketDetailParams) (HelpdeskTicketDetailRes, error) {
@@ -2810,6 +2822,10 @@ func (c *Client) sendHelpdeskTicketList(ctx context.Context, params HelpdeskTick
 // validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
 // rolls back the update. The target must belong to the application's selected category. The current
 // row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+// ChangeTicket and ViewLabel are required before parsing. Omitted labels preserve membership in both
+// PUT and PATCH; an explicit empty array clears it. Null and non-integer members are rejected.
+// Positive labels must all belong to the selected category. The complete desired set and admitted
+// permissions are rechecked in the scalar write transaction. Retained links keep their identities.
 // Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
 // only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
 // YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
@@ -3037,6 +3053,10 @@ func (c *Client) sendHelpdeskTicketServiceReport(ctx context.Context, params Hel
 // validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
 // rolls back the update. The target must belong to the application's selected category. The current
 // row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+// ChangeTicket and ViewLabel are required before parsing. Omitted labels preserve membership in both
+// PUT and PATCH; an explicit empty array clears it. Null and non-integer members are rejected.
+// Positive labels must all belong to the selected category. The complete desired set and admitted
+// permissions are rechecked in the scalar write transaction. Retained links keep their identities.
 // Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
 // only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
 // YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when

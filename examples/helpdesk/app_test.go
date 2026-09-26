@@ -43,7 +43,7 @@ func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFi
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "helpdesk.sqlite3")) + "?mode=rwc&_busy_timeout=5000"
-	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) })
+	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) }, insertLargeCollectionLabel)
 }
 
 type helpdeskBackend interface {
@@ -59,11 +59,13 @@ type helpdeskReadCounter struct {
 	helpdesk.Backend
 	queries int
 	last    query.Plan
+	plans   []query.Plan
 }
 
 func (backend *helpdeskReadCounter) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	backend.queries++
 	backend.last = plan
+	backend.plans = append(backend.plans, plan)
 	return backend.Backend.Query(ctx, plan)
 }
 
@@ -76,7 +78,7 @@ func (deny helpdeskDeniedPermission) Allowed(ctx context.Context, principal auth
 	return (auth.PrincipalAuthorizer{}).Allowed(ctx, principal, permission)
 }
 
-func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error)) {
+func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error), seedLargeLabel func(context.Context, db.Mutator, int64) (int64, error)) {
 	t.Helper()
 	backend, err := open(ctx)
 	if err != nil {
@@ -243,8 +245,8 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 14 {
-		t.Fatal("Ticket scalar selection")
+	if !ok || len(ticketInfo.FormFields) != 15 {
+		t.Fatal("Ticket scalar and collection selection")
 	}
 	for _, field := range ticketInfo.FormFields {
 		if field.Name() == "priority" && (field.Widget() != forms.Select || len(field.Choices()) != 3) {
@@ -295,20 +297,21 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	detailResponse := client.request("GET", detailPath, "", false)
 	assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/{id}/", detailResponse)
 	var detail map[string]map[string]json.RawMessage
-	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
+	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+2 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 16 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["ticket"]["external_payload"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 17 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["ticket"]["external_payload"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
 	if err := json.Unmarshal(detail["category"]["name"], &categoryName); err != nil || categoryName != category.Name {
 		t.Fatalf("category label = %q, %v", categoryName, err)
 	}
-	if limit, _ := reads.last.Limit(); limit != 1 {
+	detailPlan := reads.plans[beforeDetail]
+	if limit, _ := detailPlan.Limit(); limit != 1 {
 		t.Fatalf("detail limit = %d", limit)
 	}
-	if projections := reads.last.RelationProjections(); len(projections) != 1 || projections[0].TerminalHop().Field() != "category" {
+	if projections := detailPlan.RelationProjections(); len(projections) != 1 || projections[0].TerminalHop().Field() != "category" {
 		t.Fatal("detail did not use the category projection")
 	}
 	for _, id := range []int64{outside.ID, 0, outside.ID + 1000} {
@@ -317,14 +320,14 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			t.Fatalf("missing/scoped detail: %d %s", response.Code, response.Body)
 		}
 	}
-	for _, denied := range []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewCategory} {
+	for _, denied := range []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewCategory, helpdesk.ViewLabel} {
 		limitedClient := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{denied})
 		limitedClient.cookies = client.cookies
 		before := reads.queries
 		response := limitedClient.request("GET", detailPath, "", false)
 		wantStatus, wantReads := http.StatusForbidden, 0
-		if denied == helpdesk.ViewCategory {
-			wantStatus, wantReads = http.StatusOK, 1
+		if denied == helpdesk.ViewCategory || denied == helpdesk.ViewLabel {
+			wantStatus, wantReads = http.StatusOK, 2
 		}
 		if response.Code != wantStatus || reads.queries-before != wantReads {
 			t.Fatalf("detail permission %s: status=%d data queries=%d", denied, response.Code, reads.queries-before)
@@ -484,6 +487,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("service_reports", func(t *testing.T) { verifyHelpdeskReports(t, ctx, runtime, open, client, category.ID, outside.ID) })
 	t.Run("category_labels", func(t *testing.T) { verifyHelpdeskLabels(t, ctx, runtime, open, client, category.ID, other.ID, seedID) })
 	t.Run("ticket_labels", func(t *testing.T) { verifyHelpdeskTicketLabels(t, ctx, runtime, open, client, category.ID, other.ID) })
+	t.Run("ticket_collections", func(t *testing.T) {
+		verifyHelpdeskTicketCollections(t, ctx, runtime, open, client, category.ID, other.ID, after, seedLargeLabel)
+	})
 }
 
 // Seed through the historical column set before the new generated model can be
@@ -656,7 +662,11 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 
 func (c *helpdeskClient) request(method, path, body string, jsonBody bool) *httptest.ResponseRecorder {
 	c.t.Helper()
-	request := httptest.NewRequest(method, "http://helpdesk.test"+path, strings.NewReader(body))
+	return c.requestContext(context.Background(), method, path, body, jsonBody)
+}
+func (c *helpdeskClient) requestContext(ctx context.Context, method, path, body string, jsonBody bool) *httptest.ResponseRecorder {
+	c.t.Helper()
+	request := httptest.NewRequest(method, "http://helpdesk.test"+path, strings.NewReader(body)).WithContext(ctx)
 	for _, cookie := range c.cookies {
 		request.AddCookie(cookie)
 	}

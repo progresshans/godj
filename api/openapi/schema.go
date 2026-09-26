@@ -406,6 +406,12 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 		schema = Boolean()
 	case serializers.FieldInteger:
 		schema = Integer()
+	case serializers.FieldIntegerList:
+		var err error
+		schema, err = Array(Integer())
+		if err != nil {
+			return Schema{}, err
+		}
 	default:
 		return Schema{}, schemaConfigError("field", "serializer field kind is unsupported")
 	}

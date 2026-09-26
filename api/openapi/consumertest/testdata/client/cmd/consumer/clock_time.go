@@ -46,7 +46,7 @@ func checkHelpdeskClockTimeUpdates(ctx context.Context, client *hs.Client, trans
 }
 
 func checkGeneratedClockTimeWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload":null,"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"labels":[],"external_payload":null,"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null`
 	clear := hs.OptNilString{}
 	clear.SetToNull()
 	for _, test := range []struct {

@@ -126,3 +126,9 @@ ModelMultipleChoice는 같은 pinned Django의 `django/forms/models.py` ModelMul
 공개 Form/모델 입력만 사용하며 GoDj나 기대 fixture를 읽지 않는다. HTML 제출 목록의 membership·required·순서·중복·
 initial/changed를 양 DB에서 관찰하고, transport 밖 Python 입력과 int64 밖 native 오류를 별도로 기록한다.
 구현을 번역한 파일이 아니며 source module SHA256·determinism·의미 변경 control은 TEST_EVIDENCE에 남긴다.
+
+Ticket 컬렉션 transport는 pinned Django 6.1·DRF 3.18.0의 public ModelSerializer와
+PrimaryKeyRelatedField(many=True, pk_field=IntegerField), 명시적 through 모델을 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/ticket_collection_reference.py)는 GoDj/기대값을 읽지 않고
+생성·PUT·PATCH 48개 canonical 입력, 별도 coercion, explicit outer atomic rollback과 validation 이후 scope 변화를 관찰한다.
+Raw fixtures에는 DRF fields/relations/serializers source SHA256을 보관한다. 실행한 버전·DB와 source별 검증은 TEST_EVIDENCE를 따른다.

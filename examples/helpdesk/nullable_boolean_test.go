@@ -35,10 +35,10 @@ func (s helpdeskCountedSession) Update(ctx context.Context, plan query.UpdatePla
 	s.owner.updates++
 	return s.Session.Update(ctx, plan)
 }
-func (b *helpdeskMutationCounter) Atomic(ctx context.Context, fn func(db.Session) error) error {
+func (b *helpdeskMutationCounter) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
 	b.transactions++
-	return b.Backend.Atomic(ctx, func(session db.Session) error {
-		if err := fn(helpdeskCountedSession{session, b}); err != nil {
+	return b.Backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		if err := fn(decoratedHelpdeskRelation{Session: helpdeskCountedSession{session, b}, relation: session}); err != nil {
 			return err
 		}
 		if b.rollback {

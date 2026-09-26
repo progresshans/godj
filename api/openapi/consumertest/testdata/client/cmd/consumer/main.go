@@ -45,10 +45,10 @@ var requiredChecks = [...]string{
 	"article_session_invalid_csrf",
 	"helpdesk_session_relations",
 	"helpdesk_session_create_defaults",
-	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links",
+	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_ticket_collections",
 	"helpdesk_session_read_only_denied",
 	"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
-	"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire",
+	"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire", "generated_collection_wire",
 	"generated_int64_wire",
 	"generated_response_rejections",
 	"pre_canceled_request",
@@ -139,12 +139,12 @@ func run(ctx context.Context, config input) ([]string, error) {
 			"article_session_csrf_crud", "article_session_invalid_csrf",
 		}},
 		{func() error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
-			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_session_read_only_denied",
+			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_ticket_collections", "helpdesk_session_read_only_denied",
 			"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 		}},
 		{func() error { return checkGeneratedWire(ctx) }, []string{
 			"generated_int64_wire", "generated_response_rejections",
-			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire",
+			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire", "generated_collection_wire",
 		}},
 	}
 	for _, flow := range flows {

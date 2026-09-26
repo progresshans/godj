@@ -1120,3 +1120,16 @@ Form은 HTML 문자열 표현을 받으므로 독립 Django Form 결과와 따�
 비교 테스트는 serializer의 type 차이를 명시적으로 검사한다. 이를 DRF parity로 집계하지 않는다.
 현재 typed schema·generated client·서버 parser가 같은 입력 영역을 유지하는지 확인하고, 정수 JSON 문자열을 공개적으로
 수용하는 정책을 채택할 때에는 해당 세 경계와 이 기록을 함께 변경한다. 환경별 완료는 TEST_EVIDENCE를 따른다.
+
+
+2026-09-26, GDJ-0099의 Ticket `labels` integer-list JSON 입력에도 같은 strict scalar 정책을 적용했다.
+고정 DRF PrimaryKeyRelatedField(many=True, pk_field=IntegerField)의 숫자 문자열·정수형 소수 coercion과
+빈 object 수용 등 12개 관찰은 [SQLite](../examples/helpdesk/testdata/ticket-collection-django61-drf318-sqlite.json)·
+[PostgreSQL](../examples/helpdesk/testdata/ticket-collection-django61-drf318-postgres.json)의 `coercions`에 별도 보존한다.
+GoDj는 JSON 배열과 int64 정수 원소만 받는다. 문자열/소수/bool/중첩 값은 type, null 원소는 null이며 원소 index를 붙인다.
+소속 Category 밖·없는 key의 애플리케이션 진단은 labels/invalid_choice다. DRF의 invalid·does_not_exist taxonomy와
+같다고 주장하지 않는다. 48개 canonical 관찰에서는 수용/거부·오류 field·최종 행/집합·retained identity를 비교한다.
+진단 code 동등성이나 더 넓은 DRF coercion을 그 48개 PASS에 포함하지 않는다.
+Typed OpenAPI와 독립 생성 client가 같은 exact int64·생략/빈 배열 영역을 사용하며 별도 migration은 필요 없다.
+넓은 입력을 채택할 때 serializer·OpenAPI·client와 이 기록을 함께 바꾼다. 기준과 source별 검증은
+[ADR-0075](adr/0075-many-to-many-storage-and-mutation-ownership.md#ticket-컬렉션의-실제-저장과-transport)와 TEST_EVIDENCE를 따른다.

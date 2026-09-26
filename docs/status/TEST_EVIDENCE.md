@@ -3,6 +3,79 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — Ticket 라벨 집합의 실제 Form/Admin·API·독립 client
+
+2026-09-26, `3cfe3a0026a03470d48423d4d78843f5c37f6522` 위에서 Ticket.labels를 실제 Form/Admin과
+API/OpenAPI·독립 ogen client에 공개했다. Pure collection encoder와 exact int64 list serializer를 연결하고,
+현재 owner·전체 후보의 Category·admitted 권한 재검증, scalar·Set·실제 응답 재조회를 같은 RelationAtomic에서 실행한다.
+POST 생략은 빈 집합, PUT/PATCH 생략은 보존, 명시한 빈 배열은 전체 해제다. 유지한 through ID는 보존한다.
+Facade ABI v19·relation object v6은 변경하지 않았다.
+
+고정 Django 6.1·DRF 3.18.0·Python 3.14.3의 [독립 runner](../../conformance/runners/django/ticket_collection_reference.py)를
+SQLite 3.50.4·PostgreSQL 17.5(170005), psycopg 3.3.6에서 실행했다. 양 DB×PYTHONHASHSEED 0/813의
+48개 canonical 관찰·12개 별도 coercion·outer atomic rollback·validation 후 scope 변화가 결정적이다.
+Runner SHA256은 `ca77f9c6cfaff8f9a9f3b6e70c982c023efa264c3b8a2958e0b1f0041a96faee`이며
+DRF fields/relations/serializers module SHA256은 raw fixture에 보관한다. 별도 reference unittest **2/2 PASS**는
+두 seed·fixture 일치와 replacement 제거/생략의 잘못된 clear라는 두 의미 변경을 탐지했다.
+GoDj의 실제 양 DB HTTP는 canonical 48행의 수용/거부·오류 field·최종 row/집합·retained ID를 각각 비교했다.
+DRF의 더 넓은 coercion·오류 code taxonomy는 [DEV-0012](../DEVIATIONS.md#dev-0012--choice-json-입력도-scalar-type을-유지)에
+차이로 기록하며 parity PASS에 포함하지 않는다. 기본 DRF가 validation 이후의 Category 변경을 재검증한다고 주장하지 않는다.
+
+Serializer는 exact >2^53 키·독립 snapshot·생략/empty/null·원소 index 진단·default/readonly·명시적 loaded reader를 검증한다.
+Admin은 25개 이상의 전체 후보, 두 번째 key의 scope 변경, 중복 입력과 누락에 의한 전체 해제, escaped 원문을 검사한다.
+JSON API는 인증·권한·CSRF 뒤에 본문을 해석한다. Admin은 bounded form에서 CSRF를 추출한 뒤 인증·권한과 필드 검증으로
+진행한다. 거부된 CSRF의 세션 저장소 접근 0은 기존 Admin 회귀로 유지하고, 실제 Ticket의 add/change 거부에서
+owner/후보 조회·transaction·쓰기 0을 확인한다. JSON Content-Type을 Admin에 보낸 요청은 transport 400이며
+이를 잘못된 403 기대값에 맞추려고 기존 CSRF 경계를 바꾸지 않았다.
+
+실제 scalar UPDATE 뒤 native link 실패, 첫 삭제 뒤 두 번째 삭제 실패, 최종 response 재조회 실패,
+실제 link insert 후 context 취소가 scalar·전체 set과 retained ID를 보존한다. Joined rollback unknown은 확정된
+400/404가 되지 않고, 실제 commit 후 주입한 outcome unknown도 성공/자동 재시도로 바뀌지 않는다.
+두 runtime/독립 DB 연결의 승인된 요청을 transaction 직전에 함께 멈춘 뒤 첫 scalar 쓰기 동안 두 번째 session 진입을
+차단하고, 각 응답과 최종 전체 집합이 순서대로 일치하는지 확인했다. 새 backend로 다시 읽어 durability도 확인했다.
+이 결과는 cooperative Runtime의 DB fence 범위이며 비협력 raw writer를 포함하지 않는다.
+
+같은 **2,186개 non-Markdown source map**
+`ba7153126d3f462846cfa5a052d0b7568f593fc3733c287ca95f52beda3b0c4a`에서
+`./serializers ./api/openapi ./api/openapi/consumertest ./examples/helpdesk ./examples/article/apiapp ./admin`
+6개 package의 필수 root **145개**와 하위 실행 이벤트를 검사했다. Go 1.26.5·macOS arm64의 영향 검증이다.
+
+| 모드 | run=PASS | skip | 시간 | 실행 디렉터리 |
+| --- | ---: | ---: | ---: | --- |
+| normal | 2666 | 0 | 7.6 s | `consumer-normal-1790431018237716000` |
+| race | 2666 | 0 | 61.9 s | `consumer-race-1790431069262153000` |
+| cgo0 | 2666 | 0 | 9.6 s | `consumer-cgo0-1790431069262152000` |
+
+각 모드는 별도 owned PostgreSQL DB에서 수행했고 session/table/custom schema **0|0|0** 확인 뒤 non-force drop했다.
+Reference DB도 session/table **0|0** 확인 뒤 non-force drop했다. 모든 실행 전후 source map이 같으며
+필수 skip·build failure·잘린 실행을 PASS로 합치지 않았다. 초기 checkpoint의 상세 조회 query-count 기대값,
+테스트 wrapper의 RelationSession capability·CSRF bootstrap·PostgreSQL generated-key fixture와 Admin transport 기대값
+실패는 `consumer-normal-1790430215847229000`, `consumer-normal-1790430410434292000`,
+`consumer-normal-1790430645205146000`에 보존했다. 위 표는 해당 문제를 정리한 최종 source 실행이다.
+
+원본을 바꾸지 않는 Go overlay **6개 의미 변경 control**이 실제 assertion에서 실패했다:
+정수 원소의 float64 왕복, 생략을 empty로 해석, 후보 Category 필터 제거, Set 오류 무시,
+unknown rollback을 404로 합침, scalar 변경이 없을 때 labels-only PATCH 생략.
+마지막 변경은 실제 generated HTTP client의 실패 단계로 탐지했다. Compile 실패를 탐지 성공으로 세지 않았다.
+
+독립 client는 고정 ogen으로 세 profile을 임시 위치에서 재생성하고 checked-in 전체 파일 집합과 비교한 뒤
+framework import/replace 없는 별도 module을 offline build해 실제 HTTP로 실행했다. 부모 race 모드도 child에 전달한다.
+`helpdesk_ticket_collections`와 `generated_collection_wire`를 필수 receipt에 추가하고 실제 실행 뒤에만 게시한다.
+라벨 생성/교체/생략/해제·retained link·전체 foreign set 거부·권한/CSRF와 큰 정수 wire·required response를 확인하고,
+부모는 최종 scalar와 정확한 세 through 행(기존 두 행·추가된 owner 링크)을 직접 조회한다. 이 child fixture는 SQLite이며
+Helpdesk 양 DB HTTP와 구분한다. Helpdesk OpenAPI SHA256은
+`de41e9afa73abcfacd8be616c8e8685bf391f5537d006efe86bb177059cd3858`이다.
+생성물 12개 중 4개를 갱신했고 Article 두 spec과 client module/tool lock은 그대로다.
+
+`make format-check generate-check`, 영향 `go vet`, diff check를 통과했다. API generated drift는 위 실제 consumer가 소유한다.
+문서 링크·정합성과 전체 변경 파일 소유권·source/log SHA256 재검사는 최종 audit receipt에 남긴다.
+원본 root는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/ticket-label-collections`이며 `latest-consumer-reference-path`, `latest-consumer-reference-tests-path`,
+`latest-openapi-candidate-path`, `latest-consumer-normal-path`, `latest-consumer-race-path`, `latest-consumer-cgo0-path`,
+`latest-consumer-negative-path`, `latest-consumer-checks-path`, `latest-consumer-audit-path`가 상세 기록을 가리킨다.
+
+현재 source의 Hosted full은 다음 통합 milestone이다. 이전 `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[Hosted full](https://github.com/progresshans/godj/actions/runs/35689549739)을 이 source의 성공으로 옮기지 않는다.
+
 ## GDJ-0099 — 다중 관계 선택 Form/Admin과 Ticket.labels 선언
 
 2026-09-26, `a8116dd20ca279df806c68b7a03978e1d4f15ab1` 위에서 ModelMultipleChoice의 immutable int64 목록과

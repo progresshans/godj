@@ -19,10 +19,10 @@
 | Web | request context, routing/reverse, middleware, bounded HTTP errors, server lifecycle | arbitrary converters/realtime/production deployment toolkit 미지원 | [web](../../web/) |
 | Template/Form | closed safe template value, escaping, validation, model field allowlist projection, Select choices·NullBooleanSelect·Textarea·DateInput·TimeInput·NumberInput(Float step=any·Decimal 선언 scale)·UTC DateTimeInput과 명시적 빈 입력 정책 | Decimal 원문 precision·scale 검사와 fixed-scale 초기값; UUID 별칭 입력·canonical 초기값·값 기준 변경 감지; JSON 원문·빈 값·exact 숫자 기반 변경 감지; bound Form.WithErrors의 post-clean 진단·cleaned data 소유권; 선택한 scalar와 명시적 int64 ModelChoice/ModelMultipleChoice snapshot 입력을 편집; 다중 선택은 unique key 목록·raw membership 변경 감지·빈 optional 목록을 보존; arbitrary callable/attribute 실행 없음 | [templates](../../templates/), [forms](../../forms/) |
 | Admin | registry, permission, CRUD/history/action composition, read-only 등록, choices 표시명과 기존 값 보존·nullable Boolean의 세 상태·날짜·시간·Float·exact Decimal·UUID·JSON 편집과 Char/Text/JSON 검색 | 확인된 입력 거부의 field/non-field 재표시와 원문 보존; 선택한 model field만 편집; RelatedChoices target 권한·요청 snapshot·단일/다중 집합 저장 재검증, SelectMultiple·거부된 원문 보존과 PROTECT 화면 지원; 모든 relation UI의 일반화를 뜻하지 않음 | [admin](../../admin/) |
-| JSON API | model-derived allowlist serializer·choice 입력 enum, bounded parser·exact numeric token·Decimal fixed-scale·UUID canonical 문자열·선언된 JSONField의 임의 JSON 값과 입력/응답 nullability, PUT/PATCH, pagination/filter, authentication profile, operation·모델 기반 OpenAPI 3.1·named local schema, Article 게시·Helpdesk composition, 고정 ogen Go client 회귀 | browsable API·배포형/다언어 SDK·일반 viewset 자동화 미지원; schema는 runtime parser·인가 검증의 대체가 아님 | [api](../../api/), [OpenAPI](../../api/openapi/), [serializers](../../serializers/) |
+| JSON API | model-derived allowlist serializer·choice 입력 enum·ManyToMany integer-list 입력/출력과 명시적 pure collection reader, bounded parser·exact numeric token·Decimal fixed-scale·UUID canonical 문자열·선언된 JSONField의 임의 JSON 값과 입력/응답 nullability, PUT/PATCH, pagination/filter, authentication profile, operation·모델 기반 OpenAPI 3.1·named local schema, Article 게시·Helpdesk composition, 고정 ogen Go client 회귀 | browsable API·배포형/다언어 SDK·일반 viewset 자동화 미지원; schema는 runtime parser·인가 검증의 대체가 아님 | [api](../../api/), [OpenAPI](../../api/openapi/), [serializers](../../serializers/) |
 | Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
 | Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application/relation transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
-| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 상세, priority·resolution·due_at·reviewed·service_on·service_at·elapsed·effort·expected_cost·external_reference·external_payload 추가와 priority choices/표시명 변경 및 expected_cost 한도 확장 migration, nullable Boolean·Date·Time·Duration·Float·Decimal·UUID·JSON의 Form/Admin·PUT/PATCH와 external_payload 전체/source 경로 검색 | 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님; 환경별 실행은 TEST_EVIDENCE 참조 | [examples](../../examples/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, Category eager JOIN·라벨 일괄 prefetch 상세와 Ticket.labels 전체 집합 편집, priority·resolution·due_at·reviewed·service_on·service_at·elapsed·effort·expected_cost·external_reference·external_payload 추가와 priority choices/표시명 변경 및 expected_cost 한도 확장 migration, nullable Boolean·Date·Time·Duration·Float·Decimal·UUID·JSON의 Form/Admin·PUT/PATCH와 external_payload 전체/source 경로 검색 | 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님; 환경별 실행은 TEST_EVIDENCE 참조 | [examples](../../examples/) |
 
 ## 계약과 증거
 
@@ -47,7 +47,9 @@ ManyToMany direct/nested/filtered prefetch와 단일 관계 prefetch·root eager
 Owner별 slice의 named snapshot과 runtime/generated API·전체 owner 집합 조회를 연결했다.
 Custom single target query와 빌린 session/root backend의 native batch 실행·공통 graph/generated materialized streaming을 연결했다.
 양 DB·race·CGO=0 영향 checkpoint와 최종 backend 행 검증 보완을 확인했다.
-Ticket 소비자와 GDJ-0099 Hosted 전체 통합은 남아 있다.
+Ticket Form/Admin·API/OpenAPI·독립 generated client의 컬렉션 편집을 연결했다.
+Scalar와 전체 원하는 집합을 같은 transaction에서 저장하며 권한·CSRF·Category·실패/취소·두 runtime 경쟁·재시작을
+양 DB normal/race/CGO=0 영향 범위에서 확인했다. GDJ-0099 Hosted 전체 통합은 남아 있다.
 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.

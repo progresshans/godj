@@ -395,7 +395,9 @@ Root collection manager·통합 facade·session composition과 전체 query/cons
 실패 시 collection cache 무효화와 성공 publication은 위의 소유권을 따른다.
 독립 materialization·평가한 QuerySet·Fresh의 소유권을 공유 cache로 합치지 않는다. Signal callback은 이후 rollback되는 변경도
 관찰할 수 있으므로 durable commit 영수증으로 취급하지 않는다. 미구현 signal 범위는 카탈로그에 남긴다.
-Ticket의 컬렉션 입력은 권한·CSRF를 body/DB 전에 검사하고 저장 transaction에서 양쪽 Category와 전체 원하는 집합을 다시 확인한다.
+Ticket JSON API는 권한·CSRF를 body 해석 전에 검사한다. Admin은 bounded HTML body에서 CSRF를 추출한 뒤
+인증·권한을 확인하고 필드 검증·후보/owner 조회로 진행한다. Invalid CSRF의 세션 저장소 접근 0이라는 기존 경계를 유지한다.
+두 transport 모두 저장 transaction에서 양쪽 Category와 전체 원하는 집합을 다시 확인한다.
 실행 source와 환경, 아직 구현하지 않은 선언·생성·migration·query·소비자는 [CURRENT](../status/CURRENT.md)와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
 
@@ -439,10 +441,38 @@ Go int64 밖 입력은 I/O 전에 invalid_pk_value로 거부한다. Reference의
 Admin RelatedChoices의 기존 target 권한·모든 provider의 사전 인가·snapshot 재검증을 다중 선택에도 적용한다.
 화면의 initial/snapshot 목록은 타입·순서·개수가 일치해야 하며, 다중 선택의 canonical 재검증은 모든 key를 전달한다.
 알 수 없어진 초기값과 거부된 원문도 선택 상태와 함께 escape해 표시한다. 기존 Admin의 positive-key snapshot 정책은 유지한다.
-다중 선택 UI 성공이 transaction 검증을 대체하지 않는다. 실제 Ticket 저장 callback이 권한과 Category·원하는 전체 집합을
-다시 확인하고 scalar 변경과 collection Set을 같은 relation transaction에서 수행하는 통합은 후속 구현이다.
+다중 선택 UI 성공이 transaction 검증을 대체하지 않는다. 실제 Ticket 저장 callback은 권한과 Category·원하는 전체 집합을
+다시 확인하고 scalar 변경과 collection Set을 같은 relation transaction에서 수행한다.
 
 Helpdesk의 `0020_ticket_labels`는 `0019_ticket_label`에 의존하는 AddManyToMany 이력이다.
 Ticket.labels/Label.tickets accessor는 기존 intermediary를 채택하며 새로운 테이블이나 연결 행을 만들지 않는다.
 실제 migration 왕복·재시작·기존 link ID와 삭제된 ID의 sequence 상한 보존을 양 DB에서 검증한다.
-Form/Admin 기반과 선언의 구현을 Ticket API/OpenAPI/client 통합 완료나 전체 플랫폼 검증으로 세지 않는다.
+Form/Admin 기반·선언·실제 소비자의 구현과 전체 플랫폼 검증은 별도 상태로 기록한다.
+
+
+### Ticket 컬렉션의 실제 저장과 transport
+
+2026-09-26, `serializers.IntegerListField`와 FromModel의 명시적 collection allowlist를 연결했다.
+Typed Value는 순서·중복·정확한 int64와 빈 배열을 보존하며 I/O·positive-key·membership 정책을 소유하지 않는다.
+순수 ModelEncoder는 caller가 이미 읽은 키의 명시적 reader를 요구한다. Nil 미적재 상태를 빈 목록으로 게시하거나
+encode 중 QuerySet을 실행하지 않는다. OpenAPI는 optional request array와 required non-null response array,
+각 원소의 int64 범위를 기술한다. 저장이 중복을 제거하더라도 입력은 중복을 허용하므로 uniqueItems를 광고하지 않는다.
+
+Ticket의 POST 생략은 빈 집합, PUT/PATCH 생략은 보존, 명시한 빈 배열은 전체 해제다. HTML 다중 선택의 누락은
+optional 빈 집합이다. 대상 키는 모두 양수이며 같은 Category에 있어야 한다. 전체 목록을 정렬·중복 제거한 뒤
+같은 transaction에서 조회한 전체 결과와 비교한다. Scalar와 labels-only 수정이 모두 같은 RelationAtomic을 사용한다.
+Set은 retained through ID를 보존한다. 변경 필드 목록에는 실제 membership이 달라질 때만 labels를 추가한다.
+최종 DB 값을 다시 읽고 response/list wrapper 한도를 검증한 뒤 commit한다. 부분 결과나 성공을 미리 게시하지 않는다.
+
+추가/변경 API는 owner 권한과 ViewLabel을 모두 요구한다. 개별 TicketLabel CRUD의 쓰기 권한과는 다른 owner 편집 경계다.
+Ticket 읽기는 ViewTicket에 포함된 Category와 범위 내 label ID만 노출한다. 라벨 상세/후보 편집은 별도 ViewLabel을 요구한다.
+HTTP의 runtime authorizer가 먼저 admission을 결정하며 저장 callback은 그 불변 principal의 권한을 다시 확인한다.
+권한 변경은 미래 session을 폐기하지만 이미 승인된 작업을 소급 취소하지 않는 기존 systemstate 계약을 유지한다.
+후보의 scope는 serializer snapshot만 믿지 않고 relation transaction 안에서 재검증한다. Runtime의 서로 다른 연결/인스턴스는
+같은 coordinated fence를 사용한다. 비협력 raw writer·전역 policy 자동 전파까지 보장하는 의미는 아니다.
+
+고정 Django/DRF의 explicit-through 관계에 writable PrimaryKeyRelatedField(many=True)를 명시한 독립 runner로
+생략·전체 교체·retained identity/payload·거부·outer atomic rollback을 관찰한다. DRF의 implicit through 관계가
+자동 writable이라고 주장하지 않는다. Strict JSON int64·진단 차이는 DEV-0012에 기록하며 coercion 관찰은 parity로 세지 않는다.
+검증 이후 candidate Category 변경은 기본 DRF save가 재검증하지 않는다는 관찰을 따로 보존한다.
+GoDj 애플리케이션이 제공하는 transaction 내 scope 재검증을 Django 자체 보장으로 설명하지 않는다.

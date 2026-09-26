@@ -64,9 +64,10 @@ type Application struct {
 	registry      admin.Registry
 	input         serializers.Spec
 	output        serializers.Spec
-	encoder       serializers.ModelEncoder[models.Ticket]
+	encoder       serializers.ModelEncoder[ticketRecord]
 	parser        api.Parser
 	relations     project.Relations
+	collections   project.Collections
 	objects       project.Models
 	deleters      project.RelationDeleters
 	reportInput   serializers.Spec
@@ -102,6 +103,10 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
+	a.collections, err = project.BindCollections()
+	if err != nil {
+		return nil, err
+	}
 	a.deleters, err = project.BindRelationDeleters()
 	if err != nil {
 		return nil, err
@@ -125,17 +130,17 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "labels", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "labels", ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	a.encoder, err = serializers.NewModelEncoder(a.output, metadata, (models.TicketDescriptor{}).WriteFieldValue)
+	a.encoder, err = serializers.NewModelEncoder(a.output, metadata, ticketScalar, ticketCollection)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +196,8 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}
-	overrides := []formmodel.Override{formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "labels"}
+	overrides := []formmodel.Override{formmodel.OverrideField("labels", formmodel.WithRequired(false)), formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		if value.IsNull() {
 			return validation.NewErrors()
 		}
@@ -207,40 +212,37 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
-	if err := admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
+	if err := admin.RegisterModel(builder, admin.ModelConfig[ticketRecord]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		FormOverrides: overrides,
-		ListFields:    []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
+		FormOverrides:  overrides,
+		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
+		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
-		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
-			value, found, err := ticket(ctx, a.backend, id)
-			if !found || err != nil || value.CategoryID != a.categoryID {
-				return models.Ticket{}, false, err
-			}
-			return value, true, nil
+		Get: func(ctx context.Context, id int64) (ticketRecord, bool, error) {
+			return a.readTicketRecord(ctx, a.objects, id)
 		},
-		Snapshot: func(value models.Ticket) (admin.Object, error) {
-			return ticketProjector.Project(value, value.ID, value.Subject)
+		Snapshot: func(value ticketRecord) (admin.Object, error) {
+			return ticketSnapshot(value, ticketProjector)
 		},
-		Initial: func(value models.Ticket) (map[string]forms.Value, error) {
-			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
+		Initial: func(value ticketRecord) (map[string]forms.Value, error) {
+			return formmodel.InitialValues(metadata, form, value, ticketScalar, ticketCollection)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.Ticket, error) {
+		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (ticketRecord, error) {
 			input, err := fromForm(values)
 			if err != nil {
-				return models.Ticket{}, err
+				return ticketRecord{}, err
 			}
-			return a.create(ctx, input)
+			return a.create(ctx, principal, input)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, id int64, values forms.Values) (models.Ticket, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, id int64, values forms.Values) (ticketRecord, []string, error) {
 			input, err := fromForm(values)
 			if err != nil {
-				return models.Ticket{}, nil, err
+				return ticketRecord{}, nil, err
 			}
-			return a.update(ctx, id, input)
+			return a.update(ctx, principal, id, input)
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, id int64) (models.Ticket, error) { return a.delete(ctx, id) },
+		Delete: func(ctx context.Context, _ auth.Principal, id int64) (ticketRecord, error) { return a.delete(ctx, id) },
 	}); err != nil {
 		return err
 	}
@@ -253,12 +255,12 @@ func (a *Application) register(builder *admin.Builder) error {
 	return a.registerTicketLabels(builder)
 }
 
-func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[models.Ticket], error) {
+func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[ticketRecord], error) {
 	return a.listMatching(ctx, request, "")
 }
 
-func (a *Application) listMatching(ctx context.Context, request admin.ListRequest, source string) (admin.Page[models.Ticket], error) {
-	rows := models.TicketObjects.Using(a.backend).Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc())
+func (a *Application) listMatching(ctx context.Context, request admin.ListRequest, source string) (admin.Page[ticketRecord], error) {
+	rows := a.objects.ModelsTicket.Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc())
 	if request.Search != "" {
 		rows = rows.Filter(orm.Or(models.TicketFields.Subject.IContains(request.Search), models.TicketFields.ExternalPayload.IContains(request.Search)))
 	}
@@ -267,21 +269,32 @@ func (a *Application) listMatching(ctx context.Context, request admin.ListReques
 	}
 	total, err := rows.Count(ctx)
 	if err != nil {
-		return admin.Page[models.Ticket]{}, err
+		return admin.Page[ticketRecord]{}, err
 	}
 	rows, err = rows.Offset(request.Offset)
 	if err != nil {
-		return admin.Page[models.Ticket]{}, err
+		return admin.Page[ticketRecord]{}, err
 	}
 	rows, err = rows.Limit(request.Limit)
 	if err != nil {
-		return admin.Page[models.Ticket]{}, err
+		return admin.Page[ticketRecord]{}, err
 	}
-	items, err := rows.All(ctx)
-	return admin.Page[models.Ticket]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+	selected, err := a.withTicketLabels(rows).All(ctx)
+	if err != nil {
+		return admin.Page[ticketRecord]{}, err
+	}
+	items := make([]ticketRecord, len(selected))
+	for index, row := range selected {
+		items[index], err = ticketRecordFromModel(ctx, row)
+		if err != nil {
+			return admin.Page[ticketRecord]{}, err
+		}
+	}
+	return admin.Page[ticketRecord]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, nil
 }
 
 type ticketInput struct {
+	labels            []int64
 	subject           string
 	details           *string
 	closed            bool
@@ -299,6 +312,7 @@ type ticketInput struct {
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
+	labels, labelsOK := values.Integers("labels")
 	subject, subjectOK := values.String("subject")
 	closed, closedOK := values.Boolean("closed")
 	details, detailsOK := values.Get("details")
@@ -313,10 +327,10 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	expectedCost, expectedCostOK := values.Get("expected_cost")
 	externalReference, externalReferenceOK := values.Get("external_reference")
 	externalPayload, externalPayloadOK := values.Get("external_payload")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || !externalPayloadOK || len(values.All()) != 14 {
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || !externalPayloadOK || !labelsOK || len(values.All()) != 15 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
-	input := ticketInput{subject: subject, closed: closed}
+	input := ticketInput{subject: subject, closed: closed, labels: labels}
 	if !priority.IsNull() {
 		integer, ok := priority.AsInteger()
 		if !ok {
@@ -407,13 +421,20 @@ func fromForm(values forms.Values) (ticketInput, error) {
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
 	return models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 }
-func (a *Application) create(ctx context.Context, input ticketInput) (models.Ticket, error) {
-	var created models.Ticket
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
+func (a *Application) create(ctx context.Context, principal auth.Principal, input ticketInput) (ticketRecord, error) {
+	var created ticketRecord
+	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		if err := ticketWritePermission(ctx, principal, AddTicket); err != nil {
+			return err
+		}
 		if _, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(a.categoryID)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx); err != nil {
 			return err
 		} else if !found {
 			return admin.ErrObjectNotFound
+		}
+		keys, err := a.validateTicketLabelKeys(ctx, session, input.labels)
+		if err != nil {
+			return err
 		}
 		create := models.NewTicketCreate(input.subject, a.categoryID).WithClosed(input.closed)
 		if input.priority == nil {
@@ -476,7 +497,6 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithServiceAt(*input.serviceAt)
 		}
-		var err error
 		violations, err := models.TicketObjects.ValidateUniqueCreate(ctx, session, create)
 		if err != nil {
 			return err
@@ -484,22 +504,25 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		if !violations.Empty() {
 			return validation.Reject(violations, nil)
 		}
-		created, err = models.TicketObjects.Create(ctx, session, create)
+		raw, err := models.TicketObjects.Create(ctx, session, create)
 		if err != nil {
 			return writeRejection(err)
 		}
-		created, err = a.publishableTicket(ctx, session, created.ID)
+		if _, err := a.setTicketLabelKeys(ctx, session, raw, keys); err != nil {
+			return err
+		}
+		created, err = a.publishableTicket(ctx, session, raw.ID)
 		return err
 	})
 	if err != nil {
 		if contextErr := ctx.Err(); contextErr != nil {
-			return models.Ticket{}, errors.Join(err, contextErr)
+			return ticketRecord{}, errors.Join(err, contextErr)
 		}
-		return models.Ticket{}, err
+		return ticketRecord{}, err
 	}
 	return created, nil
 }
-func (a *Application) update(ctx context.Context, id int64, input ticketInput) (models.Ticket, []string, error) {
+func (a *Application) update(ctx context.Context, principal auth.Principal, id int64, input ticketInput) (ticketRecord, []string, error) {
 	patch := models.TicketPatch{}.WithSubject(input.subject).WithClosed(input.closed)
 	if input.priority == nil {
 		patch = patch.WithPriorityNull()
@@ -562,16 +585,19 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 	} else {
 		patch = patch.WithServiceAt(*input.serviceAt)
 	}
-	return a.updatePatch(ctx, id, patch, true)
+	return a.updatePatch(ctx, principal, id, patch, input.labels, true)
 }
 
 // Resolve the current row and apply explicit changes in the same transaction.
 // Comparing assignments preserves omitted fields and does not expose or mutate
 // the generated mutation's private model value.
-func (a *Application) updatePatch(ctx context.Context, id int64, patch models.TicketPatch, formInput bool) (models.Ticket, []string, error) {
-	var updated models.Ticket
+func (a *Application) updatePatch(ctx context.Context, principal auth.Principal, id int64, patch models.TicketPatch, labels []int64, formInput bool) (ticketRecord, []string, error) {
+	var updated ticketRecord
 	var changed []string
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
+	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		if err := ticketWritePermission(ctx, principal, ChangeTicket); err != nil {
+			return err
+		}
 		current, found, err := ticket(ctx, session, id)
 		if err != nil {
 			return err
@@ -579,87 +605,111 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 		if !found || current.CategoryID != a.categoryID {
 			return admin.ErrObjectNotFound
 		}
-		mutation := patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil {
-			var queryError *query.Error
-			if errors.As(err, &queryError) && queryError.Code == query.CodeEmptyPatch {
-				updated = current
-				return nil
-			}
-			return err
-		}
-		if formInput {
-			for _, assignment := range mutation.Assignments() {
-				if assignment.Field().Name() != "external_payload" {
-					continue
-				}
-				before, after := jsonvalue.Null(), jsonvalue.Null()
-				if current.ExternalPayload != nil {
-					before = *current.ExternalPayload
-				}
-				if !assignment.Value().IsNull() {
-					var valid bool
-					after, valid = assignment.Value().JSON()
-					if !valid {
-						return errors.New("helpdesk: invalid JSON form assignment")
-					}
-				}
-				// Form ignores object order and equivalent floating spellings,
-				// and cannot distinguish SQL NULL from a stored JSON null. Keep
-				// the original document even when another field changes. API
-				// input retains its separate explicit-null and exact-token rules.
-				if forms.JSON(before).Equal(forms.JSON(after)) {
-					if current.ExternalPayload == nil {
-						patch = patch.WithExternalPayloadNull()
-					} else {
-						patch = patch.WithExternalPayload(before)
-					}
-				}
-			}
-			mutation = patch.BuildPatch(current)
-			if err := mutation.Err(); err != nil {
+		var keys []int64
+		if labels != nil {
+			keys, err = a.validateTicketLabelKeys(ctx, session, labels)
+			if err != nil {
 				return err
 			}
 		}
-		descriptor := models.TicketDescriptor{}
-		assignments := mutation.Assignments()
-		for _, field := range descriptor.Metadata().Fields {
-			for _, assignment := range assignments {
-				if assignment.Field().Name() != field.Name {
-					continue
-				}
-				before, valid := descriptor.WriteFieldValue(current, field)
-				if !valid {
-					return errors.New("helpdesk: field cannot be read for update")
-				}
-				if !ticketValuesEqual(before, assignment.Value()) {
-					changed = append(changed, field.Name)
-				}
-			}
-		}
-		if len(changed) == 0 {
-			updated = current
-			return nil
-		}
-		violations, err := models.TicketObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+		raw, scalarChanged, err := updateTicketScalars(ctx, session, current, patch, formInput)
 		if err != nil {
 			return err
 		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
+		changed = scalarChanged
+		if labels != nil {
+			collectionChanged, err := a.setTicketLabelKeys(ctx, session, raw, keys)
+			if err != nil {
+				return err
+			}
+			if collectionChanged {
+				changed = append(changed, "labels")
+			}
 		}
-		updated, err = models.TicketObjects.Update(ctx, session, current, patch)
-		if err != nil {
-			return writeRejection(err)
-		}
-		updated, err = a.publishableTicket(ctx, session, updated.ID)
+		updated, err = a.publishableTicket(ctx, session, raw.ID)
 		return err
 	})
 	if err != nil {
 		if contextErr := ctx.Err(); contextErr != nil {
-			return models.Ticket{}, nil, errors.Join(err, contextErr)
+			return ticketRecord{}, nil, errors.Join(err, contextErr)
+		}
+		return ticketRecord{}, nil, err
+	}
+	return updated, changed, nil
+}
+
+func updateTicketScalars(ctx context.Context, session db.Session, current models.Ticket, patch models.TicketPatch, formInput bool) (models.Ticket, []string, error) {
+	var changed []string
+	mutation := patch.BuildPatch(current)
+	if err := mutation.Err(); err != nil {
+		var queryError *query.Error
+		if errors.As(err, &queryError) && queryError.Code == query.CodeEmptyPatch {
+			return current, nil, nil
 		}
 		return models.Ticket{}, nil, err
+	}
+	if formInput {
+		for _, assignment := range mutation.Assignments() {
+			if assignment.Field().Name() != "external_payload" {
+				continue
+			}
+			before, after := jsonvalue.Null(), jsonvalue.Null()
+			if current.ExternalPayload != nil {
+				before = *current.ExternalPayload
+			}
+			if !assignment.Value().IsNull() {
+				var valid bool
+				after, valid = assignment.Value().JSON()
+				if !valid {
+					return models.Ticket{}, nil, errors.New("helpdesk: invalid JSON form assignment")
+				}
+			}
+			// Form ignores object order and equivalent floating spellings,
+			// and cannot distinguish SQL NULL from a stored JSON null. Keep
+			// the original document even when another field changes. API
+			// input retains its separate explicit-null and exact-token rules.
+			if forms.JSON(before).Equal(forms.JSON(after)) {
+				if current.ExternalPayload == nil {
+					patch = patch.WithExternalPayloadNull()
+				} else {
+					patch = patch.WithExternalPayload(before)
+				}
+			}
+		}
+		mutation = patch.BuildPatch(current)
+		if err := mutation.Err(); err != nil {
+			return models.Ticket{}, nil, err
+		}
+	}
+	descriptor := models.TicketDescriptor{}
+	assignments := mutation.Assignments()
+	for _, field := range descriptor.Metadata().Fields {
+		for _, assignment := range assignments {
+			if assignment.Field().Name() != field.Name {
+				continue
+			}
+			before, valid := descriptor.WriteFieldValue(current, field)
+			if !valid {
+				return models.Ticket{}, nil, errors.New("helpdesk: field cannot be read for update")
+			}
+			if !ticketValuesEqual(before, assignment.Value()) {
+				changed = append(changed, field.Name)
+			}
+		}
+	}
+	if len(changed) == 0 {
+		return current, nil, nil
+	}
+	violations, err := models.TicketObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+	if err != nil {
+		return models.Ticket{}, nil, err
+	}
+	if !violations.Empty() {
+		return models.Ticket{}, nil, validation.Reject(violations, nil)
+	}
+	updated, err := models.TicketObjects.Update(ctx, session, current, patch)
+	if err != nil {
+		return models.Ticket{}, nil, writeRejection(err)
 	}
 	return updated, changed, nil
 }
@@ -667,24 +717,28 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 // Native storage can normalize a JSON numeric token into a longer spelling.
 // Re-read and validate the real response inside the transaction, including the
 // detail/list wrapper, so a successful write cannot precede a renderer failure.
-func (a *Application) publishableTicket(ctx context.Context, session db.Session, id int64) (models.Ticket, error) {
-	stored, found, err := ticket(ctx, session, id)
+func (a *Application) publishableTicket(ctx context.Context, session db.Session, id int64) (ticketRecord, error) {
+	objects, err := project.UsingSession(session)
 	if err != nil {
-		return models.Ticket{}, err
+		return ticketRecord{}, err
+	}
+	stored, found, err := a.readTicketRecord(ctx, objects, id)
+	if err != nil {
+		return ticketRecord{}, err
 	}
 	if !found {
-		return models.Ticket{}, admin.ErrObjectNotFound
+		return ticketRecord{}, admin.ErrObjectNotFound
 	}
 	value, err := a.encoder.Encode(stored)
 	if err != nil {
-		return models.Ticket{}, err
+		return ticketRecord{}, err
 	}
 	list, err := serializers.NewList(value)
 	if err != nil {
-		return models.Ticket{}, err
+		return ticketRecord{}, err
 	}
 	if _, err := serializers.Encode(list, serializers.Limits{}); err != nil {
-		return models.Ticket{}, err
+		return ticketRecord{}, err
 	}
 	return stored, nil
 }
@@ -700,11 +754,15 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 	return validation.NewErrors()
 }
 
-func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, error) {
-	var removed models.Ticket
+func (a *Application) delete(ctx context.Context, id int64) (ticketRecord, error) {
+	var removed ticketRecord
 	target := models.NewTicketWithID(id)
 	scoped := scopedRelationDelete{backend: a.backend, check: func(session db.RelationSession) error {
-		current, found, err := ticket(ctx, session, id)
+		objects, err := project.UsingSession(session)
+		if err != nil {
+			return err
+		}
+		current, found, err := a.readTicketRecord(ctx, objects, id)
 		if err != nil {
 			return err
 		}
@@ -715,7 +773,7 @@ func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, erro
 		return nil
 	}}
 	if _, err := a.deleters.ModelsTicket.Delete(ctx, scoped, &target); err != nil {
-		return models.Ticket{}, err
+		return ticketRecord{}, err
 	}
 	return removed, nil
 }
@@ -762,7 +820,7 @@ func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Respo
 	return api.JSONWithLimits(http.StatusOK, value, serializers.Limits{MaxValues: maximumJSONListValues})
 }
 
-func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiCreate(request *web.Request, principal auth.Principal) (web.Response, error) {
 	values, response, handled, err := a.bindInput(request, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
@@ -772,6 +830,9 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	closed, _ := values.Get("closed")
 	boolean, _ := closed.AsBoolean()
 	input := ticketInput{subject: text, closed: boolean}
+	if labels, present := values.Get("labels"); present {
+		input.labels, _ = labels.AsIntegers()
+	}
 	if priority, present := values.Get("priority"); present && !priority.IsNull() {
 		integer, _ := priority.AsInteger()
 		input.priority = &integer
@@ -820,15 +881,9 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 		clockValue, _ := serviceAt.AsTime()
 		input.serviceAt = &clockValue
 	}
-	created, err := a.create(request.Context(), input)
-	if errors.Is(err, admin.ErrObjectNotFound) {
-		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
-	}
+	created, err := a.create(request.Context(), principal, input)
 	if err != nil {
-		if response, handled, responseErr := api.ValidationErrorResponse(err); handled {
-			return response, responseErr
-		}
-		return web.Response{}, err
+		return objectFailure(err)
 	}
 	value, err := a.encoder.Encode(created)
 	if err != nil {
@@ -844,9 +899,9 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 	if !valid || id <= 0 {
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}
-	selected, found, err := a.objects.ModelsTicket.
+	selected, found, err := a.withTicketLabels(a.objects.ModelsTicket.
 		Filter(models.TicketFields.ID.Exact(id), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).
-		OrderBy(models.TicketFields.ID.Asc()).
+		OrderBy(models.TicketFields.ID.Asc())).
 		SelectRelated(a.objects.ModelsTicket.Related.Category).First(request.Context())
 	if err != nil {
 		return web.Response{}, err
@@ -858,7 +913,7 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 	if err != nil {
 		return web.Response{}, err
 	}
-	raw, err := selected.Unwrap()
+	raw, err := ticketRecordFromModel(request.Context(), selected)
 	if err != nil {
 		return web.Response{}, err
 	}

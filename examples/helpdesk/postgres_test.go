@@ -2,6 +2,7 @@ package helpdesk_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
+	"github.com/progresshans/godj/examples/helpdesk/models"
 )
 
 func TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance(t *testing.T) {
@@ -44,5 +47,13 @@ func TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance(t *testing.T) {
 	})
 	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) {
 		return postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
+	}, func(ctx context.Context, backend db.Mutator, categoryID int64) (int64, error) {
+		// Fixture-only sequence setup uses the schema this test created. The
+		// product then allocates the large key through its normal generated INSERT.
+		if _, err := connection.Exec(ctx, "SELECT pg_catalog.setval(pg_catalog.pg_get_serial_sequence($1, 'id'), $2, false)", pgx.Identifier{schema, "helpdesk_label"}.Sanitize(), int64(1<<60)); err != nil {
+			return 0, errors.New("prepare owned label sequence failed")
+		}
+		label, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Collection large key", categoryID))
+		return label.ID, err
 	})
 }

@@ -22,8 +22,8 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 - [x] 명시한 unique tuple에 대한 native conflict insert와 명확한 삽입 여부를 제공하고 동시 중복·다른 제약·오류·transaction 경계를 검증
 - [x] 공통 runtime·generated forward/reverse root manager의 add/remove/clear/set, retained payload·self symmetry·취소·unknown outcome·cache 소유권을 연결
 - [x] 통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결
-- [ ] 같은 Query AST에서 관계 조회의 multiplicity·명시적 distinct·prefetch를 연결
-- [ ] Ticket 컬렉션 Form/Admin/API/OpenAPI·client에서 권한·CSRF·양쪽 Category·전체 후보·동시성·실패·durability를 확인
+- [x] 같은 Query AST에서 관계 조회의 multiplicity·명시적 distinct·prefetch를 연결
+- [x] Ticket 컬렉션 Form/Admin/API/OpenAPI·client에서 권한·CSRF·양쪽 Category·전체 후보·동시성·실패·durability를 확인
 - [ ] 영향 compile/gofmt/drift·양 DB/race/CGO/process와 명시한 Hosted 통합 milestone의 source·환경·범위를 기록
 
 ## 현재와 다음
@@ -84,7 +84,12 @@ PostgreSQL FETCH rowset을 닫은 뒤 같은 세션에서 하위 조회·쓰기�
 Admin은 명시한 후보 권한과 전체 선택 집합을 재검증하며, 여러 초기값·거부된 원문을 escape해 보존한다.
 Ticket.labels를 기존 TicketLabel through와 연결하는 선언·generated accessor·0020 historical migration을 추가했다.
 선언의 적용/역적용·재시작은 기존 행·link ID·삭제된 ID 이후의 sequence 상한을 보존한다.
-Ticket의 실제 컬렉션 편집·저장·API/client와 환경별 통합은 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+Ticket의 실제 Form/Admin·API/OpenAPI·독립 생성 client에 라벨 집합 편집을 연결했다.
+일반 integer-list serializer는 I/O 없이 정확한 키·생략/빈 배열을 보존하고, 순수 model encoder는 이미 읽은 관계만 투영한다.
+Ticket 저장은 현재 owner·전체 target scope와 admitted 권한을 확인하고 scalar·Set·응답 재조회를 같은 relation transaction에서 수행한다.
+고정 Django/DRF의 양 DB 48개 관찰을 비교하고, 엄격한 JSON 타입·진단과 저장 시 재검증 차이는 따로 기록했다.
+같은 source의 영향 normal/race/CGO=0에서 양 DB HTTP·실패/취소·독립 runtime 경쟁·재시작과 생성 client를 검증했다.
+GDJ-0099 Hosted 전체 milestone은 다음 행동이며, 로컬 영향 검증으로 마지막 통합 조건을 완료 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/helpdesk/models"
@@ -13,15 +12,15 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-func (a *Application) apiUpdate(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiUpdateMode(request, serializers.ModeFull)
+func (a *Application) apiUpdate(request *web.Request, principal auth.Principal) (web.Response, error) {
+	return a.apiUpdateMode(request, principal, serializers.ModeFull)
 }
 
-func (a *Application) apiPatch(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiUpdateMode(request, serializers.ModePartial)
+func (a *Application) apiPatch(request *web.Request, principal auth.Principal) (web.Response, error) {
+	return a.apiUpdateMode(request, principal, serializers.ModePartial)
 }
 
-func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode) (web.Response, error) {
+func (a *Application) apiUpdateMode(request *web.Request, principal auth.Principal, mode serializers.Mode) (web.Response, error) {
 	id, valid := request.Int64Parameter("id")
 	if !valid || id <= 0 {
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
@@ -31,9 +30,12 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 		return response, err
 	}
 	patch := models.TicketPatch{}
+	var labels []int64
 	for _, entry := range values.All() {
 		value := entry.Value()
 		switch entry.Name() {
+		case "labels":
+			labels, _ = value.AsIntegers()
 		case "subject":
 			text, _ := value.AsString()
 			patch = patch.WithSubject(text)
@@ -128,15 +130,9 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 			return web.Response{}, errors.New("helpdesk: validated update contains an unhandled field")
 		}
 	}
-	updated, _, err := a.updatePatch(request.Context(), id, patch, false)
-	if errors.Is(err, admin.ErrObjectNotFound) {
-		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
-	}
+	updated, _, err := a.updatePatch(request.Context(), principal, id, patch, labels, false)
 	if err != nil {
-		if response, handled, responseErr := api.ValidationErrorResponse(err); handled {
-			return response, responseErr
-		}
-		return web.Response{}, err
+		return objectFailure(err)
 	}
 	value, err := a.encoder.Encode(updated)
 	if err != nil {

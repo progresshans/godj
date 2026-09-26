@@ -97,9 +97,11 @@ type uniqueHelpdeskBackend struct {
 	transactions, checks, inserts, updates int
 }
 
-func (b *uniqueHelpdeskBackend) Atomic(ctx context.Context, fn func(db.Session) error) error {
+func (b *uniqueHelpdeskBackend) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
 	b.transactions++
-	err := b.Backend.Atomic(ctx, func(session db.Session) error { return fn(uniqueHelpdeskSession{Session: session, owner: b}) })
+	err := b.Backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		return fn(decoratedHelpdeskRelation{Session: uniqueHelpdeskSession{Session: session, owner: b}, relation: session})
+	})
 	if b.mode == "rollback_unknown" && err != nil {
 		return errors.Join(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown, Detail: "injected rollback uncertainty"})
 	}

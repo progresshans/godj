@@ -32,6 +32,7 @@ const (
 	FieldDecimal
 	FieldUUID
 	FieldJSON
+	FieldIntegerList
 )
 
 const (
@@ -205,7 +206,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat, FieldDecimal, FieldUUID, FieldJSON:
+	case FieldBoolean, FieldInteger, FieldIntegerList, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat, FieldDecimal, FieldUUID, FieldJSON:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -232,6 +233,10 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	if value.kind == ValueNull {
 		return nullable
+	}
+	if kind == FieldIntegerList {
+		_, ok := value.AsIntegers()
+		return ok
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
@@ -425,6 +430,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 	}
 	if field.kind == FieldJSON {
 		return cleanJSONValue(field, value)
+	}
+	if field.kind == FieldIntegerList {
+		return cleanIntegerList(field, value)
 	}
 	if field.kind == FieldUUID {
 		return cleanUUIDValue(field, value)

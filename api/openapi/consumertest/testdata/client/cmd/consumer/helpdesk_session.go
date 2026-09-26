@@ -209,6 +209,15 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err := checkHelpdeskTicketLabels(ctx, client, readOnly, transport, state, readOnlyState, seed.ID, created.ID, target.OtherTicketID, target.OtherLabelID, target.OtherTicketLabelID); err != nil {
 		return err
 	}
+	retainedLabel, err := checkHelpdeskTicketCollections(ctx, client, readOnly, transport, state, created.ID, target.OtherTicketID, target.OtherLabelID)
+	if err != nil {
+		return err
+	}
+	for index := range expected {
+		if expected[index].ID == seed.ID || expected[index].ID == created.ID {
+			expected[index].Labels = []int64{retainedLabel}
+		}
+	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

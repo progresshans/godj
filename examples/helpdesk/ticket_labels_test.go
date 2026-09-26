@@ -347,6 +347,21 @@ type ticketLabelFaultRelation struct {
 	removed int
 }
 
+func (s *ticketLabelFaultRelation) ValidateSession(ctx context.Context) error {
+	validator, ok := s.RelationSession.(db.SessionValidator)
+	if !ok {
+		return errors.New("link fixture missing session validation")
+	}
+	return validator.ValidateSession(ctx)
+}
+func (s *ticketLabelFaultRelation) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+	inserter, ok := s.RelationSession.(db.ConflictInserter)
+	if !ok {
+		return false, errors.New("link fixture missing native conflict insertion")
+	}
+	return inserter.InsertOnConflict(ctx, plan)
+}
+
 func (s *ticketLabelFaultRelation) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	s.owner.queries++
 	return s.RelationSession.Query(ctx, plan)

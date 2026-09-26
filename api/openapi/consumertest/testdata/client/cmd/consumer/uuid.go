@@ -54,7 +54,7 @@ func checkHelpdeskUUIDUpdates(ctx context.Context, client *hs.Client, transport 
 }
 
 func checkGeneratedUUIDWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"labels":[],"external_payload":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
 	clear := hs.OptNilUUID{}
 	clear.SetToNull()
 	type sample struct {

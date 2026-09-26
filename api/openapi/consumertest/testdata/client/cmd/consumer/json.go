@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
@@ -15,6 +16,10 @@ import (
 func sameHelpdeskTicket(left, right hs.Ticket) bool {
 	// The generated any-JSON field is owned raw bytes, making Ticket no longer
 	// Go-comparable. Compare every field, retaining exact JSON numeric spelling.
+	if !slices.Equal(left.Labels, right.Labels) {
+		return false
+	}
+	left.Labels, right.Labels = nil, nil
 	return reflect.DeepEqual(left, right)
 }
 
@@ -58,7 +63,7 @@ func checkHelpdeskJSONUpdates(ctx context.Context, client *hs.Client, transport 
 }
 
 func checkGeneratedJSONWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"labels":[],"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
 	for _, raw := range []string{"", `null`, `false`, `0`, `1.00`, `1e400`, `1e-400`, `9007199254740993.00`, `340282366920938463463374607431768211455`, `[]`, `{}`, `""`, `"{\"a\":1}"`, `{"":{"__proto__":[null,false]}}`} {
 		calls := 0
 		responseValue := raw
