@@ -38,9 +38,10 @@ func parsePackage(decoder *json.Decoder) error {
 
 func parseApp(decoder *json.Decoder, budget *specBudget) error {
 	return wirejson.Object(decoder, []string{"alias", "package", "schema"}, map[string]func() error{
-		"alias":   func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"package": func() error { return parsePackage(decoder) },
-		"schema":  func() error { return parseSchema(decoder, budget) },
+		"alias":    func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"package":  func() error { return parsePackage(decoder) },
+		"schema":   func() error { return parseSchema(decoder, budget) },
+		"external": func() error { return wirejson.Bool(decoder) },
 	})
 }
 

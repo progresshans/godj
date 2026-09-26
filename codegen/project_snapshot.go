@@ -46,15 +46,17 @@ type normalizedProjectSpec struct {
 }
 
 type preparedProjectApp struct {
-	Alias   string
-	Package PackageSpec
+	Alias    string
+	Package  PackageSpec
+	External bool
 	preparedSchema
 }
 
 type projectSnapshotApp struct {
-	Alias   string                 `json:"alias"`
-	Package projectPackageDocument `json:"package"`
-	Schema  ir.Schema              `json:"schema"`
+	Alias    string                 `json:"alias"`
+	Package  projectPackageDocument `json:"package"`
+	Schema   ir.Schema              `json:"schema"`
+	External bool                   `json:"external,omitempty"`
 }
 
 type projectSnapshotDocument struct {
@@ -101,7 +103,7 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 	if err := validateManyToManyProject(schemas); err != nil {
 		return normalizedProjectSpec{}, err
 	}
-	project, err := normalizeProjectPackage("project", input.Project)
+	project, err := normalizeProjectPackage("project", input.Project, false)
 	if err != nil {
 		return normalizedProjectSpec{}, err
 	}
@@ -115,7 +117,7 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 		if !validRelationObjectAlias(candidate.Alias) || !validRelationReverseAlias(candidate.Alias) {
 			return normalizedProjectSpec{}, fmt.Errorf("invalid project app alias %q", candidate.Alias)
 		}
-		pkg, err := normalizeProjectPackage(fmt.Sprintf("apps[%d]", index), candidate.Package)
+		pkg, err := normalizeProjectPackage(fmt.Sprintf("apps[%d]", index), candidate.Package, candidate.External)
 		if err != nil {
 			return normalizedProjectSpec{}, err
 		}
@@ -129,7 +131,7 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 		if err := validateProjectWireString(fmt.Sprintf("apps[%d] owner", index), "app:"+prepared.schema.AppLabel); err != nil {
 			return normalizedProjectSpec{}, err
 		}
-		apps[index] = preparedProjectApp{Alias: candidate.Alias, Package: pkg, preparedSchema: prepared}
+		apps[index] = preparedProjectApp{Alias: candidate.Alias, Package: pkg, preparedSchema: prepared, External: candidate.External}
 	}
 
 	sort.Slice(apps, func(left, right int) bool {
@@ -161,15 +163,17 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 			return normalizedProjectSpec{}, fmt.Errorf("duplicate project import path %q", app.Package.ImportPath)
 		}
 		imports[app.Package.ImportPath] = struct{}{}
-		foldedDirectory := strings.ToLower(app.Package.Directory)
-		if previous, duplicate := directories[foldedDirectory]; duplicate {
-			return normalizedProjectSpec{}, fmt.Errorf(
-				"duplicate project package directory %q conflicts with %q",
-				app.Package.Directory,
-				previous,
-			)
+		if !app.External {
+			foldedDirectory := strings.ToLower(app.Package.Directory)
+			if previous, duplicate := directories[foldedDirectory]; duplicate {
+				return normalizedProjectSpec{}, fmt.Errorf(
+					"duplicate project package directory %q conflicts with %q",
+					app.Package.Directory,
+					previous,
+				)
+			}
+			directories[foldedDirectory] = app.Package.Directory
 		}
-		directories[foldedDirectory] = app.Package.Directory
 		if _, duplicate := appLabels[app.schema.AppLabel]; duplicate {
 			return normalizedProjectSpec{}, fmt.Errorf("duplicate project app label %q", app.schema.AppLabel)
 		}
@@ -179,7 +183,7 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 	return normalizedProjectSpec{project: project, apps: apps}, nil
 }
 
-func normalizeProjectPackage(owner string, input PackageSpec) (PackageSpec, error) {
+func normalizeProjectPackage(owner string, input PackageSpec, external bool) (PackageSpec, error) {
 	for _, value := range []struct {
 		name  string
 		value string
@@ -198,7 +202,7 @@ func normalizeProjectPackage(owner string, input PackageSpec) (PackageSpec, erro
 	if !identifiers.ImportPath(input.ImportPath) {
 		return PackageSpec{}, fmt.Errorf("invalid %s import path %q", owner, input.ImportPath)
 	}
-	if !validProjectDirectory(input.Directory) {
+	if (external && input.Directory != "") || (!external && !validProjectDirectory(input.Directory)) {
 		return PackageSpec{}, fmt.Errorf("invalid %s package directory %q", owner, input.Directory)
 	}
 	return input, nil
@@ -254,9 +258,10 @@ func projectSnapshotWithABI(
 	}
 	for index, app := range input.apps {
 		document.Apps[index] = projectSnapshotApp{
-			Alias:   app.Alias,
-			Package: projectPackageDocumentFromSpec(app.Package),
-			Schema:  app.schema,
+			Alias:    app.Alias,
+			Package:  projectPackageDocumentFromSpec(app.Package),
+			Schema:   app.schema,
+			External: app.External,
 		}
 	}
 	data, err := json.Marshal(document)

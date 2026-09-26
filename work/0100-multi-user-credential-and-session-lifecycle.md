@@ -29,5 +29,9 @@ GDJ-0099와 credential/session 기반의 Hosted 통합은 완료했다. 이후 �
 Authenticate/Resolve의 현재 credential과 권한 snapshot을 한 번에 반환하고, ID와 credential stamp를 서버 세션에 함께 저장한다.
 비밀번호 교체·재해싱과 권한·username 변경의 서로 다른 세션 결과를 독립 Django 기준과 실제 HTTP에서 검증한다.
 이는 다중 사용자 저장이나 password maintenance endpoint의 구현 완료가 아니다.
-다음은 모델 기반 사용자·권한 저장과 기존 operator 상태를 연결하는 migration/권한 경계다.
+재사용 가능한 사용자 앱에 필요한 [외부 app 소유권](../docs/adr/0077-reusable-app-models-and-host-relation-ownership.md)을 구현하고 영향 checkpoint를 통과했다.
+User·Group·Permission 선언과 초기 migration, 별도 호스트의 generated relation 소비자를 연결했다.
+호스트가 라이브러리 파일을 수정하지 않고 전체 FK·CASCADE·PROTECT를 소유하는 경계를 양 DB·normal/race/CGO=0과 실제 generated 소비자에서 검증했다.
+다음은 저장 모델의 비밀 표현 경계·현재 권한 조회와 기존 operator 상태를 보존하는 migration/admission이다.
+다중 사용자 runtime·관리 UI/API·operator adoption은 아직 연결하지 않았다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

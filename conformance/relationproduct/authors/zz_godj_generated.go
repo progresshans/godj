@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "6917458cd4b40e55f3155e604d04508c12cffad5fccc3f8dca76065c38d35e79"
 
 type Author struct {
@@ -139,3 +139,5 @@ func authorMetadata() ir.Model {
 		},
 	}
 }
+
+type GoDjAppPart0_c7721771bb555ad25e443abf4a2f96df914dd5f73f7d1562cbe58ab05ac92abc struct{}

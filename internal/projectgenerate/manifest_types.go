@@ -17,6 +17,7 @@ type manifestApp struct {
 	AppLabel     string          `json:"app_label"`
 	Package      manifestPackage `json:"package"`
 	SchemaSHA256 string          `json:"schema_sha256"`
+	External     bool            `json:"external,omitempty"`
 }
 
 type manifestFile struct {

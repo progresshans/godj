@@ -92,15 +92,17 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 	relationPackages := make([]normalizedRelationPackage, len(input.apps))
 
 	for index, app := range input.apps {
-		owner := "app:" + app.schema.AppLabel
-		files, err := renderAppSources(app.Package.PackageName, app.preparedSchema, appProjection)
-		if err != nil {
-			return nil, fmt.Errorf("render app %s: %w", app.Package.Directory, err)
-		}
-		for _, file := range files {
-			file.path = projectGeneratedPath(app.Package.Directory, file.path)
-			file.owner = owner
-			result = append(result, file)
+		if !app.External {
+			owner := "app:" + app.schema.AppLabel
+			files, err := renderAppSources(app.Package.PackageName, app.preparedSchema, appProjection)
+			if err != nil {
+				return nil, fmt.Errorf("render app %s: %w", app.Package.Directory, err)
+			}
+			for _, file := range files {
+				file.path = projectGeneratedPath(app.Package.Directory, file.path)
+				file.owner = owner
+				result = append(result, file)
+			}
 		}
 
 		bridgePackages[index] = BridgePackage{Alias: app.Alias, ImportPath: app.Package.ImportPath}
@@ -168,6 +170,9 @@ func validateProjectOutputRoster(input normalizedProjectSpec) error {
 		return nil
 	}
 	for _, app := range input.apps {
+		if app.External {
+			continue
+		}
 		for _, filename := range []string{
 			"zz_godj_generated.go",
 			"zz_godj_relation.go",
@@ -215,7 +220,9 @@ func sealProjectSnapshot(
 	projectMarker := "goDjProjectSnapshot_" + snapshotSHA256
 	appByDirectory := make(map[string]struct{}, len(input.apps))
 	for _, app := range input.apps {
-		appByDirectory[app.Package.Directory] = struct{}{}
+		if !app.External {
+			appByDirectory[app.Package.Directory] = struct{}{}
+		}
 		for _, model := range app.storage.Models {
 			if model.GoName == appMarker {
 				return fmt.Errorf("project snapshot marker %s conflicts with model %s.%s", appMarker, app.schema.AppLabel, model.Name)
@@ -239,7 +246,13 @@ func sealProjectSnapshot(
 				fmt.Fprintf(&marker, "type %s struct{}\n\n", projectMarker)
 				fmt.Fprintf(&marker, "var _ %s\n", projectMarker)
 				for _, app := range input.apps {
-					fmt.Fprintf(&marker, "var _ %s.%s\n", app.Alias, appMarker)
+					if app.External {
+						for part := appMain; part <= appProjection; part++ {
+							fmt.Fprintf(&marker, "var _ %s.%s\n", app.Alias, appSnapshotMarker(app.hash, part))
+						}
+					} else {
+						fmt.Fprintf(&marker, "var _ %s.%s\n", app.Alias, appMarker)
+					}
 				}
 				declarations = marker.String()
 			} else {

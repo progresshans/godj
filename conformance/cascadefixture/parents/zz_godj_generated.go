@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "bdc690c19ffaf2819741211cb2c985a3d347399b767962789fade6f32d07ae42"
 
 type Label struct {
@@ -1173,4 +1173,6 @@ func rootLabelsMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_257e23cfce2ac0b7dc1993ffb91e0799b533ae33a29f42e4ce5d3be05a19a5b9 struct{}
+type GoDjAppPart0_2f75e5e49a10bf0f66c91691387e5bce9d25117950a03a499f17f18f030d7e70 struct{}
+
+type GoDjProjectSnapshot_0a1bc549e29d329ec1b399d73ecd4616e4986b653b72425d881c19f8220fffda struct{}

@@ -17,7 +17,7 @@ import (
 	_godjtime "time"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "e9c1d9c7cbb5bf6e6a84963653497a4f608c3cac105a74aee21362ca36bd6eb4"
 
 type Category struct {
@@ -2171,4 +2171,6 @@ func ticketLabelMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_188bc012f908008e77342603f094c24960057d7328316d2574cc0ae0118648bd struct{}
+type GoDjAppPart0_5f42928abb0fb813592b966c9b1b9789e769333be7a003a856368dc1a5aa06db struct{}
+
+type GoDjProjectSnapshot_01efd02b97c148b997a6bac28221395d42f9498242cb45508c950a2d50926966 struct{}

@@ -34,6 +34,10 @@ type AppSpec struct {
 	Alias   string
 	Package PackageSpec
 	Schema  ir.Schema
+	// External imports an independently generated app without owning any of
+	// its files. Its package directory must be empty. The host still owns all
+	// cross-app bindings and verifies the imported schema and generation ABI.
+	External bool
 }
 
 // ProjectSpec is the only semantic input to whole-project generation.

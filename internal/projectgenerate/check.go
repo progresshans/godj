@@ -58,7 +58,7 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 			resultErr = fmt.Errorf("check generated project: %w: selected project root changed", ErrGeneratedConflict)
 		}
 	}()
-	_, namespaceErr := captureSourceNamespaceSnapshot(ctx, root, expectedManifest, namespacePlan)
+	namespace, namespaceErr := captureSourceNamespaceSnapshot(ctx, root, expectedManifest, namespacePlan)
 	if namespaceErr != nil && !errors.Is(namespaceErr, ErrGeneratedConflict) {
 		return report, fmt.Errorf("check generated project: %w", namespaceErr)
 	}
@@ -164,6 +164,9 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 		}
 	}
 	allowed := make(map[string]struct{}, len(expectedFiles))
+	for _, relative := range namespace.readOnlyPaths {
+		allowed[relative] = struct{}{}
+	}
 	for filename := range expectedFiles {
 		allowed[filename] = struct{}{}
 	}
@@ -191,6 +194,9 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 		return report.Drifts[left].Kind < report.Drifts[right].Kind
 	})
 	if report.Clean() && namespaceErr == nil {
+		if err := verifySourceNamespaceSnapshot(ctx, root, expectedManifest, namespacePlan, namespace); err != nil {
+			return report, fmt.Errorf("check generated project: %w", err)
+		}
 		return report, nil
 	}
 	var causes []error

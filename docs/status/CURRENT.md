@@ -8,23 +8,20 @@
 
 ## 현재
 
-ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation runtime·generated model/session facade를 연결했다.
-Typed/dynamic Query AST의 mixed 관계 조건, direct/nested/filtered/eager prefetch와 owner별 named slice,
-배치 model graph와 generated Iterate를 구현했다. 실행 source·환경별 검증은 TEST_EVIDENCE를 따른다.
-공통 ModelMultipleChoice와 Ticket.labels의 실제 Form/Admin·API/OpenAPI·독립 생성 client를 연결했다.
-기존 TicketLabel 행·키를 보존하며 scalar 변경과 전체 라벨 집합 교체를 같은 relation transaction에서 처리한다.
-권한·CSRF·양쪽 Category, 생략/빈 배열, 실패·취소·동시성·재시작을 양 DB 영향 범위에서 검증했다.
-지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
-[관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
+불변 Credential과 서버 세션의 stamp를 연결하고 누적 ManyToMany·Ticket 소비자와 Hosted 통합을 완료했다.
+이후 User·Group·Permission 선언·초기 migration과 재사용 앱의 모델·파일 소유권을 구현했다.
+외부 앱의 schema/ABI·소스 변경을 확인하고 호스트가 전체 관계·CASCADE·PROTECT를 소유한다.
+대소문자 경로 겹침도 거부하며 양 DB 및 생성·CLI 소비자의 영향 checkpoint를 실행했다.
+[Credential 결정](../adr/0076-credential-snapshots-and-session-binding.md),
+[외부 app 결정](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
+[구현 현황](IMPLEMENTATION_MATRIX.md)이 현재 지원 범위를 설명한다.
+새 identity/생성 변경에 이전 Hosted 전체 성공을 전이하지 않는다.
 
 ## 다음 행동
 
-고정 Django의 양 DB credential/session 관찰을 기준으로 불변 Credential 결과와 서버 세션의 stamp를 연결했다.
-비밀번호 교체·재해싱, 권한·username 변경과 실패 시 세션 폐기를 실제 HTTP 소비자·양 DB 영향 checkpoint에서 검증했다. 다음은
-모델 기반 사용자·그룹·권한 저장과 기존 operator 데이터의 migration으로 이어간다.
+저장 모델의 비밀 표현 경계와 현재 사용자·그룹 권한 합집합, active/staff/superuser admission을 연결한다.
+기존 operator 데이터의 명시적 migration·credential 변경·감사·동시성을 보존하고 실제 관리 Form/Admin/API·client로 이어간다.
+그 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 
-GDJ-0099와 credential/session 변경을 포함한 Hosted 전체의 필수 실행·최종 gate·같은 실행의 capture 검증을 완료했다.
-이후 구현하는 다중 사용자 저장과 외부 앱 생성 경계는 새 source에서 별도로 검증한다.
-
-장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
-설계 채택, 제품 구현, 환경별 검증을 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.
+장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.
+출시 일정 없이 필요한 기반과 기능을 이어가며 한 작업의 완료를 전체 프레임워크 완료로 합치지 않는다.

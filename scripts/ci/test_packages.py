@@ -249,6 +249,9 @@ class ExecutionOwnerTests(unittest.TestCase):
             'internal/migrationgraph', 'internal/migrationautodetect',
             'api/openapi', 'api/openapi/consumertest',
             'conformance/relationfixture/blog', 'conformance/systemstate/attestation',
+            'identity/modeldef', 'identity/models', 'identity/project', 'identity/cmd/projectrunner',
+            'conformance/identityfixture/models', 'conformance/identityfixture/project',
+            'conformance/identityfixture/cmd/projectrunner', 'conformance/identityfixturehelper',
         })
         packages = [MODULE + relative for relative in relatives]
         for scope in SCOPES:

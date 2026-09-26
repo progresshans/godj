@@ -112,3 +112,5 @@ func (input PostCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey
 	}
 	return input.BuildCreate()
 }
+
+type GoDjAppPart2_e6ad14fb06c5eb2872ac6adc62686795275d70ecee3a1c7bb254c89dc32bbfa7 struct{}

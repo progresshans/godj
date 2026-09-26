@@ -23,9 +23,10 @@ type Package struct {
 }
 
 type App struct {
-	Alias   string    `json:"alias"`
-	Package Package   `json:"package"`
-	Schema  ir.Schema `json:"schema"`
+	Alias    string    `json:"alias"`
+	Package  Package   `json:"package"`
+	Schema   ir.Schema `json:"schema"`
+	External bool      `json:"external,omitempty"`
 }
 
 type Spec struct {
@@ -37,7 +38,7 @@ func Snapshot(input codegen.ProjectSpec) Spec {
 	result := Spec{Project: packageValue(input.Project), Apps: make([]App, len(input.Apps))}
 	for index := range input.Apps {
 		result.Apps[index] = App{
-			Alias: input.Apps[index].Alias, Package: packageValue(input.Apps[index].Package), Schema: canonicalWireSchema(input.Apps[index].Schema),
+			Alias: input.Apps[index].Alias, Package: packageValue(input.Apps[index].Package), Schema: canonicalWireSchema(input.Apps[index].Schema), External: input.Apps[index].External,
 		}
 	}
 	return result
@@ -47,7 +48,7 @@ func View(input codegen.ProjectSpec) Spec {
 	result := Spec{Project: packageValue(input.Project), Apps: make([]App, len(input.Apps))}
 	for index := range input.Apps {
 		result.Apps[index] = App{
-			Alias: input.Apps[index].Alias, Package: packageValue(input.Apps[index].Package), Schema: input.Apps[index].Schema,
+			Alias: input.Apps[index].Alias, Package: packageValue(input.Apps[index].Package), Schema: input.Apps[index].Schema, External: input.Apps[index].External,
 		}
 	}
 	return result
@@ -57,7 +58,7 @@ func Declaration(input Spec) codegen.ProjectSpec {
 	result := codegen.ProjectSpec{Project: declarationPackage(input.Project), Apps: make([]codegen.AppSpec, len(input.Apps))}
 	for index := range input.Apps {
 		result.Apps[index] = codegen.AppSpec{
-			Alias: input.Apps[index].Alias, Package: declarationPackage(input.Apps[index].Package), Schema: input.Apps[index].Schema,
+			Alias: input.Apps[index].Alias, Package: declarationPackage(input.Apps[index].Package), Schema: input.Apps[index].Schema, External: input.Apps[index].External,
 		}
 	}
 	return result

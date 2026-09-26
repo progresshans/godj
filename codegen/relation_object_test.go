@@ -121,6 +121,8 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 					t.Fatalf("relation object source contains forbidden %q:\n%s", fragment, first)
 				}
 			}
+			test.wantExported = append(test.wantExported, codegen.AppSnapshotMarkers(hash)[2])
+			slices.Sort(test.wantExported)
 			if got := exportedDeclarations(t, test.packageName+"_relation_object.go", first); !slices.Equal(got, test.wantExported) {
 				t.Fatalf("relation object exported declarations = %v, want %v", got, test.wantExported)
 			}

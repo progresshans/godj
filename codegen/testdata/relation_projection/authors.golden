@@ -51,3 +51,5 @@ func (_scan *authorProjectionScan) Decode() (Author, query.Value, orm.Projection
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
+
+type GoDjAppPart3_c321fff1f3efeaea58c79952392a37b086597db0594e413939c1d42deec20248 struct{}

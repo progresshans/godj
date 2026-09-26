@@ -43,10 +43,13 @@ format-check:
 	fi
 
 generate-check:
+	go run ./cmd/godj generate --check --project ./identity/godj.toml
+	go run ./cmd/godj generate --check --project ./conformance/identityfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/relationfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/onetoonefixture/godj.toml
+	go run ./cmd/godj generate --check --project ./conformance/cascadefixture/godj.toml
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:

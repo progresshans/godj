@@ -433,4 +433,6 @@ func (_scan *requiredRightProjectionScan) Decode() (RequiredRight, query.Value, 
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_257e23cfce2ac0b7dc1993ffb91e0799b533ae33a29f42e4ce5d3be05a19a5b9
+type GoDjAppPart3_5a546a1f60e86e4f8358f5d45604950f5fb85d02456483cf60a95c60f81d53d0 struct{}
+
+var _ GoDjProjectSnapshot_0a1bc549e29d329ec1b399d73ecd4616e4986b653b72425d881c19f8220fffda

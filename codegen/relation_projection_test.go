@@ -116,6 +116,8 @@ func TestGenerateRelationProjectionIsDeterministicAndByteLocked(t *testing.T) {
 					t.Fatalf("relation projection source contains forbidden %q:\n%s", fragment, first)
 				}
 			}
+			test.wantExported = append(test.wantExported, codegen.AppSnapshotMarkers(hash)[3])
+			slices.Sort(test.wantExported)
 			if got := exportedDeclarations(t, test.packageName+"_relation_projection.go", first); !slices.Equal(got, test.wantExported) {
 				t.Fatalf("relation projection exported declarations = %v, want %v", got, test.wantExported)
 			}

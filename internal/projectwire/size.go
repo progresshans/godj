@@ -18,7 +18,13 @@ func Measure(sizer *wirejson.Sizer, spec Spec) bool {
 		app := spec.Apps[index]
 		if !sizer.Literal(`{"alias":`) || !sizer.String(app.Alias) || !sizer.Literal(`,"package":`) ||
 			!measurePackage(sizer, app.Package) || !sizer.Literal(`,"schema":`) ||
-			!measureSchema(sizer, app.Schema) || !sizer.Literal(`}`) {
+			!measureSchema(sizer, app.Schema) {
+			return false
+		}
+		if app.External && !sizer.Literal(`,"external":true`) {
+			return false
+		}
+		if !sizer.Literal(`}`) {
 			return false
 		}
 	}

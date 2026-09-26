@@ -35,11 +35,13 @@ func renderAppSources(packageName string, prepared preparedSchema, through appCo
 		{"zz_godj_relation_projection.go", generateRelationProjection},
 	}
 	files := make([]projectRenderedFile, 0, int(through)+1)
-	for _, renderer := range renderers[:int(through)+1] {
+	for index, renderer := range renderers[:int(through)+1] {
 		source, err := renderer.render(packageName, prepared)
 		if err != nil {
 			return nil, fmt.Errorf("render %s: %w", renderer.filename, err)
 		}
+		source = appendProjectSnapshotDeclarations(source,
+			fmt.Sprintf("type %s struct{}\n", appSnapshotMarker(prepared.hash, appCompanion(index))))
 		files = append(files, projectRenderedFile{path: renderer.filename, source: source})
 	}
 	return files, nil

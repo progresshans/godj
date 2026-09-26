@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "955fb5aa2506fb06f360557f3b50285cee4f8c00bab1468d3ec5872356cbb817"
 
 type Ticket struct {
@@ -181,4 +181,6 @@ func ticketMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_7a1e9311f39028aa3c3df8bb067e295b9ca332c384dce1bb3162112c207bd0b6 struct{}
+type GoDjAppPart0_1c78b39b7807df204d08f060ff604fdc3e7659e6f6ff228c6a5777a88c714ac8 struct{}
+
+type GoDjProjectSnapshot_83924e45126d75ecbaff0978153607f3265aa125bd7a23f3f4248205ba3c5ba4 struct{}

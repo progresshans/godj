@@ -10,6 +10,7 @@ type projectManifestApp struct {
 	AppLabel     string                 `json:"app_label"`
 	Package      projectPackageDocument `json:"package"`
 	SchemaSHA256 string                 `json:"schema_sha256"`
+	External     bool                   `json:"external,omitempty"`
 }
 
 type projectManifestFile struct {
@@ -53,6 +54,7 @@ func projectManifest(
 			AppLabel:     app.schema.AppLabel,
 			Package:      projectPackageDocumentFromSpec(app.Package),
 			SchemaSHA256: app.hash,
+			External:     app.External,
 		}
 	}
 	for index, file := range files {

@@ -84,6 +84,9 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0072](0072-column-uniqueness-and-constraint-ownership.md) | Accepted | Column uniqueness 선언·historical 의미·PostgreSQL 제약/index의 정확한 소유권 |
 | [0073](0073-one-to-one-cardinality-and-reverse-objects.md) | Accepted | OneToOne cardinality·historical 변경·단일 reverse 객체와 cache 소유권 |
 | [0074](0074-cascade-delete-graph-and-constraint-timing.md) | Accepted design | CASCADE의 전체 삭제 그래프·transitive 정책 소유권·FK 검사 시점과 원자적 실패 |
+| [0075](0075-many-to-many-storage-and-mutation-ownership.md) | Accepted design | ManyToMany 저장과 변경 소유권 |
+| [0076](0076-credential-snapshots-and-session-binding.md) | Accepted | Credential snapshot과 서버 세션 결합 |
+| [0077](0077-reusable-app-models-and-host-relation-ownership.md) | Accepted design | 재사용 app 모델의 파일 소유권과 호스트 전체 관계 graph |
 
 ## 대체된 결정
 

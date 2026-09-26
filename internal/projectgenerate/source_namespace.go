@@ -24,7 +24,7 @@ const (
 	maxSourceNamespaceFiles          = 4096
 	maxSourceNamespaceFileBytes      = 1 << 20
 	maxSourceNamespaceAggregateBytes = 64 << 20
-	sourceNamespaceFingerprintDomain = "godj/project-source-namespace/v1\x00"
+	sourceNamespaceFingerprintDomain = "godj/project-source-namespace/v2\x00"
 )
 
 type sourceNamespacePlan struct {
@@ -36,6 +36,8 @@ type sourceNamespaceApp struct {
 	packageName string
 	importPath  string
 	models      map[string]map[string]struct{}
+	external    bool
+	markers     [4]string
 }
 
 type sourceNamespaceModel struct {
@@ -45,13 +47,15 @@ type sourceNamespaceModel struct {
 }
 
 type sourceNamespaceFile struct {
-	path   string
-	mode   fs.FileMode
-	source []byte
+	path         string
+	mode         fs.FileMode
+	source       []byte
+	readOnlyPath string
 }
 
 type sourceNamespaceSnapshot struct {
-	sha256 string
+	sha256        string
+	readOnlyPaths []string
 }
 
 type sourceNamespaceBudget struct {
@@ -243,6 +247,8 @@ func sourceNamespacePlanFromBundle(bundle codegen.GeneratedBundle, manifest comm
 			packageName: app.Package.PackageName,
 			importPath:  app.Package.ImportPath,
 			models:      make(map[string]map[string]struct{}),
+			external:    app.External,
+			markers:     codegen.AppSnapshotMarkers(app.SchemaSHA256),
 		}
 		planByImport[app.Package.ImportPath] = &planned
 	}
@@ -323,83 +329,34 @@ func captureSourceNamespaceSnapshot(
 		}
 	}
 
+	ownedFolded := make(map[string]struct{}, len(owned))
+	for relative := range owned {
+		ownedFolded[strings.ToLower(relative)] = struct{}{}
+	}
 	files := make([]sourceNamespaceFile, 0)
 	var budget sourceNamespaceBudget
 	for _, app := range plan.apps {
-		if err := ctx.Err(); err != nil {
-			return sourceNamespaceSnapshot{}, err
-		}
-		entries, err := projectRelativeDirectoryEntries(projectRoot, app.directory)
-		if errors.Is(err, errProjectPathMissing) {
-			continue
+		var captured []sourceNamespaceFile
+		var err error
+		if app.external {
+			captured, err = captureExternalAppNamespace(ctx, projectRoot, app, ownedFolded, &budget)
+		} else {
+			captured, err = captureAppNamespace(ctx, projectRoot, app, owned, &budget, "")
 		}
 		if err != nil {
-			return sourceNamespaceSnapshot{}, fmt.Errorf("%w: inspect app source directory %q: %v", ErrGeneratedConflict, app.directory, err)
+			return sourceNamespaceSnapshot{}, err
 		}
-		sort.Slice(entries, func(left, right int) bool { return entries[left].Name() < entries[right].Name() })
-		for _, entry := range entries {
-			if err := ctx.Err(); err != nil {
-				return sourceNamespaceSnapshot{}, err
-			}
-			name := entry.Name()
-			relative := joinManifestPath(app.directory, name)
-			if err := budget.consumeEntry(relative); err != nil {
-				return sourceNamespaceSnapshot{}, err
-			}
-			if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
-				continue
-			}
-			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-				continue
-			}
-			if _, generated := owned[relative]; generated {
-				continue
-			}
-			if strings.HasPrefix(name, "zz_godj_") {
-				return sourceNamespaceSnapshot{}, fmt.Errorf("%w: unowned generated source %q in app namespace", ErrGeneratedConflict, relative)
-			}
-			contents, mode, err := readRegularProjectFileBounded(projectRoot, relative, maxSourceNamespaceFileBytes)
-			if err != nil {
-				return sourceNamespaceSnapshot{}, fmt.Errorf("%w: read app source %q: %v", ErrGeneratedConflict, relative, err)
-			}
-			if err := budget.consumeSource(len(contents)); err != nil {
-				return sourceNamespaceSnapshot{}, err
-			}
-			parsed, err := parser.ParseFile(token.NewFileSet(), relative, contents, parser.SkipObjectResolution)
-			if err != nil {
-				return sourceNamespaceSnapshot{}, fmt.Errorf("%w: parse app source %q: %v", ErrGeneratedConflict, relative, err)
-			}
-			if parsed.Name == nil || parsed.Name.Name != app.packageName {
-				return sourceNamespaceSnapshot{}, fmt.Errorf("%w: app source %q declares package %q, want %q", ErrGeneratedConflict, relative, parsed.Name.Name, app.packageName)
-			}
-			for _, declaration := range parsed.Decls {
-				if err := ctx.Err(); err != nil {
-					return sourceNamespaceSnapshot{}, err
-				}
-				function, ok := declaration.(*ast.FuncDecl)
-				if !ok || function.Recv == nil || len(function.Recv.List) != 1 || function.Name == nil || !ast.IsExported(function.Name.Name) {
-					continue
-				}
-				receiver, ok := sourceNamespaceReceiverName(function.Recv.List[0].Type)
-				if !ok {
-					continue
-				}
-				reserved, rawModel := app.models[receiver]
-				if !rawModel {
-					continue
-				}
-				if _, collision := reserved[function.Name.Name]; collision {
-					return sourceNamespaceSnapshot{}, fmt.Errorf(
-						"%w: app source %q declares reserved generated method %s.%s.%s",
-						ErrGeneratedConflict, relative, app.importPath, receiver, function.Name.Name,
-					)
-				}
-			}
-			files = append(files, sourceNamespaceFile{path: relative, mode: mode, source: contents})
+		files = append(files, captured...)
+	}
+
+	sort.Slice(files, func(left, right int) bool { return files[left].path < files[right].path })
+	snapshot := sourceNamespaceSnapshot{sha256: sourceNamespaceFingerprint(files)}
+	for _, file := range files {
+		if file.readOnlyPath != "" {
+			snapshot.readOnlyPaths = append(snapshot.readOnlyPaths, file.readOnlyPath)
 		}
 	}
-	sort.Slice(files, func(left, right int) bool { return files[left].path < files[right].path })
-	return sourceNamespaceSnapshot{sha256: sourceNamespaceFingerprint(files)}, nil
+	return snapshot, nil
 }
 
 func verifySourceNamespaceSnapshot(
@@ -426,6 +383,8 @@ func sourceNamespaceFingerprint(files []sourceNamespaceFile) string {
 	for _, file := range files {
 		writeSourceNamespaceUint64(digest, uint64(len(file.path)))
 		_, _ = digest.Write([]byte(file.path))
+		writeSourceNamespaceUint64(digest, uint64(len(file.readOnlyPath)))
+		_, _ = digest.Write([]byte(file.readOnlyPath))
 		writeSourceNamespaceUint64(digest, uint64(file.mode.Perm()))
 		writeSourceNamespaceUint64(digest, uint64(len(file.source)))
 		_, _ = digest.Write(file.source)
@@ -441,4 +400,102 @@ func writeSourceNamespaceUint64(writer sourceNamespaceHashWriter, value uint64) 
 	var encoded [8]byte
 	binary.BigEndian.PutUint64(encoded[:], value)
 	_, _ = writer.Write(encoded[:])
+}
+
+func captureAppNamespace(ctx context.Context, sourceRoot string, app sourceNamespaceApp, owned map[string]struct{}, budget *sourceNamespaceBudget, prefix string) ([]sourceNamespaceFile, error) {
+	var files []sourceNamespaceFile
+	seenGenerated := make(map[string]bool)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	entries, err := projectRelativeDirectoryEntries(sourceRoot, app.directory)
+	if errors.Is(err, errProjectPathMissing) {
+		if app.external {
+			return nil, fmt.Errorf("%w: external app directory disappeared", ErrGeneratedConflict)
+		}
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: inspect app source directory %q: %v", ErrGeneratedConflict, app.directory, err)
+	}
+	sort.Slice(entries, func(left, right int) bool { return entries[left].Name() < entries[right].Name() })
+	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		name := entry.Name()
+		relative := joinManifestPath(app.directory, name)
+		displayPath := prefix + relative
+		if err := budget.consumeEntry(displayPath); err != nil {
+			return nil, err
+		}
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+			continue
+		}
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		if _, generated := owned[relative]; !app.external && generated {
+			continue
+		}
+		if strings.HasPrefix(name, "zz_godj_") && (!app.external || !externalGeneratedFilename(name)) {
+			return nil, fmt.Errorf("%w: unowned generated source %q in app namespace", ErrGeneratedConflict, relative)
+		}
+		maximum := int64(maxSourceNamespaceFileBytes)
+		if app.external && externalGeneratedFilename(name) {
+			maximum = maxSourceNamespaceAggregateBytes
+		}
+		contents, mode, err := readRegularProjectFileBounded(sourceRoot, relative, maximum)
+		if err != nil {
+			return nil, fmt.Errorf("%w: read app source %q: %v", ErrGeneratedConflict, relative, err)
+		}
+		if err := budget.consumeSource(len(contents)); err != nil {
+			return nil, err
+		}
+		parsed, err := parser.ParseFile(token.NewFileSet(), relative, contents, parser.SkipObjectResolution)
+		if err != nil {
+			return nil, fmt.Errorf("%w: parse app source %q: %v", ErrGeneratedConflict, relative, err)
+		}
+		if parsed.Name == nil || parsed.Name.Name != app.packageName {
+			return nil, fmt.Errorf("%w: app source %q declares package %q, want %q", ErrGeneratedConflict, relative, parsed.Name.Name, app.packageName)
+		}
+		if app.external && externalGeneratedFilename(name) {
+			if err := requireExternalAppMarker(parsed, name, app.markers); err != nil {
+				return nil, err
+			}
+			seenGenerated[name] = true
+		}
+		for _, declaration := range parsed.Decls {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Recv == nil || len(function.Recv.List) != 1 || function.Name == nil || !ast.IsExported(function.Name.Name) {
+				continue
+			}
+			receiver, ok := sourceNamespaceReceiverName(function.Recv.List[0].Type)
+			if !ok {
+				continue
+			}
+			reserved, rawModel := app.models[receiver]
+			if !rawModel {
+				continue
+			}
+			if _, collision := reserved[function.Name.Name]; collision {
+				return nil, fmt.Errorf(
+					"%w: app source %q declares reserved generated method %s.%s.%s",
+					ErrGeneratedConflict, relative, app.importPath, receiver, function.Name.Name,
+				)
+			}
+		}
+		files = append(files, sourceNamespaceFile{path: displayPath, mode: mode, source: contents})
+	}
+	if app.external {
+		for _, name := range currentAppFilenames {
+			if !seenGenerated[name] {
+				return nil, fmt.Errorf("%w: external app %q is missing generated companion %q", ErrGeneratedConflict, app.importPath, name)
+			}
+		}
+	}
+	return files, nil
 }

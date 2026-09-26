@@ -154,6 +154,11 @@ func publishRootWithHooks(
 	for _, entry := range journal.Files {
 		allowedGeneratedPaths[entry.Path] = struct{}{}
 	}
+	// Recognizing an imported companion in the namespace grants no write or
+	// retirement ownership: only the journal controls publication mutations.
+	for _, relative := range sourceSnapshot.readOnlyPaths {
+		allowedGeneratedPaths[relative] = struct{}{}
+	}
 	if err := verifyReservedGeneratedPreflight(ctx, root, allowedGeneratedPaths); err != nil {
 		return err
 	}

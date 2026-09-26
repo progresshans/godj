@@ -22,10 +22,10 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestGeneratorVersionTracksCloneModelABI(t *testing.T) {
+func TestGeneratorVersionTracksAppSnapshotABI(t *testing.T) {
 	t.Parallel()
 
-	const want = "godj-codegen-current-v1"
+	const want = "godj-codegen-current-v2"
 	if codegen.GeneratorVersion != want {
 		t.Fatalf("GeneratorVersion = %q, want %q", codegen.GeneratorVersion, want)
 	}
@@ -48,7 +48,7 @@ func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjGeneratorVersion = "godj-codegen-current-v1"`),
+		[]byte(`const GoDjGeneratorVersion = "godj-codegen-current-v2"`),
 		[]byte("const GoDjSchemaSHA256 ="),
 		[]byte("type Post struct"),
 		[]byte("ID                    int64"),
@@ -139,6 +139,15 @@ func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 		"WithReviewerIDNull",
 		"WriteFieldValue",
 	}
+	normalized, err := ir.Normalize(blog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := ir.Hash(normalized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantExported = append(wantExported, codegen.AppSnapshotMarkers(hash)[0])
 	slices.Sort(wantExported)
 	if !slices.Equal(exported, wantExported) {
 		t.Fatalf("relation main exported declarations = %v, want %v", exported, wantExported)

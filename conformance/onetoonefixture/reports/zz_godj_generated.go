@@ -17,7 +17,7 @@ import (
 	_godjtime "time"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 type Report struct {
@@ -2138,4 +2138,6 @@ func reviewMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_7a1e9311f39028aa3c3df8bb067e295b9ca332c384dce1bb3162112c207bd0b6 struct{}
+type GoDjAppPart0_872b95720f356321adcc98691414069f9f65625e3e9dae0fae094956f738aa3a struct{}
+
+type GoDjProjectSnapshot_83924e45126d75ecbaff0978153607f3265aa125bd7a23f3f4248205ba3c5ba4 struct{}

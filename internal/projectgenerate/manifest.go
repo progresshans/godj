@@ -130,7 +130,7 @@ func validateCommittedManifestStructure(manifest committedManifest) error {
 	directories := map[string]struct{}{strings.ToLower(manifest.Project.Directory): {}}
 	for index, app := range manifest.Apps {
 		if app.Alias == "" || !validManifestAlias(app.Alias) || app.AppLabel == "" || !validManifestAppLabel(app.AppLabel) ||
-			!validManifestPackage(app.Package) || !validLowerSHA256(app.SchemaSHA256) {
+			!validManifestAppPackage(app.Package, app.External) || !validLowerSHA256(app.SchemaSHA256) {
 			return fmt.Errorf("invalid app at index %d", index)
 		}
 		if index > 0 && !manifestAppLess(manifest.Apps[index-1], app) {
@@ -148,12 +148,14 @@ func validateCommittedManifestStructure(manifest committedManifest) error {
 			return fmt.Errorf("duplicate package import path %q", app.Package.ImportPath)
 		}
 		imports[app.Package.ImportPath] = struct{}{}
-		foldedDirectory := strings.ToLower(app.Package.Directory)
-		if _, exists := directories[foldedDirectory]; exists {
-			return fmt.Errorf("duplicate package directory %q", app.Package.Directory)
+		if !app.External {
+			foldedDirectory := strings.ToLower(app.Package.Directory)
+			if _, exists := directories[foldedDirectory]; exists {
+				return fmt.Errorf("duplicate package directory %q", app.Package.Directory)
+			}
+			directories[foldedDirectory] = struct{}{}
+			owners["app:"+app.AppLabel] = app.Package
 		}
-		directories[foldedDirectory] = struct{}{}
-		owners["app:"+app.AppLabel] = app.Package
 	}
 
 	seenFiles := make(map[string]struct{}, len(manifest.Files))
@@ -221,6 +223,9 @@ func validateCurrentManifest(manifest committedManifest) error {
 		wantFiles[joinManifestPath(manifest.Project.Directory, filename)] = "project"
 	}
 	for _, app := range manifest.Apps {
+		if app.External {
+			continue
+		}
 		owner := "app:" + app.AppLabel
 		for _, filename := range currentAppFilenames {
 			wantFiles[joinManifestPath(app.Package.Directory, filename)] = owner
@@ -325,6 +330,14 @@ func manifestAppLess(left, right manifestApp) bool {
 func validManifestPackage(pkg manifestPackage) bool {
 	return pkg.PackageName != "_" && token.IsIdentifier(pkg.PackageName) && !token.Lookup(pkg.PackageName).IsKeyword() &&
 		validManifestImportPath(pkg.ImportPath) && validManifestDirectory(pkg.Directory)
+}
+
+func validManifestAppPackage(pkg manifestPackage, external bool) bool {
+	if !external {
+		return validManifestPackage(pkg)
+	}
+	return pkg.PackageName != "_" && token.IsIdentifier(pkg.PackageName) && !token.Lookup(pkg.PackageName).IsKeyword() &&
+		validManifestImportPath(pkg.ImportPath) && pkg.Directory == ""
 }
 
 func validManifestDirectory(directory string) bool {

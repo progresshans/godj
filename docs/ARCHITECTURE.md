@@ -48,6 +48,11 @@ compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](
 실패 시 기존 정상 결과를 보존한다. 결정적 output, gofmt, 입력 identity, generated drift와 전체 후보 compile은 의미 있는
 검증이다. 과거 파일 수·test 이름·byte 길이를 그대로 유지하는 것은 제품 계약이 아니다.
 
+재사용 앱은 `AppSpec.External`과 비어 있는 Directory로 라이브러리의 파일 소유권을 표시한다.
+호스트는 외부 app의 정규화 schema·네 companion ABI를 확인하고 전체 관계 graph와 project binding을 소유한다.
+같은 프로젝트 폴더의 외부 companion도 read-only로 검사하며 현재/이전 publication 소유 파일과 겹치면 거부한다.
+[ADR-0077](adr/0077-reusable-app-models-and-host-relation-ownership.md)이 marker·검증·삭제 경계를 설명한다.
+
 공통 relation cache는 `orm.RelationCache[T]` runtime이 소유하고 생성 코드는 typed 연결을 만든다.
 여러 direct·nested forward 및 OneToOne reverse eager target은 traversal 경로로 식별한 immutable projection 집합과 `RelatedSelectQuery[S]`를 공유한다.
 Parent prefix를 먼저 배치하고 공통 prefix를 합친다. 닫힌 typed target tree가 구체 Go type·scanner·하위 cache 복제를 소유한다.

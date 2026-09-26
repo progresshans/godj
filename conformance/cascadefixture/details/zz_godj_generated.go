@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjGeneratorVersion = "godj-codegen-current-v2"
 const GoDjSchemaSHA256 = "c9877bab1bd0fa2f1eeb260816c6660ba29cc178c40bdeb6b0743dbef06dccaf"
 
 type Child struct {
@@ -1864,4 +1864,6 @@ func requiredRightMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_257e23cfce2ac0b7dc1993ffb91e0799b533ae33a29f42e4ce5d3be05a19a5b9 struct{}
+type GoDjAppPart0_5a546a1f60e86e4f8358f5d45604950f5fb85d02456483cf60a95c60f81d53d0 struct{}
+
+type GoDjProjectSnapshot_0a1bc549e29d329ec1b399d73ecd4616e4986b653b72425d881c19f8220fffda struct{}

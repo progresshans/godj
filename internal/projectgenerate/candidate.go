@@ -505,6 +505,9 @@ func mergeCandidatePackages(existing []string, manifest committedManifest, modul
 	declared := make([]manifestPackage, 0, len(manifest.Apps)+1)
 	declared = append(declared, manifest.Project)
 	for _, app := range manifest.Apps {
+		if app.External {
+			continue
+		}
 		declared = append(declared, app.Package)
 	}
 	for _, pkg := range declared {

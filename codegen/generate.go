@@ -20,7 +20,7 @@ import (
 	"github.com/progresshans/godj/uuid"
 )
 
-const GeneratorVersion = "godj-codegen-current-v1"
+const GeneratorVersion = "godj-codegen-current-v2"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {

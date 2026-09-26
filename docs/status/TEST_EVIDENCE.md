@@ -4,6 +4,71 @@
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
 
+## GDJ-0100 — 재사용 identity 앱과 외부 app 생성 소유권
+
+2026-09-27, 기준 `490cb978afd3e96a107c73583895432663ac38b0`에서 구현한 변경 묶음이다.
+User·Group·Permission 선언·초기 historical migration과 같은 Go 모델 타입을 쓰는 호스트 fixture를 연결했다.
+호스트는 external app의 파일을 소유하지 않고 전체 관계·삭제 graph를 생성한다. 라이브러리의 네 companion에
+schema/ABI marker를 두고 host-owned app의 전체 project seal은 유지한다. AppSpec·wire·manifest·bounded scan/size와
+candidate compile, handwritten 예약 메서드·변경 전후 source fence를 함께 연결했다.
+
+실제 migration 후 User의 안전한 초기 flag·revision·빈 profile·nullable login을 확인했다.
+사용자·그룹·직접/그룹 권한의 중복 없는 연결과 nested prefetch, 실제 library User type의 FK 조회를 실행했다.
+호스트 PROTECT 실패는 User·CASCADE 후손을 보존하며 보호 행 제거 후 삭제는 호스트 후손과 사용자 link만 제거한다.
+재사용 Group·Permission은 남는다. 이는 현재 권한을 평가하는 인증 backend나 관리 UI/API의 검증은 아니다.
+
+첫 source는 2,235개 non-Markdown map SHA-256
+`031cdceec453293e4b1086319a20edf34c72f7680e175b567ec8a8d235bf9071`다. Go 1.26.5 / Darwin arm64에서
+`codegen`, `codegen/consumertest`, `internal/projectwire`, `internal/projectgenerate`·protocol·linked,
+identity/relation/cascade/onetoone/relationproduct fixture의 전체 package suite와
+`internal/projectcheck`의 TestRunGenerate 10 roots, 새 PostgreSQL identity root를 선택했다.
+**296 required roots**를 discovery 후 고정했다. Crash helper는 parent crash tests가 별도 process로 실행하며
+standalone helper invocation을 선택하지 않았다. 실제 crash/recovery 부모 검사·필수 실행은 유지했다.
+
+| 모드 | 완료 inventory | 시간 |
+|---|---|---|
+| normal | 13 packages / 877 PASS / skip 0 | 212.387초 |
+| race | 13 packages / 877 PASS / skip 0 | 659.702초 |
+| cgo0 | 13 packages / 877 PASS / skip 0 | 221.204초 |
+
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, count=1을 적용했다.
+SQLite와 고정 PostgreSQL 17.10 bookworm image의 별도 localhost container를 사용했다.
+각 mode의 public table·owned schema·다른 connection은 `0|0|0`, non-force DB drop과 container 제거까지 확인했다.
+초기 DB 준비 시 createdb가 실패해 테스트를 시작하지 못한 실행도 남겼다. 당시 stderr를 보관하지 않아 원인을
+단정하지 않는다. 후속 실행은 실제 mapped TCP connection 준비를 확인한 뒤 시작했다.
+
+추가 경계 probe에서 `.GODJ` 표기와 case-folded prior file ownership의 누락을 재현했다.
+물리 project root를 사용하는 두 probe의 실제 assertion 실패를 보존했다. 초기 probe의 비정규화 임시 root 오류는
+별도 진단으로 보관하고 수정했다. Manifest와 동일한 경로 대소문자 규칙, root case alias와 control directory 경계를
+적용하고 검사 전용 roster를 쓰기·삭제 journal과 분리했다. 이 수정은 아래 세 파일에만 영향을 준다:
+`internal/projectgenerate/external_app.go`, `external_app_test.go`, `source_namespace.go`.
+다른 non-Markdown 파일은 첫 checkpoint와 같음을 map diff로 확인했다.
+
+최종 source map은 `c87f06ed9359e87096cec6ce1e5c48ab311a5f0df484b0de481eedddf0dfe652`다.
+수정 후 `internal/projectgenerate`·linked, `conformance/identityfixture`, TestRunGenerate의
+**99 required roots**를 새 source에서 다시 실행했다. CLI/candidate·rollback/crash·drift와 SQLite 호스트 소비자를 포함한다.
+
+| 모드 | 완료 inventory | 시간 |
+|---|---|---|
+| normal | 4 packages / 202 PASS / skip 0 | 66.199초 |
+| race | 4 packages / 202 PASS / skip 0 | 94.124초 |
+| cgo0 | 4 packages / 202 PASS / skip 0 | 58.787초 |
+
+두 checkpoint는 각각 실행 전후 source map이 같다. 서로 다른 source의 결과를 하나의 현재 전체 실행으로 합치지 않는다.
+최종 source의 Go overlay **5/5 실제 assertion 탐지**: ABI marker 무시, dependency 변경 fence 제거,
+read-only 파일 소유권 검사 제거, control directory 및 prior ownership의 대소문자 규칙 제거.
+Build 실패를 control 탐지로 세지 않았다. 별도 dependency init canary도 실행되지 않았다.
+
+7개 project와 standalone relation fixture의 generated drift, 영향 vet·format·diff·문서 검사,
+CI 도구 **41/41**을 통과했다. 새 fixture·identity package 및 PostgreSQL root의 CI 실행 owner를 연결했다.
+이 source의 Hosted full은 미실행이다. GDJ-0100의 다중 사용자 admission·operator adoption·관리 소비자 통합 뒤
+명시한 전체 milestone에서 검증하며, 이전 `01b67211`의 전체 PASS를 새 구현에 전이하지 않는다.
+
+원본 evidence root: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/external-app-identity-1790442058966120000`.
+`checkpoint-1790442129401822000/receipt.json`, `case-checkpoint-1790443342760441000/receipt.json`과 JSON streams·필수 roster·source maps,
+`negative-controls/receipt.json`, `case-boundary-probe`, `development-diagnostics`, `supporting-checks.json`과
+`generate-check-after-case.log`에 전체 결과와 실패 진단을 보관했다.
+
 ## GDJ-0099·0100 — ManyToMany와 credential/session의 Hosted 전체 통합
 
 2026-09-27, source `01b67211a083c507d5e69c6be26702439aada559`의

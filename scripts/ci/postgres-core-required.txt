@@ -311,3 +311,4 @@ github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLM
 github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel
 github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedManyToManyCollections
+github.com/progresshans/godj/db/postgres|TestPostgresImportedIdentityRelationsAndDeleteOwnership
