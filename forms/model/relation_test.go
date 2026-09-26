@@ -54,7 +54,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 				nullable := model
 				nullable.Fields = []ir.Field{original.Clone()}
 				nullable.Fields[0].Nullable = true
-				optional, err := formmodel.NewSpec(nullable)
+				optional, err := formmodel.NewSpecForFields(nullable, []string{fieldName})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -70,7 +70,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 					invalid := model
 					invalid.Fields = []ir.Field{original.Clone()}
 					mutate(&invalid.Fields[0])
-					if _, err := formmodel.NewSpec(invalid); err == nil {
+					if _, err := formmodel.NewSpecForFields(invalid, []string{fieldName}); err == nil {
 						t.Fatal("malformed relation metadata accepted")
 					}
 				}

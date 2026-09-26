@@ -116,6 +116,12 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 			}
 			known[field.Name] = struct{}{}
 		}
+		for _, field := range model.ManyToMany {
+			if _, duplicate := known[field.Name]; duplicate {
+				return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+			}
+			known[field.Name] = struct{}{}
+		}
 		selected := make(map[string]bool, len(names))
 		for _, name := range names {
 			if name == "" || selected[name] {
@@ -128,12 +134,19 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		}
 		projection := model
 		projection.Fields = nil
+		projection.ManyToMany = nil
 		for _, field := range model.Fields {
 			if selected[field.Name] {
 				if field.PrimaryKey {
 					return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "non_editable"}
 				}
 				projection.Fields = append(projection.Fields, field.Clone())
+				delete(selected, field.Name)
+			}
+		}
+		for _, field := range model.ManyToMany {
+			if selected[field.Name] {
+				projection.ManyToMany = append(projection.ManyToMany, field.Clone())
 				delete(selected, field.Name)
 			}
 		}
@@ -174,6 +187,17 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		projected, err := projectField(field, override)
 		if err != nil {
 			return forms.Spec{}, &Error{Path: path + "." + field.Name, Code: errorCode(err)}
+		}
+		fields = append(fields, projected)
+	}
+	for _, field := range model.ManyToMany {
+		if _, duplicate := known[field.Name]; duplicate {
+			return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+		}
+		known[field.Name] = struct{}{}
+		projected, err := projectManyToMany(field, overrideByName[field.Name])
+		if err != nil {
+			return forms.Spec{}, err
 		}
 		fields = append(fields, projected)
 	}

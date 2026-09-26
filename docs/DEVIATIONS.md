@@ -89,6 +89,17 @@ Django의 자동 상호 invalidation을 도입하는 대신 기존 caller-owned 
 권한·transaction의 소유자를 명시하기 위한 API 차이다. Admin provider와 저장 transaction이 scope를 재검증하며 required/empty·
 integer 별칭·NUL·invalid_choice·raw-input 변경 감지는 비교 범위에서 유지한다.
 
+2026-09-26, 같은 snapshot 소유권 정책을 ModelMultipleChoice에 적용했다.
+비교 범위는 [SQLite](../forms/testdata/model-multiple-choice-django61-sqlite.json)·
+[PostgreSQL](../forms/testdata/model-multiple-choice-django61-postgres.json)의 `observations` 476행이다.
+Cleaned 결과는 model QuerySet 대신 unique int64 목록이다. 두 fixture의 `out_of_range` 두 행
+(`9223372036854775808`, `-9223372036854775809`)은 SQLite OverflowError·PostgreSQL invalid_choice와
+구분해 GoDj에서 invalid_pk_value로 선행 거부한다. 고정 int64 모델·키 경계에 맞추며 Python의 무제한 정수나
+DB 오류를 재현하려고 I/O를 추가하지 않는다. 이 네 관찰을 476행 동등 비교에 포함하지 않는다.
+`direct_python`의 scalar/dict/nested-list 입력은 HTML list-of-text transport가 표현하지 않으므로 parity로 계산하지 않는다.
+저장 구조는 바뀌지 않으며 Form/Admin 공통 검증과 실제 Ticket transaction 통합은 별도 상태다.
+구현과 현재 source의 검증은 [ADR-0075](adr/0075-many-to-many-storage-and-mutation-ownership.md#modelmultiplechoice와-collection-snapshot)와 TEST_EVIDENCE를 따른다.
+
 저장 값·schema migration·권한은 달라지지 않는다. 관련 cache 상태에 따라 SELECT 수는 달라질 수 있고, Django의
 해당 query count를 GoDj parity로 계산하지 않는다. Runtime은 부재·동시 cold load·외부 쓰기/Fresh·copy 거부·실패 재시도와
 prefetch와 assignment의 독립 소유권을 검증한다. 이 범위를 넘어 남은 관계 기능·소비자 미구현을 면제하지 않는다.

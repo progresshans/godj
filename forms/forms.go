@@ -31,6 +31,7 @@ const (
 	ValueTime
 	ValueUUID
 	ValueJSON
+	ValueIntegerList
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -93,6 +94,7 @@ const (
 	FieldTime
 	FieldUUID
 	FieldJSON
+	FieldIntegerList
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -109,6 +111,7 @@ const (
 	NullBooleanSelect
 	TimeInput
 	NumberInput
+	SelectMultiple
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -283,13 +286,13 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if err := validateChoices(name, kind, config); err != nil {
 		return Field{}, err
 	}
-	if config.choices != nil && !config.hasWidget {
+	if config.choices != nil && !config.hasWidget && kind != FieldIntegerList {
 		config.widget = Select
 	}
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
+	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -312,6 +315,13 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldIntegerList:
+		if !config.modelChoice || config.nullable || config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name, Code: "invalid_multiple_choice"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, false) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+		}
 	case FieldDecimal:
 		if config.decimalDigits < 1 || config.decimalDigits > decimal.MaxDigits || config.decimalPlaces < 0 || config.decimalPlaces > config.decimalDigits {
 			return Field{}, &ConfigError{Path: "fields." + name + ".precision", Code: "invalid"}
@@ -457,6 +467,10 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 }
 
 func validValueForField(value Value, kind FieldKind, nullable bool) bool {
+	if kind == FieldIntegerList {
+		_, ok := value.AsIntegers()
+		return ok
+	}
 	if value.kind == ValueNull {
 		return nullable
 	}
@@ -598,6 +612,8 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		switch {
 		case field.hasDefault:
 			value = field.defaultValue
+		case field.kind == FieldIntegerList:
+			value = Integers()
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
 		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID || field.kind == FieldJSON:
@@ -746,12 +762,18 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 
 func cleanField(field Field, data Data) (Value, validation.Errors) {
 	submitted, present := data.values[field.name]
-	if len(submitted) > 1 {
+	if len(submitted) > 1 && field.kind != FieldIntegerList {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "multiple"))
 	}
 	var value Value
 	var failures []validation.Errors
-	if field.modelChoice || field.choices != nil {
+	if field.kind == FieldIntegerList {
+		var code validation.Code
+		value, code = cleanModelMultipleChoice(field, submitted)
+		if code != "" {
+			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+		}
+	} else if field.modelChoice || field.choices != nil {
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
@@ -954,6 +976,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 
 func fieldChanged(field Field, data Data, initial Value) bool {
 	submitted, present := data.values[field.name]
+	if field.kind == FieldIntegerList {
+		return modelMultipleChoiceChanged(submitted, initial)
+	}
 	if len(submitted) > 1 {
 		return true
 	}

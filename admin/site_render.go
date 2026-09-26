@@ -311,7 +311,21 @@ func (site *Site) formContext(
 	fieldValues := make([]templates.Value, len(fields))
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
-		options, err := choiceOptionValues(field, value)
+		selected := []string{value}
+		if field.Widget() == forms.SelectMultiple {
+			selected = nil
+			if form.Bound() {
+				for _, raw := range submitted[field.Name()] {
+					selected = append(selected, safeDisplayText(raw))
+				}
+			} else if initial, present := form.Initial().Get(field.Name()); present {
+				keys, _ := initial.AsIntegers()
+				for _, key := range keys {
+					selected = append(selected, strconv.FormatInt(key, 10))
+				}
+			}
+		}
+		options, err := choiceOptionValues(field, selected...)
 		if err != nil {
 			return nil, err
 		}
@@ -325,8 +339,9 @@ func (site *Site) formContext(
 			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
 			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
-			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
+			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
 			"options":     templates.List(options...),
+			"multiple":    templates.Bool(field.Widget() == forms.SelectMultiple),
 			"datetime":    templates.Bool(field.Kind() == forms.FieldDateTime),
 			"time":        templates.Bool(field.Kind() == forms.FieldTime),
 			"duration":    templates.Bool(field.Kind() == forms.FieldDuration),

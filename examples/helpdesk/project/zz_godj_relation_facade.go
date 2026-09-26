@@ -14,7 +14,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "b6c25abbca05a6a7693f729f69744eb88d54bd6015376daf7cbb85f587f5dfc7"
+const GoDjProjectRelationFacadeInputSHA256 = "489422196d9e0f3aaa0f2efa5b7e81d92f67f11fba783a0797b90bfd77e1cc83"
 
 type Backend interface {
 	db.Queryer
@@ -27,6 +27,7 @@ type relationFacadeState struct {
 	models             relationFacadeBindings
 	reverseCollections ReverseObjects
 	sessionScope       db.SessionValidator
+	collections        Collections
 	_self              *relationFacadeState
 }
 
@@ -1102,6 +1103,7 @@ func newModelsLabelQuery(_state *relationFacadeState, _query orm.QuerySet[models
 	if _state != nil {
 		_result.Prefetch.Category = relationFacadeSinglePrefetch[models.Label, models.Category]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ModelsLabel.category)}
 		_result.Prefetch.TicketLinks = relationFacadeReversePrefetch[models.Label, models.TicketLabel, ModelsTicketLabel]{state: _state, selection: _state.reverseCollections.ModelsLabel.ticketLinks.WithChildren(), materialize: _state.materializeModelsTicketLabel}
+		_result.Prefetch.Tickets = relationFacadeManyPrefetch[models.Label, models.Ticket, models.TicketLabel, ModelsTicket]{state: _state, selection: _state.collections.ModelsLabelTickets.WithChildren(), materialize: _state.materializeModelsTicket}
 	}
 	return _result
 }
@@ -1267,6 +1269,7 @@ type ModelsLabel struct {
 	categoryCache             *orm.RelationCache[ModelsCategory]
 	categoryScalarSnapshot    int64
 	categoryScalarPresent     bool
+	_manyCollection0          *orm.ManyCollectionCache[models.Ticket, models.TicketLabel]
 	_reverseCollection0       *orm.RelatedSetCache[models.TicketLabel]
 	_self                     *ModelsLabel
 }
@@ -1364,6 +1367,9 @@ func (_model *ModelsLabel) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._manyCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._manyCollection0 = &orm.ManyCollectionCache[models.Ticket, models.TicketLabel]{}
+	}
 	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
 		_model._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	}
@@ -1428,6 +1434,7 @@ func (_model *ModelsLabel) relationFacadeDerived(_value models.Label) (*ModelsLa
 	if _err != nil {
 		return nil, _err
 	}
+	_result._manyCollection0 = &orm.ManyCollectionCache[models.Ticket, models.TicketLabel]{}
 	_result._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	_result._self = _result
 	return _result, nil
@@ -1645,6 +1652,152 @@ func (_model *ModelsLabel) Category(_ctx context.Context) (*ModelsCategory, erro
 	return _wrapped, nil
 }
 
+type ModelsLabelTicketsCollection struct {
+	owner    *ModelsLabel
+	relation *orm.ManyCollection[models.Ticket, models.TicketLabel]
+	_self    *ModelsLabelTicketsCollection
+}
+
+func newModelsLabelTicketsCollection(_owner *ModelsLabel, _relation *orm.ManyCollection[models.Ticket, models.TicketLabel]) *ModelsLabelTicketsCollection {
+	_view := &ModelsLabelTicketsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsLabelTicketsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsLabelTicketsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsLabelTicketsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsLabel) Tickets() (*ModelsLabelTicketsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[models.Ticket, models.TicketLabel], error) {
+		if _model.state.sessionScope != nil {
+			_session, _ok := _model.state.backend.(db.Session)
+			if !_ok {
+				return nil, relationFacadeBackendInvalid("collection access requires a transaction session")
+			}
+			return _model.state.collections.ModelsLabelTickets.InSession(_session, _model.modelsLabelModel)
+		}
+		return _model.state.collections.ModelsLabelTickets.From(_model.state.backend, _model.modelsLabelModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsLabelTicketsCollection(_model, _relation), nil
+}
+func (_view *ModelsLabelTicketsCollection) Query() (ModelsTicketQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsTicketQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsTicketQuery{}, _err
+	}
+	return newModelsTicketQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsLabelTicketsCollection) All(_ctx context.Context) ([]*ModelsTicket, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsLabelTicketsCollection) Fresh() (*ModelsLabelTicketsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_fresh, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsLabelTicketsCollection(_view.owner, _fresh), nil
+}
+func (_view *ModelsLabelTicketsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+func (_view *ModelsLabelTicketsCollection) values(_targets []*ModelsTicket) ([]models.Ticket, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _view.relation.Invalidate(); _err != nil {
+		return nil, _err
+	}
+	defer _view.relation.Invalidate()
+	_values := make([]models.Ticket, len(_targets))
+	for _index, _target := range _targets {
+		if _target == nil || _target.state != _view.owner.state {
+			return nil, relationFacadeQueryInvalid("collection target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		_values[_index] = _target.modelsTicketModel
+	}
+	return _values, nil
+}
+func (_view *ModelsLabelTicketsCollection) Add(_ctx context.Context, _targets []*ModelsTicket, _defaults ...orm.ManyToManyInput[models.TicketLabel]) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Add(_ctx, _values, _defaults...)
+}
+func (_view *ModelsLabelTicketsCollection) Remove(_ctx context.Context, _targets ...*ModelsTicket) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Remove(_ctx, _values...)
+}
+func (_view *ModelsLabelTicketsCollection) Set(_ctx context.Context, _targets []*ModelsTicket, _options ...orm.ManyToManySetOptions[models.TicketLabel]) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Set(_ctx, _values, _options...)
+}
+func (_view *ModelsLabelTicketsCollection) AddKeys(_ctx context.Context, _keys []int64, _defaults ...orm.ManyToManyInput[models.TicketLabel]) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.AddKeys(_ctx, _keys, _defaults...)
+}
+func (_view *ModelsLabelTicketsCollection) RemoveKeys(_ctx context.Context, _keys ...int64) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.RemoveKeys(_ctx, _keys...)
+}
+func (_view *ModelsLabelTicketsCollection) SetKeys(_ctx context.Context, _keys []int64, _options ...orm.ManyToManySetOptions[models.TicketLabel]) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.SetKeys(_ctx, _keys, _options...)
+}
+func (_view *ModelsLabelTicketsCollection) Clear(_ctx context.Context) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Clear(_ctx)
+}
+
 type ModelsLabelTicketLinksCollection struct {
 	owner    *ModelsLabel
 	relation *orm.RelatedSet[models.TicketLabel]
@@ -1723,6 +1876,7 @@ type ModelsLabelPrefetchSelector = relationFacadePrefetchInput[models.Label]
 type ModelsLabelPrefetchSelectors struct {
 	Category    relationFacadeSinglePrefetch[models.Label, models.Category]
 	TicketLinks relationFacadeReversePrefetch[models.Label, models.TicketLabel, ModelsTicketLabel]
+	Tickets     relationFacadeManyPrefetch[models.Label, models.Ticket, models.TicketLabel, ModelsTicket]
 }
 type ModelsLabelPrefetchQuery struct {
 	state    *relationFacadeState
@@ -2189,6 +2343,14 @@ func (_state *relationFacadeState) wrapSelectedModelsLabelObject(_ctx context.Co
 			return nil, _err
 		}
 	}
+	if _collection, _present, _err := _state.collections.ModelsLabelTickets.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._manyCollection0.Get(func() (*orm.ManyCollection[models.Ticket, models.TicketLabel], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -2238,6 +2400,16 @@ func (_state *relationFacadeState) prefetchModelsLabelPath(_path string, _depth 
 		_selection := _state.reverseCollections.ModelsLabel.ticketLinks.WithChildren()
 		if _nested {
 			_child, _err := _state.prefetchModelsTicketLabelPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "tickets":
+		_selection := _state.collections.ModelsLabelTickets.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsTicketPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -3355,6 +3527,7 @@ func newModelsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[model
 		_result.Prefetch.Category = relationFacadeSinglePrefetch[models.Ticket, models.Category]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ModelsTicket.category)}
 		_result.Prefetch.ServiceReport = relationFacadeSinglePrefetch[models.Ticket, models.ServiceReport]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.ModelsTicket.serviceReport)}
 		_result.Prefetch.LabelLinks = relationFacadeReversePrefetch[models.Ticket, models.TicketLabel, ModelsTicketLabel]{state: _state, selection: _state.reverseCollections.ModelsTicket.labelLinks.WithChildren(), materialize: _state.materializeModelsTicketLabel}
+		_result.Prefetch.Labels = relationFacadeManyPrefetch[models.Ticket, models.Label, models.TicketLabel, ModelsLabel]{state: _state, selection: _state.collections.ModelsTicketLabels.WithChildren(), materialize: _state.materializeModelsLabel}
 	}
 	return _result
 }
@@ -3521,6 +3694,7 @@ type ModelsTicket struct {
 	categoryScalarSnapshot    int64
 	categoryScalarPresent     bool
 	serviceReportCache        *orm.RelationCache[ModelsServiceReport]
+	_manyCollection0          *orm.ManyCollectionCache[models.Label, models.TicketLabel]
 	_reverseCollection0       *orm.RelatedSetCache[models.TicketLabel]
 	_self                     *ModelsTicket
 }
@@ -3620,6 +3794,9 @@ func (_model *ModelsTicket) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._manyCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._manyCollection0 = &orm.ManyCollectionCache[models.Label, models.TicketLabel]{}
+	}
 	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
 		_model._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	}
@@ -3699,6 +3876,7 @@ func (_model *ModelsTicket) relationFacadeDerived(_value models.Ticket) (*Models
 	if _err != nil {
 		return nil, _err
 	}
+	_result._manyCollection0 = &orm.ManyCollectionCache[models.Label, models.TicketLabel]{}
 	_result._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	_result._self = _result
 	return _result, nil
@@ -4036,6 +4214,152 @@ func (_model *ModelsTicket) ServiceReport(_ctx context.Context) (*ModelsServiceR
 	return _wrapped, true, nil
 }
 
+type ModelsTicketLabelsCollection struct {
+	owner    *ModelsTicket
+	relation *orm.ManyCollection[models.Label, models.TicketLabel]
+	_self    *ModelsTicketLabelsCollection
+}
+
+func newModelsTicketLabelsCollection(_owner *ModelsTicket, _relation *orm.ManyCollection[models.Label, models.TicketLabel]) *ModelsTicketLabelsCollection {
+	_view := &ModelsTicketLabelsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsTicketLabelsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsTicketLabelsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsTicketLabelsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsTicket) Labels() (*ModelsTicketLabelsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[models.Label, models.TicketLabel], error) {
+		if _model.state.sessionScope != nil {
+			_session, _ok := _model.state.backend.(db.Session)
+			if !_ok {
+				return nil, relationFacadeBackendInvalid("collection access requires a transaction session")
+			}
+			return _model.state.collections.ModelsTicketLabels.InSession(_session, _model.modelsTicketModel)
+		}
+		return _model.state.collections.ModelsTicketLabels.From(_model.state.backend, _model.modelsTicketModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsTicketLabelsCollection(_model, _relation), nil
+}
+func (_view *ModelsTicketLabelsCollection) Query() (ModelsLabelQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	return newModelsLabelQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsTicketLabelsCollection) All(_ctx context.Context) ([]*ModelsLabel, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsTicketLabelsCollection) Fresh() (*ModelsTicketLabelsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_fresh, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsTicketLabelsCollection(_view.owner, _fresh), nil
+}
+func (_view *ModelsTicketLabelsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+func (_view *ModelsTicketLabelsCollection) values(_targets []*ModelsLabel) ([]models.Label, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _view.relation.Invalidate(); _err != nil {
+		return nil, _err
+	}
+	defer _view.relation.Invalidate()
+	_values := make([]models.Label, len(_targets))
+	for _index, _target := range _targets {
+		if _target == nil || _target.state != _view.owner.state {
+			return nil, relationFacadeQueryInvalid("collection target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		_values[_index] = _target.modelsLabelModel
+	}
+	return _values, nil
+}
+func (_view *ModelsTicketLabelsCollection) Add(_ctx context.Context, _targets []*ModelsLabel, _defaults ...orm.ManyToManyInput[models.TicketLabel]) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Add(_ctx, _values, _defaults...)
+}
+func (_view *ModelsTicketLabelsCollection) Remove(_ctx context.Context, _targets ...*ModelsLabel) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Remove(_ctx, _values...)
+}
+func (_view *ModelsTicketLabelsCollection) Set(_ctx context.Context, _targets []*ModelsLabel, _options ...orm.ManyToManySetOptions[models.TicketLabel]) error {
+	_values, _err := _view.values(_targets)
+	if _err != nil {
+		return _err
+	}
+	return _view.relation.Set(_ctx, _values, _options...)
+}
+func (_view *ModelsTicketLabelsCollection) AddKeys(_ctx context.Context, _keys []int64, _defaults ...orm.ManyToManyInput[models.TicketLabel]) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.AddKeys(_ctx, _keys, _defaults...)
+}
+func (_view *ModelsTicketLabelsCollection) RemoveKeys(_ctx context.Context, _keys ...int64) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.RemoveKeys(_ctx, _keys...)
+}
+func (_view *ModelsTicketLabelsCollection) SetKeys(_ctx context.Context, _keys []int64, _options ...orm.ManyToManySetOptions[models.TicketLabel]) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.SetKeys(_ctx, _keys, _options...)
+}
+func (_view *ModelsTicketLabelsCollection) Clear(_ctx context.Context) error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Clear(_ctx)
+}
+
 type ModelsTicketLabelLinksCollection struct {
 	owner    *ModelsTicket
 	relation *orm.RelatedSet[models.TicketLabel]
@@ -4115,6 +4439,7 @@ type ModelsTicketPrefetchSelectors struct {
 	Category      relationFacadeSinglePrefetch[models.Ticket, models.Category]
 	ServiceReport relationFacadeSinglePrefetch[models.Ticket, models.ServiceReport]
 	LabelLinks    relationFacadeReversePrefetch[models.Ticket, models.TicketLabel, ModelsTicketLabel]
+	Labels        relationFacadeManyPrefetch[models.Ticket, models.Label, models.TicketLabel, ModelsLabel]
 }
 type ModelsTicketPrefetchQuery struct {
 	state    *relationFacadeState
@@ -4582,6 +4907,14 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 			return nil, _err
 		}
 	}
+	if _collection, _present, _err := _state.collections.ModelsTicketLabels.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._manyCollection0.Get(func() (*orm.ManyCollection[models.Label, models.TicketLabel], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -4649,6 +4982,16 @@ func (_state *relationFacadeState) prefetchModelsTicketPath(_path string, _depth
 		_selection := _state.reverseCollections.ModelsTicket.labelLinks.WithChildren()
 		if _nested {
 			_child, _err := _state.prefetchModelsTicketLabelPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "labels":
+		_selection := _state.collections.ModelsTicketLabels.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsLabelPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -6032,6 +6375,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_state.models.ModelsServiceReport = _model2
 	_state.models.ModelsTicket = _model3
 	_state.models.ModelsTicketLabel = _model4
+	_collections, _err := BindCollectionsIn(_binding)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.collections = _collections
 	_reverse, _err := BindReverseObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
@@ -6047,4 +6395,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_c2a370d67a43cc2e5f74cc2ffb3bb2abdf6fb809c6ea2c52855adf7220d775c2
+var _ goDjProjectSnapshot_188bc012f908008e77342603f094c24960057d7328316d2574cc0ae0118648bd

@@ -3,6 +3,65 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 다중 관계 선택 Form/Admin과 Ticket.labels 선언
+
+2026-09-26, `a8116dd20ca279df806c68b7a03978e1d4f15ab1` 위에서 ModelMultipleChoice의 immutable int64 목록과
+Schema IR allowlist projection, Admin SelectMultiple·전체 집합 재검증을 연결했다. 기존 TicketLabel을 채택하는
+Ticket.labels/Label.tickets 선언·generated accessor와 `0020_ticket_labels` historical migration을 추가했다.
+Ticket의 실제 Form/Admin 필드 노출·transaction 저장·API/OpenAPI/client는 아직 구현하지 않았으므로 이 기반 결과를
+소비자 전체 완료로 세지 않는다. Facade ABI v19·relation object v6은 유지한다.
+
+[독립 Django runner](../../conformance/runners/django/model_multiple_choice_reference.py)는 pinned Django 6.1·Python 3.14.3,
+SQLite 3.50.4·PostgreSQL 17.5(170005), psycopg 3.3.6으로 실행했다. 양 DB×PYTHONHASHSEED 0/813의
+HTML list-of-text **476개 observation**·후보 snapshot·direct Python 관찰이 같고, source module SHA256은
+`858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910`이다.
+Go Form은 두 fixture의 476행 각각에 cleaned membership·required/error code·raw-input Changed를 비교한다.
+필수/optional·빈 목록·순서·중복·단일 선택과 다른 키 별칭·NUL·private/missing key·2^60 key를 포함한다.
+Int64 밖 두 입력은 SQLite OverflowError와 PostgreSQL invalid_choice로 달라 별도 보존했다. Go는 invalid_pk_value로
+선행 거부하며 해당 행과 HTML로 표현하지 않는 direct Python 입력을 동등 PASS로 합치지 않는다.
+별도 reference unittest **2/2 PASS**는 두 hash seed 결정성·fixture 일치와 Changed 무력화/별칭 허용의 두 의미 변경을 검출했다.
+Runner SHA256은 `430cb31c877df5356367a4303f54e28b5a9eb1b2839e7dbbc760125efb9ff069`이다.
+
+공통 Form 검증에는 입력/반환/validator/선택 snapshot의 독립 소유권, 부분 cleaned 집합 미공개, nullable/widget/type 거부,
+동시 서로 다른 후보 snapshot을 포함한다. Model projection은 생략된 collection 미노출·명시적 pure initial reader를 검사한다.
+Admin은 전체 canonical key 목록·optional 빈 집합·source 실패·두 번째 후보의 저장 전 소실·target 권한 거부,
+initial/snapshot의 타입·순서·개수 불일치, 실제 HTTP의 다중 선택·기존/거부된 원문 escape·CSRF 선행 거부를 검사했다.
+기존 FK와 새 collection 선언을 함께 포함한 단일 관계 테스트가 nullable empty 입력에 labels까지 요구한 최초 실패를
+`choices-normal-1790426586126802000`에 남겼다. 해당 검증의 필드 선택을 명시하고 기존 single-choice 위험 검증을 유지했다.
+Staged diff 검사에서 발견한 신규 migration의 마지막 빈 줄을 정리한 뒤 아래 최종 source로 모든 영향 모드를 다시 실행했다.
+
+Helpdesk 실제 SQLite/PostgreSQL 소비자 안에서 0019↔0020을 두 번 왕복했다. 기존 Ticket/Label/TicketLabel 행,
+retained link ID와 삭제한 intermediary ID 이후의 sequence 상한, 재시작 후 generated forward/reverse collection 읽기를 확인했다.
+기존 scalar/관계 소비자와 Article의 영향을 함께 실행했다. 아래는 모두 같은 **2,171개 non-Markdown source map**
+`3b4f8f862b8616f5621c88ead7f4961e45f6ebba62d34a245b6340320abe1590`에 대한 `./forms ./forms/model ./admin ./examples/helpdesk ./examples/article` 5개 package,
+필수 root 114개와 하위 test의 상세 이벤트 검증이다. Go 1.26.5·macOS arm64의 영향 검증이며 전체 플랫폼 검증은 아니다.
+
+| 모드 | run=PASS | skip | 시간 | 실행 디렉터리 |
+| --- | ---: | ---: | ---: | --- |
+| normal | 1373 | 0 | 6.9 s | `choices-normal-1790427182866923000` |
+| race | 1373 | 0 | 37.6 s | `choices-race-1790427182866899000` |
+| cgo0 | 1373 | 0 | 8.2 s | `choices-cgo0-1790427182870107000` |
+
+서로 다른 owned PostgreSQL DB에서 실행했고 모두 active session/user table/custom schema **0|0|0** 확인 뒤 non-force drop했다.
+Reference 전용 DB는 session/table **0|0** 확인 뒤 non-force drop했다. 모든 checkpoint의 source map이 실행 전후 같다.
+원본을 바꾸지 않는 Go overlay로 **6개 의미 변경 control**을 각각 실제 assertion 실패로 탐지했다:
+키 별칭 허용, Changed에서 중복 개수 무시, canonical 재검증에서 첫 키만 남김, 초기 선택 해제,
+target permission 검사 생략, 0020 migration source 누락. Build failure·skip을 탐지 성공으로 세지 않았다.
+
+`make format-check generate-check`는 4개 managed tree와 기존 checked-in relation generated test를 통과했다.
+Helpdesk generated snapshot은 `188bc012f908008e77342603f094c24960057d7328316d2574cc0ae0118648bd`(12개 파일)다.
+Affected go vet와 diff check도 통과했다. Generator 자체 변경·full generator/전체 platform 재실행으로 세지 않는다.
+최종 문서 링크·정합성 검사와 source audit는 아래 receipts에 보존한다.
+
+로컬 원본 evidence root는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/ticket-label-collections`이다.
+`latest-reference-path`, `latest-choice-reference-tests-path`, `latest-choices-normal-path`, `latest-choices-race-path`,
+`latest-choices-cgo0-path`, `latest-choices-negative-path`, `latest-choices-checks-path`, `latest-choices-audit-path`가
+상세 source/request/receipt와 이벤트·stderr·control log를 가리킨다. Receipt는 원본 log SHA256을 보존한다.
+
+현재 source의 Hosted full은 실행하지 않았다. 기존 [Hosted full](https://github.com/progresshans/godj/actions/runs/35689549739)은
+`93e77bd9c19d6e7b137de3a068c40a403970e73d`의 기록이다. Ticket 저장 시 권한·양쪽 Category·전체 desired set을 같은
+relation transaction에서 검증하는 소비자·API/OpenAPI/client와 동시성/실패/durability를 완성한 뒤 GDJ-0099 Hosted milestone을 실행한다.
+
 ## GDJ-0099 — 배치 model graph와 generated streaming
 
 2026-09-26, `8820ffd6c9b1fb14c6f5ed46a231d754e0dd3d91` 위에서 공통 `MaterializeBatches`·eager/prefetch

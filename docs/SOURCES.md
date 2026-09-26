@@ -120,3 +120,9 @@ ManyToMany는 같은 pinned Django의 [관계 관리자](https://github.com/djan
 [독립 runner](../conformance/runners/django/many_to_many_reference.py)는 직접 작성한 public model·ORM·migration 입력이며 GoDj나 기대 fixture를 읽지 않는다.
 자동/명시적 through·동시 중복·set rollback·cache·self 관계·조회 multiplicity·migration·signal을 관찰하고 upstream module SHA256을 저장한다.
 이 기준 확보와 제품 지원은 [GDJ-0099](../work/0099-many-to-many-and-ticket-label-collections.md)에서 구분한다.
+
+ModelMultipleChoice는 같은 pinned Django의 `django/forms/models.py` ModelMultipleChoiceField와 BigAutoField의
+실제 QuerySet을 참조한다(BSD-3-Clause). [독립 runner](../conformance/runners/django/model_multiple_choice_reference.py)는
+공개 Form/모델 입력만 사용하며 GoDj나 기대 fixture를 읽지 않는다. HTML 제출 목록의 membership·required·순서·중복·
+initial/changed를 양 DB에서 관찰하고, transport 밖 Python 입력과 int64 밖 native 오류를 별도로 기록한다.
+구현을 번역한 파일이 아니며 source module SHA256·determinism·의미 변경 control은 TEST_EVIDENCE에 남긴다.

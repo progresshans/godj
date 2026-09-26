@@ -92,6 +92,7 @@ func verifyHistoricalTicketLabelLifecycle(t *testing.T, ctx context.Context, bac
 	if err != nil {
 		t.Fatal(err)
 	}
+	verifyTicketLabelsDeclaration(t, ctx, backend, open, loaded, ticket, label, link)
 	if _, err := models.TicketLabelObjects.Create(ctx, backend, models.NewTicketLabelCreate(ticketID, label.ID)); !errors.Is(err, &query.Error{Code: query.CodeUniqueConstraint}) {
 		t.Fatal("native pair uniqueness absent", err)
 	}
@@ -122,6 +123,78 @@ func verifyHistoricalTicketLabelLifecycle(t *testing.T, ctx context.Context, bac
 		t.Fatal("reapply restored removed links", count, err)
 	}
 	if _, err := models.LabelObjects.Delete(ctx, backend, &label); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The columnless declaration adopts the existing intermediary. Both directions
+// of its own historical migration must retain link identity and key allocation.
+func verifyTicketLabelsDeclaration(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticket models.Ticket, label models.Label, link models.TicketLabel) {
+	t.Helper()
+	executor := migrations.Executor{Backend: backend}
+	before := migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0019_ticket_label"}))
+	second, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Declaration sequence check", label.CategoryID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	retired, err := models.TicketLabelObjects.Create(ctx, backend, models.NewTicketLabelCreate(ticket.ID, second.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	highWater := retired.ID
+	if _, err := models.TicketLabelObjects.Delete(ctx, backend, &retired); err != nil {
+		t.Fatal(err)
+	}
+	for index, request := range []migrations.LifecycleRequest{before, migrations.LatestLifecycleRequest(), before, migrations.LatestLifecycleRequest()} {
+		state, err := executor.Migrate(ctx, loaded, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		metadata, found := state.Model("helpdesk", "ticket")
+		if !found {
+			t.Fatal("declaration migration removed owner")
+		}
+		if len(metadata.ManyToMany) != index%2 || index%2 == 1 && !reflect.DeepEqual(metadata.ManyToMany, (models.TicketDescriptor{}).Metadata().ManyToMany) {
+			t.Fatal("historical collection differs from current declaration")
+		}
+		stored, found, err := models.TicketLabelObjects.Using(backend).Filter(models.TicketLabelFields.ID.Exact(link.ID)).OrderBy(models.TicketLabelFields.ID.Asc()).First(ctx)
+		if err != nil || !found || stored != link || !reflect.DeepEqual(ticket, readUniqueTicket(t, ctx, backend, ticket.ID)) {
+			t.Fatal("declaration migration rewrote existing rows", err)
+		}
+	}
+	reopened, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collections, err := project.BindCollections()
+	if err != nil {
+		_ = reopened.Close()
+		t.Fatal(err)
+	}
+	forward, err := collections.ModelsTicketLabels.From(reopened, ticket)
+	if err != nil {
+		_ = reopened.Close()
+		t.Fatal(err)
+	}
+	labels, readErr := forward.All(ctx)
+	reverse, err := collections.ModelsLabelTickets.From(reopened, label)
+	if err != nil {
+		_ = reopened.Close()
+		t.Fatal(err)
+	}
+	tickets, reverseErr := reverse.All(ctx)
+	closeErr := reopened.Close()
+	if readErr != nil || reverseErr != nil || closeErr != nil || len(labels) != 1 || labels[0] != label || len(tickets) != 1 || !reflect.DeepEqual(tickets[0], ticket) {
+		t.Fatal("declared collection did not adopt durable intermediary", readErr, reverseErr, closeErr)
+	}
+	next, err := models.TicketLabelObjects.Create(ctx, backend, models.NewTicketLabelCreate(ticket.ID, second.ID))
+	if err != nil || next.ID <= highWater {
+		t.Fatal("declaration reset intermediary identity allocation", err, next.ID, highWater)
+	}
+	if _, err := models.TicketLabelObjects.Delete(ctx, backend, &next); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := models.LabelObjects.Delete(ctx, backend, &second); err != nil {
 		t.Fatal(err)
 	}
 }

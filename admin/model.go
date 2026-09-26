@@ -120,7 +120,7 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 	if err != nil {
 		return Object{}, err
 	}
-	if err := validateObject(object, projector.fieldByName); err != nil {
+	if err := validateObject(object, projector.fieldByName, nil); err != nil {
 		return Object{}, err
 	}
 	return object, nil

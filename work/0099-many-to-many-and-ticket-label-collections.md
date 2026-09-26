@@ -80,7 +80,11 @@ PostgreSQL FETCH rowset을 닫은 뒤 같은 세션에서 하위 조회·쓰기�
 공통 model 배치 materialization과 generated plain/eager/prefetch Iterate를 연결했다. Callback context가 같은 backend의 ORM I/O를
 해당 실행 연결로 전달하며 model origin·identity·기존 cache는 유지한다. 양 DB 영향 checkpoint와 nil 행 방어의 후속 검증을 마쳤다.
 기존 raw Iterate는 graph 없는 callback으로 설정을 버리지 않도록 계속 명시 오류로 거부한다. Generated Iterate는 명시한 양수 배치 크기를 요구한다.
-Ticket 컬렉션 소비자와 환경별 통합은 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+공통 ModelMultipleChoice Form의 immutable int64 집합·정확한 membership·raw-input 변경 감지를 연결했다.
+Admin은 명시한 후보 권한과 전체 선택 집합을 재검증하며, 여러 초기값·거부된 원문을 escape해 보존한다.
+Ticket.labels를 기존 TicketLabel through와 연결하는 선언·generated accessor·0020 historical migration을 추가했다.
+선언의 적용/역적용·재시작은 기존 행·link ID·삭제된 ID 이후의 sequence 상한을 보존한다.
+Ticket의 실제 컬렉션 편집·저장·API/client와 환경별 통합은 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

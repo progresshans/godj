@@ -38,7 +38,14 @@ func choiceDisplayValue(labels map[ir.Scalar]string, value templates.Value) temp
 	return value
 }
 
-func choiceOptionValues(field forms.Field, selected string) ([]templates.Value, error) {
+func choiceOptionValues(field forms.Field, selections ...string) ([]templates.Value, error) {
+	if field.Widget() == forms.SelectMultiple {
+		return multipleChoiceOptionValues(field, selections)
+	}
+	selected := ""
+	if len(selections) > 0 {
+		selected = selections[0]
+	}
 	if field.Widget() != forms.Select && field.Widget() != forms.NullBooleanSelect {
 		return nil, nil
 	}
@@ -85,4 +92,38 @@ func choiceOptionValues(field forms.Field, selected string) ([]templates.Value, 
 		}
 	}
 	return options, nil
+}
+
+func multipleChoiceOptionValues(field forms.Field, selected []string) ([]templates.Value, error) {
+	chosen := make(map[string]bool, len(selected))
+	for _, value := range selected {
+		chosen[value] = true
+	}
+	choices := field.Choices()
+	known := make(map[string]bool, len(choices))
+	for _, choice := range choices {
+		known[choice.InputValue()] = true
+	}
+	result := make([]templates.Value, 0, len(choices)+len(selected))
+	appendOption := func(value, label string, chosen bool) error {
+		option, err := templateObject(map[string]templates.Value{"value": templates.String(value), "label": templates.String(label), "selected": templates.Bool(chosen)})
+		if err == nil {
+			result = append(result, option)
+		}
+		return err
+	}
+	for _, value := range selected {
+		if !known[value] {
+			if err := appendOption(value, value+" (not a current choice)", true); err != nil {
+				return nil, err
+			}
+			known[value] = true
+		}
+	}
+	for _, choice := range choices {
+		if err := appendOption(choice.InputValue(), choice.Label, chosen[choice.InputValue()]); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }

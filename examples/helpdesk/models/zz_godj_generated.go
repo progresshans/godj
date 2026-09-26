@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
+const GoDjSchemaSHA256 = "e9c1d9c7cbb5bf6e6a84963653497a4f608c3cac105a74aee21362ca36bd6eb4"
 
 type Category struct {
 	ID                    int64
@@ -1486,6 +1486,9 @@ func ticketMetadata() ir.Model {
 				Nullable: true,
 			},
 		},
+		ManyToMany: []ir.ManyToManyField{
+			{Name: "labels", GoName: "Labels", Target: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}, Reverse: ir.ReverseRelation{Name: "tickets", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"}, SourceField: "ticket", TargetField: "label"}},
+		},
 	}
 }
 
@@ -2168,4 +2171,4 @@ func ticketLabelMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_c2a370d67a43cc2e5f74cc2ffb3bb2abdf6fb809c6ea2c52855adf7220d775c2 struct{}
+type GoDjProjectSnapshot_188bc012f908008e77342603f094c24960057d7328316d2574cc0ae0118648bd struct{}

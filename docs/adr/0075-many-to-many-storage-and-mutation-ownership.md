@@ -419,3 +419,30 @@ Comparable backend identity가 필요하며 non-comparable backend 값은 명시
 route/owner/child 키 ledger는 stream 전체에 유지한다. 키 저장량은 고유 owner 수에 비례하며 모델 전체 buffering이나 full cache는
 아니다. Query/Save에 사용하는 callback context와 활성 연결의 직렬 실행 의무는 CONCURRENCY 계약을 따른다.
 Facade v19 생성물을 같이 갱신하며 실행 근거·환경·남은 소비자 범위는 TEST_EVIDENCE와 CURRENT가 소유한다.
+
+
+### ModelMultipleChoice와 collection snapshot
+
+2026-09-26, `forms.ModelMultipleChoiceField`·`FieldIntegerList`·`SelectMultiple`을 연결했다.
+Schema IR의 columnless ManyToMany를 저장 scalar 필드로 위장하지 않고 명시한 form allowlist에 투영한다.
+`forms.Integers`는 int64 정밀도를 유지하는 immutable value이고 읽을 때 독립 slice를 반환한다.
+`InitialValues`는 이미 읽은 collection key를 전달하는 명시적 pure reader를 받는다. 내부에서 QuerySet이나 I/O를 숨기지 않는다.
+
+고정 Django 6.1 `ModelMultipleChoiceField`의 HTML list-of-text 입력 관찰을 기준으로 한다.
+필수 빈 입력은 required, optional 빈 입력은 NULL이 아닌 빈 목록이다. 제출한 키가 하나라도 후보 snapshot에 없으면
+전체 필드를 거부하고 부분 cleaned 목록을 공개하지 않는다. 결과는 후보 순서의 unique key 목록이며 Changed는 raw 입력의
+길이와 문자열 집합을 비교한다. 순서만 바뀌면 변경이 아니지만 중복 제출의 개수는 비교에 남는다.
+단일 ModelChoice가 허용하던 `+7`·`007` 같은 정수 별칭은 다중 선택 membership에서는 invalid_choice다.
+Go int64 밖 입력은 I/O 전에 invalid_pk_value로 거부한다. Reference의 SQLite OverflowError와 PostgreSQL invalid_choice를
+같은 결과로 정규화하지 않는다. [소유권과 입력 범위 차이](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)를 따른다.
+
+Admin RelatedChoices의 기존 target 권한·모든 provider의 사전 인가·snapshot 재검증을 다중 선택에도 적용한다.
+화면의 initial/snapshot 목록은 타입·순서·개수가 일치해야 하며, 다중 선택의 canonical 재검증은 모든 key를 전달한다.
+알 수 없어진 초기값과 거부된 원문도 선택 상태와 함께 escape해 표시한다. 기존 Admin의 positive-key snapshot 정책은 유지한다.
+다중 선택 UI 성공이 transaction 검증을 대체하지 않는다. 실제 Ticket 저장 callback이 권한과 Category·원하는 전체 집합을
+다시 확인하고 scalar 변경과 collection Set을 같은 relation transaction에서 수행하는 통합은 후속 구현이다.
+
+Helpdesk의 `0020_ticket_labels`는 `0019_ticket_label`에 의존하는 AddManyToMany 이력이다.
+Ticket.labels/Label.tickets accessor는 기존 intermediary를 채택하며 새로운 테이블이나 연결 행을 만들지 않는다.
+실제 migration 왕복·재시작·기존 link ID와 삭제된 ID의 sequence 상한 보존을 양 DB에서 검증한다.
+Form/Admin 기반과 선언의 구현을 Ticket API/OpenAPI/client 통합 완료나 전체 플랫폼 검증으로 세지 않는다.

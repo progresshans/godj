@@ -40,15 +40,15 @@ func validateChoices(name string, kind FieldKind, config fieldConfig) error {
 		return nil
 	}
 	invalid := func(code string) error { return &ConfigError{Path: "fields." + name + ".choices", Code: code} }
-	if len(config.choices) == 0 && !config.modelChoice || (kind != FieldChar && kind != FieldInteger) {
+	if len(config.choices) == 0 && !config.modelChoice || (kind != FieldChar && kind != FieldInteger && kind != FieldIntegerList) {
 		return invalid("unsupported")
 	}
-	if config.modelChoice && (kind != FieldInteger || config.widget != Select) {
+	if config.modelChoice && !(kind == FieldInteger && config.widget == Select || kind == FieldIntegerList && config.widget == SelectMultiple) {
 		return invalid("unsupported_model_choice")
 	}
 	seen := make(map[Value]struct{}, len(config.choices))
 	for _, choice := range config.choices {
-		if !validValueForField(choice.Value, kind, false) {
+		if !(kind == FieldIntegerList && choice.Value.kind == ValueInteger || kind != FieldIntegerList && validValueForField(choice.Value, kind, false)) {
 			return invalid("type_mismatch")
 		}
 		if !utf8.ValidString(choice.Label) || strings.ContainsRune(choice.Label, 0) ||

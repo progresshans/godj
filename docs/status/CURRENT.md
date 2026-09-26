@@ -8,35 +8,21 @@
 
 ## 현재
 
-ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation runtime·generated model/session facade와
-같은 typed/dynamic Query AST의 mixed 관계 조건을 연결했다.
-직접 컬렉션 prefetch를 기존 through query·target eager projection과 generated typed/path selector에 연결했다.
-여러 관계·양방향/self·nullable duplicate와 독립 cache를 처리하며 전체 조회가 성공한 뒤에만 결과를 반환한다.
-Custom target filter의 연결 행 scope와 owner 귀속을 보존하는 Query AST·양 DB compiler 기반을 연결했다.
-ManyToMany 중첩 typed/path 선택과 하위 collection cache를 공통 model materialization에 연결했다.
-Target Filter·OrderBy·Distinct와 명시한 하위 prefetch 설정을 generated typed/path 구성에 연결했다.
-Manager 변경 뒤 기본 조회 복귀와 held query의 조건·cache 보존을 구분한다.
-설정된 target query의 eager·추가 prefetch에도 기존 하위 설정을 전달한다.
-단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 연결하고, root eager와 양쪽 호출 순서로 조합해 이미 읽은 부모를 재사용한다.
-Reverse FK collection과 ManyToMany target eager 구성을 같은 graph와 model 접근자에 연결했다.
-명시한 target eager는 파생 조회에 유지하며 역방향 manager 초기화는 기본 scope로 돌아간다.
-Owner별 slice를 공통 runtime과 generated Snapshot·Limit/Offset·Read에 연결했다.
-Named snapshot은 일반 manager와 분리되고 하위 관계·eager graph·세션 수명을 보존한다.
-Custom ManyToMany 조회는 전체 owner 집합을 유지하며 큰 integer membership은 양 DB에서 compact parameter로 읽는다.
-단일 관계 target의 Filter·OrderBy·Distinct·eager와 하위 설정을 연결했다.
-조회로 생긴 부재는 명시적 관계 해제와 구분하며 모델 파생·저장에서도 기존 FK를 보존한다.
-빌린 transaction의 배치 조회 기반을 연결했다. PostgreSQL의 배치 rowset은 하위 조회 전에 닫고 SQLite는 같은 연결을 사용한다.
-일반 backend의 배치 조회도 같은 연결에서 중첩 조회·쓰기를 실행하고, 반환 executor는 종료 뒤 원래 backend로 돌아간다.
-배치별 model graph와 generated Iterate를 연결했다. Callback context가 실행 연결을 선택하고 기존 model의 origin·identity·cache를 보존한다.
-ORM·generator·실제 소비자의 양 DB 영향 검증과 마지막 backend 행 검증 보완을 마쳤다.
-지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
+ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation runtime·generated model/session facade를 연결했다.
+Typed/dynamic Query AST의 mixed 관계 조건, direct/nested/filtered/eager prefetch와 owner별 named slice,
+배치 model graph와 generated Iterate를 구현했다. 실행 source·환경별 검증은 TEST_EVIDENCE를 따른다.
+공통 ModelMultipleChoice Form과 Admin의 전체 집합 재검증·다중 선택 표시를 연결했다.
+Helpdesk의 Ticket.labels 선언과 historical migration은 기존 TicketLabel 행·키 할당을 보존한다.
+Ticket의 실제 편집·저장·API에 labels를 공개하는 통합은 아직 남아 있다.
+지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-Ticket.labels를 기존 TicketLabel through와 연결하는 선언·historical migration부터 실제 소비자에 반영한다.
-Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
-이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
+Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고,
+공통 다중 선택을 실제 Ticket Form/Admin·API/OpenAPI·독립 client에 연결한다.
+동시성·실패·durability를 검증한 뒤 GDJ-0099 Hosted 전체 milestone을 실행한다.
+명시적 연결 CRUD나 공통 Form/Admin 기반만으로 전체 소비자를 완료로 세지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증을 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

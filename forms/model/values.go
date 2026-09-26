@@ -8,7 +8,9 @@ import (
 
 // InitialValues projects only the form's selected fields from a typed model
 // reader. The model and its nullable pointers are never retained by the result.
-func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M, ir.Field) (query.Value, bool)) (map[string]forms.Value, error) {
+// A selected ManyToMany requires one explicit, pure collection reader. Load
+// relations with a context before projection; this callback must not hide I/O.
+func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M, ir.Field) (query.Value, bool), related ...func(M, ir.ManyToManyField) ([]int64, bool)) (map[string]forms.Value, error) {
 	if read == nil || len(spec.Fields()) == 0 {
 		return nil, &Error{Path: "initial", Code: "invalid"}
 	}
@@ -19,8 +21,32 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		}
 		byName[field.Name] = field
 	}
+	if len(related) > 1 || len(related) == 1 && related[0] == nil {
+		return nil, &Error{Path: "initial.relations", Code: "invalid"}
+	}
+	many := make(map[string]ir.ManyToManyField, len(model.ManyToMany))
+	for _, field := range model.ManyToMany {
+		if _, exists := byName[field.Name]; exists {
+			return nil, &Error{Path: "initial", Code: "duplicate"}
+		}
+		if _, exists := many[field.Name]; exists {
+			return nil, &Error{Path: "initial", Code: "duplicate"}
+		}
+		many[field.Name] = field.Clone()
+	}
 	result := make(map[string]forms.Value, len(spec.Fields()))
 	for _, field := range spec.Fields() {
+		if metadata, found := many[field.Name()]; found {
+			if field.Kind() != forms.FieldIntegerList || len(related) != 1 {
+				return nil, &Error{Path: "initial." + field.Name(), Code: "missing_relation_reader"}
+			}
+			keys, present := related[0](value, metadata.Clone())
+			if !present {
+				return nil, &Error{Path: "initial." + field.Name(), Code: "missing_value"}
+			}
+			result[field.Name()] = forms.Integers(keys...)
+			continue
+		}
 		metadata, found := byName[field.Name()]
 		if !found {
 			return nil, &Error{Path: "initial." + field.Name(), Code: "unknown_field"}

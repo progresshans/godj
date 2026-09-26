@@ -35,8 +35,8 @@ func (s Spec) WithModelChoices(name string, choices ...Choice) (Spec, error) {
 	if !found || !s.fields[index].modelChoice {
 		return Spec{}, &ConfigError{Path: "fields." + name, Code: "not_model_choice"}
 	}
-	config := fieldConfig{modelChoice: true, widget: Select, choices: choices}
-	if err := validateChoices(name, FieldInteger, config); err != nil {
+	config := fieldConfig{modelChoice: true, widget: s.fields[index].widget, choices: choices}
+	if err := validateChoices(name, s.fields[index].kind, config); err != nil {
 		return Spec{}, err
 	}
 	fields := s.Fields()

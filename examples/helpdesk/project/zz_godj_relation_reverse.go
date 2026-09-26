@@ -356,4 +356,76 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_c2a370d67a43cc2e5f74cc2ffb3bb2abdf6fb809c6ea2c52855adf7220d775c2
+type Collections struct {
+	ModelsTicketLabels orm.ManyToMany[models.Ticket, models.Label, models.TicketLabel]
+	ModelsLabelTickets orm.ManyToMany[models.Label, models.Ticket, models.TicketLabel]
+}
+
+func BindCollections() (Collections, error) {
+	_binding, _err := Bind()
+	if _err != nil {
+		return Collections{}, _err
+	}
+	return BindCollectionsIn(_binding)
+}
+func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+		models.CategoryDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+		models.LabelDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
+		models.ServiceReportDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+		models.TicketDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	if len(_binding.ManyToManyRelations()) != 1 {
+		return Collections{}, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "generated collection set does not match project binding"}
+	}
+	_relation0, _err := orm.BindManyToMany(_model3, "labels", _model1, _model4, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation1, _err := orm.BindReverseManyToMany(_model1, "tickets", _model3, _model4, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_ = _model0
+	_ = _model2
+	return Collections{
+		ModelsTicketLabels: _relation0,
+		ModelsLabelTickets: _relation1,
+	}, nil
+}
+
+var _ goDjProjectSnapshot_188bc012f908008e77342603f094c24960057d7328316d2574cc0ae0118648bd

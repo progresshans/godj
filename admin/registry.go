@@ -383,6 +383,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	for _, field := range model.Fields {
 		fieldByName[field.Name] = field
 	}
+	manyByName := make(map[string]ir.ManyToManyField, len(model.ManyToMany))
+	for _, field := range model.ManyToMany {
+		manyByName[field.Name] = field.Clone()
+	}
 	listFields, err := validateFieldSelection("model.list_fields", config.ListFields, fieldByName, false)
 	if err != nil {
 		return registeredModel{}, err
@@ -441,14 +445,23 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			requiredSnapshotOrder = append(requiredSnapshotOrder, field.Name)
 		}
 	}
+	for _, field := range model.ManyToMany {
+		if _, required := requiredSnapshotFields[field.Name]; required {
+			requiredSnapshotOrder = append(requiredSnapshotOrder, field.Name)
+		}
+	}
 	validateSnapshot := func(object Object) error {
-		return validateRegisteredSnapshot(object, fieldByName, requiredSnapshotOrder)
+		return validateRegisteredSnapshot(object, fieldByName, manyByName, requiredSnapshotOrder)
 	}
 	auditable := make(map[string]struct{}, len(model.Fields))
 	for _, field := range model.Fields {
 		if !field.PrimaryKey {
 			auditable[field.Name] = struct{}{}
 		}
+	}
+
+	for _, field := range model.ManyToMany {
+		auditable[field.Name] = struct{}{}
 	}
 
 	registered := registeredModel{
@@ -893,6 +906,13 @@ func canonicalFormData(submitted forms.Form, fields []forms.Field) (forms.Data, 
 			return forms.Data{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldIntegerList:
+			keys, _ := entry.Value().AsIntegers()
+			text := make([]string, len(keys))
+			for i, key := range keys {
+				text[i] = strconv.FormatInt(key, 10)
+			}
+			canonicalData[field.Name()] = text
 		case forms.FieldJSON:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -1000,6 +1020,9 @@ func validateBoundData(data forms.Data, spec forms.Spec, fields []forms.Field) (
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldIntegerList:
+		_, ok := value.AsIntegers()
+		return ok
 	case forms.FieldJSON:
 		if value.IsNull() {
 			return field.Nullable()
@@ -1096,6 +1119,19 @@ func validateInitialValues(values forms.Values, fields []forms.Field, object Obj
 
 func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool {
 	switch initial.Kind() {
+	case forms.ValueIntegerList:
+		keys, ok := initial.AsIntegers()
+		items, listed := snapshot.Items()
+		if !ok || !listed || len(keys) != len(items) {
+			return false
+		}
+		for i, item := range items {
+			key, integer := item.AsInteger()
+			if !integer || key != keys[i] {
+				return false
+			}
+		}
+		return true
 	case forms.ValueNull:
 		return snapshot.IsNull()
 	case forms.ValueJSON:
@@ -1151,6 +1187,9 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldIntegerList:
+		keys, ok := value.AsIntegers()
+		return ok && (!field.Required() || len(keys) > 0)
 	case forms.FieldJSON:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1229,25 +1268,27 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 	}
 }
 
-func validateRegisteredSnapshot(object Object, modelFields map[string]ir.Field, required []string) error {
+func validateRegisteredSnapshot(object Object, modelFields map[string]ir.Field, many map[string]ir.ManyToManyField, required []string) error {
 	for _, name := range required {
 		if _, found := object.Value(name); !found {
 			return &ConfigError{Path: "snapshot." + name, Code: "missing_field"}
 		}
 	}
-	return validateObject(object, modelFields)
+	return validateObject(object, modelFields, many)
 }
 
 // Projectors construct their exact selected fields; registrations separately
 // check their required subset. Both validate exposed values against a prepared
 // field index, preserving unknown-field errors before value-constraint errors.
-func validateObject(object Object, fieldByName map[string]ir.Field) error {
+func validateObject(object Object, fieldByName map[string]ir.Field, many map[string]ir.ManyToManyField) error {
 	members, ok := object.values.Members()
 	if !ok {
 		return &ConfigError{Path: "snapshot.values", Code: "invalid"}
 	}
 	for _, member := range members {
-		if _, found := fieldByName[member.Name()]; !found {
+		_, stored := fieldByName[member.Name()]
+		_, collection := many[member.Name()]
+		if !stored && !collection {
 			return &ConfigError{Path: "snapshot." + member.Name(), Code: "unknown_field"}
 		}
 	}
@@ -1255,6 +1296,19 @@ func validateObject(object Object, fieldByName map[string]ir.Field) error {
 		return &ConfigError{Path: "snapshot", Code: "invalid"}
 	}
 	for _, member := range members {
+		if _, collection := many[member.Name()]; collection {
+			items, ok := member.Value().Items()
+			if !ok {
+				return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
+			}
+			for _, item := range items {
+				key, ok := item.AsInteger()
+				if !ok || key <= 0 {
+					return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
+				}
+			}
+			continue
+		}
 		field := fieldByName[member.Name()]
 		if !validSnapshotValue(member.Value(), field, object.id) {
 			return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}

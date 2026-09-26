@@ -3,6 +3,11 @@
 Category–Ticket–ServiceReport 관계 모델에 선택형 Form/Admin, 읽기 전용 Category Admin, 인증·CSRF API를 연결한다.
 `Application`은 caller가 제공한 backend를 사용한다. 테스트는 실제 migration, HTTP CRUD, 재시작과 권한 교체를 검증한다.
 
+Ticket.labels는 기존 TicketLabel을 explicit through로 선언한다. `0020_ticket_labels`는 관계 metadata만 추가하며
+기존 연결 행·ID·sequence를 보존한다. Generated forward/reverse collection 접근자를 사용할 수 있다.
+현재 Ticket의 Form/Admin/API 필드 목록에는 labels를 아직 공개하지 않았으며, 기존 TicketLabel CRUD는 유지한다.
+실제 컬렉션 저장·권한·응답 통합은 [GDJ-0099](../../work/0099-many-to-many-and-ticket-label-collections.md)에서 이어간다.
+
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 `application.API(authentication)`으로 API를 한 번 조합한 뒤 `api.Routes()`를 Web 설정에 연결한다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
