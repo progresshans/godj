@@ -19,7 +19,7 @@ type preparedPrefetch[S any] interface {
 	nodeBudget() int
 	validate() error
 	merge(preparedPrefetch[S]) (preparedPrefetch[S], error)
-	load(context.Context, db.Queryer, []S) ([]cachedPrefetch, error)
+	apply(context.Context, db.Queryer, []relatedSelectedValue[S]) error
 }
 type cachedPrefetch interface {
 	clone() (cachedPrefetch, error)
@@ -245,24 +245,31 @@ func (p preparedManyPrefetch[S, T, L]) load(ctx context.Context, backend db.Quer
 	return result, nil
 }
 
-func loadPrefetchValues[S any](ctx context.Context, backend db.Queryer, values []relatedSelectedValue[S], selections []preparedPrefetch[S]) error {
+func (p preparedManyPrefetch[S, T, L]) apply(ctx context.Context, backend db.Queryer, values []relatedSelectedValue[S]) error {
 	owners := make([]S, len(values))
 	for i, value := range values {
 		owners[i] = value.source
 	}
+	caches, err := p.load(ctx, backend, owners)
+	if err != nil {
+		return err
+	}
+	if len(caches) != len(values) {
+		return relationInvalidPlan("prefetch batch changed owner cardinality")
+	}
+	for i, cache := range caches {
+		if values[i].collections == nil {
+			values[i].collections = make(map[string]cachedPrefetch)
+		}
+		values[i].collections[p.name()] = cache
+	}
+	return ctx.Err()
+}
+
+func loadPrefetchValues[S any](ctx context.Context, backend db.Queryer, values []relatedSelectedValue[S], selections []preparedPrefetch[S]) error {
 	for _, selection := range selections {
-		caches, err := selection.load(ctx, backend, owners)
-		if err != nil {
+		if err := selection.apply(ctx, backend, values); err != nil {
 			return err
-		}
-		if len(caches) != len(values) {
-			return relationInvalidPlan("prefetch batch changed owner cardinality")
-		}
-		for i, cache := range caches {
-			if values[i].collections == nil {
-				values[i].collections = make(map[string]cachedPrefetch, len(selections))
-			}
-			values[i].collections[selection.name()] = cache
 		}
 	}
 	return ctx.Err()
@@ -287,6 +294,7 @@ type PrefetchQuery[S any] struct {
 	binding          BoundModel[S]
 	selections       []preparedPrefetch[S]
 	evaluation       *evaluationState[relatedSelectedValue[S]]
+	related          *RelatedSelectQuery[S]
 	configurationErr error
 }
 
@@ -339,6 +347,60 @@ func (q PrefetchQuery[S]) WithConfigurationError(err error) PrefetchQuery[S] {
 }
 func (q PrefetchQuery[S]) ConfigurationError() error { return q.configurationErr }
 func (q PrefetchQuery[S]) Plan() query.Plan          { return q.source.plan }
+
+// SelectRelated combines an eager source rowset with this prefetch tree.
+// Prepared targets and collection nodes share the same source binding/budget.
+func (q PrefetchQuery[S]) SelectRelated(selections ...RelatedSelection[S]) PrefetchQuery[S] {
+	if q.configurationErr != nil {
+		return q
+	}
+	source := newQuerySet(q.source.backend, q.source.descriptor, q.source.plan)
+	source.configurationErr = q.source.configurationErr
+	source.materialization = &queryMaterialization[S]{binding: q.binding, selections: q.selections}
+	related := SelectRelated(source, selections...).WithSourceBinding(q.binding)
+	if err := related.ConfigurationError(); err != nil {
+		return q.WithConfigurationError(err)
+	}
+	related.materialization = nil
+	q.related = &related
+	q.evaluation = newEvaluationState[relatedSelectedValue[S]]()
+	return q
+}
+
+// PrefetchRelated preserves this eager query's prepared graph while loading
+// selected descendants. An eager parent is reused by a single prefetch node.
+func (q RelatedSelectQuery[S]) PrefetchRelated(selections ...PrefetchSelection[S]) PrefetchQuery[S] {
+	source := newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections())
+	source.configurationErr = q.configurationErr
+	source.materialization = q.materialization
+	result := PrefetchRelated(source, selections...)
+	if result.configurationErr != nil {
+		return result
+	}
+	if q.evaluation == nil || len(q.targets) == 0 {
+		return result.WithConfigurationError(relationInvalidPlan("eager prefetch source is unbound"))
+	}
+	if result.binding.snapshot != q.binding.snapshot || result.binding.identity != q.binding.identity {
+		return result.WithConfigurationError(relationInvalidPlan("eager and prefetch selections belong to different source bindings"))
+	}
+	budget := q.nodes
+	for _, selection := range result.selections {
+		budget += selection.nodeBudget()
+	}
+	if budget > MaximumRelatedSelectionNodes {
+		return result.WithConfigurationError(relationInvalidPlan("eager and prefetch selection budget exceeded"))
+	}
+	q.materialization = nil
+	result.related = &q
+	return result
+}
+
+func (q PrefetchQuery[S]) relatedFor(plan query.Plan) (RelatedSelectQuery[S], error) {
+	related := *q.related
+	var err error
+	related.plan, err = plan.WithRelationProjections(q.related.plan.RelationProjections()...)
+	return related, err
+}
 func (q PrefetchQuery[S]) derive(source QuerySet[S]) PrefetchQuery[S] {
 	q.source = source
 	q.evaluation = newEvaluationState[relatedSelectedValue[S]]()
@@ -390,16 +452,50 @@ func (q PrefetchQuery[S]) validate(ctx context.Context) error {
 			return err
 		}
 	}
+	if q.related != nil {
+		related, err := q.relatedFor(q.source.plan)
+		if err != nil {
+			return err
+		}
+		if err := related.validateTerminal(ctx); err != nil {
+			return err
+		}
+	}
 	return ctx.Err()
 }
-func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan) ([]relatedSelectedValue[S], error) {
-	owners, err := newQuerySet(q.source.backend, q.source.descriptor, plan).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]relatedSelectedValue[S], len(owners))
-	for i, owner := range owners {
-		result[i] = relatedSelectedValue[S]{source: owner, collections: make(map[string]cachedPrefetch, len(q.selections))}
+func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan, maximum int) ([]relatedSelectedValue[S], error) {
+	var result []relatedSelectedValue[S]
+	if q.related != nil {
+		related, err := q.relatedFor(plan)
+		if err != nil {
+			return nil, err
+		}
+		result, err = related.scan(ctx, related.plan, maximum)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		source := newQuerySet(q.source.backend, q.source.descriptor, plan)
+		var owners []S
+		if maximum == 1 {
+			owner, present, err := source.First(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if present {
+				owners = []S{owner}
+			}
+		} else {
+			var err error
+			owners, err = source.All(ctx)
+			if err != nil {
+				return nil, err
+			}
+		}
+		result = make([]relatedSelectedValue[S], len(owners))
+		for i, owner := range owners {
+			result[i].source = owner
+		}
 	}
 	if err := loadPrefetchValues(ctx, q.source.backend, result, q.selections); err != nil {
 		return nil, err
@@ -439,7 +535,7 @@ func (q PrefetchQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], error
 	if err := q.validate(ctx); err != nil {
 		return nil, err
 	}
-	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]relatedSelectedValue[S], error) { return q.load(ctx, q.source.plan) })
+	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]relatedSelectedValue[S], error) { return q.load(ctx, q.source.plan, 0) })
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +561,7 @@ func (q PrefetchQuery[S]) First(ctx context.Context) (*RelatedSelected[S], bool,
 	values, ready := q.evaluation.cachedValues()
 	if !ready {
 		var err error
-		values, err = q.load(ctx, planWithMaximumRows(q.source.plan, 1))
+		values, err = q.load(ctx, planWithMaximumRows(q.source.plan, 1), 1)
 		if err != nil {
 			return nil, false, err
 		}

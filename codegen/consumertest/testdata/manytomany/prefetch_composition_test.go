@@ -62,6 +62,48 @@ func TestFilteredPrefetchComposition(t *testing.T) {
 				}
 			}
 		}
+		t.Run("single_child", func(t *testing.T) {
+			base := api.OwnersOwner.Filter(owners.OwnerFields.ID.Exact(first.ID))
+			typed := base.PrefetchRelated(base.Prefetch.Labels.WithChildren(api.LabelsLabel.Prefetch.FeaturedOwner, api.LabelsLabel.Prefetch.Owners))
+			paths, err := base.PrefetchRelatedPaths("labels__featured_owner", "labels__owners")
+			check(t, err)
+			for _, q := range []project.OwnersOwnerPrefetchQuery{typed, paths} {
+				before := len(probe.plans)
+				rows, err := q.All(ctx)
+				check(t, err)
+				if len(rows) != 1 || len(probe.plans)-before != 4 {
+					t.Fatal("mixed collection/single tree was not batched")
+				}
+				before = len(probe.plans)
+				view, err := rows[0].Labels()
+				check(t, err)
+				children, err := view.All(ctx)
+				check(t, err)
+				verify(children)
+				if len(probe.plans) != before {
+					t.Fatal("mixed child graph lost")
+				}
+			}
+			configured := base.PrefetchRelated(base.Prefetch.Labels.Filter(labels.LabelFields.Name.In("a", "b")).WithChildren(api.LabelsLabel.Prefetch.FeaturedOwner))
+			rows, err := configured.All(ctx)
+			check(t, err)
+			view, err := rows[0].Labels()
+			check(t, err)
+			held, err := view.Query()
+			check(t, err)
+			before := len(probe.plans)
+			refined, err := held.OrderBy(labels.LabelFields.Name.Asc()).All(ctx)
+			check(t, err)
+			if len(refined) != 2 || len(probe.plans)-before != 2 {
+				t.Fatal("configured single child did not survive refinement")
+			}
+			before = len(probe.plans)
+			featured, found, err := refined[0].FeaturedOwner(ctx)
+			check(t, err)
+			if !found || featured.ID != highlight.ID || len(probe.plans) != before {
+				t.Fatal("configured child cache missing")
+			}
+		})
 		t.Run("eager_and_children", func(t *testing.T) {
 			held, err := getHeld(api)
 			check(t, err)

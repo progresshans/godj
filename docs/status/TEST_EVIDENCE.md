@@ -3,6 +3,53 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 단일 관계 prefetch와 eager 부모 재사용
+
+2026-09-26, `6eba1f1ced9f908a08c43fb52cb65b65952d2588` 위에서 required/nullable FK와 역방향 OneToOne의
+`SinglePrefetch`를 공통 graph에 연결했다. Generated typed/path selector와 root eager를 양쪽 호출 순서로 조합한다.
+이미 읽은 부모는 projection·binding·membership을 검증해 재사용하고, 나머지는 고유 key를 999개씩 나누어 조회한다.
+Eager descendants와 collection descendants는 전체 성공 뒤 함께 publish한다. Collection만 가진 target도 같은 materialization을
+사용하며 반환 부모·collection handle은 서로 독립이다. NULL 관계도 session 수명을 보존한다. Facade ABI v15·golden·프로젝트 5개의 생성물을 갱신했다.
+
+제품 checkpoint는 non-Markdown **2,123파일**, source map hash
+`24bdccff029748914879356ef342e0da2e12254f81d454a14bfee785a584ca0d`다.
+범위는 `./orm ./codegen ./codegen/consumertest ./conformance/onetoonefixture` 전체와
+`./db/postgres`의 `TestPostgresOneToOneFacadeReverseEager`다. PostgreSQL 패키지 전체나 전체 platform 실행으로 세지 않는다.
+일반·race·CGO=0 각각 **5 package / 1,237 run=PASS / skip 0**이며 실행 시간은 각각
+176.6초·577.9초·171.1초다. 24개 필수 root와 시작/종료 이벤트를 검사했고 모든 완료 실행 전후 source map이 같다.
+
+Actual generated ManyToMany module은 mode마다 SQLite/PostgreSQL **273 child run=PASS / skip 0**다.
+고정 Django `prefetch_eager_owner`의 결과와 **eager+child 2 query / warm 0**을 typed/path와 양쪽 호출 순서에서 비교했다.
+같은 graph의 일반 single prefetch는 **3 query**다. Cold First의 제한·full cache 독립, Count의 child I/O 생략,
+파생 Filter/Offset/Limit/Fresh, origin·공유 node budget, 단계별 실패와 취소 후 재시도, 중복 부모·held query의 독립 cache와
+동시 warm 소비·session 종료를 검사한다. 별도 composition 소비자는 collection→single 혼합 경로와 명시한 single child 설정의
+파생 조회 보존을 양 DB에서 검사한다. 기존 OneToOne 12개 기준 graph에도 일반 single prefetch와 모든 eager 부모 재사용을
+적용해 같은 결과·정상 부재·하위 cache를 양 DB에서 확인했다. Runner와 고정 48개 ManyToMany 관찰 fixture는 변경/재실행하지 않았다.
+
+결함 주입 점검에서 native foreign-row 테스트가 batch membership 거부 뒤의 중복 행 오류로도 통과할 수 있음을 발견했다.
+정확한 `RelatedObjectProjection`/`RelatedObjectCardinality` 오류와 첫 batch에서의 중단을 각각 요구하도록 테스트 한 파일만 강화했다.
+최종 source **2,123파일**, map hash
+`a7becfc25861637e8f579ed48c81ba008f9973e98801efd10d3481b82d0e0c72`와 위 제품 checkpoint의 차이는
+`orm/prefetch_single_test.go`뿐이다. 제품·생성기·생성물·소비자는 동일하다. 최종 source에서 해당 두 root의
+**9 run=PASS / skip 0**를 일반·race·CGO=0 각각 확인했다. 전체 checkpoint를 최종 test-only source에서 다시 실행했다고 표시하지 않는다.
+
+원본 generated 소비자와 native 회귀를 확인한 뒤 부모 재조회·하위 collection cache 제거·foreign row 허용·NULL handle의 session 제거
+네 runtime overlay를 정상 compile 후 모두 탐지했다. 외부 overlay로 강화한 테스트를 먼저 확인하고 같은 내용을 소스에 반영했다.
+초기 generated 소비자는 test backend 인터페이스에 없는 Atomic 직접 호출로 compile 실패했다. 실제 `db.Atomic` capability로 수정했으며
+제품 코드를 완화하지 않았다. 초기 compile 실패와 느슨한 negative 판정, 수정 후 실행 로그를 모두 보관한다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew**다.
+양 DB checkpoint는 `GODJ_REQUIRE_POSTGRES=1`·mode별 전용 database를 사용했다. 완료 실행의 cleanup은 **0|0|0**, force 없이 제거했다.
+영향 vet·format·문서 링크·diff와 5개 프로젝트 generated drift도 통과했다.
+원본 로그·source map·필수 inventory·receipt·test-only delta·negative overlay는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-single/`의
+`latest-final-*-path`, `latest-final-test-path`, `latest-negative-path`, `latest-checks-path`가 가리키는 artifact를 따른다.
+
+Reverse collection의 target eager 구성(`prefetch_eager_child`)·custom single target query·owner별 slice·materialized streaming,
+Ticket 컬렉션 Form/Admin/API/OpenAPI/client와 권한·CSRF·Category·동시성·durability는 남아 있다.
+GDJ-0099 Hosted 전체 milestone도 남아 있으며, 기록된 최근 전체 검증은
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`다.
+
 ## GDJ-0099 — filtered child query와 manager cache 소유권
 
 2026-09-26, `3d2c751ab5cbf6083b308613e0ae43eb41deff33` 위에서 ManyToMany target의

@@ -215,4 +215,4 @@ func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_41b65b3d424dc44943d0faa68cf37222c1be74c6696359dc46e22362edf975f5
+var _ goDjProjectSnapshot_247488f312dbee4b00287aa9f1aad3916f581c0a9559ba41182f00c3088521a1

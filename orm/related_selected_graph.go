@@ -24,6 +24,9 @@ func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*RelatedSel
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
+	if err := validateQuerySession(ctx, related.querySet.backend); err != nil {
+		return nil, false, err
+	}
 	if related.selected == nil {
 		return nil, false, nil
 	}
@@ -38,7 +41,7 @@ func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*RelatedSel
 	if err != nil {
 		return nil, false, err
 	}
-	if interfaceIsNil(state.descriptor) || reflect.TypeOf(descriptor) != reflect.TypeOf(state.descriptor) || len(state.value.targets) == 0 {
+	if interfaceIsNil(state.descriptor) || reflect.TypeOf(descriptor) != reflect.TypeOf(state.descriptor) || len(state.value.targets) == 0 && len(state.value.collections) == 0 {
 		return nil, false, relationInvalidPlan("selected descendant graph is incomplete")
 	}
 	result, err := cloneRelatedSelection(related.querySet.backend, state.binding, state.descriptor, state.value)
@@ -48,5 +51,6 @@ func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*RelatedSel
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
-	return result, true, nil
+	result, err = sessionReadResult(ctx, related.querySet.backend, result, nil)
+	return result, err == nil, err
 }

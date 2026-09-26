@@ -11,10 +11,11 @@ import (
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
+	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v14"
-const GoDjProjectRelationFacadeInputSHA256 = "e493fd87c4c08eff5c1adf321e3e44f88c02b71536db3b67417468c2120c3490"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
+const GoDjProjectRelationFacadeInputSHA256 = "527e636dcfa6cec8b7a84618588d80b118301108aa66214c3edce9e0a91a656e"
 
 type Backend interface {
 	db.Queryer
@@ -117,6 +118,90 @@ type relationFacadeBindings struct {
 	AuthorsAuthor orm.BoundModel[authors.Author]
 	BlogPost      orm.BoundModel[blog.Post]
 }
+type relationFacadePrefetchInput[S any] interface {
+	relationFacadePrefetchOwner() *relationFacadeState
+	relationFacadePrefetchValue() orm.PrefetchSelection[S]
+}
+type relationFacadeManyPrefetch[S, T, L any] struct {
+	state     *relationFacadeState
+	selection orm.ManyPrefetch[S, T, L]
+}
+
+func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) Filter(_values ...orm.Predicate[T]) relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) OrderBy(_values ...orm.Ordering[T]) relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) Distinct() relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
+type relationFacadeSinglePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.SinglePrefetch[S, T]
+}
+
+func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeSinglePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
+type relationFacadePrefetchPath[S any] struct {
+	state     *relationFacadeState
+	selection orm.PrefetchSelection[S]
+}
+
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+
 type AuthorsAuthorQuery struct {
 	state *relationFacadeState
 	query orm.QuerySet[authors.Author]
@@ -352,11 +437,19 @@ func (_state *relationFacadeState) materializeAuthorsAuthor(_ctx context.Context
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) prefetchAuthorsAuthorPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[authors.Author], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type BlogPostQuery struct {
-	Related BlogPostRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[blog.Post]
+	Related  BlogPostRelationSelectors
+	Prefetch BlogPostPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[blog.Post]
 }
 
 func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post]) BlogPostQuery {
@@ -368,6 +461,10 @@ func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post
 	if _state != nil {
 		_result.Related.Author.selection = _state.objects.BlogPost.SelectAuthor()
 		_result.Related.Reviewer.selection = _state.objects.BlogPost.SelectReviewer()
+	}
+	if _state != nil {
+		_result.Prefetch.Author = relationFacadeSinglePrefetch[blog.Post, authors.Author]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.BlogPost.author)}
+		_result.Prefetch.Reviewer = relationFacadeSinglePrefetch[blog.Post, authors.Author]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.BlogPost.reviewer)}
 	}
 	return _result
 }
@@ -1014,7 +1111,16 @@ func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error) {
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value, false)
+	var _wrapped *AuthorsAuthor
+	_graph, _selected, _err := _model.object.author.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAuthorsAuthor(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAuthorsAuthor(_value, false)
+	}
 	if _err != nil {
 		return nil, _err
 	}
@@ -1057,7 +1163,16 @@ func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, er
 		}
 		return nil, _present, _err
 	}
-	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value, false)
+	var _wrapped *AuthorsAuthor
+	_graph, _selected, _err := _model.object.reviewer.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAuthorsAuthor(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAuthorsAuthor(_value, false)
+	}
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1065,6 +1180,226 @@ func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, er
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
+}
+
+type BlogPostPrefetchSelector = relationFacadePrefetchInput[blog.Post]
+type BlogPostPrefetchSelectors struct {
+	Author   relationFacadeSinglePrefetch[blog.Post, authors.Author]
+	Reviewer relationFacadeSinglePrefetch[blog.Post, authors.Author]
+}
+type BlogPostPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[blog.Post]
+}
+
+func (_query BlogPostQuery) PrefetchRelated(_selectors ...BlogPostPrefetchSelector) BlogPostPrefetchQuery {
+	_result := BlogPostPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[blog.Post], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query BlogPostQuery) PrefetchRelatedPaths(_paths ...string) (BlogPostPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return BlogPostPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[blog.Post], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchBlogPostPath(_path, 1, &_remaining)
+		if _err != nil {
+			return BlogPostPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := BlogPostPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query BlogPostQuery) PrefetchPath(_path string) (BlogPostPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchBlogPostPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[blog.Post]{state: _query.state, selection: _selection}, nil
+}
+func (_query BlogPostPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query BlogPostPrefetchQuery) Filter(_values ...orm.Predicate[blog.Post]) BlogPostPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query BlogPostPrefetchQuery) OrderBy(_values ...orm.Ordering[blog.Post]) BlogPostPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query BlogPostPrefetchQuery) Distinct() BlogPostPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query BlogPostPrefetchQuery) Fresh() BlogPostPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query BlogPostPrefetchQuery) Limit(_value int) (BlogPostPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query BlogPostPrefetchQuery) Offset(_value int) (BlogPostPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query BlogPostPrefetchQuery) All(_ctx context.Context) ([]*BlogPost, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*BlogPost, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeBlogPost(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query BlogPostPrefetchQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeBlogPost(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query BlogPostPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query BlogPostPrefetchQuery) SelectRelated(_selectors ...BlogPostRelationSelector) BlogPostPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[blog.Post], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query BlogPostPrefetchQuery) SelectRelatedPaths(_paths ...string) (BlogPostPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.BlogPost.selectionInputs(_paths)
+	if _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query BlogPostEagerQuery) PrefetchRelated(_selectors ...BlogPostPrefetchSelector) BlogPostPrefetchQuery {
+	_result := BlogPostPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[blog.Post], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.BlogPost).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query BlogPostEagerQuery) PrefetchRelatedPaths(_paths ...string) (BlogPostPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return BlogPostPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]BlogPostPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchBlogPostPath(_path, 1, &_remaining)
+		if _err != nil {
+			return BlogPostPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[blog.Post]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type BlogPostRelationSelector = relationFacadeSelectionInput[blog.Post]
@@ -1261,6 +1596,36 @@ func (_state *relationFacadeState) materializeBlogPost(_ctx context.Context, _va
 	}
 	return _state.wrapSelectedBlogPostObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchBlogPostPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[blog.Post], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "author":
+		_selection := orm.PrefetchRequiredForward(_state.objects.BlogPost.author)
+		if _nested {
+			_child, _err := _state.prefetchAuthorsAuthorPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "reviewer":
+		_selection := orm.PrefetchNullableForward(_state.objects.BlogPost.reviewer)
+		if _nested {
+			_child, _err := _state.prefetchAuthorsAuthorPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type Models struct {
 	AuthorsAuthor AuthorsAuthorQuery
@@ -1318,4 +1683,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_41b65b3d424dc44943d0faa68cf37222c1be74c6696359dc46e22362edf975f5
+var _ goDjProjectSnapshot_247488f312dbee4b00287aa9f1aad3916f581c0a9559ba41182f00c3088521a1

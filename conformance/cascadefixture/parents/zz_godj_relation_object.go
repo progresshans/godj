@@ -253,4 +253,4 @@ func (input RootLabelsCreate) BuildManyToManyCreate(source, target ir.Field, sou
 	return input.BuildCreate()
 }
 
-var _ GoDjProjectSnapshot_ce59ac87b69c297faa90009af93278627392d865c260ce89542234b90f84eadc
+var _ GoDjProjectSnapshot_aa37bc22ea0de4c6b388b7f3ad98e0aca1bc6f8086a5466f9a1f47902ae15f53

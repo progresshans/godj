@@ -11,10 +11,11 @@ import (
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
+	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v14"
-const GoDjProjectRelationFacadeInputSHA256 = "ff639edd6b1630bce44060998e1f56418e4c39e37a5c8ca74dd6ac3c63ffc431"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
+const GoDjProjectRelationFacadeInputSHA256 = "92415f4db7152ea4401dc66824be27656a297593b4fd184d2b9face4ce6b027e"
 
 type Backend interface {
 	db.Queryer
@@ -121,10 +122,95 @@ type relationFacadeBindings struct {
 	ReportsReview         orm.BoundModel[reports.Review]
 	TicketsTicket         orm.BoundModel[tickets.Ticket]
 }
+type relationFacadePrefetchInput[S any] interface {
+	relationFacadePrefetchOwner() *relationFacadeState
+	relationFacadePrefetchValue() orm.PrefetchSelection[S]
+}
+type relationFacadeManyPrefetch[S, T, L any] struct {
+	state     *relationFacadeState
+	selection orm.ManyPrefetch[S, T, L]
+}
+
+func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) Filter(_values ...orm.Predicate[T]) relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) OrderBy(_values ...orm.Ordering[T]) relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) Distinct() relationFacadeManyPrefetch[S, T, L] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
+type relationFacadeSinglePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.SinglePrefetch[S, T]
+}
+
+func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeSinglePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
+type relationFacadePrefetchPath[S any] struct {
+	state     *relationFacadeState
+	selection orm.PrefetchSelection[S]
+}
+
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+
 type ReportsCertificateQuery struct {
-	Related ReportsCertificateRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[reports.Certificate]
+	Related  ReportsCertificateRelationSelectors
+	Prefetch ReportsCertificatePrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[reports.Certificate]
 }
 
 func newReportsCertificateQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Certificate]) ReportsCertificateQuery {
@@ -134,6 +220,9 @@ func newReportsCertificateQuery(_state *relationFacadeState, _query orm.QuerySet
 	}
 	if _state != nil {
 		_result.Related.Report.selection = _state.objects.ReportsCertificate.SelectReport()
+	}
+	if _state != nil {
+		_result.Prefetch.Report = relationFacadeSinglePrefetch[reports.Certificate, reports.Report]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ReportsCertificate.report)}
 	}
 	return _result
 }
@@ -628,12 +717,7 @@ func (_model *ReportsCertificate) Report(_ctx context.Context) (*ReportsReport, 
 		return nil, _err
 	}
 	if _selected {
-		var _object *ReportsReportObject
-		_object, _err = _model.state.objects.ReportsReport.FromSelected(_graph)
-		if _err != nil {
-			return nil, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedReportsReportObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeReportsReport(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapReportsReport(_value, false)
 	}
@@ -644,6 +728,225 @@ func (_model *ReportsCertificate) Report(_ctx context.Context) (*ReportsReport, 
 		return nil, _err
 	}
 	return _wrapped, nil
+}
+
+type ReportsCertificatePrefetchSelector = relationFacadePrefetchInput[reports.Certificate]
+type ReportsCertificatePrefetchSelectors struct {
+	Report relationFacadeSinglePrefetch[reports.Certificate, reports.Report]
+}
+type ReportsCertificatePrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[reports.Certificate]
+}
+
+func (_query ReportsCertificateQuery) PrefetchRelated(_selectors ...ReportsCertificatePrefetchSelector) ReportsCertificatePrefetchQuery {
+	_result := ReportsCertificatePrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Certificate], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ReportsCertificateQuery) PrefetchRelatedPaths(_paths ...string) (ReportsCertificatePrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsCertificatePrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[reports.Certificate], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsCertificatePath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsCertificatePrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ReportsCertificatePrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsCertificateQuery) PrefetchPath(_path string) (ReportsCertificatePrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchReportsCertificatePath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[reports.Certificate]{state: _query.state, selection: _selection}, nil
+}
+func (_query ReportsCertificatePrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ReportsCertificatePrefetchQuery) Filter(_values ...orm.Predicate[reports.Certificate]) ReportsCertificatePrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) OrderBy(_values ...orm.Ordering[reports.Certificate]) ReportsCertificatePrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) Distinct() ReportsCertificatePrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) Fresh() ReportsCertificatePrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) Limit(_value int) (ReportsCertificatePrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsCertificatePrefetchQuery) Offset(_value int) (ReportsCertificatePrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsCertificatePrefetchQuery) All(_ctx context.Context) ([]*ReportsCertificate, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ReportsCertificate, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeReportsCertificate(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsCertificatePrefetchQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ReportsCertificatePrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query ReportsCertificatePrefetchQuery) SelectRelated(_selectors ...ReportsCertificateRelationSelector) ReportsCertificatePrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[reports.Certificate], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) SelectRelatedPaths(_paths ...string) (ReportsCertificatePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsCertificate.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsCertificateEagerQuery) PrefetchRelated(_selectors ...ReportsCertificatePrefetchSelector) ReportsCertificatePrefetchQuery {
+	_result := ReportsCertificatePrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Certificate], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsCertificate).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query ReportsCertificateEagerQuery) PrefetchRelatedPaths(_paths ...string) (ReportsCertificatePrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsCertificatePrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]ReportsCertificatePrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsCertificatePath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsCertificatePrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[reports.Certificate]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type ReportsCertificateRelationSelector = relationFacadeSelectionInput[reports.Certificate]
@@ -831,11 +1134,32 @@ func (_state *relationFacadeState) materializeReportsCertificate(_ctx context.Co
 	}
 	return _state.wrapSelectedReportsCertificateObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchReportsCertificatePath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[reports.Certificate], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "report":
+		_selection := orm.PrefetchRequiredForward(_state.objects.ReportsCertificate.report)
+		if _nested {
+			_child, _err := _state.prefetchReportsReportPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type ReportsLinkQuery struct {
-	Related ReportsLinkRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[reports.Link]
+	Related  ReportsLinkRelationSelectors
+	Prefetch ReportsLinkPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[reports.Link]
 }
 
 func newReportsLinkQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Link]) ReportsLinkQuery {
@@ -845,6 +1169,9 @@ func newReportsLinkQuery(_state *relationFacadeState, _query orm.QuerySet[report
 	}
 	if _state != nil {
 		_result.Related.Ticket.selection = _state.objects.ReportsLink.SelectTicket()
+	}
+	if _state != nil {
+		_result.Prefetch.Ticket = relationFacadeSinglePrefetch[reports.Link, tickets.Ticket]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ReportsLink.ticket)}
 	}
 	return _result
 }
@@ -1318,12 +1645,7 @@ func (_model *ReportsLink) Ticket(_ctx context.Context) (*TicketsTicket, error) 
 		return nil, _err
 	}
 	if _selected {
-		var _object *TicketsTicketObject
-		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
-		if _err != nil {
-			return nil, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeTicketsTicket(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
 	}
@@ -1334,6 +1656,225 @@ func (_model *ReportsLink) Ticket(_ctx context.Context) (*TicketsTicket, error) 
 		return nil, _err
 	}
 	return _wrapped, nil
+}
+
+type ReportsLinkPrefetchSelector = relationFacadePrefetchInput[reports.Link]
+type ReportsLinkPrefetchSelectors struct {
+	Ticket relationFacadeSinglePrefetch[reports.Link, tickets.Ticket]
+}
+type ReportsLinkPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[reports.Link]
+}
+
+func (_query ReportsLinkQuery) PrefetchRelated(_selectors ...ReportsLinkPrefetchSelector) ReportsLinkPrefetchQuery {
+	_result := ReportsLinkPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Link], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ReportsLinkQuery) PrefetchRelatedPaths(_paths ...string) (ReportsLinkPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsLinkPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[reports.Link], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsLinkPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsLinkPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ReportsLinkPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsLinkQuery) PrefetchPath(_path string) (ReportsLinkPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchReportsLinkPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[reports.Link]{state: _query.state, selection: _selection}, nil
+}
+func (_query ReportsLinkPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ReportsLinkPrefetchQuery) Filter(_values ...orm.Predicate[reports.Link]) ReportsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) OrderBy(_values ...orm.Ordering[reports.Link]) ReportsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) Distinct() ReportsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) Fresh() ReportsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) Limit(_value int) (ReportsLinkPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsLinkPrefetchQuery) Offset(_value int) (ReportsLinkPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsLinkPrefetchQuery) All(_ctx context.Context) ([]*ReportsLink, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ReportsLink, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeReportsLink(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsLinkPrefetchQuery) First(_ctx context.Context) (*ReportsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsLink(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ReportsLinkPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query ReportsLinkPrefetchQuery) SelectRelated(_selectors ...ReportsLinkRelationSelector) ReportsLinkPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[reports.Link], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) SelectRelatedPaths(_paths ...string) (ReportsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsLink.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsLinkEagerQuery) PrefetchRelated(_selectors ...ReportsLinkPrefetchSelector) ReportsLinkPrefetchQuery {
+	_result := ReportsLinkPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Link], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsLink).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query ReportsLinkEagerQuery) PrefetchRelatedPaths(_paths ...string) (ReportsLinkPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsLinkPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]ReportsLinkPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsLinkPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsLinkPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[reports.Link]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type ReportsLinkRelationSelector = relationFacadeSelectionInput[reports.Link]
@@ -1521,11 +2062,32 @@ func (_state *relationFacadeState) materializeReportsLink(_ctx context.Context, 
 	}
 	return _state.wrapSelectedReportsLinkObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchReportsLinkPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[reports.Link], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "ticket":
+		_selection := orm.PrefetchRequiredForward(_state.objects.ReportsLink.ticket)
+		if _nested {
+			_child, _err := _state.prefetchTicketsTicketPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type ReportsOptionalReportQuery struct {
-	Related ReportsOptionalReportRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[reports.OptionalReport]
+	Related  ReportsOptionalReportRelationSelectors
+	Prefetch ReportsOptionalReportPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[reports.OptionalReport]
 }
 
 func newReportsOptionalReportQuery(_state *relationFacadeState, _query orm.QuerySet[reports.OptionalReport]) ReportsOptionalReportQuery {
@@ -1535,6 +2097,9 @@ func newReportsOptionalReportQuery(_state *relationFacadeState, _query orm.Query
 	}
 	if _state != nil {
 		_result.Related.Ticket.selection = _state.objects.ReportsOptionalReport.SelectTicket()
+	}
+	if _state != nil {
+		_result.Prefetch.Ticket = relationFacadeSinglePrefetch[reports.OptionalReport, tickets.Ticket]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.ReportsOptionalReport.ticket)}
 	}
 	return _result
 }
@@ -2044,12 +2609,7 @@ func (_model *ReportsOptionalReport) Ticket(_ctx context.Context) (*TicketsTicke
 		return nil, false, _err
 	}
 	if _selected {
-		var _object *TicketsTicketObject
-		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
-		if _err != nil {
-			return nil, false, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeTicketsTicket(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
 	}
@@ -2060,6 +2620,225 @@ func (_model *ReportsOptionalReport) Ticket(_ctx context.Context) (*TicketsTicke
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
+}
+
+type ReportsOptionalReportPrefetchSelector = relationFacadePrefetchInput[reports.OptionalReport]
+type ReportsOptionalReportPrefetchSelectors struct {
+	Ticket relationFacadeSinglePrefetch[reports.OptionalReport, tickets.Ticket]
+}
+type ReportsOptionalReportPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[reports.OptionalReport]
+}
+
+func (_query ReportsOptionalReportQuery) PrefetchRelated(_selectors ...ReportsOptionalReportPrefetchSelector) ReportsOptionalReportPrefetchQuery {
+	_result := ReportsOptionalReportPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.OptionalReport], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ReportsOptionalReportQuery) PrefetchRelatedPaths(_paths ...string) (ReportsOptionalReportPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsOptionalReportPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[reports.OptionalReport], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsOptionalReportPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsOptionalReportPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ReportsOptionalReportPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsOptionalReportQuery) PrefetchPath(_path string) (ReportsOptionalReportPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchReportsOptionalReportPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[reports.OptionalReport]{state: _query.state, selection: _selection}, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ReportsOptionalReportPrefetchQuery) Filter(_values ...orm.Predicate[reports.OptionalReport]) ReportsOptionalReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) OrderBy(_values ...orm.Ordering[reports.OptionalReport]) ReportsOptionalReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) Distinct() ReportsOptionalReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) Fresh() ReportsOptionalReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) Limit(_value int) (ReportsOptionalReportPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) Offset(_value int) (ReportsOptionalReportPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) All(_ctx context.Context) ([]*ReportsOptionalReport, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ReportsOptionalReport, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeReportsOptionalReport(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) First(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query ReportsOptionalReportPrefetchQuery) SelectRelated(_selectors ...ReportsOptionalReportRelationSelector) ReportsOptionalReportPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[reports.OptionalReport], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) SelectRelatedPaths(_paths ...string) (ReportsOptionalReportPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsOptionalReport.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsOptionalReportEagerQuery) PrefetchRelated(_selectors ...ReportsOptionalReportPrefetchSelector) ReportsOptionalReportPrefetchQuery {
+	_result := ReportsOptionalReportPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.OptionalReport], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsOptionalReport).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query ReportsOptionalReportEagerQuery) PrefetchRelatedPaths(_paths ...string) (ReportsOptionalReportPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsOptionalReportPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]ReportsOptionalReportPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsOptionalReportPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsOptionalReportPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[reports.OptionalReport]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type ReportsOptionalReportRelationSelector = relationFacadeSelectionInput[reports.OptionalReport]
@@ -2247,11 +3026,32 @@ func (_state *relationFacadeState) materializeReportsOptionalReport(_ctx context
 	}
 	return _state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchReportsOptionalReportPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[reports.OptionalReport], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "ticket":
+		_selection := orm.PrefetchNullableForward(_state.objects.ReportsOptionalReport.ticket)
+		if _nested {
+			_child, _err := _state.prefetchTicketsTicketPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type ReportsReportQuery struct {
-	Related ReportsReportRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[reports.Report]
+	Related  ReportsReportRelationSelectors
+	Prefetch ReportsReportPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[reports.Report]
 }
 
 func newReportsReportQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Report]) ReportsReportQuery {
@@ -2263,6 +3063,10 @@ func newReportsReportQuery(_state *relationFacadeState, _query orm.QuerySet[repo
 	if _state != nil {
 		_result.Related.Certificate.selection = _state.objects.ReportsReport.SelectCertificate()
 		_result.Related.Ticket.selection = _state.objects.ReportsReport.SelectTicket()
+	}
+	if _state != nil {
+		_result.Prefetch.Certificate = relationFacadeSinglePrefetch[reports.Report, reports.Certificate]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.ReportsReport.certificate)}
+		_result.Prefetch.Ticket = relationFacadeSinglePrefetch[reports.Report, tickets.Ticket]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ReportsReport.ticket)}
 	}
 	return _result
 }
@@ -2846,12 +3650,7 @@ func (_model *ReportsReport) Certificate(_ctx context.Context) (*ReportsCertific
 		return nil, false, _err
 	}
 	if _selected {
-		var _object *ReportsCertificateObject
-		_object, _err = _model.state.objects.ReportsCertificate.FromSelected(_graph)
-		if _err != nil {
-			return nil, false, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeReportsCertificate(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapReportsCertificate(_value, false)
 	}
@@ -2900,12 +3699,7 @@ func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error
 		return nil, _err
 	}
 	if _selected {
-		var _object *TicketsTicketObject
-		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
-		if _err != nil {
-			return nil, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeTicketsTicket(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
 	}
@@ -2916,6 +3710,226 @@ func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error
 		return nil, _err
 	}
 	return _wrapped, nil
+}
+
+type ReportsReportPrefetchSelector = relationFacadePrefetchInput[reports.Report]
+type ReportsReportPrefetchSelectors struct {
+	Certificate relationFacadeSinglePrefetch[reports.Report, reports.Certificate]
+	Ticket      relationFacadeSinglePrefetch[reports.Report, tickets.Ticket]
+}
+type ReportsReportPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[reports.Report]
+}
+
+func (_query ReportsReportQuery) PrefetchRelated(_selectors ...ReportsReportPrefetchSelector) ReportsReportPrefetchQuery {
+	_result := ReportsReportPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Report], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ReportsReportQuery) PrefetchRelatedPaths(_paths ...string) (ReportsReportPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsReportPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[reports.Report], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsReportPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsReportPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ReportsReportPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReportQuery) PrefetchPath(_path string) (ReportsReportPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchReportsReportPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[reports.Report]{state: _query.state, selection: _selection}, nil
+}
+func (_query ReportsReportPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ReportsReportPrefetchQuery) Filter(_values ...orm.Predicate[reports.Report]) ReportsReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) OrderBy(_values ...orm.Ordering[reports.Report]) ReportsReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) Distinct() ReportsReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) Fresh() ReportsReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) Limit(_value int) (ReportsReportPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsReportPrefetchQuery) Offset(_value int) (ReportsReportPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsReportPrefetchQuery) All(_ctx context.Context) ([]*ReportsReport, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ReportsReport, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeReportsReport(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReportPrefetchQuery) First(_ctx context.Context) (*ReportsReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsReport(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ReportsReportPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query ReportsReportPrefetchQuery) SelectRelated(_selectors ...ReportsReportRelationSelector) ReportsReportPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[reports.Report], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) SelectRelatedPaths(_paths ...string) (ReportsReportPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsReport.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsReportEagerQuery) PrefetchRelated(_selectors ...ReportsReportPrefetchSelector) ReportsReportPrefetchQuery {
+	_result := ReportsReportPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Report], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsReport).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query ReportsReportEagerQuery) PrefetchRelatedPaths(_paths ...string) (ReportsReportPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsReportPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]ReportsReportPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsReportPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsReportPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[reports.Report]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type ReportsReportRelationSelector = relationFacadeSelectionInput[reports.Report]
@@ -3112,11 +4126,42 @@ func (_state *relationFacadeState) materializeReportsReport(_ctx context.Context
 	}
 	return _state.wrapSelectedReportsReportObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchReportsReportPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[reports.Report], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "certificate":
+		_selection := orm.PrefetchReverseOneToOne(_state.objects.ReportsReport.certificate)
+		if _nested {
+			_child, _err := _state.prefetchReportsCertificatePath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "ticket":
+		_selection := orm.PrefetchRequiredForward(_state.objects.ReportsReport.ticket)
+		if _nested {
+			_child, _err := _state.prefetchTicketsTicketPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type ReportsReviewQuery struct {
-	Related ReportsReviewRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[reports.Review]
+	Related  ReportsReviewRelationSelectors
+	Prefetch ReportsReviewPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[reports.Review]
 }
 
 func newReportsReviewQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Review]) ReportsReviewQuery {
@@ -3126,6 +4171,9 @@ func newReportsReviewQuery(_state *relationFacadeState, _query orm.QuerySet[repo
 	}
 	if _state != nil {
 		_result.Related.Ticket.selection = _state.objects.ReportsReview.SelectTicket()
+	}
+	if _state != nil {
+		_result.Prefetch.Ticket = relationFacadeSinglePrefetch[reports.Review, tickets.Ticket]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ReportsReview.ticket)}
 	}
 	return _result
 }
@@ -3620,12 +4668,7 @@ func (_model *ReportsReview) Ticket(_ctx context.Context) (*TicketsTicket, error
 		return nil, _err
 	}
 	if _selected {
-		var _object *TicketsTicketObject
-		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
-		if _err != nil {
-			return nil, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeTicketsTicket(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
 	}
@@ -3636,6 +4679,225 @@ func (_model *ReportsReview) Ticket(_ctx context.Context) (*TicketsTicket, error
 		return nil, _err
 	}
 	return _wrapped, nil
+}
+
+type ReportsReviewPrefetchSelector = relationFacadePrefetchInput[reports.Review]
+type ReportsReviewPrefetchSelectors struct {
+	Ticket relationFacadeSinglePrefetch[reports.Review, tickets.Ticket]
+}
+type ReportsReviewPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[reports.Review]
+}
+
+func (_query ReportsReviewQuery) PrefetchRelated(_selectors ...ReportsReviewPrefetchSelector) ReportsReviewPrefetchQuery {
+	_result := ReportsReviewPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Review], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ReportsReviewQuery) PrefetchRelatedPaths(_paths ...string) (ReportsReviewPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsReviewPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[reports.Review], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsReviewPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsReviewPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ReportsReviewPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReviewQuery) PrefetchPath(_path string) (ReportsReviewPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchReportsReviewPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[reports.Review]{state: _query.state, selection: _selection}, nil
+}
+func (_query ReportsReviewPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ReportsReviewPrefetchQuery) Filter(_values ...orm.Predicate[reports.Review]) ReportsReviewPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) OrderBy(_values ...orm.Ordering[reports.Review]) ReportsReviewPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) Distinct() ReportsReviewPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) Fresh() ReportsReviewPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) Limit(_value int) (ReportsReviewPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsReviewPrefetchQuery) Offset(_value int) (ReportsReviewPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ReportsReviewPrefetchQuery) All(_ctx context.Context) ([]*ReportsReview, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ReportsReview, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeReportsReview(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReviewPrefetchQuery) First(_ctx context.Context) (*ReportsReview, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsReview(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ReportsReviewPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query ReportsReviewPrefetchQuery) SelectRelated(_selectors ...ReportsReviewRelationSelector) ReportsReviewPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[reports.Review], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) SelectRelatedPaths(_paths ...string) (ReportsReviewPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsReview.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsReviewEagerQuery) PrefetchRelated(_selectors ...ReportsReviewPrefetchSelector) ReportsReviewPrefetchQuery {
+	_result := ReportsReviewPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[reports.Review], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsReview).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query ReportsReviewEagerQuery) PrefetchRelatedPaths(_paths ...string) (ReportsReviewPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ReportsReviewPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]ReportsReviewPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchReportsReviewPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ReportsReviewPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[reports.Review]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type ReportsReviewRelationSelector = relationFacadeSelectionInput[reports.Review]
@@ -3823,11 +5085,32 @@ func (_state *relationFacadeState) materializeReportsReview(_ctx context.Context
 	}
 	return _state.wrapSelectedReportsReviewObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchReportsReviewPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[reports.Review], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "ticket":
+		_selection := orm.PrefetchRequiredForward(_state.objects.ReportsReview.ticket)
+		if _nested {
+			_child, _err := _state.prefetchTicketsTicketPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type TicketsTicketQuery struct {
-	Related TicketsTicketRelationSelectors
-	state   *relationFacadeState
-	query   orm.QuerySet[tickets.Ticket]
+	Related  TicketsTicketRelationSelectors
+	Prefetch TicketsTicketPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[tickets.Ticket]
 }
 
 func newTicketsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[tickets.Ticket]) TicketsTicketQuery {
@@ -3841,6 +5124,11 @@ func newTicketsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[tick
 		_result.Related.OptionalReport.selection = _state.objects.TicketsTicket.SelectOptionalReport()
 		_result.Related.Report.selection = _state.objects.TicketsTicket.SelectReport()
 		_result.Related.Review.selection = _state.objects.TicketsTicket.SelectReview()
+	}
+	if _state != nil {
+		_result.Prefetch.OptionalReport = relationFacadeSinglePrefetch[tickets.Ticket, reports.OptionalReport]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.optionalReport)}
+		_result.Prefetch.Report = relationFacadeSinglePrefetch[tickets.Ticket, reports.Report]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.report)}
+		_result.Prefetch.Review = relationFacadeSinglePrefetch[tickets.Ticket, reports.Review]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.review)}
 	}
 	return _result
 }
@@ -4381,12 +5669,7 @@ func (_model *TicketsTicket) OptionalReport(_ctx context.Context) (*ReportsOptio
 		return nil, false, _err
 	}
 	if _selected {
-		var _object *ReportsOptionalReportObject
-		_object, _err = _model.state.objects.ReportsOptionalReport.FromSelected(_graph)
-		if _err != nil {
-			return nil, false, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeReportsOptionalReport(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapReportsOptionalReport(_value, false)
 	}
@@ -4438,12 +5721,7 @@ func (_model *TicketsTicket) Report(_ctx context.Context) (*ReportsReport, bool,
 		return nil, false, _err
 	}
 	if _selected {
-		var _object *ReportsReportObject
-		_object, _err = _model.state.objects.ReportsReport.FromSelected(_graph)
-		if _err != nil {
-			return nil, false, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedReportsReportObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeReportsReport(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapReportsReport(_value, false)
 	}
@@ -4495,12 +5773,7 @@ func (_model *TicketsTicket) Review(_ctx context.Context) (*ReportsReview, bool,
 		return nil, false, _err
 	}
 	if _selected {
-		var _object *ReportsReviewObject
-		_object, _err = _model.state.objects.ReportsReview.FromSelected(_graph)
-		if _err != nil {
-			return nil, false, _err
-		}
-		_wrapped, _err = _model.state.wrapSelectedReportsReviewObject(_ctx, _object)
+		_wrapped, _err = _model.state.materializeReportsReview(_ctx, _graph)
 	} else {
 		_wrapped, _err = _model.state.wrapReportsReview(_value, false)
 	}
@@ -4511,6 +5784,227 @@ func (_model *TicketsTicket) Review(_ctx context.Context) (*ReportsReview, bool,
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
+}
+
+type TicketsTicketPrefetchSelector = relationFacadePrefetchInput[tickets.Ticket]
+type TicketsTicketPrefetchSelectors struct {
+	OptionalReport relationFacadeSinglePrefetch[tickets.Ticket, reports.OptionalReport]
+	Report         relationFacadeSinglePrefetch[tickets.Ticket, reports.Report]
+	Review         relationFacadeSinglePrefetch[tickets.Ticket, reports.Review]
+}
+type TicketsTicketPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[tickets.Ticket]
+}
+
+func (_query TicketsTicketQuery) PrefetchRelated(_selectors ...TicketsTicketPrefetchSelector) TicketsTicketPrefetchQuery {
+	_result := TicketsTicketPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[tickets.Ticket], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query TicketsTicketQuery) PrefetchRelatedPaths(_paths ...string) (TicketsTicketPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return TicketsTicketPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[tickets.Ticket], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchTicketsTicketPath(_path, 1, &_remaining)
+		if _err != nil {
+			return TicketsTicketPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := TicketsTicketPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query TicketsTicketQuery) PrefetchPath(_path string) (TicketsTicketPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchTicketsTicketPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[tickets.Ticket]{state: _query.state, selection: _selection}, nil
+}
+func (_query TicketsTicketPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query TicketsTicketPrefetchQuery) Filter(_values ...orm.Predicate[tickets.Ticket]) TicketsTicketPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) OrderBy(_values ...orm.Ordering[tickets.Ticket]) TicketsTicketPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) Distinct() TicketsTicketPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) Fresh() TicketsTicketPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) Limit(_value int) (TicketsTicketPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query TicketsTicketPrefetchQuery) Offset(_value int) (TicketsTicketPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query TicketsTicketPrefetchQuery) All(_ctx context.Context) ([]*TicketsTicket, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*TicketsTicket, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeTicketsTicket(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query TicketsTicketPrefetchQuery) First(_ctx context.Context) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query TicketsTicketPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+func (_query TicketsTicketPrefetchQuery) SelectRelated(_selectors ...TicketsTicketRelationSelector) TicketsTicketPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[tickets.Ticket], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) SelectRelatedPaths(_paths ...string) (TicketsTicketPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.TicketsTicket.selectionInputs(_paths)
+	if _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query TicketsTicketEagerQuery) PrefetchRelated(_selectors ...TicketsTicketPrefetchSelector) TicketsTicketPrefetchQuery {
+	_result := TicketsTicketPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[tickets.Ticket], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.TicketsTicket).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query TicketsTicketEagerQuery) PrefetchRelatedPaths(_paths ...string) (TicketsTicketPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return TicketsTicketPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]TicketsTicketPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchTicketsTicketPath(_path, 1, &_remaining)
+		if _err != nil {
+			return TicketsTicketPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[tickets.Ticket]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	return _result, nil
 }
 
 type TicketsTicketRelationSelector = relationFacadeSelectionInput[tickets.Ticket]
@@ -4716,6 +6210,46 @@ func (_state *relationFacadeState) materializeTicketsTicket(_ctx context.Context
 	}
 	return _state.wrapSelectedTicketsTicketObject(_ctx, _object)
 }
+func (_state *relationFacadeState) prefetchTicketsTicketPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[tickets.Ticket], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "optional_report":
+		_selection := orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.optionalReport)
+		if _nested {
+			_child, _err := _state.prefetchReportsOptionalReportPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "report":
+		_selection := orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.report)
+		if _nested {
+			_child, _err := _state.prefetchReportsReportPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "review":
+		_selection := orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.review)
+		if _nested {
+			_child, _err := _state.prefetchReportsReviewPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
 
 type Models struct {
 	ReportsCertificate    ReportsCertificateQuery
@@ -4817,4 +6351,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_e2bce011084cde8b6fe8d5d261bce51ba56721db55cf5483da8ab7261122a3ef
+var _ goDjProjectSnapshot_c4053daf3b32b7683ffe64a048541703a6e4b59464bb9977e086899f8f0d13f0

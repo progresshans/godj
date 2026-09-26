@@ -64,4 +64,4 @@ func (_scan *postProjectionScan) Decode() (Post, query.Value, orm.ProjectionPres
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_41b65b3d424dc44943d0faa68cf37222c1be74c6696359dc46e22362edf975f5
+var _ GoDjProjectSnapshot_247488f312dbee4b00287aa9f1aad3916f581c0a9559ba41182f00c3088521a1

@@ -195,7 +195,7 @@ func (state forwardObjectState[S, T]) from(backend db.Queryer, source S) (*Relat
 		if !state.nullable {
 			return nil, relationInvalidPlan("required relation storage returned NULL")
 		}
-		return newAbsentRelatedObject[T](), nil
+		return newAbsentRelatedObject[T](backend), nil
 	}
 	identifier, ok := value.Integer()
 	if !ok {
@@ -218,8 +218,8 @@ func newRelatedObject[T any](querySet QuerySet[T]) *RelatedObject[T] {
 	return result
 }
 
-func newAbsentRelatedObject[T any]() *RelatedObject[T] {
-	result := &RelatedObject[T]{absent: true}
+func newAbsentRelatedObject[T any](backend db.Queryer) *RelatedObject[T] {
+	result := &RelatedObject[T]{absent: true, querySet: QuerySet[T]{backend: backend}}
 	result._self = result
 	return result
 }
@@ -236,7 +236,8 @@ func (r *RelatedObject[T]) Get(ctx context.Context) (T, bool, error) {
 		return zero, false, err
 	}
 	if r.absent {
-		return zero, false, nil
+		_, err := sessionReadResult(ctx, r.querySet.backend, zero, nil)
+		return zero, false, err
 	}
 
 	values, err := r.querySet.All(ctx)
@@ -269,7 +270,10 @@ func (r *RelatedObject[T]) Fresh() (*RelatedObject[T], error) {
 		return nil, err
 	}
 	if r.absent {
-		return newAbsentRelatedObject[T](), nil
+		if err := validateQuerySession(context.Background(), r.querySet.backend); err != nil {
+			return nil, err
+		}
+		return newAbsentRelatedObject[T](r.querySet.backend), nil
 	}
 	fresh := newRelatedObject(r.querySet.Fresh())
 	fresh.allowMissing = r.allowMissing

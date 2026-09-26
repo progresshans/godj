@@ -6,6 +6,20 @@ import (
 	"strconv"
 )
 
+func projectRelationFacadeHasPrefetch(model projectRelationFacadeModel) bool {
+	return len(model.collections) > 0 || model.source != nil
+}
+
+func projectSinglePrefetchExpression(model projectRelationFacadeModel, relation projectRelationObjectEdge) string {
+	constructor := "orm.PrefetchRequiredForward"
+	if relation.reverse {
+		constructor = "orm.PrefetchReverseOneToOne"
+	} else if relation.field.Nullable {
+		constructor = "orm.PrefetchNullableForward"
+	}
+	return fmt.Sprintf("%s(_state.objects.%s.%s)", constructor, model.source.surface, lowerFirst(relation.selector))
+}
+
 func renderProjectFacadePrefetchFoundation(output *bytes.Buffer) {
 	fmt.Fprint(output, `type relationFacadePrefetchInput[S any] interface {
  relationFacadePrefetchOwner() *relationFacadeState
@@ -29,6 +43,21 @@ func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...rel
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
 }
+type relationFacadeSinglePrefetch[S,T any] struct {
+ state *relationFacadeState
+ selection orm.SinglePrefetch[S,T]
+}
+func (_selector relationFacadeSinglePrefetch[S,T]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadeSinglePrefetch[S,T]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeSinglePrefetch[S,T]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeSinglePrefetch[S,T]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
+ for _,_child:=range _children{
+  if relationFacadeNil(_child)||_child.relationFacadePrefetchOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"));return _selector}
+  _inputs=append(_inputs,_child.relationFacadePrefetchValue())
+ }
+ _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
+}
 type relationFacadePrefetchPath[S any] struct {
  state *relationFacadeState
  selection orm.PrefetchSelection[S]
@@ -39,7 +68,7 @@ func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue()orm.
 }
 
 func renderProjectFacadePrefetch(output *bytes.Buffer, model projectRelationFacadeModel) {
-	if len(model.collections) == 0 {
+	if !projectRelationFacadeHasPrefetch(model) {
 		return
 	}
 	raw := model.model.app.alias + "." + model.model.model.GoName
@@ -47,6 +76,11 @@ func renderProjectFacadePrefetch(output *bytes.Buffer, model projectRelationFaca
 	fmt.Fprintf(output, `type %[1]sPrefetchSelector = relationFacadePrefetchInput[%[2]s]
 type %[1]sPrefetchSelectors struct {
 `, surface, raw)
+	if model.source != nil {
+		for _, relation := range model.source.selections {
+			fmt.Fprintf(output, "%s relationFacadeSinglePrefetch[%s,%s.%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName)
+		}
+	}
 	for _, relation := range model.collections {
 		fmt.Fprintf(output, "%s relationFacadeManyPrefetch[%s,%s.%s,%s.%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName)
 	}
@@ -119,6 +153,52 @@ func (_query %[1]sPrefetchQuery) Count(_ctx context.Context)(int64,error){
  if _err:=_query.validate(_ctx);_err!=nil{return 0,_err};return _query.prefetch.Count(_ctx)
 }
 `, surface)
+	if model.source != nil {
+		renderProjectFacadePrefetchEager(output, model)
+	}
+}
+
+func renderProjectFacadePrefetchEager(output *bytes.Buffer, model projectRelationFacadeModel) {
+	raw := model.model.app.alias + "." + model.model.model.GoName
+	fmt.Fprintf(output, `func (_query %[1]sPrefetchQuery) SelectRelated(_selectors ...%[1]sRelationSelector)%[1]sPrefetchQuery{
+ if _err:=_query.state.validate();_err!=nil{_query.prefetch=_query.prefetch.WithConfigurationError(_err);return _query}
+ _inputs:=make([]orm.RelatedSelection[%[2]s],len(_selectors))
+ for _index,_selector:=range _selectors{
+  if relationFacadeNil(_selector)||_selector.relationFacadeSelectionOwner()!=_query.state{_query.prefetch=_query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"));return _query}
+  _inputs[_index]=_selector.relationFacadeSelectionValue()
+ }
+ _query.prefetch=_query.prefetch.SelectRelated(_inputs...);return _query
+}
+func (_query %[1]sPrefetchQuery) SelectRelatedPaths(_paths ...string)(%[1]sPrefetchQuery,error){
+ if _err:=_query.state.validate();_err!=nil{return %[1]sPrefetchQuery{},_err}
+ _inputs,_err:=_query.state.objects.%[1]s.selectionInputs(_paths);if _err!=nil{return %[1]sPrefetchQuery{},_err}
+ _query.prefetch=_query.prefetch.SelectRelated(_inputs...)
+ if _err:=_query.prefetch.ConfigurationError();_err!=nil{return %[1]sPrefetchQuery{},_err};return _query,nil
+}
+func (_query %[1]sEagerQuery) PrefetchRelated(_selectors ...%[1]sPrefetchSelector)%[1]sPrefetchQuery{
+ _result:=%[1]sPrefetchQuery{state:_query.state}
+ if _err:=_query.validate();_err!=nil{_result.prefetch=_result.prefetch.WithConfigurationError(_err);return _result}
+ _inputs:=make([]orm.PrefetchSelection[%[2]s],len(_selectors))
+ for _index,_selector:=range _selectors{
+  if relationFacadeNil(_selector)||_selector.relationFacadePrefetchOwner()!=_query.state{_result.prefetch=_result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"));return _result}
+  _inputs[_index]=_selector.relationFacadePrefetchValue()
+ }
+ _result.prefetch=orm.SelectRelated(_query.source,_query.selections...).WithSourceBinding(_query.state.models.%[1]s).PrefetchRelated(_inputs...)
+ return _result
+}
+func (_query %[1]sEagerQuery) PrefetchRelatedPaths(_paths ...string)(%[1]sPrefetchQuery,error){
+ if _err:=_query.validate();_err!=nil{return %[1]sPrefetchQuery{},_err}
+ if len(_paths)>orm.MaximumRelatedSelectionNodes{return %[1]sPrefetchQuery{},relationFacadeQueryInvalid("prefetch selection budget exceeded")}
+ _remaining:=orm.MaximumRelatedSelectionNodes
+ _inputs:=make([]%[1]sPrefetchSelector,len(_paths))
+ for _index,_path:=range _paths{
+  _selection,_err:=_query.state.prefetch%[1]sPath(_path,1,&_remaining);if _err!=nil{return %[1]sPrefetchQuery{},_err}
+  _inputs[_index]=relationFacadePrefetchPath[%[2]s]{state:_query.state,selection:_selection}
+ }
+ _result:=_query.PrefetchRelated(_inputs...)
+ if _err:=_result.prefetch.ConfigurationError();_err!=nil{return %[1]sPrefetchQuery{},_err};return _result,nil
+}
+`, model.surface, raw)
 }
 
 func renderProjectFacadePrefetchPath(output *bytes.Buffer, model projectRelationFacadeModel) {
@@ -127,8 +207,17 @@ func renderProjectFacadePrefetchPath(output *bytes.Buffer, model projectRelation
  if _depth>query.MaximumRelationHops||*_remaining<=0{return nil,relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")}
  *_remaining--
 `, model.surface, raw)
-	if len(model.collections) > 0 {
+	if projectRelationFacadeHasPrefetch(model) {
 		fmt.Fprint(output, "_head,_tail,_nested:=strings.Cut(_path,\"__\")\nswitch _head {\n")
+		if model.source != nil {
+			for _, relation := range model.source.selections {
+				fmt.Fprintf(output, `case %[1]s:
+ _selection:=%[2]s
+ if _nested{_child,_err:=_state.prefetch%[3]sPath(_tail,_depth+1,_remaining);if _err!=nil{return nil,_err};_selection=_selection.WithChildren(_child)}
+ return _selection,nil
+`, strconv.Quote(relation.path), projectSinglePrefetchExpression(model, relation), relation.target.app.prefix+relation.target.model.GoName)
+			}
+		}
 		for _, relation := range model.collections {
 			fmt.Fprintf(output, `case %[1]s:
  _selection:=_state.collections.%[2]s.WithChildren()
@@ -138,7 +227,7 @@ func renderProjectFacadePrefetchPath(output *bytes.Buffer, model projectRelation
 		}
 		fmt.Fprintln(output, "}")
 	}
-	fmt.Fprintln(output, "return nil,&query.Error{Category:query.CategoryField,Code:query.CodeUnknownRelation,Field:_path,Detail:\"prefetch path is not a declared collection\"}\n}")
+	fmt.Fprintln(output, "return nil,&query.Error{Category:query.CategoryField,Code:query.CodeUnknownRelation,Field:_path,Detail:\"prefetch path is not a declared relation\"}\n}")
 }
 
 func renderProjectFacadeMaterialize(output *bytes.Buffer, model projectRelationFacadeModel) {

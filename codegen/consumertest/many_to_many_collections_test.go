@@ -83,6 +83,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/prefetch_filtered_test.go", filtered)
+	single, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_single_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_single_test.go", single)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -116,6 +121,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		required["TestCollectionQueries/"+backend] = false
 		required["TestCollectionPrefetchOwnerPlans/"+backend] = false
 		required["TestCollectionPrefetchTree/"+backend] = false
+		required["TestSinglePrefetchComposition/"+backend] = false
+		for _, name := range []string{"reference_typed", "reference_path", "reference_prefetch_first", "reference_prefetch_first_path", "reference_cold_typed", "reference_cold_path", "first_refinement_count", "validation", "failure_retry", "independent_and_concurrent", "nullable_and_session"} {
+			required["TestSinglePrefetchComposition/"+backend+"/"+name] = false
+		}
 		required["TestCollectionPrefetchFiltered/"+backend] = false
 		for _, name := range []string{"reference_and_cache", "lookup_order", "refinement_first_and_fresh", "failure_membership_and_retry", "nullable_duplicates_and_distinct", "session_lifetime", "native_terminals"} {
 			required["TestCollectionPrefetchFiltered/"+backend+"/"+name] = false

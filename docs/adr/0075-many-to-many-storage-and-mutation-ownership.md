@@ -162,7 +162,7 @@ non-null target 조건을 적용한다. 선택한 target FK의 기존 eager proj
 
 공통 `PrefetchRelated`는 owner query와 여러 collection selection tree의 평가 cache를 소유한다. Generated facade의 typed
 `Prefetch` selector와 `PrefetchRelatedPaths`는 같은 runtime으로 연결하며 다른 origin/model이나 미지원 경로를 거부한다.
-Facade ABI는 v14이며 collection binding ABI는 relation-reverse v6다. 같은 selection은 하위 선택을 합쳐 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
+Facade ABI는 v15이며 collection binding ABI는 relation-reverse v6다. 같은 selection은 하위 선택을 합쳐 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
 Cold Count는 owner 행만 세고 cold First는 명시적 정렬 아래 owner 한 행으로 제한한다. 성공한 All 뒤에는 같은 평가를 공유한다.
 실패한 평가는 source까지 다시 읽고, 파생 query와 Fresh는 새 평가를 소유한다.
 
@@ -180,7 +180,7 @@ ManyToMany의 양방향·nullable/nonunique through·대칭/비대칭 self와 �
 거쳐 target query의 immutable 평가에 붙은 graph를 복제한다. Objects와 Collections는 같은 project binding을 사용한다.
 반환된 각 model/manager는 독립 mutable handle을 가지며 held query는 이전 graph를 유지한다. 기본 중첩 prefetch의 target query에
 Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다. 일반·prefetch·eager 결과 표현의 통합을 eager/prefetch 구성 API 완료로 세지 않는다.
-필터를 지정한 child prefetch는 아래 계약을 따른다. Eager selection과 prefetch를 합친 tree와 owner별 slice는 다음 구현 범위로 남는다.
+필터를 지정한 child prefetch와 eager 조합은 아래 계약을 따른다. Owner별 slice는 다음 구현 범위로 남는다.
 고정 Django의 독립 관찰과 Go-native 소유권·실패 경로의 실행 근거는 TEST_EVIDENCE에 기록한다.
 
 ### 구성 가능한 prefetch의 조회 기반
@@ -219,8 +219,26 @@ Raw streaming Iterate는 child query를 실행할 materialized batch 계약 없�
 각 collection handle은 기본 membership plan을 따로 소유한다. Mutation·Invalidate·manager Fresh는 이 plan으로 돌아가며
 기존 held QuerySet의 custom 조건·정렬·설정과 성공한 snapshot은 유지한다. No-op·실패·불명 outcome도 같은 무효화 규칙이다.
 고정 Django의 중첩/filtered cache·lookup 순서·owner filter scope를 실제 generated 소비자와 비교한다.
-Eager/prefetch 구성은 아직 구현 중이다. Target query의 slice는 owner별 window 계획이 필요하며 현재
+Reverse collection의 target eager 구성은 아직 구현 중이다. Target query의 slice는 owner별 window 계획이 필요하며 현재
 `ForPrefetchOwners`는 명시 오류로 거부한다. 이를 전체 결과의 일반 LIMIT/OFFSET으로 바꾸지 않는다.
+
+
+### 단일 관계 prefetch와 eager 부모 재사용
+
+2026-09-26, `SinglePrefetch`는 required/nullable FK와 역방향 OneToOne의 bound relation에서 구성한다.
+Typed child는 target 모델로 제한하고 generated typed/path selector는 같은 origin·snapshot과 전체 64 hop/1,024 node 한도를 검사한다.
+Root `SelectRelated`와 `PrefetchRelated`는 양쪽 호출 순서로 조합하며 eager와 prefetch의 모든 입력 node가 같은 한도를 소비한다.
+
+단일 node는 이미 선택한 부모의 projection·binding·membership을 검증하고 그대로 사용한다. 없는 부모만 고유 integer key로
+999개씩 나누어 읽고, batch 밖 행·복제 PK 불일치·단일 관계의 중복 행을 거부한다. Nullable NULL과 정상 부재도 cache로 보존한다.
+부모의 기존 eager descendants와 새 collection descendants는 하나의 비공개 graph에서 결합하며 전체 조회 성공 뒤 publish한다.
+반환 model·부모 wrapper·collection handle은 각각 독립이고, 한 객체의 변경은 다른 materialization이나 held query의 snapshot을 바꾸지 않는다.
+객체 factory가 없는 collection-only target도 공통 model materialization으로 하위 cache를 전달한다.
+NULL relation의 lazy/eager/prefetch handle도 backend의 session 수명을 유지하며 종료 뒤 Get/Fresh/SelectedGraph로 빠져나오지 않는다.
+
+Cold First는 source를 하나만 decode한 뒤 그 graph를 구성하며 full evaluation cache를 채우지 않는다. Count는 child I/O를 하지 않는다.
+Filter·정렬·Distinct·source slice·Fresh는 같은 준비된 관계 tree를 새 source 평가에 적용한다. 실패와 취소는 부분 graph를 공개하지 않는다.
+`SinglePrefetch`의 custom target Filter/OrderBy, reverse collection의 target eager 구성, owner별 slice와 materialized streaming은 별도 남은 범위다.
 
 ## Historical 선언 변경
 

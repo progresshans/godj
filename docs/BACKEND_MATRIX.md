@@ -127,7 +127,8 @@ Nested typed/path API는 기본 collection query와 공통 materialization으로
 Custom target Filter·OrderBy·Distinct와 하위 prefetch 설정을 generated API에 연결했다.
 Held query의 조건·설정과 manager 변경 뒤 기본 조회를 구분한다. 설정된 target query의 eager·추가 prefetch에 하위 설정을 전달한다.
 Owner별 slice window·설정된 prefetch query의 streaming은 미지원이다.
-Eager와 prefetch의 tree 통합, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
+단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
+Reverse collection의 target eager 구성·custom single prefetch query, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.

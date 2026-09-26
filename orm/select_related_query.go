@@ -19,6 +19,7 @@ type RelatedSelectQuery[S any] struct {
 	targets          []preparedRelatedSelection[S]
 	evaluation       *evaluationState[relatedSelectedValue[S]]
 	materialization  *queryMaterialization[S]
+	nodes            int
 	configurationErr error
 	marker           [0]func(S)
 }
@@ -45,11 +46,13 @@ func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S])
 	if source.materialization != nil {
 		remaining -= source.materialization.nodeBudget()
 	}
+	before := remaining
 	targets, err := prepareSelectionSet(selections, 1, &remaining)
 	if err != nil {
 		return result.WithConfigurationError(err)
 	}
 	result.targets = targets
+	result.nodes = before - remaining
 	for index, target := range targets {
 		path := target.path()
 		if index == 0 {

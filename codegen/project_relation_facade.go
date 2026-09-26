@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v14"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -54,6 +54,7 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 		return nil, err
 	}
 	facadeModels := buildProjectRelationFacadeSurface(models, sources, collections)
+	hasPrefetch := len(collections) > 0 || projectRelationFacadeHasRelationSources(facadeModels)
 	if err := validateProjectRelationFacadeFields(facadeModels); err != nil {
 		return nil, err
 	}
@@ -66,7 +67,7 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	fmt.Fprintln(&output, "import (")
 	fmt.Fprintln(&output, "\tcontext \"context\"")
 	fmt.Fprintln(&output, "\treflect \"reflect\"")
-	if len(collections) > 0 {
+	if hasPrefetch {
 		fmt.Fprintln(&output, "strings \"strings\"")
 	}
 	for _, app := range canonical {
@@ -93,12 +94,12 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 		fmt.Fprintf(&output, "%s orm.BoundModel[%s.%s]\n", model.surface, model.model.app.alias, model.model.model.GoName)
 	}
 	fmt.Fprintln(&output, "}")
-	if len(collections) > 0 {
+	if hasPrefetch {
 		renderProjectFacadePrefetchFoundation(&output)
 	}
 	for index := range facadeModels {
 		renderProjectRelationFacadeModel(&output, facadeModels[index])
-		if len(collections) > 0 {
+		if hasPrefetch {
 			renderProjectFacadePrefetchPath(&output, facadeModels[index])
 		}
 	}
@@ -335,7 +336,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	} else {
 		fmt.Fprintf(output, "type %s struct {\n", model.queryType)
 	}
-	if len(model.collections) > 0 {
+	if projectRelationFacadeHasPrefetch(model) {
 		fmt.Fprintf(output, "Prefetch %sPrefetchSelectors\n", model.surface)
 	}
 	fmt.Fprintln(output, "\tstate *relationFacadeState")
@@ -365,8 +366,13 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintln(output, "}")
 
 	}
-	if len(model.collections) > 0 {
+	if projectRelationFacadeHasPrefetch(model) {
 		fmt.Fprintln(output, "if _state != nil {")
+		if model.source != nil {
+			for _, relation := range model.source.selections {
+				fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeSinglePrefetch[%s,%s.%s]{state:_state,selection:%s}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, projectSinglePrefetchExpression(model, relation))
+			}
+		}
 		for _, relation := range model.collections {
 			fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeManyPrefetch[%s,%s.%s,%s.%s]{state:_state,selection:_state.collections.%s.WithChildren()}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.surface)
 		}
@@ -1374,11 +1380,6 @@ func renderProjectRelationFacadeAggregate(
 
 func renderProjectRelationFacadeLoadedTarget(output *bytes.Buffer, relation projectRelationObjectEdge, nullable bool) {
 	targetSurface := relation.target.app.prefix + relation.target.model.GoName
-	hasChildren := relation.targetHasObjects
-	if !hasChildren {
-		fmt.Fprintf(output, "_wrapped,_err:=_model.state.wrap%s(_value,false)\n", targetSurface)
-		return
-	}
 	failure := "return nil,_err"
 	if nullable {
 		failure = "return nil,false,_err"
@@ -1386,9 +1387,7 @@ func renderProjectRelationFacadeLoadedTarget(output *bytes.Buffer, relation proj
 	fmt.Fprintf(output, `var _wrapped *%[1]s
  _graph,_selected,_err:=_model.object.%[2]s.SelectedGraph(_ctx);if _err!=nil{%[3]s}
  if _selected{
-  var _object *%[1]sObject
-  _object,_err=_model.state.objects.%[1]s.FromSelected(_graph);if _err!=nil{%[3]s}
-  _wrapped,_err=_model.state.wrapSelected%[1]sObject(_ctx,_object)
+  _wrapped,_err=_model.state.materialize%[1]s(_ctx,_graph)
  }else{_wrapped,_err=_model.state.wrap%[1]s(_value,false)}
 `, targetSurface, lowerFirst(relation.selector), failure)
 }

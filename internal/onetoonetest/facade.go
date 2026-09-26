@@ -256,6 +256,65 @@ func RunFacade(t *testing.T, backend ProductBackend, dialect string, compile fun
 			}
 		})
 	}
+	for _, test := range cases {
+		t.Run("prefetch_"+test.name, func(t *testing.T) {
+			want := expected[test.name]
+			filtered := source.Filter(test.filters...)
+			cold, err := filtered.PrefetchRelatedPaths(test.paths...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reused, err := filtered.SelectRelated(test.selectors...).PrefetchRelatedPaths(test.paths...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			prefixes := map[string]bool{}
+			for _, path := range test.paths {
+				parts := strings.Split(path, "__")
+				for n := 1; n <= len(parts); n++ {
+					prefixes[strings.Join(parts[:n], "__")] = true
+				}
+			}
+			queries := []project.TicketsTicketPrefetchQuery{cold, reused}
+			if test.name == "reverse_forward_reverse" {
+				queries = append(queries, filtered.PrefetchRelated(source.Prefetch.Report.WithChildren(models.ReportsReport.Prefetch.Ticket.WithChildren(source.Prefetch.Review))))
+			}
+			for i, prefetch := range queries {
+				before := queryCount()
+				values, err := prefetch.All(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				expectedQueries := uint64(1 + len(prefixes))
+				if i == 1 {
+					expectedQueries = 1
+				}
+				if queryCount()-before != expectedQueries {
+					t.Fatal("single prefetch queries", queryCount()-before, expectedQueries)
+				}
+				before = queryCount()
+				rows := make([]map[string]any, 0, len(values))
+				for _, value := range values {
+					row := map[string]any{"root": value.ID}
+					for _, read := range test.read {
+						read(t, ctx, value, "", row)
+					}
+					rows = append(rows, row)
+				}
+				actual, _ := json.Marshal(rows)
+				expected, _ := json.Marshal(want.Rows)
+				if string(actual) != string(expected) {
+					t.Fatalf("prefetch rows: %s\nreference: %s", actual, expected)
+				}
+				if _, err := prefetch.All(ctx); err != nil {
+					t.Fatal(err)
+				}
+				if queryCount() != before {
+					t.Fatal("single prefetch graph performed lazy I/O")
+				}
+			}
+		})
+	}
 	t.Run("lazy_child_select_is_observed", func(t *testing.T) {
 		owner, found, err := source.Filter(tickets.TicketFields.ID.Exact(1)).First(ctx)
 		if err != nil || !found {

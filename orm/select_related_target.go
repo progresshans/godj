@@ -456,6 +456,7 @@ type typedCachedRelatedTarget[T any] struct {
 	plan         query.Plan
 	binding      BoundModel[T]
 	children     []cachedRelatedTarget
+	collections  map[string]cachedPrefetch
 }
 
 func (target typedCachedRelatedTarget[T]) projection() query.RelationProjection {
@@ -463,7 +464,7 @@ func (target typedCachedRelatedTarget[T]) projection() query.RelationProjection 
 }
 func (target typedCachedRelatedTarget[T]) relatedObject(backend db.Queryer) any {
 	if !target.present && !target.allowMissing {
-		return newAbsentRelatedObject[T]()
+		return newAbsentRelatedObject[T](backend)
 	}
 	evaluation := newEvaluationState[T]()
 	if target.present {
@@ -474,8 +475,10 @@ func (target typedCachedRelatedTarget[T]) relatedObject(backend db.Queryer) any 
 	evaluation.ready = true
 	related := newRelatedObject(QuerySet[T]{backend: backend, descriptor: target.descriptor, plan: target.plan, evaluation: evaluation})
 	related.allowMissing = target.allowMissing
-	if len(target.children) > 0 {
-		related.selected = &relatedSelectedState[T]{binding: target.binding, descriptor: target.descriptor, value: relatedSelectedValue[T]{source: target.descriptor.CloneModel(target.value), targets: append([]cachedRelatedTarget(nil), target.children...)}}
+	if target.present && (len(target.children) > 0 || len(target.collections) > 0) {
+		value := relatedSelectedValue[T]{source: target.descriptor.CloneModel(target.value), targets: append([]cachedRelatedTarget(nil), target.children...), collections: target.collections}
+		related.selected = &relatedSelectedState[T]{binding: target.binding, descriptor: target.descriptor, value: value}
+		evaluation.attachment = &materializedRows[T]{binding: target.binding, values: []relatedSelectedValue[T]{value}}
 	}
 	return related
 }
