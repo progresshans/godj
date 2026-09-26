@@ -9,11 +9,12 @@ import (
 	db "github.com/progresshans/godj/db"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
-const GoDjProjectRelationFacadeInputSHA256 = "fdce23a75997f45acaaccc47d1b18251806238ffbefce80a5f6a31683d4de883"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const GoDjProjectRelationFacadeInputSHA256 = "3db6a3a3da2bc2fe4c2356755db260023220edf1143e7ca7ae8a296dedffacc6"
 
 type Backend interface {
 	db.Queryer
@@ -23,6 +24,7 @@ type Backend interface {
 type relationFacadeState struct {
 	backend      Backend
 	objects      Objects
+	models       relationFacadeBindings
 	sessionScope db.SessionValidator
 	_self        *relationFacadeState
 }
@@ -111,6 +113,24 @@ func relationFacadeRequiredRelated(_field string) error {
 	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
 }
 
+type relationFacadeBindings struct {
+	DetailsChild         orm.BoundModel[details.Child]
+	DetailsDetail        orm.BoundModel[details.Detail]
+	DetailsGrandchild    orm.BoundModel[details.Grandchild]
+	DetailsHidden        orm.BoundModel[details.Hidden]
+	DetailsOverlap       orm.BoundModel[details.Overlap]
+	DetailsProtected     orm.BoundModel[details.Protected]
+	DetailsRequiredRight orm.BoundModel[details.RequiredRight]
+	DetailsRight         orm.BoundModel[details.Right]
+	DetailsTwin          orm.BoundModel[details.Twin]
+	DetailsWatcher       orm.BoundModel[details.Watcher]
+	ParentsLabel         orm.BoundModel[parents.Label]
+	ParentsLeft          orm.BoundModel[parents.Left]
+	ParentsNode          orm.BoundModel[parents.Node]
+	ParentsRequiredLeft  orm.BoundModel[parents.RequiredLeft]
+	ParentsRoot          orm.BoundModel[parents.Root]
+	ParentsRootLabels    orm.BoundModel[parents.RootLabels]
+}
 type DetailsChildQuery struct {
 	Related DetailsChildRelationSelectors
 	state   *relationFacadeState
@@ -209,11 +229,11 @@ func (_query DetailsChildQuery) First(_ctx context.Context) (*DetailsChild, bool
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsChild)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsChild(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsChild(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -224,13 +244,13 @@ func (_query DetailsChildQuery) All(_ctx context.Context) ([]*DetailsChild, erro
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsChild)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsChild, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsChild(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsChild(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -793,6 +813,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsChildObject(_ctx context.C
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsChild(_ctx context.Context, _value *orm.RelatedSelected[details.Child]) (*DetailsChild, error) {
+	_object, _err := _state.objects.DetailsChild.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsChildObject(_ctx, _object)
+}
 
 type DetailsDetailQuery struct {
 	Related DetailsDetailRelationSelectors
@@ -892,11 +919,11 @@ func (_query DetailsDetailQuery) First(_ctx context.Context) (*DetailsDetail, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsDetail)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsDetail(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsDetail(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -907,13 +934,13 @@ func (_query DetailsDetailQuery) All(_ctx context.Context) ([]*DetailsDetail, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsDetail)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsDetail, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsDetail(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsDetail(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -1497,6 +1524,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsDetailObject(_ctx context.
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsDetail(_ctx context.Context, _value *orm.RelatedSelected[details.Detail]) (*DetailsDetail, error) {
+	_object, _err := _state.objects.DetailsDetail.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsDetailObject(_ctx, _object)
+}
 
 type DetailsGrandchildQuery struct {
 	Related DetailsGrandchildRelationSelectors
@@ -1596,11 +1630,11 @@ func (_query DetailsGrandchildQuery) First(_ctx context.Context) (*DetailsGrandc
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsGrandchild)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsGrandchild(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsGrandchild(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1611,13 +1645,13 @@ func (_query DetailsGrandchildQuery) All(_ctx context.Context) ([]*DetailsGrandc
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsGrandchild)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsGrandchild, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsGrandchild(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsGrandchild(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -2180,6 +2214,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsGrandchildObject(_ctx cont
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsGrandchild(_ctx context.Context, _value *orm.RelatedSelected[details.Grandchild]) (*DetailsGrandchild, error) {
+	_object, _err := _state.objects.DetailsGrandchild.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsGrandchildObject(_ctx, _object)
+}
 
 type DetailsHiddenQuery struct {
 	Related DetailsHiddenRelationSelectors
@@ -2279,11 +2320,11 @@ func (_query DetailsHiddenQuery) First(_ctx context.Context) (*DetailsHidden, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsHidden)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsHidden(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsHidden(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -2294,13 +2335,13 @@ func (_query DetailsHiddenQuery) All(_ctx context.Context) ([]*DetailsHidden, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsHidden)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsHidden, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsHidden(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsHidden(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -2863,6 +2904,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsHiddenObject(_ctx context.
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsHidden(_ctx context.Context, _value *orm.RelatedSelected[details.Hidden]) (*DetailsHidden, error) {
+	_object, _err := _state.objects.DetailsHidden.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsHiddenObject(_ctx, _object)
+}
 
 type DetailsOverlapQuery struct {
 	Related DetailsOverlapRelationSelectors
@@ -2964,11 +3012,11 @@ func (_query DetailsOverlapQuery) First(_ctx context.Context) (*DetailsOverlap, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsOverlap)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsOverlap(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsOverlap(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -2979,13 +3027,13 @@ func (_query DetailsOverlapQuery) All(_ctx context.Context) ([]*DetailsOverlap, 
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsOverlap)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsOverlap, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsOverlap(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsOverlap(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -3757,6 +3805,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsOverlapObject(_ctx context
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsOverlap(_ctx context.Context, _value *orm.RelatedSelected[details.Overlap]) (*DetailsOverlap, error) {
+	_object, _err := _state.objects.DetailsOverlap.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsOverlapObject(_ctx, _object)
+}
 
 type DetailsProtectedQuery struct {
 	Related DetailsProtectedRelationSelectors
@@ -3856,11 +3911,11 @@ func (_query DetailsProtectedQuery) First(_ctx context.Context) (*DetailsProtect
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsProtected)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsProtected(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsProtected(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -3871,13 +3926,13 @@ func (_query DetailsProtectedQuery) All(_ctx context.Context) ([]*DetailsProtect
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsProtected)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsProtected, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsProtected(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsProtected(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -4440,6 +4495,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsProtectedObject(_ctx conte
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsProtected(_ctx context.Context, _value *orm.RelatedSelected[details.Protected]) (*DetailsProtected, error) {
+	_object, _err := _state.objects.DetailsProtected.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsProtectedObject(_ctx, _object)
+}
 
 type DetailsRequiredRightQuery struct {
 	Related DetailsRequiredRightRelationSelectors
@@ -4539,11 +4601,11 @@ func (_query DetailsRequiredRightQuery) First(_ctx context.Context) (*DetailsReq
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsRequiredRight)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsRequiredRight(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsRequiredRight(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -4554,13 +4616,13 @@ func (_query DetailsRequiredRightQuery) All(_ctx context.Context) ([]*DetailsReq
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsRequiredRight)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsRequiredRight, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsRequiredRight(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsRequiredRight(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -5123,6 +5185,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsRequiredRightObject(_ctx c
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsRequiredRight(_ctx context.Context, _value *orm.RelatedSelected[details.RequiredRight]) (*DetailsRequiredRight, error) {
+	_object, _err := _state.objects.DetailsRequiredRight.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsRequiredRightObject(_ctx, _object)
+}
 
 type DetailsRightQuery struct {
 	Related DetailsRightRelationSelectors
@@ -5222,11 +5291,11 @@ func (_query DetailsRightQuery) First(_ctx context.Context) (*DetailsRight, bool
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsRight)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsRight(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsRight(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -5237,13 +5306,13 @@ func (_query DetailsRightQuery) All(_ctx context.Context) ([]*DetailsRight, erro
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsRight)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsRight, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsRight(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsRight(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -5806,6 +5875,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsRightObject(_ctx context.C
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsRight(_ctx context.Context, _value *orm.RelatedSelected[details.Right]) (*DetailsRight, error) {
+	_object, _err := _state.objects.DetailsRight.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsRightObject(_ctx, _object)
+}
 
 type DetailsTwinQuery struct {
 	Related DetailsTwinRelationSelectors
@@ -5907,11 +5983,11 @@ func (_query DetailsTwinQuery) First(_ctx context.Context) (*DetailsTwin, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsTwin)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsTwin(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsTwin(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -5922,13 +5998,13 @@ func (_query DetailsTwinQuery) All(_ctx context.Context) ([]*DetailsTwin, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsTwin)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsTwin, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsTwin(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsTwin(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -6700,6 +6776,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsTwinObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsTwin(_ctx context.Context, _value *orm.RelatedSelected[details.Twin]) (*DetailsTwin, error) {
+	_object, _err := _state.objects.DetailsTwin.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsTwinObject(_ctx, _object)
+}
 
 type DetailsWatcherQuery struct {
 	Related DetailsWatcherRelationSelectors
@@ -6799,11 +6882,11 @@ func (_query DetailsWatcherQuery) First(_ctx context.Context) (*DetailsWatcher, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.DetailsWatcher)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapDetailsWatcher(_value, false)
+	_wrapped, _err := _query.state.materializeDetailsWatcher(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -6814,13 +6897,13 @@ func (_query DetailsWatcherQuery) All(_ctx context.Context) ([]*DetailsWatcher, 
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.DetailsWatcher)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*DetailsWatcher, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapDetailsWatcher(_values[_index], false)
+		_wrapped, _err := _query.state.materializeDetailsWatcher(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -7419,6 +7502,13 @@ func (_state *relationFacadeState) wrapSelectedDetailsWatcherObject(_ctx context
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeDetailsWatcher(_ctx context.Context, _value *orm.RelatedSelected[details.Watcher]) (*DetailsWatcher, error) {
+	_object, _err := _state.objects.DetailsWatcher.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedDetailsWatcherObject(_ctx, _object)
+}
 
 type ParentsLabelQuery struct {
 	state *relationFacadeState
@@ -7511,11 +7601,11 @@ func (_query ParentsLabelQuery) First(_ctx context.Context) (*ParentsLabel, bool
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsLabel)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsLabel(_value, false)
+	_wrapped, _err := _query.state.materializeParentsLabel(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -7526,13 +7616,13 @@ func (_query ParentsLabelQuery) All(_ctx context.Context) ([]*ParentsLabel, erro
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsLabel)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsLabel, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsLabel(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsLabel(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -7638,6 +7728,24 @@ func (_model *ParentsLabel) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+func (_state *relationFacadeState) materializeParentsLabel(_ctx context.Context, _value *orm.RelatedSelected[parents.Label]) (*ParentsLabel, error) {
+	if _err := _value.ValidateSourceBinding(_state.models.ParentsLabel); _err != nil {
+		return nil, _err
+	}
+	_raw, _err := _value.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_wrapped, _err := _state.wrapParentsLabel(_raw, false)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type ParentsLeftQuery struct {
 	Related ParentsLeftRelationSelectors
 	state   *relationFacadeState
@@ -7736,11 +7844,11 @@ func (_query ParentsLeftQuery) First(_ctx context.Context) (*ParentsLeft, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsLeft)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsLeft(_value, false)
+	_wrapped, _err := _query.state.materializeParentsLeft(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -7751,13 +7859,13 @@ func (_query ParentsLeftQuery) All(_ctx context.Context) ([]*ParentsLeft, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsLeft)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsLeft, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsLeft(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsLeft(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -8356,6 +8464,13 @@ func (_state *relationFacadeState) wrapSelectedParentsLeftObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeParentsLeft(_ctx context.Context, _value *orm.RelatedSelected[parents.Left]) (*ParentsLeft, error) {
+	_object, _err := _state.objects.ParentsLeft.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedParentsLeftObject(_ctx, _object)
+}
 
 type ParentsNodeQuery struct {
 	Related ParentsNodeRelationSelectors
@@ -8455,11 +8570,11 @@ func (_query ParentsNodeQuery) First(_ctx context.Context) (*ParentsNode, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsNode)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsNode(_value, false)
+	_wrapped, _err := _query.state.materializeParentsNode(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -8470,13 +8585,13 @@ func (_query ParentsNodeQuery) All(_ctx context.Context) ([]*ParentsNode, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsNode)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsNode, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsNode(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsNode(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -9075,6 +9190,13 @@ func (_state *relationFacadeState) wrapSelectedParentsNodeObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeParentsNode(_ctx context.Context, _value *orm.RelatedSelected[parents.Node]) (*ParentsNode, error) {
+	_object, _err := _state.objects.ParentsNode.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedParentsNodeObject(_ctx, _object)
+}
 
 type ParentsRequiredLeftQuery struct {
 	Related ParentsRequiredLeftRelationSelectors
@@ -9174,11 +9296,11 @@ func (_query ParentsRequiredLeftQuery) First(_ctx context.Context) (*ParentsRequ
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsRequiredLeft)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsRequiredLeft(_value, false)
+	_wrapped, _err := _query.state.materializeParentsRequiredLeft(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -9189,13 +9311,13 @@ func (_query ParentsRequiredLeftQuery) All(_ctx context.Context) ([]*ParentsRequ
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsRequiredLeft)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsRequiredLeft, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsRequiredLeft(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsRequiredLeft(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -9758,6 +9880,13 @@ func (_state *relationFacadeState) wrapSelectedParentsRequiredLeftObject(_ctx co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeParentsRequiredLeft(_ctx context.Context, _value *orm.RelatedSelected[parents.RequiredLeft]) (*ParentsRequiredLeft, error) {
+	_object, _err := _state.objects.ParentsRequiredLeft.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedParentsRequiredLeftObject(_ctx, _object)
+}
 
 type ParentsRootQuery struct {
 	Related ParentsRootRelationSelectors
@@ -9857,11 +9986,11 @@ func (_query ParentsRootQuery) First(_ctx context.Context) (*ParentsRoot, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsRoot)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsRoot(_value, false)
+	_wrapped, _err := _query.state.materializeParentsRoot(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -9872,13 +10001,13 @@ func (_query ParentsRootQuery) All(_ctx context.Context) ([]*ParentsRoot, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsRoot)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsRoot, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsRoot(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsRoot(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -10354,6 +10483,13 @@ func (_state *relationFacadeState) wrapSelectedParentsRootObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeParentsRoot(_ctx context.Context, _value *orm.RelatedSelected[parents.Root]) (*ParentsRoot, error) {
+	_object, _err := _state.objects.ParentsRoot.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedParentsRootObject(_ctx, _object)
+}
 
 type ParentsRootLabelsQuery struct {
 	Related ParentsRootLabelsRelationSelectors
@@ -10455,11 +10591,11 @@ func (_query ParentsRootLabelsQuery) First(_ctx context.Context) (*ParentsRootLa
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ParentsRootLabels)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapParentsRootLabels(_value, false)
+	_wrapped, _err := _query.state.materializeParentsRootLabels(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -10470,13 +10606,13 @@ func (_query ParentsRootLabelsQuery) All(_ctx context.Context) ([]*ParentsRootLa
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ParentsRootLabels)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ParentsRootLabels, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapParentsRootLabels(_values[_index], false)
+		_wrapped, _err := _query.state.materializeParentsRootLabels(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -11234,6 +11370,13 @@ func (_state *relationFacadeState) wrapSelectedParentsRootLabelsObject(_ctx cont
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeParentsRootLabels(_ctx context.Context, _value *orm.RelatedSelected[parents.RootLabels]) (*ParentsRootLabels, error) {
+	_object, _err := _state.objects.ParentsRootLabels.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedParentsRootLabelsObject(_ctx, _object)
+}
 
 type Models struct {
 	DetailsChild         DetailsChildQuery
@@ -11259,7 +11402,11 @@ func Using(_backend Backend) (Models, error) { return usingModels(_backend, fals
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
 func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
 func usingModels(_backend Backend, _borrowed bool) (Models, error) {
-	_objects, _err := BindObjects()
+	_binding, _err := Bind()
+	if _err != nil {
+		return Models{}, _err
+	}
+	_objects, _err := BindObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
 	}
@@ -11276,6 +11423,150 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		}
 	}
 	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "child"},
+		details.ChildDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "detail"},
+		details.DetailDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "grandchild"},
+		details.GrandchildDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "hidden"},
+		details.HiddenDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "overlap"},
+		details.OverlapDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model5, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "protected"},
+		details.ProtectedDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model6, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "required_right"},
+		details.RequiredRightDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "right"},
+		details.RightDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "twin"},
+		details.TwinDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model9, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "watcher"},
+		details.WatcherDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model10, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "label"},
+		parents.LabelDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model11, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "left"},
+		parents.LeftDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model12, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "node"},
+		parents.NodeDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model13, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "required_left"},
+		parents.RequiredLeftDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model14, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "root"},
+		parents.RootDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model15, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "root_labels"},
+		parents.RootLabelsDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.models.DetailsChild = _model0
+	_state.models.DetailsDetail = _model1
+	_state.models.DetailsGrandchild = _model2
+	_state.models.DetailsHidden = _model3
+	_state.models.DetailsOverlap = _model4
+	_state.models.DetailsProtected = _model5
+	_state.models.DetailsRequiredRight = _model6
+	_state.models.DetailsRight = _model7
+	_state.models.DetailsTwin = _model8
+	_state.models.DetailsWatcher = _model9
+	_state.models.ParentsLabel = _model10
+	_state.models.ParentsLeft = _model11
+	_state.models.ParentsNode = _model12
+	_state.models.ParentsRequiredLeft = _model13
+	_state.models.ParentsRoot = _model14
+	_state.models.ParentsRootLabels = _model15
 	_state._self = _state
 	return Models{
 		DetailsChild:         newDetailsChildQuery(_state, details.ChildObjects.Using(_backend)),
@@ -11297,4 +11588,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8227f21f258923139aeffd913eab5feb1d87520915754fb57d74147dcc56ca2e
+var _ goDjProjectSnapshot_34330ac6aac584c75b0dcca8d56226d775ea43285ecfaaa0fc73768b63c905b7

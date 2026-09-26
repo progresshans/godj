@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -66,12 +66,16 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	fmt.Fprintln(&output, "import (")
 	fmt.Fprintln(&output, "\tcontext \"context\"")
 	fmt.Fprintln(&output, "\treflect \"reflect\"")
+	if len(collections) > 0 {
+		fmt.Fprintln(&output, "strings \"strings\"")
+	}
 	for _, app := range canonical {
 		fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 	}
 	fmt.Fprintln(&output, "\tdb \"github.com/progresshans/godj/db\"")
 	if len(facadeModels) > 0 {
 		fmt.Fprintln(&output, "\torm \"github.com/progresshans/godj/orm\"")
+		fmt.Fprintln(&output, "ir \"github.com/progresshans/godj/schema/ir\"")
 	}
 	fmt.Fprintln(&output, "\tquery \"github.com/progresshans/godj/query\"")
 	fmt.Fprintln(&output, ")")
@@ -84,8 +88,19 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	fmt.Fprintf(&output, "const GoDjProjectRelationFacadeInputSHA256 = %s\n\n", strconv.Quote(inputHash))
 
 	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels), len(collections) > 0)
+	fmt.Fprintln(&output, "type relationFacadeBindings struct {")
+	for _, model := range facadeModels {
+		fmt.Fprintf(&output, "%s orm.BoundModel[%s.%s]\n", model.surface, model.model.app.alias, model.model.model.GoName)
+	}
+	fmt.Fprintln(&output, "}")
+	if len(collections) > 0 {
+		renderProjectFacadePrefetchFoundation(&output)
+	}
 	for index := range facadeModels {
 		renderProjectRelationFacadeModel(&output, facadeModels[index])
+		if len(collections) > 0 {
+			renderProjectFacadePrefetchPath(&output, facadeModels[index])
+		}
 	}
 	renderProjectRelationFacadeAggregate(&output, facadeModels, len(collections) > 0)
 
@@ -130,10 +145,10 @@ func validateProjectRelationFacadeImports(apps []normalizedRelationPackage) erro
 	}
 	for _, app := range apps {
 		switch app.alias {
-		case "int", "int64", "iota", "reflect", "sync", "true":
+		case "int", "int64", "iota", "reflect", "strings", "sync", "true":
 			return fmt.Errorf("invalid relation facade package alias %q", app.alias)
 		}
-		if app.importPath == "context" || app.importPath == "reflect" || app.importPath == "sync" ||
+		if app.importPath == "context" || app.importPath == "reflect" || app.importPath == "strings" || app.importPath == "sync" ||
 			app.importPath == "github.com/progresshans/godj/schema/ir" {
 			return fmt.Errorf("reserved relation facade import path %q", app.importPath)
 		}
@@ -213,6 +228,7 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	fmt.Fprintln(output, "type relationFacadeState struct {")
 	fmt.Fprintln(output, "\tbackend Backend")
 	fmt.Fprintln(output, "\tobjects Objects")
+	fmt.Fprintln(output, "models relationFacadeBindings")
 	fmt.Fprintln(output, "\tsessionScope db.SessionValidator")
 	if hasCollections {
 		fmt.Fprintln(output, "\tcollections Collections")
@@ -308,6 +324,7 @@ func renderProjectRelationFacadeModel(output *bytes.Buffer, model projectRelatio
 		renderProjectRelationFacadeSelector(output, model)
 		renderProjectRelationFacadeEager(output, model)
 	}
+	renderProjectFacadeMaterialize(output, model)
 }
 
 func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelationFacadeModel) {
@@ -351,7 +368,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	if len(model.collections) > 0 {
 		fmt.Fprintln(output, "if _state != nil {")
 		for _, relation := range model.collections {
-			fmt.Fprintf(output, "_result.Prefetch.%s = %sPrefetchSelector{state:_state,selection:_state.collections.%s}\n", relation.selector, model.surface, relation.surface)
+			fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeManyPrefetch[%s,%s.%s,%s.%s]{state:_state,selection:_state.collections.%s.WithChildren()}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.surface)
 		}
 		fmt.Fprintln(output, "}")
 	}
@@ -436,11 +453,11 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, false, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_value, _found, _err := _query.query.First(_ctx)")
+	fmt.Fprintf(output, "\t_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.%s)\n", model.surface)
 	fmt.Fprintln(output, "\tif _err != nil || !_found {")
 	fmt.Fprintln(output, "\t\treturn nil, _found, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.wrap%s(_value, false)\n", model.surface)
+	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.materialize%s(_ctx, _value)\n", model.surface)
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, false, _err")
 	fmt.Fprintln(output, "\t}")
@@ -451,13 +468,13 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_values, _err := _query.query.All(_ctx)")
+	fmt.Fprintf(output, "\t_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.%s)\n", model.surface)
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\t_results := make([]*%s, len(_values))\n", model.surface)
 	fmt.Fprintln(output, "\tfor _index := range _values {")
-	fmt.Fprintf(output, "\t\t_wrapped, _err := _query.state.wrap%s(_values[_index], false)\n", model.surface)
+	fmt.Fprintf(output, "\t\t_wrapped, _err := _query.state.materialize%s(_ctx, _values[_index])\n", model.surface)
 	fmt.Fprintln(output, "\t\tif _err != nil {")
 	fmt.Fprintln(output, "\t\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t\t}")
@@ -1284,6 +1301,7 @@ func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,
  _wrapped,_err:=_state.wrap%[2]sObject(_object);if _err!=nil{return nil,_err}
  if _object._selectedGraph==nil{return nil,relationFacadeQueryInvalid("selected object has no graph")}
 `, eagerType, model.surface, model.source.objectType)
+	renderProjectFacadePrefetchedCollections(output, model, "_object._selectedGraph")
 	for _, relation := range model.source.selections {
 		fmt.Fprintf(output, "if _has,_err:=_object._selectedGraph.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.path))
 		if relation.field.Nullable || relation.reverse {
@@ -1311,7 +1329,12 @@ func renderProjectRelationFacadeAggregate(
 	fmt.Fprintln(output, "// UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.")
 	fmt.Fprintln(output, "func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }")
 	fmt.Fprintln(output, "func usingModels(_backend Backend, _borrowed bool) (Models, error) {")
-	fmt.Fprintln(output, "\t_objects, _err := BindObjects()")
+	if len(models) == 0 {
+		fmt.Fprintln(output, "\t_objects, _err := BindObjects()")
+	} else {
+		fmt.Fprintln(output, "_binding,_err:=Bind();if _err!=nil{return Models{},_err}")
+		fmt.Fprintln(output, "\t_objects, _err := BindObjectsIn(_binding)")
+	}
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn Models{}, _err")
 	fmt.Fprintln(output, "\t}")
@@ -1322,8 +1345,16 @@ func renderProjectRelationFacadeAggregate(
 	fmt.Fprintln(output, "if _borrowed != _scoped { return Models{}, relationFacadeBackendInvalid(\"root and borrowed backend must use their matching constructor and session lifetime capability\") }")
 	fmt.Fprintln(output, "if _scoped { if _err := _scope.ValidateSession(context.Background()); _err != nil { return Models{}, _err } }")
 	fmt.Fprintln(output, "\t_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}")
+	boundModels := make([]*projectRelationModel, len(models))
+	for i, model := range models {
+		boundModels[i] = model.model
+	}
+	renderBoundProjectModelBindings(output, boundModels, "Models", nil)
+	for _, model := range models {
+		fmt.Fprintf(output, "_state.models.%s = _model%d\n", model.surface, model.model.bind)
+	}
 	if hasCollections {
-		fmt.Fprintln(output, "_collections, _err := BindCollections(); if _err != nil { return Models{}, _err }; _state.collections = _collections")
+		fmt.Fprintln(output, "_collections, _err := BindCollectionsIn(_binding); if _err != nil { return Models{}, _err }; _state.collections = _collections")
 	}
 	fmt.Fprintln(output, "\t_state._self = _state")
 	fmt.Fprintln(output, "\treturn Models{")

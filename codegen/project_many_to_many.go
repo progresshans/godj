@@ -79,8 +79,9 @@ func renderProjectManyToMany(output *bytes.Buffer, plan *relationProjectPlan, re
 		fmt.Fprintf(output, "\t%s orm.ManyToMany[%s.%s, %s.%s, %s.%s]\n", relation.surface, relation.owner.app.alias, relation.owner.model.GoName, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName)
 	}
 	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output, "func BindCollections() (Collections, error) {")
-	renderProjectModelBindings(output, plan.models, "Collections", nil)
+	fmt.Fprintln(output, "func BindCollections() (Collections, error) { _binding,_err:=Bind();if _err!=nil{return Collections{},_err};return BindCollectionsIn(_binding) }")
+	fmt.Fprintln(output, "func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {")
+	renderBoundProjectModelBindings(output, plan.models, "Collections", nil)
 	fmt.Fprintf(output, "\tif len(_binding.ManyToManyRelations()) != %d { return Collections{}, &query.Error{Category:query.CategoryQuery,Code:query.CodeInvalidPlan,Detail:\"generated collection set does not match project binding\"} }\n", count)
 	used := make(map[int]bool)
 	for index, relation := range relations {

@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v5"
+const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v6"
 
 type RelationReversePackage struct {
 	Alias      string

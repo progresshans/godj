@@ -11,26 +11,102 @@ import (
 // PrefetchSelection is a closed, owner-typed batch loading capability.
 // Bound ManyToMany factories implement it in either traversal direction.
 type PrefetchSelection[S any] interface {
-	preparePrefetch() (preparedPrefetch[S], error)
+	preparePrefetch(int, *int) (preparedPrefetch[S], error)
 }
 type preparedPrefetch[S any] interface {
 	owner() BoundModel[S]
 	name() string
 	validate() error
+	merge(preparedPrefetch[S]) (preparedPrefetch[S], error)
 	load(context.Context, db.Queryer, []S) ([]cachedPrefetch, error)
 }
 type cachedPrefetch interface {
 	clone() (cachedPrefetch, error)
 }
-type preparedManyPrefetch[S, T, L any] struct{ relation ManyToMany[S, T, L] }
+
+// ManyPrefetch describes an immutable collection loading tree. Children are
+// typed to the target model and loaded across the complete parent batch.
+type ManyPrefetch[O, T, L any] struct {
+	relation         ManyToMany[O, T, L]
+	children         []PrefetchSelection[T]
+	configurationErr error
+}
+
+func (r ManyToMany[O, T, L]) WithChildren(children ...PrefetchSelection[T]) ManyPrefetch[O, T, L] {
+	return (ManyPrefetch[O, T, L]{relation: r}).WithChildren(children...)
+}
+func (p ManyPrefetch[O, T, L]) WithChildren(children ...PrefetchSelection[T]) ManyPrefetch[O, T, L] {
+	p.children = append(append([]PrefetchSelection[T](nil), p.children...), children...)
+	return p
+}
+func (p ManyPrefetch[O, T, L]) WithConfigurationError(err error) ManyPrefetch[O, T, L] {
+	if p.configurationErr == nil {
+		p.configurationErr = err
+	}
+	return p
+}
+
+type preparedManyPrefetch[S, T, L any] struct {
+	relation ManyToMany[S, T, L]
+	children []preparedPrefetch[T]
+}
 type cachedManyPrefetch[T, L any] struct{ collection *ManyCollection[T, L] }
 
-func (r ManyToMany[O, T, L]) preparePrefetch() (preparedPrefetch[O], error) {
-	prepared := preparedManyPrefetch[O, T, L]{relation: r}
+func (r ManyToMany[O, T, L]) preparePrefetch(depth int, remaining *int) (preparedPrefetch[O], error) {
+	return r.WithChildren().preparePrefetch(depth, remaining)
+}
+func (p ManyPrefetch[O, T, L]) preparePrefetch(depth int, remaining *int) (preparedPrefetch[O], error) {
+	if p.configurationErr != nil {
+		return nil, p.configurationErr
+	}
+	if depth > query.MaximumRelationHops || *remaining <= 0 {
+		return nil, relationInvalidPlan("prefetch selection exceeds its depth or node bound")
+	}
+	*remaining--
+	children, err := preparePrefetchSet(p.children, depth+1, remaining)
+	if err != nil {
+		return nil, err
+	}
+	prepared := preparedManyPrefetch[O, T, L]{relation: p.relation, children: children}
 	if err := prepared.validate(); err != nil {
 		return nil, err
 	}
 	return prepared, nil
+}
+
+func preparePrefetchSet[S any](selections []PrefetchSelection[S], depth int, remaining *int) ([]preparedPrefetch[S], error) {
+	if len(selections) > *remaining {
+		return nil, relationInvalidPlan("prefetch selection exceeds its node bound")
+	}
+	prepared := make([]preparedPrefetch[S], 0, len(selections))
+	for _, selection := range selections {
+		if interfaceIsNil(selection) {
+			return nil, relationInvalidPlan("prefetch selection is nil")
+		}
+		value, err := selection.preparePrefetch(depth, remaining)
+		if err != nil {
+			return nil, err
+		}
+		prepared = append(prepared, value)
+	}
+	return mergePrefetchSet(prepared)
+}
+func mergePrefetchSet[S any](selections []preparedPrefetch[S]) ([]preparedPrefetch[S], error) {
+	result := make([]preparedPrefetch[S], 0, len(selections))
+	seen := make(map[string]int, len(selections))
+	for _, selection := range selections {
+		if index, exists := seen[selection.name()]; exists {
+			merged, err := result[index].merge(selection)
+			if err != nil {
+				return nil, err
+			}
+			result[index] = merged
+		} else {
+			seen[selection.name()] = len(result)
+			result = append(result, selection)
+		}
+	}
+	return result, nil
 }
 func (p preparedManyPrefetch[S, T, L]) owner() BoundModel[S] { return p.relation.prefetchOwner }
 func (p preparedManyPrefetch[S, T, L]) name() string         { return p.relation.prefetchName }
@@ -41,8 +117,33 @@ func (p preparedManyPrefetch[S, T, L]) validate() error {
 	if err := validateObjectBoundModel(p.owner()); err != nil {
 		return err
 	}
-	_, _, err := p.relation.prefetchBinding()
-	return err
+	if _, _, err := p.relation.prefetchBinding(); err != nil {
+		return err
+	}
+	for _, child := range p.children {
+		if err := child.validate(); err != nil {
+			return err
+		}
+		owner := child.owner()
+		if owner.snapshot != p.relation.prefetchTarget.snapshot || owner.identity != p.relation.prefetchTarget.identity {
+			return relationInvalidPlan("prefetch child belongs to a different target or project binding")
+		}
+	}
+	return nil
+}
+func (p preparedManyPrefetch[S, T, L]) merge(other preparedPrefetch[S]) (preparedPrefetch[S], error) {
+	value, ok := other.(preparedManyPrefetch[S, T, L])
+	if !ok || p.owner().snapshot != value.owner().snapshot || p.owner().identity != value.owner().identity ||
+		p.relation.prefetchTarget.identity != value.relation.prefetchTarget.identity || p.relation.prefetchSource.identity != value.relation.prefetchSource.identity ||
+		!p.relation.path.Equal(value.relation.path) {
+		return nil, relationInvalidPlan("repeated prefetch has conflicting binding metadata")
+	}
+	children, err := mergePrefetchSet(append(append([]preparedPrefetch[T](nil), p.children...), value.children...))
+	if err != nil {
+		return nil, err
+	}
+	p.children = children
+	return p, nil
 }
 func (p preparedManyPrefetch[S, T, L]) load(ctx context.Context, backend db.Queryer, owners []S) ([]cachedPrefetch, error) {
 	_, borrowed := backend.(db.SessionValidator)
@@ -50,11 +151,58 @@ func (p preparedManyPrefetch[S, T, L]) load(ctx context.Context, backend db.Quer
 	if err != nil {
 		return nil, err
 	}
+	if len(p.children) > 0 {
+		values := make([]relatedSelectedValue[T], 0)
+		ends := make([]int, len(collections))
+		for i, collection := range collections {
+			raw, ready := collection.querySet.evaluation.cachedValues()
+			if !ready {
+				return nil, relationInvalidPlan("prefetch target cache is not ready")
+			}
+			for _, value := range raw {
+				values = append(values, relatedSelectedValue[T]{source: value})
+			}
+			ends[i] = len(values)
+		}
+		if err := loadPrefetchValues(ctx, backend, values, p.children); err != nil {
+			return nil, err
+		}
+		start := 0
+		for i, collection := range collections {
+			// These handles are still private. Their immutable graph is completed
+			// before the outer query publishes any of the cached collections.
+			collection.querySet.evaluation.attachment = &materializedRows[T]{binding: p.relation.prefetchTarget, values: values[start:ends[i]:ends[i]]}
+			start = ends[i]
+		}
+	}
 	result := make([]cachedPrefetch, len(collections))
 	for i, collection := range collections {
 		result[i] = cachedManyPrefetch[T, L]{collection: collection}
 	}
 	return result, nil
+}
+
+func loadPrefetchValues[S any](ctx context.Context, backend db.Queryer, values []relatedSelectedValue[S], selections []preparedPrefetch[S]) error {
+	owners := make([]S, len(values))
+	for i, value := range values {
+		owners[i] = value.source
+	}
+	for _, selection := range selections {
+		caches, err := selection.load(ctx, backend, owners)
+		if err != nil {
+			return err
+		}
+		if len(caches) != len(values) {
+			return relationInvalidPlan("prefetch batch changed owner cardinality")
+		}
+		for i, cache := range caches {
+			if values[i].collections == nil {
+				values[i].collections = make(map[string]cachedPrefetch, len(selections))
+			}
+			values[i].collections[selection.name()] = cache
+		}
+	}
+	return ctx.Err()
 }
 func (c cachedManyPrefetch[T, L]) clone() (cachedPrefetch, error) {
 	set, err := c.collection.Query()
@@ -69,23 +217,18 @@ func (c cachedManyPrefetch[T, L]) clone() (cachedPrefetch, error) {
 	return cachedManyPrefetch[T, L]{collection: copy}, nil
 }
 
-type prefetchedValue[S any] struct {
-	source      S
-	collections map[string]cachedPrefetch
-}
-
 // PrefetchQuery owns one evaluation of the owner query and all selected
 // collection batches. Failed attempts publish neither owners nor partial caches.
 type PrefetchQuery[S any] struct {
 	source           QuerySet[S]
 	binding          BoundModel[S]
 	selections       []preparedPrefetch[S]
-	evaluation       *evaluationState[prefetchedValue[S]]
+	evaluation       *evaluationState[relatedSelectedValue[S]]
 	configurationErr error
 }
 
 func PrefetchRelated[S any](source QuerySet[S], selections ...PrefetchSelection[S]) PrefetchQuery[S] {
-	q := PrefetchQuery[S]{source: source, evaluation: newEvaluationState[prefetchedValue[S]]()}
+	q := PrefetchQuery[S]{source: source, evaluation: newEvaluationState[relatedSelectedValue[S]]()}
 	q.source.plan = q.source.plan.WithoutCollectionFilterReuse()
 	q.configurationErr = source.configurationErr
 	if q.configurationErr != nil {
@@ -94,25 +237,17 @@ func PrefetchRelated[S any](source QuerySet[S], selections ...PrefetchSelection[
 	if len(selections) == 0 || len(selections) > MaximumRelatedSelectionNodes {
 		return q.WithConfigurationError(relationInvalidPlan("prefetch requires between 1 and 1024 selections"))
 	}
-	seen := make(map[string]bool, len(selections))
-	for _, selection := range selections {
-		if interfaceIsNil(selection) {
-			return q.WithConfigurationError(relationInvalidPlan("prefetch selection is nil"))
-		}
-		prepared, err := selection.preparePrefetch()
-		if err != nil {
-			return q.WithConfigurationError(err)
-		}
-		if len(q.selections) == 0 {
-			q.binding = prepared.owner()
-		}
+	remaining := MaximumRelatedSelectionNodes
+	var err error
+	q.selections, err = preparePrefetchSet(selections, 1, &remaining)
+	if err != nil {
+		return q.WithConfigurationError(err)
+	}
+	q.binding = q.selections[0].owner()
+	for _, prepared := range q.selections {
 		owner := prepared.owner()
 		if owner.snapshot != q.binding.snapshot || owner.identity != q.binding.identity {
 			return q.WithConfigurationError(relationInvalidPlan("prefetch selections belong to different project owners"))
-		}
-		if !seen[prepared.name()] {
-			q.selections = append(q.selections, prepared)
-			seen[prepared.name()] = true
 		}
 	}
 	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(q.binding.objectDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), q.binding.model) || source.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(q.binding.model)) || len(source.plan.RelationProjections()) != 0 {
@@ -130,7 +265,7 @@ func (q PrefetchQuery[S]) ConfigurationError() error { return q.configurationErr
 func (q PrefetchQuery[S]) Plan() query.Plan          { return q.source.plan }
 func (q PrefetchQuery[S]) derive(source QuerySet[S]) PrefetchQuery[S] {
 	q.source = source
-	q.evaluation = newEvaluationState[prefetchedValue[S]]()
+	q.evaluation = newEvaluationState[relatedSelectedValue[S]]()
 	return q
 }
 func (q PrefetchQuery[S]) Filter(values ...Predicate[S]) PrefetchQuery[S] {
@@ -181,26 +316,17 @@ func (q PrefetchQuery[S]) validate(ctx context.Context) error {
 	}
 	return ctx.Err()
 }
-func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan) ([]prefetchedValue[S], error) {
+func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan) ([]relatedSelectedValue[S], error) {
 	owners, err := newQuerySet(q.source.backend, q.source.descriptor, plan).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]prefetchedValue[S], len(owners))
+	result := make([]relatedSelectedValue[S], len(owners))
 	for i, owner := range owners {
-		result[i] = prefetchedValue[S]{source: owner, collections: make(map[string]cachedPrefetch, len(q.selections))}
+		result[i] = relatedSelectedValue[S]{source: owner, collections: make(map[string]cachedPrefetch, len(q.selections))}
 	}
-	for _, selection := range q.selections {
-		caches, err := selection.load(ctx, q.source.backend, owners)
-		if err != nil {
-			return nil, err
-		}
-		if len(caches) != len(owners) {
-			return nil, relationInvalidPlan("prefetch batch changed owner cardinality")
-		}
-		for i, cache := range caches {
-			result[i].collections[selection.name()] = cache
-		}
+	if err := loadPrefetchValues(ctx, q.source.backend, result, q.selections); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -208,50 +334,18 @@ func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan) ([]prefetch
 	return sessionReadResult(ctx, q.source.backend, result, nil)
 }
 
-// Prefetched retains an owned source and selected caches. Every query terminal
-// and FromPrefetched call materializes independent mutable collection handles.
-type Prefetched[S any] struct {
-	value      prefetchedValue[S]
-	binding    BoundModel[S]
-	descriptor ModelDescriptor[S]
-	backend    db.Queryer
-	_self      *Prefetched[S]
+func (q PrefetchQuery[S]) clone(value relatedSelectedValue[S]) (*RelatedSelected[S], error) {
+	return cloneRelatedSelection(q.source.backend, q.binding, q.source.descriptor, value)
 }
 
-func (q PrefetchQuery[S]) clone(value prefetchedValue[S]) (*Prefetched[S], error) {
-	copy := &Prefetched[S]{value: prefetchedValue[S]{source: q.source.descriptor.CloneModel(value.source), collections: make(map[string]cachedPrefetch, len(value.collections))}, binding: q.binding, descriptor: q.source.descriptor, backend: q.source.backend}
-	copy._self = copy
-	for name, cache := range value.collections {
-		cloned, err := cache.clone()
-		if err != nil {
-			return nil, err
-		}
-		copy.value.collections[name] = cloned
-	}
-	return copy, nil
-}
-func (p *Prefetched[S]) validate() error {
-	if p == nil || p._self != p || descriptorIsNil(p.descriptor) || interfaceIsNil(p.backend) || len(p.value.collections) == 0 {
-		return relationInvalidPlan("prefetched result is nil, zero, or copied")
-	}
-	return validateQuerySession(context.Background(), p.backend)
-}
-func (p *Prefetched[S]) Source() (S, error) {
-	var zero S
-	if err := p.validate(); err != nil {
-		return zero, err
-	}
-	value := p.descriptor.CloneModel(p.value.source)
-	return sessionReadResult(context.Background(), p.backend, value, nil)
-}
-func (r ManyToMany[O, T, L]) FromPrefetched(owner *Prefetched[O]) (*ManyCollection[T, L], bool, error) {
+func (r ManyToMany[O, T, L]) FromPrefetched(owner *RelatedSelected[O]) (*ManyCollection[T, L], bool, error) {
 	if err := owner.validate(); err != nil {
 		return nil, false, err
 	}
 	if r.state == nil || r.prefetchOwner.snapshot != owner.binding.snapshot || r.prefetchOwner.identity != owner.binding.identity {
 		return nil, false, relationInvalidPlan("prefetched owner belongs to another collection binding")
 	}
-	cache, found := owner.value.collections[r.prefetchName]
+	cache, found := owner.collections[r.prefetchName]
 	if !found {
 		return nil, false, nil
 	}
@@ -265,15 +359,15 @@ func (r ManyToMany[O, T, L]) FromPrefetched(owner *Prefetched[O]) (*ManyCollecti
 	}
 	return typed.collection, true, nil
 }
-func (q PrefetchQuery[S]) All(ctx context.Context) ([]*Prefetched[S], error) {
+func (q PrefetchQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], error) {
 	if err := q.validate(ctx); err != nil {
 		return nil, err
 	}
-	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]prefetchedValue[S], error) { return q.load(ctx, q.source.plan) })
+	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]relatedSelectedValue[S], error) { return q.load(ctx, q.source.plan) })
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*Prefetched[S], len(values))
+	result := make([]*RelatedSelected[S], len(values))
 	for i, value := range values {
 		result[i], err = q.clone(value)
 		if err != nil {
@@ -285,7 +379,7 @@ func (q PrefetchQuery[S]) All(ctx context.Context) ([]*Prefetched[S], error) {
 	}
 	return sessionReadResult(ctx, q.source.backend, result, nil)
 }
-func (q PrefetchQuery[S]) First(ctx context.Context) (*Prefetched[S], bool, error) {
+func (q PrefetchQuery[S]) First(ctx context.Context) (*RelatedSelected[S], bool, error) {
 	if err := q.validate(ctx); err != nil {
 		return nil, false, err
 	}

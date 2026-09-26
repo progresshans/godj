@@ -160,9 +160,9 @@ non-null target 조건을 적용한다. 선택한 target FK의 기존 eager proj
 재출현은 오류다. 모든 batch·선택 관계·context·session 검사를 마친 뒤에만 source와 cache를 함께 반환한다.
 늦은 batch 실패나 취소에서 prefix를 반환하지 않는다. 빈 owner 입력은 SQL 없이 같은 binding/lifetime 검사를 수행한다.
 
-공통 `PrefetchRelated`는 owner query와 여러 direct selection의 평가 cache를 소유한다. Generated facade의 typed
+공통 `PrefetchRelated`는 owner query와 여러 collection selection tree의 평가 cache를 소유한다. Generated facade의 typed
 `Prefetch` selector와 `PrefetchRelatedPaths`는 같은 runtime으로 연결하며 다른 origin/model이나 미지원 경로를 거부한다.
-Facade ABI는 v12다. 같은 selection은 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
+Facade ABI는 v13이며 collection binding ABI는 relation-reverse v6다. 같은 selection은 하위 선택을 합쳐 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
 Cold Count는 owner 행만 세고 cold First는 명시적 정렬 아래 owner 한 행으로 제한한다. 성공한 All 뒤에는 같은 평가를 공유한다.
 실패한 평가는 source까지 다시 읽고, 파생 query와 Fresh는 새 평가를 소유한다.
 
@@ -171,8 +171,16 @@ Cache 안의 target 값은 immutable snapshot이며 terminal마다 복제한다.
 빌린 session의 warm/empty cache도 session 종료 뒤에는 사용할 수 없다. 세션 없는 여러 SQL 읽기를 단일 시점 snapshot이라고
 주장하지 않으며 더 강한 읽기 일관성은 caller의 transaction이 소유한다.
 
-직접 ManyToMany의 양방향·nullable/nonunique through·대칭/비대칭 self와 여러 direct selection이 현재 구현 범위다.
-중첩 collection 경로, 필터를 지정한 child prefetch, eager selection과 prefetch를 합친 tree는 다음 구현 범위로 남는다.
+ManyToMany의 양방향·nullable/nonunique through·대칭/비대칭 self와 여러 direct/nested selection이 현재 구현 범위다.
+`ManyPrefetch.WithChildren`의 child 타입은 target model로 제한한다. Generated typed selector는 facade origin도 검사하며
+문자열 경로는 같은 native tree로 변환한다. 깊이 64·중복 포함 1024 node를 준비 단계에서 제한하고 잘못된 하위 경로·cycle은 I/O 전에 거부한다.
+각 단계에서 전체 parent batch의 target을 모아 다음 단계를 한 번씩 읽는다. 모든 하위 조회가 성공하기 전에는 외부 cache를 공개하지 않는다.
+
+`RelatedSelected`는 source 값과 single-valued/collection cache를 함께 담는다. Generated 일반 조회도 `Materialize`/`MaterializeFirst`를
+거쳐 target query의 immutable 평가에 붙은 graph를 복제한다. Objects와 Collections는 같은 project binding을 사용한다.
+반환된 각 model/manager는 독립 mutable handle을 가지며 held query는 이전 graph를 유지한다. 기본 중첩 prefetch의 target query에
+Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다. 일반·prefetch·eager 결과 표현의 통합을 eager/prefetch 구성 API 완료로 세지 않는다.
+필터를 지정한 child prefetch, eager selection과 prefetch를 합친 tree와 owner별 slice는 다음 구현 범위로 남는다.
 고정 Django의 독립 관찰과 Go-native 소유권·실패 경로의 실행 근거는 TEST_EVIDENCE에 기록한다.
 
 ### 구성 가능한 prefetch의 조회 기반

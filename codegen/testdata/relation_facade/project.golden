@@ -9,11 +9,12 @@ import (
 	db "github.com/progresshans/godj/db"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
-const GoDjProjectRelationFacadeInputSHA256 = "42f4ebf7c155533b12e4247a167dae3cdddfc176a54474911ff1e5b593ef599b"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const GoDjProjectRelationFacadeInputSHA256 = "a58ae61c83f3edeaba0211dbf1d25bca7850bed6d4d4ac1294c5364ccba0ffbf"
 
 type Backend interface {
 	db.Queryer
@@ -23,6 +24,7 @@ type Backend interface {
 type relationFacadeState struct {
 	backend      Backend
 	objects      Objects
+	models       relationFacadeBindings
 	sessionScope db.SessionValidator
 	_self        *relationFacadeState
 }
@@ -111,6 +113,10 @@ func relationFacadeRequiredRelated(_field string) error {
 	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
 }
 
+type relationFacadeBindings struct {
+	AuthorsAuthor orm.BoundModel[authors.Author]
+	BlogPost      orm.BoundModel[blog.Post]
+}
 type AuthorsAuthorQuery struct {
 	state *relationFacadeState
 	query orm.QuerySet[authors.Author]
@@ -202,11 +208,11 @@ func (_query AuthorsAuthorQuery) First(_ctx context.Context) (*AuthorsAuthor, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.AuthorsAuthor)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapAuthorsAuthor(_value, false)
+	_wrapped, _err := _query.state.materializeAuthorsAuthor(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -217,13 +223,13 @@ func (_query AuthorsAuthorQuery) All(_ctx context.Context) ([]*AuthorsAuthor, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.AuthorsAuthor)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*AuthorsAuthor, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapAuthorsAuthor(_values[_index], false)
+		_wrapped, _err := _query.state.materializeAuthorsAuthor(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -329,6 +335,24 @@ func (_model *AuthorsAuthor) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+func (_state *relationFacadeState) materializeAuthorsAuthor(_ctx context.Context, _value *orm.RelatedSelected[authors.Author]) (*AuthorsAuthor, error) {
+	if _err := _value.ValidateSourceBinding(_state.models.AuthorsAuthor); _err != nil {
+		return nil, _err
+	}
+	_raw, _err := _value.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_wrapped, _err := _state.wrapAuthorsAuthor(_raw, false)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type BlogPostQuery struct {
 	Related BlogPostRelationSelectors
 	state   *relationFacadeState
@@ -429,11 +453,11 @@ func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.BlogPost)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapBlogPost(_value, false)
+	_wrapped, _err := _query.state.materializeBlogPost(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -444,13 +468,13 @@ func (_query BlogPostQuery) All(_ctx context.Context) ([]*BlogPost, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.BlogPost)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*BlogPost, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapBlogPost(_values[_index], false)
+		_wrapped, _err := _query.state.materializeBlogPost(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -1230,6 +1254,13 @@ func (_state *relationFacadeState) wrapSelectedBlogPostObject(_ctx context.Conte
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeBlogPost(_ctx context.Context, _value *orm.RelatedSelected[blog.Post]) (*BlogPost, error) {
+	_object, _err := _state.objects.BlogPost.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedBlogPostObject(_ctx, _object)
+}
 
 type Models struct {
 	AuthorsAuthor AuthorsAuthorQuery
@@ -1241,7 +1272,11 @@ func Using(_backend Backend) (Models, error) { return usingModels(_backend, fals
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
 func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
 func usingModels(_backend Backend, _borrowed bool) (Models, error) {
-	_objects, _err := BindObjects()
+	_binding, _err := Bind()
+	if _err != nil {
+		return Models{}, _err
+	}
+	_objects, _err := BindObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
 	}
@@ -1258,6 +1293,24 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		}
 	}
 	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		authors.AuthorDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		blog.PostDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.models.AuthorsAuthor = _model0
+	_state.models.BlogPost = _model1
 	_state._self = _state
 	return Models{
 		AuthorsAuthor: newAuthorsAuthorQuery(_state, authors.AuthorObjects.Using(_backend)),

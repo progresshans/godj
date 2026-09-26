@@ -1,7 +1,7 @@
 ---
 id: GDJ-0099
 status: active
-updated: 2026-09-23
+updated: 2026-09-26
 baseline_commit: "3eb403e718f511ac06dc457b41a5e50a41ec8890"
 integration_owner: "root"
 ---
@@ -53,10 +53,11 @@ nullable duplicate·양방향/self·owner multiplicity·전체 성공 후 cache 
 일반 빌린 session에서도 읽을 수 있고 relation capability 없는 변경은 빈 입력도 거부한다.
 Custom target query의 기존 조건·정렬·DISTINCT와 연결 행 scope를 유지하는 owner projection을 Query AST·양 DB에 연결했다.
 Nested/filtered/eager prefetch의 독립 결과와 cache/query-count 기준을 확보했으며 generated tree의 제품 완료로 세지 않는다.
-다음 구현은 기존 eager selected graph와 collection cache를 같은 materialization 경로로 연결한다.
+Eager selected graph와 collection cache의 결과 표현을 통합하고 기본 중첩 ManyToMany를 generated model 접근자까지 연결했다.
+Typed child와 문자열 경로는 같은 bounded tree를 사용하며 같은 관계의 하위 선택을 합쳐 일괄 조회한다.
 중첩 결과는 query의 immutable 평가와 반환 model의 mutable cache를 구분하며, custom query의 Filter/정렬은 held QuerySet에 남고
-manager 변경 뒤에는 기본 관계 조회로 돌아가야 한다. 중첩/path 구성·eager 재사용·owner별 slice window를 실제 generated 소비자까지 연결한다.
-중첩/filtered child prefetch·eager와의 tree 통합, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+manager 변경 뒤에는 기본 관계 조회로 돌아가야 한다. 이어서 custom target query·eager 재사용·owner별 slice window를 실제 generated 소비자까지 연결한다.
+Filtered child prefetch·eager와의 tree 통합, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

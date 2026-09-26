@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -98,7 +98,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("type BlogPostRelationSelectors struct"),
 		[]byte("func (_query BlogPostQuery) SelectRelated(_selectors ...BlogPostRelationSelector) BlogPostEagerQuery"),
 		[]byte("func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error)"),
-		[]byte("_objects, _err := BindObjects()"),
+		[]byte("_objects, _err := BindObjectsIn(_binding)"),
 		[]byte("SelectRelated(_source).WithSelections(_result.selections...)"),
 		[]byte("func (_query BlogPostQuery) SelectRelatedPaths(_paths ...string) (BlogPostEagerQuery, error)"),
 	} {
@@ -120,7 +120,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 			t.Fatalf("generated facade target-key snapshot %q count = %d, want exactly 1", targetKeySnapshot, count)
 		}
 	}
-	if bindIndex, nilIndex := bytes.Index(first, []byte("BindObjects()")), bytes.Index(first, []byte("relationFacadeNil(_backend)")); bindIndex < 0 || nilIndex < 0 || bindIndex >= nilIndex {
+	if bindIndex, nilIndex := bytes.Index(first, []byte("BindObjectsIn(_binding)")), bytes.Index(first, []byte("relationFacadeNil(_backend)")); bindIndex < 0 || nilIndex < 0 || bindIndex >= nilIndex {
 		t.Fatalf("BindObjects index %d must precede backend nil validation index %d", bindIndex, nilIndex)
 	}
 	wantExported := []string{
@@ -190,7 +190,7 @@ func TestGenerateProjectRelationFacadeRejectsInvalidInputsBeforeBytes(t *testing
 		{name: "MarshalJSON promoted field collision", pkg: "project", packages: testfixture.FacadePackages("example.com/godj-relation-facade-marshal", marshalFieldCollision, blog), contains: "MarshalJSON"},
 		{name: "UnmarshalJSON promoted field collision", pkg: "project", packages: testfixture.FacadePackages("example.com/godj-relation-facade-unmarshal", unmarshalFieldCollision, blog), contains: "UnmarshalJSON"},
 		{name: "private raw alias import collision", pkg: "project", packages: aliasCollision, contains: "blogPostModel"},
-		{name: "all-model surface collision", pkg: "project", packages: relationFacadeSurfaceCollisionPackages(), contains: "ABCQuery"},
+		{name: "all-model surface collision", pkg: "project", packages: relationFacadeSurfaceCollisionPackages(), contains: "ABC"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			generated, err := codegen.GenerateProjectRelationFacade(test.pkg, test.packages)

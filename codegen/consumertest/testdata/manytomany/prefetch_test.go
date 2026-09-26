@@ -54,6 +54,7 @@ type prefetchProbe struct {
 	failure         error
 	corrupt         string
 	cancelAfterScan context.CancelFunc
+	cancelAt        int
 	closes          int
 }
 
@@ -75,7 +76,11 @@ func (p *prefetchProbe) Query(ctx context.Context, plan query.Plan) (db.Rows, er
 			}
 		}
 	}
-	return &prefetchRows{Rows: rows, mode: p.corrupt, index: index, cancel: p.cancelAfterScan, closed: &p.closes}, nil
+	cancel := p.cancelAfterScan
+	if p.cancelAt != 0 && p.cancelAt != len(p.plans) {
+		cancel = nil
+	}
+	return &prefetchRows{Rows: rows, mode: p.corrupt, index: index, cancel: cancel, closed: &p.closes}, nil
 }
 
 type prefetchRows struct {
@@ -378,7 +383,8 @@ func runCollectionPrefetch(t *testing.T, b collectionBackend, _ func() (collecti
 		if _, err := base.PrefetchRelatedPaths("labels", "missing"); err == nil {
 			t.Fatal("partial dynamic prefetch accepted")
 		}
-		if _, err := base.PrefetchRelated(project.OwnersOwnerPrefetchSelector{}).Count(ctx); err == nil {
+		var zero project.OwnersOwnerPrefetchSelector
+		if _, err := base.PrefetchRelated(zero).Count(ctx); err == nil {
 			t.Fatal("zero selector accepted")
 		}
 		if _, _, err := api.OwnersOwner.PrefetchRelated(api.OwnersOwner.Prefetch.Labels).First(ctx); !errors.Is(err, &query.Error{Code: query.CodeUnorderedQuery}) {

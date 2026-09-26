@@ -73,6 +73,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/prefetch_test.go", prefetch)
+	tree, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_tree_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_tree_test.go", tree)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +110,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		required["TestCollectionFacadeSessions/"+backend] = false
 		required["TestCollectionQueries/"+backend] = false
 		required["TestCollectionPrefetchOwnerPlans/"+backend] = false
+		required["TestCollectionPrefetchTree/"+backend] = false
+		for _, name := range []string{"reference_typed", "reference_path", "reference_merged", "validation", "failure_retry", "independent_snapshots", "concurrent_warm", "multiplicity_and_copy", "session_lifetime"} {
+			required["TestCollectionPrefetchTree/"+backend+"/"+name] = false
+		}
 		for _, name := range []string{"owner_second", "owner_either", "successive_owners", "successive_only_first", "successive_only_second", "distinct_owners", "excluded_owner"} {
 			required["TestCollectionPrefetchOwnerPlans/"+backend+"/"+name] = false
 		}
@@ -203,5 +212,13 @@ func wrong(api project.Models){_ = api.OwnersOwner.PrefetchRelated(api.LabelsLab
 	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
 	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("PrefetchSelector")) {
 		t.Fatalf("cross-owner prefetch selector was not rejected: %v\n%s", err, output)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/wrong.go", []byte(`package consumer
+import "example.com/godj-project-bundle/project"
+func wrong(api project.Models){_ = api.OwnersOwner.Prefetch.Labels.WithChildren(api.OwnersOwner.Prefetch.Labels)}
+`))
+	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
+	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("WithChildren")) {
+		t.Fatalf("wrong-target child prefetch was not rejected: %v\n%s", err, output)
 	}
 }

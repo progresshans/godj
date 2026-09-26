@@ -9,11 +9,12 @@ import (
 	db "github.com/progresshans/godj/db"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
-const GoDjProjectRelationFacadeInputSHA256 = "8f2c49a8793bca3a29116ff6f3de5e87dc121b7417a82fa4555d67f702523e1b"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const GoDjProjectRelationFacadeInputSHA256 = "fb4d5a2554cb315bb23a278855499af485d07691e32e820b0aba2d7f4d7d9475"
 
 type Backend interface {
 	db.Queryer
@@ -23,6 +24,7 @@ type Backend interface {
 type relationFacadeState struct {
 	backend      Backend
 	objects      Objects
+	models       relationFacadeBindings
 	sessionScope db.SessionValidator
 	_self        *relationFacadeState
 }
@@ -111,6 +113,14 @@ func relationFacadeRequiredRelated(_field string) error {
 	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
 }
 
+type relationFacadeBindings struct {
+	ReportsCertificate    orm.BoundModel[reports.Certificate]
+	ReportsLink           orm.BoundModel[reports.Link]
+	ReportsOptionalReport orm.BoundModel[reports.OptionalReport]
+	ReportsReport         orm.BoundModel[reports.Report]
+	ReportsReview         orm.BoundModel[reports.Review]
+	TicketsTicket         orm.BoundModel[tickets.Ticket]
+}
 type ReportsCertificateQuery struct {
 	Related ReportsCertificateRelationSelectors
 	state   *relationFacadeState
@@ -209,11 +219,11 @@ func (_query ReportsCertificateQuery) First(_ctx context.Context) (*ReportsCerti
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ReportsCertificate)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapReportsCertificate(_value, false)
+	_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -224,13 +234,13 @@ func (_query ReportsCertificateQuery) All(_ctx context.Context) ([]*ReportsCerti
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ReportsCertificate)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ReportsCertificate, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapReportsCertificate(_values[_index], false)
+		_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -814,6 +824,13 @@ func (_state *relationFacadeState) wrapSelectedReportsCertificateObject(_ctx con
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeReportsCertificate(_ctx context.Context, _value *orm.RelatedSelected[reports.Certificate]) (*ReportsCertificate, error) {
+	_object, _err := _state.objects.ReportsCertificate.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedReportsCertificateObject(_ctx, _object)
+}
 
 type ReportsLinkQuery struct {
 	Related ReportsLinkRelationSelectors
@@ -913,11 +930,11 @@ func (_query ReportsLinkQuery) First(_ctx context.Context) (*ReportsLink, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ReportsLink)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapReportsLink(_value, false)
+	_wrapped, _err := _query.state.materializeReportsLink(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -928,13 +945,13 @@ func (_query ReportsLinkQuery) All(_ctx context.Context) ([]*ReportsLink, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ReportsLink)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ReportsLink, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapReportsLink(_values[_index], false)
+		_wrapped, _err := _query.state.materializeReportsLink(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -1497,6 +1514,13 @@ func (_state *relationFacadeState) wrapSelectedReportsLinkObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeReportsLink(_ctx context.Context, _value *orm.RelatedSelected[reports.Link]) (*ReportsLink, error) {
+	_object, _err := _state.objects.ReportsLink.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedReportsLinkObject(_ctx, _object)
+}
 
 type ReportsOptionalReportQuery struct {
 	Related ReportsOptionalReportRelationSelectors
@@ -1596,11 +1620,11 @@ func (_query ReportsOptionalReportQuery) First(_ctx context.Context) (*ReportsOp
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ReportsOptionalReport)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapReportsOptionalReport(_value, false)
+	_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1611,13 +1635,13 @@ func (_query ReportsOptionalReportQuery) All(_ctx context.Context) ([]*ReportsOp
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ReportsOptionalReport)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ReportsOptionalReport, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapReportsOptionalReport(_values[_index], false)
+		_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -2216,6 +2240,13 @@ func (_state *relationFacadeState) wrapSelectedReportsOptionalReportObject(_ctx 
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeReportsOptionalReport(_ctx context.Context, _value *orm.RelatedSelected[reports.OptionalReport]) (*ReportsOptionalReport, error) {
+	_object, _err := _state.objects.ReportsOptionalReport.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
+}
 
 type ReportsReportQuery struct {
 	Related ReportsReportRelationSelectors
@@ -2317,11 +2348,11 @@ func (_query ReportsReportQuery) First(_ctx context.Context) (*ReportsReport, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ReportsReport)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapReportsReport(_value, false)
+	_wrapped, _err := _query.state.materializeReportsReport(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -2332,13 +2363,13 @@ func (_query ReportsReportQuery) All(_ctx context.Context) ([]*ReportsReport, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ReportsReport)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ReportsReport, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapReportsReport(_values[_index], false)
+		_wrapped, _err := _query.state.materializeReportsReport(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -3074,6 +3105,13 @@ func (_state *relationFacadeState) wrapSelectedReportsReportObject(_ctx context.
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeReportsReport(_ctx context.Context, _value *orm.RelatedSelected[reports.Report]) (*ReportsReport, error) {
+	_object, _err := _state.objects.ReportsReport.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedReportsReportObject(_ctx, _object)
+}
 
 type ReportsReviewQuery struct {
 	Related ReportsReviewRelationSelectors
@@ -3173,11 +3211,11 @@ func (_query ReportsReviewQuery) First(_ctx context.Context) (*ReportsReview, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ReportsReview)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapReportsReview(_value, false)
+	_wrapped, _err := _query.state.materializeReportsReview(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -3188,13 +3226,13 @@ func (_query ReportsReviewQuery) All(_ctx context.Context) ([]*ReportsReview, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ReportsReview)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ReportsReview, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapReportsReview(_values[_index], false)
+		_wrapped, _err := _query.state.materializeReportsReview(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -3778,6 +3816,13 @@ func (_state *relationFacadeState) wrapSelectedReportsReviewObject(_ctx context.
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeReportsReview(_ctx context.Context, _value *orm.RelatedSelected[reports.Review]) (*ReportsReview, error) {
+	_object, _err := _state.objects.ReportsReview.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedReportsReviewObject(_ctx, _object)
+}
 
 type TicketsTicketQuery struct {
 	Related TicketsTicketRelationSelectors
@@ -3881,11 +3926,11 @@ func (_query TicketsTicketQuery) First(_ctx context.Context) (*TicketsTicket, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.TicketsTicket)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapTicketsTicket(_value, false)
+	_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -3896,13 +3941,13 @@ func (_query TicketsTicketQuery) All(_ctx context.Context) ([]*TicketsTicket, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.TicketsTicket)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*TicketsTicket, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapTicketsTicket(_values[_index], false)
+		_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -4664,6 +4709,13 @@ func (_state *relationFacadeState) wrapSelectedTicketsTicketObject(_ctx context.
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeTicketsTicket(_ctx context.Context, _value *orm.RelatedSelected[tickets.Ticket]) (*TicketsTicket, error) {
+	_object, _err := _state.objects.TicketsTicket.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedTicketsTicketObject(_ctx, _object)
+}
 
 type Models struct {
 	ReportsCertificate    ReportsCertificateQuery
@@ -4679,7 +4731,11 @@ func Using(_backend Backend) (Models, error) { return usingModels(_backend, fals
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
 func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
 func usingModels(_backend Backend, _borrowed bool) (Models, error) {
-	_objects, _err := BindObjects()
+	_binding, _err := Bind()
+	if _err != nil {
+		return Models{}, _err
+	}
+	_objects, _err := BindObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
 	}
@@ -4696,6 +4752,60 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		}
 	}
 	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "certificate"},
+		reports.CertificateDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
+		reports.LinkDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "optional_report"},
+		reports.OptionalReportDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
+		reports.ReportDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "review"},
+		reports.ReviewDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model5, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
+		tickets.TicketDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.models.ReportsCertificate = _model0
+	_state.models.ReportsLink = _model1
+	_state.models.ReportsOptionalReport = _model2
+	_state.models.ReportsReport = _model3
+	_state.models.ReportsReview = _model4
+	_state.models.TicketsTicket = _model5
 	_state._self = _state
 	return Models{
 		ReportsCertificate:    newReportsCertificateQuery(_state, reports.CertificateObjects.Using(_backend)),
@@ -4707,4 +4817,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_16631bf8f9cacd519c53e0a48baf24a6ecd26bfa26338f62a7160a98203d49a1
+var _ goDjProjectSnapshot_9e403e238ee8d28e10ff23e58fc72c9dd78ac51187b0c8b4bc0b9de4381d65b7

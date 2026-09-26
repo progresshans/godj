@@ -312,4 +312,4 @@ func (_scan *reviewProjectionScan) Decode() (Review, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_16631bf8f9cacd519c53e0a48baf24a6ecd26bfa26338f62a7160a98203d49a1
+var _ GoDjProjectSnapshot_9e403e238ee8d28e10ff23e58fc72c9dd78ac51187b0c8b4bc0b9de4381d65b7

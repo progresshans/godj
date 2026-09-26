@@ -8,11 +8,12 @@ import (
 	models "github.com/progresshans/godj/examples/helpdesk/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
-const GoDjProjectRelationFacadeInputSHA256 = "3fc1d57af5d350a9e21a5b480fda532ea94a4311a9dc10748b7ef7ac48884a63"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const GoDjProjectRelationFacadeInputSHA256 = "f79f15c132b19cc7a35807528470d54dc5c90289cd3ed5a02eaad7a6b20febfe"
 
 type Backend interface {
 	db.Queryer
@@ -22,6 +23,7 @@ type Backend interface {
 type relationFacadeState struct {
 	backend      Backend
 	objects      Objects
+	models       relationFacadeBindings
 	sessionScope db.SessionValidator
 	_self        *relationFacadeState
 }
@@ -110,6 +112,13 @@ func relationFacadeRequiredRelated(_field string) error {
 	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
 }
 
+type relationFacadeBindings struct {
+	ModelsCategory      orm.BoundModel[models.Category]
+	ModelsLabel         orm.BoundModel[models.Label]
+	ModelsServiceReport orm.BoundModel[models.ServiceReport]
+	ModelsTicket        orm.BoundModel[models.Ticket]
+	ModelsTicketLabel   orm.BoundModel[models.TicketLabel]
+}
 type ModelsCategoryQuery struct {
 	state *relationFacadeState
 	query orm.QuerySet[models.Category]
@@ -201,11 +210,11 @@ func (_query ModelsCategoryQuery) First(_ctx context.Context) (*ModelsCategory, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsCategory)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsCategory(_value, false)
+	_wrapped, _err := _query.state.materializeModelsCategory(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -216,13 +225,13 @@ func (_query ModelsCategoryQuery) All(_ctx context.Context) ([]*ModelsCategory, 
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsCategory)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsCategory, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsCategory(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsCategory(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -328,6 +337,24 @@ func (_model *ModelsCategory) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+func (_state *relationFacadeState) materializeModelsCategory(_ctx context.Context, _value *orm.RelatedSelected[models.Category]) (*ModelsCategory, error) {
+	if _err := _value.ValidateSourceBinding(_state.models.ModelsCategory); _err != nil {
+		return nil, _err
+	}
+	_raw, _err := _value.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_wrapped, _err := _state.wrapModelsCategory(_raw, false)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type ModelsLabelQuery struct {
 	Related ModelsLabelRelationSelectors
 	state   *relationFacadeState
@@ -426,11 +453,11 @@ func (_query ModelsLabelQuery) First(_ctx context.Context) (*ModelsLabel, bool, 
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsLabel)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsLabel(_value, false)
+	_wrapped, _err := _query.state.materializeModelsLabel(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -441,13 +468,13 @@ func (_query ModelsLabelQuery) All(_ctx context.Context) ([]*ModelsLabel, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsLabel)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsLabel, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsLabel(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsLabel(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -996,6 +1023,13 @@ func (_state *relationFacadeState) wrapSelectedModelsLabelObject(_ctx context.Co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeModelsLabel(_ctx context.Context, _value *orm.RelatedSelected[models.Label]) (*ModelsLabel, error) {
+	_object, _err := _state.objects.ModelsLabel.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedModelsLabelObject(_ctx, _object)
+}
 
 type ModelsServiceReportQuery struct {
 	Related ModelsServiceReportRelationSelectors
@@ -1095,11 +1129,11 @@ func (_query ModelsServiceReportQuery) First(_ctx context.Context) (*ModelsServi
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsServiceReport)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsServiceReport(_value, false)
+	_wrapped, _err := _query.state.materializeModelsServiceReport(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1110,13 +1144,13 @@ func (_query ModelsServiceReportQuery) All(_ctx context.Context) ([]*ModelsServi
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsServiceReport)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsServiceReport, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsServiceReport(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsServiceReport(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -1700,6 +1734,13 @@ func (_state *relationFacadeState) wrapSelectedModelsServiceReportObject(_ctx co
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeModelsServiceReport(_ctx context.Context, _value *orm.RelatedSelected[models.ServiceReport]) (*ModelsServiceReport, error) {
+	_object, _err := _state.objects.ModelsServiceReport.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedModelsServiceReportObject(_ctx, _object)
+}
 
 type ModelsTicketQuery struct {
 	Related ModelsTicketRelationSelectors
@@ -1801,11 +1842,11 @@ func (_query ModelsTicketQuery) First(_ctx context.Context) (*ModelsTicket, bool
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsTicket)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsTicket(_value, false)
+	_wrapped, _err := _query.state.materializeModelsTicket(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1816,13 +1857,13 @@ func (_query ModelsTicketQuery) All(_ctx context.Context) ([]*ModelsTicket, erro
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsTicket)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsTicket, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsTicket(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsTicket(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -2523,6 +2564,13 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeModelsTicket(_ctx context.Context, _value *orm.RelatedSelected[models.Ticket]) (*ModelsTicket, error) {
+	_object, _err := _state.objects.ModelsTicket.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedModelsTicketObject(_ctx, _object)
+}
 
 type ModelsTicketLabelQuery struct {
 	Related ModelsTicketLabelRelationSelectors
@@ -2624,11 +2672,11 @@ func (_query ModelsTicketLabelQuery) First(_ctx context.Context) (*ModelsTicketL
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsTicketLabel)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsTicketLabel(_value, false)
+	_wrapped, _err := _query.state.materializeModelsTicketLabel(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -2639,13 +2687,13 @@ func (_query ModelsTicketLabelQuery) All(_ctx context.Context) ([]*ModelsTicketL
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsTicketLabel)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsTicketLabel, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsTicketLabel(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsTicketLabel(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -3417,6 +3465,13 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketLabelObject(_ctx cont
 	}
 	return _wrapped, nil
 }
+func (_state *relationFacadeState) materializeModelsTicketLabel(_ctx context.Context, _value *orm.RelatedSelected[models.TicketLabel]) (*ModelsTicketLabel, error) {
+	_object, _err := _state.objects.ModelsTicketLabel.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedModelsTicketLabelObject(_ctx, _object)
+}
 
 type Models struct {
 	ModelsCategory      ModelsCategoryQuery
@@ -3431,7 +3486,11 @@ func Using(_backend Backend) (Models, error) { return usingModels(_backend, fals
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
 func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
 func usingModels(_backend Backend, _borrowed bool) (Models, error) {
-	_objects, _err := BindObjects()
+	_binding, _err := Bind()
+	if _err != nil {
+		return Models{}, _err
+	}
+	_objects, _err := BindObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
 	}
@@ -3448,6 +3507,51 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		}
 	}
 	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+		models.CategoryDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+		models.LabelDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
+		models.ServiceReportDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+		models.TicketDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.models.ModelsCategory = _model0
+	_state.models.ModelsLabel = _model1
+	_state.models.ModelsServiceReport = _model2
+	_state.models.ModelsTicket = _model3
+	_state.models.ModelsTicketLabel = _model4
 	_state._self = _state
 	return Models{
 		ModelsCategory:      newModelsCategoryQuery(_state, models.CategoryObjects.Using(_backend)),
@@ -3458,4 +3562,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_187bdec353a699f295b3eaf343f461e157545cbd9cfac0a77d45ebe9c897d919
+var _ goDjProjectSnapshot_a216fbdad36ac64e74c5c6dd5a5fc83f54dc8ceadb55c933492c35df8e70166d

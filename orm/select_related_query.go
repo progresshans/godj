@@ -22,8 +22,9 @@ type RelatedSelectQuery[S any] struct {
 	marker           [0]func(S)
 }
 type relatedSelectedValue[S any] struct {
-	source  S
-	targets []cachedRelatedTarget
+	source      S
+	targets     []cachedRelatedTarget
+	collections map[string]cachedPrefetch
 }
 
 // SelectRelated prepares one or more targets without evaluating the source.
@@ -119,14 +120,15 @@ type RelatedSelected[S any] struct {
 	source           S
 	backend          db.Queryer
 	binding          BoundModel[S]
-	sourceDescriptor ProjectionDescriptor[S]
+	sourceDescriptor ModelDescriptor[S]
 	targets          map[string]selectedRelatedCache
+	collections      map[string]cachedPrefetch
 	_self            *RelatedSelected[S]
 	marker           [0]func(S)
 }
 
 func (s *RelatedSelected[S]) validate() error {
-	if s == nil || s._self != s || interfaceIsNil(s.sourceDescriptor) || interfaceIsNil(s.backend) || len(s.targets) == 0 {
+	if s == nil || s._self != s || interfaceIsNil(s.sourceDescriptor) || interfaceIsNil(s.backend) {
 		return relationInvalidPlan("related selected result is nil, zero, or copied")
 	}
 	for name, target := range s.targets {
@@ -134,7 +136,7 @@ func (s *RelatedSelected[S]) validate() error {
 			return relationInvalidPlan("related selected target cache is invalid")
 		}
 	}
-	return nil
+	return validateQuerySession(context.Background(), s.backend)
 }
 
 // ValidateSourceBinding protects generated graph wrappers from a same-shaped
@@ -165,7 +167,8 @@ func (s *RelatedSelected[S]) Source() (S, error) {
 	if err := s.validate(); err != nil {
 		return zero, err
 	}
-	return s.sourceDescriptor.CloneModel(s.source), nil
+	value := s.sourceDescriptor.CloneModel(s.source)
+	return sessionReadResult(context.Background(), s.backend, value, nil)
 }
 
 // HasSelection lets generated object bridges preserve lazy caches for targets
@@ -255,7 +258,10 @@ func (q RelatedSelectQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], 
 	}
 	result := make([]*RelatedSelected[S], len(values))
 	for index, value := range values {
-		result[index] = q.cloneSelection(value)
+		result[index], err = q.cloneSelection(value)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -281,11 +287,14 @@ func (q RelatedSelectQuery[S]) First(ctx context.Context) (*RelatedSelected[S], 
 		_, err := sessionReadResult(ctx, q.backend, struct{}{}, ctx.Err())
 		return nil, false, err
 	}
-	result := q.cloneSelection(values[0])
+	result, err := q.cloneSelection(values[0])
+	if err != nil {
+		return nil, false, err
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
-	result, err := sessionReadResult(ctx, q.backend, result, nil)
+	result, err = sessionReadResult(ctx, q.backend, result, nil)
 	return result, err == nil, err
 }
 func (q RelatedSelectQuery[S]) Count(ctx context.Context) (int64, error) {
@@ -404,15 +413,22 @@ func validProjectionDestinations(destinations []any, expected int) bool {
 	}
 	return true
 }
-func (q RelatedSelectQuery[S]) cloneSelection(value relatedSelectedValue[S]) *RelatedSelected[S] {
+func (q RelatedSelectQuery[S]) cloneSelection(value relatedSelectedValue[S]) (*RelatedSelected[S], error) {
 	return cloneRelatedSelection(q.backend, q.binding, q.sourceDescriptor, value)
 }
-func cloneRelatedSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ProjectionDescriptor[S], value relatedSelectedValue[S]) *RelatedSelected[S] {
-	selected := &RelatedSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedRelatedCache, len(value.targets))}
+func cloneRelatedSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ModelDescriptor[S], value relatedSelectedValue[S]) (*RelatedSelected[S], error) {
+	selected := &RelatedSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedRelatedCache, len(value.targets)), collections: make(map[string]cachedPrefetch, len(value.collections))}
 	for _, target := range value.targets {
 		projection := target.projection()
 		selected.targets[projection.TerminalHop().Accessor()] = selectedRelatedCache{projection: projection, related: target.relatedObject(backend)}
 	}
+	for name, collection := range value.collections {
+		cloned, err := collection.clone()
+		if err != nil {
+			return nil, err
+		}
+		selected.collections[name] = cloned
+	}
 	selected._self = selected
-	return selected
+	return selected, nil
 }

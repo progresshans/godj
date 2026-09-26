@@ -116,7 +116,8 @@ ManyToMany의 직접 prefetch는 기존 through QuerySet과 target FK의 eager p
 typed selector와 model cache 연결을 제공한다. 반환 model의 변경은 원래 평가 cache나 다른 materialization을 바꾸지 않는다.
 Custom target query의 조회 기반은 `ResultPrefetch`의 추가 owner cell과 필터별 join scope를 같은 Query AST에 보관한다.
 각 compiler가 SQL을 만들며 runtime이 target 조건을 through source 조건으로 다시 해석하지 않는다.
-중첩/filtered child prefetch와 eager/prefetch tree의 통합은 아직 남아 있다.
+중첩 ManyToMany prefetch는 typed/path tree와 공통 model materialization으로 하위 cache를 전달한다.
+Filtered child prefetch와 eager/prefetch tree의 조합·owner별 slice는 아직 남아 있다.
 세부 읽기·session 경계는 [컬렉션 prefetch 결정](adr/0075-many-to-many-storage-and-mutation-ownership.md#직접-컬렉션-prefetch)을 따른다.
 
 ## Migration

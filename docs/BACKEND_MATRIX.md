@@ -120,11 +120,12 @@ Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typ
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
 Forward/reverse/ManyToMany의 mixed scalar 조건·AND/OR/NOT·isnull·IN을 같은 keyed AST로 처리한다.
 한 Filter와 연속 Filter의 collection scope를 구분하고 중복·Distinct·Count와 부정 EXISTS를 유지한다.
-ManyToMany direct prefetch는 양방향·nullable/nonunique through·self와 여러 selection을 같은 runtime에서 처리한다.
+ManyToMany direct/nested prefetch는 양방향·nullable/nonunique through·self와 여러 selection을 같은 runtime에서 처리한다.
 기존 through query와 target eager projection을 사용하고 999 owner key씩 읽은 전체 결과를 함께 반환한다.
 Custom target filter를 위한 `ResultPrefetch`의 owner projection·join 재사용·batch 소속 검사를 양 DB compiler에 연결했다.
-이 기반을 사용하는 nested/filtered generated API와 owner별 slice window 계획은 아직 남아 있다.
-중첩/filtered child prefetch·eager와의 tree 통합, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
+Nested typed/path API는 기본 collection query와 공통 materialization으로 연결했다.
+Custom filter 기반의 generated API와 owner별 slice window 계획은 아직 남아 있다.
+Filtered child prefetch·eager와의 tree 통합, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.

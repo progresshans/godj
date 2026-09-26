@@ -41,7 +41,10 @@ func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*RelatedSel
 	if interfaceIsNil(state.descriptor) || reflect.TypeOf(descriptor) != reflect.TypeOf(state.descriptor) || len(state.value.targets) == 0 {
 		return nil, false, relationInvalidPlan("selected descendant graph is incomplete")
 	}
-	result := cloneRelatedSelection(related.querySet.backend, state.binding, state.descriptor, state.value)
+	result, err := cloneRelatedSelection(related.querySet.backend, state.binding, state.descriptor, state.value)
+	if err != nil {
+		return nil, false, err
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}

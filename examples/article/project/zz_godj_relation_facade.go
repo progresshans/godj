@@ -8,11 +8,12 @@ import (
 	models "github.com/progresshans/godj/examples/article/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
-const GoDjProjectRelationFacadeInputSHA256 = "0e3e9b5f143d16f0efefc601fc337790b933899f1873b85ab7beadfdf0d316bb"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const GoDjProjectRelationFacadeInputSHA256 = "2764109af1c55fbda160a28903e1a350a6efc0e049473752aaf9ecbac30985cb"
 
 type Backend interface {
 	db.Queryer
@@ -22,6 +23,7 @@ type Backend interface {
 type relationFacadeState struct {
 	backend      Backend
 	objects      Objects
+	models       relationFacadeBindings
 	sessionScope db.SessionValidator
 	_self        *relationFacadeState
 }
@@ -71,6 +73,9 @@ func relationFacadePrimaryKeyUpdate(_field string) error {
 	return &query.Error{Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField, Field: _field, Detail: "promoted primary key changed after generated wrapper construction"}
 }
 
+type relationFacadeBindings struct {
+	ModelsArticle orm.BoundModel[models.Article]
+}
 type ModelsArticleQuery struct {
 	state *relationFacadeState
 	query orm.QuerySet[models.Article]
@@ -162,11 +167,11 @@ func (_query ModelsArticleQuery) First(_ctx context.Context) (*ModelsArticle, bo
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
 	}
-	_value, _found, _err := _query.query.First(_ctx)
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.ModelsArticle)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsArticle(_value, false)
+	_wrapped, _err := _query.state.materializeModelsArticle(_ctx, _value)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -177,13 +182,13 @@ func (_query ModelsArticleQuery) All(_ctx context.Context) ([]*ModelsArticle, er
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	_values, _err := _query.query.All(_ctx)
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.ModelsArticle)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsArticle, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsArticle(_values[_index], false)
+		_wrapped, _err := _query.state.materializeModelsArticle(_ctx, _values[_index])
 		if _err != nil {
 			return nil, _err
 		}
@@ -289,6 +294,24 @@ func (_model *ModelsArticle) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+func (_state *relationFacadeState) materializeModelsArticle(_ctx context.Context, _value *orm.RelatedSelected[models.Article]) (*ModelsArticle, error) {
+	if _err := _value.ValidateSourceBinding(_state.models.ModelsArticle); _err != nil {
+		return nil, _err
+	}
+	_raw, _err := _value.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_wrapped, _err := _state.wrapModelsArticle(_raw, false)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type Models struct {
 	ModelsArticle ModelsArticleQuery
 }
@@ -298,7 +321,11 @@ func Using(_backend Backend) (Models, error) { return usingModels(_backend, fals
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
 func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
 func usingModels(_backend Backend, _borrowed bool) (Models, error) {
-	_objects, _err := BindObjects()
+	_binding, _err := Bind()
+	if _err != nil {
+		return Models{}, _err
+	}
+	_objects, _err := BindObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
 	}
@@ -315,10 +342,19 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		}
 	}
 	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_conformance", ModelName: "article"},
+		models.ArticleDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.models.ModelsArticle = _model0
 	_state._self = _state
 	return Models{
 		ModelsArticle: newModelsArticleQuery(_state, models.ArticleObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a46ec822b30561e517f37961b4bbce1d99903624f5f24da23cf6d63ba7c4f36b
+var _ goDjProjectSnapshot_f7a157707e89563c67a5a464fe2f2a2e80400d434955d8dd72e8754c2897388a

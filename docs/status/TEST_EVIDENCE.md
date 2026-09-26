@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 중첩 ManyToMany와 공통 model materialization
+
+2026-09-26, `265afaf18d55bc0b118ea4d38448e4a1e1be545b` 위에서 중첩 collection graph를
+생성된 모델 접근자까지 연결했다. `ManyPrefetch.WithChildren`과 generated typed/path selector가 같은 tree를 사용한다.
+같은 관계의 하위 요청을 합치며 각 단계의 전체 parent batch를 함께 읽는다. 깊이 64·중복 포함 1024 node 한도를
+준비 단계에서 확인한다. 모든 하위 조회의 성공·context·session 검사를 마친 뒤에만 결과를 공개한다.
+
+`RelatedSelected`에 source·single-valued·collection cache를 함께 담고 일반 generated 조회도
+`Materialize`/`MaterializeFirst`를 통해 query 평가에 붙은 graph를 복제한다. Objects와 Collections를 같은
+project binding으로 생성한다. 반환 model/manager·중복 owner·held query는 각각의 cache 소유권을 유지한다.
+Facade ABI v13·relation-reverse ABI v6와 golden·checked-in 프로젝트 5개의 생성물을 함께 갱신했다.
+
+최종 non-Markdown source는 **2,116파일**, map hash는
+`7eea025369b01b08dcb414741401096952119bcf07b1aedc3265ba05376f1f26`다.
+`./orm ./codegen ./codegen/consumertest` 전체를 실행했다. 실행 전후 source map이 같고 필수 root는 20개다.
+일반·CGO=0은 각각 **3 package / 1,068 run=PASS / skip 0**이며 139.6초·137.1초다.
+Race도 **3 package / 1,068 run=PASS / skip 0**, 514.3초이며 세 mode의 source map이 같다.
+Actual generated ManyToMany module은 세 mode 모두 양 DB **231 child run=PASS / skip 0**다.
+다른 generated 소비자의 일반 query·forward/reverse·single/multiple/nested eager·projection·session 회귀도 포함한다.
+
+새 소비자는 고정 Django의 `prefetch_nested`와 같은 3단계 `labels__owners__labels`를 비교한다.
+Owner source query를 제외한 추가 query **3회**, warm 접근 **0회**, Filter refinement 뒤 **4회**와
+전체 graph·빈 owner·독립 duplicate를 확인한다. Typed/path/중복 선택의 결과가 같고 아래 위험도 유지한다.
+
+- 깊이·중복 포함 node 한도, typed cycle·잘못된 child target·foreign origin·하위 unknown path를 I/O 전에 거부한다.
+- 늦은 하위 실패·취소는 partial graph를 공개하지 않으며 같은 query의 재시도는 source부터 다시 읽는다.
+- Cold First는 full cache를 채우지 않고 warm First와 concurrent warm All은 graph를 보존한다.
+- Nested manager 변경은 해당 manager만 무효화하며 다른 materialization·held query의 snapshot과 deep clone은 유지한다.
+- Owner multiplicity·empty no-child-read·borrowed session 종료 뒤 warm target query와 접근자 거부를 확인한다.
+
+SQLite 실제 생성 모듈 원본 **6 run=PASS** 이후 runtime overlay 세 개를 실행했다.
+하위 graph 전달 제거, mutable collection handle 공유, 중복 선택의 하위 요청 누락은 모두 정상 compile 뒤
+대응 assertion에서 실패했다. 제품 파일은 변경하지 않았으며 overlay·결과·실패 이름·hash를 별도 보관했다.
+고정 Django runner·fixture는 변경하지 않았고 이번에는 reference를 재실행하지 않았다. 기존 48개 관찰 중
+중첩 collection graph와 이전 owner-filter SQL을 제품에서 비교하며 filtered/eager 조합은 아직 reference-only다.
+
+초기 정상 검증의 생성기 namespace 충돌 test는 먼저 보고되는 식별자를 과거 `ABCQuery`로 고정해 실패했다.
+여전히 잘못된 입력의 nil bytes·명시적 충돌 오류를 요구하면서 식별자를 `ABC`로 수정한 뒤 최종 source를 검증했다.
+이 실패 실행도 보관했으며 현재 PASS 수에 합치지 않는다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite와 PostgreSQL **17.5 Homebrew**다.
+`GODJ_REQUIRE_POSTGRES=1`과 mode별 전용 database를 사용했다. 세 실행 모두 cleanup 관찰은 **0|0|0**이고
+force 없이 database를 제거했다.
+영향 vet·gofmt·문서 링크·diff, 예제/fixture 5개 generated drift와 checked-in relation product의 deterministic candidate 검사를 통과했다.
+실행 source·command·event·stderr·inventory·DB cleanup·overlay는 아래 디렉터리에 보관했다.
+
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-materialization`
+
+`latest-final-{normal,race,cgo0}-path`, `latest-negative-path`가 각 상세 receipt를 가리킨다.
+이번 범위는 중첩 ManyToMany와 결과 materialization이다. Filtered child·eager/prefetch 구성 API·owner별 slice,
+Ticket Form/Admin/API/OpenAPI·client와 그 뒤의 Hosted 전체 통합은 남아 있다. Hosted 전체를 이번 source의 PASS로 세지 않는다.
+
 ## GDJ-0099 — custom prefetch의 owner projection과 연결 행 scope
 
 2026-09-23, `8cff2ea317af2008072248571206fd461c6ea942` 위에서 custom target query를 위한
