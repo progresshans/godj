@@ -32,6 +32,9 @@ Authenticate/Resolve의 현재 credential과 권한 snapshot을 한 번에 반�
 재사용 가능한 사용자 앱에 필요한 [외부 app 소유권](../docs/adr/0077-reusable-app-models-and-host-relation-ownership.md)을 구현하고 영향 checkpoint를 통과했다.
 User·Group·Permission 선언과 초기 migration, 별도 호스트의 generated relation 소비자를 연결했다.
 호스트가 라이브러리 파일을 수정하지 않고 전체 FK·CASCADE·PROTECT를 소유하는 경계를 양 DB·normal/race/CGO=0과 실제 generated 소비자에서 검증했다.
-다음은 저장 모델의 비밀 표현 경계·현재 권한 조회와 기존 operator 상태를 보존하는 migration/admission이다.
+Directory가 사용자와 직접·그룹 권한을 한 native read snapshot에서 읽고 불변 Account를 반환한다.
+Profile/권한 반환의 복사 소유권과 진단/JSON 경계, 잘못된 저장값·권한 한도·실패한 종료의 부분 게시 거부를 양 DB에서 검증했다.
+고정 Django의 grant union·객체별 snapshot·그룹 삭제를 비교하고 role 조합을 독립 관찰했다.
+Role 관찰은 실제 admission 채택/구현의 완료가 아니다. 다음은 credential 검증과 기존 operator 상태를 보존하는 migration/admission이다.
 다중 사용자 runtime·관리 UI/API·operator adoption은 아직 연결하지 않았다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

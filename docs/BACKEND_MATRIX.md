@@ -7,6 +7,7 @@
 |---|---|---|
 | Driver | modernc.org/sqlite, database/sql | pgx database/sql adapter |
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
+| Read snapshot | pinned BEGIN의 첫 읽기 snapshot, 읽기 전용 callback·기존 retention/quarantine | REPEATABLE READ READ ONLY, 읽기 전용 callback·실패 연결 discard |
 | Conflict insert | nullable column의 non-NULL 값을 포함한 명시적 unique tuple의 native no-op·0/1행 결과, ordinary/relation/coordinated session | 같은 AST·결과·session 계약, schema-qualified target |
 | ManyToMany root manager | 같은 AST의 collection 조회/Distinct, add/remove/clear/set·nullable/nonunique through·retained ID/payload·self symmetry·AtomicRelation·cache 소유권 | 같은 runtime/AST·native conflict·incoming 정책, root transaction ownership |
 | Borrowed session / model facade | UsingSession/InSession·기존 fence 참여, ordinary/relation/coordinated session lifetime과 warm/empty/eager query 검사 | 같은 공통 facade/runtime·native session 검사, outer transaction 소유권 |

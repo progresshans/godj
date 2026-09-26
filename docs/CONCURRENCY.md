@@ -8,6 +8,17 @@
 기존 transaction의 취소·만료·unknown outcome·연결 격리와 재시도 부재를 유지한다.
 [ManyToMany 변경 소유권](adr/0075-many-to-many-storage-and-mutation-ownership.md)이 선언/manager와의 연결을 정한다.
 
+## 읽기 snapshot
+
+`db.SnapshotReader`는 첫 관찰 이후 여러 SELECT가 같은 committed 상태를 보도록 읽기 범위를 연다.
+Callback에는 Queryer와 session 유효성 검사만 노출하고 쓰기·transaction capability는 주지 않는다.
+빌린 handle은 callback 반환 시 만료하며 rows를 포함해 그 범위 안에서 사용한다. 같은 backend에 별도 transaction을
+중첩하면 현재 snapshot이 소유한 연결·admission을 기다릴 수 있으므로 callback은 빌린 Queryer만 사용한다.
+취소·callback 오류·rows/종료 오류는 보존하고 자동 재시도하지 않는다. Panic/Goexit에도 만료와 종료를 수행한다.
+Backend가 고정 연결을 정리하며 SQLite의 종료 미확인 연결에는 기존 retention/quarantine을 적용한다.
+읽기 종료 실패는 write commit-unknown receipt가 아니다. 호출자는 전체 ReadSnapshot이 nil을 반환한 뒤에만 결과를 게시한다.
+[Identity 조회](adr/0077-reusable-app-models-and-host-relation-ownership.md#현재-계정의-조회와-표현)는 이 계약으로 사용자·권한을 함께 읽는다.
+
 ## QuerySet 평가
 
 Query plan은 불변이고 평가 cache는 별도 state다. Direct QuerySet value copy는 같은 평가 state를 공유할 수 있지만

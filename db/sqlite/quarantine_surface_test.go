@@ -45,6 +45,12 @@ func TestQuarantinedBackendRejectsNewIOBeforeDriverAdmission(t *testing.T) {
 		invoke func(context.Context, *quarantineSurfaceHarness, *atomic.Int32) error
 	}{
 		{
+			name: "read snapshot",
+			invoke: func(ctx context.Context, harness *quarantineSurfaceHarness, callbacks *atomic.Int32) error {
+				return harness.backend.ReadSnapshot(ctx, func(db.Queryer) error { callbacks.Add(1); return nil })
+			},
+		},
+		{
 			name: "empty membership query",
 			invoke: func(ctx context.Context, harness *quarantineSurfaceHarness, _ *atomic.Int32) error {
 				rows, err := harness.backend.Query(ctx, emptyPlan)

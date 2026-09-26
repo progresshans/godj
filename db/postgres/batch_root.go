@@ -191,9 +191,10 @@ func (scope *rootBatchScope) atomic(ctx context.Context, callback func(db.Sessio
 // session lifetime checks still observe the original caller context.
 type pinnedTransaction struct {
 	*streamconn.Lease
-	scope *rootBatchScope
-	ctx   context.Context
-	done  bool
+	scope    *rootBatchScope
+	ctx      context.Context
+	done     bool
+	readOnly bool
 }
 
 func (transaction *pinnedTransaction) Commit() error {
@@ -217,7 +218,11 @@ func (transaction *pinnedTransaction) Rollback() error {
 	defer cancel()
 	_, err := transaction.ExecContext(cleanup, "ROLLBACK")
 	if err != nil {
-		return errors.Join(err, transaction.scope.discard(transaction.Lease, transactionUnknown("pinned PostgreSQL rollback outcome is unknown", err)))
+		cause := err
+		if !transaction.readOnly {
+			cause = transactionUnknown("pinned PostgreSQL rollback outcome is unknown", err)
+		}
+		return errors.Join(err, transaction.scope.discard(transaction.Lease, cause))
 	}
 	return nil
 }

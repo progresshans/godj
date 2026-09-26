@@ -8,7 +8,9 @@ import (
 const (
 	maxPrincipalIDBytes = 128
 	maxPermissionBytes  = 128
-	maxPermissions      = 256
+	// MaximumPermissions bounds one immutable authorization snapshot. Stores
+	// must reject overflow rather than silently drop effective permissions.
+	MaximumPermissions = 256
 )
 
 // Permission is one exact, application-defined authorization capability.
@@ -26,7 +28,7 @@ func NewPermission(value string) (Permission, error) {
 // and returns a detached snapshot. Duplicate requirements are configuration
 // errors; no authorization is performed here.
 func RequiredPermissions(first Permission, additional ...Permission) ([]Permission, error) {
-	if len(additional) >= maxPermissions {
+	if len(additional) >= MaximumPermissions {
 		return nil, &Error{Code: CodeInvalidInput, Field: "permissions", Detail: "permission count exceeds the supported limit"}
 	}
 	permissions := append([]Permission{first}, additional...)
@@ -60,7 +62,7 @@ func NewPrincipal(config PrincipalConfig) (Principal, error) {
 	if !validIdentity(config.ID) {
 		return Principal{}, &Error{Code: CodeInvalidInput, Field: "principal_id", Detail: "principal identifier is malformed or too large"}
 	}
-	if len(config.Permissions) > maxPermissions {
+	if len(config.Permissions) > MaximumPermissions {
 		return Principal{}, &Error{Code: CodeInvalidInput, Field: "permissions", Detail: "permission count exceeds the supported limit"}
 	}
 	permissions := make([]Permission, len(config.Permissions))

@@ -33,8 +33,8 @@ type Credential struct {
 }
 
 func NewCredential(username, encodedHash string, principal Principal) (Credential, error) {
-	if !validUsername(username) {
-		return Credential{}, &Error{Code: CodeInvalidInput, Field: "username", Detail: "username is malformed or too large"}
+	if err := ValidateUsername(username); err != nil {
+		return Credential{}, err
 	}
 	if encodedHash == "" || len(encodedHash) > maxStoredHashBytes || strings.ContainsAny(encodedHash, "\r\n\x00") {
 		return Credential{}, &Error{Code: CodeInvalidInput, Field: "encoded_password", Detail: "encoded password is malformed or too large"}
@@ -43,6 +43,15 @@ func NewCredential(username, encodedHash string, principal Principal) (Credentia
 		return Credential{}, &Error{Code: CodeInvalidInput, Field: "principal", Detail: "credential principal is invalid"}
 	}
 	return Credential{username: username, hash: encodedHash, principal: principal}, nil
+}
+
+// ValidateUsername applies the credential identity's exact UTF-8/byte/NUL
+// policy without I/O or password material. It does not normalize or trim input.
+func ValidateUsername(username string) error {
+	if !validUsername(username) {
+		return &Error{Code: CodeInvalidInput, Field: "username", Detail: "username is malformed or too large"}
+	}
+	return nil
 }
 
 func (Credential) String() string   { return "auth.Credential{redacted}" }

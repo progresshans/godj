@@ -34,6 +34,31 @@ Candidate 검증은 compile만 하며 dependency init이나 test body를 실행�
 관계 PK와 구분되는 opaque 인증·감사 identity다. 초기 historical migration은 라이브러리가 제공하며 적용·adoption은 호스트의
 명시적 작업이다. `conformance/identityfixture`는 같은 라이브러리 User 타입에 호스트 FK·보호 정책을 추가하는 실제 소비자다.
 
-이 저장 모델은 아직 다중 사용자 인증·credential 관리 제품이 아니다. EncodedPassword를 가진 raw 저장 모델을 응답·로그에
-직접 내보내지 않는 표현 경계, 현재 권한 합집합, inactive/staff/superuser admission, 기존 operator adoption과 관리 UI/API가
-GDJ-0100의 남은 구현이다. Source·환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
+이 저장 모델은 아직 다중 사용자 인증·credential 관리 제품이 아니다. Inactive/staff/superuser admission,
+기존 operator adoption과 관리 UI/API는 GDJ-0100의 남은 구현이다.
+
+## 현재 계정의 조회와 표현
+
+`identity.Directory`는 username 또는 opaque principal ID로 저장된 사용자와 직접·그룹 권한의 합집합을 읽는다.
+동일 permission의 여러 연결은 DISTINCT로 합치고 canonical code 순서로 반환한다. 기존 auth 한도인 256개보다
+하나 더 읽어 초과를 거부하며, 잘린 권한 목록을 유효한 계정으로 내보내지 않는다. 잘못된 저장 revision·identity·
+credential envelope·permission도 오류이며 부분 결과를 반환하지 않는다. 비밀번호 알고리즘 검증은 실제 인증기의 책임이다.
+
+사용자 행과 권한 SQL 사이에 일반 ORM writer가 commit해도 한 계정에 두 시점이 섞이면 안 된다.
+`db.SnapshotReader`의 읽기 전용 callback을 사용한다. PostgreSQL은 REPEATABLE READ READ ONLY,
+SQLite는 pinned connection의 첫 읽기 snapshot을 사용한다. 일반 READ COMMITTED Atomic으로 이 보장을 대신하지 않는다.
+고정 연결·rowset·만료·취소·panic/Goexit·실패한 종료의 discard/retention은 backend가 소유한다.
+종료 실패는 write commit-unknown 성공/실패 판정이 아니며, Directory는 정상 종료된 조회만 게시한다.
+여러 SELECT의 일관성은 GoDj가 선택한 계약이며 Django 기본 transaction이 같은 snapshot을 보장한다고 주장하지 않는다.
+
+반환 `Account`는 private credential과 profile을 가진 불변 데이터 관찰이다. Profile의 nullable timestamp와 권한 slice는
+복사본을 반환하고 기본 진단은 redacted, JSON은 명시한 Profile만 출력한다. Raw `models.User`의 EncodedPassword는
+저장용 필드로 남으며 raw model을 응답·로그에 직접 사용하면 안 된다. 관리 serializer가 허용할 필드는 후속 소비자가 소유한다.
+Directory는 active/staff/superuser 값을 보존하지만 로그인이나 권한 허용을 결정하지 않는다. 비활성 계정의 저장된 grant도
+조회할 수 있다. Per-user/group cache는 없고 다음 조회는 새 snapshot을 읽으며 이미 반환한 Account는 바꾸지 않는다.
+
+[독립 Django runner](../../conformance/runners/django/identity_reference.py)는 고정 6.1의 User/Group/Permission,
+ModelBackend와 AdminSite를 직접 실행한다. 권한 합집합·보유 객체와 새 객체·그룹 삭제 결과를 GoDj 조회와 비교한다.
+8개 active/staff/superuser 조합과 미등록·비정규 permission의 관찰도 보관하되 아직 GoDj admission 구현 증거로 세지 않는다.
+출처와 라이선스는 [SOURCES](../SOURCES.md)와 [Django license](../../LICENSE.django)를 따른다.
+Source·환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

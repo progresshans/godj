@@ -4,6 +4,58 @@
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
 
+## GDJ-0100 — 일관된 계정·권한 조회와 읽기 snapshot
+
+2026-09-27, 기준 `c2d446b22dc96ce878bfc7696ae06d4b69039c14`의 후속 변경이다.
+2,253개 non-Markdown 파일의 source map SHA-256은
+`54635b8b07f4a18e4dcdf899b1c0767c73537bef15d4974c70b0911da278e20b`이며 통합 실행 전후 같다.
+Go 1.26.5 / Darwin arm64에서 `auth`, `identity`, `db/internal/readscope`, `db/internal/streamconn`,
+`conformance/identityfixture`, `web/sessionauth`의 전체 suite와 아래 DB 파일의 roots를 선택했다.
+SQLite: read_snapshot, batch_root, relation_transaction, quarantine_surface, transaction_internal.
+PostgreSQL: read_snapshot, batch_root, transaction, relation_mutation, identity.
+파일의 실제 test discovery에서 **93 required roots**를 고정하고 전체 package completion·no-skip을 검사했다.
+
+| 모드 | 완료 inventory | 시간 |
+|---|---|---|
+| normal | 8 packages / 377 PASS / skip 0 | 2.347초 |
+| race | 8 packages / 377 PASS / skip 0 | 37.709초 |
+| cgo0 | 8 packages / 377 PASS / skip 0 | 4.796초 |
+
+`go test -json -count=1 -p=3 -timeout=25m -run <고정 root 목록>`에 mode별 `-race` 또는 `CGO_ENABLED=0`을 적용했다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`; 실제 SQLite와 별도 PostgreSQL 17.10 bookworm container를 사용했다.
+Image digest는 `sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+각 mode의 private DB는 public table·owned schema·다른 connection `0|0|0`, non-force drop과 container 제거까지 확인했다.
+
+실제 사용자 SELECT 종료 직후 다른 연결이 일반 ORM transaction으로 사용자 flag/username/revision과 permission을 변경했다.
+Directory는 첫 사용자 상태와 같은 시점의 권한을 반환하고 새 조회는 새 상태를 읽었다. SQLite WAL과 PostgreSQL에서 실행했다.
+직접만/그룹만/중복 grant·다른 사용자 격리·그룹 삭제·256개 허용/257개 거부, 잘못된 저장 revision/credential/username/ID/code,
+missing user, 종료 실패/취소 뒤 부분 Account 게시 거부를 실제 저장값으로 확인했다. Profile pointer와 권한 slice는 복사본이다.
+Account 진단과 JSON에는 저장 password가 나오지 않으며, driver 오류의 기본 표현은 비밀을 숨기고 errors.Is 원인은 보존한다.
+
+두 backend의 connection fault probe는 열린 rows를 일부러 남긴 callback의 정상/오류/취소/panic/Goexit와 BEGIN/ROLLBACK 실패를 실행했다.
+Borrowed Queryer의 mutation capability 부재·만료, rows 정리와 한 번의 종료, 실패 연결 discard와 새 연결 복구를 검사했다.
+읽기 종료 실패를 write-unknown으로 표시하지 않는다. 기존 SQLite quarantine·retention과 PostgreSQL write-root unknown-outcome 회귀도 포함했다.
+Go overlay **5/5 실제 assertion 탐지**: PostgreSQL READ COMMITTED로 약화, 그룹 권한 누락, 권한 초과 절단,
+종료 실패의 부분 게시, Profile timestamp alias 공유. Build 실패는 탐지로 세지 않았고 별도 private DB도 `0|0|0` 후 제거했다.
+
+독립 Django 6.1 / Python 3.14.3 runner는 SQLite 3.50.4와 별도 PostgreSQL **17.5** DB에서 각각 hash seed 0/813으로 실행했다.
+양 seed의 전체 capture가 같고 양 backend의 observation·Django source hashes가 같다. PostgreSQL reference DB는 잔여 table 0 확인 후 삭제했다.
+이 reference 환경을 GoDj checkpoint의 PostgreSQL 17.10과 혼동하지 않는다. Runner SHA-256:
+`1379f55515f43b1a3846ca0b461a9cc77b81e29078a23da6c433844f81a7e9ad`.
+User/Group/Permission·ModelBackend·AdminSite의 grant union·held/fresh·group deletion과 role 8조합을 관찰했다.
+GoDj는 이 중 grant union·held/fresh·group deletion을 양 reference와 비교한다. Role admission은 reference-only다.
+Reference unittest **3/3**, group loader·active·staff 조건을 각각 제거한 **3/3 의미 변화 탐지**, CI Python **41/41**, 영향 vet·format·diff·문서 검사를 통과했다.
+
+생성기는 변경하지 않았다. 기존 외부 identity fixture의 generated drift 검사는 영향 suite에 포함했다.
+새 source의 Hosted full은 미실행이며 GDJ-0100 admission·operator adoption·관리 소비자 통합 milestone이 소유한다.
+이번 Account는 데이터 조회 경계다. 비밀번호 인증·staff/superuser 허용, 기존 operator adoption, credential 관리 API/UI의 구현 완료가 아니다.
+초기 개발 검사의 invalid-username 사례는 기존 계약에서 허용하는 내부 newline을 잘못 사용해 실패했다.
+NUL 입력으로 바로잡은 뒤 현 source의 위 checkpoint를 실행했으며 실패 로그도 보존했다.
+
+원본 evidence: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-read-1790445794134289000`의
+`checkpoint-1790446462454743000/receipt.json`, 필수 roster·JSON stream·전후 source map, `negative-controls/receipt.json`.
+Reference는 같은 상위 directory의 `identity-reference-1790446263392613000/reference-receipt.json`과 backend/seed captures다.
+
 ## GDJ-0100 — 재사용 identity 앱과 외부 app 생성 소유권
 
 2026-09-27, 기준 `490cb978afd3e96a107c73583895432663ac38b0`에서 구현한 변경 묶음이다.
