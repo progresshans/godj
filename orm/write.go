@@ -13,23 +13,24 @@ import (
 // call. Required/default/null decisions therefore fail without database I/O.
 func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input CreateInput[M]) (M, error) {
 	var zero M
-	descriptor, metadata, _, err := m.writeConfiguration(ctx, backend)
+	write, err := m.prepareCreate(ctx, backend, input)
 	if err != nil {
 		return zero, err
 	}
-	if interfaceIsNil(input) {
-		return zero, invalidWritePlan("create input is nil")
-	}
-	mutation := input.BuildCreate()
-	if err := validateMutation(mutation, MutationCreate, metadata, descriptor, nil); err != nil {
-		return zero, err
-	}
-	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlan(metadata.DBTable, mutation.assignments))
+	backend, err = executionBackend(ctx, backend)
 	if err != nil {
 		return zero, err
 	}
-	value := mutation.value
-	descriptor.SetPrimaryKey(&value, lastInsertID)
+	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlanReturningKey(
+		write.model.metadata.DBTable,
+		write.mutation.assignments,
+		fieldReference(write.model.primaryKey),
+	))
+	if err != nil {
+		return zero, err
+	}
+	value := write.mutation.value
+	write.descriptor.SetPrimaryKey(&value, lastInsertID)
 	return value, nil
 }
 
@@ -38,47 +39,20 @@ func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input Create
 // determines whether an instance is eligible for an update.
 func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, input PatchInput[M]) (M, error) {
 	var zero M
-	descriptor, metadata, primaryKey, err := m.writeConfiguration(ctx, backend)
+	write, err := m.prepareUpdate(ctx, backend, current, input)
 	if err != nil {
 		return zero, err
 	}
-	keyValue, present := descriptor.PrimaryKey(current)
-	if !present {
-		return zero, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeMissingPrimaryKey,
-			Field:    primaryKey.Name,
-			Detail:   "model instance has no explicit primary key state",
-		}
-	}
-	if !mutationValueMatches(primaryKey, keyValue) || keyValue.IsNull() {
-		return zero, invalidWritePlan("descriptor returned an invalid primary key value")
-	}
-	if interfaceIsNil(input) {
-		return zero, invalidWritePlan("patch input is nil")
-	}
-	// PatchInput is an exported extension point. Give it a deep-cloned model so
-	// nullable pointer fields cannot alias and mutate the caller, and retain an
-	// independent baseline for omitted-field validation.
-	baseline := descriptor.CloneWriteModel(current)
-	buildCurrent := descriptor.CloneWriteModel(current)
-	mutation := input.BuildPatch(buildCurrent)
-	if err := validateMutation(mutation, MutationPatch, metadata, descriptor, &baseline); err != nil {
+	plan := query.NewUpdatePlan(
+		write.model.metadata.DBTable,
+		write.mutation.assignments,
+		fieldReference(write.model.primaryKey),
+		write.key,
+	)
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
 		return zero, err
 	}
-	mutationKey, mutationKeyPresent := descriptor.PrimaryKey(mutation.value)
-	if !mutationKeyPresent || !mutationKey.Equal(keyValue) {
-		return zero, invalidWritePlan("patch result primary key does not match the current model")
-	}
-	if len(mutation.assignments) == 0 {
-		return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeEmptyPatch, Detail: "patch has no explicit field changes"}
-	}
-	plan := query.NewUpdatePlan(
-		metadata.DBTable,
-		mutation.assignments,
-		fieldReference(primaryKey),
-		keyValue,
-	)
 	rowsAffected, err := backend.Update(ctx, plan)
 	if err != nil {
 		return zero, err
@@ -86,17 +60,18 @@ func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, i
 	if rowsAffected != 1 {
 		return zero, unexpectedRows("update", rowsAffected)
 	}
-	return mutation.value, nil
+	return write.mutation.value, nil
 }
 
 // Delete removes one explicit-key instance. Once the backend reports success,
 // generated descriptor code clears both the key value and its hidden presence
 // flag on the caller's instance.
 func (m Manager[M]) Delete(ctx context.Context, backend db.Mutator, value *M) (int64, error) {
-	descriptor, metadata, primaryKey, err := m.writeConfiguration(ctx, backend)
+	descriptor, prepared, err := m.writeConfiguration(ctx, backend)
 	if err != nil {
 		return 0, err
 	}
+	metadata, primaryKey := prepared.metadata, prepared.primaryKey
 	if value == nil {
 		return 0, invalidWritePlan("delete model pointer is nil")
 	}
@@ -112,6 +87,10 @@ func (m Manager[M]) Delete(ctx context.Context, backend db.Mutator, value *M) (i
 	if !mutationValueMatches(primaryKey, keyValue) || keyValue.IsNull() {
 		return 0, invalidWritePlan("descriptor returned an invalid primary key value")
 	}
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return 0, err
+	}
 	rowsAffected, err := backend.Delete(ctx, query.NewDeletePlan(metadata.DBTable, fieldReference(primaryKey), keyValue))
 	if err != nil {
 		return 0, err
@@ -123,37 +102,99 @@ func (m Manager[M]) Delete(ctx context.Context, backend db.Mutator, value *M) (i
 	return rowsAffected, nil
 }
 
-func (m Manager[M]) writeConfiguration(ctx context.Context, backend db.Mutator) (WriteDescriptor[M], ir.Model, ir.Field, error) {
+func (m Manager[M]) writeConfiguration(ctx context.Context, backend any) (WriteDescriptor[M], *preparedModel, error) {
 	var zeroDescriptor WriteDescriptor[M]
-	if ctx == nil {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("context is nil")
+	if interfaceIsNil(ctx) {
+		return zeroDescriptor, nil, invalidWritePlan("context is nil")
 	}
 	if err := ctx.Err(); err != nil {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, err
+		return zeroDescriptor, nil, err
 	}
 	if interfaceIsNil(backend) {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, &query.Error{
+		return zeroDescriptor, nil, &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "backend is nil",
 		}
 	}
-	if descriptorIsNil(m.descriptor) {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("descriptor is nil")
+	if _, err := executionBackend(ctx, backend); err != nil {
+		return zeroDescriptor, nil, err
+	}
+	if m.prepared == nil {
+		return zeroDescriptor, nil, invalidWritePlan("descriptor is nil")
 	}
 	descriptor, ok := m.descriptor.(WriteDescriptor[M])
 	if !ok || interfaceIsNil(descriptor) {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("descriptor does not implement write key state")
+		return zeroDescriptor, nil, invalidWritePlan("descriptor does not implement write key state")
 	}
-	metadata := descriptor.Metadata()
-	primaryKey, ok := autoPrimaryKey(metadata)
-	if !ok {
-		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("metadata must contain exactly one AutoField primary key")
+	if !m.prepared.writeValid {
+		return zeroDescriptor, nil, invalidWritePlan("metadata must contain exactly one AutoField primary key")
 	}
-	return descriptor, metadata, primaryKey, nil
+	return descriptor, m.prepared, nil
 }
 
-func validateMutation[M any](mutation Mutation[M], expected MutationKind, metadata ir.Model, descriptor WriteDescriptor[M], current *M) error {
+// Write execution and advisory validation share the same owned candidate and
+// mutation checks. Public entry points still require their narrow DB port.
+type preparedWrite[M any] struct {
+	descriptor WriteDescriptor[M]
+	model      *preparedModel
+	mutation   Mutation[M]
+	key        query.Value
+}
+
+func (m Manager[M]) prepareCreate(ctx context.Context, backend any, input CreateInput[M]) (preparedWrite[M], error) {
+	descriptor, prepared, err := m.writeConfiguration(ctx, backend)
+	if err != nil {
+		return preparedWrite[M]{}, err
+	}
+	if interfaceIsNil(input) {
+		return preparedWrite[M]{}, invalidWritePlan("create input is nil")
+	}
+	mutation := input.BuildCreate()
+	if err := validateMutation(mutation, MutationCreate, prepared, descriptor, nil); err != nil {
+		return preparedWrite[M]{}, err
+	}
+	return preparedWrite[M]{descriptor: descriptor, model: prepared, mutation: mutation}, nil
+}
+
+func (m Manager[M]) prepareUpdate(ctx context.Context, backend any, current M, input PatchInput[M]) (preparedWrite[M], error) {
+	descriptor, prepared, err := m.writeConfiguration(ctx, backend)
+	if err != nil {
+		return preparedWrite[M]{}, err
+	}
+	primaryKey := prepared.primaryKey
+	keyValue, present := descriptor.PrimaryKey(current)
+	if !present {
+		return preparedWrite[M]{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeMissingPrimaryKey,
+			Field:    primaryKey.Name,
+			Detail:   "model instance has no explicit primary key state",
+		}
+	}
+	if !mutationValueMatches(primaryKey, keyValue) || keyValue.IsNull() {
+		return preparedWrite[M]{}, invalidWritePlan("descriptor returned an invalid primary key value")
+	}
+	if interfaceIsNil(input) {
+		return preparedWrite[M]{}, invalidWritePlan("patch input is nil")
+	}
+	// PatchInput is an extension point. Neither the build callback nor omitted
+	// field validation may borrow the caller's nullable pointers.
+	baseline := descriptor.CloneWriteModel(current)
+	buildCurrent := descriptor.CloneWriteModel(current)
+	mutation := input.BuildPatch(buildCurrent)
+	if err := validateMutation(mutation, MutationPatch, prepared, descriptor, &baseline); err != nil {
+		return preparedWrite[M]{}, err
+	}
+	mutationKey, mutationKeyPresent := descriptor.PrimaryKey(mutation.value)
+	if !mutationKeyPresent || !mutationKey.Equal(keyValue) {
+		return preparedWrite[M]{}, invalidWritePlan("patch result primary key does not match the current model")
+	}
+	return preparedWrite[M]{descriptor: descriptor, model: prepared, mutation: mutation, key: keyValue}, nil
+}
+
+func validateMutation[M any](mutation Mutation[M], expected MutationKind, prepared *preparedModel, descriptor WriteDescriptor[M], current *M) error {
+	metadata := prepared.metadata
 	if mutation.err != nil {
 		return mutation.err
 	}
@@ -168,7 +209,7 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, metada
 	}
 	seen := make(map[string]struct{}, len(mutation.assignments))
 	for _, assignment := range mutation.assignments {
-		field, ok := mutationField(metadata, assignment.Field())
+		field, ok := prepared.mutationField(assignment.Field())
 		if !ok || field.PrimaryKey {
 			return &query.Error{
 				Category: query.CategoryField,
@@ -184,7 +225,7 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, metada
 		if !mutationValueMatches(field, assignment.Value()) {
 			return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: field.Name, Detail: "mutation value does not match field type or nullability"}
 		}
-		modelValue, ok := descriptor.WriteFieldValue(mutation.value, field)
+		modelValue, ok := descriptor.WriteFieldValue(mutation.value, field.Clone())
 		if !ok || !modelValue.Equal(assignment.Value()) {
 			return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: field.Name, Detail: "mutation result model does not match its assignment"}
 		}
@@ -210,8 +251,8 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, metada
 			if _, assigned := seen[field.Name]; assigned {
 				continue
 			}
-			before, beforeOK := descriptor.WriteFieldValue(*current, field)
-			after, afterOK := descriptor.WriteFieldValue(mutation.value, field)
+			before, beforeOK := descriptor.WriteFieldValue(*current, field.Clone())
+			after, afterOK := descriptor.WriteFieldValue(mutation.value, field.Clone())
 			if !beforeOK || !afterOK || !before.Equal(after) {
 				return &query.Error{
 					Category: query.CategoryField,
@@ -225,13 +266,14 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, metada
 	return nil
 }
 
-func mutationField(metadata ir.Model, reference query.FieldRef) (ir.Field, bool) {
-	for _, field := range metadata.Fields {
-		if fieldReference(field).Equal(reference) {
-			return field, true
-		}
+// Internal lookups borrow canonical fields. Clone immediately before every
+// user-owned WriteFieldValue callback, including repeated omitted-field reads.
+func (prepared *preparedModel) mutationField(reference query.FieldRef) (ir.Field, bool) {
+	index, found := prepared.byReference[reference]
+	if !found {
+		return ir.Field{}, false
 	}
-	return ir.Field{}, false
+	return prepared.metadata.Fields[index], true
 }
 
 func mutationValueMatches(field ir.Field, value query.Value) bool {
@@ -239,9 +281,28 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 		return field.Nullable
 	}
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 		return value.Kind() == query.ValueInteger
-	case ir.FieldChar:
+	case ir.FieldJSON:
+		_, ok := value.JSON()
+		return ok
+	case ir.FieldUUID:
+		_, ok := value.UUID()
+		return ok
+	case ir.FieldDecimal:
+		number, ok := value.Decimal()
+		return ok && field.Decimal != nil && number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+	case ir.FieldFloat:
+		return value.Kind() == query.ValueFloat
+	case ir.FieldDuration:
+		return value.Kind() == query.ValueDuration
+	case ir.FieldTime:
+		return value.Kind() == query.ValueTime
+	case ir.FieldDate:
+		return value.Kind() == query.ValueDate
+	case ir.FieldDateTime:
+		return value.Kind() == query.ValueDateTime
+	case ir.FieldChar, ir.FieldText:
 		return value.Kind() == query.ValueString
 	case ir.FieldBoolean:
 		return value.Kind() == query.ValueBoolean

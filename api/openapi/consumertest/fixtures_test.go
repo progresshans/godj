@@ -1,0 +1,484 @@
+package consumertest_test
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/bearerauth"
+	apisessionauth "github.com/progresshans/godj/api/sessionauth"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/examples/article/apiapp"
+	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/examples/helpdesk"
+	helpdeskmodels "github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/uuid"
+	"github.com/progresshans/godj/web"
+	websessionauth "github.com/progresshans/godj/web/sessionauth"
+)
+
+// This private transport is written only to the child process's stdin. Session
+// fields contain raw IDs for the documented session cookie, not cookie headers.
+// Neither credentials nor ephemeral listener URLs belong in test diagnostics.
+type consumerInput struct {
+	ArticleBearer   serverInput `json:"article_bearer"`
+	ArticleSession  serverInput `json:"article_session"`
+	HelpdeskSession serverInput `json:"helpdesk_session"`
+}
+
+type serverInput struct {
+	URL                string `json:"url"`
+	Token              string `json:"token,omitempty"`
+	ReadOnlyToken      string `json:"read_only_token,omitempty"`
+	Session            string `json:"session,omitempty"`
+	ReadOnlySession    string `json:"read_only_session,omitempty"`
+	CategoryID         int64  `json:"category_id,omitempty"`
+	TicketID           int64  `json:"ticket_id,omitempty"`
+	OtherTicketID      int64  `json:"other_ticket_id,omitempty"`
+	OtherLabelID       int64  `json:"other_label_id,omitempty"`
+	OtherTicketLabelID int64  `json:"other_ticket_label_id,omitempty"`
+}
+
+// newConsumerFixtures publishes only the real API routes. The returned document
+// snapshots come from those exact adapters, and the final callback observes the
+// databases after the generated client has completed its HTTP operations.
+func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*testing.T)) {
+	t.Helper()
+	articleMigration, err := os.ReadFile(filepath.Join(repositoryRoot(t), "examples", "article", "migrations", "0001_initial.godj.json"))
+	if err != nil {
+		t.Fatal("read fixed Article migration:", err)
+	}
+	articleSource := definition.Source{SourceID: "article/0001_initial", Document: articleMigration}
+	articleAll := consumerPrincipal(t, "article-client-all",
+		articleapp.ArticleViewPermission, articleapp.ArticleAddPermission,
+		articleapp.ArticleChangePermission, articleapp.ArticleDeletePermission,
+	)
+	articleView := consumerPrincipal(t, "article-client-view", articleapp.ArticleViewPermission)
+
+	bearerBackend := newConsumerBackend(t, "article-bearer", articleSource)
+	fullToken, viewToken := consumerToken(t), consumerToken(t)
+	bearer, err := bearerauth.New(bearerauth.Config{
+		Verifier:   consumerTokenVerifier{fullToken: articleAll, viewToken: articleView},
+		Authorizer: auth.PrincipalAuthorizer{},
+	})
+	if err != nil {
+		t.Fatal("construct Article Bearer profile:", err)
+	}
+	bearerURL, bearerDocument := newArticleConsumerAPI(t, bearerBackend, bearer)
+
+	sessionBackend := newConsumerBackend(t, "article-session", articleSource)
+	articleSessionAuth, articleSession, articleViewSession := newConsumerSessionAuthentication(t, articleAll, articleView, apiapp.ListPath)
+	sessionURL, sessionDocument := newArticleConsumerAPI(t, sessionBackend, articleSessionAuth)
+
+	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", helpdesk.MigrationSources()...)
+	category, err := helpdeskmodels.CategoryObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewCategoryCreate("Hardware & repairs"))
+	if err != nil {
+		t.Fatal("seed selected Helpdesk category:", err)
+	}
+	otherCategory, err := helpdeskmodels.CategoryObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewCategoryCreate("Other"))
+	if err != nil {
+		t.Fatal("seed other Helpdesk category:", err)
+	}
+	ticket, err := helpdeskmodels.TicketObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewTicketCreate("Existing ticket", category.ID).WithDetailsNull())
+	if err != nil {
+		t.Fatal("seed selected Helpdesk ticket:", err)
+	}
+	otherTicket, err := helpdeskmodels.TicketObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewTicketCreate("Other category ticket", otherCategory.ID).WithDetailsNull())
+	if err != nil {
+		t.Fatal("seed other Helpdesk ticket:", err)
+	}
+	otherLabel, err := helpdeskmodels.LabelObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewLabelCreate("Client shared label", otherCategory.ID))
+	if err != nil {
+		t.Fatal("seed other-category label:", err)
+	}
+	otherLink, err := helpdeskmodels.TicketLabelObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewTicketLabelCreate(otherTicket.ID, otherLabel.ID))
+	if err != nil {
+		t.Fatal("seed other link", err)
+	}
+	// Ticket viewing includes the category summary. Neither principal receives
+	// ViewCategory, which protects the separate Category Admin surface.
+	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.DeleteTicket, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel)
+	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.ViewTicketLabel)
+	helpdeskAuth, helpdeskSession, helpdeskViewSession := newConsumerSessionAuthentication(t, helpdeskAll, helpdeskView, "/api/tickets/")
+	helpdeskApplication, err := helpdesk.New(helpdeskBackend, category.ID)
+	if err != nil {
+		t.Fatal("construct Helpdesk application:", err)
+	}
+	helpdeskAPI, err := helpdeskApplication.API(helpdeskAuth)
+	if err != nil {
+		t.Fatal("construct Helpdesk API:", err)
+	}
+	helpdeskDocument, err := helpdeskAPI.OpenAPI()
+	if err != nil {
+		t.Fatal("describe Helpdesk API:", err)
+	}
+	helpdeskURL := serveConsumerAPI(t, "helpdesk_generated_client", helpdesk.InstalledApps(), helpdeskAPI.Routes(), nil)
+
+	input := consumerInput{
+		ArticleBearer:  serverInput{URL: bearerURL, Token: fullToken, ReadOnlyToken: viewToken},
+		ArticleSession: serverInput{URL: sessionURL, Session: articleSession, ReadOnlySession: articleViewSession},
+		HelpdeskSession: serverInput{
+			URL: helpdeskURL, Session: helpdeskSession, ReadOnlySession: helpdeskViewSession,
+			CategoryID: category.ID, TicketID: ticket.ID, OtherTicketID: otherTicket.ID, OtherLabelID: otherLabel.ID, OtherTicketLabelID: otherLink.ID,
+		},
+	}
+	documents := map[string][]byte{
+		"articlebearer":   bearerDocument,
+		"articlesession":  sessionDocument,
+		"helpdesksession": helpdeskDocument.Bytes(),
+	}
+	verify := func(t *testing.T) {
+		t.Helper()
+		for _, fixture := range []struct {
+			name    string
+			backend *sqlite.Backend
+		}{{"Article Bearer", bearerBackend}, {"Article Session", sessionBackend}} {
+			count, err := articlemodels.ArticleObjects.Using(fixture.backend).Count(t.Context())
+			if err != nil || count != 0 {
+				t.Errorf("%s generated client left %d Article rows after create/update/delete: %v", fixture.name, count, err)
+			}
+		}
+		tickets, err := helpdeskmodels.TicketObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketFields.ID.Asc()).All(t.Context())
+		if err != nil {
+			t.Fatal("read Helpdesk effects:", err)
+		}
+		if len(tickets) != 7 {
+			t.Fatalf("Helpdesk generated client left %d tickets, want two original and five created", len(tickets))
+		}
+		selectedCount, createdCount := 0, 0
+		var collectionOwnerID int64
+		wantJSON := map[string]string{"Consumer ticket": `{"":340282366920938463463374607431768211455,"nested":[null,false,"\u003cscript\u003edata\u003c/script\u003e"]}`, "Urgent priority": "", "Low priority": "", "Zero priority": "", "Null priority": ""}
+		wantPriority := map[string]*int64{
+			"Consumer ticket": nil, "Null priority": nil,
+			"Urgent priority": new(int64(1)), "Low priority": new(int64(-1)), "Zero priority": new(int64(0)),
+		}
+		wantCost := map[string]*decimal.Decimal{"Consumer ticket": new(decimal.Decimal{Coefficient: "15", Exponent: -1}), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
+		reference, err := uuid.Parse("12345678-9abc-4def-8123-456789abcdef")
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantUUID := map[string]*uuid.UUID{"Consumer ticket": &reference, "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
+		wantEffort := map[string]*float64{"Consumer ticket": new(1.5), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
+		wantElapsed := map[string]*duration.Duration{"Consumer ticket": new(duration.Duration{Days: 1, Microseconds: 7384123456}), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
+		wantServiceAt := map[string]*clock.Time{"Consumer ticket": new(clock.Time{Hour: 12, Minute: 34, Second: 56, Microsecond: 123456}), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
+		wantServiceOn := map[string]*calendar.Date{"Consumer ticket": new(calendar.Date{Year: 2000, Month: 2, Day: 29}), "Urgent priority": new(calendar.Date{Year: 1, Month: 1, Day: 1}), "Low priority": new(calendar.Date{Year: 9999, Month: 12, Day: 31}), "Zero priority": nil, "Null priority": nil}
+		wantReviewed := map[string]*bool{"Consumer ticket": new(false), "Urgent priority": new(true), "Low priority": new(false), "Zero priority": nil, "Null priority": nil}
+		wantResolution := map[string]*string{
+			"Consumer ticket": new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
+			"Urgent priority": new(""), "Low priority": nil, "Zero priority": nil, "Null priority": nil,
+		}
+		wantDueAt := map[string]*time.Time{
+			"Consumer ticket": new(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)),
+			"Urgent priority": new(time.Time{}), "Low priority": new(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)),
+			"Zero priority": nil, "Null priority": nil,
+		}
+		for _, stored := range tickets {
+			if stored.Subject == "Consumer ticket" && stored.CategoryID == category.ID {
+				collectionOwnerID = stored.ID
+			}
+			if stored.CategoryID == category.ID {
+				selectedCount++
+			}
+			switch stored.ID {
+			case ticket.ID:
+				if !sameConsumerTicket(stored, ticket) {
+					t.Error("generated client changed the original selected ticket")
+				}
+			case otherTicket.ID:
+				if !sameConsumerTicket(stored, otherTicket) {
+					t.Error("generated client changed the ticket outside the selected category")
+				}
+			default:
+				createdCount++
+				if stored.CategoryID != category.ID {
+					t.Error("generated client created a ticket outside the selected category")
+				}
+				want, known := wantPriority[stored.Subject]
+				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
+					t.Error("generated client changed an integer value, null, or default during persistence")
+				}
+				payload, known := wantJSON[stored.Subject]
+				if !known || (payload == "") != (stored.ExternalPayload == nil) || stored.ExternalPayload != nil && stored.ExternalPayload.Text != payload {
+					t.Fatal("independent client JSON final DB differs")
+				}
+				delete(wantJSON, stored.Subject)
+				cost, known := wantCost[stored.Subject]
+				if !known || (stored.ExpectedCost == nil) != (cost == nil) || (stored.ExpectedCost != nil && cost != nil && *stored.ExpectedCost != *cost) {
+					t.Fatal("independent client Decimal final DB differs")
+				}
+				delete(wantCost, stored.Subject)
+				reference, known := wantUUID[stored.Subject]
+				if !known || (stored.ExternalReference == nil) != (reference == nil) || (stored.ExternalReference != nil && reference != nil && *stored.ExternalReference != *reference) {
+					t.Fatal("independent client UUID final DB differs")
+				}
+				delete(wantUUID, stored.Subject)
+				floatValue, known := wantEffort[stored.Subject]
+				if !known || (stored.Effort == nil) != (floatValue == nil) || (stored.Effort != nil && floatValue != nil && *stored.Effort != *floatValue) {
+					t.Error("generated client changed persisted float")
+				}
+				delete(wantEffort, stored.Subject)
+				durationValue, known := wantElapsed[stored.Subject]
+				if !known || (stored.Elapsed == nil) != (durationValue == nil) || (stored.Elapsed != nil && durationValue != nil && *stored.Elapsed != *durationValue) {
+					t.Error("generated client changed persisted duration")
+				}
+				delete(wantElapsed, stored.Subject)
+				clockValue, known := wantServiceAt[stored.Subject]
+				if !known || (stored.ServiceAt == nil) != (clockValue == nil) || (stored.ServiceAt != nil && clockValue != nil && *stored.ServiceAt != *clockValue) {
+					t.Error("generated client changed persisted clock")
+				}
+				delete(wantServiceAt, stored.Subject)
+				date, known := wantServiceOn[stored.Subject]
+				if !known || (stored.ServiceOn == nil) != (date == nil) || (stored.ServiceOn != nil && date != nil && *stored.ServiceOn != *date) {
+					t.Error("generated client changed persisted calendar date")
+				}
+				delete(wantServiceOn, stored.Subject)
+				reviewed, known := wantReviewed[stored.Subject]
+				if !known || (stored.Reviewed == nil) != (reviewed == nil) || (reviewed != nil && stored.Reviewed != nil && *stored.Reviewed != *reviewed) {
+					t.Error("generated client lost persisted nullable Boolean state")
+				}
+				delete(wantReviewed, stored.Subject)
+				text, known := wantResolution[stored.Subject]
+				if !known || (stored.Resolution == nil) != (text == nil) || (text != nil && stored.Resolution != nil && *stored.Resolution != *text) {
+					t.Error("generated client changed Text content or null/empty presence during persistence")
+				}
+				due, known := wantDueAt[stored.Subject]
+				if !known || (stored.DueAt == nil) != (due == nil) || (due != nil && stored.DueAt != nil && *stored.DueAt != *due) {
+					t.Error("generated client changed canonical datetime or null during persistence")
+				}
+				delete(wantDueAt, stored.Subject)
+				delete(wantPriority, stored.Subject)
+				delete(wantResolution, stored.Subject)
+			}
+		}
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 || len(wantEffort) != 0 || len(wantCost) != 0 || len(wantUUID) != 0 || len(wantJSON) != 0 {
+			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
+		}
+		if count, err := helpdeskmodels.ServiceReportObjects.Using(helpdeskBackend).Count(t.Context()); err != nil || count != 0 {
+			t.Errorf("generated report lifecycle left rows: %d %v", count, err)
+		}
+		labels, err := helpdeskmodels.LabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.LabelFields.ID.Asc()).All(t.Context())
+		if err != nil || len(labels) != 2 || labels[0].ID != otherLabel.ID || labels[0].Name != otherLabel.Name || labels[0].CategoryID != otherCategory.ID || labels[1].ID <= otherLabel.ID || labels[1].Name != "Client retained label" || labels[1].CategoryID != category.ID {
+			t.Errorf("generated Label CRUD/scope final state differs: %v", err)
+		}
+		links, err := helpdeskmodels.TicketLabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketLabelFields.ID.Asc()).All(t.Context())
+		if err != nil || len(links) != 3 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID {
+			t.Fatalf("generated link lifecycle/cascade final state differs: %v", err)
+		}
+
+		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
+		if err != nil || len(categories) != 2 || categories[0].ID != category.ID || categories[0].Name != category.Name || categories[1].ID != otherCategory.ID || categories[1].Name != otherCategory.Name {
+			t.Errorf("generated client changed the original Helpdesk categories: %v", err)
+		}
+	}
+	return input, documents, verify
+}
+
+func newConsumerBackend(t *testing.T, name string, sources ...definition.Source) *sqlite.Backend {
+	t.Helper()
+	backend, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), name+".sqlite3"))
+	if err != nil {
+		t.Fatal("open isolated consumer database:", err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error("close consumer database:", err)
+		}
+	})
+	loaded, _, err := definition.Load(sources...)
+	if err != nil {
+		t.Fatal("load fixed consumer migration:", err)
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(t.Context(), loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal("migrate isolated consumer database:", err)
+	}
+	return backend
+}
+
+func newArticleConsumerAPI(t *testing.T, backend *sqlite.Backend, authentication api.Authentication) (string, []byte) {
+	t.Helper()
+	adapter, err := apiapp.New(backend, authentication)
+	if err != nil {
+		t.Fatal("construct Article API:", err)
+	}
+	document, err := adapter.OpenAPI()
+	if err != nil {
+		t.Fatal("describe Article API:", err)
+	}
+	url := serveConsumerAPI(t, "article_generated_client", []apps.Config{{Name: "github.com/progresshans/godj/examples/article/articleapp", Label: apiapp.Namespace}}, adapter.Routes(), adapter.Middleware())
+	return url, document.Bytes()
+}
+
+func serveConsumerAPI(t *testing.T, name string, installed []apps.Config, routes []web.Route, middleware []web.Middleware) string {
+	t.Helper()
+	configured, err := settings.New(settings.Definition{ProjectName: name, InstalledApps: installed})
+	if err != nil {
+		t.Fatal("configure consumer HTTP fixture:", err)
+	}
+	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: middleware})
+	if err != nil {
+		t.Fatal("construct consumer HTTP fixture:", err)
+	}
+	server := httptest.NewServer(application)
+	t.Cleanup(func() {
+		server.CloseClientConnections()
+		server.Close()
+	})
+	return server.URL
+}
+
+func consumerPrincipal(t *testing.T, id string, permissions ...auth.Permission) auth.Principal {
+	t.Helper()
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Permissions: permissions})
+	if err != nil {
+		t.Fatal("construct consumer principal:", err)
+	}
+	return principal
+}
+
+func consumerToken(t *testing.T) string {
+	t.Helper()
+	var value [32]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		t.Fatal("create ephemeral consumer credential")
+	}
+	return base64.RawURLEncoding.EncodeToString(value[:])
+}
+
+type consumerTokenVerifier map[string]auth.Principal
+
+func (verifier consumerTokenVerifier) Verify(ctx context.Context, token bearerauth.Token) (auth.Principal, error) {
+	if err := ctx.Err(); err != nil {
+		return auth.Principal{}, err
+	}
+	if principal, found := verifier[token.Encoded()]; found {
+		return principal, nil
+	}
+	return auth.Principal{}, auth.ErrInvalidCredentials
+}
+
+// The fixture explicitly seeds session records for known principals. It tests
+// the real cookie/CSRF/API profile, not the separate credential login flow.
+func newConsumerSessionAuthentication(t *testing.T, full, viewer auth.Principal, listPath string) (*apisessionauth.Runtime, string, string) {
+	t.Helper()
+	store, err := sessions.NewMemoryStore(8)
+	if err != nil {
+		t.Fatal("construct consumer session store:", err)
+	}
+	manager, err := sessions.NewManager(store, sessions.Config{})
+	if err != nil {
+		t.Fatal("construct consumer session manager:", err)
+	}
+	seed := func(principal auth.Principal) string {
+		credential, err := auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		record, err := manager.Create(t.Context(), map[string]string{"_godj_principal_id": principal.ID(), "_godj_credential_stamp": credential.SessionStamp()})
+		if err != nil {
+			t.Fatal("seed consumer session:", err)
+		}
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := manager.Delete(ctx, record.ID()); err != nil {
+				t.Error("delete consumer session:", err)
+			}
+		})
+		return record.ID().Encoded()
+	}
+	fullSession, viewSession := seed(full), seed(viewer)
+	webRuntime, err := websessionauth.New(websessionauth.Config{
+		Sessions:         manager,
+		Authenticator:    consumerPrincipalResolver{full.ID(): full, viewer.ID(): viewer},
+		Authorizer:       auth.PrincipalAuthorizer{},
+		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		FallbackPath:     listPath,
+		AllowedNextPaths: []string{listPath},
+	})
+	if err != nil {
+		t.Fatal("construct consumer Web session profile:", err)
+	}
+	runtime, err := apisessionauth.New(webRuntime)
+	if err != nil {
+		t.Fatal("construct consumer API session profile:", err)
+	}
+	return runtime, fullSession, viewSession
+}
+
+type consumerPrincipalResolver map[string]auth.Principal
+
+func (consumerPrincipalResolver) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
+}
+
+func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string) (auth.Credential, error) {
+	if err := ctx.Err(); err != nil {
+		return auth.Credential{}, err
+	}
+	if principal, found := resolver[id]; found {
+		return auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+	}
+	return auth.Credential{}, auth.ErrInvalidCredentials
+}
+
+func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
+	if (left.ExternalPayload == nil) != (right.ExternalPayload == nil) || (left.ExternalPayload != nil && *left.ExternalPayload != *right.ExternalPayload) {
+		return false
+	}
+	if (left.ExternalReference == nil) != (right.ExternalReference == nil) || (left.ExternalReference != nil && *left.ExternalReference != *right.ExternalReference) {
+		return false
+	}
+	if (left.ExpectedCost == nil) != (right.ExpectedCost == nil) || (left.ExpectedCost != nil && *left.ExpectedCost != *right.ExpectedCost) {
+		return false
+	}
+	if (left.Effort == nil) != (right.Effort == nil) || (left.Effort != nil && *left.Effort != *right.Effort) {
+		return false
+	}
+	if (left.Elapsed == nil) != (right.Elapsed == nil) || (left.Elapsed != nil && *left.Elapsed != *right.Elapsed) {
+		return false
+	}
+	if (left.ServiceAt == nil) != (right.ServiceAt == nil) || (left.ServiceAt != nil && *left.ServiceAt != *right.ServiceAt) {
+		return false
+	}
+	if (left.ServiceOn == nil) != (right.ServiceOn == nil) || (left.ServiceOn != nil && *left.ServiceOn != *right.ServiceOn) {
+		return false
+	}
+	if (left.Reviewed == nil) != (right.Reviewed == nil) || (left.Reviewed != nil && *left.Reviewed != *right.Reviewed) {
+		return false
+	}
+	if left.ID != right.ID || left.Subject != right.Subject || left.Closed != right.Closed || left.CategoryID != right.CategoryID {
+		return false
+	}
+	if (left.Resolution == nil) != (right.Resolution == nil) || (left.Resolution != nil && *left.Resolution != *right.Resolution) {
+		return false
+	}
+	if (left.DueAt == nil) != (right.DueAt == nil) || (left.DueAt != nil && !left.DueAt.Equal(*right.DueAt)) {
+		return false
+	}
+	if (left.Priority == nil) != (right.Priority == nil) || (left.Priority != nil && *left.Priority != *right.Priority) {
+		return false
+	}
+	if left.Details == nil || right.Details == nil {
+		return left.Details == nil && right.Details == nil
+	}
+	return *left.Details == *right.Details
+}

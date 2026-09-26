@@ -1,95 +1,141 @@
-# 기준 출처와 검증 기록
+# 기준 출처
 
-- 마지막 확인: 2026-08-08 (Asia/Seoul)
-- 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
+정확한 source/version/provenance는 [contract manifests](../conformance/contracts/)와 [profiles](../conformance/profiles/)가 소유한다.
+이 문서는 필요한 upstream 위치를 찾는 인덱스다. Pinned version은 GoDj의 비교 기준이며 최신 upstream이라는 주장이 아니다.
+기준 파일마다 해시·bytes·CI 실행 과정을 이곳에 다시 복사하지 않는다.
 
-## Django
+## Django와 DRF
 
-- [Django download page](https://www.djangoproject.com/download/) — 2026-08-07 확인 시 최신 공식 버전은 6.1입니다.
-- [Django 6.1 release notes](https://docs.djangoproject.com/en/6.1/releases/6.1/) — release date 2026-08-05, Python 3.12/3.13/3.14 지원.
-- [Django 6.1 documentation](https://docs.djangoproject.com/en/6.1/)
-- [QuerySet API](https://docs.djangoproject.com/en/6.1/ref/models/querysets/)
-- [Django test suite guide](https://docs.djangoproject.com/en/6.1/internals/contributing/writing-code/unit-tests/)
-- [Django 6.1 source tag](https://github.com/django/django/tree/6.1)
-- [Django BSD license](https://github.com/django/django/blob/6.1/LICENSE)
+- [Django 6.1 source](https://github.com/django/django/tree/fe0a859f537d4238cf49fca39073513206f83122)
+- [QuerySet API](https://docs.djangoproject.com/en/6.1/ref/models/querysets/), [Model fields](https://docs.djangoproject.com/en/6.1/ref/models/fields/)
+- [Model save와 relation descriptor](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/base.py),
+  [related descriptors](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py)
+- [Migration loader](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/loader.py),
+  [executor](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/executor.py),
+  [operations](https://github.com/django/django/tree/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations)
+- [Transaction와 application memory](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/docs/topics/db/transactions.txt)
+- [Django tests](https://github.com/django/django/tree/fe0a859f537d4238cf49fca39073513206f83122/tests)
+- [DRF 3.18 reference profile](../conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json)과 각 API/auth manifest의 pinned source
+- [RFC 6750 Bearer token usage](https://www.rfc-editor.org/rfc/rfc6750)
 
-로컬 `/Users/hanhyeonjin/Documents/django`에서 tag `6.1`은 commit `fe0a859f537d4238cf49fca39073513206f83122`이며 `VERSION = (6, 1, 0, "final", 0)`임을 확인했습니다. 현재 checkout `main`은 2026-08-07 확인 시 commit `4243ab11dc957fd14a1875e6b715ff5e6114a415`, Django `6.2.0-alpha`이므로 6.1 oracle로 직접 사용하지 않습니다.
+Django 테스트는 관찰할 의미와 failure case를 찾는 자료다. 실제 파생물은 [LICENSING](LICENSING.md)에 따라 분류한다.
+Python 클래스·private traversal·SQL/DOM 문자열 전체를 그대로 따라야 한다는 뜻은 아니다.
+Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)에 기록한다.
 
-PyPI Django 6.1 wheel SHA-256은
-`6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
-`uv.lock`과 exact profile에 기록했습니다.
+## Go와 DB
 
-## Python과 환경 도구
+- [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)
+- [Go testing](https://pkg.go.dev/testing), [Go command](https://pkg.go.dev/cmd/go)
+- [SQLite foreign keys](https://sqlite.org/foreignkeys.html), [transactions](https://sqlite.org/lang_transaction.html), [ALTER TABLE](https://sqlite.org/lang_altertable.html)
+- [modernc SQLite driver](https://pkg.go.dev/modernc.org/sqlite)
+- [pgx](https://github.com/jackc/pgx), [PostgreSQL documentation](https://www.postgresql.org/docs/17/)
 
-- [Python 3.14.6 release](https://www.python.org/downloads/release/python-3146/) — 2026-08-07 기준 최신 3.14 micro 확인.
-- [Python source releases](https://www.python.org/downloads/source/)
-- [uv documentation](https://docs.astral.sh/uv/)
+빌드와 runtime의 dependency version은 [go.mod](../go.mod)/[go.sum](../go.sum), Python environment는
+[pyproject.toml](../pyproject.toml)/[uv.lock](../uv.lock), Hosted service profile은 [workflow](../.github/workflows/)에서 확인한다.
+Local moving checkout이나 보고 당시의 tool version을 새 실행의 환경으로 가정하지 않는다.
 
-공식 최신 micro는 3.14.6이지만 현재 uv-managed macOS/arm64 배포 목록에서 재생 가능한
-3.14.3을 GoDj reference로 선택했습니다. 최신 micro 공식 지원을 주장하지 않고 exact
-runtime fingerprint 불일치를 실패시킵니다.
+## GoDj 결정과 과거 조사
 
-## Go
+Go-specific loader/CLI/wire/resource 정책은 [ADR](adr/README.md)의 이유와 계약의 decision provenance를 사용한다.
+Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의 결정으로 표현하지 않는다.
+이전 조사에서 읽은 exact blob·symbol·hash와 실행 과정은
+[정리 전 출처 기록](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/SOURCES.md)에 보존한다.
+현재 코드 수정에 필요한 근거만 이 인덱스나 해당 contract에 추가한다.
 
-- [Go release history](https://go.dev/doc/devel/release) — Go 1.26.5 release 기록.
-- [Go 1.26 announcement](https://go.dev/blog/go1.26)
-- [Go language specification](https://go.dev/ref/spec) — generic type/method receiver와 type parameter 규칙.
-- [Generics tutorial](https://go.dev/doc/tutorial/generics)
-- [`go generate` design](https://go.dev/blog/generate) — build에 자동 포함되지 않는 별도 명령.
+통합 개발 경험과 API 사용성의 공식 문서·태그 고정 소스 비교는
+[프레임워크 조사](research/2026-09-12-framework-developer-experience.md#출처)에 있다.
+이 자료의 조사 버전을 현재 Django/DRF conformance profile이나 제품 dependency로 자동 채택하지 않는다.
 
-로컬 개발 환경은 2026-08-07 확인 시 `go1.26.5 darwin/arm64`입니다. 프로젝트의
-언어 기준은 Go 1.26이고 CI toolchain은 Go 1.26.5로 고정했습니다.
+일반 int64 필드는 고정된 Django 6.1 `BigIntegerField`와 그 integer form을 참조한다. BSD-3-Clause 소스 위치와 비교 범위는
+[ADR-0059](adr/0059-signed-integer-field-and-model-growth.md#출처), 실제 입력·오류 관찰은
+[integer reference runner](../conformance/runners/django/integer_field_reference.py)에 있다.
 
-CI는 Go 1.26.5를 사용하며 [actions/checkout v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1),
-[actions/setup-go v7.0.0](https://github.com/actions/setup-go/releases/tag/v7.0.0),
-[astral-sh/setup-uv v9.0.0](https://github.com/astral-sh/setup-uv/releases/tag/v9.0.0)을
-전체 commit SHA로 고정합니다. 실제 pin은 `.github/workflows/ci.yml`이 정본입니다.
+모델·operation 문서의 표현 기준은 [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)이다.
+독립 규격 검사는 [openapi-spec-validator](https://openapi-spec-validator.readthedocs.io/en/latest/)를 격리 실행하며,
+실제 사용 버전과 범위는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.
 
-## Go SQLite backend
+외부 Go client 검증은 [ogen v1.24.0](https://github.com/ogen-go/ogen/tree/v1.24.0)의 client generator를 고정해서 사용한다.
+[설정과 module lock](../api/openapi/consumertest/testdata/client/go.mod),
+[생성·검증 절차](../api/openapi/consumertest/README.md)에 실제 소비 경계를 둔다. 다른 generator의 지원을 추론하지 않는다.
 
-- [`modernc.org/sqlite` package documentation](https://pkg.go.dev/modernc.org/sqlite) —
-  CGo-free `database/sql` driver, 지원 platform과 license.
-- [`modernc.org/sqlite v1.56.0` changelog](https://gitlab.com/cznic/sqlite/-/blob/v1.56.0/CHANGELOG.md) —
-  내장 SQLite 3.53.3과 release 변경 기록.
-- [`mattn/go-sqlite3 v1.14.49`](https://github.com/mattn/go-sqlite3/tree/v1.14.49) —
-  CGO 후보 비교 근거.
-- [`ncruces/go-sqlite3 v0.35.3`](https://github.com/ncruces/go-sqlite3/tree/v0.35.3) —
-  CGo-free Wasm 후보 비교 근거.
-- [`zombiezen/go/sqlite`](https://github.com/zombiezen/go-sqlite) —
-  `database/sql`을 의도적으로 제공하지 않는 저수준 후보.
-- [Go database cancellation](https://go.dev/doc/database/cancel-operations) —
-  `QueryContext`/`ExecContext` cancellation 전달 기준.
+TextField와 Form widget·빈 문자열 정책은 같은 고정 Django의 CharField/TextField·Char Form·textarea template을 참조한다.
+[ADR-0060](adr/0060-text-field-and-form-widget-semantics.md#출처와-제한), [실제 관찰 runner](../conformance/runners/django/text_field_reference.py)에 비교 범위와 출처를 둔다.
 
-2026-08-08 Go 1.26.5 darwin/arm64 비교에서 M1 기본 driver로
-`modernc.org/sqlite v1.56.0`과 `modernc.org/libc v1.74.4`를 고정했습니다.
-`CGO_ENABLED=0` 실행, 20ms 실행 중 cancellation의
-`context.DeadlineExceeded` 분류, cancellation 뒤 연결 재사용을 확인했습니다. Go
-backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입니다.
-선택과 제한은 [ADR-0008](adr/0008-m1-sqlite-driver-and-execution-boundary.md)에
-기록합니다.
+DateTimeField는 고정 Django 6.1의 model/form field·dateparse와 SQLite/PostgreSQL adapter를 참조한다(BSD-3-Clause).
+[ADR-0061](adr/0061-datetime-field-and-canonical-instant-values.md#출처와-남은-범위), [UTC 관찰 runner](../conformance/runners/django/datetime_field_reference.py)에
+Python 3.14.3 환경·지원 입력·정규화 정책·NUL 결과 차이를 명시한다.
 
-## Codex 작업 지침
+Calendar Date는 같은 고정 Django의 model/form DateField·dateparse·en-us date input formats와 DRF 3.18.0 DateField를
+참조한다(BSD-3-Clause). [ADR-0065](adr/0065-calendar-date-field-and-input-boundaries.md#출처와-검증-경계)와
+[독립 reference](../conformance/runners/django/calendar_date_reference.py)에 입력 경계·실제 DB 관찰을 둔다. Go의 comparable Date,
+invalid literal·strict canonical storage·scanner의 시각 거부는 별도로 명시한 Go API 정책이다.
 
-- [OpenAI 공식 AGENTS.md 문서](https://learn.chatgpt.com/docs/agent-configuration/agents-md) — Codex가 작업 전 지침 chain을 구성하고 project root에서 현재 directory까지 계층적으로 파일을 읽는 방식.
+Clock Time은 [Django 6.1 model fields](https://github.com/django/django/blob/6.1/django/db/models/fields/__init__.py),
+[Form fields](https://github.com/django/django/blob/6.1/django/forms/fields.py)·[Form initial 처리](https://github.com/django/django/blob/6.1/django/forms/forms.py),
+[dateparse](https://github.com/django/django/blob/6.1/django/utils/dateparse.py)와
+[DRF 3.18.0 fields](https://github.com/encode/django-rest-framework/blob/3.18.0/rest_framework/fields.py)를 참조한다(BSD-3-Clause).
+Python 버전별 clock grammar는 [CPython 3.14.3](https://github.com/python/cpython/blob/v3.14.3/Modules/_datetimemodule.c)의 public 결과를 참조한다(PSF license).
+SQL driver 경계는 [pgx v5.10.0 TimeCodec](https://github.com/jackc/pgx/blob/v5.10.0/pgtype/time.go)(MIT), wire 의미는
+[OpenAPI time registry](https://spec.openapis.org/registry/format/time)의 RFC3339 full-time 정의를 확인했다.
+[ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md)와 [독립 runner](../conformance/runners/django/clock_time_reference.py)는
+기본 Django 위젯의 초기 소수초 제거와 Go의 precision 보존, JSON NUL 거부와 Python typed aware time의 별도 관찰을 명시한다.
 
-루트 `AGENTS.md`는 반복 규칙과 읽기 순서만 유지하고, 전체 설계·상태·작업 기록은 별도 문서로 분리했습니다. 하위 `AGENTS.md`는 실제 하위 시스템이 생기고 별도 규칙이 필요할 때 추가합니다.
+Duration의 값·입력·DB 범위와 exact JSON number는 [ADR-0067](adr/0067-duration-model-range-and-number-input.md)에 정리한다.
+고정 Django/DRF의 실제 public API 관찰과 JSON numeric ingress는 [Duration runner](../conformance/runners/django/duration_reference.py)가 소유한다.
 
-## 현재 로컬 환경 관찰
+FloatField는 같은 pinned Django/DRF의 model/form FloatField·JSONRenderer를 독립 관찰한다(BSD-3-Clause).
+[ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md), [runner](../conformance/runners/django/float_reference.py),
+[실제 관찰과 범위](status/TEST_EVIDENCE.md#gdj-0090--float-모델과-finite-소비자-연결)를 따른다.
 
-| 항목 | 2026-08-07 관찰값 | 호환 약속 여부 |
-|---|---|---|
-| Go | 1.26.5, darwin/arm64 | 언어 기준만 Accepted |
-| Reference Python | uv-managed CPython 3.14.3 | exact M0 profile |
-| Reference SQLite | 3.50.4 + exact source ID | exact M0 profile |
-| 기본 shell Python | pyenv CPython 3.13.1 / SQLite 3.51.0 | reference가 아닌 개발 환경 관찰 |
-| SQLite CLI | 3.51.0 | 개발 환경 관찰만 |
-| GoDj Git branch | `main`, M1 baseline `8eac1dc` | 현재 상태 |
-| GoDj module/remote | `github.com/progresshans/godj` / `https://github.com/progresshans/godj.git` | `go.mod`와 remote 관찰 |
-| GoDj SQLite | modernc driver v1.56.0 / SQLite 3.53.3 | M1 backend exact pin |
+DecimalField는 같은 pinned Django의 model/form DecimalField·DecimalValidator·SQLite adapter와 DRF DecimalField를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/decimal_reference.py)는 public 입력·precision·JSON 표현과 실제 SQLite 저장 결과를 생성하고,
+[ADR-0069](adr/0069-exact-decimal-values-and-storage.md)는 exact 값·SQLite BLOB·PostgreSQL NUMERIC과 JSON lexical Decimal profile을 구분한다.
+[GDJ-0091](../work/0091-decimal-cost-models.md)과 실행 증거에서 설계 채택·제품 연결·환경별 검증을 별도로 유지한다.
 
-## 갱신 규칙
+OneToOne은 같은 pinned Django의 [관계 필드](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related.py),
+[관계 descriptor](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py),
+[공개 OneToOneField 동작](https://docs.djangoproject.com/en/6.1/ref/models/fields/#onetoonefield)을 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/one_to_one_reference.py)는 `derived=false`로 작성한 public ORM·ModelForm·migration 입력이다.
+기대 fixture와 GoDj를 읽지 않으며 [활성 작업](../work/0096-one-to-one-service-reports.md)에서 기준 관찰과 제품 구현을 구분한다.
 
-- reference profile 변경 시 날짜, exact version/commit, 이유, 영향을 받는 contract를 함께 기록합니다.
-- 웹의 `latest` 문구보다 tag/commit과 lockfile을 우선합니다.
-- drift 가능성이 있는 version·tool behavior는 새 milestone 시작 시 재확인합니다.
-- upstream source에서 코드를 복사·번역하면 file-level provenance와 license notice를 실제 파생 파일 가까이에 둡니다.
+관계 선택 Form은 같은 pinned Django의 `django/forms/models.py` ModelChoiceField와 AutoField key lookup을 참조한다(BSD-3-Clause).
+[독립 ModelChoice runner](../conformance/runners/django/model_choice_reference.py)는 실제 양 DB QuerySet의 scope·입력·initial/changed를
+관찰하고 설치된 source 파일의 SHA256을 기록한다. GoDj나 기대 fixture를 읽지 않는다. Snapshot과 int64 key를 반환하는
+Go API의 소유권 차이는 [ADR-0073](adr/0073-one-to-one-cardinality-and-reverse-objects.md#작업-보고서와-명시적-관계-선택)에 구분한다.
+
+모델 복합 고유성은 같은 pinned Django의 [UniqueConstraint](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/constraints.py),
+Model/ModelForm의 constraint 검증과 [migration autodetector](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/autodetector.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/composite_unique_reference.py)는 `derived=false`인 선언 입력으로 양 DB의 오류·NULL·transaction·migration 결과와
+이름·필드 변경 및 순환 관계의 제약 배치를 관찰한다. GoDj나 기대 fixture를 읽지 않으며 설치된 upstream source SHA256을 남긴다.
+기준 관찰과 GoDj 제품 지원은 [GDJ-0097](../work/0097-composite-uniqueness-and-labels.md)에서 구분한다.
+
+CASCADE는 같은 pinned Django의 [deletion collector](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/deletion.py)와
+[관계 선언·자동 intermediary](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/cascade_reference.py)는 직접 작성한 public model·ORM 입력이며 GoDj나 기대 fixture를 읽지 않는다.
+Recursive 보호·SET_NULL·중복 경로·숨긴 관계·required/nullable 순환·실패 rollback과 실제 intermediary 정리를 관찰하고 upstream source SHA256을 남긴다.
+GoDj의 native 검사 시점·graph ownership·지원 상태는 [GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)과 실행 근거에서 구분한다.
+
+ManyToMany는 같은 pinned Django의 [관계 관리자](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py),
+위 관계 선언과 [migration operations](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/fields.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/many_to_many_reference.py)는 직접 작성한 public model·ORM·migration 입력이며 GoDj나 기대 fixture를 읽지 않는다.
+자동/명시적 through·동시 중복·set rollback·cache·self 관계·조회 multiplicity·migration·signal을 관찰하고 upstream module SHA256을 저장한다.
+이 기준 확보와 제품 지원은 [GDJ-0099](../work/0099-many-to-many-and-ticket-label-collections.md)에서 구분한다.
+
+ModelMultipleChoice는 같은 pinned Django의 `django/forms/models.py` ModelMultipleChoiceField와 BigAutoField의
+실제 QuerySet을 참조한다(BSD-3-Clause). [독립 runner](../conformance/runners/django/model_multiple_choice_reference.py)는
+공개 Form/모델 입력만 사용하며 GoDj나 기대 fixture를 읽지 않는다. HTML 제출 목록의 membership·required·순서·중복·
+initial/changed를 양 DB에서 관찰하고, transport 밖 Python 입력과 int64 밖 native 오류를 별도로 기록한다.
+구현을 번역한 파일이 아니며 source module SHA256·determinism·의미 변경 control은 TEST_EVIDENCE에 남긴다.
+
+Ticket 컬렉션 transport는 pinned Django 6.1·DRF 3.18.0의 public ModelSerializer와
+PrimaryKeyRelatedField(many=True, pk_field=IntegerField), 명시적 through 모델을 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/ticket_collection_reference.py)는 GoDj/기대값을 읽지 않고
+생성·PUT·PATCH 48개 canonical 입력, 별도 coercion, explicit outer atomic rollback과 validation 이후 scope 변화를 관찰한다.
+Raw fixtures에는 DRF fields/relations/serializers source SHA256을 보관한다. 실행한 버전·DB와 source별 검증은 TEST_EVIDENCE를 따른다.
+
+
+Credential/session 관찰은 고정 Django 6.1(BSD-3-Clause)의 `django.contrib.auth`, `base_user`, `backends`,
+`hashers`와 실제 SessionMiddleware/AuthenticationMiddleware를 실행한다.
+[독립 runner](../conformance/runners/django/credential_session_reference.py)는 공개 API로 새로 작성했으며 GoDj나 예상 fixture를 읽지 않는다.
+양 DB fixture의 `source_sha256`에 실행한 네 auth module의 바이트 해시를 보존한다.
+[ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)과 [DEV-0013](DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)이 비교 범위를 소유한다.

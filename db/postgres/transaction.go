@@ -1,0 +1,194 @@
+package postgres
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"sync/atomic"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/query"
+)
+
+var _ db.Atomic = (*Backend)(nil)
+var _ db.RelationAtomic = (*Backend)(nil)
+var _ db.Session = (*transactionSession)(nil)
+var _ db.RelationSession = (*transactionSession)(nil)
+var _ db.SessionValidator = (*transactionSession)(nil)
+
+type transactionSession struct {
+	transaction transactionHandle
+	backend     *Backend
+	lifetime    context.Context
+	active      atomic.Bool
+}
+
+func (session *transactionSession) ValidateSession(ctx context.Context) error {
+	return session.validate(ctx)
+}
+
+// Atomic executes callback once in a transaction-bound Session. Callback
+// errors and cancellation are rolled back; a rollback failure makes the
+// transaction outcome unknown. Any literal COMMIT error is deliberately
+// classified as outcome-unknown and requires reconciliation rather than an
+// automatic retry.
+func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) error {
+	if err := b.validateContext(ctx); err != nil {
+		return err
+	}
+	if callback == nil {
+		return b.atomic(ctx, nil, nil)
+	}
+	return b.atomic(ctx, nil, func(session *transactionSession) error { return callback(session) })
+}
+
+// AtomicRelation shares the same transaction owner, session lifetime and
+// uncertain-outcome handling as ordinary writes. It adds bulk SET_NULL to the
+// transaction-bound callback without introducing a second transaction.
+func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	if err := b.validateContext(ctx); err != nil {
+		return err
+	}
+	if callback == nil {
+		return b.atomic(ctx, nil, nil)
+	}
+	return b.atomic(ctx, nil, func(session *transactionSession) error { return callback(session) })
+}
+
+type transactionHandle interface {
+	cursorExecutor
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Commit() error
+	Rollback() error
+}
+
+func (b *Backend) atomic(ctx context.Context, begin func(context.Context) (transactionHandle, error), callback func(*transactionSession) error) error {
+	if err := b.validateContext(ctx); err != nil {
+		return err
+	}
+	if callback == nil {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "atomic callback is nil"}
+	}
+	if begin == nil {
+		begin = func(ctx context.Context) (transactionHandle, error) {
+			return b.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+		}
+	}
+	transaction, err := begin(ctx)
+	if err != nil {
+		return classifyDatabaseError(ctx, "begin transaction", b.schema, "", err)
+	}
+	lifetime, finishLifetime := context.WithCancelCause(ctx)
+	defer finishLifetime(sql.ErrTxDone)
+	session := &transactionSession{transaction: transaction, backend: b, lifetime: lifetime}
+	session.active.Store(true)
+	finished := false
+	defer func() {
+		session.active.Store(false)
+		if !finished {
+			_ = transaction.Rollback()
+		}
+	}()
+
+	if callbackErr := callback(session); callbackErr != nil {
+		session.active.Store(false)
+		rollbackErr := normalizeRollbackError(transaction.Rollback())
+		finished = true
+		if rollbackErr != nil {
+			return errors.Join(
+				callbackErr,
+				transactionUnknown("PostgreSQL callback failed and rollback outcome is unknown", rollbackErr),
+			)
+		}
+		return callbackErr
+	}
+
+	session.active.Store(false)
+	if contextErr := ctx.Err(); contextErr != nil {
+		rollbackErr := normalizeRollbackError(transaction.Rollback())
+		finished = true
+		if rollbackErr != nil {
+			return errors.Join(
+				contextErr,
+				transactionUnknown("PostgreSQL context was canceled and rollback outcome is unknown", rollbackErr),
+			)
+		}
+		return contextErr
+	}
+	if err := transaction.Commit(); err != nil {
+		finished = true
+		return commitUnknown(err)
+	}
+	finished = true
+	return nil
+}
+
+func normalizeRollbackError(err error) error {
+	if err == nil || errors.Is(err, sql.ErrTxDone) {
+		return nil
+	}
+	return fmt.Errorf("rollback PostgreSQL transaction: %w", err)
+}
+
+func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if err := session.validate(ctx); err != nil {
+		return nil, err
+	}
+	statement, arguments, err := compilePlan(session.backend.schema, plan)
+	if err != nil {
+		return nil, err
+	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
+	}
+	rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
+	if err != nil {
+		return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
+	}
+	adapted, err := adaptScalarRows(rows, plan)
+	if err != nil {
+		return nil, err
+	}
+	if owner, ok := session.transaction.(interface {
+		WrapRows(db.Rows, *sql.Rows) db.Rows
+	}); ok {
+		return owner.WrapRows(adapted, rows), nil
+	}
+	return adapted, nil
+}
+
+func (session *transactionSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	if err := session.validate(ctx); err != nil {
+		return 0, err
+	}
+	return executeInsert(ctx, session.transaction, session.backend.schema, plan)
+}
+
+func (session *transactionSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	if err := session.validate(ctx); err != nil {
+		return 0, err
+	}
+	return executeUpdate(ctx, session.transaction, session.backend.schema, plan)
+}
+
+func (session *transactionSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
+	if err := session.validate(ctx); err != nil {
+		return 0, err
+	}
+	return executeDelete(ctx, session.transaction, session.backend.schema, plan)
+}
+
+func (session *transactionSession) validate(ctx context.Context) error {
+	if session == nil || session.transaction == nil || session.backend == nil || session.lifetime == nil || !session.active.Load() {
+		return backendInvalid("PostgreSQL transaction session is nil or no longer active")
+	}
+	if ctx == nil {
+		return backendInvalid("context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return context.Cause(session.lifetime)
+}

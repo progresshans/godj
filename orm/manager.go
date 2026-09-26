@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
+	"math"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -13,15 +13,57 @@ import (
 
 type Manager[M any] struct {
 	descriptor ModelDescriptor[M]
+	prepared   *preparedModel
 }
 
+type preparedModel struct {
+	metadata    ir.Model
+	plan        query.Plan
+	primaryKey  ir.Field
+	writeValid  bool
+	byReference map[query.FieldRef]int
+	byName      map[string]int
+	unique      []preparedUniqueConstraint
+	uniqueErr   string
+}
+
+// NewManager snapshots Metadata once for both reads and writes. Later changes
+// to descriptor metadata require a new Manager. The descriptor retains ownership
+// of Scan, CloneModel and optional write callbacks; they must remain consistent
+// with the snapshot and support the caller's concurrency.
 func NewManager[M any](descriptor ModelDescriptor[M]) Manager[M] {
-	return Manager[M]{descriptor: descriptor}
+	manager := Manager[M]{descriptor: descriptor}
+	if !descriptorIsNil(descriptor) {
+		metadata := descriptor.Metadata().Clone()
+		references := modelFieldReferences(metadata)
+		manager.prepared = &preparedModel{
+			metadata: metadata,
+			plan:     query.NewPlan(metadata.DBTable, references),
+		}
+		if _, writable := descriptor.(WriteDescriptor[M]); writable {
+			prepared := manager.prepared
+			prepared.primaryKey, prepared.writeValid = autoPrimaryKey(metadata)
+			prepared.byReference = make(map[query.FieldRef]int, len(references))
+			prepared.byName = make(map[string]int, len(references))
+			for index, reference := range references {
+				// Preserve first-match behavior even for custom metadata with
+				// duplicate names or references. Full reference identity is kept.
+				if _, exists := prepared.byReference[reference]; !exists {
+					prepared.byReference[reference] = index
+				}
+				if _, exists := prepared.byName[reference.Name()]; !exists {
+					prepared.byName[reference.Name()] = index
+				}
+			}
+			prepared.unique, prepared.uniqueErr = prepareUniqueConstraints(metadata, prepared.byName)
+		}
+	}
+	return manager
 }
 
 // Using binds a backend to a new QuerySet. It performs no I/O.
 func (m Manager[M]) Using(backend db.Queryer) QuerySet[M] {
-	if descriptorIsNil(m.descriptor) {
+	if m.prepared == nil {
 		return QuerySet[M]{
 			backend:    backend,
 			descriptor: m.descriptor,
@@ -33,17 +75,24 @@ func (m Manager[M]) Using(backend db.Queryer) QuerySet[M] {
 			},
 		}
 	}
-	metadata := m.descriptor.Metadata()
-	columns := make([]query.FieldRef, len(metadata.Fields))
-	for index, field := range metadata.Fields {
-		columns[index] = fieldReference(field)
-	}
+	return newQuerySet(backend, m.descriptor, m.prepared.plan)
+}
+
+func newQuerySet[M any](backend db.Queryer, descriptor ModelDescriptor[M], plan query.Plan) QuerySet[M] {
 	return QuerySet[M]{
 		backend:    backend,
-		descriptor: m.descriptor,
-		plan:       query.NewPlan(metadata.DBTable, columns),
+		descriptor: descriptor,
+		plan:       plan,
 		evaluation: newEvaluationState[M](),
 	}
+}
+
+func modelFieldReferences(model ir.Model) []query.FieldRef {
+	result := make([]query.FieldRef, len(model.Fields))
+	for index, field := range model.Fields {
+		result[index] = fieldReference(field)
+	}
+	return result
 }
 
 type QuerySet[M any] struct {
@@ -51,23 +100,8 @@ type QuerySet[M any] struct {
 	descriptor       ModelDescriptor[M]
 	plan             query.Plan
 	evaluation       *evaluationState[M]
+	materialization  *queryMaterialization[M]
 	configurationErr error
-}
-
-type evaluationState[M any] struct {
-	mu     sync.Mutex
-	ready  bool
-	values []M
-	flight *evaluationFlight
-}
-
-type evaluationFlight struct {
-	done chan struct{}
-	err  error
-}
-
-func newEvaluationState[M any]() *evaluationState[M] {
-	return &evaluationState[M]{}
 }
 
 func (qs QuerySet[M]) Filter(predicates ...Predicate[M]) QuerySet[M] {
@@ -75,15 +109,33 @@ func (qs QuerySet[M]) Filter(predicates ...Predicate[M]) QuerySet[M] {
 	if qs.configurationErr != nil {
 		return qs
 	}
-	conditions := make([]query.Condition, len(predicates))
+	if len(predicates) == 0 {
+		qs.plan = qs.plan.WithoutCollectionFilterReuse()
+		return qs
+	}
+	expressions := make([]query.Expression, len(predicates))
 	for index := range predicates {
 		if predicates[index].err != nil {
 			qs.configurationErr = predicates[index].err
 			return qs
 		}
-		conditions[index] = predicates[index].condition
+		expressions[index] = predicates[index].expression
 	}
-	qs.plan = qs.plan.WithConditions(conditions...)
+	expression := expressions[0]
+	if len(expressions) > 1 {
+		var err error
+		expression, err = query.AndExpressions(expressions[0], expressions[1], expressions[2:]...)
+		if err != nil {
+			qs.configurationErr = err
+			return qs
+		}
+	}
+	plan, err := qs.plan.WithWhere(expression)
+	if err != nil {
+		qs.configurationErr = err
+		return qs
+	}
+	qs.plan = plan
 	return qs
 }
 
@@ -117,10 +169,36 @@ func (qs QuerySet[M]) Limit(limit int) (QuerySet[M], error) {
 	return qs, nil
 }
 
-// Fresh returns the same immutable query plan with a new, unpopulated
-// evaluation state. It performs no backend I/O.
+// Offset derives a new QuerySet that skips the first offset rows. It performs
+// no I/O and never shares the source evaluation cache.
+func (qs QuerySet[M]) Offset(offset int) (QuerySet[M], error) {
+	if qs.configurationErr != nil {
+		return qs, qs.configurationErr
+	}
+	plan, err := qs.plan.WithOffset(offset)
+	if err != nil {
+		return QuerySet[M]{}, err
+	}
+	qs.plan = plan
+	qs.evaluation = newEvaluationState[M]()
+	return qs, nil
+}
+
+// Distinct derives a new QuerySet whose complete selected rows are unique. It
+// performs no I/O and never shares the source evaluation cache.
+func (qs QuerySet[M]) Distinct() QuerySet[M] {
+	qs.evaluation = newEvaluationState[M]()
+	if qs.configurationErr == nil {
+		qs.plan = qs.plan.WithDistinct()
+	}
+	return qs
+}
+
+// Fresh derives an unevaluated query. Like other query refinements it consumes
+// a collection manager's one-use membership join scope, without performing I/O.
 func (qs QuerySet[M]) Fresh() QuerySet[M] {
 	qs.evaluation = newEvaluationState[M]()
+	qs.plan = qs.plan.WithoutCollectionFilterReuse()
 	return qs
 }
 
@@ -132,97 +210,28 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-
-	for {
-		// A waiter may wake from a canceled owner flight at the same instant
-		// its own context is canceled. Recheck before it can claim the next
-		// flight so a canceled waiter never starts backend I/O.
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		state := qs.evaluation
-		state.mu.Lock()
-		if state.ready {
-			values := state.values
-			state.mu.Unlock()
-			return qs.cloneModels(values), nil
-		}
-		if flight := state.flight; flight != nil {
-			state.mu.Unlock()
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-flight.done:
-			}
-			if flight.err == nil {
-				continue
-			}
-			if errors.Is(flight.err, context.Canceled) || errors.Is(flight.err, context.DeadlineExceeded) {
-				// A live waiter retries with its own context after the owner of
-				// the completed flight was canceled.
-				continue
-			}
-			// All callers that were waiting on a non-context owner failure
-			// observe that same error. A later independent call may retry.
-			return nil, flight.err
-		}
-
-		flight := &evaluationFlight{done: make(chan struct{})}
-		state.flight = flight
-		state.mu.Unlock()
-
-		values, err := qs.scanAll(ctx)
-		if err == nil {
-			if contextErr := ctx.Err(); contextErr != nil {
-				err = contextErr
-			}
-		}
-
-		state.mu.Lock()
-		if err == nil {
-			state.values = values
-			state.ready = true
-		}
-		flight.err = err
-		state.flight = nil
-		close(flight.done)
-		state.mu.Unlock()
-
-		if err != nil {
-			return nil, err
-		}
-		return qs.cloneModels(values), nil
+	values, _, err := qs.evaluateModels(ctx)
+	if err != nil {
+		return nil, err
 	}
+	return sessionReadResult(ctx, qs.backend, qs.cloneModels(values), nil)
 }
 
 // Count returns the number of rows represented by the plan. A warm full
-// result cache is reused; a cold count drains backend rows without retaining
-// decoded models or populating that cache.
+// result cache is reused; a cold count compiles a scalar COUNT over the
+// logical sliced/distinct source without populating the model cache.
 func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return 0, err
 	}
-	if values, ok := qs.cachedValues(); ok {
-		return int64(len(values)), nil
+	if values, ok := qs.evaluation.cachedValues(); ok {
+		return sessionReadResult(ctx, qs.backend, int64(len(values)), nil)
 	}
-
-	rows, err := qs.openRows(ctx, qs.plan)
-	if err != nil {
-		return 0, err
-	}
-	var count int64
-	for rows.Next() {
-		count++
-	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
-	if err != nil {
-		return 0, err
-	}
-	if err := ctx.Err(); err != nil {
-		return 0, err
-	}
-	return count, nil
+	return AggregateInto(
+		ctx,
+		qs,
+		Aggregate1(CountRows[M](), func(count int64) int64 { return count }),
+	)
 }
 
 // Exists reports whether the plan contains at least one row. Cold evaluation
@@ -231,29 +240,28 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return false, err
 	}
-	if values, ok := qs.cachedValues(); ok {
-		return len(values) != 0, nil
+	if values, ok := qs.evaluation.cachedValues(); ok {
+		return sessionReadResult(ctx, qs.backend, len(values) != 0, nil)
 	}
 	plan := planWithMaximumRows(qs.plan, 1)
-	rows, err := qs.openRows(ctx, plan)
+	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {
 		return false, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	exists := rows.Next()
-	err = joinRowsErr(nil, rows)
-	err = closeRows(err, rows)
+	err = lifecycle.finish(ctx, nil)
 	if err != nil {
 		return false, err
 	}
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	return exists, nil
+	return sessionReadResult(ctx, qs.backend, exists, nil)
 }
 
 // At returns the model at a zero-based index for an explicitly ordered plan.
-// Cold evaluation limits and drains only as many rows as required and leaves
-// the full result cache untouched.
+// Cold evaluation requests the indexed row with OFFSET/LIMIT and leaves the
+// full result cache untouched. Indexes beyond the backend-independent offset
+// range retain the bounded row-drain path.
 func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	var zero M
 	if err := qs.validateTerminal(ctx); err != nil {
@@ -273,22 +281,33 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 			Detail:   "At requires an explicit ordering",
 		}
 	}
-	if values, ok := qs.cachedValues(); ok {
+	if values, ok := qs.evaluation.cachedValues(); ok {
 		if index >= len(values) {
-			return zero, false, nil
+			return zero, false, validateQuerySession(ctx, qs.backend)
 		}
-		return qs.descriptor.CloneModel(values[index]), true, nil
+		value, err := sessionReadResult(ctx, qs.backend, qs.descriptor.CloneModel(values[index]), nil)
+		return value, err == nil, err
 	}
 
-	plan := planWithMaximumRows(qs.plan, index+1)
-	rows, err := qs.openRows(ctx, plan)
+	if qs.materialization != nil && len(qs.materialization.targets) > 0 {
+		values, err := qs.eagerMaterializedAt(ctx, index)
+		if err != nil || len(values) == 0 {
+			return zero, false, err
+		}
+		value, err := sessionReadResult(ctx, qs.backend, qs.descriptor.CloneModel(values[0].source), ctx.Err())
+		return value, err == nil, err
+	}
+	plan, scanIndex := planForIndex(qs.plan, index)
+	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {
 		return zero, false, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	found := false
 	var value M
 	for position := 0; rows.Next(); position++ {
-		if position != index {
+		if position != scanIndex {
 			continue
 		}
 		value, err = qs.descriptor.Scan(rows)
@@ -300,15 +319,32 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		}
 		break
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return zero, false, err
 	}
-	if err := ctx.Err(); err != nil {
-		return zero, false, err
+	if found && qs.materialization != nil {
+		if _, err := qs.materialization.prepare(ctx, qs.backend, []M{value}); err != nil {
+			return zero, false, err
+		}
 	}
-	return value, found, nil
+	value, err = sessionReadResult(ctx, qs.backend, value, nil)
+	return value, found && err == nil, err
+}
+
+func planForIndex(plan query.Plan, index int) (query.Plan, int) {
+	if limit, limited := plan.Limit(); limited && index >= limit {
+		empty, _ := plan.WithLimit(0)
+		return empty, 0
+	}
+	offset, _ := plan.Offset()
+	if index > math.MaxInt32-offset {
+		return planWithMaximumRows(plan, index+1), index
+	}
+	if index != 0 {
+		plan, _ = plan.WithOffset(offset + index)
+	}
+	return planWithMaximumRows(plan, 1), 0
 }
 
 // First returns the first model for an explicitly ordered plan.
@@ -330,33 +366,41 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 			Detail:   "iterate callback is nil",
 		}
 	}
+	if qs.materialization != nil {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "streaming a configured prefetch query requires materialized batches"}
+	}
 
-	rows, err := qs.openRows(ctx, qs.plan)
+	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
 	if err != nil {
 		return err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	for rows.Next() {
+		if err = validateQuerySession(ctx, qs.backend); err != nil {
+			break
+		}
 		value, scanErr := qs.descriptor.Scan(rows)
 		if scanErr != nil {
 			err = fmt.Errorf("scan model row: %w", scanErr)
 			break
 		}
-		if callbackErr := callback(qs.descriptor.CloneModel(value)); callbackErr != nil {
+		value = qs.descriptor.CloneModel(value)
+		if err = validateQuerySession(ctx, qs.backend); err != nil {
+			break
+		}
+		if callbackErr := callback(value); callbackErr != nil {
 			err = callbackErr
 			break
 		}
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
-	if err != nil {
-		return err
-	}
-	return ctx.Err()
+	_, err = sessionReadResult(ctx, qs.backend, struct{}{}, lifecycle.finish(ctx, err))
+	return err
 }
 
 func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
-	if ctx == nil {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	if interfaceIsNil(ctx) {
+		return invalidTerminalContext()
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -373,24 +417,21 @@ func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
 	if qs.evaluation == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "evaluation state is nil"}
 	}
-	return nil
-}
-
-func (qs QuerySet[M]) cachedValues() ([]M, bool) {
-	state := qs.evaluation
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.ready {
-		return nil, false
+	if qs.materialization != nil {
+		if err := validateMaterializationSource(qs, qs.materialization.binding); err != nil {
+			return err
+		}
 	}
-	return state.values, true
+	return validateQuerySession(ctx, qs.backend)
 }
 
 func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
-	rows, err := qs.openRows(ctx, qs.plan)
+	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
 	if err != nil {
 		return nil, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	values := make([]M, 0)
 	for rows.Next() {
 		value, scanErr := qs.descriptor.Scan(rows)
@@ -402,8 +443,7 @@ func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
 		// canonical cache. A second clone is made for every caller below.
 		values = append(values, qs.descriptor.CloneModel(value))
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return nil, err
 	}
@@ -418,36 +458,80 @@ func (qs QuerySet[M]) cloneModels(values []M) []M {
 	return clones
 }
 
-func (qs QuerySet[M]) openRows(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	rows, err := qs.backend.Query(ctx, plan)
+func openQueryRows(ctx context.Context, backend db.Queryer, plan query.Plan) (db.Rows, error) {
+	var err error
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := backend.Query(ctx, plan)
 	if err != nil {
 		if !interfaceIsNil(rows) {
 			if closeErr := rows.Close(); closeErr != nil {
-				return nil, errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
+				err = errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
 			}
 		}
-		return nil, err
+		return nil, joinContextErr(err, ctx)
 	}
 	if interfaceIsNil(rows) {
-		return nil, &query.Error{
+		return nil, joinContextErr(&query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "backend returned nil rows without an error",
-		}
+		}, ctx)
 	}
 	return rows, nil
+}
+
+// rowsLifecycle owns an acquired cursor until either normal completion or
+// stack unwinding. Callers defer close immediately, then use finish to retain
+// iteration, close, and context errors on normal returns.
+type rowsLifecycle struct {
+	rows db.Rows
+}
+
+func (lifecycle *rowsLifecycle) close() error {
+	rows := lifecycle.rows
+	if rows == nil {
+		return nil
+	}
+	lifecycle.rows = nil
+	return rows.Close()
+}
+
+func (lifecycle *rowsLifecycle) finish(ctx context.Context, err error) error {
+	err = joinRowsErr(err, lifecycle.rows)
+	if closeErr := lifecycle.close(); closeErr != nil {
+		err = errors.Join(err, fmt.Errorf("close model rows: %w", closeErr))
+	}
+	return joinContextErr(err, ctx)
+}
+
+func joinContextErr(err error, ctx context.Context) error {
+	if interfaceIsNil(ctx) {
+		contextErr := invalidTerminalContext()
+		if err == nil {
+			return contextErr
+		}
+		return errors.Join(err, contextErr)
+	}
+	contextErr := ctx.Err()
+	if contextErr == nil {
+		return err
+	}
+	if err == nil {
+		return contextErr
+	}
+	return errors.Join(err, contextErr)
+}
+
+func invalidTerminalContext() error {
+	return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "context is nil"}
 }
 
 func joinRowsErr(err error, rows db.Rows) error {
 	if rowsErr := rows.Err(); rowsErr != nil {
 		err = errors.Join(err, fmt.Errorf("iterate model rows: %w", rowsErr))
-	}
-	return err
-}
-
-func closeRows(err error, rows db.Rows) error {
-	if closeErr := rows.Close(); closeErr != nil {
-		err = errors.Join(err, fmt.Errorf("close model rows: %w", closeErr))
 	}
 	return err
 }
@@ -468,9 +552,30 @@ func planWithMaximumRows(plan query.Plan, maximum int) query.Plan {
 func fieldReference(field ir.Field) query.FieldRef {
 	var kind query.FieldKind
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldInteger:
 		kind = query.FieldInteger
-	case ir.FieldChar:
+	case ir.FieldForeignKey:
+		kind = query.FieldInteger
+	case ir.FieldJSON:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldJSON, field.Nullable)
+	case ir.FieldUUID:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldUUID, field.Nullable)
+	case ir.FieldDecimal:
+		if field.Decimal != nil {
+			return query.NewDecimalFieldRef(field.Name, field.Column, field.Nullable, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+		}
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDecimal, field.Nullable)
+	case ir.FieldFloat:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldFloat, field.Nullable)
+	case ir.FieldDuration:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDuration, field.Nullable)
+	case ir.FieldTime:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldTime, field.Nullable)
+	case ir.FieldDate:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDate, field.Nullable)
+	case ir.FieldDateTime:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDateTime, field.Nullable)
+	case ir.FieldChar, ir.FieldText:
 		kind = query.FieldString
 	case ir.FieldBoolean:
 		kind = query.FieldBoolean

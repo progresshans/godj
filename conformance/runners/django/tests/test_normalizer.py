@@ -11,6 +11,8 @@ from conformance.runners.django.normalizer import (
     PrimaryKey,
     canonical_json,
     normalize,
+    normalize_sql_in_predicate_columns,
+    normalize_sql_shape,
 )
 
 
@@ -103,6 +105,61 @@ class NormalizerTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises((TypeError, ValueError)):
                     normalize(value)
+
+    def test_sql_shape_normalizes_statement_and_join_kinds(self) -> None:
+        cases = (
+            (
+                'SELECT * FROM "post" INNER JOIN "author" ON 1 = 1',
+                {"statement_kind": "SELECT", "join_kinds": ["INNER"]},
+            ),
+            (
+                'SELECT * FROM "post" LEFT OUTER JOIN "author" ON 1 = 1',
+                {"statement_kind": "SELECT", "join_kinds": ["LEFT_OUTER"]},
+            ),
+            (
+                "select * from post left join author on 1 = 1 join tag on 1 = 1",
+                {
+                    "statement_kind": "SELECT",
+                    "join_kinds": ["LEFT_OUTER", "INNER"],
+                },
+            ),
+            (
+                "UPDATE post SET reviewer_id = NULL",
+                {"statement_kind": "UPDATE", "join_kinds": []},
+            ),
+            ("", {"statement_kind": "EMPTY", "join_kinds": []}),
+        )
+        for sql, expected in cases:
+            with self.subTest(sql=sql):
+                self.assertEqual(normalize_sql_shape(sql), expected)
+
+    def test_sql_shape_ignores_keywords_inside_quotes_and_comments(self) -> None:
+        sql = """
+            SELECT 'INNER JOIN hidden', "LEFT OUTER JOIN quoted", [JOIN bracket]
+            FROM "post" /* LEFT JOIN ignored */
+            -- RIGHT JOIN ignored too
+            INNER JOIN "author" ON 1 = 1
+        """
+        self.assertEqual(
+            normalize_sql_shape(sql),
+            {"statement_kind": "SELECT", "join_kinds": ["INNER"]},
+        )
+
+    def test_sql_shape_rejects_non_string_input(self) -> None:
+        with self.assertRaisesRegex(TypeError, "SQL must be a string"):
+            normalize_sql_shape(b"SELECT 1")  # type: ignore[arg-type]
+
+    def test_sql_in_predicate_normalizes_only_live_identifier_columns(self) -> None:
+        sql = """
+            SELECT * FROM "post"
+            WHERE "post"."author_id" IN (%s, %s, %s)
+              AND 'reviewer_id IN ignored' = 'reviewer_id IN ignored'
+              /* hidden_id IN ignored */
+        """
+        self.assertEqual(
+            normalize_sql_in_predicate_columns(sql),
+            ["author_id"],
+        )
 
 
 if __name__ == "__main__":

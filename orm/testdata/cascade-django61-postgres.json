@@ -1,0 +1,145 @@
+{
+  "automatic_through": {
+    "policies": [
+      "CASCADE",
+      "CASCADE"
+    ],
+    "unique_together": [
+      [
+        "root",
+        "label"
+      ]
+    ]
+  },
+  "backend": "postgresql",
+  "database_version": "170005",
+  "django": "6.1",
+  "observations": {
+    "cross_app_cycle": {
+      "models": {
+        "cascadedetails.Right": 1,
+        "cascadeparents.Left": 1
+      },
+      "total": 2
+    },
+    "duplicate_paths": {
+      "models": {
+        "cascadedetails.Twin": 1,
+        "cascadeparents.Root": 1
+      },
+      "total": 2
+    },
+    "hidden_and_one_to_one": {
+      "models": {
+        "cascadedetails.Detail": 1,
+        "cascadedetails.Hidden": 1,
+        "cascadeparents.Root": 1
+      },
+      "total": 3
+    },
+    "late_failure": {
+      "caller_pk_preserved": true,
+      "prior_mutation_executed": true,
+      "rows_preserved": true
+    },
+    "many_to_many_cleanup": {
+      "after_root": {
+        "labels": 2,
+        "links": 1,
+        "other_members": [
+          "shared"
+        ]
+      },
+      "initial_unique_links": 3,
+      "label_delete": {
+        "models": {
+          "cascadeparents.Label": 1,
+          "cascadeparents.Root_labels": 1
+        },
+        "total": 2
+      },
+      "other_root_preserved": true,
+      "remaining_labels": [
+        "second"
+      ],
+      "remaining_links": 0,
+      "root_delete": {
+        "models": {
+          "cascadeparents.Root": 1,
+          "cascadeparents.Root_labels": 2
+        },
+        "total": 3
+      }
+    },
+    "nullable_cascade": {
+      "models": {
+        "cascadeparents.Node": 2
+      },
+      "total": 2,
+      "unrelated_null_preserved": true
+    },
+    "protect_cascade_overlap": {
+      "protected_count": 1,
+      "rows_preserved": true
+    },
+    "protected_descendant": {
+      "caller_pk_preserved": true,
+      "protected_count": 1,
+      "rows_preserved": true,
+      "writes": 0
+    },
+    "raw_delete": {
+      "integrity_error": true,
+      "rows_preserved": true
+    },
+    "recursive_set_null": {
+      "counts": {
+        "cascadedetails.Child": 1,
+        "cascadedetails.Watcher": 1,
+        "cascadeparents.Root": 1
+      },
+      "models": {
+        "cascadedetails.Child": 1,
+        "cascadedetails.Grandchild": 1,
+        "cascadeparents.Root": 1
+      },
+      "retained_child_instance_pk": true,
+      "root_pk_cleared": true,
+      "total": 3,
+      "unrelated_child_preserved": true,
+      "watcher_database_null": true,
+      "watcher_held_value_preserved": true
+    },
+    "required_cross_app_cycle": {
+      "models": {
+        "cascadedetails.RequiredRight": 1,
+        "cascadeparents.RequiredLeft": 1
+      },
+      "total": 2
+    },
+    "same_model_cycle": {
+      "models": {
+        "cascadeparents.Node": 2
+      },
+      "total": 2
+    },
+    "self_loop": {
+      "models": {
+        "cascadeparents.Node": 1
+      },
+      "total": 1
+    }
+  },
+  "physical_fk": [
+    "a",
+    true,
+    true
+  ],
+  "python": "3.14.3",
+  "source_sha256": {
+    "Collector": "add39cf98661ded6cab0d850be53200aa33424b2ac0a75987578c8f683291c99",
+    "ForeignKey": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+    "ManyToManyField": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+    "Model": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f"
+  }
+}

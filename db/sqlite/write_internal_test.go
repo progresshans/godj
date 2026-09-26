@@ -52,7 +52,7 @@ func TestClassifyInsertErrorRejectsPrimaryKeyLookingTextWithoutStructuredCode(t 
 	t.Parallel()
 
 	lookalike := fmt.Errorf("execute: UNIQUE constraint failed: widget.widget_pk (1555)")
-	classified := classifyInsertError(lookalike)
+	classified := classifySQLiteWriteError(t.Context(), "insert", lookalike)
 	if errors.Is(classified, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniquePrimaryKey}) {
 		t.Fatalf("plain-text lookalike classified as primary-key conflict: %v", classified)
 	}

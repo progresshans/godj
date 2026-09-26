@@ -1,0 +1,56 @@
+package fixture
+
+import (
+	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+var _ func(string, ir.Schema) ([]byte, error) = codegen.GenerateRelationMetadata
+var _ func(string, []codegen.BridgePackage) ([]byte, error) = codegen.GenerateProjectBridge
+var _ func(...ir.Schema) (orm.ProjectBinding, error) = orm.BindProject
+
+func relationPublicSurface() {
+	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	forward := orm.RelationMetadata{
+		Source:      source,
+		Field:       "author",
+		Column:      "author_id",
+		Target:      target,
+		Nullable:    false,
+		Cardinality: ir.RelationManyToOne,
+		Reverse:     ir.ReverseRelation{Name: "posts"},
+		OnDelete:    ir.DeleteProtect,
+	}
+	reverse := orm.ReverseRelationMetadata{
+		Owner:       target,
+		Name:        "posts",
+		Target:      source,
+		SourceField: "author",
+		Cardinality: ir.RelationOneToMany,
+	}
+	bindError := &orm.RelationBindingError{
+		Code:        orm.RelationBindingReverseNameCollision,
+		AppLabel:    "blog",
+		ModelName:   "post",
+		FieldName:   "author",
+		Target:      target,
+		ReverseName: "posts",
+	}
+	var _ error = bindError
+	_ = orm.RelationBindingDuplicateApp
+	_ = orm.RelationBindingUnresolvedTarget
+	_ = forward
+	_ = reverse
+
+	project, _ := orm.BindProject()
+	_ = project.ForwardRelations()
+	_ = project.ReverseRelations()
+	_, _ = project.Relation(source, "author")
+
+	_, _ = codegen.GenerateProjectBridge("binding", []codegen.BridgePackage{{
+		Alias:      "authors",
+		ImportPath: "example.com/project/authors",
+	}})
+}

@@ -1,0 +1,471 @@
+package postgres
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"reflect"
+	"sort"
+
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+type postgresMigrationPreflightTable struct {
+	model   ir.Model
+	targets []migrationbackend.MigrationTarget
+	oid     int64
+}
+
+func (schema *postgresMigrationSchema) Preflight(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	namespace string,
+) error {
+	if schema == nil {
+		return postgresMigrationIntentIntegrity("migration schema is nil", nil)
+	}
+	if ctx == nil {
+		return errors.New("preflight PostgreSQL migration schema: context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if executor == nil {
+		return postgresMigrationIntentIntegrity("migration schema executor is nil", nil)
+	}
+	if schema.preflight || schema.namespace != "" {
+		return postgresMigrationIntentIntegrity("migration schema physical preflight already completed", nil)
+	}
+	if err := schema.verifySeal(); err != nil {
+		return err
+	}
+	if err := validateSchemaIdentifier(namespace); err != nil {
+		return postgresMigrationIntentIntegrity("migration schema namespace is invalid", err)
+	}
+
+	existing, absent, err := schema.postgresMigrationPreflightTables()
+	if err != nil {
+		return err
+	}
+	pendingAdds := schema.postgresMigrationPendingAdds()
+	for table, model := range absent {
+		if err := validatePostgresMigrationAttributeCapacity(table, len(model.Fields), pendingAdds[table]); err != nil {
+			return err
+		}
+	}
+	names := make([]string, 0, len(existing))
+	for table := range existing {
+		names = append(names, table)
+	}
+	sort.Strings(names)
+
+	// Resolve and validate every pre-existing object before asking PostgreSQL
+	// for a table lock. This prevents LOCK TABLE from turning a non-table name
+	// or an absent source into a search_path-sensitive error path.
+	for _, table := range names {
+		catalog, present, err := loadPostgresMigrationTableCatalog(ctx, executor, namespace, table)
+		if err != nil {
+			return err
+		}
+		if !present {
+			return postgresMigrationCatalogDrift(table, "is missing before the sealed migration")
+		}
+		if err := assertPostgresMigrationOrdinaryTable(catalog, table); err != nil {
+			return err
+		}
+		entry := existing[table]
+		entry.oid = catalog.oid
+		existing[table] = entry
+	}
+	for _, table := range sortedPostgresMigrationModelNames(absent) {
+		_, present, err := loadPostgresMigrationTableCatalog(ctx, executor, namespace, table)
+		if err != nil {
+			return err
+		}
+		if present {
+			return postgresMigrationCatalogDrift(table, "already exists before its sealed CreateModel")
+		}
+	}
+
+	for _, table := range names {
+		qualified, err := quoteTable(namespace, table)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("quote PostgreSQL migration lock target", err)
+		}
+		if _, err := executor.ExecContext(ctx, "LOCK TABLE "+qualified+" IN ACCESS EXCLUSIVE MODE NOWAIT"); err != nil {
+			return classifyPostgresRevisionContention(ctx, "lock PostgreSQL migration table "+table, err)
+		}
+	}
+
+	// Re-read the exact OIDs and complete catalog after all locks are held. An
+	// OID change between preliminary lookup and lock acquisition is a physical
+	// replacement outside the supported current profile.
+	for _, table := range names {
+		entry := existing[table]
+		catalog, present, err := loadPostgresMigrationTableCatalog(ctx, executor, namespace, table)
+		if err != nil {
+			return err
+		}
+		if !present || catalog.oid != entry.oid {
+			return postgresMigrationCatalogDrift(table, "changed identity during physical preflight")
+		}
+		if err := validatePostgresMigrationAttributeCapacity(table, catalog.attributeSlots, pendingAdds[table]); err != nil {
+			return err
+		}
+		if err := assertPostgresMigrationModelCatalog(catalog, namespace, entry.model, entry.targets); err != nil {
+			return err
+		}
+	}
+	if err := schema.preflightPostgresRequiredAdds(ctx, executor, namespace, absent); err != nil {
+		return err
+	}
+
+	schema.namespace = namespace
+	schema.preflight = true
+	return nil
+}
+
+func (schema *postgresMigrationSchema) postgresMigrationPendingAdds() map[string]int {
+	result := make(map[string]int)
+	for index := range schema.intent.Operations {
+		operation := schema.intent.Operations[index]
+		if operation.Kind == migrationbackend.MigrationAddField {
+			result[operation.Before.DBTable]++
+		}
+	}
+	return result
+}
+
+func validatePostgresMigrationAttributeCapacity(table string, physicalSlots, pendingAdds int) error {
+	if physicalSlots < 0 || pendingAdds < 0 {
+		return postgresMigrationIntentIntegrity("PostgreSQL migration attribute capacity is negative", nil)
+	}
+	if physicalSlots > postgresMigrationMaxAttributeSlots ||
+		pendingAdds > postgresMigrationMaxAttributeSlots-physicalSlots {
+		return postgresMigrationCapability(
+			fmt.Sprintf(
+				"table %s uses %d physical attribute slots and cannot claim %d additions within the PostgreSQL limit %d",
+				table,
+				physicalSlots,
+				pendingAdds,
+				postgresMigrationMaxAttributeSlots,
+			),
+			nil,
+		)
+	}
+	return nil
+}
+
+func (schema *postgresMigrationSchema) CreateModel(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	model ir.Model,
+) error {
+	operation, err := schema.postgresMigrationCurrentOperation(ctx, executor, migrationbackend.MigrationCreateModel)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(model, operation.After) {
+		return postgresMigrationIntentIntegrity("CreateModel arguments differ from the sealed migration operation", nil)
+	}
+	statements, err := compilePostgresStorageOperation(schema.namespace, schema.transition.Migration.App, operation)
+	if err != nil {
+		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL CreateModel", err)
+	}
+	for _, statement := range statements {
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "create PostgreSQL model "+model.DBTable, err)
+		}
+	}
+	schema.cursor++
+	return nil
+}
+
+func (schema *postgresMigrationSchema) DeleteModel(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	model ir.Model,
+) error {
+	operation, err := schema.postgresMigrationCurrentOperation(ctx, executor, migrationbackend.MigrationDeleteModel)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(model, operation.Before) {
+		return postgresMigrationIntentIntegrity("DeleteModel arguments differ from the sealed migration operation", nil)
+	}
+	statements, err := compilePostgresStorageOperation(schema.namespace, schema.transition.Migration.App, operation)
+	if err != nil {
+		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL DeleteModel", err)
+	}
+	for _, statement := range statements {
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "delete PostgreSQL owned storage", err)
+		}
+	}
+	schema.cursor++
+	return nil
+}
+
+func (schema *postgresMigrationSchema) AddField(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	model ir.Model,
+	field ir.Field,
+) error {
+	operation, err := schema.postgresMigrationCurrentOperation(ctx, executor, migrationbackend.MigrationAddField)
+	if err != nil {
+		return err
+	}
+	changed, err := operation.ChangedField()
+	if err != nil {
+		return postgresMigrationIntentIntegrity("invalid sealed AddField delta", err)
+	}
+	if !reflect.DeepEqual(model, operation.Before) || !migrationFieldsEqual(field, changed) {
+		return postgresMigrationIntentIntegrity("AddField arguments differ from the sealed migration operation", nil)
+	}
+	target, err := postgresMigrationAddFieldTarget(operation, field)
+	if err != nil {
+		return err
+	}
+	statement, err := compilePostgresMigrationAddField(schema.namespace, operation.Before, field, target)
+	if err != nil {
+		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL AddField", err)
+	}
+	if _, err := executor.ExecContext(ctx, statement); err != nil {
+		return classifyPostgresRevisionContention(ctx, "add PostgreSQL field "+model.DBTable+"."+field.Column, err)
+	}
+	schema.cursor++
+	return nil
+}
+
+func (schema *postgresMigrationSchema) RemoveField(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	model ir.Model,
+	field ir.Field,
+) error {
+	operation, err := schema.postgresMigrationCurrentOperation(ctx, executor, migrationbackend.MigrationRemoveField)
+	if err != nil {
+		return err
+	}
+	changed, err := operation.ChangedField()
+	if err != nil {
+		return postgresMigrationIntentIntegrity("invalid sealed RemoveField delta", err)
+	}
+	if !reflect.DeepEqual(model, operation.Before) || !migrationFieldsEqual(field, changed) {
+		return postgresMigrationIntentIntegrity("RemoveField arguments differ from the sealed migration operation", nil)
+	}
+	statement, err := compilePostgresMigrationRemoveField(schema.namespace, operation.Before, field)
+	if err != nil {
+		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL RemoveField", err)
+	}
+	if _, err := executor.ExecContext(ctx, statement); err != nil {
+		return classifyPostgresRevisionContention(ctx, "remove PostgreSQL field "+model.DBTable+"."+field.Column, err)
+	}
+	schema.cursor++
+	return nil
+}
+
+func (schema *postgresMigrationSchema) VerifyComplete(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+) error {
+	if err := schema.validateOperationContext(ctx); err != nil {
+		return err
+	}
+	if err := schema.verifySeal(); err != nil {
+		return err
+	}
+	if executor == nil {
+		return postgresMigrationIntentIntegrity("migration schema executor is nil", nil)
+	}
+	if schema.cursor != len(schema.intent.Operations) {
+		return postgresMigrationIntentIntegrity(
+			fmt.Sprintf("migration schema executed %d operations, want %d", schema.cursor, len(schema.intent.Operations)),
+			nil,
+		)
+	}
+
+	finalByTable := make(map[string]postgresMigrationPreflightTable, len(schema.final.models))
+	for identity, model := range schema.final.models {
+		entry := postgresMigrationPreflightTable{
+			model:   model.Clone(),
+			targets: migrationbackend.CloneMigrationTargets(schema.final.targets[identity]),
+		}
+		finalByTable[model.DBTable] = entry
+	}
+	for _, table := range sortedPostgresMigrationPreflightNames(finalByTable) {
+		entry := finalByTable[table]
+		catalog, present, err := loadPostgresMigrationTableCatalog(ctx, executor, schema.namespace, table)
+		if err != nil {
+			return err
+		}
+		if !present {
+			return postgresMigrationCatalogDrift(table, "is missing after the sealed migration")
+		}
+		if err := assertPostgresMigrationModelCatalog(catalog, schema.namespace, entry.model, entry.targets); err != nil {
+			return err
+		}
+	}
+	removed := make(map[string]ir.Model)
+	for _, model := range schema.initial.models {
+		removed[model.DBTable] = model
+	}
+	for _, operation := range schema.intent.Operations {
+		changes, err := operation.StorageChanges(schema.transition.Migration.App)
+		if err != nil {
+			return err
+		}
+		for _, change := range changes {
+			if change.Before.Name != "" {
+				removed[change.Before.DBTable] = change.Before
+			}
+		}
+	}
+	for _, table := range sortedPostgresMigrationModelNames(removed) {
+		if _, remains := finalByTable[table]; remains {
+			continue
+		}
+		_, present, err := loadPostgresMigrationTableCatalog(ctx, executor, schema.namespace, table)
+		if err != nil {
+			return err
+		}
+		if present {
+			return postgresMigrationCatalogDrift(table, "still exists after its sealed removal or rename")
+		}
+	}
+	schema.verified = true
+	return nil
+}
+
+func (schema *postgresMigrationSchema) postgresMigrationCurrentOperation(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	want migrationbackend.MigrationOperationKind,
+) (migrationbackend.MigrationOperation, error) {
+	if err := schema.validateOperationContext(ctx); err != nil {
+		return migrationbackend.MigrationOperation{}, err
+	}
+	if executor == nil {
+		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity("migration schema executor is nil", nil)
+	}
+	if schema.cursor < 0 || schema.cursor >= len(schema.intent.Operations) {
+		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity("migration schema received an operation after the sealed cursor ended", nil)
+	}
+	operation := schema.intent.Operations[schema.cursor]
+	if err := schema.verifyOperationSeal(operation); err != nil {
+		return migrationbackend.MigrationOperation{}, err
+	}
+	if operation.Kind != want {
+		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity(
+			fmt.Sprintf("migration schema cursor %d has kind %d, caller requested %d", schema.cursor, operation.Kind, want),
+			nil,
+		)
+	}
+	return operation, nil
+}
+
+func (schema *postgresMigrationSchema) postgresMigrationPreflightTables() (
+	map[string]postgresMigrationPreflightTable,
+	map[string]ir.Model,
+	error,
+) {
+	existing := make(map[string]postgresMigrationPreflightTable, len(schema.initial.models))
+	absent := make(map[string]ir.Model)
+	for table, model := range schema.initial.models {
+		existing[table] = postgresMigrationPreflightTable{
+			model: model.Clone(), targets: migrationbackend.CloneMigrationTargets(schema.initial.targets[table]),
+		}
+	}
+	for _, operation := range schema.intent.Operations {
+		changes, err := operation.StorageChanges(schema.transition.Migration.App)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, change := range changes {
+			if change.After.Name == "" || change.Before.DBTable == change.After.DBTable {
+				continue
+			}
+			table := change.After.DBTable
+			if _, present := existing[table]; present {
+				continue
+			}
+			if previous, found := absent[table]; !found || len(previous.Fields) < len(change.After.Fields) {
+				absent[table] = change.After
+			}
+		}
+	}
+	return existing, absent, nil
+}
+
+func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
+	ctx context.Context,
+	executor migrationSQLExecutor,
+	namespace string,
+	created map[string]ir.Model,
+) error {
+	createdAt := make(map[string]int, len(created))
+	for position := range schema.intent.Operations {
+		operation := schema.intent.Operations[position]
+		if operation.Kind == migrationbackend.MigrationCreateModel {
+			createdAt[operation.After.DBTable] = position
+		}
+	}
+	for position := range schema.intent.Operations {
+		operation := schema.intent.Operations[position]
+		if operation.Kind != migrationbackend.MigrationAddField {
+			continue
+		}
+		field, deltaErr := operation.ChangedField()
+		if deltaErr != nil {
+			return postgresMigrationIntentIntegrity("invalid sealed AddField delta", deltaErr)
+		}
+		if !postgresMigrationAddRequiresEmptyTable(field) {
+			continue
+		}
+		if createPosition, createdInIntent := createdAt[operation.Before.DBTable]; createdInIntent {
+			if createPosition >= position {
+				return postgresMigrationIntentIntegrity("required AddField precedes its sealed CreateModel", nil)
+			}
+			continue
+		}
+		table, err := quoteTable(namespace, operation.Before.DBTable)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("quote PostgreSQL required AddField source", err)
+		}
+		var populated bool
+		if err := executor.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM "+table+" LIMIT 1)").Scan(&populated); err != nil {
+			return classifyPostgresRevisionContention(ctx, "inspect PostgreSQL required AddField source "+operation.Before.DBTable, err)
+		}
+		if populated {
+			return postgresMigrationCapability(
+				fmt.Sprintf("table %s contains rows; adding field %s with a required value or logical default requires an explicit backfill", operation.Before.DBTable, field.Column),
+				nil,
+			)
+		}
+	}
+	return nil
+}
+
+func postgresMigrationAddRequiresEmptyTable(field ir.Field) bool {
+	return field.Default != nil || !field.Nullable
+}
+
+func sortedPostgresMigrationModelNames(models map[string]ir.Model) []string {
+	names := make([]string, 0, len(models))
+	for name := range models {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedPostgresMigrationPreflightNames(entries map[string]postgresMigrationPreflightTable) []string {
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}

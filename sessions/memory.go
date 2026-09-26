@@ -1,0 +1,185 @@
+package sessions
+
+import (
+	"context"
+	"sync"
+)
+
+const (
+	defaultMaxMemoryRecords = 4096
+	hardMaxMemoryRecords    = 1 << 20
+)
+
+// MemoryStore is a concurrent bounded process-lifetime Store. Its contents do
+// not survive restart and are not shared across processes.
+type MemoryStore struct {
+	mu         sync.RWMutex
+	records    map[ID]Record
+	maxRecords int
+}
+
+func (*MemoryStore) String() string   { return "sessions.MemoryStore{redacted}" }
+func (*MemoryStore) GoString() string { return "sessions.MemoryStore{redacted}" }
+
+// NewMemoryStore constructs an empty process store. Zero selects 4096 records.
+func NewMemoryStore(maxRecords int) (*MemoryStore, error) {
+	if maxRecords == 0 {
+		maxRecords = defaultMaxMemoryRecords
+	}
+	if maxRecords < 1 || maxRecords > hardMaxMemoryRecords {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "max_records", Detail: "memory store capacity is outside the supported range"}
+	}
+	return &MemoryStore{records: make(map[ID]Record), maxRecords: maxRecords}, nil
+}
+
+func (s *MemoryStore) Load(ctx context.Context, id ID) (Record, bool, error) {
+	if err := validStoreCall(ctx, s, id); err != nil {
+		return Record{}, false, err
+	}
+	s.mu.RLock()
+	record, ok := s.records[id]
+	s.mu.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return Record{}, false, err
+	}
+	return record, ok, nil
+}
+
+func (s *MemoryStore) Create(ctx context.Context, record Record) (bool, error) {
+	if err := validStoreCall(ctx, s, record.id); err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if _, exists := s.records[record.id]; exists {
+		return false, nil
+	}
+	if len(s.records) >= s.maxRecords {
+		// The process store has no background goroutine. Reap only when a
+		// bounded create would otherwise fail, using the incoming record's
+		// creation instant as the manager-controlled clock authority.
+		for id, existing := range s.records {
+			if existing.expired(record.createdAt) {
+				delete(s.records, id)
+			}
+		}
+	}
+	if len(s.records) >= s.maxRecords {
+		return false, &Error{Code: CodeStoreFull, Detail: "memory session capacity is exhausted"}
+	}
+	s.records[record.id] = record
+	return true, nil
+}
+
+func (s *MemoryStore) Access(ctx context.Context, id ID, policy AccessPolicy) (Record, AccessStatus, error) {
+	if err := validStoreCall(ctx, s, id); err != nil {
+		return Record{}, AccessMissing, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return Record{}, AccessMissing, err
+	}
+	record, exists := s.records[id]
+	if !exists {
+		return Record{}, AccessMissing, nil
+	}
+	touched, status, err := policy.Apply(id, record)
+	if err != nil {
+		return Record{}, AccessMissing, err
+	}
+	if err := ctx.Err(); err != nil {
+		return Record{}, AccessMissing, err
+	}
+	if status == AccessExpired {
+		delete(s.records, id)
+	} else {
+		s.records[id] = touched
+	}
+	return touched, status, nil
+}
+
+func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {
+	if err := validStoreCall(ctx, s, oldID); err != nil {
+		return Record{}, false, err
+	}
+	if !replacement.id.Valid() || replacement.id == oldID {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "replacement session identifier is invalid"}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return Record{}, false, err
+	}
+	current, exists := s.records[oldID]
+	if !exists {
+		return Record{}, false, nil
+	}
+	if !replacement.createdAt.Equal(current.createdAt) || !replacement.absoluteExpiresAt.Equal(current.absoluteExpiresAt) {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotation must preserve creation and absolute expiry"}
+	}
+	rotationAt := replacement.accessedAt
+	if current.expired(rotationAt) {
+		delete(s.records, oldID)
+		return Record{}, false, nil
+	}
+	if _, collision := s.records[replacement.id]; collision {
+		return Record{}, false, &Error{Code: CodeEntropy, Detail: "replacement session identifier collided"}
+	}
+	accessedAt := replacement.accessedAt
+	if accessedAt.Before(current.accessedAt) {
+		accessedAt = current.accessedAt
+	}
+	idleExpiresAt := replacement.idleExpiresAt
+	if idleExpiresAt.Before(current.idleExpiresAt) {
+		idleExpiresAt = current.idleExpiresAt
+	}
+	if idleExpiresAt.After(current.absoluteExpiresAt) {
+		idleExpiresAt = current.absoluteExpiresAt
+	}
+	if !current.absoluteExpiresAt.After(accessedAt) || !idleExpiresAt.After(accessedAt) {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid"}
+	}
+	// Value changes have already detached replacement's immutable map. Only
+	// the authoritative timestamps need reconciliation while holding the lock.
+	published := replacement
+	published.createdAt = current.createdAt
+	published.accessedAt = accessedAt
+	published.absoluteExpiresAt = current.absoluteExpiresAt
+	published.idleExpiresAt = idleExpiresAt
+	delete(s.records, oldID)
+	s.records[replacement.id] = published
+	return published, true, nil
+}
+
+func (s *MemoryStore) Delete(ctx context.Context, id ID) error {
+	if err := validStoreCall(ctx, s, id); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	delete(s.records, id)
+	return nil
+}
+
+func validStoreCall(ctx context.Context, store *MemoryStore, id ID) error {
+	if ctx == nil {
+		return &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if store == nil || store.records == nil {
+		return &Error{Code: CodeInvalidConfig, Detail: "memory store is nil or uninitialized"}
+	}
+	if !id.Valid() {
+		return &Error{Code: CodeInvalidInput, Field: "session_id", Detail: "session identifier is invalid"}
+	}
+	return nil
+}

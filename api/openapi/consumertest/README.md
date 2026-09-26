@@ -1,0 +1,163 @@
+# OpenAPI 생성 클라이언트 검증과 갱신
+
+`TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session API의 문서를
+`testdata/client/specs`와 비교하고, 별도 Go module에서 고정된 `ogen`으로 재생성한 파일이 저장된 생성물과 같은지 확인한다.
+이후 생성 client를 build하고 실제 HTTP로 실행하여 응답·인증·CSRF·관계·DB 변경을 검증한다.
+테스트의 Session은 알려진 principal을 메모리 저장소에 명시적으로 준비한다. Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
+
+`testdata/client`에는 framework module을 import하거나 replace하는 연결이 없다. 생성기와 client runtime 버전은
+그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
+부모 테스트의 생성·build는 준비된 module cache를 사용해 offline으로 실행한다.
+
+DateTime은 표준 `format: date-time`과 `x-ogen-time-format` RFC3339Nano를 사용한다. 고정 ogen v1.24.0의 기본 encoder가
+소수초를 생략하므로 실제 게시 문서가 precision 보존 extension을 제공한다. Consumer는 offset·nanosecond 입력의 UTC microsecond
+결과, 연도 1·9999, 생략/null을 실제 HTTP와 DB로 검증한다. 생성 코드를 수동 수정하거나 검사에서 소수초를 무시하지 않는다.
+
+Calendar Date는 `format: date`와 별도의 nullable branch를 사용한다. Client의 time.Time 표현에서 clock/zone을 wire에 넣지 않고
+원래 연·월·일을 보존하는지, 연도 1·9999·윤년과 생략/null·PUT/PATCH가 실제 HTTP·DB에서 유지되는지 검사한다.
+
+Clock Time은 timezone이 없는 string·pattern·length와 nullable branch다. RFC3339 full-time의 `format: time`과 구분한다.
+Client는 자정·최소 microsecond·마지막 microsecond·생략/null·PUT/PATCH의 HTTP 왕복과 최종 DB를 검사한다.
+Generated response decoder의 schema validation과 명시적 request.Validate를 확인한다. Request encoder가 Validate를 자동 호출한다고
+가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child는 선언한 필수 receipt 전체를 독립적으로 검사한다.
+
+Helpdesk 목록의 search/source query는 실제 operation에서 생성한 매개변수를 사용한다. JSON 전체·source 경로의
+literal 검색, subject와 source의 AND, 빈 결과와 잘못된 NUL/길이 입력의 400을 실제 HTTP로 확인한다.
+JSON fixture는 public PATCH로 저장하고 원래 값으로 복원해 기존 최종 DB 검증을 유지한다.
+
+Category별 Label의 생성·상세·PUT/PATCH·삭제와 검색·limit/offset 페이지를 generated client로 호출한다.
+다른 Category에 같은 이름을 미리 저장해 두고, 현재 Category에서 생성은 허용하되 그 외부 Label의 조회·수정·삭제는 404인지 확인한다.
+복합 중복의 `__all__/unique_together`, 생략/self update·읽기 전용 역할·CSRF 거부와 페이지 numeric bounds를 검사한다.
+부모는 유지된 라벨의 최종 이름·Category와 외부 라벨 보존을 실제 DB에서 별도로 확인한다. 이 client fixture는 SQLite를 사용한다.
+Helpdesk 자체의 실제 SQLite/PostgreSQL HTTP·migration·실패 검사는 `examples/helpdesk`가 소유한다.
+
+TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
+ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
+부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.
+추가 view 권한의 개별 거부와 저장 중 scope 변화/실패·unknown outcome은 Helpdesk 양 DB HTTP 테스트가 소유한다.
+
+Ticket.labels는 optional int64 배열 입력과 required non-null 배열 응답이다. 고정 ogen의 nil slice는 요청 생략,
+non-nil 빈 slice는 `[]`다. 실제 HTTP에서 생성·중복 제거·labels-only PATCH·PUT/PATCH 생략·빈 배열 해제,
+retained through ID와 외부 Category 전체 거부·권한·CSRF를 확인한다. 부모는 최종 scalar와 정확한 through 행 집합을 직접 조회한다.
+별도 wire 검사는 2^53 밖 정수의 exact bytes와 응답 누락/null/문자열·소수·범위 초과 원소 거부를 확인한다.
+`helpdesk_ticket_collections`와 `generated_collection_wire` receipt는 각 실제 경로가 끝난 뒤에만 게시하며 부모가 필수로 확인한다.
+
+Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
+허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
+생성된 encoder는 `Validate()`를 자동 호출하지 않으므로 서버 검증이 별도로 필요하다.
+
+## 현재 소스에서 문서 내보내기
+
+저장소 루트에서 실행한다. `-out`은 존재하지 않는 경로 또는 빈 디렉터리여야 하고, symlink나 기존 파일이 있는 디렉터리는 거절한다.
+부모 디렉터리는 미리 존재해야 한다.
+
+```sh
+schema_update_dir="$(mktemp -d "${TMPDIR:-/tmp}/godj-openapi-update.XXXXXX")"
+go run ./api/openapi/consumertest/testdata/export -out "$schema_update_dir/specs"
+```
+
+명령은 실제 API adapter와 builtin authentication profile에서 `articlebearer.json`, `articlesession.json`,
+`helpdesksession.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
+세 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
+확인한 뒤 새 빈 디렉터리에서 다시 실행한다. `testdata` 아래의 유지보수 명령이므로 기본 `go test ./...` 대상에는 포함되지 않는다.
+
+## 검토할 생성물 준비
+
+다음은 위 셸의 `schema_update_dir`을 이어서 사용한다. 원본 client module은 검토가 끝날 때까지 변경하지 않는다.
+
+```sh
+schema_repo_dir="$(pwd)"
+schema_client_dir="$schema_repo_dir/api/openapi/consumertest/testdata/client"
+make api-client-dependencies
+cp -R "$schema_client_dir" "$schema_update_dir/client"
+cp "$schema_update_dir/specs/"*.json "$schema_update_dir/client/specs/"
+mkdir "$schema_update_dir/generated"
+
+(
+  set -eu
+  cd "$schema_update_dir/client"
+  export GOENV=off GOWORK=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly
+  for profile in articlebearer articlesession helpdesksession; do
+    go tool ogen -loglevel warn -config ogen.yml \
+      -target "$schema_update_dir/generated/$profile" -package "$profile" "specs/$profile.json"
+    rm -rf "$schema_update_dir/client/$profile"
+    cp -R "$schema_update_dir/generated/$profile" "$schema_update_dir/client/$profile"
+  done
+  go build -o "$schema_update_dir/consumer" ./cmd/consumer
+)
+
+cmp "$schema_client_dir/go.mod" "$schema_update_dir/client/go.mod"
+cmp "$schema_client_dir/go.sum" "$schema_update_dir/client/go.sum"
+cmp "$schema_client_dir/ogen.yml" "$schema_update_dir/client/ogen.yml"
+diff -ru "$schema_client_dir/specs" "$schema_update_dir/client/specs"
+```
+
+`diff`의 종료 코드 1은 차이가 있다는 뜻이다. 세 generated package도 각각 `diff -ru`로 비교하여
+operation·필드·null/생략·응답 타입의 변경이 의도와 맞는지 확인한다. 생성 파일을 직접 고쳐 차이를 맞추지 않는다.
+새 API 의미에 따라 `cmd/consumer`의 HTTP 호출이나 확인 항목을 바꿔야 한다면 그 변경도 별도로 구현하고 검토한다.
+생성기·의존성 버전 변경은 이 문서 갱신과 구별해서 `go.mod`·`go.sum`·`ogen.yml`을 검토한다.
+
+## 확정한 파일 반영과 검증
+
+검토를 마친 뒤 아래 명령은 문서 세 개와 generated package 세 개만 반영한다.
+기존 package 안에 예상하지 않은 파일이나 symlink가 있으면 중단한다. 생성기가 제거한 파일도 반영되도록 package를 교체한다.
+
+```sh
+python3 - "$schema_client_dir" "$schema_update_dir/client" <<'PY'
+from pathlib import Path
+import shutil
+import sys
+
+destination, candidate = map(Path, sys.argv[1:])
+profiles = ('articlebearer', 'articlesession', 'helpdesksession')
+for root in (destination, candidate):
+    for profile in profiles:
+        package = root / profile
+        if package.is_symlink() or not package.is_dir():
+            raise SystemExit('expected a regular generated package directory')
+        files = list(package.iterdir())
+        if not files or any(p.is_symlink() or not p.is_file() or not p.name.endswith('_gen.go')
+                            or not p.read_bytes().startswith(b'// Code generated by ogen, DO NOT EDIT.\n') for p in files):
+            raise SystemExit('generated package contains an unexpected file')
+        schema = root / 'specs' / (profile + '.json')
+        if schema.is_symlink() or not schema.is_file():
+            raise SystemExit('expected a regular schema file')
+for profile in profiles:
+    shutil.copyfile(candidate / 'specs' / (profile + '.json'), destination / 'specs' / (profile + '.json'))
+    shutil.rmtree(destination / profile)
+    shutil.copytree(candidate / profile, destination / profile)
+PY
+
+git diff --check
+go test -count=1 ./api/openapi ./api/openapi/consumertest ./examples/article/apiapp ./examples/helpdesk
+go test -race -count=1 ./api/openapi/consumertest
+CGO_ENABLED=0 go test -count=1 ./api/openapi/consumertest
+```
+
+위 테스트는 갱신한 원본 문서·고정 생성기·정확한 생성 파일 집합과 실제 HTTP client를 함께 확인한다.
+CI integration target의 normal/race/CGO=0 실행도 같은 package를 포함한다. 생성물과 문서를 변경한 소스와 함께 commit한다.
+
+Duration은 canonical `[days ]HH:MM:SS[.ffffff]` string·pattern·length와 nullable branch를 사용한다.
+음수·SQLite int64 양 끝·소수초·생략/null의 실제 HTTP와 DB, required response와 request.Validate를 독립 client로 확인한다.
+서버의 더 넓은 duration input grammar와 생성 client의 canonical string 계약은 구분한다.
+
+Float는 finite number/double과 명시적 min/max를 사용한다. Client는 실제 HTTP에서 극값·subnormal·소수·생략/null을 왕복하고
+별도 wire에서 signed zero와 numeric bit roundtrip, 누락/잘못된 응답, 명시적 request.Validate의 non-finite 거부를 확인한다.
+실제 SQLite의 zero sign 정규화 및 숫자 equality에 따른 no-op은 별도로 검사한다.
+
+Decimal은 모델의 precision·scale을 반영한 fixed-scale string·pattern·length와 nullable branch를 사용한다.
+Client는 비용의 양 끝값·소수·생략/null·PUT/PATCH를 실제 HTTP·DB로 확인한다. 별도 wire에서 문자열 정확도,
+required response 누락·숫자/잘못된 문자열 거부와 명시적 request.Validate를 확인한다. 서버는 exact JSON 숫자도 받으며
+초과 scale을 반올림하지 않고 거부한다. SQLite의 zero sign 정규화와 numeric no-op도 검증한다.
+
+JSONField는 임의 JSON과 완전한 응답의 required presence를 기술한다. 고정 ogen은 `jx.Raw`를 생성하며 nil/빈 bytes는
+요청 생략, `null` bytes는 명시적 null이다. Client는 큰 정수·긴 소수·overflow/underflow exponent를 float 변환 없이 왕복하고,
+빈 key·nested object/array·JSON을 담은 문자열·PUT/PATCH 생략·null을 실제 HTTP와 SQLite DB로 확인한다.
+Duplicate key·NUL·surrogate·깊이 초과에 대한 서버 거부와 required response의 누락/문법 오류도 검사한다.
+Raw 값은 서버 validation의 대체가 아니다. 모델의 HTML escape 정규화와 HTTP JSON의 문자열 escaping 차이는 구분한다.
+새 JSON 필드 때문에 생성 Ticket이 Go-comparable이 아니므로 client는 JSON bytes를 포함한 모든 필드를 비교한다.
+
+ServiceReport client는 별도 model component와 7개 operation을 실제 HTTP로 소비한다. 200/null reverse 부재와 404 Category scope,
+생성 기본값·중복/invalid_choice 진단·self update·PUT 재할당·PATCH omission·읽기 전용 principal·DELETE CSRF/204를 검사한다.
+종료 시 보고서 행은 없고 기존 Ticket/Category 값은 그대로인지 parent process가 확인한다. Client의 고정 실패 단계만
+checked-in `fail("stage")` literal과 정확히 일치할 때 진단에 표시하며 그 외 stderr/transport/input 값은 계속 숨긴다.

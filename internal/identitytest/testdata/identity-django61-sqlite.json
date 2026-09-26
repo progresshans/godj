@@ -1,0 +1,131 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "observations": {
+    "grant_union": {
+      "direct": [
+        "view"
+      ],
+      "effective": [
+        "change",
+        "view"
+      ],
+      "group": [
+        "change",
+        "view"
+      ],
+      "group_memberships": 1
+    },
+    "group_deletion": {
+      "effective": [
+        "view"
+      ],
+      "memberships": 0
+    },
+    "instance_permission_cache": {
+      "fresh": [
+        "export",
+        "view"
+      ],
+      "held": [
+        "change",
+        "view"
+      ]
+    },
+    "roles": {
+      "000": {
+        "admin_entry": false,
+        "backend_may_authenticate": false,
+        "effective": [],
+        "malformed_permission": false,
+        "registered_grant": false,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "001": {
+        "admin_entry": false,
+        "backend_may_authenticate": false,
+        "effective": [],
+        "malformed_permission": false,
+        "registered_grant": false,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "010": {
+        "admin_entry": false,
+        "backend_may_authenticate": false,
+        "effective": [],
+        "malformed_permission": false,
+        "registered_grant": false,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "011": {
+        "admin_entry": false,
+        "backend_may_authenticate": false,
+        "effective": [],
+        "malformed_permission": false,
+        "registered_grant": false,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "100": {
+        "admin_entry": false,
+        "backend_may_authenticate": true,
+        "effective": [
+          "export",
+          "view"
+        ],
+        "malformed_permission": false,
+        "registered_grant": true,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "101": {
+        "admin_entry": false,
+        "backend_may_authenticate": true,
+        "effective": [
+          "change",
+          "export",
+          "view"
+        ],
+        "malformed_permission": true,
+        "registered_grant": true,
+        "ungranted_permission": true,
+        "unregistered_permission": true
+      },
+      "110": {
+        "admin_entry": true,
+        "backend_may_authenticate": true,
+        "effective": [
+          "export",
+          "view"
+        ],
+        "malformed_permission": false,
+        "registered_grant": true,
+        "ungranted_permission": false,
+        "unregistered_permission": false
+      },
+      "111": {
+        "admin_entry": true,
+        "backend_may_authenticate": true,
+        "effective": [
+          "change",
+          "export",
+          "view"
+        ],
+        "malformed_permission": true,
+        "registered_grant": true,
+        "ungranted_permission": true,
+        "unregistered_permission": true
+      }
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "admin_sites": "0d7204d4bc45fb6733fa1f24c386a3e80b192ee28a82ad767ca4c3815ab154ee",
+    "auth_models": "fb5cc235be494dcb49c52bbcb716e5d8e741729162ca54cdd31846d90f107fb9",
+    "backends": "dbe0f9db060459c7e016d41d16a2a327872d74931a876cb4e014424875bf5da1"
+  }
+}

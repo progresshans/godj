@@ -1,0 +1,561 @@
+package serializers
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+)
+
+const (
+	DefaultMaxDocumentBytes = 1 << 20
+	DefaultMaxDepth         = 16
+	DefaultMaxValues        = 4096
+	DefaultMaxObjectMembers = 1024
+	DefaultMaxArrayItems    = 1024
+	DefaultMaxStringBytes   = 64 << 10
+	DefaultMaxNumberBytes   = 1024
+
+	hardMaxDocumentBytes = 8 << 20
+	hardMaxDepth         = 64
+	hardMaxValues        = 1 << 16
+	hardMaxObjectMembers = 1 << 14
+	hardMaxArrayItems    = 1 << 14
+	hardMaxStringBytes   = 1 << 20
+	hardMaxNumberBytes   = 4096
+)
+
+// Limits bounds both decoding and deterministic encoding. Zero fields select
+// defaults; negative or over-hard-cap fields fail closed as invalid config.
+type Limits struct {
+	MaxDocumentBytes int
+	MaxDepth         int
+	MaxValues        int
+	MaxObjectMembers int
+	MaxArrayItems    int
+	MaxStringBytes   int
+	MaxNumberBytes   int
+}
+
+func DefaultLimits() Limits {
+	return Limits{
+		MaxDocumentBytes: DefaultMaxDocumentBytes,
+		MaxDepth:         DefaultMaxDepth,
+		MaxValues:        DefaultMaxValues,
+		MaxObjectMembers: DefaultMaxObjectMembers,
+		MaxArrayItems:    DefaultMaxArrayItems,
+		MaxStringBytes:   DefaultMaxStringBytes,
+		MaxNumberBytes:   DefaultMaxNumberBytes,
+	}
+}
+
+// DecodeObject decodes exactly one top-level JSON object. It rejects duplicate
+// members, trailing data, malformed numbers, raw invalid UTF-8, and resource
+// overflow. Numbers preserve exact tokens; fields own conversion and range.
+func DecodeObject(document []byte, limits Limits) (Object, error) {
+	return decodeDeclaredObject(document, limits, nil)
+}
+
+func decodeDeclaredObject(document []byte, limits Limits, jsonFields map[string]bool) (Object, error) {
+	value, err := decodeDocument(document, limits, jsonFields, false)
+	if err != nil {
+		return Object{}, err
+	}
+	object, ok := value.AsObject()
+	if !ok {
+		return Object{}, invalidDocument("document", "top-level JSON value must be an object", nil)
+	}
+	return object, nil
+}
+
+func decodeDocument(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool) (Value, error) {
+	resolved, err := resolveLimits(limits)
+	if err != nil {
+		return Value{}, err
+	}
+	if len(document) == 0 {
+		return Value{}, invalidDocument("document", "JSON document is empty", nil)
+	}
+	if len(document) > resolved.MaxDocumentBytes {
+		return Value{}, resourceLimit("document", "JSON document exceeds the configured byte limit")
+	}
+	if !utf8.Valid(document) {
+		return Value{}, invalidDocument("document", "JSON document is not valid UTF-8", nil)
+	}
+	if err := rejectUnpairedSurrogateEscapes(document); err != nil {
+		return Value{}, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.UseNumber()
+	budget := decodeBudget{limits: resolved, jsonFields: jsonFields}
+	value, err := decodeJSONValue(decoder, &budget, 1, arbitraryNames)
+	if err != nil {
+		return Value{}, err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return Value{}, invalidDocument("document", "JSON document contains trailing data", nil)
+		}
+		return Value{}, invalidDocument("document", "JSON document contains malformed trailing data", err)
+	}
+	return value, nil
+}
+
+func rejectUnpairedSurrogateEscapes(document []byte) error {
+	insideString := false
+	for index := 0; index < len(document); index++ {
+		switch document[index] {
+		case '"':
+			insideString = !insideString
+		case '\\':
+			if !insideString || index+1 >= len(document) {
+				continue
+			}
+			if document[index+1] != 'u' {
+				index++
+				continue
+			}
+			value, ok := decodeHexQuad(document[index+2:])
+			if !ok {
+				continue
+			}
+			index += 5
+			switch {
+			case value >= 0xd800 && value <= 0xdbff:
+				if index+6 >= len(document) || document[index+1] != '\\' || document[index+2] != 'u' {
+					return invalidDocument("document.string", "JSON string contains an unpaired UTF-16 surrogate", nil)
+				}
+				low, valid := decodeHexQuad(document[index+3:])
+				if !valid || low < 0xdc00 || low > 0xdfff {
+					return invalidDocument("document.string", "JSON string contains an unpaired UTF-16 surrogate", nil)
+				}
+				index += 6
+			case value >= 0xdc00 && value <= 0xdfff:
+				return invalidDocument("document.string", "JSON string contains an unpaired UTF-16 surrogate", nil)
+			}
+		}
+	}
+	return nil
+}
+
+func decodeHexQuad(value []byte) (uint16, bool) {
+	if len(value) < 4 {
+		return 0, false
+	}
+	var result uint16
+	for index := 0; index < 4; index++ {
+		digit, ok := jsonHexValue(value[index])
+		if !ok {
+			return 0, false
+		}
+		result = result<<4 | uint16(digit)
+	}
+	return result, true
+}
+
+func jsonHexValue(value byte) (byte, bool) {
+	switch {
+	case value >= '0' && value <= '9':
+		return value - '0', true
+	case value >= 'a' && value <= 'f':
+		return value - 'a' + 10, true
+	case value >= 'A' && value <= 'F':
+		return value - 'A' + 10, true
+	default:
+		return 0, false
+	}
+}
+
+type decodeBudget struct {
+	jsonFields map[string]bool
+	limits     Limits
+	values     int
+}
+
+func (b *decodeBudget) consumeValue(depth int) error {
+	if depth > b.limits.MaxDepth {
+		return resourceLimit("document.depth", "JSON nesting exceeds the configured depth limit")
+	}
+	b.values++
+	if b.values > b.limits.MaxValues {
+		return resourceLimit("document.values", "JSON value count exceeds the configured limit")
+	}
+	return nil
+}
+
+func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+	if err := budget.consumeValue(depth); err != nil {
+		return Value{}, err
+	}
+	token, err := decoder.Token()
+	if err != nil {
+		return Value{}, invalidDocument("document", "JSON value is malformed or incomplete", err)
+	}
+	switch typed := token.(type) {
+	case nil:
+		return Null(), nil
+	case string:
+		if err := validateJSONString(typed, budget.limits, "document.string"); err != nil {
+			return Value{}, err
+		}
+		return String(typed), nil
+	case bool:
+		return Boolean(typed), nil
+	case json.Number:
+		raw := typed.String()
+		if len(raw) > budget.limits.MaxNumberBytes {
+			return Value{}, resourceLimit("document.number", "JSON number exceeds the configured byte limit")
+		}
+		number, err := Number(raw)
+		if err != nil {
+			return Value{}, invalidDocument("document.number", "JSON number is malformed", err)
+		}
+		return number, nil
+	case json.Delim:
+		switch typed {
+		case '{':
+			return decodeJSONObject(decoder, budget, depth, arbitraryNames)
+		case '[':
+			return decodeJSONArray(decoder, budget, depth, arbitraryNames)
+		default:
+			return Value{}, invalidDocument("document", "JSON contains an unexpected closing delimiter", nil)
+		}
+	default:
+		return Value{}, invalidDocument("document", "JSON contains an unsupported value", nil)
+	}
+}
+
+func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+	members := make([]Member, 0)
+	byName := make(map[string]int)
+	for decoder.More() {
+		if len(members) >= budget.limits.MaxObjectMembers {
+			return Value{}, resourceLimit("document.object", "JSON object member count exceeds the configured limit")
+		}
+		token, err := decoder.Token()
+		if err != nil {
+			return Value{}, invalidDocument("document.object", "JSON object member name is malformed", err)
+		}
+		name, ok := token.(string)
+		if !ok {
+			return Value{}, invalidDocument("document.object", "JSON object member name must be a string", nil)
+		}
+		if err := validateJSONString(name, budget.limits, "document.object.name"); err != nil {
+			return Value{}, err
+		}
+		if _, duplicate := byName[name]; duplicate {
+			return Value{}, invalidDocument("document.object."+name, "JSON object member is duplicated", nil)
+		}
+		byName[name] = len(members)
+		jsonField := depth == 1 && budget.jsonFields[name]
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames || jsonField)
+		if err != nil {
+			return Value{}, err
+		}
+		if jsonField && !value.IsNull() {
+			value, err = jsonDocumentValue(value)
+			if err != nil {
+				return Value{}, invalidDocument("document.object."+name, "JSON field document is outside model limits", err)
+			}
+		}
+		members = append(members, MemberOf(name, value))
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return Value{}, invalidDocument("document.object", "JSON object is incomplete", err)
+	}
+	// Keep empty-name rejection after parsing the entire object, as in
+	// NewObject. Duplicate, malformed child and budget failures precede it.
+	if _, empty := byName[""]; empty && !arbitraryNames {
+		return Value{}, invalidDocument("document.object", "JSON object contains an invalid member",
+			invalidValue("object.name", "object member name is empty or invalid UTF-8 text"))
+	}
+	// The decoder validated every name and child while building these private
+	// containers. Publish them directly, with no caller-owned slice to snapshot.
+	return (Object{members: members, index: byName, valid: true}).Value(), nil
+}
+
+func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+	values := make([]Value, 0)
+	for decoder.More() {
+		if len(values) >= budget.limits.MaxArrayItems {
+			return Value{}, resourceLimit("document.array", "JSON array item count exceeds the configured limit")
+		}
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames)
+		if err != nil {
+			return Value{}, err
+		}
+		values = append(values, value)
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim(']') {
+		return Value{}, invalidDocument("document.array", "JSON array is incomplete", err)
+	}
+	return Value{kind: ValueList, list: values, valid: true}, nil
+}
+
+func validateJSONString(value string, limits Limits, field string) error {
+	if !utf8.ValidString(value) {
+		return invalidDocument(field, "JSON string is not valid UTF-8", nil)
+	}
+	if strings.IndexByte(value, 0) >= 0 {
+		return invalidDocument(field, "JSON string contains NUL", nil)
+	}
+	if len(value) > limits.MaxStringBytes {
+		return resourceLimit(field, "JSON string exceeds the configured byte limit")
+	}
+	return nil
+}
+
+// Encode renders one immutable Value without insignificant whitespace while
+// preserving object declaration order.
+func Encode(value Value, limits Limits) ([]byte, error) {
+	resolved, err := resolveLimits(limits)
+	if err != nil {
+		return nil, err
+	}
+	if !value.validValue() {
+		return nil, invalidValue("value", "value is zero or invalid")
+	}
+	state := encodeState{limits: resolved}
+	if err := state.appendValue(value, 1); err != nil {
+		return nil, err
+	}
+	return state.document, nil
+}
+
+// EncodeObject renders one ordered Object.
+func EncodeObject(object Object, limits Limits) ([]byte, error) {
+	return Encode(object.Value(), limits)
+}
+
+type encodeState struct {
+	limits   Limits
+	values   int
+	document []byte
+}
+
+func (s *encodeState) appendValue(value Value, depth int) error {
+	if depth > s.limits.MaxDepth {
+		return resourceLimit("value.depth", "JSON nesting exceeds the configured depth limit")
+	}
+	s.values++
+	if s.values > s.limits.MaxValues {
+		return resourceLimit("value.values", "JSON value count exceeds the configured limit")
+	}
+	switch value.kind {
+	case ValueNull:
+		return s.appendBytes([]byte("null"))
+	case ValueBoolean:
+		if value.boolean {
+			return s.appendBytes([]byte("true"))
+		}
+		return s.appendBytes([]byte("false"))
+	case ValueFloat:
+		number, ok := value.AsFloat()
+		text, err := floatvalue.JSON(number)
+		if !ok || err != nil {
+			return invalidValue("value.float", "float output must be finite")
+		}
+		if len(text) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
+		return s.appendBytes([]byte(text))
+	case ValueJSON:
+		node, err := decodeDocument([]byte(value.string), s.limits, nil, true)
+		if err != nil {
+			return err
+		}
+		// The opaque JSON value and its decoded root occupy the same value slot.
+		s.values--
+		return s.appendValue(node, depth)
+	case ValueUUID:
+		return s.appendString(value.string, "value.uuid")
+	case ValueDecimal:
+		return s.appendString(value.string, "value.decimal")
+	case ValueDuration:
+		return s.appendString(value.string, "value.duration")
+	case ValueTime:
+		return s.appendString(value.string, "value.time")
+	case ValueDate:
+		return s.appendString(value.string, "value.date")
+	case ValueDateTime:
+		instant, _ := value.AsDateTime()
+		return s.appendString(temporal.Format(instant), "value.datetime")
+	case ValueNumber:
+		if len(value.string) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
+		return s.appendBytes([]byte(value.string))
+	case ValueInteger:
+		if len(strconv.FormatInt(value.integer, 10)) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
+		var digits [20]byte
+		return s.appendBytes(strconv.AppendInt(digits[:0], value.integer, 10))
+	case ValueString:
+		return s.appendString(value.string, "value.string")
+	case ValueList:
+		if len(value.list) > s.limits.MaxArrayItems {
+			return resourceLimit("value.array", "JSON array item count exceeds the configured limit")
+		}
+		if err := s.appendBytes([]byte{'['}); err != nil {
+			return err
+		}
+		for index := range value.list {
+			if index > 0 {
+				if err := s.appendBytes([]byte{','}); err != nil {
+					return err
+				}
+			}
+			if err := s.appendValue(value.list[index], depth+1); err != nil {
+				return err
+			}
+		}
+		return s.appendBytes([]byte{']'})
+	case ValueObject:
+		if len(value.object.members) > s.limits.MaxObjectMembers {
+			return resourceLimit("value.object", "JSON object member count exceeds the configured limit")
+		}
+		if err := s.appendBytes([]byte{'{'}); err != nil {
+			return err
+		}
+		for index := range value.object.members {
+			if index > 0 {
+				if err := s.appendBytes([]byte{','}); err != nil {
+					return err
+				}
+			}
+			member := value.object.members[index]
+			if err := s.appendString(member.name, "value.object.name"); err != nil {
+				return err
+			}
+			if err := s.appendBytes([]byte{':'}); err != nil {
+				return err
+			}
+			if err := s.appendValue(member.value, depth+1); err != nil {
+				return err
+			}
+		}
+		return s.appendBytes([]byte{'}'})
+	default:
+		return invalidValue("value", "value kind is unsupported")
+	}
+}
+
+func (s *encodeState) appendBytes(value []byte) error {
+	if len(value) > s.limits.MaxDocumentBytes-len(s.document) {
+		return resourceLimit("value.document", "encoded JSON exceeds the configured byte limit")
+	}
+	s.document = append(s.document, value...)
+	return nil
+}
+
+// appendString writes validated UTF-8 directly into the bounded document. Its
+// escaping matches encoding/json with SetEscapeHTML(false): controls, quotes,
+// backslashes and U+2028/U+2029 are escaped, and other UTF-8 bytes are retained.
+func (s *encodeState) appendString(value, field string) error {
+	if err := validateJSONString(value, s.limits, field); err != nil {
+		return err
+	}
+	if len(value)+2 > s.limits.MaxDocumentBytes-len(s.document) {
+		return resourceLimit("value.document", "encoded JSON exceeds the configured byte limit")
+	}
+	if err := s.appendBytes([]byte{'"'}); err != nil {
+		return err
+	}
+	start := 0
+	escaped := [6]byte{'\\'}
+	for index := 0; index < len(value); index++ {
+		length, width := 2, 1
+		switch value[index] {
+		case '"', '\\':
+			escaped[1] = value[index]
+		case '\b':
+			escaped[1] = 'b'
+		case '\f':
+			escaped[1] = 'f'
+		case '\n':
+			escaped[1] = 'n'
+		case '\r':
+			escaped[1] = 'r'
+		case '\t':
+			escaped[1] = 't'
+		default:
+			if value[index] < 0x20 {
+				copy(escaped[1:4], "u00")
+				escaped[4] = "0123456789abcdef"[value[index]>>4]
+				escaped[5] = "0123456789abcdef"[value[index]&0xf]
+				length = 6
+			} else if value[index] == 0xe2 && index+2 < len(value) && value[index+1] == 0x80 && (value[index+2] == 0xa8 || value[index+2] == 0xa9) {
+				copy(escaped[1:5], "u202")
+				escaped[5] = '8' + value[index+2] - 0xa8
+				length, width = 6, 3
+			} else {
+				continue
+			}
+		}
+		if err := s.appendBytes([]byte(value[start:index])); err != nil {
+			return err
+		}
+		if err := s.appendBytes(escaped[:length]); err != nil {
+			return err
+		}
+		index += width - 1
+		start = index + 1
+	}
+	if err := s.appendBytes([]byte(value[start:])); err != nil {
+		return err
+	}
+	return s.appendBytes([]byte{'"'})
+}
+
+func resolveLimits(limits Limits) (Limits, error) {
+	defaults := DefaultLimits()
+	resolved := limits
+	if resolved.MaxDocumentBytes == 0 {
+		resolved.MaxDocumentBytes = defaults.MaxDocumentBytes
+	}
+	if resolved.MaxDepth == 0 {
+		resolved.MaxDepth = defaults.MaxDepth
+	}
+	if resolved.MaxValues == 0 {
+		resolved.MaxValues = defaults.MaxValues
+	}
+	if resolved.MaxObjectMembers == 0 {
+		resolved.MaxObjectMembers = defaults.MaxObjectMembers
+	}
+	if resolved.MaxArrayItems == 0 {
+		resolved.MaxArrayItems = defaults.MaxArrayItems
+	}
+	if resolved.MaxStringBytes == 0 {
+		resolved.MaxStringBytes = defaults.MaxStringBytes
+	}
+	if resolved.MaxNumberBytes == 0 {
+		resolved.MaxNumberBytes = defaults.MaxNumberBytes
+	}
+	if resolved.MaxDocumentBytes < 1 || resolved.MaxDocumentBytes > hardMaxDocumentBytes ||
+		resolved.MaxDepth < 1 || resolved.MaxDepth > hardMaxDepth ||
+		resolved.MaxValues < 1 || resolved.MaxValues > hardMaxValues ||
+		resolved.MaxObjectMembers < 1 || resolved.MaxObjectMembers > hardMaxObjectMembers ||
+		resolved.MaxArrayItems < 1 || resolved.MaxArrayItems > hardMaxArrayItems ||
+		resolved.MaxStringBytes < 1 || resolved.MaxStringBytes > hardMaxStringBytes ||
+		resolved.MaxNumberBytes < 1 || resolved.MaxNumberBytes > hardMaxNumberBytes {
+		return Limits{}, &Error{Code: CodeInvalidConfig, Field: "limits", Detail: "JSON limits are outside the supported range"}
+	}
+	return resolved, nil
+}
+
+func invalidDocument(field, detail string, cause error) error {
+	return &Error{Code: CodeInvalidDocument, Field: field, Detail: detail, Cause: cause}
+}
+
+func resourceLimit(field, detail string) error {
+	return &Error{Code: CodeResourceLimit, Field: field, Detail: detail}
+}

@@ -1,0 +1,152 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-075",
+      "title": "Current migration definition, Schema IR, digest, and state publish one deterministic ABI",
+      "scenario": "godj.migration.relation.current_abi",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-076",
+      "title": "Current definition format accepts one exact version and rejects malformed or retired compatibility envelopes before database I/O",
+      "scenario": "godj.migration.relation.current_format_validation",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-077",
+      "title": "Scalar and relation definitions share one deterministic current digest domain without per-document profiles",
+      "scenario": "godj.migration.relation.current_digest",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-078",
+      "title": "Scalar and relation historical states share one alias-free current format without format transitions",
+      "scenario": "godj.migration.relation.current_state",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-079",
+      "title": "Current relation preflight exposes distinct static, history, and physical no-mutation lanes",
+      "scenario": "godj.migration.relation.structural_preflight",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-080",
+      "title": "Relation-bearing CreateModel applies, unapplies, and reapplies on SQLite",
+      "scenario": "django.migration.relation.create_lifecycle",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/operations/models.py::CreateModel", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-081",
+      "title": "A nullable ForeignKey is added to populated rows while required no-default policy stays separate",
+      "scenario": "django.migration.relation.add_nullable_populated",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/operations/fields.py::AddField", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor.add_field", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-082",
+      "title": "ForeignKey removal preserves ordered rows and the SQLite autoincrement sequence",
+      "scenario": "django.migration.relation.remove_remake",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor._remake_table", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor.remove_field", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-083",
+      "title": "Django physical ForeignKeys use NO ACTION while GoDj pinned-session policy remains explicit",
+      "scenario": "django.migration.relation.physical_fk_policy",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor.__enter__", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor.sql_create_inline_fk", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-084",
+      "title": "A fresh file-backed connection reconstructs applied relation state after restart",
+      "scenario": "django.migration.relation.file_restart",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0035", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/recorder.py::MigrationRecorder.applied_migrations", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-085",
+      "title": "Django DDL and recorder fault boundaries stay distinct from GoDj atomic revision policy",
+      "scenario": "django.migration.relation.precommit_faults",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.apply_migration", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/recorder.py::MigrationRecorder.record_applied", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-086",
+      "title": "Commit outcomes remain success, definite failure, or unknown without automatic retry",
+      "scenario": "godj.migration.relation.commit_outcomes",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0017", "derived": false},
+        {"kind": "decision", "reference": "ADR-0035", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    }
+  ]
+}

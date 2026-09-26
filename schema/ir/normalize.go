@@ -5,12 +5,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"unicode"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/uuid"
 	"unicode/utf8"
-)
 
-var databaseIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	"github.com/progresshans/godj/internal/identifiers"
+)
 
 type ValidationError struct {
 	Path string
@@ -27,13 +33,14 @@ func (e *ValidationError) Error() string {
 
 func Normalize(input Schema) (Schema, error) {
 	schema := input.Clone()
-	if schema.FormatVersion == 0 {
-		schema.FormatVersion = FormatVersion
+	if schema.FormatVersion != CurrentFormatVersion {
+		return Schema{}, validation(
+			"format_version",
+			"unsupported_version",
+			fmt.Sprintf("got %d, want %d", schema.FormatVersion, CurrentFormatVersion),
+		)
 	}
-	if schema.FormatVersion != FormatVersion {
-		return Schema{}, validation("format_version", "unsupported_version", fmt.Sprintf("got %d, want %d", schema.FormatVersion, FormatVersion))
-	}
-	if !databaseIdentifier.MatchString(schema.AppLabel) {
+	if !identifiers.SQL(schema.AppLabel) {
 		return Schema{}, validation("app_label", "invalid_identifier", schema.AppLabel)
 	}
 	if len(schema.Models) == 0 {
@@ -46,16 +53,16 @@ func Normalize(input Schema) (Schema, error) {
 	for index := range schema.Models {
 		modelPath := fmt.Sprintf("models[%d]", index)
 		model := &schema.Models[index]
-		if !databaseIdentifier.MatchString(model.Name) {
+		if !identifiers.SQL(model.Name) {
 			return Schema{}, validation(modelPath+".name", "invalid_identifier", model.Name)
 		}
-		if !exportedIdentifier(model.GoName) {
+		if !identifiers.ExportedGo(model.GoName) {
 			return Schema{}, validation(modelPath+".go_name", "invalid_go_identifier", model.GoName)
 		}
 		if model.DBTable == "" {
 			model.DBTable = schema.AppLabel + "_" + model.Name
 		}
-		if !databaseIdentifier.MatchString(model.DBTable) {
+		if !identifiers.SQL(model.DBTable) {
 			return Schema{}, validation(modelPath+".db_table", "invalid_identifier", model.DBTable)
 		}
 		if duplicate(modelNames, model.Name) {
@@ -68,6 +75,9 @@ func Normalize(input Schema) (Schema, error) {
 			return Schema{}, validation(modelPath+".db_table", "duplicate", model.DBTable)
 		}
 		if err := normalizeModel(model, modelPath); err != nil {
+			return Schema{}, err
+		}
+		if err := normalizeManyToMany(schema.AppLabel, model, modelPath); err != nil {
 			return Schema{}, err
 		}
 	}
@@ -102,16 +112,28 @@ func normalizeModel(model *Model, path string) error {
 	for index := range model.Fields {
 		fieldPath := fmt.Sprintf("%s.fields[%d]", path, index)
 		field := &model.Fields[index]
-		if field.Column == "" {
-			field.Column = field.Name
+		if field.Kind == FieldForeignKey && field.Relation != nil && field.Relation.Cardinality == RelationOneToOne {
+			// A one-to-one edge owns column uniqueness regardless of whether
+			// the declaration redundantly specified the Unique option.
+			field.Unique = true
+			if field.Relation.Reverse == (ReverseRelation{}) {
+				field.Relation.Reverse.Name = model.Name
+			}
 		}
-		if !databaseIdentifier.MatchString(field.Name) {
+		if field.Column == "" {
+			if field.Kind == FieldForeignKey {
+				field.Column = field.Name + "_id"
+			} else {
+				field.Column = field.Name
+			}
+		}
+		if !identifiers.SQL(field.Name) {
 			return validation(fieldPath+".name", "invalid_identifier", field.Name)
 		}
-		if !exportedIdentifier(field.GoName) {
+		if !identifiers.ExportedGo(field.GoName) {
 			return validation(fieldPath+".go_name", "invalid_go_identifier", field.GoName)
 		}
-		if !databaseIdentifier.MatchString(field.Column) {
+		if !identifiers.SQL(field.Column) {
 			return validation(fieldPath+".column", "invalid_identifier", field.Column)
 		}
 		if duplicate(names, field.Name) {
@@ -125,6 +147,9 @@ func normalizeModel(model *Model, path string) error {
 		}
 		if field.PrimaryKey {
 			primaryKeys++
+			// The primary key already owns its uniqueness. Canonical metadata
+			// must not request a duplicate independent unique constraint.
+			field.Unique = false
 		}
 		if err := validateField(*field, fieldPath); err != nil {
 			return err
@@ -133,12 +158,18 @@ func normalizeModel(model *Model, path string) error {
 	if primaryKeys != 1 {
 		return validation(path+".fields", "primary_key_count", fmt.Sprintf("got %d, want 1", primaryKeys))
 	}
-	return nil
+	return normalizeUniqueConstraints(model, path)
 }
 
 func validateField(field Field, path string) error {
+	if field.Kind != FieldDecimal && field.Decimal != nil {
+		return validation(path+".decimal", "unsupported", "decimal arm requires DecimalField kind")
+	}
+	if field.Kind != FieldForeignKey && field.Relation != nil {
+		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
+	}
 	if field.Default != nil {
-		if err := validateScalarDefault(*field.Default, path+".default"); err != nil {
+		if err := validateScalar(*field.Default, path+".default"); err != nil {
 			return err
 		}
 	}
@@ -156,18 +187,96 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
-	case FieldChar:
+	case FieldJSON:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "JSONField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarJSON {
+			return validation(path+".default", "type_mismatch", "JSONField default must be a jsonvalue.Value")
+		}
+	case FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "UUIDField cannot currently be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarUUID {
+			return validation(path+".default", "type_mismatch", "UUIDField default must be a uuid.UUID")
+		}
+	case FieldDecimal:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DecimalField cannot be a primary key or have a max length")
+		}
+		if field.Decimal == nil || !field.Decimal.Valid() {
+			return validation(path+".decimal", "invalid_precision", "DecimalField requires supported max_digits and decimal_places")
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ScalarDecimal {
+				return validation(path+".default", "type_mismatch", "DecimalField default must be a decimal.Decimal")
+			}
+			value, err := decimal.Parse(field.Default.Decimal)
+			if err != nil || !value.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
+				return validation(path+".default", "invalid_precision", "DecimalField default exceeds declared precision or scale")
+			}
+		}
+	case FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "FloatField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarFloat {
+			return validation(path+".default", "type_mismatch", "FloatField default must be a float64")
+		}
+	case FieldDuration:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DurationField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDuration {
+			return validation(path+".default", "type_mismatch", "DurationField default must be a duration.Duration")
+		}
+	case FieldTime:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "TimeField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarTime {
+			return validation(path+".default", "type_mismatch", "TimeField default must be a clock.Time")
+		}
+	case FieldDate:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DateField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDate {
+			return validation(path+".default", "type_mismatch", "DateField default must be a calendar.Date")
+		}
+	case FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DateTimeField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDateTime {
+			return validation(path+".default", "type_mismatch", "DateTimeField default must be a time.Time")
+		}
+	case FieldInteger:
+		if field.PrimaryKey {
+			return validation(path+".primary_key", "unsupported", "only AutoField may be the primary key")
+		}
+		if field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "IntegerField has no max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarInteger {
+			return validation(path+".default", "type_mismatch", "IntegerField default must be an int64")
+		}
+	case FieldChar, FieldText:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if field.MaxLength <= 0 {
+		if field.Kind == FieldChar && field.MaxLength <= 0 {
 			return validation(path+".max_length", "invalid", "CharField max length must be positive")
+		}
+		if field.Kind == FieldText && field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "TextField has no storage length constraint")
 		}
 		if field.Default != nil {
 			if field.Default.Kind != ScalarString {
-				return validation(path+".default", "type_mismatch", "CharField default must be a string")
+				return validation(path+".default", "type_mismatch", "string field default must be a string")
 			}
-			if utf8.RuneCountInString(field.Default.String) > field.MaxLength {
+			if field.MaxLength > 0 && utf8.RuneCountInString(field.Default.String) > field.MaxLength {
 				return validation(path+".default", "max_length", "CharField default exceeds max length")
 			}
 		}
@@ -175,37 +284,149 @@ func validateField(field Field, path string) error {
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if field.Nullable {
-			return validation(path+".nullable", "unsupported", "nullable BooleanField is outside M1")
-		}
 		if field.MaxLength != 0 {
 			return validation(path+".max_length", "unsupported", "BooleanField has no max length")
 		}
 		if field.Default != nil && field.Default.Kind != ScalarBoolean {
 			return validation(path+".default", "type_mismatch", "BooleanField default must be a boolean")
 		}
+	case FieldForeignKey:
+		if field.PrimaryKey {
+			return validation(path+".primary_key", "unsupported", "ForeignKey cannot be the primary key")
+		}
+		if field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "ForeignKey has no max length")
+		}
+		if field.Default != nil {
+			return validation(path+".default", "unsupported", "ForeignKey defaults are not supported")
+		}
+		if field.Relation == nil {
+			return validation(path+".relation", "required", "ForeignKey requires relation metadata")
+		}
+		if err := validateForeignKeyRelation(*field.Relation, field.Nullable, path+".relation"); err != nil {
+			return err
+		}
 	default:
 		return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
+	}
+	return validateChoices(field, path+".choices")
+}
+
+func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path string) error {
+	if !identifiers.SQL(relation.Target.AppLabel) {
+		return validation(path+".target.app_label", "invalid_identifier", relation.Target.AppLabel)
+	}
+	if !identifiers.SQL(relation.Target.ModelName) {
+		return validation(path+".target.model_name", "invalid_identifier", relation.Target.ModelName)
+	}
+	if !relation.Cardinality.SingleValued() {
+		return validation(path+".cardinality", "unsupported", string(relation.Cardinality))
+	}
+	if relation.Reverse.Disabled == (relation.Reverse.Name != "") {
+		return validation(path+".reverse", "invalid", "exactly one of name or disabled must be set")
+	}
+	if relation.Reverse.Name != "" && !identifiers.SQL(relation.Reverse.Name) {
+		return validation(path+".reverse.name", "invalid_identifier", relation.Reverse.Name)
+	}
+	switch relation.OnDelete {
+	case DeleteProtect, DeleteCascade:
+	case DeleteSetNull:
+		if !nullable {
+			return validation(path+".on_delete", "invalid_nullability", "set_null requires a nullable ForeignKey")
+		}
+	default:
+		return validation(path+".on_delete", "unsupported", string(relation.OnDelete))
 	}
 	return nil
 }
 
-func validateScalarDefault(value ScalarDefault, path string) error {
+func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarJSON && value.JSON != "" {
+		return validation(path, "invalid_scalar", "non-JSON scalar carries a JSON payload")
+	}
+	if value.Kind != ScalarUUID && value.UUID != "" {
+		return validation(path, "invalid_scalar", "non-UUID scalar carries a UUID payload")
+	}
+	if value.Kind != ScalarDecimal && value.Decimal != "" {
+		return validation(path, "invalid_scalar", "non-decimal scalar carries a decimal payload")
+	}
+	if value.Kind != ScalarFloat && value.FloatBits != "" {
+		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
+	}
 	switch value.Kind {
+	case ScalarJSON:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "JSON scalar carries another scalar payload")
+		}
+		parsed, err := jsonvalue.Parse([]byte(value.JSON))
+		if err != nil || parsed.Text != value.JSON {
+			return validation(path, "invalid_json", "JSON scalar must use a canonical bounded document")
+		}
+	case ScalarUUID:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "UUID scalar carries another scalar payload")
+		}
+		parsed, err := uuid.Parse(value.UUID)
+		if err != nil || parsed.String() != value.UUID {
+			return validation(path, "invalid_uuid", "UUID scalar must use canonical lowercase hyphenated text")
+		}
+	case ScalarDecimal:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "decimal scalar carries another scalar payload")
+		}
+		parsed, err := decimal.Parse(value.Decimal)
+		if err != nil || parsed.String() != value.Decimal {
+			return validation(path, "invalid_decimal", "decimal scalar must use canonical finite model text")
+		}
+	case ScalarFloat:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "float scalar carries another scalar payload")
+		}
+		if _, err := floatvalue.FromBits(value.FloatBits); err != nil {
+			return validation(path, "invalid_float", "float scalar must use canonical binary64 bits")
+		}
 	case ScalarString:
 		if !utf8.ValidString(value.String) {
-			return validation(path, "invalid_utf8", "string default must contain valid UTF-8")
+			return validation(path, "invalid_utf8", "string scalar must contain valid UTF-8")
 		}
-		if value.Boolean || value.Integer != 0 {
-			return validation(path, "invalid_scalar", "string default carries another scalar payload")
+		if value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "string scalar carries another scalar payload")
 		}
 	case ScalarBoolean:
-		if value.String != "" || value.Integer != 0 {
-			return validation(path, "invalid_scalar", "boolean default carries another scalar payload")
+		if value.String != "" || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "boolean scalar carries another scalar payload")
+		}
+	case ScalarDuration:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" {
+			return validation(path, "invalid_scalar", "duration scalar carries another scalar payload")
+		}
+		if _, err := duration.Parse(value.Duration); err != nil {
+			return validation(path, "invalid_duration", "duration scalar must be a canonical normalized duration")
+		}
+	case ScalarTime:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "time scalar carries another scalar payload")
+		}
+		if _, err := clock.Parse(value.Time); err != nil {
+			return validation(path, "invalid_time", "time scalar must be a canonical microsecond clock time")
+		}
+	case ScalarDate:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "date scalar carries another scalar payload")
+		}
+		if _, err := calendar.Parse(value.Date); err != nil {
+			return validation(path, "invalid_date", "date scalar must be a canonical Gregorian date")
+		}
+	case ScalarDateTime:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "datetime scalar carries another scalar payload")
+		}
+		if _, err := temporal.ParseCanonical(value.DateTime); err != nil {
+			return validation(path, "invalid_datetime", "datetime scalar must be canonical UTC microseconds")
 		}
 	case ScalarInteger:
-		if value.String != "" || value.Boolean {
-			return validation(path, "invalid_scalar", "integer default carries another scalar payload")
+		if value.String != "" || value.Boolean || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "integer scalar carries another scalar payload")
 		}
 	default:
 		return validation(path+".kind", "unsupported_scalar_kind", string(value.Kind))
@@ -218,6 +439,10 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return canonicalJSON(normalized)
+}
+
+func canonicalJSON(normalized Schema) ([]byte, error) {
 	data, err := json.Marshal(normalized)
 	if err != nil {
 		return nil, fmt.Errorf("marshal normalized schema: %w", err)
@@ -226,12 +451,25 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 }
 
 func Hash(input Schema) (string, error) {
-	canonical, err := CanonicalJSON(input)
+	_, hash, err := NormalizeAndHash(input)
+	return hash, err
+}
+
+// NormalizeAndHash returns a caller-owned normalized schema and the SHA-256 of
+// its canonical JSON, including the trailing newline. It normalizes only once
+// and returns zero values on failure. The hash describes the returned snapshot;
+// callers that modify that schema must compute a new hash.
+func NormalizeAndHash(input Schema) (Schema, string, error) {
+	normalized, err := Normalize(input)
 	if err != nil {
-		return "", err
+		return Schema{}, "", err
+	}
+	canonical, err := canonicalJSON(normalized)
+	if err != nil {
+		return Schema{}, "", err
 	}
 	sum := sha256.Sum256(canonical)
-	return hex.EncodeToString(sum[:]), nil
+	return normalized, hex.EncodeToString(sum[:]), nil
 }
 
 func validation(path, code, info string) error {
@@ -244,20 +482,4 @@ func duplicate(seen map[string]struct{}, value string) bool {
 	}
 	seen[value] = struct{}{}
 	return false
-}
-
-func exportedIdentifier(value string) bool {
-	if value == "" || !utf8.ValidString(value) {
-		return false
-	}
-	first, size := utf8.DecodeRuneInString(value)
-	if first == utf8.RuneError || !unicode.IsUpper(first) {
-		return false
-	}
-	for _, current := range value[size:] {
-		if current != '_' && !unicode.IsLetter(current) && !unicode.IsDigit(current) {
-			return false
-		}
-	}
-	return true
 }

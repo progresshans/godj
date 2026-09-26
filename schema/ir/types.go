@@ -4,7 +4,16 @@
 // other.
 package ir
 
-const FormatVersion = 2
+import (
+	"github.com/progresshans/godj/decimal"
+	"slices"
+)
+
+// CurrentFormatVersion is the only accepted format in current development.
+// Scalar and relation-bearing schemas use the same
+// normalized representation; relation presence is a field property, not a
+// format generation.
+const CurrentFormatVersion = 1
 
 type Schema struct {
 	FormatVersion int     `json:"format_version"`
@@ -13,47 +22,141 @@ type Schema struct {
 }
 
 type Model struct {
-	Name    string  `json:"name"`
-	GoName  string  `json:"go_name"`
-	DBTable string  `json:"db_table"`
-	Fields  []Field `json:"fields"`
+	Name              string             `json:"name"`
+	GoName            string             `json:"go_name"`
+	DBTable           string             `json:"db_table"`
+	Fields            []Field            `json:"fields"`
+	UniqueConstraints []UniqueConstraint `json:"unique_constraints,omitempty"`
+	ManyToMany        []ManyToManyField  `json:"many_to_many,omitempty"`
 }
 
 type FieldKind string
 
 const (
-	FieldAuto    FieldKind = "auto"
-	FieldChar    FieldKind = "char"
-	FieldBoolean FieldKind = "boolean"
+	FieldAuto       FieldKind = "auto"
+	FieldInteger    FieldKind = "integer"
+	FieldFloat      FieldKind = "float"
+	FieldDecimal    FieldKind = "decimal"
+	FieldUUID       FieldKind = "uuid"
+	FieldJSON       FieldKind = "json"
+	FieldChar       FieldKind = "char"
+	FieldText       FieldKind = "text"
+	FieldDuration   FieldKind = "duration"
+	FieldTime       FieldKind = "time"
+	FieldDate       FieldKind = "date"
+	FieldDateTime   FieldKind = "datetime"
+	FieldBoolean    FieldKind = "boolean"
+	FieldForeignKey FieldKind = "foreign_key"
 )
 
-// ScalarKind identifies the concrete GoDj scalar carried by a field default.
-// The enclosing *ScalarDefault pointer preserves whether a default exists;
-// the zero value of a scalar (notably false and "") remains an explicit value.
+type ModelIdentity struct {
+	AppLabel  string `json:"app_label"`
+	ModelName string `json:"model_name"`
+}
+
+type RelationCardinality string
+
+const (
+	RelationManyToOne RelationCardinality = "many_to_one"
+	RelationOneToMany RelationCardinality = "one_to_many"
+	RelationOneToOne  RelationCardinality = "one_to_one"
+)
+
+// SingleValued reports whether following an edge can return at most one row.
+// It does not imply that the related row exists or that the source is non-null.
+func (c RelationCardinality) SingleValued() bool {
+	return c == RelationManyToOne || c == RelationOneToOne
+}
+
+type DeletePolicy string
+
+const (
+	DeleteProtect DeletePolicy = "protect"
+	DeleteSetNull DeletePolicy = "set_null"
+	DeleteCascade DeletePolicy = "cascade"
+)
+
+// Valid reports whether the declaration names a recognized relation policy.
+func (p DeletePolicy) Valid() bool {
+	return p == DeleteProtect || p == DeleteSetNull || p == DeleteCascade
+}
+
+type ReverseRelation struct {
+	Name     string `json:"name,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
+}
+
+type ForeignKeyRelation struct {
+	Target      ModelIdentity       `json:"target"`
+	Cardinality RelationCardinality `json:"cardinality"`
+	Reverse     ReverseRelation     `json:"reverse"`
+	OnDelete    DeletePolicy        `json:"on_delete"`
+}
+
+// ScalarKind identifies a concrete value in defaults and choice metadata.
+// An enclosing pointer records default presence; false and "" are values.
 type ScalarKind string
 
 const (
-	ScalarString  ScalarKind = "string"
-	ScalarBoolean ScalarKind = "boolean"
-	ScalarInteger ScalarKind = "integer"
+	ScalarString   ScalarKind = "string"
+	ScalarBoolean  ScalarKind = "boolean"
+	ScalarInteger  ScalarKind = "integer"
+	ScalarFloat    ScalarKind = "float"
+	ScalarDecimal  ScalarKind = "decimal"
+	ScalarUUID     ScalarKind = "uuid"
+	ScalarJSON     ScalarKind = "json"
+	ScalarDuration ScalarKind = "duration"
+	ScalarTime     ScalarKind = "time"
+	ScalarDate     ScalarKind = "date"
+	ScalarDateTime ScalarKind = "datetime"
 )
 
-type ScalarDefault struct {
-	Kind    ScalarKind `json:"kind"`
-	String  string     `json:"string,omitempty"`
-	Boolean bool       `json:"boolean,omitempty"`
-	Integer int64      `json:"integer,omitempty"`
+type Scalar struct {
+	Kind      ScalarKind `json:"kind"`
+	String    string     `json:"string,omitempty"`
+	Date      string     `json:"date,omitempty"`
+	Time      string     `json:"time,omitempty"`
+	Duration  string     `json:"duration,omitempty"`
+	DateTime  string     `json:"datetime,omitempty"`
+	Boolean   bool       `json:"boolean,omitempty"`
+	Integer   int64      `json:"integer,omitempty"`
+	FloatBits string     `json:"float_bits,omitempty"`
+	Decimal   string     `json:"decimal,omitempty"`
+	UUID      string     `json:"uuid,omitempty"`
+	JSON      string     `json:"json,omitempty"`
+}
+
+// Choice pairs a stored scalar with its presentation label. Declaration order
+// is significant for form options and historical schema identity.
+type Choice struct {
+	Value Scalar `json:"value"`
+	Label string `json:"label"`
+}
+
+// DecimalSpec is the declared exact storage precision, independent of value
+// normalization and the transport's submitted coefficient/exponent.
+type DecimalSpec struct {
+	MaxDigits     int `json:"max_digits"`
+	DecimalPlaces int `json:"decimal_places"`
+}
+
+func (spec DecimalSpec) Valid() bool {
+	return spec.MaxDigits >= 1 && spec.MaxDigits <= decimal.MaxDigits && spec.DecimalPlaces >= 0 && spec.DecimalPlaces <= spec.MaxDigits
 }
 
 type Field struct {
-	Name       string         `json:"name"`
-	GoName     string         `json:"go_name"`
-	Column     string         `json:"column"`
-	Kind       FieldKind      `json:"kind"`
-	PrimaryKey bool           `json:"primary_key"`
-	Nullable   bool           `json:"nullable"`
-	MaxLength  int            `json:"max_length,omitempty"`
-	Default    *ScalarDefault `json:"default,omitempty"`
+	Name       string              `json:"name"`
+	GoName     string              `json:"go_name"`
+	Column     string              `json:"column"`
+	Kind       FieldKind           `json:"kind"`
+	PrimaryKey bool                `json:"primary_key"`
+	Nullable   bool                `json:"nullable"`
+	Unique     bool                `json:"unique,omitempty"`
+	MaxLength  int                 `json:"max_length,omitempty"`
+	Decimal    *DecimalSpec        `json:"decimal,omitempty"`
+	Default    *Scalar             `json:"default,omitempty"`
+	Choices    []Choice            `json:"choices,omitempty"`
+	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
 func (s Schema) Clone() Schema {
@@ -67,12 +170,60 @@ func (s Schema) Clone() Schema {
 
 func (m Model) Clone() Model {
 	clone := m
-	clone.Fields = append([]Field(nil), m.Fields...)
-	for index := range clone.Fields {
-		if m.Fields[index].Default != nil {
-			value := *m.Fields[index].Default
-			clone.Fields[index].Default = &value
-		}
+	clone.Fields = slices.Clone(m.Fields)
+	for index := range m.Fields {
+		clone.Fields[index] = m.Fields[index].Clone()
+	}
+	clone.UniqueConstraints = slices.Clone(m.UniqueConstraints)
+	for index := range m.UniqueConstraints {
+		clone.UniqueConstraints[index] = m.UniqueConstraints[index].Clone()
+	}
+	clone.ManyToMany = slices.Clone(m.ManyToMany)
+	for index := range m.ManyToMany {
+		clone.ManyToMany[index] = m.ManyToMany[index].Clone()
 	}
 	return clone
+}
+
+// Equal compares canonical model metadata, including every constraint member.
+// Normalize establishes constraint-name order before a model enters history.
+func (m Model) Equal(other Model) bool {
+	return m.Name == other.Name && m.GoName == other.GoName && m.DBTable == other.DBTable &&
+		slices.EqualFunc(m.Fields, other.Fields, Field.Equal) &&
+		slices.EqualFunc(m.UniqueConstraints, other.UniqueConstraints, UniqueConstraint.Equal) &&
+		slices.EqualFunc(m.ManyToMany, other.ManyToMany, ManyToManyField.Equal)
+}
+
+func (f Field) Clone() Field {
+	clone := f
+	if f.Decimal != nil {
+		value := *f.Decimal
+		clone.Decimal = &value
+	}
+	if f.Choices != nil {
+		clone.Choices = make([]Choice, len(f.Choices))
+		copy(clone.Choices, f.Choices)
+	}
+	if f.Default != nil {
+		value := *f.Default
+		clone.Default = &value
+	}
+	if f.Relation != nil {
+		value := *f.Relation
+		clone.Relation = &value
+	}
+	return clone
+}
+
+// Equal compares metadata values, including the ordered choices, rather than
+// treating independently owned default/relation pointers as different fields.
+func (f Field) Equal(other Field) bool {
+	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
+		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Unique == other.Unique && f.MaxLength == other.MaxLength &&
+		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
+		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
+}
+
+func equalOptional[T comparable](left, right *T) bool {
+	return left == right || left != nil && right != nil && *left == *right
 }

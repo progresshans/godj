@@ -283,6 +283,41 @@ func TestManifestValidation(t *testing.T) {
 	if err := manifest.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	queryExpression := manifestWithExactExtendedQueryExpressionRegistry(manifest)
+	if err := queryExpression.Validate(); err != nil {
+		t.Fatalf("exact 20-contract query-expression registry does not validate: %v", err)
+	}
+	systemState := manifestWithExactExtendedSystemStateRegistry(manifest)
+	if err := systemState.Validate(); err != nil {
+		t.Fatalf("exact 30-contract system-state registry does not validate: %v", err)
+	}
+	otherFamily := manifestWithContractCount(manifest, "django.query.breadth.", 13)
+	if err := otherFamily.Validate(); err == nil || !strings.Contains(err.Error(), "8 to 12") {
+		t.Fatalf("13-contract non-query-expression family error = %v, want 8-to-12 rejection", err)
+	}
+	prefixOnly := manifestWithContractCount(manifest, queryExpressionScenarioPrefix, 13)
+	if err := prefixOnly.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+		t.Fatalf("13-contract query-expression prefix error = %v, want exact-registry rejection", err)
+	}
+	samePrefixNearMiss := manifestWithExactExtendedQueryExpressionRegistry(manifest)
+	samePrefixNearMiss.Contracts[len(samePrefixNearMiss.Contracts)-1].Scenario = queryExpressionScenarioPrefix + "field_reference_count_max_near_miss"
+	if err := samePrefixNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+		t.Fatalf("same-prefix query-expression near-miss error = %v, want exact-registry rejection", err)
+	}
+	idNearMiss := manifestWithExactExtendedQueryExpressionRegistry(manifest)
+	idNearMiss.Contracts[len(idNearMiss.Contracts)-1].ID = "QRY-054"
+	if err := idNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+		t.Fatalf("query-expression ID near-miss error = %v, want exact-registry rejection", err)
+	}
+	oversizedQueryExpression := manifestWithContractCount(manifest, queryExpressionScenarioPrefix, 21)
+	if err := oversizedQueryExpression.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+		t.Fatalf("21-contract query-expression prefix error = %v, want exact-registry rejection", err)
+	}
+	systemStateNearMiss := manifestWithExactExtendedSystemStateRegistry(manifest)
+	systemStateNearMiss.Contracts[len(systemStateNearMiss.Contracts)-1].Scenario += "_near_miss"
+	if err := systemStateNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 30-entry") {
+		t.Fatalf("system-state near-miss error = %v, want exact-registry rejection", err)
+	}
 
 	tests := map[string]func(*Manifest){
 		"format version":    func(value *Manifest) { value.FormatVersion = 1 },
@@ -320,6 +355,44 @@ func TestManifestValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func manifestWithContractCount(base Manifest, scenarioPrefix string, count int) Manifest {
+	contracts := make([]Contract, count)
+	for index := range contracts {
+		contract := base.Contracts[index%len(base.Contracts)]
+		contract.ID = fmt.Sprintf("QRY-%03d", index+1)
+		contract.Scenario = fmt.Sprintf("%scontract_%03d", scenarioPrefix, index+1)
+		contracts[index] = contract
+	}
+	base.Contracts = contracts
+	return base
+}
+
+func manifestWithExactExtendedQueryExpressionRegistry(base Manifest) Manifest {
+	scenarios := extendedQueryExpressionScenarioRegistry()
+	contracts := make([]Contract, len(scenarios))
+	for index, scenario := range scenarios {
+		contract := base.Contracts[index%len(base.Contracts)]
+		contract.ID = fmt.Sprintf("QRY-%03d", index+34)
+		contract.Scenario = scenario
+		contracts[index] = contract
+	}
+	base.Contracts = contracts
+	return base
+}
+
+func manifestWithExactExtendedSystemStateRegistry(base Manifest) Manifest {
+	scenarios := extendedSystemStateScenarioRegistry()
+	contracts := make([]Contract, len(scenarios))
+	for index, scenario := range scenarios {
+		contract := base.Contracts[index%len(base.Contracts)]
+		contract.ID = fmt.Sprintf("SYS-%03d", index+1)
+		contract.Scenario = scenario
+		contracts[index] = contract
+	}
+	base.Contracts = contracts
+	return base
 }
 
 func TestObservedErrorRequiresComparisonFields(t *testing.T) {

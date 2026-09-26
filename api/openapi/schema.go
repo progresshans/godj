@@ -1,0 +1,447 @@
+// Package openapi describes the supported HTTP API surface using immutable
+// OpenAPI schemas. Application and parser policies remain runtime boundaries.
+package openapi
+
+import (
+	"fmt"
+	"math"
+	"time"
+
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/serializers"
+)
+
+// Schema is an immutable JSON Schema value. Its zero value is invalid.
+// Construction uses the supported schema vocabulary rather than arbitrary maps.
+// Ref constructs a local component reference; document construction checks its
+// target and rejects recursive schema graphs rather than expanding references.
+type Schema struct {
+	value serializers.Value
+}
+
+// Value returns the immutable JSON representation of the schema.
+func (s Schema) Value() serializers.Value { return s.value }
+
+// String describes a JSON string without application-specific normalization.
+func String() Schema { return schemaPrimitive("string") }
+
+// Boolean describes a JSON boolean.
+func Boolean() Schema { return schemaPrimitive("boolean") }
+
+// Integer describes the signed 64-bit integer range used by serializers.Value.
+// JSON Schema cannot restrict the lexical spelling of an integer in JSON text.
+func Integer() Schema {
+	schema, _ := IntegerRange(math.MinInt64, math.MaxInt64)
+	return schema
+}
+
+// IntegerRange describes an inclusive application range within signed int64.
+// Request parsing still owns lexical rules such as rejecting duplicate values.
+func IntegerRange(minimum, maximum int64) (Schema, error) {
+	if minimum > maximum {
+		return Schema{}, schemaConfigError("integer", "minimum exceeds maximum")
+	}
+	// All names and values in this primitive are statically valid.
+	object, _ := serializers.NewObject(
+		serializers.MemberOf("type", serializers.String("integer")),
+		serializers.MemberOf("format", serializers.String("int64")),
+		serializers.MemberOf("minimum", serializers.Integer(minimum)),
+		serializers.MemberOf("maximum", serializers.Integer(maximum)),
+	)
+	return Schema{value: object.Value()}, nil
+}
+
+// Float describes finite IEEE 754 binary64 numbers, including subnormal values.
+func Float() Schema {
+	object, _ := serializers.NewObject(
+		serializers.MemberOf("type", serializers.String("number")),
+		serializers.MemberOf("format", serializers.String("double")),
+		serializers.MemberOf("minimum", serializers.Float(-math.MaxFloat64)),
+		serializers.MemberOf("maximum", serializers.Float(math.MaxFloat64)),
+	)
+	return Schema{value: object.Value()}
+}
+
+func schemaPrimitive(kind string) Schema {
+	// This helper is called only with the fixed JSON type names above and below.
+	object, _ := serializers.NewObject(serializers.MemberOf("type", serializers.String(kind)))
+	return Schema{value: object.Value()}
+}
+
+// Nullable accepts either the original schema or null. A separate branch keeps
+// enum and other constraints from accidentally continuing to reject null.
+func Nullable(schema Schema) (Schema, error) {
+	if !schemaValid(schema) {
+		return Schema{}, schemaConfigError("nullable", "schema is zero or invalid")
+	}
+	choices, err := serializers.NewList(schema.value, schemaPrimitive("null").value)
+	if err != nil {
+		return Schema{}, schemaConfigError("nullable", "nullable alternatives are invalid")
+	}
+	return schemaObject(serializers.MemberOf("anyOf", choices))
+}
+
+// Property declares one named member of a closed JSON object. Required controls
+// presence independently of whether the member's schema accepts null.
+type Property struct {
+	Name     string
+	Schema   Schema
+	Required bool
+}
+
+// Object describes exactly the declared properties, preserving their order.
+// Names must be unique, nonempty valid JSON object member names.
+func Object(properties ...Property) (Schema, error) {
+	members := make([]serializers.Member, 0, len(properties))
+	required := make([]serializers.Value, 0, len(properties))
+	names := make(map[string]struct{}, len(properties))
+	for index, property := range properties {
+		field := fmt.Sprintf("properties[%d]", index)
+		if !schemaValid(property.Schema) {
+			return Schema{}, schemaConfigError(field, "property schema is zero or invalid")
+		}
+		if _, exists := names[property.Name]; exists {
+			return Schema{}, schemaConfigError(field, "property name is duplicated")
+		}
+		names[property.Name] = struct{}{}
+		members = append(members, serializers.MemberOf(property.Name, property.Schema.value))
+		if property.Required {
+			required = append(required, serializers.String(property.Name))
+		}
+	}
+	propertyObject, err := serializers.NewObject(members...)
+	if err != nil {
+		return Schema{}, schemaConfigError("properties", "property names must be nonempty valid JSON member names")
+	}
+	result := []serializers.Member{
+		serializers.MemberOf("type", serializers.String("object")),
+		serializers.MemberOf("properties", propertyObject.Value()),
+		serializers.MemberOf("additionalProperties", serializers.Boolean(false)),
+	}
+	if len(required) != 0 {
+		values, err := serializers.NewList(required...)
+		if err != nil {
+			return Schema{}, schemaConfigError("required", "required property names are invalid")
+		}
+		result = append(result, serializers.MemberOf("required", values))
+	}
+	return schemaObject(result...)
+}
+
+// Array describes a JSON array whose elements use one schema.
+func Array(items Schema) (Schema, error) {
+	if !schemaValid(items) {
+		return Schema{}, schemaConfigError("items", "item schema is zero or invalid")
+	}
+	return schemaObject(
+		serializers.MemberOf("type", serializers.String("array")),
+		serializers.MemberOf("items", items.value),
+	)
+}
+
+// EnumStrings describes a nonempty set of distinct JSON strings.
+func EnumStrings(values ...string) (Schema, error) {
+	if len(values) == 0 {
+		return Schema{}, schemaConfigError("enum", "enum must contain at least one string")
+	}
+	seen := make(map[string]struct{}, len(values))
+	choices := make([]serializers.Value, len(values))
+	for index, value := range values {
+		if _, exists := seen[value]; exists {
+			return Schema{}, schemaConfigError(fmt.Sprintf("enum[%d]", index), "enum string is duplicated")
+		}
+		seen[value] = struct{}{}
+		choices[index] = serializers.String(value)
+	}
+	list, err := serializers.NewList(choices...)
+	if err != nil {
+		return Schema{}, schemaConfigError("enum", "enum contains an invalid JSON string")
+	}
+	return schemaObject(
+		serializers.MemberOf("type", serializers.String("string")),
+		serializers.MemberOf("enum", list),
+	)
+}
+
+// RequestSchema projects the writable fields and absence semantics used by
+// Spec.Bind. Read-only fields are excluded and additional properties are denied.
+// Full mode documents defaults; partial mode neither requires nor defaults any
+// omitted field. Parser limits and application validation are separate policies.
+//
+// Strings cleaned before validation carry x-godj-normalization metadata. Its
+// allowEmptyAfterTrim and maxLengthAfterTrim describe checks after Go TrimSpace;
+// they are not standard JSON Schema assertions on the unnormalized input.
+func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error) {
+	fields := spec.Fields()
+	if len(fields) == 0 {
+		return Schema{}, schemaConfigError("spec", "serializer spec is zero or invalid")
+	}
+	if mode != serializers.ModeFull && mode != serializers.ModePartial {
+		return Schema{}, schemaConfigError("mode", "serializer mode is unsupported")
+	}
+	properties := make([]Property, 0, len(fields))
+	for _, field := range fields {
+		if field.ReadOnly() {
+			continue
+		}
+		projected, err := choiceInputSchema(field)
+		if err != nil {
+			return Schema{}, err
+		}
+		annotations, err := choiceAnnotations(field)
+		if err != nil {
+			return Schema{}, err
+		}
+		if field.Kind() == serializers.FieldString {
+			if field.TrimWhitespace() {
+				normalization := []serializers.Member{
+					serializers.MemberOf("trimWhitespace", serializers.Boolean(true)),
+					serializers.MemberOf("allowEmptyAfterTrim", serializers.Boolean(field.AllowEmpty())),
+				}
+				if field.MaxLength() > 0 {
+					normalization = append(normalization, serializers.MemberOf("maxLengthAfterTrim", serializers.Integer(int64(field.MaxLength()))))
+				}
+				policy, err := serializers.NewObject(normalization...)
+				if err != nil {
+					return Schema{}, schemaConfigError("normalization", "string normalization metadata is invalid")
+				}
+				annotations = append(annotations, serializers.MemberOf("x-godj-normalization", policy.Value()))
+			} else {
+				if !field.AllowEmpty() {
+					annotations = append(annotations, serializers.MemberOf("minLength", serializers.Integer(1)))
+				}
+				if field.MaxLength() > 0 {
+					annotations = append(annotations, serializers.MemberOf("maxLength", serializers.Integer(int64(field.MaxLength()))))
+				}
+			}
+		}
+		defaultValue, hasDefault := field.Default()
+		if identifier, ok := defaultValue.AsUUID(); ok {
+			defaultValue = serializers.String(identifier.String())
+		}
+		if number, ok := defaultValue.AsDecimal(); ok {
+			_, places, configured := field.DecimalPrecision()
+			text, err := number.Fixed(places)
+			if !configured || err != nil {
+				return Schema{}, schemaConfigError("field.default", "invalid decimal default scale")
+			}
+			defaultValue = serializers.String(text)
+		}
+		if time, ok := defaultValue.AsTime(); ok {
+			defaultValue = serializers.String(time.String())
+		}
+		if date, ok := defaultValue.AsDate(); ok {
+			defaultValue = serializers.String(date.String())
+		}
+		if instant, ok := defaultValue.AsDateTime(); ok {
+			defaultValue = serializers.String(temporal.Format(instant))
+		}
+		if mode == serializers.ModeFull && hasDefault {
+			annotations = append(annotations, serializers.MemberOf(choiceDefaultName(field, defaultValue), defaultValue))
+		}
+		projected, err = schemaAnnotate(projected, annotations...)
+		if err != nil {
+			return Schema{}, err
+		}
+		properties = append(properties, Property{
+			Name:     field.Name(),
+			Schema:   projected,
+			Required: mode == serializers.ModeFull && field.Required() && !hasDefault,
+		})
+	}
+	return Object(properties...)
+}
+
+// ModelResponseSchema describes the complete allowlist emitted by ModelEncoder.
+// Every selected field is present, including read-only and nullable fields.
+// String length bounds describe the encoder's untrimmed Unicode character
+// count. Input defaults, trimming and blank policy are not projected. Arbitrary
+// application JSON is not validated merely by attaching this schema.
+func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
+	fields := spec.Fields()
+	if len(fields) == 0 {
+		return Schema{}, schemaConfigError("spec", "serializer spec is zero or invalid")
+	}
+	properties := make([]Property, 0, len(fields))
+	for _, field := range fields {
+		projected, err := schemaFieldType(field)
+		if err != nil {
+			return Schema{}, err
+		}
+		annotations, err := choiceAnnotations(field)
+		if err != nil {
+			return Schema{}, err
+		}
+		if field.ReadOnly() {
+			annotations = append(annotations, serializers.MemberOf("readOnly", serializers.Boolean(true)))
+		}
+		if field.Kind() == serializers.FieldString && field.MaxLength() > 0 {
+			annotations = append(annotations, serializers.MemberOf("maxLength", serializers.Integer(int64(field.MaxLength()))))
+		}
+		if len(annotations) != 0 {
+			projected, err = schemaAnnotate(projected, annotations...)
+			if err != nil {
+				return Schema{}, err
+			}
+		}
+		properties = append(properties, Property{Name: field.Name(), Schema: projected, Required: true})
+	}
+	return Object(properties...)
+}
+
+func schemaFieldType(field serializers.Field) (Schema, error) {
+	var schema Schema
+	switch field.Kind() {
+	case serializers.FieldString:
+		schema = String()
+	case serializers.FieldJSON:
+		return jsonFieldSchema(field, false)
+	case serializers.FieldUUID:
+		policy, err := serializers.NewObject(
+			serializers.MemberOf("bits", serializers.Integer(128)),
+			serializers.MemberOf("representation", serializers.String("lowercase-hyphenated")),
+			serializers.MemberOf("input", serializers.String("uuid-alias-or-exact-unsigned-integer")),
+			serializers.MemberOf("integerMaximum", serializers.String("340282366920938463463374607431768211455")),
+			serializers.MemberOf("booleanInput", serializers.String("zero-or-one")),
+			serializers.MemberOf("floatingToken", serializers.String("reject")),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
+		schema, err = schemaAnnotate(String(),
+			serializers.MemberOf("format", serializers.String("uuid")),
+			serializers.MemberOf("pattern", serializers.String(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)),
+			serializers.MemberOf("minLength", serializers.Integer(36)),
+			serializers.MemberOf("maxLength", serializers.Integer(36)),
+			serializers.MemberOf("x-godj-uuid", policy.Value()),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldDecimal:
+		digits, places, ok := field.DecimalPrecision()
+		if !ok {
+			return Schema{}, schemaConfigError("field", "decimal precision missing")
+		}
+		whole := digits - places
+		pattern := `^-?0`
+		if whole > 0 {
+			pattern = fmt.Sprintf(`^-?(0|[1-9][0-9]{0,%d})`, whole-1)
+		}
+		minimum, maximum := 1, 1+max(1, whole)
+		if places > 0 {
+			pattern += fmt.Sprintf(`\.[0-9]{%d}`, places)
+			minimum += places + 1
+			maximum += places + 1
+		}
+		pattern += `$`
+		policy, err := serializers.NewObject(serializers.MemberOf("maxDigits", serializers.Integer(int64(digits))), serializers.MemberOf("decimalPlaces", serializers.Integer(int64(places))), serializers.MemberOf("input", serializers.String("exact-decimal-token-or-string")), serializers.MemberOf("rounding", serializers.String("reject-excess-scale")))
+		if err != nil {
+			return Schema{}, err
+		}
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("pattern", serializers.String(pattern)), serializers.MemberOf("minLength", serializers.Integer(int64(minimum))), serializers.MemberOf("maxLength", serializers.Integer(int64(maximum))), serializers.MemberOf("x-godj-decimal", policy.Value()))
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldFloat:
+		schema = Float()
+	case serializers.FieldDuration:
+		var err error
+		schema, err = schemaAnnotate(String(),
+			serializers.MemberOf("pattern", serializers.String(`^(-?[1-9][0-9]{0,8} )?([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{6})?$`)),
+			serializers.MemberOf("minLength", serializers.Integer(8)),
+			serializers.MemberOf("maxLength", serializers.Integer(26)),
+			serializers.MemberOf("x-godj-duration", serializers.String("normalized-days-and-microseconds")),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldTime:
+		var err error
+		policy, policyErr := serializers.NewObject(
+			serializers.MemberOf("timezone", serializers.String("none")),
+			serializers.MemberOf("precision", serializers.String("microsecond")),
+			serializers.MemberOf("inputOffset", serializers.String("discard-preserving-clock")),
+			serializers.MemberOf("subMicrosecond", serializers.String("truncate")),
+		)
+		if policyErr != nil {
+			return Schema{}, policyErr
+		}
+		schema, err = schemaAnnotate(String(),
+			serializers.MemberOf("pattern", serializers.String(`^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{6})?$`)),
+			serializers.MemberOf("minLength", serializers.Integer(8)),
+			serializers.MemberOf("maxLength", serializers.Integer(15)),
+			serializers.MemberOf("x-godj-time", policy.Value()),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldDate:
+		var err error
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date")))
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldDateTime:
+		var err error
+		policy, policyErr := serializers.NewObject(
+			serializers.MemberOf("timezone", serializers.String("UTC")),
+			serializers.MemberOf("precision", serializers.String("microsecond")),
+			serializers.MemberOf("subMicrosecond", serializers.String("truncate")),
+			serializers.MemberOf("minimum", serializers.String("0001-01-01T00:00:00.000000Z")),
+			serializers.MemberOf("maximum", serializers.String("9999-12-31T23:59:59.999999Z")),
+		)
+		if policyErr != nil {
+			return Schema{}, policyErr
+		}
+		// The locked ogen runtime's default date-time encoder drops fractions.
+		// Its supported extension preserves input precision until the server
+		// applies the documented microsecond policy; other clients use format.
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date-time")), serializers.MemberOf("x-godj-datetime", policy.Value()), serializers.MemberOf("x-ogen-time-format", serializers.String(time.RFC3339Nano)))
+		if err != nil {
+			return Schema{}, err
+		}
+	case serializers.FieldBoolean:
+		schema = Boolean()
+	case serializers.FieldInteger:
+		schema = Integer()
+	case serializers.FieldIntegerList:
+		var err error
+		schema, err = Array(Integer())
+		if err != nil {
+			return Schema{}, err
+		}
+	default:
+		return Schema{}, schemaConfigError("field", "serializer field kind is unsupported")
+	}
+	if field.Nullable() {
+		return Nullable(schema)
+	}
+	return schema, nil
+}
+
+func schemaAnnotate(schema Schema, annotations ...serializers.Member) (Schema, error) {
+	object, ok := schema.value.AsObject()
+	if !ok {
+		return Schema{}, schemaConfigError("annotation", "schema is zero or invalid")
+	}
+	return schemaObject(append(object.Members(), annotations...)...)
+}
+
+func schemaObject(members ...serializers.Member) (Schema, error) {
+	object, err := serializers.NewObject(members...)
+	if err != nil {
+		return Schema{}, schemaConfigError("value", "schema JSON is invalid")
+	}
+	return Schema{value: object.Value()}, nil
+}
+
+func schemaValid(schema Schema) bool {
+	object, ok := schema.value.AsObject()
+	return ok && object.Valid()
+}
+
+func schemaConfigError(field, detail string) error {
+	return &api.Error{Code: api.FailureInvalidConfig, Field: "schema." + field, Detail: detail}
+}

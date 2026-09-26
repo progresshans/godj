@@ -1,0 +1,73 @@
+{
+  "format_version": 2,
+  "profile_id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0006",
+  "contracts": [
+    {
+      "id": "WEB-028",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "parameter.pk_type",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "int"},
+          "product": {"type": "string", "value": "int64"}
+        }
+      ]
+    },
+    {
+      "id": "WEB-029",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "invalid[0].matched",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "result",
+          "path": "invalid[1].matched",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "result",
+          "path": "invalid[2].matched",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "result",
+          "path": "invalid[3].matched",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "result",
+          "path": "valid[0].type",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "int"},
+          "product": {"type": "string", "value": "int64"}
+        },
+        {
+          "dimension": "result",
+          "path": "valid[1].type",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "int"},
+          "product": {"type": "string", "value": "int64"}
+        },
+        {
+          "dimension": "result",
+          "path": "valid[2].type",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "int"},
+          "product": {"type": "string", "value": "int64"}
+        }
+      ]
+    }
+  ]
+}

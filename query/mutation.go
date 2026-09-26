@@ -22,20 +22,38 @@ func (a Assignment) Equal(other Assignment) bool {
 
 // InsertPlan is an immutable, database-independent one-row insert plan.
 type InsertPlan struct {
-	table       string
-	assignments []Assignment
+	table           string
+	assignments     []Assignment
+	returningKey    FieldRef
+	hasReturningKey bool
 }
 
 func NewInsertPlan(table string, assignments []Assignment) InsertPlan {
 	return InsertPlan{table: table, assignments: append([]Assignment(nil), assignments...)}
 }
 
+func NewInsertPlanReturningKey(table string, assignments []Assignment, key FieldRef) InsertPlan {
+	return InsertPlan{
+		table:           table,
+		assignments:     append([]Assignment(nil), assignments...),
+		returningKey:    key,
+		hasReturningKey: true,
+	}
+}
+
 func (p InsertPlan) Table() string { return p.table }
 func (p InsertPlan) Assignments() []Assignment {
 	return append([]Assignment(nil), p.assignments...)
 }
+func (p InsertPlan) ReturningKey() (FieldRef, bool) {
+	return p.returningKey, p.hasReturningKey
+}
 func (p InsertPlan) Equal(other InsertPlan) bool {
-	return p.table == other.table && slices.EqualFunc(p.assignments, other.assignments, func(left, right Assignment) bool {
+	if p.table != other.table || p.hasReturningKey != other.hasReturningKey ||
+		(p.hasReturningKey && !p.returningKey.Equal(other.returningKey)) {
+		return false
+	}
+	return slices.EqualFunc(p.assignments, other.assignments, func(left, right Assignment) bool {
 		return left.Equal(right)
 	})
 }

@@ -1,13 +1,31 @@
 package sqlite
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/progresshans/godj/schema/ir"
 )
 
+// migrationSQLExecutor is the common statement boundary shared by direct
+// database/sql transactions and the loaded revision-fenced lifecycle. Keeping
+// this private prevents the manual BEGIN IMMEDIATE implementation from leaking
+// database/sql details into the backend-neutral migration ports.
+type migrationSQLExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+var _ migrationSQLExecutor = (*sql.Tx)(nil)
+var _ migrationSQLExecutor = (*sql.Conn)(nil)
+
 func compileMigrationCreateModel(model ir.Model) (string, error) {
+	if len(model.ManyToMany) != 0 {
+		return "", relationIntentUnsupported("ManyToMany storage migration is not implemented")
+	}
 	if model.DBTable == "" {
 		return "", fmt.Errorf("compile SQLite CreateModel: table is empty")
 	}
@@ -61,6 +79,8 @@ func compileMigrationRemoveField(model ir.Model, field ir.Field) (string, error)
 }
 
 func compileMigrationColumn(field ir.Field) (string, error) {
+	// This is the column body only. The fenced statement compiler emits each
+	// declared unique index separately, after CREATE TABLE or ADD COLUMN.
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
 		return "", fmt.Errorf("column identifier: %w", err)
@@ -74,6 +94,17 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 		// Django's SQLite AutoField uses AUTOINCREMENT so deleting the current
 		// maximum key cannot make a later insert reuse that identifier.
 		declaration = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+	case ir.FieldInteger:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil ||
+			field.Default != nil && field.Default.Kind != ir.ScalarInteger {
+			return "", fmt.Errorf("IntegerField has an invalid SQLite migration shape")
+		}
+		declaration = "BIGINT"
+		if field.Nullable {
+			declaration += " NULL"
+		} else {
+			declaration += " NOT NULL"
+		}
 	case ir.FieldChar:
 		if field.MaxLength <= 0 {
 			return "", fmt.Errorf("CharField max length must be positive")
@@ -85,10 +116,88 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 			declaration += " NOT NULL"
 		}
 	case ir.FieldBoolean:
-		if field.Nullable {
-			return "", fmt.Errorf("nullable BooleanField is unsupported")
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarBoolean {
+			return "", fmt.Errorf("BooleanField has an invalid SQLite migration shape")
 		}
 		declaration = "BOOLEAN NOT NULL"
+		if field.Nullable {
+			declaration = "BOOLEAN NULL"
+		}
+	case ir.FieldJSON:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarJSON {
+			return "", fmt.Errorf("JSONField has an invalid migration shape")
+		}
+		declaration = "TEXT NOT NULL"
+		if field.Nullable {
+			declaration = "TEXT NULL"
+		}
+		declaration += " CHECK(JSON_VALID(" + column + ") OR " + column + " IS NULL)"
+	case ir.FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarUUID {
+			return "", fmt.Errorf("UUIDField has an invalid migration shape")
+		}
+		declaration = "CHAR(32) NOT NULL"
+		if field.Nullable {
+			declaration = "CHAR(32) NULL"
+		}
+	case ir.FieldDecimal:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() || field.Default != nil && field.Default.Kind != ir.ScalarDecimal {
+			return "", fmt.Errorf("DecimalField has an invalid migration shape")
+		}
+		declaration = "BLOB"
+		if field.Nullable {
+			declaration += " NULL"
+		} else {
+			declaration += " NOT NULL"
+		}
+	case ir.FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarFloat {
+			return "", fmt.Errorf("FloatField has an invalid migration shape")
+		}
+		declaration = "REAL NOT NULL"
+		if field.Nullable {
+			declaration = "REAL NULL"
+		}
+	case ir.FieldDuration:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDuration {
+			return "", fmt.Errorf("DurationField has an invalid migration shape")
+		}
+		declaration = "BIGINT NOT NULL"
+		if field.Nullable {
+			declaration = "BIGINT NULL"
+		}
+	case ir.FieldTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarTime {
+			return "", fmt.Errorf("TimeField has an invalid migration shape")
+		}
+		declaration = "TIME NOT NULL"
+		if field.Nullable {
+			declaration = "TIME NULL"
+		}
+	case ir.FieldDate:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDate {
+			return "", fmt.Errorf("DateField has an invalid migration shape")
+		}
+		declaration = "DATE NOT NULL"
+		if field.Nullable {
+			declaration = "DATE NULL"
+		}
+	case ir.FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDateTime {
+			return "", fmt.Errorf("DateTimeField has an invalid migration shape")
+		}
+		declaration = "DATETIME NOT NULL"
+		if field.Nullable {
+			declaration = "DATETIME NULL"
+		}
+	case ir.FieldText:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarString {
+			return "", fmt.Errorf("TextField has an invalid SQLite migration shape")
+		}
+		declaration = "TEXT NOT NULL"
+		if field.Nullable {
+			declaration = "TEXT NULL"
+		}
 	default:
 		return "", fmt.Errorf("unsupported field kind %q", field.Kind)
 	}

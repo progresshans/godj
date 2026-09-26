@@ -1,0 +1,41 @@
+package relationdeleteconsumer
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/sqlite"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/query"
+)
+
+var (
+	_ db.Queryer                              = (*sqlite.Backend)(nil)
+	_ db.Mutator                              = (*sqlite.Backend)(nil)
+	_ db.Session                              = (*sqlite.Backend)(nil)
+	_ db.Atomic                               = (*sqlite.Backend)(nil)
+	_ db.RelationAtomic                       = (*sqlite.Backend)(nil)
+	_ migrationbackend.AtomicBackend          = (*sqlite.Backend)(nil)
+	_ migrationbackend.AppliedMigrationReader = (*sqlite.Backend)(nil)
+	_ migrationbackend.RevisionFencedBackend  = (*sqlite.Backend)(nil)
+)
+
+var (
+	_ func(*sqlite.Backend, context.Context, func(db.Session) error) error                   = (*sqlite.Backend).Atomic
+	_ func(*sqlite.Backend, context.Context, func(db.RelationSession) error) error           = (*sqlite.Backend).AtomicRelation
+	_ func(*sqlite.Backend, context.Context) (migrationbackend.Transaction, error)           = (*sqlite.Backend).BeginMigration
+	_ func(*sqlite.Backend) error                                                            = (*sqlite.Backend).Close
+	_ func(*sqlite.Backend, context.Context, query.DeletePlan) (int64, error)                = (*sqlite.Backend).Delete
+	_ func(*sqlite.Backend, context.Context, string, ...any) (sql.Result, error)             = (*sqlite.Backend).ExecContext
+	_ func(*sqlite.Backend, context.Context, query.InsertPlan) (int64, error)                = (*sqlite.Backend).Insert
+	_ func(*sqlite.Backend, context.Context) (migrationbackend.RevisionFencedSession, error) = (*sqlite.Backend).OpenRevisionFencedSession
+	_ func(*sqlite.Backend, context.Context, query.Plan) (db.Rows, error)                    = (*sqlite.Backend).Query
+	_ func(*sqlite.Backend) uint64                                                           = (*sqlite.Backend).QueryCount
+	_ func(*sqlite.Backend, context.Context) ([]migrationbackend.AppliedMigration, error)    = (*sqlite.Backend).ReadAppliedMigrations
+	_ func(*sqlite.Backend, context.Context) (string, error)                                 = (*sqlite.Backend).SQLiteVersion
+	_ func(*sqlite.Backend, context.Context, query.UpdatePlan) (int64, error)                = (*sqlite.Backend).Update
+)
+
+// A map key declaration checks comparability without inspecting representation.
+var _ map[sqlite.Backend]struct{}
