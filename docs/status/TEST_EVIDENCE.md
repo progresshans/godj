@@ -10,6 +10,10 @@
 `godj_identity.0002_permission_revision`이 기존 Permission에 revision 1을 채운다. Group/Permission 관리 service와
 전용 Form/Admin/API/client의 완료를 뜻하지 않는다. 전체 platform/cold-build/Hosted milestone은 관리 소비자 통합 뒤에 둔다.
 
+구현 commit `292745ea42b8df68c2b848ebef4cae418bceb432`를 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36279174264)는 이 commit의 실제 **Fast Go feedback**까지 성공했다.
+게시 source map과 검증한 제품 bytes의 연결은 아래에 명시한다. 이 결과는 Hosted 전체 검증을 대체하지 않는다.
+
 최종 Go checkpoint의 non-Markdown **2,303 파일** source map은
 `8de9e3c1d47f2ee4bd7ac22d7b96e963482305c45ce045d47fe0004ee04731f7`이다.
 Darwin arm64 / Go 1.26.5, SQLite·private PostgreSQL **17.10**, **13 packages / 985 required entries**

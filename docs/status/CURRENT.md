@@ -21,6 +21,7 @@ Group/Permission 관리에 필요한 Permission revision을 추가하면서, 기
 
 이 변경의 영향 normal/race/CGO=0·양 DB·migration process·독립 Django 비교와 변형 검사를 통과했다.
 기본값 보존·DB default 제거·실패 rollback·sequence 상한과 잘못된 Permission revision 거부를 확인했다.
+`292745ea`로 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36279174264)의 실제 Go 검사도 성공했다.
 [Remake와 backfill 결정](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md),
 [독립 관찰의 sequence 차이](../DEVIATIONS.md#dev-0013--sqlite-migration-remake에서-삭제된-id의-sequence-상한을-보존),
 현재 source·scope와 실행 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
