@@ -26,7 +26,7 @@ func TestGeneratedFilteredPrefetchComposition(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, "consumer/"+name, data)
 	}
-	required := []string{"TestFilteredPrefetchComposition/sqlite/single_child", "TestFilteredPrefetchComposition/sqlite", "TestFilteredPrefetchComposition/sqlite/eager_and_children", "TestFilteredPrefetchComposition/sqlite/failure_retry", "TestFilteredPrefetchComposition/sqlite/session"}
+	required := []string{"TestFilteredPrefetchComposition/sqlite/many_target_eager", "TestFilteredPrefetchComposition/sqlite/single_child", "TestFilteredPrefetchComposition/sqlite", "TestFilteredPrefetchComposition/sqlite/eager_and_children", "TestFilteredPrefetchComposition/sqlite/failure_retry", "TestFilteredPrefetchComposition/sqlite/session"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
 		for _, name := range append([]string(nil), required...) {
 			required = append(required, strings.Replace(name, "sqlite", "postgres", 1))

@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
-const GoDjProjectRelationFacadeInputSHA256 = "92415f4db7152ea4401dc66824be27656a297593b4fd184d2b9face4ce6b027e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
+const GoDjProjectRelationFacadeInputSHA256 = "7ab031b4203cdc4f8b170bcfd41b4d39adb7bcf06cd3d5b2152178598baeea7b"
 
 type Backend interface {
 	db.Queryer
@@ -23,11 +23,12 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend      Backend
-	objects      Objects
-	models       relationFacadeBindings
-	sessionScope db.SessionValidator
-	_self        *relationFacadeState
+	backend            Backend
+	objects            Objects
+	models             relationFacadeBindings
+	reverseCollections ReverseObjects
+	sessionScope       db.SessionValidator
+	_self              *relationFacadeState
 }
 
 func (_state *relationFacadeState) validate() error {
@@ -166,6 +167,46 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...r
 	return _selector
 }
 
+type relationFacadeReversePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ReverseCollectionPrefetch[S, T]
+}
+
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Distinct() relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
 type relationFacadeSinglePrefetch[S, T any] struct {
 	state     *relationFacadeState
 	selection orm.SinglePrefetch[S, T]
@@ -191,6 +232,38 @@ func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...re
 		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
 	}
 	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
 	return _selector
 }
 
@@ -5129,6 +5202,7 @@ func newTicketsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[tick
 		_result.Prefetch.OptionalReport = relationFacadeSinglePrefetch[tickets.Ticket, reports.OptionalReport]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.optionalReport)}
 		_result.Prefetch.Report = relationFacadeSinglePrefetch[tickets.Ticket, reports.Report]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.report)}
 		_result.Prefetch.Review = relationFacadeSinglePrefetch[tickets.Ticket, reports.Review]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.review)}
+		_result.Prefetch.Links = relationFacadeReversePrefetch[tickets.Ticket, reports.Link]{state: _state, selection: _state.reverseCollections.TicketsTicket.links.WithChildren()}
 	}
 	return _result
 }
@@ -5255,6 +5329,7 @@ type TicketsTicket struct {
 	optionalReportCache       *orm.RelationCache[ReportsOptionalReport]
 	reportCache               *orm.RelationCache[ReportsReport]
 	reviewCache               *orm.RelationCache[ReportsReview]
+	_reverseCollection0       *orm.RelatedSetCache[reports.Link]
 	_self                     *TicketsTicket
 }
 
@@ -5344,6 +5419,9 @@ func (_model *TicketsTicket) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[reports.Link]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	return nil
@@ -5410,6 +5488,7 @@ func (_model *TicketsTicket) relationFacadeDerived(_value tickets.Ticket) (*Tick
 	if _err != nil {
 		return nil, _err
 	}
+	_result._reverseCollection0 = &orm.RelatedSetCache[reports.Link]{}
 	_result._self = _result
 	return _result, nil
 }
@@ -5786,11 +5865,86 @@ func (_model *TicketsTicket) Review(_ctx context.Context) (*ReportsReview, bool,
 	return _wrapped, true, nil
 }
 
+type TicketsTicketLinksCollection struct {
+	owner    *TicketsTicket
+	relation *orm.RelatedSet[reports.Link]
+	_self    *TicketsTicketLinksCollection
+}
+
+func newTicketsTicketLinksCollection(_owner *TicketsTicket, _relation *orm.RelatedSet[reports.Link]) *TicketsTicketLinksCollection {
+	_view := &TicketsTicketLinksCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *TicketsTicketLinksCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (TicketsTicketLinksCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*TicketsTicketLinksCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *TicketsTicket) Links() (*TicketsTicketLinksCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[reports.Link], error) {
+		return _model.state.reverseCollections.TicketsTicket.links.From(_model.state.backend, _model.ticketsTicketModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newTicketsTicketLinksCollection(_model, _relation), nil
+}
+func (_view *TicketsTicketLinksCollection) Query() (ReportsLinkQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ReportsLinkQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ReportsLinkQuery{}, _err
+	}
+	return newReportsLinkQuery(_view.owner.state, _query), nil
+}
+func (_view *TicketsTicketLinksCollection) All(_ctx context.Context) ([]*ReportsLink, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *TicketsTicketLinksCollection) Fresh() (*TicketsTicketLinksCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newTicketsTicketLinksCollection(_view.owner, _related), nil
+}
+func (_view *TicketsTicketLinksCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type TicketsTicketPrefetchSelector = relationFacadePrefetchInput[tickets.Ticket]
 type TicketsTicketPrefetchSelectors struct {
 	OptionalReport relationFacadeSinglePrefetch[tickets.Ticket, reports.OptionalReport]
 	Report         relationFacadeSinglePrefetch[tickets.Ticket, reports.Report]
 	Review         relationFacadeSinglePrefetch[tickets.Ticket, reports.Review]
+	Links          relationFacadeReversePrefetch[tickets.Ticket, reports.Link]
 }
 type TicketsTicketPrefetchQuery struct {
 	state    *relationFacadeState
@@ -6174,6 +6328,14 @@ func (_state *relationFacadeState) wrapSelectedTicketsTicketObject(_ctx context.
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	if _collection, _present, _err := _state.reverseCollections.TicketsTicket.links.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[reports.Link], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("optional_report"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -6241,6 +6403,16 @@ func (_state *relationFacadeState) prefetchTicketsTicketPath(_path string, _dept
 		_selection := orm.PrefetchReverseOneToOne(_state.objects.TicketsTicket.review)
 		if _nested {
 			_child, _err := _state.prefetchReportsReviewPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "links":
+		_selection := _state.reverseCollections.TicketsTicket.links.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchReportsLinkPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -6340,6 +6512,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_state.models.ReportsReport = _model3
 	_state.models.ReportsReview = _model4
 	_state.models.TicketsTicket = _model5
+	_reverse, _err := BindReverseObjectsIn(_binding)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.reverseCollections = _reverse
 	_state._self = _state
 	return Models{
 		ReportsCertificate:    newReportsCertificateQuery(_state, reports.CertificateObjects.Using(_backend)),
@@ -6351,4 +6528,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_c4053daf3b32b7683ffe64a048541703a6e4b59464bb9977e086899f8f0d13f0
+var _ goDjProjectSnapshot_7192c264af1e187492014a0f7bba33667f9df90dceafc1025b635b1e9472d3b8

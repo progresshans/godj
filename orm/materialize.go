@@ -20,14 +20,55 @@ type materializedRows[M any] struct {
 type queryMaterialization[M any] struct {
 	binding    BoundModel[M]
 	selections []preparedPrefetch[M]
+	targets    []preparedRelatedSelection[M]
+	eagerNodes int
 }
 
 func (m *queryMaterialization[M]) nodeBudget() int {
-	nodes := 0
+	nodes := m.eagerNodes
 	for _, selection := range m.selections {
 		nodes += selection.nodeBudget()
 	}
 	return nodes
+}
+
+// relatedQuery rebinds immutable target configuration to this evaluation's
+// backend and refined source plan. Child batches run after its rowset closes.
+func (m *queryMaterialization[M]) relatedQuery(source QuerySet[M]) (RelatedSelectQuery[M], error) {
+	descriptor, err := projectionDescriptorFor(m.binding)
+	if err != nil {
+		return RelatedSelectQuery[M]{}, err
+	}
+	var projections []query.RelationProjection
+	for _, target := range m.targets {
+		items, err := target.projections(nil)
+		if err != nil {
+			return RelatedSelectQuery[M]{}, err
+		}
+		projections = append(projections, items...)
+	}
+	plan := source.plan
+	if len(projections) > 0 {
+		plan, err = plan.WithRelationProjections(projections...)
+		if err != nil {
+			return RelatedSelectQuery[M]{}, err
+		}
+	}
+	children := &queryMaterialization[M]{binding: m.binding, selections: m.selections}
+	return RelatedSelectQuery[M]{backend: source.backend, plan: plan, binding: m.binding, sourceDescriptor: descriptor, targets: m.targets, nodes: m.eagerNodes, materialization: children, evaluation: newEvaluationState[relatedSelectedValue[M]]()}, nil
+}
+
+func (source QuerySet[M]) eagerMaterializedAt(ctx context.Context, index int) ([]relatedSelectedValue[M], error) {
+	plan, skip := planForIndex(source.plan, index)
+	source.plan = plan
+	related, err := source.materialization.relatedQuery(source)
+	if err != nil {
+		return nil, err
+	}
+	if err := related.validateTerminal(ctx); err != nil {
+		return nil, err
+	}
+	return related.scanWindow(ctx, related.plan, skip, 1)
 }
 
 func (m *queryMaterialization[M]) prepare(ctx context.Context, backend db.Queryer, raw []M) ([]relatedSelectedValue[M], error) {
@@ -43,6 +84,24 @@ func (m *queryMaterialization[M]) prepare(ctx context.Context, backend db.Querye
 
 func (source QuerySet[M]) evaluateModels(ctx context.Context) ([]M, any, error) {
 	return source.evaluation.evaluateAttached(ctx, func(ctx context.Context) ([]M, any, error) {
+		if source.materialization != nil && len(source.materialization.targets) > 0 {
+			related, err := source.materialization.relatedQuery(source)
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := related.validateTerminal(ctx); err != nil {
+				return nil, nil, err
+			}
+			values, err := related.scan(ctx, related.plan, 0)
+			if err != nil {
+				return nil, nil, err
+			}
+			raw := make([]M, len(values))
+			for i, value := range values {
+				raw[i] = value.source
+			}
+			return raw, &materializedRows[M]{binding: source.materialization.binding, values: values}, nil
+		}
 		raw, err := source.scanAll(ctx)
 		if err != nil || source.materialization == nil {
 			return raw, nil, err
@@ -122,10 +181,22 @@ func MaterializeFirst[M any](ctx context.Context, source QuerySet[M], binding Bo
 	if err := validateMaterializationSource(source, binding); err != nil {
 		return nil, false, err
 	}
+	if len(source.plan.Orderings()) == 0 {
+		return nil, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnorderedQuery, Detail: "First requires an explicit ordering"}
+	}
 	if _, _, ready := source.evaluation.cachedResult(); !ready {
 		// A concurrent full evaluation must not replace this cold First's
 		// source row with a graph read by another SQL statement.
 		source.evaluation = newEvaluationState[M]()
+		if source.materialization != nil && len(source.materialization.targets) > 0 {
+			values, err := source.eagerMaterializedAt(ctx, 0)
+			if err != nil || len(values) == 0 {
+				return nil, false, err
+			}
+			result, err := cloneRelatedSelection(source.backend, binding, source.descriptor, values[0])
+			result, err = sessionReadResult(ctx, source.backend, result, joinContextErr(err, ctx))
+			return result, err == nil, err
+		}
 	}
 	readSource := source
 	readSource.materialization = nil

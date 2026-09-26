@@ -2,9 +2,6 @@ package orm
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"slices"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -32,14 +29,20 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 	if err != nil {
 		return nil, err
 	}
-	groups := make(map[int64][]T, len(keys))
+	groups := make(map[int64][]relatedSelectedValue[T], len(keys))
+	configuration := &queryMaterialization[T]{binding: r.prefetchTarget, selections: p.queryChildren, targets: p.targets, eagerNodes: p.eagerNodes}
+	base := newQuerySet(backend, r.target, p.targetPlan)
+	related, err := configuration.relatedQuery(base)
+	if err != nil {
+		return nil, err
+	}
 	for start := 0; start < len(keys); start += manyPrefetchBatchSize {
 		batch := keys[start:min(start+manyPrefetchBatchSize, len(keys))]
-		plan, err := p.targetPlan.ForPrefetchOwners(path, batch)
+		plan, err := related.plan.ForPrefetchOwners(path, batch)
 		if err != nil {
 			return nil, err
 		}
-		if err := scanPrefetchTargets(ctx, backend, descriptor, r.target, plan, batch, r.state.source.Name, groups); err != nil {
+		if err := scanPrefetchTargets(ctx, backend, descriptor, r.target, plan, batch, r.state.source.Name, p.targets, groups); err != nil {
 			return nil, err
 		}
 	}
@@ -59,10 +62,15 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 			return nil, err
 		}
 		set := newQuerySet(backend, r.target, plan)
-		if len(p.queryChildren) > 0 {
-			set.materialization = &queryMaterialization[T]{binding: r.prefetchTarget, selections: p.queryChildren}
+		if len(p.queryChildren) > 0 || len(p.targets) > 0 {
+			set.materialization = configuration
 		}
-		set.evaluation.values = set.cloneModels(groups[collection.ownerKey])
+		graph := copyRelatedValues(groups[collection.ownerKey])
+		set.evaluation.values = make([]T, len(graph))
+		for i, value := range graph {
+			set.evaluation.values[i] = r.target.CloneModel(value.source)
+		}
+		set.evaluation.attachment = &materializedRows[T]{binding: r.prefetchTarget, values: graph}
 		set.evaluation.ready = true
 		collection.querySet = set
 	}
@@ -72,52 +80,18 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 	return sessionReadResult(ctx, backend, collections, nil)
 }
 
-func scanPrefetchTargets[T any](ctx context.Context, backend db.Queryer, descriptor ProjectionDescriptor[T], target PrimaryKeyObjectDescriptor[T], plan query.Plan, keys []int64, ownerField string, groups map[int64][]T) error {
-	rows, err := openQueryRows(ctx, backend, plan)
+func scanPrefetchTargets[T any](ctx context.Context, backend db.Queryer, descriptor ProjectionDescriptor[T], target PrimaryKeyObjectDescriptor[T], plan query.Plan, keys []int64, ownerField string, targets []preparedRelatedSelection[T], groups map[int64][]relatedSelectedValue[T]) error {
+	related := RelatedSelectQuery[T]{backend: backend, sourceDescriptor: descriptor, targets: targets}
+	values, owners, err := related.scanProjected(ctx, plan, 0, 0, keys, ownerField)
 	if err != nil {
 		return err
 	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	for rows.Next() {
-		if err = ctx.Err(); err != nil {
-			break
+	for i, value := range values {
+		if _, err := manyObjectKey(target, value.source); err != nil {
+			return err
 		}
-		scan := descriptor.NewProjectionScan()
-		if interfaceIsNil(scan) {
-			err = relationInvalidPlan("prefetch descriptor returned nil scan")
-			break
-		}
-		cells := scan.Destinations()
-		if !validProjectionDestinations(cells, len(plan.SourceFields())) {
-			err = relationInvalidPlan("prefetch target columns do not match model")
-			break
-		}
-		var owner sql.NullInt64
-		if err = rows.Scan(append(append([]any(nil), cells...), &owner)...); err != nil {
-			err = fmt.Errorf("scan prefetch target row: %w", err)
-			break
-		}
-		if _, present := slices.BinarySearch(keys, owner.Int64); !owner.Valid || !present {
-			err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Field: ownerField, Detail: "prefetch target row is outside its requested owner batch"}
-			break
-		}
-		value, key, presence := scan.Decode()
-		if _, integer := key.Integer(); presence != ProjectionPresent || key.IsNull() || !integer {
-			err = relationInvalidPlan("prefetch target did not decode a present model with an integer key")
-			break
-		}
-		integer, keyErr := manyObjectKey(target, value)
-		if keyErr != nil {
-			err = keyErr
-			break
-		}
-		if !key.Equal(query.Integer(integer)) {
-			err = relationInvalidPlan("prefetch decoded primary key does not match its model")
-			break
-		}
-		groups[owner.Int64] = append(groups[owner.Int64], descriptor.CloneModel(value))
+		groups[owners[i]] = append(groups[owners[i]], value)
 	}
-	_, err = sessionReadResult(ctx, backend, struct{}{}, lifecycle.finish(ctx, err))
+	_, err = sessionReadResult(ctx, backend, struct{}{}, ctx.Err())
 	return err
 }

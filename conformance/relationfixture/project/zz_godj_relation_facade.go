@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
-const GoDjProjectRelationFacadeInputSHA256 = "527e636dcfa6cec8b7a84618588d80b118301108aa66214c3edce9e0a91a656e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
+const GoDjProjectRelationFacadeInputSHA256 = "c2073ac7561aa60e321a4cf36f76678d2cf30534f986876f8b32c3016fa9c056"
 
 type Backend interface {
 	db.Queryer
@@ -23,11 +23,12 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend      Backend
-	objects      Objects
-	models       relationFacadeBindings
-	sessionScope db.SessionValidator
-	_self        *relationFacadeState
+	backend            Backend
+	objects            Objects
+	models             relationFacadeBindings
+	reverseCollections ReverseObjects
+	sessionScope       db.SessionValidator
+	_self              *relationFacadeState
 }
 
 func (_state *relationFacadeState) validate() error {
@@ -162,6 +163,46 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...r
 	return _selector
 }
 
+type relationFacadeReversePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ReverseCollectionPrefetch[S, T]
+}
+
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Distinct() relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
 type relationFacadeSinglePrefetch[S, T any] struct {
 	state     *relationFacadeState
 	selection orm.SinglePrefetch[S, T]
@@ -189,6 +230,38 @@ func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...re
 	_selector.selection = _selector.selection.WithChildren(_inputs...)
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
 
 type relationFacadePrefetchPath[S any] struct {
 	state     *relationFacadeState
@@ -203,12 +276,17 @@ func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue() orm
 }
 
 type AuthorsAuthorQuery struct {
-	state *relationFacadeState
-	query orm.QuerySet[authors.Author]
+	Prefetch AuthorsAuthorPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[authors.Author]
 }
 
 func newAuthorsAuthorQuery(_state *relationFacadeState, _query orm.QuerySet[authors.Author]) AuthorsAuthorQuery {
 	_result := AuthorsAuthorQuery{state: _state, query: _query}
+	if _state != nil {
+		_result.Prefetch.Posts = relationFacadeReversePrefetch[authors.Author, blog.Post]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.posts.WithChildren()}
+		_result.Prefetch.ReviewedPosts = relationFacadeReversePrefetch[authors.Author, blog.Post]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.reviewedPosts.WithChildren()}
+	}
 	return _result
 }
 
@@ -330,6 +408,8 @@ type AuthorsAuthor struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	_reverseCollection0       *orm.RelatedSetCache[blog.Post]
+	_reverseCollection1       *orm.RelatedSetCache[blog.Post]
 	_self                     *AuthorsAuthor
 }
 
@@ -389,6 +469,12 @@ func (_model *AuthorsAuthor) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[blog.Post]{}
+	}
+	if _model._reverseCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection1 = &orm.RelatedSetCache[blog.Post]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	return nil
@@ -420,6 +506,304 @@ func (_model *AuthorsAuthor) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+type AuthorsAuthorPostsCollection struct {
+	owner    *AuthorsAuthor
+	relation *orm.RelatedSet[blog.Post]
+	_self    *AuthorsAuthorPostsCollection
+}
+
+func newAuthorsAuthorPostsCollection(_owner *AuthorsAuthor, _relation *orm.RelatedSet[blog.Post]) *AuthorsAuthorPostsCollection {
+	_view := &AuthorsAuthorPostsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AuthorsAuthorPostsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AuthorsAuthorPostsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AuthorsAuthorPostsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AuthorsAuthor) Posts() (*AuthorsAuthorPostsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[blog.Post], error) {
+		return _model.state.reverseCollections.AuthorsAuthor.posts.From(_model.state.backend, _model.authorsAuthorModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAuthorsAuthorPostsCollection(_model, _relation), nil
+}
+func (_view *AuthorsAuthorPostsCollection) Query() (BlogPostQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	return newBlogPostQuery(_view.owner.state, _query), nil
+}
+func (_view *AuthorsAuthorPostsCollection) All(_ctx context.Context) ([]*BlogPost, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AuthorsAuthorPostsCollection) Fresh() (*AuthorsAuthorPostsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAuthorsAuthorPostsCollection(_view.owner, _related), nil
+}
+func (_view *AuthorsAuthorPostsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type AuthorsAuthorReviewedPostsCollection struct {
+	owner    *AuthorsAuthor
+	relation *orm.RelatedSet[blog.Post]
+	_self    *AuthorsAuthorReviewedPostsCollection
+}
+
+func newAuthorsAuthorReviewedPostsCollection(_owner *AuthorsAuthor, _relation *orm.RelatedSet[blog.Post]) *AuthorsAuthorReviewedPostsCollection {
+	_view := &AuthorsAuthorReviewedPostsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AuthorsAuthorReviewedPostsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AuthorsAuthorReviewedPostsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AuthorsAuthorReviewedPostsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AuthorsAuthor) ReviewedPosts() (*AuthorsAuthorReviewedPostsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection1.Get(func() (*orm.RelatedSet[blog.Post], error) {
+		return _model.state.reverseCollections.AuthorsAuthor.reviewedPosts.From(_model.state.backend, _model.authorsAuthorModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAuthorsAuthorReviewedPostsCollection(_model, _relation), nil
+}
+func (_view *AuthorsAuthorReviewedPostsCollection) Query() (BlogPostQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	return newBlogPostQuery(_view.owner.state, _query), nil
+}
+func (_view *AuthorsAuthorReviewedPostsCollection) All(_ctx context.Context) ([]*BlogPost, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AuthorsAuthorReviewedPostsCollection) Fresh() (*AuthorsAuthorReviewedPostsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAuthorsAuthorReviewedPostsCollection(_view.owner, _related), nil
+}
+func (_view *AuthorsAuthorReviewedPostsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type AuthorsAuthorPrefetchSelector = relationFacadePrefetchInput[authors.Author]
+type AuthorsAuthorPrefetchSelectors struct {
+	Posts         relationFacadeReversePrefetch[authors.Author, blog.Post]
+	ReviewedPosts relationFacadeReversePrefetch[authors.Author, blog.Post]
+}
+type AuthorsAuthorPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[authors.Author]
+}
+
+func (_query AuthorsAuthorQuery) PrefetchRelated(_selectors ...AuthorsAuthorPrefetchSelector) AuthorsAuthorPrefetchQuery {
+	_result := AuthorsAuthorPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[authors.Author], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query AuthorsAuthorQuery) PrefetchRelatedPaths(_paths ...string) (AuthorsAuthorPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return AuthorsAuthorPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[authors.Author], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchAuthorsAuthorPath(_path, 1, &_remaining)
+		if _err != nil {
+			return AuthorsAuthorPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := AuthorsAuthorPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AuthorsAuthorQuery) PrefetchPath(_path string) (AuthorsAuthorPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchAuthorsAuthorPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[authors.Author]{state: _query.state, selection: _selection}, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query AuthorsAuthorPrefetchQuery) Filter(_values ...orm.Predicate[authors.Author]) AuthorsAuthorPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query AuthorsAuthorPrefetchQuery) OrderBy(_values ...orm.Ordering[authors.Author]) AuthorsAuthorPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query AuthorsAuthorPrefetchQuery) Distinct() AuthorsAuthorPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query AuthorsAuthorPrefetchQuery) Fresh() AuthorsAuthorPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query AuthorsAuthorPrefetchQuery) Limit(_value int) (AuthorsAuthorPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) Offset(_value int) (AuthorsAuthorPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) All(_ctx context.Context) ([]*AuthorsAuthor, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*AuthorsAuthor, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeAuthorsAuthor(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) First(_ctx context.Context) (*AuthorsAuthor, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAuthorsAuthor(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
 func (_state *relationFacadeState) materializeAuthorsAuthor(_ctx context.Context, _value *orm.RelatedSelected[authors.Author]) (*AuthorsAuthor, error) {
 	if _err := _value.ValidateSourceBinding(_state.models.AuthorsAuthor); _err != nil {
 		return nil, _err
@@ -432,6 +816,22 @@ func (_state *relationFacadeState) materializeAuthorsAuthor(_ctx context.Context
 	if _err != nil {
 		return nil, _err
 	}
+	if _collection, _present, _err := _state.reverseCollections.AuthorsAuthor.posts.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[blog.Post], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _collection, _present, _err := _state.reverseCollections.AuthorsAuthor.reviewedPosts.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection1.Get(func() (*orm.RelatedSet[blog.Post], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _err := _ctx.Err(); _err != nil {
 		return nil, _err
 	}
@@ -442,6 +842,29 @@ func (_state *relationFacadeState) prefetchAuthorsAuthorPath(_path string, _dept
 		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
 	}
 	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "posts":
+		_selection := _state.reverseCollections.AuthorsAuthor.posts.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchBlogPostPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "reviewed_posts":
+		_selection := _state.reverseCollections.AuthorsAuthor.reviewedPosts.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchBlogPostPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
 	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
 }
 
@@ -1676,6 +2099,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}
 	_state.models.AuthorsAuthor = _model0
 	_state.models.BlogPost = _model1
+	_reverse, _err := BindReverseObjectsIn(_binding)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.reverseCollections = _reverse
 	_state._self = _state
 	return Models{
 		AuthorsAuthor: newAuthorsAuthorQuery(_state, authors.AuthorObjects.Using(_backend)),
@@ -1683,4 +2111,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_247488f312dbee4b00287aa9f1aad3916f581c0a9559ba41182f00c3088521a1
+var _ goDjProjectSnapshot_4a5bd021a130527f1c775ff2d0276a2674e76ab75d0d91f6708fde8caab486b9

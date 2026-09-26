@@ -3,6 +3,59 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — reverse collection과 target eager 구성
+
+2026-09-26, `4ec3595d74c9128f091d40b3130ed20936d4ee0b` 위에서 reverse FK collection을 공통 prefetch graph와
+generated model 접근자에 연결했다. ReverseCollectionPrefetch와 ManyPrefetch의 SelectRelated는 같은 target SQL row에서
+eager target을 읽는다. 모든 target rowset을 닫은 뒤 하위 prefetch를 전체 batch에 적용하고, 전체 성공 뒤에만 graph를 공개한다.
+명시한 eager/child 설정은 held query의 파생 조회·추가 eager/prefetch·First/At에 유지된다. 역방향 manager Fresh/Invalidate는
+기본 owner scope·정렬로 돌아가며 held query와 다른 materialization은 보존한다. Facade ABI v16·golden·프로젝트 5개의 생성물을 갱신했다.
+
+제품 checkpoint는 non-Markdown **2,128파일**, map hash
+`eea1ddf815cdf01b429b9edff1a48713c4998dbc73d7891e27d59932182b5b65`다.
+`./orm ./codegen ./codegen/consumertest ./conformance/onetoonefixture` 전체와 `./db/postgres`의
+`TestPostgresOneToOneFacadeReverseEager`에서 일반·race·CGO=0 각각 **5 package / 1,244 run=PASS / skip 0**다.
+각각 206.1초·640.3초·205.3초이며 26개 필수 root·완료 이벤트와 실행 전후 동일 source map을 확인했다.
+Actual generated ManyToMany module의 양 DB **292 child run=PASS / skip 0**를 mode별 parent가 검사했다.
+PostgreSQL 패키지 전체나 전체 platform 실행으로 세지 않는다.
+
+마지막 정적 검사에서 기존 RelatedSet 복사 거부 테스트가 새 inline mutex의 복사까지 감지했다. 각 handle이 별도 mutex 포인터를
+소유하도록 바꿨으며 기존 nil/zero/copy 거부를 유지한다. Query snapshot과 Invalidate의 교체를 같은 mutex로 보호한다.
+추가 검토에서 native At의 target eager·owner scope·큰 index row-drain·오류 재시도·취소 시 no-I/O를 별도 SQLite probe로 확인하고
+정식 generated 소비자에 넣어 양 DB에서 재검증했다.
+최종 source는 **2,128파일**, map hash
+`0f61a71e89e1353c9f2879fcc0daaf8674c588d028429423e8a5fa46293559c6`다.
+위 checkpoint와 차이는 `orm/reverse_object.go`와 관련 generated 소비자 테스트 2파일뿐이며 생성기·생성물은 같다.
+최종 source의 ORM 전체·ManyToMany/filtered composition 소비자·기존 reverse/current/no-edge 및 prefetch companion 소비자를 검사했다.
+일반·race·CGO=0 각각 **2 package / 620 run=PASS / skip 0**, 32.6초·82.5초·35.7초다.
+15개 필수 root와 source 불변을 확인했으며 actual ManyToMany 소비자는 각 mode에서 **294 child run=PASS / skip 0**다.
+파일별 delta는 `latest-delta-*-path`의 `delta.json`에 보관했다. 넓은 checkpoint를 최종 source에서 재실행했다고 표시하지 않는다.
+
+고정 Django `prefetch_eager_child`의 결과와 **source+target eager 2 query / warm 0**을 typed selector와 implicit child path 병합으로 비교한다.
+같은 관계를 일반 single child prefetch로 읽으면 **3 query**다. ManyToMany target eager와 하위 collection의 **3 query**, 파생 target/child의
+**2 query**, 추가 eager와 추가 prefetch에도 원래 eager 설정이 남는지 확인한다. 정상 부재·query filter/order/Distinct 구성,
+lookup 재정의·origin/type·공유 node 한도, target 실패/foreign owner/취소 후 재시도, manager 초기화·held snapshot,
+동시 warm 소비·session 종료와 reverse owner **1,000개/중복 포함 1,002개**의 두 batch·부분 publication 거부를 포함한다.
+
+최종 원본 SQLite 생성 소비자 **18 run=PASS** 뒤 target eager 설정 제거·reverse foreign owner 허용·manager filter 잔존·lookup 재정의 허용·
+ManyToMany target 설정 제거의 **5개 runtime overlay**를 정상 compile 후 모두 탐지했다.
+초기 넓은 실행에서는 실제 project bundle 소비자는 통과했으나 예전 standalone facade helper가 reverse companion을 누락해 6개 root가 compile 실패했다.
+실제 facade 의존성을 helper와 prerequisite 보존 검사에 추가했다. 고정 11/12개 파일 수 대신 필요한 companion의 존재·중복 거부와 실제 compile·
+public error cause·stale binding·alias·COW 검증을 유지하도록 테스트를 정리했다. 초기 compile 실패와 vet 실패 로그도 보관한다.
+
+Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew** 환경이다.
+양 DB checkpoint는 `GODJ_REQUIRE_POSTGRES=1`·실행별 전용 database를 사용했고 cleanup은 **0|0|0**, force 없이 제거했다.
+최종 영향 vet·format·문서 링크·diff와 프로젝트 5개의 generated drift가 모두 통과했다.
+고정 Django runner·48개 ManyToMany 관찰 fixture는 변경/재실행하지 않았다.
+로그·source·필수 inventory·receipt·delta·negative overlay는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-reverse/`의
+`latest-final-*-path`, `latest-delta-*-path`, `latest-negative-path`, `latest-indexed-probe-path`, `latest-checks-path`를 따른다.
+
+Owner별 slice·custom single target query·materialized streaming과 Ticket 컬렉션 Form/Admin/API/OpenAPI/client,
+권한·CSRF·양쪽 Category·동시성·durability는 남아 있다. Reverse FK 변경 API나 전체 framework 완료로 세지 않는다.
+GDJ-0099 Hosted 전체 milestone도 아직이며 최근 전체 검증은
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`다.
+
 ## GDJ-0099 — 단일 관계 prefetch와 eager 부모 재사용
 
 2026-09-26, `6eba1f1ced9f908a08c43fb52cb65b65952d2588` 위에서 required/nullable FK와 역방향 OneToOne의

@@ -30,6 +30,7 @@ type cachedPrefetch interface {
 type ManyPrefetch[O, T, L any] struct {
 	relation         ManyToMany[O, T, L]
 	children         []PrefetchSelection[T]
+	eager            []RelatedSelection[T]
 	targetPlan       query.Plan
 	custom           bool
 	configurationErr error
@@ -75,10 +76,20 @@ func (p ManyPrefetch[O, T, L]) Distinct() ManyPrefetch[O, T, L] {
 	return p.withTarget(p.targetQuery().Distinct())
 }
 
+func (p ManyPrefetch[O, T, L]) SelectRelated(selections ...RelatedSelection[T]) ManyPrefetch[O, T, L] {
+	if len(selections) == 0 {
+		return p.WithConfigurationError(relationInvalidPlan("target eager selection is empty"))
+	}
+	p.eager = append(append([]RelatedSelection[T](nil), p.eager...), selections...)
+	return p.withTarget(p.targetQuery())
+}
+
 type preparedManyPrefetch[S, T, L any] struct {
 	relation      ManyToMany[S, T, L]
 	children      []preparedPrefetch[T]
 	queryChildren []preparedPrefetch[T]
+	targets       []preparedRelatedSelection[T]
+	eagerNodes    int
 	targetPlan    query.Plan
 	custom        bool
 	nodes         int
@@ -101,7 +112,11 @@ func (p ManyPrefetch[O, T, L]) preparePrefetch(depth int, remaining *int) (prepa
 	if err != nil {
 		return nil, err
 	}
-	prepared := preparedManyPrefetch[O, T, L]{relation: p.relation, children: children, targetPlan: p.targetPlan, custom: p.custom, nodes: before - *remaining}
+	targets, eagerNodes, err := preparePrefetchEager(p.eager, p.relation.prefetchTarget, depth+1, remaining)
+	if err != nil {
+		return nil, err
+	}
+	prepared := preparedManyPrefetch[O, T, L]{relation: p.relation, children: children, targetPlan: p.targetPlan, custom: p.custom, targets: targets, eagerNodes: eagerNodes, nodes: before - *remaining}
 	if p.custom {
 		prepared.queryChildren = children
 	}
@@ -156,6 +171,9 @@ func (p preparedManyPrefetch[S, T, L]) validate() error {
 		return err
 	}
 	if _, _, err := p.relation.prefetchBinding(); err != nil {
+		return err
+	}
+	if err := validatePrefetchEager(p.targets, p.relation.prefetchTarget); err != nil {
 		return err
 	}
 	if p.custom {
@@ -218,13 +236,15 @@ func (p preparedManyPrefetch[S, T, L]) load(ctx context.Context, backend db.Quer
 		values := make([]relatedSelectedValue[T], 0)
 		ends := make([]int, len(collections))
 		for i, collection := range collections {
-			raw, ready := collection.querySet.evaluation.cachedValues()
+			raw, attachment, ready := collection.querySet.evaluation.cachedResult()
 			if !ready {
 				return nil, relationInvalidPlan("prefetch target cache is not ready")
 			}
-			for _, value := range raw {
-				values = append(values, relatedSelectedValue[T]{source: value})
+			graph, err := materializationValues(p.relation.prefetchTarget, raw, attachment)
+			if err != nil {
+				return nil, err
 			}
+			values = append(values, copyRelatedValues(graph)...)
 			ends[i] = len(values)
 		}
 		if err := loadPrefetchValues(ctx, backend, values, p.children); err != nil {
@@ -334,6 +354,14 @@ func PrefetchRelated[S any](source QuerySet[S], selections ...PrefetchSelection[
 			return q.WithConfigurationError(relationInvalidPlan("prefetch selections belong to different project owners"))
 		}
 	}
+	if source.materialization != nil && len(source.materialization.targets) > 0 {
+		related, err := source.materialization.relatedQuery(source)
+		if err != nil {
+			return q.WithConfigurationError(err)
+		}
+		related.materialization = nil // This prefetch owns the merged child batches.
+		q.related = &related
+	}
 	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(q.binding.objectDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), q.binding.model) || source.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(q.binding.model)) || len(source.plan.RelationProjections()) != 0 {
 		return q.WithConfigurationError(relationInvalidPlan("prefetch source does not match its owner binding"))
 	}
@@ -357,6 +385,10 @@ func (q PrefetchQuery[S]) SelectRelated(selections ...RelatedSelection[S]) Prefe
 	source := newQuerySet(q.source.backend, q.source.descriptor, q.source.plan)
 	source.configurationErr = q.source.configurationErr
 	source.materialization = &queryMaterialization[S]{binding: q.binding, selections: q.selections}
+	if q.related != nil {
+		source.materialization.targets = q.related.targets
+		source.materialization.eagerNodes = q.related.nodes
+	}
 	related := SelectRelated(source, selections...).WithSourceBinding(q.binding)
 	if err := related.ConfigurationError(); err != nil {
 		return q.WithConfigurationError(err)

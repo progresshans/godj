@@ -162,7 +162,7 @@ non-null target 조건을 적용한다. 선택한 target FK의 기존 eager proj
 
 공통 `PrefetchRelated`는 owner query와 여러 collection selection tree의 평가 cache를 소유한다. Generated facade의 typed
 `Prefetch` selector와 `PrefetchRelatedPaths`는 같은 runtime으로 연결하며 다른 origin/model이나 미지원 경로를 거부한다.
-Facade ABI는 v15이며 collection binding ABI는 relation-reverse v6다. 같은 selection은 하위 선택을 합쳐 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
+Facade ABI는 v16이며 collection binding ABI는 relation-reverse v6다. 같은 selection은 하위 선택을 합쳐 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
 Cold Count는 owner 행만 세고 cold First는 명시적 정렬 아래 owner 한 행으로 제한한다. 성공한 All 뒤에는 같은 평가를 공유한다.
 실패한 평가는 source까지 다시 읽고, 파생 query와 Fresh는 새 평가를 소유한다.
 
@@ -219,7 +219,7 @@ Raw streaming Iterate는 child query를 실행할 materialized batch 계약 없�
 각 collection handle은 기본 membership plan을 따로 소유한다. Mutation·Invalidate·manager Fresh는 이 plan으로 돌아가며
 기존 held QuerySet의 custom 조건·정렬·설정과 성공한 snapshot은 유지한다. No-op·실패·불명 outcome도 같은 무효화 규칙이다.
 고정 Django의 중첩/filtered cache·lookup 순서·owner filter scope를 실제 generated 소비자와 비교한다.
-Reverse collection의 target eager 구성은 아직 구현 중이다. Target query의 slice는 owner별 window 계획이 필요하며 현재
+Target query의 slice는 owner별 window 계획이 필요하며 현재
 `ForPrefetchOwners`는 명시 오류로 거부한다. 이를 전체 결과의 일반 LIMIT/OFFSET으로 바꾸지 않는다.
 
 
@@ -238,7 +238,31 @@ NULL relation의 lazy/eager/prefetch handle도 backend의 session 수명을 유�
 
 Cold First는 source를 하나만 decode한 뒤 그 graph를 구성하며 full evaluation cache를 채우지 않는다. Count는 child I/O를 하지 않는다.
 Filter·정렬·Distinct·source slice·Fresh는 같은 준비된 관계 tree를 새 source 평가에 적용한다. 실패와 취소는 부분 graph를 공개하지 않는다.
-`SinglePrefetch`의 custom target Filter/OrderBy, reverse collection의 target eager 구성, owner별 slice와 materialized streaming은 별도 남은 범위다.
+`SinglePrefetch`의 custom target query, owner별 slice와 materialized streaming은 별도 남은 범위다.
+
+
+### 역방향 컬렉션과 target eager 구성
+
+2026-09-26, `ReverseObject.WithChildren`는 bound reverse FK에서 `ReverseCollectionPrefetch`를 구성한다.
+Generated model은 같은 binding의 역방향 collection 접근자·typed/path selector를 제공한다. 일반 reverse FK는 collection이며
+명시적 OneToOne만 단일 객체다. `ReverseCollectionPrefetch`와 `ManyPrefetch`의 Filter·OrderBy·Distinct·SelectRelated는
+명시적 target query를 구성하며 이후 같은 lookup의 query 재정의는 거부한다. Implicit child 경로의 추가·병합은 허용한다.
+
+역방향 batch는 정렬·중복 제거한 owner key를 999개씩 나누어 target FK의 IN 조건으로 읽는다. Eager target은 같은 SQL row에 있고,
+모든 target rowset을 닫은 뒤 child prefetch를 전체 parent batch에 걸쳐 실행한다. 각 target의 PK·owner FK·clone과 batch 소속을
+검증한다. Owner의 중복과 target query JOIN의 정당한 multiplicity는 보존하며 source와 전체 하위 graph의 성공 전에는 cache를 공개하지 않는다.
+ManyToMany owner projection도 같은 projection scanner로 eager target 뒤의 owner key를 해석한다. NULL/batch 밖 owner와
+projection key/model key 불일치는 전체 행을 공개하기 전에 거부한다.
+
+명시적 eager와 child prefetch는 QuerySet의 immutable materialization 설정에 남는다. 파생 Filter·정렬·Fresh·indexed At/First는
+새 평가에서 같은 graph를 읽으며 Count는 child I/O를 하지 않는다. 추가 root eager와 prefetch는 원래 설정과 project binding·node 한도를
+함께 유지한다. Cold indexed 조회는 full cache를 채우지 않으며 큰 offset의 제한된 row-drain 경계도 유지한다.
+일반 lookup 경로로만 추가한 descendants는 기존 평가에만 남는다.
+
+역방향 `RelatedSet`은 기본 owner scope와 현재 query/cache를 구분한다. Query는 held snapshot을 반환하고 manager Fresh/Invalidate는
+기본 scope·기본 정렬로 돌아간다. 이미 보유한 query·다른 materialization은 변하지 않는다. Query snapshot과 Invalidate의 교체는
+같은 mutex가 소유하며 session 종료 후에는 cache도 읽을 수 없다. 이 collection 연결은 읽기·조회 cache 범위이며 역방향 FK 변경 API의 완성을 뜻하지 않는다.
+Facade ABI는 v16이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
 
 ## Historical 선언 변경
 

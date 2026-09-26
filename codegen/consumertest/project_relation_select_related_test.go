@@ -14,7 +14,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestGeneratedProjectRelationSelectRelatedExactElevenFileUnionCompiles(t *testing.T) {
+func TestGeneratedProjectRelationSelectRelatedCompanionUnionPreservesCauses(t *testing.T) {
 	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-select-related-union"
 	directory, files := writeGeneratedRelationSelectRelatedProject(
@@ -26,8 +26,17 @@ func TestGeneratedProjectRelationSelectRelatedExactElevenFileUnionCompiles(t *te
 		blog,
 		true,
 	)
-	if len(files) != 11 {
-		t.Fatalf("generated union has %d files, want exact 11: %v", len(files), files)
+	declared := map[string]bool{}
+	for _, file := range files {
+		if declared[file] {
+			t.Fatalf("duplicate companion %s", file)
+		}
+		declared[file] = true
+	}
+	for _, required := range []string{"project/zz_godj_binding.go", "project/zz_godj_relation_object.go", "project/zz_godj_relation_select_related.go"} {
+		if !declared[required] {
+			t.Fatalf("missing prerequisite %s", required)
+		}
 	}
 	writeGeneratedTestFile(
 		t,
@@ -38,7 +47,7 @@ func TestGeneratedProjectRelationSelectRelatedExactElevenFileUnionCompiles(t *te
 	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("generated exact twelve-file select-related union did not compile or pass: %v\n%s", err, output)
+		t.Fatalf("generated select-related companion union did not compile or pass: %v\n%s", err, output)
 	}
 
 	const facadeModulePath = "example.com/godj-relation-select-related-facade-cause"

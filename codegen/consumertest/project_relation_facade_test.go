@@ -406,11 +406,17 @@ func writeGeneratedRelationFacadeUniverse(
 	selectRelated := testfixture.Generate(t, "project select related", func() ([]byte, error) {
 		return codegen.GenerateProjectRelationSelectRelated("project", packages)
 	})
+	reversePackages := make([]codegen.RelationReversePackage, len(packages))
+	for i, p := range packages {
+		reversePackages[i] = codegen.RelationReversePackage{Alias: p.Alias, ImportPath: p.ImportPath, Schema: p.Schema}
+	}
+	reverse := testfixture.Generate(t, "project reverse objects", func() ([]byte, error) { return codegen.GenerateProjectRelationReverse("project", reversePackages) })
 	facade := testfixture.Generate(t, "project relation facade", func() ([]byte, error) {
 		return codegen.GenerateProjectRelationFacade("project", packages)
 	})
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", binding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_object.go", object)
+	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_reverse.go", reverse)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_select_related.go", selectRelated)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_facade.go", facade)
 	if projectTest != nil {

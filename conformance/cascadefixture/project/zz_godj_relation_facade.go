@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
-const GoDjProjectRelationFacadeInputSHA256 = "a13efad9275cd7933e2401cb7cb54d54272840d943c4be8fea6455fb2a3ea9ea"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
+const GoDjProjectRelationFacadeInputSHA256 = "ea4779b6ccdfa7d0f71ebcc09126d5f65067d976b630f6c11cded5205c3e91f6"
 
 type Backend interface {
 	db.Queryer
@@ -23,11 +23,12 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend      Backend
-	objects      Objects
-	models       relationFacadeBindings
-	sessionScope db.SessionValidator
-	_self        *relationFacadeState
+	backend            Backend
+	objects            Objects
+	models             relationFacadeBindings
+	reverseCollections ReverseObjects
+	sessionScope       db.SessionValidator
+	_self              *relationFacadeState
 }
 
 func (_state *relationFacadeState) validate() error {
@@ -176,6 +177,46 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...r
 	return _selector
 }
 
+type relationFacadeReversePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ReverseCollectionPrefetch[S, T]
+}
+
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Distinct() relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
 type relationFacadeSinglePrefetch[S, T any] struct {
 	state     *relationFacadeState
 	selection orm.SinglePrefetch[S, T]
@@ -201,6 +242,38 @@ func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...re
 		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
 	}
 	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
 	return _selector
 }
 
@@ -233,6 +306,7 @@ func newDetailsChildQuery(_state *relationFacadeState, _query orm.QuerySet[detai
 	}
 	if _state != nil {
 		_result.Prefetch.Root = relationFacadeSinglePrefetch[details.Child, parents.Root]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.DetailsChild.root)}
+		_result.Prefetch.Grandchildren = relationFacadeReversePrefetch[details.Child, details.Grandchild]{state: _state, selection: _state.reverseCollections.DetailsChild.grandchildren.WithChildren()}
 	}
 	return _result
 }
@@ -359,6 +433,7 @@ type DetailsChild struct {
 	rootCache                 *orm.RelationCache[ParentsRoot]
 	rootScalarSnapshot        int64
 	rootScalarPresent         bool
+	_reverseCollection0       *orm.RelatedSetCache[details.Grandchild]
 	_self                     *DetailsChild
 }
 
@@ -446,6 +521,9 @@ func (_model *DetailsChild) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[details.Grandchild]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	_model.rootScalarSnapshot = _model.detailsChildModel.RootID
@@ -506,6 +584,7 @@ func (_model *DetailsChild) relationFacadeDerived(_value details.Child) (*Detail
 	if _err != nil {
 		return nil, _err
 	}
+	_result._reverseCollection0 = &orm.RelatedSetCache[details.Grandchild]{}
 	_result._self = _result
 	return _result, nil
 }
@@ -719,9 +798,84 @@ func (_model *DetailsChild) Root(_ctx context.Context) (*ParentsRoot, error) {
 	return _wrapped, nil
 }
 
+type DetailsChildGrandchildrenCollection struct {
+	owner    *DetailsChild
+	relation *orm.RelatedSet[details.Grandchild]
+	_self    *DetailsChildGrandchildrenCollection
+}
+
+func newDetailsChildGrandchildrenCollection(_owner *DetailsChild, _relation *orm.RelatedSet[details.Grandchild]) *DetailsChildGrandchildrenCollection {
+	_view := &DetailsChildGrandchildrenCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *DetailsChildGrandchildrenCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (DetailsChildGrandchildrenCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*DetailsChildGrandchildrenCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *DetailsChild) Grandchildren() (*DetailsChildGrandchildrenCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[details.Grandchild], error) {
+		return _model.state.reverseCollections.DetailsChild.grandchildren.From(_model.state.backend, _model.detailsChildModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newDetailsChildGrandchildrenCollection(_model, _relation), nil
+}
+func (_view *DetailsChildGrandchildrenCollection) Query() (DetailsGrandchildQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return DetailsGrandchildQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return DetailsGrandchildQuery{}, _err
+	}
+	return newDetailsGrandchildQuery(_view.owner.state, _query), nil
+}
+func (_view *DetailsChildGrandchildrenCollection) All(_ctx context.Context) ([]*DetailsGrandchild, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *DetailsChildGrandchildrenCollection) Fresh() (*DetailsChildGrandchildrenCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newDetailsChildGrandchildrenCollection(_view.owner, _related), nil
+}
+func (_view *DetailsChildGrandchildrenCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type DetailsChildPrefetchSelector = relationFacadePrefetchInput[details.Child]
 type DetailsChildPrefetchSelectors struct {
-	Root relationFacadeSinglePrefetch[details.Child, parents.Root]
+	Root          relationFacadeSinglePrefetch[details.Child, parents.Root]
+	Grandchildren relationFacadeReversePrefetch[details.Child, details.Grandchild]
 }
 type DetailsChildPrefetchQuery struct {
 	state    *relationFacadeState
@@ -1103,6 +1257,14 @@ func (_state *relationFacadeState) wrapSelectedDetailsChildObject(_ctx context.C
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	if _collection, _present, _err := _state.reverseCollections.DetailsChild.grandchildren.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[details.Grandchild], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("root"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -1134,6 +1296,16 @@ func (_state *relationFacadeState) prefetchDetailsChildPath(_path string, _depth
 		_selection := orm.PrefetchRequiredForward(_state.objects.DetailsChild.root)
 		if _nested {
 			_child, _err := _state.prefetchParentsRootPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "grandchildren":
+		_selection := _state.reverseCollections.DetailsChild.grandchildren.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchDetailsGrandchildPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -13105,6 +13277,7 @@ func newParentsRootQuery(_state *relationFacadeState, _query orm.QuerySet[parent
 	}
 	if _state != nil {
 		_result.Prefetch.Detail = relationFacadeSinglePrefetch[parents.Root, details.Detail]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.ParentsRoot.detail)}
+		_result.Prefetch.Children = relationFacadeReversePrefetch[parents.Root, details.Child]{state: _state, selection: _state.reverseCollections.ParentsRoot.children.WithChildren()}
 	}
 	return _result
 }
@@ -13229,6 +13402,7 @@ type ParentsRoot struct {
 	primaryKeySnapshotPresent bool
 	object                    *ParentsRootObject
 	detailCache               *orm.RelationCache[DetailsDetail]
+	_reverseCollection0       *orm.RelatedSetCache[details.Child]
 	_self                     *ParentsRoot
 }
 
@@ -13314,6 +13488,9 @@ func (_model *ParentsRoot) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[details.Child]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	return nil
@@ -13372,6 +13549,7 @@ func (_model *ParentsRoot) relationFacadeDerived(_value parents.Root) (*ParentsR
 	if _err != nil {
 		return nil, _err
 	}
+	_result._reverseCollection0 = &orm.RelatedSetCache[details.Child]{}
 	_result._self = _result
 	return _result, nil
 }
@@ -13504,9 +13682,84 @@ func (_model *ParentsRoot) Detail(_ctx context.Context) (*DetailsDetail, bool, e
 	return _wrapped, true, nil
 }
 
+type ParentsRootChildrenCollection struct {
+	owner    *ParentsRoot
+	relation *orm.RelatedSet[details.Child]
+	_self    *ParentsRootChildrenCollection
+}
+
+func newParentsRootChildrenCollection(_owner *ParentsRoot, _relation *orm.RelatedSet[details.Child]) *ParentsRootChildrenCollection {
+	_view := &ParentsRootChildrenCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ParentsRootChildrenCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ParentsRootChildrenCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ParentsRootChildrenCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ParentsRoot) Children() (*ParentsRootChildrenCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[details.Child], error) {
+		return _model.state.reverseCollections.ParentsRoot.children.From(_model.state.backend, _model.parentsRootModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newParentsRootChildrenCollection(_model, _relation), nil
+}
+func (_view *ParentsRootChildrenCollection) Query() (DetailsChildQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return DetailsChildQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return DetailsChildQuery{}, _err
+	}
+	return newDetailsChildQuery(_view.owner.state, _query), nil
+}
+func (_view *ParentsRootChildrenCollection) All(_ctx context.Context) ([]*DetailsChild, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ParentsRootChildrenCollection) Fresh() (*ParentsRootChildrenCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newParentsRootChildrenCollection(_view.owner, _related), nil
+}
+func (_view *ParentsRootChildrenCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type ParentsRootPrefetchSelector = relationFacadePrefetchInput[parents.Root]
 type ParentsRootPrefetchSelectors struct {
-	Detail relationFacadeSinglePrefetch[parents.Root, details.Detail]
+	Detail   relationFacadeSinglePrefetch[parents.Root, details.Detail]
+	Children relationFacadeReversePrefetch[parents.Root, details.Child]
 }
 type ParentsRootPrefetchQuery struct {
 	state    *relationFacadeState
@@ -13888,6 +14141,14 @@ func (_state *relationFacadeState) wrapSelectedParentsRootObject(_ctx context.Co
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	if _collection, _present, _err := _state.reverseCollections.ParentsRoot.children.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[details.Child], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("detail"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -13919,6 +14180,16 @@ func (_state *relationFacadeState) prefetchParentsRootPath(_path string, _depth 
 		_selection := orm.PrefetchReverseOneToOne(_state.objects.ParentsRoot.detail)
 		if _nested {
 			_child, _err := _state.prefetchDetailsDetailPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "children":
+		_selection := _state.reverseCollections.ParentsRoot.children.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchDetailsChildPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -15264,6 +15535,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_state.models.ParentsRequiredLeft = _model13
 	_state.models.ParentsRoot = _model14
 	_state.models.ParentsRootLabels = _model15
+	_reverse, _err := BindReverseObjectsIn(_binding)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.reverseCollections = _reverse
 	_state._self = _state
 	return Models{
 		DetailsChild:         newDetailsChildQuery(_state, details.ChildObjects.Using(_backend)),
@@ -15285,4 +15561,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_aa37bc22ea0de4c6b388b7f3ad98e0aca1bc6f8086a5466f9a1f47902ae15f53
+var _ goDjProjectSnapshot_35e59c23d2a627bb108ef4299115e9f101fd6ed43068b149acee1edb7a4935c7

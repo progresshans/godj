@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 	"reflect"
+	"sync"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -35,7 +36,9 @@ type reverseObjectState[Owner, Source any] struct {
 // RelatedSet owns one immutable source QuerySet and its evaluation state.
 // Pointer identity is part of the cache ownership contract.
 type RelatedSet[M any] struct {
+	mu       *sync.Mutex
 	querySet QuerySet[M]
+	basePlan query.Plan
 	_self    *RelatedSet[M]
 	marker   [0]func(M)
 }
@@ -176,7 +179,7 @@ func (state reverseObjectState[Owner, Source]) validate() error {
 }
 
 func newRelatedSet[M any](querySet QuerySet[M]) *RelatedSet[M] {
-	result := &RelatedSet[M]{querySet: querySet}
+	result := &RelatedSet[M]{querySet: querySet, basePlan: querySet.plan, mu: &sync.Mutex{}}
 	result._self = result
 	return result
 }
@@ -185,7 +188,11 @@ func (s *RelatedSet[M]) OrderBy(orderings ...Ordering[M]) (*RelatedSet[M], error
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
-	querySet := s.querySet.OrderBy(orderings...)
+	snapshot, err := s.Query()
+	if err != nil {
+		return nil, err
+	}
+	querySet := snapshot.OrderBy(orderings...)
 	if querySet.configurationErr != nil {
 		return nil, querySet.configurationErr
 	}
@@ -199,19 +206,87 @@ func (s *RelatedSet[M]) All(ctx context.Context) ([]M, error) {
 	if interfaceIsNil(ctx) {
 		return nil, relationInvalidPlan("context is nil")
 	}
-	return s.querySet.All(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	querySet, err := s.Query()
+	if err != nil {
+		return nil, err
+	}
+	return querySet.All(ctx)
 }
 
 func (s *RelatedSet[M]) Fresh() (*RelatedSet[M], error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
-	return newRelatedSet(s.querySet.Fresh()), nil
+	snapshot, err := s.Query()
+	if err != nil {
+		return nil, err
+	}
+	return newRelatedSet(newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan)), nil
+}
+
+// Query holds the current immutable query configuration and cache snapshot.
+func (s *RelatedSet[M]) Query() (QuerySet[M], error) {
+	if err := s.validate(); err != nil {
+		return QuerySet[M]{}, err
+	}
+	s.mu.Lock()
+	snapshot := s.querySet
+	s.mu.Unlock()
+	if err := validateQuerySession(context.Background(), snapshot.backend); err != nil {
+		return QuerySet[M]{}, err
+	}
+	return snapshot, nil
+}
+
+// Invalidate restores the relation's default owner scope for future reads.
+// Queries already obtained from Query keep their configuration and snapshot.
+func (s *RelatedSet[M]) Invalidate() error {
+	if err := s.validate(); err != nil {
+		return err
+	}
+	snapshot, err := s.Query()
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.querySet = newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan)
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *RelatedSet[M]) validate() error {
-	if s == nil || s._self != s {
+	if s == nil || s._self != s || s.mu == nil {
 		return relationInvalidPlan("related set is nil, zero, or copied")
 	}
 	return nil
+}
+
+// RelatedSetCache owns one generated reverse collection handle. Binding is
+// serialized and performs no I/O; failed binding leaves the cell empty.
+type RelatedSetCache[T any] struct {
+	mu    sync.Mutex
+	value *RelatedSet[T]
+}
+
+func (c *RelatedSetCache[T]) Get(bind func() (*RelatedSet[T], error)) (*RelatedSet[T], error) {
+	if c == nil || bind == nil {
+		return nil, relationInvalidPlan("related set cache or binder is nil")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.value != nil {
+		return c.value, nil
+	}
+	value, err := bind()
+	if err != nil {
+		return nil, err
+	}
+	if err := value.validate(); err != nil {
+		return nil, err
+	}
+	c.value = value
+	return value, nil
 }

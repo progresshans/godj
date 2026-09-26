@@ -289,6 +289,14 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		return value, err == nil, err
 	}
 
+	if qs.materialization != nil && len(qs.materialization.targets) > 0 {
+		values, err := qs.eagerMaterializedAt(ctx, index)
+		if err != nil || len(values) == 0 {
+			return zero, false, err
+		}
+		value, err := sessionReadResult(ctx, qs.backend, qs.descriptor.CloneModel(values[0].source), ctx.Err())
+		return value, err == nil, err
+	}
 	plan, scanIndex := planForIndex(qs.plan, index)
 	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {

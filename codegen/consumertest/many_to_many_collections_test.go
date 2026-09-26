@@ -88,6 +88,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/prefetch_single_test.go", single)
+	reverse, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_reverse_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_reverse_test.go", reverse)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +127,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		required["TestCollectionPrefetchOwnerPlans/"+backend] = false
 		required["TestCollectionPrefetchTree/"+backend] = false
 		required["TestSinglePrefetchComposition/"+backend] = false
+		required["TestReverseCollectionPrefetch/"+backend] = false
+		for _, name := range []string{"native_indexed_target", "reference_typed", "reference_path_merge", "reference_single_child", "held_query_composition", "lookup_origin_budget", "failure_foreign_cancel_retry", "independent_reset_and_concurrent", "session_lifetime"} {
+			required["TestReverseCollectionPrefetch/"+backend+"/"+name] = false
+		}
+
 		for _, name := range []string{"reference_typed", "reference_path", "reference_prefetch_first", "reference_prefetch_first_path", "reference_cold_typed", "reference_cold_path", "first_refinement_count", "validation", "failure_retry", "independent_and_concurrent", "nullable_and_session"} {
 			required["TestSinglePrefetchComposition/"+backend+"/"+name] = false
 		}
@@ -194,13 +204,17 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 }
 
 func TestGeneratedCollectionFacadeRejectsNamespaceAndCrossModelInputs(t *testing.T) {
-	for _, kind := range []string{"method", "promoted", "prefetch_type"} {
+	for _, kind := range []string{"method", "promoted", "prefetch_type", "reverse_method", "reverse_type"} {
 		t.Run(kind, func(t *testing.T) {
 			spec := manyCollectionSpec()
 			if kind == "method" {
 				spec.Apps[0].Schema.Models[0].ManyToMany[0].GoName = "Save"
 			} else if kind == "promoted" {
 				spec.Apps[0].Schema.Models[0].Fields[0].GoName = "Labels"
+			} else if kind == "reverse_method" {
+				spec.Apps[0].Schema.Models[0].Fields[0].GoName = "RankedLinkRows"
+			} else if kind == "reverse_type" {
+				spec.Apps[0].Schema.Models = append(spec.Apps[0].Schema.Models, ir.Model{Name: "owner_ranked_link_rows_collection", GoName: "OwnerRankedLinkRowsCollection", Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldText}}})
 			} else {
 				spec.Apps[0].Schema.Models = append(spec.Apps[0].Schema.Models, ir.Model{Name: "owner_prefetch_query", GoName: "OwnerPrefetchQuery", Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldText}}})
 			}
@@ -246,5 +260,16 @@ func wrong(api project.Models){_ = api.OwnersOwner.Prefetch.Labels.Filter(owners
 	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
 	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("Filter")) {
 		t.Fatalf("wrong-model target predicate was not rejected: %v\n%s", err, output)
+	}
+	for _, expression := range []string{
+		"api.OwnersOwner.Prefetch.RankedLinkRows.WithChildren(api.OwnersOwner.Prefetch.Labels)",
+		"api.OwnersOwner.Prefetch.RankedLinkRows.SelectRelated(api.OwnersOptional.Related.Link)",
+		"api.OwnersOwner.Prefetch.Labels.SelectRelated(api.OwnersRankedLink.Related.Owner)",
+	} {
+		writeGeneratedTestFile(t, directory, "consumer/wrong.go", []byte("package consumer\nimport \"example.com/godj-project-bundle/project\"\nfunc wrong(api project.Models){_ = "+expression+"}\n"))
+		output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
+		if err == nil || !bytes.Contains(output, []byte("cannot use")) {
+			t.Fatalf("wrong reverse/eager target accepted: %v\n%s", err, output)
+		}
 	}
 }

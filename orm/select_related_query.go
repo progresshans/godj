@@ -2,8 +2,10 @@ package orm
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -53,6 +55,14 @@ func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S])
 	}
 	result.targets = targets
 	result.nodes = before - remaining
+	if source.materialization != nil && len(source.materialization.targets) > 0 {
+		result.targets, err = mergeSelectionSet(append(append([]preparedRelatedSelection[S](nil), source.materialization.targets...), targets...))
+		if err != nil {
+			return result.WithConfigurationError(err)
+		}
+		result.nodes += source.materialization.eagerNodes
+		result.materialization = &queryMaterialization[S]{binding: source.materialization.binding, selections: source.materialization.selections}
+	}
 	for index, target := range targets {
 		path := target.path()
 		if index == 0 {
@@ -338,17 +348,31 @@ type projectedRelatedRow[S any] struct {
 }
 
 func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximum int) ([]relatedSelectedValue[S], error) {
+	return q.scanWindow(ctx, plan, 0, maximum)
+}
+
+func (q RelatedSelectQuery[S]) scanWindow(ctx context.Context, plan query.Plan, skip, maximum int) ([]relatedSelectedValue[S], error) {
+	values, _, err := q.scanProjected(ctx, plan, skip, maximum, nil, "")
+	return values, err
+}
+
+func (q RelatedSelectQuery[S]) scanProjected(ctx context.Context, plan query.Plan, skip, maximum int, ownerKeys []int64, ownerField string) ([]relatedSelectedValue[S], []int64, error) {
 	rows, err := openQueryRows(ctx, q.backend, plan)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	lifecycle := rowsLifecycle{rows: rows}
 	defer lifecycle.close()
 	projected := make([]projectedRelatedRow[S], 0)
+	owners := make([]int64, 0)
 	sourceColumns := len(plan.SourceFields())
 	for (maximum == 0 || len(projected) < maximum) && rows.Next() {
 		if err = ctx.Err(); err != nil {
 			break
+		}
+		if skip > 0 {
+			skip--
+			continue
 		}
 		sourceScan := q.sourceDescriptor.NewProjectionScan()
 		if interfaceIsNil(sourceScan) {
@@ -378,11 +402,28 @@ func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 		if err != nil {
 			break
 		}
+		var owner sql.NullInt64
+		if ownerField != "" {
+			destinations = append(destinations, &owner)
+		}
 		if scanErr := rows.Scan(destinations...); scanErr != nil {
 			err = fmt.Errorf("scan relation projection row: %w", scanErr)
 			break
 		}
+		if ownerField != "" {
+			if _, present := slices.BinarySearch(ownerKeys, owner.Int64); !owner.Valid || !present {
+				err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Field: ownerField, Detail: "prefetch target row is outside its requested owner batch"}
+				break
+			}
+			owners = append(owners, owner.Int64)
+		}
 		source, key, presence := sourceScan.Decode()
+		if ownerField != "" {
+			err = validatePrefetchModelProjection(q.sourceDescriptor, source, key, presence)
+			if err != nil {
+				break
+			}
+		}
 		row := projectedRelatedRow[S]{source: q.sourceDescriptor.CloneModel(source), key: key, presence: presence, targets: make([]projectedRelatedTarget[S], len(scans))}
 		for index, scan := range scans {
 			row.targets[index] = scan.snapshot()
@@ -390,28 +431,28 @@ func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 		projected = append(projected, row)
 	}
 	if err = lifecycle.finish(ctx, err); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	values := make([]relatedSelectedValue[S], len(projected))
 	seen := selectedCardinality{}
 	for index, row := range projected {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if row.presence != ProjectionPresent || row.key.IsNull() {
-			return nil, relationInvalidPlan("source projection did not decode one present model")
+			return nil, nil, relationInvalidPlan("source projection did not decode one present model")
 		}
 		if _, ok := row.key.Integer(); !ok {
-			return nil, relationInvalidPlan("source projection returned a non-integer primary key")
+			return nil, nil, relationInvalidPlan("source projection returned a non-integer primary key")
 		}
 		value := relatedSelectedValue[S]{source: q.sourceDescriptor.CloneModel(row.source), targets: make([]cachedRelatedTarget, len(row.targets))}
 		for index, target := range row.targets {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			ready, err := target.validate(row.source, seen, "")
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			value.targets[index] = ready
 		}
@@ -419,13 +460,13 @@ func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 	}
 	if q.materialization != nil {
 		if err := loadPrefetchValues(ctx, q.backend, values, q.materialization.selections); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return values, nil
+	return values, owners, nil
 }
 func validProjectionDestinations(destinations []any, expected int) bool {
 	if len(destinations) != expected {

@@ -104,6 +104,47 @@ func TestFilteredPrefetchComposition(t *testing.T) {
 				t.Fatal("configured child cache missing")
 			}
 		})
+		t.Run("many_target_eager", func(t *testing.T) {
+			base := api.OwnersOwner.Filter(owners.OwnerFields.ID.Exact(first.ID))
+			selector := base.Prefetch.Labels.OrderBy(labels.LabelFields.Name.Asc()).SelectRelated(api.LabelsLabel.Related.FeaturedOwner).WithChildren(api.LabelsLabel.Prefetch.Owners)
+			before := len(probe.plans)
+			rows, err := base.PrefetchRelated(selector).All(ctx)
+			check(t, err)
+			view, err := rows[0].Labels()
+			check(t, err)
+			held, err := view.Query()
+			check(t, err)
+			children, err := held.All(ctx)
+			check(t, err)
+			verify(children)
+			if len(probe.plans)-before != 3 {
+				t.Fatal("many target eager and child not batched")
+			}
+			before = len(probe.plans)
+			children, err = held.Fresh().OrderBy(labels.LabelFields.Name.Asc()).All(ctx)
+			check(t, err)
+			verify(children)
+			if len(probe.plans)-before != 2 {
+				t.Fatal("many target eager configuration lost on refinement")
+			}
+			before = len(probe.plans)
+			one, found, err := held.Fresh().First(ctx)
+			check(t, err)
+			if !found {
+				t.Fatal("configured first absent")
+			}
+			verify([]*project.LabelsLabel{one})
+			if len(probe.plans)-before != 2 {
+				t.Fatal("many target eager cold First")
+			}
+			before = len(probe.plans)
+			combined, err := held.PrefetchRelated(held.Prefetch.RankedOwners).All(ctx)
+			check(t, err)
+			verify(combined)
+			if len(probe.plans)-before != 3 {
+				t.Fatal("additional prefetch dropped target eager")
+			}
+		})
 		t.Run("eager_and_children", func(t *testing.T) {
 			held, err := getHeld(api)
 			check(t, err)

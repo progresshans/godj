@@ -13,8 +13,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
-const GoDjProjectRelationFacadeInputSHA256 = "8c746506b233669766edd13ebf354f32a2af08a1ce05f0c8f37015273bd31109"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
+const GoDjProjectRelationFacadeInputSHA256 = "dbccfded6e095dbb148d368756be7a66b340ce66e01650c5fde0897a46240e83"
 
 type Backend interface {
 	db.Queryer
@@ -22,11 +22,12 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend      Backend
-	objects      Objects
-	models       relationFacadeBindings
-	sessionScope db.SessionValidator
-	_self        *relationFacadeState
+	backend            Backend
+	objects            Objects
+	models             relationFacadeBindings
+	reverseCollections ReverseObjects
+	sessionScope       db.SessionValidator
+	_self              *relationFacadeState
 }
 
 func (_state *relationFacadeState) validate() error {
@@ -164,6 +165,46 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...r
 	return _selector
 }
 
+type relationFacadeReversePrefetch[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ReverseCollectionPrefetch[S, T]
+}
+
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) Distinct() relationFacadeReversePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.PrefetchSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadePrefetchOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadePrefetchValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
+
 type relationFacadeSinglePrefetch[S, T any] struct {
 	state     *relationFacadeState
 	selection orm.SinglePrefetch[S, T]
@@ -191,6 +232,38 @@ func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...re
 	_selector.selection = _selector.selection.WithChildren(_inputs...)
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
+}
 
 type relationFacadePrefetchPath[S any] struct {
 	state     *relationFacadeState
@@ -205,12 +278,17 @@ func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue() orm
 }
 
 type ModelsCategoryQuery struct {
-	state *relationFacadeState
-	query orm.QuerySet[models.Category]
+	Prefetch ModelsCategoryPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[models.Category]
 }
 
 func newModelsCategoryQuery(_state *relationFacadeState, _query orm.QuerySet[models.Category]) ModelsCategoryQuery {
 	_result := ModelsCategoryQuery{state: _state, query: _query}
+	if _state != nil {
+		_result.Prefetch.Labels = relationFacadeReversePrefetch[models.Category, models.Label]{state: _state, selection: _state.reverseCollections.ModelsCategory.labels.WithChildren()}
+		_result.Prefetch.Tickets = relationFacadeReversePrefetch[models.Category, models.Ticket]{state: _state, selection: _state.reverseCollections.ModelsCategory.tickets.WithChildren()}
+	}
 	return _result
 }
 
@@ -332,6 +410,8 @@ type ModelsCategory struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	_reverseCollection0       *orm.RelatedSetCache[models.Label]
+	_reverseCollection1       *orm.RelatedSetCache[models.Ticket]
 	_self                     *ModelsCategory
 }
 
@@ -391,6 +471,12 @@ func (_model *ModelsCategory) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[models.Label]{}
+	}
+	if _model._reverseCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection1 = &orm.RelatedSetCache[models.Ticket]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	return nil
@@ -422,6 +508,304 @@ func (_model *ModelsCategory) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+type ModelsCategoryLabelsCollection struct {
+	owner    *ModelsCategory
+	relation *orm.RelatedSet[models.Label]
+	_self    *ModelsCategoryLabelsCollection
+}
+
+func newModelsCategoryLabelsCollection(_owner *ModelsCategory, _relation *orm.RelatedSet[models.Label]) *ModelsCategoryLabelsCollection {
+	_view := &ModelsCategoryLabelsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsCategoryLabelsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsCategoryLabelsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsCategoryLabelsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsCategory) Labels() (*ModelsCategoryLabelsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[models.Label], error) {
+		return _model.state.reverseCollections.ModelsCategory.labels.From(_model.state.backend, _model.modelsCategoryModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsCategoryLabelsCollection(_model, _relation), nil
+}
+func (_view *ModelsCategoryLabelsCollection) Query() (ModelsLabelQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	return newModelsLabelQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsCategoryLabelsCollection) All(_ctx context.Context) ([]*ModelsLabel, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsCategoryLabelsCollection) Fresh() (*ModelsCategoryLabelsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsCategoryLabelsCollection(_view.owner, _related), nil
+}
+func (_view *ModelsCategoryLabelsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type ModelsCategoryTicketsCollection struct {
+	owner    *ModelsCategory
+	relation *orm.RelatedSet[models.Ticket]
+	_self    *ModelsCategoryTicketsCollection
+}
+
+func newModelsCategoryTicketsCollection(_owner *ModelsCategory, _relation *orm.RelatedSet[models.Ticket]) *ModelsCategoryTicketsCollection {
+	_view := &ModelsCategoryTicketsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsCategoryTicketsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsCategoryTicketsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsCategoryTicketsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsCategory) Tickets() (*ModelsCategoryTicketsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection1.Get(func() (*orm.RelatedSet[models.Ticket], error) {
+		return _model.state.reverseCollections.ModelsCategory.tickets.From(_model.state.backend, _model.modelsCategoryModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsCategoryTicketsCollection(_model, _relation), nil
+}
+func (_view *ModelsCategoryTicketsCollection) Query() (ModelsTicketQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsTicketQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsTicketQuery{}, _err
+	}
+	return newModelsTicketQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsCategoryTicketsCollection) All(_ctx context.Context) ([]*ModelsTicket, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsCategoryTicketsCollection) Fresh() (*ModelsCategoryTicketsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsCategoryTicketsCollection(_view.owner, _related), nil
+}
+func (_view *ModelsCategoryTicketsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type ModelsCategoryPrefetchSelector = relationFacadePrefetchInput[models.Category]
+type ModelsCategoryPrefetchSelectors struct {
+	Labels  relationFacadeReversePrefetch[models.Category, models.Label]
+	Tickets relationFacadeReversePrefetch[models.Category, models.Ticket]
+}
+type ModelsCategoryPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[models.Category]
+}
+
+func (_query ModelsCategoryQuery) PrefetchRelated(_selectors ...ModelsCategoryPrefetchSelector) ModelsCategoryPrefetchQuery {
+	_result := ModelsCategoryPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[models.Category], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query ModelsCategoryQuery) PrefetchRelatedPaths(_paths ...string) (ModelsCategoryPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsCategoryPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return ModelsCategoryPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[models.Category], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchModelsCategoryPath(_path, 1, &_remaining)
+		if _err != nil {
+			return ModelsCategoryPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := ModelsCategoryPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ModelsCategoryPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ModelsCategoryQuery) PrefetchPath(_path string) (ModelsCategoryPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchModelsCategoryPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[models.Category]{state: _query.state, selection: _selection}, nil
+}
+func (_query ModelsCategoryPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query ModelsCategoryPrefetchQuery) Filter(_values ...orm.Predicate[models.Category]) ModelsCategoryPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query ModelsCategoryPrefetchQuery) OrderBy(_values ...orm.Ordering[models.Category]) ModelsCategoryPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query ModelsCategoryPrefetchQuery) Distinct() ModelsCategoryPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query ModelsCategoryPrefetchQuery) Fresh() ModelsCategoryPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query ModelsCategoryPrefetchQuery) Limit(_value int) (ModelsCategoryPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return ModelsCategoryPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ModelsCategoryPrefetchQuery) Offset(_value int) (ModelsCategoryPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return ModelsCategoryPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query ModelsCategoryPrefetchQuery) All(_ctx context.Context) ([]*ModelsCategory, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*ModelsCategory, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeModelsCategory(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ModelsCategoryPrefetchQuery) First(_ctx context.Context) (*ModelsCategory, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeModelsCategory(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query ModelsCategoryPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
 func (_state *relationFacadeState) materializeModelsCategory(_ctx context.Context, _value *orm.RelatedSelected[models.Category]) (*ModelsCategory, error) {
 	if _err := _value.ValidateSourceBinding(_state.models.ModelsCategory); _err != nil {
 		return nil, _err
@@ -434,6 +818,22 @@ func (_state *relationFacadeState) materializeModelsCategory(_ctx context.Contex
 	if _err != nil {
 		return nil, _err
 	}
+	if _collection, _present, _err := _state.reverseCollections.ModelsCategory.labels.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[models.Label], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _collection, _present, _err := _state.reverseCollections.ModelsCategory.tickets.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection1.Get(func() (*orm.RelatedSet[models.Ticket], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _err := _ctx.Err(); _err != nil {
 		return nil, _err
 	}
@@ -444,6 +844,29 @@ func (_state *relationFacadeState) prefetchModelsCategoryPath(_path string, _dep
 		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
 	}
 	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "labels":
+		_selection := _state.reverseCollections.ModelsCategory.labels.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsLabelPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "tickets":
+		_selection := _state.reverseCollections.ModelsCategory.tickets.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsTicketPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
 	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
 }
 
@@ -464,6 +887,7 @@ func newModelsLabelQuery(_state *relationFacadeState, _query orm.QuerySet[models
 	}
 	if _state != nil {
 		_result.Prefetch.Category = relationFacadeSinglePrefetch[models.Label, models.Category]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ModelsLabel.category)}
+		_result.Prefetch.TicketLinks = relationFacadeReversePrefetch[models.Label, models.TicketLabel]{state: _state, selection: _state.reverseCollections.ModelsLabel.ticketLinks.WithChildren()}
 	}
 	return _result
 }
@@ -590,6 +1014,7 @@ type ModelsLabel struct {
 	categoryCache             *orm.RelationCache[ModelsCategory]
 	categoryScalarSnapshot    int64
 	categoryScalarPresent     bool
+	_reverseCollection0       *orm.RelatedSetCache[models.TicketLabel]
 	_self                     *ModelsLabel
 }
 
@@ -677,6 +1102,9 @@ func (_model *ModelsLabel) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	_model.categoryScalarSnapshot = _model.modelsLabelModel.CategoryID
@@ -737,6 +1165,7 @@ func (_model *ModelsLabel) relationFacadeDerived(_value models.Label) (*ModelsLa
 	if _err != nil {
 		return nil, _err
 	}
+	_result._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	_result._self = _result
 	return _result, nil
 }
@@ -950,9 +1379,84 @@ func (_model *ModelsLabel) Category(_ctx context.Context) (*ModelsCategory, erro
 	return _wrapped, nil
 }
 
+type ModelsLabelTicketLinksCollection struct {
+	owner    *ModelsLabel
+	relation *orm.RelatedSet[models.TicketLabel]
+	_self    *ModelsLabelTicketLinksCollection
+}
+
+func newModelsLabelTicketLinksCollection(_owner *ModelsLabel, _relation *orm.RelatedSet[models.TicketLabel]) *ModelsLabelTicketLinksCollection {
+	_view := &ModelsLabelTicketLinksCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsLabelTicketLinksCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsLabelTicketLinksCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsLabelTicketLinksCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsLabel) TicketLinks() (*ModelsLabelTicketLinksCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[models.TicketLabel], error) {
+		return _model.state.reverseCollections.ModelsLabel.ticketLinks.From(_model.state.backend, _model.modelsLabelModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsLabelTicketLinksCollection(_model, _relation), nil
+}
+func (_view *ModelsLabelTicketLinksCollection) Query() (ModelsTicketLabelQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	return newModelsTicketLabelQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsLabelTicketLinksCollection) All(_ctx context.Context) ([]*ModelsTicketLabel, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsLabelTicketLinksCollection) Fresh() (*ModelsLabelTicketLinksCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsLabelTicketLinksCollection(_view.owner, _related), nil
+}
+func (_view *ModelsLabelTicketLinksCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type ModelsLabelPrefetchSelector = relationFacadePrefetchInput[models.Label]
 type ModelsLabelPrefetchSelectors struct {
-	Category relationFacadeSinglePrefetch[models.Label, models.Category]
+	Category    relationFacadeSinglePrefetch[models.Label, models.Category]
+	TicketLinks relationFacadeReversePrefetch[models.Label, models.TicketLabel]
 }
 type ModelsLabelPrefetchQuery struct {
 	state    *relationFacadeState
@@ -1334,6 +1838,14 @@ func (_state *relationFacadeState) wrapSelectedModelsLabelObject(_ctx context.Co
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	if _collection, _present, _err := _state.reverseCollections.ModelsLabel.ticketLinks.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[models.TicketLabel], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -1365,6 +1877,16 @@ func (_state *relationFacadeState) prefetchModelsLabelPath(_path string, _depth 
 		_selection := orm.PrefetchRequiredForward(_state.objects.ModelsLabel.category)
 		if _nested {
 			_child, _err := _state.prefetchModelsCategoryPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "ticket_links":
+		_selection := _state.reverseCollections.ModelsLabel.ticketLinks.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsTicketLabelPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -2344,6 +2866,7 @@ func newModelsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[model
 	if _state != nil {
 		_result.Prefetch.Category = relationFacadeSinglePrefetch[models.Ticket, models.Category]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.ModelsTicket.category)}
 		_result.Prefetch.ServiceReport = relationFacadeSinglePrefetch[models.Ticket, models.ServiceReport]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.ModelsTicket.serviceReport)}
+		_result.Prefetch.LabelLinks = relationFacadeReversePrefetch[models.Ticket, models.TicketLabel]{state: _state, selection: _state.reverseCollections.ModelsTicket.labelLinks.WithChildren()}
 	}
 	return _result
 }
@@ -2471,6 +2994,7 @@ type ModelsTicket struct {
 	categoryScalarSnapshot    int64
 	categoryScalarPresent     bool
 	serviceReportCache        *orm.RelationCache[ModelsServiceReport]
+	_reverseCollection0       *orm.RelatedSetCache[models.TicketLabel]
 	_self                     *ModelsTicket
 }
 
@@ -2560,6 +3084,9 @@ func (_model *ModelsTicket) relationFacadeRefreshSnapshots() error {
 	if _err != nil {
 		return _err
 	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
+	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
 	_model.categoryScalarSnapshot = _model.modelsTicketModel.CategoryID
@@ -2635,6 +3162,7 @@ func (_model *ModelsTicket) relationFacadeDerived(_value models.Ticket) (*Models
 	if _err != nil {
 		return nil, _err
 	}
+	_result._reverseCollection0 = &orm.RelatedSetCache[models.TicketLabel]{}
 	_result._self = _result
 	return _result, nil
 }
@@ -2968,10 +3496,85 @@ func (_model *ModelsTicket) ServiceReport(_ctx context.Context) (*ModelsServiceR
 	return _wrapped, true, nil
 }
 
+type ModelsTicketLabelLinksCollection struct {
+	owner    *ModelsTicket
+	relation *orm.RelatedSet[models.TicketLabel]
+	_self    *ModelsTicketLabelLinksCollection
+}
+
+func newModelsTicketLabelLinksCollection(_owner *ModelsTicket, _relation *orm.RelatedSet[models.TicketLabel]) *ModelsTicketLabelLinksCollection {
+	_view := &ModelsTicketLabelLinksCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *ModelsTicketLabelLinksCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (ModelsTicketLabelLinksCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*ModelsTicketLabelLinksCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *ModelsTicket) LabelLinks() (*ModelsTicketLabelLinksCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[models.TicketLabel], error) {
+		return _model.state.reverseCollections.ModelsTicket.labelLinks.From(_model.state.backend, _model.modelsTicketModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsTicketLabelLinksCollection(_model, _relation), nil
+}
+func (_view *ModelsTicketLabelLinksCollection) Query() (ModelsTicketLabelQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	return newModelsTicketLabelQuery(_view.owner.state, _query), nil
+}
+func (_view *ModelsTicketLabelLinksCollection) All(_ctx context.Context) ([]*ModelsTicketLabel, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *ModelsTicketLabelLinksCollection) Fresh() (*ModelsTicketLabelLinksCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newModelsTicketLabelLinksCollection(_view.owner, _related), nil
+}
+func (_view *ModelsTicketLabelLinksCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type ModelsTicketPrefetchSelector = relationFacadePrefetchInput[models.Ticket]
 type ModelsTicketPrefetchSelectors struct {
 	Category      relationFacadeSinglePrefetch[models.Ticket, models.Category]
 	ServiceReport relationFacadeSinglePrefetch[models.Ticket, models.ServiceReport]
+	LabelLinks    relationFacadeReversePrefetch[models.Ticket, models.TicketLabel]
 }
 type ModelsTicketPrefetchQuery struct {
 	state    *relationFacadeState
@@ -3354,6 +3957,14 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	if _collection, _present, _err := _state.reverseCollections.ModelsTicket.labelLinks.FromPrefetched(_object._selectedGraph); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[models.TicketLabel], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -3403,6 +4014,16 @@ func (_state *relationFacadeState) prefetchModelsTicketPath(_path string, _depth
 		_selection := orm.PrefetchReverseOneToOne(_state.objects.ModelsTicket.serviceReport)
 		if _nested {
 			_child, _err := _state.prefetchModelsServiceReportPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "label_links":
+		_selection := _state.reverseCollections.ModelsTicket.labelLinks.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchModelsTicketLabelPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -4638,6 +5259,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_state.models.ModelsServiceReport = _model2
 	_state.models.ModelsTicket = _model3
 	_state.models.ModelsTicketLabel = _model4
+	_reverse, _err := BindReverseObjectsIn(_binding)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_state.reverseCollections = _reverse
 	_state._self = _state
 	return Models{
 		ModelsCategory:      newModelsCategoryQuery(_state, models.CategoryObjects.Using(_backend)),
@@ -4648,4 +5274,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_9eb863e3cbefe4b1771cdd0da1b25ff538e53fac2f65d5382492170a6da0f693
+var _ goDjProjectSnapshot_6d300c4dc81529e135c6e3645817f19e94c7c1ebdd4d90f55092570418306f94

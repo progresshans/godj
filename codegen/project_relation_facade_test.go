@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -127,7 +127,12 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		"AggregateAuthorsAuthorInto",
 		"AggregateBlogPostInto",
 		"AuthorsAuthor",
+		"AuthorsAuthorPostsCollection",
+		"AuthorsAuthorPrefetchQuery",
+		"AuthorsAuthorPrefetchSelector",
+		"AuthorsAuthorPrefetchSelectors",
 		"AuthorsAuthorQuery",
+		"AuthorsAuthorReviewedPostsCollection",
 		"Backend",
 		"BlogPost",
 		"BlogPostEagerQuery",
@@ -372,7 +377,12 @@ func projectRelationFacadePrerequisiteBytes(
 	packages []codegen.RelationObjectPackage,
 ) [][]byte {
 	t.Helper()
+	reversePackages := make([]codegen.RelationReversePackage, len(packages))
+	for i, p := range packages {
+		reversePackages[i] = codegen.RelationReversePackage{Alias: p.Alias, ImportPath: p.ImportPath, Schema: p.Schema}
+	}
 	return [][]byte{
+		testfixture.Generate(t, "project reverse objects", func() ([]byte, error) { return codegen.GenerateProjectRelationReverse("project", reversePackages) }),
 		testfixture.Generate(t, "project binding", func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "authors", ImportPath: modulePath + "/authors"},

@@ -52,17 +52,20 @@ manager core filter를 고정 reference에 비교한다. QueryRelation/ChainRela
 nullable duplicate·양방향/self·owner multiplicity·전체 성공 후 cache publication과 materialization별 소유권을 유지한다.
 일반 빌린 session에서도 읽을 수 있고 relation capability 없는 변경은 빈 입력도 거부한다.
 Custom target query의 기존 조건·정렬·DISTINCT와 연결 행 scope를 유지하는 owner projection을 Query AST·양 DB에 연결했다.
-Nested/filtered/eager prefetch의 독립 결과와 cache/query-count 기준을 확보했다. Eager child 구성의 관찰은 아직 reference-only다.
+Nested/filtered/eager prefetch의 독립 결과와 cache/query-count 기준을 확보했다.
 Eager selected graph와 collection cache의 결과 표현을 통합하고 기본 중첩 ManyToMany를 generated model 접근자까지 연결했다.
 Typed child와 문자열 경로는 같은 bounded tree를 사용하며 같은 관계의 하위 선택을 합쳐 일괄 조회한다.
 중첩 결과는 query의 immutable 평가와 반환 model의 mutable cache를 구분하며, custom query의 Filter/정렬은 held QuerySet에 남고
 manager 변경 뒤에는 기본 관계 조회로 돌아간다. Target Filter·OrderBy·Distinct와 명시한 하위 설정의 파생 조회,
 lookup 재정의 거부·typed/path 조합을 실제 generated 소비자에 연결했다. 설정된 target query의 eager·추가 prefetch가
 기존 하위 설정과 공유 node budget을 유지하도록 연결했다. 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을
-root eager에 양쪽 호출 순서로 연결하고, 이미 읽은 부모를 재사용한다. Facade ABI v15와 공통 cache 전달·NULL 관계의 session 수명을 반영했다.
-단일 관계·eager 조합 checkpoint를 통과했으며 reverse collection의 target eager 구성·owner별 slice window를 이어서 연결한다.
+root eager에 양쪽 호출 순서로 연결하고, 이미 읽은 부모를 재사용한다. 공통 cache 전달·NULL 관계의 session 수명을 반영했다.
+단일 관계·eager 조합 checkpoint를 통과했다. Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를
+공통 graph와 generated model 접근자에 연결했다. 명시한 eager 설정은 held query의 파생 조회에 유지하며
+역방향 manager Fresh/Invalidate는 기본 scope로 돌아간다. Facade ABI v16과 실제 generated 소비자의 통합 checkpoint를 통과했다.
+Owner별 slice window·custom single target query와 소비자 통합은 이어서 연결한다.
 Prefetch 설정 query의 streaming에는 materialized batch 계약이 필요하므로 현재 명시 오류로 거부한다.
-Eager와 prefetch의 tree 통합, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+나머지 target query 구성·owner별 slice, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

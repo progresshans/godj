@@ -7,7 +7,7 @@ import (
 )
 
 func projectRelationFacadeHasPrefetch(model projectRelationFacadeModel) bool {
-	return len(model.collections) > 0 || model.source != nil
+	return len(model.collections) > 0 || len(model.reverseCollections) > 0 || model.source != nil
 }
 
 func projectSinglePrefetchExpression(model projectRelationFacadeModel, relation projectRelationObjectEdge) string {
@@ -43,6 +43,24 @@ func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...rel
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
 }
+type relationFacadeReversePrefetch[S,T any] struct {
+ state *relationFacadeState
+ selection orm.ReverseCollectionPrefetch[S,T]
+}
+func (_selector relationFacadeReversePrefetch[S,T]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadeReversePrefetch[S,T]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeReversePrefetch[S,T]) Filter(_values ...orm.Predicate[T])relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
+func (_selector relationFacadeReversePrefetch[S,T]) OrderBy(_values ...orm.Ordering[T])relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
+func (_selector relationFacadeReversePrefetch[S,T]) Distinct()relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeReversePrefetch[S,T]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeReversePrefetch[S,T]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
+ for _,_child:=range _children{
+  if relationFacadeNil(_child)||_child.relationFacadePrefetchOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child prefetch belongs to another facade origin"));return _selector}
+  _inputs=append(_inputs,_child.relationFacadePrefetchValue())
+ }
+ _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
+}
 type relationFacadeSinglePrefetch[S,T any] struct {
  state *relationFacadeState
  selection orm.SinglePrefetch[S,T]
@@ -57,6 +75,24 @@ func (_selector relationFacadeSinglePrefetch[S,T]) WithChildren(_children ...rel
   _inputs=append(_inputs,_child.relationFacadePrefetchValue())
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
+}
+func (_selector relationFacadeManyPrefetch[S,T,L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeManyPrefetch[S,T,L]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
+ for _index,_child:=range _selectors{
+  if relationFacadeNil(_child)||_child.relationFacadeSelectionOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"));return _selector}
+  _inputs[_index]=_child.relationFacadeSelectionValue()
+ }
+ _selector.selection=_selector.selection.SelectRelated(_inputs...);return _selector
+}
+func (_selector relationFacadeReversePrefetch[S,T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeReversePrefetch[S,T]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
+ for _index,_child:=range _selectors{
+  if relationFacadeNil(_child)||_child.relationFacadeSelectionOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"));return _selector}
+  _inputs[_index]=_child.relationFacadeSelectionValue()
+ }
+ _selector.selection=_selector.selection.SelectRelated(_inputs...);return _selector
 }
 type relationFacadePrefetchPath[S any] struct {
  state *relationFacadeState
@@ -80,6 +116,9 @@ type %[1]sPrefetchSelectors struct {
 		for _, relation := range model.source.selections {
 			fmt.Fprintf(output, "%s relationFacadeSinglePrefetch[%s,%s.%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName)
 		}
+	}
+	for _, relation := range model.reverseCollections {
+		fmt.Fprintf(output, "%s relationFacadeReversePrefetch[%s,%s.%s]\n", relation.selector, raw, relation.source.app.alias, relation.source.model.GoName)
 	}
 	for _, relation := range model.collections {
 		fmt.Fprintf(output, "%s relationFacadeManyPrefetch[%s,%s.%s,%s.%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName)
@@ -218,6 +257,13 @@ func renderProjectFacadePrefetchPath(output *bytes.Buffer, model projectRelation
 `, strconv.Quote(relation.path), projectSinglePrefetchExpression(model, relation), relation.target.app.prefix+relation.target.model.GoName)
 			}
 		}
+		for _, relation := range model.reverseCollections {
+			fmt.Fprintf(output, `case %[1]s:
+ _selection:=_state.reverseCollections.%[2]s.%[3]s.WithChildren()
+ if _nested{_child,_err:=_state.prefetch%[4]sPath(_tail,_depth+1,_remaining);if _err!=nil{return nil,_err};_selection=_selection.WithChildren(_child)}
+ return _selection,nil
+`, strconv.Quote(relation.name), model.surface, lowerFirst(relation.selector), relation.source.app.prefix+relation.source.model.GoName)
+		}
 		for _, relation := range model.collections {
 			fmt.Fprintf(output, `case %[1]s:
  _selection:=_state.collections.%[2]s.WithChildren()
@@ -246,6 +292,14 @@ func renderProjectFacadeMaterialize(output *bytes.Buffer, model projectRelationF
 }
 
 func renderProjectFacadePrefetchedCollections(output *bytes.Buffer, model projectRelationFacadeModel, graph string) {
+	for index, relation := range model.reverseCollections {
+		target := relation.source.app.alias + "." + relation.source.model.GoName
+		fmt.Fprintf(output, `if _collection,_present,_err:=_state.reverseCollections.%[1]s.%[2]s.FromPrefetched(%[3]s);_err!=nil{return nil,_err}else if _present{
+ _,_err=_wrapped._reverseCollection%[4]d.Get(func()(*orm.RelatedSet[%[5]s],error){return _collection,nil});if _err!=nil{return nil,_err}
+}
+`, model.surface, lowerFirst(relation.selector), graph, index, target)
+	}
+
 	for index, relation := range model.collections {
 		target := relation.target.app.alias + "." + relation.target.model.GoName
 		through := relation.through.app.alias + "." + relation.through.model.GoName

@@ -53,6 +53,7 @@ type prefetchProbe struct {
 	failAt          int
 	failure         error
 	corrupt         string
+	corruptAt       int
 	cancelAfterScan context.CancelFunc
 	cancelAt        int
 	closes          int
@@ -81,6 +82,9 @@ func (p *prefetchProbe) Query(ctx context.Context, plan query.Plan) (db.Rows, er
 		cancel = nil
 	}
 	mode := p.corrupt
+	if p.corruptAt != 0 && p.corruptAt != len(p.plans) {
+		mode = ""
+	}
 	if mode == "foreign_owner" && plan.ResultShape().Kind() == query.ResultPrefetch {
 		mode, index = "foreign", len(plan.SourceFields())
 	}

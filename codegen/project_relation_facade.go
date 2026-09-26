@@ -11,17 +11,18 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v15"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
 type projectRelationFacadeModel struct {
-	model       *projectRelationModel
-	source      *projectRelationObjectSource
-	surface     string
-	rawAlias    string
-	queryType   string
-	collections []projectManyToMany
+	model              *projectRelationModel
+	source             *projectRelationObjectSource
+	surface            string
+	rawAlias           string
+	queryType          string
+	collections        []projectManyToMany
+	reverseCollections []projectRelationReverseEdge
 }
 
 // GenerateProjectRelationFacade renders the application-facing project facade
@@ -53,8 +54,16 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	if err != nil {
 		return nil, err
 	}
-	facadeModels := buildProjectRelationFacadeSurface(models, sources, collections)
-	hasPrefetch := len(collections) > 0 || projectRelationFacadeHasRelationSources(facadeModels)
+	_, reverseOwners, err := plan.reverseSurface()
+	if err != nil {
+		return nil, err
+	}
+	facadeModels := buildProjectRelationFacadeSurface(models, sources, collections, reverseOwners)
+	hasReverseCollections := false
+	for _, model := range facadeModels {
+		hasReverseCollections = hasReverseCollections || len(model.reverseCollections) > 0
+	}
+	hasPrefetch := len(collections) > 0 || projectRelationFacadeHasRelationSources(facadeModels) || hasReverseCollections
 	if err := validateProjectRelationFacadeFields(facadeModels); err != nil {
 		return nil, err
 	}
@@ -88,7 +97,7 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	)
 	fmt.Fprintf(&output, "const GoDjProjectRelationFacadeInputSHA256 = %s\n\n", strconv.Quote(inputHash))
 
-	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels), len(collections) > 0)
+	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels), len(collections) > 0, hasReverseCollections)
 	fmt.Fprintln(&output, "type relationFacadeBindings struct {")
 	for _, model := range facadeModels {
 		fmt.Fprintf(&output, "%s orm.BoundModel[%s.%s]\n", model.surface, model.model.app.alias, model.model.model.GoName)
@@ -103,7 +112,7 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 			renderProjectFacadePrefetchPath(&output, facadeModels[index])
 		}
 	}
-	renderProjectRelationFacadeAggregate(&output, facadeModels, len(collections) > 0)
+	renderProjectRelationFacadeAggregate(&output, facadeModels, len(collections) > 0, hasReverseCollections)
 
 	return output.Bytes(), nil
 }
@@ -130,6 +139,9 @@ func validateProjectRelationFacadeFields(models []projectRelationFacadeModel) er
 		}
 		for _, collection := range model.collections {
 			methods[collection.selector] = true
+		}
+		for _, relation := range model.reverseCollections {
+			methods[relation.selector] = true
 		}
 		for _, field := range model.model.model.Fields {
 			if methods[field.GoName] {
@@ -161,6 +173,7 @@ func buildProjectRelationFacadeSurface(
 	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
 	collections []projectManyToMany,
+	reverseOwners []projectRelationReverseOwner,
 ) []projectRelationFacadeModel {
 	sourceByIdentity := make(map[ir.ModelIdentity]*projectRelationObjectSource, len(sources))
 	for index := range sources {
@@ -175,13 +188,25 @@ func buildProjectRelationFacadeSurface(
 				owned = append(owned, collection)
 			}
 		}
+		var reverseCollections []projectRelationReverseEdge
+		for _, owner := range reverseOwners {
+			if owner.model.identity != model.identity {
+				continue
+			}
+			for _, relation := range owner.relations {
+				if relation.cardinality == ir.RelationManyToOne {
+					reverseCollections = append(reverseCollections, relation)
+				}
+			}
+		}
 		result[index] = projectRelationFacadeModel{
-			model:       model,
-			source:      sourceByIdentity[model.identity],
-			surface:     surface,
-			rawAlias:    lowerFirst(surface) + "Model",
-			queryType:   surface + "Query",
-			collections: owned,
+			model:              model,
+			source:             sourceByIdentity[model.identity],
+			surface:            surface,
+			rawAlias:           lowerFirst(surface) + "Model",
+			queryType:          surface + "Query",
+			collections:        owned,
+			reverseCollections: reverseCollections,
 		}
 	}
 	return result
@@ -220,7 +245,7 @@ func projectRelationFacadeHasRelationSources(models []projectRelationFacadeModel
 	return false
 }
 
-func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources, hasCollections bool) {
+func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources, hasCollections, hasReverseCollections bool) {
 	fmt.Fprintln(output, "type Backend interface {")
 	fmt.Fprintln(output, "\tdb.Queryer")
 	fmt.Fprintln(output, "\tdb.Mutator")
@@ -230,6 +255,9 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	fmt.Fprintln(output, "\tbackend Backend")
 	fmt.Fprintln(output, "\tobjects Objects")
 	fmt.Fprintln(output, "models relationFacadeBindings")
+	if hasReverseCollections {
+		fmt.Fprintln(output, "reverseCollections ReverseObjects")
+	}
 	fmt.Fprintln(output, "\tsessionScope db.SessionValidator")
 	if hasCollections {
 		fmt.Fprintln(output, "\tcollections Collections")
@@ -282,7 +310,7 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
 	}
-	if hasRelationSources {
+	if hasRelationSources || hasCollections || hasReverseCollections {
 		fmt.Fprint(output, `type relationFacadeSelectionInput[S any] interface {
  relationFacadeSelectionOwner() *relationFacadeState
  relationFacadeSelectionValue() orm.RelatedSelection[S]
@@ -320,6 +348,7 @@ func renderProjectRelationFacadeModel(output *bytes.Buffer, model projectRelatio
 	renderProjectRelationFacadeQuery(output, model)
 	renderProjectRelationFacadeWrapper(output, model)
 	renderProjectFacadeCollections(output, model)
+	renderProjectFacadeReverseCollections(output, model)
 	renderProjectFacadePrefetch(output, model)
 	if model.source != nil {
 		renderProjectRelationFacadeSelector(output, model)
@@ -372,6 +401,9 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 			for _, relation := range model.source.selections {
 				fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeSinglePrefetch[%s,%s.%s]{state:_state,selection:%s}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, projectSinglePrefetchExpression(model, relation))
 			}
+		}
+		for _, relation := range model.reverseCollections {
+			fmt.Fprintf(output, "_result.Prefetch.%s=relationFacadeReversePrefetch[%s,%s.%s]{state:_state,selection:_state.reverseCollections.%s.%s.WithChildren()}\n", relation.selector, rawType, relation.source.app.alias, relation.source.model.GoName, model.surface, lowerFirst(relation.selector))
 		}
 		for _, relation := range model.collections {
 			fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeManyPrefetch[%s,%s.%s,%s.%s]{state:_state,selection:_state.collections.%s.WithChildren()}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.surface)
@@ -516,6 +548,9 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	for index, collection := range model.collections {
 		fmt.Fprintf(output, "\t_manyCollection%d *orm.ManyCollectionCache[%s.%s,%s.%s]\n", index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
 	}
+	for index, relation := range model.reverseCollections {
+		fmt.Fprintf(output, "_reverseCollection%d *orm.RelatedSetCache[%s.%s]\n", index, relation.source.app.alias, relation.source.model.GoName)
+	}
 	fmt.Fprintf(output, "\t_self *%s\n", model.surface)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -616,6 +651,9 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\t}")
 	for index, collection := range model.collections {
 		fmt.Fprintf(output, "if _model._manyCollection%d == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent { _model._manyCollection%d = &orm.ManyCollectionCache[%s.%s,%s.%s]{} }\n", index, index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
+	}
+	for index, relation := range model.reverseCollections {
+		fmt.Fprintf(output, "if _model._reverseCollection%d==nil||_key!=_model.primaryKeySnapshot||_present!=_model.primaryKeySnapshotPresent{_model._reverseCollection%d=&orm.RelatedSetCache[%s.%s]{}}\n", index, index, relation.source.app.alias, relation.source.model.GoName)
 	}
 	fmt.Fprintln(output, "\t_model.primaryKeySnapshot = _key")
 	fmt.Fprintln(output, "\t_model.primaryKeySnapshotPresent = _present")
@@ -858,6 +896,10 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	for index, collection := range model.collections {
 		fmt.Fprintf(output, "_result._manyCollection%d = &orm.ManyCollectionCache[%s.%s,%s.%s]{}\n", index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
 	}
+	for index, relation := range model.reverseCollections {
+		fmt.Fprintf(output, "_result._reverseCollection%d=&orm.RelatedSetCache[%s.%s]{}\n", index, relation.source.app.alias, relation.source.model.GoName)
+	}
+
 	fmt.Fprintln(output, "\t_result._self = _result")
 	fmt.Fprintln(output, "\treturn _result, nil")
 	fmt.Fprintln(output, "}")
@@ -1323,7 +1365,7 @@ func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,
 func renderProjectRelationFacadeAggregate(
 	output *bytes.Buffer,
 	models []projectRelationFacadeModel,
-	hasCollections bool,
+	hasCollections, hasReverseCollections bool,
 ) {
 	fmt.Fprintln(output, "type Models struct {")
 	for _, model := range models {
@@ -1361,6 +1403,9 @@ func renderProjectRelationFacadeAggregate(
 	}
 	if hasCollections {
 		fmt.Fprintln(output, "_collections, _err := BindCollectionsIn(_binding); if _err != nil { return Models{}, _err }; _state.collections = _collections")
+	}
+	if hasReverseCollections {
+		fmt.Fprintln(output, "_reverse,_err:=BindReverseObjectsIn(_binding);if _err!=nil{return Models{},_err};_state.reverseCollections=_reverse")
 	}
 	fmt.Fprintln(output, "\t_state._self = _state")
 	fmt.Fprintln(output, "\treturn Models{")

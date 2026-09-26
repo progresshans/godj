@@ -18,13 +18,14 @@ Target Filter·OrderBy·Distinct와 명시한 하위 prefetch 설정을 generate
 Manager 변경 뒤 기본 조회 복귀와 held query의 조건·cache 보존을 구분한다.
 설정된 target query의 eager·추가 prefetch에도 기존 하위 설정을 전달한다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 연결하고, root eager와 양쪽 호출 순서로 조합해 이미 읽은 부모를 재사용한다.
-Reverse collection의 target eager 구성·owner별 slice는 이어서 구현한다.
+Reverse FK collection과 ManyToMany target eager 구성을 같은 graph와 model 접근자에 연결했다.
+명시한 target eager는 파생 조회에 유지하며 역방향 manager 초기화는 기본 scope로 돌아간다.
 지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-Reverse collection의 target eager 구성·owner별 slice를 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
+Owner별 slice·나머지 target query 구성을 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
 
