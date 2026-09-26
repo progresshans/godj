@@ -391,13 +391,13 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
 	}
 	for _, inventory := range []struct {
-		job, step, array string
-		required         []string
+		job, step, array, file string
+		required               []string
 	}{
-		{"command-product-matrix", "operator", "required_tests", operatorRequiredSentinels},
-		{"command-product-matrix", "targeted", "required_passes", targetRequiredSentinels},
-		{"postgresql-product", "", "core_required_passes", postgresCoreRequiredSentinels},
-		{"postgresql-product", "", "operator_target_required_passes", postgresOperatorTargetRequiredSentinels},
+		{"command-product-matrix", "operator", "required_tests", "", operatorRequiredSentinels},
+		{"command-product-matrix", "targeted", "required_passes", "", targetRequiredSentinels},
+		{"postgresql-product", "", "core_required_passes", "scripts/ci/postgres-core-required.txt", postgresCoreRequiredSentinels},
+		{"postgresql-product", "", "operator_target_required_passes", "", postgresOperatorTargetRequiredSentinels},
 	} {
 		job := ciJob(t, jobs, inventory.job)
 		if inventory.step != "" {
@@ -409,8 +409,18 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 			t.Fatalf("%s has no required test inventory %s", inventory.job, inventory.array)
 		}
 		actual := make(map[string]bool)
-		for _, value := range regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(array[1], -1) {
-			actual[value[1]] = true
+		if inventory.file != "" {
+			// The Python execution-owner test runs the workflow's shell loader
+			// and verifies every byte. Keep the required sentinel membership
+			// check on that external roster, not the empty array initializer.
+			ciRequire(t, inventory.job, job, inventory.file)
+			for _, value := range strings.Fields(ciRead(t, inventory.file)) {
+				actual[value] = true
+			}
+		} else {
+			for _, value := range regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(array[1], -1) {
+				actual[value[1]] = true
+			}
 		}
 		for _, sentinel := range inventory.required {
 			if !actual[sentinel] {

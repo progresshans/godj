@@ -211,8 +211,8 @@ func verifyRelationFacadeProduction(t *testing.T) {
 	reverseMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(
 		t,
 		consumerSource,
-		[]byte("_, err = requiredTarget.Unwrap()"),
-		[]byte("_, err = requiredTarget.Posts()"),
+		[]byte("var reverseModels []*project.BlogPost"),
+		[]byte("var reverseModels []*project.AuthorsAuthor"),
 	))
 	verifyRelationFacadeCompileNegative(
 		t,
@@ -220,7 +220,7 @@ func verifyRelationFacadeProduction(t *testing.T) {
 		consumerPath,
 		reverseMutation,
 		"reverse-negative.test",
-		[]string{"requiredTarget.Posts undefined", "*project.AuthorsAuthor"},
+		[]string{"[]*project.BlogPost", "[]*project.AuthorsAuthor"},
 	)
 
 	objectMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(

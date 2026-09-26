@@ -163,6 +163,16 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	if err != nil {
 		return err
 	}
+	reversePosts, err := requiredTarget.Posts()
+	if err != nil {
+		return err
+	}
+	var reverseModels []*project.BlogPost
+	reverseModels, err = reversePosts.All(ctx)
+	if err != nil {
+		return err
+	}
+	_ = reverseModels
 	nullable, present, err := post.Reviewer(ctx)
 	if err != nil {
 		return err

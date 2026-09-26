@@ -26,6 +26,13 @@ type facadeMinimalBackend struct {
 	calls int
 }
 
+// A metrics decorator for a borrowed session must retain its native lifetime
+// capability. Ordinary root recorders intentionally do not expose it.
+type recordingBorrowedSession struct {
+	*recordingBackend
+	db.SessionValidator
+}
+
 var _ project.Backend = (*facadeMinimalBackend)(nil)
 
 func (backend *facadeMinimalBackend) Query(context.Context, query.Plan) (db.Rows, error) {
@@ -397,13 +404,18 @@ func TestProjectFacadeUsesCallbackLocalSession(t *testing.T) {
 	ctx, product := openProvisionedFacadeFixture(t)
 	before := product.backend.QueryCount()
 	callbacks := 0
+	var borrowed project.Models
+	var cached *project.AuthorsAuthor
 	err := product.backend.Atomic(ctx, func(session db.Session) error {
 		callbacks++
-		var backend project.Backend = session
-		models, err := project.Using(backend)
+		if _, err := project.Using(session); !errors.Is(err, facadeBackendInvalidPlan) {
+			return errors.New("root constructor accepted a borrowed session")
+		}
+		models, err := project.UsingSession(session)
 		if err != nil {
 			return err
 		}
+		borrowed = models
 		post, found, err := models.BlogPost.
 			Filter(blog.PostFields.ID.Exact(10)).
 			OrderBy(blog.PostFields.ID.Asc()).
@@ -425,6 +437,7 @@ func TestProjectFacadeUsesCallbackLocalSession(t *testing.T) {
 		if raw.ID != 1 || raw.Name != "Ada" {
 			return errors.New("callback-local relation returned the wrong author")
 		}
+		cached = author
 		return nil
 	})
 	if err != nil {
@@ -434,6 +447,14 @@ func TestProjectFacadeUsesCallbackLocalSession(t *testing.T) {
 		t.Fatalf("callback-local facade callback count = %d, want 1", callbacks)
 	}
 	assertFacadeQueryDelta(t, product, before, 2, "callback-local source and relation queries")
+	before = product.backend.QueryCount()
+	if _, err := borrowed.BlogPost.OrderBy(blog.PostFields.ID.Asc()).All(ctx); err == nil {
+		t.Fatal("borrowed query survived callback completion")
+	}
+	if _, err := cached.Unwrap(); err == nil {
+		t.Fatal("cached borrowed model survived callback completion")
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "expired callback query and cached model")
 }
 
 func TestObserveUnsavedRelatedTargetFailsBeforeExactOperationIO(t *testing.T) {
@@ -1120,7 +1141,11 @@ func TestProjectFacadeCallbackLocalWritesRollbackDatabaseWithoutRewindingPublish
 	var metrics WriteMetrics
 	err := product.backend.Atomic(ctx, func(session db.Session) error {
 		recorder := &recordingBackend{backend: session}
-		models, err := project.Using(recorder)
+		lifetime, ok := session.(db.SessionValidator)
+		if !ok {
+			return errors.New("native callback session has no lifetime capability")
+		}
+		models, err := project.UsingSession(&recordingBorrowedSession{recordingBackend: recorder, SessionValidator: lifetime})
 		if err != nil {
 			return err
 		}

@@ -19,7 +19,8 @@ Typed/dynamic Query AST의 mixed 관계 조건, direct/nested/filtered/eager pre
 
 ## 다음 행동
 
-통합 source를 게시하고 GDJ-0099 Hosted 전체 milestone을 실행한다.
+첫 Hosted 실행에서 드러난 필수 목록 소비·borrowed session·역방향 타입 검사를 갱신했다.
+수정 source로 GDJ-0099 Hosted 전체 milestone을 다시 실행한다.
 실제 full gate·필수 실행·동일 source의 capture를 확인한 뒤 해당 통합을 마무리한다.
 영향 범위의 로컬 성공을 전체 플랫폼 검증이나 프레임워크 전체 완성으로 세지 않는다.
 

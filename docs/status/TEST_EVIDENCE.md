@@ -3,6 +3,43 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — Hosted 통합에서 드러난 검증 소비자 갱신
+
+2026-09-26, Ticket 소비자 source `d05468800ef9db483e61100c6f8f330065256adb`를 게시하고
+[PR feedback](https://github.com/progresshans/godj/actions/runs/36247428139)의 실제 Fast Go feedback success를 확인했다.
+같은 source의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/36247440549)은
+Linux amd64/arm64 관계 제품 normal·CGO=0에서 아래 세 검사가 실패했다. 이 실행은 전체 PASS가 아니다.
+
+- `TestWorkflowRequiredProductSentinelsRemainInventoried`: core required roster가 파일에서 채워지는데 인라인 빈 initializer만 읽었다.
+  같은 외부 roster에서 필수 sentinel을 확인하도록 고쳤다. 기존 Python execution-owner 검사는 실제 workflow shell loader를
+  실행해 파일 전체 bytes가 inventory에 도달하는지 확인하며, Go 이벤트 검증의 필수 실행·no-skips 검사는 유지한다.
+- `TestProjectFacadeUsesCallbackLocalSession`: borrowed session에 root `Using`을 사용했다. 명시적 `UsingSession`을 사용하고,
+  root constructor의 borrowed 입력 거부와 callback 종료 뒤 query/캐시 model 접근이 I/O 없이 실패하는지 추가로 확인했다.
+  Callback-local rollback 쓰기 검사도 별도 recorder에 native SessionValidator를 전달한다. Root recorder에 session capability를 합성하지 않는다.
+- `TestExternalConsumerCompiles`: 이미 지원하는 `Posts()`가 없어야 한다는 예전 negative 입력이었다.
+  외부 consumer에서 실제 reverse collection 조회를 컴파일하고, 결과를 다른 model slice로 받는 경우의 compile rejection으로 갱신했다.
+
+변경한 non-Markdown 파일은 `conformance/internal/protocol/ci_workflow_test.go`,
+`conformance/relationdeleteproduct/product_test.go`, `internal/compiletest/compile_test.go`,
+`internal/compiletest/testdata/relation_facade/external_consumer.go.txt` 네 개다. 제품 코드·generator·workflow·lock은 앞선 source와 같다.
+2,186개 non-Markdown source map은 `5ff176ad18f14d5241878086dc8e0a3b3de8e5e9e4700daa91f602ba650edcf4`다.
+`./conformance/internal/protocol ./conformance/relationdeleteproduct ./internal/compiletest` 전체를 Go 1.26.5·macOS arm64에서 실행했다.
+
+| 모드 | 필수 root | run=PASS | skip | 시간 | 실행 디렉터리 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| normal | 151 | 995 | 0 | 6.5 s | `integration-repair-normal-1790432368008274000` |
+| race | 144 | 930 | 0 | 16.8 s | `integration-repair-race-1790432424061077000` |
+| cgo0 | 151 | 995 | 0 | 5.4 s | `integration-repair-cgo0-1790432424058302000` |
+
+Standalone compile fixture 검사는 기존 `!race` 실행 소유권에 따라 normal/CGO=0에 포함된다. Runtime/race 실행 누락을 skip으로 숨기지 않았다.
+실행 전후 source map과 원본 event/stderr SHA256을 확인했다. `scripts/ci/test_packages.py` **12/12 PASS**에는
+실제 shell inventory 전달과 CI package/실행 소유권 회귀가 포함된다. 최초 dotted-module 호출의 import 경로 오류는
+`integration-repair-check-import-failure.log`에 보관하고 정식 discovery로 다시 실행했다. Format·diff·문서 검사도 적용했다.
+앞선 Ticket 소비자의 6개 package 결과를 이 source의 재실행으로 표현하지 않으며, 변경되지 않은 제품의 영향 근거로 유지한다.
+수정 source의 Hosted 전체 재실행과 최종 gate·같은 source capture 확인은 남아 있다.
+원본은 아래 Ticket 소비자 evidence root의 `latest-integration-repair-normal-path`, `latest-integration-repair-race-path`,
+`latest-integration-repair-cgo0-path`, `integration-repair-checks.json`, `integration-repair-audit.json`에 보관한다.
+
 ## GDJ-0099 — Ticket 라벨 집합의 실제 Form/Admin·API·독립 client
 
 2026-09-26, `3cfe3a0026a03470d48423d4d78843f5c37f6522` 위에서 Ticket.labels를 실제 Form/Admin과
