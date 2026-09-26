@@ -603,7 +603,7 @@ func verifyConcurrentPermissionMaintenance(t *testing.T, ctx context.Context, op
 	if _, found, err := oldRuntime.SessionStore().Load(ctx, id); err != nil || found {
 		t.Fatalf("permission change retained old durable session: %v", err)
 	}
-	if principal, err := oldRuntime.Authenticator().Resolve(ctx, before.Principal.ID()); principal.Authenticated() || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch}) {
+	if principal, err := oldRuntime.Authenticator().Resolve(ctx, before.Principal.ID()); principal.Principal().Authenticated() || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch}) {
 		t.Fatalf("stale runtime retained grants: %v", err)
 	}
 }

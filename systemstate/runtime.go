@@ -75,8 +75,8 @@ type Backend interface {
 }
 
 // Runtime owns the process-local contention gate for one database-coordinated
-// system-state domain and the restart-verified immutable credential
-// authenticator.
+// system-state domain and the restart-verified credential policy. Current
+// credential resolution and cached login verification share this gate.
 type Runtime struct {
 	mu            sync.Mutex
 	backend       Backend

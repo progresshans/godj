@@ -52,7 +52,8 @@ func TestRuntimeExplicitProvisionRestartAndDatabaseInterfaces(t *testing.T) {
 		_ = firstDatabase.Close()
 		t.Fatal("opened Runtime did not publish authenticator/session store")
 	}
-	principal, err := firstRuntime.Authenticator().Authenticate(ctx, config.Username, config.Password)
+	principalCredential, err := firstRuntime.Authenticator().Authenticate(ctx, config.Username, config.Password)
+	principal := principalCredential.Principal()
 	if err != nil || principal.ID() != config.PrincipalID || !principal.Authenticated() {
 		_ = firstDatabase.Close()
 		t.Fatalf("Authenticate(first runtime) = (%v,%v)", principal, err)
@@ -140,7 +141,8 @@ func TestRuntimeExplicitProvisionRestartAndDatabaseInterfaces(t *testing.T) {
 	if err != nil || len(secondCredentials) != 1 || secondCredentials[0] != firstCredential {
 		t.Fatalf("restart credential changed = (%+v,%v), want %+v", secondCredentials, err, firstCredential)
 	}
-	resolved, err := secondRuntime.Authenticator().Resolve(ctx, config.PrincipalID)
+	resolvedCredential, err := secondRuntime.Authenticator().Resolve(ctx, config.PrincipalID)
+	resolved := resolvedCredential.Principal()
 	if err != nil || resolved.ID() != config.PrincipalID || secondRuntime.SessionStore() == nil {
 		t.Fatalf("restart resolve/session store = (%v,%v,%v)", resolved, err, secondRuntime.SessionStore())
 	}

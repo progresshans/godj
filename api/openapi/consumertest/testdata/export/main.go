@@ -158,12 +158,12 @@ func (guard *authenticationGuard) reject(operation string) error {
 	return fmt.Errorf("OpenAPI export must not execute %s", operation)
 }
 
-func (guard *authenticationGuard) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return auth.Principal{}, guard.reject("credential authentication")
+func (guard *authenticationGuard) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, guard.reject("credential authentication")
 }
 
-func (guard *authenticationGuard) Resolve(context.Context, string) (auth.Principal, error) {
-	return auth.Principal{}, guard.reject("principal resolution")
+func (guard *authenticationGuard) Resolve(context.Context, string) (auth.Credential, error) {
+	return auth.Credential{}, guard.reject("principal resolution")
 }
 
 func (guard *authenticationGuard) Verify(context.Context, bearerauth.Token) (auth.Principal, error) {

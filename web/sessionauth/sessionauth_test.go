@@ -424,21 +424,13 @@ func TestCSRFFailureDiagnosticDoesNotExposeEntropyCause(t *testing.T) {
 type harness struct {
 	runtime *sessionauth.Runtime
 	store   *countingStore
+	manager *sessions.Manager
 	server  *httptest.Server
 	client  *http.Client
 }
 
 func newHarness(t *testing.T, active bool) *harness {
 	t.Helper()
-	memory, err := sessions.NewMemoryStore(128)
-	if err != nil {
-		t.Fatal(err)
-	}
-	store := &countingStore{Store: memory}
-	manager, err := sessions.NewManager(store, sessions.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	viewPermission, err := auth.NewPermission("article.article.view")
 	if err != nil {
 		t.Fatal(err)
@@ -455,6 +447,21 @@ func newHarness(t *testing.T, active bool) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return newCredentialHarness(t, authenticator)
+}
+
+func newCredentialHarness(t *testing.T, authenticator auth.CredentialAuthenticator) *harness {
+	t.Helper()
+	memory, err := sessions.NewMemoryStore(128)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &countingStore{Store: memory}
+	manager, err := sessions.NewManager(store, sessions.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewPermission := auth.Permission("article.article.view")
 	runtime, err := sessionauth.New(sessionauth.Config{
 		Sessions:         manager,
 		Authenticator:    authenticator,
@@ -565,7 +572,7 @@ func newHarness(t *testing.T, active bool) *harness {
 	client := server.Client()
 	client.Jar = jar
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &harness{runtime: runtime, store: store, server: server, client: client}
+	return &harness{runtime: runtime, store: store, manager: manager, server: server, client: client}
 }
 
 func (h *harness) Close() { h.server.Close() }

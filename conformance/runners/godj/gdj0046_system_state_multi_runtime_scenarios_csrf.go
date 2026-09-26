@@ -28,12 +28,12 @@ import (
 
 type gdj0046CSRFAuthenticator struct{}
 
-func (gdj0046CSRFAuthenticator) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return auth.Anonymous(), auth.ErrInvalidCredentials
+func (gdj0046CSRFAuthenticator) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
-func (gdj0046CSRFAuthenticator) Resolve(context.Context, string) (auth.Principal, error) {
-	return auth.Anonymous(), auth.ErrInvalidCredentials
+func (gdj0046CSRFAuthenticator) Resolve(context.Context, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
 type gdj0046CSRFApplication struct {

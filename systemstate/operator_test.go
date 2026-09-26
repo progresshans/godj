@@ -93,7 +93,8 @@ func TestProvisionOperatorAndOpenExistingSeparateMutationFromRestart(t *testing.
 	if hasher.verifyCalls.Load() != 0 {
 		t.Fatalf("OpenExisting Verify calls = %d, want 0", hasher.verifyCalls.Load())
 	}
-	principal, err := runtime.Authenticator().Authenticate(ctx, provision.Username, provision.Password)
+	principalCredential, err := runtime.Authenticator().Authenticate(ctx, provision.Username, provision.Password)
+	principal := principalCredential.Principal()
 	if err != nil || principal.ID() != policy.Principal.ID() || !principal.Authenticated() {
 		t.Fatalf("Authenticate(opened credential) = (%v, %v)", principal, err)
 	}

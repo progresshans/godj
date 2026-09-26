@@ -812,11 +812,12 @@ func gdj0046RunConcurrentBootstrap(ctx context.Context, mismatch bool) (gdj0046B
 	winnerReopen, winnerReopenErr := systemStateOpenExisting(ctx, pair.holder, holderConfig)
 	winnerPasswordValid := false
 	if winnerReopenErr == nil && winnerReopen != nil {
-		principal, authenticateErr := winnerReopen.Authenticator().Authenticate(
+		principalCredential, authenticateErr := winnerReopen.Authenticator().Authenticate(
 			ctx,
 			holderConfig.Username,
 			holderConfig.Password,
 		)
+		principal := principalCredential.Principal()
 		winnerPasswordValid = authenticateErr == nil && principal.ID() == holderConfig.PrincipalID
 	}
 	afterWinnerReopen, winnerReopenRows, err := gdj0046ReadCredentialSnapshot(ctx, pair.contender)

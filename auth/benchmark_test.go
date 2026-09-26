@@ -37,7 +37,8 @@ func BenchmarkPrincipalResolve(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				value, err := authenticator.Resolve(context.Background(), "operator")
+				valueCredential, err := authenticator.Resolve(context.Background(), "operator")
+				value := valueCredential.Principal()
 				if err != nil || !value.Has(permissions[count-1]) {
 					b.Fatalf("resolve: %v", err)
 				}

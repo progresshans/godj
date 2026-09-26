@@ -393,12 +393,12 @@ func csrfKeyRuntimeConfig(t *testing.T, ring CSRFKeyRing, random io.Reader) Conf
 
 type csrfKeyTestAuthenticator struct{}
 
-func (csrfKeyTestAuthenticator) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return auth.Anonymous(), auth.ErrInvalidCredentials
+func (csrfKeyTestAuthenticator) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
-func (csrfKeyTestAuthenticator) Resolve(context.Context, string) (auth.Principal, error) {
-	return auth.Anonymous(), auth.ErrInvalidCredentials
+func (csrfKeyTestAuthenticator) Resolve(context.Context, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
 type countingCSRFReader struct {

@@ -19,7 +19,7 @@ type requirementsAuthenticator struct {
 	resolves *int
 }
 
-func (a requirementsAuthenticator) Resolve(ctx context.Context, id string) (auth.Principal, error) {
+func (a requirementsAuthenticator) Resolve(ctx context.Context, id string) (auth.Credential, error) {
 	*a.resolves++
 	return a.CredentialAuthenticator.Resolve(ctx, id)
 }

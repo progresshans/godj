@@ -164,7 +164,11 @@ func newAPIAuthHarness(t *testing.T, configure ...func(*websessionauth.Config)) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := manager.Create(context.Background(), map[string]string{"_godj_principal_id": principal.ID()})
+	credential, err := auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := manager.Create(context.Background(), map[string]string{"_godj_principal_id": principal.ID(), "_godj_credential_stamp": credential.SessionStamp()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,15 +291,15 @@ type fixedAuthenticator struct {
 	principal auth.Principal
 }
 
-func (f fixedAuthenticator) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return f.principal, nil
+func (f fixedAuthenticator) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.NewCredential(f.principal.ID(), "fixture-encoded-password", f.principal)
 }
 
-func (f fixedAuthenticator) Resolve(_ context.Context, id string) (auth.Principal, error) {
+func (f fixedAuthenticator) Resolve(_ context.Context, id string) (auth.Credential, error) {
 	if id != f.principal.ID() {
-		return auth.Principal{}, auth.ErrInvalidCredentials
+		return auth.Credential{}, auth.ErrInvalidCredentials
 	}
-	return f.principal, nil
+	return auth.NewCredential(f.principal.ID(), "fixture-encoded-password", f.principal)
 }
 
 func assertJSONCode(t *testing.T, response *http.Response, status int, code api.ResponseCode) {

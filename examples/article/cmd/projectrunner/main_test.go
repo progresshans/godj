@@ -182,7 +182,8 @@ func TestArticleProjectRunnerExplicitlyProvisionsAndOpensWithOneSharedPolicy(t *
 	if err != nil {
 		t.Fatalf("OpenExisting(): %v", err)
 	}
-	principal, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
+	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
+	principal := principalCredential.Principal()
 	if err != nil || principal.ID() != operatorconfig.PrincipalID {
 		t.Fatalf("raw-password-free reopened authentication = principal %q error %v", principal.ID(), err)
 	}
@@ -272,7 +273,8 @@ func TestArticleProjectRunnerMainPreservesKnownCreatedExitOnBrokenPrivateStdout(
 	if err != nil {
 		t.Fatalf("OpenExisting after private stdout loss: %v", err)
 	}
-	principal, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
+	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
+	principal := principalCredential.Principal()
 	if err != nil || principal.ID() != operatorconfig.PrincipalID {
 		t.Fatalf("broken-output reconciliation principal=%q error=%v", principal.ID(), err)
 	}

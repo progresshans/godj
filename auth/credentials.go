@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"unicode/utf8"
@@ -13,15 +16,15 @@ const (
 	maxStoredHashBytes = hardMaxEncodedBytes
 )
 
-// CredentialAuthenticator verifies credentials and resolves an active
-// principal from a process session identifier. Unknown and inactive identities
-// use the same ErrInvalidCredentials surface.
+// CredentialAuthenticator returns one immutable credential and authorization
+// snapshot. Resolve must read the current credential, not restore the snapshot
+// saved at login. Unknown and inactive identities use ErrInvalidCredentials.
 type CredentialAuthenticator interface {
-	Authenticate(context.Context, string, string) (Principal, error)
-	Resolve(context.Context, string) (Principal, error)
+	Authenticate(context.Context, string, string) (Credential, error)
+	Resolve(context.Context, string) (Credential, error)
 }
 
-// Credential is an opaque immutable startup credential. Formatting is
+// Credential is an opaque immutable credential snapshot. Formatting is
 // redacted so an encoded password cannot enter a diagnostic accidentally.
 type Credential struct {
 	username  string
@@ -44,6 +47,29 @@ func NewCredential(username, encodedHash string, principal Principal) (Credentia
 
 func (Credential) String() string   { return "auth.Credential{redacted}" }
 func (Credential) GoString() string { return "auth.Credential{redacted}" }
+
+func (c Credential) Principal() Principal { return c.principal }
+
+// SessionStamp binds server-side session data to this principal and encoded
+// password. A password replacement or rehash invalidates the previous stamp;
+// username and permission changes do not. This is not a bearer token, password
+// verifier or client cookie. Store it only in the trusted server session.
+func (c Credential) SessionStamp() string {
+	if c.principal.id == "" || c.hash == "" {
+		return ""
+	}
+	// Both fields exclude NUL, so the framing is unambiguous. The input is an
+	// already salted encoded password, never the raw password.
+	digest := sha256.Sum256([]byte("godj.session-credential.v1\x00" + c.principal.id + "\x00" + c.hash))
+	return hex.EncodeToString(digest[:])
+}
+
+// MatchesSessionStamp rejects absent or stale authentication state. Comparison
+// does not expose a matching prefix of the server-side credential stamp.
+func (c Credential) MatchesSessionStamp(stamp string) bool {
+	expected := c.SessionStamp()
+	return expected != "" && subtle.ConstantTimeCompare([]byte(expected), []byte(stamp)) == 1
+}
 
 type MemoryAuthenticator struct {
 	byUsername map[string]Credential
@@ -94,9 +120,9 @@ func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*M
 	return result, nil
 }
 
-func (a *MemoryAuthenticator) Authenticate(ctx context.Context, username, password string) (Principal, error) {
+func (a *MemoryAuthenticator) Authenticate(ctx context.Context, username, password string) (Credential, error) {
 	if err := validAuthCall(ctx, a); err != nil {
-		return Principal{}, err
+		return Credential{}, err
 	}
 	credential, found := a.byUsername[username]
 	encoded := a.dummyHash
@@ -107,25 +133,25 @@ func (a *MemoryAuthenticator) Authenticate(ctx context.Context, username, passwo
 	if err != nil {
 		var authError *Error
 		if errors.As(err, &authError) && authError.Code == CodeInvalidInput && authError.Field == "password" {
-			return Principal{}, ErrInvalidCredentials
+			return Credential{}, ErrInvalidCredentials
 		}
-		return Principal{}, passwordFailure(err)
+		return Credential{}, passwordFailure(err)
 	}
 	if !found || !credential.principal.Active() || !verified || !validUsername(username) {
-		return Principal{}, ErrInvalidCredentials
+		return Credential{}, ErrInvalidCredentials
 	}
-	return credential.principal, nil
+	return credential, nil
 }
 
-func (a *MemoryAuthenticator) Resolve(ctx context.Context, principalID string) (Principal, error) {
+func (a *MemoryAuthenticator) Resolve(ctx context.Context, principalID string) (Credential, error) {
 	if err := validAuthCall(ctx, a); err != nil {
-		return Principal{}, err
+		return Credential{}, err
 	}
 	credential, found := a.byID[principalID]
 	if !found || !credential.principal.Active() || !validIdentity(principalID) {
-		return Principal{}, ErrInvalidCredentials
+		return Credential{}, ErrInvalidCredentials
 	}
-	return credential.principal, nil
+	return credential, nil
 }
 
 func validAuthCall(ctx context.Context, authenticator *MemoryAuthenticator) error {

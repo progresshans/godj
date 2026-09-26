@@ -57,7 +57,8 @@ func authenticate(
 		return response, SecretBundle{}, err
 	}
 	defer func() { _ = site.backend.Close() }()
-	principal, err := site.runtime.Authenticator().Authenticate(ctx, request.Username, request.Password)
+	principalCredential, err := site.runtime.Authenticator().Authenticate(ctx, request.Username, request.Password)
+	principal := principalCredential.Principal()
 	if err != nil {
 		return response, SecretBundle{}, fail(errorApplication)
 	}

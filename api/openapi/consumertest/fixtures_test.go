@@ -387,7 +387,11 @@ func newConsumerSessionAuthentication(t *testing.T, full, viewer auth.Principal,
 		t.Fatal("construct consumer session manager:", err)
 	}
 	seed := func(principal auth.Principal) string {
-		record, err := manager.Create(t.Context(), map[string]string{"_godj_principal_id": principal.ID()})
+		credential, err := auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		record, err := manager.Create(t.Context(), map[string]string{"_godj_principal_id": principal.ID(), "_godj_credential_stamp": credential.SessionStamp()})
 		if err != nil {
 			t.Fatal("seed consumer session:", err)
 		}
@@ -422,18 +426,18 @@ func newConsumerSessionAuthentication(t *testing.T, full, viewer auth.Principal,
 
 type consumerPrincipalResolver map[string]auth.Principal
 
-func (consumerPrincipalResolver) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return auth.Principal{}, auth.ErrInvalidCredentials
+func (consumerPrincipalResolver) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
-func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string) (auth.Principal, error) {
+func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string) (auth.Credential, error) {
 	if err := ctx.Err(); err != nil {
-		return auth.Principal{}, err
+		return auth.Credential{}, err
 	}
 	if principal, found := resolver[id]; found {
-		return principal, nil
+		return auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
 	}
-	return auth.Principal{}, auth.ErrInvalidCredentials
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {

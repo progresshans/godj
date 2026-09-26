@@ -1133,3 +1133,21 @@ GoDj는 JSON 배열과 int64 정수 원소만 받는다. 문자열/소수/bool/�
 Typed OpenAPI와 독립 생성 client가 같은 exact int64·생략/빈 배열 영역을 사용하며 별도 migration은 필요 없다.
 넓은 입력을 채택할 때 serializer·OpenAPI·client와 이 기록을 함께 바꾼다. 기준과 source별 검증은
 [ADR-0075](adr/0075-many-to-many-storage-and-mutation-ownership.md#ticket-컬렉션의-실제-저장과-transport)와 TEST_EVIDENCE를 따른다.
+
+
+## DEV-0013 — Credential session의 Go 표현과 invalid identity 정리
+
+- 상태: accepted; 구현·환경별 검증은 [GDJ-0100](../work/0100-multi-user-credential-and-session-lifecycle.md)과 [Evidence](status/TEST_EVIDENCE.md)에서 구분
+- 기준: 고정 Django 6.1의 User·실제 session/auth middleware, 독립 양 DB 관찰
+- 범위: [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)의 서버 세션 credential binding
+
+비밀번호 교체·재해싱 후 이전 세션 거부, 권한·username 변경의 다음 요청 반영은 독립 관찰과 비교한다.
+[SQLite](../web/sessionauth/testdata/credential-session-django61-sqlite.json)와
+[PostgreSQL](../web/sessionauth/testdata/credential-session-django61-postgres.json)는 기존 session 행의 존재도 정규화로 지우지 않는다.
+Django의 비활성 사용자는 anonymous가 되지만 기존 DB session 행이 남는다. GoDj는 기존 invalid-principal 정책에 따라
+그 행도 폐기하며 실패를 오류로 반환한다. 이 차이를 DB 부작용 parity로 집계하지 않는다.
+
+GoDj stamp는 서버 내부의 ID·salted encoded-password digest이며 Django의 SECRET_KEY 기반 HMAC wire 형식이 아니다.
+Django key fallback, password hash upgrade 정책·unusable password·현재 로그인 세션 보존과 password-reset flow를
+이 단면의 지원으로 추론하지 않는다. ID-only 기존 세션은 재로그인이 필요하며 자동 승격하지 않는다.
+기존 operator policy CAS의 전역 revocation은 여전히 유지한다. 모델 기반 multi-user policy와 권한 갱신은 별도 구현 조건이다.

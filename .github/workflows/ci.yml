@@ -386,19 +386,19 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
+            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
           - runs_on: "ubuntu-24.04-arm"
             expected_goos: "linux"
             expected_goarch: "arm64"
-            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
+            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
-            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
+            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
-            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
+            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
         mode: [normal, race, cgo0]
 
     steps:
@@ -431,13 +431,10 @@ jobs:
           relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
           # Isolated generated modules compile inside one consumer test
-          # process. Allow their combined race build/runtime budget on every
+          # process. Allow their combined build/runtime budget in every mode and
           # runner, with time left for diagnostics before the outer job limit.
           # Package/test inventory, race propagation and no-skip checks stay fixed.
-          test_timeout=20m
-          if [ "$mode" = race ]; then
-            test_timeout=35m
-          fi
+          test_timeout=35m
           test_flags=(-timeout="$test_timeout" -json -count=1)
           case "$mode" in
             normal) ;;

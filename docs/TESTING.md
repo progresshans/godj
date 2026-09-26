@@ -90,10 +90,10 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 실행하며, 마지막 outcome 검사가 선택된 step의 실패·skip·누락을 거부한다. `web`은 operator, `orm`은 targeted migrate,
 `cli`와 `full`은 둘 다 실행한다. PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix의 race는 모든 OS/arch에서 job 45분·각 Go test package 35분을 사용한다.
+관계 matrix의 모든 mode·OS/arch는 job 45분·각 Go test package 35분을 사용한다.
 여러 독립 generated module의 빌드가 부모 consumer test 안에서 진행되므로 해당 합산 시간을 포함한다.
 Job 종료 전에 Go의 timeout 진단과 필수 실행 검사가 끝날 여유를 두며, package/필수 test 목록·race 전달·no-skip 조건은 유지한다.
-Normal/CGO=0의 기존 범위와 budget은 유지한다. 시간 제한 변경만으로 성공을 인정하지 않고 실제 해당 좌표의 완료를 확인한다.
+Normal/race/CGO=0의 범위는 유지한다. 시간 제한 변경만으로 성공을 인정하지 않고 실제 해당 좌표의 완료를 확인한다.
 
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.

@@ -11,7 +11,10 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-const principalSessionKey = "_godj_principal_id"
+const (
+	principalSessionKey  = "_godj_principal_id"
+	credentialSessionKey = "_godj_credential_stamp"
+)
 
 type AuthenticatedHandler func(*web.Request, auth.Principal) (web.Response, error)
 
@@ -39,10 +42,19 @@ func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
 		return auth.Anonymous(), nil
 	}
 	principalID, found := record.Value(principalSessionKey)
-	if !found || principalID == "" {
+	stamp, stamped := record.Value(credentialSessionKey)
+	if !found && !stamped {
+		// An anonymous server session may hold unrelated application values.
+		// Only incomplete authentication state is invalidated here.
 		return auth.Anonymous(), nil
 	}
-	principal, err := r.authenticator.Resolve(httpRequest.Context(), principalID)
+	if !found || principalID == "" || !stamped || stamp == "" {
+		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
+			return auth.Principal{}, sessionFailure("incomplete authentication session flush failed", flushErr)
+		}
+		return auth.Anonymous(), nil
+	}
+	credential, err := r.authenticator.Resolve(httpRequest.Context(), principalID)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
 		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
 			return auth.Principal{}, sessionFailure("invalid principal session flush failed", flushErr)
@@ -52,7 +64,11 @@ func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
 	if err != nil {
 		return auth.Principal{}, authenticationFailure("principal resolution failed", err)
 	}
-	if !principal.Authenticated() {
+	principal := credential.Principal()
+	if !principal.Authenticated() || principal.ID() != principalID || !credential.MatchesSessionStamp(stamp) {
+		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
+			return auth.Principal{}, sessionFailure("stale credential session flush failed", flushErr)
+		}
 		return auth.Anonymous(), nil
 	}
 	return principal, nil
@@ -166,14 +182,15 @@ func (r *Runtime) login(
 	if err != nil {
 		return LoginResult{}, err
 	}
-	principal, err := r.authenticator.Authenticate(httpRequest.Context(), username, password)
+	credential, err := r.authenticator.Authenticate(httpRequest.Context(), username, password)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
 		return LoginResult{}, auth.ErrInvalidCredentials
 	}
 	if err != nil {
 		return LoginResult{}, authenticationFailure("credential verification failed", err)
 	}
-	if !principal.Authenticated() {
+	principal := credential.Principal()
+	if !principal.Authenticated() || credential.SessionStamp() == "" {
 		return LoginResult{}, auth.ErrInvalidCredentials
 	}
 	if requirePermission {
@@ -205,6 +222,10 @@ func (r *Runtime) login(
 				if deriveErr != nil {
 					return LoginResult{}, sessionFailure("session authentication state is invalid", deriveErr)
 				}
+				loaded, deriveErr = loaded.WithValue(credentialSessionKey, credential.SessionStamp())
+				if deriveErr != nil {
+					return LoginResult{}, sessionFailure("session credential state is invalid", deriveErr)
+				}
 				record, err = r.sessions.Rotate(httpRequest.Context(), loaded)
 				if err != nil {
 					return LoginResult{}, sessionFailure("session rotation failed", err)
@@ -213,7 +234,10 @@ func (r *Runtime) login(
 		}
 	}
 	if !record.ID().Valid() {
-		record, err = r.sessions.Create(httpRequest.Context(), map[string]string{principalSessionKey: principal.ID()})
+		record, err = r.sessions.Create(httpRequest.Context(), map[string]string{
+			principalSessionKey:  principal.ID(),
+			credentialSessionKey: credential.SessionStamp(),
+		})
 		if err != nil {
 			return LoginResult{}, sessionFailure("session creation failed", err)
 		}

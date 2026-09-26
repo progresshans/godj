@@ -80,14 +80,14 @@ func TestDescribeAuthenticationRejectsAbsentSessionRuntime(t *testing.T) {
 
 type descriptionAuthenticator struct{ t *testing.T }
 
-func (a descriptionAuthenticator) Authenticate(context.Context, string, string) (auth.Principal, error) {
+func (a descriptionAuthenticator) Authenticate(context.Context, string, string) (auth.Credential, error) {
 	a.t.Fatal("description authenticated credentials")
-	return auth.Principal{}, nil
+	return auth.Credential{}, nil
 }
 
-func (a descriptionAuthenticator) Resolve(context.Context, string) (auth.Principal, error) {
+func (a descriptionAuthenticator) Resolve(context.Context, string) (auth.Credential, error) {
 	a.t.Fatal("description resolved a principal")
-	return auth.Principal{}, nil
+	return auth.Credential{}, nil
 }
 
 type descriptionAuthorizer struct{ t *testing.T }

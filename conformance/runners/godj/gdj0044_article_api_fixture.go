@@ -145,24 +145,24 @@ type articleAPIAuthenticator struct {
 	principals map[string]auth.Principal
 }
 
-func (authenticator articleAPIAuthenticator) Authenticate(_ context.Context, username, password string) (auth.Principal, error) {
+func (authenticator articleAPIAuthenticator) Authenticate(_ context.Context, username, password string) (auth.Credential, error) {
 	if password != articleAPIFixturePassword {
-		return auth.Principal{}, auth.ErrInvalidCredentials
+		return auth.Credential{}, auth.ErrInvalidCredentials
 	}
 	principal, ok := authenticator.principals[username]
 	if !ok {
-		return auth.Principal{}, auth.ErrInvalidCredentials
+		return auth.Credential{}, auth.ErrInvalidCredentials
 	}
-	return principal, nil
+	return auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
 }
 
-func (authenticator articleAPIAuthenticator) Resolve(_ context.Context, id string) (auth.Principal, error) {
+func (authenticator articleAPIAuthenticator) Resolve(_ context.Context, id string) (auth.Credential, error) {
 	for _, principal := range authenticator.principals {
 		if principal.ID() == id {
-			return principal, nil
+			return auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
 		}
 	}
-	return auth.Principal{}, auth.ErrInvalidCredentials
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
 type articleAPIFixture struct {
@@ -481,7 +481,11 @@ func (client *articleAPIClient) csrf(ctx context.Context, target string) (string
 }
 
 func articleAPISessionCookie(ctx context.Context, manager *sessions.Manager, principal auth.Principal) (*http.Cookie, error) {
-	record, err := manager.Create(ctx, map[string]string{articleAPIPrincipalKey: principal.ID()})
+	credential, err := auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+	if err != nil {
+		return nil, err
+	}
+	record, err := manager.Create(ctx, map[string]string{articleAPIPrincipalKey: principal.ID(), "_godj_credential_stamp": credential.SessionStamp()})
 	if err != nil {
 		return nil, err
 	}

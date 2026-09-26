@@ -138,7 +138,8 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if got := first.atomicCalls.Load(); got != 1 {
 		t.Fatalf("first Runtime open-existing atomic calls = %d, want 1", got)
 	}
-	principal, err := firstRuntime.Authenticator().Authenticate(ctx, firstConfig.Username, firstConfig.Password)
+	principalCredential, err := firstRuntime.Authenticator().Authenticate(ctx, firstConfig.Username, firstConfig.Password)
+	principal := principalCredential.Principal()
 	if err != nil || principal.ID() != firstConfig.PrincipalID || !principal.Authenticated() {
 		t.Fatalf("authenticate first durable credential = (%v, %v)", principal, err)
 	}
@@ -202,7 +203,8 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if got := second.atomicCalls.Load(); got != 1 {
 		t.Fatalf("identical Runtime reopen atomic calls = %d, want 1 final inspection", got)
 	}
-	restartedPrincipal, err := secondRuntime.Authenticator().Authenticate(ctx, secondConfig.Username, secondConfig.Password)
+	restartedPrincipalCredential, err := secondRuntime.Authenticator().Authenticate(ctx, secondConfig.Username, secondConfig.Password)
+	restartedPrincipal := restartedPrincipalCredential.Principal()
 	if err != nil || restartedPrincipal.ID() != secondConfig.PrincipalID || !restartedPrincipal.Authenticated() {
 		t.Fatalf("authenticate reopened durable credential = (%v, %v)", restartedPrincipal, err)
 	}

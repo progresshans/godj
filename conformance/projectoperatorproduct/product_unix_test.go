@@ -1220,7 +1220,8 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		t.Fatal("open existing external operator runtime")
 	}
 	passwordText := string(password)
-	principal, err := runtime.Authenticator().Authenticate(ctx, username, passwordText)
+	principalCredential, err := runtime.Authenticator().Authenticate(ctx, username, passwordText)
+	principal := principalCredential.Principal()
 	passwordText = ""
 	if err != nil || principal.ID() != "external-article-operator" || !principal.Active() {
 		t.Fatal("authenticate fresh external operator runtime")

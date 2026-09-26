@@ -552,22 +552,26 @@ type testAuthenticator struct {
 	principals []auth.Principal
 }
 
-func (a testAuthenticator) Authenticate(context.Context, string, string) (auth.Principal, error) {
-	return auth.Principal{}, auth.ErrInvalidCredentials
+func (a testAuthenticator) Authenticate(context.Context, string, string) (auth.Credential, error) {
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
-func (a testAuthenticator) Resolve(_ context.Context, id string) (auth.Principal, error) {
+func (a testAuthenticator) Resolve(_ context.Context, id string) (auth.Credential, error) {
 	for _, principal := range a.principals {
 		if principal.ID() == id {
-			return principal, nil
+			return auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
 		}
 	}
-	return auth.Principal{}, auth.ErrInvalidCredentials
+	return auth.Credential{}, auth.ErrInvalidCredentials
 }
 
 func sessionCookie(t *testing.T, manager *sessions.Manager, principal auth.Principal) *http.Cookie {
 	t.Helper()
-	record, err := manager.Create(context.Background(), map[string]string{"_godj_principal_id": principal.ID()})
+	credential, err := auth.NewCredential(principal.ID(), "fixture-encoded-password", principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := manager.Create(context.Background(), map[string]string{"_godj_principal_id": principal.ID(), "_godj_credential_stamp": credential.SessionStamp()})
 	if err != nil {
 		t.Fatal(err)
 	}

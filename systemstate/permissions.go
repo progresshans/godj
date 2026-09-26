@@ -121,24 +121,26 @@ type policyAuthenticator struct {
 func (*policyAuthenticator) String() string   { return "systemstate.Authenticator{redacted}" }
 func (*policyAuthenticator) GoString() string { return "systemstate.Authenticator{redacted}" }
 
-func (a *policyAuthenticator) Authenticate(ctx context.Context, username, password string) (auth.Principal, error) {
-	principal, err := a.cached.Authenticate(ctx, username, password)
+func (a *policyAuthenticator) Authenticate(ctx context.Context, username, password string) (auth.Credential, error) {
+	credential, err := a.cached.Authenticate(ctx, username, password)
 	if err != nil {
-		return auth.Principal{}, err
+		return auth.Credential{}, err
 	}
-	return a.check(ctx, principal)
+	return a.check(ctx, username, credential.SessionStamp())
 }
 
-func (a *policyAuthenticator) Resolve(ctx context.Context, id string) (auth.Principal, error) {
-	principal, err := a.cached.Resolve(ctx, id)
+func (a *policyAuthenticator) Resolve(ctx context.Context, id string) (auth.Credential, error) {
+	_, err := a.cached.Resolve(ctx, id)
 	if err != nil {
-		return auth.Principal{}, err
+		return auth.Credential{}, err
 	}
-	return a.check(ctx, principal)
+	return a.check(ctx, "", "")
 }
 
-func (a *policyAuthenticator) check(ctx context.Context, principal auth.Principal) (auth.Principal, error) {
+func (a *policyAuthenticator) check(ctx context.Context, verifiedUsername, verifiedStamp string) (auth.Credential, error) {
 	var callbackState operatorErrorSnapshot
+	var credential auth.Credential
+	var matchesVerified bool
 	err := a.runtime.withAtomic(ctx, func(session db.Session) error {
 		failure := func() error {
 			rows, err := readCredentialRows(ctx, session)
@@ -148,14 +150,20 @@ func (a *policyAuthenticator) check(ctx context.Context, principal auth.Principa
 			if len(rows) != 1 {
 				return credentialCardinalityError()
 			}
-			_, err = validateStoredCredential(rows[0], a.policy)
+			credential, err = validateStoredCredential(rows[0], a.policy)
+			matchesVerified = verifiedUsername == "" || (rows[0].username == verifiedUsername && credential.MatchesSessionStamp(verifiedStamp))
 			return err
 		}()
 		callbackState = snapshotOperatorError(failure)
 		return failure
 	})
 	if err != nil {
-		return auth.Principal{}, redactOperatorAtomicFailure(err, callbackState)
+		return auth.Credential{}, redactOperatorAtomicFailure(err, callbackState)
 	}
-	return principal, nil
+	if !matchesVerified {
+		// Do not turn a password verified against a previous startup snapshot
+		// into authentication under a newly stored credential.
+		return auth.Credential{}, auth.ErrInvalidCredentials
+	}
+	return credential, nil
 }

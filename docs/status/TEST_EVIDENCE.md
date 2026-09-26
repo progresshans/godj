@@ -3,6 +3,85 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+
+## GDJ-0100 — Credential snapshot과 서버 세션 결합 checkpoint
+
+2026-09-27, 기준 `1036bcd079e96260dc5230dab1172e0228f34ce5`에서 구현한 변경 묶음이다.
+2,193개 non-Markdown 파일의 map SHA-256은
+`a18bb412c536f7fcf18c508e0b7f426d4bd523e96f29eecb9497a5bd940dc0fa`이며 아래 실행 전후 같음을 확인했다.
+이는 새 source의 로컬 영향 검증이며 Hosted 전체·다중 사용자 저장의 완료를 뜻하지 않는다.
+
+Authenticate/Resolve가 한 불변 Credential과 Principal을 반환한다. 로그인과 회전은 ID·credential stamp를 함께 저장하고,
+다음 요청은 현재 credential의 ID·active·stamp를 검증한다. 비밀번호·재해싱은 이전 세션을 거부하고 권한·username 변경은
+다음 요청에 반영한다. 원래 허용한 Principal은 바뀌지 않는다. 다른 ID·비어 있는 credential·누락/위조 stamp,
+세션 폐기 실패·인증 I/O 오류와 익명 세션의 일반 앱 데이터 보존을 실제 HTTP에서 확인했다.
+로그인 도중 credential 변경과 다른 사용자로 재로그인할 때 두 시점/사용자의 인증 정보를 섞지 않는다.
+Operator는 coordinated read의 현재 credential을 반환하고, startup에서 검증한 과거 비밀번호를 새 credential로 승격하지 않는다.
+기존 policy CAS·revocation은 그대로 검증하며 startup login verifier 교체는 명시적 reopen을 요구한다.
+
+고정 Django 6.1 / Python 3.14.3의 [독립 runner](../../conformance/runners/django/credential_session_reference.py)는
+SQLite 3.50.4 / PostgreSQL 17.5 각각 hash seed 0·813에서 **7개 관찰**을 생성했다. 같은 backend의 전체 bytes와
+양 DB의 관찰·source fingerprint가 일치한다. Runner SHA-256은
+`17c7deed8a405342244aad694c544713e3fcdbf6cbe5500c94906463a24796bb`다.
+두 fixture를 실제 HTTP 검사가 읽으며, Django의 비활성 사용자 session 행 유지와 GoDj의 폐기 차이는
+[DEV-0013](../DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)에 별도로 남긴다.
+Reference unittest **2/2 PASS**에는 session hash 결합 제거와 direct permission 조회 제거의 두 control이 포함된다.
+이 fixture는 광범위한 User/Group lifecycle의 구현 증거가 아니다.
+
+Go 1.26.5·Darwin/arm64의 영향 범위는 `auth`, `web/sessionauth`, `api/sessionauth`, `systemstate`, `admin`,
+`api/openapi/consumertest`, `examples/article`, `examples/article/apiapp`, `examples/article/cmd/projectrunner`,
+`examples/helpdesk`, `conformance/systemstate/product`, `conformance/systemstate/worker`, `conformance/projectoperatorproduct`다.
+211개 필수 root를 discovery 후 고정하고 `go test -json -count=1 -p=3 -timeout=20m`을 실행했다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 적용했다.
+
+| 모드 | 완료 inventory | 실행 시간 |
+|---|---|---|
+| normal | 13 packages / 591 PASS / skip 0 | 57.577초 |
+| race | 13 packages / 591 PASS / skip 0 | 123.036초 |
+| CGO=0 | 13 packages / 591 PASS / skip 0 | 61.366초 |
+
+실제 SQLite와 PostgreSQL 17.10을 포함한다. 고정 CI image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`의
+별도 localhost container에 UTF8/C/libc DB를 만들었다. 각 mode 종료 시 public table·owned schema·남은 다른 connection이
+`0|0|0`이고 non-force drop을 완료했다. 종료 후 이 container도 정리했다. 기존 로컬 DB·다른 container는 변경하지 않았다.
+초기 로컬 PostgreSQL 17.5 실행은 외부 operator의 고정 17.10 fingerprint 조건 때문에 두 test에서 실패했다.
+그 실패는 `checkpoint-1790437162143201000`에 남겼으며 version 조건을 약화하거나 skip하지 않고 맞는 환경에서 재실행했다.
+
+기존 인증·세션·API·systemstate conformance adapter의 관련 **46 required roots / 124 PASS / skip 0**도 normal로 확인했다.
+실행 선택은 `^(TestGDJ0043|TestGDJ0044|TestGDJ0046|TestGDJ0047|TestGDJ0055|TestSystemState)`이며 78.639초다.
+새 입력 형식은 실제 generated OpenAPI client와 HTTP 소비자에도 적용했다. 기존 generated-tree drift/누락/변경 검사와
+독립 client contract를 위 13 package checkpoint에서 실행했다. Model/Facade ABI·schema generator는 이번에 변경하지 않았다.
+
+Go overlay control **3/3 탐지**: password를 stamp에서 제외, 과거 password 검증 결과 승격 허용,
+로그인 검증 직후 Resolve로 다른 credential 관찰을 섞는 변경이 각각 실제 실패 assertion으로 잡혔다.
+빌드 실패를 control 탐지로 세지 않았다. CI Python **41/41**, workflow **5 roots / skip 0**,
+고정 actionlint v1.7.12(ShellCheck/Pyflakes 비활성), 영향 auth/session/systemstate vet, gofmt·문서·diff 검사도 통과했다.
+
+원본 evidence root:
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/credential-session-1790436757240879000`.
+`reference-receipt.json`, `checkpoint-1790437357313061000/receipt.json`과 각 JSON stream/required roster,
+`auth-runner-receipt.json`, `negative-controls/receipt.json`, `supporting-checks.json`, `final-source-audit.json`에
+명령·필수 실행·결과·source·cleanup을 보관했다. 새로운 Hosted 전체 milestone은 별도로 확인한다.
+
+## GDJ-0099 — 후속 Hosted 좌표와 일반 모드의 시간 제한
+
+Source `1036bcd079e96260dc5230dab1172e0228f34ce5`의
+[Hosted full](https://github.com/progresshans/godj/actions/runs/36250036987)에서 Linux amd64 relation race
+job `108426465116`은 **35 package / 5,859 PASS / skip 0**으로 완료했다.
+로그 SHA-256은 `83d53695518bd08b059260a1d85b2e008f41ac31eb5c6460de2389d44421b452`다.
+같은 실행의 PostgreSQL normal producer가 만든 `systemstate-postgres-1` artifact **10908843171**과
+`operator-postgres-1` artifact **10908842799**의 archive digest·payload·repository/run/attempt/checkout을 확인했다.
+
+그러나 Intel macOS normal job `108426465058`은 **20분 job 제한 초과** annotation과 함께 cancelled로 끝났다.
+시작 `2026-09-26T15:00:22Z`, 종료 `15:20:37Z`이며 cleanup에 consumer·Go compiler가 남았다.
+Go package의 완료 보고서가 없어 해당 좌표와 전체 실행을 PASS로 세지 않는다.
+같은 source의 capture 성공을 전체 gate 성공으로 합치지 않는다.
+관계 matrix의 모든 normal/race/CGO0 좌표를 package 35분·job 45분으로 통일해 내부 timeout 진단의 여유를 둔다.
+테스트/필수 목록·race 전파·no-skip은 변경하지 않았다. 이 workflow 변경의 로컬 검사는 위 checkpoint에 포함하며
+누적 인증 변경과 함께 다음 Hosted full을 실행한다.
+원본은 Ticket evidence root의 `current-full-intel-normal-job.json`, `current-full-intel-normal.log`,
+`full-36250036987-linux-race-108426465116.log`, `hosted-full-36250036987/capture-receipt.json`에 보관한다.
+
 ## GDJ-0099 — 관계 제품 race의 Hosted 실행 시간 경계
 
 2026-09-26, source `ea9b9599e7c21a114c30e4bde5deaa6b7e8b0eb8`의

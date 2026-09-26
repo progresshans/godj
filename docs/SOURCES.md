@@ -132,3 +132,10 @@ PrimaryKeyRelatedField(many=True, pk_field=IntegerField), 명시적 through 모�
 [독립 runner](../conformance/runners/django/ticket_collection_reference.py)는 GoDj/기대값을 읽지 않고
 생성·PUT·PATCH 48개 canonical 입력, 별도 coercion, explicit outer atomic rollback과 validation 이후 scope 변화를 관찰한다.
 Raw fixtures에는 DRF fields/relations/serializers source SHA256을 보관한다. 실행한 버전·DB와 source별 검증은 TEST_EVIDENCE를 따른다.
+
+
+Credential/session 관찰은 고정 Django 6.1(BSD-3-Clause)의 `django.contrib.auth`, `base_user`, `backends`,
+`hashers`와 실제 SessionMiddleware/AuthenticationMiddleware를 실행한다.
+[독립 runner](../conformance/runners/django/credential_session_reference.py)는 공개 API로 새로 작성했으며 GoDj나 예상 fixture를 읽지 않는다.
+양 DB fixture의 `source_sha256`에 실행한 네 auth module의 바이트 해시를 보존한다.
+[ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)과 [DEV-0013](DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)이 비교 범위를 소유한다.

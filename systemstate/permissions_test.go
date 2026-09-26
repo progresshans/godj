@@ -81,10 +81,10 @@ func TestPermissionMaintenancePreservesCredentialAndRevokesSessionsAndStaleRunti
 		t.Fatalf("old session survived: %v %v", found, err)
 	}
 	for _, runtime := range []*Runtime{stale, second} {
-		if principal, err := runtime.Authenticator().Resolve(ctx, "operator"); principal.Authenticated() || !errors.Is(err, &Error{Code: CodeCredentialPolicyMismatch}) {
+		if principal, err := runtime.Authenticator().Resolve(ctx, "operator"); principal.Principal().Authenticated() || !errors.Is(err, &Error{Code: CodeCredentialPolicyMismatch}) {
 			t.Fatalf("stale resolver: %v %v", principal, err)
 		}
-		if principal, err := runtime.Authenticator().Authenticate(ctx, "admin", "permission-change-password"); principal.Authenticated() || !errors.Is(err, &Error{Code: CodeCredentialPolicyMismatch}) {
+		if principal, err := runtime.Authenticator().Authenticate(ctx, "admin", "permission-change-password"); principal.Principal().Authenticated() || !errors.Is(err, &Error{Code: CodeCredentialPolicyMismatch}) {
 			t.Fatalf("stale login: %v %v", principal, err)
 		}
 	}
@@ -92,7 +92,8 @@ func TestPermissionMaintenancePreservesCredentialAndRevokesSessionsAndStaleRunti
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, err := fresh.Authenticator().Authenticate(ctx, "admin", "permission-change-password")
+	principalCredential, err := fresh.Authenticator().Authenticate(ctx, "admin", "permission-change-password")
+	principal := principalCredential.Principal()
 	if err != nil || !principal.Has("helpdesk.ticket.change") || principal.Has("article.article.delete") {
 		t.Fatalf("new permissions: %v %v", principal, err)
 	}

@@ -314,8 +314,13 @@ func newArticleAPIBearerFixture(t *testing.T, backend articleapp.Backend) articl
 	if err != nil {
 		t.Fatal(err)
 	}
+	credential, err := auth.NewCredential(fullPrincipal.ID(), "fixture-encoded-password", fullPrincipal)
+	if err != nil {
+		t.Fatal(err)
+	}
 	record, err := manager.Create(context.Background(), map[string]string{
-		"_godj_principal_id": fullPrincipal.ID(),
+		"_godj_principal_id":     fullPrincipal.ID(),
+		"_godj_credential_stamp": credential.SessionStamp(),
 	})
 	if err != nil {
 		t.Fatal(err)

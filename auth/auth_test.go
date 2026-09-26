@@ -150,7 +150,9 @@ func TestMemoryAuthenticatorUniformUnknownInactiveAndWrongPassword(t *testing.T)
 	}
 	hasher.ResetVerify()
 
-	principal, err := authenticator.Authenticate(context.Background(), "admin", "correct")
+	principalCredential, err := authenticator.Authenticate(context.Background(), "admin", "correct")
+
+	principal := principalCredential.Principal()
 	if err != nil || !principal.Authenticated() || principal.ID() != "operator" {
 		t.Fatalf("valid authentication: principal=%v err=%v", principal, err)
 	}
@@ -164,7 +166,8 @@ func TestMemoryAuthenticatorUniformUnknownInactiveAndWrongPassword(t *testing.T)
 		{username: "disabled", password: "correct"},
 	} {
 		hasher.ResetVerify()
-		principal, err := authenticator.Authenticate(context.Background(), attempt.username, attempt.password)
+		principalCredential, err := authenticator.Authenticate(context.Background(), attempt.username, attempt.password)
+		principal := principalCredential.Principal()
 		if !errors.Is(err, auth.ErrInvalidCredentials) || principal.Authenticated() {
 			t.Fatalf("nonuniform invalid result for %q: principal=%v err=%v", attempt.username, principal, err)
 		}
@@ -176,13 +179,16 @@ func TestMemoryAuthenticatorUniformUnknownInactiveAndWrongPassword(t *testing.T)
 		}
 	}
 
-	resolved, err := authenticator.Resolve(context.Background(), "operator")
+	resolvedCredential, err := authenticator.Resolve(context.Background(), "operator")
+
+	resolved := resolvedCredential.Principal()
 	if err != nil || resolved.ID() != "operator" {
 		t.Fatalf("resolve active: principal=%v err=%v", resolved, err)
 	}
 	permissions := resolved.Permissions()
 	permissions[0] = auth.Permission("article.article.delete")
-	again, err := authenticator.Resolve(context.Background(), "operator")
+	againCredential, err := authenticator.Resolve(context.Background(), "operator")
+	again := againCredential.Principal()
 	if err != nil || !again.Has(view) || !principal.Has(view) || again.Has(permissions[0]) {
 		t.Fatalf("resolved permissions aliased a public snapshot: %v", err)
 	}
@@ -222,7 +228,8 @@ func TestMemoryAuthenticatorNormalizesOversizedPasswordToInvalidCredentials(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := authenticator.Authenticate(context.Background(), "admin", strings.Repeat("x", 33))
+	resolvedCredential, err := authenticator.Authenticate(context.Background(), "admin", strings.Repeat("x", 33))
+	resolved := resolvedCredential.Principal()
 	if !errors.Is(err, auth.ErrInvalidCredentials) || resolved.Authenticated() {
 		t.Fatalf("oversized password result = %v, %v", resolved, err)
 	}
