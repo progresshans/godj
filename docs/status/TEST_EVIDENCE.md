@@ -3,6 +3,32 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 관계 제품 race의 Hosted 실행 시간 경계
+
+2026-09-26, source `ea9b9599e7c21a114c30e4bde5deaa6b7e8b0eb8`의
+[두 번째 Hosted full](https://github.com/progresshans/godj/actions/runs/36248358512)에서 앞선 세 검증 소비자 회귀가 수정됐다.
+PostgreSQL 제품 6개 모드와 Linux normal/CGO=0 관계 제품은 통과했지만 Linux amd64 race job
+`108421930845`는 GitHub의 **20분 job 제한 초과** annotation과 함께 cancelled로 끝났다.
+시작 14:25:44 UTC·종료 14:45:56 UTC이며 마지막 cleanup에는 `consumertest.test`·하위 `go`·`compile` process가 남아 있었다.
+Go package의 최종 판정과 필수 실행 보고서가 없으므로 해당 race나 전체 실행을 PASS로 세지 않는다.
+이 자료는 외부 시간 제한에서 끊겼음을 증명하며, 모든 내부 검사가 정상 종료될 것이라는 사전 증명은 아니다.
+
+관계 matrix의 race에 대해 기존 Intel macOS의 합산 budget(Go package 35분·job 45분)을 모든 좌표로 적용했다.
+Generated module별 실제 compile/runtime·기존 test 목록·race 전파·필수 실행·no-skips를 유지한다.
+Normal/CGO=0 설정은 바꾸지 않았다. Runtime이나 테스트의 의미를 바꾸는 변경은 없다.
+Non-Markdown 변경은 `.github/workflows/ci.yml` 하나이며 2,186개 source map은
+`acf360140a4a0dea6cef2052f78f058fad9a3aebec90314ce782b285c7a8a7cc`다.
+
+고정 actionlint v1.7.12의 YAML/Actions 표현식 검사를 통과했다(ShellCheck/Pyflakes는 해당 명령에서 비활성).
+CI 도구 unittest **41/41 PASS**, `TestWorkflow*`의 필수 5 root **5 PASS / skip 0**, diff·문서 검사도 통과했다.
+원본은 아래 Ticket evidence root의 `latest-race-budget-checks-path`, `race-budget-audit.json`,
+`relation-race-timeout-check.json`, `full-36248358512-job-108421930845.json`·`.log`에 보관한다.
+
+두 번째 실행의 `systemstate-postgres-1` artifact **10907833422**와 `operator-postgres-1` artifact **10908840441**은
+archive digest·payload SHA256·repository/run/attempt/checkout·성공한 normal producer job을 직접 대조했다.
+상세 원본은 `hosted-full-36248358512/capture-receipt.json`에 있다. 이는 ea9b9599의 두 capture 검증이며 전체 gate 성공이 아니다.
+실행 시간 경계를 바꾼 새 source의 full gate와 새 capture는 다시 확인해야 한다. 이전의 일부 성공을 옮기지 않는다.
+
 ## GDJ-0099 — Hosted 통합에서 드러난 검증 소비자 갱신
 
 2026-09-26, Ticket 소비자 source `d05468800ef9db483e61100c6f8f330065256adb`를 게시하고

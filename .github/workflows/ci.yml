@@ -386,11 +386,11 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
           - runs_on: "ubuntu-24.04-arm"
             expected_goos: "linux"
             expected_goarch: "arm64"
-            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
@@ -398,7 +398,7 @@ jobs:
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
-            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
         mode: [normal, race, cgo0]
 
     steps:
@@ -430,11 +430,12 @@ jobs:
           mode="${{ matrix.mode }}"
           relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          # The generated-consumer package runs every isolated module in one
-          # test process. Intel race compilation needs a larger aggregate
-          # budget; keep the same package/test inventory and race propagation.
+          # Isolated generated modules compile inside one consumer test
+          # process. Allow their combined race build/runtime budget on every
+          # runner, with time left for diagnostics before the outer job limit.
+          # Package/test inventory, race propagation and no-skip checks stay fixed.
           test_timeout=20m
-          if [ "$mode" = race ] && [ "${{ matrix.platform.expected_goos }}" = darwin ] && [ "${{ matrix.platform.expected_goarch }}" = amd64 ]; then
+          if [ "$mode" = race ]; then
             test_timeout=35m
           fi
           test_flags=(-timeout="$test_timeout" -json -count=1)
