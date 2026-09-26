@@ -17,7 +17,8 @@ Article/Helpdesk·CLI와 durable session 소비자를 연결했고 관리자 비
 사용자 생성·조회·편집·삭제 service를 추가했다. 현재 인가와 revision을 확인하고 profile·role·그룹/직접 권한·감사를
 원자적으로 변경한다. 비활성/삭제는 대상 session을 폐기하며 삭제에는 호스트의 전체 관계 정책을 사용한다.
 양 DB·영향 normal/race/CGO=0, 독립 Django 비교와 실패·동시성·negative control을 통과했다.
-현재 source·scope는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 고정했으며 게시/Hosted Fast 확인을 이어간다.
+`48aefdb1`으로 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36275314844)의 실제 Go 검사도 성공했다.
+현재 source·scope와 실패 보정 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 고정했다.
 이 변경의 전용 관리 Form/Admin/API/client와 별도 process·Hosted 전체 검증은 아직 수행하지 않았다.
 
 ## 다음 행동
