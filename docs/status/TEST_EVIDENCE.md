@@ -11,6 +11,14 @@ Non-Markdown **2,272 파일** source map SHA-256
 `df5724eb5acb6e090cce6442a4bb3c8c32ac091b5518ede2b5af3ea06074ec81`을 고정했다.
 아래 각 checkpoint/negative control의 실행 전후 source가 같고, 새 source의 전체 platform/Hosted full은 실행하지 않았다.
 
+구현 commit `4ff0007900e113542b8ad8aed51df16eed9689df`를 Draft PR #1에 게시했다.
+[첫 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36269843295)는 Go 실행 전 CI 도구 검사에서 실패했다.
+`relation-required.txt`·`postgres-core-required.txt`에 추가한 중복 빈 줄이 원인이었다. 실제 필수 test 항목은 빠지거나 중복되지 않았다.
+빈 줄만 제거한 source map은 `85889e77b8981b6bf1128d9881468970c4bf60a833af6458f53b060f8bc0f3ab`이다.
+전후 map에서 이 두 roster 외 모든 non-Markdown bytes가 같음을 확인했다. 로컬 CI Python **41/41**을 통과했다.
+위 source의 Go 구현·생성물·test는 아래 checkpoint와 같으며, source binding이 달라진 Linux capture는 별도로 다시 생성한다.
+
+
 Darwin arm64 / Go 1.26.5에서 **28 packages, 460 required roots**를 선언하고 전체 test/package completion과 no-skip을 검사했다.
 Auth·identity·systemstate·Admin·Session/Bearer adapter·project/linked/protocol 전체, createsuperuser 관련 CLI roots,
 양 DB의 snapshot/identity roots, Article·Helpdesk 전체 소비자, system-state worker/product/restart와 두 attestation owner,
