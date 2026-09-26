@@ -4,6 +4,32 @@
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
 
+## GDJ-0099·0100 — ManyToMany와 credential/session의 Hosted 전체 통합
+
+2026-09-27, source `01b67211a083c507d5e69c6be26702439aada559`의
+[Hosted full 36253381368](https://github.com/progresshans/godj/actions/runs/36253381368), attempt 1을 확인했다.
+**62 jobs 모두 completed/success**이며 최종 job `108444008264`의 실제 로그에서
+`scope=full`, `full_platform_verified=true`와 현행 `scopes.selected("full")`의 **8 owner 전체 일치**를 확인했다.
+Command products, conformance, exact Darwin, portable Go, PostgreSQL product, project-check product,
+Python compatibility, relation products를 포함한다. 고정 필수 목록·no-skip·normal/race/CGO0 조건을 유지했다.
+동일 source의 [Fast feedback](https://github.com/progresshans/godj/actions/runs/36253326420)도 실제 실행 step 성공을 확인했다.
+
+같은 실행의 normal PostgreSQL producer job `108435516403`에서 나온 `systemstate-postgres-1`
+artifact `10909903745`, job `108435516405`의 `operator-postgres-1` artifact `10909938175`를 내려받았다.
+GitHub archive digest·ZIP roster·payload SHA-256과 repository/run/attempt/checkout provenance를 대조했다.
+Consumer job `108437345524`의 provenance 및 conformance 실행, 32-bit migration/project-check와 runserver compile,
+32-bit relation runtime, 양 oracle checksum 및 reference artifact 무변경 step까지 실제 성공을 확인했다.
+검증 보조 스크립트의 오래된 step 이름 `Require a clean worktree`는 이 workflow에 없었으므로 최초 audit은 실패했다.
+현행 YAML과 job metadata를 대조해 실제 `Ensure reference artifacts were not rewritten` 및 위 필수 step을 명시한 뒤
+재실행했다. 이 step의 보장은 reference 경로 무변경이며 저장소 전체 clean 검사의 대체 증거로 세지 않는다.
+
+Gate 로그 SHA-256: `c9f79d0c3de6f7ffc5924fedb35dc5f5a441680a11fed735142e6be37e223e03`.
+Consumer 로그 SHA-256: `9ff8869a0b745d1b072d8b8188d9b58673fe0219943247687e242c9e2fe6b9e7`.
+원본은 아래 credential evidence root의 `hosted-full-36253381368/receipt.json`, `gate.log`,
+`capture-consumer.log`와 artifact/provenance 파일에 보관했다. 검증에 사용한 checkout의 HEAD도 위 source와 같았다.
+GDJ-0099 통합 조건을 완료하지만 GDJ-0100의 다중 사용자 저장·관리 UI/API·operator adoption은 미완료다.
+이후 외부 앱 및 identity 모델의 미게시 변경에는 이 전체 PASS를 전이하지 않는다.
+
 ## GDJ-0100 — Credential snapshot과 서버 세션 결합 checkpoint
 
 2026-09-27, 기준 `1036bcd079e96260dc5230dab1172e0228f34ce5`에서 구현한 변경 묶음이다.

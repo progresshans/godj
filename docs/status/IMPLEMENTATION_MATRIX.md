@@ -31,7 +31,7 @@ GDJ-0098의 CASCADE 선언·생성 metadata/project wire·historical 정책 변�
 공통 ORM의 recursive collector·transitive generated fingerprint도 구현했다. 중복 경로·순환은 model+PK로 한 번 처리하며,
 도달한 모든 PROTECT 검사 뒤 SET_NULL·exact-key 삭제를 같은 transaction에서 실행한다. TicketLabel의 migration·scoped Form/Admin/API/OpenAPI/client와 두 endpoint의 권한·Category·pair uniqueness를 연결했다.
 Label/Ticket 삭제의 링크 CASCADE·ServiceReport PROTECT를 소비자에서 검증했으며, 복수 API 권한·검색 없는 Admin도 지원한다.
-Source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의 Hosted 전체 통합을 완료했다. 이는 GDJ-0099 이전 source의 결과다.
+Source `01b67211a083c507d5e69c6be26702439aada559`의 Hosted 전체 통합을 완료했다. GDJ-0099와 credential/session 기반을 포함하며, 이후 다중 사용자 구현의 검증으로 전이하지 않는다.
 GDJ-0099는 독립 ManyToMany 기준과 명시한 non-null tuple의 native conflict insert를 연결했다.
 Columnless 선언·normalized IR·자동 storage projection·generated metadata/descriptor·binding과 bounded project wire를 구현했다.
 명시적 through의 historical Add/Remove/Rename·reverse·자동 계획과 양 DB의 metadata migration을 연결했다.
@@ -49,7 +49,7 @@ Custom single target query와 빌린 session/root backend의 native batch 실행
 양 DB·race·CGO=0 영향 checkpoint와 최종 backend 행 검증 보완을 확인했다.
 Ticket Form/Admin·API/OpenAPI·독립 generated client의 컬렉션 편집을 연결했다.
 Scalar와 전체 원하는 집합을 같은 transaction에서 저장하며 권한·CSRF·Category·실패/취소·두 runtime 경쟁·재시작을
-양 DB normal/race/CGO=0 영향 범위에서 확인했다. GDJ-0099 Hosted 전체 통합은 남아 있다.
+양 DB normal/race/CGO=0 영향 범위에서 확인했다. GDJ-0099 Hosted 전체 통합을 완료했다.
 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.

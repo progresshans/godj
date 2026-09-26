@@ -11,7 +11,7 @@ integration_owner: "root"
 ManyToMany 기반을 User·Group·Permission에 사용하고, 단일 operator에서 실제 다중 사용자 관리로 확장한다.
 모델·migration·현재 권한 평가와 세션 폐기, 관리 UI/API·실패 경로를 함께 연결한다.
 새로운 저장 모델을 만들기 전에 로그인한 credential과 세션의 결합부터 명시한다.
-GDJ-0099의 Hosted 통합은 아직 열려 있으며 다음 전체 milestone에서 누적 변경과 함께 검증한다.
+GDJ-0099와 credential/session 기반의 Hosted 통합은 완료했다. 이후 다중 사용자 구현은 새 source에서 검증한다.
 
 ## 구현 조건
 

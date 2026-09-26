@@ -2,9 +2,8 @@
 
 - 갱신: 2026-09-27
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
-- 통합 검증 대기: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
-- 최근 완료: [GDJ-0098 CASCADE와 TicketLabel 연결](../../work/0098-cascade-and-ticket-label-links.md)
-- 최근 전체 검증: [CASCADE·TicketLabel Hosted full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`
+- 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
+- 최근 전체 검증: [ManyToMany·credential/session Hosted full](https://github.com/progresshans/godj/actions/runs/36253381368), source `01b67211a083c507d5e69c6be26702439aada559`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -24,10 +23,8 @@ Typed/dynamic Query AST의 mixed 관계 조건, direct/nested/filtered/eager pre
 비밀번호 교체·재해싱, 권한·username 변경과 실패 시 세션 폐기를 실제 HTTP 소비자·양 DB 영향 checkpoint에서 검증했다. 다음은
 모델 기반 사용자·그룹·권한 저장과 기존 operator 데이터의 migration으로 이어간다.
 
-GDJ-0099 후속 Hosted에서 Linux race는 완료됐지만 Intel macOS normal도 20분 job 제한에 도달했다.
-관계 consumer의 모든 mode에 Go package 35분·job 45분을 적용하고 필수 목록·no-skip 조건은 유지한다.
-이번 인증 변경의 영향 검증 뒤 같은 source의 전체 gate·필수 실행·capture를 확인해 누적 통합을 마무리한다.
-로컬 영향 검증이나 한 좌표의 성공을 전체 플랫폼 검증으로 세지 않는다.
+GDJ-0099와 credential/session 변경을 포함한 Hosted 전체의 필수 실행·최종 gate·같은 실행의 capture 검증을 완료했다.
+이후 구현하는 다중 사용자 저장과 외부 앱 생성 경계는 새 source에서 별도로 검증한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증을 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.
