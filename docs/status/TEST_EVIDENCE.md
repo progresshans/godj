@@ -3,6 +3,72 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — named collection snapshot과 전체 owner 집합
+
+2026-09-26, `6e31229a2a6289dae285f8f985d9aca18754d332` 위에서 ManyToMany·reverse FK collection의
+`Snapshot`·`Limit`·`Offset`·`Read`를 native runtime과 generated facade에 연결했다. 별도 이름에 보관한 결과는
+일반 manager를 채우거나 제한하지 않는다. Read는 I/O 없이 새 model·graph·cache handle을 반환하고 미선택과 빈 목록을
+구분한다. 관계·binding·origin·owner PK·session 수명을 검증하고 이름 충돌·lookup 재정의·부분 publication을 거부한다.
+동일 owner의 With/Clear 파생 model과 Save에도 immutable snapshot을 보존한다. Facade ABI v17·golden과
+5개 프로젝트 생성물을 갱신했다.
+
+Custom ManyToMany는 전체 owner 집합을 한 query에서 유지한다. 첫 join의 grouping owner와 마지막 join의 membership
+owner가 다른 경우 기존 999개 분할로 행·순번이 달라지는 문제를 실제 generated 소비자의 **1,003 owner**로 검증했다.
+큰 integer membership은 SQLite `json_each`·PostgreSQL `bigint[]`의 단일 parameter로 전달한다. 양 DB에서
+**40,004 owner key**·int64 양 끝값·0·중복·NULL·부정 조건과 작은 scalar 목록의 동등 결과를 확인했다.
+
+검증 source는 모두 non-Markdown **2,137파일**이다. 첫 source map
+`817bfff21a66677ecd06ecd990d97f1535faea4af5f27aa189131cf1b7c0d2a0`에서
+query·queryplan·ORM·codegen·generated 소비자 전체와 SQLite/PostgreSQL SELECT·관계·eager·scalar 영향 root를 실행했다.
+일반 **7 package / 5,528 run=PASS / skip 0**, **166.3초**, 실제 compile된 필수 root **604개**다.
+첫 inventory script가 Go raw string 안의 예제 test 선언을 root로 잘못 수집해 판정을 실패로 남겼다.
+실행 결과와 원본 receipt를 보존하고 같은 source에서 `go test -list`로 실제 root를 확인한 `inventory-audit.json`에
+수정 판정을 기록했다. 실제 실패·skip·package 종료 누락은 없다.
+
+고정 Django runner의 외부 변형으로 일반 M2M·reverse manager의 `[0:]`가 오류 없이 **1 query**임을 추가 확인했다.
+Go의 Offset(0)도 unsliced로 처리한다. 체크인 runner·49개 관찰 fixture는 이번에 변경하지 않았다.
+이 변경 뒤 source map은 `40d29574b18a82d12c15b01e333422348f418c114763ca09bc90d86ab40fb45f`다.
+차이는 snapshot 소비자·runtime 검증·query window·query test의 4파일이며 생성기와 생성물은 같다.
+해당 영향 일반 검증은 **6 package / 5,059 run=PASS / skip 0**, **22.5초**, 필수 root **456개**다.
+넓은 race·CGO=0 checkpoint는 각각 **7 package / 5,529 run=PASS / skip 0**, **663.7초·184.8초**,
+필수 root **605개**다. 실제 generated ManyToMany module은 각 완료 mode에서 양 DB **325 child run=PASS / skip 0**다.
+독립 slice 관찰과 결과·query 수를 비교하고 nested/eager·중복 owner·다중 alias·manager 변경·동시 warm Read·실패/취소 재시도·
+session 종료·native Read와 generated API를 확인했다. DB package 전체나 full-platform 실행으로 세지 않는다.
+
+마지막 model 파생 경로에서 private snapshot graph를 전달하도록 보완했다. 최종 source map은
+`d9ba26f81faa8ce739bee48eaa0a3583cec07a20da5c2a63cc49ea586f86056d`다.
+직전 source와 차이는 생성기 1·composition test 2·golden 1·manifest/facade 8의 **12파일**이며 runtime/query/backend는 같다.
+최종 source에서 codegen 전체와 facade·prefetch·ManyToMany·reverse·SelectRelated의 실제 generated 소비자를 실행했다.
+일반·race·CGO=0 각각 **2 package / 384 run=PASS / skip 0**, **49.8초·147.1초·47.0초**, 필수 root **105개**다.
+Clear/With 파생·Save의 snapshot 보존과 반환 target의 독립성을 양 DB에서 확인했다. 모든 완료 checkpoint는 실행 전후
+source map이 같고 필수 root·package terminal을 검사했다. 앞 source의 넓은 검증을 최종 source의 전체 재실행으로 표시하지 않는다.
+
+원본 snapshot 소비자 **16 PASS**·integer 정밀도 **2 PASS** 뒤 manager cache로 대체·owner 집합 분할·named child graph 제거·
+child 실패 후 publication·integer float 변환의 **5개 의미 변경 overlay**를 정상 compile 후 지정한 실패로 모두 탐지했다.
+최종 파생 소비자 **3 PASS** 뒤 derived graph 전달만 제거한 overlay도 지정한 회귀에서 실패했다.
+앞 5개는 `40d29574` source 범위, 파생 control은 최종 source 범위이며 원본 제품은 변경하지 않았다.
+초기 generated overlay가 `/var` symlink와 Go의 `/private/var` 경로 차이로 적용되지 않은 것을 탐지했고 realpath로 수정했다.
+최초 파생 fixture는 지원하지 않는 nil-wrapper setter를 사용해 실패했다. 공개 Clear/WithID API로 고쳤으며 제품 검사를 완화하지 않았다.
+두 초기 실패와 수정 후 로그를 보존했다.
+
+최종 파생 checkpoint의 첫 재실행은 빌드 중 disk full로 실패했다. 진행 중인 Go 작업이 없음을 확인하고 재생성 가능한
+Go build cache **92GiB**를 `go clean -cache`로 정리한 뒤 같은 source에서 세 mode를 순서대로 실행했다.
+부분 삭제로 invalid 상태였던 전용 DB는 활성 connection **0**을 확인하고 force 없이 제거했다. 이 DB를 정상 cleanup
+검사 통과로 세지 않으며 별도 `disk-recovery.json`에 기록했다. 성공한 모든 DB checkpoint는 `GODJ_REQUIRE_POSTGRES=1`과
+전용 database를 사용했고 cleanup **0|0|0** 뒤 force 없이 제거했다. 마지막 catalog 확인에서 남은 전용 DB는 없다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew**다.
+Runtime/query/backend 영향 vet와 최종 generator/소비자 vet, format·5개 프로젝트 generated drift를 통과했다.
+로그·source map·inventory·receipt·negative overlay·4/12파일 delta는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-snapshots/`의
+`latest-normal-path`, `latest-delta-normal-path`, `latest-race-path`, `latest-cgo0-path`, `latest-derivation-*-path`,
+`latest-negative-path`, `latest-derivation-negative-path`, `latest-zero-offset-path`, `latest-checks-path`,
+`latest-final-checks-path`를 따른다.
+
+Custom single target query·materialized streaming과 Ticket 컬렉션 Form/Admin/API/OpenAPI/client의 권한·CSRF·Category·
+동시성·durability, GDJ-0099 Hosted 전체 milestone은 남아 있다. 기록된 최근 전체 검증은
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`다.
+
 ## GDJ-0099 — owner별 slice의 독립 기준과 조회 계획
 
 2026-09-26, `33ebc19ea32dde54d36339814e4c00e490e34939` 위에서 owner별 slice의 Query AST와

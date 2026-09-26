@@ -180,7 +180,7 @@ ManyToMany의 양방향·nullable/nonunique through·대칭/비대칭 self와 �
 거쳐 target query의 immutable 평가에 붙은 graph를 복제한다. Objects와 Collections는 같은 project binding을 사용한다.
 반환된 각 model/manager는 독립 mutable handle을 가지며 held query는 이전 graph를 유지한다. 기본 중첩 prefetch의 target query에
 Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다. 일반·prefetch·eager 결과 표현의 통합을 eager/prefetch 구성 API 완료로 세지 않는다.
-필터를 지정한 child prefetch와 eager 조합은 아래 계약을 따른다. Owner별 slice는 다음 구현 범위로 남는다.
+필터를 지정한 child prefetch와 eager 조합은 아래 계약을 따른다. Owner별 slice는 아래 named snapshot 계약을 따른다.
 고정 Django의 독립 관찰과 Go-native 소유권·실패 경로의 실행 근거는 TEST_EVIDENCE에 기록한다.
 
 ### 구성 가능한 prefetch의 조회 기반
@@ -219,7 +219,7 @@ Raw streaming Iterate는 child query를 실행할 materialized batch 계약 없�
 각 collection handle은 기본 membership plan을 따로 소유한다. Mutation·Invalidate·manager Fresh는 이 plan으로 돌아가며
 기존 held QuerySet의 custom 조건·정렬·설정과 성공한 snapshot은 유지한다. No-op·실패·불명 outcome도 같은 무효화 규칙이다.
 고정 Django의 중첩/filtered cache·lookup 순서·owner filter scope를 실제 generated 소비자와 비교한다.
-Target query의 slice는 아래의 owner별 window 계획을 따른다. 일반 manager와 별도 snapshot의 연결은 아직 남아 있다.
+Target query의 slice는 아래의 owner별 window 계획을 따른다. 일반 manager와 분리된 named snapshot으로 읽는다.
 
 
 ### 단일 관계 prefetch와 eager 부모 재사용
@@ -237,7 +237,7 @@ NULL relation의 lazy/eager/prefetch handle도 backend의 session 수명을 유�
 
 Cold First는 source를 하나만 decode한 뒤 그 graph를 구성하며 full evaluation cache를 채우지 않는다. Count는 child I/O를 하지 않는다.
 Filter·정렬·Distinct·source slice·Fresh는 같은 준비된 관계 tree를 새 source 평가에 적용한다. 실패와 취소는 부분 graph를 공개하지 않는다.
-`SinglePrefetch`의 custom target query, owner별 slice와 materialized streaming은 별도 남은 범위다.
+`SinglePrefetch`의 custom target query와 materialized streaming은 별도 남은 범위다.
 
 
 ### 역방향 컬렉션과 target eager 구성
@@ -261,13 +261,14 @@ projection key/model key 불일치는 전체 행을 공개하기 전에 거부�
 역방향 `RelatedSet`은 기본 owner scope와 현재 query/cache를 구분한다. Query는 held snapshot을 반환하고 manager Fresh/Invalidate는
 기본 scope·기본 정렬로 돌아간다. 이미 보유한 query·다른 materialization은 변하지 않는다. Query snapshot과 Invalidate의 교체는
 같은 mutex가 소유하며 session 종료 후에는 cache도 읽을 수 없다. 이 collection 연결은 읽기·조회 cache 범위이며 역방향 FK 변경 API의 완성을 뜻하지 않는다.
-Facade ABI는 v16이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
+Facade ABI는 v17이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
 
 ### Owner별 slice 조회 계획
 
 2026-09-26, 고정 Django의 sliced Prefetch는 `to_attr`로 별도 목록에 담는다. 일반 relation manager에 같은 sliced query를
 설치하면 owner filter 적용 중 TypeError가 발생한다. GoDj도 일반 manager의 조회 범위와 별도 snapshot을 구분한다.
-현재 구현은 공통 Query AST와 SQLite/PostgreSQL compiler까지이며 runtime·generated snapshot API 완료로 세지 않는다.
+공통 Query AST와 SQLite/PostgreSQL compiler를 runtime/generated named snapshot에 연결했다. 일반 manager에 slice를
+설치하는 입력은 GoDj의 사전 검증에서 I/O 없이 거부한다. Limit 없는 Offset(0)은 slice 제한이 없으므로 일반 manager에도 허용한다.
 
 `Plan.ForPrefetchOwners`는 먼저 구성한 target limit/offset을 membership owner별 `ROW_NUMBER` 범위로 해석한다.
 첫 intermediary join은 출력의 grouping owner이고, 마지막 일치 join은 membership과 window partition을 소유한다.
@@ -279,7 +280,24 @@ Window rank는 DISTINCT의 입력 cell에 포함한다. 비고유 through의 동
 먼저 target을 중복 제거하거나 최종 목록에 임의의 DISTINCT를 적용하지 않는다. Eager target·owner cell은 기존 scan 순서를 유지하고,
 rank와 정렬용 cell은 외부 row에서 제거한다. JSON 정렬 key·decimal 결과 변환·매개변수 위치는 각 backend compiler가 소유한다.
 Empty slice와 empty membership도 전체 plan 검증을 거친 뒤 I/O를 생략하며 overflow 없는 upper bound와 context 취소를 유지한다.
-이 계획을 실제 snapshot materialization과 여러 owner batch에 연결하는 것은 다음 구현 범위다.
+
+`ManyPrefetch`와 `ReverseCollectionPrefetch` 및 generated selector는 `Snapshot(name)`·`Limit`·`Offset`·`Read(ctx, owner)`를
+제공한다. 이름은 단일 identifier이며 모델 field·declared relation과 충돌하지 않는다. 같은 이름의 query 재정의·다른 관계 충돌,
+foreign binding/origin·copied owner·PK 변경·취소를 거부한다. 서로 다른 이름의 snapshot과 일반 manager 선택은 함께 사용할 수 있다.
+Read는 selected 여부를 별도로 반환하여 미선택과 빈 목록을 구분하며 자동 조회하지 않는다. 매번 target model과 하위 graph의
+독립 handle을 반환한다. 동일 selector에 WithChildren/SelectRelated를 지정하고 named child를 다시 Read할 수 있다.
+Generated wrapper는 원본 graph를 보유하므로 root eager로 재사용한 부모나 collection-only target에서도 named child가 보존된다.
+같은 owner의 With 관계 변경으로 파생한 모델과 그 모델의 Save도 명시한 snapshot을 유지한다. Private graph는 immutable하게
+공유하고 각 Read는 독립 model/cache handle을 반환한다. Manager mutation/reset은 snapshot을 변경하지 않는다.
+Snapshot은 영구 membership/인가 증명이 아니며 borrowed session 종료 뒤에는
+warm 결과도 읽을 수 없다. 모든 target/child의 scan·close·membership 검증이 성공해야 source와 snapshot이 함께 공개된다.
+
+Custom ManyToMany의 grouping owner와 membership owner가 서로 다른 batch에 있으면 999개씩 독립 조회하는 방식은 행과 순번을
+바꾼다. 따라서 custom query는 전체 고유 owner 집합을 한 SQL에 전달한다. Integer IN이 999개를 넘으면 SQLite는 bound JSON
+integer array의 json_each, PostgreSQL은 bound bigint array의 ANY를 사용한다. 표준 IN의 NULL/부정 의미와 int64 전체 정밀도를
+유지하고 SQL 매개변수 개수를 owner 수만큼 늘리지 않는다. Window 뒤의 grouping owner 필터도 같은 표현을 사용한다.
+기본 ManyToMany와 reverse FK처럼 owner partition이 독립인 조회는 기존 bounded batch를 유지한다. 이 연결은 일반 관계 query의
+새로운 제한이나 전체 table을 읽고 Go에서 자르는 fallback을 도입하지 않는다.
 
 ## Historical 선언 변경
 

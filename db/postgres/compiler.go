@@ -853,6 +853,10 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		if len(inValues) == 0 {
 			return nil, invalidPlan("PostgreSQL IN requires a valid scalar list-backed condition")
 		}
+		if packed, ok := queryplan.PackIntegerMembership(inValues, '{', '}'); ok {
+			statement.WriteString(" = ANY(" + placeholder(firstArgument) + "::bigint[])")
+			return []any{packed}, nil
+		}
 		statement.WriteString(" IN (")
 		arguments := make([]any, len(inValues))
 		for index, item := range inValues {

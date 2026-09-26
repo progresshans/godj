@@ -121,13 +121,16 @@ Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별
 Forward/reverse/ManyToMany의 mixed scalar 조건·AND/OR/NOT·isnull·IN을 같은 keyed AST로 처리한다.
 한 Filter와 연속 Filter의 collection scope를 구분하고 중복·Distinct·Count와 부정 EXISTS를 유지한다.
 ManyToMany direct/nested/filtered prefetch는 양방향·nullable/nonunique through·self와 여러 selection을 같은 runtime에서 처리한다.
-기존 through query와 target eager projection을 사용하고 999 owner key씩 읽은 전체 결과를 함께 반환한다.
+기본 조회는 기존 through query와 target eager projection으로 999 owner key씩 읽은 전체 결과를 함께 반환한다.
 Custom target filter를 위한 `ResultPrefetch`의 owner projection·join 재사용·batch 소속 검사를 양 DB compiler에 연결했다.
 Nested typed/path API는 기본 collection query와 공통 materialization으로 연결했다.
 Custom target Filter·OrderBy·Distinct와 하위 prefetch 설정을 generated API에 연결했다.
 Held query의 조건·설정과 manager 변경 뒤 기본 조회를 구분한다. 설정된 target query의 eager·추가 prefetch에 하위 설정을 전달한다.
-Owner별 slice의 Query AST·양 DB window compiler를 연결했다. Named snapshot의 runtime/generated API와
-owner batch 통합은 아직 남아 있으며, 설정된 prefetch query의 streaming도 미지원이다.
+Owner별 slice를 Query AST·양 DB window compiler와 runtime/generated named snapshot에 연결했다.
+Snapshot·Limit/Offset·Read는 일반 manager와 별도 결과를 유지하며 nested/eager graph와 session lifetime을 보존한다.
+Custom ManyToMany는 grouping/membership에 같은 전체 owner 집합을 사용한다. 큰 integer IN은 SQLite JSON array parameter와
+PostgreSQL bigint array parameter로 조회해 owner 집합을 나누거나 정수 정밀도를 낮추지 않는다.
+설정된 prefetch query의 streaming은 아직 미지원이다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 Custom single prefetch query, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.

@@ -224,6 +224,44 @@ func TestFilteredPrefetchComposition(t *testing.T) {
 				t.Fatal("eager retry reused partial source or children")
 			}
 		})
+		t.Run("snapshot_model_derivation", func(t *testing.T) {
+			selection := api.LabelsLabel.Prefetch.Owners.Snapshot("owner_rows")
+			rows, err := api.LabelsLabel.Filter(labels.LabelFields.ID.Exact(a.ID)).PrefetchRelated(selection).All(ctx)
+			check(t, err)
+			derived, err := rows[0].ClearFeaturedOwner()
+			check(t, err)
+			restored, err := derived.WithFeaturedOwnerID(highlight.ID)
+			check(t, err)
+			before := len(probe.plans)
+			for _, value := range []*project.LabelsLabel{rows[0], derived, restored} {
+				parents, present, err := selection.Read(ctx, value)
+				check(t, err)
+				if !present || len(parents) != 1 || parents[0].Name != "first" {
+					t.Fatal("derived model lost named snapshot")
+				}
+				parents[0].Name = "caller"
+			}
+			parents, present, err := selection.Read(ctx, derived)
+			check(t, err)
+			if !present || parents[0].Name != "first" || len(probe.plans) != before {
+				t.Fatal("derived snapshot aliases a returned model or performs I/O")
+			}
+			original, err := rows[0].Unwrap()
+			check(t, err)
+			changed, err := derived.Unwrap()
+			check(t, err)
+			if original.FeaturedOwnerID == nil || changed.FeaturedOwnerID != nil {
+				t.Fatal("relation derivation did not keep independent scalar state")
+			}
+			check(t, derived.Save(ctx))
+			before = len(probe.plans)
+			parents, present, err = selection.Read(ctx, derived)
+			check(t, err)
+			if !present || len(parents) != 1 || len(probe.plans) != before {
+				t.Fatal("same-owner save discarded named snapshot")
+			}
+			check(t, rows[0].Save(ctx))
+		})
 		t.Run("session", func(t *testing.T) {
 			var eager project.LabelsLabelEagerQuery
 			check(t, b.AtomicRelation(ctx, func(session db.RelationSession) error {

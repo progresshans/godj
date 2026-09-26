@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -403,10 +403,10 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 			}
 		}
 		for _, relation := range model.reverseCollections {
-			fmt.Fprintf(output, "_result.Prefetch.%s=relationFacadeReversePrefetch[%s,%s.%s]{state:_state,selection:_state.reverseCollections.%s.%s.WithChildren()}\n", relation.selector, rawType, relation.source.app.alias, relation.source.model.GoName, model.surface, lowerFirst(relation.selector))
+			fmt.Fprintf(output, "_result.Prefetch.%s=relationFacadeReversePrefetch[%s,%s.%s,%s]{state:_state,selection:_state.reverseCollections.%s.%s.WithChildren(),materialize:_state.materialize%s}\n", relation.selector, rawType, relation.source.app.alias, relation.source.model.GoName, relation.source.app.prefix+relation.source.model.GoName, model.surface, lowerFirst(relation.selector), relation.source.app.prefix+relation.source.model.GoName)
 		}
 		for _, relation := range model.collections {
-			fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeManyPrefetch[%s,%s.%s,%s.%s]{state:_state,selection:_state.collections.%s.WithChildren()}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.surface)
+			fmt.Fprintf(output, "_result.Prefetch.%s = relationFacadeManyPrefetch[%s,%s.%s,%s.%s,%s]{state:_state,selection:_state.collections.%s.WithChildren(),materialize:_state.materialize%s}\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.target.app.prefix+relation.target.model.GoName, relation.surface, relation.target.app.prefix+relation.target.model.GoName)
 		}
 		fmt.Fprintln(output, "}")
 	}
@@ -532,6 +532,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tstate                     *relationFacadeState")
 	fmt.Fprintln(output, "\tprimaryKeySnapshot        int64")
 	fmt.Fprintln(output, "\tprimaryKeySnapshotPresent bool")
+	fmt.Fprintf(output, "_prefetched *orm.RelatedSelected[%s]\n", rawType)
 	if model.source != nil {
 		fmt.Fprintf(output, "\tobject *%s\n", model.source.objectType)
 		for _, relation := range model.source.selections {
@@ -644,6 +645,12 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\treturn _key, _present, nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	fmt.Fprintf(output, `func (_model *%[1]s) relationFacadeSnapshotSource()(*relationFacadeState,*orm.RelatedSelected[%[2]s],error){
+ if _err:=_model.validate();_err!=nil{return nil,nil,_err}
+ if _,_,_err:=_model.relationFacadePrimaryKey();_err!=nil{return nil,nil,_err}
+ return _model.state,_model._prefetched,nil
+}
+`, model.surface, rawType)
 	fmt.Fprintf(output, "func (_model *%s) relationFacadeRefreshSnapshots() error {\n", model.surface)
 	fmt.Fprintln(output, "\t_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()")
 	fmt.Fprintln(output, "\tif _err != nil {")
@@ -878,6 +885,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\t_result := &%s{state: _model.state, %s: _value, object: _object}\n", model.surface, model.rawAlias)
+	fmt.Fprintln(output, "\t_result._prefetched = _model._prefetched")
 	fmt.Fprintln(output, "\t_result.primaryKeySnapshot = _model.primaryKeySnapshot")
 	fmt.Fprintln(output, "\t_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent")
 	for _, relation := range model.source.relations {

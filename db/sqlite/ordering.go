@@ -90,7 +90,14 @@ func appendRowSelection(statement *strings.Builder, plan query.Plan, selected, h
 
 func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments []any) (string, []any, error) {
 	if _, window := plan.PrefetchWindow(); window {
-		sql, err := queryplan.FinishPrefetchRows(inner, plan, selected, hidden, quoteIdentifier, func(value int64) string { arguments = append(arguments, value); return "?" })
+		sql, err := queryplan.FinishPrefetchRows(inner, plan, selected, hidden, quoteIdentifier, func(value int64) string { arguments = append(arguments, value); return "?" }, func(values []query.Value) (string, bool) {
+			packed, ok := queryplan.PackIntegerMembership(values, '[', ']')
+			if !ok {
+				return "", false
+			}
+			arguments = append(arguments, packed)
+			return " IN (SELECT value FROM json_each(?))", true
+		})
 		return sql, arguments, err
 	}
 	if len(hidden) > 0 {

@@ -21,20 +21,23 @@ func projectSinglePrefetchExpression(model projectRelationFacadeModel, relation 
 }
 
 func renderProjectFacadePrefetchFoundation(output *bytes.Buffer) {
+	renderProjectFacadeSnapshotFoundation(output)
 	fmt.Fprint(output, `type relationFacadePrefetchInput[S any] interface {
  relationFacadePrefetchOwner() *relationFacadeState
  relationFacadePrefetchValue() orm.PrefetchSelection[S]
 }
-type relationFacadeManyPrefetch[S,T,L any] struct {
+
+type relationFacadeManyPrefetch[S,T,L,W any] struct {
  state *relationFacadeState
  selection orm.ManyPrefetch[S,T,L]
+ materialize func(context.Context,*orm.RelatedSelected[T])(*W,error)
 }
-func (_selector relationFacadeManyPrefetch[S,T,L]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
-func (_selector relationFacadeManyPrefetch[S,T,L]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
-func (_selector relationFacadeManyPrefetch[S,T,L]) Filter(_values ...orm.Predicate[T])relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
-func (_selector relationFacadeManyPrefetch[S,T,L]) OrderBy(_values ...orm.Ordering[T])relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
-func (_selector relationFacadeManyPrefetch[S,T,L]) Distinct()relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.Distinct();return _selector}
-func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeManyPrefetch[S,T,L]{
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) Filter(_values ...orm.Predicate[T])relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) OrderBy(_values ...orm.Ordering[T])relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) Distinct()relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeManyPrefetch[S,T,L,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
  for _,_child:=range _children{
@@ -43,16 +46,17 @@ func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...rel
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
 }
-type relationFacadeReversePrefetch[S,T any] struct {
+type relationFacadeReversePrefetch[S,T,W any] struct {
  state *relationFacadeState
  selection orm.ReverseCollectionPrefetch[S,T]
+ materialize func(context.Context,*orm.RelatedSelected[T])(*W,error)
 }
-func (_selector relationFacadeReversePrefetch[S,T]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
-func (_selector relationFacadeReversePrefetch[S,T]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
-func (_selector relationFacadeReversePrefetch[S,T]) Filter(_values ...orm.Predicate[T])relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
-func (_selector relationFacadeReversePrefetch[S,T]) OrderBy(_values ...orm.Ordering[T])relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
-func (_selector relationFacadeReversePrefetch[S,T]) Distinct()relationFacadeReversePrefetch[S,T]{_selector.selection=_selector.selection.Distinct();return _selector}
-func (_selector relationFacadeReversePrefetch[S,T]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeReversePrefetch[S,T]{
+func (_selector relationFacadeReversePrefetch[S,T,W]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadeReversePrefetch[S,T,W]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeReversePrefetch[S,T,W]) Filter(_values ...orm.Predicate[T])relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
+func (_selector relationFacadeReversePrefetch[S,T,W]) OrderBy(_values ...orm.Ordering[T])relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
+func (_selector relationFacadeReversePrefetch[S,T,W]) Distinct()relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeReversePrefetch[S,T,W]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeReversePrefetch[S,T,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
  for _,_child:=range _children{
@@ -76,7 +80,7 @@ func (_selector relationFacadeSinglePrefetch[S,T]) WithChildren(_children ...rel
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
 }
-func (_selector relationFacadeManyPrefetch[S,T,L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeManyPrefetch[S,T,L]{
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeManyPrefetch[S,T,L,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
  for _index,_child:=range _selectors{
@@ -85,7 +89,7 @@ func (_selector relationFacadeManyPrefetch[S,T,L]) SelectRelated(_selectors ...r
  }
  _selector.selection=_selector.selection.SelectRelated(_inputs...);return _selector
 }
-func (_selector relationFacadeReversePrefetch[S,T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeReversePrefetch[S,T]{
+func (_selector relationFacadeReversePrefetch[S,T,W]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeReversePrefetch[S,T,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
  for _index,_child:=range _selectors{
@@ -118,10 +122,10 @@ type %[1]sPrefetchSelectors struct {
 		}
 	}
 	for _, relation := range model.reverseCollections {
-		fmt.Fprintf(output, "%s relationFacadeReversePrefetch[%s,%s.%s]\n", relation.selector, raw, relation.source.app.alias, relation.source.model.GoName)
+		fmt.Fprintf(output, "%s relationFacadeReversePrefetch[%s,%s.%s,%s]\n", relation.selector, raw, relation.source.app.alias, relation.source.model.GoName, relation.source.app.prefix+relation.source.model.GoName)
 	}
 	for _, relation := range model.collections {
-		fmt.Fprintf(output, "%s relationFacadeManyPrefetch[%s,%s.%s,%s.%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName)
+		fmt.Fprintf(output, "%s relationFacadeManyPrefetch[%s,%s.%s,%s.%s,%s]\n", relation.selector, raw, relation.target.app.alias, relation.target.model.GoName, relation.through.app.alias, relation.through.model.GoName, relation.target.app.prefix+relation.target.model.GoName)
 	}
 	fmt.Fprintln(output, "}")
 	fmt.Fprintf(output, `type %[1]sPrefetchQuery struct {
@@ -292,6 +296,7 @@ func renderProjectFacadeMaterialize(output *bytes.Buffer, model projectRelationF
 }
 
 func renderProjectFacadePrefetchedCollections(output *bytes.Buffer, model projectRelationFacadeModel, graph string) {
+	fmt.Fprintf(output, "_wrapped._prefetched=%s\n", graph)
 	for index, relation := range model.reverseCollections {
 		target := relation.source.app.alias + "." + relation.source.model.GoName
 		fmt.Fprintf(output, `if _collection,_present,_err:=_state.reverseCollections.%[1]s.%[2]s.FromPrefetched(%[3]s);_err!=nil{return nil,_err}else if _present{

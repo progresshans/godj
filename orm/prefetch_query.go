@@ -33,6 +33,7 @@ type ManyPrefetch[O, T, L any] struct {
 	eager            []RelatedSelection[T]
 	targetPlan       query.Plan
 	custom           bool
+	snapshot         string
 	configurationErr error
 }
 
@@ -92,6 +93,7 @@ type preparedManyPrefetch[S, T, L any] struct {
 	eagerNodes    int
 	targetPlan    query.Plan
 	custom        bool
+	snapshot      string
 	nodes         int
 }
 type cachedManyPrefetch[T, L any] struct{ collection *ManyCollection[T, L] }
@@ -116,7 +118,7 @@ func (p ManyPrefetch[O, T, L]) preparePrefetch(depth int, remaining *int) (prepa
 	if err != nil {
 		return nil, err
 	}
-	prepared := preparedManyPrefetch[O, T, L]{relation: p.relation, children: children, targetPlan: p.targetPlan, custom: p.custom, targets: targets, eagerNodes: eagerNodes, nodes: before - *remaining}
+	prepared := preparedManyPrefetch[O, T, L]{relation: p.relation, children: children, targetPlan: p.targetPlan, custom: p.custom, snapshot: p.snapshot, targets: targets, eagerNodes: eagerNodes, nodes: before - *remaining}
 	if p.custom {
 		prepared.queryChildren = children
 	}
@@ -161,13 +163,21 @@ func mergePrefetchSet[S any](selections []preparedPrefetch[S]) ([]preparedPrefet
 	return result, nil
 }
 func (p preparedManyPrefetch[S, T, L]) owner() BoundModel[S] { return p.relation.prefetchOwner }
-func (p preparedManyPrefetch[S, T, L]) name() string         { return p.relation.prefetchName }
-func (p preparedManyPrefetch[S, T, L]) nodeBudget() int      { return p.nodes }
+func (p preparedManyPrefetch[S, T, L]) name() string {
+	if p.snapshot != "" {
+		return p.snapshot
+	}
+	return p.relation.prefetchName
+}
+func (p preparedManyPrefetch[S, T, L]) nodeBudget() int { return p.nodes }
 func (p preparedManyPrefetch[S, T, L]) validate() error {
 	if p.relation.state == nil || p.name() == "" {
 		return relationInvalidPlan("prefetch selection is unbound")
 	}
 	if err := validateObjectBoundModel(p.owner()); err != nil {
+		return err
+	}
+	if err := validatePrefetchSnapshot(p.owner(), p.snapshot, p.targetPlan); err != nil {
 		return err
 	}
 	if _, _, err := p.relation.prefetchBinding(); err != nil {

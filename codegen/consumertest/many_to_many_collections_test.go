@@ -93,6 +93,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/prefetch_reverse_test.go", reverse)
+	snapshots, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_snapshot_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_snapshot_test.go", snapshots)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -128,6 +133,9 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		required["TestCollectionPrefetchTree/"+backend] = false
 		required["TestSinglePrefetchComposition/"+backend] = false
 		required["TestReverseCollectionPrefetch/"+backend] = false
+		for _, name := range []string{"head", "middle", "tail", "empty", "beyond", "descending", "empty_batch", "nested_and_independent", "reverse_eager_and_distinct", "named_children_and_multiple_snapshots", "validation_and_namespace", "failure_cancel_retry_and_native", "session_lifetime", "owner_universe_across_batches"} {
+			required["TestCollectionPrefetchSnapshots/"+backend+"/"+name] = false
+		}
 		for _, name := range []string{"native_indexed_target", "reference_typed", "reference_path_merge", "reference_single_child", "held_query_composition", "lookup_origin_budget", "failure_foreign_cancel_retry", "independent_reset_and_concurrent", "session_lifetime"} {
 			required["TestReverseCollectionPrefetch/"+backend+"/"+name] = false
 		}

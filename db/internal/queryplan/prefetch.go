@@ -38,7 +38,7 @@ func AppendPrefetchWindow(sql *strings.Builder, plan query.Plan, appendValue fun
 // FinishPrefetchRows strips private ordering/rank cells without changing the
 // public model/eager/owner scan order. Membership stays in the inner query;
 // grouping ownership is enforced here when the two use different join scopes.
-func FinishPrefetchRows(inner string, plan query.Plan, selected, hidden []query.ResultExpression, quote func(string) (string, error), parameter func(int64) string) (string, error) {
+func FinishPrefetchRows(inner string, plan query.Plan, selected, hidden []query.ResultExpression, quote func(string) (string, error), parameter func(int64) string, packedMembership func([]query.Value) (string, bool)) (string, error) {
 	window, ok := plan.PrefetchWindow()
 	if !ok {
 		return "", invalidPlan("prefetch row wrapper has no window")
@@ -68,6 +68,8 @@ func FinishPrefetchRows(inner string, plan query.Plan, selected, hidden []query.
 		}
 		if len(values) == 0 {
 			sql.WriteString(" AND 0 = 1")
+		} else if membership, packed := packedMembership(values); packed {
+			sql.WriteString(` AND "godj_order_source"."c` + strconv.Itoa(index) + `"` + membership)
 		} else {
 			sql.WriteString(` AND "godj_order_source"."c` + strconv.Itoa(index) + `" IN (`)
 			for i, value := range values {

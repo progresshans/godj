@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
-const GoDjProjectRelationFacadeInputSHA256 = "c2073ac7561aa60e321a4cf36f76678d2cf30534f986876f8b32c3016fa9c056"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
+const GoDjProjectRelationFacadeInputSHA256 = "0c9a3f8f8f189d79e7c977ac3b6670d3866a7f07181710005ee3c4bfeb6990e4"
 
 type Backend interface {
 	db.Queryer
@@ -119,34 +119,132 @@ type relationFacadeBindings struct {
 	AuthorsAuthor orm.BoundModel[authors.Author]
 	BlogPost      orm.BoundModel[blog.Post]
 }
+type relationFacadeSnapshotOwner[S any] interface {
+	relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[S], error)
+}
+
+func relationFacadeReadSnapshot[S, T, W any](_ctx context.Context, _state *relationFacadeState, _owner relationFacadeSnapshotOwner[S], _validate func() error, _read func(context.Context, *orm.RelatedSelected[S]) ([]*orm.RelatedSelected[T], bool, error), _materialize func(context.Context, *orm.RelatedSelected[T]) (*W, error)) ([]*W, bool, error) {
+	if _ctx == nil {
+		return nil, false, relationFacadeQueryInvalid("snapshot read requires a context")
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _validate(); _err != nil {
+		return nil, false, _err
+	}
+	if relationFacadeNil(_owner) {
+		return nil, false, relationFacadeQueryInvalid("snapshot owner is nil")
+	}
+	_origin, _graph, _err := _owner.relationFacadeSnapshotSource()
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _origin != _state {
+		return nil, false, relationFacadeQueryInvalid("snapshot owner belongs to another facade origin")
+	}
+	if _graph == nil {
+		return nil, false, nil
+	}
+	_values, _present, _err := _read(_ctx, _graph)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result := make([]*W, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _materialize(_ctx, _value)
+		if _err != nil {
+			return nil, false, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Snapshot(_name string) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.Snapshot(_name)
+	return _selector
+}
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Read(_ctx context.Context, _owner relationFacadeSnapshotOwner[S]) ([]*W, bool, error) {
+	return relationFacadeReadSnapshot(_ctx, _selector.state, _owner, _selector.selection.ValidateSnapshot, _selector.selection.Read, _selector.materialize)
+}
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Limit(_value int) (relationFacadeManyPrefetch[S, T, L, W], error) {
+	_next, _err := _selector.selection.Limit(_value)
+	if _err != nil {
+		return relationFacadeManyPrefetch[S, T, L, W]{}, _err
+	}
+	_selector.selection = _next
+	return _selector, nil
+}
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Offset(_value int) (relationFacadeManyPrefetch[S, T, L, W], error) {
+	_next, _err := _selector.selection.Offset(_value)
+	if _err != nil {
+		return relationFacadeManyPrefetch[S, T, L, W]{}, _err
+	}
+	_selector.selection = _next
+	return _selector, nil
+}
+func (_selector relationFacadeReversePrefetch[S, T, W]) Snapshot(_name string) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.Snapshot(_name)
+	return _selector
+}
+func (_selector relationFacadeReversePrefetch[S, T, W]) Read(_ctx context.Context, _owner relationFacadeSnapshotOwner[S]) ([]*W, bool, error) {
+	return relationFacadeReadSnapshot(_ctx, _selector.state, _owner, _selector.selection.ValidateSnapshot, _selector.selection.Read, _selector.materialize)
+}
+func (_selector relationFacadeReversePrefetch[S, T, W]) Limit(_value int) (relationFacadeReversePrefetch[S, T, W], error) {
+	_next, _err := _selector.selection.Limit(_value)
+	if _err != nil {
+		return relationFacadeReversePrefetch[S, T, W]{}, _err
+	}
+	_selector.selection = _next
+	return _selector, nil
+}
+func (_selector relationFacadeReversePrefetch[S, T, W]) Offset(_value int) (relationFacadeReversePrefetch[S, T, W], error) {
+	_next, _err := _selector.selection.Offset(_value)
+	if _err != nil {
+		return relationFacadeReversePrefetch[S, T, W]{}, _err
+	}
+	_selector.selection = _next
+	return _selector, nil
+}
+
 type relationFacadePrefetchInput[S any] interface {
 	relationFacadePrefetchOwner() *relationFacadeState
 	relationFacadePrefetchValue() orm.PrefetchSelection[S]
 }
-type relationFacadeManyPrefetch[S, T, L any] struct {
-	state     *relationFacadeState
-	selection orm.ManyPrefetch[S, T, L]
+
+type relationFacadeManyPrefetch[S, T, L, W any] struct {
+	state       *relationFacadeState
+	selection   orm.ManyPrefetch[S, T, L]
+	materialize func(context.Context, *orm.RelatedSelected[T]) (*W, error)
 }
 
-func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchOwner() *relationFacadeState {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) relationFacadePrefetchOwner() *relationFacadeState {
 	return _selector.state
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
 	return _selector.selection
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) Filter(_values ...orm.Predicate[T]) relationFacadeManyPrefetch[S, T, L] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Filter(_values ...orm.Predicate[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	_selector.selection = _selector.selection.Filter(_values...)
 	return _selector
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) OrderBy(_values ...orm.Ordering[T]) relationFacadeManyPrefetch[S, T, L] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) OrderBy(_values ...orm.Ordering[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	_selector.selection = _selector.selection.OrderBy(_values...)
 	return _selector
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) Distinct() relationFacadeManyPrefetch[S, T, L] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacadeManyPrefetch[S, T, L, W] {
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
@@ -163,30 +261,31 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) WithChildren(_children ...r
 	return _selector
 }
 
-type relationFacadeReversePrefetch[S, T any] struct {
-	state     *relationFacadeState
-	selection orm.ReverseCollectionPrefetch[S, T]
+type relationFacadeReversePrefetch[S, T, W any] struct {
+	state       *relationFacadeState
+	selection   orm.ReverseCollectionPrefetch[S, T]
+	materialize func(context.Context, *orm.RelatedSelected[T]) (*W, error)
 }
 
-func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchOwner() *relationFacadeState {
+func (_selector relationFacadeReversePrefetch[S, T, W]) relationFacadePrefetchOwner() *relationFacadeState {
 	return _selector.state
 }
-func (_selector relationFacadeReversePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
 	return _selector.selection
 }
-func (_selector relationFacadeReversePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) Filter(_values ...orm.Predicate[T]) relationFacadeReversePrefetch[S, T, W] {
 	_selector.selection = _selector.selection.Filter(_values...)
 	return _selector
 }
-func (_selector relationFacadeReversePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) OrderBy(_values ...orm.Ordering[T]) relationFacadeReversePrefetch[S, T, W] {
 	_selector.selection = _selector.selection.OrderBy(_values...)
 	return _selector
 }
-func (_selector relationFacadeReversePrefetch[S, T]) Distinct() relationFacadeReversePrefetch[S, T] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacadeReversePrefetch[S, T, W] {
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
-func (_selector relationFacadeReversePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
@@ -230,7 +329,7 @@ func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...re
 	_selector.selection = _selector.selection.WithChildren(_inputs...)
 	return _selector
 }
-func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L] {
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
@@ -246,7 +345,7 @@ func (_selector relationFacadeManyPrefetch[S, T, L]) SelectRelated(_selectors ..
 	_selector.selection = _selector.selection.SelectRelated(_inputs...)
 	return _selector
 }
-func (_selector relationFacadeReversePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T] {
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
@@ -284,8 +383,8 @@ type AuthorsAuthorQuery struct {
 func newAuthorsAuthorQuery(_state *relationFacadeState, _query orm.QuerySet[authors.Author]) AuthorsAuthorQuery {
 	_result := AuthorsAuthorQuery{state: _state, query: _query}
 	if _state != nil {
-		_result.Prefetch.Posts = relationFacadeReversePrefetch[authors.Author, blog.Post]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.posts.WithChildren()}
-		_result.Prefetch.ReviewedPosts = relationFacadeReversePrefetch[authors.Author, blog.Post]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.reviewedPosts.WithChildren()}
+		_result.Prefetch.Posts = relationFacadeReversePrefetch[authors.Author, blog.Post, BlogPost]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.posts.WithChildren(), materialize: _state.materializeBlogPost}
+		_result.Prefetch.ReviewedPosts = relationFacadeReversePrefetch[authors.Author, blog.Post, BlogPost]{state: _state, selection: _state.reverseCollections.AuthorsAuthor.reviewedPosts.WithChildren(), materialize: _state.materializeBlogPost}
 	}
 	return _result
 }
@@ -408,6 +507,7 @@ type AuthorsAuthor struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[authors.Author]
 	_reverseCollection0       *orm.RelatedSetCache[blog.Post]
 	_reverseCollection1       *orm.RelatedSetCache[blog.Post]
 	_self                     *AuthorsAuthor
@@ -464,6 +564,15 @@ func (_model *AuthorsAuthor) relationFacadePrimaryKey() (int64, bool, error) {
 	return _key, _present, nil
 }
 
+func (_model *AuthorsAuthor) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[authors.Author], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
 func (_model *AuthorsAuthor) relationFacadeRefreshSnapshots() error {
 	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
 	if _err != nil {
@@ -656,8 +765,8 @@ func (_view *AuthorsAuthorReviewedPostsCollection) Invalidate() error {
 
 type AuthorsAuthorPrefetchSelector = relationFacadePrefetchInput[authors.Author]
 type AuthorsAuthorPrefetchSelectors struct {
-	Posts         relationFacadeReversePrefetch[authors.Author, blog.Post]
-	ReviewedPosts relationFacadeReversePrefetch[authors.Author, blog.Post]
+	Posts         relationFacadeReversePrefetch[authors.Author, blog.Post, BlogPost]
+	ReviewedPosts relationFacadeReversePrefetch[authors.Author, blog.Post, BlogPost]
 }
 type AuthorsAuthorPrefetchQuery struct {
 	state    *relationFacadeState
@@ -816,6 +925,7 @@ func (_state *relationFacadeState) materializeAuthorsAuthor(_ctx context.Context
 	if _err != nil {
 		return nil, _err
 	}
+	_wrapped._prefetched = _value
 	if _collection, _present, _err := _state.reverseCollections.AuthorsAuthor.posts.FromPrefetched(_value); _err != nil {
 		return nil, _err
 	} else if _present {
@@ -1010,6 +1120,7 @@ type BlogPost struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[blog.Post]
 	object                    *BlogPostObject
 	authorCache               *orm.RelationCache[AuthorsAuthor]
 	authorScalarSnapshot      int64
@@ -1109,6 +1220,15 @@ func (_model *BlogPost) relationFacadePrimaryKey() (int64, bool, error) {
 	return _key, _present, nil
 }
 
+func (_model *BlogPost) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[blog.Post], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
 func (_model *BlogPost) relationFacadeRefreshSnapshots() error {
 	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
 	if _err != nil {
@@ -1178,6 +1298,7 @@ func (_model *BlogPost) relationFacadeDerived(_value blog.Post) (*BlogPost, erro
 		return nil, _err
 	}
 	_result := &BlogPost{state: _model.state, blogPostModel: _value, object: _object}
+	_result._prefetched = _model._prefetched
 	_result.primaryKeySnapshot = _model.primaryKeySnapshot
 	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
 	_result.authorScalarSnapshot = _model.authorScalarSnapshot
@@ -1991,6 +2112,7 @@ func (_state *relationFacadeState) wrapSelectedBlogPostObject(_ctx context.Conte
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
 	}
+	_wrapped._prefetched = _object._selectedGraph
 	if _has, _err := _object._selectedGraph.HasSelection("author"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -2111,4 +2233,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_4a5bd021a130527f1c775ff2d0276a2674e76ab75d0d91f6708fde8caab486b9
+var _ goDjProjectSnapshot_d7d7eda9a3cc4cb15294c1a33c588069449e9aa33bf0906b7124a1ade01d9077

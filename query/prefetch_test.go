@@ -202,3 +202,26 @@ func TestPrefetchForeignKeySliceValidatesSourceAndProtectsRows(t *testing.T) {
 		t.Fatal("partitioned model replaced by a scalar aggregate")
 	}
 }
+
+func TestPrefetchZeroOffsetDoesNotCreateWindow(t *testing.T) {
+	base, path := prefetchOwnerPlan(t)
+	base, err := base.WithOffset(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	many, err := base.ForPrefetchOwners(path, []int64{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, window := many.PrefetchWindow(); window {
+		t.Fatal("zero offset changed owner ranks")
+	}
+	id := base.SourceFields()[0]
+	reverse, err := base.ForPrefetchForeignKey(id, []int64{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, window := reverse.PrefetchWindow(); window {
+		t.Fatal("zero offset changed reverse owner ranks")
+	}
+}

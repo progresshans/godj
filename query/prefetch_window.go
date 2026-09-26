@@ -32,7 +32,7 @@ func (p Plan) PrefetchWindow() (PrefetchWindow, bool) {
 	return *p.prefetchWindow, true
 }
 
-func (p Plan) hasPrefetchSlice() bool { return p.limit != nil || p.offset != nil }
+func (p Plan) hasPrefetchSlice() bool { return p.limit != nil || p.offset != nil && *p.offset != 0 }
 
 func (w *PrefetchWindow) equal(other *PrefetchWindow) bool {
 	if w == nil || other == nil {

@@ -36,13 +36,15 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 	if err != nil {
 		return nil, err
 	}
-	for start := 0; start < len(keys); start += manyPrefetchBatchSize {
-		batch := keys[start:min(start+manyPrefetchBatchSize, len(keys))]
-		plan, err := related.plan.ForPrefetchOwners(path, batch)
+	// Custom joins can group under a different owner from the membership
+	// partition. Splitting that owner universe changes both rows and ranks.
+	// Backends bind large integer memberships compactly in one statement.
+	if len(keys) > 0 {
+		plan, err := related.plan.ForPrefetchOwners(path, keys)
 		if err != nil {
 			return nil, err
 		}
-		if err := scanPrefetchTargets(ctx, backend, descriptor, r.target, plan, batch, r.state.source.Name, p.targets, groups); err != nil {
+		if err := scanPrefetchTargets(ctx, backend, descriptor, r.target, plan, keys, r.state.source.Name, p.targets, groups); err != nil {
 			return nil, err
 		}
 	}

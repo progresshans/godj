@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v16"
-const GoDjProjectRelationFacadeInputSHA256 = "0eebcef53e1d32d3b8f0b1bf7103e1bbd91eda658bf356e9b7a4f33d5327ec7b"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
+const GoDjProjectRelationFacadeInputSHA256 = "4873502ec60a81b342551edff10b48a39bfa5d265ff3797796f5cc959ba286fe"
 
 type Backend interface {
 	db.Queryer
@@ -204,6 +204,7 @@ type ModelsArticle struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[models.Article]
 	_self                     *ModelsArticle
 }
 
@@ -258,6 +259,15 @@ func (_model *ModelsArticle) relationFacadePrimaryKey() (int64, bool, error) {
 	return _key, _present, nil
 }
 
+func (_model *ModelsArticle) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[models.Article], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
 func (_model *ModelsArticle) relationFacadeRefreshSnapshots() error {
 	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
 	if _err != nil {
@@ -306,6 +316,7 @@ func (_state *relationFacadeState) materializeModelsArticle(_ctx context.Context
 	if _err != nil {
 		return nil, _err
 	}
+	_wrapped._prefetched = _value
 	if _err := _ctx.Err(); _err != nil {
 		return nil, _err
 	}
@@ -357,4 +368,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_26fe5d6c2f04928fe3dd7523a39081a03369693c7b46d341628d977de5249c10
+var _ goDjProjectSnapshot_44596160ac58ca830e41fd473db9cb8a42b8632c750d92d67a0779fc99fd293f

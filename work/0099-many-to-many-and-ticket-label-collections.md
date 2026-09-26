@@ -65,11 +65,13 @@ root eager에 양쪽 호출 순서로 연결하고, 이미 읽은 부모를 재�
 역방향 manager Fresh/Invalidate는 기본 scope로 돌아간다. Facade ABI v16과 실제 generated 소비자의 통합 checkpoint를 통과했다.
 Owner별 slice의 named snapshot·일반 manager 오류·관계 scope·중복·eager 기준을 독립 관찰에 추가했다.
 Query AST의 owner별 window를 양 DB compiler에 연결했다. 첫 join의 grouping owner와 마지막 join의 membership partition을
-구분하고 필요한 owner 귀속 필터는 순번 계산 후에 적용한다. 현재는 조회 계획·compiler 범위다.
-일반 manager와 분리된 snapshot의 runtime/generated 접근자, owner batch를 나눌 때의 grouping/membership 의미,
-custom single target query와 소비자 통합은 이어서 연결한다.
+구분하고 필요한 owner 귀속 필터는 순번 계산 후에 적용한다. Named Snapshot·Limit/Offset·Read를 공통 runtime과
+generated facade에 연결했다. 일반 manager·서로 다른 snapshot·중복 owner의 cache는 독립이며 nested/eager graph와
+실패 시 전체 publication·세션 수명을 유지한다. Custom ManyToMany는 grouping/membership owner의 전체 집합을 한 query에서
+유지하고, 큰 integer IN은 양 DB의 compact parameter로 조회한다. Facade ABI v17과 생성물을 갱신했다.
+Custom single target query와 소비자 통합은 이어서 연결한다.
 Prefetch 설정 query의 streaming에는 materialized batch 계약이 필요하므로 현재 명시 오류로 거부한다.
-나머지 target query 구성·owner별 slice, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+나머지 target query 구성·Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

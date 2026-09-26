@@ -24,11 +24,11 @@ func CreatePrefetchWindowFixture(t *testing.T, table func(string) string, jsonTy
 		`CREATE TABLE ` + table("slice_owner") + ` (id BIGINT PRIMARY KEY, name TEXT NOT NULL)`,
 		`CREATE TABLE ` + table("slice_link") + ` (id BIGINT PRIMARY KEY, owner_id BIGINT NULL REFERENCES ` + table("slice_owner") + ` (id), label_id BIGINT NULL REFERENCES ` + table("slice_label") + ` (id), token BIGINT NOT NULL)`,
 		`INSERT INTO ` + table("slice_label") + ` VALUES (1,'a',NULL),(2,'b',NULL),(3,'c',NULL),(4,'d',NULL),(5,'e',NULL),(11,'a',NULL),(12,'b',NULL)`,
-		`INSERT INTO ` + table("slice_owner") + ` VALUES (0,'zero'),(1,'first'),(2,'second'),(3,'empty'),(7,'duplicates'),(8,'reverse-first'),(9,'reverse-second'),(11,'scope-first'),(12,'scope-second'),(13,'scope-outside')`,
+		`INSERT INTO ` + table("slice_owner") + ` VALUES (0,'zero'),(1,'first'),(2,'second'),(3,'empty'),(7,'duplicates'),(8,'reverse-first'),(9,'reverse-second'),(11,'scope-first'),(12,'scope-second'),(13,'scope-outside'),(-9223372036854775808,'minimum'),(9223372036854775807,'maximum')`,
 		`INSERT INTO ` + table("slice_link") + ` VALUES (1,1,1,1),(2,1,2,2),(3,1,3,3),(4,1,4,4),(5,2,2,5),(6,2,3,6),(7,2,4,7),(8,2,5,8),
           (11,7,1,1),(12,7,1,2),(13,7,2,3),(14,NULL,1,4),(15,7,NULL,5),
           (21,8,1,1),(22,8,2,2),(23,8,3,3),(24,9,1,4),(25,9,2,5),(26,9,3,6),
-          (31,11,12,1),(32,13,11,2),(33,12,11,3),(34,12,12,4),(35,0,1,1)`,
+          (31,11,12,1),(32,13,11,2),(33,12,11,3),(34,12,12,4),(35,0,1,1),(36,-9223372036854775808,1,1),(37,9223372036854775807,2,2)`,
 		`CREATE TABLE ` + table("slice_json") + ` (id BIGINT PRIMARY KEY, owner_id BIGINT NOT NULL, payload ` + jsonType + ` NOT NULL)`,
 		`INSERT INTO ` + table("slice_json") + ` VALUES (1,1,'{"rank":2}'),(2,1,'{"rank":1}'),(3,2,'{"rank":3}'),(4,2,'{"rank":10}')`,
 	} {
@@ -224,6 +224,54 @@ func CheckPrefetchWindows(t *testing.T, backend db.Queryer, compile func(query.P
 		checkPrefetch(t, json.Unmarshal(encoded, &got))
 		if !reflect.DeepEqual(got, want) {
 			t.Fatal("reverse eager row shape or slice", got, want)
+		}
+	})
+	t.Run("large_owner_universe_preserves_scope_and_integer_precision", func(t *testing.T) {
+		keys := []int64{11, 12, math.MinInt64, math.MaxInt64}
+		for i := int64(1000); i < 41000; i++ {
+			keys = append(keys, i)
+		}
+		for offset := 0; offset < 2; offset++ {
+			plan, err := withSlice(scoped, offset, 1).ForPrefetchOwners(path, keys)
+			checkPrefetch(t, err)
+			_, args, err := compile(plan)
+			checkPrefetch(t, err)
+			if len(args) > 10 {
+				t.Fatal("owner set expanded into unbounded scalar parameters", len(args))
+			}
+			rows := read(t, plan, 4, 1)
+			if offset == 0 && len(rows) != 0 || offset == 1 && (len(rows) != 1 || rows[0][3] != int64(11) || rows[0][1] != "b") {
+				t.Fatal("packed owner universe changed ranks", rows)
+			}
+		}
+		// Membership's independent NULL/negation handling must remain intact
+		// when the non-null integer part is compactly bound.
+		values := make([]query.Value, 0, len(keys)+2)
+		values = append(values, query.Integer(0), query.Integer(0), query.Null())
+		for _, key := range keys {
+			values = append(values, query.Integer(key))
+		}
+		condition, err := query.NewInCondition(owner, values)
+		checkPrefetch(t, err)
+		plan := Conditions(t, query.NewPlan("slice_link", []query.FieldRef{id, owner}), condition)
+		got := read(t, plan, 2, 1)
+		if len(got) != 6 {
+			t.Fatal("packed positive membership changed duplicates or NULL semantics", got)
+		}
+		small, err := query.NewInCondition(owner, []query.Value{query.Integer(0), query.Integer(11), query.Integer(12), query.Integer(math.MinInt64), query.Integer(math.MaxInt64), query.Null()})
+		checkPrefetch(t, err)
+		var observations [][][]any
+		for _, membership := range []query.Condition{small, condition} {
+			expression, err := query.NewExpression(membership)
+			checkPrefetch(t, err)
+			expression, err = query.NotExpression(expression)
+			checkPrefetch(t, err)
+			plan, err := query.NewPlan("slice_link", []query.FieldRef{id, owner}).WithOrderings(query.NewOrdering(id, query.Ascending)).WithWhere(expression)
+			checkPrefetch(t, err)
+			observations = append(observations, read(t, plan, 2, 1))
+		}
+		if !reflect.DeepEqual(observations[0], observations[1]) {
+			t.Fatal("adding absent members changed nullable negation", observations)
 		}
 	})
 	t.Run("zero_owner_unsorted_and_large_limit", func(t *testing.T) {

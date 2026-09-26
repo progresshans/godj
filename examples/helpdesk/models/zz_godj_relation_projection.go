@@ -324,4 +324,4 @@ func (_scan *ticketLabelProjectionScan) Decode() (TicketLabel, query.Value, orm.
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_6d300c4dc81529e135c6e3645817f19e94c7c1ebdd4d90f55092570418306f94
+var _ GoDjProjectSnapshot_0881598bc5fbcfbae840112f3b8bc7a8d5514e5bd88cade0be9f4d7388f6e053

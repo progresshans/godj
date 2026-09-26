@@ -37,4 +37,4 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-var _ GoDjProjectSnapshot_4a5bd021a130527f1c775ff2d0276a2674e76ab75d0d91f6708fde8caab486b9
+var _ GoDjProjectSnapshot_d7d7eda9a3cc4cb15294c1a33c588069449e9aa33bf0906b7124a1ade01d9077

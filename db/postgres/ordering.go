@@ -97,6 +97,13 @@ func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.R
 		sql, err := queryplan.FinishPrefetchRows(inner, plan, selected, hidden, quoteIdentifier, func(value int64) string {
 			arguments = append(arguments, value)
 			return "$" + strconv.Itoa(len(arguments))
+		}, func(values []query.Value) (string, bool) {
+			packed, ok := queryplan.PackIntegerMembership(values, '{', '}')
+			if !ok {
+				return "", false
+			}
+			arguments = append(arguments, packed)
+			return " = ANY($" + strconv.Itoa(len(arguments)) + "::bigint[])", true
 		})
 		return sql, arguments, err
 	}

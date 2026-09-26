@@ -16,6 +16,7 @@ type ReverseCollectionPrefetch[O, T any] struct {
 	eager            []RelatedSelection[T]
 	plan             query.Plan
 	custom           bool
+	snapshot         string
 	configurationErr error
 }
 
@@ -73,6 +74,7 @@ type preparedReverseCollection[O, T any] struct {
 	configuration *queryMaterialization[T]
 	plan          query.Plan
 	custom        bool
+	snapshot      string
 	nodes         int
 }
 
@@ -97,7 +99,7 @@ func (p ReverseCollectionPrefetch[O, T]) preparePrefetch(depth int, remaining *i
 	if p.custom {
 		config.selections = children
 	}
-	result := preparedReverseCollection[O, T]{state: p.state, children: children, configuration: config, plan: p.plan, custom: p.custom, nodes: before - *remaining}
+	result := preparedReverseCollection[O, T]{state: p.state, children: children, configuration: config, plan: p.plan, custom: p.custom, snapshot: p.snapshot, nodes: before - *remaining}
 	if err := result.validate(); err != nil {
 		return nil, err
 	}
@@ -105,11 +107,17 @@ func (p ReverseCollectionPrefetch[O, T]) preparePrefetch(depth int, remaining *i
 }
 func (p preparedReverseCollection[O, T]) owner() BoundModel[O] { return p.state.reverse.owner }
 func (p preparedReverseCollection[O, T]) name() string {
+	if p.snapshot != "" {
+		return p.snapshot
+	}
 	return p.state.reverse.sourceForeignKey.Relation.Reverse.Name
 }
 func (p preparedReverseCollection[O, T]) nodeBudget() int { return p.nodes }
 func (p preparedReverseCollection[O, T]) validate() error {
 	if err := p.state.validate(); err != nil {
+		return err
+	}
+	if err := validatePrefetchSnapshot(p.owner(), p.snapshot, p.plan); err != nil {
 		return err
 	}
 	if _, ok := p.state.reverse.sourceDescriptor.(PrimaryKeyObjectDescriptor[T]); !ok {
@@ -176,15 +184,11 @@ func (p preparedReverseCollection[O, T]) apply(ctx context.Context, backend db.Q
 	descriptor := p.state.reverse.sourceDescriptor.(PrimaryKeyObjectDescriptor[T])
 	for start := 0; start < len(ordered); start += manyPrefetchBatchSize {
 		batch := ordered[start:min(start+manyPrefetchBatchSize, len(ordered))]
-		args := make([]query.Value, len(batch))
-		for i, key := range batch {
-			args[i] = query.Integer(key)
-		}
-		condition, err := query.NewInCondition(fieldReference(p.state.reverse.sourceForeignKey), args)
+		plan, err := p.plan.ForPrefetchForeignKey(fieldReference(p.state.reverse.sourceForeignKey), batch)
 		if err != nil {
 			return err
 		}
-		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.plan).Filter(predicateFromCondition[T](condition, nil))
+		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, plan)
 		q.materialization = &queryMaterialization[T]{binding: p.state.reverse.source, targets: p.configuration.targets, eagerNodes: p.configuration.eagerNodes}
 		if err := q.validateTerminal(ctx); err != nil {
 			return err
@@ -248,13 +252,17 @@ func (p preparedReverseCollection[O, T]) apply(ctx context.Context, backend db.Q
 		if owners[i].collections == nil {
 			owners[i].collections = map[string]cachedPrefetch{}
 		}
-		owners[i].collections[p.name()] = cachedReversePrefetch[T]{set: related}
+		owners[i].collections[p.name()] = cachedReversePrefetch[T]{set: related, binding: p.state.reverse.source, relation: p.state.reverse.sourceForeignKey.Name}
 	}
 	_, err := sessionReadResult(ctx, backend, struct{}{}, ctx.Err())
 	return err
 }
 
-type cachedReversePrefetch[T any] struct{ set *RelatedSet[T] }
+type cachedReversePrefetch[T any] struct {
+	set      *RelatedSet[T]
+	binding  BoundModel[T]
+	relation string
+}
 
 func (c cachedReversePrefetch[T]) clone() (cachedPrefetch, error) {
 	q, err := c.set.Query()
@@ -263,7 +271,7 @@ func (c cachedReversePrefetch[T]) clone() (cachedPrefetch, error) {
 	}
 	copy := newRelatedSet(q)
 	copy.basePlan = c.set.basePlan
-	return cachedReversePrefetch[T]{set: copy}, nil
+	return cachedReversePrefetch[T]{set: copy, binding: c.binding, relation: c.relation}, nil
 }
 func (r ReverseObject[O, T]) FromPrefetched(owner *RelatedSelected[O]) (*RelatedSet[T], bool, error) {
 	if err := r.state.validate(); err != nil {

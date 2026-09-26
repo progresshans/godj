@@ -461,6 +461,10 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		if len(inValues) == 0 {
 			return nil, invalidPlan("SQLite IN requires a valid scalar list-backed condition")
 		}
+		if packed, ok := queryplan.PackIntegerMembership(inValues, '[', ']'); ok {
+			sql.WriteString(" IN (SELECT value FROM json_each(?))")
+			return []any{packed}, nil
+		}
 		sql.WriteString(" IN (")
 		arguments := make([]any, len(inValues))
 		for index, item := range inValues {

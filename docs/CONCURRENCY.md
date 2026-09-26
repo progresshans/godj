@@ -53,6 +53,9 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
   동일 query의 동시 All은 하나의 immutable 평가를 공유하고 반환 model/collection은 독립 mutable handle을 가진다.
   한 handle의 변경은 그 handle만 무효화하며 원래 query·보유 중인 QuerySet·다른 materialization의 snapshot을 바꾸지 않는다.
   여러 SQL의 단일 시점 일관성과 빌린 session의 동시 사용은 caller의 transaction/backend 계약을 따른다.
+- Named collection snapshot은 ordinary manager와 별도 alias에 보관한다. Read는 model·하위 graph·cache handle을 새로 복제하며,
+  미선택과 선택된 빈 목록을 구분하고 fallback I/O를 하지 않는다. Manager 변경은 snapshot을 바꾸지 않으며 session 종료 뒤에는 읽을 수 없다.
+  Custom ManyToMany의 grouping owner와 membership owner는 다를 수 있으므로 전체 owner 집합을 같은 SQL에 전달한다.
 - OneToOne reverse의 JOIN 부재 가능성은 physical FK nullability와 별개다. 각 compilation이 AND/OR/NOT의 존재 조건을
   계산하며, 같은 FK의 forward/reverse가 OneToOne 선언 여부에 대해 충돌하면 거부한다. 다른 compile과 join map을 공유하지 않는다.
 - Prefetch/eager All은 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
