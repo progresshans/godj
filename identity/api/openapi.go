@@ -137,7 +137,7 @@ func (a *Application) describe(authentication api.AlternativeAuthentication) (op
 				op.Route.Path = path
 				op.Permission = r.add
 				op.Parameters = nil
-				op.Description = managementPolicy + " Creates one record and requested direct relations. User creation requires BOTH add_user and change_user. The server selects a fresh opaque principal ID. Password is required only for User creation; its whitespace is preserved. No password-confirmation or password-strength policy is implied by this API."
+				op.Description = managementPolicy + " Creates one record and requested direct relations. User creation requires BOTH add_user and change_user. The server selects a fresh opaque principal ID. The password member is required for User creation: a nonempty string sets a usable password with whitespace preserved; explicit null creates an account without password login. Omission and an empty string are rejected. Hosts may configure password validators for usable passwords; null does not invoke them. No password-confirmation policy is implied by this API."
 				if r.name == "users" {
 					op.AdditionalPermissions = []auth.Permission{identity.ChangeUser}
 				}
@@ -169,7 +169,7 @@ func (a *Application) describe(authentication api.AlternativeAuthentication) (op
 			}
 			success := jsonResponse(http.StatusOK, "Committed user profile; all target sessions revoked, including the caller's if changing their own password.", scalarRef)
 			success.Headers = []openapi.Header{versionHeader}
-			op := openapi.Operation{Route: web.Route{Name: name + "password", Method: http.MethodPost, Path: path + "<int64:id>/password/"}, Summary: "Replace a user's password", Permission: identity.ChangeUser, Description: managementPolicy + revisionPolicy + " Administrative replacement, not self-service change/reset. Password whitespace is preserved. Hashing runs once outside DB scopes after preflight; it is never returned. A successful response is not a logged-in session for the new password.", Parameters: []openapi.Parameter{preconditionParameter}, RequestBody: &openapi.RequestBody{Schema: bodyRef, Required: true}, Responses: append(append([]openapi.Response{success, bad, missing}, bodyFailures...), preconditions...)}
+			op := openapi.Operation{Route: web.Route{Name: name + "password", Method: http.MethodPost, Path: path + "<int64:id>/password/"}, Summary: "Replace a user's password", Permission: identity.ChangeUser, Description: managementPolicy + revisionPolicy + " Administrative replacement, not self-service change/reset. A nonempty password string sets a usable password and preserves whitespace. Explicit null disables password login while retaining the account, roles and grants. The member is required; omission and empty strings are rejected. Every successful replacement, including repeated disablement, rotates the credential and revokes target sessions. Hashing or generation of an unusable marker runs once outside DB scopes after preflight; neither is returned. Password validators apply only to usable passwords. A successful response does not establish a login session.", Parameters: []openapi.Parameter{preconditionParameter}, RequestBody: &openapi.RequestBody{Schema: bodyRef, Required: true}, Responses: append(append([]openapi.Response{success, bad, missing}, bodyFailures...), preconditions...)}
 			if err := protect(op, a.setPassword); err != nil {
 				return openapi.Document{}, err
 			}

@@ -8,7 +8,7 @@ import (
 )
 
 func (a *Application) prepareSpecs() error {
-	password, err := serializers.StringField("password", serializers.WithTrimWhitespace(false), serializers.WithMaxLength(4096))
+	password, err := serializers.StringField("password", serializers.WithTrimWhitespace(false), serializers.WithMaxLength(4096), serializers.WithNullable())
 	if err != nil {
 		return err
 	}

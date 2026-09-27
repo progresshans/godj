@@ -202,7 +202,14 @@ func (a *Application) create(r resource) api.AuthenticatedHandler {
 			if _, err := rand.Read(random[:]); err != nil {
 				return web.Response{}, err
 			}
-			p, err := a.manager.CreateUser(request.Context(), actor, userCreate(values, hex.EncodeToString(random[:])), textValue(values, "password"))
+			input := userCreate(values, hex.EncodeToString(random[:]))
+			password, _ := values.Get("password") // The required field was bound above.
+			var p identity.UserDetails
+			if password.IsNull() {
+				p, err = a.manager.CreateUserWithUnusablePassword(request.Context(), actor, input)
+			} else {
+				p, err = a.manager.CreateUser(request.Context(), actor, input, textValue(values, "password"))
+			}
 			if err != nil {
 				return failure(err)
 			}
@@ -329,7 +336,13 @@ func (a *Application) setPassword(request *web.Request, actor auth.Principal) (w
 	if handled || err != nil {
 		return response, err
 	}
-	p, err := a.manager.SetPassword(request.Context(), actor, id, revision, textValue(values, "password"))
+	password, _ := values.Get("password") // An omitted password is not a disable command.
+	var p identity.Profile
+	if password.IsNull() {
+		p, err = a.manager.SetUnusablePassword(request.Context(), actor, id, revision)
+	} else {
+		p, err = a.manager.SetPassword(request.Context(), actor, id, revision, textValue(values, "password"))
+	}
 	if err != nil {
 		return failure(err)
 	}

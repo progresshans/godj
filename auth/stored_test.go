@@ -104,7 +104,7 @@ func TestStoredAuthenticatorUniformFailuresAndBoundedPasswordWork(t *testing.T) 
 }
 
 func TestStoredAuthenticatorRechecksCredentialAndUsesCurrentAuthorization(t *testing.T) {
-	for _, mode := range []string{"password", "rehash", "username", "identity", "inactive", "deleted", "authorization", "read_error", "cancel"} {
+	for _, mode := range []string{"password", "rehash", "unusable", "username", "identity", "inactive", "deleted", "authorization", "read_error", "cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -126,6 +126,8 @@ func TestStoredAuthenticatorRechecksCredentialAndUsesCurrentAuthorization(t *tes
 					current = storedTestCredential(t, "member", "member", "hash:new", true, false, false)
 				case "rehash":
 					current = storedTestCredential(t, "member", "member", "rehash:password", true, false, false)
+				case "unusable":
+					current = storedTestCredential(t, "member", "member", "!fresh-marker", true, false, false)
 				case "username":
 					current = storedTestCredential(t, "member", "renamed", "hash:password", true, false, false)
 				case "identity":

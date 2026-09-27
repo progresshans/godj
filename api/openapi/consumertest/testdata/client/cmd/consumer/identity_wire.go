@@ -20,6 +20,9 @@ const identityWireRevision = int64(1152921504606846977)
 // Fixed synthetic responses exercise the independent generated wire decoder.
 // They do not count as execution of the real management server's failure paths.
 func checkGeneratedIdentityWire(ctx context.Context) error {
+	if err := checkGeneratedUnusablePasswordWire(ctx); err != nil {
+		return err
+	}
 	for _, test := range []struct {
 		patch    ib.UserPatch
 		expected string

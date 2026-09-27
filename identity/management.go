@@ -87,7 +87,21 @@ func NewManager(backend ManagementBackend, hasher auth.PasswordHasher, authorize
 // normal resolver rejects it on its next request. This operation does not
 // preserve the caller's session when the caller is also the target.
 func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, userID, expectedRevision int64, password string) (Profile, error) {
-	if ctx == nil || userID <= 0 || expectedRevision <= 0 || expectedRevision == math.MaxInt64 || password == "" {
+	return manager.replacePassword(ctx, actor, userID, expectedRevision, passwordInput{raw: password})
+}
+
+// SetUnusablePassword disables password authentication while retaining the user,
+// roles and grants. It shares SetPassword's current authorization, revision,
+// session revocation and atomic audit boundary. Repeating it rotates the stored
+// marker and invalidates any sessions established by another authentication
+// mechanism since the previous call. It never invokes password validators or
+// the password hasher.
+func (manager *Manager) SetUnusablePassword(ctx context.Context, actor auth.Principal, userID, expectedRevision int64) (Profile, error) {
+	return manager.replacePassword(ctx, actor, userID, expectedRevision, passwordInput{unusable: true})
+}
+
+func (manager *Manager) replacePassword(ctx context.Context, actor auth.Principal, userID, expectedRevision int64, password passwordInput) (Profile, error) {
+	if ctx == nil || userID <= 0 || expectedRevision <= 0 || expectedRevision == math.MaxInt64 || !password.unusable && password.raw == "" {
 		return Profile{}, managementError(CodeInvalidInput, "password_change", nil)
 	}
 	if err := ctx.Err(); err != nil {
@@ -118,22 +132,19 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 	if calls != 1 {
 		return Profile{}, managementError(CodePersistence, "snapshot_contract", nil)
 	}
-	validationErr := manager.validatePassword(ctx, password, before.Profile())
+	validationErr := password.validate(ctx, manager, before.Profile())
 	if err := ctx.Err(); err != nil {
 		return Profile{}, managementError(CodeInvalidInput, "context", errors.Join(err, validationErr))
 	}
 	if validationErr != nil {
 		return Profile{}, validationErr
 	}
-	encoded, err := managementPassword(ctx, manager.state.hasher, password)
+	encoded, err := password.encode(ctx, manager.state.hasher)
 	if err != nil {
 		return Profile{}, err
 	}
-	if err := state.hasher.ValidateEncoded(encoded); err != nil {
-		return Profile{}, managementError(CodeInvalidConfig, "password_hasher", err)
-	}
 	candidate, err := auth.NewCredential(before.Profile().Username, encoded, before.value().credential.Principal())
-	if err != nil || candidate.MatchesSessionStamp(before.value().credential.SessionStamp()) {
+	if err != nil || candidate.HasUsablePassword() == password.unusable || candidate.MatchesSessionStamp(before.value().credential.SessionStamp()) {
 		return Profile{}, managementError(CodeInvalidConfig, "password_hasher", err)
 	}
 	if err := ctx.Err(); err != nil {
@@ -156,7 +167,7 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 			if !current.value().credential.MatchesSessionStamp(before.value().credential.SessionStamp()) {
 				return managementError(CodeConflict, "user", nil)
 			}
-			if err := manager.validatePassword(ctx, password, current.Profile()); err != nil {
+			if err := password.validate(ctx, manager, current.Profile()); err != nil {
 				return err
 			}
 			updated, err := models.UserObjects.Update(ctx, session, row, (models.UserPatch{}).WithEncodedPassword(encoded).WithRevision(expectedRevision+1))

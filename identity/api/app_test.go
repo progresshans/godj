@@ -103,6 +103,18 @@ func TestManagementDocumentIsBuiltFromActualProtectedRoutesAndAllowlist(t *testi
 		t.Fatal("unexpected user projection", len(fields))
 	}
 	create := definitions["UserCreate"].(map[string]any)["properties"].(map[string]any)
+	for _, name := range []string{"UserCreate", "PasswordReplacement"} {
+		definition := definitions[name].(map[string]any)
+		password := definition["properties"].(map[string]any)["password"].(map[string]any)
+		encoded, _ := json.Marshal(password)
+		if !strings.Contains(string(encoded), `"type":"null"`) {
+			t.Fatal("password schema lost explicit null", name)
+		}
+		required, _ := json.Marshal(definition["required"])
+		if !strings.Contains(string(required), `"password"`) {
+			t.Fatal("password became optional", name)
+		}
+	}
 	if create["password"] == nil || create["revision"] != nil || create["id"] != nil {
 		t.Fatal("create command allows private identity/version assignment")
 	}

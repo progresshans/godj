@@ -69,6 +69,12 @@ func (value Account) Permissions() []auth.Permission {
 	return value.value().credential.Principal().Permissions()
 }
 
+// HasUsablePassword reports the password state without disclosing its encoding.
+// This is independent of active/staff status and the current permission set.
+func (value Account) HasUsablePassword() bool {
+	return value.value().credential.HasUsablePassword()
+}
+
 // MarshalJSON makes accidental encoding safe while keeping the public profile
 // explicit. A serializer can select a narrower projection of Profile instead.
 func (value Account) MarshalJSON() ([]byte, error) { return json.Marshal(value.Profile()) }

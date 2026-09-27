@@ -368,3 +368,34 @@ Nil 속성은 기본 네 개, 명시적 empty는 검사 대상 없음이다. 사
 empty는 빈 목록이다. 사용자 사전은 UTF-8/1,000,000개/16 MiB를 검증하며 외부 파일 I/O는 caller가 구성 전에 소유한다.
 Malformed UTF-8을 고쳐서 허용하지 않는다. Source·license·정확한 parameter 의미는
 [Password validation](../../identity/PASSWORD_VALIDATION.md)에 기록한다. 임의 Python user 속성 반사나 전체 UserCreationForm·self-service/reset 완료를 뜻하지 않는다.
+
+## 사용 불가능한 password와 관리 lifecycle
+
+비밀번호 사용 불가 상태는 User의 active/staff/superuser와 권한에 독립적이다.
+`auth.MakeUnusablePassword(ctx)`는 예약된 `!` prefix와 32바이트의 새 암호학적 난수로 opaque 저장 값을 만든다.
+`Credential.HasUsablePassword()`와 `Account.HasUsablePassword()`는 인코딩을 노출하지 않고 상태를 읽는다.
+해당 prefix를 가진 기존 bounded 값도 사용 불가로 읽으며, 일반 encoded envelope의 빈 값·NUL·개행·크기 거부는 유지한다.
+Django의 내부 marker 길이나 password hash 형식의 소스 호환은 약속하지 않는다.
+출처·라이선스와 독립 기준은 [auth NOTICE](../../auth/NOTICE.md)를 따른다.
+
+Memory/StoredAuthenticator는 사용 불가 값을 hash parser로 보내지 않는다. 비밀번호 인증은 알 수 없는 사용자와 동일한
+현재 dummy hash로 한 번 검증한 뒤 반드시 거부한다. Dummy password를 알아도 성공하지 않는다.
+Verifier 실행 실패·취소와 실제 malformed hash는 기존 오류 분류를 유지하며 잘못된 비밀번호로 숨기지 않는다.
+현재 active identity의 Resolve와 다른 신뢰된 인증 수단으로 수립한 현재 stamp 세션은 허용한다.
+사용 불가 설정도 매번 stamp를 바꾸므로 반복 설정은 그 사이의 세션을 무효화한다.
+PasswordHasher.Hash가 예약된 사용 불가 값을 반환하는 잘못된 구성은 허용하지 않는다.
+
+`Manager.CreateUserWithUnusablePassword`는 기존 생성의 현재 add/change 권한·profile·관계·unique와 감사 transaction을 사용한다.
+`Manager.SetUnusablePassword`는 SetPassword와 동일한 현재 인가·expected revision·credential 재검사,
+대상 session 폐기·revision 증가·값 없는 password 감사의 원자성을 사용한다. Marker 생성은 preflight 후 DB scope 밖에서
+한 번만 수행하며 raw password validator/hasher를 호출하지 않는다. 반복 설정도 새 변경이고 no-op으로 축약하지 않는다.
+SetPassword로 복구할 때는 기존 정책·원문·hash 작업을 모두 적용한다. 실패/unknown은 성공 Profile을 게시하지 않으며 재시도하지 않는다.
+기존 generic login과 관리 변경의 경쟁은 다음 요청의 stamp 검사 경계를 유지한다.
+
+관리 JSON API의 생성/password command는 required `password` member를 사용한다. 명시적 JSON null만 사용 불가 요청이고,
+생략·빈 문자열·다른 타입은 거부한다. 문자열은 기존 비공개 입력과 원문 보존·선택된 정책을 따른다.
+별도 Session/Bearer OpenAPI client도 nullable string을 사용하며 zero-value 빈 문자열을 null로 해석하지 않는다.
+생성 client의 인코딩은 서버 검증을 대신하지 않는다.
+Admin은 required 확인 checkbox·CSRF·revision·change_user 권한을 갖는 `disable-password` object command를 제공한다.
+기존 생성 폼은 두 비밀번호 입력을 요구한다. 생성 폼의 사용 불가 선택 UX와 전체 UserCreationForm 동작은 후속 범위다.
+이 결정은 last_login 갱신·self-service/reset·다른 인증 provider의 구현 완료를 뜻하지 않는다.

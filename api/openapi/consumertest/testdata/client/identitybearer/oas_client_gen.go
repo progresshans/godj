@@ -30,9 +30,11 @@ type Invoker interface {
 	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-	// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-	// implied by this API.
+	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+	// creates an account without password login. Omission and an empty string are rejected. Hosts may
+	// configure password validators for usable passwords; null does not invoke them. No
+	// password-confirmation policy is implied by this API.
 	//
 	// POST /api/identity/groups/
 	GodjIdentityIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityIdentityGroupsCreateRes, error)
@@ -123,9 +125,11 @@ type Invoker interface {
 	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-	// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-	// implied by this API.
+	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+	// creates an account without password login. Omission and an empty string are rejected. Hosts may
+	// configure password validators for usable passwords; null does not invoke them. No
+	// password-confirmation policy is implied by this API.
 	//
 	// POST /api/identity/permissions/
 	GodjIdentityIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityIdentityPermissionsCreateRes, error)
@@ -216,9 +220,11 @@ type Invoker interface {
 	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-	// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-	// implied by this API.
+	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+	// creates an account without password login. Omission and an empty string are rejected. Hosts may
+	// configure password validators for usable passwords; null does not invoke them. No
+	// password-confirmation policy is implied by this API.
 	//
 	// POST /api/identity/users/
 	GodjIdentityIdentityUsersCreate(ctx context.Context, request *UserCreate) (GodjIdentityIdentityUsersCreateRes, error)
@@ -277,8 +283,12 @@ type Invoker interface {
 	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
 	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
 	// new operation. No-op updates retain the revision. Administrative replacement, not self-service
-	// change/reset. Password whitespace is preserved. Hashing runs once outside DB scopes after preflight;
-	// it is never returned. A successful response is not a logged-in session for the new password.
+	// change/reset. A nonempty password string sets a usable password and preserves whitespace. Explicit
+	// null disables password login while retaining the account, roles and grants. The member is required;
+	// omission and empty strings are rejected. Every successful replacement, including repeated
+	// disablement, rotates the credential and revokes target sessions. Hashing or generation of an
+	// unusable marker runs once outside DB scopes after preflight; neither is returned. Password
+	// validators apply only to usable passwords. A successful response does not establish a login session.
 	//
 	// POST /api/identity/users/{id}/password/
 	GodjIdentityIdentityUsersPassword(ctx context.Context, request *PasswordReplacement, params GodjIdentityIdentityUsersPasswordParams) (GodjIdentityIdentityUsersPasswordRes, error)
@@ -369,9 +379,11 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 // replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 // Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 // no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-// implied by this API.
+// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+// creates an account without password login. Omission and an empty string are rejected. Hosts may
+// configure password validators for usable passwords; null does not invoke them. No
+// password-confirmation policy is implied by this API.
 //
 // POST /api/identity/groups/
 func (c *Client) GodjIdentityIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityIdentityGroupsCreateRes, error) {
@@ -1043,9 +1055,11 @@ func (c *Client) sendGodjIdentityIdentityGroupsUpdate(ctx context.Context, reque
 // replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 // Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 // no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-// implied by this API.
+// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+// creates an account without password login. Omission and an empty string are rejected. Hosts may
+// configure password validators for usable passwords; null does not invoke them. No
+// password-confirmation policy is implied by this API.
 //
 // POST /api/identity/permissions/
 func (c *Client) GodjIdentityIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityIdentityPermissionsCreateRes, error) {
@@ -1717,9 +1731,11 @@ func (c *Client) sendGodjIdentityIdentityPermissionsUpdate(ctx context.Context, 
 // replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
 // Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
 // no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. Password is required only for User
-// creation; its whitespace is preserved. No password-confirmation or password-strength policy is
-// implied by this API.
+// and change_user. The server selects a fresh opaque principal ID. The password member is required for
+// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
+// creates an account without password login. Omission and an empty string are rejected. Hosts may
+// configure password validators for usable passwords; null does not invoke them. No
+// password-confirmation policy is implied by this API.
 //
 // POST /api/identity/users/
 func (c *Client) GodjIdentityIdentityUsersCreate(ctx context.Context, request *UserCreate) (GodjIdentityIdentityUsersCreateRes, error) {
@@ -2149,8 +2165,12 @@ func (c *Client) sendGodjIdentityIdentityUsersList(ctx context.Context, params G
 // invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
 // Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
 // new operation. No-op updates retain the revision. Administrative replacement, not self-service
-// change/reset. Password whitespace is preserved. Hashing runs once outside DB scopes after preflight;
-// it is never returned. A successful response is not a logged-in session for the new password.
+// change/reset. A nonempty password string sets a usable password and preserves whitespace. Explicit
+// null disables password login while retaining the account, roles and grants. The member is required;
+// omission and empty strings are rejected. Every successful replacement, including repeated
+// disablement, rotates the credential and revokes target sessions. Hashing or generation of an
+// unusable marker runs once outside DB scopes after preflight; neither is returned. Password
+// validators apply only to usable passwords. A successful response does not establish a login session.
 //
 // POST /api/identity/users/{id}/password/
 func (c *Client) GodjIdentityIdentityUsersPassword(ctx context.Context, request *PasswordReplacement, params GodjIdentityIdentityUsersPasswordParams) (GodjIdentityIdentityUsersPasswordRes, error) {

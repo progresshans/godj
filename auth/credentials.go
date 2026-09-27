@@ -135,7 +135,7 @@ func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*M
 		if _, duplicate := result.state.byID[credential.value().principal.id]; duplicate {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "credentials", Detail: "principal identifier is duplicated"}
 		}
-		if err := hasher.ValidateEncoded(credential.value().hash); err != nil {
+		if err := validateCredentialPassword(credential, hasher); err != nil {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "credentials", Detail: "credential contains an invalid encoded password", Cause: err}
 		}
 		result.state.byUsername[credential.value().username] = credential
@@ -194,6 +194,9 @@ func makeDummyHash(ctx context.Context, hasher PasswordHasher) (string, error) {
 	if err := errors.Join(err, ctx.Err()); err != nil {
 		return "", passwordFailure(err)
 	}
+	if unusablePassword(dummy) {
+		return "", &Error{Code: CodeInvalidConfig, Field: "password_hasher", Detail: "dummy password uses the reserved unusable state"}
+	}
 	if err := hasher.ValidateEncoded(dummy); err != nil {
 		return "", &Error{Code: CodeInvalidConfig, Field: "password_hasher", Detail: "dummy password does not use the current bounded work profile", Cause: err}
 	}
@@ -205,7 +208,7 @@ func makeDummyHash(ctx context.Context, hasher PasswordHasher) (string, error) {
 
 func verifyCredential(ctx context.Context, hasher PasswordHasher, dummyHash string, credential Credential, found bool, username, password string) error {
 	encoded := dummyHash
-	if found {
+	if found && credential.HasUsablePassword() {
 		encoded = credential.value().hash
 	}
 	verified, err := hasher.Verify(ctx, password, encoded)
@@ -219,7 +222,7 @@ func verifyCredential(ctx context.Context, hasher PasswordHasher, dummyHash stri
 		}
 		return passwordFailure(err)
 	}
-	if !found || !credential.value().principal.Active() || !verified || !validUsername(username) {
+	if !found || !credential.HasUsablePassword() || !credential.value().principal.Active() || !verified || !validUsername(username) {
 		return ErrInvalidCredentials
 	}
 	return nil

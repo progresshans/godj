@@ -1358,6 +1358,51 @@ func (o NilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewNilString returns new NilString with value set to v.
+func NewNilString(v string) NilString {
+	return NilString{
+		Value: v,
+	}
+}
+
+// NilString is nullable string.
+type NilString struct {
+	Value string
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilString) SetTo(v string) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilString) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilString) SetToNull() {
+	o.Null = true
+	var v string
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilString) Get() (v string, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBool returns new OptBool with value set to v.
 func NewOptBool(v bool) OptBool {
 	return OptBool{
@@ -1498,16 +1543,16 @@ func (o OptString) Or(d string) string {
 
 // Ref: #/components/schemas/PasswordReplacement
 type PasswordReplacement struct {
-	Password string `json:"password"`
+	Password NilString `json:"password"`
 }
 
 // GetPassword returns the value of Password.
-func (s *PasswordReplacement) GetPassword() string {
+func (s *PasswordReplacement) GetPassword() NilString {
 	return s.Password
 }
 
 // SetPassword sets the value of Password.
-func (s *PasswordReplacement) SetPassword(val string) {
+func (s *PasswordReplacement) SetPassword(val NilString) {
 	s.Password = val
 }
 
@@ -1924,7 +1969,7 @@ type UserCreate struct {
 	Superuser   OptBool   `json:"superuser"`
 	Groups      []int64   `json:"groups"`
 	Permissions []int64   `json:"permissions"`
-	Password    string    `json:"password"`
+	Password    NilString `json:"password"`
 }
 
 // GetUsername returns the value of Username.
@@ -1973,7 +2018,7 @@ func (s *UserCreate) GetPermissions() []int64 {
 }
 
 // GetPassword returns the value of Password.
-func (s *UserCreate) GetPassword() string {
+func (s *UserCreate) GetPassword() NilString {
 	return s.Password
 }
 
@@ -2023,7 +2068,7 @@ func (s *UserCreate) SetPermissions(val []int64) {
 }
 
 // SetPassword sets the value of Password.
-func (s *UserCreate) SetPassword(val string) {
+func (s *UserCreate) SetPassword(val NilString) {
 	s.Password = val
 }
 

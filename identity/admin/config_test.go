@@ -85,7 +85,7 @@ func TestIdentityRegistrationIsDetachedSecretFreeAndDoesNotReadStorage(t *testin
 		t.Fatal("identity registration incomplete")
 	}
 	user, found := registry.Lookup("godj_identity", "user")
-	if !found || user.RevisionField != "revision" || !reflect.DeepEqual(user.AddPermissions, []auth.Permission{identity.AddUser, identity.ChangeUser}) || len(user.Commands) != 1 || user.Commands[0].Name != "password" {
+	if !found || user.RevisionField != "revision" || !reflect.DeepEqual(user.AddPermissions, []auth.Permission{identity.AddUser, identity.ChangeUser}) || len(user.Commands) != 2 || user.Commands[0].Name != "password" || user.Commands[1].Name != "disable-password" {
 		t.Fatal("user command/authority/revision contract lost", found, user.AddPermissions)
 	}
 	names := func(fields []forms.Field) []string {

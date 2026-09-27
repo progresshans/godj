@@ -1,6 +1,7 @@
 package consumertest_test
 
 import (
+	"errors"
 	"reflect"
 	"slices"
 	"strings"
@@ -238,7 +239,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 				}
 			case target.ID:
 				want := target
-				want.EncodedPassword, want.Revision = user.EncodedPassword, 4
+				want.EncodedPassword, want.Revision = user.EncodedPassword, 7
 				if user.EncodedPassword == target.EncodedPassword || !reflect.DeepEqual(user, want) {
 					t.Fatal("identity password lifecycle changed unrelated profile")
 				}
@@ -256,12 +257,20 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		if created.ID == 0 || created.PrincipalID == "" || created.PrincipalID == root.PrincipalID || created.PrincipalID == target.PrincipalID {
 			t.Fatal("server identity was not independently assigned")
 		}
-		for _, probe := range []struct{ username, password string }{{createdUsername, "  SDK created password  "}, {"managed-target", "  SDK replacement password  "}} {
+		for _, probe := range []struct{ username, password string }{{"managed-target", "  SDK replacement password  "}} {
 			if credential, err := reopened.Authenticator().Authenticate(ctx, probe.username, probe.password); err != nil || !credential.Principal().Authenticated() {
 				t.Fatal("stored SDK password did not authenticate")
 			}
 			if _, err := reopened.Authenticator().Authenticate(ctx, probe.username, strings.TrimSpace(probe.password)); err == nil {
 				t.Fatal("SDK password whitespace was lost")
+			}
+		}
+		if current, err := reopened.Authenticator().Resolve(ctx, created.PrincipalID); err != nil || current.HasUsablePassword() || !current.Principal().Active() || !strings.HasPrefix(created.EncodedPassword, "!") {
+			t.Fatal("SDK null password did not persist as an active unusable credential", err)
+		}
+		for _, password := range []string{"", "  SDK created password  ", created.EncodedPassword, "godj-unmatchable-dummy-password"} {
+			if _, err := reopened.Authenticator().Authenticate(ctx, created.Username, password); !errors.Is(err, auth.ErrInvalidCredentials) {
+				t.Fatal("SDK unusable credential authenticated or became a store failure", err)
 			}
 		}
 		if _, err := reopened.Authenticator().Authenticate(ctx, target.Username, "original SDK password"); err == nil {
@@ -312,7 +321,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			fields [][]string
 		}{
 			{"user", root.ID, [][]string{{"active"}}},
-			{"user", target.ID, [][]string{{"password"}, {"active"}, {"active"}}},
+			{"user", target.ID, [][]string{{"password"}, {"password"}, {"password"}, {"password"}, {"active"}, {"active"}}},
 			{"user", protectedUser.ID, nil}, {"group", protectedGroup.ID, nil}, {"permission", protectedPermission.ID, nil},
 		} {
 			history, err := reopened.AuditHistory(ctx, "godj_identity."+expected.model, expected.id, 100)

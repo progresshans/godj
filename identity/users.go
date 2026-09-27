@@ -97,10 +97,21 @@ func (manager *Manager) Users(ctx context.Context, actor auth.Principal, offset,
 // The host supplies a new opaque principal ID; no browser-provided identity is
 // implicitly trusted. Hash work occurs once outside both database scopes.
 func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, input UserCreate, password string) (UserDetails, error) {
+	return manager.createUser(ctx, actor, input, passwordInput{raw: password})
+}
+
+// CreateUserWithUnusablePassword creates an account that cannot use password
+// authentication. Authorization, profile and relation validation, and atomic
+// audit are identical to CreateUser; no raw password policy or hash is run.
+func (manager *Manager) CreateUserWithUnusablePassword(ctx context.Context, actor auth.Principal, input UserCreate) (UserDetails, error) {
+	return manager.createUser(ctx, actor, input, passwordInput{unusable: true})
+}
+
+func (manager *Manager) createUser(ctx context.Context, actor auth.Principal, input UserCreate, password passwordInput) (UserDetails, error) {
 	if err := manager.validCall(ctx, actor); err != nil {
 		return UserDetails{}, err
 	}
-	if password == "" {
+	if !password.unusable && password.raw == "" {
 		return UserDetails{}, managementInputError("password", "required")
 	}
 	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: input.principalID}); err != nil {
@@ -149,22 +160,19 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 				return managementInputError("username", "unique")
 			}
 		}
-		return manager.validatePassword(ctx, password, profileFromRow(row))
+		return password.validate(ctx, manager, profileFromRow(row))
 	}
 	if _, err := managementSnapshot(ctx, manager, func(reader db.Queryer) (struct{}, error) {
 		return struct{}{}, preflight(reader, create("identity-creation-preflight"))
 	}); err != nil {
 		return UserDetails{}, err
 	}
-	encoded, err := managementPassword(ctx, manager.state.hasher, password)
+	encoded, err := password.encode(ctx, manager.state.hasher)
 	if err != nil {
 		return UserDetails{}, err
 	}
-	if err := manager.state.hasher.ValidateEncoded(encoded); err != nil {
-		return UserDetails{}, managementError(CodeInvalidConfig, "password_hasher", err)
-	}
 	principal, _ := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser})
-	if _, err := auth.NewCredential(row.Username, encoded, principal); err != nil {
+	if credential, err := auth.NewCredential(row.Username, encoded, principal); err != nil || credential.HasUsablePassword() == password.unusable {
 		return UserDetails{}, managementError(CodeInvalidConfig, "password_hasher", err)
 	}
 	return managementRelationWrite(ctx, manager, func(session db.RelationSession) (UserDetails, error) {

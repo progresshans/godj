@@ -56,6 +56,12 @@ Bearer client는 CRUD·typed condition과 인증 challenge를 확인하고, Sess
 부모는 새 runtime을 구성해 최종 사용자·password whitespace·정확한 관계 행·호스트 데이터·session·value-free audit를 별도로 조회한다.
 세션은 부모가 실제 durable store에 seed하며 로그인 endpoint나 token issuer를 구현한 것으로 간주하지 않는다.
 
+Identity의 required password 입력은 nullable string이다. Session client는 explicit null로 active User를 생성하고,
+기존 사용자의 반복 disable과 password 복구를 호출한다. Bearer client도 disable을 실제 서버에 요청한다.
+부모는 사용 불가 User의 현재 Resolve·비밀번호 거부와 복구 User의 공백 보존, 정확한 revision/session/audit를 별도로 확인한다.
+Wire에서는 null, zero-value의 빈 문자열, 공백 있는 문자열을 구분하고 unknown 응답을 한 번만 전송한다.
+현재 고정 생성물의 nullable PasswordReplacement에는 별도 Validate 메서드가 없으므로 서버의 required/length/type 검사가 계속 소유자다.
+
 Identity의 `If-Revision`/`Revision` header는 required int64이고 각각 변경 가능한 양수 범위와 저장 가능한 양수 범위다.
 별도 wire 검사는 2^53 밖 ID/revision/collection의 정확한 전송과 required collection·revision header 오류를 확인한다.
 412/428/503 응답은 typed 오류이며 한 번만 전송된다. 이 synthetic 503은 실제 서버의 unknown outcome 증거가 아니다.

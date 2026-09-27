@@ -4456,6 +4456,52 @@ func (s *NilDateTime) UnmarshalJSON(data []byte) error {
 	return s.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00"))
 }
 
+// Encode encodes string as json.
+func (o NilString) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes string from json.
+func (o *NilString) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilString to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v string
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	v, err := d.Str()
+	if err != nil {
+		return err
+	}
+	o.Value = string(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilString) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilString) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes bool as json.
 func (o OptBool) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -4537,7 +4583,7 @@ func (s *PasswordReplacement) Encode(e *jx.Encoder) {
 func (s *PasswordReplacement) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("password")
-		e.Str(s.Password)
+		s.Password.Encode(e)
 	}
 }
 
@@ -4557,9 +4603,7 @@ func (s *PasswordReplacement) Decode(d *jx.Decoder) error {
 		case "password":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Password = string(v)
-				if err != nil {
+				if err := s.Password.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -5773,7 +5817,7 @@ func (s *UserCreate) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("password")
-		e.Str(s.Password)
+		s.Password.Encode(e)
 	}
 }
 
@@ -5913,9 +5957,7 @@ func (s *UserCreate) Decode(d *jx.Decoder) error {
 		case "password":
 			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
-				v, err := d.Str()
-				s.Password = string(v)
-				if err != nil {
+				if err := s.Password.Decode(d); err != nil {
 					return err
 				}
 				return nil

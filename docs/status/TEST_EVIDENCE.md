@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+
+## GDJ-0100 — 사용 불가 password의 credential와 관리 command
+
+2026-09-27, `750632b9` 이후의 변경을 고정한 non-Markdown **2,445 파일** source map
+`0e3ccc1863171e29a8a7aefd8344113185bc9eeb4f4a92574f0ea59030cee5ee`에서 실행했다.
+실행 시작/종료 source가 동일하다. 이 범위는 새 credential/관리 command의 영향 검증이며 전체 framework/플랫폼 검증이 아니다.
+
+- `MakeUnusablePassword`의 새 256-bit marker, opaque Credential/Account의 사용 가능 상태,
+  Memory/StoredAuthenticator의 한 번의 dummy 검증과 무조건 거부, 현재 active identity 조회를 검증했다.
+  Marker를 raw password로 제출하거나 dummy password가 일치해도 로그인하지 않는다.
+  일반 encoded envelope·손상 hash의 실행 오류·취소·비공개 entropy 실패와 hash 도중 변경도 검사했다.
+- Manager의 사용 불가 생성·설정·반복 설정과 기존 SetPassword 복구는 현재 인가·revision·credential fence,
+  대상 session만 폐기·값 없는 audit·rollback/unknown을 같이 검증했다. 사용 불가 요청은 raw password 정책과 hasher를 호출하지 않는다.
+  양 DB 두 연결의 disable/replace 경쟁, grant 회수·inactive·revision 및 revision 없는 hash 교체,
+  callback contract 위반과 부분 실패·확정 commit 뒤 취소를 포함한다.
+- 실제 Session API/Admin에서 required explicit null과 확인 checkbox, 누락/빈 값/잘못된 타입,
+  CSRF·stale/missing revision, 정책 분리·반복 설정·자기 세션 폐기와 복구를 실행했다.
+  현재 stamp로 이미 수립된 다른 인증 수단의 세션은 동작하고, 다시 설정하면 폐기되는지도 HTTP로 관찰했다.
+- 실제 OpenAPI에서 Session/Bearer 두 client를 고정 ogen으로 다시 생성했다. 세 모드 모두 별도 module의 drift·build·HTTP 실행과
+  부모의 SQLite 재조회·현재 credential·정확한 revision/session/audit를 통과했다.
+  Client는 null 생성·반복 disable·복구와 Bearer disable을 호출한다. Wire 검사는 null/빈 문자열/공백 보존을 구분하며 unknown을 재시도하지 않는다.
+  Nullable string에 대한 현재 생성물에는 별도 PasswordReplacement.Validate 메서드가 없다. 서버의 required/length/type 검사를 유지하며
+  생성 client가 모든 입력을 미리 검증한다고 주장하지 않는다. 모델 IR/생성 model ABI는 변경하지 않았다.
+
+| 모드 | 필수 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 11 packages / 194 roots / 1,458 필수 항목 | 1,687 PASS / skip 0 | 71.393초 |
+| race | 동일 | 1,687 PASS / skip 0 | 290.175초 |
+| CGO=0 | 동일 | 1,687 PASS / skip 0 | 71.571초 |
+
+Darwin arm64 / Go 1.26.5, `go test -json -count=1 -p=2 -timeout=20m -run <선택한 roots>`와
+각 mode의 `-race`/`CGO_ENABLED=0`, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, offline readonly Go 환경이다.
+선택된 package와 필수 root/subtest의 실제 run/pass, 종료와 no-skip을 감사했다. 전체 합은 **5,061 PASS / skip 0**이다.
+PostgreSQL 17.10은 UTF8/libc/C의 고정 image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`를 사용했다.
+종료 시 public table/잔여 godj schema/추가 연결은 `0|0|0`이며 private container 제거를 확인했다.
+
+고정 Django 6.1/CPython 3.14.3의 독립 observer를 SQLite 3.50.4와 PostgreSQL 17.10에서 실행해 관찰과 네 upstream source hash의 일치를 확인했다.
+Python 테스트 2개는 hash seed 반복과 양 DB fixture 비교, 상수 marker·상수 stamp·dummy work 제거·password-only resolution의
+4개 runtime mutation 탐지를 통과했다. PostgreSQL 최초 시도는 선택한 환경에 psycopg가 없어 중단됐으며 성공에 포함하지 않는다.
+고정 `psycopg[binary]==3.3.6` 환경을 준비한 뒤 다시 실행했고 양 DB의 임시 table과 PostgreSQL container를 정리했다.
+
+별도 compiler overlay의 Go negative control **7개**도 모두 지정된 test assertion으로 실패했다.
+Dummy 일치 admission, marker 직접 검증, 고정 marker, password-only Resolve, session 폐기 제거,
+최종 credential fence 제거, 감사 제거를 탐지했다. Compile 실패를 탐지 성공으로 세지 않았고 원본 source는 바꾸지 않았다.
+영향 vet, CI 도구 41개, gofmt·문서·diff 검사도 통과했다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-checkpoint-1790498018374018000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-checkpoint-1790498018374018000/controls/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-checkpoint-1790498018374018000/supplemental/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-reference-1790497734454983000/receipt.json`
+
+`f3264aef`의 기존 Hosted full 실행은 이 변경 이전 source의 검증이다. 새 password command에 그 결과를 전이하지 않는다.
+새 범위의 전체 platform/cold-build는 GDJ-0100의 후속 lifecycle 소비자를 연결한 통합 milestone이 소유한다.
+Admin 생성의 사용 불가 선택·현재 password 상태 표시, last_login·self-service/reset과 전체 UserCreationForm은 남아 있다.
+
+
 ## GDJ-0100 — Linux PTY 에코 관찰과 Python 호환성 fingerprint 후속 수정
 
 2026-09-27, `c7a0c5e0`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36303289415)에서

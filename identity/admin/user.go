@@ -29,6 +29,14 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
+	confirmation, err := forms.BooleanField("confirm", forms.WithRequired(true), forms.WithLabel("Disable password login and revoke this user's sessions"))
+	if err != nil {
+		return err
+	}
+	disableSpec, err := forms.NewSpec([]forms.Field{confirmation})
+	if err != nil {
+		return err
+	}
 	metadata := models.UserDescriptor{}.Metadata()
 	usernameLimit := 0
 	for _, field := range metadata.Fields {
@@ -143,6 +151,16 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			profile, err := a.manager.SetPassword(ctx, p, m.ID, m.Revision, password)
 			if err != nil {
 				return admin.CommandResult{}, passwordError(err)
+			}
+			return admin.CommandResult{ID: profile.ID, Revision: profile.Revision}, nil
+		}}, {Name: "disable-password", Label: "Disable password login", Permission: identity.ChangeUser, Form: disableSpec, Run: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (admin.CommandResult, error) {
+			confirmed, ok := values.Boolean("confirm")
+			if !ok || !confirmed {
+				return admin.CommandResult{}, invalidInput()
+			}
+			profile, err := a.manager.SetUnusablePassword(ctx, p, m.ID, m.Revision)
+			if err != nil {
+				return admin.CommandResult{}, operationError(err)
 			}
 			return admin.CommandResult{ID: profile.ID, Revision: profile.Revision}, nil
 		}}},

@@ -121,7 +121,7 @@ func (a *StoredAuthenticator) validateObserved(ctx context.Context, credential C
 	if credential.value().principal.ID() == "" || !validUsername(credential.value().username) {
 		return storedCredentialFailure(nil)
 	}
-	if err := errors.Join(a.state.hasher.ValidateEncoded(credential.value().hash), ctx.Err()); err != nil {
+	if err := errors.Join(validateCredentialPassword(credential, a.state.hasher), ctx.Err()); err != nil {
 		return storedCredentialFailure(err)
 	}
 	return nil

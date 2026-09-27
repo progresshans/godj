@@ -75,7 +75,9 @@ scalar backfill SQL 실행, 실제 외부 compiler의 위치 인자 누락 판�
 수정 source의 Hosted 전체를 다시 검증한다. `c7a0c5e0`의 실행에서 추가로 드러난 PTY 에코 관찰과
 Python 합산 fingerprint도 수정·검증했고, 최종 `f3264aef` source의 Hosted 전체를 다시 실행했다.
 전체 UserCreationForm 호환은 별도 조건이다.
-Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
+사용 불가능한 password의 auth/identity 표현과 관리 생성·설정·복구, API의 explicit null, Admin 확인 command와 독립 client를 구현했다.
+영향 normal/race/CGO=0·양 DB·독립 Django/생성 client와 negative control 검증을 통과했으며 전체 환경 검증과 구분한다. Admin 생성 선택·현재 password 상태 표시,
+self-service password/reset·last_login 갱신은 별도 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

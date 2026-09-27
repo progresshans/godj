@@ -64,7 +64,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || viewPage.Response.Count != 4 || !viewPage.XGodjCsrftoken.Set || !viewerState.ready(viewPage.XGodjCsrftoken.Value) {
 		return fail("identity viewer read")
 	}
-	denied, err := viewer.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "forbidden", Password: "never persisted"})
+	denied, err := viewer.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "forbidden", Password: is.NewNilString("never persisted")})
 	forbidden, ok := denied.(*is.GodjIdentityIdentityUsersCreateForbidden)
 	if err != nil || !ok || forbidden.Code != "permission_denied" {
 		return fail("identity session read only denied")
@@ -108,7 +108,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		{" PASSWORD ", []string{"password_too_common"}},
 		{"¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
 	} {
-		rejected, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "PolicyCandidate", Password: probe.password})
+		rejected, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "PolicyCandidate", Password: is.NewNilString(probe.password)})
 		failure, ok := rejected.(*is.GodjIdentityIdentityUsersCreateBadRequest)
 		if err != nil || !ok || failure.Code != "validation_error" || len(failure.Errors) != len(probe.codes) {
 			return fail("identity generated built-in creation policy")
@@ -118,7 +118,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 				return fail("identity generated creation policy order")
 			}
 		}
-		replaced, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: probe.password}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
+		replaced, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString(probe.password)}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
 		passwordFailure, ok := replaced.(*is.GodjIdentityIdentityUsersPasswordBadRequest)
 		if err != nil || !ok || passwordFailure.Code != "validation_error" || len(passwordFailure.Errors) != len(probe.codes) {
 			return fail("identity generated built-in replacement policy")
@@ -129,13 +129,13 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 			}
 		}
 	}
-	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Password: "  SDK created password  ", FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
+	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Password: is.NilString{Null: true}, FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := created.(*is.UserHeaders)
 	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity session user create")
 	}
 	id := user.Response.ID
-	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityCreatedUsername, Password: "duplicate rejected"})
+	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityCreatedUsername, Password: is.NewNilString("duplicate rejected")})
 	duplicateUser, ok := duplicate.(*is.GodjIdentityIdentityUsersCreateBadRequest)
 	if err != nil || !ok || duplicateUser.Code != "validation_error" || len(duplicateUser.Errors) != 1 || duplicateUser.Errors[0].Field != "username" || duplicateUser.Errors[0].Code != "unique" {
 		return fail("identity generated normalized unique error")
@@ -165,7 +165,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		return err
 	}
 
-	password, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: "  SDK replacement password  "}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
+	password, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString("  SDK replacement password  ")}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
 	replaced, ok := password.(*is.UserSummaryHeaders)
 	if err != nil || !ok || replaced.Revision != 2 || replaced.Response.Revision != 2 || replaced.Response.ID != target.TargetID {
 		return fail("identity password replacement")
@@ -173,10 +173,22 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err := identityRevokedSession(ctx, viewer); err != nil {
 		return err
 	}
-	if _, err := identityUserPatch(ctx, client, target.TargetID, 2, 3, is.UserPatch{Active: is.NewOptBool(false)}); err != nil {
+	for revision := int64(2); revision <= 3; revision++ {
+		disabled, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NilString{Null: true}}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: revision})
+		value, ok := disabled.(*is.UserSummaryHeaders)
+		if err != nil || !ok || value.Revision != revision+1 || value.Response.Revision != revision+1 || !value.Response.Active {
+			return fail("identity session repeated password disablement")
+		}
+	}
+	restored, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString("  SDK replacement password  ")}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 4})
+	restoredUser, ok := restored.(*is.UserSummaryHeaders)
+	if err != nil || !ok || restoredUser.Revision != 5 || restoredUser.Response.Revision != 5 {
+		return fail("identity session password restoration")
+	}
+	if _, err := identityUserPatch(ctx, client, target.TargetID, 5, 6, is.UserPatch{Active: is.NewOptBool(false)}); err != nil {
 		return err
 	}
-	if _, err := identityUserPatch(ctx, client, target.TargetID, 3, 4, is.UserPatch{Active: is.NewOptBool(true)}); err != nil {
+	if _, err := identityUserPatch(ctx, client, target.TargetID, 6, 7, is.UserPatch{Active: is.NewOptBool(true)}); err != nil {
 		return err
 	}
 	if err := identityRevokedSession(ctx, viewer); err != nil {

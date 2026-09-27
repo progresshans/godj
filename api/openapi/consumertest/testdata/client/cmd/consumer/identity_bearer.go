@@ -35,7 +35,7 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || viewPage.Count != 4 {
 		return fail("identity bearer view admission")
 	}
-	denied, err := viewer.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "forbidden", Password: "never persisted"})
+	denied, err := viewer.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "forbidden", Password: ib.NewNilString("never persisted")})
 	forbidden, ok := denied.(*ib.GodjIdentityIdentityUsersCreateForbidden)
 	if err != nil || !ok || forbidden.Response.Code != "permission_denied" || !forbidden.WWWAuthenticate.Set || !strings.Contains(forbidden.WWWAuthenticate.Value, "insufficient_scope") {
 		return fail("identity bearer read only challenge")
@@ -62,7 +62,7 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 		return fail("identity bearer group create")
 	}
 	groupID := group.Response.ID
-	createdUser, err := client.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "Bearer-user", Password: "  Bearer password  ", Groups: []int64{groupID}, Permissions: []int64{permissionID}})
+	createdUser, err := client.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "Bearer-user", Password: ib.NewNilString("  Bearer password  "), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := createdUser.(*ib.UserHeaders)
 	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity bearer user create")
@@ -96,7 +96,12 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || user.Revision != 4 || user.Response.Revision != 4 || len(user.Response.Groups) != 0 || len(user.Response.Permissions) != 0 || user.Response.FirstName != "Bearer edited" {
 		return fail("identity bearer user relation refresh")
 	}
-	deletedUser, err := client.GodjIdentityIdentityUsersDelete(ctx, ib.GodjIdentityIdentityUsersDeleteParams{ID: id, IfRevision: 4})
+	disabled, err := client.GodjIdentityIdentityUsersPassword(ctx, &ib.PasswordReplacement{Password: ib.NilString{Null: true}}, ib.GodjIdentityIdentityUsersPasswordParams{ID: id, IfRevision: 4})
+	disabledUser, ok := disabled.(*ib.UserSummaryHeaders)
+	if err != nil || !ok || disabledUser.Revision != 5 || disabledUser.Response.Revision != 5 || !disabledUser.Response.Active {
+		return fail("identity bearer password disablement")
+	}
+	deletedUser, err := client.GodjIdentityIdentityUsersDelete(ctx, ib.GodjIdentityIdentityUsersDeleteParams{ID: id, IfRevision: 5})
 	if _, ok := deletedUser.(*ib.GodjIdentityIdentityUsersDeleteNoContent); err != nil || !ok {
 		return fail("identity bearer user delete")
 	}

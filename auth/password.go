@@ -33,7 +33,8 @@ const (
 
 // PasswordHasher hashes and verifies password strings without exposing an
 // encoded hash through an error. Implementations must be safe for concurrent
-// use.
+// use. Hash must return a usable encoded hash; the "!" prefix is reserved for
+// MakeUnusablePassword and is never passed to Verify by the authenticators.
 type PasswordHasher interface {
 	Hash(context.Context, string) (string, error)
 	Verify(context.Context, string, string) (bool, error)
