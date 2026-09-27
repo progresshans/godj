@@ -88,6 +88,9 @@ clean-worktree step은 실행되지 않았다. Python 3.12.13/3.13.15/3.14.7 own
 해당 commit Git blob에서 재계산한 당시 선언 목록의 결합은 확인했다. System-state는 578 files/5,978,200 bytes, operator는
 655 files/5,823,526 bytes이며 `hosted-full-36324864466-1790520313642329000`에 원본을 보존한다.
 이 부분 확인을 전체 PASS로 올리지 않았고 과거 raw evidence도 다시 작성하지 않는다.
+선행 run은 **62 jobs 중 60 success, Python 3.14.3 cancelled, CI result (full) failure**로 종료됐고
+전체 conclusion은 `cancelled`다. 마지막 macOS race 작업도 성공했지만 전체 gate는 올바르게 미통과를 유지했다.
+Terminal run/jobs와 부분 확인 receipt(`pass=false`)를 같은 Hosted evidence 디렉터리에 보존했다.
 
 별도로 고정 Django 6.1/CPython 3.14.3의 native PasswordResetTokenGenerator·PasswordResetForm·SetPasswordForm과
 in-process mail을 실제 SQLite·PostgreSQL 17.10에서 실행했다. **11개 관찰군**, 양 DB의 observations와

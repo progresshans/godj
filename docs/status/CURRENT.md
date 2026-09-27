@@ -4,7 +4,7 @@
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 진행 중인 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
-- 선행 미완료 검증: [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6`의 Python 시간 초과·마지막 작업 종료 확인
+- 선행 검증 종료(전체 미통과): [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6`의 Python 시간 초과와 전체 완료 gate 실패
 - 최근 완료한 전체 검증: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
 - 최근 영향 CI: [Reset service Hosted Fast](https://github.com/progresshans/godj/actions/runs/36328406907), source `fb817d6b`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -32,7 +32,7 @@ password/session 폐기/audit 원자 저장 service를 구현하고 영향 norma
 
 ## 다음 행동
 
-`fb817d6b`의 Hosted milestone·실제 필수 실행과 새 capture/source binding을 확인한다. 선행 run의 마지막 종료 결과도 보존한다.
+`fb817d6b`의 Hosted milestone·실제 필수 실행과 새 capture/source binding을 확인한다. 선행 run의 미통과 결과는 Evidence에 보존했다.
 다음 구현은 reset의 명시적 메일 전달·수신자 선택과 실제 Form/API·독립 client다. Native HTTP reset view도 별도로 관찰한다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
