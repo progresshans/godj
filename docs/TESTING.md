@@ -151,6 +151,11 @@ Oracle·expected로 actual을 만들지 않고, 다른 source의 actual이나 st
 Consumer만 재시도할 때는 같은 run의 성공한 producer attempt를 재사용할 수 있다. `capture_artifact.py resolve`가
 artifact ID와 실제 normal producer job의 run·source·성공 상태를 확인하고, consumer는 그 producing attempt의 envelope를
 검증한다. 새 attempt의 실패를 과거 성공 artifact로 숨기거나 checkout/payload 검사를 생략하지 않는다.
+Source API 관찰은 GoDj 자체를 현재 source로 type-check하고 외부 package는 현재 module의 native compiler export에서 읽는다.
+GOPATH나 과거 dependency 집합을 가정하지 않으며 native export 조회에도 context·timeout·출력 한도와 readonly/offline 조건을 적용한다.
+외부 CLI fixture의 module 준비는 제품 호출 이전에 수행한다. 실제 제품 명령의 private cache·readonly·무변경 검사는 그대로 유지한다.
+Python compatibility observer는 실제 실행 interpreter를 보고하고 고정 fixture의 runtime metadata와 구분한다.
+고정 Django source hash·관찰 동작과 부정 대조는 각 지원 interpreter에서 유지하며 고정 reference fixture를 다시 쓰지 않는다.
 관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.
 JSON/file 읽기 구현을 공유해도 각 attestation의 source inventory·크기 제한·schema는 독립적으로 검증한다.
 

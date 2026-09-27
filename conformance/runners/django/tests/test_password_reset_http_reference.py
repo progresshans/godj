@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 from pathlib import Path
 import subprocess
 import sys
@@ -18,7 +19,8 @@ class PasswordResetHTTPReferenceTests(unittest.TestCase):
             body = "\n".join("    " + line for line in mutation.splitlines())
             prefix = "import django\noriginal_setup=django.setup\ndef setup():\n    original_setup()\n" + body + "\ndjango.setup=setup\n"
         result = subprocess.run([sys.executable, "-W", "error", "-c", prefix + f"\nimport runpy; runpy.run_module({RUNNER!r},run_name='__main__',alter_sys=True)"],
-                                cwd=ROOT, env=environment, capture_output=True, check=True, timeout=180)
+                                cwd=ROOT, env=environment, capture_output=True, timeout=180)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
         self.assertEqual(result.stderr, b"")
         for secret in (b"original HTTP reset password", b"replacement HTTP reset password", b"independent-http-reset-reference-key",
                        b"private session failure", b"private delivery failure", b"https://reset.example.test/reset/"):
@@ -28,10 +30,11 @@ class PasswordResetHTTPReferenceTests(unittest.TestCase):
     def test_pinned_backends_and_hash_seeds(self):
         actual = self.observe()
         self.assertEqual(actual, self.observe("817"))
-        self.assertEqual((actual["django"], actual["python"]), ("6.1", "3.14.3"))
+        self.assertEqual((actual["django"], actual["python"]), ("6.1", platform.python_version()))
         self.assertEqual(len(actual["source_sha256"]), 8)
         for backend in ("sqlite", "postgres"):
             expected = json.loads((ROOT / f"internal/identitytest/testdata/password-reset-http-django61-{backend}.json").read_text())
+            self.assertEqual(expected["python"], "3.14.3")
             for field in ("observations", "source_sha256"):
                 self.assertEqual(actual[field], expected[field], (backend, field))
 

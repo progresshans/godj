@@ -270,12 +270,7 @@ func prepareActualMakemigrationsFixture(t *testing.T, fixture processFixture) {
 	if err := os.WriteFile(modulePath, []byte(strings.Join(filtered, "\n")), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(fixture.project, "go.sum"), []byte(
-		"golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n"+
-			"golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=\n",
-	), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	tidyActualE2EProject(t, fixture)
 	if err := os.Mkdir(filepath.Join(fixture.project, "migrations"), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -364,21 +359,6 @@ func replaceActualE2ESourceOnce(t *testing.T, source, old, replacement string) s
 		t.Fatalf("e2e source anchor %q occurs %d times", old, count)
 	}
 	return strings.Replace(source, old, replacement, 1)
-}
-
-func tidyActualE2EProject(t *testing.T, fixture processFixture) {
-	t.Helper()
-	command := exec.Command("go", "mod", "tidy")
-	command.Dir = fixture.project
-	// Dependency resolution prepares the fixture; it is not a GoDj product
-	// command. The actual makemigrations and migrate invocations below still
-	// force GOPROXY=off. Keeping setup on the ambient configured proxy avoids
-	// making a cold runner's incidental module-cache contents part of the
-	// product contract.
-	command.Env = fixture.environment(nil)
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("tidy SQLite e2e project: %v\n%s", err, output)
-	}
 }
 
 func actualE2EAppliedMigrations(t *testing.T, databasePath string) []migrationbackend.AppliedMigration {

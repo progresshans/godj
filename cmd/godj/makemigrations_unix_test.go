@@ -6,10 +6,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/internal/projectcheck"
@@ -17,30 +15,7 @@ import (
 
 func TestActualGodjMakemigrationsDryRunIsDeterministicAndReadOnly(t *testing.T) {
 	fixture := newProcessFixture(t)
-	modulePath := filepath.Join(fixture.project, "go.mod")
-	moduleDocument, err := os.ReadFile(modulePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	moduleLines := strings.Split(string(moduleDocument), "\n")
-	filtered := moduleLines[:0]
-	for _, line := range moduleLines {
-		if !strings.HasPrefix(line, "replace golang.org/x/sys => ") {
-			filtered = append(filtered, line)
-		}
-	}
-	if err := os.WriteFile(modulePath, []byte(strings.Join(filtered, "\n")), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fixture.project, "go.sum"), []byte(
-		"golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n"+
-			"golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=\n",
-	), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(fixture.project, "migrations"), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	prepareActualMakemigrationsFixture(t, fixture)
 	before := snapshotProject(t, fixture.project)
 	result := fixture.run(
 		t,

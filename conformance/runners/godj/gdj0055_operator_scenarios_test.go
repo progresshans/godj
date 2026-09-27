@@ -4,6 +4,7 @@ package godj
 
 import (
 	"context"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -19,6 +20,17 @@ import (
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/conformance/internal/protocol"
 )
+
+func TestGDJ0055SystemStateAPIInspectionRejectsInvalidContext(t *testing.T) {
+	if _, err := gdj0055InspectSystemStateAPI(nil); err == nil {
+		t.Fatal("source inspection accepted nil context")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := gdj0055InspectSystemStateAPI(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatal("source inspection did not retain cancellation", err)
+	}
+}
 
 func TestGDJ0055SystemStateAPIInspectionDetectsCallableAliasesAndNestedSecrets(t *testing.T) {
 	fileSet := token.NewFileSet()

@@ -13,7 +13,9 @@ from django.conf import settings
 from django.urls import NoReverseMatch, Resolver404, path, resolve, reverse
 from django.urls import base, converters, resolvers
 
-assert django.get_version() == "6.1" and platform.python_version() == "3.14.3"
+# The pinned fixture uses CPython 3.14.3. Compatibility runs record their
+# actual interpreter while comparing the same Django behavior and sources.
+assert django.get_version() == "6.1"
 assert not settings.configured
 settings.configure(SECRET_KEY="url-only-reference", USE_I18N=False)
 urlconf = types.ModuleType("string_reference_urls")

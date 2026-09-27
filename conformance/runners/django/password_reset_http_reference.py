@@ -21,7 +21,9 @@ from unittest.mock import patch
 import django
 from django.conf import settings
 
-assert django.get_version() == "6.1" and platform.python_version() == "3.14.3"
+# The pinned fixture uses CPython 3.14.3. Compatibility runs record their
+# actual interpreter while comparing the same Django behavior and sources.
+assert django.get_version() == "6.1"
 assert not settings.configured
 with tempfile.TemporaryDirectory(prefix="godj-reset-http-reference-") as directory:
     database = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(Path(directory) / "reference.sqlite3")}

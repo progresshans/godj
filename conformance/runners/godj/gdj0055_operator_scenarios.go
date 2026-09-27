@@ -5,6 +5,7 @@ package godj
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -13,18 +14,23 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/gobuild"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
+	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -226,9 +232,10 @@ type gdj0055SystemStateAPIFacts struct {
 // than trusting runtime function values. Package-level function variables and
 // wrapper entrypoints therefore remain visible to the current-only ABI probe.
 type gdj0055SourceImporter struct {
+	context        context.Context
 	repositoryRoot string
 	fileSet        *token.FileSet
-	standard       types.Importer
+	compiled       types.Importer
 	packages       map[string]*types.Package
 	loading        map[string]bool
 }
@@ -238,16 +245,19 @@ func (source *gdj0055SourceImporter) Import(path string) (*types.Package, error)
 }
 
 func (source *gdj0055SourceImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
+	if err := source.context.Err(); err != nil {
+		return nil, err
+	}
 	if loaded := source.packages[path]; loaded != nil {
 		return loaded, nil
 	}
 	if !strings.HasPrefix(path, gdj0055ModulePath+"/") {
 		var loaded *types.Package
 		var err error
-		if from, ok := source.standard.(types.ImporterFrom); ok {
+		if from, ok := source.compiled.(types.ImporterFrom); ok {
 			loaded, err = from.ImportFrom(path, "", 0)
 		} else {
-			loaded, err = source.standard.Import(path)
+			loaded, err = source.compiled.Import(path)
 		}
 		if err != nil {
 			return nil, err
@@ -302,17 +312,73 @@ func (source *gdj0055SourceImporter) ImportFrom(path, _ string, _ types.ImportMo
 	return loaded, nil
 }
 
-func gdj0055InspectSystemStateAPI() (gdj0055SystemStateAPIFacts, error) {
+// The default go/types importer searches installed GOPATH packages, not the
+// current module's dependency graph. Resolve compiler exports through the
+// native Go toolchain while continuing to inspect GoDj itself from source.
+func gdj0055CompiledDependencies(ctx context.Context, root string, files *token.FileSet) (types.Importer, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(ctx, "go", "list", "-deps", "-export", "-json=ImportPath,Export", "./systemstate")
+	command.Dir = root
+	command.Env = testenv.OfflineGo(os.Environ(), "-mod=readonly")
+	command.WaitDelay = 5 * time.Second
+	var output, diagnostic gobuild.Capture
+	command.Stdout, command.Stderr = &output, &diagnostic
+	if err := command.Run(); err != nil {
+		return nil, fmt.Errorf("resolve GDJ-0055 module exports: %w", &gobuild.Error{Cause: errors.Join(err, ctx.Err()), Diagnostic: gobuild.Summary(output.Bytes(), diagnostic.Bytes(), command.Env)})
+	}
+	if output.Len() != len(output.Bytes()) || diagnostic.Len() != 0 {
+		return nil, errors.New("GDJ-0055 module export inventory was truncated or had diagnostics")
+	}
+	exports := make(map[string]string)
+	decoder := json.NewDecoder(bytes.NewReader(output.Bytes()))
+	for {
+		var entry struct{ ImportPath, Export string }
+		if err := decoder.Decode(&entry); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("decode GDJ-0055 module export inventory: %w", err)
+		}
+		if entry.ImportPath == "" || entry.Export != "" && !filepath.IsAbs(entry.Export) || exports[entry.ImportPath] != "" {
+			return nil, errors.New("invalid GDJ-0055 module export inventory")
+		}
+		if entry.Export != "" {
+			exports[entry.ImportPath] = entry.Export
+		}
+	}
+	if exports[gdj0055ModulePath+"/systemstate"] == "" {
+		return nil, errors.New("GDJ-0055 module export inventory omitted systemstate")
+	}
+	return importer.ForCompiler(files, "gc", func(path string) (io.ReadCloser, error) {
+		if exports[path] == "" {
+			return nil, fmt.Errorf("GDJ-0055 dependency %q has no current compiler export", path)
+		}
+		return os.Open(exports[path])
+	}), nil
+}
+
+func gdj0055InspectSystemStateAPI(ctx context.Context) (gdj0055SystemStateAPIFacts, error) {
+	if ctx == nil {
+		return gdj0055SystemStateAPIFacts{}, errors.New("GDJ-0055 source inspection context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return gdj0055SystemStateAPIFacts{}, err
+	}
 	repositoryRoot, err := systemStateRepositoryRoot()
 	if err != nil {
 		return gdj0055SystemStateAPIFacts{}, err
 	}
 	loader := &gdj0055SourceImporter{
+		context:        ctx,
 		repositoryRoot: repositoryRoot,
 		fileSet:        token.NewFileSet(),
-		standard:       importer.Default(),
 		packages:       make(map[string]*types.Package),
 		loading:        make(map[string]bool),
+	}
+	loader.compiled, err = gdj0055CompiledDependencies(ctx, repositoryRoot, loader.fileSet)
+	if err != nil {
+		return gdj0055SystemStateAPIFacts{}, err
 	}
 	loaded, err := loader.Import(gdj0055ModulePath + "/systemstate")
 	if err != nil {
@@ -474,7 +540,7 @@ func gdj0055ExplicitOperatorProvisioning(
 	}
 	afterDefinition := systemstate.InitialDefinitionSource().Document
 
-	apiFacts, err := gdj0055InspectSystemStateAPI()
+	apiFacts, err := gdj0055InspectSystemStateAPI(ctx)
 	if err != nil {
 		return protocol.Observation{}, err
 	}

@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -372,7 +373,24 @@ func newProcessFixture(t *testing.T) processFixture {
 	// candidate verifier may expose this ambient cache's immutable download
 	// subtree as a file:// module proxy, including while GOPROXY=off.
 	fixture.baseEnv["GOMODCACHE"] = strings.TrimSpace(string(moduleCacheBytes))
+	tidyActualE2EProject(t, fixture)
 	return fixture
+}
+
+func tidyActualE2EProject(t *testing.T, fixture processFixture) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(ctx, "go", "mod", "tidy")
+	command.Dir = fixture.project
+	command.WaitDelay = 5 * time.Second
+	// Resolve this external project's real transitive dependencies before any
+	// product invocation or read-only snapshot. Product commands still build
+	// offline in their own private module cache and must not rewrite the locks.
+	command.Env = fixture.environment(nil)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("prepare external project dependencies: %v\n%s", err, output)
+	}
 }
 
 func (fixture processFixture) run(t *testing.T, cwd string, extra map[string]string, args ...string) commandResult {

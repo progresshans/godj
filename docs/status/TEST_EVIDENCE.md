@@ -3,6 +3,61 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — reset 소비자 Hosted 통합에서 발견한 실행 기반 수정
+
+`e3ec9a2a75f6983d8e71ea8842aa8f924609575a`의 [Hosted Fast 36345090890](https://github.com/progresshans/godj/actions/runs/36345090890)는
+실제 Fast Go feedback까지 성공했다. 같은 source의 [Hosted full 36345110007](https://github.com/progresshans/godj/actions/runs/36345110007)에서는
+아래 네 결함을 확인했고 전체 성공으로 기록하지 않는다. 실패 로그를 보존하고 남아 있던 실행을 중단했으며 최종 상태는 `cancelled`다.
+
+1. `go mod download all`이 체크섬 7개를 추가해 여러 owner의 clean-worktree 검사가 실패했다.
+   별도 manifest 복사본에서 같은 7개를 재현하고 공식 Go module proxy/checksum DB로 검증해 `go.sum`에 반영했다.
+   `go.mod`와 선택한 version은 바꾸지 않았다. 반복 offline download가 두 lock 파일을 바꾸지 않고 `go mod verify`도 통과했다.
+2. 실제 CLI용 외부 fixture가 x/sys만 준비하던 가정 때문에 새 `mail`의 IDNA 의존성을 readonly build에서 찾지 못했다.
+   모든 공통 fixture의 실행 전 현재 프로젝트를 `go mod tidy`로 준비하고 makemigrations도 수동 x/sys-only checksum 덮어쓰기를 없앴다.
+   준비와 제품 실행을 구분하며 제품의 private cache·offline·readonly·무변경 검사는 유지한다.
+3. SYS-021의 source API probe는 기본 go/types importer가 GOPATH만 조회해 x/net/idna를 찾지 못했다.
+   native `go list -deps -export`의 bounded inventory로 dependency export를 로드하고 GoDj 자체는 여전히 현재 source를 type-check한다.
+   Context/timeout·취소·진단/잘림 거부를 추가했으며 callable alias·wrapper·nested secret 검사는 유지한다.
+4. Reset HTTP와 문자열 routing의 새 native observer가 CPython 3.14.3만 허용해 다른 세 compatibility runtime에서 실행 전에 실패했다.
+   Django 6.1과 source hash·행동 비교를 유지하면서 실제 interpreter metadata를 기록한다. 고정 fixture의 Python은 여전히 3.14.3이며
+   compatibility 결과를 고정 reference로 다시 쓰지 않는다. 두 observer와 해당 test만 수정했고 fixture는 그대로다.
+
+Go 보완 checkpoint source map `c9fd11e166c2a83a71124318524a41931a63ff60dd2c183104ba41a4c85dad76`의
+시작/종료 동일성을 확인했다. **3 packages / 12 roots / 31 필수 항목**이며 일반 CLI의 25개, PostgreSQL 실제 generated migrate/restart 1개,
+source probe 4개, 실제 godjcheck 30-contract 소비자의 1개 검사를 각 모드에서 실행했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 31 PASS / skip 0 | 104.991초 |
+| race | 31 PASS / skip 0 | 128.463초 |
+| CGO=0 | 31 PASS / skip 0 | 99.868초 |
+
+합계 **93 PASS / skip 0**이며 Darwin arm64 / Go 1.26.5 / offline readonly / `TZ=Pacific/Chatham`을 사용했다.
+PostgreSQL 17.10 UTF8/libc/C의 필수 실제 DB 실행과 마지막 **0|0|0** 상태를 확인했다.
+Linux deleted-CWD의 3개 경로는 이 Darwin scope에서 제외하고 Hosted Linux가 소유한다. Restart helper 2개는
+독립 root 성공을 요구하지 않고 실제 SQLite/PostgreSQL 부모의 별도 process 실행·종료·durable 상태 확인으로 검증했다.
+초기 scope가 이 helper/OS 전용 root와 미설정 PostgreSQL을 섞어 **6 skip**을 낸 inventory 실패는 `checkpoint/`에 그대로 보존했다.
+수정된 명시적 scope는 `checkpoint-with-postgres/`의 전체 required run/pass·package 완료·skip 0을 확인했다.
+
+마지막 DB 상태 검사는 통과했으나 임시 harness의 container 이름 변수를 실행 label로 덮어쓴 탓에 최초 종료 명령이 실패했다.
+원래 false receipt를 보존하고, 해당 private container의 정확한 ID로 종료한 뒤 비동기 제거 완료를 재조회했다.
+`cleanup-recovery.json`은 원래 모든 test/inventory 성공·source 불변과 실제 container 부재를 결합한 최종 정리 근거다.
+제품/test code의 실패를 이 정리 복구로 바꾸지 않았다.
+
+기본 importer로 되돌리기와 CLI dependency 준비 생략의 **2개 Go overlay**는 각각 지정된 실제 source-probe/CLI assertion으로 실패했다.
+새 nil/canceled context 검사와 영향 vet, 두 attestation의 native dependency 대조도 통과했다.
+
+Python 변경은 두 observer/test와 기존 세 fixture를 별도 경로에 복사해 검증했다. Package initializer는 원본도 docstring뿐이며,
+네 수정 파일의 검증 SHA를 그대로 현재 작업 사본에 반영했다. Django **6.1**, DRF **3.18.0**, asgiref **3.12.1**, sqlparse **0.5.5**를
+격리 환경에 고정하고 설치된 CPython **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **4 tests / skip 0**을 통과했다.
+원래 3.13.15의 version assertion 실패도 별도로 재현·보존했다. 각 실행은 hash-seed 재생, 원본 source hash와 동작 비교 및
+CSRF·proof cleanup·auto-login·string converter의 native mutation 검출을 유지했다. 이 영향 16 tests를 전체 Python suite로 표현하지 않는다.
+
+최종 source map `6151fbbecc0b5f0d9dc2452f3f6155b2ea837a83be41c24dffd558900fb0af69` (**2,568 파일**)의
+Go checkpoint 이후 delta는 위 네 Python 파일뿐이다. Reference fixture와 Go source는 해당 검증 byte를 그대로 유지했다.
+원본/receipt·최종 inventory·control·Python source/run은 `godj-many-to-many-reference-4sl0bvdp/reset-full-repair-1790538236761337000`에 있다.
+선행 Hosted run/jobs/실패 로그는 reset-consumer checkpoint의 `hosted/`에 있다. 수정 source의 새 Hosted 전체와 새 capture는 다음 검증이다.
+
 ## GDJ-0100 — 공개 password reset Form·JSON과 독립 client
 
 2026-09-28, `95e3c0f0` 이후 실제 email request·hidden-token entry·confirmation Form과 JSON/OpenAPI를 연결했다.

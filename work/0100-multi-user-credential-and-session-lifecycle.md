@@ -136,3 +136,8 @@ no-store/no-referrer·자동 로그인 없음·unknown 무재시도를 구현했
 실제 최종 저장 검증을 통과했다. 기존 문단의 후속 공개 reset 소비자 연결은 이 구현으로 충족했으며,
 다음은 이 source의 Hosted 전체 credential lifecycle 통합 milestone이다. 전체 UserCreationForm과 다른 인증 provider,
 운영 mail provider 검증은 남아 있다. 환경별 세부 결과와 초기 client fixture 실패는 TEST_EVIDENCE 한 곳에 기록한다.
+
+Reset 소비자 source `e3ec9a2a`의 Fast는 성공했으나 Hosted 전체에서 checksum 누락·외부 CLI fixture의 의존성 준비,
+API 관찰 도구의 module lookup·Python observer의 고정 runtime 가정이 드러났다. 관련 실행 기반을 수정하고
+Go 영향 세 모드·실제 PostgreSQL/CLI와 Python 네 버전을 검증했다. 현재 요구는 수정 source의 새 Hosted 전체 통합이다.
+필수 gate를 완화하거나 이전 capture를 재사용하지 않는다. 상세 원인·선행 실패·환경별 결과는 TEST_EVIDENCE를 따른다.

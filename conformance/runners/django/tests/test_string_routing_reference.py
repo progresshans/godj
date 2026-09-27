@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 from pathlib import Path
 import subprocess
 import sys
@@ -13,14 +14,19 @@ class StringRoutingReferenceTests(unittest.TestCase):
     def observe(self, seed="0", mutation=""):
         command = mutation + f"\nimport runpy; runpy.run_module({RUNNER!r},run_name='__main__')"
         result = subprocess.run([sys.executable, "-W", "error", "-c", command], cwd=ROOT,
-                                env=os.environ | {"PYTHONHASHSEED": seed}, capture_output=True, check=True, timeout=30)
+                                env=os.environ | {"PYTHONHASHSEED": seed}, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
         self.assertEqual(result.stderr, b"")
         return json.loads(result.stdout)
 
     def test_fixture_and_seed(self):
         actual = self.observe()
         self.assertEqual(actual, self.observe("817"))
-        self.assertEqual(actual, json.loads((ROOT / "web/testdata/string-routing-django61.json").read_text()))
+        expected = json.loads((ROOT / "web/testdata/string-routing-django61.json").read_text())
+        self.assertEqual(expected["python"], "3.14.3")
+        self.assertEqual(actual["python"], platform.python_version())
+        self.assertEqual({key: value for key, value in actual.items() if key != "python"},
+                         {key: value for key, value in expected.items() if key != "python"})
         self.assertEqual(len(actual["observations"]), 24)
         self.assertEqual(len(actual["source_sha256"]), 3)
 
