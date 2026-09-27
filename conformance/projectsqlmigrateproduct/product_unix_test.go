@@ -3,17 +3,29 @@
 package projectsqlmigrateproduct_test
 
 import (
+	"database/sql"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 const (
 	sqlProductAuthorOutput  = "CREATE TABLE \"authors_author\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" VARCHAR(100) NOT NULL);\n"
 	sqlProductArticleOutput = "CREATE TABLE \"blog_article\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"title\" VARCHAR(200) NOT NULL);\n"
-	sqlProductEnrichOutput  = "ALTER TABLE \"blog_article\" ADD COLUMN \"summary\" VARCHAR(120) NULL;\n" +
-		"ALTER TABLE \"blog_article\" ADD COLUMN \"published\" BOOLEAN NOT NULL;\n"
+	// Backfill the declared scalar without installing a permanent database default.
+	sqlProductEnrichOutput = `ALTER TABLE "blog_article" ADD COLUMN "summary" VARCHAR(120) NULL;
+CREATE TABLE "main"."__godj_relation_d77de4212990572c261a229a1cdaf026" ("id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "title" VARCHAR(200) NOT NULL, "summary" VARCHAR(120) NULL, "published" BOOLEAN NOT NULL);
+INSERT INTO "main"."__godj_relation_d77de4212990572c261a229a1cdaf026" ("id", "title", "summary", "published") SELECT "id", "title", "summary", 0 FROM "main"."blog_article" ORDER BY "id";
+INSERT INTO "main"."sqlite_sequence" ("name", "seq") SELECT '__godj_relation_d77de4212990572c261a229a1cdaf026', "seq" FROM "main"."sqlite_sequence" WHERE "name" = 'blog_article' AND NOT EXISTS (SELECT 1 FROM "main"."sqlite_sequence" WHERE "name" = '__godj_relation_d77de4212990572c261a229a1cdaf026');
+UPDATE "main"."sqlite_sequence" SET "seq" = (SELECT "seq" FROM "main"."sqlite_sequence" WHERE "name" = 'blog_article') WHERE "name" = '__godj_relation_d77de4212990572c261a229a1cdaf026' AND EXISTS (SELECT 1 FROM "main"."sqlite_sequence" WHERE "name" = 'blog_article');
+DELETE FROM "main"."sqlite_sequence" WHERE "name" = '__godj_relation_d77de4212990572c261a229a1cdaf026' AND NOT EXISTS (SELECT 1 FROM "main"."sqlite_sequence" WHERE "name" = 'blog_article');
+DROP TABLE "main"."blog_article";
+ALTER TABLE "main"."__godj_relation_d77de4212990572c261a229a1cdaf026" RENAME TO "blog_article";
+`
 )
 
 func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
@@ -50,6 +62,43 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		sqlProductAssertSuccess(t, article, sqlProductArticleOutput, project.sensitive(articleState)...)
 		sqlProductAssertMarker(t, articleState.initMarker, "init")
 		sqlProductAssertMarker(t, articleState.rendererMarker, "render")
+		// Apply the real external output to a populated independent database.
+		// The deleted high ID verifies that the remake retains sequence history.
+		database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "rendered.sqlite3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if err := database.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
+		database.SetMaxOpenConns(1)
+		for _, statement := range []string{article.stdout,
+			`INSERT INTO "blog_article" ("id", "title") VALUES (1, 'retained'), (19, 'deleted'); DELETE FROM "blog_article" WHERE "id" = 19;`,
+			implicit.stdout} {
+			if _, err := database.ExecContext(t.Context(), statement); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var id int64
+		var title string
+		var summary sql.NullString
+		var published bool
+		if err := database.QueryRowContext(t.Context(), `SELECT "id", "title", "summary", "published" FROM "blog_article"`).Scan(&id, &title, &summary, &published); err != nil || id != 1 || title != "retained" || summary.Valid || published {
+			t.Fatalf("rendered backfill did not preserve the retained row: %v", err)
+		}
+		if _, err := database.ExecContext(t.Context(), `INSERT INTO "blog_article" ("title") VALUES ('must fail')`); err == nil {
+			t.Fatal("rendered scalar backfill left a permanent default")
+		}
+		var defaultSQL sql.NullString
+		if err := database.QueryRowContext(t.Context(), `SELECT dflt_value FROM pragma_table_info('blog_article') WHERE name = 'published'`).Scan(&defaultSQL); err != nil || defaultSQL.Valid {
+			t.Fatalf("rendered backfill column default: %v", err)
+		}
+		if err := database.QueryRowContext(t.Context(), `INSERT INTO "blog_article" ("title", "published") VALUES ('next', TRUE) RETURNING "id"`).Scan(&id); err != nil || id != 20 {
+			t.Fatalf("rendered backfill sequence id=%d: %v", id, err)
+		}
+
 	})
 
 	t.Run("literal zero is an exact empty migration", func(t *testing.T) {

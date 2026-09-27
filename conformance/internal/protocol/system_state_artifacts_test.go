@@ -644,7 +644,7 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 	legacy := contract.ID <= "SYS-012"
 	multiRuntime := contract.ID >= "SYS-013" && contract.ID <= "SYS-020"
 	operator := contract.ID >= "SYS-021" && contract.ID <= "SYS-030"
-	if contract.ID != "SYS-028" && identityADRCount != 0 {
+	if contract.ID != "SYS-023" && contract.ID != "SYS-028" && identityADRCount != 0 {
 		t.Fatalf("contract %s unexpectedly carries ADR-0076", contract.ID)
 	}
 	if legacy && (adrCount != 1 || multiRuntimeADRCount != 0 || operatorADRCount != 0) {
@@ -657,6 +657,9 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		wantProvenance := 1
 		wantDjango := 0
 		wantOperatorADR, wantIdentityADR := 1, 0
+		if contract.ID == "SYS-023" {
+			wantProvenance, wantIdentityADR = 2, 1
+		}
 		if contract.ID == "SYS-028" {
 			wantOperatorADR, wantIdentityADR = 0, 1
 		}

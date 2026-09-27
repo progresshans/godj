@@ -29,6 +29,7 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/systemstate"
 )
@@ -428,18 +429,15 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-			Document: document,
-		},
-		systemstate.InitialDefinitionSource(),
-	)
+	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{
+		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document,
+	})
+	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 5 || report.HeadersValidated != 5 || report.OperationsDecoded != 9 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 5 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system initial migration load report = %+v", report)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -704,6 +702,20 @@ func assertAdvancedArticleResponse(t *testing.T, body string) {
 	}
 }
 
+func assertRunserverMigrationHistory(t *testing.T, history []migrationbackend.AppliedMigration) {
+	t.Helper()
+	want := []migrationbackend.AppliedMigration{
+		{App: "godj_conformance", Name: "0001_initial"},
+		{App: "godj_identity", Name: "0001_initial"},
+		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_system", Name: "0001_initial"},
+		{App: "godj_system", Name: "0002_identity_transition"},
+	}
+	if !reflect.DeepEqual(history, want) {
+		t.Fatalf("durable Article migration history = %+v, want %+v", history, want)
+	}
+}
+
 func verifyRunserverArticleDatabase(t *testing.T, databasePath string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -720,12 +732,7 @@ func verifyRunserverArticleDatabase(t *testing.T, databasePath string) {
 	if err := errors.Join(historyErr, articleErr, closeErr); err != nil {
 		t.Fatalf("inspect durable Article SQLite database: %v", err)
 	}
-	systemMigration := systemstate.InitialMigrationKey()
-	if len(history) != 2 ||
-		history[0].App != "godj_conformance" || history[0].Name != "0001_initial" ||
-		history[1].App != systemMigration.App || history[1].Name != systemMigration.Name {
-		t.Fatalf("durable Article migration history = %+v", history)
-	}
+	assertRunserverMigrationHistory(t, history)
 	expected := []struct {
 		id        int64
 		title     string
@@ -901,17 +908,24 @@ func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []st
 		t.Fatalf("read runserver Go build audit: %v", err)
 	}
 	lines := bytes.Split(bytes.TrimSpace(payload), []byte{'\n'})
-	if len(lines) != len(wantPackages) {
-		t.Fatalf("runserver Go build audit calls = %d, want %d: %s", len(lines), len(wantPackages), payload)
-	}
+	buildIndex := 0
 	for index, line := range lines {
 		var arguments []string
 		if err := json.Unmarshal(line, &arguments); err != nil {
-			t.Fatalf("decode runserver Go build audit %d: %v", index, err)
+			t.Fatalf("decode runserver Go command audit %d: %v", index, err)
 		}
-		if len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[index] {
-			t.Fatalf("runserver Go build audit %d = %q, want exact readonly build for %q", index, arguments, wantPackages[index])
+		// Reusable identity models resolve their package directory read-only.
+		// Only this exact metadata query is allowed alongside binary builds.
+		if reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}) {
+			continue
 		}
+		if buildIndex >= len(wantPackages) || len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[buildIndex] {
+			t.Fatalf("runserver Go command audit %d = %q, want the next exact readonly binary build", index, arguments)
+		}
+		buildIndex++
+	}
+	if buildIndex != len(wantPackages) {
+		t.Fatalf("runserver binary build count = %d, want %d", buildIndex, len(wantPackages))
 	}
 }
 

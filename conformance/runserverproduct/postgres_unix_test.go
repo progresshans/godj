@@ -113,18 +113,15 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-			Document: document,
-		},
-		systemstate.InitialDefinitionSource(),
-	)
+	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{
+		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document,
+	})
+	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system PostgreSQL initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 5 || report.HeadersValidated != 5 || report.OperationsDecoded != 9 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 5 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system PostgreSQL initial migration load report = %+v", report)
 	}
 
@@ -327,12 +324,7 @@ func verifyRunserverArticlePostgresDatabase(t *testing.T, databaseURL, schema st
 	if err := errors.Join(historyErr, articleErr, closeErr); err != nil {
 		t.Fatalf("inspect durable Article PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
-	systemMigration := systemstate.InitialMigrationKey()
-	if len(history) != 2 ||
-		history[0].App != "godj_conformance" || history[0].Name != "0001_initial" ||
-		history[1].App != systemMigration.App || history[1].Name != systemMigration.Name {
-		t.Fatalf("durable Article PostgreSQL migration history = %+v", history)
-	}
+	assertRunserverMigrationHistory(t, history)
 	expected := runserverPostgresArticleFixtures()
 	if len(articles) != len(expected) {
 		t.Fatalf("durable Article PostgreSQL rows = %d, want %d", len(articles), len(expected))

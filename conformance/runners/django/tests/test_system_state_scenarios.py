@@ -83,6 +83,28 @@ class SystemStateScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "current ADR-0056 documentation"):
             _validate_contract_authority(stale_adr)
 
+        for index in (22, 27):
+            with self.subTest(identity_contract=contracts[index]["id"]):
+                missing_identity = deepcopy(contracts)
+                missing_identity[index]["provenance"] = [
+                    item for item in missing_identity[index]["provenance"]
+                    if item["reference"] != "ADR-0076"
+                ]
+                with self.assertRaises(RuntimeError):
+                    _validate_contract_authority(missing_identity)
+                stale_identity = deepcopy(contracts)
+                for item in stale_identity[index]["provenance"]:
+                    if item["reference"] == "ADR-0076":
+                        item["kind"] = "proposal"
+                with self.assertRaises(RuntimeError):
+                    _validate_contract_authority(stale_identity)
+        escaped_identity = deepcopy(contracts)
+        escaped_identity[21]["provenance"].append(
+            {"kind": "documentation", "reference": "ADR-0076", "derived": False}
+        )
+        with self.assertRaises(RuntimeError):
+            _validate_contract_authority(escaped_identity)
+
         stale_deviation = deepcopy(contracts)
         stale_deviation[8]["provenance"][1]["kind"] = "proposal"
         with self.assertRaisesRegex(RuntimeError, "DEV-0008 decision"):

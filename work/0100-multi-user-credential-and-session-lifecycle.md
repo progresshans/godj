@@ -69,7 +69,11 @@ password/session·PROTECT/CASCADE를 검증했다. 전체 UserCreationForm valid
 양 DB의 실제 생성·로그인·수정·bootstrap/adoption, PTY·독립 generated client와 실패/negative control을 검증했다.
 내장 네 password validator와 명시적 API 정책·Article 공통 Admin/API 설정을 구현하고 영향 checkpoint를 통과했다.
 독립 Django 오류/params·similarity matrix·전체 common 사전, 양 DB의 hash·session/audit·현재 profile fence와 독립 client를 검증했다.
-관리 소비자/입력 경계가 닫힌 이번 source에서 명시한 Hosted 전체 platform/process milestone을 실행한다. 전체 UserCreationForm 호환은 별도 조건이다.
+관리 소비자/입력 경계가 닫힌 `5c2045f4`의 Hosted 전체 platform/process 실행에서 이전 graph/config 소비자와 참조 잠금 누락을 확인했다.
+현재 graph의 독립 기대, 양 DB 재시작의 User/권한/전환 기록과 이전 credential 비활성화,
+scalar backfill SQL 실행, 실제 외부 compiler의 위치 인자 누락 판정과 출처/byte lock을 함께 수정하고 영향 통합 검증을 통과했다.
+수정 source의 Hosted 전체를 다시 검증한다.
+전체 UserCreationForm 호환은 별도 조건이다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

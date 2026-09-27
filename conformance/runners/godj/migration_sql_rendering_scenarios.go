@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -19,12 +20,14 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	"github.com/progresshans/godj/internal/gobuild"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
@@ -1013,6 +1016,7 @@ type migrationSQLRenderingProcessEvidence struct {
 	runnerPID                 int
 	childPID                  int
 	externalProjectBuilt      bool
+	incompleteUnkeyedRejected bool
 	credentialValuesPublished int
 }
 
@@ -1107,6 +1111,10 @@ func migrationSQLRenderingRunProcesses(
 		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("empty SQL migration process = report:%+v stdout:%q stderr:%q", empty.report, empty.stdout.String(), empty.stderr.String())
 	}
 
+	unkeyedRejected, err := migrationSQLRenderingCompileUnkeyed(ctx, projectFixture, migrationSQLRenderingUnkeyedSource(false))
+	if err != nil {
+		return migrationSQLRenderingProcessEvidence{}, err
+	}
 	phaseContext, cancelPhase := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
 	defer cancelPhase()
 	runnerContext, cancelRunner := context.WithCancel(phaseContext)
@@ -1174,7 +1182,8 @@ func migrationSQLRenderingRunProcesses(
 		processGroupAbsent: true,
 		cancellationReport: canceled.report, cancellationStdout: append([]byte(nil), canceled.stdout.Bytes()...),
 		cancellationStderr: append([]byte(nil), canceled.stderr.Bytes()...), runnerPID: runnerPID, childPID: childPID,
-		externalProjectBuilt: fresh.report.BuildCalls == 1 && empty.report.BuildCalls == 1 && canceled.report.BuildCalls == 1,
+		externalProjectBuilt:      fresh.report.BuildCalls == 1 && empty.report.BuildCalls == 1 && canceled.report.BuildCalls == 1,
+		incompleteUnkeyedRejected: unkeyedRejected,
 		credentialValuesPublished: migrationSQLRenderingCredentialOccurrences(
 			fresh.stdout.Bytes(), fresh.stderr.Bytes(), empty.stdout.Bytes(), empty.stderr.Bytes(), canceled.stdout.Bytes(), canceled.stderr.Bytes(),
 		),
@@ -1241,6 +1250,89 @@ func migrationSQLRenderingCredentialOccurrences(documents ...[]byte) int {
 		count += bytes.Count(document, []byte(migrationSQLRenderingCredentialCanary))
 	}
 	return count
+}
+
+// Construct type-correct zero values for the current public fields. The
+// observation comes from the external compiler, not from a field-count test.
+// Omitting the final argument models a positional caller missing an added field.
+func migrationSQLRenderingUnkeyedSource(complete bool) string {
+	config := reflect.TypeOf(project.Config{})
+	values := make([]string, 0, config.NumField())
+	for index := 0; index < config.NumField(); index++ {
+		if !complete && index == config.NumField()-1 {
+			break
+		}
+		values = append(values, "(project.Config{})."+config.Field(index).Name)
+	}
+	return "package unkeyed\nimport \"github.com/progresshans/godj/project\"\nvar _ = project.Config{" + strings.Join(values, ",") + "}\n"
+}
+
+func migrationSQLRenderingCompileUnkeyed(ctx context.Context, fixture migrationCommandProject, source string) (bool, error) {
+	if ctx == nil {
+		return false, errors.New("external config compilation context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	directory := filepath.Join(fixture.root, "unkeyed")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return false, errors.New("create external config compile fixture")
+	}
+	if err := writeMigrationCommandActualFile(filepath.Join(directory, "config.go"), []byte(source)); err != nil {
+		return false, err
+	}
+	phase, cancel := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
+	defer cancel()
+	environment := migrationSQLRenderingProcessEnvironment(os.Environ())
+	environment["GOCACHE"] = filepath.Join(fixture.universe, "config-cache")
+	if err := os.MkdirAll(environment["GOCACHE"], 0o700); err != nil {
+		return false, errors.New("create private config compile cache")
+	}
+	for key, value := range map[string]string{"GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off", "GOFLAGS": "", "GOCACHEPROG": "", "GOPROXY": "off", "GOSUMDB": "off"} {
+		environment[key] = value
+	}
+	if value := os.Getenv("CGO_ENABLED"); value != "" {
+		environment["CGO_ENABLED"] = value
+	}
+	command := exec.CommandContext(phase, "go", "build", "-buildvcs=false", "-mod=readonly", "-trimpath", "-o", filepath.Join(fixture.universe, "config.a"), "./unkeyed")
+	command.Dir = fixture.root
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		if command.Process == nil {
+			return os.ErrProcessDone
+		}
+		err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		if errors.Is(err, syscall.ESRCH) {
+			return os.ErrProcessDone
+		}
+		return err
+	}
+	command.WaitDelay = 5 * time.Second
+	command.Env = gobuild.Environment(migrationCommandSortedEnvironment(environment), os.Environ(), fixture.root)
+	var stdout, stderr gobuild.Capture
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
+	if command.Process != nil {
+		cleanup, cancelCleanup := context.WithTimeout(context.Background(), 10*time.Second)
+		cleanupErr := migrationCommandWaitForProcessGroupAbsent(cleanup, command.Process.Pid)
+		cancelCleanup()
+		if cleanupErr != nil {
+			return false, errors.Join(phase.Err(), cleanupErr)
+		}
+	}
+	if phase.Err() != nil {
+		return false, phase.Err()
+	}
+	if err == nil {
+		return false, nil
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 && stdout.Len() == 0 && stderr.Len() == len(stderr.Bytes()) && bytes.Contains(stderr.Bytes(), []byte("unkeyed/config.go:")) && (bytes.Contains(stderr.Bytes(), []byte("too few values in struct literal of type project.Config")) ||
+		bytes.Contains(stderr.Bytes(), []byte(`too few values in struct literal of type "github.com/progresshans/godj/project".Config`))) {
+		return true, nil
+	}
+	return false, fmt.Errorf("external config compiler failed without the required arity diagnostic: %w", &gobuild.Error{Cause: err, Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env)})
 }
 
 func newMigrationSQLRenderingActualProject() (migrationCommandProject, error) {
@@ -2232,7 +2324,7 @@ func migrationSQLRenderingExternalConfig(ctx context.Context, contract protocol.
 		}),
 		protocol.Object(map[string]protocol.Value{
 			"case":                                protocol.String("unkeyed_project_config_source_impact"),
-			"current_only_source_change_observed": protocol.Boolean(configType.NumField() == 7),
+			"current_only_source_change_observed": protocol.Boolean(processEvidence.incompleteUnkeyedRejected),
 			"repository_external":                 protocol.Boolean(true),
 		}),
 	}

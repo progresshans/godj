@@ -1097,13 +1097,14 @@ func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend mi
 		t.Fatalf("read restart migration history: %v", err)
 	}
 	want := map[migrations.MigrationKey]bool{
-		{App: "godj_conformance", Name: "0001_initial"}:        true,
-		systemstate.InitialMigrationKey():                      true,
-		{App: "godj_identity", Name: "0001_initial"}:           true,
-		{App: "godj_system", Name: "0002_identity_transition"}: true,
+		{App: "godj_conformance", Name: "0001_initial"}:          true,
+		systemstate.InitialMigrationKey():                        true,
+		{App: "godj_identity", Name: "0001_initial"}:             true,
+		{App: "godj_identity", Name: "0002_permission_revision"}: true,
+		{App: "godj_system", Name: "0002_identity_transition"}:   true,
 	}
 	if len(history) != len(want) {
-		t.Fatalf("restart migration history has %d entries, want exactly four", len(history))
+		t.Fatalf("restart migration history has %d entries, want exactly %d", len(history), len(want))
 	}
 	for _, applied := range history {
 		key := migrations.MigrationKey{App: applied.App, Name: applied.Name}

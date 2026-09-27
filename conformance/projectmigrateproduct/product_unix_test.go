@@ -247,7 +247,7 @@ func assertGlobalArticleServerRejectsUnmigratedState(
 		t.Fatal(err)
 	}
 	assertOutputSanitized(t, result, databasePath)
-	const wantStderr = "article site failed: article site application: system state: systemstate: schema_unavailable: migration_history: exact initial system migration is not applied\n" +
+	const wantStderr = "article site failed: article site application: system state: systemstate: schema_unavailable: migration_history: exact identity/system migration graph is not applied\n" +
 		"project_runserver_runtime_error/project_runtime_exited\n"
 	if result.ExitCode != 3 || result.Stdout != "" || result.Stderr != wantStderr ||
 		result.StdoutTruncated || result.StderrTruncated {
@@ -269,15 +269,14 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{SourceID: "migrations/0001_initial.godj.json", Document: document},
-		systemstate.InitialDefinitionSource(),
-	)
+	sources := append(systemstate.IdentityMigrationSources(),
+		migrationdefinition.Source{SourceID: "migrations/0001_initial.godj.json", Document: document})
+	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 5 || report.HeadersValidated != 5 || report.OperationsDecoded != 9 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 5 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -292,6 +291,16 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		}
 		return history[left].Name < history[right].Name
 	})
+	wantHistory := []dbstate.HistoryRow{
+		{App: "godj_conformance", Name: "0001_initial"},
+		{App: "godj_identity", Name: "0001_initial"},
+		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_system", Name: "0001_initial"},
+		{App: "godj_system", Name: "0002_identity_transition"},
+	}
+	if !reflect.DeepEqual(history, wantHistory) {
+		t.Fatalf("current Article graph = %+v, want %+v", history, wantHistory)
+	}
 	digest := decodeSHA256Digest(t, loaded.Digest())
 	return articleCatalogExpectation{
 		Command: migrateResult{
@@ -472,7 +481,7 @@ func assertMigrateSuccess(t *testing.T, result commandResult, expected articleCa
 		t.Fatalf("migrate result = %+v, want %+v", parsed, expected.Command)
 	}
 	if digest := decodeSHA256Digest(t, parsed.DefinitionSetDigest); digest != expected.DefinitionDigest {
-		t.Fatalf("migrate definition digest bytes = %x, want loaded two-source bytes %x", digest, expected.DefinitionDigest)
+		t.Fatalf("migrate definition digest bytes = %x, want loaded Article/identity/system source bytes %x", digest, expected.DefinitionDigest)
 	}
 }
 
@@ -690,10 +699,17 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 	snapshot := inspectDatabase(t, databasePath)
 	wantTables := []string{
 		"godj_conformance_article",
+		"godj_identity_group",
+		"godj_identity_group_permissions",
+		"godj_identity_permission",
+		"godj_identity_user",
+		"godj_identity_user_groups",
+		"godj_identity_user_permissions",
 		"godj_migration_revision",
 		"godj_migrations",
 		"godj_system_audit",
 		"godj_system_credential",
+		"godj_system_identity_transition",
 		"godj_system_session",
 	}
 	if !reflect.DeepEqual(snapshot.Tables, wantTables) {
@@ -771,6 +787,58 @@ func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []str
 
 func expectedColumns() map[string][]columnSnapshot {
 	return map[string][]columnSnapshot{
+		"godj_identity_group": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "name", Type: "VARCHAR(150)", NotNull: 1},
+			{Name: "revision", Type: "BIGINT", NotNull: 1},
+		},
+		"godj_identity_group_permissions": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "source_id", Type: "INTEGER", NotNull: 1},
+			{Name: "target_id", Type: "INTEGER", NotNull: 1},
+		},
+		"godj_identity_permission": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "code", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "name", Type: "VARCHAR(255)", NotNull: 1},
+			{Name: "revision", Type: "BIGINT", NotNull: 1},
+		},
+		"godj_identity_user": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "principal_id", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "username", Type: "VARCHAR(256)", NotNull: 1},
+			{Name: "encoded_password", Type: "VARCHAR(2048)", NotNull: 1},
+			{Name: "first_name", Type: "VARCHAR(150)", NotNull: 1},
+			{Name: "last_name", Type: "VARCHAR(150)", NotNull: 1},
+			{Name: "email", Type: "VARCHAR(254)", NotNull: 1},
+			{Name: "active", Type: "BOOLEAN", NotNull: 1},
+			{Name: "staff", Type: "BOOLEAN", NotNull: 1},
+			{Name: "superuser", Type: "BOOLEAN", NotNull: 1},
+			{Name: "date_joined", Type: "DATETIME", NotNull: 1},
+			{Name: "last_login", Type: "DATETIME"},
+			{Name: "revision", Type: "BIGINT", NotNull: 1},
+		},
+		"godj_identity_user_groups": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "source_id", Type: "INTEGER", NotNull: 1},
+			{Name: "target_id", Type: "INTEGER", NotNull: 1},
+		},
+		"godj_identity_user_permissions": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "source_id", Type: "INTEGER", NotNull: 1},
+			{Name: "target_id", Type: "INTEGER", NotNull: 1},
+		},
+		"godj_system_identity_transition": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "source_kind", Type: "VARCHAR(16)", NotNull: 1},
+			{Name: "source_id", Type: "BIGINT", NotNull: 1},
+			{Name: "principal_id", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "user_id", Type: "BIGINT", NotNull: 1},
+			{Name: "staff", Type: "BOOLEAN", NotNull: 1},
+			{Name: "superuser", Type: "BOOLEAN", NotNull: 1},
+			{Name: "transitioned_at", Type: "DATETIME", NotNull: 1},
+			{Name: "source_fingerprint", Type: "VARCHAR(64)", NotNull: 1},
+		},
 		"godj_conformance_article": {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
 			{Name: "title", Type: "VARCHAR(200)", NotNull: 1},

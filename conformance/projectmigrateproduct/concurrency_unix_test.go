@@ -396,7 +396,6 @@ import (
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/migrations/definition"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
 	"golang.org/x/sys/unix"
@@ -725,7 +724,7 @@ func runMain() int {
 		context.Background(),
 		godjproject.Config{
 			MigrationDefinitionRoots:   []string{"migrations"},
-			MigrationDefinitionSources: []definition.Source{systemstate.InitialDefinitionSource()},
+			MigrationDefinitionSources: systemstate.IdentityMigrationSources(),
 			LoadProjectSpec:            modeldef.ProjectSpec,
 			OpenMigrationBackend: func(ctx context.Context) (godjproject.MigrationBackend, error) {
 				directory := strings.TrimSpace(os.Getenv(barrierEnvironment))

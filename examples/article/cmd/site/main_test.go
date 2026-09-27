@@ -738,9 +738,24 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 		t.Fatalf("explicitly migrate Article site system definition: %v", err)
 	}
 	history, err := backend.ReadAppliedMigrations(ctx)
-	want := systemstate.InitialMigrationKey()
-	if err != nil || len(history) != 3 {
-		t.Fatalf("Article site system migration history = (%+v,%v), want %s.%s", history, err, want.App, want.Name)
+	want := map[migrations.MigrationKey]bool{
+		{App: "godj_system", Name: "0001_initial"}:               true,
+		{App: "godj_system", Name: "0002_identity_transition"}:   true,
+		{App: "godj_identity", Name: "0001_initial"}:             true,
+		{App: "godj_identity", Name: "0002_permission_revision"}: true,
+	}
+	if err != nil || len(history) != len(want) {
+		t.Fatalf("Article identity migration history = (%+v,%v), want exact current identity/system keys", history, err)
+	}
+	for _, applied := range history {
+		key := migrations.MigrationKey{App: applied.App, Name: applied.Name}
+		if !want[key] {
+			t.Fatalf("Article identity migration history contains unexpected or duplicate key %+v", key)
+		}
+		delete(want, key)
+	}
+	if len(want) != 0 {
+		t.Fatalf("Article identity migration history omitted %d required keys", len(want))
 	}
 }
 

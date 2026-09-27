@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
-	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/auth"
 )
 
 type migrationBackend struct{}
@@ -61,7 +61,8 @@ func checkProjectRuntime() error {
 			OpenSystemStateBackend: func(context.Context) (project.SystemStateBackend, error) {
 				return (*sqlite.Backend)(nil), nil
 			},
-			SystemOperatorPolicy: systemstate.CredentialPolicy{},
+			InitialSuperuser: auth.Principal{},
+			PasswordHasher: (auth.PasswordHasher)(nil),
 		},
 		[]string{"__godj_project_runner_v1"},
 		bytes.NewBufferString(`{"protocol_version":1,"command":"migrations.check"}`),

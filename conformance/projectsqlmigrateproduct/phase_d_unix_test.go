@@ -22,7 +22,8 @@ const (
 		"START WITH 1 INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 CACHE 1 NO CYCLE) NOT NULL, " +
 		"\"name\" VARCHAR(100) NOT NULL, CONSTRAINT \"godj_pk_2bbcf95a5d3006979af1c02f365beccad445a3eb1001ec0e\" PRIMARY KEY (\"id\"));\n"
 	sqlProductPostgresEnrichOutput = "ALTER TABLE \"sql_product_schema\".\"blog_article\" ADD COLUMN \"summary\" VARCHAR(120) NULL;\n" +
-		"ALTER TABLE \"sql_product_schema\".\"blog_article\" ADD COLUMN \"published\" BOOLEAN NOT NULL;\n"
+		"ALTER TABLE \"sql_product_schema\".\"blog_article\" ADD COLUMN \"published\" BOOLEAN NOT NULL DEFAULT false;\n" +
+		"ALTER TABLE \"sql_product_schema\".\"blog_article\" ALTER COLUMN \"published\" DROP DEFAULT;\n"
 )
 
 func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {

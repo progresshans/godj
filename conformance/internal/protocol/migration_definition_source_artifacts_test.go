@@ -40,7 +40,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	const gdj0043 = "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa  template-form-oracle.json\n" +
 		"9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc  auth-session-oracle.json\n" +
 		"869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378  article-admin-oracle.json\n"
-	const systemState = "8a400131af5b4805ca1daba5d011657125626f0ccf5c269cf24afae502279568  system-state.json\n"
+	const systemState = "80b8d8629706a500b37461d4914adff746b5dd41eb1f6c497b719f3b03bed752  system-state.json\n"
 	if string(contents) != previous+definitionSource+projectCheck+migrationCommand+migrationWriter+migrationStatus+migrationTargetPlan+migrationSQLRendering+relation+migrationRelation+queryExpression+gdj0043+systemState {
 		t.Fatal("SHA256SUMS does not match the current migration oracle catalog")
 	}

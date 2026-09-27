@@ -102,7 +102,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
-	authenticatedRestartAssertCredentialUnchanged(t, provisionedSnapshot.Credential, phaseASnapshot.Credential)
+	authenticatedRestartAssertDurableIdentityUnchanged(t, provisionedSnapshot, phaseASnapshot)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
 
@@ -133,7 +133,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 		)
 	}
 	phaseBSnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
-	authenticatedRestartAssertCredentialUnchanged(t, phaseASnapshot.Credential, phaseBSnapshot.Credential)
+	authenticatedRestartAssertDurableIdentityUnchanged(t, phaseASnapshot, phaseBSnapshot)
 	authenticatedRestartAssertPhaseBState(t, phaseBSnapshot, username, password, phaseAState, sensitive)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
@@ -252,5 +252,12 @@ func authenticatedRestartInspectPostgres(
 	if err := projectMigratePostgresCloseRows(credentialRows); err != nil {
 		t.Fatalf("finish authenticated restart PostgreSQL credential rows: %v", testfixture.PostgresSafeError(err))
 	}
+	snapshot.Identity = authenticatedRestartReadIdentity(t, func(statement string) (authenticatedRestartRows, func() error, error) {
+		rows, err := connection.Query(ctx, statement)
+		if err != nil {
+			return nil, nil, err
+		}
+		return rows, func() error { rows.Close(); return nil }, nil
+	}, func(name string) string { return pgx.Identifier{schema, name}.Sanitize() })
 	return snapshot
 }

@@ -111,7 +111,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectDatabase(t, databasePath)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
-	authenticatedRestartAssertCredentialUnchanged(t, provisionedSnapshot.Credential, phaseASnapshot.Credential)
+	authenticatedRestartAssertDurableIdentityUnchanged(t, provisionedSnapshot, phaseASnapshot)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 
 	phaseB := authenticatedRestartRunServer(
@@ -140,7 +140,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 		)
 	}
 	phaseBSnapshot := authenticatedRestartInspectDatabase(t, databasePath)
-	authenticatedRestartAssertCredentialUnchanged(t, phaseASnapshot.Credential, phaseBSnapshot.Credential)
+	authenticatedRestartAssertDurableIdentityUnchanged(t, phaseASnapshot, phaseBSnapshot)
 	authenticatedRestartAssertPhaseBState(t, phaseBSnapshot, username, password, phaseAState, sensitive)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 }
@@ -389,6 +389,7 @@ type authenticatedRestartDatabaseSnapshot struct {
 	Sessions   []authenticatedRestartSessionRow
 	Audits     []authenticatedRestartAuditRow
 	Credential []authenticatedRestartCredentialRow
+	Identity   authenticatedRestartIdentityState
 }
 
 func authenticatedRestartExercisePhaseA(
@@ -1275,6 +1276,13 @@ func authenticatedRestartInspectDatabase(t *testing.T, databasePath string) auth
 	if err := errors.Join(credentialRows.Err(), credentialRows.Close()); err != nil {
 		t.Fatal("finish authenticated restart credential rows")
 	}
+	snapshot.Identity = authenticatedRestartReadIdentity(t, func(statement string) (authenticatedRestartRows, func() error, error) {
+		rows, err := database.QueryContext(ctx, statement)
+		if err != nil {
+			return nil, nil, err
+		}
+		return rows, rows.Close, nil
+	}, func(name string) string { return `"` + name + `"` })
 	return snapshot
 }
 
@@ -1290,7 +1298,7 @@ func authenticatedRestartAssertPhaseAState(
 		{ID: 1, Title: "API durable", Published: true, Summary: sql.NullString{String: "api-updated", Valid: true}},
 		{ID: 3, Title: "Admin durable", Published: true, Summary: sql.NullString{String: "admin-updated", Valid: true}},
 	})
-	authenticatedRestartAssertCredential(t, snapshot.Credential, username, password)
+	authenticatedRestartAssertIdentity(t, snapshot, username, password)
 	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
 	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
 		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},
@@ -1305,7 +1313,7 @@ func authenticatedRestartAssertMigratedSystemStateEmpty(
 	snapshot authenticatedRestartDatabaseSnapshot,
 ) {
 	t.Helper()
-	if len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 || len(snapshot.Credential) != 0 {
+	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Users) != 0 || len(snapshot.Identity.Grants) != 0 || len(snapshot.Identity.Transitions) != 0 || len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 || len(snapshot.Credential) != 0 {
 		t.Fatalf(
 			"authenticated migrate populated runtime state: articles=%d sessions=%d audits=%d credentials=%d",
 			len(snapshot.Articles),
@@ -1330,7 +1338,7 @@ func authenticatedRestartAssertProvisionedState(
 			len(snapshot.Audits),
 		)
 	}
-	authenticatedRestartAssertCredential(t, snapshot.Credential, username, password)
+	authenticatedRestartAssertIdentity(t, snapshot, username, password)
 }
 
 func authenticatedRestartAssertCredentialUnchanged(
@@ -1361,7 +1369,7 @@ func authenticatedRestartAssertPhaseBState(
 		{ID: 3, Title: "Admin after restart", Published: true, Summary: sql.NullString{String: "admin-restarted", Valid: true}},
 		{ID: 5, Title: "API after restart", Summary: sql.NullString{String: "session survived", Valid: true}},
 	})
-	authenticatedRestartAssertCredential(t, snapshot.Credential, username, password)
+	authenticatedRestartAssertIdentity(t, snapshot, username, password)
 	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
 	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
 		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},
@@ -1393,21 +1401,10 @@ func authenticatedRestartAssertCredential(
 	username, password string,
 ) {
 	t.Helper()
-	if len(rows) != 1 || rows[0].ID <= 0 || rows[0].PrincipalID != "article-development-admin" || rows[0].Username != username ||
-		rows[0].EncodedPassword == "" || rows[0].EncodedPassword == password || strings.Contains(rows[0].EncodedPassword, password) ||
-		!rows[0].Active || rows[0].Permissions == "" || !strings.HasPrefix(rows[0].DefinitionDigest, "sha256:") {
-		t.Fatalf(
-			"authenticated restart credential semantic shape = count:%d id:%t principal:%t username:%t encoded:%t raw-absent:%t active:%t permissions:%t digest:%t",
-			len(rows),
-			len(rows) == 1 && rows[0].ID > 0,
-			len(rows) == 1 && rows[0].PrincipalID == "article-development-admin",
-			len(rows) == 1 && rows[0].Username == username,
-			len(rows) == 1 && rows[0].EncodedPassword != "",
-			len(rows) == 1 && !strings.Contains(rows[0].EncodedPassword, password),
-			len(rows) == 1 && rows[0].Active,
-			len(rows) == 1 && rows[0].Permissions != "",
-			len(rows) == 1 && strings.HasPrefix(rows[0].DefinitionDigest, "sha256:"),
-		)
+	if len(rows) != 1 || rows[0].ID != 1 || rows[0].PrincipalID != "article-development-admin" || rows[0].Username != username ||
+		rows[0].EncodedPassword != "!godj-identity-transferred" || strings.Contains(rows[0].EncodedPassword, password) || rows[0].Active ||
+		rows[0].Permissions != "v1.AAA" || rows[0].DefinitionDigest != "sha256:eb4cdcd8f0419b8be2e1d67452037d27eba80ef0e08e8ecc9f5cbd686d4077a5" {
+		t.Fatal("retained operator credential is not the exact inactive identity-transfer tombstone")
 	}
 }
 

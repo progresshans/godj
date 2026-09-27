@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -518,10 +519,17 @@ func projectMigratePostgresAssertLatest(
 	t.Helper()
 	wantTables := []string{
 		"godj_conformance_article",
+		"godj_identity_group",
+		"godj_identity_group_permissions",
+		"godj_identity_permission",
+		"godj_identity_user",
+		"godj_identity_user_groups",
+		"godj_identity_user_permissions",
 		"godj_migration_revision",
 		"godj_migrations",
 		"godj_system_audit",
 		"godj_system_credential",
+		"godj_system_identity_transition",
 		"godj_system_session",
 	}
 	if !reflect.DeepEqual(snapshot.Tables, wantTables) {
@@ -539,9 +547,9 @@ func projectMigratePostgresAssertLatest(
 	if !reflect.DeepEqual(snapshot.Indexes, projectMigratePostgresExpectedIndexes()) {
 		t.Fatal("PostgreSQL latest indexes did not match the exact current primary-key profile")
 	}
-	if snapshot.Triggers != 0 || snapshot.Policies != 0 || snapshot.Rules != 0 {
+	if snapshot.Triggers != 24 || snapshot.Policies != 0 || snapshot.Rules != 0 {
 		t.Fatalf(
-			"PostgreSQL latest schema trigger/policy/rule counts = %d/%d/%d, want 0/0/0",
+			"PostgreSQL latest schema trigger/policy/rule counts = %d/%d/%d, want 24/0/0",
 			snapshot.Triggers,
 			snapshot.Policies,
 			snapshot.Rules,
@@ -557,12 +565,19 @@ func projectMigratePostgresAssertLatest(
 		t.Fatal("PostgreSQL latest revision did not match exact version/epoch/revision/fingerprint/cardinality")
 	}
 	wantCounts := map[string]int64{
-		"godj_conformance_article": int64(len(articles)),
-		"godj_migration_revision":  1,
-		"godj_migrations":          int64(len(expected.History)),
-		"godj_system_audit":        0,
-		"godj_system_credential":   0,
-		"godj_system_session":      0,
+		"godj_conformance_article":        int64(len(articles)),
+		"godj_migration_revision":         1,
+		"godj_migrations":                 int64(len(expected.History)),
+		"godj_system_audit":               0,
+		"godj_system_credential":          0,
+		"godj_system_session":             0,
+		"godj_identity_group":             0,
+		"godj_identity_group_permissions": 0,
+		"godj_identity_permission":        0,
+		"godj_identity_user":              0,
+		"godj_identity_user_groups":       0,
+		"godj_identity_user_permissions":  0,
+		"godj_system_identity_transition": 0,
 	}
 	if !reflect.DeepEqual(snapshot.Counts, wantCounts) {
 		t.Fatal("PostgreSQL latest row cardinalities did not match the exact clean product state")
@@ -570,8 +585,8 @@ func projectMigratePostgresAssertLatest(
 	if !reflect.DeepEqual(snapshot.Articles, articles) {
 		t.Fatal("PostgreSQL Article rows did not match the exact durable fixture")
 	}
-	if len(snapshot.Sequences) != 4 {
-		t.Fatalf("PostgreSQL identity sequence count = %d, want 4", len(snapshot.Sequences))
+	if len(snapshot.Sequences) != 11 {
+		t.Fatalf("PostgreSQL identity sequence count = %d, want 11", len(snapshot.Sequences))
 	}
 	wantSequences := map[string]struct {
 		table  string
@@ -582,6 +597,13 @@ func projectMigratePostgresAssertLatest(
 		"godj_seq_a20c4fe52a0de9485bb4f12211be3f9484ead09e11cb9cab": {table: "godj_system_audit", column: "id"},
 		"godj_seq_bfd1f1eb7fae8e25fff75cf1565851fcccf210b6a24fdb85": {table: "godj_system_session", column: "id"},
 	}
+	wantSequences["godj_seq_98b4860bbba06f67d7b73e596a56cd6488d499703124f33d"] = struct{ table, column string }{"godj_identity_group", "id"}
+	wantSequences["godj_seq_2804c4a5b9bf99a71b7cbc8bf03876215a9a64588b3e9230"] = struct{ table, column string }{"godj_identity_group_permissions", "id"}
+	wantSequences["godj_seq_723e2845dfaac5384e66530fa865a09c98e4e444a37d3dbf"] = struct{ table, column string }{"godj_identity_permission", "id"}
+	wantSequences["godj_seq_154922bf1e45ea63050edbdb153bf88c18b985b4958a4eab"] = struct{ table, column string }{"godj_identity_user", "id"}
+	wantSequences["godj_seq_ae2450e02bb215e140cf9e7a87dd57e1001ae602e88ed739"] = struct{ table, column string }{"godj_identity_user_groups", "id"}
+	wantSequences["godj_seq_91de1d24fc1db736bd9e42f4478547ae544d60ee06eb479e"] = struct{ table, column string }{"godj_identity_user_permissions", "id"}
+	wantSequences["godj_seq_eb0478a786733dafcd0605d53354cb607524c30ed06affdb"] = struct{ table, column string }{"godj_system_identity_transition", "id"}
 	seen := make(map[string]struct{}, len(snapshot.Sequences))
 	for _, sequence := range snapshot.Sequences {
 		owner, exists := wantSequences[sequence.Name]
@@ -618,7 +640,29 @@ func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
 			IndexName: name,
 		}
 	}
-	return []dbstate.PostgresConstraint{
+	out := []dbstate.PostgresConstraint{
+		{Table: "godj_identity_group", Name: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc"},
+		{Table: "godj_identity_group", Name: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4"},
+		{Table: "godj_identity_group_permissions", Name: "godj_fk_4d941cdcb1482febe5876a931ec55f074ae5f49d21fb135b", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "3", IndexName: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593", InternalTriggers: 4},
+		{Table: "godj_identity_group_permissions", Name: "godj_fk_d70af36ba7dae00ee9eb3abf2b7ec08941de2ab65077fdda", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "2", IndexName: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", InternalTriggers: 4},
+		{Table: "godj_identity_group_permissions", Name: "godj_pk_bdf464a175800635e3e03d60480045e3cf1eedd17d325e37", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_bdf464a175800635e3e03d60480045e3cf1eedd17d325e37"},
+		{Table: "godj_identity_group_permissions", Name: "godj_uq_1a45e74f191e6b959df415a2ab0a2ba9cf6e959f39e51d02", Kind: "u", Validated: true, Key: "2,3", IndexName: "godj_uq_1a45e74f191e6b959df415a2ab0a2ba9cf6e959f39e51d02"},
+		{Table: "godj_identity_permission", Name: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593"},
+		{Table: "godj_identity_permission", Name: "godj_uq_c9f7b6a61f55b30c597c01d676b9b257a58b68431acf86d2", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_c9f7b6a61f55b30c597c01d676b9b257a58b68431acf86d2"},
+		{Table: "godj_identity_user", Name: "godj_pk_aff9f46bc5dbf69b334f798b63c3477fd0439da48c684991", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_aff9f46bc5dbf69b334f798b63c3477fd0439da48c684991"},
+		{Table: "godj_identity_user", Name: "godj_uq_bb907ef5853d711e0ee9fc7cdceab0de36414bef36e9c35f", Kind: "u", Validated: true, Key: "3", IndexName: "godj_uq_bb907ef5853d711e0ee9fc7cdceab0de36414bef36e9c35f"},
+		{Table: "godj_identity_user", Name: "godj_uq_f75cc270adc6cafbfbe847705d487fbb5e8e605a6b66e768", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_f75cc270adc6cafbfbe847705d487fbb5e8e605a6b66e768"},
+		{Table: "godj_identity_user_groups", Name: "godj_fk_67dc0ce8c89494041045de2b45d972ddf4e0a3678a6bb8ff", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "2", IndexName: "godj_pk_aff9f46bc5dbf69b334f798b63c3477fd0439da48c684991", InternalTriggers: 4},
+		{Table: "godj_identity_user_groups", Name: "godj_fk_6d100aa09f460b843e916592587b18c260df4938e55a5de7", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "3", IndexName: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", InternalTriggers: 4},
+		{Table: "godj_identity_user_groups", Name: "godj_pk_58d91427221c3c506841414072a9d8456b588ee4d9b6e8c7", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_58d91427221c3c506841414072a9d8456b588ee4d9b6e8c7"},
+		{Table: "godj_identity_user_groups", Name: "godj_uq_062b9496e0b725625b100ab5312415e3e90e00429b5a7c02", Kind: "u", Validated: true, Key: "2,3", IndexName: "godj_uq_062b9496e0b725625b100ab5312415e3e90e00429b5a7c02"},
+		{Table: "godj_identity_user_permissions", Name: "godj_fk_0743d6e96a08ff03562534df244049db084457146f054cfa", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "3", IndexName: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593", InternalTriggers: 4},
+		{Table: "godj_identity_user_permissions", Name: "godj_fk_cd6198f362d871e2df8665240045fb305835145a8c69891c", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "2", IndexName: "godj_pk_aff9f46bc5dbf69b334f798b63c3477fd0439da48c684991", InternalTriggers: 4},
+		{Table: "godj_identity_user_permissions", Name: "godj_pk_55af4ef59ff2228405b16be81eede352b7ca2555d4196a67", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_55af4ef59ff2228405b16be81eede352b7ca2555d4196a67"},
+		{Table: "godj_identity_user_permissions", Name: "godj_uq_10a96914af7dd470ff35b3113f8853ffb7e6c3fb4791753c", Kind: "u", Validated: true, Key: "2,3", IndexName: "godj_uq_10a96914af7dd470ff35b3113f8853ffb7e6c3fb4791753c"},
+		{Table: "godj_system_identity_transition", Name: "godj_pk_471ed8b53f7cae308deb114e52995e450a66abfff8a60fd4", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_471ed8b53f7cae308deb114e52995e450a66abfff8a60fd4"},
+		{Table: "godj_system_identity_transition", Name: "godj_uq_17ffc31535e69584638fa8420dbb87407688914afe7f715a", Kind: "u", Validated: true, Key: "5", IndexName: "godj_uq_17ffc31535e69584638fa8420dbb87407688914afe7f715a"},
+		{Table: "godj_system_identity_transition", Name: "godj_uq_b35f9446067a60fae29e388346e3b726790741a177b4abf7", Kind: "u", Validated: true, Key: "4", IndexName: "godj_uq_b35f9446067a60fae29e388346e3b726790741a177b4abf7"},
 		primary("godj_conformance_article", "godj_pk_7f21c7e928b78be2fc532391565427000c1cf0627bdaf24a", "1"),
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "1"),
 		primary("godj_migrations", "godj_migrations_pkey", "1,2"),
@@ -626,6 +670,13 @@ func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
 		primary("godj_system_credential", "godj_pk_7aad345323cce9490877362ad8c707fbd02a643680270e40", "1"),
 		primary("godj_system_session", "godj_pk_83d7214ff051fc5f24c0f9870b69166345f11de9f42188dc", "1"),
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Table != out[j].Table {
+			return out[i].Table < out[j].Table
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
@@ -644,7 +695,23 @@ func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
 			Method:         "btree",
 		}
 	}
-	return []dbstate.PostgresIndex{
+	out := []dbstate.PostgresIndex{
+		{Table: "godj_identity_group", Name: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_group", Name: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "name", Method: "btree"},
+		{Table: "godj_identity_group_permissions", Name: "godj_pk_bdf464a175800635e3e03d60480045e3cf1eedd17d325e37", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_group_permissions", Name: "godj_uq_1a45e74f191e6b959df415a2ab0a2ba9cf6e959f39e51d02", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 2, AttributeCount: 2, Keys: "source_id,target_id", Method: "btree"},
+		{Table: "godj_identity_permission", Name: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_permission", Name: "godj_uq_c9f7b6a61f55b30c597c01d676b9b257a58b68431acf86d2", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "code", Method: "btree"},
+		{Table: "godj_identity_user", Name: "godj_pk_aff9f46bc5dbf69b334f798b63c3477fd0439da48c684991", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_user", Name: "godj_uq_bb907ef5853d711e0ee9fc7cdceab0de36414bef36e9c35f", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "username", Method: "btree"},
+		{Table: "godj_identity_user", Name: "godj_uq_f75cc270adc6cafbfbe847705d487fbb5e8e605a6b66e768", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "principal_id", Method: "btree"},
+		{Table: "godj_identity_user_groups", Name: "godj_pk_58d91427221c3c506841414072a9d8456b588ee4d9b6e8c7", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_user_groups", Name: "godj_uq_062b9496e0b725625b100ab5312415e3e90e00429b5a7c02", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 2, AttributeCount: 2, Keys: "source_id,target_id", Method: "btree"},
+		{Table: "godj_identity_user_permissions", Name: "godj_pk_55af4ef59ff2228405b16be81eede352b7ca2555d4196a67", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_identity_user_permissions", Name: "godj_uq_10a96914af7dd470ff35b3113f8853ffb7e6c3fb4791753c", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 2, AttributeCount: 2, Keys: "source_id,target_id", Method: "btree"},
+		{Table: "godj_system_identity_transition", Name: "godj_pk_471ed8b53f7cae308deb114e52995e450a66abfff8a60fd4", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
+		{Table: "godj_system_identity_transition", Name: "godj_uq_17ffc31535e69584638fa8420dbb87407688914afe7f715a", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "user_id", Method: "btree"},
+		{Table: "godj_system_identity_transition", Name: "godj_uq_b35f9446067a60fae29e388346e3b726790741a177b4abf7", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "principal_id", Method: "btree"},
 		primary("godj_conformance_article", "godj_pk_7f21c7e928b78be2fc532391565427000c1cf0627bdaf24a", "id", 1),
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "singleton", 1),
 		primary("godj_migrations", "godj_migrations_pkey", "app,name", 2),
@@ -652,6 +719,13 @@ func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
 		primary("godj_system_credential", "godj_pk_7aad345323cce9490877362ad8c707fbd02a643680270e40", "id", 1),
 		primary("godj_system_session", "godj_pk_83d7214ff051fc5f24c0f9870b69166345f11de9f42188dc", "id", 1),
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Table != out[j].Table {
+			return out[i].Table < out[j].Table
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
@@ -667,7 +741,45 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 			Primary:          primary,
 		}
 	}
-	return []dbstate.PostgresColumn{
+	out := []dbstate.PostgresColumn{
+		column("godj_identity_group", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_group", 2, "name", "character varying(150)", true, "", false),
+		column("godj_identity_group", 3, "revision", "bigint", true, "", false),
+		column("godj_identity_group_permissions", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_group_permissions", 2, "source_id", "bigint", true, "", false),
+		column("godj_identity_group_permissions", 3, "target_id", "bigint", true, "", false),
+		column("godj_identity_permission", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_permission", 2, "code", "character varying(128)", true, "", false),
+		column("godj_identity_permission", 3, "name", "character varying(255)", true, "", false),
+		column("godj_identity_permission", 4, "revision", "bigint", true, "", false),
+		column("godj_identity_user", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_user", 2, "principal_id", "character varying(128)", true, "", false),
+		column("godj_identity_user", 3, "username", "character varying(256)", true, "", false),
+		column("godj_identity_user", 4, "encoded_password", "character varying(2048)", true, "", false),
+		column("godj_identity_user", 5, "first_name", "character varying(150)", true, "", false),
+		column("godj_identity_user", 6, "last_name", "character varying(150)", true, "", false),
+		column("godj_identity_user", 7, "email", "character varying(254)", true, "", false),
+		column("godj_identity_user", 8, "active", "boolean", true, "", false),
+		column("godj_identity_user", 9, "staff", "boolean", true, "", false),
+		column("godj_identity_user", 10, "superuser", "boolean", true, "", false),
+		column("godj_identity_user", 11, "date_joined", "timestamp with time zone", true, "", false),
+		column("godj_identity_user", 12, "last_login", "timestamp with time zone", false, "", false),
+		column("godj_identity_user", 13, "revision", "bigint", true, "", false),
+		column("godj_identity_user_groups", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_user_groups", 2, "source_id", "bigint", true, "", false),
+		column("godj_identity_user_groups", 3, "target_id", "bigint", true, "", false),
+		column("godj_identity_user_permissions", 1, "id", "bigint", true, "d", true),
+		column("godj_identity_user_permissions", 2, "source_id", "bigint", true, "", false),
+		column("godj_identity_user_permissions", 3, "target_id", "bigint", true, "", false),
+		column("godj_system_identity_transition", 1, "id", "bigint", true, "d", true),
+		column("godj_system_identity_transition", 2, "source_kind", "character varying(16)", true, "", false),
+		column("godj_system_identity_transition", 3, "source_id", "bigint", true, "", false),
+		column("godj_system_identity_transition", 4, "principal_id", "character varying(128)", true, "", false),
+		column("godj_system_identity_transition", 5, "user_id", "bigint", true, "", false),
+		column("godj_system_identity_transition", 6, "staff", "boolean", true, "", false),
+		column("godj_system_identity_transition", 7, "superuser", "boolean", true, "", false),
+		column("godj_system_identity_transition", 8, "transitioned_at", "timestamp with time zone", true, "", false),
+		column("godj_system_identity_transition", 9, "source_fingerprint", "character varying(64)", true, "", false),
 		column("godj_conformance_article", 1, "id", "bigint", true, "d", true),
 		column("godj_conformance_article", 2, "title", "character varying(200)", true, "", false),
 		column("godj_conformance_article", 3, "published", "boolean", true, "", false),
@@ -697,6 +809,13 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 		column("godj_system_session", 2, "digest", "character varying(64)", true, "", false),
 		column("godj_system_session", 3, "payload", "character varying(32768)", true, "", false),
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Table != out[j].Table {
+			return out[i].Table < out[j].Table
+		}
+		return out[i].Ordinal < out[j].Ordinal
+	})
+	return out
 }
 
 func projectMigratePostgresInsertArticle(t *testing.T, databaseURL, schema, title string) {

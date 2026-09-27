@@ -3,6 +3,68 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 관리 기능의 Hosted 통합에서 발견한 소비자와 참조 증거 수정
+
+2026-09-27, 구현 `5c2045f4a0ba5235e73bf0a0e7fac0e3aed45565`의
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36300139638)는 실제 Go feedback까지 성공했다.
+같은 source의 [명시한 Hosted full](https://github.com/progresshans/godj/actions/runs/36300136646)에서는
+이전 migration/config를 사용하는 통합 소비자와 참조 잠금 누락이 드러났다. 이 실행은 전체 PASS가 아니다.
+
+- Article CLI·동시성 runner·SQLite/PostgreSQL 개발 서버와 별도 프로세스 재시작을 현재 다섯 migration에 연결했다.
+  독립 기대는 정확한 key/순서·source digest와 현재 table/column/constraint/index/sequence를 확인한다.
+  Credential만 읽던 로그인 재시작 검사는 User의 profile/role/revision·직접 grant·전환 receipt와 이전 credential의 비활성 tombstone도 읽는다.
+  실제 HTTP 로그인, 동일 session의 재시작 후 CRUD/audit, secret 비노출, 데이터·이력 보존과 프로세스/DB 정리를 유지했다.
+- 재사용 Identity 모델을 찾는 정확한 read-only `go list -mod=readonly -find -json` 호출을 Go 명령 감사에 반영했다.
+  허용되지 않은 명령/인자와 누락·추가·순서가 다른 binary build는 계속 거부한다.
+- SQLmigrate의 scalar backfill을 frozen SQL에 반영했다. PostgreSQL은 임시 default를 제거하며, SQLite는 행을 복사하고 sequence를 보존한다.
+  실제 외부 CLI가 출력한 SQL을 별도의 SQLite에 적용해 기존 행·NULL 보존, false backfill, 영구 default 없음,
+  삭제된 ID 19 뒤의 다음 ID 20을 확인한다. Renderer의 database-free·redaction·취소/자원 소유권 검사는 유지한다.
+- MIG-138의 위치 인자 선언에 따른 source 영향 관찰을 설정 필드 수 비교에서 실제 외부 compiler의 arity 진단으로 바꿨다.
+  완전한 positional 선언과 유효한 keyed 선언은 컴파일되고, 마지막 인자가 빠진 선언만 해당 진단으로 분류한다.
+  무관한 컴파일 실패·취소는 긍정 증거가 아니며, 출력은 bounded capture와 redaction, 프로세스 그룹 정리를 사용한다.
+  독립 외부 project consumer는 현재 InitialSuperuser/PasswordHasher API를 사용한다.
+- SYS-023의 ADR-0056/0076, SYS-028의 ADR-0076 출처를 Python/Go 검사에 연결하고, 검토된 두 byte metrics의 잠금을 갱신했다.
+  변경된 oracle 값은 frame 2,060 / username 1,024뿐이다. Django 소유의 관찰은 변경하지 않았다.
+  Manifest·oracle·SHA256SUMS와 각 별도 byte-lock을 함께 확인했다. 출처 누락/변조/범위 이탈 거부도 검사한다.
+
+최종 non-Markdown **2,433 파일** source map은
+`79ffb94b3873cd12b97c522b167b138499a1b55449525873a076b29c69dfe784`다. 두 실행 chunk와 보조 검사의 시작/종료 source 동일성을 확인했다.
+
+| 모드 | 필수 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 9 packages / 164 roots | 1,032 PASS / skip 0 | 219.973초 |
+| race | 8 packages / 163 roots | 1,016 PASS / skip 0 | 275.561초 |
+| CGO=0 | 9 packages / 164 roots | 1,032 PASS / skip 0 | 213.427초 |
+
+`go test -json -count=1 -p=2 -timeout=20m -run <선택한 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. 시작/종료·필수 root·package·no-skip을 검사했다.
+외부 ABI 컴파일 검사는 저장소의 `!race` owner이므로 normal/CGO=0에 배치한다.
+Race의 runtime·프로세스 검사는 실제 `-race` test binary로 수행하며 CLI가 빌드하는 일반 child binary와 구분한다.
+전체 platform/cold-build 실행의 소유자는 Hosted full이다. 모델·생성 ABI·OpenAPI schema 변경이 없어 생성 drift 재실행은 비대상이다.
+
+고정 Django/CPython의 system-state 테스트와 uv 0.10.12 formal reference check, 영향 vet·gofmt·문서·diff 검사를 통과했다.
+Private PostgreSQL 17.10 UTF8/libc/C, image `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`를 사용했다.
+각 실행 chunk의 종료 시 public table/잔여 godj schema/추가 연결은 `0|0|0`이고 container 제거를 확인했다.
+
+수정 중에는 SQLite Integer 기대값, 옛 동시성/개발 서버 graph, SQL 실행용 테스트 driver,
+임베디드 runner의 중복 import·compiler의 qualified type 진단, 별도 checksum lock을 단계적으로 바로잡았다.
+최종 source의 normal과 race protocol은 완료 후 재사용했다. 뒤따른 race external 선택에서는 `!race` 때문에 테스트가 하나도 실행되지 않아
+inventory가 거부했다. 이를 PASS로 세지 않고 owner를 명시한 뒤 동일 source에서 나머지를 이어 실행했다.
+초기 실패와 scope 선택 오류의 receipt/log도 보존한다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/supplemental/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/initial-selection-receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/godj-full-latest.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/godj-full-failure-audit.json`
+
+이 수정 source를 게시하고 Hosted full을 다시 실행한다. 마지막 성공한 Hosted 전체는 `01b67211a083c507d5e69c6be26702439aada559`의
+[36253381368](https://github.com/progresshans/godj/actions/runs/36253381368)이며, 이후 기능의 전체 PASS로 전이하지 않는다.
+
+사용 불가능한 password·last_login, self-service/reset과 프레임워크 전체 완성은 여전히 미완료다.
+
+
 ## GDJ-0100 — 내장 password validator와 관리 정책의 공통 적용
 
 2026-09-27, `3a7d10a2` 뒤의 구현이다. 고정 Django의 similarity·minimum-length·common·numeric validator와

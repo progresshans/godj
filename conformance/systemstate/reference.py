@@ -120,6 +120,14 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
             expected_provenance = [
                 {"kind": "documentation", "reference": "ADR-0056", "derived": False}
             ]
+            if contract_id == "SYS-023":
+                expected_provenance.append(
+                    {"kind": "documentation", "reference": "ADR-0076", "derived": False}
+                )
+            elif contract_id == "SYS-028":
+                expected_provenance = [
+                    {"kind": "documentation", "reference": "ADR-0076", "derived": False}
+                ]
             if contract_id in DJANGO_LOGIN_SEMANTICS_IDS:
                 expected_provenance.extend(
                     [
