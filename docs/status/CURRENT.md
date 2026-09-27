@@ -4,6 +4,7 @@
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 전체 검증: [관리 소비자·입력 경계 Hosted full](https://github.com/progresshans/godj/actions/runs/36305013585), source `f3264aeffce3c6a07ea07bb3a41097edf26ce15a`
+- 최근 영향 CI: [Password 상태 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36310871626), source `8316b27a`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재

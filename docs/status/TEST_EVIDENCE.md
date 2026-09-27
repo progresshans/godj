@@ -53,8 +53,10 @@ Admin 검증 오류의 표시 누락·read-only 입력 허용·HTML 신뢰를 �
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/password-status-checkpoint-1790502050533610000/boundary-controls/receipt.json`
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-reference-1790501836267029000/receipt.json`
 
-기반 `b162f0010971d74ccb29db029738fe03de0c2ee5`의 [Hosted Fast 36308476130](https://github.com/progresshans/godj/actions/runs/36308476130)는
-실제 Fast Go feedback까지 성공했다. 이번 변경의 새 Hosted 전체 실행은 후속 lifecycle 통합 milestone이 소유한다.
+구현 `8316b27a4acbeb56a6935fe77114cc434a9f7a51`의 [Hosted Fast 36310871626](https://github.com/progresshans/godj/actions/runs/36310871626)는
+실제 Fast Go feedback까지 성공했다. 종료 기록의 Markdown-only 변경은 위 non-Markdown source를 유지한다.
+기반 `b162f001`의 [Hosted Fast 36308476130](https://github.com/progresshans/godj/actions/runs/36308476130)도 별도로 성공했다.
+이번 변경의 새 Hosted 전체 실행은 후속 lifecycle 통합 milestone이 소유한다.
 `last_login`, self-service password/reset·전체 UserCreationForm과 다른 인증 provider는 미완료다.
 
 ## GDJ-0100 — Admin 생성의 사용 불가 password 선택
