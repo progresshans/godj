@@ -11,6 +11,8 @@ credential/CLI 1,024바이트 envelope와 Schema IR의 User 256자 한도를 구
 
 최종 non-Markdown **2,421 파일** source map은
 `7096ff5262ec21b79fb133cb29127639f1b41194b5d6a660fc3c8a9727eb2c82`다. Checkpoint·negative control·보조 검사 모두 시작/종료 source 동일성을 확인했다.
+구현 `82baf3719bdbe7094e09ba41be17aaf53c29a27c`을 Draft PR #1에 게시했고,
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36298363689)의 실제 Go feedback도 같은 source에서 성공했다.
 Darwin arm64 / Go 1.26.5의 **19 packages / 1,297 required entries**(333 roots·964 subcases)를 검사했다.
 Unicode/auth·기존 Form/Admin·identity/Admin/API·systemstate·Article/Helpdesk와 양 native DB의 identity 전체 영향 범위,
 createsuperuser terminal/process helper·private protocol, 독립 OpenAPI client 및 실제 SYS-023 producer를 포함한다.

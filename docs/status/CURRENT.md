@@ -18,6 +18,7 @@ View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변�
 고정 Unicode 16의 NFKC·소문자·문자 판정을 연결하고, credential/CLI 1,024바이트와 User IR 256자 한도를 구분했다.
 관리 생성의 150자 정책과 긴 기존 이름을 보존하는 편집을 구현했다. 새 bootstrap은 NFKC, legacy adoption은 기존 바이트를 보존한다.
 이 변경과 기존 소비자의 영향 normal/race/CGO=0·양 DB·터미널/독립 client·Unicode 독립 기준·negative control을 통과했다.
+구현 `82baf371`을 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36298363689)의 실제 Go feedback도 성공했다.
 전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료는 아니다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [입력 출처](../../internal/unicode16/NOTICE.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
