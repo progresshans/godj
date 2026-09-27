@@ -60,6 +60,8 @@ Username 중복 정책의 선행 조건인 literal string `iexact`를 공통 AST
 SQLite LIKE escape와 PostgreSQL UPPER 비교는 각 compiler가 소유한다. 명시적 생성 옵션은 NFKC 후보를
 hash 전과 write fence 안에서 재검사하며 기본 Manager/API 생성·로그인 의미는 유지한다.
 이는 생성 폼 전체 validator나 실제 Identity 관리 화면의 완료가 아니다. 환경별 실행 상태는 TEST_EVIDENCE를 따른다.
+다음 선택 목록은 모델 관리 목록의 view 권한을 그대로 재사용하지 않고 편집 action의 현재 권한을 검사해야 한다.
+감사 조회도 actor 인가와 같은 read snapshot에 연결하며 Runtime의 별도 transaction을 중첩하지 않는다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

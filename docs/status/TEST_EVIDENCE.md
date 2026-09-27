@@ -12,6 +12,10 @@
 최종 non-Markdown **2,373 파일** source map은
 `ab78baabd6e369bc98c40ce451e8e82d2d71ea1a8bce15ff73155642df781544`다.
 
+구현 commit `c7c9ff73fc98ac7251df20156511b1ea9a129ac6`을 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36291920509)가 이 source의 실제 Fast Go feedback까지 성공했다.
+게시된 non-Markdown bytes는 아래 로컬 검증 source와 같으며 Hosted full 성공을 뜻하지 않는다.
+
 독립 Django 6.1 observer는 synthetic 입력만 읽는다. Python 3.14.3, SQLite **3.50.4**, psycopg **3.3.6**과
 PostgreSQL **17.10 UTF8/libc/C**에서 각각 **조회 233개·생성 11개** 결과를 얻었다.
 각 DB를 새로 준비해 두 번 실행했고 결과 JSON bytes가 일치했다. 결과에 input hash·Django lookup/auth forms/backend

@@ -36,6 +36,7 @@ Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com
 사용자 생성 중복 검사의 선행 조건인 Char/Text literal `iexact`를 공통 AST·typed/dynamic·관계 경로에 연결했다.
 명시적 생성 옵션은 NFKC 후보를 hash 전과 write fence 안에서 재검사하며 기본 생성·로그인 의미를 보존한다.
 독립 Django 기준·양 DB·generated consumer의 영향 normal/race/CGO=0와 negative control을 통과했다.
+[IExact·생성 정책 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36291920509)도 구현 source에서 성공했다.
 새 Identity 모델의 실제 Form/Admin 등록·현재 권한을 적용한 선택 목록과 GDJ-0100 전체 검증은 미완료다.
 
 ## 다음 행동
