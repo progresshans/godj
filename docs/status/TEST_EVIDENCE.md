@@ -65,8 +65,11 @@ Form GET과 JSON command의 route 이름 중복을 분리하고 account construc
 기존 Admin의 non-staff 처리는 login redirect이며 테스트의 403 가정을 고쳤다. validation+cleanup 주입은 두 번째 policy fence의
 실제 거부도 함께 주입해야 rollback을 관찰할 수 있어 fixture를 수정했다. CI 실행 목록은 주석을 허용하지 않아 형식을 정리했다.
 
-이 결과는 현재 source의 전체 platform/process 완료가 아니다. 소비자까지 연결한 이번 source가 다음 Hosted full milestone을
-소유하며 이전 `63b07213` 결과를 전이하지 않는다. Reset·전체 UserCreationForm과 다른 인증 provider도 별도 미완료 범위다.
+구현 commit `b995c8c6c8256bf3b1ea4995f383472d7c27629c`를 양 branch에 게시하고
+[Hosted full 36324864466](https://github.com/progresshans/godj/actions/runs/36324864466)을 명시적으로 요청했다.
+같은 code source의 [Hosted Fast 36324857281](https://github.com/progresshans/godj/actions/runs/36324857281)은
+실제 `Fast Go feedback` step까지 성공했다. Run/jobs/steps 원본을 broad checkpoint의 `hosted/`에 보존했다.
+이 기록 시점에는 전체 platform/process 완료가 아니다. 실행·artifact/source binding 확인이 남아 있으며 이전 `63b07213` 결과를 전이하지 않는다. Reset·전체 UserCreationForm과 다른 인증 provider도 별도 미완료 범위다.
 
 로컬 raw/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 다음에 보존했다.
 

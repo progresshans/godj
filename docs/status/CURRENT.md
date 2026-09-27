@@ -3,8 +3,9 @@
 - 갱신: 2026-09-27
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
-- 최근 전체 검증: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
-- 최근 영향 CI: [자기 비밀번호 변경 기반 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36320774913), source `26f590e4`
+- 진행 중인 전체 검증: [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6c8256bf3b1ea4995f383472d7c27629c`
+- 최근 완료한 전체 검증: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
+- 최근 영향 CI: [일반 계정 소비자 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36324857281), source `b995c8c6`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -19,13 +20,13 @@ source `63b07213`의 Hosted 전체 platform/process 통합이 완료됐다. 이�
 일반 계정 로그인/logout·비밀번호 Form과 Session JSON/OpenAPI·독립 generated client를 연결했다.
 관리 권한 없는 명시적 API admission과 세션 touch/cleanup 없는 preflight를 구현했고 Article의 공유 구성도 연결했다.
 제품 Form·JSON/OpenAPI·독립 client와 양 DB의 normal/race/CGO=0 영향 검증을 완료했다.
-이 source의 Hosted 전체 platform/process 확인은 다음 통합 단계다.
+이 source의 Hosted 전체 platform/process 실행은 시작했으며 결과를 확인 중이다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 
 ## 다음 행동
 
-소비자 통합 source를 게시하고 Hosted 전체 platform/process milestone을 확인한 뒤 reset으로 이어간다.
+소비자 통합 source `b995c8c6`의 Hosted 전체 platform/process 결과와 source-bound capture를 확인한 뒤 reset으로 이어간다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
 로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.
