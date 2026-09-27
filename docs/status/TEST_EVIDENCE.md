@@ -12,6 +12,10 @@ Darwin arm64 / Go 1.26.5, 실제 SQLite·private PostgreSQL **17.10**, **10 pack
 native snapshot/identity/adoption roots가 scope다. Catalog의 필수 entry는 backend당 64개다.
 Schema/생성 ABI 변경은 없다. 전용 관리 Form/Admin/API·독립 client, 별도 process restart와 Hosted full은 이 checkpoint의 대상이 아니다.
 
+구현 commit `a9907ab1bc603f963984832d48f36d7ca12095c2`를 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36281969809)는 같은 commit의 실제 **Fast Go feedback**까지 성공했다.
+아래 로컬 검증 source와 게시한 non-Markdown bytes가 같다. 이 결과는 Hosted 전체 검증을 대체하지 않는다.
+
 | 모드 | 완료 inventory | 그룹 실행 시간 합계 |
 |---|---|---|
 | normal | 1,501 PASS / skip 0 | 28.084초 |

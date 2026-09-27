@@ -15,7 +15,8 @@ Article/Helpdesk·CLI와 durable session 소비자를 연결했고 관리자 비
 [구현 현황](IMPLEMENTATION_MATRIX.md)이 지원 범위를 설명한다.
 
 User/password 관리와 scalar-default backfill·Permission revision migration까지 게시·영향 검증했다.
-현재 Group/Permission 관리 service를 추가했다. 현재 권한과 revision을 확인하고 그룹 권한 합집합을 전체 사용자에 대해 검사한다.
+Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36281969809)를 통과했다.
+현재 권한과 revision을 확인하고 그룹 권한 합집합을 전체 사용자에 대해 검사한다.
 호스트 관계 삭제와 직접 소유자의 revision 증가·감사를 원자적으로 반영하며 credential·session bytes를 보존한다.
 조회에서 인가 처리 오류를 대체 권한으로 우회하지 않는 공통 경계도 보완했다.
 
