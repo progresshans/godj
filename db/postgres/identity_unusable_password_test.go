@@ -20,3 +20,7 @@ func TestPostgresIdentityUnusablePasswords(t *testing.T) {
 func TestPostgresIdentityUnusablePasswordHTTP(t *testing.T) {
 	identitytest.RunUnusablePasswordHTTP(t, openPostgresUnusablePair)
 }
+
+func TestPostgresIdentityPasswordStatus(t *testing.T) {
+	identitytest.RunPasswordStatus(t, openPostgresUnusablePair)
+}

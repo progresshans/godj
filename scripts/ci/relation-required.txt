@@ -1349,3 +1349,11 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusabl
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusable_creation_current_authority
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/create_unusable_audit_failure
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/create_unusable_unknown_commit
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/forged_state_is_not_an_input
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/usable
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/disabled
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/inactive_disabled
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/restored_inactive
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/reactivated
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityPasswordStatus/view_only_and_current_authority

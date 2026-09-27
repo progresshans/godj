@@ -77,8 +77,11 @@ scalar backfill SQL 실행, 실제 외부 compiler의 위치 인자 누락 판�
 전체 UserCreationForm 호환은 별도 조건이다.
 사용 불가능한 password의 auth/identity 표현과 관리 생성·설정·복구, API의 explicit null, Admin 확인 command와 독립 client를 구현했다.
 영향 normal/race/CGO=0·양 DB·독립 Django/생성 client와 negative control 검증을 통과했으며 전체 환경 검증과 구분한다. Admin 생성의 사용 불가 선택도 고정 Django와 대조하고 영향 normal/race/CGO=0·양 DB·실제 HTTP 및 실패 경계를 통과했다.
-현재 password 상태 표시,
-self-service password/reset·last_login 갱신은 별도 미완료 범위다.
+현재 password 상태를 같은 User snapshot에서 계산해 Admin 상세/편집과 API·독립 generated client에 연결했다.
+Read-only computed serializer와 Admin 표시 field의 입력 거부·소유권·escaping·실패를 포함해 영향 normal/race/CGO=0·양 DB·독립 참조/생성 client 검증을 통과했다.
+다음은 실제 로그인·세션 수립 경계의 last_login이다. Authenticate/Resolve·기존 session 조회와 구분하고
+세션 저장 실패·동시 credential 변경을 고정 참조와 비교한 뒤 기록/transaction 소유권을 구현한다.
+self-service password/reset은 별도 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

@@ -15,13 +15,14 @@ Unicode 16 정규화·입력 한도와 네 내장 password validator를 Admin/AP
 
 사용 불가능한 password의 credential/identity 표현, 관리 생성·설정·반복 설정·복구와 API null을 구현했다.
 Admin의 확인 명령과 생성 선택도 연결했다. 새 범위의 영향 normal/race/CGO=0·양 DB·독립 참조와 소비자 검증을 통과했다.
+현재 password 사용 상태를 같은 snapshot에서 계산하는 Admin/API·독립 client 표시도 구현하고 영향 검증을 통과했다.
 직전 통합 source `f3264aef`의 Hosted full도 완료했으며, 이후 password 기능의 전체 검증으로 전이하지 않는다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
 
 ## 다음 행동
 
-현재 password 사용 가능 상태를 Admin/API에 표시하고 last_login을 로그인 경계에 연결한다.
+last_login을 실제 로그인·세션 수립 경계에 연결한다.
 이어서 self-service password/change·reset을 구현한다. 전체 UserCreationForm과 다른 인증 provider도 남은 요구와 구분한다.
 후속 lifecycle의 소비자·실패 경계를 정리한 통합 milestone이 새 source의 전체 platform/cold-build 검증을 소유한다.
 

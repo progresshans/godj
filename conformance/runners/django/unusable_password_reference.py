@@ -132,6 +132,21 @@ def observe():
                                   "matches_input": created.check_password(first)})
                 creation[mode] = value
             observations["admin_creation"] = creation
+            display = User.objects.create_user(username="display", password="initial-password")
+            status = []
+            for state in ("usable", "disabled", "inactive_disabled", "restored_inactive", "reactivated"):
+                if state == "disabled":
+                    display.set_unusable_password()
+                elif state == "inactive_disabled":
+                    display.is_active = False
+                elif state == "restored_inactive":
+                    display.set_password("replacement-password")
+                elif state == "reactivated":
+                    display.is_active = True
+                display.save(update_fields=["password", "is_active"])
+                display = User.objects.get(pk=display.pk)
+                status.append({"state": state, "usable": display.has_usable_password(), "active": display.is_active})
+            observations["password_status"] = status
             observations["reserved_prefix"] = [hashers.is_password_usable(value) for value in ("!", "!legacy", "!" + "a" * 40)]
             result = {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                       "database_version": str(connection.pg_version) if name else connection.Database.sqlite_version,

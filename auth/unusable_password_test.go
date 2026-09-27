@@ -14,6 +14,20 @@ type unusableEntropyFunc func([]byte) (int, error)
 
 func (read unusableEntropyFunc) Read(value []byte) (int, error) { return read(value) }
 
+func TestPasswordUsabilityIsRepresentationStateNotValidation(t *testing.T) {
+	for _, test := range []struct {
+		encoded string
+		want    bool
+	}{
+		{"", false}, {"!", false}, {"!legacy-marker", false},
+		{"pbkdf2_sha256$10000$salt$encoding", true}, {"unsupported-or-corrupt", true},
+	} {
+		if got := IsPasswordUsable(test.encoded); got != test.want {
+			t.Fatal("password representation state mismatch")
+		}
+	}
+}
+
 func TestUnusablePasswordGenerationPreservesContextAndPrivateEntropyFailures(t *testing.T) {
 	secret := errors.New("private entropy source detail")
 	for _, mode := range []string{"nil_context", "canceled", "partial", "reader_error", "late_cancel"} {

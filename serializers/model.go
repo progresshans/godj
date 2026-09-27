@@ -1,8 +1,6 @@
 package serializers
 
 import (
-	"unicode/utf8"
-
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -29,11 +27,13 @@ type ModelField struct {
 // The caller supplies only a model value when encoding each row. The reader
 // receives a detached field, so it cannot change subsequent projections.
 type ModelEncoder[M any] struct {
-	spec     Spec
-	fields   []ir.Field
-	read     func(M, ir.Field) (query.Value, bool)
-	many     map[string]ir.ManyToManyField
-	readMany func(M, ir.ManyToManyField) ([]int64, bool)
+	spec       Spec
+	fields     []ir.Field
+	read       func(M, ir.Field) (query.Value, bool)
+	many       map[string]ir.ManyToManyField
+	readMany   func(M, ir.ManyToManyField) ([]int64, bool)
+	modelNames map[string]struct{}
+	computed   map[string]func(M) (Value, bool)
 }
 
 func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (query.Value, bool), related ...func(M, ir.ManyToManyField) ([]int64, bool)) (ModelEncoder[M], error) {
@@ -77,7 +77,14 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 		}
 		fields[index] = metadata.Clone()
 	}
-	return ModelEncoder[M]{spec: spec, fields: fields, read: read, many: many, readMany: readMany}, nil
+	names := make(map[string]struct{}, len(byName)+len(many))
+	for name := range byName {
+		names[name] = struct{}{}
+	}
+	for name := range many {
+		names[name] = struct{}{}
+	}
+	return ModelEncoder[M]{spec: spec, fields: fields, read: read, many: many, readMany: readMany, modelNames: names}, nil
 }
 
 // Encode validates output types, nullability and lengths without applying
@@ -86,9 +93,21 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 	if encoder.read == nil {
 		return Value{}, invalidConfig("model", "invalid projection")
 	}
-	members := make([]Member, 0, len(encoder.fields))
-	for index, metadata := range encoder.fields {
-		field := encoder.spec.fields[index]
+	members := make([]Member, 0, len(encoder.spec.fields))
+	for index, field := range encoder.spec.fields {
+		if read, computed := encoder.computed[field.name]; computed {
+			computed, present := read(value)
+			if !present {
+				return Value{}, invalidValue(field.name, "missing computed value")
+			}
+			converted, err := computedOutputValue(field, computed)
+			if err != nil {
+				return Value{}, err
+			}
+			members = append(members, MemberOf(field.name, converted))
+			continue
+		}
+		metadata := encoder.fields[index]
 		if collection, found := encoder.many[field.name]; found {
 			keys, present := encoder.readMany(value, collection.Clone())
 			if !present {
@@ -145,11 +164,10 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		default:
 			return Value{}, invalidValue(field.name, "invalid scalar")
 		}
-		if !valueMatchesField(converted, field.kind, field.nullable) {
-			return Value{}, invalidValue(field.name, "model value type mismatch")
-		}
-		if converted.kind == ValueString && field.maxLength > 0 && utf8.RuneCountInString(converted.string) > field.maxLength {
-			return Value{}, invalidValue(field.name, "model value exceeds maximum length")
+		var err error
+		converted, err = outputValue(field, converted)
+		if err != nil {
+			return Value{}, err
 		}
 		members = append(members, MemberOf(field.name, converted))
 	}

@@ -32,3 +32,9 @@ ordinary password creation. The independent
 [unusable-password observer](../../conformance/runners/django/unusable_password_reference.py)
 records eight creation cases and the upstream forms source hash; it does not
 claim complete UserCreationForm or Python field/widget compatibility.
+
+Existing-user change and view-only pages display an Enabled/Disabled password
+login state derived from the same authorized user snapshot. This follows
+`AbstractBaseUser.has_usable_password()` in the pinned `base_user.py`, with
+transitions observed independently on both databases. It does not reproduce
+the Python read-only hash widget or disclose the stored password encoding.

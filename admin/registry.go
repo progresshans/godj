@@ -112,9 +112,10 @@ type Page[M any] struct {
 // Object is a closed immutable model snapshot suitable for templates. It
 // cannot expose generated methods, lazy ORM state, or arbitrary Go values.
 type Object struct {
-	id     int64
-	label  string
-	values templates.Value
+	id             int64
+	label          string
+	values         templates.Value
+	readOnlyValues templates.Value
 }
 
 func NewObject(id int64, label string, values map[string]templates.Value) (Object, error) {
@@ -128,7 +129,7 @@ func NewObject(id int64, label string, values map[string]templates.Value) (Objec
 	if err != nil {
 		return Object{}, &ConfigError{Path: "object.values", Code: "invalid", Cause: err}
 	}
-	return Object{id: id, label: label, values: closed}, nil
+	return Object{id: id, label: label, values: closed, readOnlyValues: templates.List()}, nil
 }
 
 func (object Object) ID() int64               { return object.id }
@@ -178,7 +179,8 @@ type ModelConfig[M any] struct {
 	AdditionalAddPermissions []auth.Permission
 	// RevisionField identifies a nonnullable integer model field excluded from
 	// editable input. Its observed value is submitted as a separate condition.
-	RevisionField string
+	RevisionField  string
+	ReadOnlyFields []ReadOnlyField[M]
 	// ReadOnly publishes list/history views without mutation routes or callbacks.
 	ReadOnly   bool
 	ListFields []string
@@ -303,6 +305,7 @@ type ModelDescriptor struct {
 	AddPermissions   []auth.Permission
 	RevisionField    string
 	Commands         []CommandDescriptor
+	ReadOnlyFields   []ReadOnlyFieldDescriptor
 }
 
 type ActionDescriptor struct {
@@ -347,6 +350,7 @@ type registeredModel struct {
 	permissions             Permissions
 	actions                 []registeredAction
 	commands                []registeredCommand
+	readOnlyFields          []ReadOnlyFieldDescriptor
 
 	list    func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
 	get     func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
@@ -391,6 +395,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, &ConfigError{Path: "model.ir", Code: "invalid", Cause: err}
 	}
 	model := normalized.Models[0]
+	if config.ReadOnly && len(config.ReadOnlyFields) != 0 {
+		return registeredModel{}, &ConfigError{Path: "model.read_only_fields", Code: "detail_unavailable"}
+	}
 	var form forms.Spec
 	if !config.ReadOnly {
 		form, err = prepareModelForm(model, FormConfig{Fields: config.FormFields, Overrides: config.FormOverrides})
@@ -473,6 +480,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 		}
 	}
+	readOnlyFields, readOnlyValues, err := prepareReadOnlyFields(config.ReadOnlyFields, form, createForm)
+	if err != nil {
+		return registeredModel{}, err
+	}
 	// Include each form's CSRF token and, on changes, its revision condition.
 	// Relation selections also share the bounded request-wide input budget.
 	conditions := 1
@@ -546,6 +557,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 
 	registered := registeredModel{
+		readOnlyFields:          readOnlyFields,
 		readOnly:                config.ReadOnly,
 		hasHistory:              config.History != nil,
 		appLabel:                config.AppLabel,
@@ -640,6 +652,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			return registeredRecord{}, false, err
 		}
 		if _, err := registered.revision(object); err != nil {
+			return registeredRecord{}, false, err
+		}
+		object.readOnlyValues, err = readOnlyValues(ctx, item)
+		if err != nil {
 			return registeredRecord{}, false, err
 		}
 		if config.ReadOnly {
@@ -894,6 +910,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 		AddPermissions:   append([]auth.Permission(nil), model.addPermissions...),
 		RevisionField:    model.revisionField,
 		Commands:         commands,
+		ReadOnlyFields:   append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
 	}
 }
 

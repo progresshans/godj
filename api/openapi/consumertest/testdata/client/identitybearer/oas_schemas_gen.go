@@ -1813,19 +1813,20 @@ func (s *PermissionUpdate) SetName(val string) {
 
 // Ref: #/components/schemas/User
 type User struct {
-	ID          int64       `json:"id"`
-	Username    string      `json:"username"`
-	FirstName   string      `json:"first_name"`
-	LastName    string      `json:"last_name"`
-	Email       string      `json:"email"`
-	Active      bool        `json:"active"`
-	Staff       bool        `json:"staff"`
-	Superuser   bool        `json:"superuser"`
-	DateJoined  time.Time   `json:"date_joined"`
-	LastLogin   NilDateTime `json:"last_login"`
-	Revision    int64       `json:"revision"`
-	Groups      []int64     `json:"groups"`
-	Permissions []int64     `json:"permissions"`
+	ID             int64       `json:"id"`
+	Username       string      `json:"username"`
+	FirstName      string      `json:"first_name"`
+	LastName       string      `json:"last_name"`
+	Email          string      `json:"email"`
+	Active         bool        `json:"active"`
+	Staff          bool        `json:"staff"`
+	Superuser      bool        `json:"superuser"`
+	DateJoined     time.Time   `json:"date_joined"`
+	LastLogin      NilDateTime `json:"last_login"`
+	Revision       int64       `json:"revision"`
+	Groups         []int64     `json:"groups"`
+	Permissions    []int64     `json:"permissions"`
+	PasswordUsable bool        `json:"password_usable"`
 }
 
 // GetID returns the value of ID.
@@ -1893,6 +1894,11 @@ func (s *User) GetPermissions() []int64 {
 	return s.Permissions
 }
 
+// GetPasswordUsable returns the value of PasswordUsable.
+func (s *User) GetPasswordUsable() bool {
+	return s.PasswordUsable
+}
+
 // SetID sets the value of ID.
 func (s *User) SetID(val int64) {
 	s.ID = val
@@ -1956,6 +1962,11 @@ func (s *User) SetGroups(val []int64) {
 // SetPermissions sets the value of Permissions.
 func (s *User) SetPermissions(val []int64) {
 	s.Permissions = val
+}
+
+// SetPasswordUsable sets the value of PasswordUsable.
+func (s *User) SetPasswordUsable(val bool) {
+	s.PasswordUsable = val
 }
 
 // Ref: #/components/schemas/UserCreate
@@ -2258,17 +2269,18 @@ func (s *UserPatch) SetPermissions(val []int64) {
 
 // Ref: #/components/schemas/UserSummary
 type UserSummary struct {
-	ID         int64       `json:"id"`
-	Username   string      `json:"username"`
-	FirstName  string      `json:"first_name"`
-	LastName   string      `json:"last_name"`
-	Email      string      `json:"email"`
-	Active     bool        `json:"active"`
-	Staff      bool        `json:"staff"`
-	Superuser  bool        `json:"superuser"`
-	DateJoined time.Time   `json:"date_joined"`
-	LastLogin  NilDateTime `json:"last_login"`
-	Revision   int64       `json:"revision"`
+	ID             int64       `json:"id"`
+	Username       string      `json:"username"`
+	FirstName      string      `json:"first_name"`
+	LastName       string      `json:"last_name"`
+	Email          string      `json:"email"`
+	Active         bool        `json:"active"`
+	Staff          bool        `json:"staff"`
+	Superuser      bool        `json:"superuser"`
+	DateJoined     time.Time   `json:"date_joined"`
+	LastLogin      NilDateTime `json:"last_login"`
+	Revision       int64       `json:"revision"`
+	PasswordUsable bool        `json:"password_usable"`
 }
 
 // GetID returns the value of ID.
@@ -2326,6 +2338,11 @@ func (s *UserSummary) GetRevision() int64 {
 	return s.Revision
 }
 
+// GetPasswordUsable returns the value of PasswordUsable.
+func (s *UserSummary) GetPasswordUsable() bool {
+	return s.PasswordUsable
+}
+
 // SetID sets the value of ID.
 func (s *UserSummary) SetID(val int64) {
 	s.ID = val
@@ -2379,6 +2396,11 @@ func (s *UserSummary) SetLastLogin(val NilDateTime) {
 // SetRevision sets the value of Revision.
 func (s *UserSummary) SetRevision(val int64) {
 	s.Revision = val
+}
+
+// SetPasswordUsable sets the value of PasswordUsable.
+func (s *UserSummary) SetPasswordUsable(val bool) {
+	s.PasswordUsable = val
 }
 
 // UserSummaryHeaders wraps UserSummary with response headers.

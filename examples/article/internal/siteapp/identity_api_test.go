@@ -22,8 +22,20 @@ func TestArticleSitePublishesIdentityAPIAndCreatedStaffCanLogin(t *testing.T) {
 	fixture.login(t)
 	token := fixture.apiToken(t, fixture.firstURL)
 	created := fixture.request(t, "POST", fixture.firstURL+path, api.JSONContentType, `{"username":"created-staff","password":"  untrimmed password  ","staff":true}`, token)
-	if created.status != 201 || created.header.Get("Revision") != "1" || strings.Contains(created.body, "password") || strings.Contains(created.body, "principal_id") {
+	if created.status != 201 || created.header.Get("Revision") != "1" {
 		t.Fatal("management API not composed or private projection")
+	}
+	var projection map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(created.body), &projection); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"password", "encoded_password", "principal_id"} {
+		if _, exposed := projection[name]; exposed {
+			t.Fatal("management API exposed private field", name)
+		}
+	}
+	if string(projection["password_usable"]) != "true" || strings.Contains(created.body, "untrimmed password") {
+		t.Fatal("password status missing or private input exposed")
 	}
 	var user struct{ ID, Revision int64 }
 	if err := json.Unmarshal([]byte(created.body), &user); err != nil || user.ID <= 0 {
@@ -55,5 +67,8 @@ func TestArticleSitePublishesIdentityAPIAndCreatedStaffCanLogin(t *testing.T) {
 	row, found, err := models.UserObjects.Using(fixture.firstBackend).Filter(models.UserFields.ID.Exact(user.ID)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
 	if err != nil || !found || !row.Staff || row.Superuser || row.PrincipalID == "created-staff" || row.Revision != 1 {
 		t.Fatal("server identity/profile not persisted", err)
+	}
+	if row.EncodedPassword == "" || strings.Contains(created.body, row.EncodedPassword) || strings.Contains(other.body, row.EncodedPassword) {
+		t.Fatal("password status disclosed stored encoding")
 	}
 }

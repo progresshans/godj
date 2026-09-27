@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,8 +100,20 @@ func TestManagementDocumentIsBuiltFromActualProtectedRoutesAndAllowlist(t *testi
 			t.Fatal("private field in User response", name)
 		}
 	}
-	if len(fields) != 13 {
+	if len(fields) != 14 {
 		t.Fatal("unexpected user projection", len(fields))
+	}
+	for _, name := range []string{"User", "UserSummary"} {
+		definition := definitions[name].(map[string]any)
+		field := definition["properties"].(map[string]any)["password_usable"].(map[string]any)
+		if field["type"] != "boolean" || field["readOnly"] != true || !slices.Contains(definition["required"].([]any), any("password_usable")) {
+			t.Fatal("password status must be required and read-only in each response", name)
+		}
+	}
+	for _, name := range []string{"UserCreate", "UserUpdate", "UserPatch", "PasswordReplacement"} {
+		if definitions[name].(map[string]any)["properties"].(map[string]any)["password_usable"] != nil {
+			t.Fatal("derived password status became a writable input", name)
+		}
 	}
 	create := definitions["UserCreate"].(map[string]any)["properties"].(map[string]any)
 	for _, name := range []string{"UserCreate", "PasswordReplacement"} {

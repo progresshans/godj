@@ -30,6 +30,9 @@ type Profile struct {
 	DateJoined  time.Time  `json:"date_joined"`
 	LastLogin   *time.Time `json:"last_login"`
 	Revision    int64      `json:"revision"`
+	// PasswordUsable describes the intentional password state, independently of
+	// account activation, admission policy, or support for the stored algorithm.
+	PasswordUsable bool `json:"password_usable"`
 }
 
 // Account is one immutable, coherent observation of stored identity and direct
@@ -208,6 +211,7 @@ func profileFromRow(row models.User) Profile {
 		FirstName: row.FirstName, LastName: row.LastName, Email: row.Email,
 		Active: row.Active, Staff: row.Staff, Superuser: row.Superuser,
 		DateJoined: row.DateJoined, LastLogin: row.LastLogin, Revision: row.Revision,
+		PasswordUsable: auth.IsPasswordUsable(row.EncodedPassword),
 	}
 	if row.LastLogin != nil {
 		instant := *row.LastLogin

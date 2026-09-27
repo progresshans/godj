@@ -401,5 +401,29 @@ Admin은 required 확인 checkbox·CSRF·revision·change_user 권한을 갖는 
 선택하면 두 입력의 내용·일치 여부와 password 정책을 사용하지 않고 사용 불가 계정을 만든다. 비공개 렌더링과 transport/field 자원 검사는 계속 적용한다.
 Username 정규화·중복 검사와 현재 add/change 권한·감사 transaction은 같은 Manager가 소유한다.
 이 선택은 고정 Django AdminUserCreationForm의 외부 결과를 따른다. Boolean checkbox와 Django radio/field 내부 구조의 소스 호환은 약속하지 않는다.
-현재 password 상태의 Admin/API 표시와 전체 UserCreationForm 동작은 후속 범위다.
-이 결정은 last_login 갱신·self-service/reset·다른 인증 provider의 구현 완료를 뜻하지 않는다.
+전체 UserCreationForm 동작과 last_login 갱신·self-service/reset·다른 인증 provider는 후속 범위다.
+
+## 현재 password 상태의 읽기 전용 표현
+
+`Profile.PasswordUsable`은 profile을 만드는 동일한 User 행의 encoded password에서 계산한다.
+별도 저장 필드·조회·hasher 작업·캐시를 추가하지 않는다. Directory/Account와 Manager의 목록·상세·성공 결과가 같은 값을 가진다.
+`auth.IsPasswordUsable`은 `!` prefix의 의도적인 사용 불가 상태를 구분하는 표현용 predicate다.
+지원 hash 알고리즘·인코딩 검증·active/staff/권한·로그인 성공의 판정에 사용하지 않는다.
+Go의 빈/zero credential은 false이며 정상 저장 credential의 기존 envelope 검증은 유지한다.
+
+관리 API의 User/UserSummary는 required non-null boolean `password_usable`을 반환한다.
+목록·상세·생성·PUT/PATCH·password 명령의 성공 응답과 두 독립 OpenAPI client에 같은 계약을 적용한다.
+모든 입력에서는 이 이름을 거부하고, 응답에 raw/encoded password를 포함하지 않는다.
+표시를 위해 Schema IR에 저장되지 않는 가짜 model field를 넣지 않는다.
+`ModelEncoder.WithComputed`가 명시적 read-only field와 순수 snapshot reader를 소유하며 output Spec을 제공한다.
+저장/관계 이름의 대체·중복·nil reader는 구성 오류다. 파생 encoder는 원본과 형제의 field/reader 집합을 변경하지 않는다.
+읽기 결과의 부재·잘못된 타입/null·문자열 길이·decimal precision은 실행 오류이고 부분 응답을 게시하지 않는다.
+계산한 값에도 입력 trim/default/coercion을 적용하지 않으며 OpenAPI는 같은 encoder Spec에서 생성한다.
+
+Admin은 기존 객체의 편집 및 view-only 상세에 `Password login: Enabled/Disabled`를 표시한다.
+`ReadOnlyFields`는 이미 인가된 typed 객체 snapshot의 bounded plain text만 받는 명시적 표시 선언이다.
+Reader는 I/O·인가·객체 보관을 하지 않는다. 생성 화면에는 표시/평가하지 않고 input·CSRF/revision 조건 이름과 충돌할 수 없다.
+구성과 descriptor는 caller slice에서 분리하며 label/value는 HTML로 신뢰하지 않고 escape한다.
+확인된 입력 거부로 form을 다시 표시할 때도 같은 snapshot의 상태를 유지한다. 실패·취소 때 부분 화면을 게시하지 않는다.
+이 표시는 Django의 `has_usable_password()` 외부 의미를 따른다. hash summary를 렌더링하는 Python widget의 복제가 아니다.
+목록/history만 지원하는 Admin `ReadOnly` 등록에 상세용 field를 주면 명시적 구성 오류로 처리한다.

@@ -38,6 +38,22 @@ func (a *Application) prepareEncoders() error {
 	if err != nil {
 		return err
 	}
+	passwordUsable, err := serializers.BooleanField("password_usable", serializers.WithReadOnly())
+	if err != nil {
+		return err
+	}
+	passwordState := serializers.ComputedField[identity.UserDetails]{Field: passwordUsable, Read: func(value identity.UserDetails) (serializers.Value, bool) {
+		return serializers.Boolean(value.PasswordUsable), true
+	}}
+	a.userSummary, err = a.userSummary.WithComputed(passwordState)
+	if err != nil {
+		return err
+	}
+	a.userDetail, err = a.userDetail.WithComputed(passwordState)
+	if err != nil {
+		return err
+	}
+	a.resources[0].scalar, a.resources[0].detail = a.userSummary.Spec(), a.userDetail.Spec()
 	group := models.GroupDescriptor{}
 	readGroup := func(value identity.GroupDetails, field ir.Field) (query.Value, bool) {
 		return group.WriteFieldValue(models.Group{ID: value.ID, Name: value.Name, Revision: value.Revision}, field)

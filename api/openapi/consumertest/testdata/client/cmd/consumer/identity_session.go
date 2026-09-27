@@ -39,6 +39,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || page.Response.Count != 4 || len(page.Response.Items) != 1 || page.Response.Limit != 1 || page.Response.Offset != 0 || !transport.capturedCSRF() || !page.XGodjCsrftoken.Set || !state.ready(page.XGodjCsrftoken.Value) {
 		return fail("identity session bounded list and csrf")
 	}
+	if !page.Response.Items[0].PasswordUsable {
+		return fail("identity session list password status")
+	}
 	groups, err := client.GodjIdentityIdentityGroupsList(ctx, is.GodjIdentityIdentityGroupsListParams{})
 	groupPage, ok := groups.(*is.GroupPageHeaders)
 	if err != nil || !ok || groupPage.Response.Count != 2 || len(groupPage.Response.Items) != 2 || !groupPage.XGodjCsrftoken.Set || !state.ready(groupPage.XGodjCsrftoken.Value) {
@@ -134,6 +137,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity session user create")
 	}
+	if user.Response.PasswordUsable {
+		return fail("identity session unusable creation status")
+	}
 	id := user.Response.ID
 	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityCreatedUsername, Password: is.NewNilString("duplicate rejected")})
 	duplicateUser, ok := duplicate.(*is.GodjIdentityIdentityUsersCreateBadRequest)
@@ -151,6 +157,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	noOp, err := identityUserPatch(ctx, client, id, 2, 2, is.UserPatch{})
 	if err != nil || noOp.FirstName != "Edited" || !slices.Equal(noOp.Groups, []int64{groupID}) || !slices.Equal(noOp.Permissions, []int64{permissionID}) {
 		return fail("identity user omission and noop")
+	}
+	if noOp.PasswordUsable {
+		return fail("identity session edit changed password status")
 	}
 	put, err := client.GodjIdentityIdentityUsersUpdate(ctx, &is.UserUpdate{Username: identityCreatedUsername}, is.GodjIdentityIdentityUsersUpdateParams{ID: id, IfRevision: 2})
 	full, ok := put.(*is.UserHeaders)
@@ -170,6 +179,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || replaced.Revision != 2 || replaced.Response.Revision != 2 || replaced.Response.ID != target.TargetID {
 		return fail("identity password replacement")
 	}
+	if !replaced.Response.PasswordUsable {
+		return fail("identity session password replacement status")
+	}
 	if err := identityRevokedSession(ctx, viewer); err != nil {
 		return err
 	}
@@ -179,14 +191,21 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		if err != nil || !ok || value.Revision != revision+1 || value.Response.Revision != revision+1 || !value.Response.Active {
 			return fail("identity session repeated password disablement")
 		}
+		if value.Response.PasswordUsable {
+			return fail("identity session disablement status")
+		}
 	}
 	restored, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString("  SDK replacement password  ")}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 4})
 	restoredUser, ok := restored.(*is.UserSummaryHeaders)
 	if err != nil || !ok || restoredUser.Revision != 5 || restoredUser.Response.Revision != 5 {
 		return fail("identity session password restoration")
 	}
-	if _, err := identityUserPatch(ctx, client, target.TargetID, 5, 6, is.UserPatch{Active: is.NewOptBool(false)}); err != nil {
-		return err
+	if !restoredUser.Response.PasswordUsable {
+		return fail("identity session restoration status")
+	}
+	inactive, err := identityUserPatch(ctx, client, target.TargetID, 5, 6, is.UserPatch{Active: is.NewOptBool(false)})
+	if err != nil || !inactive.PasswordUsable || inactive.Active {
+		return fail("identity password status independent of activation")
 	}
 	if _, err := identityUserPatch(ctx, client, target.TargetID, 6, 7, is.UserPatch{Active: is.NewOptBool(true)}); err != nil {
 		return err

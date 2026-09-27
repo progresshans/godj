@@ -35,8 +35,13 @@ func makeUnusablePassword(ctx context.Context, random io.Reader) (string, error)
 // an active account without a usable password can still resolve through a
 // different authentication mechanism. A zero Credential has no usable password.
 func (c Credential) HasUsablePassword() bool {
-	return c.state != nil && c.state.hash != "" && !unusablePassword(c.state.hash)
+	return c.state != nil && IsPasswordUsable(c.state.hash)
 }
+
+// IsPasswordUsable classifies a stored representation without verifying its
+// algorithm, work profile or account state. Empty and reserved unusable values
+// are false; this predicate is never an authentication or validation decision.
+func IsPasswordUsable(encoded string) bool { return encoded != "" && !unusablePassword(encoded) }
 
 func unusablePassword(encoded string) bool { return strings.HasPrefix(encoded, "!") }
 

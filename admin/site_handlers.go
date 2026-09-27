@@ -308,6 +308,7 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 			return operationResponse(err)
 		}
 		revisionContext(context, revision)
+		context["readonly_fields"] = record.object.readOnlyValues
 		context["commands"], err = site.commandLinks(request.Context(), principal, model, id)
 		if err != nil {
 			return operationResponse(err)
@@ -385,6 +386,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 				return web.Response{}, contextErr
 			}
 			revisionContext(context, mutation.Revision)
+			context["readonly_fields"] = record.object.readOnlyValues
 			context["commands"], err = site.commandLinks(request.Context(), principal, model, id)
 			if err != nil {
 				return operationResponse(err)

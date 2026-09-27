@@ -5492,9 +5492,13 @@ func (s *User) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("password_usable")
+		e.Bool(s.PasswordUsable)
+	}
 }
 
-var jsonFieldsNameOfUser = [13]string{
+var jsonFieldsNameOfUser = [14]string{
 	0:  "id",
 	1:  "username",
 	2:  "first_name",
@@ -5508,6 +5512,7 @@ var jsonFieldsNameOfUser = [13]string{
 	10: "revision",
 	11: "groups",
 	12: "permissions",
+	13: "password_usable",
 }
 
 // Decode decodes User from json.
@@ -5689,6 +5694,18 @@ func (s *User) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"permissions\"")
 			}
+		case "password_usable":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.PasswordUsable = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password_usable\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -5700,7 +5717,7 @@ func (s *User) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -6456,9 +6473,13 @@ func (s *UserSummary) encodeFields(e *jx.Encoder) {
 		e.FieldStart("revision")
 		e.Int64(s.Revision)
 	}
+	{
+		e.FieldStart("password_usable")
+		e.Bool(s.PasswordUsable)
+	}
 }
 
-var jsonFieldsNameOfUserSummary = [11]string{
+var jsonFieldsNameOfUserSummary = [12]string{
 	0:  "id",
 	1:  "username",
 	2:  "first_name",
@@ -6470,6 +6491,7 @@ var jsonFieldsNameOfUserSummary = [11]string{
 	8:  "date_joined",
 	9:  "last_login",
 	10: "revision",
+	11: "password_usable",
 }
 
 // Decode decodes UserSummary from json.
@@ -6611,6 +6633,18 @@ func (s *UserSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"revision\"")
 			}
+		case "password_usable":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.PasswordUsable = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password_usable\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -6622,7 +6656,7 @@ func (s *UserSummary) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

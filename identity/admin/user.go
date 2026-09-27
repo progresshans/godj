@@ -64,6 +64,12 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	return admin.RegisterModel(builder, admin.ModelConfig[userRow]{
 		AppLabel: "godj_identity", Slug: "users", Model: metadata,
 		FormFields: userFields, RevisionField: "revision",
+		ReadOnlyFields: []admin.ReadOnlyField[userRow]{{Name: "password_usable", Label: "Password login", Value: func(value userRow) (string, error) {
+			if value.PasswordUsable {
+				return "Enabled", nil
+			}
+			return "Disabled", nil
+		}}},
 		FormOverrides: []formmodel.Override{username,
 			formmodel.OverrideField("first_name", formmodel.WithRequired(false)), formmodel.OverrideField("last_name", formmodel.WithRequired(false)),
 			formmodel.OverrideField("email", formmodel.WithRequired(false), formmodel.WithStringNormalizer(trimPythonSpace), formmodel.WithValidators(emailValidator())),

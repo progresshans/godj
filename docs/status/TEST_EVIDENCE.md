@@ -5,6 +5,58 @@
 
 
 
+## GDJ-0100 — 현재 password 상태의 Admin/API 표현
+
+2026-09-27, `b162f001` 이후 non-Markdown **2,452 파일**의 source map
+`290a151194999e32afe59ca0da74132903002170d8a73a7b73c17f48137703f4`에서 시작/종료 동일성을 확인했다.
+Profile의 password 사용 상태를 동일한 User 행에서 계산하고, Admin 편집/view-only 상세와
+관리 API의 User/UserSummary·두 독립 생성 client에 연결했다. 저장 필드나 추가 DB 조회·hash 작업은 넣지 않았다.
+
+- 활성 상태와 비밀번호 사용 상태를 분리한다. 고정 Django의 usable → disabled → inactive/disabled → inactive/restored → active 전이를
+  SQLite/PostgreSQL에서 독립 관찰하고 GoDj의 Directory·Manager·API 상세/목록·Admin 및 검증 오류 재표시와 비교했다.
+  입력 위조 거부, 현재 권한과 view-only, raw/encoded password 비노출·revision 보존을 실제 HTTP/DB에서 확인했다.
+- 공통 serializer의 computed field는 명시적 read-only 값과 출력 Spec을 소유한다. 모델/관계 이름 대체와 중복 거부,
+  원본/형제 projection의 독립성·동시 reuse, 필수 값·type/null·Unicode 길이·decimal precision/scale와 부분 출력 금지를 검사했다.
+  Admin의 순수 snapshot display는 설정/descriptor 소유권·input 충돌·HTML escaping·값 한도·실패/취소·생성 화면 제외를 검사했다.
+- 실제 exporter에서 Identity Session/Bearer의 두 OpenAPI 문서와 네 generated Go 파일을 다시 생성했다.
+  나머지 세 문서와 module/generator lock은 동일하다. 각 모드에서 다섯 profile 전체의 generated drift·독립 module build·실제 HTTP와
+  부모의 SQLite credential/session/audit 재조회가 성공했다. 두 응답형의 boolean true/false 및 누락/null/숫자/문자열 거부도 확인했다.
+
+| 모드 | 필수 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 13 packages / 239 roots / 1,481 필수 항목 | 4,102 PASS / skip 0 | 75.243초 |
+| race | 13 packages / 239 roots / 1,481 필수 항목 | 4,102 PASS / skip 0 | 324.869초 |
+| CGO=0 | 13 packages / 239 roots / 1,481 필수 항목 | 4,102 PASS / skip 0 | 81.287초 |
+
+총 **12,306 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go,
+`TZ=Pacific/Chatham`, `GODJ_REQUIRE_POSTGRES=1`에서 선택한 roots를 `go test -json -count=1 -p=2 -timeout=20m`과
+각 mode로 실행했다. 공통 Auth/Serializer/Admin·Identity/API/OpenAPI, 양 DB의 Identity 전체, 독립 client·Article·Helpdesk 소비자가 scope다.
+필수 run/pass와 실제 종료를 감사했다. PostgreSQL 17.10은 앞 단계와 같은 pinned UTF8/libc/C image이며
+종료 `0|0|0`과 private container 제거를 확인했다. 전체 platform/cold/process 검증을 뜻하지 않는다.
+
+고정 Django 6.1/CPython 3.14.3의 참조 테스트 **2개**, runtime mutation **7개**와 Go compiler overlay **7개**가 통과했다.
+Go control은 active와 password 상태 혼동, API 상수 상태, 공유 computed registry, 숨긴 model field 대체,
+Admin 검증 오류의 표시 누락·read-only 입력 허용·HTML 신뢰를 각각 지정된 assertion으로 탐지했다. Compile 실패는 성공이 아니다.
+영향 vet와 CI 도구 41개, gofmt·문서·diff 검사도 통과했다.
+
+첫 checkpoint는 새 테스트의 `name=` 선택자가 `data-field-name=`까지 입력으로 오인해 실패했다.
+두 번째는 기존 Article 검사가 모든 `password` 부분 문자열을 금지해 새 public boolean도 거부했다.
+정확한 입력 속성과 private JSON key를 검사하도록 수정했고 원문/저장 인코딩 비노출 검사는 추가로 유지했다.
+두 실패 receipt는 보존하고 PASS에 합산하지 않았다. CI 도구의 최초 잘못된 discovery 경로는 미실행이며 올바른 경로의 41개 실행만 인정했다.
+최종 source에서 세 mode의 전체 선택 scope를 실행했다. 앞서 통과한 독립 Python/control 입력은 source map으로 동일성을 확인했다.
+그 후의 차이는 해당 control 범위 밖의 Go 테스트 선택자/Article 응답 검사뿐이다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/password-status-checkpoint-1790502220586349000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/password-status-checkpoint-1790502220586349000/supplemental.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/password-status-checkpoint-1790502050533610000/controls/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/password-status-checkpoint-1790502050533610000/boundary-controls/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-reference-1790501836267029000/receipt.json`
+
+기반 `b162f0010971d74ccb29db029738fe03de0c2ee5`의 [Hosted Fast 36308476130](https://github.com/progresshans/godj/actions/runs/36308476130)는
+실제 Fast Go feedback까지 성공했다. 이번 변경의 새 Hosted 전체 실행은 후속 lifecycle 통합 milestone이 소유한다.
+`last_login`, self-service password/reset·전체 UserCreationForm과 다른 인증 provider는 미완료다.
+
 ## GDJ-0100 — Admin 생성의 사용 불가 password 선택
 
 2026-09-27, 구현 `f1801d2f` 이후 non-Markdown **2,446 파일** source map

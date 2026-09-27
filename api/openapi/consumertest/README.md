@@ -6,6 +6,11 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Identity의 `password_usable`은 User/UserSummary의 required read-only boolean이다.
+Session/Bearer client는 사용 불가 생성·반복 설정·복구와 활성 상태의 독립성, 목록과 view-only 상세의 현재 상태를 확인한다.
+별도 wire 검사는 두 응답형의 true/false와 필드 누락·null·숫자·문자열 거부를 확인한다.
+이 필드는 stored password를 공개하거나 입력으로 상태를 변경하는 통로가 아니다.
+
 `testdata/client`에는 framework module을 import하거나 replace하는 연결이 없다. 생성기와 client runtime 버전은
 그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
 부모 테스트의 생성·build는 준비된 module cache를 사용해 offline으로 실행한다.

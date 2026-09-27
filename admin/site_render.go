@@ -377,6 +377,7 @@ func (site *Site) formContext(
 		"title":            templates.String(title),
 		"has_revision":     templates.Bool(false),
 		"commands":         templates.List(),
+		"readonly_fields":  templates.List(),
 		"revision":         templates.Integer(0),
 		"action":           templates.String(action),
 		"submit_label":     templates.String(submit),
@@ -547,6 +548,8 @@ func (site *Site) detailContext(model registeredModel, object Object) (map[strin
 		}
 		fields = append(fields, entry)
 	}
+	readOnly, _ := object.readOnlyValues.Items()
+	fields = append(fields, readOnly...)
 	return map[string]templates.Value{"title": templates.String("View " + object.label), "fields": templates.List(fields...), "list_path": templates.String(site.modelPath(model))}, nil
 }
 

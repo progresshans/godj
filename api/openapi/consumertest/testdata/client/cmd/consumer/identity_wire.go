@@ -13,13 +13,16 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 )
 
-const identityWireBase = `{"id":9223372036854775807,"username":"wire","first_name":"","last_name":"","email":"","active":true,"staff":false,"superuser":false,"date_joined":"2026-09-27T00:00:00Z","last_login":null,"revision":1152921504606846977`
+const identityWireBase = `{"id":9223372036854775807,"username":"wire","first_name":"","last_name":"","email":"","active":true,"staff":false,"superuser":false,"date_joined":"2026-09-27T00:00:00Z","last_login":null,"revision":1152921504606846977,"password_usable":true`
 const identityWireCollections = `,"groups":[1152921504606846977,9223372036854775807],"permissions":[]}`
 const identityWireRevision = int64(1152921504606846977)
 
 // Fixed synthetic responses exercise the independent generated wire decoder.
 // They do not count as execution of the real management server's failure paths.
 func checkGeneratedIdentityWire(ctx context.Context) error {
+	if err := checkGeneratedPasswordStatusWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedUnusablePasswordWire(ctx); err != nil {
 		return err
 	}

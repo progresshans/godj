@@ -19,3 +19,9 @@ hashes only; credential authenticators perform dummy verification for unusable
 passwords and always deny password authentication. Corrupt/unsupported usable
 hashes remain explicit execution errors, as required by the stored-credential
 contract; they are not silently treated as deliberate disablement.
+
+`IsPasswordUsable` and the public profile flag classify this representation;
+they do not verify a hash or decide account admission. A Go zero/empty encoding
+is false (and rejected for a stored credential), rather than adopting Python's
+`None`/empty-string input conventions. Account activation and supported hash
+algorithms remain separate checks.

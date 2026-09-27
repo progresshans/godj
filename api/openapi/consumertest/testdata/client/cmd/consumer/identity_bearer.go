@@ -26,6 +26,11 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || page.Count != 4 || len(page.Items) != 4 {
 		return fail("identity bearer initial list")
 	}
+	for _, user := range page.Items {
+		if !user.PasswordUsable {
+			return fail("identity bearer list password status")
+		}
+	}
 	viewer, err := ib.NewClient(target.URL, identityBearerSource{target.ReadOnlyToken}, ib.WithClient(httpClient))
 	if err != nil {
 		return fail("identity bearer viewer setup")
@@ -67,6 +72,9 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity bearer user create")
 	}
+	if !user.Response.PasswordUsable {
+		return fail("identity bearer usable creation status")
+	}
 	id := user.Response.ID
 	patched, err := client.GodjIdentityIdentityUsersPatch(ctx, &ib.UserPatch{FirstName: ib.NewOptString("Bearer edited")}, ib.GodjIdentityIdentityUsersPatchParams{ID: id, IfRevision: 1})
 	user, ok = patched.(*ib.UserHeaders)
@@ -100,6 +108,14 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	disabledUser, ok := disabled.(*ib.UserSummaryHeaders)
 	if err != nil || !ok || disabledUser.Revision != 5 || disabledUser.Response.Revision != 5 || !disabledUser.Response.Active {
 		return fail("identity bearer password disablement")
+	}
+	if disabledUser.Response.PasswordUsable {
+		return fail("identity bearer disablement status")
+	}
+	current, err := viewer.GodjIdentityIdentityUsersDetail(ctx, ib.GodjIdentityIdentityUsersDetailParams{ID: id})
+	currentUser, ok := current.(*ib.UserHeaders)
+	if err != nil || !ok || currentUser.Response.PasswordUsable || !currentUser.Response.Active || currentUser.Response.Revision != 5 {
+		return fail("identity bearer view-only password status")
 	}
 	deletedUser, err := client.GodjIdentityIdentityUsersDelete(ctx, ib.GodjIdentityIdentityUsersDeleteParams{ID: id, IfRevision: 5})
 	if _, ok := deletedUser.(*ib.GodjIdentityIdentityUsersDeleteNoContent); err != nil || !ok {
