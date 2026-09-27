@@ -5,7 +5,7 @@
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 전체 검증: [관리 소비자·입력 경계 Hosted full](https://github.com/progresshans/godj/actions/runs/36305013585), source `f3264aeffce3c6a07ea07bb3a41097edf26ce15a`
 - 실행 중 통합: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
-- 최근 영향 CI: [Password 상태 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36310871626), source `8316b27a`
+- 최근 영향 CI: [로그인 오류 경계 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36316637831), source `94d0229b`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -30,7 +30,7 @@ Admin/API·독립 client와 재시작 소비자를 연결했고 영향 normal/ra
 ## 다음 행동
 
 source `63b07213`의 Hosted 전체 platform/process 실행 결과와 각 owner의 증거를 확인한다.
-이어서 self-service password/change·reset을 구현한다. 전체 UserCreationForm과 다른 인증 provider도 남은 요구와 구분한다.
+Self-service password/change의 양 DB 독립 관찰 초안을 확보했다. 현행 service/세션·Form/API 계약을 함께 정리해 구현하고 reset으로 이어간다. 전체 UserCreationForm과 다른 인증 provider도 남은 요구와 구분한다.
 이번 저장 로그인·세션 수립 통합 milestone이 새 source의 전체 platform/cold-build 검증을 소유한다.
 로컬에서는 영향 검증을 수행하며 Hosted 전체 실행과 중복한 로컬 전체 검증을 실행하지 않는다.
 

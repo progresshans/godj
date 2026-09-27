@@ -20,10 +20,28 @@ Auth/Session/Systemstate/Web sessionauth 네 package와 SQLite/PostgreSQL Login 
 각 모드 시간 합계는 11.859 / 48.637 / 14.771초다. 앞 절과 같은 Darwin arm64/Go 1.26.5, offline readonly,
 Pacific/Chatham·private PostgreSQL 17.10 환경이며 종료 `0|0|0`과 container 제거를 확인했다.
 변경 전의 동일 테스트는 `comparing uncomparable type identitytest.loginOpaqueError` panic으로 실패했다.
-이 재현과 변경 후 실행을 분리해 보존한다. 이전 `63b07213`의 Hosted 전체 실행은 이 추가 오류 수정의 전체 검증으로 전이하지 않는다.
+이 재현과 변경 후 실행을 분리해 보존한다. 수정 commit `94d0229b813c0d7a6c3b31ebf51636e55f77e1ad`의
+[Hosted Fast 36316637831](https://github.com/progresshans/godj/actions/runs/36316637831)은 실제 Go feedback까지 성공했다.
+이전 `63b07213`의 Hosted 전체 실행은 이 추가 오류 수정의 전체 검증으로 전이하지 않는다.
 
 - 재현: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-error-comparison-1790509140115594000/before.json`
 - 수정 검증: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-error-comparison-checkpoint-1790509213803444000/receipt.json`
+
+
+### 후속 자기 비밀번호 변경의 독립 관찰 준비
+
+제품 구현 전의 참조 초안을 private SQLite/PostgreSQL 17.10에서 실행했다. 고정 Django 6.1의 실제
+PasswordChangeView/PasswordChangeForm과 auth/session middleware를 사용하며 오류 렌더링만 JSON으로 관찰한다.
+두 DB와 hashseed 0/817의 결과가 같고, 아홉 upstream source hash를 기록했다. 원래 비밀번호·공백·confirmation·strength,
+현재 세션 회전/데이터 보존·다른 세션의 lazy 무효화·last_login 불변, 같은 비밀번호 재설정, 저장 실패/검증 뒤 변경을 관찰했다.
+세션 회전 누락·상수 session hash·변경 시각의 잘못된 갱신을 넣은 세 runtime mutation도 지정된 관찰 변화를 탐지했다.
+실패 hook은 실제로 한 번 실행됐는지 확인한다. Django form의 전체 User 저장이 동시 비활성/비밀번호 변경을 덮어쓰는 결과와
+세션 저장 실패의 부분 상태를 그대로 기록했다. Go의 원자 저장·현재 상태 재검사와 구분할 참조이며 Go 제품 구현/검증 완료가 아니다.
+
+- 초안·양 DB 관찰·동일성/cleanup receipt: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-reference-1790508448796614000/receipt.json`
+- Runtime control: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-reference-1790508448796614000/controls.json`
+- 보존한 runner: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-reference-1790508448796614000/runner.py`
+- 다음 구현 메모: `/tmp/godj-self-service-next.md`
 
 
 ## GDJ-0100 — 저장 로그인 관찰과 원자 세션 수립
