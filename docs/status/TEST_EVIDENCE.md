@@ -64,7 +64,9 @@ SQLite URI fragment로 해석돼 TempDir 밖 DB가 재사용된 것을 확인했
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-lifecycle-reference-1790505710776084000/receipt.json`
 
 이번 저장 로그인·세션 수립 통합 milestone은 새 source의 Hosted 전체 platform/cold-build/process 검증을 소유한다.
-현재 로컬 영향 검증은 완료했고 Hosted 전체는 아직 실행 전이다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
+구현 commit `63b07213ecaaea37a2270b33d8c806a982817269`를 두 branch에 게시했다.
+같은 source의 [Hosted full 36315320971](https://github.com/progresshans/godj/actions/runs/36315320971)을 명시적으로 dispatch했다.
+현재 실행 중이며 아직 전체 성공으로 표시하지 않는다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
 이전 `f3264aef`의 Hosted full을 이 변경의 전체 성공으로 전이하지 않는다.
 
 
