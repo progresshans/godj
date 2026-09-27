@@ -59,7 +59,11 @@ inventory가 거부했다. 이를 PASS로 세지 않고 owner를 명시한 뒤 �
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/godj-full-latest.json`
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-integration-repair-checkpoint-1790493198906028000/godj-full-failure-audit.json`
 
-이 수정 source를 게시하고 Hosted full을 다시 실행한다. 마지막 성공한 Hosted 전체는 `01b67211a083c507d5e69c6be26702439aada559`의
+구현 `c7a0c5e0763d7a531f52c3ea9a4bc8af276ffabb`을 게시했고,
+[Hosted Fast 36303277121](https://github.com/progresshans/godj/actions/runs/36303277121)의 실제 Go feedback도 같은 head에서 성공했다. 같은 head의
+[Hosted full 36303289415](https://github.com/progresshans/godj/actions/runs/36303289415)을 다시 시작했다.
+현재 queue/run 중이며 전체 PASS가 아니다. 이후 Markdown 기록만 바꾸는 commit은 이 실행의 head와 구분한다.
+마지막 성공한 Hosted 전체는 `01b67211a083c507d5e69c6be26702439aada559`의
 [36253381368](https://github.com/progresshans/godj/actions/runs/36253381368)이며, 이후 기능의 전체 PASS로 전이하지 않는다.
 
 사용 불가능한 password·last_login, self-service/reset과 프레임워크 전체 완성은 여전히 미완료다.
