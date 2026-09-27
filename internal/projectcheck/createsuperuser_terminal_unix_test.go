@@ -314,8 +314,8 @@ func TestReadCreatesuperuserTerminalDisablesKernelEchoBeforeAcceptingPrebuffered
 	}
 	clear(got.username)
 	clear(got.password)
-	requireRestoredPTYInput(t, slave, master, "sentinel-after-restore\n")
-	transcript := append([]byte(prompts.String()), readAvailablePTY(t, master)...)
+	echoed := requireRestoredPTYInput(t, slave, master, "sentinel-after-restore\n")
+	transcript := append([]byte(prompts.String()), echoed...)
 	if bytes.Contains(transcript, []byte("pasted-password")) {
 		t.Fatalf("prebuffered password material was rendered: %q", transcript)
 	}
@@ -361,8 +361,8 @@ func TestReadCreatesuperuserTerminalDiscardsQueuedSecretsAfterInvalidUsername(t 
 		got.report.TerminalRestoreAttempts != 1 {
 		t.Fatalf("invalid username result = %+v report %+v", got.failure, got.report)
 	}
-	requireRestoredPTYInput(t, slave, master, "sentinel-invalid-restore\n")
-	transcript := append([]byte(prompts.String()), readAvailablePTY(t, master)...)
+	echoed := requireRestoredPTYInput(t, slave, master, "sentinel-invalid-restore\n")
+	transcript := append([]byte(prompts.String()), echoed...)
 	if bytes.Contains(transcript, []byte("queued-password")) {
 		t.Fatalf("queued password survived invalid-input restore: %q", transcript)
 	}
@@ -404,8 +404,8 @@ func TestReadCreatesuperuserTerminalStopsAtTheBoundAndFlushesWithoutWaitingForNe
 	if got.failure == nil || *got.failure != want || got.report.TerminalRestoreAttempts != 1 {
 		t.Fatalf("overflow result = %+v report %+v", got.failure, got.report)
 	}
-	requireRestoredPTYInput(t, slave, master, "sentinel-overflow-restore\n")
-	if transcript := append([]byte(prompts.String()), readAvailablePTY(t, master)...); !bytes.Contains(transcript, []byte("sentinel-overflow-restore")) {
+	echoed := requireRestoredPTYInput(t, slave, master, "sentinel-overflow-restore\n")
+	if transcript := append([]byte(prompts.String()), echoed...); !bytes.Contains(transcript, []byte("sentinel-overflow-restore")) {
 		t.Fatalf("restored terminal did not echo after bounded overflow: %q", transcript)
 	}
 }
@@ -458,8 +458,8 @@ func TestReadCreatesuperuserTerminalRestoresEchoAfterInterrupt(t *testing.T) {
 	if !reflect.DeepEqual(before, after) {
 		t.Fatal("terminal state was not restored after interrupt")
 	}
-	requireRestoredPTYInput(t, slave, master, "sentinel-interrupt-restore\n")
-	transcript := append([]byte(prompts.String()), readAvailablePTY(t, master)...)
+	echoed := requireRestoredPTYInput(t, slave, master, "sentinel-interrupt-restore\n")
+	transcript := append([]byte(prompts.String()), echoed...)
 	if bytes.Contains(transcript, []byte("queued-interrupt-secret")) {
 		t.Fatalf("queued password survived interrupt restore: %q", transcript)
 	}
@@ -598,7 +598,7 @@ func readPTYMore(t *testing.T, reader *os.File, retained []byte) []byte {
 	return retained
 }
 
-func requireRestoredPTYInput(t *testing.T, slave, master *os.File, sentinel string) {
+func requireRestoredPTYInput(t *testing.T, slave, master *os.File, sentinel string) []byte {
 	t.Helper()
 	writePTYInput(t, master, sentinel)
 	deadline := time.Now().Add(5 * time.Second)
@@ -625,7 +625,10 @@ func requireRestoredPTYInput(t *testing.T, slave, master *os.File, sentinel stri
 		if got := string(buffer[:read]); got != sentinel {
 			t.Fatalf("restored terminal input = %q, want exact sentinel %q", got, sentinel)
 		}
-		return
+		// Canonical input delivery does not imply the corresponding master-side
+		// echo has arrived in full. Wait for its complete marker while keeping
+		// every earlier byte for the queued-secret checks at the call site.
+		return readPTYUntil(t, master, nil, strings.TrimSuffix(sentinel, "\n"))
 	}
 }
 

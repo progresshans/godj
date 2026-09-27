@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — Linux PTY 에코 관찰과 Python 호환성 fingerprint 후속 수정
+
+2026-09-27, `c7a0c5e0`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36303289415)에서
+Linux PTY overflow 검사가 완전한 에코가 도착하기 전의 조각만 수집했고, 세 Python 호환성 job의 최종 합산 fingerprint가 이전 GoDj 결정을 사용했다.
+이 실행은 전체 PASS가 아니며 나머지 job의 결과도 계속 확인한다.
+
+- PTY의 복원 후 canonical 입력 확인과 master 출력 전달은 별개다. 네 복원 probe가 기존의 5초 제한 marker reader로
+  완전한 에코를 기다리고 그 앞의 모든 bytes도 보존하도록 바꿨다. 입력 queue의 정확한 sentinel과 secret 비노출 검사는 유지했다.
+  실제 terminal restore/flush 제품 코드는 변경하지 않았다.
+- Darwin arm64와 Linux arm64 / Go 1.26.5에서 10개 terminal roots와 3개 하위 사례를 각 50회 실행했다.
+  normal/race/CGO=0의 각 환경에서 **650 PASS / skip 0**, 총 **3,900회 PASS**다.
+  필수 root와 각 하위 사례의 run/pass 수가 모두 50인지 확인했다.
+  Linux arm64는 실제 Docker PTY이며 Ubuntu amd64의 Hosted 결과로 표현하지 않는다.
+  Go image는 `sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`다.
+- 별도 source copy의 Linux negative control 두 개가 지정된 assertion으로 실패했다.
+  ECHO 복원 제거는 완전한 marker의 bounded timeout, input flush 제거는 queued secret이 섞인 입력 거부로 탐지했다.
+  Build 실패를 탐지 성공으로 세지 않았으며 컨테이너는 모두 제거됐다.
+- Django 6.1/DRF 3.18.0/CPython 3.14.3의 고정 DRF 환경에서 **311개 전체 시나리오**를 다시 관찰했다.
+  SYS-023 전송 byte 한도와 SYS-028 명시적 identity 전환의 두 GoDj 결정만 이전 값으로 대체하면
+  기존 1,081,069 bytes / `92bd2eb410e09ca3d046b0ca048c723376c3bfa55a9eb82f25276adc88be3450`가 정확히 재현된다.
+  다른 관찰의 변경을 새 checksum으로 덮지 않았다. 현재 payload는 **1,081,175 bytes**,
+  SHA256 `e162bcfe0695bc2a56f37387d2c346cdbc472b706e4f8b21abc7c6ed629e6a3f`다. 시나리오 수 311은 유지한다.
+- Workflow의 고정 length/hash 두 값만 갱신하고, 그 step의 Python body를 그대로 추출해 고정 DRF 환경에서 실행했다.
+  갱신된 검사와 CI 도구 41개, 영향 vet·gofmt·diff 검사를 통과했다.
+  첫 관찰 시도는 Django 전용 환경에 DRF가 없어 중단됐으며 성공으로 세지 않았다.
+
+터미널 실행/controls의 non-Markdown source는 `0e69b2a14d54034cbc4ca546e28f59b916457a5b097d047d365da6debfe7ace9`다.
+최종 source는 `2251864890e634b0e982f78eb918a3fd018ed975fe28e16e06129a992d001d9b`이며 이후 차이는 `.github/workflows/ci.yml`뿐이다.
+Go 제품·테스트 입력이 동일함을 source map으로 확인해 완료한 terminal 실행을 중복하지 않았다.
+Workflow reference 검사는 갱신된 파일에서 별도로 실행했다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/terminal-echo-checkpoint-1790494963212670000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/terminal-echo-checkpoint-1790494963212670000/controls-receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/terminal-echo-checkpoint-1790494963212670000/scope-delta.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/python-compatibility-digest-1790495534360303000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/python-compatibility-digest-1790495534360303000/workflow-receipt.json`
+
+현재 Hosted full은 `c7a0c5e0`의 실행으로 이 후속 수정을 포함하지 않는다.
+나머지 결과를 확인한 뒤 최종 수정 source에서 전체 검증을 다시 실행한다.
+
+
 ## GDJ-0100 — 관리 기능의 Hosted 통합에서 발견한 소비자와 참조 증거 수정
 
 2026-09-27, 구현 `5c2045f4a0ba5235e73bf0a0e7fac0e3aed45565`의
