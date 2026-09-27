@@ -26,14 +26,16 @@ source `63b07213`의 Hosted 전체 platform/process 통합이 완료됐다. 이�
 수정된 `fb817d6b`의 새 capture와 전체 milestone 실행을 시작했다. 결과 확인 전이다.
 Reset token·Form·메일의 독립 Django 양 DB 기준을 확보했다. Go reset token/key ring·현재 상태 재검사와
 password/session 폐기/audit 원자 저장 service를 구현하고 영향 normal/race/CGO=0·양 DB 검증을 완료했다.
-메일 수신자 선택·전달과 실제 재설정 Form/API는 아직 연결 전이다.
+공통 mail의 불변 message·MIME·SMTP/Memory 전달과 명시적 접수 결과를 구현하고 영향 normal/race/CGO=0 검증을 완료했다.
+의존성 변경의 PostgreSQL 연결·저장 인증 회귀도 세 모드에서 확인했다.
+Reset 수신자 선택·메일 발급 값 연결과 실제 재설정 Form/API는 아직 남아 있다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-[Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
+[Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [메일 결정](../adr/0078-mail-message-ownership-and-delivery.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 
 ## 다음 행동
 
-`fb817d6b`의 Hosted milestone·실제 필수 실행과 새 capture/source binding을 확인한다. 선행 run의 미통과 결과는 Evidence에 보존했다.
-다음 구현은 reset의 명시적 메일 전달·수신자 선택과 실제 Form/API·독립 client다. Native HTTP reset view도 별도로 관찰한다.
+`fb817d6b`의 Hosted milestone·실제 필수 실행의 최종 완료를 확인한다. 새 capture/source binding은 대조했고 선행 run의 미통과 결과도 Evidence에 보존했다.
+다음 구현은 reset 수신자 선택·메일 내용/발급 값과 공개 응답, 실제 Form/API·독립 client의 연결이다. Native HTTP reset view도 별도로 관찰한다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
 로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.

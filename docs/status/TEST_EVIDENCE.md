@@ -3,6 +3,60 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 공통 메일과 명시적 SMTP 접수 결과
+
+2026-09-28, `18870d01` 이후 불변 mail Message·Address·MIME, bounded Memory와 context/timeout을 따르는
+SMTP backend를 구현했다. Header injection·Bcc 비공개·입력 소유 복사·진단 redaction, STARTTLS/implicit TLS·인증서/이름,
+AUTH PLAIN·SMTPUTF8, 모든 RCPT 확인 뒤 DATA, 거절/접수 불명/최종 250 뒤 정리 실패의 결과를 구분한다.
+설계는 [ADR-0078](../adr/0078-mail-message-ownership-and-delivery.md), 독립 출처는 [mail/NOTICE](../../mail/NOTICE.md)에 둔다.
+Reset 수신자 선택·메일 내용/발급 값·공개 응답과 제품 Form/API·독립 client의 완료는 아니다.
+
+최종 source map `66036f6b17bc3997ca434a309eea6ce979ff67c2cfc578ceea97142649877526`
+(non-Markdown **2,537 파일**)의 시작/종료 동일성을 확인했다. Message/Memory/SMTP와 영향을 받는 Form/ModelForm은
+**3 packages / 63 roots**, 별도 PostgreSQL 의존성 회귀는 **1 package / 7 roots / 28 필수 항목**으로 실행했다.
+
+| 모드 | Mail·Form 완료 | PostgreSQL 의존성 완료 | 실행 시간 합계 |
+|---|---|---|---|
+| normal | 1,299 PASS / skip 0 | 28 PASS / skip 0 | 4.873초 |
+| race | 1,299 PASS / skip 0 | 28 PASS / skip 0 | 17.442초 |
+| CGO=0 | 1,299 PASS / skip 0 | 28 PASS / skip 0 | 6.793초 |
+
+합계 **3,981 PASS / skip 0**이다. 각 package의 종료·필수 run/pass와 실패/skip 부재를 독립 event 검사기로 확인했다.
+Darwin arm64 / Go 1.26.5, offline readonly module, `TZ=Pacific/Chatham`을 사용했다.
+현재 model/IR/generator·생성 ABI는 바꾸지 않았으므로 generated drift나 전체 platform을 중복 실행하지 않았다.
+
+- 실제 loopback TCP SMTP가 envelope·MIME·dot-stuffing을 수신했다. Plaintext, STARTTLS, implicit TLS,
+  신뢰되지 않는 인증서와 잘못된 이름·CA pool 소유 복사·capability 부재·인증 거절을 검사했다.
+  보안 협상 실패 뒤 MAIL/DATA를 보내거나 인증 정보를 평문으로 보내지 않았다.
+- 일부 RCPT 뒤 거절은 DATA 없음, DATA command/최종 4xx/5xx는 명시적 거절, 마지막 응답 유실은 unknown이었다.
+  250 확인 뒤 QUIT 단절/취소는 nil 접수를 유지했다. 본문 쓰기 중 단절, greeting/최종 응답 중 취소,
+  전체 timeout과 응답 상한을 검사했다. 전송 재시도는 없다.
+- 본문 마지막 byte·줄바꿈·공백·긴 Unicode/ASCII 제목, multipart alternative·binary attachment·quoted/IDN 주소,
+  UTC 변환 뒤 날짜 범위와 EHLO IP literal을 검사했다. Inputs/returned byte·recipient slice의 소유권을 확인했다.
+  Memory의 concurrent Send·상한 초과·Snapshot/Drain과 redacted fmt/JSON을 검사했다.
+- 고정 Django 6.1 / CPython 3.14.3 native mail에서 **5개 관찰군**, Django **4개**와 Python email **2개** source hash를 기록했다.
+  별도 Python **2 tests**가 다른 hash seed의 같은 결과와 recipient/delivery **2개 runtime mutation**을 검사했다.
+  Go는 독립 fixture의 decoded MIME·Bcc·주소를 대조하며 SMTPUTF8·bounded/immutable API의 차이를 명시했다.
+- Go source overlay **6개**는 Bcc envelope 누락, 첨부 소유 복사 누락, unknown 결과 오분류,
+  접수 후 정리 실패 오분류, TLS 검증 생략, Memory 한도 누락을 지정된 의미 assertion으로 탐지했다.
+  실제 테스트가 실행되지 않은 compile 실패를 검증 성공으로 세지 않았다.
+
+IDNA를 위해 `x/net v0.57.0`을 명시했고 module graph가 `x/text v0.40.0`과 `x/sync v0.22.0`을 선택한다.
+기존 독립 client module도 같은 버전을 사용한다. Form의 해당 정규화 소비자와 PostgreSQL 연결 설정·pool 종료·
+native read snapshot·acquire 실패·저장 Identity/HTTP를 검증했다. Private PostgreSQL **17.10 UTF8/libc/C**에서
+비ASCII 비밀번호의 실제 SCRAM 연결을 사용했으며 table/schema/다른 connection **0|0|0**과 container 제거를 확인했다.
+
+최초 PostgreSQL 보조 checkpoint는 검증용 URL의 userinfo를 percent encoding하지 않아 native pgx config parsing에서
+실패했다. Raw userinfo 거부와 escaped userinfo의 password 보존을 별도 probe로 확인했고 검증 도구를 고쳐 위 결과를 확보했다.
+제품 DB/인증 코드는 수정하지 않았다. 실패/정리 기록 `mail-dependency-checkpoint-1790524898500010000`을 보존한다.
+최초 mail pass 후 코드 검토로 UTC 변환 경계와 EHLO literal을 보완해 최종 source에서 다시 실행했다.
+
+원본/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 `mail-reference-1790524131136124000`,
+`mail-checkpoint-1790525182765815000`과 그 `controls/`, `mail-dependency-checkpoint-1790525047688345000`에 있다.
+영향 vet, module checksum verification, 두 attestation의 native dependency closure, gofmt·Markdown 155개 링크·diff, 최종 source 동일성을 확인했다.
+운영 SMTP provider에 실제 사용자 메일을 보내지 않았다. 이 source의 Hosted 전체는 아직 실행하지 않았으며,
+진행 중인 `fb817d6b`의 결과에는 새 mail package와 dependency 변경이 포함되지 않는다.
+
 ## GDJ-0100 — reset token과 현재 상태를 재검사하는 원자 service
 
 2026-09-28, `44069bc1` 이후 `identity.PasswordResetter`를 추가했다. 명시적 immutable key ring·timeout·clock·validator와

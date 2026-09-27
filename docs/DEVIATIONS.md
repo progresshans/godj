@@ -44,6 +44,28 @@
 
 ## 원장
 
+## DEV-0019 — 메일 소유권과 명시적 SMTP 접수 결과
+
+- 상태: accepted design; 로컬 영향 검증 완료, 전체 환경·제품 소비자는 [Evidence](status/TEST_EVIDENCE.md) 참조
+- 날짜: 2026-09-28
+- 기준: 고정 Django 6.1의 [독립 mail 관찰](../conformance/runners/django/mail_reference.py)과 [fixture](../mail/testdata/django61.json)
+- 범위: [ADR-0078](adr/0078-mail-message-ownership-and-delivery.md)의 Message·Memory·SMTP. 등록 conformance manifest의 완료 수를 변경하지 않는다.
+
+Django의 decoded MIME 내용·수신자·Bcc 비공개·IDN/quoted address·header injection 거부와 locmem의 소유 복사를 비교한다.
+GoDj는 immutable message, 생성 시 입력 복사, 명시적 backend와 context, 수신자/크기 상한을 사용한다.
+빈 수신자는 Django의 send=0 대신 구성 오류이며 raw header의 envelope/MIME/Date/ID override는 허용하지 않는다.
+Memory는 전역 outbox 대신 instance별 bounded 저장소다. Python mutable 객체나 임의 MIME object/file-system attachment API는 현재 제공하지 않는다.
+
+고정 native SMTP prep은 비ASCII local part를 기본 거부한다. GoDj는 주소를 바꾸지 않고 서버의 SMTPUTF8 광고를 요구한다.
+IDNA는 고정 Go module의 transitional lookup profile이며 Python IDNA와 모든 Unicode code point가 같다고 주장하지 않는다.
+Go의 SMTP는 명시적 TLS 모드·인증서/이름 검사와 AUTH PLAIN을 사용하며 필요한 capability가 없으면 전송하지 않는다.
+각 메시지는 모든 수신자가 수락된 뒤 DATA를 보낸다. 최종 접수 확인 전 단절은 단계에 따라 not_sent/unknown,
+명시적 거절은 rejected, 250 뒤 정리 실패·취소는 접수 성공이다. 자동 retry를 하지 않는다.
+
+이는 recipient 일부만 보내거나 unknown 결과를 다시 보내는 오류를 피하고 I/O 결과를 보존하기 위한 설계다.
+미배포 신규 package이므로 기존 데이터 migration은 없다. Runtime/provider 확장 시 같은 의미를 제공할 수 있는지 다시 검토한다.
+운영 SMTP provider, reset의 공개 응답·수신자 선택·Form/API와 다른 Django mail backend의 완료를 뜻하지 않는다.
+
 ## DEV-0018 — 일대일 역방향 부재와 Go 객체 소유권
 
 - Status: Accepted; single reverse object, prefetch and typed eager trees implemented, locally verified on SQLite/PostgreSQL in normal/race/CGO-disabled modes.
@@ -261,19 +283,6 @@ PostgreSQL은 허용한다. 실제 query/write·기존 행 보존·rollback을 �
 
 Float는 새 제품 의미이므로 이전 Float 데이터의 migration은 필요하지 않다. 향후 transport가 non-finite를 명시적으로 표현하거나
 SQLite adapter가 별도 저장 방식을 제공할 때 이 정책과 정확한 selector를 재검토하고 supersede한다. 제품 source와 실행 환경의 범위는 연결한 TEST_EVIDENCE를 따른다.
-
-[독립 login lifecycle 관찰](../conformance/runners/django/login_lifecycle_reference.py)과 두 backend fixture는
-last_login/세션 저장 실패 및 인증 뒤 password/active 변경을 그대로 기록한다. GoDj의 저장 Identity binding은
-last_login과 세션을 동일 transaction으로 확정하고 현재 credential/admission을 재검사한다.
-Django의 시각만 남는 실패 또는 다음 요청에서 감지하는 stale credential과 의도적으로 다르다.
-같은 계정 재로그인도 GoDj는 항상 ID를 회전한다. 계정 교체의 payload 삭제와 일반 login/access/logout 관찰은 비교한다.
-자세한 소유권과 generic/legacy 범위는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립)을 따른다.
-
-[독립 reset 관찰](../conformance/runners/django/password_reset_reference.py)의 credential/email 변경·만료 경계와
-secret fallback은 비교하되 token wire 형식은 Go가 소유한다. Native의 `bindings.inactive`, `bindings.last_login_microsecond`,
-`clock.future`가 true라는 관찰을 유지한다. GoDj는 현재 active/usable과 저장 시각 전체 정밀도를 검사하고 미래 발급을 거부한다.
-Native `stale_confirmation`의 두 성공과 profile/active 복구도 원본에 남긴다. GoDj는 마지막 token 재검사로 하나만 저장하며
-password/현재 revision만 patch하고 session 폐기·audit까지 원자 처리한다. 메일·HTTP reset 소비자 parity는 별도 조건이다.
 
 ## DEV-0014 — TimeInput의 초기 microsecond와 변경 감지를 보존
 
@@ -1179,6 +1188,12 @@ last_login과 세션을 동일 transaction으로 확정하고 현재 credential/
 Django의 시각만 남는 실패 또는 다음 요청에서 감지하는 stale credential과 의도적으로 다르다.
 같은 계정 재로그인도 GoDj는 항상 ID를 회전한다. 계정 교체의 payload 삭제와 일반 login/access/logout 관찰은 비교한다.
 자세한 소유권과 generic/legacy 범위는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립)을 따른다.
+
+[독립 reset 관찰](../conformance/runners/django/password_reset_reference.py)의 credential/email 변경·만료 경계와
+secret fallback은 비교하되 token wire 형식은 Go가 소유한다. Native의 `bindings.inactive`, `bindings.last_login_microsecond`,
+`clock.future`가 true라는 관찰을 유지한다. GoDj는 현재 active/usable과 저장 시각 전체 정밀도를 검사하고 미래 발급을 거부한다.
+Native `stale_confirmation`의 두 성공과 profile/active 복구도 원본에 남긴다. GoDj는 마지막 token 재검사로 하나만 저장하며
+password/현재 revision만 patch하고 session 폐기·audit까지 원자 처리한다. 메일·HTTP reset 소비자 parity는 별도 조건이다.
 
 ## DEV-0014 — Superuser와 canonical permission 경계
 

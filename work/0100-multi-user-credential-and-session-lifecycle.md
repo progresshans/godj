@@ -106,3 +106,8 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 메일 전달·Form/API 소비자는 다음 구현이다. Go token/key ring·현재 credential/email/last_login/active와
 만료 재검사·password/현재 revision/session 폐기/audit 원자 저장 service를 구현했다.
 영향 normal/race/CGO=0·양 DB·두 연결의 경쟁과 실패 경계를 검증했다. 메일이나 실제 reset 화면/API의 완료는 아니다.
+
+공통 mail의 불변 message·MIME, bounded Memory와 명시적 TLS·접수/거절/unknown을 구분하는 SMTP backend를 구현했다.
+고정 Django MIME·주소·in-process 전달 관찰, 실제 loopback SMTP의 인증·실패·취소와 local normal/race/CGO=0을 검증했다.
+새 IDNA 의존성의 Form·PostgreSQL 연결/저장 인증 영향도 확인했다. [ADR-0078](../docs/adr/0078-mail-message-ownership-and-delivery.md)을 따른다.
+Reset 수신자 선택·메일 내용/발급 값·공개 응답과 실제 Form/API·독립 client는 다음 연결 범위다.

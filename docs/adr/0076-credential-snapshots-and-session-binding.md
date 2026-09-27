@@ -576,3 +576,9 @@ GoDj는 실제 저장된 UTC 시각의 전체 정밀도와 현재 active/usable�
 Django SetPasswordForm이 두 stale snapshot을 순서대로 저장하거나 최신 email/active를 복구하는 관찰과도 다르게,
 GoDj는 token을 최종 재검사하고 field patch·원자 저장을 사용한다. 이 차이는 [DEV-0013](../DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)에 기록한다.
 메일 실패 정책·수신자 선택·reset HTTP view·Form/API의 구현 및 검증은 이 service의 완료로 추론하지 않는다.
+
+
+공통 [mail](../../mail/)의 Message·Memory·SMTP 기반은 별도 [ADR-0078](0078-mail-message-ownership-and-delivery.md)을 따른다.
+전송의 확정 접수/거절/unknown과 message의 소유권을 구현했으며 reset 수신자 선택·발급 값 연결·공개 응답·Form/API는
+후속 소비자가 소유한다. Reset 전송 실패를 그대로 공개 HTTP 오류로 바꾸어 계정 존재 여부를 드러내지 않는다.
+실제 I/O 오류의 내부 보고 방식까지 소비자 연결에서 검증한다.
