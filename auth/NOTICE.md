@@ -59,3 +59,11 @@ NFKC/full-casefold admission and the reset email field's cleaning diagnostics.
 GoDj keeps that two-stage comparison and binds the recipient and token to the
 same immutable account snapshot. Its complete bounded preparation, explicit
 private delivery errors and configured origin are described in ADR-0076.
+
+`conformance/runners/django/password_reset_http_reference.py` independently
+observes native reset views with CSRF, authentication and database sessions on
+both pinned backends. It records token hiding, form diagnostics, anonymous/self/
+other-account sessions and the partial native result when session saving fails
+after a password write. Eight upstream file hashes accompany the fixtures.
+GoDj's borrowed reset transaction deliberately couples later proof cleanup to
+password/revocation/audit instead of adopting that partial-write behavior.

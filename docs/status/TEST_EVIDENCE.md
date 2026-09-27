@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — HTTP reset 기준과 빌린 transaction의 원자 결합
+
+2026-09-28, `fde61349` 이후 실제 proof session을 연결하기 전에 native HTTP 의미와 원자 구성 경계를 구현했다.
+`PasswordResetter.Prepare`는 hash를 DB scope 밖에서 한 번 준비하고, owner에 결합한 불변 값의 `ApplyIn`은
+현재 token·account·expiry·policy를 재검사한 뒤 password/현재 revision·session 폐기·audit를 호출자의 transaction에 쓴다.
+`CheckTokenIn`은 빌린 scope에서만 읽으며 기존 `ResetPassword`도 같은 Prepare/ApplyIn 경로를 사용한다.
+실제 proof persistence·Web/Form/API·독립 client가 연결됐다는 뜻은 아니다.
+
+통합 checkpoint source map `ffe3c39ddac7726807b0067cc2f5ce68f62c81e35a404fb7e900c7f70d794779`
+(non-Markdown **2,547 파일**)의 시작/종료 동일성을 확인했다. **3 packages / 31 roots / 371 필수 항목**이며
+Identity **213 PASS**, SQLite/PostgreSQL의 reset service·mail·composition **198 PASS**를 각 모드에서 실행했다.
+실제 run/pass·package 완료와 skip 부재를 event inventory로 확인했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 411 PASS / skip 0 | 13.635초 |
+| race | 411 PASS / skip 0 | 64.831초 |
+| CGO=0 | 411 PASS / skip 0 | 16.798초 |
+
+합계 **1,233 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly와 `TZ=Pacific/Chatham`,
+private PostgreSQL **17.10 UTF8/libc/C**, `GODJ_REQUIRE_POSTGRES=1`을 사용했다. DB 정리 **0|0|0**과 container 제거를 확인했다.
+
+- 독립 Django 6.1 / CPython 3.14.3 HTTP runner는 실제 CSRF/auth/session middleware와 두 DB에서
+  **15개 관찰군 / 8개 upstream hash**를 확보했다. 두 backend의 관찰이 정확히 같다. 알려진/없는/비활성/사용 불가 email,
+  send 실패의 공개 redirect, missing/bad/foreign CSRF, token 숨김·다른 브라우저·교체/삭제된 proof,
+  confirmation·policy 오류 순서와 password 미반사, 익명/본인/다른 사용자 session·replay를 포함한다.
+  Native session save 실패는 HTTP 500이어도 새 password가 남고 DB의 reset token이 남는 것을 관찰했다.
+  Go의 active 재검사·즉시 session 폐기·후속 proof 저장과 원자 결합은 [ADR-0076](../adr/0076-credential-snapshots-and-session-binding.md)에 구분했다.
+  Python **2 tests / 13.040초**가 hash-seed 재생·양 fixture 전체 비교와 CSRF/cleanup/자동 로그인 **3개 runtime mutation**을 확인했다.
+- Go에서 ApplyIn 이후 실제 DB로 password 변경을 확인한 다음 후속 오류를 주입했다. Password/session/audit 전부 rollback되고
+  다른 연결에서도 원상태이며 token은 유효했다. 확인된 rollback 뒤 준비 값을 명시적으로 재사용해도 hash를 반복하지 않고,
+  성공 뒤 재사용은 거부했다. 다른 owner·zero/nil/cancel 입력은 아무 효과가 없었다.
+- 준비 후 다른 연결의 profile/revision 변경은 보존하고 email/password/active·만료 변경은 거부했다.
+  빌린 token 검사는 nested snapshot·hash·write를 만들지 않고 현재 transaction의 계정 상태를 사용했다.
+  기존 rollback/unknown·cleanup/취소·두 연결 경쟁과 메일에서 실제 reset까지의 검증도 모두 실행했다.
+- Go overlay **4개**가 prepared owner 누락, 빌린 token admission 생략, 현재 revision 무시와 최종 policy 누락을
+  각각 지정한 assertion으로 탐지했다. 실제 테스트 실행 없이 생긴 compile 오류는 성공으로 세지 않았다.
+
+최초 새 test는 트랜잭션 안의 확인용 `First`에 명시적 ordering을 빠뜨려 양 DB에서 실패했다. 이를 고쳤다.
+CI 도구는 필수 목록의 빈 줄과 PostgreSQL 항목을 relation owner에도 넣은 오류를 검출했다.
+필수 항목은 PostgreSQL owner에 유지하고 중복된 다른 owner의 9개 항목만 제거했다. 통합 checkpoint의 필수 실행 집합이
+그대로임을 독립 대조했으며 **제품·test·fixture는 바꾸지 않았다**. 최종 source map
+`e6922c0a1851dee436fe796e29c74dfc1fb87c2dd4092abe46621d13a8f6f049`에서 유일한 후속 delta는
+`scripts/ci/relation-required.txt`다. 최종 CI 도구 **41 tests / 3.425초**가 실제 shell inventory 전달과 실행 owner를 확인했다.
+이 metadata 수정 때문에 DB/platform 검증을 중복하지 않았다. Model IR·생성 ABI·생성물은 바꾸지 않았다.
+영향 vet·gofmt, Markdown 155개 링크와 diff 검사를 통과했다.
+
+원본은 `godj-many-to-many-reference-4sl0bvdp` 아래 `reset-http-reference-1790529404967304000`,
+`reset-composition-checkpoint-1790529973472606000`에 있다. 최초 실패와 네 control은
+`reset-composition-checkpoint-1790529801829814000`에 보존했으며 control의 제품 SHA가 최종 코드와 같음을 확인했다.
+이 source의 Hosted 전체는 실행하지 않았다. 앞선 `fde61349` Fast나 `fb817d6b` full의 성공을 현재 source에 전이하지 않는다.
+
 ## GDJ-0100 — snapshot에 결합한 reset 메일 요청
 
 2026-09-28, `f66b393c` 이후 `identity.PasswordResetMailer`와 default/custom content를 연결했다.
@@ -59,6 +111,9 @@ CGO=0 **340 PASS / 0.779초**, 모두 필수 **340개 실행·성공 / skip 0**�
 원본/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 `reset-request-reference-1790526396735756000`,
 `reset-request-checkpoint-1790527303758873000`과 그 `controls/`에 보존했다. 독립 Unicode output/observer도 reference 디렉터리에 있다.
 완료된 `fb817d6b` Hosted full과 `f66b393c` Fast는 이 이후 request/Unicode 변경의 Hosted 검증으로 전이하지 않는다.
+구현 commit `fde6134901fafcd5e9a3c9455f0e34727aa15e47`의
+[Hosted Fast 36335750053](https://github.com/progresshans/godj/actions/runs/36335750053)은 실제 Fast Go feedback step까지 성공했다.
+Run/jobs/steps 원본은 reset-request checkpoint의 `hosted/`에 보존했다.
 
 ## GDJ-0100 — 공통 메일과 명시적 SMTP 접수 결과
 

@@ -26,3 +26,7 @@ func TestPostgresIdentityPasswordResetMailBoundaries(t *testing.T) {
 func TestPostgresIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
 	identitytest.RunPasswordResetMailSnapshotBinding(t, openPostgresUnusablePair)
 }
+
+func TestPostgresIdentityPasswordResetComposition(t *testing.T) {
+	identitytest.RunPasswordResetComposition(t, openPostgresUnusablePair)
+}

@@ -26,3 +26,7 @@ func TestSQLiteIdentityPasswordResetMailBoundaries(t *testing.T) {
 func TestSQLiteIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
 	identitytest.RunPasswordResetMailSnapshotBinding(t, openSQLiteIdentityPair)
 }
+
+func TestSQLiteIdentityPasswordResetComposition(t *testing.T) {
+	identitytest.RunPasswordResetComposition(t, openSQLiteIdentityPair)
+}

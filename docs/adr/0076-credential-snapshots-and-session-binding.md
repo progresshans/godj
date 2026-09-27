@@ -618,3 +618,29 @@ Native Django는 send 오류를 기록하고 삼키며, Go service는 내부 호
 제품 HTTP 소비자는 유효 email 요청에 같은 공개 안내를 주고 이 오류를 별도로 기록해야 한다. 현재 service의 동기식
 DB/메일 실행을 계정 존재에 대한 일정한 응답 시간 보장으로 표현하지 않는다. 실제 공개 응답·CSRF·token 숨김과
 Form/API·독립 client는 후속 통합에서 검증한다. [DEV-0019](../DEVIATIONS.md#dev-0019--메일-소유권과-명시적-smtp-접수-결과)와 환경별 Evidence를 따른다.
+
+## 재설정 HTTP 관찰과 세션 저장의 원자 결합
+
+고정 Django의 실제 ResetView/ConfirmView를 CSRF·인증·DB session middleware와 함께 SQLite/PostgreSQL에서 관찰했다.
+유효 email은 대상 유무·active/usable 여부·메일 send 실패에 같은 완료 redirect를 사용한다.
+Raw token URL은 token을 server session에 저장하고 `set-password` URL로 redirect한다. Confirmation HTML과
+redirect에는 raw token이 없으며, 다른 브라우저·다른 계정의 hidden URL·삭제된 proof session은 사용할 수 없다.
+필수 입력·confirmation mismatch·password policy의 오류 순서와 password 미반사도 native 기준에 포함한다.
+
+기본 native reset은 자동 로그인하지 않고 last_login을 바꾸지 않는다. 현재 브라우저가 다른 사용자로 로그인한 경우
+그 인증과 payload를 유지하며, 대상 사용자로 로그인한 기존 session은 다음 인증 접근에서 무효화된다.
+서버 session 저장이 실패하면 HTTP 500이어도 password는 이미 바뀌고 저장된 reset token은 남을 수 있다.
+Native HTTP 관찰은 이 결과를 감추지 않는다. GoDj는 기존 reset 계약의 최종 active/usable 재검사와 즉시 세션 폐기를 유지하며,
+확인에 사용한 session/proof 정리도 password·revocation·audit와 같은 native transaction에 결합한다.
+
+그 결합을 위해 `PasswordResetter.Prepare`는 읽기 종료 뒤 hash를 한 번 준비하고 owner에 결합한 불변
+`PreparedPasswordReset`을 반환한다. `ApplyIn`은 호출자의 같은 저장 영역에 속한 coordinated transaction 안에서
+현재 token·account·만료·password policy를 다시 확인하고 password/현재 revision·대상 session 폐기·audit를 쓴다.
+자체 transaction을 열거나 commit하지 않으며, 이후 proof 저장이 실패하면 호출자가 전체 변경을 rollback해야 한다.
+이 값은 호출 작업 동안만 보유한다. 실패 또는 unknown 결과를 자동 재시도하지 않고, 확인된 rollback 뒤 명시적으로 재사용해도
+최종 인가를 생략하지 않는다. 다른 resetter의 준비 값은 거부한다. 기존 `ResetPassword`도 같은 Prepare/ApplyIn 경로를 사용한다.
+
+`CheckTokenIn`은 같은 저장 영역의 빌린 coherent read/write scope에서 현재 token만 관찰한다. 새 snapshot·hash·write를 만들지
+않으며 세션에 proof를 저장할 때 같은 fence에서 admission을 확인하기 위한 것이다. 이 관찰은 나중의 write 권한이 아니다.
+실제 proof session persistence·Web runtime·Form/API·독립 client 연결은 후속 구현이며 native fixture 확보나
+transaction composition의 검증을 공개 HTTP 흐름의 완료로 표시하지 않는다.

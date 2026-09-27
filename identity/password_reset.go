@@ -158,77 +158,154 @@ func (resetter *PasswordResetter) preflight(ctx context.Context, principalID, en
 	return account, token, nil
 }
 
-// ResetPassword hashes once outside DB scopes, then verifies the token against
-// the current credential/email/last_login and clock inside the native fence.
-// It patches only password and current revision, revokes every target session,
-// and appends a value-free self audit in that same transaction. It does not log
-// the user in. Errors publish no result, and uncertain outcomes are never retried.
-func (resetter *PasswordResetter) ResetPassword(ctx context.Context, principalID, encodedToken, password string) error {
-	before, token, err := resetter.preflight(ctx, principalID, encodedToken, &password)
+// PreparedPasswordReset owns immutable material for one reset operation. A
+// caller drops it when that operation finishes. Preparation performs password
+// work outside DB scopes; ApplyIn rechecks all authority in the caller's fence.
+// The value belongs to exactly one PasswordResetter and exposes no secrets.
+type PreparedPasswordReset struct{ state *preparedPasswordReset }
+type preparedPasswordReset struct {
+	owner             *PasswordResetter
+	userID            int64
+	principalID       string
+	token             parsedResetToken
+	password, encoded string
+}
+
+func (PreparedPasswordReset) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("identity.PreparedPasswordReset{redacted}"))
+}
+func (PreparedPasswordReset) MarshalJSON() ([]byte, error) {
+	return []byte(`"identity.PreparedPasswordReset{redacted}"`), nil
+}
+
+// CheckTokenIn observes token validity inside a caller-owned coherent read or
+// write scope. It performs no password work, writes or nested transaction. A
+// nil result is an observation only; ApplyIn always checks the current state.
+func (resetter *PasswordResetter) CheckTokenIn(ctx context.Context, reader db.Queryer, principalID, encodedToken string) error {
+	if err := resetter.validCall(ctx, principalID); err != nil {
+		return err
+	}
+	if nilIdentityValue(reader) {
+		return managementError(CodeInvalidInput, "password_reset", nil)
+	}
+	token, valid := parsePasswordResetToken(encodedToken)
+	if !valid {
+		return ErrInvalidResetToken
+	}
+	row, found, err := models.UserObjects.Using(reader).Filter(models.UserFields.PrincipalID.Exact(principalID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
 	if err != nil {
 		return err
+	}
+	if !found {
+		return ErrInvalidResetToken
+	}
+	current, err := resetter.state.directory.accountFromRow(ctx, reader, row)
+	if err != nil {
+		return err
+	}
+	now, err := resetter.instant()
+	if err = errors.Join(err, ctx.Err()); err != nil {
+		return err
+	}
+	if !resetter.state.keys.accepts(current, token, now, resetter.state.timeout) {
+		return ErrInvalidResetToken
+	}
+	return nil
+}
+
+// Prepare validates a token and current password policy, then hashes once
+// outside database scopes. It grants no reusable authorization for a write.
+func (resetter *PasswordResetter) Prepare(ctx context.Context, principalID, encodedToken, password string) (PreparedPasswordReset, error) {
+	before, token, err := resetter.preflight(ctx, principalID, encodedToken, &password)
+	if err != nil {
+		return PreparedPasswordReset{}, err
 	}
 	state := resetter.state
 	encoded, err := (passwordInput{raw: password}).encode(ctx, state.hasher)
 	if err != nil {
-		return err
+		return PreparedPasswordReset{}, err
 	}
 	candidate, err := auth.NewCredential(before.Profile().Username, encoded, before.value().credential.Principal())
 	if err != nil || !candidate.HasUsablePassword() || candidate.MatchesSessionStamp(before.value().credential.SessionStamp()) {
-		return managementError(CodeInvalidConfig, "password_hasher", err)
+		return PreparedPasswordReset{}, managementError(CodeInvalidConfig, "password_hasher", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return PreparedPasswordReset{}, err
+	}
+	return PreparedPasswordReset{&preparedPasswordReset{resetter, before.Profile().ID, principalID, token, password, encoded}}, nil
+}
+
+// ApplyIn patches password/current revision, revokes all target sessions and
+// appends a value-free audit in the caller's native coordinated transaction.
+// It never opens or commits a transaction itself. Its result is provisional:
+// the owner must roll back on any failure, including later session work, and
+// must not publish cookies or success until the enclosing commit is confirmed.
+func (resetter *PasswordResetter) ApplyIn(ctx context.Context, session db.Session, change PreparedPasswordReset) error {
+	if ctx == nil || resetter == nil || resetter.state == nil || nilIdentityValue(session) || change.state == nil || change.state.owner != resetter {
+		return managementError(CodeInvalidInput, "password_reset", nil)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	state := resetter.state
+	row, found, err := models.UserObjects.Using(session).Filter(models.UserFields.ID.Exact(change.state.userID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
+	if err != nil {
+		return err
+	}
+	if !found || row.PrincipalID != change.state.principalID {
+		return ErrInvalidResetToken
+	}
+	current, err := state.directory.accountFromRow(ctx, session, row)
+	if err != nil {
+		return err
+	}
+	now, err := resetter.instant()
+	if err != nil {
+		return err
+	}
+	if !state.keys.accepts(current, change.state.token, now, state.timeout) {
+		return ErrInvalidResetToken
+	}
+	if err := validUserRevision(row.ID, row.Revision); err != nil {
+		return err
+	}
+	if err := validatePassword(ctx, state.validators, change.state.password, current.Profile()); err != nil {
+		return err
+	}
+	if _, err := models.UserObjects.Update(ctx, session, row, models.UserPatch{}.WithEncodedPassword(change.state.encoded).WithRevision(row.Revision+1)); err != nil {
+		return err
+	}
+	if _, err := state.backend.RevokePrincipalSessions(ctx, session, change.state.principalID); err != nil {
+		return err
+	}
+	event, err := admin.PrepareEvent(change.state.principalID, "godj_identity.user", row.ID, admin.ActionChange, []string{"password"}, "")
+	if err != nil {
+		return err
+	}
+	if err := state.backend.AppendAudit(ctx, session, event); err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
+// ResetPassword performs one complete standalone reset. Consumers that couple
+// reset with other durable state use Prepare/ApplyIn in their own native fence.
+// No result is published on rollback or unknown outcome; there is no retry.
+func (resetter *PasswordResetter) ResetPassword(ctx context.Context, principalID, encodedToken, password string) error {
+	change, err := resetter.Prepare(ctx, principalID, encodedToken, password)
+	if err != nil {
+		return err
+	}
 	var callbackErr error
 	calls, applied := 0, false
-	err = state.backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+	err = resetter.state.backend.CoordinatedAtomic(ctx, func(session db.Session) error {
 		calls++
 		if calls != 1 || nilIdentityValue(session) {
 			callbackErr = managementError(CodePersistence, "transaction_contract", nil)
 			return callbackErr
 		}
-		callbackErr = func() error {
-			row, found, err := models.UserObjects.Using(session).Filter(models.UserFields.ID.Exact(before.Profile().ID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
-			if err != nil {
-				return err
-			}
-			if !found || row.PrincipalID != principalID {
-				return ErrInvalidResetToken
-			}
-			current, err := state.directory.accountFromRow(ctx, session, row)
-			if err != nil {
-				return err
-			}
-			now, err := resetter.instant()
-			if err != nil {
-				return err
-			}
-			if !state.keys.accepts(current, token, now, state.timeout) {
-				return ErrInvalidResetToken
-			}
-			if err := validUserRevision(row.ID, row.Revision); err != nil {
-				return err
-			}
-			if err := validatePassword(ctx, state.validators, password, current.Profile()); err != nil {
-				return err
-			}
-			if _, err := models.UserObjects.Update(ctx, session, row, models.UserPatch{}.WithEncodedPassword(encoded).WithRevision(row.Revision+1)); err != nil {
-				return err
-			}
-			if _, err := state.backend.RevokePrincipalSessions(ctx, session, principalID); err != nil {
-				return err
-			}
-			event, err := admin.PrepareEvent(principalID, "godj_identity.user", row.ID, admin.ActionChange, []string{"password"}, "")
-			if err != nil {
-				return err
-			}
-			if err := state.backend.AppendAudit(ctx, session, event); err != nil {
-				return err
-			}
-			applied = true
-			return ctx.Err()
-		}()
+		callbackErr = resetter.ApplyIn(ctx, session, change)
+		applied = callbackErr == nil
 		return callbackErr
 	})
 	// Only a direct refusal returned after confirmed rollback is presentable.

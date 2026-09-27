@@ -95,6 +95,11 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.
 
+Reset HTTP view·CSRF·DB session의 독립 양 DB 관찰을 확보했다. Native의 hidden-token session,
+익명/본인/다른 사용자 상태와 session 저장 실패 뒤 password가 남는 결과를 ADR-0076에 구분했다.
+Reset의 Prepare/ApplyIn과 borrowed token 검사를 구현해 후속 proof 저장과 같은 transaction에 결합할 수 있게 했다.
+실제 proof persistence·Web/Form/API·독립 client는 다음 연결 범위다.
+
 일반 계정의 제품 login/logout/password Form과 Session JSON/OpenAPI, 여섯 번째 독립 ogen client를 연결했다.
 명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는
 추가 앱 경로를 명시적으로 선언한다. Form의 복합 오류를 native Django fixture에 추가했다.
