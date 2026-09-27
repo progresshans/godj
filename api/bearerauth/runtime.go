@@ -59,7 +59,7 @@ func (Runtime) Format(state fmt.State, _ rune) {
 	_, _ = io.WriteString(state, "bearerauth.Runtime{redacted}")
 }
 
-var _ api.Authentication = (*Runtime)(nil)
+var _ api.AlternativeAuthentication = (*Runtime)(nil)
 
 // New validates the complete Bearer profile before any route can be wrapped.
 func New(config Config) (*Runtime, error) {
@@ -77,6 +77,16 @@ func New(config Config) (*Runtime, error) {
 // permission receives a deny-overlay check. Bearer requests never consult
 // cookies, query/form values, or CSRF.
 func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
+	return r.protect(false, permission, handler, additional...)
+}
+
+// RequireAny accepts the first explicitly granted permission whose deny overlay
+// allows the request. Credential/CSRF checks run once; errors never fall back.
+func (r *Runtime) RequireAny(permission auth.Permission, handler api.AuthenticatedHandler, alternatives ...auth.Permission) (web.Handler, error) {
+	return r.protect(true, permission, handler, alternatives...)
+}
+
+func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	if r == nil || nilInterface(r.verifier) || nilInterface(r.authorizer) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "Bearer runtime is nil or uninitialized"}
 	}
@@ -113,14 +123,23 @@ func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedH
 			return web.Response{}, &Error{Code: CodeInvalidRequest, Field: "authorization", Detail: "Bearer parser returned an invalid state"}
 		}
 
+		granted := false
 		for _, required := range permissions {
 			allowed, err := r.allowed(ctx, principal, required)
 			if err != nil {
 				return web.Response{}, err
 			}
-			if !allowed {
+			if anyPermission {
+				if allowed {
+					granted = true
+					break
+				}
+			} else if !allowed {
 				return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
 			}
+		}
+		if anyPermission && !granted {
+			return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
 		}
 		return handler(request, principal)
 	}, nil

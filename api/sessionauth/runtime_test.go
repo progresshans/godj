@@ -242,9 +242,21 @@ func newAPIAuthHarness(t *testing.T, configure ...func(*websessionauth.Config)) 
 		return api.NoContent()
 	}, additional...)
 	additional[0] = "links.changed_after_binding"
+	alternatives := []auth.Permission{"links.ticket"}
+	anyHandler, err := adapter.RequireAny(view, func(*web.Request, auth.Principal) (web.Response, error) {
+		harness.calls.Add(1)
+		harness.mutations.Add(1)
+		return api.NoContent()
+	}, alternatives...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alternatives[0] = "links.changed_after_binding"
+
 	harness.application, err = web.NewApplication(web.Config{
 		Settings: configured,
 		Routes: []web.Route{
+			{Name: "test:any", Method: http.MethodPost, Path: "/api/any/", Handler: anyHandler},
 			{Name: "test:all", Method: http.MethodPost, Path: "/api/all/", Handler: allHandler},
 			{Name: "test:list", Method: http.MethodGet, Path: "/api/articles/", Handler: allowedHandler},
 			{Name: "test:create", Method: http.MethodPost, Path: "/api/articles/", Handler: mutatingHandler},

@@ -19,6 +19,15 @@ type Authentication interface {
 	Require(auth.Permission, AuthenticatedHandler, ...auth.Permission) (web.Handler, error)
 }
 
+// AlternativeAuthentication additionally supports a nonempty disjunction. The
+// credential and CSRF boundary is evaluated once. Each candidate uses its deny
+// overlay; a definite denial permits the next candidate, but an execution error
+// ends the request without consulting alternatives or invoking the handler.
+type AlternativeAuthentication interface {
+	Authentication
+	RequireAny(auth.Permission, AuthenticatedHandler, ...auth.Permission) (web.Handler, error)
+}
+
 // AuthenticationKind names the accepted, mutually exclusive API profiles.
 type AuthenticationKind uint8
 

@@ -48,7 +48,8 @@ Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 
 그룹 권한 편집은 모든 관련 사용자의 직접/다른 그룹 합집합을 bounded batch로 검사한다.
 삭제는 호스트 관계 정책과 직접 소유자 revision 증가·감사를 한 transaction에 반영한다.
 영향 normal/race/CGO=0·양 DB·독립 Django 비교와 negative control을 통과했다.
-다음은 실제 사용자·비밀번호·그룹·권한 Form/Admin/API·독립 client다.
+실제 관리 JSON API·OpenAPI를 Article composition에 연결하고 영향 normal/race/CGO=0·양 DB·negative control을 통과했다.
+수정 조건·current 권한·password/session 의미를 HTTP에 연결하며 전용 Form/Admin·관련 선택 목록·독립 client는 다음 범위다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

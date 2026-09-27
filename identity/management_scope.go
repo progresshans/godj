@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -91,6 +92,11 @@ func managementRelationWrite[T any](ctx context.Context, manager *Manager, callb
 	if diagnostics, rejected := validation.Rejected(callbackErr); rejected && err == callbackErr {
 		return zero, validation.Reject(diagnostics, nil)
 	}
+	// A concrete relation-policy refusal is presentable only after the backend
+	// returns that exact callback error, confirming rollback without cleanup loss.
+	if protected, ok := callbackErr.(*query.ProtectedForeignKeyError); ok && protected != nil && err == callbackErr {
+		return zero, validation.Reject(validation.NewErrors(validation.New(validation.NonField, "protected")), protected)
+	}
 	if err = errors.Join(err, callbackErr); err != nil {
 		return zero, managementWriteFailure(err)
 	}
@@ -98,4 +104,21 @@ func managementRelationWrite[T any](ctx context.Context, manager *Manager, callb
 		return zero, managementError(CodePersistence, "transaction_contract", nil)
 	}
 	return result, nil
+}
+
+// Only the hasher's direct, cause-free password input rejection is user input.
+// Cancellation, wrapped classifications and entropy/implementation failures
+// remain execution errors; no hash error can publish a mutation or be retried.
+func managementPassword(ctx context.Context, hasher auth.PasswordHasher, password string) (string, error) {
+	encoded, err := hasher.Hash(ctx, password)
+	if canceled := ctx.Err(); canceled != nil {
+		return "", managementError(CodeInvalidInput, "password", errors.Join(err, canceled))
+	}
+	if err != nil {
+		if invalid, ok := err.(*auth.Error); ok && invalid != nil && invalid.Code == auth.CodeInvalidInput && invalid.Field == "password" && invalid.Unwrap() == nil {
+			return "", managementInputError("password", "invalid")
+		}
+		return "", managementError(CodeInvalidInput, "password", err)
+	}
+	return encoded, nil
 }

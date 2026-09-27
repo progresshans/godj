@@ -3,6 +3,89 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 실제 관리 JSON API와 권한·수정 조건
+
+2026-09-27, `e36afb74` 뒤의 변경이다. User·Group·Permission의 목록/상세·생성·PUT/PATCH·삭제와 관리자 password 교체
+19개 operation을 `identity/api`·OpenAPI·Article의 실제 인증 composition에 연결했다.
+최종 non-Markdown **2,321 파일** source map은
+`2cfbaa3ce570cb7213921a1fb31cd44fb076d9ee076a65bb8d2467d8455cc98f`다.
+Darwin arm64 / Go 1.26.5, 실제 SQLite와 private PostgreSQL **17.10**, **16 packages / 962 required entries**
+(558 roots·404 subcases)를 실행했고 JSON event의 completion·no-skip을 감사했다.
+Identity API의 native 필수 entry는 backend당 55개다. schema·migration·생성 model ABI 변경은 없다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 4,044 PASS / skip 0 | 52.709초 |
+| race | 4,044 PASS / skip 0 | 213.027초 |
+| CGO=0 | 4,044 PASS / skip 0 | 48.235초 |
+
+Auth·identity·ORM·systemstate·Admin·Session/Bearer API 인증·OpenAPI·serializer·새 identity API의 core,
+Article/siteapp 소비자와 양 native backend의 snapshot·identity·adoption 범위다.
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다.
+PostgreSQL image는 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+Native fixture는 양 DB의 실제 두 연결을 각각 max-open=1로 제한한다.
+
+실제 Session HTTP에서 User/Group/Permission CRUD·NFKC username·이름 trim·password 공백 보존,
+bounded scalar page와 상세 collection·no-op·생략 보존·stale revision 412를 확인했다.
+`If-Revision` 누락/잘못된 값·CSRF·unknown/duplicate JSON·server-owned field·잘못된 관계·body 한도는
+저장 상태를 보존한다. 정상 인증의 idle expiry와 DB mutation을 혼동하지 않도록 HTTP fixture clock을 고정했다.
+입력 거부 뒤에도 전체 모델·관계·감사·저장 session bytes를 비교했다.
+
+각 모델의 none/view/change/add/add+change/delete를 실제 저장 권한으로 대조했다.
+Change-only 조회, Group/Permission의 add-only 생성, User의 add+change 조건, delete-only 응답과
+기존 cookie를 유지한 권한 폐기를 포함한다. Password 교체와 비활성화 뒤 기존 session 거부,
+재활성화가 폐기된 session을 부활시키지 않는 점, 새 password 로그인과 runtime 재접속을 확인했다.
+Permission code 변경은 현재 grant를 바꾸고, 관계 삭제는 직접 Group/User revision을 증가시켜 이전 HTTP 수정 요청을 거부했다.
+호스트 PROTECT/CASCADE와 cleanup 실패의 500 경계를 확인했다. 비밀번호 profile의 직접 입력 거부는 400,
+wrapped/일반 hash 장애는 500이며 한 번의 호출과 저장 상태 보존을 검사했다.
+
+세 모델의 create/update/delete와 password 명령에 audit 실패·unknown rollback/commit을 실제 native transaction에 주입했다.
+500/503 응답에 성공 DTO·Revision·Retry-After가 없고 호출을 재시도하지 않는지 확인했다.
+Unknown commit의 durable 변경과 unknown rollback의 보존을 별도로 검사했다.
+새 관리 API의 실제 HTTP fixture는 Session이다. Bearer의 대안 권한·오류 중단은 인증 adapter의 실제 HTTP 테스트로 검증했으며,
+새 management Bearer client 통합이나 독립 process 재시작을 이 범위로 주장하지 않는다.
+
+Article의 실제 Admin HTML 로그인으로 관리 API·보호된 OpenAPI를 사용했다.
+API가 생성한 staff가 공백을 포함한 password로 실제 Admin 로그인에 성공하고, staff만으로 관리 API 권한을 얻지 않는지 확인했다.
+이미 열린 두 Article runtime이 같은 저장 변경을 관찰한다. 전용 사용자 관리 Admin 화면의 검증은 아니다.
+
+Go overlay **13개 변형 / 24개 실제 assertion 탐지**를 통과했다:
+password trim, 수정 조건 생략, stale/unknown HTTP 성공 처리, view/change를 AND로 변경, private field 응답 노출,
+Group 선택 누락, PROTECT cleanup 실패를 입력으로 낮춤, no-store 제거, identity-only 삭제 정책 선택,
+Session/Bearer 인가 실패 fallback, wrapped hash 실패의 입력 오인이다.
+Build 실패·timeout·race는 탐지로 세지 않았다. 최종 checkpoint·control 모두 source 전후 일치와
+PostgreSQL 잔여 table·owned schema·다른 connection `0|0|0`, private container 제거를 확인했다.
+
+같은 source에서 기존 Article Bearer/Session·Helpdesk Session의 독립 generated client를 normal/race/CGO=0으로 실행했다.
+각 모드의 `TestGeneratedOpenAPIClientContract` 1 PASS / skip 0, 고정 ogen 재생성 drift·실제 HTTP·child 필수 receipt·최종 DB 검사를 통과했다.
+시간은 25.677/41.280/4.884초다. 이는 기존 OpenAPI 소비자 호환성의 증거이며 새 관리 API의 독립 generated client는 아직 없다.
+영향 `go vet`, CI Python **41/41**, format·diff·147개 문서 링크 검사도 통과했다.
+
+초기 source `9c8288bf73016a0d9838a92c1a25c38925695ef65d116f0c1a8eac27126cda04`의 native 실행은
+테스트 로그인 header에서 password 공백이 제거되고 정상 session idle expiry 갱신을 rollback 실패로 비교해 실패했다.
+HTTP fixture의 password 전송을 명시적으로 인코딩하고 clock을 고정했다. 후속 source `f8be8560…`는
+거부된 field 이름을 응답 데이터 노출로 오인한 assertion을 수정했다. 실제 저장 field key·값 노출 검사는 유지한다.
+
+Source `e20c4715…`에서 normal 전체와 race core는 통과했으나 disk 여유가 약 300 MiB로 떨어졌다.
+Linker의 `no space left on device`와 OrbStack 중지로 나머지 실행·cleanup 확인이 중단됐다.
+재생성 가능한 Go build cache 95 GiB를 `go clean -cache`로 정리하고 OrbStack을 재시작했다.
+이전 private container가 남지 않았음을 확인했으며 코드·원본 증거는 보존했다.
+중단 실행이나 build 실패를 PASS/negative-control 탐지로 옮기지 않았다.
+Hasher 입력/실행 오류 구분을 추가한 위 최종 source에서 세 모드와 control을 모두 새로 실행했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `management-api-checkpoint-1790470742413654000/receipt.json`: 최종 16 packages·세 모드·roster·원본 stream·source/cleanup.
+- `management-api-controls-1790470742413654000/receipt.json`: 최종 13개 overlay·24개 실제 assertion·source/cleanup.
+- `management-api-existing-client-1790470913714552000/receipt.json`: 같은 source의 기존 generated client 세 모드·drift/HTTP.
+- `management-api-supplemental-1790470912499964000/receipt.json`: 같은 source의 vet·CI 도구·format/docs.
+- `management-api-checkpoint-1790469728870599000/receipt.json`: 초기 HTTP fixture assertion 실패와 cleanup.
+- `management-api-checkpoint-1790470024720922000/receipt.json`: 후속 field-name assertion 실패와 cleanup.
+- `management-api-checkpoint-1790470171037416000/interruption.json`, `management-api-controls-1790470270477468000/interruption.json`: disk/OrbStack 중단과 복구 기록.
+
+전용 관리 Form/Admin·관련 선택 목록·새 API의 독립 generated client, self-service/reset·unusable password/last_login과
+GDJ-0100 전체 platform/process milestone은 미완료다. 이번 영향 실행을 Hosted full이나 전체 프레임워크 완료로 표현하지 않는다.
+
 ## GDJ-0100 — Group·Permission 관리와 직접 소유자의 revision
 
 2026-09-27, `e28eccbe` 뒤의 변경이다. 최종 non-Markdown **2,312 파일** source map은

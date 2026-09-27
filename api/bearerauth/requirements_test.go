@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/web"
 )
 
@@ -95,5 +97,85 @@ func TestRequireRejectsInvalidAdditionalBearerPermissions(t *testing.T) {
 		if handler != nil || !errors.Is(err, &Error{Code: CodeInvalidConfig, Field: "permission"}) {
 			t.Fatal("invalid requirement publication", err)
 		}
+	}
+}
+
+func TestRequireAnyVerifiesBearerOnceAndFailsClosed(t *testing.T) {
+	for _, mode := range []string{"first", "alternative", "missing_first", "missing_all", "denied", "error", "cancel", "anonymous"} {
+		t.Run(mode, func(t *testing.T) {
+			grants := []auth.Permission{"links.view", "links.change"}
+			if mode == "missing_first" {
+				grants = grants[1:]
+			}
+			if mode == "missing_all" {
+				grants = nil
+			}
+			verifier := &recordingVerifier{principal: mustPrincipal(t, grants...)}
+			var checks []auth.Permission
+			calls := 0
+			r, err := New(Config{Verifier: verifier, Authorizer: authorizerFunc(func(_ context.Context, _ auth.Principal, p auth.Permission) (bool, error) {
+				checks = append(checks, p)
+				if p == "links.view" && mode == "error" {
+					return false, errors.New("authorization failure")
+				}
+				if p == "links.view" && mode == "cancel" {
+					return false, context.Canceled
+				}
+				return mode != "denied" && (p != "links.view" || mode != "alternative"), nil
+			})})
+			if err != nil {
+				t.Fatal(err)
+			}
+			alternatives := []auth.Permission{"links.change"}
+			handler, err := r.RequireAny("links.view", func(*web.Request, auth.Principal) (web.Response, error) { calls++; return api.NoContent() }, alternatives...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			alternatives[0] = "links.changed_after_binding"
+			config, err := settings.New(settings.Definition{ProjectName: "alternative", InstalledApps: []apps.Config{{Name: "example.test/bearer", Label: "test"}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			application, err := web.NewApplication(web.Config{Settings: config, Routes: []web.Route{{Name: "test:any", Method: http.MethodPost, Path: "/api/test/", Handler: handler}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(http.MethodPost, "http://example.test/api/test/", nil)
+			if mode != "anonymous" {
+				request.Header.Set("Authorization", "Bearer a")
+			}
+			response := serve(t, application, request)
+			defer response.Body.Close()
+			status, wantCalls, verifications := 403, 0, int64(1)
+			wantChecks := []auth.Permission{"links.view", "links.change"}
+			switch mode {
+			case "first":
+				status = 204
+				wantCalls = 1
+				wantChecks = wantChecks[:1]
+			case "alternative":
+				status = 204
+				wantCalls = 1
+			case "missing_first":
+				status = 204
+				wantCalls = 1
+				wantChecks = wantChecks[1:]
+			case "missing_all":
+				wantChecks = nil
+			case "error", "cancel":
+				status = 500
+				wantChecks = wantChecks[:1]
+			case "anonymous":
+				status = 401
+				wantChecks = nil
+				verifications = 0
+			}
+			if response.StatusCode != status || calls != wantCalls || verifier.calls.Load() != verifications || !slices.Equal(checks, wantChecks) {
+				t.Fatal("alternative bearer boundary", response.StatusCode, calls, verifier.calls.Load(), checks)
+			}
+			if status == 403 && response.Header.Get("WWW-Authenticate") != challengeInsufficientScope {
+				t.Fatal("denial challenge lost")
+			}
+		})
 	}
 }

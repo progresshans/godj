@@ -36,3 +36,51 @@ func TestDocumentDescribesAndOwnsAllRequiredPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestDocumentAlternativePermissionContract(t *testing.T) {
+	authentication := &describedAuthentication{description: sessionDescription()}
+	config := documentConfig(t, authentication)
+	original := config.Operations[0].Permission
+	config.Operations[0].AlternativePermissions = []auth.Permission{"links.change"}
+	document, err := openapi.New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(document.Bytes(), &value); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, methods := range value["paths"].(map[string]any) {
+		for _, raw := range methods.(map[string]any) {
+			operation := raw.(map[string]any)
+			if operation["operationId"] != config.Operations[0].Route.Name {
+				continue
+			}
+			found = true
+			permissions, ok := operation["x-godj-any-permissions"].([]any)
+			if !ok || len(permissions) != 2 || permissions[0] != string(original) || permissions[1] != "links.change" || operation["x-godj-permission"] != nil || operation["x-godj-additional-permissions"] != nil || len(operation["security"].([]any)) == 0 {
+				t.Fatal("alternative auth metadata")
+			}
+		}
+	}
+	if !found || authentication.requireCalls != 0 {
+		t.Fatal("no operation or construction executed auth")
+	}
+	before := document.Bytes()
+	config.Operations[0].AlternativePermissions[0] = "links.changed"
+	if !bytes.Equal(before, document.Bytes()) {
+		t.Fatal("document aliases alternatives")
+	}
+	for _, bad := range [][]auth.Permission{{""}, {original}, {"Links.View"}, {"links.change", "links.change"}} {
+		config.Operations[0].AlternativePermissions = bad
+		if _, err := openapi.New(config); err == nil {
+			t.Fatal("invalid alternatives accepted")
+		}
+	}
+	config.Operations[0].AlternativePermissions = []auth.Permission{"links.change"}
+	config.Operations[0].AdditionalPermissions = []auth.Permission{"links.other"}
+	if _, err := openapi.New(config); err == nil {
+		t.Fatal("ambiguous mixed conjunction/disjunction accepted")
+	}
+}

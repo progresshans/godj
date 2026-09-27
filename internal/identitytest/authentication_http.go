@@ -2,6 +2,7 @@ package identitytest
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net/http"
@@ -39,9 +40,10 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 	return result
 }
 
-func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store) *identityHTTP {
+func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
 	t.Helper()
-	manager, err := sessions.NewManager(store, sessions.Config{})
+	observedAt := time.Now().UTC()
+	manager, err := sessions.NewManager(store, sessions.Config{Clock: func() time.Time { return observedAt }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +86,7 @@ func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthent
 	if err != nil {
 		t.Fatal(err)
 	}
-	application, err := web.NewApplication(web.Config{Settings: configured, Routes: []web.Route{
+	routes := []web.Route{
 		{Name: "identityprobe:csrf", Method: "GET", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
 			token, err := runtime.CSRFToken(request)
 			if err != nil {
@@ -100,7 +102,11 @@ func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthent
 			if err := runtime.VerifyCSRF(request, nil); err != nil {
 				return web.NewResponse(403, nil, nil)
 			}
-			result, err := runtime.Login(request, request.HTTP().Header.Get("X-Test-Username"), request.HTTP().Header.Get("X-Test-Password"))
+			password, err := base64.RawURLEncoding.DecodeString(request.HTTP().Header.Get("X-Test-Password-Base64"))
+			if err != nil {
+				return web.NewResponse(400, nil, nil)
+			}
+			result, err := runtime.Login(request, request.HTTP().Header.Get("X-Test-Username"), string(password))
 			if errors.Is(err, auth.ErrInvalidCredentials) {
 				return web.NewResponse(401, nil, nil)
 			}
@@ -116,7 +122,17 @@ func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthent
 		{Name: "identityprobe:view", Method: "GET", Path: "/view/", Handler: view},
 		{Name: "identityprobe:change", Method: "GET", Path: "/change/", Handler: change},
 		{Name: "identityprobe:deny", Method: "GET", Path: "/deny/", Handler: deny},
-	}})
+	}
+	var middleware []web.Middleware
+	for _, configure := range extra {
+		more, chain, err := configure(runtime)
+		if err != nil {
+			t.Fatal(err)
+		}
+		routes = append(routes, more...)
+		middleware = append(middleware, chain...)
+	}
+	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: middleware})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +186,7 @@ func (h *identityHTTP) login(t *testing.T, client *http.Client, username, passwo
 	if response.StatusCode != 200 {
 		t.Fatal("CSRF endpoint failed")
 	}
-	response, _ = h.request(t, client, "POST", "/login/", http.Header{"X-Test-Username": {username}, "X-Test-Password": {password}, sessionauth.DefaultCSRFHeader: {token}})
+	response, _ = h.request(t, client, "POST", "/login/", http.Header{"X-Test-Username": {username}, "X-Test-Password-Base64": {base64.RawURLEncoding.EncodeToString([]byte(password))}, sessionauth.DefaultCSRFHeader: {token}})
 	if response.StatusCode != want {
 		t.Fatal("stored login HTTP status", response.StatusCode, want)
 	}

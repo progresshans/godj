@@ -42,9 +42,13 @@ type Operation struct {
 	Description           string
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
-	Parameters            []Parameter
-	RequestBody           *RequestBody
-	Responses             []Response
+	// AlternativePermissions makes Permission and these entries a disjunction,
+	// matching AlternativeAuthentication.RequireAny. It cannot be combined with
+	// AdditionalPermissions; an authorizer error never selects another branch.
+	AlternativePermissions []auth.Permission
+	Parameters             []Parameter
+	RequestBody            *RequestBody
+	Responses              []Response
 }
 
 // Parameter describes a query or header parameter. Path parameters are derived
@@ -204,7 +208,14 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if !validText(operation.Summary, 256, false) || !validText(operation.Description, 8192, false) {
 		return nil, documentError("operation.description", "operation text is invalid or too long")
 	}
-	permissions, err := auth.RequiredPermissions(operation.Permission, operation.AdditionalPermissions...)
+	if len(operation.AdditionalPermissions) != 0 && len(operation.AlternativePermissions) != 0 {
+		return nil, documentError("operation.permission", "conjunction and alternatives cannot be combined")
+	}
+	remaining := operation.AdditionalPermissions
+	if len(operation.AlternativePermissions) != 0 {
+		remaining = operation.AlternativePermissions
+	}
+	permissions, err := auth.RequiredPermissions(operation.Permission, remaining...)
 	if err != nil {
 		return nil, documentError("operation.permission", "explicit canonical distinct permissions are required")
 	}
@@ -329,7 +340,10 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		"parameters": parameters, "responses": responses, "security": []any{security},
 		"x-godj-permission": string(operation.Permission),
 	}
-	if len(permissions) > 1 {
+	if len(operation.AlternativePermissions) != 0 {
+		delete(value, "x-godj-permission")
+		value["x-godj-any-permissions"] = permissions
+	} else if len(permissions) > 1 {
 		value["x-godj-additional-permissions"] = permissions[1:]
 	}
 	if body := operation.RequestBody; body != nil {

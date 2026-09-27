@@ -18,7 +18,10 @@ import (
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/examples/article/webapp"
+	"github.com/progresshans/godj/identity"
+	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/systemstate"
@@ -200,14 +203,32 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article OpenAPI authentication: %w", err)
 	}
+	deletions, err := project.BindRelationDeleters()
+	if err != nil {
+		return nil, fmt.Errorf("article site application: identity deletion policy: %w", err)
+	}
+	identityAPI, err := identityapi.New(identityapi.Config{Namespace: apiapp.Namespace, Backend: runtime, PasswordHasher: runtimeConfig.PasswordHasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: apiRuntime, Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})
+	if err != nil {
+		return nil, fmt.Errorf("article site application: identity API: %w", err)
+	}
+	identityDocument, err := identityAPI.OpenAPI()
+	if err != nil {
+		return nil, err
+	}
+	identitySchema, err := apiRuntime.RequireAny(identity.ViewUser, func(*web.Request, auth.Principal) (web.Response, error) { return identityDocument.Response() }, identity.ChangeUser, identity.ViewGroup, identity.ChangeGroup, identity.ViewPermission, identity.ChangePermission)
+	if err != nil {
+		return nil, err
+	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
+	routes = append(routes, identityAPI.Routes()...)
+	routes = append(routes, web.Route{Name: apiapp.Namespace + ":identity-openapi", Method: http.MethodGet, Path: identityapi.BasePath + "openapi.json", Handler: identitySchema})
 	routes = append(routes, web.Route{
 		Name:    apiapp.OpenAPIRouteName,
 		Method:  http.MethodGet,
 		Path:    apiapp.OpenAPIPath,
 		Handler: schemaHandler,
 	})
-	application, err := webapp.NewComposedApplication(runtime, routes, articleAPI.Middleware())
+	application, err := webapp.NewComposedApplication(runtime, routes, append(articleAPI.Middleware(), identityAPI.Middleware()...))
 	if err != nil {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}

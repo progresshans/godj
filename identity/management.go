@@ -107,9 +107,9 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 	if calls != 1 {
 		return Profile{}, managementError(CodePersistence, "snapshot_contract", nil)
 	}
-	encoded, err := state.hasher.Hash(ctx, password)
-	if err = errors.Join(err, ctx.Err()); err != nil {
-		return Profile{}, managementError(CodeInvalidInput, "password", err)
+	encoded, err := managementPassword(ctx, manager.state.hasher, password)
+	if err != nil {
+		return Profile{}, err
 	}
 	if err := state.hasher.ValidateEncoded(encoded); err != nil {
 		return Profile{}, managementError(CodeInvalidConfig, "password_hasher", err)

@@ -2,7 +2,6 @@ package identity
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"time"
 
@@ -148,9 +147,9 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 	}); err != nil {
 		return UserDetails{}, err
 	}
-	encoded, err := manager.state.hasher.Hash(ctx, password)
-	if err = errors.Join(err, ctx.Err()); err != nil {
-		return UserDetails{}, managementError(CodeInvalidInput, "password", err)
+	encoded, err := managementPassword(ctx, manager.state.hasher, password)
+	if err != nil {
+		return UserDetails{}, err
 	}
 	if err := manager.state.hasher.ValidateEncoded(encoded); err != nil {
 		return UserDetails{}, managementError(CodeInvalidConfig, "password_hasher", err)

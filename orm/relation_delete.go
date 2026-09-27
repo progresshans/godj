@@ -21,6 +21,10 @@ type RelationDeleter[M any] struct {
 	marker [0]func(M)
 }
 
+// ValidateBinding checks the sealed project capability without acquiring a
+// connection or deleting rows. Hosts can reject missing policies at startup.
+func (d RelationDeleter[M]) ValidateBinding() error { return d.state.validate() }
+
 type relationDeleteState[M any] struct {
 	descriptor  WriteDescriptor[M]
 	target      ir.ModelIdentity
