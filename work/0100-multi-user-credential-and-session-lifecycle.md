@@ -56,6 +56,8 @@ Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 
 기존 Article·Helpdesk 어댑터와 영향 normal/race/CGO=0·양 DB 소비자 검증을 완료했다.
 이는 실제 Identity Form/Admin의 완료가 아니다. 해당 모델 등록·action별 현재 DB 인가를 적용한 선택 목록,
 password/생성 validator·감사 조회를 Manager와 연결하는 작업이 다음 범위다.
+Username의 대소문자 중복 검사는 현재 미지원인 `iexact`가 필요하며, SQLite LIKE와 PostgreSQL UPPER 비교의
+실제 결과를 고정 Django에서 관찰하고 DB 차이는 공통 query의 compiler/capability가 소유하게 한다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

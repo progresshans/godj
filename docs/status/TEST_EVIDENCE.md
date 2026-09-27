@@ -11,6 +11,10 @@
 최종 non-Markdown **2,362 파일** source map은
 `73f776444e5b7d5b22013571671d99dc0ad9521f0d94c3da123f34d897eaf93d`다.
 
+구현 commit `d72ac36bf5ad027283e36c71a11b17f7e9aee4d8`을 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36289923385)가 실제 Fast Go feedback까지 성공했다.
+이는 아래 영향 검증과 별개의 Fast 범위이며 새로운 Hosted full 성공을 뜻하지 않는다.
+
 Darwin arm64 / Go 1.26.5에서 **6 packages / 154 required entries**(137 roots·17 subcases)를 실행했다.
 Scope는 `forms`, `forms/model`, `admin`, Article의 Admin adapter·HTTP 소비자, Helpdesk 전체 package다.
 새 생성 폼·command HTTP는 test callback을 사용하며, 실제 Identity Manager/Admin DB 연결의 증거로 세지 않는다.
