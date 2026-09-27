@@ -275,6 +275,12 @@ type loginFaultSession struct {
 	owner *loginBoundary
 }
 
+// Error values need not be comparable. Hosts may return an error backed by a
+// slice; ordinary admission failures must still roll back and return an error.
+type loginOpaqueError []string
+
+func (loginOpaqueError) Error() string { return "private-login-fault" }
+
 func (s *loginFaultSession) fault() error { s.owner.faults++; return errors.New("private-login-fault") }
 func (s *loginFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if s.owner.mode == "swallow" {
@@ -378,7 +384,7 @@ func RunLoginBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, 
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, failure := range []error{auth.ErrInvalidCredentials, errors.Join(auth.ErrInvalidCredentials, errors.New("private-login-fault")), errors.Join(auth.ErrInvalidCredentials, &query.Error{Code: query.CodeTransactionOutcomeUnknown}), &sessions.Error{Code: sessions.CodeEntropy}, &sessions.Error{Code: sessions.CodeStoreFull}, context.Canceled} {
+		for _, failure := range []error{auth.ErrInvalidCredentials, errors.Join(auth.ErrInvalidCredentials, errors.New("private-login-fault")), errors.Join(auth.ErrInvalidCredentials, &query.Error{Code: query.CodeTransactionOutcomeUnknown}), &sessions.Error{Code: sessions.CodeEntropy}, &sessions.Error{Code: sessions.CodeStoreFull}, context.Canceled, loginOpaqueError{"private-login-fault"}} {
 			beforeRows, beforeAudit := snapshotIdentitySystemRows(t, backend)
 			boundary.calls = 0
 			boundary.armed = true

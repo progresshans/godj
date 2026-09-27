@@ -20,7 +20,9 @@ Admin의 확인 명령과 생성 선택도 연결했다. 새 범위의 영향 no
 현재 password 사용 상태를 같은 snapshot에서 계산하는 Admin/API·독립 client 표시도 구현하고 영향 검증을 통과했다.
 last_login과 세션 수립을 같은 transaction에 연결하고 현재 credential/admission 재검사·계정 교체 데이터 분리를 구현했다.
 Admin/API·독립 client와 재시작 소비자를 연결했고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
-재시작 소비자의 실제 실행과 전체 platform 검증은 이번 Hosted 통합 milestone에서 확인한다.
+재시작 소비자의 실제 실행과 전체 platform 검증은 source `63b07213`의 Hosted 통합 milestone에서 확인한다.
+이후 발견한 비교 불가능한 host 오류의 panic도 수정하고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
+현재 추가 오류 수정과 `63b07213`의 전체 검증 source는 구분한다.
 직전 통합 source `f3264aef`의 Hosted full도 완료했으며, 이후 password 기능의 전체 검증으로 전이하지 않는다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.

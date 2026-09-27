@@ -6,6 +6,26 @@
 
 
 
+
+## GDJ-0100 — 사용자 정의 로그인 오류의 비교 경계
+
+저장 로그인의 마지막 검토에서 slice 기반 host admission 오류를 반환하면 `error == error` 비교가 panic하는 것을 재현했다.
+알려진 인증 거부 sentinel 또는 세션 오류 pointer만 비교하도록 바꿨다. 임의 host error는 실행 오류로 정규화하고
+정상 거부/재시도로 낮추지 않으며 User/session/audit의 정확한 rollback을 유지한다.
+
+2026-09-27, non-Markdown 2,466 파일의 source map
+`968541a6bed7a589d32ed5f71937b3113cab554ab976034ae4201740fe2a13b2`에서 시작/종료 동일성을 확인했다.
+Auth/Session/Systemstate/Web sessionauth 네 package와 SQLite/PostgreSQL Login lifecycle/boundary 네 root를 실행했다.
+**6 packages / 145 roots / 245 필수 항목**, normal·race·CGO=0 각각 **489 PASS / skip 0**, 총 **1,467 PASS**다.
+각 모드 시간 합계는 11.859 / 48.637 / 14.771초다. 앞 절과 같은 Darwin arm64/Go 1.26.5, offline readonly,
+Pacific/Chatham·private PostgreSQL 17.10 환경이며 종료 `0|0|0`과 container 제거를 확인했다.
+변경 전의 동일 테스트는 `comparing uncomparable type identitytest.loginOpaqueError` panic으로 실패했다.
+이 재현과 변경 후 실행을 분리해 보존한다. 이전 `63b07213`의 Hosted 전체 실행은 이 추가 오류 수정의 전체 검증으로 전이하지 않는다.
+
+- 재현: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-error-comparison-1790509140115594000/before.json`
+- 수정 검증: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-error-comparison-checkpoint-1790509213803444000/receipt.json`
+
+
 ## GDJ-0100 — 저장 로그인 관찰과 원자 세션 수립
 
 2026-09-27, `2f44a1ab` 이후 non-Markdown **2,466 파일**의 source map
@@ -66,7 +86,8 @@ SQLite URI fragment로 해석돼 TempDir 밖 DB가 재사용된 것을 확인했
 이번 저장 로그인·세션 수립 통합 milestone은 새 source의 Hosted 전체 platform/cold-build/process 검증을 소유한다.
 구현 commit `63b07213ecaaea37a2270b33d8c806a982817269`를 두 branch에 게시했다.
 같은 source의 [Hosted full 36315320971](https://github.com/progresshans/godj/actions/runs/36315320971)을 명시적으로 dispatch했다.
-현재 실행 중이며 아직 전체 성공으로 표시하지 않는다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
+현재 실행 중이며 아직 전체 성공으로 표시하지 않는다. Code Fast 36315317548은 후속 문서 push로 자동 취소됐다.
+문서 source `1ed565b2`의 [feedback 36315395506](https://github.com/progresshans/godj/actions/runs/36315395506)은 Go step을 skip한 성공이며 구현 Fast 성공으로 합산하지 않는다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
 이전 `f3264aef`의 Hosted full을 이 변경의 전체 성공으로 전이하지 않는다.
 
 

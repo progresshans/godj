@@ -137,18 +137,19 @@ func (store *loginSessionStore) write(ctx context.Context, mutate func(*durableS
 		}
 		return callbackErr
 	})
-	if calls == 1 && err != nil && err == callbackErr {
-		if err == auth.ErrInvalidCredentials {
+	if calls == 1 && err != nil {
+		if err == auth.ErrInvalidCredentials && callbackErr == auth.ErrInvalidCredentials {
 			store.denied = true
 			return sessions.Record{}, false, err
 		}
 		// Only the session mutation's own confirmed refusal may preserve a
 		// retryable collision or capacity classification. A login/cleanup error
 		// containing one of these causes must never be retried or reclassified.
-		if err == mutationErr {
-			if typed, ok := err.(*sessions.Error); ok && typed != nil && typed.Cause == nil && (typed.Code == sessions.CodeEntropy || typed.Code == sessions.CodeStoreFull) {
-				return sessions.Record{}, false, err
-			}
+		// Compare only known pointer/sentinel types, never two arbitrary host
+		// error interfaces: their dynamic values may contain slices or maps.
+		if typed, ok := mutationErr.(*sessions.Error); ok && typed != nil && typed.Cause == nil &&
+			err == typed && callbackErr == typed && (typed.Code == sessions.CodeEntropy || typed.Code == sessions.CodeStoreFull) {
+			return sessions.Record{}, false, err
 		}
 	}
 	if err != nil || callbackErr != nil || calls != 1 {

@@ -457,7 +457,8 @@ Manager.WithStore는 immutable 정책과 직렬화한 clock/entropy 소유권을
 
 실패/취소/unknown outcome은 credential·session DTO와 cookie를 게시하지 않는다. 확인된 admission 거부만 정확한
 `ErrInvalidCredentials`이고 cleanup/unknown 원인에 이 sentinel이 포함되어도 정상 인증 거부로 낮추지 않는다.
-Unknown transaction/commit 분류와 cancellation을 보존하면서 private driver 진단은 제거한다. 확인된 세션 ID 충돌만
+Unknown transaction/commit 분류와 cancellation을 보존하면서 private driver 진단은 제거한다.
+오류의 직접 비교는 알려진 sentinel/pointer에 한정한다. Slice/map을 가진 host error도 panic 없이 실행 오류로 반환한다. 확인된 세션 ID 충돌만
 새 entropy로 bounded retry한다. 확정 commit 뒤 발생한 cancellation은 이미 성공한 결과를 취소하지 않는다.
 
 [독립 Django 관찰](../../conformance/runners/django/login_lifecycle_reference.py)은 양 DB에서 인증만 수행한 경우,
