@@ -40,6 +40,10 @@ type SiteConfig struct {
 	Registry  Registry
 	Auth      *sessionauth.Runtime
 	PageSize  int
+	// AdditionalNextPaths explicitly declares destinations owned by other apps
+	// that share this runtime. The runtime must accept exactly the Admin paths
+	// plus these distinct destinations. Admission to their routes is separate.
+	AdditionalNextPaths []string
 	// AccessPermission optionally adds a permission gate to active staff
 	// admission. Zero requires only active staff; model permissions still apply.
 	AccessPermission auth.Permission
@@ -125,13 +129,19 @@ func NewSite(config SiteConfig) (*Site, error) {
 		return nil, err
 	}
 	actualNext := site.auth.AllowedNextPaths()
+	if len(config.AdditionalNextPaths) > len(actualNext) {
+		return nil, &ConfigError{Path: "site.auth.allowed_next_paths", Code: "mismatch"}
+	}
+	expectedNext = append(expectedNext, config.AdditionalNextPaths...)
 	if len(actualNext) != len(expectedNext) {
 		return nil, &ConfigError{Path: "site.auth.allowed_next_paths", Code: "mismatch"}
 	}
+	seenNext := make(map[string]bool, len(expectedNext))
 	for _, expected := range expectedNext {
-		if !site.auth.AllowsNext(expected) {
+		if seenNext[expected] || !site.auth.AllowsNext(expected) {
 			return nil, &ConfigError{Path: "site.auth.allowed_next_paths", Code: "mismatch"}
 		}
+		seenNext[expected] = true
 	}
 	if err := site.buildRoutes(); err != nil {
 		return nil, err
@@ -223,8 +233,8 @@ func normalizeBasePath(value string) (string, error) {
 	return value, nil
 }
 
-// SiteAllowedNextPaths returns the exact static GET paths a session-auth
-// Runtime must accept before it can be attached to NewSite.
+// SiteAllowedNextPaths returns the Admin-owned static GET paths. A shared
+// runtime additionally accepts the explicitly declared AdditionalNextPaths.
 func SiteAllowedNextPaths(registry Registry, basePath string) ([]string, error) {
 	basePath, err := normalizeBasePath(basePath)
 	if err != nil {

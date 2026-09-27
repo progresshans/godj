@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/validation"
 )
 
 // PasswordChangeBackend supplies coherent reads and an audit append inside the
@@ -70,41 +71,8 @@ func NewPasswordChanger(backend PasswordChangeBackend, confirmer auth.PasswordCo
 // scopes. The preflight profile is validated again by ApplyIn at the final
 // fence; an unrelated profile/revision change need not discard this operation.
 func (changer *PasswordChanger) Prepare(ctx context.Context, previous sessions.Record, oldPassword, newPassword string) (PreparedPasswordChange, error) {
-	if ctx == nil || changer == nil || changer.directory == nil {
-		return PreparedPasswordChange{}, managementError(CodeInvalidInput, "password_change", nil)
-	}
-	if err := ctx.Err(); err != nil {
-		return PreparedPasswordChange{}, err
-	}
-	id, hasID := previous.Value(auth.SessionPrincipalIDKey)
-	stamp, hasStamp := previous.Value(auth.SessionCredentialStampKey)
-	if !previous.ID().Valid() || !hasID || id == "" || !hasStamp || stamp == "" {
-		return PreparedPasswordChange{}, auth.ErrInvalidCredentials
-	}
-	before, found, err := changer.directory.ByPrincipalID(ctx, id)
+	before, confirmed, err := changer.check(ctx, previous, &oldPassword, &newPassword)
 	if err != nil {
-		return PreparedPasswordChange{}, err
-	}
-	if !found || !before.value().credential.Principal().Authenticated() || !before.value().credential.MatchesSessionStamp(stamp) {
-		return PreparedPasswordChange{}, auth.ErrInvalidCredentials
-	}
-	confirmed, err := changer.confirmer.ConfirmPassword(ctx, id, oldPassword)
-	if canceled := ctx.Err(); canceled != nil {
-		return PreparedPasswordChange{}, errors.Join(err, canceled)
-	}
-	if err == auth.ErrInvalidCredentials {
-		return PreparedPasswordChange{}, managementInputError("old_password", "password_incorrect")
-	}
-	if err != nil {
-		return PreparedPasswordChange{}, err
-	}
-	if !confirmed.Principal().Authenticated() || confirmed.Principal().ID() != id || !confirmed.MatchesSessionStamp(stamp) {
-		return PreparedPasswordChange{}, auth.ErrInvalidCredentials
-	}
-	if newPassword == "" {
-		return PreparedPasswordChange{}, managementInputError("password", "required")
-	}
-	if err := validatePassword(ctx, changer.validators, newPassword, before.Profile()); err != nil {
 		return PreparedPasswordChange{}, err
 	}
 	encoded, err := (passwordInput{raw: newPassword}).encode(ctx, changer.hasher)
@@ -112,13 +80,75 @@ func (changer *PasswordChanger) Prepare(ctx context.Context, previous sessions.R
 		return PreparedPasswordChange{}, err
 	}
 	candidate, err := auth.NewCredential(before.Profile().Username, encoded, confirmed.Principal())
-	if err != nil || !candidate.HasUsablePassword() || candidate.MatchesSessionStamp(stamp) {
+	if err != nil || !candidate.HasUsablePassword() || candidate.MatchesSessionStamp(confirmed.SessionStamp()) {
 		return PreparedPasswordChange{}, managementError(CodeInvalidConfig, "password_hasher", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return PreparedPasswordChange{}, err
 	}
 	return PreparedPasswordChange{&preparedPasswordChange{owner: changer, userID: before.Profile().ID, before: confirmed, after: candidate, password: newPassword, encoded: encoded}}, nil
+}
+
+// Check performs selected field checks without new hash work or mutations.
+// A nil field was rejected by the form's own cleaning and is not checked again.
+// It produces diagnostics only, never a reusable password or write authority.
+func (changer *PasswordChanger) Check(ctx context.Context, previous sessions.Record, oldPassword, newPassword *string) error {
+	_, _, err := changer.check(ctx, previous, oldPassword, newPassword)
+	return err
+}
+
+func (changer *PasswordChanger) check(ctx context.Context, previous sessions.Record, oldPassword, newPassword *string) (Account, auth.Credential, error) {
+	if ctx == nil || changer == nil || changer.directory == nil {
+		return Account{}, auth.Credential{}, managementError(CodeInvalidInput, "password_change", nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return Account{}, auth.Credential{}, err
+	}
+	id, hasID := previous.Value(auth.SessionPrincipalIDKey)
+	stamp, hasStamp := previous.Value(auth.SessionCredentialStampKey)
+	if !previous.ID().Valid() || !hasID || id == "" || !hasStamp || stamp == "" {
+		return Account{}, auth.Credential{}, auth.ErrInvalidCredentials
+	}
+	before, found, err := changer.directory.ByPrincipalID(ctx, id)
+	if err != nil {
+		return Account{}, auth.Credential{}, err
+	}
+	if !found || !before.value().credential.Principal().Authenticated() || !before.value().credential.MatchesSessionStamp(stamp) {
+		return Account{}, auth.Credential{}, auth.ErrInvalidCredentials
+	}
+	var confirmed auth.Credential
+	var failures validation.Errors
+	if oldPassword != nil {
+		confirmed, err = changer.confirmer.ConfirmPassword(ctx, id, *oldPassword)
+		if canceled := ctx.Err(); canceled != nil {
+			return Account{}, auth.Credential{}, errors.Join(err, canceled)
+		}
+		if err == auth.ErrInvalidCredentials {
+			failures = validation.NewErrors(validation.New("old_password", "password_incorrect"))
+		} else if err != nil {
+			return Account{}, auth.Credential{}, err
+		} else if !confirmed.Principal().Authenticated() || confirmed.Principal().ID() != id || !confirmed.MatchesSessionStamp(stamp) {
+			return Account{}, auth.Credential{}, auth.ErrInvalidCredentials
+		}
+	}
+	if newPassword != nil {
+		if *newPassword == "" {
+			failures = failures.Append(validation.NewErrors(validation.New("password", "required")))
+		} else if err := validatePassword(ctx, changer.validators, *newPassword, before.Profile()); err != nil {
+			if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+				failures = failures.Append(diagnostics)
+			} else {
+				return Account{}, auth.Credential{}, err
+			}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Account{}, auth.Credential{}, err
+	}
+	if !failures.Empty() {
+		return Account{}, auth.Credential{}, validation.Reject(failures, nil)
+	}
+	return before, confirmed, nil
 }
 
 // BindSession verifies the OLD authentication binding and replaces only its

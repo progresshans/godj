@@ -45,6 +45,33 @@ func (p *identityPasswordChangePersistence) Sessions() *sessions.Manager {
 	return p.manager
 }
 
+func (p *identityPasswordChangePersistence) CheckPasswordChange(ctx context.Context, id sessions.ID, oldPassword, newPassword *string) error {
+	if p == nil || p.runtime == nil || p.manager == nil || p.changer == nil {
+		return &Error{Code: CodeInvalidConfig, Field: "password_change", Detail: "password change persistence is uninitialized"}
+	}
+	if err := p.runtime.validBackendCall(ctx); err != nil {
+		return err
+	}
+	if !id.Valid() {
+		return auth.ErrInvalidCredentials
+	}
+	previous, found, err := p.manager.Peek(ctx, id)
+	if err != nil {
+		return passwordChangeFailure(err)
+	}
+	if !found {
+		return auth.ErrInvalidCredentials
+	}
+	err = p.changer.Check(ctx, previous, oldPassword, newPassword)
+	if err == nil || err == auth.ErrInvalidCredentials {
+		return err
+	}
+	if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+		return err
+	}
+	return passwordChangeFailure(err)
+}
+
 func (p *identityPasswordChangePersistence) ChangePassword(ctx context.Context, id sessions.ID, oldPassword, newPassword string) (auth.PasswordChangeResult, error) {
 	if p == nil || p.runtime == nil || p.manager == nil || p.changer == nil {
 		return auth.PasswordChangeResult{}, &Error{Code: CodeInvalidConfig, Field: "password_change", Detail: "password change persistence is uninitialized"}

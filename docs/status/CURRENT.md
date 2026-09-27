@@ -16,14 +16,16 @@ source `63b07213`의 Hosted 전체 platform/process 통합이 완료됐다. 이�
 자기 비밀번호 확인과 교체의 service·session persistence·Web runtime을 구현하고 영향 검증을 통과했다.
 현재 credential/세션 재검사, 현재 세션 회전·다른 세션 폐기·값 없는 감사의 원자 저장,
 현재 profile/revision/last_login 보존과 rollback/unknown, 충돌 재시도·준비 값 소유권을 양 DB에서 검증했다.
-제품 Form·JSON/OpenAPI·독립 client 연결은 아직 남아 있다.
+일반 계정 로그인/logout·비밀번호 Form과 Session JSON/OpenAPI·독립 generated client를 연결했다.
+관리 권한 없는 명시적 API admission과 세션 touch/cleanup 없는 preflight를 구현했고 Article의 공유 구성도 연결했다.
+제품 Form·JSON/OpenAPI·독립 client와 양 DB의 normal/race/CGO=0 영향 검증을 완료했다.
+이 source의 Hosted 전체 platform/process 확인은 다음 통합 단계다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 
 ## 다음 행동
 
-자기 비밀번호 변경의 제품 소비자를 이어서 구현한다.
-모델 권한이 필요 없는 본인 인증 API/OpenAPI 계약, 일반 계정 로그인·비밀번호 변경 Form과 JSON 소비자를 연결한 뒤 reset으로 이어간다.
+소비자 통합 source를 게시하고 Hosted 전체 platform/process milestone을 확인한 뒤 reset으로 이어간다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
 로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.

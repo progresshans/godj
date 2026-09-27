@@ -29,6 +29,7 @@ type endpoint struct {
 }
 
 type input struct {
+	AccountSession  accountEndpoint  `json:"account_session"`
 	ArticleBearer   endpoint         `json:"article_bearer"`
 	ArticleSession  endpoint         `json:"article_session"`
 	HelpdeskSession endpoint         `json:"helpdesk_session"`
@@ -51,6 +52,7 @@ type identityEndpoint struct {
 // The parent independently requires every name. A successful process cannot
 // omit a flow, publish partial results, or infer race instrumentation at runtime.
 var requiredChecks = [...]string{
+	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
 	"article_bearer_crud",
 	"article_bearer_patch_presence",
 	"article_bearer_put_defaults",
@@ -121,8 +123,11 @@ func readInput(reader io.Reader) (input, error) {
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		return config, errors.New("invalid input")
 	}
+	if config.AccountSession.Username == "" || config.AccountSession.Password == "" || config.AccountSession.NewPassword == "" {
+		return config, errors.New("missing account inputs")
+	}
 	addresses := make(map[string]bool)
-	for _, target := range []endpoint{config.ArticleBearer, config.ArticleSession, config.HelpdeskSession, config.IdentitySession.endpoint, config.IdentityBearer.endpoint} {
+	for _, target := range []endpoint{config.ArticleBearer, config.ArticleSession, config.HelpdeskSession, config.IdentitySession.endpoint, config.IdentityBearer.endpoint, endpoint{URL: config.AccountSession.URL}} {
 		address, err := url.Parse(target.URL)
 		if err != nil || address.Scheme != "http" || address.User != nil || address.RawQuery != "" || address.Fragment != "" || (address.Path != "" && address.Path != "/") {
 			return config, errors.New("invalid endpoint")
@@ -159,6 +164,7 @@ func run(ctx context.Context, config input) ([]string, error) {
 		run    func() error
 		checks []string
 	}{
+		{func() error { return checkAccountSession(ctx, config.AccountSession) }, []string{"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry"}},
 		{func() error { return checkArticleBearer(ctx, config.ArticleBearer) }, []string{
 			"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors", "pre_canceled_request",
 		}},

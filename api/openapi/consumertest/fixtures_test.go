@@ -39,6 +39,7 @@ import (
 // fields contain raw IDs for the documented session cookie, not cookie headers.
 // Neither credentials nor ephemeral listener URLs belong in test diagnostics.
 type consumerInput struct {
+	AccountSession  accountServerInput  `json:"account_session"`
 	ArticleBearer   serverInput         `json:"article_bearer"`
 	ArticleSession  serverInput         `json:"article_session"`
 	HelpdeskSession serverInput         `json:"helpdesk_session"`
@@ -135,7 +136,9 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	helpdeskURL := serveConsumerAPI(t, "helpdesk_generated_client", helpdesk.InstalledApps(), helpdeskAPI.Routes(), nil)
 
 	identitySession, identityBearer, identityDocuments, verifyIdentity := newIdentityConsumerFixtures(t)
+	accountInput, accountDocument, verifyAccount := newAccountConsumerFixture(t)
 	input := consumerInput{
+		AccountSession:  accountInput,
 		IdentitySession: identitySession, IdentityBearer: identityBearer,
 		ArticleBearer:  serverInput{URL: bearerURL, Token: fullToken, ReadOnlyToken: viewToken},
 		ArticleSession: serverInput{URL: sessionURL, Session: articleSession, ReadOnlySession: articleViewSession},
@@ -145,6 +148,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		},
 	}
 	documents := map[string][]byte{
+		"accountsession":  accountDocument,
 		"articlebearer":   bearerDocument,
 		"articlesession":  sessionDocument,
 		"helpdesksession": helpdeskDocument.Bytes(),
@@ -155,6 +159,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	verify := func(t *testing.T) {
 		t.Helper()
 		verifyIdentity(t)
+		verifyAccount(t)
 		for _, fixture := range []struct {
 			name    string
 			backend *sqlite.Backend

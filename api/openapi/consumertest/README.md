@@ -73,6 +73,12 @@ Identity의 `If-Revision`/`Revision` header는 required int64이고 각각 변�
 관리 서버의 rollback/unknown·양 DB 검사는 `internal/identitytest`와 각 DB root가 소유한다.
 새 client는 SQLite HTTP와 별도 client process 경계의 증거이며 PostgreSQL client나 server process restart 증거는 아니다.
 
+Account Session client는 권한 없는 일반 사용자가 제품 login Form과 CSRF를 제출해 직접 session을 수립한다.
+Generated CSRF/password API로 old-password/policy/CSRF 오류, 같은 원문의 두 변경, required replacement cookie와
+other-session 폐기를 확인하고 제품 logout을 제출한다. 부모는 별도 runtime의 새 password, revision 3, 보존된 last_login,
+unused-session 폐기·foreign-session 보존과 정확한 두 audit를 확인한다. 고정 synthetic 503은 typed unknown/no-retry만
+검사하며 실제 native rollback/unknown HTTP는 양 DB Identity suite가 소유한다.
+
 ## 현재 소스에서 문서 내보내기
 
 저장소 루트에서 실행한다. `-out`은 존재하지 않는 경로 또는 빈 디렉터리여야 하고, symlink나 기존 파일이 있는 디렉터리는 거절한다.
@@ -84,8 +90,8 @@ go run ./api/openapi/consumertest/testdata/export -out "$schema_update_dir/specs
 ```
 
 명령은 실제 API adapter와 builtin authentication profile에서 `articlebearer.json`, `articlesession.json`,
-`helpdesksession.json`, `identitysession.json`, `identitybearer.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
-다섯 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
+`helpdesksession.json`, `identitysession.json`, `identitybearer.json`, `accountsession.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
+여섯 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
 확인한 뒤 새 빈 디렉터리에서 다시 실행한다. `testdata` 아래의 유지보수 명령이므로 기본 `go test ./...` 대상에는 포함되지 않는다.
 
 ## 검토할 생성물 준비
@@ -104,7 +110,7 @@ mkdir "$schema_update_dir/generated"
   set -eu
   cd "$schema_update_dir/client"
   export GOENV=off GOWORK=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly
-  for profile in articlebearer articlesession helpdesksession identitysession identitybearer; do
+  for profile in articlebearer articlesession helpdesksession identitysession identitybearer accountsession; do
     go tool ogen -loglevel warn -config ogen.yml \
       -target "$schema_update_dir/generated/$profile" -package "$profile" "specs/$profile.json"
     rm -rf "$schema_update_dir/client/$profile"
@@ -119,14 +125,14 @@ cmp "$schema_client_dir/ogen.yml" "$schema_update_dir/client/ogen.yml"
 diff -ru "$schema_client_dir/specs" "$schema_update_dir/client/specs"
 ```
 
-`diff`의 종료 코드 1은 차이가 있다는 뜻이다. 다섯 generated package도 각각 `diff -ru`로 비교하여
+`diff`의 종료 코드 1은 차이가 있다는 뜻이다. 여섯 generated package도 각각 `diff -ru`로 비교하여
 operation·필드·null/생략·응답 타입의 변경이 의도와 맞는지 확인한다. 생성 파일을 직접 고쳐 차이를 맞추지 않는다.
 새 API 의미에 따라 `cmd/consumer`의 HTTP 호출이나 확인 항목을 바꿔야 한다면 그 변경도 별도로 구현하고 검토한다.
 생성기·의존성 버전 변경은 이 문서 갱신과 구별해서 `go.mod`·`go.sum`·`ogen.yml`을 검토한다.
 
 ## 확정한 파일 반영과 검증
 
-검토를 마친 뒤 아래 명령은 문서 다섯 개와 generated package 다섯 개만 반영한다.
+검토를 마친 뒤 아래 명령은 문서 여섯 개와 generated package 여섯 개만 반영한다.
 기존 package 안에 예상하지 않은 파일이나 symlink가 있으면 중단한다. 생성기가 제거한 파일도 반영되도록 package를 교체한다.
 
 ```sh
@@ -136,7 +142,7 @@ import shutil
 import sys
 
 destination, candidate = map(Path, sys.argv[1:])
-profiles = ('articlebearer', 'articlesession', 'helpdesksession', 'identitysession', 'identitybearer')
+profiles = ('articlebearer', 'articlesession', 'helpdesksession', 'identitysession', 'identitybearer', 'accountsession')
 for root in (destination, candidate):
     for profile in profiles:
         package = root / profile

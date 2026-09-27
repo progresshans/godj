@@ -19,6 +19,15 @@ type Authentication interface {
 	Require(auth.Permission, AuthenticatedHandler, ...auth.Permission) (web.Handler, error)
 }
 
+// PrincipalAuthentication admits an active authenticated principal without a
+// model-permission requirement. This is explicit: an empty permission passed
+// to Require is still an error. The transport's credential and CSRF checks run
+// before the handler; no permission overlay can grant anonymous access.
+type PrincipalAuthentication interface {
+	Authentication
+	RequireAuthenticated(AuthenticatedHandler) (web.Handler, error)
+}
+
 // AlternativeAuthentication additionally supports a nonempty disjunction. The
 // credential and CSRF boundary is evaluated once. Each candidate uses its deny
 // overlay; a definite denial permits the next candidate, but an execution error

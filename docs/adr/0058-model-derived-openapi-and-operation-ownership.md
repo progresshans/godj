@@ -36,6 +36,10 @@ Web의 route compiler로 경로·이름·route language 충돌을 검사하고 O
 CSRF cookie, masked header를 같은 security requirement 안의 AND로 표현한다. Safe 응답의 새 CSRF header는 선택적인 응답
 metadata다. Bearer는 HTTP bearer만 표시하고 JWT 형식·issuer·cookie fallback을 추측하지 않는다.
 인증 response header는 profile이 소유해 caller의 중복·덮어쓰기를 거부한다. Credential·token·key·verifier 내부 설정은 포함하지 않는다.
+`AuthenticatedOnly`는 `api.PrincipalAuthentication`의 명시적 capability를 요구하고 모든 permission 필드와 배타적이다.
+빈 permission만으로 인증 전용 route를 추론하지 않는다. 문서는 `x-godj-authenticated-only: true`를 출력하며,
+Session 인증/CSRF의 403은 유지하고 Bearer 인증 전용 route에는 permission 403을 자동 추가하지 않는다.
+Handler 구성/현재 principal resolution은 해당 authentication adapter가 소유한다.
 Description을 제공하지 않는 custom authentication은 기존 API 실행에 사용할 수 있으나 문서 생성은 명시적으로 실패한다.
 
 `New`는 전체 선언을 확인한 뒤 OpenAPI 3.1.1 JSON을 결정적으로 게시한다. 반환 byte·route slice는 복사하고 schema 값은
@@ -63,7 +67,10 @@ Web route compiler가 정적 prefix의 전체/일부/미적용을 판정하며 �
 하나의 integration checkpoint가 검사한다. 부모가 race이면 consumer도 race로 빌드한다. 필수 check 누락·중복, 잘린 출력,
 실패 종료와 consumer stderr를 성공으로 취급하지 않는다. 도구의 일반 진단은 실행 결과와 구분한다.
 
-Session 검증은 실제 adapter·cookie·CSRF를 사용하되 로그인 과정은 parent fixture가 준비한 session을 사용한다.
+Article/Helpdesk Session 검증은 parent fixture의 session을 사용하고 Identity 관리 profile은 parent의 실제 HTTP login으로 준비한다.
+`accountsession` profile은 child가 제품 `/account/login/` Form을 제출한 뒤 session cookie를 받아 generated CSRF/password
+operation을 호출한다. 독립 모듈은 GoDj를 import하지 않는다. Header·cookie rotation·다른 session 거부·제품 logout과
+부모의 최종 SQLite 상태를 검사하고 required `Set-Cookie` 및 synthetic 503/no-retry decoder를 별도로 확인한다.
 생략/null/value·false, full request default, relation 범위와 권한·취소를 실제 서버에서 검증하고 int64 최대/overflow·잘못된
 response 거부는 별도 wire fixture로 검사한다. 이는 고정된 한 Go generator와 명시한 흐름의 호환성 근거다.
 

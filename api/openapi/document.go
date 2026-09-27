@@ -42,6 +42,10 @@ type Operation struct {
 	Description           string
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
+	// AuthenticatedOnly declares explicit principal admission without a model
+	// permission. It requires PrincipalAuthentication and cannot be combined
+	// with any permission fields. A zero/empty permission never implies it.
+	AuthenticatedOnly bool
 	// AlternativePermissions makes Permission and these entries a disjunction,
 	// matching AlternativeAuthentication.RequireAny. It cannot be combined with
 	// AdditionalPermissions; an authorizer error never selects another branch.
@@ -143,6 +147,11 @@ func New(config Config) (Document, error) {
 	ids := make(map[string]bool)
 	shapes := make(map[string]string)
 	for _, operation := range config.Operations {
+		if operation.AuthenticatedOnly {
+			if _, supported := config.Authentication.(api.PrincipalAuthentication); !supported {
+				return Document{}, documentError("operation.authentication", "principal authentication capability is required")
+			}
+		}
 		route := operation.Route
 		if route.Handler == nil || !validText(route.Name, 256, true) || !supportedMethod(route.Method) {
 			return Document{}, documentError("operation.route", "route needs a handler, a name, and a supported uppercase HTTP method")
@@ -211,13 +220,20 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if len(operation.AdditionalPermissions) != 0 && len(operation.AlternativePermissions) != 0 {
 		return nil, documentError("operation.permission", "conjunction and alternatives cannot be combined")
 	}
+	if operation.AuthenticatedOnly && (operation.Permission != "" || len(operation.AdditionalPermissions) != 0 || len(operation.AlternativePermissions) != 0) {
+		return nil, documentError("operation.permission", "authenticated-only admission cannot declare model permissions")
+	}
 	remaining := operation.AdditionalPermissions
 	if len(operation.AlternativePermissions) != 0 {
 		remaining = operation.AlternativePermissions
 	}
-	permissions, err := auth.RequiredPermissions(operation.Permission, remaining...)
-	if err != nil {
-		return nil, documentError("operation.permission", "explicit canonical distinct permissions are required")
+	var permissions []auth.Permission
+	if !operation.AuthenticatedOnly {
+		var err error
+		permissions, err = auth.RequiredPermissions(operation.Permission, remaining...)
+		if err != nil {
+			return nil, documentError("operation.permission", "explicit canonical distinct permissions are required")
+		}
 	}
 	if len(operation.Parameters) > 128 || len(operation.Responses) == 0 || len(operation.Responses) > 32 {
 		return nil, documentError("operation", "parameter or response count is outside the supported range")
@@ -282,7 +298,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		responses[key] = value
 		declarations[response.Status] = response
 	}
-	for _, status := range failureStatuses(profile, negotiatesJSON) {
+	for _, status := range failureStatuses(profile, negotiatesJSON, operation.AuthenticatedOnly) {
 		key := strconv.Itoa(status)
 		if _, found := responses[key]; found {
 			// A body validation 400 and a Bearer syntax 400 share the same wire
@@ -340,7 +356,10 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		"parameters": parameters, "responses": responses, "security": []any{security},
 		"x-godj-permission": string(operation.Permission),
 	}
-	if len(operation.AlternativePermissions) != 0 {
+	if operation.AuthenticatedOnly {
+		delete(value, "x-godj-permission")
+		value["x-godj-authenticated-only"] = true
+	} else if len(operation.AlternativePermissions) != 0 {
 		delete(value, "x-godj-permission")
 		value["x-godj-any-permissions"] = permissions
 	} else if len(permissions) > 1 {
@@ -498,10 +517,13 @@ func securitySchemes(profile api.AuthenticationDescription) map[string]any {
 	}
 }
 
-func failureStatuses(profile api.AuthenticationDescription, negotiatesJSON bool) []int {
+func failureStatuses(profile api.AuthenticationDescription, negotiatesJSON, authenticatedOnly bool) []int {
 	statuses := []int{403}
 	if profile.Kind == api.AuthenticationBearer {
 		statuses = []int{400, 401, 403}
+		if authenticatedOnly {
+			statuses = []int{400, 401}
+		}
 	}
 	if negotiatesJSON {
 		statuses = append(statuses, 406)

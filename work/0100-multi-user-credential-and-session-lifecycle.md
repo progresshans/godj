@@ -85,12 +85,18 @@ Admin 읽기 전용 표시·관리 API·독립 Session/Bearer client와 두 DB �
 고정 Django의 실패 부작용·재로그인 ID·인증 뒤 변경과 차이를 ADR-0076에 채택했고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
 저장 로그인·세션 수립 source `63b07213`의 Hosted 전체 62 jobs와 8개 실행 owner가 모두 성공했다.
 자기 비밀번호 확인·교체의 service/session/Web runtime과 양 DB·HTTP runtime 회귀를 추가하고 영향 normal/race/CGO=0 검증을 통과했다.
-제품 Form·JSON/OpenAPI·독립 client는 아직 연결 전이며 self-service 전체 완료로 표시하지 않는다.
+제품 Form·JSON/OpenAPI·독립 client도 연결했으며 환경별 검증은 아래 현재 상태를 따른다.
 모델 관리 권한 없이 현재 session으로 본인을 식별하며 credential 변경·현재 session 회전·다른 session 폐기·감사를 원자적으로 처리한다.
 현재 profile을 다시 검증하고 password와 현재 revision만 patch한다. Reset은 후속 미완료 범위다.
-다음 소비자는 빈 permission이나 임의 관리 권한으로 우회하지 않고, 인증만 요구하는 명시적 API/OpenAPI 계약을 사용한다.
-현재 API session wrapper의 touch와 password 실패 시 무변경 계약을 구분해야 한다. 제품 로그인은 현재 Admin staff용이므로
-일반 계정의 로그인과 자기 password Form도 같은 실제 composition에서 함께 검증한다.
+소비자는 빈 permission이나 임의 관리 권한으로 우회하지 않고, 인증만 요구하는 명시적 API/OpenAPI 계약을 사용한다.
+Account는 read-only session admission으로 실패 시 무변경을 유지한다. 일반 계정 login/password와 기존 staff Admin을
+같은 실제 Article composition에서 함께 검증했다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.
+
+일반 계정의 제품 login/logout/password Form과 Session JSON/OpenAPI, 여섯 번째 독립 ogen client를 연결했다.
+명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는
+추가 앱 경로를 명시적으로 선언한다. Form의 복합 오류를 native Django fixture에 추가했다.
+소비자 통합의 normal/race/CGO=0·양 DB 영향 checkpoint, 로그인/logout 거부와 필수 실행 목록 검증을 완료했다.
+현재 source의 Hosted 전체 platform/process milestone을 확인한 뒤 reset으로 이어간다.

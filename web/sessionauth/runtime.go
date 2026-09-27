@@ -17,6 +17,18 @@ type AuthenticatedHandler func(*web.Request, auth.Principal) (web.Response, erro
 // inactive or unknown session is anonymous; no-session requests do not write a
 // session. Valid active loads advance the Manager's idle expiry.
 func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
+	return r.principal(request, false)
+}
+
+// InspectPrincipal checks current identity and session binding without touching
+// idle expiry or deleting expired, incomplete or stale session rows. It is a
+// preflight observation, not a reservation: a mutation owner must recheck the
+// session and credential under its final write fence.
+func (r *Runtime) InspectPrincipal(request *web.Request) (auth.Principal, error) {
+	return r.principal(request, true)
+}
+
+func (r *Runtime) principal(request *web.Request, inspect bool) (auth.Principal, error) {
 	httpRequest, err := r.request(request)
 	if err != nil {
 		return auth.Principal{}, err
@@ -29,11 +41,23 @@ func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
 	if err != nil {
 		return auth.Anonymous(), nil
 	}
-	record, found, err := r.sessions.Load(httpRequest.Context(), id)
+	load := r.sessions.Load
+	if inspect {
+		load = r.sessions.Peek
+	}
+	record, found, err := load(httpRequest.Context(), id)
 	if err != nil {
 		return auth.Principal{}, sessionFailure("session load failed", err)
 	}
 	if !found {
+		return auth.Anonymous(), nil
+	}
+	reject := func(detail string) (auth.Principal, error) {
+		if !inspect {
+			if err := r.sessions.Flush(httpRequest.Context(), id); err != nil {
+				return auth.Principal{}, sessionFailure(detail, err)
+			}
+		}
 		return auth.Anonymous(), nil
 	}
 	principalID, found := record.Value(auth.SessionPrincipalIDKey)
@@ -44,27 +68,21 @@ func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
 		return auth.Anonymous(), nil
 	}
 	if !found || principalID == "" || !stamped || stamp == "" {
-		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
-			return auth.Principal{}, sessionFailure("incomplete authentication session flush failed", flushErr)
-		}
-		return auth.Anonymous(), nil
+		return reject("incomplete authentication session flush failed")
 	}
 	credential, err := r.authenticator.Resolve(httpRequest.Context(), principalID)
-	if errors.Is(err, auth.ErrInvalidCredentials) {
-		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
-			return auth.Principal{}, sessionFailure("invalid principal session flush failed", flushErr)
-		}
-		return auth.Anonymous(), nil
+	if canceled := httpRequest.Context().Err(); canceled != nil {
+		return auth.Principal{}, &Error{Code: CodeAuthentication, Detail: "principal resolution failed", Cause: errors.Join(err, canceled)}
+	}
+	if err == auth.ErrInvalidCredentials {
+		return reject("invalid principal session flush failed")
 	}
 	if err != nil {
-		return auth.Principal{}, authenticationFailure("principal resolution failed", err)
+		return auth.Principal{}, &Error{Code: CodeAuthentication, Detail: "principal resolution failed", Cause: err}
 	}
 	principal := credential.Principal()
 	if !principal.Authenticated() || principal.ID() != principalID || !credential.MatchesSessionStamp(stamp) {
-		if flushErr := r.sessions.Flush(httpRequest.Context(), id); flushErr != nil {
-			return auth.Principal{}, sessionFailure("stale credential session flush failed", flushErr)
-		}
-		return auth.Anonymous(), nil
+		return reject("stale credential session flush failed")
 	}
 	return principal, nil
 }

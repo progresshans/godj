@@ -18,3 +18,19 @@ func TestSQLiteIdentityPasswordChangeConcurrency(t *testing.T) {
 func TestSQLiteIdentityPasswordChangeHTTP(t *testing.T) {
 	identitytest.RunPasswordChangeHTTP(t, openSQLiteIdentityPair)
 }
+
+func TestSQLiteIdentityAccountHTTP(t *testing.T) {
+	identitytest.RunAccountHTTP(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityAccountHTTPRefusals(t *testing.T) {
+	identitytest.RunAccountHTTPRefusals(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityAccountHTTPBoundaries(t *testing.T) {
+	identitytest.RunAccountHTTPBoundaries(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityAccountEntryRefusals(t *testing.T) {
+	identitytest.RunAccountEntryRefusals(t, openSQLiteIdentityPair)
+}

@@ -21,6 +21,7 @@ import (
 	"github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/identity"
+	identityaccount "github.com/progresshans/godj/identity/account"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/sessions"
@@ -179,31 +180,42 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Admin next paths: %w", err)
 	}
+	accountNext, err := identityaccount.AllowedNextPaths(identityaccount.DefaultBasePath)
+	if err != nil {
+		return nil, err
+	}
+	allowedNext = append(allowedNext, accountNext...)
 	loginPersistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: login persistence: %w", err)
 	}
+	passwordChangePersistence, err := runtime.PasswordChangePersistence(manager, configured.passwordValidators...)
+	if err != nil {
+		return nil, fmt.Errorf("article site application: password change persistence: %w", err)
+	}
 	webRuntime, err := websessionauth.New(websessionauth.Config{
-		Sessions:         manager,
-		Authenticator:    runtime.Authenticator(),
-		LoginPersistence: loginPersistence,
-		Authorizer:       auth.PrincipalAuthorizer{},
-		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
-		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
-		CSRFKeyRing:      configured.csrfKeyRing,
-		LoginPath:        adminBasePath + "/login/",
-		FallbackPath:     adminBasePath + "/",
-		AllowedNextPaths: allowedNext,
+		Sessions:                  manager,
+		Authenticator:             runtime.Authenticator(),
+		LoginPersistence:          loginPersistence,
+		PasswordChangePersistence: passwordChangePersistence,
+		Authorizer:                auth.PrincipalAuthorizer{},
+		SessionCookie:             websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		CSRFCookie:                websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		CSRFKeyRing:               configured.csrfKeyRing,
+		LoginPath:                 adminBasePath + "/login/",
+		FallbackPath:              adminBasePath + "/",
+		AllowedNextPaths:          allowedNext,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: session authentication: %w", err)
 	}
 	adminSite, err := admin.NewSite(admin.SiteConfig{
-		Apps:      projectSettings.Apps(),
-		Namespace: apiapp.Namespace,
-		BasePath:  adminBasePath,
-		Registry:  registry,
-		Auth:      webRuntime,
+		Apps:                projectSettings.Apps(),
+		Namespace:           apiapp.Namespace,
+		BasePath:            adminBasePath,
+		Registry:            registry,
+		Auth:                webRuntime,
+		AdditionalNextPaths: accountNext,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Admin site: %w", err)
@@ -240,8 +252,13 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, err
 	}
+	account, err := identityaccount.New(identityaccount.Config{Apps: projectSettings.Apps(), Namespace: apiapp.Namespace, Auth: webRuntime})
+	if err != nil {
+		return nil, fmt.Errorf("article site application: account surface: %w", err)
+	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
 	routes = append(routes, identityAPI.Routes()...)
+	routes = append(routes, account.Routes()...)
 	routes = append(routes, web.Route{Name: apiapp.Namespace + ":identity-openapi", Method: http.MethodGet, Path: identityapi.BasePath + "openapi.json", Handler: identitySchema})
 	routes = append(routes, web.Route{
 		Name:    apiapp.OpenAPIRouteName,
@@ -249,7 +266,9 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		Path:    apiapp.OpenAPIPath,
 		Handler: schemaHandler,
 	})
-	application, err := webapp.NewComposedApplication(runtime, routes, append(articleAPI.Middleware(), identityAPI.Middleware()...))
+	middleware := append(articleAPI.Middleware(), identityAPI.Middleware()...)
+	middleware = append(middleware, account.Middleware()...)
+	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}

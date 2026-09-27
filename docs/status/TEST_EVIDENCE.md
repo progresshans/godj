@@ -8,6 +8,73 @@
 
 
 
+## GDJ-0100 — 일반 계정 Form·Session API와 독립 client
+
+2026-09-27, `8986dcda` 이후 일반 계정의 제품 login/logout·password Form/완료 화면과 Session JSON/OpenAPI를
+Article에 연결했다. 명시적 authenticated-only API admission, session touch/cleanup 없는 preflight와
+필드별 password 검사를 추가했다. 빈 permission은 여전히 구성 오류다. Admin은 shared redirect의 추가 앱 경로를
+명시적으로 선언하며 staff admission을 유지한다. IR/model/migration/생성 ABI 변경은 없다.
+
+주요 구현 source map `ac829cc815d5c030a6c0a23a2b68386f49d676e033e700717c09340826196313`
+(non-Markdown **2,509 파일**)의 시작/종료 동일성을 확인했다.
+Core 15 packages의 전체 tests, 독립 OpenAPI consumer 1 package의 전체 tests, 양 DB Identity 전체를 실행했다.
+**18 packages / 402 roots / 1,980 필수 항목**의 실행·성공·package 종료와 no-skip을 감사했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 3,708 PASS / skip 0 | 108.110초 |
+| race | 3,708 PASS / skip 0 | 358.431초 |
+| CGO=0 | 3,708 PASS / skip 0 | 97.851초 |
+
+총 **11,124 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go,
+`TZ=Pacific/Chatham`, private PostgreSQL 17.10 UTF8/libc/C와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+DB 종료 `0|0|0`, owned container 제거와 source 동일성을 확인했다.
+
+- 고정 Django 6.1/CPython 3.14.3의 실제 PasswordChangeForm/View를 SQLite·PostgreSQL에서 실행해 복합 오류를 포함한
+  **10개 거부**와 성공·같은 password·실패 부작용·검증 뒤 변경을 관찰했다. 양 DB observations/9개 upstream module hash 일치,
+  private PG table 0·container 제거, Python tests **2개**와 runtime mutation **3개**를 확인했다.
+- 양 DB의 제품 Form은 old-password/required/confirmation/policy 오류 조합과 password 비공개 재표시를 이 독립 fixture와 비교한다.
+  잘못된 입력은 hash·User/session/audit 변화가 없으며 시간을 진행시킨 뒤에도 session을 touch/cleanup하지 않는다.
+- 실제 일반 계정 login의 Unicode 정규화·안전한 next, Form/JSON 변경, 같은 password의 두 번째 변경,
+  current payload/lifetime·last_login 보존, session cookie만 교체·기존 CSRF 유지·other-session 폐기,
+  새 runtime의 credential/session 관찰과 제품 logout을 확인했다. Article에서 ordinary 계정은 staff Admin으로 진입하지 못한다.
+- CSRF/origin/query/empty-query/unknown/duplicate/null/type/string/body/media, 중복·stale·만료·익명 cookie를 검사했다.
+  Password/audit/revocation 실패·취소·validation+cleanup·unknown rollback/commit은 실제 native transaction에 주입했다.
+  실패는 cookie나 private 원문을 게시하지 않고, unknown은 503/재시도 없음이며 durable commit 여부를 별도로 비교한다.
+- 실제 schema에서 여섯 번째 `accountsession` ogen client를 생성했다. 기존 다섯 profile schema는 byte-identical이다.
+  모든 profile의 offline generated drift·별도 module build와 실제 HTTP를 세 모드에서 검사했으며 child도 부모 race를 따른다.
+  Account child는 제품 Form으로 두 일반 session을 만들고 generated CSRF/password/typed errors/required replacement cookie,
+  other-session 거부와 제품 logout을 실행한다. 부모는 reopen한 SQLite의 새 password·revision 3·last_login·unused/foreign session과
+  정확한 두 password audit를 별도로 확인한다. Synthetic 503은 decoder/no-retry 증거이고 실제 unknown 증거와 구분한다.
+- source overlay **10개**가 current credential fence·other-session revocation·last_login·current revision·rollback·unknown·
+  wrapped verifier/caused validation·read-only API admission·Django 복합 Form 오류 누락을 지정된 assertion으로 탐지했다.
+  Compile 실패를 탐지 성공으로 세지 않았으며 해당 제품 파일 hash가 최종 source에서도 같음을 확인했다.
+
+후속 source `6329a7e1d58880662966394688b501ef36992359acf80da53dfdda0f547944c6`
+(non-Markdown **2,510 파일**)은 로그인/logout 거부 테스트 helper·양 DB root 선언·두 CI 목록의 **5개 파일만** 다르다.
+제품 코드·reference·generated client 입력/출력이 동일함을 source map으로 확인했다. 새 **2 roots / 36 필수 항목**을
+normal **36 PASS (1.889초)**, race **36 PASS (14.986초)**, CGO=0 **36 PASS (3.349초)**로 각각 검사했다.
+잘못된 비밀번호·없는/비활성 사용자·필수/중복 username·escaping·CSRF/origin/query/next/media와 logout GET/CSRF/중복/unknown
+거부에서 cookie·last_login·User/session/audit 무변경을 확인했다. DB 정리 `0|0|0`과 source 동일성도 확인했다.
+별도 실행 108 PASS를 앞 checkpoint의 같은 source/단일 실행으로 합치지 않는다.
+현재 필수 core 목록 851항목으로 기존 세 raw event stream을 다시 감사해 새 account constructor 필수 subcase도 모두 확인했다.
+CI 도구 **41개**, 영향 vet, gofmt와 Markdown **152개** 링크 검사를 통과했다.
+
+최초 실패를 보존했다. Admin의 정확한 redirect allowlist에 추가 앱 경로 선언이 필요했고,
+Form GET과 JSON command의 route 이름 중복을 분리하고 account construction에서도 전체 route를 검사하도록 수정했다.
+기존 Admin의 non-staff 처리는 login redirect이며 테스트의 403 가정을 고쳤다. validation+cleanup 주입은 두 번째 policy fence의
+실제 거부도 함께 주입해야 rollback을 관찰할 수 있어 fixture를 수정했다. CI 실행 목록은 주석을 허용하지 않아 형식을 정리했다.
+
+이 결과는 현재 source의 전체 platform/process 완료가 아니다. 소비자까지 연결한 이번 source가 다음 Hosted full milestone을
+소유하며 이전 `63b07213` 결과를 전이하지 않는다. Reset·전체 UserCreationForm과 다른 인증 provider도 별도 미완료 범위다.
+
+로컬 raw/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 다음에 보존했다.
+
+- `account-reference-1790515981434462000`: 실제 SQLite/PG native 관찰·runner·upstream hash·cleanup receipt.
+- `account-consumer-checkpoint-1790517209523226000`: 세 모드 전체 event stream·필수 목록·source map·10개 controls·vet·delta 감사.
+- `account-entry-checkpoint-1790517850665452000`: 후속 거부 테스트 세 모드·필수 inventory·source 동일성·private PG cleanup.
+- 최초 실패: `account-consumer-checkpoint-1790516804347770000`, `1790516909169572000`, `1790517061459893000`.
+
 ## GDJ-0100 — 자기 비밀번호 변경의 원자 저장 기반
 
 2026-09-27, `fe033b3c` 이후 non-Markdown **2,481 파일**의 source map

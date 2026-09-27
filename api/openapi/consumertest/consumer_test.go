@@ -25,6 +25,7 @@ import (
 )
 
 var requiredConsumerChecks = []string{
+	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
 	"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors",
 	"article_session_csrf_crud", "article_session_invalid_csrf", "helpdesk_session_relations", "helpdesk_session_create_defaults",
 	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_ticket_collections", "helpdesk_session_read_only_denied", "generated_int64_wire", "generated_response_rejections", "pre_canceled_request",
@@ -47,7 +48,7 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 	for _, name := range []string{"go.mod", "go.sum", "ogen.yml"} {
 		locks[name] = readConsumerFile(t, filepath.Join(module, name))
 	}
-	for _, name := range []string{"articlebearer", "articlesession", "helpdesksession", "identitysession", "identitybearer"} {
+	for _, name := range []string{"articlebearer", "articlesession", "helpdesksession", "identitysession", "identitybearer", "accountsession"} {
 		actual, found := documents[name]
 		if !found || len(actual) == 0 {
 			t.Fatalf("actual schema %s is missing", name)

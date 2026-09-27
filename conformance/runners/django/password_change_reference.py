@@ -105,6 +105,12 @@ with tempfile.TemporaryDirectory(prefix='godj-self-password-reference-') as dire
             ('stripped_old',old_password.strip(),new_password,new_password),
             ('mismatch',old_password,new_password,new_password.strip()),
             ('weak',old_password,'short','short'),
+            ('wrong_old_weak','wrong','short','short'),
+            ('wrong_old_mismatch','wrong',new_password,'different'),
+            ('missing_old_weak','','short','short'),
+            ('missing_first_weak',old_password,'','short'),
+            ('missing_confirmation',old_password,new_password,''),
+            ('all_missing','','',''),
         ]:
             response=post(client,old,new,confirmation)
             current=User.objects.get(pk=user.pk)

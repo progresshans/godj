@@ -32,30 +32,13 @@ func (r *Runtime) CanChangePassword() bool {
 // input. Failure publishes no cookie or session touch; only a confirmed commit
 // replaces the session cookie. The existing independent CSRF secret is retained.
 func (r *Runtime) ChangePassword(request *web.Request, oldPassword, newPassword string) (PasswordChangeResult, error) {
-	httpRequest, err := r.request(request)
+	id, err := r.passwordChangeSession(request)
 	if err != nil {
 		return PasswordChangeResult{}, err
 	}
-	if r.passwordChangePersistence == nil {
-		return PasswordChangeResult{}, &Error{Code: CodeInvalidConfig, Field: "password_change_persistence", Detail: "password change persistence is not configured"}
-	}
-	encoded, found, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
-	if cookieErr != nil || !found {
-		return PasswordChangeResult{}, auth.ErrInvalidCredentials
-	}
-	id, err := sessions.ParseID(encoded)
+	committed, err := r.passwordChangePersistence.ChangePassword(request.Context(), id, oldPassword, newPassword)
 	if err != nil {
-		return PasswordChangeResult{}, auth.ErrInvalidCredentials
-	}
-	committed, err := r.passwordChangePersistence.ChangePassword(httpRequest.Context(), id, oldPassword, newPassword)
-	if err != nil {
-		if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil || err == auth.ErrInvalidCredentials {
-			return PasswordChangeResult{}, err
-		}
-		// Keep an execution wrapper even when the cause contains cancellation.
-		// Returning the original caused rejection would make it renderable as
-		// ordinary input again. errors.Is/As still retain the execution cause.
-		return PasswordChangeResult{}, &Error{Code: CodeSession, Detail: "password change persistence failed", Cause: err}
+		return PasswordChangeResult{}, passwordChangeError(err)
 	}
 	record := committed.Record
 	principal := committed.Credential.Principal()
@@ -66,4 +49,46 @@ func (r *Runtime) ChangePassword(request *web.Request, oldPassword, newPassword 
 	}
 	change := ResponseChange{cookies: []http.Cookie{r.sessionResponseCookie(record.ID().Encoded(), record.AbsoluteExpiresAt())}}
 	return PasswordChangeResult{principal: principal, change: change}, nil
+}
+
+// CheckPasswordChange provides non-mutating selected-field diagnostics for a
+// bound form. Callers verify CSRF first. Nil fields have failed form cleaning;
+// they are skipped here. This method never returns authority for a later write.
+func (r *Runtime) CheckPasswordChange(request *web.Request, oldPassword, newPassword *string) error {
+	id, err := r.passwordChangeSession(request)
+	if err != nil {
+		return err
+	}
+	return passwordChangeError(r.passwordChangePersistence.CheckPasswordChange(request.Context(), id, oldPassword, newPassword))
+}
+
+func (r *Runtime) passwordChangeSession(request *web.Request) (sessions.ID, error) {
+	httpRequest, err := r.request(request)
+	if err != nil {
+		return sessions.ID{}, err
+	}
+	if r.passwordChangePersistence == nil {
+		return sessions.ID{}, &Error{Code: CodeInvalidConfig, Field: "password_change_persistence", Detail: "password change persistence is not configured"}
+	}
+	encoded, found, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
+	if cookieErr != nil || !found {
+		return sessions.ID{}, auth.ErrInvalidCredentials
+	}
+	id, err := sessions.ParseID(encoded)
+	if err != nil {
+		return sessions.ID{}, auth.ErrInvalidCredentials
+	}
+	return id, nil
+}
+
+func passwordChangeError(err error) error {
+	if err == nil || err == auth.ErrInvalidCredentials {
+		return err
+	}
+	if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+		return err
+	}
+	// Retain an execution wrapper even for cancellation. Returning a caused
+	// rejection unchanged would expose it as ordinary input again.
+	return &Error{Code: CodeSession, Detail: "password change persistence failed", Cause: err}
 }

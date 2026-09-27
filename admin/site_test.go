@@ -106,6 +106,13 @@ func TestSiteStartupPathPlanAndDuplicateRouteRejection(t *testing.T) {
 	if _, err := NewSite(SiteConfig{Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: extraPathRuntime}); errorCode(err) != "mismatch" {
 		t.Fatalf("NewSite(extra allowed path) error = %v", err)
 	}
+	for _, extra := range [][]string{{"/other/"}, {"/admin/"}, {"/missing/"}, {"/other/", "/other/"}, {"https://example.test/"}} {
+		site, err := NewSite(SiteConfig{Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: extraPathRuntime, AdditionalNextPaths: extra})
+		valid := len(extra) == 1 && extra[0] == "/other/"
+		if valid && (err != nil || site == nil) || !valid && (errorCode(err) != "mismatch" || site != nil) {
+			t.Fatal("explicit shared runtime destinations", extra, err)
+		}
+	}
 	wrongRedirectRuntime, _ := siteTestRuntime(t, registry, paths, "/other/login/", "/admin/", siteTestIdentities(t))
 	if _, err := NewSite(SiteConfig{Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: wrongRedirectRuntime}); errorCode(err) != "mismatch" {
 		t.Fatalf("NewSite(mismatched redirect paths) error = %v", err)

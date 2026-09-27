@@ -17,6 +17,11 @@ import (
 type PasswordChangePersistence interface {
 	Sessions() *sessions.Manager
 	ChangePassword(context.Context, sessions.ID, string, string) (PasswordChangeResult, error)
+	// CheckPasswordChange validates only the non-nil fields, without hashing a
+	// new password or writing anything. Forms use this to combine service errors
+	// with field/confirmation errors. A nil result never authorizes a later
+	// write: ChangePassword always verifies both fields and the final fence.
+	CheckPasswordChange(context.Context, sessions.ID, *string, *string) error
 }
 
 type PasswordChangeResult struct {

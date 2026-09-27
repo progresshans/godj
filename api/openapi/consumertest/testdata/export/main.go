@@ -116,6 +116,11 @@ func documents(ctx context.Context) (files []schemaFile, err error) {
 		return nil, fmt.Errorf("describe identity APIs: %w", err)
 	}
 	files = append(files, identityFiles...)
+	account, err := accountDocument(guard, manager)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, account)
 	if guard.called {
 		return nil, errors.New("document construction unexpectedly invoked authentication")
 	}

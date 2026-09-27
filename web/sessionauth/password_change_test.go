@@ -23,6 +23,10 @@ type passwordChangeTestProvider struct {
 	run     func(context.Context, sessions.ID, string, string) (auth.PasswordChangeResult, error)
 }
 
+func (p *passwordChangeTestProvider) CheckPasswordChange(context.Context, sessions.ID, *string, *string) error {
+	return &Error{Code: CodeInvalidConfig, Detail: "test provider does not support form checks"}
+}
+
 func (p *passwordChangeTestProvider) Sessions() *sessions.Manager { return p.manager }
 func (p *passwordChangeTestProvider) ChangePassword(ctx context.Context, id sessions.ID, old, next string) (auth.PasswordChangeResult, error) {
 	return p.run(ctx, id, old, next)

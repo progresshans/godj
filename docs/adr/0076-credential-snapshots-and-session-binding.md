@@ -506,5 +506,38 @@ Django native form.save()는 전체 User를 저장해 검증 뒤 비활성/다�
 session cycle/final save 실패에서 password만 바뀐 부분 상태를 남길 수 있다. Fixture는 이 결과를 그대로 기록한다.
 GoDj는 현재 credential/active 재검사와 field patch·원자 저장을 채택한다. 동일한 실패 부작용이라고 주장하지 않는다.
 
-이 단계는 service·persistence·Web runtime 계약이다. 제품 Form·JSON/API/OpenAPI·독립 client의 연결과 reset은 남은 구현이며,
+## 일반 계정의 Form·JSON 소비자
+
+`identity/account`는 일반 계정의 `/account/login/`, POST logout, password Form과 완료 화면을 제공한다.
+Article은 저장 Login/PasswordChangePersistence와 기존 Admin/API의 명시적 password validator를 같은 runtime에 연결한다.
+Admin은 active staff와 모델 권한을 계속 요구한다. 공유 runtime의 redirect 목록은 Admin 경로와
+`SiteConfig.AdditionalNextPaths`의 명시적 앱 경로가 정확히 일치해야 하며, 추가 경로가 그 route의 접근 권한을 부여하지 않는다.
+Account 로그인은 자기 fallback을 사용하며 외부/미등록 next는 거부한다. Username은 고정 Unicode 16 trim/NFKC와 IR 길이를,
+password는 원문 공백 보존을 사용한다. Form은 password 값을 다시 렌더링하지 않는다.
+
+Password Form은 `old_password`, `new_password1`, `new_password2`를 받는다. 기존 password 오류와 new confirmation/policy
+오류를 필드 순서로 함께 표시하는 고정 Django 결과를 따른다. 필수/confirmation 오류가 있는 제출도 성공적으로 clean된
+필드의 검사를 수행한다. `CheckPasswordChange`는 선택한 필드의 진단만 반환하고 새 hash나 저장·재사용할 쓰기 권한을 만들지 않는다.
+유효한 Form 제출은 최종 원자 변경 경로에서 다시 확인한다. 같은 원문의 password도 새 hash/stamp/ID를 생성한다.
+Form은 64KiB body/4KiB query/입력값 4096 bytes/최대 16개 값으로 제한하며 unknown 입력·중복 보안 값을 거부한다.
+Django QueryDict의 last-value 동작을 복제하지 않고 중복 password는 필드 오류로 처리한다.
+
+`api.PrincipalAuthentication.RequireAuthenticated`는 모델 permission 없이 현재 active principal만 요구하는 명시적 capability다.
+기존 `Require("", ...)`는 구성 오류를 유지한다. Session의 CSRF와 Bearer 검증/challenge는 그대로 적용하고,
+OpenAPI는 이 선택을 `AuthenticatedOnly`/`x-godj-authenticated-only`로 기록하며 permission과 혼합하지 않는다.
+이 account API는 Session profile만 게시한다. `InspectPrincipal`/API `WithReadOnlyResolution`으로 admission을 수행해
+유효 session의 idle 시간을 갱신하거나 만료·stale 행을 청소하지 않는다. 변경은 최종 persistence fence가 소유한다.
+일반 `Principal`의 touch/cleanup은 유지하며 verifier의 wrapped denial·취소·unknown은 실행 오류로 보존한다.
+
+`GET /api/account/csrf/`는 204와 masked header를, `POST /api/account/password/`는 required non-null 문자열
+`old_password`/`new_password`를 받는다. 인증·CSRF 후 parser가 입력을 검사하며 target/revision/confirmation을 받지 않는다.
+성공은 204와 replacement session cookie이고 기존 CSRF cookie는 유지한다. 확정 입력 오류 400, 인증/CSRF 403,
+body 상한 413, media 415, unknown outcome 503을 구분한다. JSON 문자열 byte 상한 위반은 400이다.
+실패에는 cookie·Retry-After·자동 write retry가 없으며 unknown은 durable 상태를 확인한 뒤 후속 작업을 판단한다.
+인증된 `/api/account/openapi.json`은 실제 handler/serializer 선언을 게시한다. Account 응답은 no-store다.
+
+별도 ogen account client는 제품 Form 로그인 후 실제 Session/CSRF JSON 변경, required replacement cookie,
+같은 password 교체, other-session 폐기·제품 logout을 호출한다. 부모는 reopen한 SQLite의 password/revision/last_login,
+unused/foreign session과 값 없는 audit를 별도로 확인한다. Synthetic 503 decoder/no-retry와 실제 양 DB native HTTP
+rollback/unknown 검증을 구분한다. Reset, 전체 UserCreationForm, token issuer/JWT/OAuth/OIDC는 남은 구현이다.
 실행 범위와 환경별 완료는 TEST_EVIDENCE에서 별도로 확인한다.

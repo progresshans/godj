@@ -95,7 +95,7 @@ digest-pinned PostgreSQL required, final local full/386/archive와 exact hosted 
 
    Unexported pointer-backed state는 특수 format verb나 accidental structural formatting이 raw string field로 내려가는 경로를
    없앱니다. Verifier는 request context와 token을 받아 active `auth.Principal`, `auth.ErrInvalidCredentials` 또는 infrastructure
-   error를 반환합니다.
+   error를 반환합니다. 정확한 `auth.ErrInvalidCredentials`만 확정 인증 거부이며, 이를 감싼 실행 오류·취소·unknown 원인은 보존합니다.
 4. `Token`은 `Encoded` verification accessor 외에 material을 공개하지 않고 ordinary/Go formatting과 JSON을 fixed redacted form으로 만듭니다.
    Framework error/challenge/artifact는 raw value나 injected cause text를 포함하지 않습니다.
 5. Bearer adapter는 exactly one `Authorization` field만 읽고 case-insensitive `Bearer` + `1*SP` + RFC 6750 `b64token`을
@@ -177,3 +177,8 @@ oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
 completed입니다. Q-021은 concrete JWT/opaque issuance, refresh/revocation, key lifecycle, OAuth/OIDC와 production BFF가
 남아 있어 `Partial`입니다. Phase A manifest의 existing `kind=proposal`, `derived=false` provenance는 observation-time
 역사이므로 이 acceptance로 소급 변경하지 않습니다.
+
+인증된 일반 사용자의 본인 기능에는 `api.PrincipalAuthentication.RequireAuthenticated`를 사용한다.
+Session CSRF와 Bearer 검증은 유지하고 모델 permission/deny overlay를 호출하지 않는다. 빈 `Require` permission은
+구성 오류를 유지한다. Session의 `WithReadOnlyResolution`은 명시한 route의 admission만 Peek으로 수행하며,
+최종 mutation owner가 현재 credential·session을 다시 검사한다. 기본 wrapper의 touch/cleanup은 유지한다.

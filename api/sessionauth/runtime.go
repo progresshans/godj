@@ -62,18 +62,52 @@ func (e *Error) Is(target error) bool {
 // runtime. Its zero value is invalid.
 type Runtime struct {
 	runtime *websessionauth.Runtime
+	inspect bool
 }
 
 var _ api.AlternativeAuthentication = (*Runtime)(nil)
+var _ api.PrincipalAuthentication = (*Runtime)(nil)
 
-func New(runtime *websessionauth.Runtime) (*Runtime, error) {
+type Option interface{ apply(*Runtime) }
+type option func(*Runtime)
+
+func (o option) apply(runtime *Runtime) { o(runtime) }
+
+// WithReadOnlyResolution uses InspectPrincipal for credential admission. It
+// neither refreshes nor cleans up server sessions. Use it when a final mutation
+// owner couples all session effects to a transaction. CSRF checks and safe
+// response tokens remain enabled; this option never changes authorization.
+func WithReadOnlyResolution() Option {
+	return option(func(runtime *Runtime) { runtime.inspect = true })
+}
+
+func New(runtime *websessionauth.Runtime, options ...Option) (*Runtime, error) {
 	if runtime == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "session-auth runtime is nil"}
 	}
 	if runtime.CSRFHeader() == "" {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
 	}
-	return &Runtime{runtime: runtime}, nil
+	prepared := &Runtime{runtime: runtime}
+	for _, option := range options {
+		if option == nil {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "option", Detail: "session authentication option is nil"}
+		}
+		option.apply(prepared)
+	}
+	return prepared, nil
+}
+
+type permissionMode uint8
+
+const (
+	allPermissions permissionMode = iota
+	anyPermission
+	onlyAuthenticated
+)
+
+func (r *Runtime) RequireAuthenticated(handler api.AuthenticatedHandler) (web.Handler, error) {
+	return r.protect(onlyAuthenticated, "", handler)
 }
 
 // Require resolves an authenticated principal, checks unsafe-method CSRF,
@@ -81,32 +115,40 @@ func New(runtime *websessionauth.Runtime) (*Runtime, error) {
 // or persistence. Expected denial responses are JSON 403 without redirects or
 // WWW-Authenticate.
 func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
-	return r.protect(false, permission, handler, additional...)
+	return r.protect(allPermissions, permission, handler, additional...)
 }
 
 // RequireAny accepts the first explicitly granted permission whose deny overlay
 // allows the request. Credential/CSRF checks run once; errors never fall back.
 func (r *Runtime) RequireAny(permission auth.Permission, handler api.AuthenticatedHandler, alternatives ...auth.Permission) (web.Handler, error) {
-	return r.protect(true, permission, handler, alternatives...)
+	return r.protect(anyPermission, permission, handler, alternatives...)
 }
 
-func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
+func (r *Runtime) protect(mode permissionMode, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	if r == nil || r.runtime == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or uninitialized"}
 	}
 	if r.runtime.CSRFHeader() == "" {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
 	}
-	permissions, err := auth.RequiredPermissions(permission, additional...)
-	if err != nil {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+	var permissions []auth.Permission
+	if mode != onlyAuthenticated {
+		var err error
+		permissions, err = auth.RequiredPermissions(permission, additional...)
+		if err != nil {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+		}
 	}
 	if handler == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "authenticated API handler is nil"}
 	}
 
 	return func(request *web.Request) (web.Response, error) {
-		principal, err := r.runtime.Principal(request)
+		resolve := r.runtime.Principal
+		if r.inspect {
+			resolve = r.runtime.InspectPrincipal
+		}
+		principal, err := resolve(request)
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -127,7 +169,7 @@ func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handle
 			if err != nil {
 				return web.Response{}, err
 			}
-			if anyPermission {
+			if mode == anyPermission {
 				if allowed {
 					granted = true
 					break
@@ -136,7 +178,7 @@ func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handle
 				return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
 			}
 		}
-		if anyPermission && !granted {
+		if mode == anyPermission && !granted {
 			return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
 		}
 		response, err := handler(request, principal)

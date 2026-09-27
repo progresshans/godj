@@ -60,6 +60,19 @@ func (Runtime) Format(state fmt.State, _ rune) {
 }
 
 var _ api.AlternativeAuthentication = (*Runtime)(nil)
+var _ api.PrincipalAuthentication = (*Runtime)(nil)
+
+type permissionMode uint8
+
+const (
+	allPermissions permissionMode = iota
+	anyPermission
+	onlyAuthenticated
+)
+
+func (r *Runtime) RequireAuthenticated(handler api.AuthenticatedHandler) (web.Handler, error) {
+	return r.protect(onlyAuthenticated, "", handler)
+}
 
 // New validates the complete Bearer profile before any route can be wrapped.
 func New(config Config) (*Runtime, error) {
@@ -77,22 +90,26 @@ func New(config Config) (*Runtime, error) {
 // permission receives a deny-overlay check. Bearer requests never consult
 // cookies, query/form values, or CSRF.
 func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
-	return r.protect(false, permission, handler, additional...)
+	return r.protect(allPermissions, permission, handler, additional...)
 }
 
 // RequireAny accepts the first explicitly granted permission whose deny overlay
 // allows the request. Credential/CSRF checks run once; errors never fall back.
 func (r *Runtime) RequireAny(permission auth.Permission, handler api.AuthenticatedHandler, alternatives ...auth.Permission) (web.Handler, error) {
-	return r.protect(true, permission, handler, alternatives...)
+	return r.protect(anyPermission, permission, handler, alternatives...)
 }
 
-func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
+func (r *Runtime) protect(mode permissionMode, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	if r == nil || nilInterface(r.verifier) || nilInterface(r.authorizer) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "Bearer runtime is nil or uninitialized"}
 	}
-	permissions, err := auth.RequiredPermissions(permission, additional...)
-	if err != nil {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+	var permissions []auth.Permission
+	if mode != onlyAuthenticated {
+		var err error
+		permissions, err = auth.RequiredPermissions(permission, additional...)
+		if err != nil {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+		}
 	}
 	if handler == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "authenticated API handler is nil"}
@@ -129,7 +146,7 @@ func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handle
 			if err != nil {
 				return web.Response{}, err
 			}
-			if anyPermission {
+			if mode == anyPermission {
 				if allowed {
 					granted = true
 					break
@@ -138,7 +155,7 @@ func (r *Runtime) protect(anyPermission bool, permission auth.Permission, handle
 				return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
 			}
 		}
-		if anyPermission && !granted {
+		if mode == anyPermission && !granted {
 			return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
 		}
 		return handler(request, principal)
@@ -185,7 +202,7 @@ func (r *Runtime) resolve(ctx context.Context, header http.Header) (auth.Princip
 	if contextErr := preservedContextError(ctx, err); contextErr != nil {
 		return auth.Principal{}, bearerInvalid, contextErr
 	}
-	if errors.Is(err, auth.ErrInvalidCredentials) {
+	if err == auth.ErrInvalidCredentials {
 		return auth.Principal{}, bearerInvalid, nil
 	}
 	if err != nil {

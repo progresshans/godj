@@ -19,7 +19,9 @@ export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
 ```
 
 `createsuperuser`는 실제 터미널에서 username/password를 입력받아 빈 identity 저장소의 첫 active/staff/superuser를 만든다.
-비밀번호를 명령 인자에 넣지 않는다. 추가 사용자·비밀번호 관리 UI/API는 구현 중이다.
+비밀번호를 명령 인자에 넣지 않는다. User·Group·Permission 관리 화면과 JSON API를 제공하며, 일반 계정은
+[계정 로그인](http://127.0.0.1:8000/account/login/)과 [본인 비밀번호 변경](http://127.0.0.1:8000/account/password/)을 사용한다.
+일반 계정의 접근에는 staff나 모델 관리 권한이 필요하지 않다. [계정 API와 구성](identity/account/README.md)을 참고한다.
 [Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
 같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Startup은 저장된 User와 현재 권한을 읽으며 계정을 자동 생성하거나 이전하지 않는다.
 이전 형식의 operator가 있는 DB는 [명시적 계정 이전](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)을 먼저 수행한다.
