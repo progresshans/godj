@@ -15,6 +15,9 @@
 고정 principal ID의 old password 확인, profile policy·hash의 scope 분리와 현재 credential/session fence,
 password·현재 revision·현재 session 회전·다른 session 폐기·본인 audit의 원자 저장을 구현했다.
 현재 profile/권한/last_login과 session payload·absolute lifetime을 보존한다. 새 표·IR·migration/생성 ABI 변경은 없다.
+구현 commit `26f590e4593423dedeeee686eb89b4979912a424`를 두 branch에 게시했고, 같은 source의
+[Hosted Fast 36320774913](https://github.com/progresshans/godj/actions/runs/36320774913)은 실제 Fast Go feedback까지 성공했다.
+이 결과는 전체 platform/process 검증이 아니며, 아래 최종 checkpoint 디렉터리에 run/jobs/steps 원본도 보존했다.
 
 - 일반 사용자에게 관리 권한을 요구하지 않는다. 260개 session의 batch 경계에서 target만 폐기하며 다른 사용자/익명 행의
   bytes를 보존한다. 실제 양 DB 재접속, 같은 password의 새 hash/stamp/ID, raw 공백, read-only old confirmation을 검사했다.

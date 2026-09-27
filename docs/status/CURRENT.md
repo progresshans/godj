@@ -4,7 +4,7 @@
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 전체 검증: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
-- 최근 영향 CI: [로그인 오류 경계 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36316637831), source `94d0229b`
+- 최근 영향 CI: [자기 비밀번호 변경 기반 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36320774913), source `26f590e4`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -23,7 +23,7 @@ source `63b07213`의 Hosted 전체 platform/process 통합이 완료됐다. 이�
 ## 다음 행동
 
 자기 비밀번호 변경의 제품 소비자를 이어서 구현한다.
-모델 권한이 필요 없는 본인 인증 API/OpenAPI 계약과 제품 Form·JSON 소비자를 함께 연결한 뒤 reset으로 이어간다.
+모델 권한이 필요 없는 본인 인증 API/OpenAPI 계약, 일반 계정 로그인·비밀번호 변경 Form과 JSON 소비자를 연결한 뒤 reset으로 이어간다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
 로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.

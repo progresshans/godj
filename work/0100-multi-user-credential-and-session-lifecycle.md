@@ -88,6 +88,9 @@ Admin 읽기 전용 표시·관리 API·독립 Session/Bearer client와 두 DB �
 제품 Form·JSON/OpenAPI·독립 client는 아직 연결 전이며 self-service 전체 완료로 표시하지 않는다.
 모델 관리 권한 없이 현재 session으로 본인을 식별하며 credential 변경·현재 session 회전·다른 session 폐기·감사를 원자적으로 처리한다.
 현재 profile을 다시 검증하고 password와 현재 revision만 patch한다. Reset은 후속 미완료 범위다.
+다음 소비자는 빈 permission이나 임의 관리 권한으로 우회하지 않고, 인증만 요구하는 명시적 API/OpenAPI 계약을 사용한다.
+현재 API session wrapper의 touch와 password 실패 시 무변경 계약을 구분해야 한다. 제품 로그인은 현재 Admin staff용이므로
+일반 계정의 로그인과 자기 password Form도 같은 실제 composition에서 함께 검증한다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.
