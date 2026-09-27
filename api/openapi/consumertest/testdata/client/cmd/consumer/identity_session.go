@@ -98,6 +98,37 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil {
 		return err
 	}
+	// Host-selected built-ins must remain visible through the independent SDK.
+	// Rejected creates and password commands must leave later counts/revisions intact.
+	for _, probe := range []struct {
+		password string
+		codes    []string
+	}{
+		{"123", []string{"password_too_short", "password_too_common", "password_entirely_numeric"}},
+		{" PASSWORD ", []string{"password_too_common"}},
+		{"¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
+	} {
+		rejected, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "PolicyCandidate", Password: probe.password})
+		failure, ok := rejected.(*is.GodjIdentityIdentityUsersCreateBadRequest)
+		if err != nil || !ok || failure.Code != "validation_error" || len(failure.Errors) != len(probe.codes) {
+			return fail("identity generated built-in creation policy")
+		}
+		for i, code := range probe.codes {
+			if failure.Errors[i].Field != "password" || failure.Errors[i].Code != code {
+				return fail("identity generated creation policy order")
+			}
+		}
+		replaced, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: probe.password}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
+		passwordFailure, ok := replaced.(*is.GodjIdentityIdentityUsersPasswordBadRequest)
+		if err != nil || !ok || passwordFailure.Code != "validation_error" || len(passwordFailure.Errors) != len(probe.codes) {
+			return fail("identity generated built-in replacement policy")
+		}
+		for i, code := range probe.codes {
+			if passwordFailure.Errors[i].Field != "password" || passwordFailure.Errors[i].Code != code {
+				return fail("identity generated replacement policy order")
+			}
+		}
+	}
 	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Password: "  SDK created password  ", FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := created.(*is.UserHeaders)
 	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {

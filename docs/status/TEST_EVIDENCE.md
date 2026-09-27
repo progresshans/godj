@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 내장 password validator와 관리 정책의 공통 적용
+
+2026-09-27, `3a7d10a2` 뒤의 구현이다. 고정 Django의 similarity·minimum-length·common·numeric validator와
+명시적인 `DefaultPasswordValidators` 구성을 추가했다. API의 누락된 정책 설정과 Article의 공통 Admin/API 설정을 연결했다.
+Policy 생략은 기존 빈 strength 검사이며, 선택한 정책도 secret 원문이나 인증 의미를 자동 변경하지 않는다.
+
+최종 non-Markdown **2,431 파일** source map은
+`316c93f7a786514ce42db9c2140d9d3683306f05ee63eff6ff8a97035400877e`다. Checkpoint·negative control·보조 검사의 시작/종료 source는 같다.
+Darwin arm64 / Go 1.26.5의 **9 packages / 1,000 required entries**(60 roots·940 subcases)를 검사했다.
+Identity/Admin/API·Article composition/adapter/application, 양 DB의 password/user 관리·Admin/API·Unicode 입력 및 새 정책,
+독립 Session/Bearer generated client를 포함한다. 이전 source의 전체 platform 결과를 옮겨 쓴 것이 아니다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,007 PASS / skip 0 | 44.637초 |
+| race | 1,007 PASS / skip 0 | 193.016초 |
+| CGO=0 | 1,007 PASS / skip 0 | 48.706초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <선택한 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. 모든 시작/종료·필수 root/subcase·package·no-skip을 검사했다.
+
+- 독립 Django 6.1 / CPython 3.14.3 / Unicode 16에서 **156개 입력**의 네 개별 validator와 실제 `validate_password`가
+  반환하는 code/params/순서를 비교했다. **16,245개 similarity 조합**, 사전 **19,640개 항목 × 3변형 = 58,920 비교**도 일치한다.
+  Byte/글자 길이·superscript/new digit/fraction·anagram/multiset·inclusive threshold·빈 split 부분·Unicode full lowercase·
+  NFKC 미적용·C0/Unicode strip·custom/empty 사전·속성 선택 순서와 빈 선택을 포함한다.
+- Observer 두 독립 실행과 checked-in JSON bytes가 같고 input·Django source·사전 hash를 보존한다.
+  Reference SHA256은 `7afdd8dca011248e83e4757027c539de27c600cd2983a823493e6de6915da8e7`이다.
+  Default dictionary의 압축 원본 hash `3c1baed62596de36860824eb3f436d5932d37ca8b06e59df78f5a44ec175afe4`,
+  크기 80,228 / decoded 162,384바이트와 count를 확인했다. 누락·잘림·변조 입력은 factory가 결과를 게시하지 않는다.
+- 양 DB에서 새 정책 **41 subcases + root** 각각을 필수 목록에 등록했다. Service/Admin/API × 생성/password command의
+  짧음·common·Unicode 숫자·similarity·복합 오류 순서를 실제 요청으로 검증했다. 거부는 hash 0·User/revision 불변·
+  대상 session 보존·audit 없음이다. 성공은 hash 1·확정 credential/session/audit와 별도 연결/runtime의 실제 HTTP 인증을 확인했다.
+- 현재 권한·stale revision 거부는 약한 password 진단보다 먼저 적용한다. 생략한 policy는 자동으로 강도를 검사하지 않는다.
+  Policy slice 변경은 이미 등록된 Manager/Admin/API를 바꾸지 않고, secret은 HTML/JSON에 재표시하지 않는다.
+- Hash 중 별도 연결이 revision 없이 profile을 바꾸는 고의적 비협력 writer에서도 마지막 validator는 현재 profile을 읽는다.
+  확정 거부·cleanup failure·swallowed failure·unknown을 구분하고 자신의 credential/session/audit 효과는 남기지 않는다.
+  이는 비협력 SQL writer 전체의 원자성/동시성 지원을 선언하는 것이 아니다.
+- 실제 Article composition에서 같은 설정이 Admin과 JSON API 모두에 적용됨을 확인했다. 독립 generated client도
+  생성과 password 교체의 복합/minimum/common/numeric 오류를 실제 HTTP로 받으며 이후 count/revision·부모 DB 검사가 불변을 확인한다.
+- **11개 변형 / 11개 지정 assertion 탐지**: byte length, ASCII-only digit, multiset 중복 집계, exclusive threshold, 빈 split 유실,
+  이전 Unicode lowercase, common strip 유실·사전 항목 누락, API 미연결, 마지막 profile 검사 누락, Article API 정책 누락.
+  Build 오류를 탐지 성공으로 세지 않는다. 옵션/사전 소유권·동시 조회·진단 redaction·잘못된 구성/UTF-8도 검사했다.
+
+영향 vet·identity/Article 생성 drift·gofmt·docs·diff와 CI 도구 41개를 통과했다. 생성 ABI/OpenAPI schema는 바꾸지 않았다.
+Private PostgreSQL 17.10 UTF8/libc/C를 사용했다. 종료 시 public table/잔여 godj schema/추가 연결은 `0|0|0`, container 제거도 확인했다.
+Image는 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+처음 통합 검사는 새 Article 테스트의 잘못된 CSRF header 이름 때문에 403으로 실패했다. 공식 상수로 수정한 최종 source에서
+모든 모드/controls/보조 검사를 실행했다. 편집 중 발견한 native wrapper 함수명 compile 오류도 수정했고 성공으로 세지 않았다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-password-checkpoint-1790489775507271000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-password-controls-1790489919668221000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-password-reference-1790489965217578000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-password-supplemental-1790489966395992000/receipt.json`
+
+관리 소비자와 Unicode/password 입력 경계를 닫았으므로 이번 source의 명시된 Hosted full milestone을 실행한다.
+이 로컬 checkpoint는 그 전체 검증이 아니다. 사용 불가능한 password·last_login, self-service/reset은 여전히 미완료다.
+
 ## GDJ-0100 — 고정 Unicode 16과 사용자명 전송·저장 경계
 
 2026-09-27, `1e42620d` 뒤의 구현이다. NFKC·full lowercase·문자 판정을 Unicode 16에 고정하고,

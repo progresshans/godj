@@ -224,7 +224,7 @@ No-op은 기존 revision을 반환한다. 자동으로 최신 revision을 조회
 PATCH의 생략은 유지, 명시적 빈 collection은 해제다. PUT은 선언된 scalar default를 적용하고 optional collection 생략은 유지한다.
 Password는 생성 또는 별도 관리자 교체 명령에서만 받고 공백을 보존한다. 입력은 JSON 64 KiB·문자열 4 KiB 한도를 가지며
 password hash profile의 추가 제한은 유지한다. Hasher가 직접 반환한 cause 없는 password input 거부만
-400 validation으로 표현한다. 취소·entropy·wrapped error는 실행 실패이며 입력 오류로 낮추지 않는다. UserCreationForm 전체 validation·password confirmation/strength·self-service/reset을
+400 validation으로 표현한다. 취소·entropy·wrapped error는 실행 실패이며 입력 오류로 낮추지 않는다. UserCreationForm 전체 validation·password confirmation·self-service/reset을
 이 JSON API의 구현으로 주장하지 않는다.
 
 호스트가 제공한 전체 typed relation deleter의 binding을 startup에서 검사한다. identity-only 정책을 자동 선택하지 않는다.
@@ -289,7 +289,7 @@ Duplicate는 username의 `unique` 오류이며 lookup/읽기 종료 실패는 �
 두 cooperating writer가 대소문자만 다른 후보로 경쟁하면 마지막 검사를 같은 fence에서 수행해 하나만 생성한다.
 이 옵션은 별도 case-insensitive DB 제약이나 로그인 정책이 아니다. 기본 Manager/API 생성과 로그인은 기존 case-sensitive 의미를 유지한다.
 비협력 SQL writer, 이후 기본 정책의 생성·이름 변경까지 전역적으로 case-insensitive unique로 만드는 기능이 아니다.
-전체 UserCreationForm과 내장 password strength validator의 완료를 뜻하지 않는다. 실제 관리 화면과 confirmation은 아래 소비자에 연결한다.
+이 조회/중복 정책은 UserCreationForm 전체 validation을 소유하지 않는다. Confirmation과 strength 정책은 아래 소비자에 연결한다.
 
 독립 [Django observer](../../conformance/runners/django/iexact_reference.py)는 같은 synthetic 입력만 읽으며
 GoDj 코드/기대 결과를 import하지 않는다. Django 소스는 저장소 고정 6.1과 BSD-3-Clause를 따르며,
@@ -332,7 +332,7 @@ Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP lite
 `identity.WithPasswordValidators`는 pure·동시 사용 가능한 host 정책을 설정한다. 기본은 Django의 빈
 AUTH_PASSWORD_VALIDATORS와 같이 strength 검사가 없다. Create/SetPassword는 hash 전과 마지막 write fence 안에서 정책을
 검사하며 각 validator에 Profile의 복사본을 준다. Password 또는 non-field 오류만 허용하고, 취소/cleanup/unknown을 확인된
-입력 거부로 바꾸지 않는다. Form adapter는 password 오류를 password2로 연결한다. 내장 strength validator 구현은 남아 있다.
+입력 거부로 바꾸지 않는다. Form adapter는 password 오류를 password2로 연결한다. 내장 strength 정책은 아래에 정의한다.
 
 `internal/unicode16`은 고정 CPython 3.14.3과 같은 Unicode 16.0.0의 NFKC·full lowercase·문자 분류를 소유한다.
 Go/compiler/x/text 버전 변경으로 기준을 바꾸지 않는다. 공식 UCD의 hash/크기를 검증한 오프라인 생성물이 원본이며,
@@ -347,5 +347,24 @@ Private createsuperuser protocol의 username 상한은 1,024바이트, password�
 Wire grammar/version은 유지하며 malformed·truncated·과대 입력은 기존처럼 거부한다. Legacy operator의 저장 256자 한도는 유지한다.
 이 전송 상한은 Go-native SYS-023 결정이며 Django 기본 User의 150자 저장 스키마와 같다는 주장이 아니다.
 
-전체 UserCreationForm 호환은 내장 password strength 등 남은 lifecycle 구현과 구분한다.
+전체 UserCreationForm 호환은 self-service/reset 등 남은 lifecycle 구현과 구분한다.
 [독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 source/환경/범위는 TEST_EVIDENCE를 따른다.
+
+## 내장 password validator와 공통 정책 선택
+
+`DefaultPasswordValidators()`는 고정 Django startproject의 similarity·최소 8자·common·numeric 순서를 반환한다.
+자동으로 전역 정책을 켜지 않으며, policy 생략은 기존 빈 AUTH_PASSWORD_VALIDATORS 의미를 유지한다.
+Manager의 WithPasswordValidators, Admin의 동일 옵션, API Config.PasswordValidators는 caller slice를 분리해 소유한다.
+Article의 WithPasswordValidators는 두 HTTP surface에 같은 정책을 전달한다.
+
+길이는 Unicode 글자 수, 숫자 판정은 Unicode 16 isdigit이다. Similarity는 선택한 public profile 문자열의 full lowercase,
+Python `\W+` 분리(양 끝의 빈 부분 포함), 전체 값에 대한 quick_ratio의 multiset overlap과 inclusive threshold를 따른다.
+Common은 pinned Django의 19,640개 사전과 lower/strip한 후보를 비교한다. 입력 secret을 NFKC/trim하거나 hash 전에 바꾸지 않는다.
+모든 진단은 password field의 안정적인 code와 비공개 값이 없는 params이며 구성 순서대로 누적한다.
+현재 인가·revision 검사, hash 전과 마지막 fence의 현재 profile 검사, session/audit 원자성과 rollback/unknown 구분은 유지한다.
+
+Go 구성은 최소 길이 nonnegative, finite similarity >= 0.1(0은 기본 0.7), Profile의 네 public 문자열 속성을 지원한다.
+Nil 속성은 기본 네 개, 명시적 empty는 검사 대상 없음이다. 사전은 constructor가 복사하는 문자열 목록이며 nil은 고정 사전,
+empty는 빈 목록이다. 사용자 사전은 UTF-8/1,000,000개/16 MiB를 검증하며 외부 파일 I/O는 caller가 구성 전에 소유한다.
+Malformed UTF-8을 고쳐서 허용하지 않는다. Source·license·정확한 parameter 의미는
+[Password validation](../../identity/PASSWORD_VALIDATION.md)에 기록한다. 임의 Python user 속성 반사나 전체 UserCreationForm·self-service/reset 완료를 뜻하지 않는다.

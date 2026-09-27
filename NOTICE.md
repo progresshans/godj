@@ -138,3 +138,10 @@ Identity input uses Unicode 16.0.0 tables and compressed upstream data under the
 [Unicode license](internal/unicode16/LICENSE.unicode). Exact source URLs, hashes,
 generation rules and independent verification are recorded in
 [internal/unicode16/NOTICE.md](internal/unicode16/NOTICE.md).
+
+## Identity password validation
+
+Built-in password validator behavior and the embedded common-password dictionary
+come from the pinned Django 6.1 distribution under [BSD-3-Clause](LICENSE.django).
+Source hashes, attribution, adaptations and configuration boundaries are recorded
+in [identity/PASSWORD_VALIDATION.md](identity/PASSWORD_VALIDATION.md).

@@ -17,17 +17,16 @@ View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변�
 
 고정 Unicode 16의 NFKC·소문자·문자 판정을 연결하고, credential/CLI 1,024바이트와 User IR 256자 한도를 구분했다.
 관리 생성의 150자 정책과 긴 기존 이름을 보존하는 편집을 구현했다. 새 bootstrap은 NFKC, legacy adoption은 기존 바이트를 보존한다.
-이 변경과 기존 소비자의 영향 normal/race/CGO=0·양 DB·터미널/독립 client·Unicode 독립 기준·negative control을 통과했다.
-구현 `82baf371`을 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36298363689)의 실제 Go feedback도 성공했다.
-전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료는 아니다.
+고정 Django의 네 내장 password validator와 API의 명시적 정책 선택을 구현했다. Article은 하나의 설정을 Admin/API에 함께 적용한다.
+현재 인가·hash 전/최종 fence 검사, 원문 보존·session/audit와 실패 경계를 기존 소비자에 연결해 영향 normal/race/CGO=0·양 DB를 통과했다.
+이는 전체 UserCreationForm이나 GDJ-0100의 모든 lifecycle 완료를 뜻하지 않는다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-[입력 출처](../../internal/unicode16/NOTICE.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
+[Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
 
 ## 다음 행동
 
-내장 password strength validator를 고정 Django 기준과 실제 관리 Form/API의 정책 선택에 연결한다.
-Self-service/reset·사용 불가능한 password·last_login lifecycle도 남아 있다.
-GDJ-0100의 다음 전체 platform/process milestone은 관리 소비자와 남은 입력 경계를 정리한 새 source에서 실행한다.
+관리 소비자와 Unicode/password 입력 경계가 정리된 이번 source에서 명시한 Hosted full platform/process milestone을 실행한다.
+그 다음은 사용 불가능한 password의 credential/session 표현과 last_login을 연결하고, self-service/reset을 구현한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.

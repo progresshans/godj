@@ -47,6 +47,7 @@ type configState struct {
 	backend                     systemstate.IdentityBackend
 	csrfKeyRing                 websessionauth.CSRFKeyRing
 	allowLoopbackAuthentication bool
+	passwordValidators          []identity.PasswordValidator
 }
 
 // NewConfig copies the raw-password-free startup input into opaque immutable
@@ -55,6 +56,17 @@ type configState struct {
 // proven that its listener is loopback-only.
 func NewConfig(backend systemstate.IdentityBackend) Config {
 	return Config{state: &configState{backend: backend}}
+}
+
+// WithPasswordValidators applies one explicit identity policy to both Admin
+// and JSON API. Caller-owned slices are copied before this config is published.
+func (config Config) WithPasswordValidators(validators ...identity.PasswordValidator) Config {
+	var configured configState
+	if config.state != nil {
+		configured = *config.state
+	}
+	configured.passwordValidators = append([]identity.PasswordValidator(nil), validators...)
+	return Config{state: &configured}
 }
 
 // WithCSRFKeyRing returns an immutable copy configured with an already-loaded
@@ -151,7 +163,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: identity deletion policy: %w", err)
 	}
-	if err := identityadmin.Register(builder, identityadmin.NewConfig(runtime, runtimeConfig.PasswordHasher, auth.PrincipalAuthorizer{}, identityadmin.DeletionPolicies{Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})); err != nil {
+	if err := identityadmin.Register(builder, identityadmin.NewConfig(runtime, runtimeConfig.PasswordHasher, auth.PrincipalAuthorizer{}, identityadmin.DeletionPolicies{Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission}).WithPasswordValidators(config.state.passwordValidators...)); err != nil {
 		return nil, fmt.Errorf("article site application: identity Admin: %w", err)
 	}
 	registry, err := builder.Build()
@@ -211,7 +223,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article OpenAPI authentication: %w", err)
 	}
-	identityAPI, err := identityapi.New(identityapi.Config{Namespace: apiapp.Namespace, Backend: runtime, PasswordHasher: runtimeConfig.PasswordHasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: apiRuntime, Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})
+	identityAPI, err := identityapi.New(identityapi.Config{Namespace: apiapp.Namespace, Backend: runtime, PasswordHasher: runtimeConfig.PasswordHasher, PasswordValidators: config.state.passwordValidators, Authorizer: auth.PrincipalAuthorizer{}, Authentication: apiRuntime, Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: identity API: %w", err)
 	}

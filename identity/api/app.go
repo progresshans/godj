@@ -23,14 +23,15 @@ const BasePath = "/api/identity/"
 // references to identity models. No identity-only deletion policy is inferred.
 // The API uses model permissions; active staff admission belongs to Admin.
 type Config struct {
-	Namespace      string
-	Backend        identity.ManagementBackend
-	PasswordHasher auth.PasswordHasher
-	Authorizer     auth.Authorizer
-	Authentication api.AlternativeAuthentication
-	Users          orm.RelationDeleter[models.User]
-	Groups         orm.RelationDeleter[models.Group]
-	Permissions    orm.RelationDeleter[models.Permission]
+	Namespace          string
+	Backend            identity.ManagementBackend
+	PasswordHasher     auth.PasswordHasher
+	PasswordValidators []identity.PasswordValidator
+	Authorizer         auth.Authorizer
+	Authentication     api.AlternativeAuthentication
+	Users              orm.RelationDeleter[models.User]
+	Groups             orm.RelationDeleter[models.Group]
+	Permissions        orm.RelationDeleter[models.Permission]
 }
 
 func (Config) MarshalJSON() ([]byte, error) { return []byte(`"identityapi.Config{redacted}"`), nil }
@@ -72,7 +73,7 @@ func New(config Config) (*Application, error) {
 	if nilAuthentication(config.Authentication) {
 		return nil, fmt.Errorf("identity API: authentication is nil")
 	}
-	manager, err := identity.NewManager(config.Backend, config.PasswordHasher, config.Authorizer)
+	manager, err := identity.NewManager(config.Backend, config.PasswordHasher, config.Authorizer, identity.WithPasswordValidators(config.PasswordValidators...))
 	if err != nil {
 		return nil, err
 	}

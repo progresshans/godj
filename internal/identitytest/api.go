@@ -21,7 +21,7 @@ import (
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
-func newManagementHTTP(t *testing.T, f *managementFixture, backend identity.ManagementBackend) (*identityHTTP, *identityapi.Application) {
+func newManagementHTTP(t *testing.T, f *managementFixture, backend identity.ManagementBackend, validators ...identity.PasswordValidator) (*identityHTTP, *identityapi.Application) {
 	t.Helper()
 	policies := managementHost(t, f.backend)
 	var application *identityapi.Application
@@ -30,7 +30,7 @@ func newManagementHTTP(t *testing.T, f *managementFixture, backend identity.Mana
 		if err != nil {
 			return nil, nil, err
 		}
-		application, err = identityapi.New(identityapi.Config{Namespace: "identityprobe", Backend: backend, PasswordHasher: f.hasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.AccountsUser, Groups: policies.AccountsGroup, Permissions: policies.AccountsPermission})
+		application, err = identityapi.New(identityapi.Config{Namespace: "identityprobe", Backend: backend, PasswordHasher: f.hasher, PasswordValidators: validators, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.AccountsUser, Groups: policies.AccountsGroup, Permissions: policies.AccountsPermission})
 		if err != nil {
 			return nil, nil, err
 		}

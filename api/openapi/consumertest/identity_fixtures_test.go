@@ -192,9 +192,13 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
+	validators, err := identity.DefaultPasswordValidators()
+	if err != nil {
+		t.Fatal(err)
+	}
 	documents := make(map[string][]byte)
 	serve := func(name string, authentication api.AlternativeAuthentication) string {
-		application, err := identityapi.New(identityapi.Config{Namespace: "godj_identity", Backend: runtime, PasswordHasher: hasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.AccountsUser, Groups: policies.AccountsGroup, Permissions: policies.AccountsPermission})
+		application, err := identityapi.New(identityapi.Config{Namespace: "godj_identity", Backend: runtime, PasswordHasher: hasher, PasswordValidators: validators, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.AccountsUser, Groups: policies.AccountsGroup, Permissions: policies.AccountsPermission})
 		if err != nil {
 			t.Fatal(err)
 		}

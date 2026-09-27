@@ -11,8 +11,10 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/web/sessionauth"
 )
 
 func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *testing.T) {
@@ -29,7 +31,13 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 	if _, err := systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: "admin", Password: "admin-secret-password", Principal: principal, PasswordHasher: runtimeConfig.PasswordHasher}); err != nil {
 		t.Fatal(err)
 	}
-	application, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication())
+	validators, err := identity.DefaultPasswordValidators()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(validators...)
+	validators[0] = nil // Configuration must own its policy slice.
+	application, err := New(t.Context(), config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,6 +97,29 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 		call("GET", path, nil, 200)
 	}
 	add := call("GET", "/admin/users/add/", nil, 200)
+	rejected := call("POST", "/admin/users/add/", url.Values{"csrfmiddlewaretoken": {token(add)}, "username": {"Rejected"}, "password1": {"¹²³⁴⁵⁶⁷⁸"}, "password2": {"¹²³⁴⁵⁶⁷⁸"}}, 200)
+	if !strings.Contains(rejected, `data-error-code="password_entirely_numeric"`) || strings.Contains(rejected, "¹²³⁴⁵⁶⁷⁸") {
+		t.Fatal("Article Admin lost built-in policy or exposed password")
+	}
+	request, err := http.NewRequestWithContext(t.Context(), "POST", server.URL+"/api/identity/users/", strings.NewReader(`{"username":"Rejected","password":"¹²³⁴⁵⁶⁷⁸"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(sessionauth.DefaultCSRFHeader, token(rejected))
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := io.ReadAll(response.Body)
+	closed := response.Body.Close()
+	if err != nil || closed != nil || response.StatusCode != 400 || !strings.Contains(string(content), `"code":"password_entirely_numeric"`) || strings.Contains(string(content), "¹²³⁴⁵⁶⁷⁸") {
+		t.Fatal("Article JSON API differs from Admin password policy", response.StatusCode, string(content), err, closed)
+	}
+	if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != 1 {
+		t.Fatal("rejected Article password wrote user", err)
+	}
+	add = call("GET", "/admin/users/add/", nil, 200)
 	call("POST", "/admin/users/add/", url.Values{"csrfmiddlewaretoken": {token(add)}, "username": {" Ｆｒｅｄ "}, "password1": {"new-member-password"}, "password2": {"new-member-password"}}, 302)
 	row, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.Username.Exact("Fred")).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
 	if err != nil || !found || row.PrincipalID == principal.ID() || !row.Active || row.Staff || row.Superuser {

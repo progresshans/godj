@@ -67,8 +67,10 @@ password/session·PROTECT/CASCADE를 검증했다. 전체 UserCreationForm valid
 고정 Unicode 16의 NFKC·full lowercase·문자 분류와 공식/독립 Python 기준을 연결하고 영향 checkpoint를 통과했다.
 이전 세 version probe는 정상 corpus에 포함했다. Credential/CLI 1,024바이트와 IR 256자, 관리 생성 150자/편집 256자를 구분했다.
 양 DB의 실제 생성·로그인·수정·bootstrap/adoption, PTY·독립 generated client와 실패/negative control을 검증했다.
-다음은 내장 password strength validator이며 전체 UserCreationForm 호환은 별도 완료 조건이다.
+내장 네 password validator와 명시적 API 정책·Article 공통 Admin/API 설정을 구현하고 영향 checkpoint를 통과했다.
+독립 Django 오류/params·similarity matrix·전체 common 사전, 양 DB의 hash·session/audit·현재 profile fence와 독립 client를 검증했다.
+관리 소비자/입력 경계가 닫힌 이번 source에서 명시한 Hosted 전체 platform/process milestone을 실행한다. 전체 UserCreationForm 호환은 별도 조건이다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
-전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
+이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.
