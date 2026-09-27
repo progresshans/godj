@@ -92,6 +92,14 @@ def generate(files):
             lower[value] = tuple(int(p, 16) for p in parts[1].split())
     assert conditions == {"Final_Sigma", "lt After_Soft_Dotted", "lt More_Above", "lt", "tr", "az", "tr After_I", "az After_I", "tr Not_Before_Dot", "az Not_Before_Dot"}
     lower = {key: value for key, value in lower.items() if value != (key,)}
+    folding = {}
+    for line in files["CaseFolding.txt"].splitlines():
+        parts = [value.strip() for value in line.split("#")[0].split(";")]
+        if len(parts) < 3 or parts[1] not in {"C", "F"}:
+            continue
+        codepoint = int(parts[0], 16)
+        assert codepoint not in folding
+        folding[codepoint] = tuple(int(value, 16) for value in parts[2].split())
     excluded = property_values(files["DerivedNormalizationProps.txt"], {"Full_Composition_Exclusion"})["Full_Composition_Exclusion"]
     compositions = {}
     for value, parts in canonical.items():
@@ -118,6 +126,8 @@ def generate(files):
     output.extend(f"0x{key:x}: 0x{value:x}," for key, value in sorted(compositions.items()))
     output.append("}\nvar lowercase = map[rune]string{")
     output.extend(f"0x{key:x}: {go_string(value)}," for key, value in sorted(lower.items()))
+    output.append("}\nvar caseFolding = map[rune]string{")
+    output.extend(f"0x{key:x}: {go_string(value)}," for key, value in sorted(folding.items()))
     output.append("}\nvar combiningClass = map[rune]uint8{")
     output.extend(f"0x{key:x}: {value}," for key, value in sorted(classes.items()))
     output.append("}")

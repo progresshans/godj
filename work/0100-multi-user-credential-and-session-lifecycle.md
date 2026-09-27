@@ -111,3 +111,11 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 고정 Django MIME·주소·in-process 전달 관찰, 실제 loopback SMTP의 인증·실패·취소와 local normal/race/CGO=0을 검증했다.
 새 IDNA 의존성의 Form·PostgreSQL 연결/저장 인증 영향도 확인했다. [ADR-0078](../docs/adr/0078-mail-message-ownership-and-delivery.md)을 따른다.
 Reset 수신자 선택·메일 내용/발급 값·공개 응답과 실제 Form/API·독립 client는 다음 연결 범위다.
+
+계정 소비자·reset service·source 목록 보완 source `fb817d6b`의 Hosted 전체 62 jobs와 8개 owner가 성공했고
+두 capture의 archive/provenance와 source Git blob inventory를 대조했다. 이후 mail/request 변경과 구분한다.
+
+Reset request의 한 snapshot 내 active/DB-iexact·NFKC/full casefold·usable 수신자 선택과 같은 상태의 token 발급을 연결했다.
+명시적 origin·From·default/custom content, 모든 후보/render 준비 후 전달·실패 원인과 unknown 보존·취소/no-retry를 구현했다.
+고정 Unicode 16 공식 casefold 생성/전체 scalar 기준, 공통 email 문법, 양 DB의 실제 전달 token 소비·snapshot 경합과 실패를
+normal/race/CGO=0에서 검증했다. 공개 reset Form/API·독립 client·HTTP 응답/CSRF/token 숨김은 다음 연결 범위다.

@@ -17,7 +17,7 @@ def observe():
     assert django.get_version() == "6.1"
     assert platform.python_version() == "3.14.3"
     assert unicodedata.unidata_version == "16.0.0"
-    hashes = {name: hashlib.sha256() for name in ["nfkc", "lower", "properties", "lower_context"]}
+    hashes = {name: hashlib.sha256() for name in ["nfkc", "lower", "casefold", "properties", "lower_context"]}
     count = 0
     contexts = ["{}Σ", "AΣ{}", "A{}Σ", "AΣ{}A"]
 
@@ -33,15 +33,17 @@ def observe():
         value = chr(cp)
         emit("nfkc", cp, unicodedata.normalize("NFKC", value))
         emit("lower", cp, value.lower())
+        emit("casefold", cp, value.casefold())
         flags = int(value.isalnum()) | (int(value.isdigit()) << 1) | (int(value.isspace()) << 2)
         hashes["properties"].update(struct.pack(">IB", cp, flags))
         for context in contexts:
             emit("lower_context", cp, context.format(value).lower())
     sequences = ["a" + "\u0301" * 31, "q" + "\u0301\u0323" * 80, "\u0301\u0323" * 80,
-                 "각", "각", "\u212b\u0301", "\u1e0a\u0323", "\ufdfa", "\u1c89\ua7cb", "A\u03a3\u0345"]
+                 "각", "각", "\u212b\u0301", "\u1e0a\u0323", "\ufdfa", "\u1c89\ua7cb", "A\u03a3\u0345",
+                 "Straße STRASSE", "İIıi", "Σςσ", "KＫk", "\ufb03", "\u1e9eß"]
     return {"django": django.get_version(), "python": platform.python_version(), "unicode": unicodedata.unidata_version,
             "scalars": count, "lower_contexts": contexts, "sha256": {name: value.hexdigest() for name, value in hashes.items()},
-            "sequences": [{"input": value, "nfkc": unicodedata.normalize("NFKC", value), "lower": value.lower()} for value in sequences]}
+            "sequences": [{"input": value, "nfkc": unicodedata.normalize("NFKC", value), "lower": value.lower(), "casefold": value.casefold()} for value in sequences]}
 
 
 if __name__ == "__main__":

@@ -52,3 +52,10 @@ requires current active/usable credentials, exact stored last_login, and a
 non-future timestamp again at the final native write fence. Its field-only patch
 and atomic session revocation/audit intentionally differ from stale native forms.
 The baseline and service do not establish parity for mail delivery or HTTP views.
+
+
+The reset observer also records native database-iexact recipient selection,
+NFKC/full-casefold admission and the reset email field's cleaning diagnostics.
+GoDj keeps that two-stage comparison and binds the recipient and token to the
+same immutable account snapshot. Its complete bounded preparation, explicit
+private delivery errors and configured origin are described in ADR-0076.

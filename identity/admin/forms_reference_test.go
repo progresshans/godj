@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/validation"
 )
 
 //go:embed testdata/inputs.json
@@ -96,8 +97,8 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 	}
 	for i, input := range inputs.Emails {
 		t.Run("email/"+input.Name, func(t *testing.T) {
-			if want := expected.Emails[i]; want.Name != input.Name || validEmail(input.Value) != want.Valid {
-				t.Fatal("EmailValidator behavior differs", input.Name, validEmail(input.Value), want.Valid)
+			if want := expected.Emails[i]; want.Name != input.Name || validation.ValidEmail(input.Value) != want.Valid {
+				t.Fatal("EmailValidator behavior differs", input.Name, validation.ValidEmail(input.Value), want.Valid)
 			}
 		})
 	}

@@ -71,6 +71,7 @@ var productSourcePrefixes = []string{
 	"codegen/",
 	"db/",
 	"forms/",
+	"mail/",
 	"migrations/",
 	"orm/",
 	"project/",

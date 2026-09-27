@@ -80,6 +80,7 @@ var productSourcePrefixes = []string{
 	"db/",
 	"examples/article/",
 	"forms/",
+	"mail/",
 	"migrations/",
 	"orm/",
 	"query/",

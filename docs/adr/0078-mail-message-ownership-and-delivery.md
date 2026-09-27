@@ -63,6 +63,7 @@ IDN domain은 고정 `x/net/idna` lookup profile의 transitional mapping을 사�
 빈 수신자의 no-op, arbitrary raw header override, Python mutable object 모양은 채택하지 않는다.
 현재 Go의 명시적 한도·강제 TLS·SMTPUTF8와 오류 결과의 차이는 [DEV-0019](../DEVIATIONS.md#dev-0019--메일-소유권과-명시적-smtp-접수-결과)에 기록한다.
 
-Reset request의 active/usable 수신자 선택·메일 template·공개 응답은 다음 소비자가 소유한다.
-없는 계정과 전송 실패의 공개 응답을 같게 유지하면서 내부 오류를 operator가 확인하는 정책이 필요하다.
-메일 기반의 로컬 검증을 reset Form/API·독립 client 또는 실제 운영 SMTP provider 검증으로 전이하지 않는다.
+Reset request의 active/usable 수신자 선택·snapshot과 token의 결합·메일 구성/전달은
+[ADR-0076](0076-credential-snapshots-and-session-binding.md#재설정-메일-요청과-수신자-결합)의 별도 소비자가 구현한다.
+없는 계정과 전송 실패의 공개 응답을 같게 유지하면서 내부 오류를 operator가 확인하는 HTTP 정책은 다음 연결 범위다.
+메일 기반과 request service의 로컬 검증을 reset Form/API·독립 client 또는 실제 운영 SMTP provider 검증으로 전이하지 않는다.

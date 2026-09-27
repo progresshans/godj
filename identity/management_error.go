@@ -16,6 +16,7 @@ const (
 	CodeNotFound       ErrorCode = "not_found"
 	CodeConflict       ErrorCode = "revision_conflict"
 	CodePersistence    ErrorCode = "persistence_failure"
+	CodeDelivery       ErrorCode = "delivery_failure"
 	CodeOutcomeUnknown ErrorCode = "outcome_unknown"
 )
 

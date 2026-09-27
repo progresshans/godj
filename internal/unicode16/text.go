@@ -23,6 +23,25 @@ func IsDigit(value rune) bool        { return contains(digits[:], value) }
 func IsSpace(value rune) bool        { return contains(spaces[:], value) }
 func TrimSpace(value string) string  { return strings.TrimFunc(value, IsSpace) }
 
+// CaseFold applies the default full case folding (C/F mappings), not the
+// locale-specific Turkic mappings or simple one-rune case conversion.
+// Callers that need Django's Unicode-insensitive comparison first apply NFKC.
+func CaseFold(value string) string {
+	if !utf8.ValidString(value) {
+		return value
+	}
+	var output strings.Builder
+	output.Grow(len(value))
+	for _, char := range value {
+		if folded, found := caseFolding[char]; found {
+			output.WriteString(folded)
+		} else {
+			output.WriteRune(char)
+		}
+	}
+	return output.String()
+}
+
 // Lower applies Unicode default full lowercase mapping, including contextual
 // final sigma. Locale-specific Turkish, Azeri and Lithuanian rules do not apply.
 func Lower(value string) string {

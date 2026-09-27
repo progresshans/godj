@@ -64,7 +64,10 @@ Go의 SMTP는 명시적 TLS 모드·인증서/이름 검사와 AUTH PLAIN을 사
 
 이는 recipient 일부만 보내거나 unknown 결과를 다시 보내는 오류를 피하고 I/O 결과를 보존하기 위한 설계다.
 미배포 신규 package이므로 기존 데이터 migration은 없다. Runtime/provider 확장 시 같은 의미를 제공할 수 있는지 다시 검토한다.
-운영 SMTP provider, reset의 공개 응답·수신자 선택·Form/API와 다른 Django mail backend의 완료를 뜻하지 않는다.
+Reset request의 수신자 선택은 같은 snapshot의 DB `iexact`와 NFKC/full casefold를 순서대로 적용한다.
+Go는 active DB 후보 256개와 내용 64 KiB 한도를 두고 모든 render가 성공한 뒤 전송한다. Native의 send 예외를
+기록하고 삼키는 동작 대신 내부 호출자에게 private 오류를 반환하므로 HTTP 소비자는 같은 공개 안내와 별도 오류 보고를 소유해야 한다.
+운영 SMTP provider, reset의 공개 응답·Form/API와 다른 Django mail backend의 완료를 뜻하지 않는다.
 
 ## DEV-0018 — 일대일 역방향 부재와 Go 객체 소유권
 

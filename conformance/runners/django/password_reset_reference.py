@@ -176,6 +176,71 @@ with tempfile.TemporaryDirectory(prefix="godj-password-reset-reference-") as dir
             invalid_emails[mode] = {"valid": form.is_valid(), "errors": diagnostics(form)}
         observations["email_errors"] = invalid_emails
 
+        # Keep the database's native iexact prefilter and the form's separate
+        # NFKC/casefold comparison observable. These rows are stored directly:
+        # manager domain normalization is outside this selection contract.
+        selection_cases = [
+            ("ascii_duplicates", "  MEMBER@candidate.test  ", [
+                ("Member@candidate.test", True, True), ("member@CANDIDATE.test", True, True),
+                ("member@candidate.test", False, True), ("member@candidate.test", True, False)]),
+            ("unknown", "absent@candidate.test", [("member@candidate.test", True, True)]),
+            ("inactive", "member@candidate.test", [("member@candidate.test", False, True)]),
+            ("unusable", "member@candidate.test", [("member@candidate.test", True, False)]),
+            ("quoted", '"a..b"@candidate.test', [('"a..b"@candidate.test', True, True)]),
+            ("unicode_exact", "member@bücher.test", [("member@bücher.test", True, True)]),
+            ("unicode_case", "member@BÜCHER.test", [("member@bücher.test", True, True)]),
+            ("nfkc_prefilter", "member@candidate.test", [("member@ｃandidate.test", True, True)]),
+            ("casefold_prefilter", "member@strasse.test", [("member@straße.test", True, True)]),
+            ("kelvin_prefilter", "k@candidate.test", [("K@candidate.test", True, True)]),
+            ("turkish_prefilter", "i@candidate.test", [("İ@candidate.test", True, True)]),
+            ("unicode_local_exact", "İ@candidate.test", [("İ@candidate.test", True, True)]),
+        ]
+        observations["request_selection"] = []
+        for label, email, accounts in selection_cases:
+            rows = []
+            for index, (stored_email, active, usable) in enumerate(accounts):
+                username = f"reset-selection-{index}"
+                user = User(username=username, email=stored_email, is_active=active, password=first.password)
+                if not usable:
+                    user.set_unusable_password()
+                user.save()
+                rows.append({"username": username, "email": stored_email, "active": active, "usable": usable})
+            form = forms.PasswordResetForm({"email": email})
+            valid = form.is_valid()
+            cleaned = form.cleaned_data.get("email", "")
+            selected = sorted(user.username for user in form.get_users(cleaned)) if valid else []
+            mail.outbox.clear()
+            before = snapshot()
+            if valid:
+                form.save(domain_override="reset.example.test", use_https=True, token_generator=generator,
+                          subject_template_name="reset-subject.txt", email_template_name="reset-mail.txt")
+            delivered = []
+            for sent in mail.outbox:
+                link = re.fullmatch(r"https://reset\.example\.test/reset/([^/]+)/([^/]+)/\n", sent.body)
+                assert link and len(sent.to) == 1
+                recipient = User.objects.get(pk=int(urlsafe_base64_decode(link[1])))
+                assert generator.check_token(recipient, link[2]) and sent.to == [recipient.email]
+                delivered.append(recipient.username)
+            observations["request_selection"].append({
+                "label": label, "input": email, "accounts": rows, "valid": valid, "cleaned": cleaned,
+                "errors": diagnostics(form), "selected": selected, "delivered": sorted(delivered),
+                "users_unchanged": snapshot() == before,
+            })
+            User.objects.filter(username__startswith="reset-selection-").delete()
+        email_inputs = [
+            ("required", "\u2003\x1f"), ("invalid", "not-an-email"), ("strip", "\u2003member@candidate.test\x1f"),
+            ("maximum", "a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * 61),
+            ("too_long", "a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * 62),
+            ("invalid_long", "x" * 321), ("nul", "a\x00@candidate.test"),
+            ("quoted_nul", '"a\x00b"@candidate.test'), ("unicode_local", "İ@candidate.test"),
+        ]
+        observations["request_input"] = []
+        for label, email in email_inputs:
+            form = forms.PasswordResetForm({"email": email})
+            valid = form.is_valid()
+            observations["request_input"].append({"label": label, "input": email, "valid": valid,
+                                                    "cleaned": form.cleaned_data.get("email", ""), "errors": diagnostics(form)})
+
         mail.outbox.clear()
         before = snapshot()
         real_send = mail.EmailMultiAlternatives.send

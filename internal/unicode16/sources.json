@@ -30,6 +30,11 @@
       "url": "https://www.unicode.org/Public/16.0.0/ucd/ReadMe.txt",
       "sha256": "14cafa23788d3a20dd21d6b0cdcb8d6dab520781fcd9ad9392f3b88ea607e633",
       "size": 693
+    },
+    "CaseFolding.txt": {
+      "url": "https://www.unicode.org/Public/16.0.0/ucd/CaseFolding.txt",
+      "sha256": "6f1f9c588eb4a5c718d9e8f93b782685e5c7fec872cf05e8e6878053599e09bb",
+      "size": 86092
     }
   }
 }

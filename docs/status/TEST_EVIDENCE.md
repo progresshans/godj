@@ -3,6 +3,63 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — snapshot에 결합한 reset 메일 요청
+
+2026-09-28, `f66b393c` 이후 `identity.PasswordResetMailer`와 default/custom content를 연결했다.
+한 read snapshot의 active/DB-iexact 후보에 NFKC/full casefold·usable 검사, 같은 Account의 수신자/token,
+완전한 후보/메일 준비 뒤 전달을 구현했다. 내부 I/O 실패·취소·unknown을 보존하며 자동 재시도하지 않는다.
+제품 공개 Form/API·독립 client는 아직 연결하지 않았다. 동일 공개 응답과 별도 오류 보고는 다음 소비자의 검증 조건이다.
+
+통합 checkpoint source map `41ff3ced536f2bed5ee3cb4514692383df8740ec90e4fd67a2f57be3a194a3c7`
+(non-Markdown **2,542 파일**)의 시작/종료 동일성을 확인했다. **9 packages / 90 roots / 752 필수 항목**을 실행했다.
+공통 Identity/Admin/validation/mail/Unicode와 두 source-binding owner는 **882 PASS**, 양 DB reset 전체는 **180 PASS**다.
+각 mode의 필수 run/pass·package 완료와 skip 부재를 감사했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,062 PASS / skip 0 | 16.008초 |
+| race | 1,062 PASS / skip 0 | 107.190초 |
+| CGO=0 | 1,062 PASS / skip 0 | 19.692초 |
+
+합계 **3,186 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go와 `TZ=Pacific/Chatham`,
+private PostgreSQL **17.10 UTF8/libc/C**, `GODJ_REQUIRE_POSTGRES=1`을 사용했다. DB 정리 **0|0|0**과 container 제거를 확인했다.
+
+- 고정 Django reset observer에 **12개 수신자 선택**과 **9개 입력** 관찰을 추가했다. 전체 **13개 관찰군**과
+  **8개 upstream hash**를 실제 SQLite/PostgreSQL에서 확보했고 이 구성에서는 두 backend의 결과가 같았다.
+  Native DB prefilter와 NFKC/full casefold를 구분하며 duplicate·inactive/unusable·unknown·quoted/IDN/Unicode local,
+  strip·length·NUL/error 순서를 비교했다. 이전 관찰과 source hash를 보존했고 최종 Python **2 tests / 23.281초**가
+  hash-seed 재생·양 backend fixture 전체의 정확한 일치와 기존 runtime controls를 확인했다.
+- `CaseFolding.txt`의 고정 Unicode 16 원문 **86,092 byte**, SHA256
+  `6f1f9c588eb4a5c718d9e8f93b782685e5c7fec872cf05e8e6878053599e09bb`를 manifest와 deterministic gzip에 추가했다.
+  Python 결과로 table을 만들지 않고 공식 C/F mapping에서 생성했다. 독립 CPython 3.14.3의
+  **1,112,064 scalar** full-casefold digest `5f578437c5eaa594f59de533d294d0a0cfa0070ea0b41308000f745e96cd9136`와 비교했다.
+  기존 NFKC/lower/property/context digest는 동일하다. 공식 normalization corpus·sequence·잘못된 UTF-8 검사도 유지했다.
+- 모든 메일의 token이 실제 대상 계정에서 유효하고, 그 token으로 password/현재 revision·session 폐기·audit가
+  원자 반영되며 다른 연결에서도 보이는지 검사했다. 요청 자체는 hash·User/session/audit를 변경하지 않는다.
+  Snapshot 직후 다른 연결의 email/credential/active/last_login 변경은 이전 token을 무효화하고 profile 편집은 보존한다.
+- 후보 256개 경계와 초과 무전송, read callback/cleanup 오류, 두 번째 render 오류·header injection·크기 초과·취소의
+  무전송, 전송 실패 후 다음 대상 처리·unknown·취소 후 중단·마지막 확정 접수 뒤 취소를 검사했다.
+  Renderer/sender가 DB read scope 밖에서 호출되고 origin/path/config 및 fmt/JSON이 값을 노출하지 않는지 확인했다.
+- 별도 source overlay **10개**가 DB prefilter 누락, 새 token과 예전 수신자 혼합, 후보 초과 허용, cleanup 무시,
+  render 전 조기 전달, 실패 뒤 대상 중단, unknown 오분류, full casefold의 lowercase 대체,
+  두 attestation의 mail 파일 누락을 각각 지정한 assertion으로 탐지했다. Compile 실패나 미실행을 성공으로 세지 않았다.
+
+`validation.ValidEmail`로 문법을 옮긴 뒤 기존 Admin의 독립 304개 EmailValidator 관찰도 통과했다.
+메일 runtime이 이제 Identity의 실제 의존성이므로 두 attestation 목록에 `mail/`을 추가하고 native Go 의존성 대조를 수행했다.
+Unicode 생성 drift·실패 보존 **2 tests**, CI 도구 **41 tests**, 영향 vet·gofmt와 문서 링크·diff를 확인했다.
+Model IR/ABI와 model 생성물은 바꾸지 않았고 전체 platform 검증을 로컬에서 중복 실행하지 않았다.
+
+통합 checkpoint 뒤 native reference를 양 DB fixture의 모든 관찰을 비교하도록 강화하고,
+Admin 제품/reference test의 기존 import 그룹을 정리했다. 제품 동작·생성 table·fixture와 나머지 test는 동일하다.
+최종 source map `5f4e92b078b1504d7e53d3d01a37255ba4d7023a27328c371b1892f046133c34` (**2,542 파일**)과
+세 파일의 delta를 별도 기록했다. 최종 Admin test는 normal **340 PASS / 2.860초**, race **340 PASS / 5.715초**,
+CGO=0 **340 PASS / 0.779초**, 모두 필수 **340개 실행·성공 / skip 0**이며 위 최종 Python 검증도 통과했다.
+이 assertion·import 정리 때문에 통합 DB/platform 검증을 중복하지 않았다.
+
+원본/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 `reset-request-reference-1790526396735756000`,
+`reset-request-checkpoint-1790527303758873000`과 그 `controls/`에 보존했다. 독립 Unicode output/observer도 reference 디렉터리에 있다.
+완료된 `fb817d6b` Hosted full과 `f66b393c` Fast는 이 이후 request/Unicode 변경의 Hosted 검증으로 전이하지 않는다.
+
 ## GDJ-0100 — 공통 메일과 명시적 SMTP 접수 결과
 
 2026-09-28, `18870d01` 이후 불변 mail Message·Address·MIME, bounded Memory와 context/timeout을 따르는
@@ -55,7 +112,32 @@ native read snapshot·acquire 실패·저장 Identity/HTTP를 검증했다. Priv
 `mail-checkpoint-1790525182765815000`과 그 `controls/`, `mail-dependency-checkpoint-1790525047688345000`에 있다.
 영향 vet, module checksum verification, 두 attestation의 native dependency closure, gofmt·Markdown 155개 링크·diff, 최종 source 동일성을 확인했다.
 운영 SMTP provider에 실제 사용자 메일을 보내지 않았다. 이 source의 Hosted 전체는 아직 실행하지 않았으며,
-진행 중인 `fb817d6b`의 결과에는 새 mail package와 dependency 변경이 포함되지 않는다.
+완료된 `fb817d6b`의 결과에는 새 mail package와 dependency 변경이 포함되지 않는다.
+구현 commit `f66b393cb365b8894efc163312ff1808b853c820`의 [Hosted Fast 36332336997](https://github.com/progresshans/godj/actions/runs/36332336997)은
+실제 Fast Go feedback step까지 성공했다. Run/jobs/steps 원본은 mail checkpoint의 `hosted/`에 보존했다.
+
+## GDJ-0100 — 계정 소비자·reset service·source 목록 보완 Hosted 완료
+
+2026-09-28, source `fb817d6b58b53f147067d027624786e004df8dda`의
+[Hosted full 36328590201](https://github.com/progresshans/godj/actions/runs/36328590201), attempt **1**이
+**62 jobs 모두 success**로 종료됐다. 최종 `CI result (full)`의 실제 로그에서 `scope=full`,
+`full_platform_verified=true`와 정확히 **8개 실행 owner**의 성공을 확인했다.
+Command products·conformance·exact Darwin·portable Go·PostgreSQL·project check·Python compatibility·relation product를 포함한다.
+선행 Python timeout 이후 검증 항목을 줄이지 않고 전체 실행을 마쳤다.
+
+같은 run의 새 PostgreSQL capture 두 개를 artifact archive digest, payload checksum, provenance,
+producer job/attempt와 대조했다. Worker의 현재 파일을 대입하지 않고 해당 source의 Git blob을 독립적으로 읽어
+선언된 목록의 경로·mode·size·SHA256을 재계산했다. Native dependency closure 검사도 이 source의 CI가 실행한다.
+
+| Capture | 파일 | payload byte | source binding SHA256 |
+|---|---|---|---|
+| systemstate | 599 | 6,393,514 | `2e5cacb666b98a04ffe50b3d83bc417887b90b269d4f19312533ceff140d3ad3` |
+| operator | 675 | 6,238,021 | `7a90c03684fffb3e134cd44cf0e804470a3ef038359d1e5952caa03875c0e7b1` |
+
+Archive·capture/provenance·Git blob inventories·run/jobs·최종 gate log와 `pass=true` receipt는
+`godj-many-to-many-reference-4sl0bvdp/hosted-full-36328590201-1790524734332431000`에 보존했다.
+이 완료는 이후 `f66b393c`의 mail/dependency 변경이나 그 뒤 reset recipient/Unicode/form 변경을 포함하지 않는다.
+선행 `b995c8c6`의 cancelled/failure 기록은 그대로 유지한다.
 
 ## GDJ-0100 — reset token과 현재 상태를 재검사하는 원자 service
 
@@ -101,7 +183,7 @@ private PostgreSQL 17.10 UTF8/libc/C와 `GODJ_REQUIRE_POSTGRES=1`을 사용했�
 구현 commit `fb817d6b58b53f147067d027624786e004df8dda`를 양 branch에 게시하고,
 같은 commit의 [Hosted full 36328590201](https://github.com/progresshans/godj/actions/runs/36328590201)을 `suite=full`로 요청했다.
 선행 run의 마지막 작업을 취소하지 않도록 현재 worker branch `feature/json-models`를 사용했으며,
-양 branch가 같은 commit임을 dispatch 전에 확인했다. 현재는 실행 중이며 새 source-bound captures와 전체 종료 확인이 남아 있다.
+양 branch가 같은 commit임을 dispatch 전에 확인했다. 최종 종료와 새 source-bound captures는 위 Hosted 완료 항목에서 확인했다.
 같은 code source의 [Hosted Fast 36328406907](https://github.com/progresshans/godj/actions/runs/36328406907)은 실제 Fast Go feedback까지 성공했다.
 Full 시작과 Fast 완료의 run/jobs/steps 원본은 reset checkpoint의 `hosted/`에 보존한다.
 

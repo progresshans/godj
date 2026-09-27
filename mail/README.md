@@ -22,6 +22,6 @@ fmt/JSON은 message·SMTP 설정·서버 reply를 숨긴다. `Mailbox`, `Text`, 
 Message 원본 입력 합계는 16 MiB, 수신자는 최대 256명, filename은 255 byte다. SMTPUTF8가 필요한 주소는
 서버 지원 없이 전송하지 않는다. Extra header는 unstructured 값이며 CR/LF나 reserved field override를 허용하지 않는다.
 
-메시지·transport 기능은 구현했고 reset 수신자 선택과 Form/API 연결은 아직 남아 있다.
+메시지·transport와 Identity의 reset 수신자 선택/메일 요청 service를 구현했다. 실제 reset Form/API 연결은 남아 있다.
 설계와 차이는 [ADR-0078](../docs/adr/0078-mail-message-ownership-and-delivery.md),
 실제로 실행한 환경과 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.

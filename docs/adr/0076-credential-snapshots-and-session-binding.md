@@ -119,7 +119,7 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 해당 열만 갱신하며 관리 revision을 증가시키지 않는다. 저장 Identity 로그인은 현재 credential을 write 안에서 재검사한다.
 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니며 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
-self-service와 reset service는 아래 별도 계약을 사용한다. Reset의 메일·Form/API 소비자는 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
+self-service와 reset service는 아래 별도 계약을 사용한다. Reset의 메일 요청 service는 아래 별도 계약을 사용하며 Form/API 소비자는 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
 실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
@@ -546,8 +546,8 @@ rollback/unknown 검증을 구분한다. Reset, 전체 UserCreationForm, token i
 
 `identity.PasswordResetter`는 `ManagementBackend`와 명시적 hasher·`PasswordResetConfig`에 결합한다.
 서버 내부의 `IssueToken(ctx, principalID)`는 현재 active/usable 계정을 읽어 수신자에게만 전달할 값을 만든다.
-이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택·email 정규화·메일 전달·HTTP 응답은
-별도 소비자가 소유하며 아직 연결 전이다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
+이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택·email 정규화·메일 전달은
+아래 `PasswordResetMailer`가 소유하며 실제 HTTP 소비자는 후속 연결이다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
 새 hash·write admission·session을 만들지 않는다. Raw token은 명시적인 `Encoded()`로만 꺼내고 fmt/JSON에서는 감춘다.
 
 `PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
@@ -579,6 +579,42 @@ GoDj는 token을 최종 재검사하고 field patch·원자 저장을 사용한�
 
 
 공통 [mail](../../mail/)의 Message·Memory·SMTP 기반은 별도 [ADR-0078](0078-mail-message-ownership-and-delivery.md)을 따른다.
-전송의 확정 접수/거절/unknown과 message의 소유권을 구현했으며 reset 수신자 선택·발급 값 연결·공개 응답·Form/API는
-후속 소비자가 소유한다. Reset 전송 실패를 그대로 공개 HTTP 오류로 바꾸어 계정 존재 여부를 드러내지 않는다.
+전송의 확정 접수/거절/unknown과 message의 소유권을 구현했고 reset 수신자 선택·발급 값 연결도 아래 service가 소유한다.
+공개 응답·Form/API는 후속 소비자가 소유한다. Reset 전송 실패를 그대로 공개 HTTP 오류로 바꾸어 계정 존재 여부를 드러내지 않는다.
 실제 I/O 오류의 내부 보고 방식까지 소비자 연결에서 검증한다.
+
+
+## 재설정 메일 요청과 수신자 결합
+
+`identity.PasswordResetMailer`는 하나의 `PasswordResetter`, 명시적 `mail.Sender`와 mail 설정에 결합한다.
+`CleanPasswordResetEmail`은 고정 PasswordResetForm의 strip·required·EmailValidator·254자·NUL 진단을 공유한다.
+Raw UTF-8와 4,096 byte 한도는 Unicode 작업 전에 검사한다. EmailValidator 문법은 공통 `validation.ValidEmail`이 소유하며
+기존 Identity Admin도 같은 함수를 사용한다. Model 의미는 Schema IR에 남고 254자 입력 제한은 native reset form의 계약이다.
+
+수신자 선택은 한 native read snapshot에서 `active=true`와 DB의 `Email.IExact`로 후보를 찾은 뒤,
+고정 Unicode 16의 NFKC + full casefold 및 usable password를 검사한다. CPU 정규화로 전체 사용자를 검색하지 않는다.
+Case folding은 공식 Unicode 16 CaseFolding C/F data에서 생성하고 모든 scalar의 독립 CPython 결과와 비교한다.
+SQL 단계에서 다른 이메일인 값은 Unicode 정규화 결과가 같더라도 선택하지 않는다.
+후보는 ID 순서이며 active/DB-iexact 후보 256개까지 전부 읽는다. 초과·읽기 실패·callback 위반·cleanup 오류이면 아무 메일도 보내지 않는다.
+
+각 수신 주소와 token은 **같은 Account snapshot**에서 만든다. 나중에 계정을 다시 읽어 새 token만 발급하면
+변경 전 이메일로 현재 상태의 유효한 token을 보낼 수 있으므로 그렇게 하지 않는다. Snapshot 종료 후 경쟁 변경이 있으면
+메일의 이전 token은 기존 reset service의 현재 credential/email/last_login/active 검사에서 거부된다. 일반 profile 변경은 보존한다.
+요청 과정은 password hash·User·session·last_login·audit를 변경하지 않으며 callback과 mail I/O 전에 DB scope를 닫는다.
+
+링크 origin은 host가 명시한 HTTPS origin이다. HTTP는 literal loopback IP의 개발 환경에만 허용한다.
+요청의 Host/forwarding header를 사용하지 않고, query·fragment·userinfo 없는 origin과 canonical confirm path를 사용한다.
+Principal ID는 canonical base64url path segment로 담는다. `PasswordResetMail`은 username·site name·link만 명시적으로 제공하며
+fmt/JSON은 비공개다. 기본 plain text가 있고 host renderer는 Subject/Text/HTML만 만든다. From/To는 framework가 소유한다.
+메시지별 내용 64 KiB, 전체 후보 256개 범위에서 모든 render·메시지 검증을 마친 뒤 전송한다. 두 번째 render 실패도
+첫 번째 메시지를 보내지 않으며 renderer가 자기 내부에서 만드는 자원의 한도와 captured state의 동시성은 host 책임이다.
+
+전송은 대상마다 한 번이며 일반 sender 실패 뒤에는 다음 대상도 시도한다. Context가 취소되면 남은 대상을 보내지 않는다.
+실패 원인은 private cause chain에 보존해 `delivery_failure`로 반환하며, 접수 불명 mail 원인은 `outcome_unknown`으로 유지한다.
+확정된 마지막 접수 뒤 늦은 취소로 성공을 되돌리지 않고 어떤 오류도 자동 재시도하지 않는다.
+이는 DB transaction이 아니므로 일부 전송 성공을 되돌릴 수 없다. 없는/비활성/사용 불가 계정은 전송 없이 nil이다.
+
+Native Django는 send 오류를 기록하고 삼키며, Go service는 내부 호출자에게 명시적 오류를 반환한다.
+제품 HTTP 소비자는 유효 email 요청에 같은 공개 안내를 주고 이 오류를 별도로 기록해야 한다. 현재 service의 동기식
+DB/메일 실행을 계정 존재에 대한 일정한 응답 시간 보장으로 표현하지 않는다. 실제 공개 응답·CSRF·token 숨김과
+Form/API·독립 client는 후속 통합에서 검증한다. [DEV-0019](../DEVIATIONS.md#dev-0019--메일-소유권과-명시적-smtp-접수-결과)와 환경별 Evidence를 따른다.

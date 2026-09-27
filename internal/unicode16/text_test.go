@@ -96,7 +96,7 @@ type pythonReference struct {
 	Scalars                 int
 	SHA256                  map[string]string
 	LowerContexts           []string `json:"lower_contexts"`
-	Sequences               []struct{ Input, NFKC, Lower string }
+	Sequences               []struct{ Input, NFKC, Lower, CaseFold string }
 }
 
 func TestUnicode16EveryScalarAndCasingContextMatchesPinnedPython(t *testing.T) {
@@ -107,7 +107,7 @@ func TestUnicode16EveryScalarAndCasingContextMatchesPinnedPython(t *testing.T) {
 	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Unicode != Version || reference.Scalars != 0x110000-0x800 || len(reference.LowerContexts) != 4 {
 		t.Fatal("reference authority/count mismatch")
 	}
-	hashes := map[string]hash.Hash{"nfkc": sha256.New(), "lower": sha256.New(), "properties": sha256.New(), "lower_context": sha256.New()}
+	hashes := map[string]hash.Hash{"nfkc": sha256.New(), "lower": sha256.New(), "casefold": sha256.New(), "properties": sha256.New(), "lower_context": sha256.New()}
 	var frame [8]byte
 	emit := func(name string, cp rune, value string) {
 		binary.BigEndian.PutUint32(frame[:4], uint32(cp))
@@ -124,6 +124,7 @@ func TestUnicode16EveryScalarAndCasingContextMatchesPinnedPython(t *testing.T) {
 		value := string(cp)
 		emit("nfkc", cp, NFKC(value))
 		emit("lower", cp, Lower(value))
+		emit("casefold", cp, CaseFold(value))
 		var flags byte
 		if IsAlphanumeric(cp) {
 			flags |= 1
@@ -163,9 +164,12 @@ func TestUnicode16SequencesDoNotInsertCharactersOrRepairMalformedUTF8(t *testing
 		if got := Lower(row.Input); got != row.Lower {
 			t.Fatalf("sequence %d Lower %U want %U", i, []rune(got), []rune(row.Lower))
 		}
+		if got := CaseFold(row.Input); got != row.CaseFold {
+			t.Fatalf("sequence %d CaseFold %U want %U", i, []rune(got), []rune(row.CaseFold))
+		}
 	}
 	for _, value := range []string{string([]byte{255}), "start" + string([]byte{0xc0, 0x80}) + "end"} {
-		if NFKC(value) != value || Lower(value) != value {
+		if NFKC(value) != value || Lower(value) != value || CaseFold(value) != value {
 			t.Fatal("malformed input was silently repaired")
 		}
 	}

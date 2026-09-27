@@ -5,7 +5,8 @@ This package uses Unicode **16.0.0**, matching the pinned CPython 3.14.3/Django
 The existing x/text 15 normalization applies a stream-safe transform that can
 insert CGJ after long non-starter sequences; Python's NFKC does not. This package
 implements NFKC without that additional transform and default full lowercase
-mapping, including Final_Sigma. Language-specific casing is not selected.
+mapping, including Final_Sigma, and default full case folding from CaseFolding.txt
+(C/F entries). Language-specific and Turkic casing is not selected.
 
 The algorithms follow [UAX #15 revision 56](https://www.unicode.org/reports/tr15/tr15-56.html)
 and the default casing/property data in the [Unicode 16 UCD](https://www.unicode.org/Public/16.0.0/ucd/).
@@ -28,7 +29,7 @@ data directly and never derives its tables from Python's normalization output.
 
 Tests execute all 19,965 rows (five columns each) of the official normalization
 corpus. A separate pinned [CPython observer](../../conformance/runners/django/unicode16_reference.py)
-hashes NFKC, lowercase, character properties and four casing contexts over every
+hashes NFKC, lowercase, full casefold, character properties and four casing contexts over every
 Unicode scalar. Surrogates are outside the accepted UTF-8 input domain. Long
 combining sequences, Hangul and malformed UTF-8 have explicit regression cases.
 These are verification mechanisms; completed execution is recorded in TEST_EVIDENCE.
