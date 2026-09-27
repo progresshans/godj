@@ -42,8 +42,12 @@ func WithPasswordValidators(validators ...PasswordValidator) ManagerOption {
 }
 
 func (manager *Manager) validatePassword(ctx context.Context, password string, profile Profile) error {
+	return validatePassword(ctx, manager.state.passwordValidators, password, profile)
+}
+
+func validatePassword(ctx context.Context, validators []PasswordValidator, password string, profile Profile) error {
 	var groups []validation.Errors
-	for _, validator := range manager.state.passwordValidators {
+	for _, validator := range validators {
 		input := profile
 		if input.LastLogin != nil {
 			instant := *input.LastLogin

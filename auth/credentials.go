@@ -28,6 +28,14 @@ type CredentialAuthenticator interface {
 	Resolve(context.Context, string) (Credential, error)
 }
 
+// PasswordConfirmer verifies the current password of a stable principal and
+// returns its freshly observed credential. A consumer must still bind the
+// result to its authenticated session and recheck it at the final write fence.
+// Confirmation itself never changes credentials, sessions, or last_login.
+type PasswordConfirmer interface {
+	ConfirmPassword(context.Context, string, string) (Credential, error)
+}
+
 // Credential is an opaque immutable credential snapshot. Formatting is
 // redacted so an encoded password cannot enter a diagnostic accidentally.
 type Credential struct{ state *credentialState }
@@ -216,8 +224,10 @@ func verifyCredential(ctx context.Context, hasher PasswordHasher, dummyHash stri
 		return ctx.Err()
 	}
 	if err != nil {
-		var authError *Error
-		if errors.As(err, &authError) && authError.Code == CodeInvalidInput && authError.Field == "password" {
+		// Only the hasher's direct, cause-free input refusal is an ordinary
+		// credential denial. Wrapping cannot hide cancellation or execution
+		// failures behind a password-input classification.
+		if authError, ok := err.(*Error); ok && authError != nil && authError.Code == CodeInvalidInput && authError.Field == "password" && authError.Cause == nil {
 			return ErrInvalidCredentials
 		}
 		return passwordFailure(err)

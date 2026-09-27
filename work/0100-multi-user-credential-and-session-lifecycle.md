@@ -83,8 +83,11 @@ last_login과 실제 세션 수립을 같은 native transaction에 연결했다.
 현재 credential/staff/권한을 마지막 write fence에서 다시 확인하며, 계정 교체는 기존 payload와 lifetime을 버리는 원자 교체를 사용한다.
 Admin 읽기 전용 표시·관리 API·독립 Session/Bearer client와 두 DB 재시작 소비자를 연결했다.
 고정 Django의 실패 부작용·재로그인 ID·인증 뒤 변경과 차이를 ADR-0076에 채택했고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
-저장 로그인·세션 수립의 이 통합 milestone이 새 source의 Hosted 전체 platform/process 검증을 소유한다.
-self-service password/reset은 별도 미완료 범위다.
+저장 로그인·세션 수립 source `63b07213`의 Hosted 전체 62 jobs와 8개 실행 owner가 모두 성공했다.
+자기 비밀번호 확인·교체의 service/session/Web runtime과 양 DB·HTTP runtime 회귀를 추가하고 영향 normal/race/CGO=0 검증을 통과했다.
+제품 Form·JSON/OpenAPI·독립 client는 아직 연결 전이며 self-service 전체 완료로 표시하지 않는다.
+모델 관리 권한 없이 현재 session으로 본인을 식별하며 credential 변경·현재 session 회전·다른 session 폐기·감사를 원자적으로 처리한다.
+현재 profile을 다시 검증하고 password와 현재 revision만 patch한다. Reset은 후속 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

@@ -119,7 +119,7 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 해당 열만 갱신하며 관리 revision을 증가시키지 않는다. 저장 Identity 로그인은 현재 credential을 write 안에서 재검사한다.
 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니며 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
-self-service 흐름과 password reset은 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
+self-service 흐름은 아래 별도 계약을 사용한다. Password reset은 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
 실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
@@ -469,3 +469,42 @@ Django에서 last_login 저장 뒤 session middleware 저장이 실패하면 시
 GoDj 저장 binding은 이 두 경계를 같은 transaction과 현재 admission 재검사로 강화한다.
 정확한 Django 부작용 parity로 합산하지 않으며 [DEV-0013](../DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)과
 실행 evidence에 관찰/차이/검증 범위를 구분한다.
+
+## 자기 비밀번호 확인과 현재 세션 유지
+
+`StoredAuthenticator.ConfirmPassword`는 mutable username 대신 고정 principal ID로 현재 password를 확인한다.
+현재 관찰의 read scope를 끝낸 뒤 bounded Verify를 한 번 수행하고, 현재 credential/active/권한을 다시 읽는다.
+Username 변경은 같은 ID의 확인을 무효화하지 않는다. Hash/credential 변경이나 비활성은 확인을 거부한다.
+사용자 없음·사용 불가 password는 기존 bounded dummy 작업을 공유한다. Hasher의 직접적이고 원인이 없는 password 입력 거부만
+일반 인증 거부가 된다. 이를 감싼 실행 오류·취소는 원인과 private diagnostic 경계를 유지한다.
+확인 자체는 password/last_login/session을 쓰지 않는다.
+
+Self-service는 명시적인 `PasswordChangePersistence`로 준비하며 정확한 session manager와 native identity runtime에 결합한다.
+현재 세션 ID가 본인을 식별하고 target ID·관리 change_user 권한은 입력으로 받지 않는다. Legacy operator에는 이 capability가 없다.
+`PasswordChanger`는 이전 credential stamp와 old password를 확인하고, 별도로 주입한 password policy를 현재 profile에 적용한다.
+새 hash는 종료된 read scope 밖에서 한 번 생성한다. 불변 prepared 값은 raw/encoded password getter가 없고 fmt/JSON에 값이 나오지 않는다.
+호출자는 이 값을 request 이후 보관하지 않는다. 관리 비밀번호 정책과 같은 정책을 주입하는 책임은 composition에 있다.
+
+최종 native write fence 안에서 현재 User의 active/credential과 실제 저장 session의 ID/principal/stamp를 다시 확인한다.
+Profile policy도 현재 행으로 다시 검증한다. 현재 세션 payload와 원래 absolute lifetime을 보존하며 ID와 stamp를 회전하고,
+다른 principal session을 완전한 bounded inventory 검사 후 폐기한다. 익명/다른 사용자의 session은 그대로 둔다.
+User의 password와 **현재 revision + 1**만 patch하며 본인을 actor로 한 값 없는 password audit를 함께 쓴다.
+Password 확인은 revision 자체를 선행 조건으로 사용하지 않으므로 그 사이 username/profile/grant/last_login 편집을 덮어쓰지 않는다.
+동시에 확인된 두 변경은 이전 credential/session fence를 함께 통과할 수 없고 하나만 성공한다.
+
+실패하면 User/session/audit 전체를 rollback한다. 만료 session cleanup도 실패와 함께 rollback하며, 확인된 ID collision만 새 entropy로 재시도한다.
+Hash 작업을 반복하지 않는다. Callback zero/nil/twice/swallow·wrapped validation·취소·unknown commit/rollback은 성공 결과를 게시하지 않는다.
+확인된 commit 이후 취소는 성공을 뒤집지 않는다. Web runtime은 성공 시에만 session cookie를 교체하고 기존 CSRF secret을 유지한다.
+호출 route가 CSRF·입력 confirmation을 먼저 검증한다. 원인이 붙은 validation은 취소를 포함해 실행 오류 wrapper를 유지하며,
+일반 입력 거부로 다시 노출하지 않는다. Runtime은 Form/JSON/OpenAPI의 완성된 사용자 화면을 대신하지 않는다.
+
+독립 [Django observer](../../conformance/runners/django/password_change_reference.py)는 실제 고정 PasswordChangeView/Form과
+session middleware를 사용한다. 일반 사용자의 허용, old password/공백/confirmation/strength, 현재 session 회전·payload 보존,
+다른 session의 다음 접근 거부, 같은 원문의 새 salt, last_login 불변이 공통 관찰이다.
+Django의 다른 session은 다음 접근까지 DB에 남지만 GoDj는 같은 transaction에서 폐기한다.
+Django native form.save()는 전체 User를 저장해 검증 뒤 비활성/다른 password 변경을 덮어쓸 수 있고,
+session cycle/final save 실패에서 password만 바뀐 부분 상태를 남길 수 있다. Fixture는 이 결과를 그대로 기록한다.
+GoDj는 현재 credential/active 재검사와 field patch·원자 저장을 채택한다. 동일한 실패 부작용이라고 주장하지 않는다.
+
+이 단계는 service·persistence·Web runtime 계약이다. 제품 Form·JSON/API/OpenAPI·독립 client의 연결과 reset은 남은 구현이며,
+실행 범위와 환경별 완료는 TEST_EVIDENCE에서 별도로 확인한다.

@@ -67,40 +67,42 @@ func DefaultLimits() Limits {
 }
 
 type Config struct {
-	Sessions         *sessions.Manager
-	Authenticator    auth.CredentialAuthenticator
-	LoginPersistence auth.LoginPersistence `json:"-"`
-	Authorizer       auth.Authorizer
-	SessionCookie    CookieConfig
-	CSRFCookie       CookieConfig
-	CSRFHeader       string
-	LoginPath        string
-	FallbackPath     string
-	AllowedNextPaths []string
-	Random           io.Reader
-	Clock            func() time.Time
-	Limits           Limits
-	CSRFKeyRing      CSRFKeyRing `json:"-"`
+	Sessions                  *sessions.Manager
+	Authenticator             auth.CredentialAuthenticator
+	LoginPersistence          auth.LoginPersistence          `json:"-"`
+	PasswordChangePersistence auth.PasswordChangePersistence `json:"-"`
+	Authorizer                auth.Authorizer
+	SessionCookie             CookieConfig
+	CSRFCookie                CookieConfig
+	CSRFHeader                string
+	LoginPath                 string
+	FallbackPath              string
+	AllowedNextPaths          []string
+	Random                    io.Reader
+	Clock                     func() time.Time
+	Limits                    Limits
+	CSRFKeyRing               CSRFKeyRing `json:"-"`
 }
 
 type Runtime struct {
-	sessions         *sessions.Manager
-	authenticator    auth.CredentialAuthenticator
-	loginPersistence auth.LoginPersistence
-	authorizer       auth.Authorizer
-	sessionCookie    CookieConfig
-	csrfCookie       CookieConfig
-	csrfHeader       string
-	loginPath        string
-	fallbackPath     string
-	allowedNextPaths map[string]struct{}
-	random           io.Reader
-	entropyMu        sync.Mutex
-	clock            func() time.Time
-	clockMu          sync.Mutex
-	limits           Limits
-	csrfKeyRing      CSRFKeyRing
-	originProtection http.CrossOriginProtection
+	sessions                  *sessions.Manager
+	authenticator             auth.CredentialAuthenticator
+	loginPersistence          auth.LoginPersistence
+	passwordChangePersistence auth.PasswordChangePersistence
+	authorizer                auth.Authorizer
+	sessionCookie             CookieConfig
+	csrfCookie                CookieConfig
+	csrfHeader                string
+	loginPath                 string
+	fallbackPath              string
+	allowedNextPaths          map[string]struct{}
+	random                    io.Reader
+	entropyMu                 sync.Mutex
+	clock                     func() time.Time
+	clockMu                   sync.Mutex
+	limits                    Limits
+	csrfKeyRing               CSRFKeyRing
+	originProtection          http.CrossOriginProtection
 }
 
 func (*Runtime) String() string   { return "sessionauth.Runtime{redacted}" }
@@ -183,6 +185,18 @@ func New(config Config) (*Runtime, error) {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "login_persistence", Detail: "login persistence belongs to another session manager"}
 		}
 	}
+	if config.PasswordChangePersistence != nil {
+		value := reflect.ValueOf(config.PasswordChangePersistence)
+		switch value.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if value.IsNil() {
+				return nil, &Error{Code: CodeInvalidConfig, Field: "password_change_persistence", Detail: "password change persistence is nil"}
+			}
+		}
+		if config.PasswordChangePersistence.Sessions() != config.Sessions {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "password_change_persistence", Detail: "password change persistence belongs to another session manager"}
+		}
+	}
 	if config.Authenticator == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "authenticator", Detail: "credential authenticator is nil"}
 	}
@@ -262,20 +276,21 @@ func New(config Config) (*Runtime, error) {
 		return nil, invalidCSRFKeyRing("CSRF key ring is invalid")
 	}
 	return &Runtime{
-		sessions:         config.Sessions,
-		authenticator:    config.Authenticator,
-		loginPersistence: config.LoginPersistence,
-		authorizer:       config.Authorizer,
-		sessionCookie:    sessionCookie,
-		csrfCookie:       csrfCookie,
-		csrfHeader:       http.CanonicalHeaderKey(config.CSRFHeader),
-		loginPath:        config.LoginPath,
-		fallbackPath:     config.FallbackPath,
-		allowedNextPaths: allowed,
-		random:           config.Random,
-		clock:            config.Clock,
-		limits:           limits,
-		csrfKeyRing:      csrfKeyRing,
+		sessions:                  config.Sessions,
+		authenticator:             config.Authenticator,
+		loginPersistence:          config.LoginPersistence,
+		passwordChangePersistence: config.PasswordChangePersistence,
+		authorizer:                config.Authorizer,
+		sessionCookie:             sessionCookie,
+		csrfCookie:                csrfCookie,
+		csrfHeader:                http.CanonicalHeaderKey(config.CSRFHeader),
+		loginPath:                 config.LoginPath,
+		fallbackPath:              config.FallbackPath,
+		allowedNextPaths:          allowed,
+		random:                    config.Random,
+		clock:                     config.Clock,
+		limits:                    limits,
+		csrfKeyRing:               csrfKeyRing,
 	}, nil
 }
 

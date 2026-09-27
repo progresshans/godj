@@ -79,12 +79,14 @@ type Backend interface {
 // system-state domain and the restart-verified credential policy. Current
 // credential resolution and cached login verification share this gate.
 type Runtime struct {
-	mu            sync.Mutex
-	backend       Backend
-	authenticator auth.CredentialAuthenticator
-	sessionStore  *durableSessionStore
-	auditCapacity int
-	loginRecorder *identity.LoginRecorder
+	mu                sync.Mutex
+	backend           Backend
+	authenticator     auth.CredentialAuthenticator
+	sessionStore      *durableSessionStore
+	auditCapacity     int
+	loginRecorder     *identity.LoginRecorder
+	passwordConfirmer auth.PasswordConfirmer
+	passwordHasher    auth.PasswordHasher
 }
 
 var _ db.Queryer = (*Runtime)(nil)

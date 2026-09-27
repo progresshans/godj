@@ -41,14 +41,14 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 }
 
 func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
-	return newIdentityHTTPConfigured(t, authenticator, store, nil, nil, extra...)
+	return newIdentityHTTPConfigured(t, authenticator, store, nil, nil, nil, extra...)
 }
 
 func newIdentityHTTPWithRuntime(t *testing.T, runtime *systemstate.Runtime, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
-	return newIdentityHTTPConfigured(t, runtime.Authenticator(), runtime.SessionStore(), runtime.LoginPersistence, nil, extra...)
+	return newIdentityHTTPConfigured(t, runtime.Authenticator(), runtime.SessionStore(), runtime.LoginPersistence, nil, nil, extra...)
 }
 
-func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, login func(*sessions.Manager) (auth.LoginPersistence, error), clock func() time.Time, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
+func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, login func(*sessions.Manager) (auth.LoginPersistence, error), passwordChange func(*sessions.Manager) (auth.PasswordChangePersistence, error), clock func() time.Time, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
 	t.Helper()
 	observedAt := time.Now().UTC().Truncate(time.Microsecond)
 	if clock == nil {
@@ -64,6 +64,12 @@ func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthen
 	config.Clock = clock
 	if login != nil {
 		config.LoginPersistence, err = login(manager)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if passwordChange != nil {
+		config.PasswordChangePersistence, err = passwordChange(manager)
 		if err != nil {
 			t.Fatal(err)
 		}

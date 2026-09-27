@@ -42,6 +42,12 @@ func (runtime *Runtime) CoordinatedAtomicRelation(ctx context.Context, callback 
 // Batches bound memory and close SELECT rows before any DELETE; a later error
 // must be returned by the outer callback so all earlier deletes roll back.
 func (runtime *Runtime) RevokePrincipalSessions(ctx context.Context, session db.Session, principalID string) (int, error) {
+	return runtime.revokePrincipalSessions(ctx, session, principalID, "")
+}
+
+// keepDigest is the already rotated current session of a self-service change.
+// The complete inventory is still validated, including that preserved row.
+func (runtime *Runtime) revokePrincipalSessions(ctx context.Context, session db.Session, principalID, keepDigest string) (int, error) {
 	if err := runtime.validBackendCall(ctx); err != nil {
 		return 0, err
 	}
@@ -96,7 +102,7 @@ func (runtime *Runtime) RevokePrincipalSessions(ctx context.Context, session db.
 			if err != nil {
 				return 0, err
 			}
-			if id, _ := record.Value(auth.SessionPrincipalIDKey); id != principalID {
+			if id, _ := record.Value(auth.SessionPrincipalIDKey); id != principalID || row.digest == keepDigest {
 				continue
 			}
 			affected, err := session.Delete(ctx, query.NewDeletePlan(sessionTableName, systemRowIDField, query.Integer(row.id)))

@@ -33,3 +33,11 @@ last-login timing, rejection, account switching and persistence failures.
 GoDj always rotates a re-login key and couples durable identity/session writes in
 one transaction with current-credential admission. These intentional differences
 are recorded in [ADR-0076](../docs/adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립).
+
+The independent [self-service password observer](../conformance/runners/django/password_change_reference.py)
+uses the pinned native PasswordChangeView/PasswordChangeForm and session middleware.
+It records unmodified persistence-failure and post-validation-race effects as well
+as successful rotation and last_login invariance. GoDj's current-credential fence,
+field-only patch and atomic password/session/audit transaction are intentional
+strengthenings, described in ADR-0076. Product Form/API exposure is separate from
+the session-bound service and Web runtime capability.

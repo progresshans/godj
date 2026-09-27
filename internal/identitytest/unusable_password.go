@@ -94,7 +94,7 @@ func RunUnusablePasswords(t *testing.T, open func(*testing.T) (TransitionBackend
 		}
 		assertUnusableReference(t, "checks", checks)
 		loginAt := time.Now().UTC().Truncate(time.Microsecond)
-		h := newIdentityHTTPConfigured(t, f.runtime.Authenticator(), f.runtime.SessionStore(), f.runtime.LoginPersistence, func() time.Time { return loginAt })
+		h := newIdentityHTTPConfigured(t, f.runtime.Authenticator(), f.runtime.SessionStore(), f.runtime.LoginPersistence, nil, func() time.Time { return loginAt })
 		address, err := url.Parse(h.server.URL)
 		if err != nil {
 			t.Fatal(err)

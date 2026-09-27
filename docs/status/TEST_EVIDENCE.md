@@ -7,6 +7,71 @@
 
 
 
+
+## GDJ-0100 — 자기 비밀번호 변경의 원자 저장 기반
+
+2026-09-27, `fe033b3c` 이후 non-Markdown **2,481 파일**의 source map
+`452298239456d9ac4b19b8a26b287ed4f036b5ca27b6e3012a4e0e72ace616c3`를 고정하고 시작/종료 동일성을 확인했다.
+고정 principal ID의 old password 확인, profile policy·hash의 scope 분리와 현재 credential/session fence,
+password·현재 revision·현재 session 회전·다른 session 폐기·본인 audit의 원자 저장을 구현했다.
+현재 profile/권한/last_login과 session payload·absolute lifetime을 보존한다. 새 표·IR·migration/생성 ABI 변경은 없다.
+
+- 일반 사용자에게 관리 권한을 요구하지 않는다. 260개 session의 batch 경계에서 target만 폐기하며 다른 사용자/익명 행의
+  bytes를 보존한다. 실제 양 DB 재접속, 같은 password의 새 hash/stamp/ID, raw 공백, read-only old confirmation을 검사했다.
+- callback zero/nil/twice/swallow, 비교 불가능한 host error, session insert/delete 전후, password/audit 전후·revocation 실패,
+  취소·unknown rollback/commit·commit 뒤 취소와 final validator/cleanup 실패를 실제 native transaction에서 검사했다.
+- hash 중 다른 연결의 profile/username/last_login 편집은 보존하고 현재 policy를 다시 적용한다. Password/active/삭제,
+  현재 session logout/rotation과 idle/absolute 만료는 거부하며 만료 cleanup도 rollback한다. 두 연결의 동시 변경은 하나만 성공한다.
+- old-ID entropy·실제 다른 session ID 충돌은 확정 rollback 뒤 새 entropy로 처리하고 hash는 한 번만 실행한다.
+  충돌 한도·entropy 실패는 상태를 보존하며, unknown collision은 두 번째 ID를 소비하거나 transaction을 재시도하지 않는다.
+- 준비 값의 validator slice 소유권·다른 owner 거부·다른 principal/stamp/session 거부와 fmt/JSON 비공개를 검사했다.
+  Web capability는 명시적으로 정확한 manager에 결합하며 typed-nil/누락을 구분한다. 실제 HTTP/cookie jar의 성공·CSRF·잘못된 입력·
+  anonymous/중복 cookie·rollback/unknown, 새 cookie만 게시·기존 CSRF 유지·old/other session 거부를 검사했다.
+- Auth의 wrapped hasher 실행 오류를 invalid credentials로 낮추지 않는다. 외부 password provider가 원인이 있는 validation을
+  반환해도 Web은 실행 오류 wrapper를 유지한다. 취소·unknown 원인은 errors.Is로 보존하고 private 원문과 cookie를 게시하지 않는다.
+
+| 모드 | 최종 영향 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 10 packages / 180 roots / 794 필수 항목 | 1,115 PASS / skip 0 | 16.223초 |
+| race | 10 packages / 180 roots / 794 필수 항목 | 1,115 PASS / skip 0 | 79.404초 |
+| CGO=0 | 10 packages / 180 roots / 794 필수 항목 | 1,115 PASS / skip 0 | 15.653초 |
+
+총 **3,345 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go,
+`TZ=Pacific/Chatham`, `GODJ_REQUIRE_POSTGRES=1`, private PostgreSQL 17.10 UTF8/libc/C에서 실행했다.
+Core는 auth/identity/sessions/systemstate/Web sessionauth/API sessionauth/Identity API·Admin의 전체 tests,
+DB는 양쪽 자기 password change의 service·failure·경쟁·HTTP runtime roots다. 필수 항목 run/pass와 package 종료를 감사했고
+private DB 종료 `0|0|0`과 container 제거를 확인했다. 제품 Form·JSON/OpenAPI·독립 generated client는 아직 연결 전이다.
+이 테스트용 HTTP adapter를 완성된 제품 화면/API 검증으로 집계하지 않는다.
+
+선행 source `0e439fce00b96b2fee09cbbb0973d05c156e031d9d31ac5788f19808dbee4ae0`에서는 같은 core와
+**양 DB Identity 전체**를 실행했다. 10 packages / 216 roots / 1,662 필수 항목에서 각 mode **1,991 PASS / skip 0**,
+총 5,973 PASS였다. 이후 delta는 새 password 서비스/Web의 caused-validation 분류와 추가 보안 test/필수 inventory의
+8개 non-Markdown 파일이다. 그 영향 경로를 위 final checkpoint에서 다시 실행했으며 두 source를 같은 실행으로 합치지 않는다.
+
+제품에 포함한 독립 고정 Django 6.1/CPython 3.14.3 observer를 private PostgreSQL에서 다시 실행했다.
+SQLite·PostgreSQL fixture와 9개 upstream module hash가 일치하고 Python tests **2개**·runtime mutation **3개**가 성공했다.
+이 Python 입력 4개 파일은 선행/최종 source에서 byte-identical함을 supplemental receipt로 확인했다.
+Django의 lazy other-session 폐기, session 저장 실패의 부분 상태, stale form.save()의 password/active 덮어쓰기를 그대로 남기고
+Go의 의도적인 원자 저장·현재 상태 재검사를 ADR-0076에 구분했다.
+
+최종 source에 Go overlay **8개**를 적용해 credential fence·다른 session 폐기·last_login 불변·현재 revision·rollback·unknown 분류·
+wrapped verifier 오류·caused validation wrapper 누락을 각각 지정된 assertion으로 탐지했다. Compile 실패를 탐지 성공으로 세지 않았다.
+영향 vet·CI 도구 **41개**·gofmt·문서 151개 링크·diff도 통과했다. 전체 platform/process는 기존 `63b07213`의 결과를 전이하지 않고,
+제품 소비자까지 연결한 다음 credential lifecycle 통합 milestone에서 소유한다.
+
+최초 실패도 보존했다. HTTP fixture가 대소문자가 다른 CSRF header map 키를 중복/유지해 세 사례가 실패했고 Header.Set으로 정리했다.
+추가 검토에서 caused validation의 취소가 공통 sessionFailure에서 원형으로 반환되어 입력 거부로 재노출되는 것을 재현했다.
+새 password 경로는 명시적인 실행 wrapper를 유지하도록 수정했다. 첫 guard만 적용한 중간 실패도 PASS에서 제외했다.
+
+- 선행 Identity 전체 checkpoint: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-core-checkpoint-1790512745062889000/receipt.json`
+- 최종 영향/소스: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-final-checkpoint-1790513528104779000/receipt.json`
+- 입력 동일성·vet/참조: 같은 디렉터리의 `supplemental.json`, `controls/receipt.json`
+- 승격한 observer의 PostgreSQL 재실행/cleanup: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-promoted-reference-1790512841241787000/receipt.json`
+- 최초 HTTP fixture 실패: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-core-checkpoint-1790512602525515000/receipt.json`
+- Caused-validation baseline: 선행 Identity 전체 checkpoint의 `caused-validation/before.jsonl`
+- 중간 caused-cancel 실패: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/self-password-final-checkpoint-1790513382825934000/receipt.json`
+
+
 ## GDJ-0100 — 사용자 정의 로그인 오류의 비교 경계
 
 저장 로그인의 마지막 검토에서 slice 기반 host admission 오류를 반환하면 `error == error` 비교가 panic하는 것을 재현했다.
@@ -104,7 +169,18 @@ SQLite URI fragment로 해석돼 TempDir 밖 DB가 재사용된 것을 확인했
 이번 저장 로그인·세션 수립 통합 milestone은 새 source의 Hosted 전체 platform/cold-build/process 검증을 소유한다.
 구현 commit `63b07213ecaaea37a2270b33d8c806a982817269`를 두 branch에 게시했다.
 같은 source의 [Hosted full 36315320971](https://github.com/progresshans/godj/actions/runs/36315320971)을 명시적으로 dispatch했다.
-현재 실행 중이며 아직 전체 성공으로 표시하지 않는다. Code Fast 36315317548은 후속 문서 push로 자동 취소됐다.
+2026-09-27, attempt 1의 **62 jobs 전부 성공**과 최종 `full_platform_verified=true`, **8개 실행 owner**를 확인했다.
+최종 결과는 portable Go, exact Darwin, Python compatibility, command product, project check,
+PostgreSQL product, relation product, conformance validation을 포함한다. 실제 재시작/process 실행도 이 source에서 완료됐다.
+Systemstate PostgreSQL two-process와 operator global external capture의 archive/payload 해시·producer job/attempt,
+source `63b07213`의 Git blob에서 재계산한 binding을 독립 검증했다. 현재 작업 디렉터리의 bytes로 대체하지 않았다.
+
+- 통합 receipt·최종 로그·run/jobs·capture: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/hosted-full-36315320971-1790509633532881000/receipt.json`
+- Systemstate binding: 568 files / 5,896,951 bytes, `8e96dce53562f89536fa7fbbeb841eb58a8543f15acd3a8be815e12d2b50def4`
+- Operator binding: 645 files / 5,742,277 bytes, `4140a30311c17d65d126897166820df46dc41078567cd78dac4f5fccd07f1420`
+
+이후 `94d0229b`의 오류 수정과 자기 비밀번호 변경에는 이 결과를 전이하지 않는다.
+Code Fast 36315317548은 후속 문서 push로 자동 취소됐다.
 문서 source `1ed565b2`의 [feedback 36315395506](https://github.com/progresshans/godj/actions/runs/36315395506)은 Go step을 skip한 성공이며 구현 Fast 성공으로 합산하지 않는다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
 이전 `f3264aef`의 Hosted full을 이 변경의 전체 성공으로 전이하지 않는다.
 

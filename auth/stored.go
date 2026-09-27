@@ -50,25 +50,50 @@ func NewStoredAuthenticator(ctx context.Context, store CredentialStore, hasher P
 }
 
 func (a *StoredAuthenticator) Authenticate(ctx context.Context, username, password string) (Credential, error) {
+	return a.authenticate(ctx, username, password, false)
+}
+
+// ConfirmPassword verifies a current password for a stable principal ID. It
+// neither trusts nor exposes a previously loaded hash. Like Authenticate it
+// ends the read scope before password work and rereads current authorization
+// before returning. A concurrent username edit does not change the identity
+// being confirmed. This is not a session write or a password-change commit.
+func (a *StoredAuthenticator) ConfirmPassword(ctx context.Context, principalID, password string) (Credential, error) {
+	return a.authenticate(ctx, principalID, password, true)
+}
+
+func (a *StoredAuthenticator) authenticate(ctx context.Context, identifier, password string, byPrincipalID bool) (Credential, error) {
 	if err := a.validCall(ctx); err != nil {
 		return Credential{}, err
 	}
 	var observed Credential
 	var found bool
 	var err error
-	if validUsername(username) {
-		observed, found, err = a.state.store.CredentialByUsername(ctx, username)
+	validIdentifier := validUsername(identifier)
+	if byPrincipalID {
+		validIdentifier = validIdentity(identifier)
+	}
+	if validIdentifier {
+		if byPrincipalID {
+			observed, found, err = a.state.store.CredentialByID(ctx, identifier)
+		} else {
+			observed, found, err = a.state.store.CredentialByUsername(ctx, identifier)
+		}
 		if err := errors.Join(err, ctx.Err()); err != nil {
 			return Credential{}, storedCredentialFailure(err)
 		}
 		if found {
-			if observed.value().username != username {
+			if byPrincipalID && observed.Principal().ID() != identifier || !byPrincipalID && observed.value().username != identifier {
 				return Credential{}, storedCredentialFailure(nil)
 			}
 			if err := a.validateObserved(ctx, observed); err != nil {
 				return Credential{}, err
 			}
 		}
+	}
+	username := identifier
+	if byPrincipalID {
+		username = observed.value().username
 	}
 	if err := verifyCredential(ctx, a.state.hasher, a.state.dummyHash, observed, found, username, password); err != nil {
 		return Credential{}, err
@@ -85,7 +110,8 @@ func (a *StoredAuthenticator) Authenticate(ctx context.Context, username, passwo
 	if err := a.validateObserved(ctx, current); err != nil {
 		return Credential{}, err
 	}
-	if !current.value().principal.Active() || current.value().principal.ID() != observed.value().principal.ID() || current.value().username != username || !current.MatchesSessionStamp(observed.SessionStamp()) {
+	if !current.value().principal.Active() || current.value().principal.ID() != observed.value().principal.ID() ||
+		!byPrincipalID && current.value().username != username || !current.MatchesSessionStamp(observed.SessionStamp()) {
 		return Credential{}, ErrInvalidCredentials
 	}
 	return current, nil

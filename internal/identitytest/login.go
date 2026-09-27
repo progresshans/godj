@@ -57,7 +57,7 @@ func RunLoginLifecycle(t *testing.T, open func(*testing.T) (TransitionBackend, T
 	}
 	var elapsed atomic.Int64
 	clock := func() time.Time { return loginInstant.Add(time.Duration(elapsed.Load())) }
-	h := newIdentityHTTPConfigured(t, f.runtime.Authenticator(), f.runtime.SessionStore(), f.runtime.LoginPersistence, clock,
+	h := newIdentityHTTPConfigured(t, f.runtime.Authenticator(), f.runtime.SessionStore(), f.runtime.LoginPersistence, nil, clock,
 		func(runtime *sessionauth.Runtime) ([]web.Route, []web.Middleware, error) {
 			return []web.Route{{Name: "identityprobe:logout", Method: "POST", Path: "/logout/", Handler: func(request *web.Request) (web.Response, error) {
 				if err := runtime.VerifyCSRF(request, nil); err != nil {
