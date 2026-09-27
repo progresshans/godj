@@ -157,3 +157,5 @@ ID/hash/write 없음·read 실패/취소·hash 뒤 경합과 최종 fence를 영
 선행 Hosted 실패의 실제 원격 원인은 기존 진단이 잘라 확정하지 않는다. Fresh module의 checksum 요청을 별도로 재현하고,
 검증된 root checksum의 offline 준비·third-party 로컬 치환 제거·bounded dependency 진단을 구현했다.
 실제 외부 CLI 세 모드의 영향 검증을 통과했다. 현재 요구는 새 source/capture의 Hosted 전체 통합이며 상세는 TEST_EVIDENCE를 따른다.
+
+구현 `563aac29`의 Hosted Fast는 실제 Go 검사까지 성공했고 새 전체 `36353329053`은 진행 중이다. 필수 owner·새 capture 확인은 Evidence를 따른다.

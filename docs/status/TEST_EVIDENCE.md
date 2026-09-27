@@ -75,7 +75,11 @@ Summary는 인식한 module chain의 bounded continuation만 보존하며 URL·s
 Hosted final jobs·실패 로그와 capture 원문은 `godj-many-to-many-reference-4sl0bvdp/hosted-full-36346992368-1790541124878313000`에 있다.
 같은 attempt 1의 systemstate `10941347662`/operator `10940732028`은 archive/provenance/producer와
 source Git blob inventory **612/688개**를 확인했다. 두 capture 검증은 실패한 전체 run의 성공 근거가 아니다.
-이번 최종 source의 새 Hosted 전체와 새 capture는 다음 통합 검증이며 이전 source의 결과를 전이하지 않는다.
+구현을 `563aac29d611f08e0b943cc24bfb334881e72ba1`로 게시했고 같은 source의
+[Hosted Fast 36353272560](https://github.com/progresshans/godj/actions/runs/36353272560)와
+새 [Hosted full 36353329053](https://github.com/progresshans/godj/actions/runs/36353329053)을 시작했다.
+Fast는 실제 Fast Go feedback까지 성공했다. 전체는 진행 중이며 필수 owner·최종 집계·새 capture의 검증을 기다린다. 이전 source의 결과를 전이하지 않는다.
+후속 상태 문서 수정은 비문서 inventory를 바꾸지 않으며 이 실행의 source는 위 구현 commit으로 고정한다.
 
 ## GDJ-0100 — 생성 Form의 복합 오류와 현재 권한 검증
 

@@ -4,8 +4,9 @@
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료한 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
-- 최근 전체 검증: [Reset 소비자·실행 기반 수정 Hosted full](https://github.com/progresshans/godj/actions/runs/36346992368), source `1ae07db3`, 외부 CLI 준비 실패; 수정 구현과 영향 검증 완료, 새 전체 실행 필요
-- 최근 영향 CI: [생성 Form 복합 검증 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36348779762), source `a80fe2f7`, 실제 Fast Go feedback 성공
+- 진행 중인 전체 검증: [재사용 Form·외부 CLI 수정 Hosted full](https://github.com/progresshans/godj/actions/runs/36353329053), source `563aac29d611f08e0b943cc24bfb334881e72ba1`
+- 선행 전체 검증: [Reset 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36346992368), source `1ae07db3`, 외부 CLI 준비 실패와 후속 수정은 Evidence 참조
+- 현재 영향 CI: [재사용 Form Hosted Fast](https://github.com/progresshans/godj/actions/runs/36353272560), source `563aac29`, 실제 Fast Go feedback 성공
 - Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -25,7 +26,7 @@ User·Group·Permission 관리와 저장 인증, 일반 계정 login/logout·pas
 
 ## 다음 행동
 
-수정 source의 Hosted 전체를 실행하고 필수 실행 owner·최종 집계·새 capture의 source 결합을 확인한다.
+진행 중인 Hosted 전체의 필수 실행 owner·최종 집계·새 capture의 source 결합을 확인한다.
 Custom user model, 다른 인증 provider 등 남은 요구를 현행 계약·독립 기준에 따라 이어서 구현한다.
 운영 mail provider 검증도 남아 있다. 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 
