@@ -31,6 +31,10 @@ Operation은 실제 `web.Route`, 같은 handler에 적용한 permission, query·
 Article과 Helpdesk는 한 번 구성한 API의 이 원본에서 route를 반환하고 문서를 만든다. 문서 생성은 handler나 Authentication.Require를 다시 실행하지 않는다.
 Web의 route compiler로 경로·이름·route language 충돌을 검사하고 OAS의 template/operation 고유성도 검사한다.
 최종 application이 installed namespace·다른 route와의 충돌, middleware·handler와 문서의 일치를 보장한다.
+`DescribeRoutePath`의 parameter kind를 소비해 int64와 bounded str을 구분한다. String의 code-point 길이·문자 grammar,
+별도 `x-godj-max-bytes`와 router의 최종 lexical/전체 URL 한도를 명시한다. 같은 template의 method별 converter도 유지한다.
+문자열과 숫자의 겹치는 route나 서로 다른 placeholder 이름으로 같은 OAS path shape를 만드는 선언은 거부한다.
+Bounded 문자열 경로의 의미는 [ADR-0045](0045-closed-parameterized-routing-and-reverse.md)를 따른다.
 
 인증은 실제 adapter가 선택적으로 제공하는 공개 transport description에서 가져온다. Session unsafe operation은 session cookie,
 CSRF cookie, masked header를 같은 security requirement 안의 AND로 표현한다. Safe 응답의 새 CSRF header는 선택적인 응답

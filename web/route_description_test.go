@@ -14,12 +14,12 @@ func TestRouteDescriptionPreservesRouterShapeAndParameterOrder(t *testing.T) {
 	tests := []struct {
 		path       string
 		template   string
-		parameters []string
+		parameters []web.RouteParameterDescription
 	}{
 		{path: "/", template: "/"},
 		{path: "/reports/report.v1/", template: "/reports/report.v1/"},
-		{path: "/articles/<int64:id>", template: "/articles/{id}", parameters: []string{"id"}},
-		{path: "/articles/<int64:id>/revisions/<int64:revision>/", template: "/articles/{id}/revisions/{revision}/", parameters: []string{"id", "revision"}},
+		{path: "/articles/<int64:id>", template: "/articles/{id}", parameters: []web.RouteParameterDescription{{Name: "id", Kind: web.RouteParameterInt64, MaxBytes: 19}}},
+		{path: "/articles/<int64:id>/revisions/<int64:revision>/", template: "/articles/{id}/revisions/{revision}/", parameters: []web.RouteParameterDescription{{Name: "id", Kind: web.RouteParameterInt64, MaxBytes: 19}, {Name: "revision", Kind: web.RouteParameterInt64, MaxBytes: 19}}},
 	}
 	for _, test := range tests {
 		t.Run(test.path, func(t *testing.T) {
@@ -32,7 +32,8 @@ func TestRouteDescriptionPreservesRouterShapeAndParameterOrder(t *testing.T) {
 			}}})
 			arguments := make([]web.ReverseArgument, len(description.Parameters))
 			expectedPath := description.Template
-			for index, name := range description.Parameters {
+			for index, parameter := range description.Parameters {
+				name := parameter.Name
 				arguments[index] = web.Int64Argument(name, 0)
 				expectedPath = strings.ReplaceAll(expectedPath, "{"+name+"}", "0")
 			}
@@ -68,9 +69,9 @@ func TestRouteDescriptionParametersAreDetached(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	description.Parameters[0] = "mutated"
+	description.Parameters[0] = web.RouteParameterDescription{Name: "mutated", Kind: web.RouteParameterString, MaxBytes: 1}
 	again, err := web.DescribeRoutePath(path)
-	if err != nil || !reflect.DeepEqual(again.Parameters, []string{"id"}) || again.Template != "/articles/{id}/" {
+	if err != nil || !reflect.DeepEqual(again.Parameters, []web.RouteParameterDescription{{Name: "id", Kind: web.RouteParameterInt64, MaxBytes: 19}}) || again.Template != "/articles/{id}/" {
 		t.Fatalf("caller mutation changed route description: %#v, %v", again, err)
 	}
 }

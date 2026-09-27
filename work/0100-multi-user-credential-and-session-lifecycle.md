@@ -100,7 +100,9 @@ Reset HTTP view·CSRF·DB session의 독립 양 DB 관찰을 확보했다. Nativ
 Reset의 Prepare/ApplyIn과 borrowed token 검사를 구현해 후속 proof 저장과 같은 transaction에 결합할 수 있게 했다.
 Proof persistence·Web runtime을 같은 native transaction에 연결했다. Entry ID 회전, 최종 session/proof/인증 binding·만료,
 현재 payload/lifetime 보존, 본인 session 폐기와 cookie 게시의 영향 검증을 양 DB·HTTP probe에서 수행했다.
-실제 제품 route·Form/API·독립 client는 다음 연결 범위다.
+실제 URL의 선행 조건인 bounded str route·typed reverse/accessor·OpenAPI와 token을 남기지 않는 기본 오류 진단을 구현했다.
+문자/숫자 충돌·prefix policy·escaping·byte 한도, 고정 Django URL 기준과 독립 ogen HTTP probe의 영향 세 모드 검증을 완료했다.
+로그인 전 CSRF admission과 실제 제품 route·Form/API·독립 client는 다음 연결 범위다.
 
 일반 계정의 제품 login/logout/password Form과 Session JSON/OpenAPI, 여섯 번째 독립 ogen client를 연결했다.
 명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는

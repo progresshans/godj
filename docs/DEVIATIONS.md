@@ -745,7 +745,7 @@ reference bytes에는 남습니다.
 
 ### GoDj에서 채택한 동작
 
-GoDj는 public converter를 `<int64:name>` 하나로 닫고 `0|[1-9][0-9]*`의 canonical non-negative signed-64-bit
+GoDj의 `<int64:name>` converter는 `0|[1-9][0-9]*`의 canonical non-negative signed-64-bit
 범위만 match합니다. 따라서 exact sparse policy는 다음 여덟 selector만 바꿉니다.
 
 - WEB-028 `result.parameter.pk_type`: `int` → `int64`
@@ -768,7 +768,9 @@ reverse됩니다. Existing static Web/Admin route와 Article DB/schema/migration
 ### backend/concurrency/security 영향
 
 DB별 영향은 없고 router는 immutable construction 뒤 concurrent read만 수행합니다. Strict grammar는 ambiguous normalization과
-oversized integer가 application handler에 도달하는 경로를 닫습니다. Arbitrary regex/string/UUID/path converter를 승인하지 않습니다.
+oversized integer가 application handler에 도달하는 경로를 닫습니다. Arbitrary regex/UUID/path converter를 승인하지 않습니다. 이후 추가한 bounded `<str:name>`의 의미와
+dot/control/backslash/byte 한도 차이는 [ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md)의 보완을 따른다.
+기존 정수 reference의 위 selector를 바꾸지 않는다.
 
 ### 구현과 검증 조건
 

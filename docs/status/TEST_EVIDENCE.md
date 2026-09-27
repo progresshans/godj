@@ -3,6 +3,55 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — bounded 문자열 경로와 reset URL 기반
+
+2026-09-28, `cffb6e10` 이후 실제 reset URL의 선행 조건인 `<str:name>`를 추가했다. Router·typed reverse/accessor와
+prefix/OpenAPI가 같은 kind를 소비한다. UTF-8 512-byte 한도·dot/control/slash 거부, 정수와의 language 충돌과
+static method 우선순위를 유지한다. 기본 Web 오류 로그는 원본 path 대신 route name을 기록한다.
+공개 reset Form/API·익명 CSRF admission·독립 제품 client는 이 검증의 완료 범위가 아니다.
+
+통합 checkpoint source map `4a67e4b134290bb58fa6a5d0d0c69c6de22311133085bbc55be5e42029671173`
+(non-Markdown **2,559 파일**)의 시작/종료 동일성을 확인했다. **12 packages / 241 필수 roots**이며
+Web·API/OpenAPI·양 auth adapter·Admin·Account·Article composition **864 PASS**, 기존 생성 client/Article Web **13 PASS**,
+기존 integer routing contract·외부 Go compiler admission **32 PASS**를 각 모드에서 실행했다.
+Root run/pass·package 완료와 모든 child의 skip 부재를 event inventory로 확인했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 909 PASS / skip 0 | 14.158초 |
+| race | 909 PASS / skip 0 | 134.573초 |
+| CGO=0 | 909 PASS / skip 0 | 16.302초 |
+
+합계 **2,727 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly와 `TZ=Pacific/Chatham`을 사용했다.
+라우팅/표현 변경이며 별도 PostgreSQL milestone이나 전체 platform을 반복하지 않았다.
+기존 여섯 ogen client는 실제 문서·생성 drift와 HTTP/SQLite 최종 상태를 기존 integration owner에서 검사했다.
+
+- String/정수 혼합의 typed 조회·reverse·borrowed lifetime, type 강제 변환 거부, percent/Unicode/공백/query punctuation의
+  한 번 escaping과 원문 보존을 확인했다. Encoded slash/backslash/control·dot, UTF-8 byte와 전체 path cap을 검사했다.
+  입력별 404/405·sorted Allow, 같은 method의 교차 language, static 우선순위와 부분 JSON prefix 정책을 검사했다.
+- Native Django 6.1 / CPython 3.14.3의 resolver/str converter/reverse **24개 관찰**과 upstream **3개 hash**를 기록했다.
+  Go의 더 엄격한 dot/control/backslash/byte 제한은 명시적 차이다. Python **2 tests / 0.470초**가 fixture·hash-seed 재생과
+  converter runtime mutation을 검출했다. Native URL 검사는 DB를 사용하지 않는다.
+- 실제 loopback HTTP 서버에서 동시 문자열 round-trip을 검사했다. Handler/panic/response budget과 middleware 전후·미매칭
+  오류 로그에 원본 token/path가 없고, 알려진 route name과 method가 남는 것을 확인했다. ReverseArgument의 fmt 출력도 비공개다.
+- 별도 module의 고정 ogen v1.24.0으로 실제 새 string OpenAPI에서 probe client를 생성했다. GoDj import/replace 없이
+  세 모드 각각 **21 wire checks / 21 requests**, **16 published-pattern checks**를 통과했다. Unicode·percent·점 포함 token이
+  보존되고 invalid segment는 실패하며 자동 retry가 없었다. ECMAScript 끝 개행 예외도 실제 generator 정규식 엔진에서 거부했다.
+  Server는 일반 빌드이며 client를 normal/race/CGO=0로 빌드했다. Root의 실제 HTTP handler는 위 race suite에도 포함했다.
+  이는 routing probe이며 실제 reset Form/API의 generated consumer 검증으로 표시하지 않는다. Tool/dependency lock은 불변이다.
+
+통합 뒤 OAS의 raw/reverse URL 한도 **설명 한 문장**을 명확히 하고, 전체 경로 4096/4097 경계의 공통 language test를 추가했다.
+최종 source map `a747501df827ae615eac5f54363cad159f3f046ea1fe349c491446dd7dad3a07` (**2,559 파일**)의 delta는
+`api/openapi/document.go`와 `web/string_router_test.go` 두 파일이며 routing/schema constraint는 동일하다.
+후속 Web/OpenAPI **2 packages / 76 roots**를 normal **373 PASS / 0.907초**, race **373 PASS / 2.955초**,
+CGO=0 **373 PASS / 1.182초**, 모두 skip 0으로 확인했다. 독립 client probe는 최종 OpenAPI 설명으로 재생성했다.
+
+Source overlay **4개**는 string byte 한도 생략, mixed-kind overlap 오인, 원본 path 로그와 ECMA terminal guard 누락을
+지정 assertion으로 검출했다. 영향 vet·gofmt와 두 attestation의 native source dependency 대조를 통과했다.
+준비 중 compile import/이름 충돌과 probe의 generator option 이름을 바로잡았으며 compile 실패를 control 성공으로 세지 않았다.
+원본/receipt·control·probe source/생성물은 `godj-many-to-many-reference-4sl0bvdp/string-routing-checkpoint-1790533946874403000`
+아래 보존했다. Model IR·생성 ABI·기존 제품 client 생성물은 변경하지 않았다. 이 source의 Hosted 전체는 아직 실행하지 않았다.
+
 ## GDJ-0100 — reset proof의 durable session과 Web runtime
 
 2026-09-28, `507eb473` 이후 `auth.PasswordResetPersistence`와 동일 저장 영역의 SystemState 구현,
@@ -56,6 +105,9 @@ Model IR·생성 ABI·생성물·native fixture는 바꾸지 않았고 로컬 �
 원본/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래 `reset-session-checkpoint-1790532114441067000`,
 `reset-session-latest-checkpoint-1790532447330421000`과 각각의 `controls/`에 있다.
 최초 실패는 `reset-session-checkpoint-1790531949484302000`에 보존했다. 이 source의 Hosted 전체는 아직 실행하지 않았다.
+구현 commit `cffb6e10a84ea030d5eb41b93594df1707adbba3`의
+[Hosted Fast 36340235834](https://github.com/progresshans/godj/actions/runs/36340235834)는 실제 Fast Go feedback step까지 성공했다.
+이후 문자열 경로 변경이나 Hosted 전체의 검증으로 전이하지 않는다.
 
 ## GDJ-0100 — HTTP reset 기준과 빌린 transaction의 원자 결합
 

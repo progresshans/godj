@@ -167,6 +167,7 @@ func TestGDJ0044ParameterizedReverseRejectsNonInt64ExternalConsumers(t *testing.
 import "github.com/progresshans/godj/web"
 
 var _ = web.Int64Argument("pk", int64(1))
+var _ = web.StringArgument("token", "r1.abc.ABC_-xyz")
 `)
 	if output, err := runGDJ0044ExternalCompile(t, directory); err != nil {
 		t.Fatalf("valid int64 external consumer did not compile: %v\n%s", err, output)
@@ -180,12 +181,14 @@ var invalidBoolean = web.Int64Argument("pk", true)
 var invalidString = web.Int64Argument("pk", "1")
 var invalidPathInjection = web.Int64Argument("pk", "1/../2")
 var invalidOverflow = web.Int64Argument("pk", 9223372036854775808)
+var invalidTextNumber = web.StringArgument("token", 7)
+var invalidTextBoolean = web.StringArgument("token", false)
 `)
 	output, err := runGDJ0044ExternalCompile(t, directory)
 	if err == nil {
 		t.Fatalf("non-int64 external consumers unexpectedly compiled:\n%s", output)
 	}
-	for _, marker := range []string{"cannot use true", `cannot use "1"`, `cannot use "1/../2"`, "9223372036854775808", "(overflows)"} {
+	for _, marker := range []string{"cannot use true", `cannot use "1"`, `cannot use "1/../2"`, "9223372036854775808", "(overflows)", "cannot use 7", "cannot use false"} {
 		if !strings.Contains(output, marker) {
 			t.Fatalf("external compiler output lacks %q:\n%s", marker, output)
 		}
@@ -261,7 +264,7 @@ func TestGDJ0044ReverseArgumentExportedSurfaceRemainsClosed(t *testing.T) {
 				if !typed.Name.IsExported() {
 					continue
 				}
-				if typed.Recv != nil && gdj0044FieldListContainsReverseArgument(typed.Recv) {
+				if typed.Recv != nil && gdj0044FieldListContainsReverseArgument(typed.Recv) && typed.Name.Name != "Format" {
 					t.Fatalf("web.ReverseArgument exposes method %s", typed.Name.Name)
 				}
 				if gdj0044FieldListContainsReverseArgument(typed.Type.Results) {
@@ -276,8 +279,8 @@ func TestGDJ0044ReverseArgumentExportedSurfaceRemainsClosed(t *testing.T) {
 	if !typeFound {
 		t.Fatal("web.ReverseArgument declaration is absent")
 	}
-	if !reflect.DeepEqual(constructors, []string{"Int64Argument"}) {
-		t.Fatalf("exported ReverseArgument constructors = %#v, want only Int64Argument", constructors)
+	if !reflect.DeepEqual(constructors, []string{"Int64Argument", "StringArgument"}) {
+		t.Fatalf("exported ReverseArgument constructors = %#v, want only the closed integer and string constructors", constructors)
 	}
 }
 

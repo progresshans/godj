@@ -5,6 +5,7 @@
 package web
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/progresshans/godj/settings"
@@ -24,7 +25,7 @@ type Middleware func(Handler) Handler
 
 // Route binds one exact uppercase HTTP method and one clean path to a
 // namespaced route name and handler. Path may contain the closed
-// <int64:name> segment converter; all other path syntax is static.
+// <int64:name> or <str:name> segment converters; other path syntax is static.
 type Route struct {
 	Name    string
 	Method  string
@@ -39,6 +40,7 @@ type ReverseArgument struct {
 	name         string
 	kind         routeParameterKind
 	integerValue int64
+	stringValue  string
 }
 
 // Int64Argument constructs a named signed 64-bit route argument. Negative
@@ -46,6 +48,22 @@ type ReverseArgument struct {
 // error, before any request I/O.
 func Int64Argument(name string, value int64) ReverseArgument {
 	return ReverseArgument{name: name, kind: routeParameterInt64, integerValue: value}
+}
+
+// MaximumStringParameterBytes bounds one decoded UTF-8 string segment. The
+// complete decoded and escaped paths are also subject to the router's limits.
+const MaximumStringParameterBytes = 512
+
+// StringArgument constructs a named string argument. ReverseWith rejects empty,
+// oversized or invalid UTF-8 values, dot segments, slashes, backslashes and
+// ASCII controls. Accepted values are URL-escaped exactly once.
+func StringArgument(name, value string) ReverseArgument {
+	return ReverseArgument{name: name, kind: routeParameterString, stringValue: value}
+}
+
+// Route arguments can carry credentials. Diagnostics never print their values.
+func (ReverseArgument) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("web.ReverseArgument{redacted}"))
 }
 
 // Config is the immutable Application startup input.

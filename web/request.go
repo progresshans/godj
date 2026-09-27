@@ -22,6 +22,7 @@ type Request struct {
 	settings    settings.Settings
 	reverse     func(string, []ReverseArgument) (string, error)
 	parameters  []routeParameterValue
+	routeName   string
 	active      atomic.Bool
 	nextCalls   []atomic.Uint32
 }
@@ -88,6 +89,20 @@ func (r *Request) Int64Parameter(name string) (int64, bool) {
 		}
 	}
 	return 0, false
+}
+
+// StringParameter returns one matched string segment during the borrowed
+// request lifetime. It does not coerce integer parameters or decode a second time.
+func (r *Request) StringParameter(name string) (string, bool) {
+	if r == nil || !r.active.Load() {
+		return "", false
+	}
+	for _, parameter := range r.parameters {
+		if parameter.kind == routeParameterString && parameter.name == name {
+			return parameter.stringValue, true
+		}
+	}
+	return "", false
 }
 
 // Context returns the underlying request context while the Request is active.

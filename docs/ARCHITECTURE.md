@@ -207,7 +207,11 @@ plan이 파일을 덮어쓰지 않게 한다. `showmigrations`는 한 snapshot�
 
 ## Web, Form, Admin, API
 
-Web request는 명시적 context·routing·representation 경계를 갖는다. Template은 closed value를 render하고 기본 escape를
+Web request는 명시적 context·routing·representation 경계를 갖는다.
+닫힌 int64/str converter가 typed reverse·borrowed accessor·route description을 공유한다. Str은 UTF-8 512 bytes 이하이며
+slash/backslash·control·dot segment를 거부한다. OpenAPI는 실제 kind와 byte/문자 한도를 구분하고 router가 최종 검사한다.
+기본 Web 실패 로그는 원본 path 대신 route name을 남긴다. [경로 결정](adr/0045-closed-parameterized-routing-and-reverse.md)을 따른다.
+ Template은 closed value를 render하고 기본 escape를
 적용한다. Model method나 arbitrary attribute lookup이 template evaluation 중 I/O를 실행하게 하지 않는다. Safe HTML은
 검토 가능한 construction 경계에서만 만든다.
 

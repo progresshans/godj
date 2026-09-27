@@ -27,6 +27,7 @@ type routeParameterKind uint8
 const (
 	routeParameterInvalid routeParameterKind = iota
 	routeParameterInt64
+	routeParameterString
 )
 
 type routeSegment struct {
@@ -38,7 +39,7 @@ type routeSegment struct {
 type routePattern struct {
 	path       string
 	segments   []routeSegment
-	parameters []string
+	parameters []routeSegment
 }
 
 type parameterRoute struct {
@@ -61,6 +62,7 @@ type routeParameterValue struct {
 	name         string
 	kind         routeParameterKind
 	integerValue int64
+	stringValue  string
 }
 
 type routeMatch struct {
@@ -165,33 +167,40 @@ func compileRoutePath(value string) (*routePattern, error) {
 		return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "path exceeds the route segment limit"}
 	}
 	segments := make([]routeSegment, len(parts))
-	parameters := make([]string, 0, maximumRouteParameters)
+	parameters := make([]routeSegment, 0, maximumRouteParameters)
 	canonicalParts := append([]string(nil), parts...)
 	for index, part := range parts {
 		if !strings.ContainsAny(part, "<>") {
 			segments[index] = routeSegment{literal: part}
 			continue
 		}
-		if len(part) < len("<int64:a>") || part[0] != '<' || part[len(part)-1] != '>' || strings.Count(part, "<") != 1 || strings.Count(part, ">") != 1 {
-			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter segment must be <int64:name>"}
+		if len(part) < len("<str:a>") || part[0] != '<' || part[len(part)-1] != '>' || strings.Count(part, "<") != 1 || strings.Count(part, ">") != 1 {
+			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter segment must be <converter:name>"}
 		}
 		converter, name, found := strings.Cut(part[1:len(part)-1], ":")
-		if !found || converter != "int64" || !validRouteParameterName(name) {
-			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter segment must use <int64:name> with a valid name"}
+		kind := routeParameterInvalid
+		switch converter {
+		case "int64":
+			kind = routeParameterInt64
+		case "str":
+			kind = routeParameterString
+		}
+		if !found || kind == routeParameterInvalid || !validRouteParameterName(name) {
+			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter segment must use int64 or str with a valid name"}
 		}
 		if len(name) > maximumRouteParameterBytes {
 			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter name exceeds the byte limit"}
 		}
 		for _, existing := range parameters {
-			if existing == name {
+			if existing.parameterName == name {
 				return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "parameter names must be unique within a route"}
 			}
 		}
 		if len(parameters) == maximumRouteParameters {
 			return nil, &Error{Code: CodeInvalidRoute, Field: "path", Detail: "path exceeds the parameter count limit"}
 		}
-		parameters = append(parameters, name)
-		segments[index] = routeSegment{parameterName: name, kind: routeParameterInt64}
+		segments[index] = routeSegment{parameterName: name, kind: kind}
+		parameters = append(parameters, segments[index])
 		canonicalParts[index] = "0"
 	}
 	if len(parameters) == 0 || !validStaticPath(strings.Join(canonicalParts, "/")) {
@@ -277,25 +286,31 @@ func routePatternsOverlap(left, right routePattern) bool {
 	if len(left.segments) != len(right.segments) {
 		return false
 	}
-	for index := range left.segments {
-		leftSegment := left.segments[index]
-		rightSegment := right.segments[index]
+	minimumBytes := len(left.segments) - 1
+	for index, l := range left.segments {
+		r := right.segments[index]
 		switch {
-		case leftSegment.kind == routeParameterInt64 && rightSegment.kind == routeParameterInt64:
-			continue
-		case leftSegment.kind == routeParameterInt64:
-			if _, ok := parseCanonicalInt64(rightSegment.literal); !ok {
+		case l.kind != routeParameterInvalid && r.kind != routeParameterInvalid:
+			// Both closed converters admit "0", a shortest common witness.
+			minimumBytes++
+		case l.kind != routeParameterInvalid:
+			if _, ok := parseRouteParameter(l.kind, r.literal); !ok {
 				return false
 			}
-		case rightSegment.kind == routeParameterInt64:
-			if _, ok := parseCanonicalInt64(leftSegment.literal); !ok {
+			minimumBytes += len(r.literal)
+		case r.kind != routeParameterInvalid:
+			if _, ok := parseRouteParameter(r.kind, l.literal); !ok {
 				return false
 			}
-		case leftSegment.literal != rightSegment.literal:
-			return false
+			minimumBytes += len(l.literal)
+		default:
+			if l.literal != r.literal {
+				return false
+			}
+			minimumBytes += len(l.literal)
 		}
 	}
-	return true
+	return minimumBytes <= maximumRoutePathBytes
 }
 
 func (r router) match(method string, request *http.Request) routeMatch {
@@ -416,8 +431,8 @@ func matchRoutePattern(pattern routePattern, pathSegments []string) ([]routePara
 	if len(pattern.segments) != len(pathSegments) {
 		return nil, false
 	}
-	var integerValues [maximumRouteParameters]int64
-	parameterIndex := 0
+	var values [maximumRouteParameters]routeParameterValue
+	count := 0
 	for index, segment := range pattern.segments {
 		if segment.kind == routeParameterInvalid {
 			if segment.literal != pathSegments[index] {
@@ -425,18 +440,39 @@ func matchRoutePattern(pattern routePattern, pathSegments []string) ([]routePara
 			}
 			continue
 		}
-		value, ok := parseCanonicalInt64(pathSegments[index])
+		value, ok := parseRouteParameter(segment.kind, pathSegments[index])
 		if !ok {
 			return nil, false
 		}
-		integerValues[parameterIndex] = value
-		parameterIndex++
+		value.name = segment.parameterName
+		values[count] = value
+		count++
 	}
-	parameters := make([]routeParameterValue, len(pattern.parameters))
-	for index, name := range pattern.parameters {
-		parameters[index] = routeParameterValue{name: name, kind: routeParameterInt64, integerValue: integerValues[index]}
+	return append([]routeParameterValue(nil), values[:count]...), true
+}
+
+func parseRouteParameter(kind routeParameterKind, text string) (routeParameterValue, bool) {
+	switch kind {
+	case routeParameterInt64:
+		value, ok := parseCanonicalInt64(text)
+		return routeParameterValue{kind: kind, integerValue: value}, ok
+	case routeParameterString:
+		return routeParameterValue{kind: kind, stringValue: text}, validStringSegment(text)
+	default:
+		return routeParameterValue{}, false
 	}
-	return parameters, true
+}
+
+func validStringSegment(text string) bool {
+	if text == "" || len(text) > MaximumStringParameterBytes || !utf8.ValidString(text) || text == "." || text == ".." {
+		return false
+	}
+	for _, character := range text {
+		if character < 0x20 || character == 0x7f || character == '/' || character == '\\' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseCanonicalInt64(value string) (int64, bool) {
@@ -479,18 +515,15 @@ func reversePattern(pattern routePattern, arguments []ReverseArgument) (string, 
 	if len(arguments) > maximumRouteParameters {
 		return "", reverseArgumentError("argument count exceeds the route limit")
 	}
-	values := make([]int64, len(pattern.parameters))
+	values := make([]string, len(pattern.parameters))
 	provided := make([]bool, len(pattern.parameters))
 	for _, argument := range arguments {
-		if argument.kind != routeParameterInt64 {
-			return "", reverseArgumentError("argument has an unsupported kind")
-		}
-		if len(argument.name) > maximumRouteParameterBytes || !validRouteParameterName(argument.name) || argument.integerValue < 0 {
-			return "", reverseArgumentError("integer argument name or value is invalid")
+		if len(argument.name) > maximumRouteParameterBytes || !validRouteParameterName(argument.name) {
+			return "", reverseArgumentError("argument name is invalid")
 		}
 		parameterIndex := -1
-		for index, parameterName := range pattern.parameters {
-			if argument.name == parameterName {
+		for index, parameter := range pattern.parameters {
+			if argument.name == parameter.parameterName {
 				parameterIndex = index
 				break
 			}
@@ -501,8 +534,26 @@ func reversePattern(pattern routePattern, arguments []ReverseArgument) (string, 
 		if provided[parameterIndex] {
 			return "", reverseArgumentError("argument is provided more than once")
 		}
+		if argument.kind != pattern.parameters[parameterIndex].kind {
+			return "", reverseArgumentError("argument kind does not match the route converter")
+		}
+		var value string
+		switch argument.kind {
+		case routeParameterInt64:
+			if argument.integerValue < 0 {
+				return "", reverseArgumentError("integer argument value is invalid")
+			}
+			value = strconv.FormatInt(argument.integerValue, 10)
+		case routeParameterString:
+			if !validStringSegment(argument.stringValue) {
+				return "", reverseArgumentError("string argument value is invalid")
+			}
+			value = argument.stringValue
+		default:
+			return "", reverseArgumentError("argument has an unsupported kind")
+		}
 		provided[parameterIndex] = true
-		values[parameterIndex] = argument.integerValue
+		values[parameterIndex] = value
 	}
 	for _, present := range provided {
 		if !present {
@@ -511,6 +562,7 @@ func reversePattern(pattern routePattern, arguments []ReverseArgument) (string, 
 	}
 	var result strings.Builder
 	result.Grow(len(pattern.path))
+	parameterIndex := 0
 	for index, segment := range pattern.segments {
 		if index > 0 {
 			result.WriteByte('/')
@@ -518,12 +570,8 @@ func reversePattern(pattern routePattern, arguments []ReverseArgument) (string, 
 		if segment.kind == routeParameterInvalid {
 			result.WriteString(segment.literal)
 		} else {
-			for parameterIndex, parameterName := range pattern.parameters {
-				if segment.parameterName == parameterName {
-					result.WriteString(strconv.FormatInt(values[parameterIndex], 10))
-					break
-				}
-			}
+			result.WriteString(values[parameterIndex])
+			parameterIndex++
 		}
 		if result.Len() > maximumRoutePathBytes {
 			return "", reverseArgumentError("reversed path exceeds the route byte limit")

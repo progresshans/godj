@@ -11,7 +11,7 @@ type RoutePrefixDescription struct {
 	Some bool
 }
 
-// DescribeRoutePrefix uses the routing compiler and canonical int64 matcher to
+// DescribeRoutePrefix uses the routing compiler and closed segment matchers to
 // classify a clean, absolute, static prefix ending in slash. The root prefix /
 // covers every route. A trailing slash is significant: /items/ does not cover
 // /items, and /items/1/ does not cover /items/<int64:id> without its final slash.
@@ -50,7 +50,7 @@ func DescribeRoutePrefix(routePath, prefix string) (RoutePrefixDescription, erro
 			continue
 		}
 		if index < constrained {
-			if _, valid := parseCanonicalInt64(prefixSegments[index]); !valid {
+			if _, valid := parseRouteParameter(segment.kind, prefixSegments[index]); !valid {
 				return RoutePrefixDescription{}, nil
 			}
 			minimumPathBytes += len(prefixSegments[index])
@@ -59,7 +59,7 @@ func DescribeRoutePrefix(routePath, prefix string) (RoutePrefixDescription, erro
 			minimumPathBytes++ // Zero is the shortest accepted parameter value.
 		}
 	}
-	// A syntactically compatible prefix may force a long integer before a large
+	// A syntactically compatible prefix may force a long parameter before a large
 	// static suffix. Even its shortest completion must fit the router's limit.
 	if minimumPathBytes > maximumRoutePathBytes {
 		return RoutePrefixDescription{}, nil

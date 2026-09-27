@@ -90,7 +90,7 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 		err = response.validate(a.maxResponseBytes)
 	}
 	if err != nil {
-		a.logger.ErrorContext(logContext(rawRequest), "web request failed", "method", rawRequest.Method, "path", requestPath(rawRequest), "error", err)
+		a.logger.ErrorContext(logContext(rawRequest), "web request failed", "method", rawRequest.Method, "route", request.routeName, "error", err)
 		response = plainText(http.StatusInternalServerError, "Internal Server Error\n")
 	}
 	writeResponse(writer, response)
@@ -117,6 +117,7 @@ func (a *Application) dispatch(request *Request) (Response, error) {
 	match := a.router.match(request.Method(), request.HTTP())
 	switch match.code {
 	case "":
+		request.routeName = match.route.Name
 		request.setRouteParameters(match.parameters)
 		return match.route.Handler(request)
 	case CodeRouteNotFound:
@@ -154,13 +155,6 @@ func logContext(request *http.Request) context.Context {
 		return context.Background()
 	}
 	return request.Context()
-}
-
-func requestPath(request *http.Request) string {
-	if request == nil || request.URL == nil {
-		return ""
-	}
-	return request.URL.Path
 }
 
 func invalidServerField(field, detail string, cause error) error {

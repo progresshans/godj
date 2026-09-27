@@ -4,53 +4,38 @@
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료한 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
-- 선행 검증 종료(전체 미통과): [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6`의 Python 시간 초과와 전체 완료 gate 실패
-- 최근 영향 CI: [Reset transaction 구성 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36337317864), source `507eb473`
-- Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
+- 최근 영향 CI: [Reset proof session/Web runtime Hosted Fast](https://github.com/progresshans/godj/actions/runs/36340235834), source `cffb6e10a84ea030d5eb41b93594df1707adbba3`, 실제 Fast Go feedback 성공
+- Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-User·Group·Permission 관리 service·Form/Admin·JSON API·독립 client와 저장 인증을 연결했다.
-내장 password policy·사용 불가 password·현재 상태 표시·last_login과 세션 원자 수립을 구현했다.
-source `fb817d6b`의 계정 소비자·reset service·source 목록 보완까지 Hosted 전체 platform/process 통합을 완료했다.
-이후 공통 mail과 현재 reset request 변경의 검증으로 전이하지 않는다.
+User·Group·Permission 저장·관리 service·Form/Admin·JSON API·독립 client, 저장 인증·password policy와
+사용 불가 password·last_login/session 원자 수립을 연결했다. 일반 계정 login/logout·password change의
+Form·Session JSON/OpenAPI·독립 client도 연결했다. 위 `fb817d6b`의 Hosted 전체 검증 이후 변경에는 그 결과를 전이하지 않는다.
 
-자기 비밀번호 확인과 교체의 service·session persistence·Web runtime을 구현하고 영향 검증을 통과했다.
-현재 credential/세션 재검사, 현재 세션 회전·다른 세션 폐기·값 없는 감사의 원자 저장,
-현재 profile/revision/last_login 보존과 rollback/unknown, 충돌 재시도·준비 값 소유권을 양 DB에서 검증했다.
-일반 계정 로그인/logout·비밀번호 Form과 Session JSON/OpenAPI·독립 generated client를 연결했다.
-관리 권한 없는 명시적 API admission과 세션 touch/cleanup 없는 preflight를 구현했고 Article의 공유 구성도 연결했다.
-제품 Form·JSON/OpenAPI·독립 client와 양 DB의 normal/race/CGO=0 영향 검증을 완료했다.
-선행 `b995c8c6`의 Hosted 실행은 Python 시간 초과로 전체 성공 조건을 충족하지 못했다.
-실제 Go 의존성 대조에서 attestation 목록의 누락을 찾아 보완했고 독립 누락 검사도 추가했다.
-수정된 `fb817d6b`의 새 capture/source binding과 전체 milestone을 확인했다.
-Reset token·Form·메일의 독립 Django 양 DB 기준을 확보했다. Go reset token/key ring·현재 상태 재검사와
-password/session 폐기/audit 원자 저장 service를 구현하고 영향 normal/race/CGO=0·양 DB 검증을 완료했다.
-공통 mail의 불변 message·MIME·SMTP/Memory 전달과 명시적 접수 결과를 구현하고 영향 normal/race/CGO=0 검증을 완료했다.
-의존성 변경의 PostgreSQL 연결·저장 인증 회귀도 세 모드에서 확인했다.
-Reset 수신자 선택과 같은 snapshot의 token·메일 연결, 고정 Unicode full casefold와 공통 email 문법을 구현했다.
-메일 발급 뒤 실제 password/session/audit 처리, snapshot 경합·전송 실패·취소와 source 목록을 영향 normal/race/CGO=0·양 DB에서 확인했다.
-Native HTTP reset view·CSRF·DB session의 양 DB 기준을 확보했다. Token 숨김, 익명/본인/다른 계정 session과
-session 저장 실패 뒤 native password가 남는 동작을 관찰했다. Prepare/ApplyIn과 빌린 scope의 token 검사를 구현해
-이후 proof 저장까지 같은 transaction에 결합할 수 있게 했다. 후속 오류의 전체 rollback과 준비 값 소유권·최신 상태 재검사를
-영향 normal/race/CGO=0·양 DB에서 확인했다.
-Reset proof session persistence와 Web runtime을 연결했다. Entry의 ID 회전, 최종 session/token/인증 binding과 만료 재검사,
-현재 proof 정리와 password/revocation/audit의 원자 저장, anonymous/본인/다른 계정 상태를 영향 normal/race/CGO=0·양 DB·실제 HTTP probe에서 확인했다.
-최신 payload 보존과 교체된 proof 거부, rollback/unknown·취소·collision과 manager 한도도 확인했다.
-실제 재설정 Form/API·독립 client와 공개 응답의 연결은 남아 있다.
-[Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-[Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [메일 결정](../adr/0078-mail-message-ownership-and-delivery.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
+공통 mail·동일 snapshot의 reset 수신자/token/메일 구성, reset service의 Prepare/ApplyIn과 proof session/Web runtime을
+구현하고 영향 normal/race/CGO=0·양 DB·실제 HTTP probe를 검증했다. Entry의 ID 회전과 완료 시 현재 proof·인증 binding·만료를
+재검사하며 password/revision·대상 session 폐기·proof 정리·audit를 원자 저장한다. 새 로그인은 만들지 않는다.
+Native Django의 session save 실패 뒤 부분 변경과 Go의 전체 rollback 차이는 [ADR-0076](../adr/0076-credential-snapshots-and-session-binding.md)에 있다.
+
+실제 reset URL에 필요한 bounded `<str:name>` 경로·typed reverse/accessor·OpenAPI 투영을 구현했다.
+문자열/정수 충돌, static 우선순위, escaping·byte 한도와 값 없는 오류 route 진단을 영향 세 모드에서 검증했다.
+고정 Django URL 기준, 기존 생성 client 회귀와 독립 ogen HTTP probe도 확인했다.
+이 라우팅 변경의 Hosted 전체는 실행하지 않았다. 공개 reset Form/API·독립 제품 client는 아직 연결하지 않았다.
+
+[구현 현황](IMPLEMENTATION_MATRIX.md), [인증 결정](../adr/0076-credential-snapshots-and-session-binding.md),
+[Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [메일 결정](../adr/0078-mail-message-ownership-and-delivery.md),
+[경로 결정](../adr/0045-closed-parameterized-routing-and-reverse.md)을 따른다.
 
 ## 다음 행동
 
-`fb817d6b`의 Hosted milestone을 종료 확인했다. 새 capture/source binding과 선행 run의 미통과 결과를 Evidence에 보존했다.
-다음 구현은 실제 reset route·Form/API·독립 client 연결이다. Token/principal을 위한 bounded path 입력과
-기존 router/OpenAPI의 표현 범위를 먼저 확인하고 필요한 기반을 함께 연결한다.
-확보한 native HTTP 기준에 따라 CSRF·token을 숨긴 confirmation·동일한 공개 응답/내부 오류 보고·기존 session 상태를 처리한다.
-구현한 proof session/Web runtime을 사용해 최신 상태 재검사와 성공 후 정리를 같은 transaction에 유지한다.
-전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
-다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
-로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.
+기존 authenticated-only API와 별개로, 로그인 전 요청도 CSRF를 검사하는 명시적 API admission/OpenAPI 계약을 연결한다.
+이를 실제 reset email 요청·token entry·confirmation Form/JSON, 독립 generated client와 Article 공유 구성에 사용한다.
+유효한 email 제출의 동일 공개 응답과 별도 내부 오류 보고, token을 숨긴 redirect·no-store/no-referrer,
+현재 proof 재검사와 성공 정리·기존 session 상태·실패/unknown 무재시도를 끝까지 검증한다.
+전체 UserCreationForm과 다른 인증 provider도 남은 요구다.
 
+다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유한다.
+로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.
 출시 일정 없이 필요한 기반과 기능을 이어가며 한 작업의 완료를 전체 프레임워크 완료로 합치지 않는다.
