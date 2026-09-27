@@ -118,7 +118,7 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 모든 협력 writer는 같은 fence와 revision 증가를 따라야 한다. 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니다.
 이전 credential로 시작한 동시 로그인이 commit 뒤 오래된 stamp의 새 세션을 만들 수 있어 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
-self-service 흐름과 password reset, 관리 Form/Admin/API는 후속 구현이다.
+self-service 흐름과 password reset은 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
 실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
@@ -141,7 +141,7 @@ Username의 NFKC와 email의 마지막 `@` 뒤 domain에 대한 full Unicode 소
 정규화 전후 username에는 기존 auth의 UTF-8·256-byte·NUL/바깥 공백 제한을 적용한다.
 Email은 변환 전 잘못된 UTF-8·NUL·4,096-byte 초과를 거부하고, 최종 email 254자와 이름 각 150자 제한을 적용한다.
 단순 `strings.ToLower`는 `İ` 확장과 문맥에 따른 Greek sigma가 달라 사용하지 않는다. Caser는 호출마다 소유한다.
-이는 Django `UserCreationForm` 전체 호환 선언이 아니다. 전체 form validator 집합은 Form 연결에서 다룬다.
+이는 Django `UserCreationForm` 전체 호환 선언이 아니다. Form의 현재 지원 범위와 남은 Unicode/credential 경계는 아래에 명시한다.
 대소문자를 무시하는 생성 중복 정책은 아래의 명시적 옵션으로 선택한다.
 
 생성은 현재 인가·unique 값·선택한 관계·유효 권한 한도를 읽기 snapshot에서 먼저 검사한다.
@@ -232,7 +232,8 @@ Cleanup·storage 오류는 입력 거부로 낮추지 않는다. Unknown commit/
 Retry-After를 제공하지 않는다. 호출자는 durable state를 재확인해야 한다. 관리 응답은 `Cache-Control: no-store`다.
 
 Article의 authenticated composition은 실제 관리 API와 권한으로 보호된 `/api/identity/openapi.json`을 게시한다.
-독립 Session/Bearer generated client를 실제 HTTP에 연결했다. 전용 관리 Form/Admin·관련 선택 목록과 GDJ-0100 전체 platform/process milestone은 후속 통합 범위다.
+독립 Session/Bearer generated client를 실제 HTTP에 연결했다. 관리 Form/Admin의 연결은 아래에 명시하며,
+GDJ-0100 전체 platform/process milestone은 별도로 남아 있다.
 
 
 ## 관리 Form과 공통 Admin 기반
@@ -266,7 +267,7 @@ Password default와 choices는 시작 시 거부하며, 정상/오류 화면에 
 Form의 raw text와 Value의 문자열 payload는 불투명한 내부 상태에 둔다. 일반 fmt와 잘못된 %p/%w fallback도
 비밀번호에 도달하지 않는다. 명시적 getter만 값을 반환하고 Value.Equal이 문자열 내용의 동등성을 소유한다.
 HTML 입력은 요청 전체 64 KiB·개별 값 4 KiB·총 1,024개 값으로 제한해 두 개의 256-member 선택 집합과 scalar 조건을 수용한다.
-이 공통 기반과 기존 Article/Helpdesk 소비자 검증은 실제 Identity 관리 폼·password validator·현재 권한의 선택 목록 통합 완료와 구분한다.
+이 공통 기반의 범용성은 실제 Identity 관리 소비자와 구분한다. Identity 연결과 입력 정책은 아래에 명시한다.
 
 ## 문자열 iexact와 사용자 생성 중복 정책
 
@@ -287,9 +288,51 @@ Duplicate는 username의 `unique` 오류이며 lookup/읽기 종료 실패는 �
 두 cooperating writer가 대소문자만 다른 후보로 경쟁하면 마지막 검사를 같은 fence에서 수행해 하나만 생성한다.
 이 옵션은 별도 case-insensitive DB 제약이나 로그인 정책이 아니다. 기본 Manager/API 생성과 로그인은 기존 case-sensitive 의미를 유지한다.
 비협력 SQL writer, 이후 기본 정책의 생성·이름 변경까지 전역적으로 case-insensitive unique로 만드는 기능이 아니다.
-전체 UserCreationForm·password strength/confirmation·실제 관리 화면 통합은 여전히 후속 범위다.
+전체 UserCreationForm과 내장 password strength validator의 완료를 뜻하지 않는다. 실제 관리 화면과 confirmation은 아래 소비자에 연결한다.
 
 독립 [Django observer](../../conformance/runners/django/iexact_reference.py)는 같은 synthetic 입력만 읽으며
 GoDj 코드/기대 결과를 import하지 않는다. Django 소스는 저장소 고정 6.1과 BSD-3-Clause를 따르며,
 각 결과에 lookup·auth forms·backend operations 파일 hash와 DB profile, 입력 hash를 남긴다.
 실행 source·환경·실패/검증 범위는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
+
+## 실제 Identity Admin 소비자와 입력 정책
+
+`identity/admin.Register`는 호스트가 제공한 backend·hasher·authorizer·전체 관계 삭제 정책으로 User/Group/Permission을
+등록한다. Startup에는 I/O가 없으며, opaque Config의 옵션과 validator slice는 복사본이다. Article의 실제 Admin composition이
+이 등록을 호출한다. Browser는 principal ID·encoded password·revision 값을 모델 필드로 지정하지 못한다.
+Revision은 앞서 정의한 별도 조건으로만 제출한다. 생성 principal ID는 호스트가 선택하는 불투명한 값이다.
+
+User 생성은 username·password1·password2만 받는다. Profile/role·그룹·직접 권한은 편집 Form이 소유하고,
+별도 password command는 Manager가 확정한 ID/revision을 바로 반환한다. Profile 변경과 삭제는 선행 snapshot의 revision을
+제출 조건과 비교한 뒤 Manager의 마지막 CAS를 수행한다. 삭제 결과는 확정 성공 뒤에만 선행 snapshot을 게시한다.
+확정 PROTECT rollback만 기존 protected 화면으로 표현하고 cleanup failure·unknown은 실행 실패로 남긴다.
+
+User 관계 선택은 현재 `change_user`, Group 생성/편집의 Permission 선택은 각각 현재 `add_group`/`change_group`을 요구한다.
+Target catalog의 view 권한을 별도로 요구하지 않는다. 인가와 선택 목록은 같은 native read snapshot에서 읽고,
+ID 순서의 완전한 목록만 반환한다. 4,096개를 초과하면 명시적 오류로 거부하며 저장된 선택을 조용히 잘라내지 않는다.
+이 선택 목록 한도와 실제 사용자 그룹/유효 권한의 256개 한도는 다른 조건이다. 큰 catalog의 검색/페이지 선택 UI는 별도 확장이다.
+
+History도 현재 view/change 인가·대상 존재·감사를 같은 read snapshot에서 읽는다. Runtime의 별도 Atomic 조회를 중첩하지 않고
+`AuditHistoryInSnapshot`에 살아 있는 borrowed reader를 전달한다. Reader lifetime·결과 identity·오름차순 sequence·한도를 확인하고,
+query/읽기 종료/취소 오류에는 결과를 게시하지 않는다. History backend의 permission 모양 원인을 실제 권한 거부로 낮추지 않는다.
+
+View-only actor는 change GET 주소에서 선택된 model field의 읽기 전용 상세를 볼 수 있다. Password widget은 제외하고
+relation은 저장된 ID를 표시한다. 선택 가능한 target catalog를 조회하지 않으며, 같은 주소의 POST는 change 권한을 요구한다.
+Helpdesk의 편집용 target-view 정책과 데이터 접근 전 write admission은 유지한다.
+
+Form의 `WithStringNormalizer`는 whitespace 처리 뒤 required/length/validator 전에 pure 변환을 수행한다.
+Initial과 raw redisplay를 변경하지 않으며 changed 비교에도 같은 변환을 사용한다. Model override의 max length는 IR의 저장
+한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Username은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
+Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP literal 문법을 적용한다. Password 두 값은 strip/NFKC
+없이 비교하고 mismatch를 password2에 표시하며 모든 재표시에서 원문을 비공개로 유지한다.
+
+`identity.WithPasswordValidators`는 pure·동시 사용 가능한 host 정책을 설정한다. 기본은 Django의 빈
+AUTH_PASSWORD_VALIDATORS와 같이 strength 검사가 없다. Create/SetPassword는 hash 전과 마지막 write fence 안에서 정책을
+검사하며 각 validator에 Profile의 복사본을 준다. Password 또는 non-field 오류만 허용하고, 취소/cleanup/unknown을 확인된
+입력 거부로 바꾸지 않는다. Form adapter는 password 오류를 password2로 연결한다. 내장 strength validator 구현은 남아 있다.
+
+현재 Go와 x/text의 Unicode/NFKC 표는 15.0.0이고 고정 CPython 3.14.3은 Unicode 16.0.0이다. 독립 observer는 outlined Latin,
+Todhri 문자·새 숫자 세 입력의 차이를 따로 기록한다. 또한 기존 credential은 NFKC 전후 256-byte 제한을 유지해 Form의 150자
+전체를 수용하지 못할 수 있다. 이 두 조건은 미완료 호환성으로 남기며 일반 입력 subset의 성공을 전체 UserCreationForm PASS로
+표현하지 않는다. [입력 출처와 라이선스](../../identity/admin/NOTICE.md),
+[독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 환경/범위는 TEST_EVIDENCE를 따른다.

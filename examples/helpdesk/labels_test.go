@@ -430,7 +430,15 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 			t.Fatal("initialize denied Label session", response.Code)
 		}
 		beforeQueries, beforeTx := backend.queries, backend.transactions
+		beforeWrites := backend.writes
 		response = denied.request(entry.method, entry.path, "invalid", entry.method != "GET")
+		if entry.method == "GET" && entry.path == change {
+			if response.Code != 200 || !strings.Contains(response.Body.String(), `data-admin-view="detail"`) || strings.Contains(response.Body.String(), ` name="name"`) || backend.writes != beforeWrites {
+				t.Fatal("view-only Label detail exposed an edit or wrote", response.Code)
+			}
+			beforeQueries, beforeTx = backend.queries, backend.transactions
+			response = denied.request("POST", change, url.Values{"csrfmiddlewaretoken": {denied.csrf}, "name": {"Denied edit"}}.Encode(), false)
+		}
 		if response.Code != 403 || backend.queries != beforeQueries || backend.transactions != beforeTx {
 			t.Fatal("Label permission ran data I/O", entry, response.Code)
 		}

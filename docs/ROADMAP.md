@@ -28,7 +28,7 @@ API 확장에서는 typed 입력/출력·endpoint·OpenAPI·client 연결을 함
 - ORM/관계: 관계 대상의 scalar lookup과 다중 관계 탐색은 joined row·null·cardinality·cache 의미를 먼저 정한다.
 - 앱 성장: 새로운 모델·필드·관계가 요구하는 migration과 기존 데이터의 처리를 함께 검증한다.
 - 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.
-- Identity: 명시적 operator 권한 갱신 다음의 다중 사용자·credential/session 요구를 구체화한다.
+- Identity: User/Group/Permission 관리 소비자의 입력 정합성을 마무리하고 self-service/reset·credential/session lifecycle을 확장한다.
 
 이 목록은 다음 기능의 후보이며 동시에 진행할 작업 목록이 아니다. 활성 작업과 환경별 검증 상태는 CURRENT 한 곳에서 선택한다.
 

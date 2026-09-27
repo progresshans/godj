@@ -181,7 +181,7 @@ func (site *Site) buildRoutes() error {
 		routes = append(routes,
 			web.Route{Name: modelName("add-get"), Method: http.MethodGet, Path: prefix + "/add/", Handler: site.adminRequire(model.permissions.Add, site.modelAddGet(model))},
 			web.Route{Name: modelName("add-post"), Method: http.MethodPost, Path: prefix + "/add/", Handler: site.modelAddPost(model)},
-			web.Route{Name: modelName("change-get"), Method: http.MethodGet, Path: prefix + "/change/", Handler: site.adminRequire(model.permissions.Change, site.modelChangeGet(model))},
+			web.Route{Name: modelName("change-get"), Method: http.MethodGet, Path: prefix + "/change/", Handler: site.adminRequireRead(model, site.modelChangeGet(model))},
 			web.Route{Name: modelName("change-post"), Method: http.MethodPost, Path: prefix + "/change/", Handler: site.modelChangePost(model)},
 			web.Route{Name: modelName("delete-get"), Method: http.MethodGet, Path: prefix + "/delete/", Handler: site.adminRequire(model.permissions.Delete, site.modelDeleteGet(model))},
 			web.Route{Name: modelName("delete-post"), Method: http.MethodPost, Path: prefix + "/delete/", Handler: site.modelDeletePost(model)},

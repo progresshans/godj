@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/validation"
 )
 
 const (
@@ -37,18 +38,19 @@ type ManagementBackend interface {
 type Manager struct{ state *managerState }
 
 type managerState struct {
-	backend     ManagementBackend
-	directory   *Directory
-	hasher      auth.PasswordHasher
-	authorizer  auth.Authorizer
-	collections project.Collections
+	backend            ManagementBackend
+	directory          *Directory
+	hasher             auth.PasswordHasher
+	authorizer         auth.Authorizer
+	collections        project.Collections
+	passwordValidators []PasswordValidator
 }
 
 func (Manager) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("identity.Manager{redacted}"))
 }
 
-func NewManager(backend ManagementBackend, hasher auth.PasswordHasher, authorizer auth.Authorizer) (*Manager, error) {
+func NewManager(backend ManagementBackend, hasher auth.PasswordHasher, authorizer auth.Authorizer, options ...ManagerOption) (*Manager, error) {
 	if nilIdentityValue(backend) || nilIdentityValue(hasher) || nilIdentityValue(authorizer) {
 		return nil, managementError(CodeInvalidConfig, "manager", nil)
 	}
@@ -60,7 +62,16 @@ func NewManager(backend ManagementBackend, hasher auth.PasswordHasher, authorize
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, "manager", err)
 	}
-	return &Manager{state: &managerState{backend: backend, directory: directory, hasher: hasher, authorizer: authorizer, collections: collections}}, nil
+	state := &managerState{backend: backend, directory: directory, hasher: hasher, authorizer: authorizer, collections: collections}
+	for _, option := range options {
+		if nilIdentityValue(option) {
+			return nil, managementError(CodeInvalidConfig, "manager", nil)
+		}
+		if err := option.applyManager(state); err != nil {
+			return nil, err
+		}
+	}
+	return &Manager{state: state}, nil
 }
 
 // SetPassword is an administrative replacement, not self-service password
@@ -107,6 +118,13 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 	if calls != 1 {
 		return Profile{}, managementError(CodePersistence, "snapshot_contract", nil)
 	}
+	validationErr := manager.validatePassword(ctx, password, before.Profile())
+	if err := ctx.Err(); err != nil {
+		return Profile{}, managementError(CodeInvalidInput, "context", errors.Join(err, validationErr))
+	}
+	if validationErr != nil {
+		return Profile{}, validationErr
+	}
 	encoded, err := managementPassword(ctx, manager.state.hasher, password)
 	if err != nil {
 		return Profile{}, err
@@ -138,6 +156,9 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 			if !current.value().credential.MatchesSessionStamp(before.value().credential.SessionStamp()) {
 				return managementError(CodeConflict, "user", nil)
 			}
+			if err := manager.validatePassword(ctx, password, current.Profile()); err != nil {
+				return err
+			}
 			updated, err := models.UserObjects.Update(ctx, session, row, (models.UserPatch{}).WithEncodedPassword(encoded).WithRevision(expectedRevision+1))
 			if err != nil {
 				return err
@@ -157,6 +178,9 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 		}()
 		return callbackErr
 	})
+	if diagnostics, rejected := validation.Rejected(callbackErr); rejected && err == callbackErr {
+		return Profile{}, validation.Reject(diagnostics, nil)
+	}
 	if err = errors.Join(err, callbackErr); err != nil {
 		return Profile{}, managementWriteFailure(err)
 	}

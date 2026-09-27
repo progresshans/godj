@@ -406,8 +406,13 @@ func TestSiteUsesRuntimeDenyOverlayForRoutesAndVisibleOperations(t *testing.T) {
 		t.Fatalf("authorizer-denied operations remain visible: %d %q", response.Code, body)
 	}
 	response = client.do(http.MethodGet, "/admin/articles/change/?id=1", nil)
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), ` name="title"`) || !strings.Contains(response.Body.String(), "First article") {
+		t.Fatalf("view-only detail = %d %q", response.Code, response.Body.String())
+	}
+	token := siteCSRFToken(t, response.Body.String())
+	response = client.do(http.MethodPost, "/admin/articles/change/?id=1", url.Values{"csrfmiddlewaretoken": {token}, "title": {"Denied edit"}})
 	if response.Code != http.StatusForbidden {
-		t.Fatalf("authorizer-denied change status = %d", response.Code)
+		t.Fatalf("authorizer-denied change POST status = %d", response.Code)
 	}
 }
 

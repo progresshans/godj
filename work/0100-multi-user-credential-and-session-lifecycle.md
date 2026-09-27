@@ -54,14 +54,18 @@ Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 
 생성 전용 폼·명시적 object command·revision 조건과 password 비공개 입력을 공통 Admin에 구현했다.
 조회 callback에 actor를 전달하고 view 또는 change 권한을 허용하며, 생성·편집의 선택 목록 권한을 구분한다.
 기존 Article·Helpdesk 어댑터와 영향 normal/race/CGO=0·양 DB 소비자 검증을 완료했다.
-이는 실제 Identity Form/Admin의 완료가 아니다. 해당 모델 등록·action별 현재 DB 인가를 적용한 선택 목록,
-password/생성 validator·감사 조회를 Manager와 연결하는 작업이 다음 범위다.
+이 공통 기반을 실제 Identity Form/Admin 등록·action별 현재 DB 인가의 선택 목록·감사 조회와 Manager에 연결했다.
+Article의 실제 composition, username/email 입력·password confirmation·host policy, view-only 상세를 구현하고 영향 검증했다.
 Username 중복 정책의 선행 조건인 literal string `iexact`를 공통 AST·typed/dynamic·관계 경로에 구현했다.
 SQLite LIKE escape와 PostgreSQL UPPER 비교는 각 compiler가 소유한다. 명시적 생성 옵션은 NFKC 후보를
 hash 전과 write fence 안에서 재검사하며 기본 Manager/API 생성·로그인 의미는 유지한다.
-이는 생성 폼 전체 validator나 실제 Identity 관리 화면의 완료가 아니다. 환경별 실행 상태는 TEST_EVIDENCE를 따른다.
-다음 선택 목록은 모델 관리 목록의 view 권한을 그대로 재사용하지 않고 편집 action의 현재 권한을 검사해야 한다.
+실제 관리 화면은 이 중복 정책을 사용한다. 환경별 실행 상태는 TEST_EVIDENCE를 따른다.
+선택 목록은 target view 대신 User change/Group add·change의 현재 권한과 같은 snapshot에서 완전한 목록을 읽는다.
 감사 조회도 actor 인가와 같은 read snapshot에 연결하며 Runtime의 별도 transaction을 중첩하지 않는다.
+정규화·confirmation·EmailValidator의 독립 Django subset과 실제 양 DB HTTP, revision·권한 회수·감사 실패·unknown,
+password/session·PROTECT/CASCADE를 검증했다. 전체 UserCreationForm validator의 완료는 아니다.
+다음은 Unicode 16과 현재 Go/x/text 15의 정규화·문자 판정 차이, Form 150자와 credential 256-byte 경계, 내장 password strength validator다.
+세 version probe의 실제 불일치를 보존하고 일반 입력 subset의 성공으로 전체 호환을 주장하지 않는다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

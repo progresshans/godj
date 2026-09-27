@@ -8,43 +8,27 @@
 
 ## 현재
 
-User·Group·Permission 저장, 현재 권한 snapshot, 저장 인증·role admission과 명시적 operator 전환을 구현했다.
-Article/Helpdesk·CLI와 durable session 소비자를 연결했고 관리자 비밀번호 교체 service까지 게시·영향 검증했다.
+User·Group·Permission 저장과 현재 권한 snapshot, 저장 인증·staff admission·operator 전환을 연결했다.
+관리 service·JSON API/OpenAPI·독립 Session/Bearer generated client와 실제 Identity Form/Admin을 구현했다.
+Article의 Admin은 사용자·그룹·권한 CRUD, revision 조건, 별도 password command를 제공한다.
+현재 action 권한의 관련 선택 목록과 인가·감사를 같은 read snapshot에서 읽으며, 호스트의 전체 삭제 정책을 사용한다.
+비밀번호 확인·공백 보존·비공개 입력과 host password 정책을 hash 전/마지막 fence 검사에 연결했다.
+View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변경 POST는 데이터 접근 전에 거부한다.
+
+Identity Admin·기존 Form/Admin/API·Article/Helpdesk와 양 DB의 영향 normal/race/CGO=0, 독립 Django 입력 subset,
+negative control을 통과했다. 현재 이 변경의 게시와 Hosted Fast 확인을 진행한다.
+이는 전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료가 아니다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-[외부 app·호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
-[구현 현황](IMPLEMENTATION_MATRIX.md)이 지원 범위를 설명한다.
-
-User/password 관리와 scalar-default backfill·Permission revision migration까지 게시·영향 검증했다.
-Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36281969809)를 통과했다.
-현재 권한과 revision을 확인하고 그룹 권한 합집합을 전체 사용자에 대해 검사한다.
-호스트 관계 삭제와 직접 소유자의 revision 증가·감사를 원자적으로 반영하며 credential·session bytes를 보존한다.
-조회에서 인가 처리 오류를 대체 권한으로 우회하지 않는 공통 경계도 보완했다.
-
-영향 normal/race/CGO=0·양 DB와 독립 Django 비교·negative control을 통과했다.
-설계 의미는 [관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-실행한 source·환경·범위와 실패 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
-실제 관리 JSON API·OpenAPI를 Article의 인증된 composition에 연결하고 게시했다.
-[관리 API Hosted Fast](https://github.com/progresshans/godj/actions/runs/36284619903)도 성공했다.
-관리 API의 영향 normal/race/CGO=0·양 DB와 기존 generated client 호환성, negative control을 통과했다.
-새 관리 API의 독립 Session/Bearer generated client를 실제 HTTP·영속 DB에 연결했다.
-영향 normal/race/CGO=0에서 생성 drift·수정 조건·권한·관계·password/session·감사 검사를 통과했다.
-[독립 client Hosted Fast](https://github.com/progresshans/godj/actions/runs/36286775333)도 구현 source에서 성공했다.
-관리 UI를 위한 공통 Admin 기반을 구현하고 기존 Article·Helpdesk를 함께 갱신했다.
-생성 전용 폼·password command, 조회 actor 전달·view/change admission, revision 제출과 충돌 거부,
-비밀번호 공백 보존·비공개 렌더링·진단을 영향 normal/race/CGO=0와 기존 양 DB 소비자에서 검증했다.
-[공통 Admin Hosted Fast](https://github.com/progresshans/godj/actions/runs/36289923385)도 구현 source에서 성공했다.
-사용자 생성 중복 검사의 선행 조건인 Char/Text literal `iexact`를 공통 AST·typed/dynamic·관계 경로에 연결했다.
-명시적 생성 옵션은 NFKC 후보를 hash 전과 write fence 안에서 재검사하며 기본 생성·로그인 의미를 보존한다.
-독립 Django 기준·양 DB·generated consumer의 영향 normal/race/CGO=0와 negative control을 통과했다.
-[IExact·생성 정책 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36291920509)도 구현 source에서 성공했다.
-새 Identity 모델의 실제 Form/Admin 등록·현재 권한을 적용한 선택 목록과 GDJ-0100 전체 검증은 미완료다.
+[호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
+[구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
 
 ## 다음 행동
 
-사용자·비밀번호·그룹·권한 관리 Form/Admin과 action별 인가를 적용한 관련 선택 목록을 연결한다.
-구현한 생성·편집·command 폼과 revision 조건을 실제 Manager·영속 감사·호스트 삭제 정책에 연결한다.
-UserCreationForm에는 구현한 username 중복 정책과 전체 username/password validator·confirmation을 연결한다.
-Self-service/reset과 나머지 credential lifecycle도 미완료다. 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
+고정 Python의 Unicode 16과 Go/x/text의 Unicode 15 사이 username 정규화·문자 판정 차이를 닫는다.
+Form의 150자 입력과 기존 credential의 256-byte 제한을 함께 정리하고 내장 password strength validator를 구현한다.
+세 Unicode version probe는 실제 차이로 기록했으며 일반 입력 subset PASS로 덮지 않는다.
+Self-service/reset·사용 불가능한 password·last_login lifecycle도 남아 있다.
+GDJ-0100의 다음 전체 platform/process milestone은 관리 소비자와 남은 입력 경계를 정리한 새 source에서 실행한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.

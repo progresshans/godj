@@ -194,6 +194,14 @@ func WithTrimWhitespace(trim bool) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.trimWhitespace, config.hasTrimWhitespace = trim, true })
 }
 
+// WithStringNormalizer supplies a pure string conversion after whitespace
+// handling and before required/length/field validation. It is only supported
+// for unenumerated Char fields and must be safe for concurrent Spec use.
+// It never rewrites raw redisplay input or initial model values.
+func WithStringNormalizer(normalize func(string) string) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.normalizeString, config.hasStringNormalizer = normalize, true })
+}
+
 // WithEmptyValue selects Null or the empty string for optional string input.
 // A null empty value requires a nullable field; it is not an input default.
 func WithEmptyValue(value Value) FieldOption {
@@ -210,43 +218,46 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
-	trimWhitespace    bool
-	hasTrimWhitespace bool
-	label             string
-	widget            Widget
-	hasWidget         bool
-	choices           []Choice
-	modelChoice       bool
-	emptyValue        Value
-	hasEmptyValue     bool
-	required          bool
-	nullable          bool
-	maxLength         int
-	decimalDigits     int
-	decimalPlaces     int
-	defaultValue      Value
-	hasDefault        bool
-	validators        []FieldValidator
+	normalizeString     func(string) string
+	hasStringNormalizer bool
+	trimWhitespace      bool
+	hasTrimWhitespace   bool
+	label               string
+	widget              Widget
+	hasWidget           bool
+	choices             []Choice
+	modelChoice         bool
+	emptyValue          Value
+	hasEmptyValue       bool
+	required            bool
+	nullable            bool
+	maxLength           int
+	decimalDigits       int
+	decimalPlaces       int
+	defaultValue        Value
+	hasDefault          bool
+	validators          []FieldValidator
 }
 
 // Field is an immutable form field definition.
 type Field struct {
-	trimWhitespace bool
-	name           string
-	label          string
-	kind           FieldKind
-	widget         Widget
-	choices        []Choice
-	modelChoice    bool
-	emptyValue     Value
-	required       bool
-	nullable       bool
-	maxLength      int
-	decimalDigits  int
-	decimalPlaces  int
-	defaultValue   Value
-	hasDefault     bool
-	validators     []FieldValidator
+	normalizeString func(string) string
+	trimWhitespace  bool
+	name            string
+	label           string
+	kind            FieldKind
+	widget          Widget
+	choices         []Choice
+	modelChoice     bool
+	emptyValue      Value
+	required        bool
+	nullable        bool
+	maxLength       int
+	decimalDigits   int
+	decimalPlaces   int
+	defaultValue    Value
+	hasDefault      bool
+	validators      []FieldValidator
 }
 
 // ConfigError reports a startup-time invalid form definition.
@@ -301,6 +312,9 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasStringNormalizer && (kind != FieldChar || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".normalizer", Code: "invalid"}
+	}
 	if config.hasTrimWhitespace && kind != FieldChar {
 		return Field{}, &ConfigError{Path: "fields." + name + ".trim_whitespace", Code: "unsupported"}
 	}
@@ -479,18 +493,19 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
-		trimWhitespace: config.trimWhitespace,
-		name:           name,
-		label:          config.label,
-		kind:           kind,
-		widget:         config.widget,
-		choices:        append([]Choice(nil), config.choices...),
-		modelChoice:    config.modelChoice,
-		emptyValue:     config.emptyValue,
-		required:       config.required,
-		nullable:       config.nullable,
-		maxLength:      config.maxLength,
-		decimalDigits:  config.decimalDigits, decimalPlaces: config.decimalPlaces,
+		normalizeString: config.normalizeString,
+		trimWhitespace:  config.trimWhitespace,
+		name:            name,
+		label:           config.label,
+		kind:            kind,
+		widget:          config.widget,
+		choices:         append([]Choice(nil), config.choices...),
+		modelChoice:     config.modelChoice,
+		emptyValue:      config.emptyValue,
+		required:        config.required,
+		nullable:        config.nullable,
+		maxLength:       config.maxLength,
+		decimalDigits:   config.decimalDigits, decimalPlaces: config.decimalPlaces,
 		defaultValue: config.defaultValue,
 		hasDefault:   config.hasDefault,
 		validators:   append([]FieldValidator(nil), config.validators...),
@@ -957,6 +972,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 					raw = strings.TrimSpace(raw)
 				}
 			}
+			if field.normalizeString != nil {
+				raw = field.normalizeString(raw)
+			}
 			if raw == "" {
 				switch {
 				case field.required:
@@ -1109,6 +1127,9 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 			if field.trimWhitespace {
 				raw = strings.TrimSpace(raw)
 			}
+		}
+		if field.normalizeString != nil {
+			raw = field.normalizeString(raw)
 		}
 		value := String(raw)
 		if raw == "" {

@@ -21,6 +21,7 @@ import (
 	"github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/identity"
+	identityadmin "github.com/progresshans/godj/identity/admin"
 	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
@@ -133,7 +134,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		InstalledApps: []apps.Config{{
 			Name:  "github.com/progresshans/godj/examples/article/models",
 			Label: apiapp.Namespace,
-		}},
+		}, {Name: "github.com/progresshans/godj/identity/models", Label: "godj_identity"}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: settings: %w", err)
@@ -145,6 +146,13 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	builder := admin.NewBuilder(projectSettings.Apps())
 	if err := adminapp.RegisterArticle(builder, adminService); err != nil {
 		return nil, fmt.Errorf("article site application: register Article Admin: %w", err)
+	}
+	deletions, err := project.BindRelationDeleters()
+	if err != nil {
+		return nil, fmt.Errorf("article site application: identity deletion policy: %w", err)
+	}
+	if err := identityadmin.Register(builder, identityadmin.NewConfig(runtime, runtimeConfig.PasswordHasher, auth.PrincipalAuthorizer{}, identityadmin.DeletionPolicies{Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})); err != nil {
+		return nil, fmt.Errorf("article site application: identity Admin: %w", err)
 	}
 	registry, err := builder.Build()
 	if err != nil {
@@ -202,10 +210,6 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article OpenAPI authentication: %w", err)
-	}
-	deletions, err := project.BindRelationDeleters()
-	if err != nil {
-		return nil, fmt.Errorf("article site application: identity deletion policy: %w", err)
 	}
 	identityAPI, err := identityapi.New(identityapi.Config{Namespace: apiapp.Namespace, Backend: runtime, PasswordHasher: runtimeConfig.PasswordHasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: apiRuntime, Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})
 	if err != nil {

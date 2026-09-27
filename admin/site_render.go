@@ -129,15 +129,16 @@ func (site *Site) listContext(
 			cells[fieldIndex] = choiceDisplayValue(model.choiceLabels[field], value)
 		}
 		item, err := templateObject(map[string]templates.Value{
-			"id":          templates.Integer(object.id),
-			"label":       templates.String(object.label),
-			"cells":       templates.List(cells...),
-			"change_url":  templates.String(site.modelPath(model) + "change/?id=" + strconv.FormatInt(object.id, 10)),
-			"delete_url":  templates.String(site.modelPath(model) + "delete/?id=" + strconv.FormatInt(object.id, 10)),
-			"history_url": templates.String(site.modelPath(model) + "history/?id=" + strconv.FormatInt(object.id, 10)),
-			"can_change":  templates.Bool(canChange),
-			"can_delete":  templates.Bool(canDelete),
-			"has_history": templates.Bool(model.hasHistory),
+			"id":              templates.Integer(object.id),
+			"label":           templates.String(object.label),
+			"cells":           templates.List(cells...),
+			"change_url":      templates.String(site.modelPath(model) + "change/?id=" + strconv.FormatInt(object.id, 10)),
+			"delete_url":      templates.String(site.modelPath(model) + "delete/?id=" + strconv.FormatInt(object.id, 10)),
+			"history_url":     templates.String(site.modelPath(model) + "history/?id=" + strconv.FormatInt(object.id, 10)),
+			"can_change":      templates.Bool(canChange),
+			"can_view_detail": templates.Bool(!model.readOnly && !canChange),
+			"can_delete":      templates.Bool(canDelete),
+			"has_history":     templates.Bool(model.hasHistory),
 		})
 		if err != nil {
 			return nil, err
@@ -486,6 +487,9 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 	result := make([]templates.Value, len(violations))
 	for index, violation := range violations {
 		message := string(violation.Code())
+		if violation.Code() == "password_mismatch" {
+			message = "The two passwords do not match."
+		}
 		if violation.Code() == validation.CodeUnique || violation.Code() == validation.CodeUniqueTogether {
 			message = "A record with this value already exists."
 			if violation.Field() == validation.NonField {
@@ -510,6 +514,40 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 		result[index] = item
 	}
 	return result, nil
+}
+
+// detailContext projects only the configured form fields from the authorized
+// object snapshot. It does not load selectable catalogs for a view-only actor.
+// Relation keys are displayed as stored identifiers, without inventing labels
+// or granting access to unselected target objects.
+func (site *Site) detailContext(model registeredModel, object Object) (map[string]templates.Value, error) {
+	fields := make([]templates.Value, 0, len(model.form.Fields()))
+	for _, field := range model.form.Fields() {
+		if field.Widget() == forms.PasswordInput {
+			continue
+		}
+		value, ok := object.Value(field.Name())
+		if !ok {
+			return nil, &ConfigError{Path: "site.detail." + field.Name(), Code: "missing_snapshot_value"}
+		}
+		if items, list := value.Items(); list {
+			parts := make([]string, len(items))
+			for i, item := range items {
+				number, ok := item.AsInteger()
+				if !ok {
+					return nil, &ConfigError{Path: "site.detail." + field.Name(), Code: "invalid_relation_key"}
+				}
+				parts[i] = strconv.FormatInt(number, 10)
+			}
+			value = templates.String(strings.Join(parts, ", "))
+		}
+		entry, err := templateObject(map[string]templates.Value{"name": templates.String(field.Name()), "label": templates.String(field.Label()), "value": choiceDisplayValue(model.choiceLabels[field.Name()], value)})
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, entry)
+	}
+	return map[string]templates.Value{"title": templates.String("View " + object.label), "fields": templates.List(fields...), "list_path": templates.String(site.modelPath(model))}, nil
 }
 
 func (site *Site) deleteContext(model registeredModel, object Object) (map[string]templates.Value, error) {

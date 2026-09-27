@@ -6,6 +6,9 @@ import (
 )
 
 func projectManyToMany(field ir.ManyToManyField, override overrideConfig) (forms.Field, error) {
+	if override.hasStringNormalizer || override.hasMaxLength {
+		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "unsupported_string_override"}
+	}
 	if field.Target.AppLabel == "" || field.Target.ModelName == "" || (field.Symmetry != ir.ManyToManyDirected && field.Symmetry != ir.ManyToManySymmetrical) {
 		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "invalid_many_to_many"}
 	}

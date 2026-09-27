@@ -260,6 +260,24 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 		if err != nil {
 			return siteBadRequest()
 		}
+		canChange, err := site.modelWriteAllowed(request.Context(), model, principal, model.permissions.Change)
+		if err != nil {
+			return operationResponse(err)
+		}
+		if !canChange {
+			record, found, err := model.get(request.Context(), principal, id)
+			if err != nil {
+				return operationResponse(err)
+			}
+			if !found {
+				return siteNotFound()
+			}
+			values, err := site.detailContext(model, record.object)
+			if err != nil {
+				return operationResponse(err)
+			}
+			return site.render(request, "detail.html", values)
+		}
 		if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
 			return operationResponse(err)
 		} else if !allowed {

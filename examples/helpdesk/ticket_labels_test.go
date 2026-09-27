@@ -477,7 +477,15 @@ func verifyHelpdeskTicketLabels(t *testing.T, ctx context.Context, runtime *syst
 		}
 		for _, entry := range cases {
 			queries, tx := backend.queries, backend.transactions
+			writes := backend.writes
 			response := denied.request(entry.method, entry.path, "invalid", entry.method != "GET")
+			if permission == helpdesk.ChangeTicketLabel && entry.method == "GET" {
+				if response.Code != 200 || !strings.Contains(response.Body.String(), `data-admin-view="detail"`) || strings.Contains(response.Body.String(), ` name="ticket"`) || strings.Contains(response.Body.String(), ` name="label"`) || backend.writes != writes {
+					t.Fatal("view-only link detail exposed editable choices or wrote", response.Code)
+				}
+				queries, tx = backend.queries, backend.transactions
+				response = denied.request("POST", entry.path, url.Values{"csrfmiddlewaretoken": {denied.csrf}, "ticket": {"1"}, "label": {"1"}}.Encode(), false)
+			}
 			if response.Code != 403 || queries != backend.queries || tx != backend.transactions {
 				t.Fatal("missing link/endpoint permission reached I/O", permission, entry, response.Code)
 			}

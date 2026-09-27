@@ -3,6 +3,86 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 실제 Identity Form/Admin과 현재 권한의 선택·감사
+
+2026-09-27, `3f59e1fd` 뒤의 구현이다. `identity/admin`의 User/Group/Permission CRUD·password command를
+Article의 실제 Admin composition에 연결했다. Current action 인가의 선택 목록, 인가와 같은 snapshot의 감사,
+revision 조건·호스트 관계 삭제, username/email 입력·password confirmation·host policy와 view-only 상세를 포함한다.
+
+실행 시 non-Markdown **2,398 파일** source map은
+`fbb23e7e8c882f312b6ccd0041e7a72fbdf9a376e1a7020dd430ba7f73255b3b`다.
+최종 source map은 `1ec477347722ddc3f6ecd877c8c9d10011ec97230433871cbd9e0273c8ad3ef2`다.
+두 map 사이 차이는 CI 필수 목록 두 파일의 빈 줄/주석 제거뿐이다. 제품·테스트·fixture bytes와 모든 필수 실행 이름의
+동일성을 별도 receipt로 확인하고 여섯 JSON 실행 기록을 최종 roster와 다시 대조했다. Go 테스트를 재실행한 것으로 쓰지 않는다.
+
+Darwin arm64 / Go 1.26.5에서 **13 packages / 1,082 required entries**(239 roots·843 subcases)를 실행했다.
+Forms·model form·Admin·identity·identity Admin/API·systemstate·Article composition/adapter·Article/Helpdesk 전체와,
+양 native DB의 기존 password/user/catalog/API 관리·iexact 생성 정책·실제 저장 인증 HTTP 및 새 Admin을 대상으로 했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 2,610 PASS / skip 0 | 58.616초 |
+| race | 2,610 PASS / skip 0 | 287.578초 |
+| CGO=0 | 2,610 PASS / skip 0 | 64.089초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <선택한 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. 모든 시작/종료, 필수 root/subcase와 no-skip을 검사했다.
+새 native Admin은 DB별 46개 subcase와 root를 필수 목록에 등록했다. 완전한 CI/platform/cold-process 범위가 아니다.
+
+- 실제 HTTP의 staff 로그인·cookie·CSRF를 통해 사용자·그룹·권한 생성/편집/삭제, escaped 선택 label·중복 선택,
+  비밀번호 공백·confirmation, no-op·stale revision, 현재 action 권한, private-field 위조를 검사했다.
+- Password command는 대상의 로그인/미사용 session을 폐기하고 다른 session을 유지한다. 자기 password 교체도 확정 성공을
+  반환한 뒤 재로그인을 요구한다. 같은 durable DB의 별도 연결/runtime에서 새 비밀번호를 확인하고 이전 비밀번호를 거부했다.
+- 선행 읽기 뒤 다른 연결의 revision 변경·권한 회수를 마지막 fence에서 거부한다. 네 관리 작업의 audit 실패는
+  user/session/audit rollback, 실제 commit 뒤 injected unknown은 503·no redirect/no retry를 검증했다.
+  HTTP 검사의 session clock만 고정해 일반 sliding expiry와 관리 부작용을 혼동하지 않고 bytes를 비교한다.
+- 호스트 PROTECT의 확정 거부와 CASCADE를 실제 삭제 Form에서 검사했다. 기존 Helpdesk의 view-only 상세를 허용하되
+  change POST는 데이터 접근 전에 거부하고 편집용 target permission 검사는 유지했다.
+- 선택과 감사는 권한 확인 중 다른 연결이 변경한 데이터를 섞지 않는다. 다음 요청의 현재 인가, reader 종료 후 사용 거부,
+  query·read cleanup·취소·잘못된 callback, permission 모양 실행 오류, catalog 4,096개 경계/초과의 무절단 거부를 검사했다.
+- Host password policy의 hash 전/최종 fence 거부와 취소, rollback cleanup·swallowed rejection·unknown을 구분한다.
+  Validator의 profile·옵션 소유권, 잘못된 field 오류, 기본 빈 strength 정책과 비공개 config 진단도 검사했다.
+- 별도 Article composition 테스트가 새 관리 목록을 실제 등록하고, CSRF user 생성·NFKC 저장·hash 확인·안전한 기본 role을
+  검사한다. 테스트 callback만의 공통 Admin 기반 검증과 구분된다.
+
+독립 Django 6.1 / Python 3.14.3 observer가 새 temporary SQLite에서 **username 23·EmailValidator 304·confirmation 8**개를
+관찰했다. 공통 synthetic 입력만 읽으며 GoDj 출력/기대값을 import하지 않는다. 두 독립 실행 JSON과 checked-in fixture가
+일치하고, input hash와 auth forms/validators·core validators 소스 hash를 보존한다.
+Reference SHA256은 `23c00ae7588ace59684e41ea6708ee268c05b6aeb74dfc32d78bab0a96fb1741`,
+input SHA256은 `a9f9e8dcb0e127863de178508239ed14d82643bdf7e35bcfe521327ce2cdaf2c`다.
+Django grammar의 adapted 범위와 BSD-3-Clause 출처는 [NOTICE](../../identity/admin/NOTICE.md)에 명시했다.
+
+위 **335개 입력 subset**의 일치와 별개로 **Unicode version probe 3개는 불일치**다. CPython Unicode 16이 허용/정규화하는
+outlined Latin U+1CCD6, Todhri U+105C0, 새 숫자 U+10D40을 현재 Go/x/text Unicode 15 경로는 거부한다.
+실제 관찰을 fixture·실행 로그에 남겼으며 이 세 입력을 parity PASS나 skip으로 계산하지 않는다.
+Form의 150자와 기존 credential의 256-byte 제한도 남아 있다. 내장 password strength validator, self-service/reset,
+unusable password·last_login 및 GDJ-0100 전체 platform/process milestone을 완료했다고 주장하지 않는다.
+
+Go overlay **8개 변형 / 8개 assertion 탐지**: unrelated target 권한 요구, history 현재 인가 생략, 마지막 password policy 거부
+무시, username 정규화 생략, password trim, unknown을 conflict로 변경, oversized 선택 truncate, password widget 공개.
+실제 해당 테스트의 실패를 확인했고 build 실패는 탐지로 세지 않았다. Controls는 실행 source 전후가 같다.
+
+초기 checkpoint에서 view-only GET의 옛 403 가정, 새 descriptor 권한 목록/명시적 ordering 기대, HTTP session sliding expiry를
+관리 rollback과 혼동한 fixture, query hook의 인가용 Permission SELECT 포함, 실패 reader의 test wrapper panic을 발견했다.
+기존 쓰기 거부 검증을 유지하며 fixture를 고친 후 위 선언 범위를 다시 실행했다. 실패와 정리 기록을 보존했다.
+추가로 CI roster에 넣은 빈 줄/주석이 기존 CI parser에서 거부됐다. 필수 테스트 이름은 유지하고 형식만 바로잡았으며,
+최종 source에서 CI 도구 **41개 PASS**와 여섯 event inventory 재검사를 완료했다.
+
+영향 vet·identity/Article/Helpdesk 생성물 drift·gofmt·문서 링크·diff 검사는 통과했다. Supplemental 최초 receipt의 CI 도구
+실패는 위 roster repair receipt가 해결한다. Source 차이를 숨겨 supplemental 전체를 최초부터 PASS로 표현하지 않는다.
+Private PostgreSQL은 17.10 UTF8/libc/C,
+image `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+완료 시 public table·owned schema·다른 connection은 `0|0|0`이고 container를 제거했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+
+- `identity-admin-checkpoint-1790483731939424000/receipt.json`: 세 모드·필수 roster·raw events·실행 source/cleanup.
+- `identity-admin-controls-1790483888131023000/receipt.json`: 8개 변형 탐지와 source 보존.
+- `identity-admin-reference-1790483793276407000/receipt.json`: 두 독립 실행·hash·335개 subset과 세 version probe.
+- `identity-admin-roster-1790484231194097000/receipt.json`: 최종 source map·정확한 두 파일 차이·실행명 동일성·CI 도구와 inventory 재검사.
+- `identity-admin-supplemental-1790483888131010000/receipt.json`: vet·생성 drift·gofmt·docs·diff와 최초 CI roster 실패.
+- `identity-admin-checkpoint-1790483495316706000/receipt.json`, `identity-admin-checkpoint-1790483615526882000/receipt.json`: 초기 fixture 실패·정리.
+
 ## GDJ-0100 — literal iexact와 사용자 생성의 중복 정책
 
 2026-09-27, `143eb3bf` 뒤의 변경이다. Char/Text의 root·nullable·관계 `IExact`와 dynamic `__iexact`를

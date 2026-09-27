@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title></head>
+<body data-admin-view="detail"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>{{ title }}</h1><dl>{% for field in fields %}<dt>{{ field.label }}</dt><dd data-field-name="{{ field.name }}">{{ field.value }}</dd>{% endfor %}</dl><p><a href="{{ list_path }}">Back to list</a></p></main>
+</body></html>

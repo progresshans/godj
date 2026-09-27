@@ -94,6 +94,11 @@ metadata close to the file.
 Django is a trademark of the Django Software Foundation. GoDj is an independent
 project and is not endorsed by the Django Software Foundation.
 
+The Identity Admin input grammar adapts Django's username/email validation
+character ranges and form semantics. The affected files, symbols, pinned source
+and modifications are identified in [identity/admin/NOTICE.md](identity/admin/NOTICE.md).
+This is separate from the independently authored input scenarios and observer.
+
 ## modernc.org/sqlite and modernc.org/libc
 
 GoDj's M1/M2 SQLite backend directly uses `modernc.org/sqlite v1.56.0`, whose

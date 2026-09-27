@@ -1,0 +1,1370 @@
+{
+  "usernames": [
+    {
+      "name": "plain",
+      "value": "Fred"
+    },
+    {
+      "name": "fullwidth",
+      "value": " Ｆｒｅｄ "
+    },
+    {
+      "name": "ligature",
+      "value": "ﬃname"
+    },
+    {
+      "name": "python_control_strip",
+      "value": "\u001cFred\u001f"
+    },
+    {
+      "name": "em_space",
+      "value": " 홍길동 "
+    },
+    {
+      "name": "combining_composed",
+      "value": "José"
+    },
+    {
+      "name": "combining_uncomposed",
+      "value": "q́"
+    },
+    {
+      "name": "punctuation",
+      "value": "a_b.c@d+e-f"
+    },
+    {
+      "name": "emoji",
+      "value": "person😀"
+    },
+    {
+      "name": "space",
+      "value": "two names"
+    },
+    {
+      "name": "line",
+      "value": "name\ninside"
+    },
+    {
+      "name": "joiner",
+      "value": "a‍b"
+    },
+    {
+      "name": "number",
+      "value": "Ⅷ²١"
+    },
+    {
+      "name": "empty",
+      "value": ""
+    },
+    {
+      "name": "blank",
+      "value": " \t\n "
+    },
+    {
+      "name": "nul",
+      "value": "a\u0000b"
+    },
+    {
+      "name": "max150",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "over151",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "expansion",
+      "value": "ﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ"
+    },
+    {
+      "name": "overlength_invalid",
+      "value": "???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????"
+    },
+    {
+      "name": "korean150",
+      "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+    },
+    {
+      "name": "strip_after_nfkc",
+      "value": "¨"
+    },
+    {
+      "name": "mathletters",
+      "value": "𝔘𝔰𝔢𝔯"
+    }
+  ],
+  "emails": [
+    {
+      "name": "plain",
+      "value": "first.last+tag@example.test"
+    },
+    {
+      "name": "empty",
+      "value": ""
+    },
+    {
+      "name": "missing_at",
+      "value": "a.example.test"
+    },
+    {
+      "name": "multiple_at",
+      "value": "a@b@example.test"
+    },
+    {
+      "name": "empty_local",
+      "value": "@example.test"
+    },
+    {
+      "name": "empty_domain",
+      "value": "a@"
+    },
+    {
+      "name": "localhost",
+      "value": "a@localhost"
+    },
+    {
+      "name": "localhost_upper",
+      "value": "a@LOCALHOST"
+    },
+    {
+      "name": "ipv4",
+      "value": "a@[127.0.0.1]"
+    },
+    {
+      "name": "ipv4_leading_zero",
+      "value": "a@[127.00.0.1]"
+    },
+    {
+      "name": "ipv6",
+      "value": "a@[2001:db8::1]"
+    },
+    {
+      "name": "ipv6_mapped",
+      "value": "a@[::ffff:192.0.2.1]"
+    },
+    {
+      "name": "ipv6_zone",
+      "value": "a@[fe80::1%en0]"
+    },
+    {
+      "name": "ipv6_prefix",
+      "value": "a@[IPv6:::1]"
+    },
+    {
+      "name": "literal_invalid",
+      "value": "a@[12345::]"
+    },
+    {
+      "name": "quoted_empty",
+      "value": "\"\"@example.test"
+    },
+    {
+      "name": "quoted_at",
+      "value": "\"a@b\"@example.test"
+    },
+    {
+      "name": "quoted_space",
+      "value": "\"a b\"@example.test"
+    },
+    {
+      "name": "escaped_space",
+      "value": "\"a\\ b\"@example.test"
+    },
+    {
+      "name": "trailing_dot",
+      "value": "a@example.test."
+    },
+    {
+      "name": "dot_local",
+      "value": "a..b@example.test"
+    },
+    {
+      "name": "local_unicode",
+      "value": "홍@example.test"
+    },
+    {
+      "name": "domain_unicode",
+      "value": "a@예제.한국"
+    },
+    {
+      "name": "domain_astral",
+      "value": "a@😀.test"
+    },
+    {
+      "name": "tld_one",
+      "value": "a@example.x"
+    },
+    {
+      "name": "tld_digits",
+      "value": "a@example.12"
+    },
+    {
+      "name": "tld_digit_mixed",
+      "value": "a@example.c0m"
+    },
+    {
+      "name": "punycode",
+      "value": "a@example.xn--p1ai"
+    },
+    {
+      "name": "punycode_upper",
+      "value": "a@example.XN--P1AI"
+    },
+    {
+      "name": "punycode_hyphen",
+      "value": "a@example.xn--p1-a"
+    },
+    {
+      "name": "punycode_empty",
+      "value": "a@example.xn--"
+    },
+    {
+      "name": "domain_dash_start",
+      "value": "a@-host.test"
+    },
+    {
+      "name": "domain_dash_end",
+      "value": "a@host-.test"
+    },
+    {
+      "name": "tld_dash_start",
+      "value": "a@host.-test"
+    },
+    {
+      "name": "tld_dash_end",
+      "value": "a@host.test-"
+    },
+    {
+      "name": "domain_label63",
+      "value": "a@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.test"
+    },
+    {
+      "name": "domain_label64",
+      "value": "a@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.test"
+    },
+    {
+      "name": "tld63",
+      "value": "a@host.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "name": "tld64",
+      "value": "a@host.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "name": "max320",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.test"
+    },
+    {
+      "name": "over321",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.test"
+    },
+    {
+      "name": "nul_domain",
+      "value": "a@ho\u0000st.test"
+    },
+    {
+      "name": "domain_nonbreak",
+      "value": "a@ho st.test"
+    },
+    {
+      "name": "domain_inverted",
+      "value": "a@ho¡st.test"
+    },
+    {
+      "name": "regex_case_0",
+      "value": "İ@example.test"
+    },
+    {
+      "name": "regex_case_1",
+      "value": "ı@example.test"
+    },
+    {
+      "name": "regex_case_2",
+      "value": "ſ@example.test"
+    },
+    {
+      "name": "regex_case_3",
+      "value": "K@example.test"
+    },
+    {
+      "name": "quoted_ascii_000",
+      "value": "\"a\u0000b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_000",
+      "value": "\"a\\\u0000b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_001",
+      "value": "\"a\u0001b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_001",
+      "value": "\"a\\\u0001b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_002",
+      "value": "\"a\u0002b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_002",
+      "value": "\"a\\\u0002b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_003",
+      "value": "\"a\u0003b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_003",
+      "value": "\"a\\\u0003b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_004",
+      "value": "\"a\u0004b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_004",
+      "value": "\"a\\\u0004b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_005",
+      "value": "\"a\u0005b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_005",
+      "value": "\"a\\\u0005b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_006",
+      "value": "\"a\u0006b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_006",
+      "value": "\"a\\\u0006b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_007",
+      "value": "\"a\u0007b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_007",
+      "value": "\"a\\\u0007b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_008",
+      "value": "\"a\bb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_008",
+      "value": "\"a\\\bb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_009",
+      "value": "\"a\tb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_009",
+      "value": "\"a\\\tb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_010",
+      "value": "\"a\nb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_010",
+      "value": "\"a\\\nb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_011",
+      "value": "\"a\u000bb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_011",
+      "value": "\"a\\\u000bb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_012",
+      "value": "\"a\fb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_012",
+      "value": "\"a\\\fb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_013",
+      "value": "\"a\rb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_013",
+      "value": "\"a\\\rb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_014",
+      "value": "\"a\u000eb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_014",
+      "value": "\"a\\\u000eb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_015",
+      "value": "\"a\u000fb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_015",
+      "value": "\"a\\\u000fb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_016",
+      "value": "\"a\u0010b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_016",
+      "value": "\"a\\\u0010b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_017",
+      "value": "\"a\u0011b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_017",
+      "value": "\"a\\\u0011b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_018",
+      "value": "\"a\u0012b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_018",
+      "value": "\"a\\\u0012b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_019",
+      "value": "\"a\u0013b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_019",
+      "value": "\"a\\\u0013b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_020",
+      "value": "\"a\u0014b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_020",
+      "value": "\"a\\\u0014b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_021",
+      "value": "\"a\u0015b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_021",
+      "value": "\"a\\\u0015b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_022",
+      "value": "\"a\u0016b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_022",
+      "value": "\"a\\\u0016b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_023",
+      "value": "\"a\u0017b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_023",
+      "value": "\"a\\\u0017b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_024",
+      "value": "\"a\u0018b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_024",
+      "value": "\"a\\\u0018b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_025",
+      "value": "\"a\u0019b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_025",
+      "value": "\"a\\\u0019b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_026",
+      "value": "\"a\u001ab\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_026",
+      "value": "\"a\\\u001ab\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_027",
+      "value": "\"a\u001bb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_027",
+      "value": "\"a\\\u001bb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_028",
+      "value": "\"a\u001cb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_028",
+      "value": "\"a\\\u001cb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_029",
+      "value": "\"a\u001db\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_029",
+      "value": "\"a\\\u001db\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_030",
+      "value": "\"a\u001eb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_030",
+      "value": "\"a\\\u001eb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_031",
+      "value": "\"a\u001fb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_031",
+      "value": "\"a\\\u001fb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_032",
+      "value": "\"a b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_032",
+      "value": "\"a\\ b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_033",
+      "value": "\"a!b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_033",
+      "value": "\"a\\!b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_034",
+      "value": "\"a\"b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_034",
+      "value": "\"a\\\"b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_035",
+      "value": "\"a#b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_035",
+      "value": "\"a\\#b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_036",
+      "value": "\"a$b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_036",
+      "value": "\"a\\$b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_037",
+      "value": "\"a%b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_037",
+      "value": "\"a\\%b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_038",
+      "value": "\"a&b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_038",
+      "value": "\"a\\&b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_039",
+      "value": "\"a'b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_039",
+      "value": "\"a\\'b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_040",
+      "value": "\"a(b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_040",
+      "value": "\"a\\(b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_041",
+      "value": "\"a)b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_041",
+      "value": "\"a\\)b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_042",
+      "value": "\"a*b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_042",
+      "value": "\"a\\*b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_043",
+      "value": "\"a+b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_043",
+      "value": "\"a\\+b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_044",
+      "value": "\"a,b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_044",
+      "value": "\"a\\,b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_045",
+      "value": "\"a-b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_045",
+      "value": "\"a\\-b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_046",
+      "value": "\"a.b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_046",
+      "value": "\"a\\.b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_047",
+      "value": "\"a/b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_047",
+      "value": "\"a\\/b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_048",
+      "value": "\"a0b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_048",
+      "value": "\"a\\0b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_049",
+      "value": "\"a1b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_049",
+      "value": "\"a\\1b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_050",
+      "value": "\"a2b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_050",
+      "value": "\"a\\2b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_051",
+      "value": "\"a3b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_051",
+      "value": "\"a\\3b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_052",
+      "value": "\"a4b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_052",
+      "value": "\"a\\4b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_053",
+      "value": "\"a5b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_053",
+      "value": "\"a\\5b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_054",
+      "value": "\"a6b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_054",
+      "value": "\"a\\6b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_055",
+      "value": "\"a7b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_055",
+      "value": "\"a\\7b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_056",
+      "value": "\"a8b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_056",
+      "value": "\"a\\8b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_057",
+      "value": "\"a9b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_057",
+      "value": "\"a\\9b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_058",
+      "value": "\"a:b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_058",
+      "value": "\"a\\:b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_059",
+      "value": "\"a;b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_059",
+      "value": "\"a\\;b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_060",
+      "value": "\"a<b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_060",
+      "value": "\"a\\<b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_061",
+      "value": "\"a=b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_061",
+      "value": "\"a\\=b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_062",
+      "value": "\"a>b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_062",
+      "value": "\"a\\>b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_063",
+      "value": "\"a?b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_063",
+      "value": "\"a\\?b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_064",
+      "value": "\"a@b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_064",
+      "value": "\"a\\@b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_065",
+      "value": "\"aAb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_065",
+      "value": "\"a\\Ab\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_066",
+      "value": "\"aBb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_066",
+      "value": "\"a\\Bb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_067",
+      "value": "\"aCb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_067",
+      "value": "\"a\\Cb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_068",
+      "value": "\"aDb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_068",
+      "value": "\"a\\Db\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_069",
+      "value": "\"aEb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_069",
+      "value": "\"a\\Eb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_070",
+      "value": "\"aFb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_070",
+      "value": "\"a\\Fb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_071",
+      "value": "\"aGb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_071",
+      "value": "\"a\\Gb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_072",
+      "value": "\"aHb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_072",
+      "value": "\"a\\Hb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_073",
+      "value": "\"aIb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_073",
+      "value": "\"a\\Ib\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_074",
+      "value": "\"aJb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_074",
+      "value": "\"a\\Jb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_075",
+      "value": "\"aKb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_075",
+      "value": "\"a\\Kb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_076",
+      "value": "\"aLb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_076",
+      "value": "\"a\\Lb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_077",
+      "value": "\"aMb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_077",
+      "value": "\"a\\Mb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_078",
+      "value": "\"aNb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_078",
+      "value": "\"a\\Nb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_079",
+      "value": "\"aOb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_079",
+      "value": "\"a\\Ob\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_080",
+      "value": "\"aPb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_080",
+      "value": "\"a\\Pb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_081",
+      "value": "\"aQb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_081",
+      "value": "\"a\\Qb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_082",
+      "value": "\"aRb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_082",
+      "value": "\"a\\Rb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_083",
+      "value": "\"aSb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_083",
+      "value": "\"a\\Sb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_084",
+      "value": "\"aTb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_084",
+      "value": "\"a\\Tb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_085",
+      "value": "\"aUb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_085",
+      "value": "\"a\\Ub\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_086",
+      "value": "\"aVb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_086",
+      "value": "\"a\\Vb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_087",
+      "value": "\"aWb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_087",
+      "value": "\"a\\Wb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_088",
+      "value": "\"aXb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_088",
+      "value": "\"a\\Xb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_089",
+      "value": "\"aYb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_089",
+      "value": "\"a\\Yb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_090",
+      "value": "\"aZb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_090",
+      "value": "\"a\\Zb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_091",
+      "value": "\"a[b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_091",
+      "value": "\"a\\[b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_092",
+      "value": "\"a\\b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_092",
+      "value": "\"a\\\\b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_093",
+      "value": "\"a]b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_093",
+      "value": "\"a\\]b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_094",
+      "value": "\"a^b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_094",
+      "value": "\"a\\^b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_095",
+      "value": "\"a_b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_095",
+      "value": "\"a\\_b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_096",
+      "value": "\"a`b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_096",
+      "value": "\"a\\`b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_097",
+      "value": "\"aab\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_097",
+      "value": "\"a\\ab\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_098",
+      "value": "\"abb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_098",
+      "value": "\"a\\bb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_099",
+      "value": "\"acb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_099",
+      "value": "\"a\\cb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_100",
+      "value": "\"adb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_100",
+      "value": "\"a\\db\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_101",
+      "value": "\"aeb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_101",
+      "value": "\"a\\eb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_102",
+      "value": "\"afb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_102",
+      "value": "\"a\\fb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_103",
+      "value": "\"agb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_103",
+      "value": "\"a\\gb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_104",
+      "value": "\"ahb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_104",
+      "value": "\"a\\hb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_105",
+      "value": "\"aib\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_105",
+      "value": "\"a\\ib\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_106",
+      "value": "\"ajb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_106",
+      "value": "\"a\\jb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_107",
+      "value": "\"akb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_107",
+      "value": "\"a\\kb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_108",
+      "value": "\"alb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_108",
+      "value": "\"a\\lb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_109",
+      "value": "\"amb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_109",
+      "value": "\"a\\mb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_110",
+      "value": "\"anb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_110",
+      "value": "\"a\\nb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_111",
+      "value": "\"aob\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_111",
+      "value": "\"a\\ob\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_112",
+      "value": "\"apb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_112",
+      "value": "\"a\\pb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_113",
+      "value": "\"aqb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_113",
+      "value": "\"a\\qb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_114",
+      "value": "\"arb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_114",
+      "value": "\"a\\rb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_115",
+      "value": "\"asb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_115",
+      "value": "\"a\\sb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_116",
+      "value": "\"atb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_116",
+      "value": "\"a\\tb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_117",
+      "value": "\"aub\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_117",
+      "value": "\"a\\ub\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_118",
+      "value": "\"avb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_118",
+      "value": "\"a\\vb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_119",
+      "value": "\"awb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_119",
+      "value": "\"a\\wb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_120",
+      "value": "\"axb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_120",
+      "value": "\"a\\xb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_121",
+      "value": "\"ayb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_121",
+      "value": "\"a\\yb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_122",
+      "value": "\"azb\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_122",
+      "value": "\"a\\zb\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_123",
+      "value": "\"a{b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_123",
+      "value": "\"a\\{b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_124",
+      "value": "\"a|b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_124",
+      "value": "\"a\\|b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_125",
+      "value": "\"a}b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_125",
+      "value": "\"a\\}b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_126",
+      "value": "\"a~b\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_126",
+      "value": "\"a\\~b\"@example.test"
+    },
+    {
+      "name": "quoted_ascii_127",
+      "value": "\"ab\"@example.test"
+    },
+    {
+      "name": "escaped_ascii_127",
+      "value": "\"a\\b\"@example.test"
+    }
+  ],
+  "passwords": [
+    {
+      "name": "equal",
+      "password1": "secret",
+      "password2": "secret"
+    },
+    {
+      "name": "spaces_preserved",
+      "password1": " secret ",
+      "password2": " secret "
+    },
+    {
+      "name": "spaces_mismatch",
+      "password1": "secret ",
+      "password2": "secret"
+    },
+    {
+      "name": "both_empty",
+      "password1": "",
+      "password2": ""
+    },
+    {
+      "name": "first_empty",
+      "password1": "",
+      "password2": "a"
+    },
+    {
+      "name": "second_empty",
+      "password1": "a",
+      "password2": ""
+    },
+    {
+      "name": "all_spaces",
+      "password1": "   ",
+      "password2": "   "
+    },
+    {
+      "name": "unicode_not_normalized",
+      "password1": "Ｆｒｅｄ",
+      "password2": "Fred"
+    }
+  ],
+  "version_probes": [
+    {
+      "name": "unicode16_outlined_latin",
+      "value": "𜳖"
+    },
+    {
+      "name": "unicode16_todhri_letter",
+      "value": "𐗀"
+    },
+    {
+      "name": "unicode16_decimal",
+      "value": "𐵀"
+    }
+  ]
+}

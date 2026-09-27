@@ -27,8 +27,8 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("forms/model: %s: %s", e.Path, e.Code)
 }
 
-// OverrideOption is a closed structural override. Storage metadata such as
-// kind, nullability, default, and max length cannot be overridden here.
+// OverrideOption is a closed form override. Storage kind, nullability and
+// default cannot change. An input length limit may narrow the stored limit.
 type OverrideOption interface {
 	apply(*overrideConfig)
 }
@@ -64,14 +64,28 @@ func WithValidators(validators ...forms.FieldValidator) OverrideOption {
 	})
 }
 
+func WithStringNormalizer(normalize func(string) string) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.normalizeString, config.hasStringNormalizer = normalize, true })
+}
+
+// WithMaxLength narrows a Char/Text form's input policy without changing IR
+// storage metadata. Zero, negative or broader limits are configuration errors.
+func WithMaxLength(limit int) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.maxLength, config.hasMaxLength = limit, true })
+}
+
 type overrideConfig struct {
-	label       string
-	hasLabel    bool
-	required    bool
-	hasRequired bool
-	widget      forms.Widget
-	hasWidget   bool
-	validators  []forms.FieldValidator
+	normalizeString     func(string) string
+	hasStringNormalizer bool
+	maxLength           int
+	hasMaxLength        bool
+	label               string
+	hasLabel            bool
+	required            bool
+	hasRequired         bool
+	widget              forms.Widget
+	hasWidget           bool
+	validators          []forms.FieldValidator
 }
 
 // Override identifies one existing IR field and presentation/validation-only
@@ -217,6 +231,9 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
+	if (override.hasStringNormalizer || override.hasMaxLength) && field.Kind != ir.FieldChar && field.Kind != ir.FieldText {
+		return forms.Field{}, &Error{Code: "unsupported_string_override"}
+	}
 	if err := ir.ValidateChoices(field); err != nil {
 		return forms.Field{}, &Error{Code: "invalid_choices"}
 	}
@@ -228,6 +245,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		label = override.label
 	}
 	options := []forms.FieldOption{forms.WithLabel(label)}
+	if override.hasStringNormalizer {
+		options = append(options, forms.WithStringNormalizer(override.normalizeString))
+	}
 	if field.Choices != nil {
 		choices := make([]forms.Choice, len(field.Choices))
 		for index, choice := range field.Choices {
@@ -453,6 +473,12 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithEmptyValue(forms.String("")))
 		}
 		options = append(options, forms.WithRequired(!field.Nullable), forms.WithMaxLength(field.MaxLength))
+		if override.hasMaxLength {
+			if override.maxLength <= 0 || field.MaxLength > 0 && override.maxLength > field.MaxLength {
+				return forms.Field{}, &Error{Code: "invalid_input_max_length"}
+			}
+			options = append(options, forms.WithMaxLength(override.maxLength))
+		}
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}

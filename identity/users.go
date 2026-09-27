@@ -149,7 +149,7 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 				return managementInputError("username", "unique")
 			}
 		}
-		return nil
+		return manager.validatePassword(ctx, password, profileFromRow(row))
 	}
 	if _, err := managementSnapshot(ctx, manager, func(reader db.Queryer) (struct{}, error) {
 		return struct{}{}, preflight(reader, create("identity-creation-preflight"))

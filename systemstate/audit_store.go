@@ -82,22 +82,55 @@ func (runtime *Runtime) AuditHistory(
 	}
 	var result []admin.AuditEntry
 	err := runtime.withAtomic(ctx, func(session db.Session) error {
-		rows, err := queryAuditRows(ctx, session, model, objectID, limit, query.Descending)
-		if err != nil {
-			return err
-		}
-		result = make([]admin.AuditEntry, len(rows))
-		for index := range rows {
-			entry, err := rows[index].entry()
-			if err != nil {
-				return err
-			}
-			result[len(rows)-1-index] = entry
-		}
-		return nil
+		var err error
+		result, err = readAuditHistory(ctx, session, model, objectID, limit)
+		return err
 	})
 	if err != nil {
 		return nil, err
+	}
+	return result, nil
+}
+
+// AuditHistoryInSnapshot borrows the caller's live reader. Authorization and
+// history therefore observe one snapshot without recursively acquiring this
+// runtime's transaction gate. The caller must use this runtime's DB domain and
+// keep the reader within its owning callback; this method does not grant access.
+func (runtime *Runtime) AuditHistoryInSnapshot(ctx context.Context, reader db.Queryer, model string, objectID int64, limit int) ([]admin.AuditEntry, error) {
+	if err := runtime.validBackendCall(ctx); err != nil {
+		return nil, err
+	}
+	if isNilInterface(reader) {
+		return nil, &Error{Code: CodeInvalidInput, Field: "history", Detail: "borrowed history reader is nil"}
+	}
+	validator, ok := reader.(db.SessionValidator)
+	if !ok || isNilInterface(validator) {
+		return nil, &Error{Code: CodeInvalidInput, Field: "history", Detail: "history requires a borrowed live reader"}
+	}
+	if err := validator.ValidateSession(ctx); err != nil {
+		return nil, err
+	}
+	if limit < 1 || limit > admin.MaximumHistoryEntries {
+		return nil, &Error{Code: CodeInvalidInput, Field: "limit", Detail: "audit history limit is outside the current profile"}
+	}
+	if _, err := admin.PrepareEvent("systemstate-history", model, objectID, admin.ActionChange, nil, ""); err != nil {
+		return nil, &Error{Code: CodeInvalidInput, Field: "history", Detail: "audit history identity is invalid", Cause: err}
+	}
+	return readAuditHistory(ctx, reader, model, objectID, limit)
+}
+
+func readAuditHistory(ctx context.Context, reader db.Queryer, model string, objectID int64, limit int) ([]admin.AuditEntry, error) {
+	rows, err := queryAuditRows(ctx, reader, model, objectID, limit, query.Descending)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]admin.AuditEntry, len(rows))
+	for index := range rows {
+		entry, err := rows[index].entry()
+		if err != nil {
+			return nil, err
+		}
+		result[len(rows)-1-index] = entry
 	}
 	return result, nil
 }
