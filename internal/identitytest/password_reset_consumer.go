@@ -127,6 +127,9 @@ func (h *resetAccountHTTP) bootstrap(t *testing.T, surface string) (string, http
 	}
 	token := response.Header.Get(sessionauth.DefaultCSRFHeader)
 	if surface == "form" {
+		if !strings.Contains(body, `type="email" id="id_email" name="email"`) {
+			t.Fatal("reset form lost its email input widget")
+		}
 		token = accountCSRF(t, body)
 	}
 	headers := make(http.Header)

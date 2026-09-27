@@ -85,7 +85,7 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		case scalar.Kind() == query.ValueInteger && field.Kind() == forms.FieldInteger:
 			integer, _ := scalar.Integer()
 			result[field.Name()] = forms.Integer(integer)
-		case scalar.Kind() == query.ValueString && field.Kind() == forms.FieldChar:
+		case scalar.Kind() == query.ValueString && (field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail):
 			text, _ := scalar.String()
 			result[field.Name()] = forms.String(text)
 		case scalar.Kind() == query.ValueBoolean && field.Kind() == forms.FieldBoolean:

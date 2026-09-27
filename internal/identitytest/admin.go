@@ -102,7 +102,7 @@ func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, 
 		data.Set("groups", strconv.FormatInt(group.ID, 10))
 		path := adminObjectPath("users", "change", user.ID)
 		change := h.call(t, h.client, "GET", path, nil, 200)
-		change.contains(t, "Editors &lt;web&gt;", "Archive &lt;tickets&gt;")
+		change.contains(t, "Editors &lt;web&gt;", "Archive &lt;tickets&gt;", `type="email" name="email"`)
 		change.excludes(t, user.EncodedPassword, rawPassword)
 		h.postForm(t, path, data, 302)
 		details, err = manager.User(t.Context(), f.actor, user.ID)
@@ -119,7 +119,17 @@ func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, 
 		h.postForm(t, path, stale, 409)
 		invalid := adminUserData(details)
 		invalid.Set("email", "not-an-email")
+		beforeEmailAudit, err := f.runtime.AuditHistory(t.Context(), "godj_identity.user", user.ID, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
 		h.postForm(t, path, invalid, 200).contains(t, `data-error-field="email" data-error-code="invalid"`)
+		if current, err := manager.User(t.Context(), f.actor, user.ID); err != nil || !reflect.DeepEqual(current, details) {
+			t.Fatal("invalid email changed the stored user or revision", err)
+		}
+		if current, err := f.runtime.AuditHistory(t.Context(), "godj_identity.user", user.ID, 100); err != nil || !reflect.DeepEqual(current, beforeEmailAudit) {
+			t.Fatal("invalid email added an audit entry", err)
+		}
 		beforeHashes := f.hasher.calls.Load()
 		h.postForm(t, "/admin/users/add/", url.Values{"username": {"fRED"}, "password1": {rawPassword}, "password2": {rawPassword}}, 200).contains(t, `data-error-field="username" data-error-code="unique"`)
 		if f.hasher.calls.Load() != beforeHashes {

@@ -21,7 +21,7 @@ func TestIdentityTransitionDefinitionMatchesNormalizedSchemaAndIsDetached(t *tes
 		t.Fatal("identity transition migration drift")
 	}
 	first, second := IdentityMigrationSources(), IdentityMigrationSources()
-	if len(first) != 4 {
+	if len(first) != 5 {
 		t.Fatal("incomplete identity migration graph")
 	}
 	for index := range first {

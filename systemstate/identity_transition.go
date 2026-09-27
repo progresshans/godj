@@ -12,8 +12,10 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/migrations"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
 )
 
@@ -304,33 +306,36 @@ func identityInitializedError() error {
 	return &Error{Code: CodeIdentityAlreadyInitialized, Field: "identity_transition", Detail: "identity ownership has already been initialized; inspect the existing receipt"}
 }
 
-func requireIdentityMigrations(ctx context.Context, backend Backend) error {
+func requireIdentityMigrations(ctx context.Context, backend migrationbackend.AppliedMigrationReader) error {
+	// Load the owned historical definitions so adding a new identity migration
+	// cannot turn the previously current migration into an unknown entry.
+	loaded, _, err := definition.Load(IdentityMigrationSources()...)
+	if err != nil {
+		return &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "built-in identity migration graph is invalid", Cause: err}
+	}
+	required := make(map[migrations.MigrationKey]bool)
+	ownedApps := make(map[string]bool)
+	for _, migration := range loaded.Definitions() {
+		required[migration.Key()] = true
+		ownedApps[migration.App] = true
+	}
 	rows, err := backend.ReadAppliedMigrations(ctx)
 	if err != nil {
 		return schemaRowsFailure("migration_history")(err)
 	}
-	system, identityCount, initial, transition, permissionRevision := 0, 0, 0, 0, 0
+	unavailable := &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "exact identity/system migration graph is not applied"}
 	for _, row := range rows {
-		if row.App == initialMigrationApp {
-			system++
-			if row.Name == initialMigrationName {
-				initial++
-			}
-			if row.Name == identityMigrationName {
-				transition++
-			}
+		if !ownedApps[row.App] {
+			continue
 		}
-		if row.App == identity.InitialMigrationKey().App {
-			identityCount++
-			if row.Name == identity.CurrentMigrationKey().Name {
-				permissionRevision++
-			} else if row.Name != identity.InitialMigrationKey().Name {
-				return schemaRowsFailure("migration_history")(nil)
-			}
+		key := migrations.MigrationKey{App: row.App, Name: row.Name}
+		if !required[key] {
+			return unavailable
 		}
+		delete(required, key)
 	}
-	if system != 2 || initial != 1 || transition != 1 || identityCount != 2 || permissionRevision != 1 {
-		return &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "exact identity/system migration graph is not applied"}
+	if len(required) != 0 {
+		return unavailable
 	}
 	return nil
 }

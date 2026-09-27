@@ -73,7 +73,7 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 		}}},
 		FormOverrides: []formmodel.Override{username,
 			formmodel.OverrideField("first_name", formmodel.WithRequired(false)), formmodel.OverrideField("last_name", formmodel.WithRequired(false)),
-			formmodel.OverrideField("email", formmodel.WithRequired(false), formmodel.WithStringNormalizer(trimPythonSpace), formmodel.WithValidators(emailValidator())),
+			formmodel.OverrideField("email", formmodel.WithRequired(false)),
 			formmodel.OverrideField("groups", formmodel.WithRequired(false)), formmodel.OverrideField("permissions", formmodel.WithRequired(false)),
 		},
 		CreateForm: &admin.FormConfig{Definition: creationForm.Definition()},

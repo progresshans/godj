@@ -1101,6 +1101,7 @@ func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend mi
 		systemstate.InitialMigrationKey():                        true,
 		{App: "godj_identity", Name: "0001_initial"}:             true,
 		{App: "godj_identity", Name: "0002_permission_revision"}: true,
+		{App: "godj_identity", Name: "0003_alter_user_email"}:    true,
 		{App: "godj_system", Name: "0002_identity_transition"}:   true,
 	}
 	if len(history) != len(want) {

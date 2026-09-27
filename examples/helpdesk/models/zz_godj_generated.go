@@ -2173,4 +2173,4 @@ func ticketLabelMetadata() ir.Model {
 
 type GoDjAppPart0_5f42928abb0fb813592b966c9b1b9789e769333be7a003a856368dc1a5aa06db struct{}
 
-type GoDjProjectSnapshot_c766267778edf147f14341d25891f75c2a0048c1c776d56dd3b95b10cf44b036 struct{}
+type GoDjProjectSnapshot_0f39f9c51b9ce699c1ac93d1c4f2e4b86a3d8e78c945ebe4e59733472a4ad39d struct{}

@@ -16,6 +16,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AddRequiredForeignKeyToEmptyTable",
 		"RemoveForeignKey",
 		"AlterFieldChoices",
+		"AlterFieldStringSemantics",
 		"AlterFieldDecimalPrecision",
 		"AlterFieldRelation",
 		"UniqueConstraints",

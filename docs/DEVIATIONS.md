@@ -156,6 +156,9 @@ Form은 고정 reference의 required/empty·initial·has_changed를 따르되 Na
 exact token을 유지한다. Floating spellings는 정확한 coefficient/exponent로 비교하며 integer/float·bool/number·floating signed zero는 구분한다.
 Form의 top-level string NUL 오류는 reference와 같으며 nested NUL은 모델/Form과 API의 서로 다른 정책으로 기록한다.
 
+EmailField의 JSON 입력도 같은 전역 NUL 거부를 유지한다. 고정 DRF의 4 profile 중 NUL을 포함한 12개 관측은
+field validator 순서와의 일치로 세지 않고 기존 transport 경계의 거부로 검사한다. [ADR-0079](adr/0079-email-fields-and-input-semantics.md)를 따른다.
+
 API는 기존 전역 NUL·Unicode·duplicate/resource 거부를 JSONField 안에도 적용한다. 독립 DRF direct input의 NUL/nul_key/surrogate
 18개 observation과 parsed NUL/nul_key/surrogate/duplicate 4개 observation은 수용 정책이 다르다. Python bytes 6개는 Go 입력 domain 밖이며,
 NaN/Infinity/-Infinity 18개는 typed Value 생성 단계에서 이미 거부한다. Parsed object의 1e400 한 개는 float overflow로 invalid인 DRF와

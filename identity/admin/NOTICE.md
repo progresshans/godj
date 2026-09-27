@@ -1,7 +1,7 @@
 # Input validation provenance
 
-[`identity/internal/forminput`](../internal/forminput/forms.go) and this adapter's
-email rule implement the observable grammar of Django 6.1 `UsernameField`,
+[`identity/internal/forminput`](../internal/forminput/forms.go) and the shared
+[`validation.ValidEmail`](../../validation/email.go) rule implement the observable grammar of Django 6.1 `UsernameField`,
 `UnicodeUsernameValidator`, `EmailValidator` and password confirmation. The
 grammar, including character ranges for quoted email local parts, is adapted
 from Django commit `fe0a859f537d4238cf49fca39073513206f83122`,

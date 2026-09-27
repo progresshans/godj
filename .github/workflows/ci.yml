@@ -299,7 +299,9 @@ jobs:
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'exact-darwin-validation')
     name: Validate exact darwin/arm64 profile and SQLite lifecycle
     runs-on: macos-15
-    timeout-minutes: 15
+    # The complete Python suite and locked-oracle replay share this owner.
+    # Keep every check while allowing cold-run variation as the catalog grows.
+    timeout-minutes: 30
     env:
       LC_ALL: C
       PYTHONHASHSEED: "0"

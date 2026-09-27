@@ -13,10 +13,6 @@ func (s *UserCreate) setDefaults() {
 		s.LastName.SetTo(val)
 	}
 	{
-		val := string("")
-		s.Email.SetTo(val)
-	}
-	{
 		val := bool(true)
 		s.Active.SetTo(val)
 	}
@@ -39,10 +35,6 @@ func (s *UserUpdate) setDefaults() {
 	{
 		val := string("")
 		s.LastName.SetTo(val)
-	}
-	{
-		val := string("")
-		s.Email.SetTo(val)
 	}
 	{
 		val := bool(true)

@@ -40,7 +40,7 @@ func (a *Application) render(request *web.Request, kind string, spec forms.Spec,
 		} else if field.Name() == "old_password" || field.Name() == "password" {
 			autocomplete = "current-password"
 		}
-		item, err := templates.Object(map[string]templates.Value{"name": templates.String(field.Name()), "label": templates.String(field.Label()), "password": templates.Bool(field.Widget() == forms.PasswordInput), "required": templates.Bool(field.Required()), "value": templates.String(value), "autocomplete": templates.String(autocomplete), "errors": templates.List(errors...)})
+		item, err := templates.Object(map[string]templates.Value{"name": templates.String(field.Name()), "label": templates.String(field.Label()), "password": templates.Bool(field.Widget() == forms.PasswordInput), "email": templates.Bool(field.Widget() == forms.EmailInput), "required": templates.Bool(field.Required()), "value": templates.String(value), "autocomplete": templates.String(autocomplete), "errors": templates.List(errors...)})
 		if err != nil {
 			return web.Response{}, err
 		}

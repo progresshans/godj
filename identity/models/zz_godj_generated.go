@@ -11,7 +11,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v2"
-const GoDjSchemaSHA256 = "6e5bb7e0853c7f7be7a91a39b3969bfd80144164c24d2bd319a226365bfb1570"
+const GoDjSchemaSHA256 = "a91c29d1ec0bb44b908c2984de562c889e244215097d125a226281d07e66faf5"
 
 type Permission struct {
 	ID                    int64
@@ -1052,7 +1052,7 @@ func userMetadata() ir.Model {
 				Name:      "email",
 				GoName:    "Email",
 				Column:    "email",
-				Kind:      ir.FieldChar,
+				Kind:      ir.FieldEmail,
 				MaxLength: 254,
 				Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
 			},
@@ -1759,6 +1759,6 @@ func userPermissionsLinkMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_9d2d8dec0c68482a94c1e24ec49a4b47c56f40b94fcb25deca2e434a41044d87 struct{}
+type GoDjAppPart0_ad6950a04f703f6523ef9066c8ef339235cdaa143d1f76bb6cc09cae8d0c816c struct{}
 
-type GoDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916 struct{}
+type GoDjProjectSnapshot_60299d999290081f0810fdfce23c9ac24578ed324f0b7cb1d4ac2f0ace977fcf struct{}

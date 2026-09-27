@@ -17,6 +17,14 @@ import (
 // The initialized domain is placed at its historical schema, then upgraded
 // without replacing credentials, permission keys, memberships or session bytes.
 func RunPermissionRevisionMigration(t *testing.T, backend TransitionBackend) {
+	runIdentityMetadataMigration(t, backend, identity.InitialMigrationKey())
+}
+
+func RunUserEmailMigration(t *testing.T, backend TransitionBackend) {
+	runIdentityMetadataMigration(t, backend, migrations.MigrationKey{App: modeldef.AppLabel, Name: "0002_permission_revision"})
+}
+
+func runIdentityMetadataMigration(t *testing.T, backend TransitionBackend, previous migrations.MigrationKey) {
 	t.Helper()
 	f := newManagementFixture(t, backend, 3)
 	managementHost(t, backend)
@@ -32,6 +40,11 @@ func RunPermissionRevisionMigration(t *testing.T, backend TransitionBackend) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Legacy values remain representable in storage and responses. Changing
+	// field input semantics must neither normalize nor discard these bytes.
+	if _, err := models.UserObjects.Update(t.Context(), backend, f.stored(t), models.UserPatch{}.WithEmail("  legacy-address  ")); err != nil {
+		t.Fatal(err)
+	}
 	user := f.stored(t)
 	credential, err := f.runtime.Authenticator().Resolve(t.Context(), user.PrincipalID)
 	if err != nil {
@@ -43,7 +56,7 @@ func RunPermissionRevisionMigration(t *testing.T, backend TransitionBackend) {
 		t.Fatal(err)
 	}
 	executor := migrations.Executor{Backend: backend}
-	if _, err := executor.Migrate(t.Context(), loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(identity.InitialMigrationKey()))); err != nil {
+	if _, err := executor.Migrate(t.Context(), loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(previous))); err != nil {
 		t.Fatal("historical identity schema", err)
 	}
 	config := systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512}

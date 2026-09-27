@@ -141,6 +141,18 @@ func CharField(name, goName string, maxLength int, options ...FieldOption) Field
 	return newField(name, goName, ir.FieldChar, maxLength, options)
 }
 
+// EmailField stores a bounded string with email input semantics. Its default
+// length is 254 characters. ORM storage does not implicitly run form validators.
+func EmailField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldEmail, 254, options)
+}
+
+// MaxLength overrides a bounded string field's declared character limit.
+// Normalization rejects this option on kinds without a length declaration.
+func MaxLength(limit int) FieldOption {
+	return func(field *Field) { field.MaxLength = limit }
+}
+
 // TextField stores a Unicode string without a declared storage length limit.
 // HTTP and form input budgets remain explicit application choices.
 func TextField(name, goName string, options ...FieldOption) Field {

@@ -155,7 +155,7 @@ func supportedRelatedTerminal(field ir.Field) bool {
 		return false
 	}
 	switch field.Kind {
-	case ir.FieldAuto, ir.FieldInteger, ir.FieldChar, ir.FieldText, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldJSON, ir.FieldBoolean:
+	case ir.FieldAuto, ir.FieldInteger, ir.FieldChar, ir.FieldEmail, ir.FieldText, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldJSON, ir.FieldBoolean:
 		return true
 	default:
 		return false

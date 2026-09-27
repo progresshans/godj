@@ -10,6 +10,7 @@ type MigrationCapabilities struct {
 	AddRequiredForeignKeyToEmptyTable bool
 	RemoveForeignKey                  bool
 	AlterFieldChoices                 bool
+	AlterFieldStringSemantics         bool
 	AlterFieldDecimalPrecision        bool
 	AlterFieldRelation                bool
 	// UniqueConstraints covers mutation and physical verification of declared

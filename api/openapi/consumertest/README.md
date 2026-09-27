@@ -61,6 +61,12 @@ Bearer client는 CRUD·typed condition과 인증 challenge를 확인하고, Sess
 부모는 새 runtime을 구성해 최종 사용자·password whitespace·정확한 관계 행·호스트 데이터·session·value-free audit를 별도로 조회한다.
 세션은 부모가 실제 durable store에 seed하며 로그인 endpoint나 token issuer를 구현한 것으로 간주하지 않는다.
 
+Identity의 email 입력은 모델 EmailField의 254자 제한과 고정 이메일 문법을 사용한다. Session/Bearer client는
+공백 있는 주소의 정리와 사용자 Manager의 domain 소문자 변환, 잘못된 주소·길이 초과의 생성/PATCH 거부를 확인한다.
+기존의 문법상 잘못된 주소는 응답에서 그대로 읽으며 거부된 요청이 그 값·revision·감사 이력을 바꾸지 않는지 검사한다.
+OpenAPI는 입력 정리 뒤 정책을 extension으로 기술하고 저장된 출력에 이메일 문법을 다시 강제하지 않는다.
+생략 기본값도 extension으로 남겨 생성 client가 검증되지 않은 서버 기본값을 임의로 제출하지 않게 한다.
+
 Identity의 required password 입력은 nullable string이다. Session client는 explicit null로 active User를 생성하고,
 기존 사용자의 반복 disable과 password 복구를 호출한다. Bearer client도 disable을 실제 서버에 요청한다.
 부모는 사용 불가 User의 현재 Resolve·비밀번호 거부와 복구 User의 공백 보존, 정확한 revision/session/audit를 별도로 확인한다.

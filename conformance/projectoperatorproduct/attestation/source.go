@@ -59,6 +59,7 @@ var productSourcePrefixes = []string{
 	"internal/dateinput/",
 	"internal/temporal/",
 	"internal/booleaninput/",
+	"internal/emailinput/",
 	"internal/identifiers/",
 	"internal/relationpolicy/",
 	"internal/irresource/",

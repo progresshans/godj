@@ -343,8 +343,9 @@ func (site *Site) formContext(
 		item, err := templateObject(map[string]templates.Value{
 			"name":        templates.String(field.Name()),
 			"label":       templates.String(field.Label()),
-			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
+			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":    templates.Bool(field.Widget() == forms.PasswordInput),
+			"email":       templates.Bool(field.Widget() == forms.EmailInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
 			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
 			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),

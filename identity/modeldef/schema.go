@@ -35,7 +35,7 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("encoded_password", "EncodedPassword", 2048),
 			schema.CharField("first_name", "FirstName", 150, schema.Default("")),
 			schema.CharField("last_name", "LastName", 150, schema.Default("")),
-			schema.CharField("email", "Email", 254, schema.Default("")),
+			schema.EmailField("email", "Email", schema.Default("")),
 			schema.BooleanField("active", "Active", schema.Default(true)),
 			schema.BooleanField("staff", "Staff", schema.Default(false)),
 			schema.BooleanField("superuser", "Superuser", schema.Default(false)),

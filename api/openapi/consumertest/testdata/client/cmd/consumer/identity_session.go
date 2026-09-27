@@ -43,6 +43,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if !page.Response.Items[0].PasswordUsable {
 		return fail("identity session list password status")
 	}
+	if err := checkIdentitySessionEmails(ctx, client, target, state); err != nil {
+		return err
+	}
 	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
 	loginDetail, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
 	logged, ok := loginDetail.(*is.GodjIdentityIdentityUsersDetailOKHeaders)
@@ -149,9 +152,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 			}
 		}
 	}
-	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Password: is.NilString{Null: true}, FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
+	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Email: is.NewOptString("  MiXeD@EXAMPLE.COM  "), Password: is.NilString{Null: true}, FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := created.(*is.UserHeaders)
-	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
+	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || user.Response.Email != "MiXeD@example.com" || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity session user create")
 	}
 	if user.Response.PasswordUsable {

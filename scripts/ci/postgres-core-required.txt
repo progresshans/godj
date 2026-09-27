@@ -1628,3 +1628,5 @@ github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/fo
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/single_attempt_survives_user_deletion
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/concurrent_copies_share_one_attempt
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/foreign_attempts_do_not_consume
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedEmailConsumer
+github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserEmailMigration

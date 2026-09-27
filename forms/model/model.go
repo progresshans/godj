@@ -231,7 +231,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
-	if (override.hasStringNormalizer || override.hasMaxLength) && field.Kind != ir.FieldChar && field.Kind != ir.FieldText {
+	if (override.hasStringNormalizer || override.hasMaxLength) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
 		return forms.Field{}, &Error{Code: "unsupported_string_override"}
 	}
 	if err := ir.ValidateChoices(field); err != nil {
@@ -460,9 +460,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
 		}
 		return forms.IntegerField(field.Name, options...)
-	case ir.FieldChar, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
 		if field.PrimaryKey || field.Relation != nil ||
-			field.Kind == ir.FieldChar && field.MaxLength <= 0 ||
+			(field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail) && field.MaxLength <= 0 ||
 			field.Kind == ir.FieldText && field.MaxLength != 0 {
 			return forms.Field{}, &Error{Code: "invalid_char_metadata"}
 		}
@@ -490,6 +490,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 				return forms.Field{}, &Error{Code: "default_type_mismatch"}
 			}
 			options = append(options, forms.WithDefault(forms.String(field.Default.String)))
+		}
+		if field.Kind == ir.FieldEmail && field.Choices == nil {
+			return forms.EmailField(field.Name, options...)
 		}
 		return forms.CharField(field.Name, options...)
 	case ir.FieldBoolean:

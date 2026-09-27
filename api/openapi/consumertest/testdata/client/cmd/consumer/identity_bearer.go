@@ -32,6 +32,9 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 			return fail("identity bearer list password status")
 		}
 	}
+	if err := checkIdentityBearerEmails(ctx, client, target); err != nil {
+		return err
+	}
 	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
 	detail, err := client.GodjIdentityIdentityUsersDetail(ctx, ib.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
 	logged, ok := detail.(*ib.UserHeaders)
@@ -84,9 +87,9 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 		return fail("identity bearer group create")
 	}
 	groupID := group.Response.ID
-	createdUser, err := client.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "Bearer-user", Password: ib.NewNilString("  Bearer password  "), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
+	createdUser, err := client.GodjIdentityIdentityUsersCreate(ctx, &ib.UserCreate{Username: "Bearer-user", Email: ib.NewOptString("  MiXeD@EXAMPLE.COM  "), Password: ib.NewNilString("  Bearer password  "), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := createdUser.(*ib.UserHeaders)
-	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
+	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Email != "MiXeD@example.com" || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity bearer user create")
 	}
 	if !user.Response.PasswordUsable {

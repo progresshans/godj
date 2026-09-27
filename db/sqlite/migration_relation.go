@@ -45,6 +45,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldStringSemantics:         true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
@@ -2721,7 +2722,7 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "INTEGER", nil
 	case ir.FieldInteger:
 		return "BIGINT", nil
-	case ir.FieldChar:
+	case ir.FieldChar, ir.FieldEmail:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
 	case ir.FieldJSON:
 		return "TEXT", nil

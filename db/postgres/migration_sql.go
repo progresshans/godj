@@ -233,7 +233,7 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 		} else {
 			declaration += " NOT NULL"
 		}
-	case ir.FieldChar:
+	case ir.FieldChar, ir.FieldEmail:
 		if field.PrimaryKey || field.MaxLength <= 0 || field.Relation != nil {
 			return "", errors.New("CharField has an invalid PostgreSQL migration shape")
 		}

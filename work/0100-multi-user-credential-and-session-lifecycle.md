@@ -158,4 +158,6 @@ ID/hash/write 없음·read 실패/취소·hash 뒤 경합과 최종 fence를 영
 검증된 root checksum의 offline 준비·third-party 로컬 치환 제거·bounded dependency 진단을 구현했다.
 실제 외부 CLI 세 모드의 영향 검증을 통과했다. 현재 요구는 새 source/capture의 Hosted 전체 통합이며 상세는 TEST_EVIDENCE를 따른다.
 
-구현 `563aac29`의 Hosted Fast는 실제 Go 검사까지 성공했고 새 전체 `36353329053`은 진행 중이다. 필수 owner·새 capture 확인은 Evidence를 따른다.
+구현 `563aac29`의 Hosted Fast는 실제 Go 검사까지 성공했다. 전체 `36353329053`은 60 jobs 성공,
+exact macOS의 15분 시간 제한 취소와 최종 집계 실패로 종료했다. 두 capture는 해당 source와 일치한다.
+후속 EmailField source에서 같은 필수 검사를 30분 예산으로 다시 검증하며 실행 상세는 Evidence를 따른다.

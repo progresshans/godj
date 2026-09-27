@@ -306,9 +306,13 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		var projected Field
 		var err error
 		switch field.Kind {
-		case ir.FieldChar, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
-			projected, err = StringField(field.Name, options...)
+			if field.Kind == ir.FieldEmail && field.Choices == nil {
+				projected, err = EmailField(field.Name, options...)
+			} else {
+				projected, err = StringField(field.Name, options...)
+			}
 		case ir.FieldJSON:
 			projected, err = JSONField(field.Name, options...)
 		case ir.FieldUUID:

@@ -13,6 +13,7 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"identity/migrations/godj_identity_0003_alter_user_email.godj.json":    {},
 	"identity/data/common-passwords.txt.gz":                                {},
 	"identity/migrations/godj_identity_0002_permission_revision.godj.json": {},
 	"scripts/conformance.py":                                               {},
@@ -66,6 +67,7 @@ var productSourcePrefixes = []string{
 	"internal/dateinput/",
 	"internal/temporal/",
 	"internal/booleaninput/",
+	"internal/emailinput/",
 	"internal/identifiers/",
 	"internal/relationpolicy/",
 	"internal/irresource/",

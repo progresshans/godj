@@ -302,7 +302,7 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 		return value.Kind() == query.ValueDate
 	case ir.FieldDateTime:
 		return value.Kind() == query.ValueDateTime
-	case ir.FieldChar, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
 		return value.Kind() == query.ValueString
 	case ir.FieldBoolean:
 		return value.Kind() == query.ValueBoolean

@@ -275,8 +275,8 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 5 || report.HeadersValidated != 5 || report.OperationsDecoded != 9 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 5 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 6 || report.HeadersValidated != 6 || report.OperationsDecoded != 10 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 6 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -295,6 +295,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_identity", Name: "0003_alter_user_email"},
 		{App: "godj_system", Name: "0001_initial"},
 		{App: "godj_system", Name: "0002_identity_transition"},
 	}

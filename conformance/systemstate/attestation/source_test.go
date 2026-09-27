@@ -77,6 +77,8 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"identity/account/templates/account.html",
 		"identity/data/common-passwords.txt.gz",
 		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
+		"identity/migrations/godj_identity_0003_alter_user_email.godj.json",
+		"internal/emailinput/email.go",
 		"internal/unicode16/tables_generated.go",
 		"internal/migrationgraph/field_delta.go",
 		"internal/migrationdefault/value.go",

@@ -40,6 +40,7 @@ const (
 	FieldUUID       FieldKind = "uuid"
 	FieldJSON       FieldKind = "json"
 	FieldChar       FieldKind = "char"
+	FieldEmail      FieldKind = "email"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
 	FieldTime       FieldKind = "time"

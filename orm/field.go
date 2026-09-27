@@ -67,8 +67,8 @@ func NewNullableStringField[M any](metadata ir.Field) NullableStringField[M] {
 
 func newStringField[M any](metadata ir.Field, nullable bool) field[M] {
 	kind := ir.FieldChar
-	if metadata.Kind == ir.FieldText {
-		kind = ir.FieldText
+	if metadata.Kind == ir.FieldText || metadata.Kind == ir.FieldEmail {
+		kind = metadata.Kind
 	}
 	return newField[M](metadata, query.FieldString, kind, nullable)
 }

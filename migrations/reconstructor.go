@@ -335,6 +335,7 @@ const (
 	loadedRequiresAddRequiredForeignKeyToEmptyTable
 	loadedRequiresRemoveForeignKey
 	loadedRequiresAlterFieldChoices
+	loadedRequiresAlterFieldStringSemantics
 	loadedRequiresAlterFieldDecimalPrecision
 	loadedRequiresUniqueConstraints
 	loadedRequiresAlterFieldRelation
@@ -1607,6 +1608,8 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				requirements |= loadedRequiresUniqueConstraints
 			} else if change == ir.ChangeDecimalPrecision {
 				requirements |= loadedRequiresAlterFieldDecimalPrecision
+			} else if change == ir.ChangeStringSemantics {
+				requirements |= loadedRequiresAlterFieldStringSemantics
 			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}

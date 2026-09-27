@@ -96,7 +96,11 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		t.Fatal(err)
 	}
 	seedUser := func(name string) models.User {
-		value, err := models.UserObjects.Create(ctx, backend, models.NewUserCreate("sdk-"+name, name, encoded, time.Now().UTC()).WithFirstName("Original"))
+		input := models.NewUserCreate("sdk-"+name, name, encoded, time.Now().UTC()).WithFirstName("Original")
+		if name == "managed-target" {
+			input = input.WithEmail("  legacy-address  ")
+		}
+		value, err := models.UserObjects.Create(ctx, backend, input)
 		if err != nil {
 			t.Fatal("seed identity consumer user:", err)
 		}

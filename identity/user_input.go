@@ -143,7 +143,7 @@ func validateIdentityTexts(values ...identityText) error {
 				continue
 			}
 			found = true
-			if field.Kind != ir.FieldChar || field.MaxLength <= 0 {
+			if (field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail) || field.MaxLength <= 0 {
 				return managementError(CodeInvalidConfig, "user", nil)
 			}
 			if utf8.RuneCountInString(item.value) > field.MaxLength {

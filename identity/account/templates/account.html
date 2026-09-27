@@ -8,7 +8,7 @@
 {% if login %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 {% for field in fields %}<p><label for="id_{{ field.name }}">{{ field.label }}</label>
 {% if field.password %}<input type="password" id="id_{{ field.name }}" name="{{ field.name }}" autocomplete="{{ field.autocomplete }}"{% if field.required %} required{% endif %}>
-{% else %}<input id="id_{{ field.name }}" name="{{ field.name }}" value="{{ field.value }}" autocomplete="{{ field.autocomplete }}"{% if field.required %} required{% endif %}>{% endif %}
+{% else %}<input{% if field.email %} type="email"{% endif %} id="id_{{ field.name }}" name="{{ field.name }}" value="{{ field.value }}" autocomplete="{{ field.autocomplete }}"{% if field.required %} required{% endif %}>{% endif %}
 {% for error in field.errors %}<span role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</span>{% endfor %}</p>{% endfor %}
 <button type="submit">{{ submit }}</button></form>
 {% endif %}

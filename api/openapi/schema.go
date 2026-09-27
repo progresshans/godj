@@ -170,7 +170,7 @@ func EnumStrings(values ...string) (Schema, error) {
 // omitted field. Parser limits and application validation are separate policies.
 //
 // Strings cleaned before validation carry x-godj-normalization metadata. Its
-// allowEmptyAfterTrim and maxLengthAfterTrim describe checks after Go TrimSpace;
+// allowEmptyAfterTrim and maxLengthAfterTrim describe checks after the field's Unicode trimming;
 // they are not standard JSON Schema assertions on the unnormalized input.
 func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error) {
 	fields := spec.Fields()
@@ -193,11 +193,25 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 		if err != nil {
 			return Schema{}, err
 		}
-		if field.Kind() == serializers.FieldString {
+		if field.Kind() == serializers.FieldEmail {
+			policy, err := serializers.NewObject(
+				serializers.MemberOf("validator", serializers.String("django-6.1")),
+				serializers.MemberOf("maximumCharacters", serializers.Integer(320)),
+				serializers.MemberOf("afterNormalization", serializers.Boolean(true)),
+			)
+			if err != nil {
+				return Schema{}, schemaConfigError("email", "email input policy is invalid")
+			}
+			annotations = append(annotations, serializers.MemberOf("x-godj-email", policy.Value()))
+		}
+		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail {
 			if field.TrimWhitespace() {
 				normalization := []serializers.Member{
 					serializers.MemberOf("trimWhitespace", serializers.Boolean(true)),
 					serializers.MemberOf("allowEmptyAfterTrim", serializers.Boolean(field.AllowEmpty())),
+				}
+				if field.Kind() == serializers.FieldEmail {
+					normalization = append(normalization, serializers.MemberOf("whitespaceProfile", serializers.String("python-unicode-16")))
 				}
 				if field.MaxLength() > 0 {
 					normalization = append(normalization, serializers.MemberOf("maxLengthAfterTrim", serializers.Integer(int64(field.MaxLength()))))
@@ -238,7 +252,7 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			defaultValue = serializers.String(temporal.Format(instant))
 		}
 		if mode == serializers.ModeFull && hasDefault {
-			annotations = append(annotations, serializers.MemberOf(choiceDefaultName(field, defaultValue), defaultValue))
+			annotations = append(annotations, serializers.MemberOf(inputDefaultName(field, defaultValue), defaultValue))
 		}
 		projected, err = schemaAnnotate(projected, annotations...)
 		if err != nil {
@@ -276,7 +290,7 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 		if field.ReadOnly() {
 			annotations = append(annotations, serializers.MemberOf("readOnly", serializers.Boolean(true)))
 		}
-		if field.Kind() == serializers.FieldString && field.MaxLength() > 0 {
+		if (field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail) && field.MaxLength() > 0 {
 			annotations = append(annotations, serializers.MemberOf("maxLength", serializers.Integer(int64(field.MaxLength()))))
 		}
 		if len(annotations) != 0 {
@@ -293,7 +307,7 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 func schemaFieldType(field serializers.Field) (Schema, error) {
 	var schema Schema
 	switch field.Kind() {
-	case serializers.FieldString:
+	case serializers.FieldString, serializers.FieldEmail:
 		schema = String()
 	case serializers.FieldJSON:
 		return jsonFieldSchema(field, false)

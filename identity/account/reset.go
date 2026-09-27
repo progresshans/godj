@@ -59,7 +59,7 @@ func (a *Application) prepareReset(config *PasswordResetConfig) error {
 	a.resetMailer, a.reportResetError = config.Mailer, config.ReportError
 	// The shared email cleaner owns Unicode trimming and ordered diagnostics;
 	// this field describes rendering and the bounded Form key allowlist.
-	email, err := forms.CharField("email", forms.WithLabel("Email address"), forms.WithTrimWhitespace(false))
+	email, err := forms.EmailField("email", forms.WithLabel("Email address"), forms.WithMaxLength(254))
 	if err != nil {
 		return err
 	}

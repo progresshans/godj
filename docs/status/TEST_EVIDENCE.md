@@ -3,6 +3,90 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0101 — 모델 이메일 필드와 Identity 입력
+
+기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.
+Go/SQL 값은 기존 bounded string이며 typed/dynamic·관계 query가 같은 AST를 사용한다. Form 기본 320자와 모델 기본 254자를
+구분하고 모델 projection·EmailInput·Admin/API/OpenAPI·독립 Session/Bearer client에 연결했다. 기본 User는 원본 0001/0002를
+보존한 0003 migration으로 바꾼다. 기존 주소를 정리하거나 ORM 저장에 이메일 문법 검증을 암묵적으로 추가하지 않는다.
+영향·actual process checkpoint는 아래 source별로 완료했다. 이 변경의 Hosted 전체와 전체 프레임워크 완성은 별도다.
+
+- 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122` / DRF 3.18.0의 실제 양 DB에서 각각
+  **Form 144개 + serializer 96개 입력 + 생략 default 4개**를 관찰했다. Input/source hash와 raw JSON을 남겼다.
+  잘못된 주소·빈 문자열·NULL·서로 다른 case의 저장, exact/iexact/icontains/isnull, Char→Email→Char의 데이터 보존을 확인했다.
+  PostgreSQL은 DDL 0개, SQLite는 remake 4개다. Go의 동일 저장 구조 변경은 별도 capability를 갖는 metadata 변경이며
+  native SQLite와 SQL text가 같다고 주장하지 않는다.
+- Go Form의 144개 입력과 JSON의 **84개 일치 + 12개 전역 NUL transport 거부**를 구분한다. DRF의 NUL validator 순서와
+  같다고 합산하지 않는다. JSON 생략 default 4개는 원문을 보존하고 partial input에는 적용하지 않는다.
+  OpenAPI는 정리 전 입력/기존 출력에 `format: email`을 강제하지 않으며 정리·검증·생략 기본값을 extension으로 설명한다.
+- User email migration/reverse의 credential·session·audit·host reference 보존, 구버전 schema의 runtime admission 거부,
+  Form/API의 invalid input 무저장과 기존 malformed response 읽기를 검증한다. 이력 검사는 내장 canonical graph를 사용하며
+  모든 필수 항목의 누락·중복과 같은 app의 알 수 없는 이력을 거부한다.
+
+초기 foundation에서는 NUL 전역 경계를 field 오류로 기대한 검사와 capability roster 10개 기대가 실패했다.
+새 string-semantics capability까지 11개를 명시하고 NUL 차이를 분리한 뒤 실패한 두 package, 생성 양 DB 소비자,
+native observer 검사를 재검증했다. 이 앞선 source의 결과를 아래 통합 source의 전체 성공으로 합치지 않는다.
+첫 통합에서는 system-state의 두 단계 고정 이력 검사가 새 migration을 거부하는 실제 연결 누락을 발견해 수정했다.
+또 새 helper와 migration의 source binding 누락을 독립 native dependency 감사로 검출해 포함했다.
+이후 source `0b9aee0a9cefae737ad738be7f115818a18ef75be9cd1e03854907edfff5144f`에서
+normal core **20 packages / 6,855 PASS**, 양 DB Identity **2 packages / 2,120 PASS**, 생성 Email 소비자 **1 root PASS**를 완료했다.
+모두 skip 0이고 private DB는 **0|0|0**, container 제거와 source 전후 동일성을 확인했다.
+동일 실행의 SDK는 새 GET 뒤 CSRF 응답을 반영하지 않은 consumer 검사에서 실패했다. 제품 CSRF 검사는 유지하고 client를 수정했다.
+다음 source `6c2d790ee34325feca04477f064161ca0c7d85bcf5db76f414ad1b84651f176c`와의 차이는
+독립 client의 `identity_email.go`·`identity_session.go` 두 파일뿐이다. 이 source에서는 SDK normal **10 PASS**와
+source ownership **152 PASS**, 전체 영향 race·CGO=0 각각 **9,138 PASS / skip 0**를 완료했다.
+범위는 **26 packages / 1,096 roots / 3,631 필수 항목**이다. Native observer **2 tests**도 통과했다.
+최종 source 전후 동일, private PostgreSQL **17.10 UTF8/libc/C**, DB **0|0|0**과 container 제거를 확인했다.
+Normal의 앞선 세 그룹은 실제 제품/검사 byte가 그대로인 범위이며, 두 client 수정 후 재실행한 것으로 합산하지 않는다.
+
+추가로 실제 migrate/runserver/restart 소비자 네 파일의 명시적 graph 기대를 6 definitions / 10 operations와
+새 Email migration을 포함한 정확한 key 집합으로 갱신했다. 제품 코드는 그대로다. 이 source inventory는
+`8cf6e015e146a0144a4ff2f0e8b013f4ca359f8a7226e5ff42edba545f87ebfe`이며 아래 actual process checkpoint를 완료했다.
+
+| 최종 source의 추가 범위 | normal | race | CGO=0 |
+|---|---|---|---|
+| 실제 global migrate·기존 prefix·fresh-process no-op | 8 PASS | 8 PASS | 8 PASS |
+| 실제 SQLite/PostgreSQL runserver·기존 이력 | 9 PASS | 9 PASS | 9 PASS |
+| 양 DB의 서로 다른 A/B/C process 재시작 | 2 PASS | 2 PASS | 2 PASS |
+| Source ownership·mutation/symlink | 152 PASS | 152 PASS | 152 PASS |
+
+모두 skip 0이며 **5 packages / 21 required roots**, 합계 **513 PASS**다. Process 검사의 race는 harness에 적용되고
+migrate/runserver/site child는 기존 일반 build 정책을 따른다. 앞선 generated model/ogen child는 부모 race 모드를 실제로 상속한다.
+최종 source 전후 동일, private DB **0|0|0**과 container 제거를 확인했다. 직전 source와의 차이는 위 네 process test 파일뿐이며
+앞선 영향 검사를 마지막 source에서 다시 실행했다고 기록하지 않는다.
+
+- 같은 최종 source에서 Identity·Identity fixture·Helpdesk·Article 생성물 drift와 `makemigrations --check`의 변경 없음이 통과했다.
+  실제 schema 여섯 개와 고정 ogen 생성물의 byte/파일 집합·module lock 일치는 앞선 SDK의 각 모드에서 확인했다.
+- Go overlay **9개**가 지정 runtime assertion을 검출했다: Form/serializer 문법 검사 제거, default 강제 정리,
+  다른 저장 속성을 섞은 Char/Email 변환 허용, capability 우회, 출력의 강제 이메일 문법,
+  미지의 migration 이력 수용, source owner 제거, 생성 metadata의 Char kind 치환.
+  마지막 생성 소비자는 일반 child 진단이 원인을 숨겼으므로 첫 시도를 성공으로 세지 않았다.
+  별도 probe가 child JSON의 정확한 test 실패와 고정 assertion만 확인한 뒤 재검증했다. Compile 실패는 부정 대조가 아니다.
+- Native Form/DRF validator를 각각 제거하는 두 부정 대조도 관측 차이를 검출했다.
+  영향 vet·독립 client vet와 CI 도구 **37 tests**가 통과했다. CI 도구의 최초 호출은 module 검색 경로 누락으로 실패했으며
+  해당 경로를 명시한 재실행을 별도로 보존했다. Django-only 환경의 최초 DRF import 실패도 보존한다.
+
+이 검증은 Darwin arm64 / Go 1.26.5 / offline readonly / `TZ=Pacific/Chatham`, PostgreSQL 17.10 UTF8/libc/C와
+실제 SQLite에서 수행했다. Python native 관측은 CPython 3.14.3에서 수행했으며 새 observer의 다른 Python 버전은 Hosted 소유다.
+
+Native 원문/receipt와 foundation·integration의 전체 로그는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-email-field-reference-kz1sj84g`에 보존한다.
+실행마다 source inventory·필수 root/subtest roster·JSON event stream·실패와 cleanup receipt를 구분한다.
+최종 영향 실행은 `integration-repair-1790550447642973000`, process 실행은 `process-1790551790811322000`에 있다.
+
+### 선행 재사용 Form Hosted 전체의 종료
+
+Source `563aac29d611f08e0b943cc24bfb334881e72ba1`의 [Hosted full 36353329053](https://github.com/progresshans/godj/actions/runs/36353329053)은
+**62 jobs 중 60 성공 / exact darwin 1 취소 / 최종 집계 1 실패**, run conclusion `cancelled`로 종료했다.
+8개 실행 owner 중 7개는 성공했고 exact darwin은 15분 job 제한을 초과했다. Native Python **373 tests / 776.172초** 뒤
+locked-oracle replay 도중 취소됐으며 gate는 전체 성공을 거부했다. 같은 필수 명령과 runner를 유지하고 다음 source의 예산을 30분으로 늘렸다.
+이 설정 변경이 종료된 실행을 성공으로 바꾸지는 않는다.
+
+두 capture의 같은 run/producer/attempt·artifact digest·payload checksum/provenance를 검증하고, 해당 Git object에서 재계산한
+source binding과 일치함을 확인했다: systemstate **617 files / 6,593,902 bytes / `f12fd181c20eb19f78e4f1828fcdaa903764033969397b727db873211fc9dd50`**,
+operator **693 files / 6,438,825 bytes / `8afc1232e0b0c438369f308e6edeec27315f2ba4e6143ed222b0b4c13c2b6a5a`**.
+원문은 위 evidence root의 `hosted-full-36353329053-1790550237890603000`에 있다. Capture 일치는 필수 owner의 취소를 대체하지 않는다.
+
 ## GDJ-0100 — 재사용 사용자 생성 Form과 한 번의 준비/저장
 
 기반 commit `a80fe2f7a9f64c0f3995638ee78fa7f6b8b70850` 이후 기본 User IR의 일반/Admin 생성 Form을

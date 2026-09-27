@@ -436,8 +436,8 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 	if err != nil {
 		t.Fatalf("load Article and system initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 5 || report.HeadersValidated != 5 || report.OperationsDecoded != 9 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 5 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 6 || report.HeadersValidated != 6 || report.OperationsDecoded != 10 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 6 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system initial migration load report = %+v", report)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -708,6 +708,7 @@ func assertRunserverMigrationHistory(t *testing.T, history []migrationbackend.Ap
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_identity", Name: "0003_alter_user_email"},
 		{App: "godj_system", Name: "0001_initial"},
 		{App: "godj_system", Name: "0002_identity_transition"},
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/internal/booleaninput"
+	"github.com/progresshans/godj/internal/emailinput"
 	"github.com/progresshans/godj/internal/jsoninput"
 	"github.com/progresshans/godj/validation"
 )
@@ -109,6 +110,7 @@ const (
 	FieldUUID
 	FieldJSON
 	FieldIntegerList
+	FieldEmail
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -127,6 +129,7 @@ const (
 	NumberInput
 	SelectMultiple
 	PasswordInput
+	EmailInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -312,10 +315,10 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
-	if config.hasStringNormalizer && (kind != FieldChar || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
+	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".normalizer", Code: "invalid"}
 	}
-	if config.hasTrimWhitespace && kind != FieldChar {
+	if config.hasTrimWhitespace && !stringFieldKind(kind) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".trim_whitespace", Code: "unsupported"}
 	}
 	if !validName(name) {
@@ -336,7 +339,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput) ||
+	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -346,11 +349,11 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
 	if config.hasEmptyValue {
-		if kind != FieldChar || !(config.emptyValue.IsNull() && config.nullable ||
+		if !stringFieldKind(kind) || !(config.emptyValue.IsNull() && config.nullable ||
 			config.emptyValue.kind == ValueString && config.emptyValue.text() == "") {
 			return Field{}, &ConfigError{Path: "fields." + name + ".empty_value", Code: "unsupported"}
 		}
-	} else if kind == FieldChar && !config.nullable {
+	} else if stringFieldKind(kind) && !config.nullable {
 		config.emptyValue = String("")
 	}
 	for index, validator := range config.validators {
@@ -467,7 +470,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
-	case FieldChar:
+	case FieldChar, FieldEmail:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
 		}
@@ -524,7 +527,7 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		_, ok := value.AsJSON()
 		return ok
 	}
-	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
+	return stringFieldKind(kind) && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
 		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal || kind == FieldUUID && value.kind == ValueUUID
 }
 
@@ -532,7 +535,7 @@ func (f Field) Name() string              { return f.name }
 func (f Field) Label() string             { return f.label }
 func (f Field) Kind() FieldKind           { return f.kind }
 func (f Field) Widget() Widget            { return f.widget }
-func (f Field) EmptyValue() (Value, bool) { return f.emptyValue, f.kind == FieldChar }
+func (f Field) EmptyValue() (Value, bool) { return f.emptyValue, stringFieldKind(f.kind) }
 func (f Field) Required() bool            { return f.required }
 func (f Field) Nullable() bool            { return f.nullable }
 func (f Field) MaxLength() int            { return f.maxLength }
@@ -673,7 +676,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = Boolean(false)
 		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID || field.kind == FieldJSON:
 			value = Null()
-		case field.kind == FieldChar:
+		case stringFieldKind(field.kind):
 			value = field.emptyValue
 		case field.nullable:
 			value = Null()
@@ -964,12 +967,12 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			if value.IsNull() && field.required {
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
 			}
-		case FieldChar:
+		case FieldChar, FieldEmail:
 			raw := ""
 			if present && len(submitted) == 1 {
 				raw = submitted[0]
 				if field.trimWhitespace {
-					raw = strings.TrimSpace(raw)
+					raw = trimStringInput(field.kind, raw)
 				}
 			}
 			if field.normalizeString != nil {
@@ -984,6 +987,10 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 				}
 			} else {
 				value = String(raw)
+			}
+			if field.kind == FieldEmail {
+				failures = append(failures, emailinput.FormErrors(field.name, raw, field.maxLength))
+				break
 			}
 			if raw != "" && !utf8.ValidString(raw) {
 				failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "invalid_utf8")))
@@ -1120,12 +1127,12 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		}
 		value, code := cleanInteger(raw)
 		return code != "" || !value.Equal(initial)
-	case FieldChar:
+	case FieldChar, FieldEmail:
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
 			if field.trimWhitespace {
-				raw = strings.TrimSpace(raw)
+				raw = trimStringInput(field.kind, raw)
 			}
 		}
 		if field.normalizeString != nil {
