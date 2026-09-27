@@ -44,6 +44,21 @@ private PostgreSQL 17.10 UTF8/libc/C와 `GODJ_REQUIRE_POSTGRES=1`을 사용했�
 영향 vet·gofmt, CI 도구 41개, 현재 두 attestation의 native dependency closure, Markdown 152개 링크·diff를 확인했다.
 최종 product/control source hash도 동일하다. 이 로컬 scope의 성공을 Hosted 전체 또는 메일/HTTP consumer의 완료로 옮기지 않는다.
 
+구현 commit `fb817d6b58b53f147067d027624786e004df8dda`를 양 branch에 게시하고,
+같은 commit의 [Hosted full 36328590201](https://github.com/progresshans/godj/actions/runs/36328590201)을 `suite=full`로 요청했다.
+선행 run의 마지막 작업을 취소하지 않도록 현재 worker branch `feature/json-models`를 사용했으며,
+양 branch가 같은 commit임을 dispatch 전에 확인했다. 현재는 실행 중이며 새 source-bound captures와 전체 종료 확인이 남아 있다.
+같은 code source의 [Hosted Fast 36328406907](https://github.com/progresshans/godj/actions/runs/36328406907)은 실제 Fast Go feedback까지 성공했다.
+Full 시작과 Fast 완료의 run/jobs/steps 원본은 reset checkpoint의 `hosted/`에 보존한다.
+
+다음 소비자 설계를 위한 별도 native SQLite HTTP probe에서는 실제 PasswordResetView/ConfirmView와 CSRF/session/auth
+middleware를 실행했다. 알려진/없는 email 모두 같은 302 목적지, CSRF 거부 403, valid token을 session에 넣고
+`set-password` URL로 302 이동, form HTML의 raw token 부재·no-store, 다른 브라우저의 거부와 약한 password 오류를 관찰했다.
+성공 후 session의 reset token 제거·자동 로그인 없음·last_login 불변, 기존 사용자 session의 다음 접근 시 폐기를 확인했다.
+이는 양 DB reference·mutation tests 또는 Go HTTP consumer의 완료가 아니다. 원본 runner/SQLite JSON/7개 upstream hash와
+cleanup receipt는 `password-reset-http-probe-1790522019669116000`에 보존했다.
+
+
 ## GDJ-0100 — 제품 source binding 보완과 reset의 독립 기준
 
 2026-09-27, 실제 제품 entrypoint의 `go list -deps`와 비교해 두 attestation source 목록의 누락을 확인했다.
@@ -69,7 +84,10 @@ exact Darwin owner가 맡는 네 항목만 허용된 skip이었다. 후속 all-s
 clean-worktree step은 실행되지 않았다. Python 3.12.13/3.13.15/3.14.7 owner는 성공했으나 전체 성공을 뜻하지 않는다.
 362개 실행과 all-scenario digest·clean-worktree를 그대로 유지하고 Python compatibility 제한을 **30분**으로 조정했다.
 나머지 live jobs의 terminal 결과도 보존한다. 이 run의 capture를 확인해도 당시 선언 목록의 결합만 입증하며,
-위 누락을 보완한 source의 새 capture와 통합 milestone이 필요하다. 과거 raw evidence는 다시 작성하지 않는다.
+위 누락을 보완한 source의 새 capture와 통합 milestone이 필요하다. 실제 두 PostgreSQL capture의 archive SHA-256·동일 run/attempt/producer provenance와
+해당 commit Git blob에서 재계산한 당시 선언 목록의 결합은 확인했다. System-state는 578 files/5,978,200 bytes, operator는
+655 files/5,823,526 bytes이며 `hosted-full-36324864466-1790520313642329000`에 원본을 보존한다.
+이 부분 확인을 전체 PASS로 올리지 않았고 과거 raw evidence도 다시 작성하지 않는다.
 
 별도로 고정 Django 6.1/CPython 3.14.3의 native PasswordResetTokenGenerator·PasswordResetForm·SetPasswordForm과
 in-process mail을 실제 SQLite·PostgreSQL 17.10에서 실행했다. **11개 관찰군**, 양 DB의 observations와

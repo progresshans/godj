@@ -3,9 +3,10 @@
 - 갱신: 2026-09-28
 - 활성 구현: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
-- 진행 중인 전체 검증(일부 작업 시간 초과): [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6c8256bf3b1ea4995f383472d7c27629c`
+- 진행 중인 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
+- 선행 미완료 검증: [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6`의 Python 시간 초과·마지막 작업 종료 확인
 - 최근 완료한 전체 검증: [저장 로그인·세션 Hosted full](https://github.com/progresshans/godj/actions/runs/36315320971), source `63b07213ecaaea37a2270b33d8c806a982817269`
-- 최근 영향 CI: [Source 목록 보완 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36327113730), source `44069bc1`
+- 최근 영향 CI: [Reset service Hosted Fast](https://github.com/progresshans/godj/actions/runs/36328406907), source `fb817d6b`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -20,9 +21,9 @@ source `63b07213`의 Hosted 전체 platform/process 통합이 완료됐다. 이�
 일반 계정 로그인/logout·비밀번호 Form과 Session JSON/OpenAPI·독립 generated client를 연결했다.
 관리 권한 없는 명시적 API admission과 세션 touch/cleanup 없는 preflight를 구현했고 Article의 공유 구성도 연결했다.
 제품 Form·JSON/OpenAPI·독립 client와 양 DB의 normal/race/CGO=0 영향 검증을 완료했다.
-이 source의 Hosted 실행은 일부 작업 시간 초과로 전체 성공 조건을 충족하지 못했다. 남은 작업의 결과를 확인 중이다.
+선행 `b995c8c6`의 Hosted 실행은 Python 시간 초과로 전체 성공 조건을 충족하지 못했다.
 실제 Go 의존성 대조에서 attestation 목록의 누락을 찾아 보완했고 독립 누락 검사도 추가했다.
-수정된 source의 새 capture와 전체 milestone 검증이 필요하다.
+수정된 `fb817d6b`의 새 capture와 전체 milestone 실행을 시작했다. 결과 확인 전이다.
 Reset token·Form·메일의 독립 Django 양 DB 기준을 확보했다. Go reset token/key ring·현재 상태 재검사와
 password/session 폐기/audit 원자 저장 service를 구현하고 영향 normal/race/CGO=0·양 DB 검증을 완료했다.
 메일 수신자 선택·전달과 실제 재설정 Form/API는 아직 연결 전이다.
@@ -31,7 +32,7 @@ password/session 폐기/audit 원자 저장 service를 구현하고 영향 norma
 
 ## 다음 행동
 
-실행 중인 `b995c8c6`의 결과를 보존하고, source 목록과 Python 작업 제한을 보완한 source의 Hosted milestone을 검증한다.
+`fb817d6b`의 Hosted milestone·실제 필수 실행과 새 capture/source binding을 확인한다. 선행 run의 마지막 종료 결과도 보존한다.
 다음 구현은 reset의 명시적 메일 전달·수신자 선택과 실제 Form/API·독립 client다. Native HTTP reset view도 별도로 관찰한다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
