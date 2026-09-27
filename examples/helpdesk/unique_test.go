@@ -254,7 +254,7 @@ func verifyHelpdeskUnique(t *testing.T, ctx context.Context, runtime *systemstat
 	if response.Code != http.StatusForbidden || backend.transactions != transactions || backend.checks != before || !strings.Contains(response.Body.String(), `"code":"csrf_rejected"`) {
 		t.Fatal("uniqueness read bypassed CSRF")
 	}
-	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: helpdesk.ChangeTicket})
+	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ChangeTicket})
 	denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 	if response := denied.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK {
 		t.Fatal("initialize denied consumer CSRF", response.Code)

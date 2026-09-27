@@ -12,13 +12,13 @@ func Duration(value duration.Duration) Value {
 	if !value.Valid() {
 		return Value{kind: ValueKind(255)}
 	}
-	return Value{kind: ValueDuration, string: value.String()}
+	return textValue(ValueDuration, value.String())
 }
 func (value Value) AsDuration() (duration.Duration, bool) {
 	if value.kind != ValueDuration {
 		return duration.Duration{}, false
 	}
-	duration, err := duration.Parse(value.string)
+	duration, err := duration.Parse(value.text())
 	return duration, err == nil
 }
 func (values Values) Duration(name string) (duration.Duration, bool) {

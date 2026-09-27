@@ -71,8 +71,11 @@ func TestRegistrationSnapshotRequiresOnlyDisplayedAndEditableFields(t *testing.T
 		t.Fatal(err)
 	}
 	registry, _ := builder.Build()
-	if _, err := registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{}); errorCode(err) != "missing_field" {
-		t.Fatalf("missing editable summary accepted although not a list column: %v", err)
+	if page, err := registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{}); err != nil || len(page.objects) != 1 {
+		t.Fatalf("list required an unused editable field: %v", err)
+	}
+	if _, _, err := registry.models[0].get(context.Background(), mustPrincipal(t), 1); errorCode(err) != "missing_field" {
+		t.Fatalf("edit accepted a missing editable summary: %v", err)
 	}
 }
 
@@ -89,7 +92,7 @@ func ticketSelectionConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket]
 	config := ModelConfig[selectionTicket]{AppLabel: "helpdesk", Slug: "tickets", Model: schema.Models[1],
 		ListFields: []string{"subject", "category"}, SearchFields: []string{"subject"}, ReadOnly: true,
 		Permissions: Permissions{View: "helpdesk.view_ticket"},
-		List: func(_ context.Context, request ListRequest) (Page[selectionTicket], error) {
+		List: func(_ context.Context, _ auth.Principal, request ListRequest) (Page[selectionTicket], error) {
 			return Page[selectionTicket]{Items: []selectionTicket{{1, "Printer", 2}}, Total: 1, Offset: request.Offset, Limit: request.Limit}, nil
 		},
 		Snapshot: func(ticket selectionTicket) (Object, error) {
@@ -119,10 +122,10 @@ func TestReadOnlyRelationModelRequiresNoMutationOrFormAdapter(t *testing.T) {
 	if _, err := model.create(context.Background(), principal, forms.Form{}); errorCode(err) != "read_only" {
 		t.Fatalf("create: %v", err)
 	}
-	if _, _, err := model.update(context.Background(), principal, 1, forms.Form{}); errorCode(err) != "read_only" {
+	if _, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, forms.Form{}); errorCode(err) != "read_only" {
 		t.Fatalf("update: %v", err)
 	}
-	if _, err := model.delete(context.Background(), principal, 1); errorCode(err) != "read_only" {
+	if _, err := model.delete(context.Background(), principal, Mutation{ID: 1}); errorCode(err) != "read_only" {
 		t.Fatalf("delete: %v", err)
 	}
 	paths, err := SiteAllowedNextPaths(registry, "/admin")
@@ -153,7 +156,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	config.ReadOnly = false
 	config.FormFields = []string{"subject"}
 	config.Permissions = Permissions{View: "helpdesk.view_ticket", Add: "helpdesk.add_ticket", Change: "helpdesk.change_ticket", Delete: "helpdesk.delete_ticket"}
-	config.Get = func(context.Context, int64) (selectionTicket, bool, error) {
+	config.Get = func(context.Context, auth.Principal, int64) (selectionTicket, bool, error) {
 		return selectionTicket{1, "Printer", 2}, true, nil
 	}
 	config.Initial = func(ticket selectionTicket) (map[string]forms.Value, error) {
@@ -166,13 +169,13 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 		subject, _ := values.String("subject")
 		return selectionTicket{2, subject, 2}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, int64, forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (selectionTicket, []string, error) {
 		return selectionTicket{1, "Updated", 2}, []string{"subject"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, int64) (selectionTicket, error) {
+	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
 		return selectionTicket{1, "Printer", 2}, nil
 	}
-	config.History = func(context.Context, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil }
+	config.History = func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil }
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
 	}

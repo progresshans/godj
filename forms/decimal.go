@@ -13,13 +13,13 @@ func Decimal(value decimal.Decimal) Value {
 	if !value.Valid() {
 		return Value{kind: ValueKind(255)}
 	}
-	return Value{kind: ValueDecimal, string: value.String()}
+	return textValue(ValueDecimal, value.String())
 }
 func (value Value) AsDecimal() (decimal.Decimal, bool) {
 	if value.kind != ValueDecimal {
 		return decimal.Decimal{}, false
 	}
-	number, err := decimal.Parse(value.string)
+	number, err := decimal.Parse(value.text())
 	return number, err == nil
 }
 func (values Values) Decimal(name string) (decimal.Decimal, bool) {

@@ -11,13 +11,13 @@ func Time(value clock.Time) Value {
 	if !value.Valid() {
 		return Value{kind: ValueKind(255)}
 	}
-	return Value{kind: ValueTime, string: value.String()}
+	return textValue(ValueTime, value.String())
 }
 func (value Value) AsTime() (clock.Time, bool) {
 	if value.kind != ValueTime {
 		return clock.Time{}, false
 	}
-	time, err := clock.Parse(value.string)
+	time, err := clock.Parse(value.text())
 	return time, err == nil
 }
 func (values Values) Time(name string) (clock.Time, bool) {

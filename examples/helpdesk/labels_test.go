@@ -411,11 +411,20 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 		t.Fatal("unknown commit was retried, called rollback or returned success", response.Code)
 	}
 	backend.mode = ""
+	changeOnly := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ViewLabel})
+	changeOnly.cookies, changeOnly.csrf = maps.Clone(client.cookies), client.csrf
+	if response := changeOnly.request("GET", "/admin/labels/", "", false); response.Code != 200 {
+		t.Fatal("current change authority did not admit the Admin label list", response.Code)
+	}
 	for _, entry := range []struct {
 		method, path string
 		permission   auth.Permission
 	}{{"GET", "/api/labels/?limit=bad", helpdesk.ViewLabel}, {"POST", "/api/labels/", helpdesk.AddLabel}, {"PUT", path, helpdesk.ChangeLabel}, {"PATCH", path, helpdesk.ChangeLabel}, {"DELETE", path, helpdesk.DeleteLabel}, {"GET", "/admin/labels/", helpdesk.ViewLabel}, {"GET", "/admin/labels/add/", helpdesk.AddLabel}, {"GET", change, helpdesk.ChangeLabel}, {"GET", fmt.Sprintf("/admin/labels/delete/?id=%d", second.ID), helpdesk.DeleteLabel}} {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: entry.permission})
+		blocked := helpdeskDeniedPermissions{entry.permission}
+		if entry.path == "/admin/labels/" {
+			blocked = append(blocked, helpdesk.ChangeLabel)
+		}
+		denied := helpdeskHTTP(t, application, runtime, blocked)
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		if response := denied.request("GET", "/admin/", "", false); response.Code != 200 {
 			t.Fatal("initialize denied Label session", response.Code)

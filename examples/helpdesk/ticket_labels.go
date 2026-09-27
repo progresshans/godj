@@ -60,8 +60,10 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		},
 		ListFields:  []string{"id", "ticket", "label"},
 		Permissions: admin.Permissions{View: ViewTicketLabel, Add: AddTicketLabel, Change: ChangeTicketLabel, Delete: DeleteTicketLabel},
-		List:        a.listTicketLabels,
-		Get: func(ctx context.Context, id int64) (models.TicketLabel, bool, error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
+			return a.listTicketLabels(ctx, request)
+		},
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.TicketLabel, bool, error) {
 			return a.ticketLabel(ctx, a.backend, id)
 		},
 		Snapshot: func(value models.TicketLabel) (admin.Object, error) {
@@ -77,14 +79,16 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 			}
 			return a.createTicketLabel(ctx, ticket, label)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, id int64, values forms.Values) (models.TicketLabel, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.TicketLabel, []string, error) {
+			id := mutation.ID
 			ticket, label, err := keys(values)
 			if err != nil {
 				return models.TicketLabel{}, nil, err
 			}
 			return a.updateTicketLabel(ctx, id, models.TicketLabelPatch{}.WithTicketID(ticket).WithLabelID(label))
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, id int64) (models.TicketLabel, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.TicketLabel, error) {
+			id := mutation.ID
 			return a.deleteTicketLabel(ctx, id)
 		},
 	})

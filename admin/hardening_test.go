@@ -154,7 +154,7 @@ func TestRegisteredHistoryBoundsRequestAndRejectsMalformedResults(t *testing.T) 
 	t.Run("request limit", func(t *testing.T) {
 		config := validRegistryConfig(t)
 		var received HistoryRequest
-		config.History = func(_ context.Context, id int64, request HistoryRequest) ([]AuditEntry, error) {
+		config.History = func(_ context.Context, _ auth.Principal, id int64, request HistoryRequest) ([]AuditEntry, error) {
 			received = request
 			return []AuditEntry{validHardeningHistoryEntry(1, id)}, nil
 		}
@@ -206,7 +206,7 @@ func TestRegisteredHistoryBoundsRequestAndRejectsMalformedResults(t *testing.T) 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config := validRegistryConfig(t)
-			config.History = func(context.Context, int64, HistoryRequest) ([]AuditEntry, error) {
+			config.History = func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error) {
 				return append([]AuditEntry(nil), test.entries...), nil
 			}
 			model := buildHardeningModel(t, config)
@@ -239,26 +239,26 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "update",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Update = func(context.Context, auth.Principal, int64, forms.Values) (registryArticle, []string, error) {
+				config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (registryArticle, []string, error) {
 					*called = true
 					return registryArticle{id: 2, title: "Updated"}, []string{"title"}, nil
 				}
 			},
 			run: func(model registeredModel, form forms.Form) error {
-				_, _, err := model.update(context.Background(), mustPrincipal(t), 1, form)
+				_, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, form)
 				return err
 			},
 		},
 		{
 			name: "delete",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Delete = func(context.Context, auth.Principal, int64) (registryArticle, error) {
+				config.Delete = func(context.Context, auth.Principal, Mutation) (registryArticle, error) {
 					*called = true
 					return registryArticle{id: 2, title: "Deleted"}, nil
 				}
 			},
 			run: func(model registeredModel, _ forms.Form) error {
-				_, err := model.delete(context.Background(), mustPrincipal(t), 1)
+				_, err := model.delete(context.Background(), mustPrincipal(t), Mutation{ID: 1})
 				return err
 			},
 		},
@@ -297,11 +297,12 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t *testing.T) {
 	const existing = "  legacy title  "
 	config := validRegistryConfig(t)
-	config.Get = func(context.Context, int64) (registryArticle, bool, error) {
+	config.Get = func(context.Context, auth.Principal, int64) (registryArticle, bool, error) {
 		return registryArticle{id: 1, title: existing}, true, nil
 	}
 	var received string
-	config.Update = func(_ context.Context, _ auth.Principal, id int64, values forms.Values) (registryArticle, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+		id := mutation.ID
 		received, _ = values.String("title")
 		return registryArticle{id: id, title: received}, []string{"title"}, nil
 	}
@@ -319,7 +320,7 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 	if err != nil || !bound.Valid() {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
-	if _, _, err := model.update(context.Background(), mustPrincipal(t), 1, bound); err != nil {
+	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, bound); err != nil {
 		t.Fatalf("update() error = %v", err)
 	}
 	if received != "new title" {

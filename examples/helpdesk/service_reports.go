@@ -49,8 +49,10 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		RelatedChoices: []admin.RelatedChoices{{Field: "ticket", Permission: ViewTicket, Load: a.reportTicketChoices}},
 		ListFields:     []string{"id", "ticket", "summary", "completed"}, SearchFields: []string{"summary"},
 		Permissions: admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
-		List:        a.listReports,
-		Get: func(ctx context.Context, id int64) (models.ServiceReport, bool, error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
+			return a.listReports(ctx, request)
+		},
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.ServiceReport, bool, error) {
 			return a.report(ctx, a.backend, id)
 		},
 		Snapshot: func(value models.ServiceReport) (admin.Object, error) {
@@ -74,7 +76,8 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			}
 			return a.createReport(ctx, serviceReportInput{ticketID: key, summary: summary, completed: completed})
 		},
-		Update: func(ctx context.Context, _ auth.Principal, id int64, values forms.Values) (models.ServiceReport, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.ServiceReport, []string, error) {
+			id := mutation.ID
 			key, ok := values.Integer("ticket")
 			if !ok {
 				return models.ServiceReport{}, nil, errors.New("helpdesk: invalid report ticket")
@@ -89,7 +92,8 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			}
 			return a.updateReport(ctx, id, models.ServiceReportPatch{}.WithTicketID(key).WithSummary(summary).WithCompleted(completed))
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, id int64) (models.ServiceReport, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.ServiceReport, error) {
+			id := mutation.ID
 			return a.deleteReport(ctx, id)
 		},
 	})

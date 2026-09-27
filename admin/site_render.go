@@ -62,7 +62,7 @@ func (site *Site) render(request *web.Request, name string, values map[string]te
 func (site *Site) indexContext(ctx context.Context, principal auth.Principal) (map[string]templates.Value, error) {
 	models := make([]templates.Value, 0, len(site.registry.models))
 	for _, model := range site.registry.models {
-		allowed, err := site.auth.Authorized(ctx, principal, model.permissions.View)
+		allowed, err := site.modelReadAllowed(ctx, principal, model)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func (site *Site) listContext(
 	query url.Values,
 	invalidPage bool,
 ) (map[string]templates.Value, error) {
-	canAdd, err := site.modelWriteAllowed(ctx, model, principal, model.permissions.Add)
+	canAdd, err := site.modelWriteAllowed(ctx, model, principal, model.addPermissions...)
 	if err != nil {
 		return nil, err
 	}
@@ -202,11 +202,17 @@ func (site *Site) listContext(
 	}, nil
 }
 
-func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, principal auth.Principal, permission auth.Permission) (bool, error) {
+func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, principal auth.Principal, permissions ...auth.Permission) (bool, error) {
 	if model.readOnly {
 		return false, nil
 	}
-	return site.auth.Authorized(ctx, principal, permission)
+	for _, permission := range permissions {
+		allowed, err := site.auth.Authorized(ctx, principal, permission)
+		if err != nil || !allowed {
+			return false, err
+		}
+	}
+	return len(permissions) != 0, nil
 }
 
 func listPageCount(total int64, limit int) int64 {
@@ -337,6 +343,7 @@ func (site *Site) formContext(
 			"name":        templates.String(field.Name()),
 			"label":       templates.String(field.Label()),
 			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
+			"password":    templates.Bool(field.Widget() == forms.PasswordInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
 			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
 			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
@@ -367,6 +374,9 @@ func (site *Site) formContext(
 	}
 	return map[string]templates.Value{
 		"title":            templates.String(title),
+		"has_revision":     templates.Bool(false),
+		"commands":         templates.List(),
+		"revision":         templates.Integer(0),
 		"action":           templates.String(action),
 		"submit_label":     templates.String(submit),
 		"list_path":        templates.String(site.modelPath(model)),
@@ -377,6 +387,11 @@ func (site *Site) formContext(
 }
 
 func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values) (string, bool) {
+	// Never put a raw password into a render context, even after a confirmed
+	// validation rejection or when a caller supplied an initial value.
+	if field.Widget() == forms.PasswordInput {
+		return "", false
+	}
 	if field.Widget() == forms.NullBooleanSelect {
 		if form.Bound() {
 			if value, known := booleaninput.NullableSelect(submitted.Get(field.Name())); known {
@@ -498,12 +513,18 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 }
 
 func (site *Site) deleteContext(model registeredModel, object Object) (map[string]templates.Value, error) {
+	revision, err := model.revision(object)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]templates.Value{
-		"model_name": templates.String(model.model.GoName),
-		"protected":  templates.Bool(false),
-		"label":      templates.String(object.label),
-		"action":     templates.String(site.modelPath(model) + "delete/?id=" + strconv.FormatInt(object.id, 10)),
-		"list_path":  templates.String(site.modelPath(model)),
+		"has_revision": templates.Bool(revision != 0),
+		"revision":     templates.Integer(revision),
+		"model_name":   templates.String(model.model.GoName),
+		"protected":    templates.Bool(false),
+		"label":        templates.String(object.label),
+		"action":       templates.String(site.modelPath(model) + "delete/?id=" + strconv.FormatInt(object.id, 10)),
+		"list_path":    templates.String(site.modelPath(model)),
 	}, nil
 }
 

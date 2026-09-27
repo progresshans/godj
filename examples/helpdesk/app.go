@@ -168,7 +168,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err := admin.RegisterModel(builder, admin.ModelConfig[models.Category]{
 		AppLabel: "helpdesk", Slug: "categories", Model: categoryDescriptor.Metadata(), ReadOnly: true,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"}, Permissions: admin.Permissions{View: ViewCategory},
-		List: func(ctx context.Context, request admin.ListRequest) (admin.Page[models.Category], error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
 			query := models.CategoryObjects.Using(a.backend).OrderBy(models.CategoryFields.ID.Asc())
 			if request.Search != "" {
 				query = query.Filter(models.CategoryFields.Name.IContains(request.Search))
@@ -218,8 +218,10 @@ func (a *Application) register(builder *admin.Builder) error {
 		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
 		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
-		List:        a.list,
-		Get: func(ctx context.Context, id int64) (ticketRecord, bool, error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
+			return a.list(ctx, request)
+		},
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (ticketRecord, bool, error) {
 			return a.readTicketRecord(ctx, a.objects, id)
 		},
 		Snapshot: func(value ticketRecord) (admin.Object, error) {
@@ -235,14 +237,18 @@ func (a *Application) register(builder *admin.Builder) error {
 			}
 			return a.create(ctx, principal, input)
 		},
-		Update: func(ctx context.Context, principal auth.Principal, id int64, values forms.Values) (ticketRecord, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, values forms.Values) (ticketRecord, []string, error) {
+			id := mutation.ID
 			input, err := fromForm(values)
 			if err != nil {
 				return ticketRecord{}, nil, err
 			}
 			return a.update(ctx, principal, id, input)
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, id int64) (ticketRecord, error) { return a.delete(ctx, id) },
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (ticketRecord, error) {
+			id := mutation.ID
+			return a.delete(ctx, id)
+		},
 	}); err != nil {
 		return err
 	}

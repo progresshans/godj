@@ -88,6 +88,9 @@ func modelFormRules(model registeredModel) inputRules {
 	}
 	// VerifyCSRF receives the complete slice and owns duplicate rejection.
 	rules["csrfmiddlewaretoken"] = MaximumInputValues
+	if model.revisionField != "" {
+		rules["expected_revision"] = 1
+	}
 	return rules
 }
 

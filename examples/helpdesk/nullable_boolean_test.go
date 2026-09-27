@@ -134,7 +134,7 @@ func verifyHelpdeskNullableBoolean(t *testing.T, ctx context.Context, runtime *s
 			t.Fatalf("update bypassed category or identity: %d", response.Code)
 		}
 	}
-	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{helpdesk.ChangeTicket})
+	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ChangeTicket})
 	denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 	for _, method := range []string{"PUT", "PATCH"} {
 		before := backend.transactions

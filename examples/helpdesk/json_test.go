@@ -269,7 +269,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	if response.Code != http.StatusForbidden || backend.transactions != before || !reflect.DeepEqual(baseline, read()) {
 		t.Fatal("JSON write bypassed CSRF")
 	}
-	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{helpdesk.ChangeTicket})
+	denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ChangeTicket})
 	denied.cookies = maps.Clone(client.cookies)
 	safe := denied.request("GET", "/api/tickets/", "", false)
 	denied.csrf = safe.Header().Get(websessionauth.DefaultCSRFHeader)

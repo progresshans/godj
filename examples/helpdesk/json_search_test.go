@@ -120,7 +120,7 @@ func verifyHelpdeskJSONSearch(t *testing.T, ctx context.Context, runtime *system
 			t.Fatal("invalid query performed I/O or escaped validation", raw, response.Code, response.Body, backend.queries-before)
 		}
 	}
-	denied := helpdeskHTTP(t, app, runtime, helpdeskDeniedPermission{helpdesk.ViewTicket})
+	denied := helpdeskHTTP(t, app, runtime, helpdeskDeniedPermissions{helpdesk.ViewTicket})
 	denied.cookies = maps.Clone(client.cookies)
 	for _, candidate := range []*helpdeskClient{denied, helpdeskHTTP(t, app, runtime, auth.PrincipalAuthorizer{})} {
 		before := backend.queries

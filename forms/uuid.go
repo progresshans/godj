@@ -6,12 +6,12 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func UUID(value uuid.UUID) Value { return Value{kind: ValueUUID, string: value.String()} }
+func UUID(value uuid.UUID) Value { return textValue(ValueUUID, value.String()) }
 func (value Value) AsUUID() (uuid.UUID, bool) {
 	if value.kind != ValueUUID {
 		return uuid.UUID{}, false
 	}
-	identifier, err := uuid.Parse(value.string)
+	identifier, err := uuid.Parse(value.text())
 	return identifier, err == nil
 }
 func (values Values) UUID(name string) (uuid.UUID, bool) {

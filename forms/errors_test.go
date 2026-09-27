@@ -31,16 +31,16 @@ func TestFormWithErrorsRetainsInitialChangesAndDetachesCleanedFields(t *testing.
 	if _, ok := with.Cleaned().Get("first"); ok {
 		t.Fatal("rejected field remains in cleaned data")
 	}
-	if value, ok := with.Cleaned().Get("second"); !ok || value != String("two") {
+	if value, ok := with.Cleaned().Get("second"); !ok || !value.Equal(String("two")) {
 		t.Fatal("unrelated cleaned field was lost")
 	}
-	if value, ok := with.Initial().Get("first"); !ok || value != String("before") || !reflect.DeepEqual(with.Changed(), form.Changed()) {
+	if value, ok := with.Initial().Get("first"); !ok || !value.Equal(String("before")) || !reflect.DeepEqual(with.Changed(), form.Changed()) {
 		t.Fatal("initial/change data was modified")
 	}
 	if !form.Valid() || !form.Errors().Empty() {
 		t.Fatal("WithErrors mutated its source form")
 	}
-	if value, ok := form.Cleaned().Get("first"); !ok || value != String("one") {
+	if value, ok := form.Cleaned().Get("first"); !ok || !value.Equal(String("one")) {
 		t.Fatal("source cleaned map was borrowed")
 	}
 	nonField, err := with.WithErrors(validation.NewErrors(validation.New(validation.NonField, "conflict")))

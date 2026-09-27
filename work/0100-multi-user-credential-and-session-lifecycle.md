@@ -51,7 +51,11 @@ Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 
 실제 관리 JSON API·OpenAPI를 Article composition에 연결하고 영향 normal/race/CGO=0·양 DB·negative control을 통과했다.
 수정 조건·current 권한·password/session 의미를 HTTP에 연결했다.
 새 API의 독립 Session/Bearer client도 실제 HTTP·영속 SQLite와 부모의 DB/session/audit 검사에 연결하고 영향 검증했다.
-전용 Form/Admin과 action별 인가를 적용한 관련 선택 목록은 다음 범위다.
+생성 전용 폼·명시적 object command·revision 조건과 password 비공개 입력을 공통 Admin에 구현했다.
+조회 callback에 actor를 전달하고 view 또는 change 권한을 허용하며, 생성·편집의 선택 목록 권한을 구분한다.
+기존 Article·Helpdesk 어댑터와 영향 normal/race/CGO=0·양 DB 소비자 검증을 완료했다.
+이는 실제 Identity Form/Admin의 완료가 아니다. 해당 모델 등록·action별 현재 DB 인가를 적용한 선택 목록,
+password/생성 validator·감사 조회를 Manager와 연결하는 작업이 다음 범위다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

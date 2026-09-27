@@ -151,7 +151,7 @@ Ticket의 수명·기존 필드는 그대로 유지하며 보고서의 reverse �
 소유권을 모방한 것이 아니다. 같은 pinned Django ModelChoiceField의 required/empty·integer 별칭·NUL·membership·raw-input
 변경 감지를 독립 [runner](../../conformance/runners/django/model_choice_reference.py)로 비교한다. 임의 target/to_field는 미지원이다.
 
-Admin은 선택한 relation마다 `RelatedChoices` source를 요구한다. 등록은 I/O가 없으며 모든 target 읽기 권한을 확인한 뒤
+Admin은 선택한 relation마다 `RelatedChoices` source를 요구한다. 등록은 I/O가 없으며 각 source가 명시한 권한을 확인한 뒤
 요청별 source를 호출한다. 실제 Authorizer와 Principal snapshot을 둘 다 검사한다. 잘못된 내부 Form은 source 조회 전에 거부한다.
 Bind용 선택지를 요청 간 공유하지 않고 write callback 직전에도 목록을 다시 확인한다. 이것만으로 race를 닫았다고 하지 않는다.
 Application은 같은 transaction에서 현재 보고서·선택 티켓의 Category 범위와 고유성을 검사하고, 실제 native 제약이 최종 무결성을 소유한다.

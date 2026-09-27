@@ -228,7 +228,7 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 		t.Fatal("chooser scope/escaping", response.Code, response.Body)
 	}
 	for _, permission := range []auth.Permission{helpdesk.AddServiceReport, helpdesk.ViewTicket} {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: permission})
+		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{permission})
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		before := backend.queries
 		response := denied.request("GET", "/admin/service-reports/add/", "", false)
@@ -237,7 +237,7 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 		}
 	}
 	// API accepts a scoped key without enumerating ticket labels.
-	noLabels := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: helpdesk.ViewTicket})
+	noLabels := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ViewTicket})
 	noLabels.cookies, noLabels.csrf = maps.Clone(client.cookies), client.csrf
 	if response := noLabels.request("GET", "/admin/", "", false); response.Code != 200 {
 		t.Fatal("initialize per-runtime CSRF", response.Code)
@@ -397,7 +397,7 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 		method, path string
 		permission   auth.Permission
 	}{{"GET", route, helpdesk.ViewServiceReport}, {"POST", route, helpdesk.AddServiceReport}, {"PATCH", path, helpdesk.ChangeServiceReport}, {"DELETE", path, helpdesk.DeleteServiceReport}, {"GET", reverse, helpdesk.ViewServiceReport}} {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: entry.permission})
+		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{entry.permission})
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		if response := denied.request("GET", "/admin/", "", false); response.Code != 200 {
 			t.Fatal("initialize denied runtime CSRF", response.Code)

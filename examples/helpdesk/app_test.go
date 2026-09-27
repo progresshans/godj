@@ -70,11 +70,13 @@ func (backend *helpdeskReadCounter) Query(ctx context.Context, plan query.Plan) 
 	return backend.Backend.Query(ctx, plan)
 }
 
-type helpdeskDeniedPermission struct{ permission auth.Permission }
+type helpdeskDeniedPermissions []auth.Permission
 
-func (deny helpdeskDeniedPermission) Allowed(ctx context.Context, principal auth.Principal, permission auth.Permission) (bool, error) {
-	if permission == deny.permission {
-		return false, nil
+func (deny helpdeskDeniedPermissions) Allowed(ctx context.Context, principal auth.Principal, permission auth.Permission) (bool, error) {
+	for _, blocked := range deny {
+		if permission == blocked {
+			return false, nil
+		}
 	}
 	return (auth.PrincipalAuthorizer{}).Allowed(ctx, principal, permission)
 }
@@ -337,7 +339,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	for _, denied := range []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewCategory, helpdesk.ViewLabel} {
-		limitedClient := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{denied})
+		limitedClient := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{denied})
 		limitedClient.cookies = client.cookies
 		before := reads.queries
 		response := limitedClient.request("GET", detailPath, "", false)

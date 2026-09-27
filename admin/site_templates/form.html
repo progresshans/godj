@@ -1,10 +1,12 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title></head>
 <body data-admin-view="form"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
-<main><h1>{{ title }}</h1><form method="post" action="{{ action }}">{% csrf_token %}
+<main><h1>{{ title }}</h1>{% for command in commands %}<p><a href="{{ command.path }}">{{ command.label }}</a></p>{% endfor %}<form method="post" action="{{ action }}">{% csrf_token %}
+{% if has_revision %}<input type="hidden" name="expected_revision" value="{{ revision }}">{% endif %}
 {% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
 {% for field in fields %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
 {% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.password %}<input type="password" name="{{ field.name }}" autocomplete="new-password"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>
 {{ field.value }}</textarea>{% endif %}
 {% if field.time %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="HH:MM:SS"{% if field.required %} required{% endif %}>{% endif %}

@@ -20,7 +20,7 @@ func (choice Choice) InputValue() string {
 	if choice.Value.kind == ValueInteger {
 		return strconv.FormatInt(choice.Value.integer, 10)
 	}
-	return choice.Value.string
+	return choice.Value.text()
 }
 
 // WithChoices snapshots an ordered, nonempty choice list. Choice fields use
@@ -46,22 +46,22 @@ func validateChoices(name string, kind FieldKind, config fieldConfig) error {
 	if config.modelChoice && !(kind == FieldInteger && config.widget == Select || kind == FieldIntegerList && config.widget == SelectMultiple) {
 		return invalid("unsupported_model_choice")
 	}
-	seen := make(map[Value]struct{}, len(config.choices))
+	seen := make(map[string]struct{}, len(config.choices))
 	for _, choice := range config.choices {
 		if !(kind == FieldIntegerList && choice.Value.kind == ValueInteger || kind != FieldIntegerList && validValueForField(choice.Value, kind, false)) {
 			return invalid("type_mismatch")
 		}
 		if !utf8.ValidString(choice.Label) || strings.ContainsRune(choice.Label, 0) ||
-			kind == FieldChar && (!utf8.ValidString(choice.Value.string) || strings.ContainsRune(choice.Value.string, 0)) {
+			kind == FieldChar && (!utf8.ValidString(choice.Value.text()) || strings.ContainsRune(choice.Value.text(), 0)) {
 			return invalid("invalid_text")
 		}
-		if kind == FieldChar && config.maxLength > 0 && utf8.RuneCountInString(choice.Value.string) > config.maxLength {
+		if kind == FieldChar && config.maxLength > 0 && utf8.RuneCountInString(choice.Value.text()) > config.maxLength {
 			return invalid("max_length")
 		}
-		if _, duplicate := seen[choice.Value]; duplicate {
+		if _, duplicate := seen[choice.InputValue()]; duplicate {
 			return invalid("duplicate")
 		}
-		seen[choice.Value] = struct{}{}
+		seen[choice.InputValue()] = struct{}{}
 	}
 	return nil
 }

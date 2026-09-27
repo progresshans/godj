@@ -15,14 +15,14 @@ func JSON(value jsonvalue.Value) Value {
 	if err != nil {
 		return Value{kind: ValueJSON}
 	}
-	return Value{kind: ValueJSON, string: canonical.Text}
+	return textValue(ValueJSON, canonical.Text)
 }
 
 func (value Value) AsJSON() (jsonvalue.Value, bool) {
 	if value.kind != ValueJSON {
 		return jsonvalue.Value{}, false
 	}
-	document, err := jsonvalue.Parse([]byte(value.string))
+	document, err := jsonvalue.Parse([]byte(value.text()))
 	return document, err == nil
 }
 

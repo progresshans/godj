@@ -231,4 +231,38 @@ Cleanup·storage 오류는 입력 거부로 낮추지 않는다. Unknown commit/
 Retry-After를 제공하지 않는다. 호출자는 durable state를 재확인해야 한다. 관리 응답은 `Cache-Control: no-store`다.
 
 Article의 authenticated composition은 실제 관리 API와 권한으로 보호된 `/api/identity/openapi.json`을 게시한다.
-전용 관리 Form/Admin·관련 선택 목록·독립 generated client와 GDJ-0100 전체 platform/process milestone은 후속 통합 범위다.
+독립 Session/Bearer generated client를 실제 HTTP에 연결했다. 전용 관리 Form/Admin·관련 선택 목록과 GDJ-0100 전체 platform/process milestone은 후속 통합 범위다.
+
+
+## 관리 Form과 공통 Admin 기반
+
+ModelConfig의 공통 Form은 편집을 소유하고 CreateForm은 생성의 model field 선택·override·비저장 입력·cross validator를
+별도로 소유한다. 비저장 입력은 선택하지 않은 저장 필드를 포함해 Schema IR의 어떤 field도 가리지 못한다.
+CSRF token과 expected_revision도 입력 field 이름으로 사용할 수 없다. 생성에는 모델의 add와 명시한 추가 권한을 모두 요구한다.
+생성·편집 RelatedChoices는 각 action이 지정한 permission과 loader를 사용한다. Loader는 현재 저장 인가를 확인하고,
+최종 관계 검증은 write service의 transaction에서 수행한다. Helpdesk의 별도 target-view 정책은 유지한다.
+
+List/Get/History에는 인증 actor를 전달한다. Site와 registry의 조회는 view 또는 change를 허용하며
+확정 거부에서만 대체 권한을 확인한다. 인가·읽기 오류를 권한 거부로 낮추지 않는다.
+List snapshot에는 목록 field와 revision만 요구해 편집 relation 전체를 매 행 조회할 필요가 없다.
+편집 snapshot과 Initial의 일치 검사는 유지한다. Admin의 삭제 preview는 모델 read와 delete를 모두 요구한다.
+이는 profile을 노출하지 않는 Manager/API의 delete-only 권한 계약과 구분한다.
+
+RevisionField는 입력에서 제외한 nonnullable Integer다. 수정·삭제·object command의 HTML은 읽은 revision을
+expected_revision으로 제출하며, validation 재표시에도 같은 조건을 보존한다. Canonical positive int64만 허용하고
+증가시킬 수 없는 최댓값은 수정 조건으로 거부한다. Site의 선행 조회 검사는 write transaction의 CAS를 대체하지 않는다.
+Mutation callback은 조건을 다시 확인하며, 확인된 충돌은 409로 반환하고 현재 값을 검토하도록 안내한다.
+Unknown outcome은 503으로 반환하며 성공 redirect·Retry-After·자동 재시도를 제공하지 않는다.
+Callback이 성공을 알린 뒤 결과 계약이 틀리면 reconciliation-required 실행 오류로 남긴다.
+
+Commands는 별도의 Form·권한·callback을 갖고 `/command/<name>/?id=<id>`에 GET/POST를 게시한다.
+폼에는 profile initial을 주입하지 않는다. Callback은 확정된 ID/revision만 반환할 수 있어 자기 session을 폐기한 직후
+성공 profile을 다시 읽기 위해 추가 인가나 I/O를 수행할 필요가 없다. 감사의 password 같은 논리 이름은
+AdditionalAuditFields에 명시하며 snapshot이나 입력 필드로 승격하지 않는다.
+
+PasswordInput은 Char 입력의 표현이다. 공백 보존은 WithTrimWhitespace(false)로 명시한다.
+Password default와 choices는 시작 시 거부하며, 정상/오류 화면에 입력값을 넣지 않는다.
+Form의 raw text와 Value의 문자열 payload는 불투명한 내부 상태에 둔다. 일반 fmt와 잘못된 %p/%w fallback도
+비밀번호에 도달하지 않는다. 명시적 getter만 값을 반환하고 Value.Equal이 문자열 내용의 동등성을 소유한다.
+HTML 입력은 요청 전체 64 KiB·개별 값 4 KiB·총 1,024개 값으로 제한해 두 개의 256-member 선택 집합과 scalar 조건을 수용한다.
+이 공통 기반과 기존 Article/Helpdesk 소비자 검증은 실제 Identity 관리 폼·password validator·현재 권한의 선택 목록 통합 완료와 구분한다.

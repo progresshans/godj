@@ -107,7 +107,8 @@ Profile·role·관계·감사는 하나의 transaction이며 비활성화는 대
 `DeleteUser`에는 호스트가 생성한 전체 User relation deleter를 전달한다. 외부 모델의 CASCADE/PROTECT와 session·감사를 함께 처리하며
 성공 결과는 ID·revision·삭제 건수다. 실패/unknown에는 성공 값을 반환하지 않는다.
 생성은 현재 `add_user`와 `change_user`를 모두 요구하고 모든 작업은 현재 grant와 deny overlay를 다시 확인한다.
-Group/Permission 자체의 관리 service, 전용 Form/Admin/API/client와 self-service/reset은 아직 미완료다.
+Group/Permission 관리 service와 관리 JSON API·OpenAPI·독립 Session/Bearer client도 연결했다.
+공통 Admin 기반을 실제 Identity Form/Admin에 연결하는 작업과 self-service/reset은 미완료다.
 
 ## Form, Admin과 API
 
@@ -124,7 +125,16 @@ Text는 Textarea, Char는 TextInput을 기본 widget으로 사용한다. `forms/
 시작 시 거부한다. Optional nullable Char의 빈 입력은 Null, Text의 빈 입력은 빈 문자열이다. [상세 의미](adr/0060-text-field-and-form-widget-semantics.md)를 따른다.
 `admin.ModelConfig.FormFields`는 같은 선택을 사용한다. `ReadOnly` 등록은 List/Snapshot을 요구하며 mutation callback·action을
 받지 않고 mutation route를 게시하지 않는다. Get/History는 필요한 read flow에 연결한다.
-Snapshot은 list/form에서 실제 사용하는 필드만 필수다. `forms/model.InitialValues`와
+List/Get/History callback은 context와 현재 인증 actor를 받으며, DB 권한 재확인은 해당 service가 소유한다.
+조회에는 view 또는 change 권한을 허용하고, 인가 실행 오류를 대체 권한으로 우회하지 않는다.
+CreateForm은 생성에 필요한 별도 model field 선택과 password confirmation 같은 비저장 입력을 선언한다.
+Commands는 별도 Form·권한·명시적 callback으로 password 교체 같은 객체 동작을 구성한다.
+RevisionField를 지정한 모델의 수정·삭제·command는 표시한 revision을 Mutation으로 전달한다.
+실제 write callback은 같은 transaction에서 조건을 다시 확인한다. 충돌은 409이며 자동 재시도하지 않는다.
+PasswordInput에는 저장 기본값을 둘 수 없고, 검증 실패에도 값을 다시 표시하지 않는다.
+`forms.WithTrimWhitespace(false)`는 비밀번호의 공백을 보존한다. Form 값의 일반 진단은 비공개이며,
+값 접근은 명시적 accessor, 값 비교는 `Value.Equal`을 사용한다.
+List snapshot에는 목록 필드와 선언한 revision만 필수이며, 편집 snapshot에는 편집 필드도 필요하다. `forms/model.InitialValues`와
 `admin.NewModelProjector`·`serializers.NewModelEncoder`는 generated descriptor의 typed reader와 명시적 필드 선택을 사용한다.
 Admin/API projector는 시작 시 선택 metadata를 검증·복사하고 목록의 각 객체에서는 값만 변환한다.
 

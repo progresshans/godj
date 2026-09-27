@@ -11,8 +11,9 @@ import (
 )
 
 // RelatedChoices owns the authorized query for one editable relation field.
-// Permission protects the target rows/labels independently from this model's
-// mutation permission. Choices are loaded after authentication/CSRF and before
+// Permission explicitly owns access to the target rows/labels. It may be this
+// action's permission or a separate target-view permission. The loader must
+// enforce its current stored authority. Choices are loaded after authentication/CSRF and before
 // binding, then checked again before the write callback. The callback must also
 // resolve the submitted key in its transaction to close the remaining race.
 type RelatedChoices struct {
@@ -66,7 +67,10 @@ func prepareRelatedChoices(form forms.Spec, sources []RelatedChoices) (func(cont
 		for _, source := range ordered {
 			choices, err := source.Load(ctx, principal)
 			if err != nil {
-				return forms.Spec{}, errors.Join(err, ctx.Err())
+				if contextErr := ctx.Err(); contextErr != nil {
+					return forms.Spec{}, errors.Join(err, contextErr)
+				}
+				return forms.Spec{}, err
 			}
 			if err = ctx.Err(); err != nil {
 				return forms.Spec{}, err
@@ -101,6 +105,19 @@ func relatedChoiceRejection(form forms.Form, fields []forms.Field) error {
 
 func (site *Site) relatedChoicesAllowed(request *web.Request, principal auth.Principal, model registeredModel) (bool, error) {
 	for _, permission := range model.choicePermissions {
+		allowed, err := site.permissionGranted(request, principal, permission)
+		if err != nil || !allowed {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (site *Site) addPermissionsAllowed(request *web.Request, principal auth.Principal, model registeredModel) (bool, error) {
+	for index, permission := range model.addPermissions {
+		if index == 0 {
+			continue
+		}
 		allowed, err := site.permissionGranted(request, principal, permission)
 		if err != nil || !allowed {
 			return false, err

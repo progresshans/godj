@@ -22,7 +22,7 @@ const (
 	DefaultBasePath      = "/admin"
 	MaximumFormBodyBytes = 64 * 1024
 	MaximumQueryBytes    = 4 * 1024
-	MaximumInputValues   = 128
+	MaximumInputValues   = 1024
 	MaximumInputBytes    = 4 * 1024
 	MaximumBasePathBytes = 128
 )
@@ -170,10 +170,10 @@ func (site *Site) buildRoutes() error {
 		prefix := site.basePath + "/" + model.slug
 		modelName := func(suffix string) string { return name(model.slug + "-" + suffix) }
 		routes = append(routes,
-			web.Route{Name: modelName("list"), Method: http.MethodGet, Path: prefix + "/", Handler: site.adminRequire(model.permissions.View, site.modelList(model))},
+			web.Route{Name: modelName("list"), Method: http.MethodGet, Path: prefix + "/", Handler: site.adminRequireRead(model, site.modelList(model))},
 		)
 		if model.hasHistory {
-			routes = append(routes, web.Route{Name: modelName("history"), Method: http.MethodGet, Path: prefix + "/history/", Handler: site.adminRequire(model.permissions.View, site.modelHistory(model))})
+			routes = append(routes, web.Route{Name: modelName("history"), Method: http.MethodGet, Path: prefix + "/history/", Handler: site.adminRequireRead(model, site.modelHistory(model))})
 		}
 		if model.readOnly {
 			continue
@@ -194,6 +194,13 @@ func (site *Site) buildRoutes() error {
 				Path:    prefix + "/action/" + action.name + "/",
 				Handler: site.modelAction(model, action),
 			})
+		}
+		for _, command := range model.commands {
+			path := prefix + "/command/" + command.name + "/"
+			routes = append(routes,
+				web.Route{Name: modelName("command-" + command.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(command.permission, site.modelCommandGet(model, command))},
+				web.Route{Name: modelName("command-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.modelCommandPost(model, command)},
+			)
 		}
 	}
 	site.routes = append([]web.Route(nil), routes...)
@@ -232,6 +239,9 @@ func SiteAllowedNextPaths(registry Registry, basePath string) ([]string, error) 
 		paths = append(paths, prefix+"/")
 		if !model.readOnly {
 			paths = append(paths, prefix+"/add/", prefix+"/change/", prefix+"/delete/")
+			for _, command := range model.commands {
+				paths = append(paths, prefix+"/command/"+command.name+"/")
+			}
 		}
 		if model.hasHistory {
 			paths = append(paths, prefix+"/history/")

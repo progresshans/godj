@@ -11,13 +11,13 @@ func Date(value calendar.Date) Value {
 	if !value.Valid() {
 		return Value{kind: ValueKind(255)}
 	}
-	return Value{kind: ValueDate, string: value.String()}
+	return textValue(ValueDate, value.String())
 }
 func (value Value) AsDate() (calendar.Date, bool) {
 	if value.kind != ValueDate {
 		return calendar.Date{}, false
 	}
-	date, err := calendar.Parse(value.string)
+	date, err := calendar.Parse(value.text())
 	return date, err == nil
 }
 func (values Values) Date(name string) (calendar.Date, bool) {

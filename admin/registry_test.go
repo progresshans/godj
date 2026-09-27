@@ -108,7 +108,7 @@ func TestRegisteredModelValidatesTypedOperationBoundaries(t *testing.T) {
 	if err != nil || !bound.Valid() {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
-	updated, changed, err := model.update(context.Background(), principal, 1, bound)
+	updated, changed, err := model.update(context.Background(), principal, Mutation{ID: 1}, bound)
 	if err != nil || updated.id != 1 || !reflect.DeepEqual(changed, []string{"title", "published", "summary"}) {
 		t.Fatalf("update() = %#v, %v, %v", updated, changed, err)
 	}
@@ -241,7 +241,7 @@ func TestRegisteredGetRejectsPartialOrSnapshotDivergentInitial(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config := validRegistryConfig(t)
-			config.Get = func(_ context.Context, id int64) (registryArticle, bool, error) {
+			config.Get = func(_ context.Context, _ auth.Principal, id int64) (registryArticle, bool, error) {
 				return registryArticle{id: id, title: "Go", published: true}, true, nil
 			}
 			config.Initial = test.initial
@@ -311,11 +311,11 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 		called++
 		return registryArticle{id: 2, title: "Created"}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, int64, forms.Values) (registryArticle, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (registryArticle, []string, error) {
 		called++
 		return registryArticle{id: 1, title: "Updated"}, []string{"title"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, int64) (registryArticle, error) {
+	config.Delete = func(context.Context, auth.Principal, Mutation) (registryArticle, error) {
 		called++
 		return registryArticle{id: 1, title: "Deleted"}, nil
 	}
@@ -339,10 +339,10 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 	if _, err := model.create(context.Background(), unpermissioned, valid); errorCode(err) != "denied" {
 		t.Fatalf("create permission error = %v", err)
 	}
-	if _, _, err := model.update(context.Background(), unpermissioned, 1, valid); errorCode(err) != "denied" {
+	if _, _, err := model.update(context.Background(), unpermissioned, Mutation{ID: 1}, valid); errorCode(err) != "denied" {
 		t.Fatalf("update permission error = %v", err)
 	}
-	if _, err := model.delete(context.Background(), unpermissioned, 1); errorCode(err) != "denied" {
+	if _, err := model.delete(context.Background(), unpermissioned, Mutation{ID: 1}); errorCode(err) != "denied" {
 		t.Fatalf("delete permission error = %v", err)
 	}
 	if _, err := model.actions[0].run(context.Background(), unpermissioned, []int64{1}); errorCode(err) != "denied" {
@@ -361,7 +361,7 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 	if _, err := model.create(context.Background(), mustPrincipal(t), invalid); errorCode(err) != "not_bound_valid" {
 		t.Fatalf("create invalid form error = %v", err)
 	}
-	if _, _, err := model.update(context.Background(), mustPrincipal(t), 1, invalid); errorCode(err) != "not_bound_valid" {
+	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, invalid); errorCode(err) != "not_bound_valid" {
 		t.Fatalf("update invalid form error = %v", err)
 	}
 	if called != 0 {
@@ -433,7 +433,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 
 func TestRegisteredListAcceptsConcurrentCountRowDrift(t *testing.T) {
 	config := validRegistryConfig(t)
-	config.List = func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
+	config.List = func(_ context.Context, _ auth.Principal, request ListRequest) (Page[registryArticle], error) {
 		return Page[registryArticle]{
 			Items:  []registryArticle{{id: 2, title: "Impossible"}},
 			Total:  1,
@@ -460,7 +460,7 @@ func TestRegisteredListAcceptsConcurrentCountRowDrift(t *testing.T) {
 
 func TestRegisteredListRejectsItemsBeyondLimit(t *testing.T) {
 	config := validRegistryConfig(t)
-	config.List = func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
+	config.List = func(_ context.Context, _ auth.Principal, request ListRequest) (Page[registryArticle], error) {
 		return Page[registryArticle]{
 			Items: []registryArticle{
 				{id: 1, title: "First"},
@@ -548,7 +548,7 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 		ListFields:   []string{"id", "title", "published"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
-		List: func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
+		List: func(_ context.Context, _ auth.Principal, request ListRequest) (Page[registryArticle], error) {
 			return Page[registryArticle]{
 				Items:  []registryArticle{{id: 1, title: "Go"}},
 				Total:  1,
@@ -556,7 +556,7 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 				Limit:  request.Limit,
 			}, nil
 		},
-		Get: func(_ context.Context, id int64) (registryArticle, bool, error) {
+		Get: func(_ context.Context, _ auth.Principal, id int64) (registryArticle, bool, error) {
 			if id != 1 {
 				return registryArticle{}, false, nil
 			}
@@ -589,15 +589,17 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 			title, _ := values.String("title")
 			return registryArticle{id: 2, title: title}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, id int64, values forms.Values) (registryArticle, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+			id := mutation.ID
 			title, _ := values.String("title")
 			published, _ := values.Boolean("published")
 			return registryArticle{id: id, title: title, published: published}, []string{"title", "published", "summary"}, nil
 		},
-		Delete: func(_ context.Context, _ auth.Principal, id int64) (registryArticle, error) {
+		Delete: func(_ context.Context, _ auth.Principal, mutation Mutation) (registryArticle, error) {
+			id := mutation.ID
 			return registryArticle{id: id, title: "Deleted"}, nil
 		},
-		History: func(context.Context, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil },
+		History: func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil },
 		Actions: []ActionConfig{{
 			Name:       "publish",
 			Label:      "Publish selected articles",

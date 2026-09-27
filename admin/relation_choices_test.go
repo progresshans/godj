@@ -19,7 +19,7 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 	config.ReadOnly = false
 	config.FormFields = []string{"category"}
 	config.Permissions = Permissions{View: "helpdesk.view_ticket", Add: "helpdesk.add_ticket", Change: "helpdesk.change_ticket", Delete: "helpdesk.delete_ticket"}
-	config.Get = func(context.Context, int64) (selectionTicket, bool, error) {
+	config.Get = func(context.Context, auth.Principal, int64) (selectionTicket, bool, error) {
 		return selectionTicket{1, "Printer", 7}, true, nil
 	}
 	config.Initial = func(row selectionTicket) (map[string]forms.Value, error) {
@@ -29,11 +29,12 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 		id, _ := values.Integer("category")
 		return selectionTicket{1, "Printer", id}, nil
 	}
-	config.Update = func(_ context.Context, _ auth.Principal, id int64, values forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (selectionTicket, []string, error) {
+		id := mutation.ID
 		key, _ := values.Integer("category")
 		return selectionTicket{id, "Printer", key}, []string{"category"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, int64) (selectionTicket, error) {
+	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
 		return selectionTicket{1, "Printer", 7}, nil
 	}
 	config.RelatedChoices = []RelatedChoices{{Field: "category", Permission: "helpdesk.view_category", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
@@ -93,9 +94,9 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 		mutations++
 		return create(ctx, p, v)
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, id int64, v forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, v forms.Values) (selectionTicket, []string, error) {
 		mutations++
-		return update(ctx, p, id, v)
+		return update(ctx, p, mutation, v)
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
@@ -117,7 +118,7 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	for _, update := range []bool{false, true} {
 		run := func(form forms.Form) error {
 			if update {
-				_, _, err := model.update(context.Background(), principal, 1, form)
+				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form)
 				return err
 			}
 			_, err := model.create(context.Background(), principal, form)

@@ -36,14 +36,28 @@ const (
 
 // Value is an immutable cleaned or initial form value.
 type Value struct {
-	kind    ValueKind
-	string  string
-	boolean bool
-	integer int64
+	kind      ValueKind
+	textState *privateText
+	boolean   bool
+	integer   int64
+}
+
+// Text payloads are opaque even to fmt's reflection fallback for unsupported
+// verbs. Value equality is semantic; use Equal instead of Go pointer equality.
+type privateText struct{ value string }
+
+func textValue(kind ValueKind, text string) Value {
+	return Value{kind: kind, textState: &privateText{value: text}}
+}
+func (v Value) text() string {
+	if v.textState == nil {
+		return ""
+	}
+	return v.textState.value
 }
 
 func Null() Value               { return Value{kind: ValueNull} }
-func String(value string) Value { return Value{kind: ValueString, string: value} }
+func String(value string) Value { return textValue(ValueString, value) }
 func Boolean(value bool) Value  { return Value{kind: ValueBoolean, boolean: value} }
 func Integer(value int64) Value { return Value{kind: ValueInteger, integer: value} }
 func (v Value) Kind() ValueKind { return v.kind }
@@ -64,11 +78,11 @@ func (v Value) Equal(o Value) bool {
 		right, _ := o.AsFloat()
 		return left == right
 	}
-	return v == o
+	return v.kind == o.kind && v.text() == o.text() && v.boolean == o.boolean && v.integer == o.integer
 }
 
 func (v Value) AsString() (string, bool) {
-	return v.string, v.kind == ValueString
+	return v.text(), v.kind == ValueString
 }
 
 func (v Value) AsBoolean() (bool, bool) {
@@ -112,6 +126,7 @@ const (
 	TimeInput
 	NumberInput
 	SelectMultiple
+	PasswordInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -173,6 +188,12 @@ func WithWidget(widget Widget) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.widget, config.hasWidget = widget, true })
 }
 
+// WithTrimWhitespace controls CharField cleaning. Password forms should retain
+// whitespace explicitly; the widget itself never changes a field's value rules.
+func WithTrimWhitespace(trim bool) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.trimWhitespace, config.hasTrimWhitespace = trim, true })
+}
+
 // WithEmptyValue selects Null or the empty string for optional string input.
 // A null empty value requires a nullable field; it is not an input default.
 func WithEmptyValue(value Value) FieldOption {
@@ -189,40 +210,43 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
-	label         string
-	widget        Widget
-	hasWidget     bool
-	choices       []Choice
-	modelChoice   bool
-	emptyValue    Value
-	hasEmptyValue bool
-	required      bool
-	nullable      bool
-	maxLength     int
-	decimalDigits int
-	decimalPlaces int
-	defaultValue  Value
-	hasDefault    bool
-	validators    []FieldValidator
+	trimWhitespace    bool
+	hasTrimWhitespace bool
+	label             string
+	widget            Widget
+	hasWidget         bool
+	choices           []Choice
+	modelChoice       bool
+	emptyValue        Value
+	hasEmptyValue     bool
+	required          bool
+	nullable          bool
+	maxLength         int
+	decimalDigits     int
+	decimalPlaces     int
+	defaultValue      Value
+	hasDefault        bool
+	validators        []FieldValidator
 }
 
 // Field is an immutable form field definition.
 type Field struct {
-	name          string
-	label         string
-	kind          FieldKind
-	widget        Widget
-	choices       []Choice
-	modelChoice   bool
-	emptyValue    Value
-	required      bool
-	nullable      bool
-	maxLength     int
-	decimalDigits int
-	decimalPlaces int
-	defaultValue  Value
-	hasDefault    bool
-	validators    []FieldValidator
+	trimWhitespace bool
+	name           string
+	label          string
+	kind           FieldKind
+	widget         Widget
+	choices        []Choice
+	modelChoice    bool
+	emptyValue     Value
+	required       bool
+	nullable       bool
+	maxLength      int
+	decimalDigits  int
+	decimalPlaces  int
+	defaultValue   Value
+	hasDefault     bool
+	validators     []FieldValidator
 }
 
 // ConfigError reports a startup-time invalid form definition.
@@ -235,9 +259,9 @@ func (e *ConfigError) Error() string {
 	return fmt.Sprintf("forms: %s: %s", e.Path, e.Code)
 }
 
-// CharField creates a stripped Unicode string field.
+// CharField creates a Unicode string field, stripping whitespace by default.
 func CharField(name string, options ...FieldOption) (Field, error) {
-	config := fieldConfig{label: name, required: true, widget: TextInput}
+	config := fieldConfig{label: name, required: true, widget: TextInput, trimWhitespace: true}
 	for _, option := range options {
 		if option == nil {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
@@ -277,11 +301,17 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasTrimWhitespace && kind != FieldChar {
+		return Field{}, &ConfigError{Path: "fields." + name + ".trim_whitespace", Code: "unsupported"}
+	}
 	if !validName(name) {
 		return Field{}, &ConfigError{Path: "fields", Code: "invalid_name"}
 	}
 	if config.label == "" || !utf8.ValidString(config.label) || strings.ContainsRune(config.label, 0) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".label", Code: "invalid"}
+	}
+	if config.widget == PasswordInput && (config.hasDefault || config.choices != nil || config.modelChoice) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".password", Code: "default_or_choices"}
 	}
 	if err := validateChoices(name, kind, config); err != nil {
 		return Field{}, err
@@ -292,7 +322,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
+	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -303,7 +333,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	}
 	if config.hasEmptyValue {
 		if kind != FieldChar || !(config.emptyValue.IsNull() && config.nullable ||
-			config.emptyValue.kind == ValueString && config.emptyValue.string == "") {
+			config.emptyValue.kind == ValueString && config.emptyValue.text() == "") {
 			return Field{}, &ConfigError{Path: "fields." + name + ".empty_value", Code: "unsupported"}
 		}
 	} else if kind == FieldChar && !config.nullable {
@@ -431,11 +461,11 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
 		if config.hasDefault && config.defaultValue.kind == ValueString && config.maxLength > 0 &&
-			utf8.RuneCountInString(config.defaultValue.string) > config.maxLength {
+			utf8.RuneCountInString(config.defaultValue.text()) > config.maxLength {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "max_length"}
 		}
 		if config.hasDefault && config.defaultValue.kind == ValueString &&
-			(!utf8.ValidString(config.defaultValue.string) || strings.ContainsRune(config.defaultValue.string, 0)) {
+			(!utf8.ValidString(config.defaultValue.text()) || strings.ContainsRune(config.defaultValue.text(), 0)) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "invalid_text"}
 		}
 	case FieldBoolean:
@@ -449,17 +479,18 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
-		name:          name,
-		label:         config.label,
-		kind:          kind,
-		widget:        config.widget,
-		choices:       append([]Choice(nil), config.choices...),
-		modelChoice:   config.modelChoice,
-		emptyValue:    config.emptyValue,
-		required:      config.required,
-		nullable:      config.nullable,
-		maxLength:     config.maxLength,
-		decimalDigits: config.decimalDigits, decimalPlaces: config.decimalPlaces,
+		trimWhitespace: config.trimWhitespace,
+		name:           name,
+		label:          config.label,
+		kind:           kind,
+		widget:         config.widget,
+		choices:        append([]Choice(nil), config.choices...),
+		modelChoice:    config.modelChoice,
+		emptyValue:     config.emptyValue,
+		required:       config.required,
+		nullable:       config.nullable,
+		maxLength:      config.maxLength,
+		decimalDigits:  config.decimalDigits, decimalPlaces: config.decimalPlaces,
 		defaultValue: config.defaultValue,
 		hasDefault:   config.hasDefault,
 		validators:   append([]FieldValidator(nil), config.validators...),
@@ -491,6 +522,8 @@ func (f Field) Required() bool            { return f.required }
 func (f Field) Nullable() bool            { return f.nullable }
 func (f Field) MaxLength() int            { return f.maxLength }
 
+func (f Field) TrimWhitespace() bool { return f.trimWhitespace }
+
 func (f Field) Default() (Value, bool) { return f.defaultValue, f.hasDefault }
 
 func (f Field) clone() Field {
@@ -503,8 +536,15 @@ func (f Field) clone() Field {
 // Data is an immutable copy of submitted string values. Presence and an empty
 // value are distinct; repeated values are retained for deterministic rejection
 // by scalar fields.
-type Data struct {
-	values map[string][]string
+type Data struct{ state *submittedData }
+type submittedData struct{ values map[string][]string }
+
+func (d Data) raw(name string) ([]string, bool) {
+	if d.state == nil {
+		return nil, false
+	}
+	values, ok := d.state.values[name]
+	return values, ok
 }
 
 func NewData(values map[string][]string) Data {
@@ -512,11 +552,11 @@ func NewData(values map[string][]string) Data {
 	for name, submitted := range values {
 		clone[name] = append([]string(nil), submitted...)
 	}
-	return Data{values: clone}
+	return Data{state: &submittedData{values: clone}}
 }
 
 func (d Data) Get(name string) ([]string, bool) {
-	values, ok := d.values[name]
+	values, ok := d.raw(name)
 	return append([]string(nil), values...), ok
 }
 
@@ -746,10 +786,10 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 				return Values{}, &ConfigError{Path: "initial." + name, Code: "precision"}
 			}
 		}
-		if value.kind == ValueString && (!utf8.ValidString(value.string) || strings.ContainsRune(value.string, 0)) {
+		if value.kind == ValueString && (!utf8.ValidString(value.text()) || strings.ContainsRune(value.text(), 0)) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "invalid_text"}
 		}
-		if value.kind == ValueString && field.maxLength > 0 && utf8.RuneCountInString(value.string) > field.maxLength {
+		if value.kind == ValueString && field.maxLength > 0 && utf8.RuneCountInString(value.text()) > field.maxLength {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "max_length"}
 		}
 	}
@@ -761,7 +801,7 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 }
 
 func cleanField(field Field, data Data) (Value, validation.Errors) {
-	submitted, present := data.values[field.name]
+	submitted, present := data.raw(field.name)
 	if len(submitted) > 1 && field.kind != FieldIntegerList {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "multiple"))
 	}
@@ -912,7 +952,10 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		case FieldChar:
 			raw := ""
 			if present && len(submitted) == 1 {
-				raw = strings.TrimSpace(submitted[0])
+				raw = submitted[0]
+				if field.trimWhitespace {
+					raw = strings.TrimSpace(raw)
+				}
 			}
 			if raw == "" {
 				switch {
@@ -975,7 +1018,7 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 }
 
 func fieldChanged(field Field, data Data, initial Value) bool {
-	submitted, present := data.values[field.name]
+	submitted, present := data.raw(field.name)
 	if field.kind == FieldIntegerList {
 		return modelMultipleChoiceChanged(submitted, initial)
 	}
@@ -1062,7 +1105,10 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	case FieldChar:
 		raw := ""
 		if present && len(submitted) == 1 {
-			raw = strings.TrimSpace(submitted[0])
+			raw = submitted[0]
+			if field.trimWhitespace {
+				raw = strings.TrimSpace(raw)
+			}
 		}
 		value := String(raw)
 		if raw == "" {

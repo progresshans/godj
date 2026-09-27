@@ -463,7 +463,7 @@ func verifyHelpdeskTicketLabels(t *testing.T, ctx context.Context, runtime *syst
 		t.Fatal("both scoped escaped choices", response.Code, response.Body)
 	}
 	for _, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewLabel, helpdesk.AddTicketLabel, helpdesk.ChangeTicketLabel} {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: permission})
+		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{permission})
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		if response := denied.request("GET", "/admin/", "", false); response.Code != 200 {
 			t.Fatal("denied setup", response.Code)
@@ -606,7 +606,7 @@ func verifyHelpdeskTicketLabels(t *testing.T, ctx context.Context, runtime *syst
 		method, path string
 		permission   auth.Permission
 	}{{"GET", "/api/ticket-labels/?limit=bad", helpdesk.ViewTicketLabel}, {"DELETE", ticketLabelPath(two.ID), helpdesk.DeleteTicketLabel}, {"DELETE", fmt.Sprintf("/api/tickets/%d/", second.ID), helpdesk.DeleteTicket}} {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: entry.permission})
+		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{entry.permission})
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		if response := denied.request("GET", "/admin/", "", false); response.Code != 200 {
 			t.Fatal("denied read/delete setup")

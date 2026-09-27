@@ -47,9 +47,13 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		AppLabel: "helpdesk", Slug: "labels", Model: metadata, FormFields: fields,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"},
 		Permissions: admin.Permissions{View: ViewLabel, Add: AddLabel, Change: ChangeLabel, Delete: DeleteLabel},
-		List:        a.listLabels,
-		Get:         func(ctx context.Context, id int64) (models.Label, bool, error) { return a.label(ctx, a.backend, id) },
-		Snapshot:    func(value models.Label) (admin.Object, error) { return projector.Project(value, value.ID, value.Name) },
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Label], error) {
+			return a.listLabels(ctx, request)
+		},
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.Label, bool, error) {
+			return a.label(ctx, a.backend, id)
+		},
+		Snapshot: func(value models.Label) (admin.Object, error) { return projector.Project(value, value.ID, value.Name) },
 		Initial: func(value models.Label) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
 		},
@@ -60,14 +64,16 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 			}
 			return a.createLabel(ctx, name)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, id int64, values forms.Values) (models.Label, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.Label, []string, error) {
+			id := mutation.ID
 			name, ok := values.String("name")
 			if !ok {
 				return models.Label{}, nil, errors.New("helpdesk: invalid label name")
 			}
 			return a.updateLabel(ctx, id, models.LabelPatch{}.WithName(name))
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, id int64) (models.Label, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.Label, error) {
+			id := mutation.ID
 			return a.deleteLabel(ctx, id)
 		},
 	})

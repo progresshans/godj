@@ -174,7 +174,7 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 		}
 	}
 	t.Run("permission_and_csrf_before_validation_or_data", func(t *testing.T) {
-		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{permission: helpdesk.ViewLabel})
+		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{helpdesk.ViewLabel})
 		denied.cookies, denied.csrf = maps.Clone(client.cookies), client.csrf
 		if response := denied.request("GET", "/admin/", "", false); response.Code != 200 {
 			t.Fatal("denied collection CSRF bootstrap", response.Code)

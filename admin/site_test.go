@@ -727,7 +727,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 	for _, apply := range configure {
 		apply(&config)
 	}
-	config.List = func(ctx context.Context, request ListRequest) (Page[registryArticle], error) {
+	config.List = func(ctx context.Context, _ auth.Principal, request ListRequest) (Page[registryArticle], error) {
 		if err := ctx.Err(); err != nil {
 			return Page[registryArticle]{}, err
 		}
@@ -756,7 +756,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		}
 		return Page[registryArticle]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, nil
 	}
-	config.Get = func(ctx context.Context, id int64) (registryArticle, bool, error) {
+	config.Get = func(ctx context.Context, _ auth.Principal, id int64) (registryArticle, bool, error) {
 		if err := ctx.Err(); err != nil {
 			return registryArticle{}, false, err
 		}
@@ -778,7 +778,8 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.mutations.creates++
 		return cloneSiteArticle(article), nil
 	}
-	config.Update = func(ctx context.Context, _ auth.Principal, id int64, values forms.Values) (registryArticle, []string, error) {
+	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+		id := mutation.ID
 		if err := ctx.Err(); err != nil {
 			return registryArticle{}, nil, err
 		}
@@ -790,7 +791,8 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.mutations.updates++
 		return cloneSiteArticle(article), []string{"title", "published", "summary"}, nil
 	}
-	config.Delete = func(ctx context.Context, principal auth.Principal, id int64) (registryArticle, error) {
+	config.Delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (registryArticle, error) {
+		id := mutation.ID
 		if err := ctx.Err(); err != nil {
 			return registryArticle{}, err
 		}
@@ -802,7 +804,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.appendHistoryLocked(principal.ID(), article, ActionDelete, nil)
 		return cloneSiteArticle(article), nil
 	}
-	config.History = func(ctx context.Context, id int64, request HistoryRequest) ([]AuditEntry, error) {
+	config.History = func(ctx context.Context, _ auth.Principal, id int64, request HistoryRequest) ([]AuditEntry, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

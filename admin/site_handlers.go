@@ -19,7 +19,7 @@ func (site *Site) indexGet(request *web.Request, principal auth.Principal) (web.
 	}
 	values, err := site.indexContext(request.Context(), principal)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	return site.render(request, "index.html", values)
 }
@@ -33,7 +33,7 @@ func (site *Site) loginGet(request *web.Request, principal auth.Principal) (web.
 	if principal.Authenticated() {
 		allowed, err := site.admitted(request, principal)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		if allowed {
 			return siteRedirect(next)
@@ -41,7 +41,7 @@ func (site *Site) loginGet(request *web.Request, principal auth.Principal) (web.
 	}
 	values, err := site.loginContext("", next, false)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	return site.render(request, "login.html", values)
 }
@@ -81,11 +81,11 @@ func (site *Site) loginPost(request *web.Request) (web.Response, error) {
 		return site.render(request, "login.html", context)
 	}
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	response, err := siteRedirect(next)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	return result.Apply(response)
 }
@@ -103,11 +103,11 @@ func (site *Site) logoutPost(request *web.Request) (web.Response, error) {
 	}
 	change, err := site.auth.Logout(request)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	response, err := siteRedirect(site.basePath + "/login/")
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	return change.Apply(response)
 }
@@ -133,7 +133,7 @@ func (site *Site) modelList(model registeredModel) sessionauth.AuthenticatedHand
 			if errors.As(err, &configError) && listInputError(configError) {
 				return siteBadRequest()
 			}
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		// A non-first empty page can be a stale/out-of-range request or a
 		// concurrent delete between count and row reads. Re-reading page one is
@@ -148,24 +148,30 @@ func (site *Site) modelList(model registeredModel) sessionauth.AuthenticatedHand
 				if errors.As(err, &configError) && listInputError(configError) {
 					return siteBadRequest()
 				}
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 		}
 		context, err := site.listContext(request.Context(), model, principal, page, pageNumber, search, query, invalidPage)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		return site.render(request, "list.html", context)
 	}
 }
 
 func (site *Site) modelAddGet(model registeredModel) sessionauth.AuthenticatedHandler {
+	model = model.forCreate()
 	return func(request *web.Request, principal auth.Principal) (web.Response, error) {
+		if allowed, err := site.addPermissionsAllowed(request, principal, model); err != nil {
+			return operationResponse(err)
+		} else if !allowed {
+			return siteForbidden()
+		}
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
 		}
 		if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
 		}
@@ -173,21 +179,22 @@ func (site *Site) modelAddGet(model registeredModel) sessionauth.AuthenticatedHa
 		var err error
 		requestModel.form, err = model.formFor(request.Context(), principal)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		form, err := requestModel.form.Unbound(nil)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		context, err := site.formContext(requestModel, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, nil)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		return site.render(request, "form.html", context)
 	}
 }
 
 func (site *Site) modelAddPost(model registeredModel) web.Handler {
+	model = model.forCreate()
 	return func(request *web.Request) (web.Response, error) {
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
@@ -200,19 +207,24 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			return response, err
 		}
 		return site.adminAuthorize(request, model.permissions.Add, func(principal auth.Principal) (web.Response, error) {
+			if allowed, err := site.addPermissionsAllowed(request, principal, model); err != nil {
+				return operationResponse(err)
+			} else if !allowed {
+				return siteForbidden()
+			}
 			if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			} else if !allowed {
 				return siteForbidden()
 			}
 			requestModel := model
 			requestModel.form, err = model.formFor(request.Context(), principal)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			form, err := requestModel.form.Bind(modelData(model, values), nil)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			if form.Valid() {
 				_, saveErr := model.create(request.Context(), principal, form)
@@ -221,7 +233,7 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 				}
 				form, err = formWithRejection(request.Context(), form, saveErr)
 				if err != nil {
-					return web.Response{}, err
+					return operationResponse(err)
 				}
 			}
 			context, contextErr := site.formContext(requestModel, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
@@ -235,8 +247,8 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 
 func (site *Site) modelChangeGet(model registeredModel) sessionauth.AuthenticatedHandler {
 	return func(request *web.Request, principal auth.Principal) (web.Response, error) {
-		if allowed, err := site.permissionGranted(request, principal, model.permissions.View); err != nil {
-			return web.Response{}, err
+		if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
 		}
@@ -249,13 +261,13 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 			return siteBadRequest()
 		}
 		if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
 		}
 		record, found, err := model.get(request.Context(), principal, id)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		if !found {
 			return siteNotFound()
@@ -263,15 +275,24 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 		requestModel := model
 		requestModel.form, err = model.formFor(request.Context(), principal)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		form, err := requestModel.form.Unbound(record.initial)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		context, err := site.formContext(requestModel, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, nil)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
+		}
+		revision, err := model.revision(record.object)
+		if err != nil {
+			return operationResponse(err)
+		}
+		revisionContext(context, revision)
+		context["commands"], err = site.commandLinks(request.Context(), principal, model, id)
+		if err != nil {
+			return operationResponse(err)
 		}
 		return site.render(request, "form.html", context)
 	}
@@ -295,34 +316,41 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			return response, err
 		}
 		return site.adminAuthorize(request, model.permissions.Change, func(principal auth.Principal) (web.Response, error) {
-			if allowed, err := site.permissionGranted(request, principal, model.permissions.View); err != nil {
-				return web.Response{}, err
+			if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+				return operationResponse(err)
 			} else if !allowed {
 				return siteForbidden()
 			}
 			if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			} else if !allowed {
 				return siteForbidden()
 			}
 			record, found, err := model.get(request.Context(), principal, id)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			if !found {
 				return siteNotFound()
 			}
+			mutation, err := model.submittedMutation(id, values)
+			if err != nil {
+				return siteBadRequest()
+			}
+			if err := model.checkObservedMutation(mutation, record.object); err != nil {
+				return operationResponse(err)
+			}
 			requestModel := model
 			requestModel.form, err = model.formFor(request.Context(), principal)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			form, err := requestModel.form.Bind(modelData(model, values), record.initial)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			if form.Valid() {
-				_, _, saveErr := model.update(request.Context(), principal, id, form)
+				_, _, saveErr := model.update(request.Context(), principal, mutation, form)
 				if saveErr == nil {
 					return siteRedirect(site.signedNoticeLocation(model, "changed", ""))
 				}
@@ -331,12 +359,17 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 				}
 				form, err = formWithRejection(request.Context(), form, saveErr)
 				if err != nil {
-					return web.Response{}, err
+					return operationResponse(err)
 				}
 			}
 			context, contextErr := site.formContext(requestModel, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, values)
 			if contextErr != nil {
 				return web.Response{}, contextErr
+			}
+			revisionContext(context, mutation.Revision)
+			context["commands"], err = site.commandLinks(request.Context(), principal, model, id)
+			if err != nil {
+				return operationResponse(err)
 			}
 			return site.render(request, "form.html", context)
 		})
@@ -345,8 +378,8 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 
 func (site *Site) modelDeleteGet(model registeredModel) sessionauth.AuthenticatedHandler {
 	return func(request *web.Request, principal auth.Principal) (web.Response, error) {
-		if allowed, err := site.permissionGranted(request, principal, model.permissions.View); err != nil {
-			return web.Response{}, err
+		if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
 		}
@@ -360,14 +393,14 @@ func (site *Site) modelDeleteGet(model registeredModel) sessionauth.Authenticate
 		}
 		record, found, err := model.get(request.Context(), principal, id)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		if !found {
 			return siteNotFound()
 		}
 		context, err := site.deleteContext(model, record.object)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		return site.render(request, "delete.html", context)
 	}
@@ -383,7 +416,11 @@ func (site *Site) modelDeletePost(model registeredModel) web.Handler {
 		if err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, inputRules{"csrfmiddlewaretoken": MaximumInputValues, "confirm": 1})
+		rules := inputRules{"csrfmiddlewaretoken": MaximumInputValues, "confirm": 1}
+		if model.revisionField != "" {
+			rules["expected_revision"] = 1
+		}
+		values, err := parseSiteForm(request, rules)
 		if err != nil {
 			return siteBadRequest()
 		}
@@ -394,19 +431,26 @@ func (site *Site) modelDeletePost(model registeredModel) web.Handler {
 			return siteBadRequest()
 		}
 		return site.adminAuthorize(request, model.permissions.Delete, func(principal auth.Principal) (web.Response, error) {
-			if allowed, err := site.permissionGranted(request, principal, model.permissions.View); err != nil {
-				return web.Response{}, err
+			if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+				return operationResponse(err)
 			} else if !allowed {
 				return siteForbidden()
 			}
 			record, found, err := model.get(request.Context(), principal, id)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			if !found {
 				return siteNotFound()
 			}
-			if _, err := model.delete(request.Context(), principal, id); err != nil {
+			mutation, err := model.submittedMutation(id, values)
+			if err != nil {
+				return siteBadRequest()
+			}
+			if err := model.checkObservedMutation(mutation, record.object); err != nil {
+				return operationResponse(err)
+			}
+			if _, err := model.delete(request.Context(), principal, mutation); err != nil {
 				if err == ErrObjectNotFound {
 					return siteNotFound()
 				}
@@ -420,7 +464,7 @@ func (site *Site) modelDeletePost(model registeredModel) web.Handler {
 					values["protected"] = templates.Bool(true)
 					return site.render(request, "delete.html", values)
 				}
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			return siteRedirect(site.signedNoticeLocation(model, "deleted", ""))
 		})
@@ -439,11 +483,11 @@ func (site *Site) modelHistory(model registeredModel) sessionauth.AuthenticatedH
 		}
 		entries, err := model.history(request.Context(), principal, id)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		context, err := site.historyContext(model, id, entries)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		return site.render(request, "history.html", context)
 	}
@@ -468,7 +512,7 @@ func (site *Site) modelAction(model registeredModel, action registeredAction) we
 			}
 			result, err := action.run(request.Context(), principal, ids)
 			if err != nil {
-				return web.Response{}, err
+				return operationResponse(err)
 			}
 			location := site.signedNoticeLocation(model, "published", strconv.Itoa(result.Matched()))
 			return siteRedirect(location)
@@ -491,7 +535,7 @@ func (site *Site) adminAuthorize(
 ) (web.Response, error) {
 	principal, err := site.auth.Principal(request)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	return site.authorizePrincipal(request, principal, permission, func() (web.Response, error) {
 		return handler(principal)
@@ -509,7 +553,7 @@ func (site *Site) authorizePrincipal(
 	}
 	access, err := site.admitted(request, principal)
 	if err != nil {
-		return web.Response{}, err
+		return operationResponse(err)
 	}
 	if !access {
 		return site.loginRedirect(request)
@@ -517,7 +561,7 @@ func (site *Site) authorizePrincipal(
 	if permission != "" {
 		allowed, err := site.permissionGranted(request, principal, permission)
 		if err != nil {
-			return web.Response{}, err
+			return operationResponse(err)
 		}
 		if !allowed {
 			return siteForbidden()

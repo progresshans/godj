@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 생성·비밀번호 command·revision의 공통 Admin 기반
+
+2026-09-27, `3d7b9c52` 뒤의 변경이다. 생성 전용 model form·비저장 입력과 object command,
+조회 actor 전달·view 또는 change admission·revision 제출 조건을 공통 Admin에 추가했다.
+비밀번호의 공백 보존·재표시 금지와 진단 비공개를 연결하고 기존 Article·Helpdesk callback도 함께 변경했다.
+최종 non-Markdown **2,362 파일** source map은
+`73f776444e5b7d5b22013571671d99dc0ad9521f0d94c3da123f34d897eaf93d`다.
+
+Darwin arm64 / Go 1.26.5에서 **6 packages / 154 required entries**(137 roots·17 subcases)를 실행했다.
+Scope는 `forms`, `forms/model`, `admin`, Article의 Admin adapter·HTTP 소비자, Helpdesk 전체 package다.
+새 생성 폼·command HTTP는 test callback을 사용하며, 실제 Identity Manager/Admin DB 연결의 증거로 세지 않는다.
+기존 소비자의 실제 SQLite/PostgreSQL CRUD·권한·관계·감사·실패/재시작과 Article 생성물 drift는 같은 checkpoint에서 실행했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,547 PASS / skip 0 | 14.172초 |
+| race | 1,547 PASS / skip 0 | 99.160초 |
+| CGO=0 | 1,547 PASS / skip 0 | 14.043초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. JSON event에서 모든 시작·종료·필수 root와
+revision/command subcase를 대조하고 skip을 거부했다. Private PostgreSQL **17.10** image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+종료 후 잔여 public table·owned schema·다른 connection은 `0|0|0`이며 container를 제거했다.
+
+새 검사는 생성/편집 field 분리·password 확인 실패·공백/Unicode 보존·HTML 재표시 금지·formatter fallback 비공개,
+add와 추가 change의 conjunction, 생성/편집 선택 목록의 독립 권한·쓰기 전 재검사를 포함한다.
+Revision의 누락·잘못된 값·stale·2^53 밖 int64·validation 재표시·no-op·삭제, callback 직전 경쟁 주입을 검사했다.
+Command의 별도 Form·권한·CSRF·위조 입력·실패/unknown·한 번만 호출·성공 후 잘못된 결과 거부와
+논리적 password audit 이름의 명시적 허용도 포함한다. View 인가 실행 오류는 change 허용으로 우회하지 않아야 한다.
+Helpdesk는 view가 거부되고 change가 허용되면 목록을 읽을 수 있지만, 둘 다 거부되면 data I/O 전에 차단해야 한다.
+생성 폼의 비저장 추가 입력과 논리적 audit 이름은 저장 field·PK를 가리지 못한다.
+
+Go overlay **7개 변형 / 7개 assertion 탐지**를 확인했다. Password trim·값 진단 노출,
+stale command 선행 검사 우회·추가 생성 권한 누락·unknown의 정상 HTTP 반환·인가 오류 fallback·
+생성에서 편집 선택 loader를 사용하는 변형을 각각 관련 테스트가 거부했다. Build 실패를 탐지로 세지 않았다.
+초기 stale 변형은 미사용 변수로 compile에서 실패해 제외했고, 변수를 유지한 조건 우회로 다시 실행했다.
+최종 control 7개는 위 최종 source에서 모두 실행했으며 source 전후가 같다.
+
+초기 `99222533…`에서는 command fixture의 기존 세션 재로그인, reserved-field 오류의 중복 wrapping,
+목록에 편집 전용 field까지 요구하던 옛 테스트 조건을 확인했다. Session을 정상 종료하고 정확한 오류 경계를 유지하며,
+목록의 최소 projection과 편집의 전체 projection을 각각 검증하도록 수정했다.
+`1914e347…`의 Helpdesk 검사는 view-only deny를 전체 read deny로 기대해 실패했다. 두 권한의 실제 계약을
+분리해 양 DB에서 재검증했다. 뒤의 논리적 audit 이름/PK 제한까지 포함한 최종 source에서 전체 선언 scope를 다시 실행했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+
+- `admin-foundation-checkpoint-1790477420850632000/receipt.json`: 최종 세 모드·필수 roster·raw events·source/cleanup.
+- `admin-foundation-controls-1790477440522157000/receipt.json`: 최종 7개 실행 탐지와 source 일치.
+- `admin-foundation-supplemental-1790477670731156000/receipt.json`: 영향 vet·docs·gofmt·diff와 source 일치.
+- `admin-foundation-checkpoint-1790476751886184000/receipt.json`, `admin-foundation-checkpoint-1790476839819230000/receipt.json`: 앞선 실패와 cleanup.
+
+영향 `go vet`·147개 문서의 링크·gofmt·diff도 통과했다. 새로운 Identity Form/Admin 등록·현재 저장 인가의 선택 목록,
+UserCreationForm validator·password 정책·self-service/reset과 GDJ-0100 전체 platform/process milestone은 미완료다.
+이번 공통 기반 또는 기존 Hosted full을 그 완료 근거로 전이하지 않는다.
+
 ## GDJ-0100 — 독립 Identity Session/Bearer 생성 클라이언트
 
 2026-09-27, `3a7b1fcd` 뒤의 변경이다. 실제 관리 API 선언에서 고정 **ogen v1.24.0**으로

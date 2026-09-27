@@ -56,7 +56,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		ListFields:   []string{"id", "title", "published", "summary"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
-		List: func(ctx context.Context, request admin.ListRequest) (admin.Page[articleapp.Article], error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[articleapp.Article], error) {
 			page, err := service.List(ctx, articleapp.ListOptions{
 				Search: request.Search,
 				Offset: request.Offset,
@@ -72,7 +72,9 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 				Limit:  page.Limit,
 			}, nil
 		},
-		Get: service.Get,
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (articleapp.Article, bool, error) {
+			return service.Get(ctx, id)
+		},
 		Snapshot: func(article articleapp.Article) (admin.Object, error) {
 			return projector.Project(articleapp.ModelSnapshot(article), article.ID, article.Title)
 		},
@@ -86,7 +88,8 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			}
 			return service.Create(ctx, principal.ID(), input)
 		},
-		Update: func(ctx context.Context, principal auth.Principal, id int64, values forms.Values) (articleapp.Article, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, values forms.Values) (articleapp.Article, []string, error) {
+			id := mutation.ID
 			input, err := articleInput(values)
 			if err != nil {
 				return articleapp.Article{}, nil, err
@@ -94,11 +97,12 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			article, changed, err := service.Update(ctx, principal.ID(), id, input)
 			return article, changed, adminMutationError(err)
 		},
-		Delete: func(ctx context.Context, principal auth.Principal, id int64) (articleapp.Article, error) {
+		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (articleapp.Article, error) {
+			id := mutation.ID
 			article, err := service.Delete(ctx, principal.ID(), id)
 			return article, adminMutationError(err)
 		},
-		History: func(ctx context.Context, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
+		History: func(ctx context.Context, _ auth.Principal, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			return service.HistoryLimited(ctx, id, request.Limit)
 		},
 		Actions: []admin.ActionConfig{{

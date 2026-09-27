@@ -30,10 +30,10 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 		FormFields: []string{"labels"}, ListFields: []string{"id"},
 		FormOverrides: []formmodel.Override{formmodel.OverrideField("labels", formmodel.WithRequired(false))},
 		Permissions:   Permissions{View: "helpdesk.view_ticket", Add: "helpdesk.add_ticket", Change: "helpdesk.change_ticket", Delete: "helpdesk.delete_ticket"},
-		List: func(_ context.Context, request ListRequest) (Page[multipleSelection], error) {
+		List: func(_ context.Context, _ auth.Principal, request ListRequest) (Page[multipleSelection], error) {
 			return Page[multipleSelection]{Items: []multipleSelection{{1, []int64{7, 9}}}, Total: 1, Offset: request.Offset, Limit: request.Limit}, nil
 		},
-		Get: func(context.Context, int64) (multipleSelection, bool, error) {
+		Get: func(context.Context, auth.Principal, int64) (multipleSelection, bool, error) {
 			return multipleSelection{1, []int64{7, 9}}, true, nil
 		},
 		Snapshot: func(row multipleSelection) (Object, error) {
@@ -53,14 +53,15 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 			}
 			return multipleSelection{1, keys}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, id int64, values forms.Values) (multipleSelection, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (multipleSelection, []string, error) {
+			id := mutation.ID
 			keys, ok := values.Integers("labels")
 			if !ok {
 				return multipleSelection{}, nil, errors.New("missing collection")
 			}
 			return multipleSelection{id, keys}, []string{"labels"}, nil
 		},
-		Delete: func(context.Context, auth.Principal, int64) (multipleSelection, error) {
+		Delete: func(context.Context, auth.Principal, Mutation) (multipleSelection, error) {
 			return multipleSelection{1, []int64{}}, nil
 		},
 		RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
@@ -83,10 +84,10 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 		received, _ = v.Integers("labels")
 		return create(ctx, p, v)
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, id int64, v forms.Values) (multipleSelection, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, v forms.Values) (multipleSelection, []string, error) {
 		writes++
 		received, _ = v.Integers("labels")
-		return update(ctx, p, id, v)
+		return update(ctx, p, mutation, v)
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
@@ -108,7 +109,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	for _, isUpdate := range []bool{false, true} {
 		run := func(form forms.Form) error {
 			if isUpdate {
-				_, _, err := model.update(context.Background(), principal, 1, form)
+				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form)
 				return err
 			}
 			_, err := model.create(context.Background(), principal, form)
@@ -156,7 +157,7 @@ func TestMultipleChoicesRejectMissingSourcesAndInconsistentSnapshots(t *testing.
 			}
 		}},
 		{"nonpositive key", func(c *ModelConfig[multipleSelection]) {
-			c.Get = func(context.Context, int64) (multipleSelection, bool, error) {
+			c.Get = func(context.Context, auth.Principal, int64) (multipleSelection, bool, error) {
 				return multipleSelection{1, []int64{0}}, true, nil
 			}
 		}},

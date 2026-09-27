@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"github.com/progresshans/godj/auth"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestModelWithoutSearchRejectsSearchBeforeCallback(t *testing.T) {
 	config := validRegistryConfig(t)
 	config.SearchFields = nil
 	calls := 0
-	config.List = func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
+	config.List = func(_ context.Context, _ auth.Principal, request ListRequest) (Page[registryArticle], error) {
 		calls++
 		return Page[registryArticle]{Offset: request.Offset, Limit: request.Limit}, nil
 	}

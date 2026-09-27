@@ -15,7 +15,7 @@ func Integers(values ...int64) Value {
 		values = []int64{}
 	}
 	encoded, _ := json.Marshal(values)
-	return Value{kind: ValueIntegerList, string: string(encoded)}
+	return textValue(ValueIntegerList, string(encoded))
 }
 
 func (v Value) AsIntegers() ([]int64, bool) {
@@ -23,7 +23,7 @@ func (v Value) AsIntegers() ([]int64, bool) {
 		return nil, false
 	}
 	var values []int64
-	if err := json.Unmarshal([]byte(v.string), &values); err != nil || values == nil {
+	if err := json.Unmarshal([]byte(v.text()), &values); err != nil || values == nil {
 		return nil, false
 	}
 	return values, true
