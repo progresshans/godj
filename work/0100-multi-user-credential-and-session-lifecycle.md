@@ -141,3 +141,9 @@ Reset 소비자 source `e3ec9a2a`의 Fast는 성공했으나 Hosted 전체에서
 API 관찰 도구의 module lookup·Python observer의 고정 runtime 가정이 드러났다. 관련 실행 기반을 수정하고
 Go 영향 세 모드·실제 PostgreSQL/CLI와 Python 네 버전을 검증했다. 현재 요구는 수정 source의 새 Hosted 전체 통합이다.
 필수 gate를 완화하거나 이전 capture를 재사용하지 않는다. 상세 원인·선행 실패·환경별 결과는 TEST_EVIDENCE를 따른다.
+
+Admin 생성의 read-only post-clean 검증을 추가했다. 일부 field 오류가 있어도 DB 중복과 남은 password2의 정책을
+검사하며 고정 Django의 candidate username·복합 오류·unusable 선택을 양 DB 실제 HTTP와 대조했다. 현재 인가·
+ID/hash/write 없음·read 실패/취소·hash 뒤 경합과 최종 fence를 영향 세 모드 및 부정 대조에서 검증했다.
+일반 재사용 UserCreationForm의 준비·저장 API/custom user model을 포함한 전체 완료는 아니다.
+선행 reset 수정 source `1ae07db3`의 Fast는 성공했고 Hosted 전체는 진행 중이다. 이후 Form source와 구분한다.

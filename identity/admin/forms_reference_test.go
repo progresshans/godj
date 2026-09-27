@@ -66,6 +66,12 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// This corpus has no stored users or password policy. The complete
+		// read-backed post-clean phase is exercised by the shared DB/HTTP suite.
+		form, err = form.WithErrors(creationUsernameErrors(form, validation.Errors{}))
+		if err != nil {
+			t.Fatal(err)
+		}
 		result := formObservation{Valid: form.Valid(), Codes: map[string][]string{}}
 		if username, present := form.Cleaned().String("username"); present {
 			result.Username = &username

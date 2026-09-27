@@ -3,6 +3,55 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 생성 Form의 복합 오류와 현재 권한 검증
+
+기반 commit `1ae07db3644290df4cc2c319d6f7dc44f8f7fd57` 이후 Admin의 read-only `ValidateCreate`와
+`Manager.CheckUserCreation`을 연결했다. 고정 Django의 username 중복 → model grammar → password policy 결과를
+사용 가능한 field마다 검사한다. 일부 입력 오류가 있어도 다른 진단을 수집하며 최종 write의 현재 권한·중복·policy fence는 유지한다.
+일반 재사용 UserCreationForm/준비·저장 API와 custom user model의 완료 선언은 아니다.
+
+로컬 checkpoint의 비문서 source inventory SHA-256은 `e31c7f98df67250f9b1eca4d5f848e2e1964e835c4cb4e3b02b0774cf356e6fd`이며 시작/종료가 동일하다.
+검증 범위는 **6 packages / 98 roots / 304 필수 항목**이다. Admin·Identity·Identity Admin·Article composition 전체와
+SQLite/PostgreSQL의 기존 관리 Form 및 새 생성 검증 root를 선택했다. 두 DB의 새 필수 실행 roster는 각각 **53항목**이다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 949 PASS / skip 0 | 19.292초 |
+| race | 949 PASS / skip 0 | 156.969초 |
+| CGO=0 | 949 PASS / skip 0 | 23.713초 |
+
+합계 **2,847 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly·`TZ=Pacific/Chatham`,
+private PostgreSQL **17.10 UTF8/libc/C**와 `GODJ_REQUIRE_POSTGRES=1`에서 수행했다. DB 정리 **0|0|0**과 container 제거를 확인했다.
+
+- 독립 Django 6.1 / CPython 3.14.3 / Unicode 16 observer가 양 DB에서 각각 **60개 입력 관측**을 만들었으며 결과가 일치했다.
+  Standard·Admin enabled·Admin disabled Form을 각각 20개 입력으로 검사했고 input/upstream source hash를 고정했다.
+  Go의 실제 Admin HTTP는 enabled/disabled의 오류 코드·policy candidate username·성공 저장을 대조한다.
+  Native instance의 None/빈 username은 Go Profile의 빈 문자열에 대응하며 DB query 횟수/내부 객체 구조는 동일성 대상이 아니다.
+- 중복+약한 password, 문법 오류+similarity, password1 누락/NUL+password2 policy, mismatch·password2 NUL의 policy 생략,
+  사용 불가 선택·정규화·공백 password를 확인했다. Invalid Form은 ID 발급/hash/user/session/audit 변경이 없고 password를 재표시하지 않는다.
+  정상 usable 생성은 hash 1회, disabled 생성은 0회다. 정상 Form 이후 Manager preflight와 마지막 write에서도 정책을 재검사한다.
+- Native snapshot의 누락·nil·중복 callback·swallowed read 오류·종료 실패·취소는 입력 진단으로 낮추지 않았다.
+  과거 actor 권한은 현재 저장 인가를 통과하지 못하며 policy도 호출하지 않는다. 별도 DB 연결이 hash 중 권한을 회수하거나
+  대소문자 중복을 삽입하면 마지막 write가 거부되고 새 후보는 저장되지 않는다.
+- 공통 Admin callback은 CSRF와 모든 add 권한 뒤에 실행한다. 기존 field 오류를 보존하고 알 수 없는 진단 field·wrapped storage·취소를
+  실행 오류로 구분한다. 영향 Article 소비자와 기존 Identity CRUD/실패/unknown 경로도 함께 통과했다.
+- Source overlay **3개**(invalid Form 검사 생략, 중복 후보를 policy에 전달, 최종 case-insensitive 재검사 제거)를 지정 assertion으로 검출했다.
+  Compile 오류는 성공한 부정 대조로 세지 않았다. Native observer의 **4개 단계 제거 대조**도 결과 차이를 검출했다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 각 **2 tests / skip 0**을 수행했다.
+  영향 vet·gofmt, 두 attestation의 native dependency 소유권 검사, CI event/roster/scope 도구 **26 tests**가 통과했다.
+  IR·생성 ABI·OpenAPI가 변경되지 않아 generated drift 전체를 반복하지 않았다.
+
+첫 checkpoint는 새 테스트가 로그인된 브라우저로 다른 계정의 login GET을 호출하여 정상 302를 실패로 판단했다.
+독립 cookie jar로 수정했으며 이전 실패 로그를 보존했다. CI 도구의 최초 직접 unittest 명령은 import 경로가 빠져 실행되지 않았고,
+해당 도구 디렉터리에서 다시 실행해 26 tests를 완료했다. 두 오류를 제품 성공이나 부정 대조로 세지 않았다.
+원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-user-creation-reference-rxk1a9mx`의 `checkpoint`, `checkpoint-2`, `controls`, `python-compat`, `quality`에 있다.
+
+이 생성 Form source의 Hosted 전체는 아직 실행하지 않았다. Reset 소비자·실행 기반 수정 source `1ae07db3`의
+[Hosted Fast 36346945448](https://github.com/progresshans/godj/actions/runs/36346945448)는 실제 Fast Go feedback까지 성공했다.
+[Hosted full 36346992368](https://github.com/progresshans/godj/actions/runs/36346992368)은 진행 중이며 이후 Form 변경의 전체 결과로 전이하지 않는다.
+동일 attempt 1의 systemstate capture `10941347662`와 operator capture `10940732028`은 archive digest·provenance·producer 성공을
+확인했고 해당 commit의 Git blob source inventory 612/688개와 일치했다. Capture 검증만으로 전체 완료를 선언하지 않는다.
+
 ## GDJ-0100 — reset 소비자 Hosted 통합에서 발견한 실행 기반 수정
 
 `e3ec9a2a75f6983d8e71ea8842aa8f924609575a`의 [Hosted Fast 36345090890](https://github.com/progresshans/godj/actions/runs/36345090890)는

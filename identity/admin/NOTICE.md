@@ -33,6 +33,16 @@ ordinary password creation. The independent
 records eight creation cases and the upstream forms source hash; it does not
 claim complete UserCreationForm or Python field/widget compatibility.
 
+The read-only creation check additionally follows `UserCreationForm.clean_username`,
+`BaseUserCreationForm._post_clean`, `SetPasswordMixin` and `ModelForm._post_clean`
+from the same pinned `django/contrib/auth/forms.py` and `django/forms/models.py`.
+The independent [creation observer](../../conformance/runners/django/user_creation_reference.py)
+records standard, enabled Admin and disabled Admin forms on both databases,
+including compound errors and the candidate username seen by password policy.
+Go's Admin consumes those validation results while retaining current authority,
+no hash/write during checking, and atomic final writes. It does not expose the
+Python model instance or claim its `save(commit=False)` object lifecycle.
+
 Existing-user change and view-only pages display an Enabled/Disabled password
 login state derived from the same authorized user snapshot. This follows
 `AbstractBaseUser.has_usable_password()` in the pinned `base_user.py`, with

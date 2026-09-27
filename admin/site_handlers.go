@@ -226,6 +226,16 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
+			if model.validateCreate != nil {
+				if checkErr := model.validateCreate(request.Context(), principal, form); checkErr != nil {
+					form, err = formWithRejection(request.Context(), form, checkErr)
+					if err != nil {
+						return operationResponse(err)
+					}
+				} else if err := request.Context().Err(); err != nil {
+					return operationResponse(err)
+				}
+			}
 			if form.Valid() {
 				_, saveErr := model.create(request.Context(), principal, form)
 				if saveErr == nil {

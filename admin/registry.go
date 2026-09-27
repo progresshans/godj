@@ -194,6 +194,13 @@ type ModelConfig[M any] struct {
 	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
 	Initial  func(M) (map[string]forms.Value, error)
+	// ValidateCreate is an optional read-only post-clean check. The Site invokes
+	// it after CSRF and add/choice admission, even when field cleaning failed.
+	// Consult Form.Errors before using a field from Cleaned. Return only a
+	// confirmed validation.Reject for input errors; cancellation and storage
+	// failures remain execution errors. This is not reusable write authority:
+	// Create must still enforce current authorization and database constraints.
+	ValidateCreate func(context.Context, auth.Principal, forms.Form) error
 	// Create/Update may return validation.Reject after confirming no mutation
 	// committed. Diagnostics must name selected form fields or validation.NonField.
 	// Preserve transaction/rollback failures as execution errors instead.
@@ -352,12 +359,13 @@ type registeredModel struct {
 	commands                []registeredCommand
 	readOnlyFields          []ReadOnlyFieldDescriptor
 
-	list    func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
-	get     func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
-	create  func(context.Context, auth.Principal, forms.Form) (Object, error)
-	update  func(context.Context, auth.Principal, Mutation, forms.Form) (Object, []string, error)
-	delete  func(context.Context, auth.Principal, Mutation) (Object, error)
-	history func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
+	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
+	get            func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
+	create         func(context.Context, auth.Principal, forms.Form) (Object, error)
+	validateCreate func(context.Context, auth.Principal, forms.Form) error
+	update         func(context.Context, auth.Principal, Mutation, forms.Form) (Object, []string, error)
+	delete         func(context.Context, auth.Principal, Mutation) (Object, error)
+	history        func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
 }
 
 type registeredPage struct {
@@ -407,7 +415,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -557,6 +565,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 
 	registered := registeredModel{
+		validateCreate:          config.ValidateCreate,
 		readOnlyFields:          readOnlyFields,
 		readOnly:                config.ReadOnly,
 		hasHistory:              config.History != nil,

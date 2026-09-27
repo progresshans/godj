@@ -304,7 +304,7 @@ GoDj 코드/기대 결과를 import하지 않는다. Django 소스는 저장소 
 이 등록을 호출한다. Browser는 principal ID·encoded password·revision 값을 모델 필드로 지정하지 못한다.
 Revision은 앞서 정의한 별도 조건으로만 제출한다. 생성 principal ID는 호스트가 선택하는 불투명한 값이다.
 
-User 생성은 username·password1·password2만 받는다. Profile/role·그룹·직접 권한은 편집 Form이 소유하고,
+User 생성은 username·password1·password2와 명시적 unusable_password 선택을 받는다. Profile/role·그룹·직접 권한은 편집 Form이 소유하고,
 별도 password command는 Manager가 확정한 ID/revision을 바로 반환한다. Profile 변경과 삭제는 선행 snapshot의 revision을
 제출 조건과 비교한 뒤 Manager의 마지막 CAS를 수행한다. 삭제 결과는 확정 성공 뒤에만 선행 snapshot을 게시한다.
 확정 PROTECT rollback만 기존 protected 화면으로 표현하고 cleanup failure·unknown은 실행 실패로 남긴다.
@@ -348,8 +348,31 @@ Private createsuperuser protocol의 username 상한은 1,024바이트, password�
 Wire grammar/version은 유지하며 malformed·truncated·과대 입력은 기존처럼 거부한다. Legacy operator의 저장 256자 한도는 유지한다.
 이 전송 상한은 Go-native SYS-023 결정이며 Django 기본 User의 150자 저장 스키마와 같다는 주장이 아니다.
 
-전체 UserCreationForm 호환은 self-service/reset 등 남은 lifecycle 구현과 구분한다.
+전체 UserCreationForm의 재사용·저장 lifecycle과 사용자 모델 확장은 아래 Admin 검증 단계 및 self-service/reset과 구분한다.
 [독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 source/환경/범위는 TEST_EVIDENCE를 따른다.
+
+### 생성 Form의 복합 오류와 읽기 검증
+
+`ModelConfig.ValidateCreate`는 공통 Admin의 선택적 read-only post-clean callback이다. Site는 CSRF·현재 staff 및
+생성/추가/선택 목록 권한을 통과한 뒤 Form을 bind하고, field 오류가 있어도 이 callback을 실행한다.
+Callback은 불변 Form의 오류를 먼저 확인하고 성공한 입력만 검사한다. 기존 field 오류를 지우거나 Form을 교체하지 못한다.
+확인된 `validation.Reject`만 `WithErrors`로 합치며 미선택 field 진단, wrapped/cleanup 오류와 취소는 실행 실패로 남긴다.
+Pure `forms.Spec`에 DB I/O를 넣지 않는다. 이 읽기 검증은 저장 권한이나 재사용할 수 있는 성공 증명이 아니다.
+
+Identity 생성은 `Manager.CheckUserCreation`으로 같은 read snapshot의 현재 add_user/change_user 권한과
+DB `iexact` 중복을 검사하고, 남은 password2를 host 정책에 전달한다. 이름의 required/길이/NUL 오류나 중복은
+candidate username을 비운다. 모델 문자 문법 오류는 candidate 이름을 유지한 채 strength 검사도 수행한다.
+따라서 중복 이름과 짧은 password, 누락된 password1과 유효한 password2의 정책 오류를 한 번에 표시한다.
+Confirmation mismatch 또는 password2의 field 오류는 strength 검사를 생략한다. 사용 불가 password 선택은
+required/confirmation/strength를 생략하지만 입력 field의 NUL 오류까지 지우지는 않는다.
+
+고정 Django `UserCreationForm.clean_username` → Form clean → model post-clean → password validation의 외부 결과를
+[독립 양 DB observer](../../conformance/runners/django/user_creation_reference.py)로 관찰했다. Go Profile의 문자열은
+native 후보의 None/빈 username을 빈 문자열로 표현한다. DB 조회 수와 Python 내부 instance 구조를 복제하지 않는다.
+읽기 종료가 성공한 뒤에만 진단을 게시하며 ID 발급·hash·write는 하지 않는다. 최종 CreateUser는 현재 인가·중복·policy를
+다시 preflight하고 hash 뒤 coordinated write fence에서 재검사한다. 저장은 기존 원자적 user/관계/audit 계약을 유지한다.
+이 연결은 Admin 생성의 검증 순서를 소유한다. 일반 재사용 UserCreationForm의 준비/저장 API, custom user model이나
+Python `save(commit=False)`와 동일한 객체 lifecycle을 구현했다고 주장하지 않는다.
 
 ## 내장 password validator와 공통 정책 선택
 
