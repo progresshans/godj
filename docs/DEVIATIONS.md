@@ -269,6 +269,12 @@ Django의 시각만 남는 실패 또는 다음 요청에서 감지하는 stale 
 같은 계정 재로그인도 GoDj는 항상 ID를 회전한다. 계정 교체의 payload 삭제와 일반 login/access/logout 관찰은 비교한다.
 자세한 소유권과 generic/legacy 범위는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립)을 따른다.
 
+[독립 reset 관찰](../conformance/runners/django/password_reset_reference.py)의 credential/email 변경·만료 경계와
+secret fallback은 비교하되 token wire 형식은 Go가 소유한다. Native의 `bindings.inactive`, `bindings.last_login_microsecond`,
+`clock.future`가 true라는 관찰을 유지한다. GoDj는 현재 active/usable과 저장 시각 전체 정밀도를 검사하고 미래 발급을 거부한다.
+Native `stale_confirmation`의 두 성공과 profile/active 복구도 원본에 남긴다. GoDj는 마지막 token 재검사로 하나만 저장하며
+password/현재 revision만 patch하고 session 폐기·audit까지 원자 처리한다. 메일·HTTP reset 소비자 parity는 별도 조건이다.
+
 ## DEV-0014 — TimeInput의 초기 microsecond와 변경 감지를 보존
 
 - Status: Verified

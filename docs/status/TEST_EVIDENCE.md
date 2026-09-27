@@ -3,13 +3,56 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — reset token과 현재 상태를 재검사하는 원자 service
+
+2026-09-28, `44069bc1` 이후 `identity.PasswordResetter`를 추가했다. 명시적 immutable key ring·timeout·clock·validator와
+기존 native identity backend를 사용한다. 수신자에게만 전달할 token 발급과 읽기 전용 검사, hash 전 read 종료,
+최종 token/현재 profile 재검사·password/현재 revision patch·모든 대상 session 폐기·값 없는 audit의 원자 저장을 구현했다.
+IR/model/migration·생성 ABI·dependency lock 변경은 없다. 메일·제품 reset Form/API·독립 client는 아직 연결하지 않았다.
+
+최종 source map `da2eaf32c451b5403e135ba67bd6d37295c3e11e66686f37d9eeb41b3d2ccb04`
+(non-Markdown **2,525 파일**)의 시작/종료 동일성을 확인했다. Auth/Identity/Systemstate 전체와 양 DB의 새 reset roots를
+실행했고 **5 packages / 115 roots / 371 필수 항목**의 run/pass·package 완료·no-skip을 감사했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 592 PASS / skip 0 | 12.532초 |
+| race | 592 PASS / skip 0 | 119.549초 |
+| CGO=0 | 592 PASS / skip 0 | 18.583초 |
+
+합계 **1,776 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go, `TZ=Pacific/Chatham`,
+private PostgreSQL 17.10 UTF8/libc/C와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다. DB 종료 `0|0|0`·container 제거를 확인했다.
+
+- Credential/email/last_login·identity·서명·만료/future·active/usable 결합, canonical bounded parsing,
+  key copy·fallback 제거·마지막 verification key·active-key 발급과 diagnostic 비공개를 검사했다.
+- 독립 Django 양 DB fixture의 11개 binding을 직접 비교하며 inactive·microsecond 변경은 원본 true를 확인한 뒤
+  Go의 더 엄격한 false를 별도로 검사한다. Native 미래 시각 허용·stale form overwrite와의 차이도 ADR/DEV에 명시했다.
+- 260개 session의 batch 경계에서 target만 폐기하고 다른 사용자·익명 session을 보존했다. 발급/검사/약한 password는
+  hash·User/session/audit 무변경이다. 재접속·원문 공백·같은 password의 새 hash·token 재사용 거부·last_login 보존을 확인했다.
+- 준비 중 다른 연결의 username/profile/revision 편집을 보존하며 현재 policy를 다시 적용한다. Credential/email/last_login,
+  비활성/사용 불가/삭제·시각 변화는 최종 fence에서 거부한다. 두 연결의 같은 token 제출은 정확히 하나만 성공했다.
+- Read callback zero/nil/twice/swallow/cleanup과 write callback zero/nil/twice/swallow, 비교 불가능한 host error,
+  password·audit 전후·revocation 실패·취소·unknown rollback/commit·commit 뒤 취소를 실제 native scope에서 검사했다.
+  Token/validation 거부에 cleanup 오류가 붙으면 일반 거부로 낮추지 않는다. Hasher 실패·같은 encoded 반환·취소도 검사했다.
+- 별도 source overlay **9개**가 credential/email/last_login 결합, 현재 token 재검사, session 폐기, audit,
+  현재 profile 보존·현재 policy·unknown 성공 오인을 각각 지정된 assertion으로 탐지했다. Compile 실패를 성공으로 세지 않았다.
+
+최초 checkpoint에서는 caller의 validator slice를 nil로 바꾼 뒤 그 caller config로 두 번째 service까지 만들던 테스트가
+실패했다. 첫 service의 소유 복사는 정상이고 새 constructor의 nil 거부가 올바른 동작이므로 재접속용 config를 새로 구성했다.
+최초 실패 `password-reset-checkpoint-1790521172804713000`과 최종
+`password-reset-checkpoint-1790521256503677000`의 raw/receipt·controls를 `godj-many-to-many-reference-4sl0bvdp` 아래 보존했다.
+영향 vet·gofmt, CI 도구 41개, 현재 두 attestation의 native dependency closure, Markdown 152개 링크·diff를 확인했다.
+최종 product/control source hash도 동일하다. 이 로컬 scope의 성공을 Hosted 전체 또는 메일/HTTP consumer의 완료로 옮기지 않는다.
+
 ## GDJ-0100 — 제품 source binding 보완과 reset의 독립 기준
 
 2026-09-27, 실제 제품 entrypoint의 `go list -deps`와 비교해 두 attestation source 목록의 누락을 확인했다.
 Account template, common-password 사전, Unicode·Decimal·JSON·UUID와 migration 내부 패키지를 추가했고,
 system-state 목록에는 현재 Permission revision migration도 추가했다. 두 owner의 독립 검사는 현재 OS·CGO·race
 선택의 local Go/native source·embedded asset과 symlink 방어 범위를 대조한다. 기존 목록을 expected로 재사용하지 않는다.
-Wire format과 dependency lock, 제품 runtime 동작은 바꾸지 않았다.
+Wire format과 dependency lock, 제품 runtime 동작은 바꾸지 않았다. 구현 commit `44069bc137480154b683cd7d95eb936b16d8ec99`를 양 branch에 게시했고
+[Hosted Fast 36327113730](https://github.com/progresshans/godj/actions/runs/36327113730)은 실제 Fast Go feedback까지 성공했다.
+Run/jobs/steps 원본은 최종 source-closure checkpoint에 보존했다.
 
 최종 source map `5ff364d4c681e9e0fe113d020dc0d712d678129e4584fcaabd4a9a130ae9d308` (non-Markdown **2,519 파일**)의 시작/종료 동일성을 확인했다.
 `-trimpath`를 적용한 두 owner와 shared I/O **3 packages / 39 roots**의 normal **254 PASS (4.700초)**,

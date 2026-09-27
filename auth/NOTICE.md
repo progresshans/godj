@@ -47,5 +47,8 @@ executes the pinned PasswordResetTokenGenerator, PasswordResetForm, SetPasswordF
 and in-process mail backend with private SQLite/PostgreSQL databases. It records
 token invalidation/expiry/key fallback, eligible recipients, mail failures and
 stale-form overwrites, with eight upstream module hashes. No network mail is sent.
-This reference baseline alone does not implement GoDj password reset or establish
-parity for the native HTTP reset views.
+GoDj's reset service uses its own domain-separated full HMAC-SHA256 format and
+requires current active/usable credentials, exact stored last_login, and a
+non-future timestamp again at the final native write fence. Its field-only patch
+and atomic session revocation/audit intentionally differ from stale native forms.
+The baseline and service do not establish parity for mail delivery or HTTP views.

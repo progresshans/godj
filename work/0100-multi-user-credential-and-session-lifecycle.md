@@ -1,7 +1,7 @@
 ---
 id: GDJ-0100
 status: active
-updated: 2026-09-27
+updated: 2026-09-28
 baseline_commit: "1036bcd079e96260dc5230dab1172e0228f34ce5"
 integration_owner: "root"
 ---
@@ -103,4 +103,6 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 또한 두 attestation의 제품 의존성 목록 누락을 보완하고 native Go toolchain과 독립 대조하는 검사를 추가했다.
 수정 source의 새 capture와 Hosted milestone 검증을 수행한다. 기존 실행·제한·환경별 근거는 TEST_EVIDENCE를 따른다.
 고정 Django의 reset token·Form·in-process mail을 양 DB에서 독립 관찰했다. HTTP reset view의 실제 관찰과
-Go token·현재 credential/profile fence·원자 저장·메일 전달·Form/API 소비자는 다음 구현이다.
+메일 전달·Form/API 소비자는 다음 구현이다. Go token/key ring·현재 credential/email/last_login/active와
+만료 재검사·password/현재 revision/session 폐기/audit 원자 저장 service를 구현했다.
+영향 normal/race/CGO=0·양 DB·두 연결의 경쟁과 실패 경계를 검증했다. 메일이나 실제 reset 화면/API의 완료는 아니다.

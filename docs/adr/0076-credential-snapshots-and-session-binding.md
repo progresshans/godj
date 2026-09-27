@@ -119,7 +119,7 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 해당 열만 갱신하며 관리 revision을 증가시키지 않는다. 저장 Identity 로그인은 현재 credential을 write 안에서 재검사한다.
 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니며 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
-self-service 흐름은 아래 별도 계약을 사용한다. Password reset은 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
+self-service와 reset service는 아래 별도 계약을 사용한다. Reset의 메일·Form/API 소비자는 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
 실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
@@ -541,3 +541,38 @@ body 상한 413, media 415, unknown outcome 503을 구분한다. JSON 문자열 
 unused/foreign session과 값 없는 audit를 별도로 확인한다. Synthetic 503 decoder/no-retry와 실제 양 DB native HTTP
 rollback/unknown 검증을 구분한다. Reset, 전체 UserCreationForm, token issuer/JWT/OAuth/OIDC는 남은 구현이다.
 실행 범위와 환경별 완료는 TEST_EVIDENCE에서 별도로 확인한다.
+
+## 비밀번호 재설정 token과 원자 저장
+
+`identity.PasswordResetter`는 `ManagementBackend`와 명시적 hasher·`PasswordResetConfig`에 결합한다.
+서버 내부의 `IssueToken(ctx, principalID)`는 현재 active/usable 계정을 읽어 수신자에게만 전달할 값을 만든다.
+이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택·email 정규화·메일 전달·HTTP 응답은
+별도 소비자가 소유하며 아직 연결 전이다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
+새 hash·write admission·session을 만들지 않는다. Raw token은 명시적인 `Encoded()`로만 꺼내고 fmt/JSON에서는 감춘다.
+
+`PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
+키의 생성·보관·배포는 host가 맡고 CSRF/session 키와 공유하는 API를 제공하지 않는다. 검증은 모든 등록 키를 확인한다.
+Token은 domain-separated HMAC-SHA256의 전체 MAC과 canonical base-36 Unix 초를 raw URL-base64와 함께 인코딩한다.
+HMAC 입력은 길이 framing한 User ID·stable principal ID·credential stamp·email 원문·UTC last_login·발급 시각이다.
+URL에는 password·stamp·email을 넣지 않으며 wire 형식은 Django와 호환되지 않는다.
+기본 만료는 Django와 같은 72시간이고 host는 양의 정수 초 duration을 선택한다. 경계 초는 유효하며 미래 발급은 거부한다.
+Key ring과 validator 목록은 생성 후 불변이고 clock/validator callback은 pure·concurrency-safe여야 한다.
+
+`ResetPassword`는 preflight read scope를 닫은 뒤 password policy·새 hash를 처리하고, native write fence 안에서
+현재 행과 token의 credential/email/last_login·active/usable·만료를 다시 검사한다. 현재 profile로 policy도 다시 적용한다.
+변경되지 않은 encoded password를 돌려주는 hasher는 거부한다. Password와 **현재 revision + 1**만 patch하며,
+대상의 모든 session 폐기와 본인을 actor로 한 값 없는 password audit를 같은 transaction에 저장한다.
+사용자를 로그인시키거나 현재 브라우저 session을 보존하지 않는다. Username/profile/role/revision만 바뀌면
+token을 불필요하게 거부하지 않되 최신 값을 덮어쓰지 않는다. 두 연결에서 같은 token을 제출하면 하나만 성공한다.
+
+없는/비활성/사용 불가/변경된 계정, malformed/만료/다른 서명은 원인 구분 없는 `ErrInvalidResetToken`이다.
+Malformed token은 I/O 전에 거부한다. 저장 단계의 거부는 확정 rollback이 직접 반환한 경우에만 그 sentinel이나
+원인 없는 validation으로 게시한다. Snapshot/transaction callback 위반·cleanup·취소·unknown은 실행 오류이며
+secret-free 진단과 원인을 유지하고 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 실패로 바꾸지 않는다.
+
+독립 [native reset 기준](../../conformance/runners/django/password_reset_reference.py)의 두 DB 결과는 수정하지 않는다.
+Django는 last_login의 초 아래 부분을 버리고 active 변경만으로는 token을 무효화하지 않으며 미래 timestamp도 허용한다.
+GoDj는 실제 저장된 UTC 시각의 전체 정밀도와 현재 active/usable을 확인하고 미래 발급을 거부한다.
+Django SetPasswordForm이 두 stale snapshot을 순서대로 저장하거나 최신 email/active를 복구하는 관찰과도 다르게,
+GoDj는 token을 최종 재검사하고 field patch·원자 저장을 사용한다. 이 차이는 [DEV-0013](../DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)에 기록한다.
+메일 실패 정책·수신자 선택·reset HTTP view·Form/API의 구현 및 검증은 이 service의 완료로 추론하지 않는다.
