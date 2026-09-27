@@ -18,7 +18,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -102,7 +101,6 @@ func newOperatorExternalProject(t *testing.T) *operatorExternalProject {
 		}
 	}
 
-	localReplacements := operatorLocalDependencyReplacements(t, repository)
 	operatorWriteFile(t, filepath.Join(root, "go.mod"), []byte(fmt.Sprintf(`module example.com/godj-operator-product
 
 go 1.26.0
@@ -110,7 +108,7 @@ go 1.26.0
 require github.com/progresshans/godj v0.0.0
 
 replace github.com/progresshans/godj => %s
-%s`, filepath.ToSlash(repository), localReplacements)), 0o600)
+`, filepath.ToSlash(repository))), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\n"), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "application", "application.go"), []byte(operatorApplicationSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "cmd", "projectrunner", "main.go"), []byte(operatorProjectRunnerSource), 0o600)
@@ -144,9 +142,43 @@ replace github.com/progresshans/godj => %s
 		"GOENV":           "off",
 		"GOFLAGS":         "",
 		"GOCACHEPROG":     "",
+		"GOPROXY":         "off",
+		"GOSUMDB":         "off",
+		"GONOPROXY":       "none",
+		"GONOSUMDB":       "none",
+		"GOPRIVATE":       "",
 	})
 	setupEnvironment = gobuild.Environment(setupEnvironment, os.Environ(), universe)
+	// The execution owner has already downloaded the locked repository graph.
+	// Preserve its verified checksums in this independent module rather than
+	// asking a fresh private HOME to contact the checksum service again.
+	checksums, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		t.Fatal("read repository dependency checksums")
+	}
+	operatorWriteFile(t, filepath.Join(root, "go.sum"), checksums, 0o600)
 	operatorRunSetup(t, root, setupEnvironment, "go", "mod", "tidy")
+	preparedChecksums, err := os.ReadFile(filepath.Join(root, "go.sum"))
+	if err != nil {
+		t.Fatal("read prepared dependency checksums")
+	}
+	verified := make(map[string]bool)
+	for _, line := range strings.Split(string(checksums), "\n") {
+		line = strings.Join(strings.Fields(line), " ")
+		if line != "" {
+			verified[line] = true
+		}
+	}
+	for _, line := range strings.Split(string(preparedChecksums), "\n") {
+		line = strings.Join(strings.Fields(line), " ")
+		if line != "" && !verified[line] {
+			fields := strings.Fields(line)
+			if len(fields) != 3 {
+				t.Fatal("external fixture produced invalid dependency checksums")
+			}
+			t.Fatalf("external fixture selected a dependency outside repository checksums: %s %s", fields[0], fields[1])
+		}
+	}
 
 	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
 		"GOPROXY": "off",
@@ -622,37 +654,6 @@ func operatorAuditExternalSources(t *testing.T, root string) {
 	if files < 8 {
 		t.Fatalf("external operator project source audit covered %d files, want generated and handwritten packages", files)
 	}
-}
-
-func operatorLocalDependencyReplacements(t *testing.T, repository string) string {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{if not .Main}}{{.Path}}|{{.Dir}}{{end}}", "all")
-	command.Dir = repository
-	document, err := command.Output()
-	if err != nil || ctx.Err() != nil {
-		t.Fatal("resolve local external-project dependency replacements")
-	}
-	lines := make([]string, 0, 32)
-	for _, line := range strings.Split(string(document), "\n") {
-		module, directory, ok := strings.Cut(strings.TrimSpace(line), "|")
-		if !ok || module == "" || directory == "" || module == "github.com/progresshans/godj" {
-			continue
-		}
-		if !filepath.IsAbs(directory) {
-			t.Fatalf("module replacement directory for %s is not absolute", module)
-		}
-		if info, err := os.Stat(filepath.Join(directory, "go.mod")); err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		lines = append(lines, "replace "+module+" => "+filepath.ToSlash(directory))
-	}
-	if len(lines) < 10 {
-		t.Fatalf("resolved only %d local dependency replacements", len(lines))
-	}
-	sort.Strings(lines)
-	return strings.Join(lines, "\n") + "\n"
 }
 
 func operatorRepositoryRoot(t *testing.T) string {

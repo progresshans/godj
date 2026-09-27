@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -19,7 +20,7 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		changeLoads++
 		return []forms.Choice{{Value: forms.Integer(9), Label: "Change selection"}}, nil
 	}}
-	config.CreateForm = &FormConfig{Fields: []string{"category"}, RelatedChoices: []RelatedChoices{{Field: "category", Permission: config.Permissions.Add, Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	config.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"category"}}, RelatedChoices: []RelatedChoices{{Field: "category", Permission: config.Permissions.Add, Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		createLoads++
 		if createFailure != nil || !available {
 			return nil, createFailure

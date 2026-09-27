@@ -31,7 +31,7 @@ func (a *registration) registerGroup(builder *admin.Builder) error {
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[groupRow]{
 		AppLabel: "godj_identity", Slug: "groups", Model: models.GroupDescriptor{}.Metadata(), FormFields: fields, FormOverrides: overrides, RevisionField: "revision",
-		RelatedChoices: choices(admin.ActionChange), CreateForm: &admin.FormConfig{Fields: fields, Overrides: overrides, RelatedChoices: choices(admin.ActionAdd)},
+		RelatedChoices: choices(admin.ActionChange), CreateForm: &admin.FormConfig{Definition: formmodel.Definition{Fields: fields, Overrides: overrides}, RelatedChoices: choices(admin.ActionAdd)},
 		ListFields: []string{"id", "name"}, Permissions: admin.Permissions{View: identity.ViewGroup, Add: identity.AddGroup, Change: identity.ChangeGroup, Delete: identity.DeleteGroup},
 		List: func(ctx context.Context, p auth.Principal, r admin.ListRequest) (admin.Page[groupRow], error) {
 			page, err := a.manager.Groups(ctx, p, r.Offset, r.Limit)

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/identity/internal/forminput"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -57,7 +58,7 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 	}
 	registry := registeredIdentityForTest(t)
 	descriptor, _ := registry.Lookup("godj_identity", "user")
-	spec, err := forms.NewSpec(descriptor.CreateFormFields, creationPasswords())
+	spec, err := forms.NewSpec(descriptor.CreateFormFields, forminput.CreationPasswords())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +69,11 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 		}
 		// This corpus has no stored users or password policy. The complete
 		// read-backed post-clean phase is exercised by the shared DB/HTTP suite.
-		form, err = form.WithErrors(creationUsernameErrors(form, validation.Errors{}))
+		var grammar validation.Errors
+		if value, present := form.Cleaned().Get("username"); present {
+			grammar = forminput.UsernameValidator(150).ValidateField(value)
+		}
+		form, err = form.WithErrors(grammar)
 		if err != nil {
 			t.Fatal(err)
 		}

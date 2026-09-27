@@ -408,7 +408,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	var form forms.Spec
 	if !config.ReadOnly {
-		form, err = prepareModelForm(model, FormConfig{Fields: config.FormFields, Overrides: config.FormOverrides})
+		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides}})
 		if err != nil {
 			if invalid, ok := err.(*ConfigError); ok {
 				return registeredModel{}, invalid

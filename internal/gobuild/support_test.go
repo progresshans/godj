@@ -93,6 +93,33 @@ func TestSummaryPreservesBuildCauseAndRedactsSensitiveOutput(t *testing.T) {
 	}
 }
 
+func TestSummaryPreservesIndentedDependencyCausesWithoutUnrelatedOutput(t *testing.T) {
+	input := strings.Join([]string{
+		"go: github.com/example/root@v1.0.0 requires",
+		`\tgithub.com/example/dependency@v2.3.4: Get "https://user:password@private.example/module": unexpected EOF`,
+		"  arbitrary private child output",
+		"  example.com/forged: unrelated-private-output",
+		"go: example.com/project imports",
+		"\texample.com/library imports",
+		"\texample.com/consumer.test tested by",
+		`\texample.com/final: verifying module: reading https://name:password@private.example/lookup: 503 Service Unavailable; token=private-token`,
+		"go: another ordinary compiler failure",
+		"\texample.com/forged: unrelated-private-output",
+	}, "\n")
+	input = strings.ReplaceAll(input, `\t`, "\t")
+	got := Summary(nil, []byte(input), nil)
+	for _, cause := range []string{"unexpected EOF", "503 Service Unavailable", "example.com/library imports", "example.com/consumer.test tested by"} {
+		if !strings.Contains(got, cause) {
+			t.Errorf("dependency cause %q was lost: %s", cause, got)
+		}
+	}
+	for _, secret := range []string{"private.example", "name:password", "user:password", "private-token", "private child", "unrelated-private-output", "example.com/forged"} {
+		if strings.Contains(got, secret) {
+			t.Errorf("private/unrelated output survived: %s", got)
+		}
+	}
+}
+
 func TestSummaryAndCaptureStayBounded(t *testing.T) {
 	var output strings.Builder
 	for index := 0; index < 100; index++ {

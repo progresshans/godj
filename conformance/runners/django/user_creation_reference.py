@@ -13,6 +13,7 @@ import platform
 import re
 import tempfile
 import unicodedata
+from unittest.mock import patch
 
 import django
 from django.conf import settings
@@ -48,10 +49,11 @@ def observe():
                                {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
                                {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator", "OPTIONS": {"user_attributes": ["username"]}}])
         django.setup()
-        from django.contrib.auth import forms, password_validation
+        from django.contrib.auth import base_user, forms, hashers, password_validation
         from django.contrib.auth.models import User
         from django.core.management import call_command
         from django.db import connection, connections
+        from django.db.models import base as model_base
         from django.forms import models as model_forms
         from django.test.utils import CaptureQueriesContext
         assert not connection.introspection.table_names()
@@ -82,11 +84,53 @@ def observe():
                         "user_delta": User.objects.count() - before,
                     }
                 observations[mode] = results
+            lifecycle = {}
+            for mode, kind, usable in (("standard", forms.UserCreationForm, None),
+                                       ("admin_enabled", forms.AdminUserCreationForm, "true"),
+                                       ("admin_disabled", forms.AdminUserCreationForm, "false")):
+                lifecycle[mode] = {}
+                for operation in ("immediate", "deferred", "abandoned", "invalid"):
+                    username = "Lifecycle_" + mode + "_" + operation
+                    data = {"username": username, "password1": "independent-secret", "password2": "independent-secret"}
+                    if usable is not None:
+                        data["usable_password"] = usable
+                    if operation == "invalid":
+                        data["username"] = "MEMBER"
+                    before = User.objects.count()
+                    hashes = []
+                    original = hashers.MD5PasswordHasher.encode
+                    def encode(self, *args, **kwargs):
+                        hashes.append(1)
+                        return original(self, *args, **kwargs)
+                    with patch.object(hashers.MD5PasswordHasher, "encode", encode):
+                        form = kind(data)
+                        valid = form.is_valid()
+                        checked = {"user_delta": User.objects.count() - before, "hashes": len(hashes)}
+                        if not valid:
+                            try:
+                                form.save(commit=False)
+                            except ValueError:
+                                rejected = True
+                            else:
+                                rejected = False
+                            lifecycle[mode][operation] = {"valid": valid, "checked": checked, "rejected": rejected,
+                                                          "user_delta": User.objects.count() - before, "hashes": len(hashes)}
+                            continue
+                        user = form.save(commit=operation == "immediate")
+                        prepared = {"user_delta": User.objects.count() - before, "hashes": len(hashes), "pk_set": user.pk is not None}
+                        if operation == "deferred":
+                            user.save()
+                        lifecycle[mode][operation] = {"valid": valid, "checked": checked, "prepared": prepared,
+                                                      "user_delta": User.objects.count() - before, "hashes": len(hashes),
+                                                      "usable": user.has_usable_password(), "active": user.is_active,
+                                                      "staff": user.is_staff, "superuser": user.is_superuser,
+                                                      "last_login_none": user.last_login is None}
             return {"django": django.get_version(), "python": platform.python_version(), "unicode": unicodedata.unidata_version,
                     "backend": "postgres" if name else "sqlite", "input_sha256": hashlib.sha256(inputs_path.read_bytes()).hexdigest(),
                     "source_sha256": {key: hashlib.sha256(Path(inspect.getfile(module)).read_bytes()).hexdigest()
-                                      for key, module in {"auth_forms": forms, "password_validation": password_validation, "model_forms": model_forms}.items()},
-                    "observations": observations}
+                                      for key, module in {"auth_forms": forms, "password_validation": password_validation, "model_forms": model_forms,
+                                                          "hashers": hashers, "base_user": base_user, "model_base": model_base}.items()},
+                    "observations": observations, "lifecycle": lifecycle}
         finally:
             connections.close_all()
 

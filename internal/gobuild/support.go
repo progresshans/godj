@@ -122,13 +122,14 @@ func containsPath(parent, child string) bool {
 }
 
 var (
-	compilerLine  = regexp.MustCompile(`(?:^|[/\\])[^\s/\\]+\.go:[0-9]+(?::[0-9]+)?:`)
-	secretKey     = regexp.MustCompile(`(?i)password|passwd|secret|token|credential|authorization|cookie|api_?key|private_?key`)
-	credentialURL = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://[^\s]+`)
-	quotedValue   = regexp.MustCompile("\"(?:[^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`")
-	absolutePath  = regexp.MustCompile(`(^|[\s(=])(?:/[^\s:"'` + "`" + `]+)+`)
-	secretPair    = regexp.MustCompile(`(?i)(password|passwd|secret|token|credential|authorization|cookie|api_?key)\s*[:=]\s*[^\s,;]+`)
-	ansiEscape    = regexp.MustCompile("\x1b\\[[0-?]*[ -/]*[@-~]")
+	compilerLine       = regexp.MustCompile(`(?:^|[/\\])[^\s/\\]+\.go:[0-9]+(?::[0-9]+)?:`)
+	moduleContinuation = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~!+/-]*[./][A-Za-z0-9._~!+/-]*(?:@v[0-9][A-Za-z0-9.+~-]*)?(?: (?:requires|imports|tested by)|: .+)$`)
+	secretKey          = regexp.MustCompile(`(?i)password|passwd|secret|token|credential|authorization|cookie|api_?key|private_?key`)
+	credentialURL      = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://[^\s]+`)
+	quotedValue        = regexp.MustCompile("\"(?:[^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`")
+	absolutePath       = regexp.MustCompile(`(^|[\s(=])(?:/[^\s:"'` + "`" + `]+)+`)
+	secretPair         = regexp.MustCompile(`(?i)(password|passwd|secret|token|credential|authorization|cookie|api_?key)\s*[:=]\s*[^\s,;]+`)
+	ansiEscape         = regexp.MustCompile("\x1b\\[[0-?]*[ -/]*[@-~]")
 )
 
 // Summary preserves compiler/module/network causes while excluding arbitrary
@@ -146,16 +147,23 @@ func Summary(stdout, stderr []byte, environment []string) string {
 	seen := make(map[string]bool)
 	lines := 0
 	for _, input := range [][]byte{stderr, stdout} {
+		moduleChain := false
 		scanner := bufio.NewScanner(bytes.NewReader(input))
 		scanner.Buffer(make([]byte, 4096), 128<<10)
 		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
+			raw := scanner.Text()
+			line := strings.TrimSpace(raw)
+			// Go emits dependency causes on indented continuation lines. Keep
+			// only a module/package-shaped edge after a recognized chain; an
+			// arbitrary indented line or HTTP response body remains private.
+			continuation := moduleChain && (strings.HasPrefix(raw, "\t") || strings.HasPrefix(raw, "  ")) && moduleContinuation.MatchString(line)
+			moduleChain = (strings.HasPrefix(line, "go: ") || continuation) && (strings.HasSuffix(line, " requires") || strings.HasSuffix(line, " imports") || strings.HasSuffix(line, " tested by"))
 			// Cold candidate builds may download many modules before reporting
 			// the actual compiler error. Progress must not consume its budget.
 			if strings.HasPrefix(line, "go: downloading ") {
 				continue
 			}
-			if !strings.HasPrefix(line, "go: ") && !strings.HasPrefix(line, "compile: ") && !strings.HasPrefix(line, "link: ") && !compilerLine.MatchString(line) &&
+			if !continuation && !strings.HasPrefix(line, "go: ") && !strings.HasPrefix(line, "compile: ") && !strings.HasPrefix(line, "link: ") && !compilerLine.MatchString(line) &&
 				!strings.Contains(line, "fatal error:") && !strings.Contains(line, "executable file not found") {
 				continue
 			}

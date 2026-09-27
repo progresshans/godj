@@ -3,6 +3,80 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 재사용 사용자 생성 Form과 한 번의 준비/저장
+
+기반 commit `a80fe2f7a9f64c0f3995638ee78fa7f6b8b70850` 이후 기본 User IR의 일반/Admin 생성 Form을
+공통 `forms/model.Definition`으로 연결했다. `Bind`는 읽기 검증만 수행하고 `Prepare`는 읽기 종료 뒤 credential을 준비한다.
+`Commit`은 원래 Manager·actor와 현재 인가·중복·관계·policy를 다시 확인하여 user/관계/audit를 원자 저장한다.
+복사된 준비 객체도 한 번의 저장 시도만 공유하며 실패·unknown 뒤 재사용과 삭제된 사용자의 과거 credential 재생성을 거부한다.
+기존 즉시 생성과 Admin도 같은 경로를 사용한다. Custom user model·모든 ModelForm 저장·익명 signup의 완료 선언은 아니다.
+
+최종 비문서 source inventory SHA-256은 `9489a1278ab274a37cc0447fb7e0f849015813b0a579eacd80f0ad339650ba24`이며 시작/종료·기록 시점이 같다.
+범위는 **8 packages / 130 roots / 840 필수 항목**이다. Admin·Identity·Identity Admin·model Form·build 진단·Article 전체와
+SQLite/PostgreSQL의 생성 Form/validation·관리 HTTP/API·사용자 관리·password policy·unusable·이름 중복 root를 선택했다.
+두 DB의 새 재사용 Form 필수 roster는 각각 **90항목**이며 기존 생성 검증 roster도 그대로 실행했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,595 PASS / skip 0 | 49.204초 |
+| race | 1,595 PASS / skip 0 | 314.899초 |
+| CGO=0 | 1,595 PASS / skip 0 | 56.397초 |
+
+합계 **4,785 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5 / offline readonly / `TZ=Pacific/Chatham`,
+private PostgreSQL **17.10 UTF8/libc/C**와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다. 마지막 DB **0|0|0**과 container 제거를 확인했다.
+
+- 고정 Django 6.1 / CPython 3.14.3 / Unicode 16의 양 DB에서 각각 **60개 입력 + 12개 저장 lifecycle 관측**이 일치했다.
+  일반·Admin enabled·Admin disabled 각각의 즉시 저장, 지연 준비/저장, 준비 후 포기, invalid 저장 거부를 실제 hasher 호출과 DB로 관찰했다.
+  Input corpus는 유지하고 auth forms·model forms·password validation·hashers·base user·model base의 upstream hash를 기록했다.
+  Go는 저장 전 Python의 mutable instance 속성을 비교하지 않으며 opaque 후보와 최종 저장 결과·hash/write 수명을 대조한다.
+- 일반 Form을 현재 add/change 권한이 있는 nonstaff actor로 실행했다. Bind에는 hash/session/audit 변경이 없고 Prepare도 DB에 쓰지 않는다.
+  Usable 준비는 hash 1회, unusable은 0회, Commit은 추가 hash 0회다. 준비 포기·invalid 입력에는 사용자 저장이 없으며 최종 기본값도 대조했다.
+- 임의 typed 값의 미선택 이름/타입/confirmation/문자 문법 우회, nil Form의 private 필드 노출, 정의 slice alias를 거부했다.
+  원래 Manager/actor 결합, 현재 권한 회수·중복 삽입·관계 삭제, audit rollback·unknown 결과 미게시를 양 DB에서 검증했다.
+  다른 actor는 현재 superuser로 만들어 권한 부족이 아닌 owner 결합 자체의 거부를 확인했다.
+  후보 복사본 4개의 경쟁은 성공 1개/소비 충돌 3개이며, 삭제 후 재사용·확정 실패/unknown 뒤 재호출은 새 write 없이 거부된다.
+  다른 owner의 호출과 저장 진입 전 context 취소는 정당한 owner의 저장 기회를 소모하지 않는다.
+- **7개 Go source overlay**가 각각 지정 runtime assertion으로 실패했다: 시도 소비 제거, nil 정의를 전체 필드로 변경,
+  Manager/actor 결합 제거, 준비 중 조기 저장, 최종 fence 생략, dependency 원인 진단 제거. Compile 실패는 부정 대조로 세지 않았다.
+  Native observer의 validation 4개·저장/hash 2개 변형도 예상 차이를 검출했다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **3 tests / skip 0**이 통과했다.
+  앞선 세 compatibility 실행과 최종 실행 사이 Python observer/test/fixture byte는 동일하다.
+  영향 vet, 두 attestation의 native dependency 소유권 검사와 CI event/roster/scope **26 tests**도 통과했다.
+  Model IR·생성 ABI·OpenAPI를 바꾸지 않아 generated drift 전체는 반복하지 않았다.
+
+최종 준비 객체 소비 제약을 추가하기 전 source `524c4a32fb22ae361830e25919bbeaf9555e0992e9047a3c37f61b2311a7102a`에서는
+**9 packages / 131 roots / 837 필수 항목**, 세 모드 각각 **1,600 PASS / skip 0**을 완료했다. 이 범위에는 아래 수정한
+실제 외부 CLI SQLite lifecycle/응답 유실 소유권의 각 모드 **11 PASS**가 포함된다. 현재 source와의 차이는
+`identity/user_creation.go`, 공통 identity Form test 및 양 DB 필수 roster의 **4파일**뿐이다.
+CLI fixture·build 진단·Python 파일은 동일하지만 이 앞선 전체 inventory를 최종 source에서 재실행한 결과로 합산하지 않는다.
+
+로컬 원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-user-creation-reference-rxk1a9mx` 아래
+`reusable-form-consumption-checkpoint-1790545045310777000`의 receipt/source 전후·필수 roster·JSON stream·controls/quality,
+그리고 `reusable-form-final-checkpoint-1790544116497452000`의 CLI/Python/CI 도구 로그에 있다.
+최초 재사용 Form checkpoint와 dependency guard가 실패한 `reusable-form-final-checkpoint-1790543879822175000`도 보존한다.
+
+### 선행 Hosted 실패와 외부 CLI 준비 수정
+
+선행 `a80fe2f7`의 [Hosted Fast 36348779762](https://github.com/progresshans/godj/actions/runs/36348779762)는 실제 Fast Go feedback까지 성공했다.
+Reset 수정 source `1ae07db3644290df4cc2c319d6f7dc44f8f7fd57`의
+[Hosted full 36346992368](https://github.com/progresshans/godj/actions/runs/36346992368)은 **62 jobs 중 60 성공/2 실패**로 종료했다.
+`Command products (macos-26, normal)`의 실제 durable_lifecycle은 외부 모듈 준비 중 exit 1이고 최종 full 집계도 실패했다.
+진단에는 `github.com/jackc/pgx/v5@v5.10.0 requires`까지만 남았다. 들여쓴 dependency 원인이 기존 Summary에서 제외되어
+당시 원격 오류를 확정할 수 없으므로 네트워크 장애나 특정 timeout으로 단정하지 않는다.
+
+Fresh private module/cache와 실패하는 loopback checksum service에서 실제 GoDj 의존성을 사용해 재현했다.
+Root go.sum이 없으면 checksum 요청 **4회 후 실패**, 복사하면 **요청 0회로 성공**, 결과 **76개 record**는 모두 root checksum에 포함됐다.
+외부 fixture는 root의 검증된 go.sum을 복사하고 준비도 offline으로 수행하며, 결과가 root checksum 밖을 선택하면 거부한다.
+Third-party module을 로컬 경로로 치환하던 중복 경로는 제거했다. 최초 엄격 검사에서 이 치환이 추가 `kr/text v0.2.0/go.mod`를
+선택하는 것을 확인했으며 native module/cache resolution으로 수정했다. Gate와 go.mod/go.sum·dependency version은 바꾸지 않았다.
+Summary는 인식한 module chain의 bounded continuation만 보존하며 URL·secret·임의 child output은 계속 숨긴다.
+
+재현 원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-operator-checksum-repro-s58bwx1c`에 있다.
+Hosted final jobs·실패 로그와 capture 원문은 `godj-many-to-many-reference-4sl0bvdp/hosted-full-36346992368-1790541124878313000`에 있다.
+같은 attempt 1의 systemstate `10941347662`/operator `10940732028`은 archive/provenance/producer와
+source Git blob inventory **612/688개**를 확인했다. 두 capture 검증은 실패한 전체 run의 성공 근거가 아니다.
+이번 최종 source의 새 Hosted 전체와 새 capture는 다음 통합 검증이며 이전 source의 결과를 전이하지 않는다.
+
 ## GDJ-0100 — 생성 Form의 복합 오류와 현재 권한 검증
 
 기반 commit `1ae07db3644290df4cc2c319d6f7dc44f8f7fd57` 이후 Admin의 read-only `ValidateCreate`와
@@ -48,7 +122,7 @@ private PostgreSQL **17.10 UTF8/libc/C**와 `GODJ_REQUIRE_POSTGRES=1`에서 수�
 
 이 생성 Form source의 Hosted 전체는 아직 실행하지 않았다. Reset 소비자·실행 기반 수정 source `1ae07db3`의
 [Hosted Fast 36346945448](https://github.com/progresshans/godj/actions/runs/36346945448)는 실제 Fast Go feedback까지 성공했다.
-[Hosted full 36346992368](https://github.com/progresshans/godj/actions/runs/36346992368)은 진행 중이며 이후 Form 변경의 전체 결과로 전이하지 않는다.
+[Hosted full 36346992368](https://github.com/progresshans/godj/actions/runs/36346992368)은 외부 CLI 준비에서 실패했다. 최종 결과와 후속 수정은 위 기록을 따른다.
 동일 attempt 1의 systemstate capture `10941347662`와 operator capture `10940732028`은 archive digest·provenance·producer 성공을
 확인했고 해당 commit의 Git blob source inventory 612/688개와 일치했다. Capture 검증만으로 전체 완료를 선언하지 않는다.
 

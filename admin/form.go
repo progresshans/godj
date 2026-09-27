@@ -11,38 +11,25 @@ import (
 // inputs, such as password confirmation. ExtraFields cannot shadow any stored
 // field, including a field excluded from this form. Persistence stays explicit.
 type FormConfig struct {
-	Fields         []string
-	Overrides      []formmodel.Override
-	ExtraFields    []forms.Field
-	Validators     []forms.CrossValidator
+	Definition     formmodel.Definition
 	RelatedChoices []RelatedChoices
 }
 
 func prepareModelForm(model ir.Model, config FormConfig) (forms.Spec, error) {
-	projected, err := formmodel.NewSpecForFields(model, config.Fields, config.Overrides...)
+	projected, err := config.Definition.Spec(model)
 	if err != nil {
+		if failure, ok := err.(*formmodel.Error); ok && failure.Code == "shadows_model" {
+			return forms.Spec{}, &ConfigError{Path: "model.form." + failure.Path, Code: failure.Code}
+		}
 		return forms.Spec{}, err
 	}
-	modelNames := make(map[string]bool, len(model.Fields)+len(model.ManyToMany))
-	for _, field := range model.Fields {
-		modelNames[field.Name] = true
-	}
-	for _, field := range model.ManyToMany {
-		modelNames[field.Name] = true
-	}
 	fields := projected.Fields()
-	for _, extra := range config.ExtraFields {
-		if modelNames[extra.Name()] {
-			return forms.Spec{}, &ConfigError{Path: "model.form." + extra.Name(), Code: "shadows_model"}
-		}
-		fields = append(fields, extra)
-	}
 	for _, field := range fields {
 		if field.Name() == "csrfmiddlewaretoken" || field.Name() == "expected_revision" {
 			return forms.Spec{}, &ConfigError{Path: "model.form." + field.Name(), Code: "reserved"}
 		}
 	}
-	return forms.NewSpec(fields, config.Validators...)
+	return projected, nil
 }
 
 func additionalPermissions(primary auth.Permission, additional []auth.Permission) ([]auth.Permission, error) {

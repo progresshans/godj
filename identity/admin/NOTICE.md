@@ -1,6 +1,7 @@
 # Input validation provenance
 
-`forms.go` implements the observable grammar of Django 6.1 `UsernameField`,
+[`identity/internal/forminput`](../internal/forminput/forms.go) and this adapter's
+email rule implement the observable grammar of Django 6.1 `UsernameField`,
 `UnicodeUsernameValidator`, `EmailValidator` and password confirmation. The
 grammar, including character ranges for quoted email local parts, is adapted
 from Django commit `fe0a859f537d4238cf49fca39073513206f83122`,
@@ -42,6 +43,16 @@ including compound errors and the candidate username seen by password policy.
 Go's Admin consumes those validation results while retaining current authority,
 no hash/write during checking, and atomic final writes. It does not expose the
 Python model instance or claim its `save(commit=False)` object lifecycle.
+
+The reusable [User creation form](../user_creation_form.go) uses the same pure
+rules and read-only phases. Its explicit prepare/commit service adopts Django's
+hash-before-save, deferred persistence and invalid-form no-write behavior from
+`django/contrib/auth/forms.py`, `base_user.py`, `hashers.py`,
+`django/forms/models.py` and `django/db/models/base.py` under that same license.
+The creation observer records their hashes and deferred/immediate/abandoned/
+invalid cases on both databases. Go keeps a private immutable prepared
+credential with current-authority and atomic-audit checks; it does not expose
+the Python unsaved model's mutable attributes or password encoding.
 
 Existing-user change and view-only pages display an Enabled/Disabled password
 login state derived from the same authorized user snapshot. This follows

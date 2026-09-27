@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/identity"
+	"github.com/progresshans/godj/identity/internal/forminput"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
@@ -22,23 +23,18 @@ type userRow struct {
 }
 
 func (a *registration) registerUser(builder *admin.Builder) error {
-	passwords, err := passwordFields(true)
+	passwords, err := forminput.PasswordFields(true)
 	if err != nil {
 		return err
 	}
-	passwordSpec, err := forms.NewSpec(passwords, passwordConfirmation())
+	passwordSpec, err := forms.NewSpec(passwords, forminput.PasswordConfirmation())
 	if err != nil {
 		return err
 	}
-	creationPasswordFields, err := passwordFields(false)
+	creationForm, err := identity.NewAdminUserCreationForm(a.manager)
 	if err != nil {
 		return err
 	}
-	unusableChoice, err := forms.BooleanField("unusable_password", forms.WithLabel("Create without password login"))
-	if err != nil {
-		return err
-	}
-	creationPasswordFields = append(creationPasswordFields, unusableChoice)
 	confirmation, err := forms.BooleanField("confirm", forms.WithRequired(true), forms.WithLabel("Disable password login and revoke this user's sessions"))
 	if err != nil {
 		return err
@@ -60,8 +56,7 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	// Creation adopts the default UserCreationForm input limit. Editing follows
 	// the declared storage field so an existing longer API/CLI-created username
 	// can still be displayed and retained without a hidden form-initial failure.
-	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(usernameNormalizer(usernameLimit)), formmodel.WithValidators(usernameValidator(usernameLimit)))
-	creationUsername := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithMaxLength(150), formmodel.WithStringNormalizer(usernameNormalizer(150)))
+	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(usernameLimit)), formmodel.WithValidators(forminput.UsernameValidator(usernameLimit)))
 	return admin.RegisterModel(builder, admin.ModelConfig[userRow]{
 		AppLabel: "godj_identity", Slug: "users", Model: metadata,
 		FormFields: userFields, RevisionField: "revision",
@@ -81,8 +76,10 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			formmodel.OverrideField("email", formmodel.WithRequired(false), formmodel.WithStringNormalizer(trimPythonSpace), formmodel.WithValidators(emailValidator())),
 			formmodel.OverrideField("groups", formmodel.WithRequired(false)), formmodel.OverrideField("permissions", formmodel.WithRequired(false)),
 		},
-		CreateForm:               &admin.FormConfig{Fields: []string{"username"}, Overrides: []formmodel.Override{creationUsername}, ExtraFields: creationPasswordFields, Validators: []forms.CrossValidator{creationPasswords()}},
-		ValidateCreate:           a.validateUserCreation,
+		CreateForm: &admin.FormConfig{Definition: creationForm.Definition()},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, form forms.Form) error {
+			return operationError(creationForm.Check(ctx, actor, form))
+		},
 		AdditionalAddPermissions: []auth.Permission{identity.ChangeUser}, AdditionalAuditFields: []string{"password"},
 		RelatedChoices: []admin.RelatedChoices{
 			{Field: "groups", Permission: identity.ChangeUser, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {
@@ -113,28 +110,13 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			return userRow{value, true}, err == nil, operationError(err)
 		},
 		Snapshot: userSnapshot, Initial: func(value userRow) (map[string]forms.Value, error) { return userInitial(value.UserDetails), nil },
-		Create: func(ctx context.Context, p auth.Principal, values forms.Values) (userRow, error) {
-			username, ok := values.String("username")
-			if !ok {
-				return userRow{}, invalidInput()
-			}
-			password, ok := values.String("password1")
-			if !ok {
-				return userRow{}, invalidInput()
-			}
+		Create: func(ctx context.Context, actor auth.Principal, values forms.Values) (userRow, error) {
 			principalID, err := a.principalID(ctx)
 			if err != nil {
 				return userRow{}, err
 			}
-			input := identity.NewUserCreate(principalID, username).WithCaseInsensitiveUsernameCheck()
-			unusable, _ := values.Boolean("unusable_password")
-			var created identity.UserDetails
-			if unusable {
-				created, err = a.manager.CreateUserWithUnusablePassword(ctx, p, input)
-			} else {
-				created, err = a.manager.CreateUser(ctx, p, input, password)
-			}
-			return userRow{created, true}, passwordError(err)
+			created, err := creationForm.Create(ctx, actor, principalID, values)
+			return userRow{created, true}, operationError(err)
 		},
 		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (userRow, []string, error) {
 			before, err := a.manager.User(ctx, p, m.ID)

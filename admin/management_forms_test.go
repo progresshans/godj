@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/templates"
@@ -65,14 +66,14 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 		ListFields: []string{"id", "username"}, FormFields: []string{"username", "active"}, RevisionField: "revision",
 		Permissions:              Permissions{View: "accounts.view", Add: "accounts.add", Change: "accounts.change", Delete: "accounts.delete"},
 		AdditionalAddPermissions: []auth.Permission{"accounts.change"},
-		CreateForm: &FormConfig{Fields: []string{"username"}, ExtraFields: passwords, Validators: []forms.CrossValidator{forms.CrossValidatorFunc(func(values forms.Values) validation.Errors {
+		CreateForm: &FormConfig{Definition: formmodel.Definition{Fields: []string{"username"}, ExtraFields: passwords, Validators: []forms.CrossValidator{forms.CrossValidatorFunc(func(values forms.Values) validation.Errors {
 			one, a := values.String("password1")
 			two, b := values.String("password2")
 			if a && b && one != two {
 				return validation.NewErrors(validation.New("password2", "password_mismatch"))
 			}
 			return validation.NewErrors()
-		})}},
+		})}}},
 		List: func(ctx context.Context, p auth.Principal, r ListRequest) (Page[managementFormRow], error) {
 			state.mu.Lock()
 			defer state.mu.Unlock()
@@ -346,17 +347,19 @@ func TestAdminRevisionSurvivesValidationAndRejectsConcurrentWrites(t *testing.T)
 func TestAdminCreationProjectionAndRevisionRejectInvalidStartupWithoutIO(t *testing.T) {
 	for _, change := range []func(*ModelConfig[registryArticle]){
 		func(c *ModelConfig[registryArticle]) {
-			c.CreateForm = &FormConfig{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "summary")}}
+			c.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "summary")}}}
 		},
 		func(c *ModelConfig[registryArticle]) {
-			c.CreateForm = &FormConfig{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "csrfmiddlewaretoken")}}
+			c.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "csrfmiddlewaretoken")}}}
 		},
 		func(c *ModelConfig[registryArticle]) {
-			c.CreateForm = &FormConfig{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "expected_revision")}}
+			c.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"title"}, ExtraFields: []forms.Field{cField(t, "expected_revision")}}}
 		},
-		func(c *ModelConfig[registryArticle]) { c.CreateForm = &FormConfig{Fields: []string{"unknown"}} },
 		func(c *ModelConfig[registryArticle]) {
-			c.CreateForm = &FormConfig{Fields: []string{"title"}, Validators: []forms.CrossValidator{nil}}
+			c.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"unknown"}}}
+		},
+		func(c *ModelConfig[registryArticle]) {
+			c.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"title"}, Validators: []forms.CrossValidator{nil}}}
 		},
 		func(c *ModelConfig[registryArticle]) {
 			c.AdditionalAddPermissions = []auth.Permission{"invalid permission"}

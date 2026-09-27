@@ -146,4 +146,14 @@ Admin 생성의 read-only post-clean 검증을 추가했다. 일부 field 오류
 검사하며 고정 Django의 candidate username·복합 오류·unusable 선택을 양 DB 실제 HTTP와 대조했다. 현재 인가·
 ID/hash/write 없음·read 실패/취소·hash 뒤 경합과 최종 fence를 영향 세 모드 및 부정 대조에서 검증했다.
 일반 재사용 UserCreationForm의 준비·저장 API/custom user model을 포함한 전체 완료는 아니다.
-선행 reset 수정 source `1ae07db3`의 Fast는 성공했고 Hosted 전체는 진행 중이다. 이후 Form source와 구분한다.
+선행 reset 수정 source `1ae07db3`의 Fast는 성공했고 Hosted 전체는 외부 CLI 준비에서 실패했다. 이후 Form source와 구분한다.
+
+기본 User의 일반/Admin 생성 Form을 공통 IR Definition으로 재사용한다. Bind의 읽기 검증, 저장 없는 Prepare와
+현재 인가·중복·관계·policy를 재검사하는 Commit을 구현했다. 기존 즉시 생성과 Admin도 같은 경로를 사용한다.
+원래 Manager/actor에 결합한 후보의 복사본은 한 번의 저장 시도를 공유하며 실패·unknown 뒤 재사용과 삭제 후 credential 재생성을 거부한다.
+양 DB의 native 입력/저장 lifecycle, nonstaff 재사용, 동시 복사본·owner 거부·최종 fence·실패 경계와 영향 세 모드를 검증했다.
+기본 User Form의 재사용/저장은 위의 남은 범위에서 충족했다. Custom user model·다른 인증 provider·운영 mail 검증은 남아 있다.
+
+선행 Hosted 실패의 실제 원격 원인은 기존 진단이 잘라 확정하지 않는다. Fresh module의 checksum 요청을 별도로 재현하고,
+검증된 root checksum의 offline 준비·third-party 로컬 치환 제거·bounded dependency 진단을 구현했다.
+실제 외부 CLI 세 모드의 영향 검증을 통과했다. 현재 요구는 새 source/capture의 Hosted 전체 통합이며 상세는 TEST_EVIDENCE를 따른다.

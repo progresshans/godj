@@ -3,7 +3,6 @@ package identity
 import (
 	"context"
 	"slices"
-	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -108,93 +107,11 @@ func (manager *Manager) CreateUserWithUnusablePassword(ctx context.Context, acto
 }
 
 func (manager *Manager) createUser(ctx context.Context, actor auth.Principal, input UserCreate, password passwordInput) (UserDetails, error) {
-	if err := manager.validCall(ctx, actor); err != nil {
-		return UserDetails{}, err
-	}
-	if !password.unusable && password.raw == "" {
-		return UserDetails{}, managementInputError("password", "required")
-	}
-	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: input.principalID}); err != nil {
-		return UserDetails{}, managementInputError("principal_id", "invalid")
-	}
-	patch, err := input.patch.normalize()
+	prepared, err := manager.prepareUserCreation(ctx, actor, input, password)
 	if err != nil {
 		return UserDetails{}, err
 	}
-	username, set := patch.username.Get()
-	if !set {
-		return UserDetails{}, managementInputError("username", "required")
-	}
-	row, _, _ := patch.apply(models.User{PrincipalID: input.principalID, DateJoined: time.Now().UTC().Truncate(time.Microsecond), Revision: 1})
-	row.Username = username
-	groups, _ := patch.groups.Get()
-	permissions, _ := patch.permissions.Get()
-	create := func(encoded string) models.UserCreate {
-		return models.NewUserCreate(row.PrincipalID, row.Username, encoded, row.DateJoined).
-			WithFirstName(row.FirstName).WithLastName(row.LastName).WithEmail(row.Email).
-			WithActive(row.Active).WithStaff(row.Staff).WithSuperuser(row.Superuser)
-	}
-	preflight := func(reader db.Queryer, candidate models.UserCreate) error {
-		if err := manager.requireActor(ctx, reader, actor.ID(), AddUser, ChangeUser); err != nil {
-			return err
-		}
-		if err := manager.validateUserKeys(ctx, reader, groups, permissions); err != nil {
-			return err
-		}
-		if err := manager.validateEffectiveGrants(ctx, reader, groups, permissions); err != nil {
-			return err
-		}
-		violations, err := models.UserObjects.ValidateUniqueCreate(ctx, reader, candidate)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		if input.caseInsensitiveUsernameCheck {
-			exists, err := models.UserObjects.Using(reader).Filter(models.UserFields.Username.IExact(username)).Exists(ctx)
-			if err != nil {
-				return err
-			}
-			if exists {
-				return managementInputError("username", "unique")
-			}
-		}
-		return password.validate(ctx, manager, profileFromRow(row))
-	}
-	if _, err := managementSnapshot(ctx, manager, func(reader db.Queryer) (struct{}, error) {
-		return struct{}{}, preflight(reader, create("identity-creation-preflight"))
-	}); err != nil {
-		return UserDetails{}, err
-	}
-	encoded, err := password.encode(ctx, manager.state.hasher)
-	if err != nil {
-		return UserDetails{}, err
-	}
-	principal, _ := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser})
-	if credential, err := auth.NewCredential(row.Username, encoded, principal); err != nil || credential.HasUsablePassword() == password.unusable {
-		return UserDetails{}, managementError(CodeInvalidConfig, "password_hasher", err)
-	}
-	return managementRelationWrite(ctx, manager, func(session db.RelationSession) (UserDetails, error) {
-		if err := preflight(session, create(encoded)); err != nil {
-			return UserDetails{}, err
-		}
-		created, err := models.UserObjects.Create(ctx, session, create(encoded))
-		if err != nil {
-			return UserDetails{}, err
-		}
-		if err := manager.setUserKeys(ctx, session, created, groups, permissions, true, true); err != nil {
-			return UserDetails{}, err
-		}
-		result, err := manager.userDetails(ctx, session, created.ID)
-		if err != nil {
-			return UserDetails{}, err
-		}
-		if err := manager.auditUser(ctx, session, actor.ID(), created.ID, admin.ActionAdd, []string{"username", "first_name", "last_name", "email", "active", "staff", "superuser", "groups", "permissions", "password"}); err != nil {
-			return UserDetails{}, err
-		}
-		return result, nil
-	})
+	return manager.CommitUserCreation(ctx, actor, prepared)
 }
 
 // UpdateUser preserves the credential and principal ID. Effective permissions

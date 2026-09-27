@@ -28,7 +28,7 @@ class UserCreationReferenceTests(unittest.TestCase):
         self.assertEqual(actual, self.observe("817"))
         for backend in ("sqlite", "postgres"):
             expected = json.loads((ROOT / f"internal/identitytest/testdata/user-creation-django61-{backend}.json").read_text())
-            for field in ("observations", "source_sha256", "input_sha256", "django"):
+            for field in ("observations", "lifecycle", "source_sha256", "input_sha256", "django"):
                 self.assertEqual(actual[field], expected[field], (backend, field))
         self.assertTrue(all(case["user_delta"] == 0 for mode in actual["observations"].values() for case in mode.values()))
 
@@ -42,6 +42,21 @@ class UserCreationReferenceTests(unittest.TestCase):
         ):
             with self.subTest(mutation=mutation):
                 self.assertNotEqual(actual, self.observe(mutation=mutation)["observations"])
+
+    def test_deferred_save_and_hash_work_are_observed(self):
+        actual = self.observe()["lifecycle"]
+        for mode in actual.values():
+            self.assertEqual(mode["deferred"]["checked"], {"user_delta": 0, "hashes": 0})
+            self.assertEqual(mode["deferred"]["prepared"]["user_delta"], 0)
+            self.assertEqual(mode["deferred"]["user_delta"], 1)
+            self.assertEqual(mode["abandoned"]["user_delta"], 0)
+            self.assertTrue(mode["invalid"]["rejected"])
+        for mutation in (
+            "from django.contrib.auth.forms import SetPasswordMixin\noriginal = SetPasswordMixin.set_password_and_save\ndef force_save(self, user, **kwargs):\n    kwargs['commit'] = True\n    return original(self, user, **kwargs)\nSetPasswordMixin.set_password_and_save = force_save",
+            "from django.contrib.auth.forms import SetPasswordMixin\noriginal = SetPasswordMixin.set_password_and_save\ndef double_hash(self, user, **kwargs):\n    user.set_password(self.cleaned_data['password1'])\n    return original(self, user, **kwargs)\nSetPasswordMixin.set_password_and_save = double_hash",
+        ):
+            with self.subTest(mutation=mutation):
+                self.assertNotEqual(actual, self.observe(mutation=mutation)["lifecycle"])
 
 
 if __name__ == "__main__":

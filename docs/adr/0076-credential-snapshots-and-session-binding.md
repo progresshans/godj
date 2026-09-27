@@ -240,8 +240,10 @@ GDJ-0100 전체 platform/process milestone은 별도로 남아 있다.
 
 ## 관리 Form과 공통 Admin 기반
 
-ModelConfig의 공통 Form은 편집을 소유하고 CreateForm은 생성의 model field 선택·override·비저장 입력·cross validator를
-별도로 소유한다. 비저장 입력은 선택하지 않은 저장 필드를 포함해 Schema IR의 어떤 field도 가리지 못한다.
+ModelConfig의 공통 Form은 편집을 소유하고 CreateForm은 생성의 표현 정책을 소유한다.
+`forms/model.Definition`이 model field 선택·override·비저장 입력·pure cross validator를 함께 투영하며
+`admin.FormConfig.Definition`과 재사용 Identity Form이 이를 공유한다. 비저장 입력은 선택하지 않은 저장 필드를 포함해
+Schema IR의 어떤 field도 가리지 못한다.
 CSRF token과 expected_revision도 입력 field 이름으로 사용할 수 없다. 생성에는 모델의 add와 명시한 추가 권한을 모두 요구한다.
 생성·편집 RelatedChoices는 각 action이 지정한 permission과 loader를 사용한다. Loader는 현재 저장 인가를 확인하고,
 최종 관계 검증은 write service의 transaction에서 수행한다. Helpdesk의 별도 target-view 정책은 유지한다.
@@ -348,7 +350,7 @@ Private createsuperuser protocol의 username 상한은 1,024바이트, password�
 Wire grammar/version은 유지하며 malformed·truncated·과대 입력은 기존처럼 거부한다. Legacy operator의 저장 256자 한도는 유지한다.
 이 전송 상한은 Go-native SYS-023 결정이며 Django 기본 User의 150자 저장 스키마와 같다는 주장이 아니다.
 
-전체 UserCreationForm의 재사용·저장 lifecycle과 사용자 모델 확장은 아래 Admin 검증 단계 및 self-service/reset과 구분한다.
+기본 UserCreationForm의 재사용·저장 수명은 아래에 정의하며 custom user model은 별도 범위다.
 [독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 source/환경/범위는 TEST_EVIDENCE를 따른다.
 
 ### 생성 Form의 복합 오류와 읽기 검증
@@ -371,8 +373,34 @@ required/confirmation/strength를 생략하지만 입력 field의 NUL 오류까�
 native 후보의 None/빈 username을 빈 문자열로 표현한다. DB 조회 수와 Python 내부 instance 구조를 복제하지 않는다.
 읽기 종료가 성공한 뒤에만 진단을 게시하며 ID 발급·hash·write는 하지 않는다. 최종 CreateUser는 현재 인가·중복·policy를
 다시 preflight하고 hash 뒤 coordinated write fence에서 재검사한다. 저장은 기존 원자적 user/관계/audit 계약을 유지한다.
-이 연결은 Admin 생성의 검증 순서를 소유한다. 일반 재사용 UserCreationForm의 준비/저장 API, custom user model이나
-Python `save(commit=False)`와 동일한 객체 lifecycle을 구현했다고 주장하지 않는다.
+Admin과 아래 재사용 Form은 같은 정의와 검증 단계를 사용한다. Custom user model이나 Python 객체 내부 구조의
+호환을 이 경로의 지원으로 주장하지 않는다.
+
+### 재사용 Form과 저장 전 준비
+
+`NewUserCreationForm`과 `NewAdminUserCreationForm`은 기본 User IR에 대한 불변 Form이다. 후자는 명시적 사용 불가 password
+선택을 추가한다. `Bind(ctx, actor, data)`는 입력 정리와 read-only 검사를 합쳐 bound Form을 반환한다.
+Admin도 같은 `Definition`과 `Check`를 사용한다. 일반 재사용 Form에는 Site의 staff 조건이 없으며 Manager의 현재 add/change
+조건은 유지한다. 익명 signup이나 role 입력을 자동으로 공개하지 않는다. 초기화되지 않은 Form의 Definition은 명시적 빈 field
+선택으로 실패하며 nil 선택의 '전체 model field' 의미로 되돌아가 private 저장 필드를 노출하지 않는다.
+
+`Prepare`는 cleaned 값의 선택·타입·confirmation·문자 문법을 다시 검사한 뒤 현재 Manager에서 credential을 준비한다.
+`Manager.PrepareUserCreation`은 정규화·현재 인가·관계·중복·policy 읽기를 끝내고 hash를 한 번 수행한다.
+사용 불가 준비는 정책/hash를 호출하지 않는다. 이 단계에서는 user·관계·session·audit를 쓰지 않는다.
+결과 `PreparedUserCreation`은 비밀번호·encoding을 공개하지 않는 불변 값이며 원래 Manager와 actor ID에 결합한다.
+준비 시각에 date_joined와 profile 입력을 고정한다. 작업 종료 후 참조를 버리며 암호 메모리의 물리적 삭제를 보장한다고 하지 않는다.
+
+`CommitUserCreation`은 hash 없이 현재 권한·중복·관계·policy를 coordinated write fence에서 다시 검사하고 기존 user/관계/audit의
+원자 저장을 수행한다. 다른 Manager·actor의 후보는 거부하며, 준비 후 권한 회수·중복·관계 삭제도 최종 결과에 반영한다.
+실패나 unknown에는 UserDetails를 게시하지 않고 자동 재시도하지 않는다. 후보의 모든 복사본은 한 번의 저장 시도를 공유한다.
+해당 시도에 진입하면 확정 실패·unknown에도 소비 상태를 유지하며 재시도에는 새 Prepare가 필요하다.
+성공한 사용자가 삭제된 후에도 과거 credential을 재생성할 수 없다. 소유자 거부·진입 전 취소는 후보를 소비하지 않는다.
+기존 CreateUser/CreateUserWithUnusablePassword와 Form.Create도 이 prepare/commit 경로를 사용한다.
+
+고정 Django의 `save(commit=False)`에서 hash 시점·저장 없음·나중 save의 외부 결과를 양 DB에서 관찰한다.
+Python unsaved model의 mutable 속성·password getter·암묵적 권한은 복제하지 않는다. 추가 profile/role/관계는 typed UserCreate로
+준비 전에 선택하고, 그 선택 전체를 마지막 write에서 검사한다. 기본 User Form과 준비/확정의 구현은 모든 ModelForm 저장이나
+custom user model의 완료가 아니다. [사용 흐름](../../identity/USER_CREATION.md)과 실제 환경별 Evidence를 함께 따른다.
 
 ## 내장 password validator와 공통 정책 선택
 
@@ -391,7 +419,7 @@ Go 구성은 최소 길이 nonnegative, finite similarity >= 0.1(0은 기본 0.7
 Nil 속성은 기본 네 개, 명시적 empty는 검사 대상 없음이다. 사전은 constructor가 복사하는 문자열 목록이며 nil은 고정 사전,
 empty는 빈 목록이다. 사용자 사전은 UTF-8/1,000,000개/16 MiB를 검증하며 외부 파일 I/O는 caller가 구성 전에 소유한다.
 Malformed UTF-8을 고쳐서 허용하지 않는다. Source·license·정확한 parameter 의미는
-[Password validation](../../identity/PASSWORD_VALIDATION.md)에 기록한다. 임의 Python user 속성 반사나 전체 UserCreationForm·self-service/reset 완료를 뜻하지 않는다.
+[Password validation](../../identity/PASSWORD_VALIDATION.md)에 기록한다. 임의 Python user 속성 반사는 지원하지 않으며 Form·self-service·reset은 각 소비자 계약을 따른다.
 
 ## 사용 불가능한 password와 관리 lifecycle
 
@@ -425,7 +453,7 @@ Admin은 required 확인 checkbox·CSRF·revision·change_user 권한을 갖는 
 선택하면 두 입력의 내용·일치 여부와 password 정책을 사용하지 않고 사용 불가 계정을 만든다. 비공개 렌더링과 transport/field 자원 검사는 계속 적용한다.
 Username 정규화·중복 검사와 현재 add/change 권한·감사 transaction은 같은 Manager가 소유한다.
 이 선택은 고정 Django AdminUserCreationForm의 외부 결과를 따른다. Boolean checkbox와 Django radio/field 내부 구조의 소스 호환은 약속하지 않는다.
-전체 UserCreationForm 동작과 self-service/reset·다른 인증 provider는 후속 범위다.
+기본 UserCreationForm·self-service·reset은 이 ADR의 각 계약을 따르며 custom user model·다른 인증 provider는 별도 범위다.
 
 ## 현재 password 상태의 읽기 전용 표현
 
@@ -562,7 +590,7 @@ body 상한 413, media 415, unknown outcome 503을 구분한다. JSON 문자열 
 별도 ogen account client는 제품 Form 로그인 후 실제 Session/CSRF JSON 변경, required replacement cookie,
 같은 password 교체, other-session 폐기·제품 logout을 호출한다. 부모는 reopen한 SQLite의 password/revision/last_login,
 unused/foreign session과 값 없는 audit를 별도로 확인한다. Synthetic 503 decoder/no-retry와 실제 양 DB native HTTP
-rollback/unknown 검증을 구분한다. Reset, 전체 UserCreationForm, token issuer/JWT/OAuth/OIDC는 남은 구현이다.
+rollback/unknown 검증을 구분한다. Reset과 기본 UserCreationForm은 이 ADR의 별도 계약을 따르며 custom user model·token issuer/JWT/OAuth/OIDC는 남은 구현이다.
 실행 범위와 환경별 완료는 TEST_EVIDENCE에서 별도로 확인한다.
 
 ## 비밀번호 재설정 token과 원자 저장
