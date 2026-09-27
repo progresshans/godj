@@ -642,5 +642,33 @@ Native HTTP 관찰은 이 결과를 감추지 않는다. GoDj는 기존 reset �
 
 `CheckTokenIn`은 같은 저장 영역의 빌린 coherent read/write scope에서 현재 token만 관찰한다. 새 snapshot·hash·write를 만들지
 않으며 세션에 proof를 저장할 때 같은 fence에서 admission을 확인하기 위한 것이다. 이 관찰은 나중의 write 권한이 아니다.
-실제 proof session persistence·Web runtime·Form/API·독립 client 연결은 후속 구현이며 native fixture 확보나
-transaction composition의 검증을 공개 HTTP 흐름의 완료로 표시하지 않는다.
+실제 proof session persistence와 Web runtime은 아래 계약을 사용한다. Form/API·독립 client 연결은 후속 구현이며
+native fixture나 transaction/runtime 검증을 공개 HTTP 흐름의 완료로 표시하지 않는다.
+
+`Runtime.PasswordResetPersistence(manager, config)`는 해당 Identity runtime의 정확한 durable store와 manager에 결합한다.
+생성은 I/O 없이 수행하고, `Resetter()`로 같은 key ring·policy owner에 메일 requester를 연결한다.
+공통 `auth.PasswordResetPersistence` 계약을 Web runtime에 명시적으로 주입하며 Web 설정의 manager와 다르면 startup에서 거부한다.
+Legacy operator runtime은 이 기능을 제공하지 않는다.
+
+Entry는 현재 token을 읽기 전용으로 검사한 다음 같은 write fence에서 다시 확인한다. 기존의 활성 session이 있으면
+최신 payload·인증 값·생성 시각·absolute lifetime을 보존하면서 ID를 회전하고 reset target/token을 서버 값에 추가한다.
+없거나 만료된 기존 session이면 anonymous session을 만든다. Cookie에는 256-bit session ID만 담고 target 인증을 만들지 않는다.
+Native의 기존 session ID 유지와 달리 Go는 새 proof 권한을 저장할 때 fixation을 막기 위해 ID를 회전한다.
+Malformed/duplicate cookie는 Web 경계에서 거부한다. `CheckPasswordReset`은 session touch·expiry cleanup·새 hash 없이 확인한다.
+
+완료는 저장된 proof에서 token을 읽고 DB scope 밖에서 hash를 준비한다. 최종 fence 안에서 현재 session의 만료·target/token과
+기존 인증 binding을 다시 검사한다. DB 잠금 전에 샘플링한 rotation 시각으로 만료된 proof를 승인하지 않는다.
+같은 session ID의 payload가 바뀌어도 최신 값에서 proof를 제거하며, proof나 인증 binding이 바뀌면 이전 제출을 거부한다.
+`Manager.CheckRecord`는 clock/entropy/I/O 없이 manager의 한도를 검사한다. 저장소보다 좁은 manager 한도도 commit 전에 적용한다.
+
+현재 session이 reset 대상의 인증 session이면 다른 대상 session들과 함께 폐기하고 cookie를 지운다.
+Anonymous 또는 다른 계정의 session은 proof를 제거한 최신 payload와 원래 lifetime으로 회전한다.
+Password/현재 revision·대상 session 폐기·현재 proof 정리·audit는 한 native transaction에 속한다.
+자동 로그인과 last_login 변경은 없으며 다른 계정의 유효한 인증을 유지한다. 실패는 별도 session cleanup이나 cookie를 게시하지 않는다.
+확정된 ID collision만 새 entropy로 제한 재시도하고 hash를 반복하지 않는다. Unknown commit/rollback은 재시도하지 않는다.
+확정 commit 이후의 늦은 취소는 이미 확정된 결과를 뒤집지 않는다.
+
+Web runtime은 확정된 새/회전/삭제 cookie만 적용하며 별도 CSRF cookie를 유지한다. Zero·같은 ID·남은 proof·충돌하는 clear 결과 등
+잘못된 persistence 결과는 cookie 없이 오류로 처리한다. Cause 없는 직접 proof/validation 거부와 cleanup/unknown 오류를 구분한다.
+공개 Form/API 소비자는 entry의 token-free redirect·no-store/no-referrer와 제출 전 CSRF/confirmation을 소유한다.
+현재 실제 DB와 HTTP probe 검증은 이 runtime 계약까지이며 제품 route·Form/JSON·OpenAPI·독립 client는 아직 연결 전이다.

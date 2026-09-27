@@ -99,6 +99,20 @@ func (m *Manager) Store() Store {
 	return m.store
 }
 
+// CheckRecord validates a detached candidate against this manager's configured
+// limits without I/O, entropy or clock calls. Transaction adapters use it before
+// publishing values derived from the current stored payload. It does not assert
+// that a record is still active; Peek or an atomic access decision owns expiry.
+func (m *Manager) CheckRecord(record Record) error {
+	if err := m.validCall(context.Background()); err != nil {
+		return err
+	}
+	if !record.valid(m.limits) {
+		return &Error{Code: CodeInvalidRecord, Field: "record", Detail: "session record is invalid for this manager"}
+	}
+	return nil
+}
+
 // WithStore prepares an independent persistence binding with the same policy
 // and serialized sources. A transaction-scoped store must not escape its owner;
 // this method does not start a transaction or change the original manager.

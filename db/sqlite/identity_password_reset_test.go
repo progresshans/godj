@@ -30,3 +30,27 @@ func TestSQLiteIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
 func TestSQLiteIdentityPasswordResetComposition(t *testing.T) {
 	identitytest.RunPasswordResetComposition(t, openSQLiteIdentityPair)
 }
+
+func TestSQLiteIdentityPasswordResetSessions(t *testing.T) {
+	identitytest.RunPasswordResetSessions(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordResetSessionBoundaries(t *testing.T) {
+	identitytest.RunPasswordResetSessionBoundaries(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordResetSessionRaces(t *testing.T) {
+	identitytest.RunPasswordResetSessionRaces(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordResetSessionEntry(t *testing.T) {
+	identitytest.RunPasswordResetSessionEntry(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordResetSessionHTTP(t *testing.T) {
+	identitytest.RunPasswordResetSessionHTTP(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordResetSessionLatest(t *testing.T) {
+	identitytest.RunPasswordResetSessionLatest(t, openSQLiteIdentityPair)
+}

@@ -71,6 +71,7 @@ type Config struct {
 	Authenticator             auth.CredentialAuthenticator
 	LoginPersistence          auth.LoginPersistence          `json:"-"`
 	PasswordChangePersistence auth.PasswordChangePersistence `json:"-"`
+	PasswordResetPersistence  auth.PasswordResetPersistence  `json:"-"`
 	Authorizer                auth.Authorizer
 	SessionCookie             CookieConfig
 	CSRFCookie                CookieConfig
@@ -89,6 +90,7 @@ type Runtime struct {
 	authenticator             auth.CredentialAuthenticator
 	loginPersistence          auth.LoginPersistence
 	passwordChangePersistence auth.PasswordChangePersistence
+	passwordResetPersistence  auth.PasswordResetPersistence
 	authorizer                auth.Authorizer
 	sessionCookie             CookieConfig
 	csrfCookie                CookieConfig
@@ -197,6 +199,18 @@ func New(config Config) (*Runtime, error) {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "password_change_persistence", Detail: "password change persistence belongs to another session manager"}
 		}
 	}
+	if config.PasswordResetPersistence != nil {
+		value := reflect.ValueOf(config.PasswordResetPersistence)
+		switch value.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if value.IsNil() {
+				return nil, &Error{Code: CodeInvalidConfig, Field: "password_reset_persistence", Detail: "password reset persistence is nil"}
+			}
+		}
+		if config.PasswordResetPersistence.Sessions() != config.Sessions {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "password_reset_persistence", Detail: "password reset persistence belongs to another session manager"}
+		}
+	}
 	if config.Authenticator == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "authenticator", Detail: "credential authenticator is nil"}
 	}
@@ -280,6 +294,7 @@ func New(config Config) (*Runtime, error) {
 		authenticator:             config.Authenticator,
 		loginPersistence:          config.LoginPersistence,
 		passwordChangePersistence: config.PasswordChangePersistence,
+		passwordResetPersistence:  config.PasswordResetPersistence,
 		authorizer:                config.Authorizer,
 		sessionCookie:             sessionCookie,
 		csrfCookie:                csrfCookie,

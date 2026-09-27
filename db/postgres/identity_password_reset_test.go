@@ -30,3 +30,27 @@ func TestPostgresIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
 func TestPostgresIdentityPasswordResetComposition(t *testing.T) {
 	identitytest.RunPasswordResetComposition(t, openPostgresUnusablePair)
 }
+
+func TestPostgresIdentityPasswordResetSessions(t *testing.T) {
+	identitytest.RunPasswordResetSessions(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetSessionBoundaries(t *testing.T) {
+	identitytest.RunPasswordResetSessionBoundaries(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetSessionRaces(t *testing.T) {
+	identitytest.RunPasswordResetSessionRaces(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetSessionEntry(t *testing.T) {
+	identitytest.RunPasswordResetSessionEntry(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetSessionHTTP(t *testing.T) {
+	identitytest.RunPasswordResetSessionHTTP(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetSessionLatest(t *testing.T) {
+	identitytest.RunPasswordResetSessionLatest(t, openPostgresUnusablePair)
+}

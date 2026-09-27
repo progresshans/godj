@@ -98,7 +98,9 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 Reset HTTP view·CSRF·DB session의 독립 양 DB 관찰을 확보했다. Native의 hidden-token session,
 익명/본인/다른 사용자 상태와 session 저장 실패 뒤 password가 남는 결과를 ADR-0076에 구분했다.
 Reset의 Prepare/ApplyIn과 borrowed token 검사를 구현해 후속 proof 저장과 같은 transaction에 결합할 수 있게 했다.
-실제 proof persistence·Web/Form/API·독립 client는 다음 연결 범위다.
+Proof persistence·Web runtime을 같은 native transaction에 연결했다. Entry ID 회전, 최종 session/proof/인증 binding·만료,
+현재 payload/lifetime 보존, 본인 session 폐기와 cookie 게시의 영향 검증을 양 DB·HTTP probe에서 수행했다.
+실제 제품 route·Form/API·독립 client는 다음 연결 범위다.
 
 일반 계정의 제품 login/logout/password Form과 Session JSON/OpenAPI, 여섯 번째 독립 ogen client를 연결했다.
 명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는

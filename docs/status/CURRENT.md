@@ -5,7 +5,7 @@
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료한 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
 - 선행 검증 종료(전체 미통과): [일반 계정 소비자 Hosted full](https://github.com/progresshans/godj/actions/runs/36324864466), source `b995c8c6`의 Python 시간 초과와 전체 완료 gate 실패
-- 최근 영향 CI: [Reset 메일 요청 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36335750053), source `fde61349`
+- 최근 영향 CI: [Reset transaction 구성 Hosted Fast](https://github.com/progresshans/godj/actions/runs/36337317864), source `507eb473`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -34,6 +34,9 @@ Native HTTP reset view·CSRF·DB session의 양 DB 기준을 확보했다. Token
 session 저장 실패 뒤 native password가 남는 동작을 관찰했다. Prepare/ApplyIn과 빌린 scope의 token 검사를 구현해
 이후 proof 저장까지 같은 transaction에 결합할 수 있게 했다. 후속 오류의 전체 rollback과 준비 값 소유권·최신 상태 재검사를
 영향 normal/race/CGO=0·양 DB에서 확인했다.
+Reset proof session persistence와 Web runtime을 연결했다. Entry의 ID 회전, 최종 session/token/인증 binding과 만료 재검사,
+현재 proof 정리와 password/revocation/audit의 원자 저장, anonymous/본인/다른 계정 상태를 영향 normal/race/CGO=0·양 DB·실제 HTTP probe에서 확인했다.
+최신 payload 보존과 교체된 proof 거부, rollback/unknown·취소·collision과 manager 한도도 확인했다.
 실제 재설정 Form/API·독립 client와 공개 응답의 연결은 남아 있다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [Password 정책/출처](../../identity/PASSWORD_VALIDATION.md), [메일 결정](../adr/0078-mail-message-ownership-and-delivery.md), [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
@@ -41,9 +44,10 @@ session 저장 실패 뒤 native password가 남는 동작을 관찰했다. Prep
 ## 다음 행동
 
 `fb817d6b`의 Hosted milestone을 종료 확인했다. 새 capture/source binding과 선행 run의 미통과 결과를 Evidence에 보존했다.
-다음 구현은 reset proof의 session persistence와 Web runtime, 실제 Form/API·독립 client 연결이다.
+다음 구현은 실제 reset route·Form/API·독립 client 연결이다. Token/principal을 위한 bounded path 입력과
+기존 router/OpenAPI의 표현 범위를 먼저 확인하고 필요한 기반을 함께 연결한다.
 확보한 native HTTP 기준에 따라 CSRF·token을 숨긴 confirmation·동일한 공개 응답/내부 오류 보고·기존 session 상태를 처리한다.
-Proof의 최신 상태 재검사와 성공 후 정리는 password/revocation/audit와 같은 transaction에서 완료해야 한다.
+구현한 proof session/Web runtime을 사용해 최신 상태 재검사와 성공 후 정리를 같은 transaction에 유지한다.
 전체 UserCreationForm과 다른 인증 provider도 미완료 요구로 유지한다.
 다음 전체 platform/cold-build 검증은 소비자까지 연결된 credential lifecycle 통합 milestone이 소유하며
 로컬 영향 검증과 Hosted 전체를 관성적으로 중복 실행하지 않는다.
