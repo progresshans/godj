@@ -161,3 +161,7 @@ func (f RelatedBooleanField[M]) In(values ...bool) Predicate[M] {
 func (f RelatedStringField[M]) IContains(value string) Predicate[M] {
 	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupIContains, query.String(value))
 }
+
+func (f RelatedStringField[M]) IExact(value string) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupIExact, query.String(value))
+}

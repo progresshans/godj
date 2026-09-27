@@ -143,7 +143,7 @@ func dynamicRelationPredicate[M any](path query.RelationPath, terminal ir.Field,
 
 func isRelationLookupSuffix(name string) bool {
 	switch query.Lookup(name) {
-	case query.LookupExact, query.LookupIsNull, query.LookupIContains:
+	case query.LookupExact, query.LookupIExact, query.LookupIsNull, query.LookupIContains:
 		return true
 	default:
 		return false

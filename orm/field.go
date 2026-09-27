@@ -108,6 +108,13 @@ func (f StringField[M]) Exact(value string) Predicate[M] {
 	return f.field.predicate(query.LookupExact, query.String(value))
 }
 
+// IExact compares the complete literal using the backend's case-insensitive
+// text semantics. It neither normalizes Unicode nor treats wildcards as input
+// syntax. Those semantics remain owned by the database compiler and collation.
+func (f StringField[M]) IExact(value string) Predicate[M] {
+	return f.field.predicate(query.LookupIExact, query.String(value))
+}
+
 func (f StringField[M]) GreaterThan(value string) Predicate[M] {
 	return f.field.predicate(query.LookupGreaterThan, query.String(value))
 }
@@ -137,6 +144,10 @@ func (f StringField[M]) Desc() Ordering[M] { return f.field.ordering(query.Desce
 
 func (f NullableStringField[M]) Exact(value string) Predicate[M] {
 	return f.field.predicate(query.LookupExact, query.String(value))
+}
+
+func (f NullableStringField[M]) IExact(value string) Predicate[M] {
+	return f.field.predicate(query.LookupIExact, query.String(value))
 }
 
 func (f NullableStringField[M]) GreaterThan(value string) Predicate[M] {

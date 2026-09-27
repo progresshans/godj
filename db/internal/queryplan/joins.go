@@ -279,7 +279,7 @@ func requiredJoins(expression query.Expression, negated bool) map[RelationKey]bo
 		}
 		if !negated {
 			switch condition.Lookup() {
-			case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+			case query.LookupExact, query.LookupIExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 				query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
 				query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 				return requiredPrefixes(hops)

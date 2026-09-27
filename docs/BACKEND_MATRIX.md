@@ -95,6 +95,11 @@ Typed/dynamic comparison·IN/F·projection·Min/Max·forward 및 현재 reverse 
 PostgreSQL 17의 UUID Min/Max는 canonical text의 C collation 집계 뒤 native UUID로 반환하며, NULL 정렬 위치는 DB별 기존 의미를 유지한다.
 Form/Admin/API와 Helpdesk 외부 참조·독립 client를 연결했다. UUID PK/FK·generation/callable default는 별도 범위다. Column uniqueness는 위 backend별 범위를 따른다. [UUID 값과 저장](adr/0070-uuid-model-values-and-storage.md)을 따른다.
 
+Char/Text의 literal `IExact`는 공통 AST에서 root와 관계 경로에 적용한다. SQLite는 LIKE literal escape,
+PostgreSQL은 양쪽 UPPER와 column::text 변환을 사용한다. Go에서 Unicode를 casefold하지 않으며 현재 PostgreSQL의
+UTF8/libc/C profile을 유지한다. NULL/F/JSON RHS의 지원으로 넓히지 않는다.
+[비교·사용자 생성 정책](adr/0076-credential-snapshots-and-session-binding.md#문자열-iexact와-사용자-생성-중복-정책)을 따른다.
+
 JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL NULL)와 JSON null을 구분한다.
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
 Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. 명시적 key/index 경로의 exact/IN/isnull을 typed/dynamic과 같은 AST로 연결했다. PostgreSQL은 root/path·forward contains/contained_by를 native JSONB 연산으로 처리하고 SQLite는 capability 오류로 거부한다.

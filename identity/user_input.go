@@ -21,12 +21,22 @@ const MaximumUserGroups = 256
 // host and never changes. Password is a separate argument to CreateUser, so it
 // cannot enter a profile, relation selection or diagnostic input snapshot.
 type UserCreate struct {
-	principalID string
-	patch       UserPatch
+	principalID                  string
+	patch                        UserPatch
+	caseInsensitiveUsernameCheck bool
 }
 
 func NewUserCreate(principalID, username string) UserCreate {
 	return UserCreate{principalID: principalID, patch: UserPatch{}.WithUsername(username).WithActive(true)}
+}
+
+// WithCaseInsensitiveUsernameCheck selects UserCreationForm's additional
+// duplicate check. It preserves the normalized username and login behavior;
+// this is a creation policy, not a new case-insensitive database constraint.
+// The manager checks it before hashing and again inside its write fence.
+func (input UserCreate) WithCaseInsensitiveUsernameCheck() UserCreate {
+	input.caseInsensitiveUsernameCheck = true
+	return input
 }
 func (input UserCreate) WithFirstName(value string) UserCreate {
 	input.patch = input.patch.WithFirstName(value)

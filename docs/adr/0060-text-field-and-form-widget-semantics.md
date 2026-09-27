@@ -13,8 +13,10 @@ SQLite·PostgreSQL은 TEXT를 사용한다. PostgreSQL catalog는 text type·typ
 Application default를 영속 SQL DEFAULT로 바꾸지 않으며 기존 필드의 Char→Text 변경은 현재 autodetector 범위 밖이다.
 
 Typed/dynamic query·CRUD·F·projection·Min/Max는 공통 string Query AST와 runtime을 사용한다. 생성 descriptor에는
-Text kind를 보존하고 nullable pointer는 model/cache 경계에서 복사한다. 관계 terminal은 기존 nonnullable implicit-exact
-범위에 Text를 추가한다. Nullable terminal이나 새로운 관계 lookup을 지원한 것으로 표현하지 않는다.
+Text kind를 보존하고 nullable pointer는 model/cache 경계에서 복사한다. 관계 terminal도 공통 문자열 runtime을 사용하며
+현행 관계 경계는 [구현 현황](../status/IMPLEMENTATION_MATRIX.md)을 따른다.
+Literal `IExact`는 nullable/root·관계와 dynamic 경로에서 같은 AST를 사용한다.
+DB별 비교와 지원하지 않는 RHS는 [문자열 비교 결정](0076-credential-snapshots-and-session-binding.md#문자열-iexact와-사용자-생성-중복-정책)을 따른다.
 
 ## Form의 값과 표시
 

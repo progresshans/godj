@@ -140,6 +140,15 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 		if !violations.Empty() {
 			return validation.Reject(violations, nil)
 		}
+		if input.caseInsensitiveUsernameCheck {
+			exists, err := models.UserObjects.Using(reader).Filter(models.UserFields.Username.IExact(username)).Exists(ctx)
+			if err != nil {
+				return err
+			}
+			if exists {
+				return managementInputError("username", "unique")
+			}
+		}
 		return nil
 	}
 	if _, err := managementSnapshot(ctx, manager, func(reader db.Queryer) (struct{}, error) {

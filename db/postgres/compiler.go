@@ -402,6 +402,10 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		if !queryplan.OrderedValueMatchesField(condition.Value().Kind(), field.Kind()) {
 			return nil, unsupportedLookup(field, condition.Lookup())
 		}
+	case query.LookupIExact:
+		if _, ok := condition.Value().String(); field.Kind() != query.FieldString || !ok {
+			return nil, unsupportedLookup(field, condition.Lookup())
+		}
 	case query.LookupIContains:
 		if text, ok := condition.Value().String(); (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {
 			return nil, unsupportedLookup(field, condition.Lookup())
@@ -507,7 +511,7 @@ func appendWhereExpression(
 		if condition.Lookup() == query.LookupIn && len(leaf.inValues) == 0 {
 			statement.WriteString("0 = 1")
 		} else {
-			textLookup := condition.Field().Kind() == query.FieldJSON && condition.Lookup() == query.LookupIContains
+			textLookup := condition.Lookup() == query.LookupIExact || condition.Field().Kind() == query.FieldJSON && condition.Lookup() == query.LookupIContains
 			if textLookup {
 				statement.WriteString("UPPER(")
 			}
@@ -581,7 +585,7 @@ func appendWhereExpression(
 
 func nullableNegationGuard(lookup query.Lookup) bool {
 	switch lookup {
-	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+	case query.LookupExact, query.LookupIExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
 		query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 		return true
@@ -825,6 +829,13 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		statement.WriteString(operator)
 		statement.WriteString(placeholder(firstArgument))
 		return []any{argument}, nil
+	case query.LookupIExact:
+		text, ok := value.String()
+		if field.Kind() != query.FieldString || !ok {
+			return nil, unsupportedLookup(field, condition.Lookup())
+		}
+		statement.WriteString(" = UPPER(" + placeholder(firstArgument) + ")")
+		return []any{text}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
 		if (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {

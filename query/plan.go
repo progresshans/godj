@@ -73,6 +73,7 @@ type Lookup string
 
 const (
 	LookupExact              Lookup = "exact"
+	LookupIExact             Lookup = "iexact"
 	LookupGreaterThan        Lookup = "gt"
 	LookupGreaterThanOrEqual Lookup = "gte"
 	LookupLessThan           Lookup = "lt"

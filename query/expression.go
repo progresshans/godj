@@ -271,6 +271,10 @@ func validateExpressionCondition(condition Condition) error {
 			if !expressionOrderedValueMatchesField(condition.rhs.value.Kind(), field.kind) {
 				return invalidPlanError("query expression ordered comparison requires a same-kind ordered scalar value")
 			}
+		case LookupIExact:
+			if field.kind != FieldString || condition.rhs.value.Kind() != ValueString {
+				return invalidPlanError("query expression iexact requires a string field and a string value")
+			}
 		case LookupIContains:
 			if (field.kind != FieldString && field.kind != FieldJSON) || condition.rhs.value.Kind() != ValueString {
 				return invalidPlanError("query expression icontains requires a string or JSON field and a string value")

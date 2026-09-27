@@ -312,7 +312,7 @@ func nullableNegationGuards(node *sqliteWhereNode, oddNegation bool) []string {
 
 func nullableNegationLookup(lookup query.Lookup) bool {
 	switch lookup {
-	case query.LookupExact,
+	case query.LookupExact, query.LookupIExact,
 		query.LookupGreaterThan,
 		query.LookupGreaterThanOrEqual,
 		query.LookupLessThan,

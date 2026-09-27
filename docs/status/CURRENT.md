@@ -33,13 +33,16 @@ Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com
 생성 전용 폼·password command, 조회 actor 전달·view/change admission, revision 제출과 충돌 거부,
 비밀번호 공백 보존·비공개 렌더링·진단을 영향 normal/race/CGO=0와 기존 양 DB 소비자에서 검증했다.
 [공통 Admin Hosted Fast](https://github.com/progresshans/godj/actions/runs/36289923385)도 구현 source에서 성공했다.
+사용자 생성 중복 검사의 선행 조건인 Char/Text literal `iexact`를 공통 AST·typed/dynamic·관계 경로에 연결했다.
+명시적 생성 옵션은 NFKC 후보를 hash 전과 write fence 안에서 재검사하며 기본 생성·로그인 의미를 보존한다.
+독립 Django 기준·양 DB·generated consumer의 영향 normal/race/CGO=0와 negative control을 통과했다.
 새 Identity 모델의 실제 Form/Admin 등록·현재 권한을 적용한 선택 목록과 GDJ-0100 전체 검증은 미완료다.
 
 ## 다음 행동
 
 사용자·비밀번호·그룹·권한 관리 Form/Admin과 action별 인가를 적용한 관련 선택 목록을 연결한다.
 구현한 생성·편집·command 폼과 revision 조건을 실제 Manager·영속 감사·호스트 삭제 정책에 연결한다.
-UserCreationForm의 username 중복 검사는 고정 Django의 DB별 `iexact` 의미를 확인하고 공통 Query AST부터 연결한다.
+UserCreationForm에는 구현한 username 중복 정책과 전체 username/password validator·confirmation을 연결한다.
 Self-service/reset과 나머지 credential lifecycle도 미완료다. 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.
 

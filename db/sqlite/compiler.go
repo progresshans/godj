@@ -429,6 +429,13 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		sql.WriteString(operator)
 		sql.WriteString(" ?")
 		return []any{argument}, nil
+	case query.LookupIExact:
+		text, ok := value.String()
+		if field.Kind() != query.FieldString || !ok {
+			return nil, unsupportedLookup(field, condition.Lookup())
+		}
+		sql.WriteString(" LIKE ? ESCAPE '\\'")
+		return []any{queryplan.EscapeLike(text)}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
 		if (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {

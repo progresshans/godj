@@ -141,7 +141,8 @@ Username의 NFKC와 email의 마지막 `@` 뒤 domain에 대한 full Unicode 소
 정규화 전후 username에는 기존 auth의 UTF-8·256-byte·NUL/바깥 공백 제한을 적용한다.
 Email은 변환 전 잘못된 UTF-8·NUL·4,096-byte 초과를 거부하고, 최종 email 254자와 이름 각 150자 제한을 적용한다.
 단순 `strings.ToLower`는 `İ` 확장과 문맥에 따른 Greek sigma가 달라 사용하지 않는다. Caser는 호출마다 소유한다.
-이는 Django `UserCreationForm` 전체 호환 선언이 아니다. 대소문자를 무시한 username 중복 및 전체 form validator 집합은 Form 연결에서 다룬다.
+이는 Django `UserCreationForm` 전체 호환 선언이 아니다. 전체 form validator 집합은 Form 연결에서 다룬다.
+대소문자를 무시하는 생성 중복 정책은 아래의 명시적 옵션으로 선택한다.
 
 생성은 현재 인가·unique 값·선택한 관계·유효 권한 한도를 읽기 snapshot에서 먼저 검사한다.
 읽기를 종료한 뒤 hash를 한 번 생성하고 coordinated relation transaction에서 전부 재확인한다.
@@ -266,3 +267,29 @@ Form의 raw text와 Value의 문자열 payload는 불투명한 내부 상태에 
 비밀번호에 도달하지 않는다. 명시적 getter만 값을 반환하고 Value.Equal이 문자열 내용의 동등성을 소유한다.
 HTML 입력은 요청 전체 64 KiB·개별 값 4 KiB·총 1,024개 값으로 제한해 두 개의 256-member 선택 집합과 scalar 조건을 수용한다.
 이 공통 기반과 기존 Article/Helpdesk 소비자 검증은 실제 Identity 관리 폼·password validator·현재 권한의 선택 목록 통합 완료와 구분한다.
+
+## 문자열 iexact와 사용자 생성 중복 정책
+
+`StringField`·`NullableStringField`·관계 문자열 field의 `IExact(string)`과 dynamic `__iexact`는
+같은 Query AST의 literal string 조건을 사용한다. Char와 Text에 적용하며 JSON·다른 scalar kind·NULL RHS·F RHS는
+명시적으로 거부한다. NULL 조회는 IsNull을 사용한다. 입력 문자열을 Go에서 정규화하거나 casefold하지 않는다.
+Nullable 조건의 부정, optional 관계의 AND/OR/NOT, reverse collection의 multiplicity와 NOT EXISTS는 기존 공통 planner가 소유한다.
+
+고정 Django 6.1의 `IExact`, backend operators/operations를 따라 SQLite는 `%`·`_`·`\`를 이스케이프한
+완전한 literal을 `LIKE ? ESCAPE '\'`에 바인딩한다. 부분 검색용 `%`를 추가하지 않는다.
+PostgreSQL은 `UPPER(column::text) = UPPER($n)`을 사용하고 RHS를 LIKE escape하지 않는다.
+Unicode 비교는 DB에 남기며 현재 PostgreSQL 17 profile의 UTF8·libc·C collation/ctype 제한을 유지한다.
+두 DB를 공통 Unicode 소문자 변환으로 대체하거나 임의 collation까지 지원한다고 주장하지 않는다.
+
+`UserCreate.WithCaseInsensitiveUsernameCheck()`는 고정 Django `UserCreationForm.clean_username()`의 추가 중복 정책이다.
+NFKC 정규화한 candidate를 현재 인가 뒤, hash 전 읽기 snapshot과 저장 직전 coordinated relation transaction에서 검사한다.
+Duplicate는 username의 `unique` 오류이며 lookup/읽기 종료 실패는 실행 오류로 남긴다.
+두 cooperating writer가 대소문자만 다른 후보로 경쟁하면 마지막 검사를 같은 fence에서 수행해 하나만 생성한다.
+이 옵션은 별도 case-insensitive DB 제약이나 로그인 정책이 아니다. 기본 Manager/API 생성과 로그인은 기존 case-sensitive 의미를 유지한다.
+비협력 SQL writer, 이후 기본 정책의 생성·이름 변경까지 전역적으로 case-insensitive unique로 만드는 기능이 아니다.
+전체 UserCreationForm·password strength/confirmation·실제 관리 화면 통합은 여전히 후속 범위다.
+
+독립 [Django observer](../../conformance/runners/django/iexact_reference.py)는 같은 synthetic 입력만 읽으며
+GoDj 코드/기대 결과를 import하지 않는다. Django 소스는 저장소 고정 6.1과 BSD-3-Clause를 따르며,
+각 결과에 lookup·auth forms·backend operations 파일 hash와 DB profile, 입력 hash를 남긴다.
+실행 source·환경·실패/검증 범위는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

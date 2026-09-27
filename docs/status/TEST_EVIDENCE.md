@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — literal iexact와 사용자 생성의 중복 정책
+
+2026-09-27, `143eb3bf` 뒤의 변경이다. Char/Text의 root·nullable·관계 `IExact`와 dynamic `__iexact`를
+공통 Query AST에 연결했다. SQLite는 완전한 LIKE literal escape, PostgreSQL은 column::text/RHS 양쪽 UPPER를 사용한다.
+`UserCreate.WithCaseInsensitiveUsernameCheck()`는 NFKC 후보를 현재 인가 뒤 hash 전과 write fence 안에서 재검사한다.
+기본 Manager/API 생성과 로그인 의미, 실제 Identity Form/Admin 전체 완료와 구분한다.
+최종 non-Markdown **2,373 파일** source map은
+`ab78baabd6e369bc98c40ce451e8e82d2d71ea1a8bce15ff73155642df781544`다.
+
+독립 Django 6.1 observer는 synthetic 입력만 읽는다. Python 3.14.3, SQLite **3.50.4**, psycopg **3.3.6**과
+PostgreSQL **17.10 UTF8/libc/C**에서 각각 **조회 233개·생성 11개** 결과를 얻었다.
+각 DB를 새로 준비해 두 번 실행했고 결과 JSON bytes가 일치했다. 결과에 input hash·Django lookup/auth forms/backend
+operations 파일 hash·DB profile을 포함했다. 관찰한 SQL/parameter도 보존하며 GoDj 결과에서 기대값을 만들지 않았다.
+SQLite 결과 SHA256은 `77227756016ac443ede5c860133cb7f0ff037afa12f8bd9dd9477e1af9e4148f`,
+PostgreSQL은 `28996a042a82f2a1fff03dc391f4de67b8ab58b3d54eadd50088998ad10dd89f`다.
+독립 reference database와 private container 정리도 완료했다.
+
+Darwin arm64 / Go 1.26.5에서 **8 packages / 898 required entries**(340 roots·558 subcases)를 실행했다.
+Query·ORM·공통 query planner·identity·identity API 전체, 양 DB의 새 조회/생성 정책과 기존 사용자 관리·forward scalar·
+nullable Boolean/compiler 회귀, 7개 외부 generated consumer parent가 scope다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 3,151 PASS / skip 0 | 27.159초 |
+| race | 3,151 PASS / skip 0 | 134.543초 |
+| CGO=0 | 3,151 PASS / skip 0 | 29.658초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. JSON event의 필수 root/subcase·전체 시작/종료와 no-skip을
+검사했다. Native query 233개는 typed/dynamic AST와 실제 Rows/Count/Exists를 대조하며 Count/Exists를 All보다 먼저 실행해
+cache가 DB 실행을 가리지 못하게 했다. 입력/기준 roster hash를 확인하고 모든 이름을 CI 필수 목록에 연결했다.
+External Text consumer는 실제 재생성한 별도 module에서 root/nullable Text·완전 일치/부분 문자열 구분·부정의 NULL을 검사한다.
+그 밖의 6개 parent는 forward scalar와 relation query 생성·타입 경계를 검증한다. Child는 부모와 같은 race 모드를 사용한다.
+Parent inventory를 child PASS 개수와 합산하지 않는다.
+
+32개 문자열은 빈 값·ASCII 대소문자·공백·줄바꿈·quote·percent/underscore/backslash·accent·Greek sigma·Turkish I·
+분해 Unicode·전각 문자를 포함한다. Optional FK의 부재, OR/NOT/double-NOT, reverse/mixed 관계의 중복 행과 NOT EXISTS를 검사했다.
+생성은 독립 Django 11개 결과, 기본 정책의 case-sensitive 생성/로그인 유지, hash 도중 다른 연결이 저장한 중복,
+서로 다른 principal의 대소문자 경쟁에서 1승·1거부, hash 전 현재 인가, 읽기 종료 실패와 양 단계 lookup 실행 오류를 검사했다.
+감사 실패는 rollback하고 unknown commit은 결과를 게시하거나 자동 재시도하지 않는다. 기존 사용자·session·감사 bytes도 대조했다.
+
+Go overlay **8개 변형 / 8개 assertion 탐지**를 확인했다. SQLite escape 제거·부분 검색으로 변경,
+PostgreSQL RHS UPPER 제거, 양 DB의 부정 NULL guard 제거, 생성 정책 생략·마지막 fence의 거부 무시·lookup 오류 삼키기를
+각각 관련 테스트가 거부했다. Build 실패는 탐지로 세지 않았다. Checkpoint와 controls의 source 전후는 같다.
+Private PostgreSQL image는 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`이며,
+두 실행의 잔여 public table·owned schema·다른 connection은 모두 `0|0|0`이고 container를 제거했다.
+
+초기 `a99644c5…`는 fixture의 root scalar를 relation-only parser에 전달하고 PostgreSQL에 미지원인 명시적 AutoField key
+삽입을 시도해 실패했다. Root/관계 parser를 구분하고 DB 생성 key를 기대 roster와 확인하도록 고친 뒤 전체 선언 scope를
+다시 실행했다. 실패·cleanup 로그도 보존했다. 제품에서 이 제한을 우회하는 호환 분기는 추가하지 않았다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+
+- `iexact-reference-1790479061769897000/receipt.json`: DB별 두 독립 실행·결과 hash·환경·정리.
+- `iexact-checkpoint-1790479785893058000/receipt.json`: 최종 세 모드·필수 roster·raw events·source/cleanup.
+- `iexact-controls-1790479904704031000/receipt.json`: 최종 8개 실행 탐지·source 일치·cleanup.
+- `iexact-checkpoint-1790479712743698000/receipt.json`: 초기 fixture 실패와 cleanup.
+- `iexact-supplemental-1790480070875358000/receipt.json`: 영향 vet·CI 도구·identity/Article/relation 생성 drift·gofmt·docs·diff.
+
+보조 검사도 위 source에서 PASS다. 최종 증거 문서 추가 뒤에는 링크·diff 검사를 다시 적용했다.
+
+실제 Identity 관리 화면·username/password 전체 validator·confirmation·현재 권한의 선택 목록·감사 조회는 미완료다.
+GDJ-0100 전체 platform/process milestone은 관리 소비자 통합 뒤 실행한다. 이전 Hosted full을 새 source의 성공으로 전이하지 않는다.
+
 ## GDJ-0100 — 생성·비밀번호 command·revision의 공통 Admin 기반
 
 2026-09-27, `3d7b9c52` 뒤의 변경이다. 생성 전용 model form·비저장 입력과 object command,

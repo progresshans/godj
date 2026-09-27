@@ -95,6 +95,28 @@ func TestTextStorageAndQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, field := range []string{"body", "abstract"} {
+		predicate := models.NoteFields.Body.IExact("MATCHED")
+		if field == "abstract" {
+			predicate = models.NoteFields.Abstract.IExact("MATCHED")
+		}
+		typed := models.NoteObjects.Using(backend).Filter(predicate)
+		dynamic, err := orm.ParseDynamic(models.NoteDescriptor{}, nil, []orm.LookupInput{{Key: field + "__iexact", Value: "MATCHED"}})
+		if err != nil || !typed.Plan().Equal(models.NoteObjects.Using(backend).Filter(dynamic...).Plan()) {
+			t.Fatal("generated Text iexact AST diverged", err)
+		}
+		if count, err := typed.Count(ctx); err != nil || count != 1 {
+			t.Fatal("generated Text iexact did not match", err)
+		}
+		if count, err := models.NoteObjects.Using(backend).Filter(orm.Not(predicate)).Count(ctx); err != nil || count != 1 {
+			t.Fatal("generated nullable Text iexact negation lost null", err)
+		}
+	}
+	for _, literal := range []string{"match", "%", "_", "MAT%HED"} {
+		if count, err := models.NoteObjects.Using(backend).Filter(models.NoteFields.Body.IExact(literal)).Count(ctx); err != nil || count != 0 {
+			t.Fatal("generated Text iexact became pattern/substring search", err)
+		}
+	}
 	if count, err := models.NoteObjects.Using(backend).Filter(models.NoteFields.Body.ExactField(orm.F[models.Note, string](models.NoteFields.Abstract))).Count(ctx); err != nil || count != 1 {
 		t.Fatal("nullable Text F comparison diverged")
 	}
