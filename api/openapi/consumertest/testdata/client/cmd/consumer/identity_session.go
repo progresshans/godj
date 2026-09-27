@@ -4,9 +4,13 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strings"
 
 	is "example.com/godj-openapi-client/identitysession"
 )
+
+var identityCreatedUsername = "Fred" + strings.Repeat("\U000105c0", 146)
+var identityInputUsername = "Ｆｒｅｄ" + strings.Repeat("\U000105c0", 146)
 
 type identitySessionSource struct{ *sessionState }
 
@@ -94,13 +98,13 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil {
 		return err
 	}
-	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "Ｆｒｅｄ", Password: "  SDK created password  ", FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
+	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Password: "  SDK created password  ", FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
 	user, ok := created.(*is.UserHeaders)
-	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != "Fred" || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
+	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
 		return fail("identity session user create")
 	}
 	id := user.Response.ID
-	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "Fred", Password: "duplicate rejected"})
+	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityCreatedUsername, Password: "duplicate rejected"})
 	duplicateUser, ok := duplicate.(*is.GodjIdentityIdentityUsersCreateBadRequest)
 	if err != nil || !ok || duplicateUser.Code != "validation_error" || len(duplicateUser.Errors) != 1 || duplicateUser.Errors[0].Field != "username" || duplicateUser.Errors[0].Code != "unique" {
 		return fail("identity generated normalized unique error")
@@ -117,7 +121,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil || noOp.FirstName != "Edited" || !slices.Equal(noOp.Groups, []int64{groupID}) || !slices.Equal(noOp.Permissions, []int64{permissionID}) {
 		return fail("identity user omission and noop")
 	}
-	put, err := client.GodjIdentityIdentityUsersUpdate(ctx, &is.UserUpdate{Username: "Fred"}, is.GodjIdentityIdentityUsersUpdateParams{ID: id, IfRevision: 2})
+	put, err := client.GodjIdentityIdentityUsersUpdate(ctx, &is.UserUpdate{Username: identityCreatedUsername}, is.GodjIdentityIdentityUsersUpdateParams{ID: id, IfRevision: 2})
 	full, ok := put.(*is.UserHeaders)
 	if err != nil || !ok || full.Revision != 3 || full.Response.Revision != 3 || full.Response.FirstName != "" || full.Response.Staff || !full.Response.Active || !slices.Equal(full.Response.Groups, []int64{groupID}) || !slices.Equal(full.Response.Permissions, []int64{permissionID}) {
 		return fail("identity user full defaults preserve collections")
@@ -173,7 +177,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	}
 	final, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: id})
 	finalUser, ok := final.(*is.GodjIdentityIdentityUsersDetailOKHeaders)
-	if err != nil || !ok || finalUser.Revision != 7 || finalUser.Response.Revision != 7 || finalUser.Response.Username != "Fred" || len(finalUser.Response.Groups) != 0 || len(finalUser.Response.Permissions) != 0 || !finalUser.XGodjCsrftoken.Set || !state.ready(finalUser.XGodjCsrftoken.Value) {
+	if err != nil || !ok || finalUser.Revision != 7 || finalUser.Response.Revision != 7 || finalUser.Response.Username != identityCreatedUsername || len(finalUser.Response.Groups) != 0 || len(finalUser.Response.Permissions) != 0 || !finalUser.XGodjCsrftoken.Set || !state.ready(finalUser.XGodjCsrftoken.Value) {
 		return fail("identity session final user")
 	}
 	if err := identityHostDeletion(ctx, client, target); err != nil {

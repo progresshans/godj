@@ -98,6 +98,9 @@ func TestIdentityRegistrationIsDetachedSecretFreeAndDoesNotReadStorage(t *testin
 	if !reflect.DeepEqual(names(user.FormFields), userFields) || !reflect.DeepEqual(names(user.CreateFormFields), []string{"username", "password1", "password2"}) {
 		t.Fatal("private fields exposed or create/edit policies conflated")
 	}
+	if user.FormFields[0].MaxLength() != 256 || user.CreateFormFields[0].MaxLength() != 150 {
+		t.Fatal("creation input limit replaced storage-width editing")
+	}
 	for _, field := range user.CreateFormFields[1:] {
 		if field.Widget() != forms.PasswordInput {
 			t.Fatal("password became public text")

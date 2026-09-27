@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
 )
 
@@ -48,6 +49,11 @@ func ProvisionIdentity(ctx context.Context, backend IdentityBackend, config Prov
 	if config.Password == "" {
 		return result, &Error{Code: CodeInvalidConfig, Field: "password", Detail: "initial identity password is empty"}
 	}
+	username, err := identity.NormalizeUsername(config.Username)
+	if err != nil {
+		return result, &Error{Code: CodeInvalidConfig, Field: "username", Detail: "initial identity username is invalid", Cause: err}
+	}
+	config.Username = username
 	if _, err := auth.NewCredential(config.Username, "identity-provision-validation", config.Principal); err != nil {
 		return result, &Error{Code: CodeInvalidConfig, Field: "principal", Detail: "initial identity input is invalid", Cause: err}
 	}

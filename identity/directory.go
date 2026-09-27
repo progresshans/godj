@@ -161,6 +161,9 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 
 // accountFromRow uses the caller-owned coherent read or coordinated write scope.
 func (directory *Directory) accountFromRow(ctx context.Context, reader db.Queryer, row models.User) (Account, error) {
+	if err := validateUserProfileText(row); err != nil {
+		return Account{}, identityReadFailure(err)
+	}
 	if row.Revision <= 0 {
 		return Account{}, &auth.Error{Code: auth.CodeCredential, Detail: "stored identity revision is invalid"}
 	}

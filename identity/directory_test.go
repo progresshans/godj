@@ -10,6 +10,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/query"
 )
 
@@ -17,6 +18,24 @@ type snapshotFunc func(context.Context, func(db.Queryer) error) error
 
 func (function snapshotFunc) ReadSnapshot(ctx context.Context, callback func(db.Queryer) error) error {
 	return function(ctx, callback)
+}
+
+func TestStoredProfileCannotUseTheByteEnvelopeToEscapeIR(t *testing.T) {
+	for _, row := range []models.User{
+		{ID: 1, Revision: 1, Username: strings.Repeat("x", 257)},
+		{ID: 1, Revision: 1, Username: "valid", FirstName: strings.Repeat("한", 151)},
+		{ID: 1, Revision: 1, Username: "valid", Email: strings.Repeat("x", 255)},
+	} {
+		directory := &Directory{}
+		// An invalid stored profile must be rejected before permissions or any
+		// other lookup can run, including for a caller with an empty reader.
+		if account, err := directory.accountFromRow(t.Context(), nil, row); err == nil || account.Profile().ID != 0 {
+			t.Fatal("invalid stored profile published", err)
+		}
+		if err := validateManagedUserRow(row); err == nil {
+			t.Fatal("list accepted invalid stored profile")
+		}
+	}
 }
 
 type queryFailure struct{ err error }

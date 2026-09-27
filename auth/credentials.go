@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	maxUsernameBytes   = 256
-	maxCredentialCount = 4096
-	maxStoredHashBytes = hardMaxEncodedBytes
+	// MaximumUsernameBytes is the bounded UTF-8 credential/transport envelope.
+	// Model and form character limits are separate; this accommodates every
+	// scalar in the built-in 256-character storage profile, including astral text.
+	MaximumUsernameBytes = 1024
+	maxCredentialCount   = 4096
+	maxStoredHashBytes   = hardMaxEncodedBytes
 )
 
 // CredentialAuthenticator returns one immutable credential and authorization
@@ -182,7 +185,7 @@ func validAuthCall(ctx context.Context, authenticator *MemoryAuthenticator) erro
 }
 
 func validUsername(username string) bool {
-	return username != "" && len(username) <= maxUsernameBytes && utf8.ValidString(username) &&
+	return username != "" && len(username) <= MaximumUsernameBytes && utf8.ValidString(username) &&
 		!strings.ContainsRune(username, '\x00') && strings.TrimSpace(username) == username
 }
 

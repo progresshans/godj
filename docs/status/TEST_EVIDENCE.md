@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 고정 Unicode 16과 사용자명 전송·저장 경계
+
+2026-09-27, `1e42620d` 뒤의 구현이다. NFKC·full lowercase·문자 판정을 Unicode 16에 고정하고,
+credential/CLI 1,024바이트 envelope와 Schema IR의 User 256자 한도를 구분했다.
+관리 생성은 150자, 편집은 IR 256자를 사용한다. 새 bootstrap은 NFKC, 기존 operator adoption은 정확한 이전 바이트를 보존한다.
+
+최종 non-Markdown **2,421 파일** source map은
+`7096ff5262ec21b79fb133cb29127639f1b41194b5d6a660fc3c8a9727eb2c82`다. Checkpoint·negative control·보조 검사 모두 시작/종료 source 동일성을 확인했다.
+Darwin arm64 / Go 1.26.5의 **19 packages / 1,297 required entries**(333 roots·964 subcases)를 검사했다.
+Unicode/auth·기존 Form/Admin·identity/Admin/API·systemstate·Article/Helpdesk와 양 native DB의 identity 전체 영향 범위,
+createsuperuser terminal/process helper·private protocol, 독립 OpenAPI client 및 실제 SYS-023 producer를 포함한다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 2,927 PASS / skip 0 | 82.581초 |
+| race | 2,927 PASS / skip 0 | 334.469초 |
+| CGO=0 | 2,927 PASS / skip 0 | 80.273초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <선택한 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. 시작/종료·필수 root/subcase·package·no-skip을 검증했다.
+SYS-023은 명시한 단일 실제 producer이며, 나머지 SYS 계약 또는 전체 platform/cold-process 실행을 뜻하지 않는다.
+
+- 공식 Unicode 16 normalization **19,965행 × 5열 = 99,825 비교**와 **1,112,064 Unicode scalar** 전체의 NFKC·full lowercase·
+  isalnum/isdigit/isspace, scalar마다 네 Final_Sigma 문맥을 독립 CPython 결과와 비교했다. Surrogate는 UTF-8 입력 영역 밖이다.
+  긴 nonstarter의 CGJ 무삽입, canonical ordering·Hangul·확장/새 casing과 malformed UTF-8 비수정도 검사했다.
+- 양 DB에서 각 **27 subcase + root**로 새 문자·한글 150자·보충 평면 256자·확장/정규화 입력의 service 생성,
+  저장 후 별도 연결/runtime의 실제 HTTP 로그인, Admin 생성·긴 기존 이름 편집을 검사했다. 과대 입력은 hash/저장 전에 거부한다.
+  초기 계정의 NFKC와 legacy adoption의 이전 이름/credential 보존도 별도 연결에서 인증했다.
+- 독립 Session/Bearer generated consumer는 fullwidth Latin과 Todhri를 포함한 150자 사용자명을 실제 API로 생성/수정하고,
+  부모 프로세스가 저장된 정규화 이름·credential을 다시 읽어 인증한다. 기존 revision/session/권한/audit/host-delete 회귀도 유지했다.
+- 실제 PTY에서 한글 150자·보충 평면 256자를 입력하고 비밀번호 공백·비에코·terminal 복원을 확인했다.
+  Private frame 왕복은 같은 UTF-8 bytes와 분리된 비밀번호를 보존하며 1,024바이트 초과를 거부한다.
+  SYS-023 Go-native 결정의 frame 2,060/username 1,024바이트를 독립 decision oracle과 실제 producer로 확인했다.
+- **10개 변형 / 10개 지정 assertion 탐지**: Unicode 16 NFKC/문자 누락, CGJ 삽입, Final_Sigma 누락, 이전 256-byte cap,
+  IR 길이 검사 누락, 편집 한도 축소, adoption의 암묵적 rename, bootstrap 정규화 누락, private frame cap 회귀.
+  Build failure를 탐지 성공으로 세지 않는다.
+
+고정 Django 6.1 / CPython 3.14.3 / Unicode 16 observer 세 개를 각각 두 번 실행해 checked-in bytes와 일치시켰다.
+Form은 **username 26·EmailValidator 304·confirmation 8**개다. 이전의 세 Unicode version probe를 정상 corpus에 포함했다.
+별도 manager/form observer는 12개 입력의 username/email 및 생성 Form 결과를 기록한다. Generator는 이 Python 결과를 읽지 않는다.
+Reference SHA256은 각각 all-scalar `2df3fd214c1012bb04e11aec81cffb69ea75337524977854523b5ec8d32d093f`,
+native 입력 `f4251c1f36415ca86baab9ff236b772bae03868602b8cb35bf164ea66282f48c`,
+Form `d7046ba7537d820d7addb7e906018baad76ae2251920560cca9146ac1b973dec`다.
+고정 uv 0.10.12의 formal system-state oracle check도 통과했다. SYS-023의 두 byte metrics만 변경됐다.
+
+영향 vet·identity/Article/Helpdesk generated drift·gofmt·docs·diff, CI 도구 **41개**, Unicode generator **2개**를 통과했다.
+공식 UCD의 압축 원본과 hash/size manifest로 오프라인 생성 drift를 검사하고, 누락/손상 입력은 이전 생성 결과를 보존했다.
+Private PostgreSQL 17.10 UTF8/libc/C를 사용했으며 종료 시 public table/잔여 godj schema/추가 연결은 `0|0|0`, container 제거도 확인했다.
+Image는 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+
+초기 checkpoint 두 번은 새 테스트의 실패 플래그 해석과 email 관찰 입력의 Admin 재사용 오류로 실패했다.
+첫 실패는 DecodeRequest의 마지막 bool을 성공으로 오해한 assertion, 두 번째는 의도적 non-email 문자열을 그대로 편집 제출한 fixture였다.
+이를 바로잡고 최종 source에서 모든 모드와 negative control·보조 검사를 다시 실행했다. 실패 기록을 PASS로 합치지 않았다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-unicode-checkpoint-1790487637995969000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-unicode-controls-1790487680668627000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-unicode-reference-1790487416892231000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/identity-unicode-supplemental-1790487680668642000/receipt.json`
+
+이 결과는 GDJ-0100 전체 완료나 전체 UserCreationForm 호환이 아니다. 내장 password strength, self-service/reset,
+unusable password/last_login과 새 source의 전체 platform/process milestone이 남아 있다. 마지막 Hosted full의 source는
+`01b67211a083c507d5e69c6be26702439aada559`이며 이번 변경의 전체 검증으로 전이하지 않는다.
+
 ## GDJ-0100 — 실제 Identity Form/Admin과 현재 권한의 선택·감사
 
 2026-09-27, `3f59e1fd` 뒤의 구현이다. `identity/admin`의 User/Group/Permission CRUD·password command를

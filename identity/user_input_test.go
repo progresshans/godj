@@ -2,6 +2,7 @@ package identity
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
@@ -33,6 +34,25 @@ func TestUserInputOwnsMembershipSnapshotsAndNormalizesNames(t *testing.T) {
 	}
 	if (UserPatch{}).groups.IsSet() {
 		t.Fatal("omitted set marked present")
+	}
+}
+
+func TestUserTextLimitsFollowIRAfterPinnedNormalization(t *testing.T) {
+	for _, input := range []string{strings.Repeat("한", 150), strings.Repeat("\U000105c0", 256), strings.Repeat("x", 256)} {
+		if got, err := NormalizeUsername(input); err != nil || got != input {
+			t.Fatal("storage character range rejected", len(input), err)
+		}
+	}
+	for _, input := range []string{strings.Repeat("x", 257), strings.Repeat("한", 257), strings.Repeat("\U000105c0", 257), strings.Repeat("ﬃ", 86)} {
+		if got, err := NormalizeUsername(input); err == nil || got != "" {
+			t.Fatal("normalization escaped storage limit", err)
+		}
+	}
+	if got, err := NormalizeUsername("\U0001ccd6\U0001ccd7"); err != nil || got != "AB" {
+		t.Fatal("Unicode 16 normalization missing", got, err)
+	}
+	if got := normalizeIdentityEmail("Mixed@\u1c89.\ua7cb"); got != "Mixed@\u1c8a.\u0264" {
+		t.Fatal("Unicode 16 full lowercase missing", got)
 	}
 }
 

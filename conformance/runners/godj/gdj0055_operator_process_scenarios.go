@@ -43,7 +43,7 @@ import (
 )
 
 const magic = "GODJCSU1"
-const maximum = 1292
+const maximum = 2060
 
 type evidence struct {
 	PID int ` + "`json:\"pid\"`" + `
@@ -71,7 +71,7 @@ func main() {
 	if valid {
 		username := int(binary.BigEndian.Uint16(document[8:10]))
 		password := int(binary.BigEndian.Uint16(document[10:12]))
-		valid = username >= 1 && username <= 256 && password >= 1 && password <= 1024 && len(document) == 12+username+password
+		valid = username >= 1 && username <= 1024 && password >= 1 && password <= 1024 && len(document) == 12+username+password
 	}
 	if !valid { os.Exit(41) }
 	passwordLength := int(binary.BigEndian.Uint16(document[10:12]))
@@ -116,7 +116,7 @@ import (
 )
 
 const magic = "GODJCSU1"
-const maximum = 1292
+const maximum = 2060
 
 type evidence struct {
 	PID int ` + "`json:\"pid\"`" + `
@@ -146,7 +146,7 @@ func main() {
 	if valid {
 		usernameLength = int(binary.BigEndian.Uint16(document[8:10]))
 		passwordLength = int(binary.BigEndian.Uint16(document[10:12]))
-		valid = usernameLength >= 1 && usernameLength <= 256 && passwordLength >= 1 && passwordLength <= 1024 && len(document) == 12+usernameLength+passwordLength
+		valid = usernameLength >= 1 && usernameLength <= 1024 && passwordLength >= 1 && passwordLength <= 1024 && len(document) == 12+usernameLength+passwordLength
 	}
 	if !valid { os.Exit(41) }
 	username := document[12:12+usernameLength]

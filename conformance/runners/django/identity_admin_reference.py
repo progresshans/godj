@@ -1,8 +1,7 @@
 """Independent Django 6.1 form/EmailValidator observations, BSD-3-Clause.
 
 Synthetic input is shared with Go. This observer imports no GoDj output or
-expected results. Version probes explicitly record the remaining Unicode
-version boundary; they are not included in the claimed form parity subset.
+expected results. Username cases include characters introduced in Unicode 16.
 """
 import hashlib
 import inspect
@@ -42,7 +41,7 @@ def observe():
         result = {"django": django.get_version(), "python": platform.python_version(), "unicode": unicodedata.unidata_version,
                   "input_sha256": hashlib.sha256(inputs_path.read_bytes()).hexdigest(),
                   "sources": {name: hashlib.sha256(Path(inspect.getfile(module)).read_bytes()).hexdigest() for name, module in {"auth_forms": auth_forms, "auth_validators": auth_validators, "core_validators": validators}.items()}}
-        for kind in ("usernames", "version_probes"):
+        for kind in ("usernames",):
             result[kind] = [{"name": case["name"], **form_result({"username": case["value"], "password1": "reference-secret", "password2": "reference-secret"})} for case in inputs[kind]]
         result["passwords"] = [{"name": case["name"], **form_result({"username": "Reference", "password1": case["password1"], "password2": case["password2"]})} for case in inputs["passwords"]]
         result["emails"] = []

@@ -9,6 +9,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
 )
 
@@ -28,16 +29,30 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
-	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithMaxLength(150), formmodel.WithStringNormalizer(normalizeUsername), formmodel.WithValidators(usernameValidator()))
+	metadata := models.UserDescriptor{}.Metadata()
+	usernameLimit := 0
+	for _, field := range metadata.Fields {
+		if field.Name == "username" && field.Kind == ir.FieldChar {
+			usernameLimit = field.MaxLength
+		}
+	}
+	if usernameLimit < 150 {
+		return &admin.ConfigError{Path: "identity.username", Code: "invalid_storage_limit"}
+	}
+	// Creation adopts the default UserCreationForm input limit. Editing follows
+	// the declared storage field so an existing longer API/CLI-created username
+	// can still be displayed and retained without a hidden form-initial failure.
+	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(usernameNormalizer(usernameLimit)), formmodel.WithValidators(usernameValidator(usernameLimit)))
+	creationUsername := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithMaxLength(150), formmodel.WithStringNormalizer(usernameNormalizer(150)), formmodel.WithValidators(usernameValidator(150)))
 	return admin.RegisterModel(builder, admin.ModelConfig[userRow]{
-		AppLabel: "godj_identity", Slug: "users", Model: models.UserDescriptor{}.Metadata(),
+		AppLabel: "godj_identity", Slug: "users", Model: metadata,
 		FormFields: userFields, RevisionField: "revision",
 		FormOverrides: []formmodel.Override{username,
 			formmodel.OverrideField("first_name", formmodel.WithRequired(false)), formmodel.OverrideField("last_name", formmodel.WithRequired(false)),
 			formmodel.OverrideField("email", formmodel.WithRequired(false), formmodel.WithStringNormalizer(trimPythonSpace), formmodel.WithValidators(emailValidator())),
 			formmodel.OverrideField("groups", formmodel.WithRequired(false)), formmodel.OverrideField("permissions", formmodel.WithRequired(false)),
 		},
-		CreateForm:               &admin.FormConfig{Fields: []string{"username"}, Overrides: []formmodel.Override{username}, ExtraFields: passwords, Validators: []forms.CrossValidator{passwordConfirmation()}},
+		CreateForm:               &admin.FormConfig{Fields: []string{"username"}, Overrides: []formmodel.Override{creationUsername}, ExtraFields: passwords, Validators: []forms.CrossValidator{passwordConfirmation()}},
 		AdditionalAddPermissions: []auth.Permission{identity.ChangeUser}, AdditionalAuditFields: []string{"password"},
 		RelatedChoices: []admin.RelatedChoices{
 			{Field: "groups", Permission: identity.ChangeUser, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {

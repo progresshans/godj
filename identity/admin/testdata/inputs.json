@@ -91,6 +91,18 @@
     {
       "name": "mathletters",
       "value": "𝔘𝔰𝔢𝔯"
+    },
+    {
+      "name": "unicode16_outlined_latin",
+      "value": "𜳖"
+    },
+    {
+      "name": "unicode16_todhri_letter",
+      "value": "𐗀"
+    },
+    {
+      "name": "unicode16_decimal",
+      "value": "𐵀"
     }
   ],
   "emails": [
@@ -1351,20 +1363,6 @@
       "name": "unicode_not_normalized",
       "password1": "Ｆｒｅｄ",
       "password2": "Fred"
-    }
-  ],
-  "version_probes": [
-    {
-      "name": "unicode16_outlined_latin",
-      "value": "𜳖"
-    },
-    {
-      "name": "unicode16_todhri_letter",
-      "value": "𐗀"
-    },
-    {
-      "name": "unicode16_decimal",
-      "value": "𐵀"
     }
   ]
 }

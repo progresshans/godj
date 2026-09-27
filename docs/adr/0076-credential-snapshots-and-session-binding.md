@@ -138,10 +138,11 @@ audit 조회만으로 특정 요청의 성공을 증명한다고 주장하지 �
 삭제 결과에는 ID·revision·삭제 건수만 포함한다. 삭제 권한만으로 전체 Profile을 공개하지 않는다.
 
 Username의 NFKC와 email의 마지막 `@` 뒤 domain에 대한 full Unicode 소문자 변환은 고정 Django manager를 따른다.
-정규화 전후 username에는 기존 auth의 UTF-8·256-byte·NUL/바깥 공백 제한을 적용한다.
+정규화 전후 username에는 auth의 UTF-8·1,024-byte·NUL/바깥 공백 제한을 적용하고, 정규화 결과는 User의 Schema IR 256자 한도를 검사한다.
+Byte envelope는 모든 UTF-8 폭의 256자를 운반하는 상한이며 모델의 글자 수 제한을 대신하지 않는다. 저장 profile 조회에도 IR 한도를 적용한다.
 Email은 변환 전 잘못된 UTF-8·NUL·4,096-byte 초과를 거부하고, 최종 email 254자와 이름 각 150자 제한을 적용한다.
-단순 `strings.ToLower`는 `İ` 확장과 문맥에 따른 Greek sigma가 달라 사용하지 않는다. Caser는 호출마다 소유한다.
-이는 Django `UserCreationForm` 전체 호환 선언이 아니다. Form의 현재 지원 범위와 남은 Unicode/credential 경계는 아래에 명시한다.
+단순 `strings.ToLower`는 `İ` 확장과 문맥에 따른 Greek sigma가 달라 사용하지 않는다. 고정 Unicode 16의 full lowercase와 Final_Sigma를 사용한다.
+이는 Django `UserCreationForm` 전체 호환 선언이 아니다. Form의 현재 지원 범위와 Unicode/credential의 계층별 경계는 아래에 명시한다.
 대소문자를 무시하는 생성 중복 정책은 아래의 명시적 옵션으로 선택한다.
 
 생성은 현재 인가·unique 값·선택한 관계·유효 권한 한도를 읽기 snapshot에서 먼저 검사한다.
@@ -322,7 +323,9 @@ Helpdesk의 편집용 target-view 정책과 데이터 접근 전 write admission
 
 Form의 `WithStringNormalizer`는 whitespace 처리 뒤 required/length/validator 전에 pure 변환을 수행한다.
 Initial과 raw redisplay를 변경하지 않으며 changed 비교에도 같은 변환을 사용한다. Model override의 max length는 IR의 저장
-한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Username은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
+한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Username 생성은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
+편집은 IR의 256자 한도를 사용해 API/CLI에서 정상 생성한 긴 이름도 Form initial과 저장을 왕복할 수 있다.
+각 Form은 raw 글자 수가 해당 한도를 넘으면 NFKC를 생략하는 UsernameField의 비용 경계를 유지한다.
 Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP literal 문법을 적용한다. Password 두 값은 strip/NFKC
 없이 비교하고 mismatch를 password2에 표시하며 모든 재표시에서 원문을 비공개로 유지한다.
 
@@ -331,8 +334,18 @@ AUTH_PASSWORD_VALIDATORS와 같이 strength 검사가 없다. Create/SetPassword
 검사하며 각 validator에 Profile의 복사본을 준다. Password 또는 non-field 오류만 허용하고, 취소/cleanup/unknown을 확인된
 입력 거부로 바꾸지 않는다. Form adapter는 password 오류를 password2로 연결한다. 내장 strength validator 구현은 남아 있다.
 
-현재 Go와 x/text의 Unicode/NFKC 표는 15.0.0이고 고정 CPython 3.14.3은 Unicode 16.0.0이다. 독립 observer는 outlined Latin,
-Todhri 문자·새 숫자 세 입력의 차이를 따로 기록한다. 또한 기존 credential은 NFKC 전후 256-byte 제한을 유지해 Form의 150자
-전체를 수용하지 못할 수 있다. 이 두 조건은 미완료 호환성으로 남기며 일반 입력 subset의 성공을 전체 UserCreationForm PASS로
-표현하지 않는다. [입력 출처와 라이선스](../../identity/admin/NOTICE.md),
-[독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 환경/범위는 TEST_EVIDENCE를 따른다.
+`internal/unicode16`은 고정 CPython 3.14.3과 같은 Unicode 16.0.0의 NFKC·full lowercase·문자 분류를 소유한다.
+Go/compiler/x/text 버전 변경으로 기준을 바꾸지 않는다. 공식 UCD의 hash/크기를 검증한 오프라인 생성물이 원본이며,
+독립 Python 관찰 결과를 생성 데이터로 사용하지 않는다. NFKC는 stream-safe 변환을 추가하지 않아 긴 결합 문자 뒤에 CGJ를 삽입하지 않는다.
+일반 오류 입력의 잘못된 UTF-8을 replacement character로 고치지 않고 호출 계층에서 거부한다.
+공식 normalization corpus, 모든 Unicode scalar의 독립 Python NFKC/소문자/분류 및 casing context 비교가 검증 경로다.
+[고정 데이터와 라이선스](../../internal/unicode16/NOTICE.md), [입력 출처](../../identity/admin/NOTICE.md)를 함께 관리한다.
+
+새 `ProvisionIdentity`는 같은 NFKC와 IR 경계를 적용한다. 기존 operator의 명시적 adoption은 이전 username의 정확한 바이트를
+보존하며 자동으로 정규화하거나 이름을 바꾸지 않는다. 로그인은 저장된 username의 정확한 비교 의미를 유지한다.
+Private createsuperuser protocol의 username 상한은 1,024바이트, password는 기존 1,024바이트, 전체 frame은 2,060바이트다.
+Wire grammar/version은 유지하며 malformed·truncated·과대 입력은 기존처럼 거부한다. Legacy operator의 저장 256자 한도는 유지한다.
+이 전송 상한은 Go-native SYS-023 결정이며 Django 기본 User의 150자 저장 스키마와 같다는 주장이 아니다.
+
+전체 UserCreationForm 호환은 내장 password strength 등 남은 lifecycle 구현과 구분한다.
+[독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 source/환경/범위는 TEST_EVIDENCE를 따른다.

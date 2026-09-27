@@ -22,66 +22,74 @@ import (
 )
 
 func TestReadCreatesuperuserTerminalUsesExactPromptsPreservesPasswordAndDoesNotPersistInputToRedirectedStderr(t *testing.T) {
-	master, slave, err := pty.Open()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer master.Close()
-	defer slave.Close()
-	before, err := term.GetState(int(slave.Fd()))
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, input := range []struct{ name, username string }{
+		{"ascii", "operator-marker"},
+		{"korean150", strings.Repeat("한", 150)},
+		{"astral256", strings.Repeat("\U000105c0", 256)},
+	} {
+		t.Run(input.name, func(t *testing.T) {
+			master, slave, err := pty.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer master.Close()
+			defer slave.Close()
+			before, err := term.GetState(int(slave.Fd()))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	prompts := newObservedPromptWriter()
+			prompts := newObservedPromptWriter()
 
-	type result struct {
-		username []byte
-		password []byte
-		failure  *CreatesuperuserFailure
-		report   CreatesuperuserReport
-	}
-	resultReady := make(chan result, 1)
-	go func() {
-		var report CreatesuperuserReport
-		username, password, failure := readCreatesuperuserTerminal(
-			context.Background(), nil, slave, prompts, &report,
-		)
-		resultReady <- result{username: username, password: password, failure: failure, report: report}
-	}()
+			type result struct {
+				username []byte
+				password []byte
+				failure  *CreatesuperuserFailure
+				report   CreatesuperuserReport
+			}
+			resultReady := make(chan result, 1)
+			go func() {
+				var report CreatesuperuserReport
+				username, password, failure := readCreatesuperuserTerminal(
+					context.Background(), nil, slave, prompts, &report,
+				)
+				resultReady <- result{username: username, password: password, failure: failure, report: report}
+			}()
 
-	waitForPrompt(t, prompts, "Username: ")
-	writePTYInput(t, master, "operator-marker\n")
-	waitForPrompt(t, prompts, "Password: ")
-	writePTYInput(t, master, "  password-marker  \n")
-	waitForPrompt(t, prompts, "Password (again): ")
-	writePTYInput(t, master, "  password-marker  \n")
+			waitForPrompt(t, prompts, "Username: ")
+			writePTYInput(t, master, input.username+"\n")
+			waitForPrompt(t, prompts, "Password: ")
+			writePTYInput(t, master, "  password-marker  \n")
+			waitForPrompt(t, prompts, "Password (again): ")
+			writePTYInput(t, master, "  password-marker  \n")
 
-	got := awaitTerminalResult(t, resultReady)
-	if got.failure != nil || !bytes.Equal(got.username, []byte("operator-marker")) ||
-		!bytes.Equal(got.password, []byte("  password-marker  ")) {
-		t.Fatalf("terminal result = username %q password-len %d failure %+v", got.username, len(got.password), got.failure)
-	}
-	if got.report.TerminalChecks != 1 || got.report.UsernamePromptWrites != 1 ||
-		got.report.PasswordPromptWrites != 1 || got.report.ConfirmationPromptWrites != 1 ||
-		got.report.TerminalRestoreAttempts != 1 {
-		t.Fatalf("terminal report = %+v", got.report)
-	}
-	if prompt := prompts.String(); prompt != "Username: \nPassword: \nPassword (again): \n" {
-		t.Fatalf("prompts = %q", prompt)
-	}
-	after, err := term.GetState(int(slave.Fd()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(before, after) {
-		t.Fatal("terminal state was not restored after successful input")
-	}
-	clear(got.username)
-	clear(got.password)
-	echoed := readAvailablePTY(t, master)
-	if bytes.Contains(echoed, []byte("operator-marker")) || bytes.Contains(echoed, []byte("password-marker")) {
-		t.Fatalf("PTY echoed input while stderr was redirected: %q", echoed)
+			got := awaitTerminalResult(t, resultReady)
+			if got.failure != nil || !bytes.Equal(got.username, []byte(input.username)) ||
+				!bytes.Equal(got.password, []byte("  password-marker  ")) {
+				t.Fatalf("terminal result = username %q password-len %d failure %+v", got.username, len(got.password), got.failure)
+			}
+			if got.report.TerminalChecks != 1 || got.report.UsernamePromptWrites != 1 ||
+				got.report.PasswordPromptWrites != 1 || got.report.ConfirmationPromptWrites != 1 ||
+				got.report.TerminalRestoreAttempts != 1 {
+				t.Fatalf("terminal report = %+v", got.report)
+			}
+			if prompt := prompts.String(); prompt != "Username: \nPassword: \nPassword (again): \n" {
+				t.Fatalf("prompts = %q", prompt)
+			}
+			after, err := term.GetState(int(slave.Fd()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, after) {
+				t.Fatal("terminal state was not restored after successful input")
+			}
+			clear(got.username)
+			clear(got.password)
+			echoed := readAvailablePTY(t, master)
+			if bytes.Contains(echoed, []byte(input.username)) || bytes.Contains(echoed, []byte("password-marker")) {
+				t.Fatalf("PTY echoed input while stderr was redirected: %q", echoed)
+			}
+		})
 	}
 }
 

@@ -11,13 +11,14 @@ Copyright (c) Django Software Foundation and individual contributors.
 The [observer](../../conformance/runners/django/identity_admin_reference.py)
 executes those installed Django objects with independently authored synthetic
 inputs. It records input and upstream source hashes. The checked-in reference
-uses CPython 3.14.3 / Unicode 16; Go's Unicode and x/text normalization tables
-are version 15. Three `version_probes` record known differences and are outside
-the presently verified form subset. Full Unicode-version parity and built-in
-password strength validators remain pending, distinct from the configurable
-password policy hook and password confirmation.
+uses CPython 3.14.3 / Unicode 16. The implementation uses the pinned
+[Unicode 16 profile](../../internal/unicode16/NOTICE.md), independently generated
+from official UCD data. Outlined Latin, Todhri and new decimal digits are part
+of the regular input corpus. Built-in password strength validators remain
+pending, distinct from the configurable policy hook and confirmation.
 
-The form narrows username input to 150 code points. The manager still applies
-the existing credential profile's 256-byte UTF-8 limit before and after NFKC;
-therefore this input subset is not full Django UserCreationForm parity. That
-credential boundary must be reconciled together with Unicode-version support.
+The creation form narrows username input to 150 code points; editing retains
+the User Schema IR's 256-code-point storage limit. The credential and private
+CLI transport allow 1,024 UTF-8 bytes, with model character bounds checked
+separately before persistence. This explicit GoDj storage profile does not
+claim Django's default User schema or complete UserCreationForm parity.

@@ -266,7 +266,8 @@
       "phase": "environment",
       "status": "passing",
       "provenance": [
-        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0076", "derived": false}
       ],
       "comparison": ["result", "db_state", "metrics"]
     },

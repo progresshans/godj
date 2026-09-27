@@ -222,6 +222,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		if err != nil || len(users) != 4 {
 			t.Fatal("generated identity client user inventory differs")
 		}
+		createdUsername := "Fred" + strings.Repeat("\U000105c0", 146)
 		var created models.User
 		for _, user := range users {
 			switch user.ID {
@@ -243,7 +244,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 				}
 			default:
 				created = user
-				if user.Username != "Fred" || user.FirstName != "" || user.LastName != "" || user.Email != "" || user.Staff || user.Superuser || !user.Active || user.Revision != 7 || user.LastLogin != nil || user.DateJoined.IsZero() {
+				if user.Username != createdUsername || user.FirstName != "" || user.LastName != "" || user.Email != "" || user.Staff || user.Superuser || !user.Active || user.Revision != 7 || user.LastLogin != nil || user.DateJoined.IsZero() {
 					t.Fatal("created identity profile/default/relation revision differs")
 				}
 			}
@@ -251,7 +252,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		if created.ID == 0 || created.PrincipalID == "" || created.PrincipalID == root.PrincipalID || created.PrincipalID == target.PrincipalID {
 			t.Fatal("server identity was not independently assigned")
 		}
-		for _, probe := range []struct{ username, password string }{{"Fred", "  SDK created password  "}, {"managed-target", "  SDK replacement password  "}} {
+		for _, probe := range []struct{ username, password string }{{createdUsername, "  SDK created password  "}, {"managed-target", "  SDK replacement password  "}} {
 			if credential, err := reopened.Authenticator().Authenticate(ctx, probe.username, probe.password); err != nil || !credential.Principal().Authenticated() {
 				t.Fatal("stored SDK password did not authenticate")
 			}

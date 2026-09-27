@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/internal/wirejson"
 )
 
@@ -31,7 +32,7 @@ const (
 
 	Magic = "GODJCSU1"
 
-	MaxUsernameBytes = 256
+	MaxUsernameBytes = auth.MaximumUsernameBytes
 	MaxPasswordBytes = 1_024
 	MaxRequestBytes  = len(Magic) + 2 + 2 + MaxUsernameBytes + MaxPasswordBytes
 	MaxResponseBytes = 4_096

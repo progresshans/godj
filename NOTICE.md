@@ -131,3 +131,10 @@ gates.
 `internal/durationinput/duration.go` adapts Django 6.1 duration regular expressions (derived=true), with source, symbols, modifications and copyright recorded in
 [`internal/durationinput/NOTICE.md`](internal/durationinput/NOTICE.md). The BSD-3-Clause notice is preserved in [`LICENSE.django`](LICENSE.django).
 The Duration public-API observations remain independently written; the derived classification applies to these grammar expressions.
+
+## Pinned Unicode text data
+
+Identity input uses Unicode 16.0.0 tables and compressed upstream data under the
+[Unicode license](internal/unicode16/LICENSE.unicode). Exact source URLs, hashes,
+generation rules and independent verification are recorded in
+[internal/unicode16/NOTICE.md](internal/unicode16/NOTICE.md).

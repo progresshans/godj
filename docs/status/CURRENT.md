@@ -15,19 +15,16 @@ Article의 Admin은 사용자·그룹·권한 CRUD, revision 조건, 별도 pass
 비밀번호 확인·공백 보존·비공개 입력과 host password 정책을 hash 전/마지막 fence 검사에 연결했다.
 View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변경 POST는 데이터 접근 전에 거부한다.
 
-Identity Admin·기존 Form/Admin/API·Article/Helpdesk와 양 DB의 영향 normal/race/CGO=0, 독립 Django 입력 subset,
-negative control을 통과했다. 구현 `9fe12534`를 게시했고
-[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36295406909)의 실제 Go feedback도 성공했다.
-이는 전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료가 아니다.
+고정 Unicode 16의 NFKC·소문자·문자 판정을 연결하고, credential/CLI 1,024바이트와 User IR 256자 한도를 구분했다.
+관리 생성의 150자 정책과 긴 기존 이름을 보존하는 편집을 구현했다. 새 bootstrap은 NFKC, legacy adoption은 기존 바이트를 보존한다.
+이 변경과 기존 소비자의 영향 normal/race/CGO=0·양 DB·터미널/독립 client·Unicode 독립 기준·negative control을 통과했다.
+전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료는 아니다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
-[호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
-[구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
+[입력 출처](../../internal/unicode16/NOTICE.md), [구현 현황](IMPLEMENTATION_MATRIX.md)에 지원 범위를 기록한다.
 
 ## 다음 행동
 
-고정 Python의 Unicode 16과 Go/x/text의 Unicode 15 사이 username 정규화·문자 판정 차이를 닫는다.
-Form의 150자 입력과 기존 credential의 256-byte 제한을 함께 정리하고 내장 password strength validator를 구현한다.
-세 Unicode version probe는 실제 차이로 기록했으며 일반 입력 subset PASS로 덮지 않는다.
+내장 password strength validator를 고정 Django 기준과 실제 관리 Form/API의 정책 선택에 연결한다.
 Self-service/reset·사용 불가능한 password·last_login lifecycle도 남아 있다.
 GDJ-0100의 다음 전체 platform/process milestone은 관리 소비자와 남은 입력 경계를 정리한 새 source에서 실행한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.

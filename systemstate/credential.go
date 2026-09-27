@@ -303,7 +303,7 @@ func validateStoredCredential(row credentialRow, policy credentialPolicyMaterial
 		return auth.Credential{}, identityInitializedError()
 	}
 	if row.id <= 0 || len(row.principalID) > credentialPrincipalIDMaxLength ||
-		len(row.username) > credentialUsernameMaxLength ||
+		len(row.username) > auth.MaximumUsernameBytes || utf8.RuneCountInString(row.username) > credentialUsernameMaxLength ||
 		len(row.encodedPassword) > credentialEncodedPasswordMaxLength ||
 		len(row.permissions) > credentialPermissionsMaxLength ||
 		len(row.definitionDigest) > credentialDefinitionDigestMaxLength {
@@ -373,7 +373,7 @@ func validateStoredCredential(row credentialRow, policy credentialPolicyMaterial
 }
 
 func validOperatorUsername(username string) bool {
-	if username == "" || len(username) > credentialUsernameMaxLength || !utf8.ValidString(username) ||
+	if username == "" || len(username) > auth.MaximumUsernameBytes || !utf8.ValidString(username) || utf8.RuneCountInString(username) > credentialUsernameMaxLength ||
 		strings.TrimSpace(username) != username {
 		return false
 	}

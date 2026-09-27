@@ -3,12 +3,11 @@ package identityadmin
 import (
 	"net/netip"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/validation"
-	"golang.org/x/text/unicode/norm"
 )
 
 func passwordFields() ([]forms.Field, error) {
@@ -35,20 +34,22 @@ func passwordConfirmation() forms.CrossValidator {
 }
 
 func trimPythonSpace(value string) string {
-	return strings.TrimFunc(value, func(r rune) bool { return unicode.IsSpace(r) || r >= 0x1c && r <= 0x1f })
+	return unicode16.TrimSpace(value)
 }
 
 // UsernameField normalizes after stripping and avoids expensive normalization
 // of an already overlong input. Length validation still observes the result.
-func normalizeUsername(value string) string {
-	value = trimPythonSpace(value)
-	if utf8.RuneCountInString(value) > 150 {
-		return value
+func usernameNormalizer(limit int) func(string) string {
+	return func(value string) string {
+		value = trimPythonSpace(value)
+		if utf8.RuneCountInString(value) > limit {
+			return value
+		}
+		return unicode16.NFKC(value)
 	}
-	return norm.NFKC.String(value)
 }
 
-func usernameValidator() forms.FieldValidator {
+func usernameValidator(limit int) forms.FieldValidator {
 	return forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		text, ok := value.AsString()
 		if !ok || text == "" {
@@ -57,12 +58,12 @@ func usernameValidator() forms.FieldValidator {
 		// Django's model username validator runs only after the form field
 		// succeeds. Preserve that boundary instead of adding a second error
 		// to a rejected length, NUL or malformed encoding.
-		if !utf8.ValidString(text) || strings.ContainsRune(text, 0) || utf8.RuneCountInString(text) > 150 {
+		if !utf8.ValidString(text) || strings.ContainsRune(text, 0) || utf8.RuneCountInString(text) > limit {
 			return validation.Errors{}
 		}
 		valid := true
 		for _, r := range text {
-			valid = valid && (unicode.IsLetter(r) || unicode.IsNumber(r) || strings.ContainsRune("_.@+-", r))
+			valid = valid && (unicode16.IsAlphanumeric(r) || strings.ContainsRune("_.@+-", r))
 		}
 		if !valid {
 			return validation.NewErrors(validation.New("username", "invalid"))

@@ -1218,7 +1218,7 @@
       "valid": true
     }
   ],
-  "input_sha256": "a9f9e8dcb0e127863de178508239ed14d82643bdf7e35bcfe521327ce2cdaf2c",
+  "input_sha256": "ad048d68d29982d4e35f14106676a5c2e708d31198f191eeef45af1f75b5c035",
   "passwords": [
     {
       "codes": {},
@@ -1485,9 +1485,7 @@
       "name": "mathletters",
       "username": "User",
       "valid": true
-    }
-  ],
-  "version_probes": [
+    },
     {
       "codes": {},
       "name": "unicode16_outlined_latin",

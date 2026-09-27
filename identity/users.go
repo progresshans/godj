@@ -311,6 +311,9 @@ func (manager *Manager) DeleteUser(ctx context.Context, actor auth.Principal, id
 }
 
 func validateManagedUserRow(row models.User) error {
+	if err := validateUserProfileText(row); err != nil {
+		return managementError(CodePersistence, "user", err)
+	}
 	if row.ID <= 0 || row.Revision <= 0 {
 		return managementError(CodePersistence, "user", nil)
 	}

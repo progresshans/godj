@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
-	"unicode"
 
 	"github.com/progresshans/godj/forms"
-	"golang.org/x/text/unicode/norm"
 )
 
 //go:embed testdata/inputs.json
@@ -29,7 +27,6 @@ type formObservation struct {
 type inputCorpus struct {
 	Usernames, Emails []namedInput
 	Passwords         []struct{ Name, Password1, Password2 string }
-	VersionProbes     []namedInput `json:"version_probes"`
 }
 type formReference struct {
 	Django, Python, Unicode string
@@ -39,7 +36,6 @@ type formReference struct {
 		Name  string
 		Valid bool
 	}
-	VersionProbes []formObservation `json:"version_probes"`
 }
 
 func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
@@ -104,12 +100,5 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 				t.Fatal("EmailValidator behavior differs", input.Name, validEmail(input.Value), want.Valid)
 			}
 		})
-	}
-	// These are diagnostic observations, explicitly outside the parity subset.
-	// Keeping the raw inputs and both actual results visible prevents a passing
-	// subset from being represented as whole-Unicode form compatibility.
-	for i, input := range inputs.VersionProbes {
-		got := observe(map[string][]string{"username": {input.Value}, "password1": {"reference-secret"}, "password2": {"reference-secret"}})
-		t.Logf("unverified Unicode boundary %s: Go Unicode %s/NFKC %s actual %+v; Python Unicode %s reference %+v", input.Name, unicode.Version, norm.Version, got, expected.Unicode, expected.VersionProbes[i])
 	}
 }

@@ -3,16 +3,14 @@ package identity
 import (
 	"slices"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-	"golang.org/x/text/unicode/norm"
 )
 
 const MaximumUserGroups = 256
@@ -111,25 +109,63 @@ func managementInputError(field validation.Field, code validation.Code) error {
 	return validation.Reject(validation.NewErrors(validation.New(field, code)), nil)
 }
 
-func normalizeIdentityUsername(value string) (string, error) {
+// NormalizeUsername applies the pinned Unicode profile and the User's Schema
+// IR storage limit. It does not strip input or select a case-insensitive policy.
+// Forms may impose a narrower input limit before calling the manager.
+func NormalizeUsername(value string) (string, error) {
 	// Bound work before normalization as well as the final credential envelope.
 	if auth.ValidateUsername(value) != nil {
 		return "", managementInputError("username", "invalid")
 	}
-	value = norm.NFKC.String(value)
+	value = unicode16.NFKC(value)
 	if auth.ValidateUsername(value) != nil {
 		return "", managementInputError("username", "invalid")
+	}
+	if err := validateIdentityTexts(identityText{"username", value}); err != nil {
+		return "", err
 	}
 	return value, nil
 }
 
+// Model text bounds are read from the generated projection of Schema IR.
+// The credential's byte envelope must not silently replace character limits.
+type identityText struct{ name, value string }
+
+func validateIdentityTexts(values ...identityText) error {
+	metadata := models.UserDescriptor{}.Metadata()
+	for _, item := range values {
+		if !utf8.ValidString(item.value) || strings.ContainsRune(item.value, 0) {
+			return managementInputError(validation.Field(item.name), "invalid")
+		}
+		found := false
+		for _, field := range metadata.Fields {
+			if field.Name != item.name {
+				continue
+			}
+			found = true
+			if field.Kind != ir.FieldChar || field.MaxLength <= 0 {
+				return managementError(CodeInvalidConfig, "user", nil)
+			}
+			if utf8.RuneCountInString(item.value) > field.MaxLength {
+				return managementInputError(validation.Field(item.name), "invalid")
+			}
+			break
+		}
+		if !found {
+			return managementError(CodeInvalidConfig, "user", nil)
+		}
+	}
+	return nil
+}
+
+func validateUserProfileText(row models.User) error {
+	return validateIdentityTexts(identityText{"username", row.Username}, identityText{"first_name", row.FirstName}, identityText{"last_name", row.LastName}, identityText{"email", row.Email})
+}
+
 func normalizeIdentityEmail(value string) string {
-	// Python's str.strip also includes the four C0 information separators.
-	trimmed := strings.TrimFunc(value, func(r rune) bool { return unicode.IsSpace(r) || r >= 0x1c && r <= 0x1f })
+	trimmed := unicode16.TrimSpace(value)
 	if at := strings.LastIndexByte(trimmed, '@'); at >= 0 {
-		// Full Unicode lowercasing can expand characters or depend on context.
-		// A fresh Caser owns its transformation state for this call.
-		return trimmed[:at+1] + cases.Lower(language.Und).String(trimmed[at+1:])
+		return trimmed[:at+1] + unicode16.Lower(trimmed[at+1:])
 	}
 	return value
 }
@@ -150,7 +186,7 @@ func normalizeIdentityKeys(keys []int64, maximum int, field validation.Field) ([
 
 func (input UserPatch) normalize() (UserPatch, error) {
 	if username, ok := input.username.Get(); ok {
-		normalized, err := normalizeIdentityUsername(username)
+		normalized, err := NormalizeUsername(username)
 		if err != nil {
 			return UserPatch{}, err
 		}
@@ -162,16 +198,21 @@ func (input UserPatch) normalize() (UserPatch, error) {
 		}
 		input.email = orm.Set(normalizeIdentityEmail(email))
 	}
+	var texts []identityText
 	for _, item := range []struct {
-		field   validation.Field
-		value   orm.Change[string]
-		maximum int
+		field validation.Field
+		value orm.Change[string]
 	}{
-		{"first_name", input.firstName, 150}, {"last_name", input.lastName, 150}, {"email", input.email, 254},
+		{"first_name", input.firstName}, {"last_name", input.lastName}, {"email", input.email},
 	} {
 		value, set := item.value.Get()
-		if set && (!utf8.ValidString(value) || strings.ContainsRune(value, 0) || utf8.RuneCountInString(value) > item.maximum) {
-			return UserPatch{}, managementInputError(item.field, "invalid")
+		if set {
+			texts = append(texts, identityText{string(item.field), value})
+		}
+	}
+	if len(texts) > 0 {
+		if err := validateIdentityTexts(texts...); err != nil {
+			return UserPatch{}, err
 		}
 	}
 	if keys, set := input.groups.Get(); set {

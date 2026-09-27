@@ -426,12 +426,12 @@ def tty_secret_transport(contract_id: str) -> dict[str, Any]:
             "filesystem_secret_occurrences": 0,
         },
         metrics={
-            "frame_max_bytes": 1292,
+            "frame_max_bytes": 2060,
             "pipe_writes": 1,
             "secret_max_bytes": 1024,
             "terminal_reads_before_project_build": 0,
             "terminal_reads_before_project_selection": 0,
-            "username_max_bytes": 256,
+            "username_max_bytes": 1024,
         },
     )
 

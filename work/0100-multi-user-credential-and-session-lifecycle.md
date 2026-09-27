@@ -64,8 +64,10 @@ hash 전과 write fence 안에서 재검사하며 기본 Manager/API 생성·로
 감사 조회도 actor 인가와 같은 read snapshot에 연결하며 Runtime의 별도 transaction을 중첩하지 않는다.
 정규화·confirmation·EmailValidator의 독립 Django subset과 실제 양 DB HTTP, revision·권한 회수·감사 실패·unknown,
 password/session·PROTECT/CASCADE를 검증했다. 전체 UserCreationForm validator의 완료는 아니다.
-다음은 Unicode 16과 현재 Go/x/text 15의 정규화·문자 판정 차이, Form 150자와 credential 256-byte 경계, 내장 password strength validator다.
-세 version probe의 실제 불일치를 보존하고 일반 입력 subset의 성공으로 전체 호환을 주장하지 않는다.
+고정 Unicode 16의 NFKC·full lowercase·문자 분류와 공식/독립 Python 기준을 연결하고 영향 checkpoint를 통과했다.
+이전 세 version probe는 정상 corpus에 포함했다. Credential/CLI 1,024바이트와 IR 256자, 관리 생성 150자/편집 256자를 구분했다.
+양 DB의 실제 생성·로그인·수정·bootstrap/adoption, PTY·독립 generated client와 실패/negative control을 검증했다.
+다음은 내장 password strength validator이며 전체 UserCreationForm 호환은 별도 완료 조건이다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
