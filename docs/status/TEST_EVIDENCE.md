@@ -13,6 +13,10 @@ Darwin arm64 / Go 1.26.5, 실제 SQLite와 private PostgreSQL **17.10**, **16 pa
 (558 roots·404 subcases)를 실행했고 JSON event의 completion·no-skip을 감사했다.
 Identity API의 native 필수 entry는 backend당 55개다. schema·migration·생성 model ABI 변경은 없다.
 
+구현 commit `c81dee613d518acb6dd4ba2dd5c9d5dd12145d64`를 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36284619903)는 이 commit의 실제 **Fast Go feedback**까지 성공했다.
+검증한 non-Markdown source와 게시 제품 bytes가 같으며 Hosted full의 완료를 뜻하지 않는다.
+
 | 모드 | 완료 inventory | 그룹 실행 시간 합계 |
 |---|---|---|
 | normal | 4,044 PASS / skip 0 | 52.709초 |

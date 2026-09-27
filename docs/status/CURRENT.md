@@ -23,7 +23,8 @@ Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com
 영향 normal/race/CGO=0·양 DB와 독립 Django 비교·negative control을 통과했다.
 설계 의미는 [관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 실행한 source·환경·범위와 실패 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
-실제 관리 JSON API·OpenAPI를 Article의 인증된 composition에 연결했다.
+실제 관리 JSON API·OpenAPI를 Article의 인증된 composition에 연결하고 게시했다.
+[관리 API Hosted Fast](https://github.com/progresshans/godj/actions/runs/36284619903)도 성공했다.
 관리 API의 영향 normal/race/CGO=0·양 DB와 기존 generated client 호환성, negative control을 통과했다.
 전용 관리 Form/Admin·새 API의 독립 client와 GDJ-0100 전체 검증은 미완료다.
 
