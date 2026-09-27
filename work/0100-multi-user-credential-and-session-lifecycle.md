@@ -37,7 +37,7 @@ Directory·저장 인증·staff admission·명시적 operator 전환을 Article/
 편집은 expected revision, scalar와 그룹/직접 grant의 전체 집합을 처리하며 no-op은 revision/audit를 늘리지 않는다.
 비활성/삭제의 대상 session 폐기, 호스트 관계 정책과 감사 rollback, unknown 결과 미게시를 양 DB에서 검증했다.
 독립 Django manager/UserAdmin 관찰과 Unicode 정규화, 실제 HTTP/session·runtime 재접속, 두 연결의 경쟁과 실패 경계를 포함한다.
-전체 UserCreationForm validator와 전용 management endpoint가 구현됐다고 주장하지 않는다.
+전체 UserCreationForm validator의 구현을 뜻하지 않는다.
 
 Permission의 expected revision을 위해 기존 행에 revision 1을 채우는 명시적 migration을 추가했다.
 이를 수행하는 scalar-default AddField를 양 DB의 fenced lifecycle·자동 계획·SQL projection에 연결했다.
@@ -49,7 +49,9 @@ Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 
 삭제는 호스트 관계 정책과 직접 소유자 revision 증가·감사를 한 transaction에 반영한다.
 영향 normal/race/CGO=0·양 DB·독립 Django 비교와 negative control을 통과했다.
 실제 관리 JSON API·OpenAPI를 Article composition에 연결하고 영향 normal/race/CGO=0·양 DB·negative control을 통과했다.
-수정 조건·current 권한·password/session 의미를 HTTP에 연결하며 전용 Form/Admin·관련 선택 목록·독립 client는 다음 범위다.
+수정 조건·current 권한·password/session 의미를 HTTP에 연결했다.
+새 API의 독립 Session/Bearer client도 실제 HTTP·영속 SQLite와 부모의 DB/session/audit 검사에 연결하고 영향 검증했다.
+전용 Form/Admin과 action별 인가를 적용한 관련 선택 목록은 다음 범위다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

@@ -1,6 +1,7 @@
 package identityapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -60,8 +61,36 @@ func TestManagementDocumentIsBuiltFromActualProtectedRoutesAndAllowlist(t *testi
 		t.Fatal("startup I/O or incomplete routes", calls, len(application.Routes()))
 	}
 	var schema map[string]any
-	if err := json.Unmarshal(document.Bytes(), &schema); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(document.Bytes()))
+	decoder.UseNumber()
+	if err := decoder.Decode(&schema); err != nil {
 		t.Fatal(err)
+	}
+	paths := schema["paths"].(map[string]any)
+	patch := paths["/api/identity/users/{id}/"].(map[string]any)["patch"].(map[string]any)
+	var condition map[string]any
+	for _, raw := range patch["parameters"].([]any) {
+		parameter := raw.(map[string]any)
+		if parameter["name"] == "If-Revision" {
+			condition = parameter["schema"].(map[string]any)
+			if parameter["required"] != true {
+				t.Fatal("revision condition became optional")
+			}
+		}
+	}
+	response := patch["responses"].(map[string]any)["200"].(map[string]any)["headers"].(map[string]any)["Revision"].(map[string]any)
+	for _, bound := range []struct {
+		schema  map[string]any
+		maximum string
+	}{
+		{condition, "9223372036854775806"}, {response["schema"].(map[string]any), "9223372036854775807"},
+	} {
+		if bound.schema["type"] != "integer" || bound.schema["format"] != "int64" || bound.schema["minimum"] != json.Number("1") || bound.schema["maximum"] != json.Number(bound.maximum) {
+			t.Fatal("row revision schema lost exact int64 bounds")
+		}
+	}
+	if response["required"] != true {
+		t.Fatal("response revision became optional")
 	}
 	definitions := schema["components"].(map[string]any)["schemas"].(map[string]any)
 	fields := definitions["User"].(map[string]any)["properties"].(map[string]any)

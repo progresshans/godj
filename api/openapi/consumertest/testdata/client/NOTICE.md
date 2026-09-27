@@ -1,6 +1,6 @@
 # Generated consumer provenance
 
-`articlebearer/`, `articlesession/`, and `helpdesksession/` are generated without manual edits from
+`articlebearer/`, `articlesession/`, `helpdesksession/`, `identitysession/`, and `identitybearer/` are generated without manual edits from
 `specs/*.json` by [ogen v1.24.0](https://github.com/ogen-go/ogen/tree/v1.24.0).
 The generator and its templates are distributed under Apache-2.0; the upstream license is retained in
 [LICENSE.ogen](LICENSE.ogen). Configuration and dependencies are pinned in `ogen.yml`, `go.mod`, and `go.sum`.

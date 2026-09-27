@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,6 +129,16 @@ func (transport *observedTransport) RoundTrip(request *http.Request) (*http.Resp
 	response, err := transport.base.RoundTrip(request)
 	if err != nil {
 		return nil, err
+	}
+	if strings.HasPrefix(request.URL.Path, "/api/identity/") {
+		if response.StatusCode < 500 && response.Header.Get("Cache-Control") != "no-store" {
+			response.Body.Close()
+			return nil, fail("identity private response cache policy")
+		}
+		if transport.state == nil && (len(request.Cookies()) != 0 || len(request.Header.Values("Authorization")) != 1 || request.Header.Get(csrfHeaderName) != "") {
+			response.Body.Close()
+			return nil, fail("identity bearer credential transport")
+		}
 	}
 	transport.mu.Lock()
 	transport.status = response.StatusCode

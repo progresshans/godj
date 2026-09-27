@@ -3,6 +3,81 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 독립 Identity Session/Bearer 생성 클라이언트
+
+2026-09-27, `3a7b1fcd` 뒤의 변경이다. 실제 관리 API 선언에서 고정 **ogen v1.24.0**으로
+Session/Bearer client와 OpenAPI snapshot을 생성했다. 별도 module은 GoDj를 import/replace하지 않는다.
+`If-Revision`/`Revision` header의 OpenAPI를 required int64와 정확한 양수 범위로 기술했다.
+HTTP 의미·Schema IR·model/migration은 바꾸지 않았다.
+최종 non-Markdown **2,352 파일** source map은
+`9bd4e1269622d00f5218f404e4181a72ec0aaa3e1375f6f60b2d92c0dc5248cd`다.
+
+Darwin arm64 / Go 1.26.5에서 **6 packages / 153 required entries**(45 roots·108 subcases)를 실행했다.
+Scope는 identity API·OpenAPI, 독립 client 전체, Article의 실제 identity API/login root,
+SQLite/PostgreSQL `IdentityManagementAPI` root다. JSON event의 전체 completion·no-skip을 감사했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 247 PASS / skip 0 | 18.714초 |
+| race | 247 PASS / skip 0 | 100.648초 |
+| CGO=0 | 247 PASS / skip 0 | 21.528초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`, mode별 `-race` 또는 `CGO_ENABLED=0`,
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 사용했다. Private PostgreSQL은 **17.10**이며 image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+모든 모드에서 기존 Article Bearer/Session·Helpdesk Session과 새 Identity Session/Bearer의 5개 문서가
+실제 adapter와 같고 offline 재생성에 drift가 없었다. Child는 부모와 같은 race 모드로 빌드했다.
+부모가 독립적으로 요구하는 **52개 completion check**가 모두 있어야 최종 DB 검사를 실행한다.
+
+새 Session client는 관리 API 19개 operation과 scalar 페이지, Unicode username·unique 오류,
+PUT scalar default, collection 생략/명시적 빈 배열/중복 제거/no-op을 실제 HTTP로 확인했다.
+생성된 int64 수정 조건의 400/412와 header를 제거한 negative transport의 428, read-only·CSRF 거부,
+Permission/Group 삭제에 따른 직접 소유자 revision 증가와 이전 수정 거부를 포함한다.
+Safe response의 새 CSRF cookie와 typed masked header를 함께 갱신하며 후속 변경에 사용한다.
+
+두 Identity profile은 같은 durable SQLite·실제 저장 계정/권한을 사용한다. Bearer CRUD와 401/403 challenge를 확인했다.
+Session client가 actor를 비활성화한 뒤에도 원래 superuser snapshot을 반환하는 Bearer verifier를 사용해
+현재 DB 권한이 read/write를 거부하는지 검사했다. 세션은 부모가 실제 credential stamp와 함께 seed한다.
+이 fixture가 로그인 endpoint나 token issuer를 구현했다는 뜻은 아니다.
+
+부모는 새 runtime에서 최종 profile·서버 principal ID·password 공백 보존/이전 password 거부,
+정확한 through 행과 host PROTECT/CASCADE/SET_NULL 결과, audit를 직접 검사했다.
+Password 교체와 비활성/재활성화 후 사용한 세션뿐 아니라 **HTTP에 한 번도 쓰지 않은 보조 세션**도 폐기되어야 한다.
+다른 anonymous session의 저장 snapshot은 그대로 유지되어야 한다. 삭제 audit는 삭제한 resource의 이벤트이며,
+직접 owner의 revision 증가를 별도 owner 편집 audit와 혼동하지 않는다.
+
+별도 wire probe는 2^53 밖 ID/revision/collection의 exact bytes와 int64 경계, required collection의 누락/null/잘못된 원소,
+required Revision header의 누락/잘못된 값, typed 412/428/503와 한 번만 전송하는 동작을 검사했다.
+Synthetic 503은 서버의 unknown commit/rollback 증거가 아니다. 실제 실패/unknown은 같은 checkpoint의 양 DB API root가 소유한다.
+독립 생성 client 자체의 DB는 SQLite이며 PostgreSQL client나 server process 재시작까지 검증한 것으로 표현하지 않는다.
+
+Go overlay **7개 변형 / 7개 assertion 탐지**를 확인했다. Password trim 선언은 schema drift에서 거부했고,
+선언을 바꾸지 않는 hash 전 trim은 부모의 실제 저장 password 검사에서 탐지했다.
+수정 조건 누락·no-store 제거·현재 actor 인가 우회·session 폐기 생략·identity-only 호스트 삭제 정책도 탐지했다.
+6개는 실제 HTTP/DB 검사, 1개는 schema drift 검사다. Build 실패·timeout·race를 탐지로 세지 않았다.
+Control의 앞선 5개 통과 결과는 **동일 source 전후 map**을 확인한 뒤 그대로 보존하고, password control만 보강 실행했다.
+
+영향 parent/child `go vet`, docs·format·diff와 guard를 둔 실제 exporter의 5개 schema 일치를 확인했다.
+Checkpoint·control·보조 검사 모두 non-Markdown source 전후가 같다. PostgreSQL 잔여 table·owned schema·다른 connection은
+`0|0|0`이고 private container를 제거했다. 기존 dependency lock과 기존 3개 schema/generated package는 변경하지 않았다.
+
+초기 source `80c8996e…`는 safe response 이후 CSRF token 갱신 누락으로 client가 실패했다.
+`e0c988dc…`는 폐기된 Session의 403 `not_authenticated`를 `permission_denied`로 잘못 기대해 실패했고,
+`b706e891…`는 catalog 삭제에 따른 owner revision 증가를 owner audit 2개로 중복 기대해 부모 검사가 실패했다.
+각 fixture를 실제 계약에 맞게 고치고 최종 source에서 전체 선언 범위를 다시 실행했다.
+최초 password-trim control도 schema drift에서 조기 거부되어 HTTP 증거로 세지 않았고, 별도의 hash 경계 변형을 추가했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+
+- `identity-client-checkpoint-1790473432279296000/receipt.json`: 최종 세 모드·roster·raw events·source/cleanup.
+- `identity-client-controls-1790473649489350000/receipt.json`: 최종 control 7개와 같은 source의 앞선 5개 결과 참조.
+- `identity-client-controls-1790473498523239000/receipt.json`: 앞선 5개 실제 탐지와 schema-drift에서 끝난 최초 password probe.
+- `identity-client-supplemental-1790473567548706000/receipt.json`: parent/child vet·format/docs·실제 exporter 비교.
+- `identity-client-checkpoint-1790473120970830000/receipt.json`, `identity-client-checkpoint-1790473230759633000/receipt.json`, `identity-client-checkpoint-1790473299191703000/receipt.json`: 초기 fixture assertion 실패와 cleanup.
+
+전용 관리 Form/Admin·action별 관련 선택 목록, self-service/reset·unusable password/last_login 및
+GDJ-0100 전체 platform/process milestone은 미완료다. 이전 Hosted full을 이 source의 검증으로 전이하지 않는다.
+
 ## GDJ-0100 — 실제 관리 JSON API와 권한·수정 조건
 
 2026-09-27, `e36afb74` 뒤의 변경이다. User·Group·Permission의 목록/상세·생성·PUT/PATCH·삭제와 관리자 password 교체

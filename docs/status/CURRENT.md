@@ -26,11 +26,13 @@ Group/Permission 관리 service도 게시하고 [Hosted Fast](https://github.com
 실제 관리 JSON API·OpenAPI를 Article의 인증된 composition에 연결하고 게시했다.
 [관리 API Hosted Fast](https://github.com/progresshans/godj/actions/runs/36284619903)도 성공했다.
 관리 API의 영향 normal/race/CGO=0·양 DB와 기존 generated client 호환성, negative control을 통과했다.
-전용 관리 Form/Admin·새 API의 독립 client와 GDJ-0100 전체 검증은 미완료다.
+새 관리 API의 독립 Session/Bearer generated client를 실제 HTTP·영속 DB에 연결했다.
+영향 normal/race/CGO=0에서 생성 drift·수정 조건·권한·관계·password/session·감사 검사를 통과했다.
+전용 관리 Form/Admin·관련 선택 목록과 GDJ-0100 전체 검증은 미완료다.
 
 ## 다음 행동
 
-새 관리 API의 독립 generated client와 사용자·비밀번호·그룹·권한 관리 Form/Admin·관련 선택 목록을 연결한다.
+사용자·비밀번호·그룹·권한 관리 Form/Admin과 action별 인가를 적용한 관련 선택 목록을 연결한다.
 Self-service/reset과 나머지 credential lifecycle도 미완료다. 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.
 

@@ -1,9 +1,10 @@
 # OpenAPI 생성 클라이언트 검증과 갱신
 
-`TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session API의 문서를
+`TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session·Identity Session/Bearer API의 문서를
 `testdata/client/specs`와 비교하고, 별도 Go module에서 고정된 `ogen`으로 재생성한 파일이 저장된 생성물과 같은지 확인한다.
 이후 생성 client를 build하고 실제 HTTP로 실행하여 응답·인증·CSRF·관계·DB 변경을 검증한다.
-테스트의 Session은 알려진 principal을 메모리 저장소에 명시적으로 준비한다. Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
+Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
+Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
 `testdata/client`에는 framework module을 import하거나 replace하는 연결이 없다. 생성기와 client runtime 버전은
 그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
@@ -46,6 +47,21 @@ Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 req
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
 생성된 encoder는 `Validate()`를 자동 호출하지 않으므로 서버 검증이 별도로 필요하다.
 
+Identity의 Session/Bearer profile은 별도 생성 패키지이며 같은 영속 SQLite 사용자 저장소를 호출한다.
+Session client는 관리 API의 19개 operation, 페이지·Unicode username·unique 오류·PUT 기본값과
+collection 생략/빈 배열/no-op, required/stale revision, 권한·CSRF, 비밀번호 교체와 세션 폐기를 확인한다.
+Permission/Group 삭제로 직접 소유자 revision이 증가하는지와 호스트 PROTECT/CASCADE/SET_NULL도 검증한다.
+Bearer client는 CRUD·typed condition과 인증 challenge를 확인하고, Session client가 actor를 비활성화한 뒤에도
+원래 superuser snapshot을 반환하는 verifier로 다시 호출하여 현재 DB 권한 확인을 우회하지 못하는지 확인한다.
+부모는 새 runtime을 구성해 최종 사용자·password whitespace·정확한 관계 행·호스트 데이터·session·value-free audit를 별도로 조회한다.
+세션은 부모가 실제 durable store에 seed하며 로그인 endpoint나 token issuer를 구현한 것으로 간주하지 않는다.
+
+Identity의 `If-Revision`/`Revision` header는 required int64이고 각각 변경 가능한 양수 범위와 저장 가능한 양수 범위다.
+별도 wire 검사는 2^53 밖 ID/revision/collection의 정확한 전송과 required collection·revision header 오류를 확인한다.
+412/428/503 응답은 typed 오류이며 한 번만 전송된다. 이 synthetic 503은 실제 서버의 unknown outcome 증거가 아니다.
+관리 서버의 rollback/unknown·양 DB 검사는 `internal/identitytest`와 각 DB root가 소유한다.
+새 client는 SQLite HTTP와 별도 client process 경계의 증거이며 PostgreSQL client나 server process restart 증거는 아니다.
+
 ## 현재 소스에서 문서 내보내기
 
 저장소 루트에서 실행한다. `-out`은 존재하지 않는 경로 또는 빈 디렉터리여야 하고, symlink나 기존 파일이 있는 디렉터리는 거절한다.
@@ -57,8 +73,8 @@ go run ./api/openapi/consumertest/testdata/export -out "$schema_update_dir/specs
 ```
 
 명령은 실제 API adapter와 builtin authentication profile에서 `articlebearer.json`, `articlesession.json`,
-`helpdesksession.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
-세 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
+`helpdesksession.json`, `identitysession.json`, `identitybearer.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
+다섯 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
 확인한 뒤 새 빈 디렉터리에서 다시 실행한다. `testdata` 아래의 유지보수 명령이므로 기본 `go test ./...` 대상에는 포함되지 않는다.
 
 ## 검토할 생성물 준비
@@ -77,7 +93,7 @@ mkdir "$schema_update_dir/generated"
   set -eu
   cd "$schema_update_dir/client"
   export GOENV=off GOWORK=off GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly
-  for profile in articlebearer articlesession helpdesksession; do
+  for profile in articlebearer articlesession helpdesksession identitysession identitybearer; do
     go tool ogen -loglevel warn -config ogen.yml \
       -target "$schema_update_dir/generated/$profile" -package "$profile" "specs/$profile.json"
     rm -rf "$schema_update_dir/client/$profile"
@@ -92,14 +108,14 @@ cmp "$schema_client_dir/ogen.yml" "$schema_update_dir/client/ogen.yml"
 diff -ru "$schema_client_dir/specs" "$schema_update_dir/client/specs"
 ```
 
-`diff`의 종료 코드 1은 차이가 있다는 뜻이다. 세 generated package도 각각 `diff -ru`로 비교하여
+`diff`의 종료 코드 1은 차이가 있다는 뜻이다. 다섯 generated package도 각각 `diff -ru`로 비교하여
 operation·필드·null/생략·응답 타입의 변경이 의도와 맞는지 확인한다. 생성 파일을 직접 고쳐 차이를 맞추지 않는다.
 새 API 의미에 따라 `cmd/consumer`의 HTTP 호출이나 확인 항목을 바꿔야 한다면 그 변경도 별도로 구현하고 검토한다.
 생성기·의존성 버전 변경은 이 문서 갱신과 구별해서 `go.mod`·`go.sum`·`ogen.yml`을 검토한다.
 
 ## 확정한 파일 반영과 검증
 
-검토를 마친 뒤 아래 명령은 문서 세 개와 generated package 세 개만 반영한다.
+검토를 마친 뒤 아래 명령은 문서 다섯 개와 generated package 다섯 개만 반영한다.
 기존 package 안에 예상하지 않은 파일이나 symlink가 있으면 중단한다. 생성기가 제거한 파일도 반영되도록 package를 교체한다.
 
 ```sh
@@ -109,7 +125,7 @@ import shutil
 import sys
 
 destination, candidate = map(Path, sys.argv[1:])
-profiles = ('articlebearer', 'articlesession', 'helpdesksession')
+profiles = ('articlebearer', 'articlesession', 'helpdesksession', 'identitysession', 'identitybearer')
 for root in (destination, candidate):
     for profile in profiles:
         package = root / profile

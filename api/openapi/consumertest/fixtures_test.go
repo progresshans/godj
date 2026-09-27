@@ -39,9 +39,11 @@ import (
 // fields contain raw IDs for the documented session cookie, not cookie headers.
 // Neither credentials nor ephemeral listener URLs belong in test diagnostics.
 type consumerInput struct {
-	ArticleBearer   serverInput `json:"article_bearer"`
-	ArticleSession  serverInput `json:"article_session"`
-	HelpdeskSession serverInput `json:"helpdesk_session"`
+	ArticleBearer   serverInput         `json:"article_bearer"`
+	ArticleSession  serverInput         `json:"article_session"`
+	HelpdeskSession serverInput         `json:"helpdesk_session"`
+	IdentitySession identityServerInput `json:"identity_session"`
+	IdentityBearer  identityServerInput `json:"identity_bearer"`
 }
 
 type serverInput struct {
@@ -132,7 +134,9 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	}
 	helpdeskURL := serveConsumerAPI(t, "helpdesk_generated_client", helpdesk.InstalledApps(), helpdeskAPI.Routes(), nil)
 
+	identitySession, identityBearer, identityDocuments, verifyIdentity := newIdentityConsumerFixtures(t)
 	input := consumerInput{
+		IdentitySession: identitySession, IdentityBearer: identityBearer,
 		ArticleBearer:  serverInput{URL: bearerURL, Token: fullToken, ReadOnlyToken: viewToken},
 		ArticleSession: serverInput{URL: sessionURL, Session: articleSession, ReadOnlySession: articleViewSession},
 		HelpdeskSession: serverInput{
@@ -145,8 +149,12 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		"articlesession":  sessionDocument,
 		"helpdesksession": helpdeskDocument.Bytes(),
 	}
+	for name, document := range identityDocuments {
+		documents[name] = document
+	}
 	verify := func(t *testing.T) {
 		t.Helper()
+		verifyIdentity(t)
 		for _, fixture := range []struct {
 			name    string
 			backend *sqlite.Backend

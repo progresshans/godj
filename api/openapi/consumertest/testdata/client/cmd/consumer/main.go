@@ -29,9 +29,23 @@ type endpoint struct {
 }
 
 type input struct {
-	ArticleBearer   endpoint `json:"article_bearer"`
-	ArticleSession  endpoint `json:"article_session"`
-	HelpdeskSession endpoint `json:"helpdesk_session"`
+	ArticleBearer   endpoint         `json:"article_bearer"`
+	ArticleSession  endpoint         `json:"article_session"`
+	HelpdeskSession endpoint         `json:"helpdesk_session"`
+	IdentitySession identityEndpoint `json:"identity_session"`
+	IdentityBearer  identityEndpoint `json:"identity_bearer"`
+}
+
+type identityEndpoint struct {
+	endpoint
+	ActorID               int64 `json:"actor_id"`
+	TargetID              int64 `json:"target_id"`
+	ProtectedUserID       int64 `json:"protected_user_id"`
+	ProtectedGroupID      int64 `json:"protected_group_id"`
+	ProtectedPermissionID int64 `json:"protected_permission_id"`
+	CascadeUserID         int64 `json:"cascade_user_id"`
+	CascadeGroupID        int64 `json:"cascade_group_id"`
+	CascadePermissionID   int64 `json:"cascade_permission_id"`
 }
 
 // The parent independently requires every name. A successful process cannot
@@ -52,6 +66,9 @@ var requiredChecks = [...]string{
 	"generated_int64_wire",
 	"generated_response_rejections",
 	"pre_canceled_request",
+	"identity_bearer_crud", "identity_bearer_auth_errors", "identity_stale_bearer_current_authorization",
+	"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_host_deletion",
+	"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry",
 }
 
 type report struct {
@@ -104,7 +121,8 @@ func readInput(reader io.Reader) (input, error) {
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		return config, errors.New("invalid input")
 	}
-	for _, target := range []endpoint{config.ArticleBearer, config.ArticleSession, config.HelpdeskSession} {
+	addresses := make(map[string]bool)
+	for _, target := range []endpoint{config.ArticleBearer, config.ArticleSession, config.HelpdeskSession, config.IdentitySession.endpoint, config.IdentityBearer.endpoint} {
 		address, err := url.Parse(target.URL)
 		if err != nil || address.Scheme != "http" || address.User != nil || address.RawQuery != "" || address.Fragment != "" || (address.Path != "" && address.Path != "/") {
 			return config, errors.New("invalid endpoint")
@@ -113,15 +131,24 @@ func readInput(reader io.Reader) (input, error) {
 		if ip == nil || !ip.IsLoopback() || address.Port() == "" {
 			return config, errors.New("invalid endpoint")
 		}
-	}
-	if config.ArticleBearer.URL == config.ArticleSession.URL || config.ArticleBearer.URL == config.HelpdeskSession.URL || config.ArticleSession.URL == config.HelpdeskSession.URL {
-		return config, errors.New("endpoints must be distinct")
+		if addresses[address.Host] {
+			return config, errors.New("endpoints must be distinct")
+		}
+		addresses[address.Host] = true
 	}
 	if config.ArticleBearer.Token == "" || config.ArticleBearer.ReadOnlyToken == "" || config.ArticleSession.Session == "" || config.HelpdeskSession.Session == "" || config.HelpdeskSession.ReadOnlySession == "" {
 		return config, errors.New("missing credentials")
 	}
 	if config.HelpdeskSession.CategoryID <= 0 || config.HelpdeskSession.TicketID <= 0 || config.HelpdeskSession.OtherTicketID <= 0 || config.HelpdeskSession.OtherLabelID <= 0 || config.HelpdeskSession.OtherTicketLabelID <= 0 || config.HelpdeskSession.TicketID == config.HelpdeskSession.OtherTicketID {
 		return config, errors.New("missing fixture identities")
+	}
+	if config.IdentitySession.Session == "" || config.IdentitySession.ReadOnlySession == "" || config.IdentityBearer.Token == "" || config.IdentityBearer.ReadOnlyToken == "" {
+		return config, errors.New("missing identity credentials")
+	}
+	for _, target := range []identityEndpoint{config.IdentitySession, config.IdentityBearer} {
+		if target.ActorID <= 0 || target.TargetID <= 0 || target.ActorID == target.TargetID || target.ProtectedUserID <= 0 || target.ProtectedGroupID <= 0 || target.ProtectedPermissionID <= 0 || target.CascadeUserID <= 0 || target.CascadeGroupID <= 0 || target.CascadePermissionID <= 0 {
+			return config, errors.New("missing identity fixture identities")
+		}
 	}
 	return config, nil
 }
@@ -146,6 +173,12 @@ func run(ctx context.Context, config input) ([]string, error) {
 			"generated_int64_wire", "generated_response_rejections",
 			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire", "generated_collection_wire",
 		}},
+		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_crud", "identity_bearer_auth_errors"}},
+		{func() error { return checkIdentitySession(ctx, config.IdentitySession) }, []string{
+			"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_host_deletion",
+		}},
+		{func() error { return checkIdentityStaleBearer(ctx, config.IdentityBearer) }, []string{"identity_stale_bearer_current_authorization"}},
+		{func() error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry"}},
 	}
 	for _, flow := range flows {
 		if err := flow.run(); err != nil {
