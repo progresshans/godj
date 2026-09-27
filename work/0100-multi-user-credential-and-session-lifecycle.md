@@ -73,7 +73,7 @@ password/session·PROTECT/CASCADE를 검증했다. 전체 UserCreationForm valid
 현재 graph의 독립 기대, 양 DB 재시작의 User/권한/전환 기록과 이전 credential 비활성화,
 scalar backfill SQL 실행, 실제 외부 compiler의 위치 인자 누락 판정과 출처/byte lock을 함께 수정하고 영향 통합 검증을 통과했다.
 수정 source의 Hosted 전체를 다시 검증한다. `c7a0c5e0`의 실행에서 추가로 드러난 PTY 에코 관찰과
-Python 합산 fingerprint도 수정·검증했고, 남은 job 결과를 확인한 뒤 최종 source의 전체 검증을 이어간다.
+Python 합산 fingerprint도 수정·검증했고, 최종 `f3264aef` source의 Hosted 전체를 다시 실행했다.
 전체 UserCreationForm 호환은 별도 조건이다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.

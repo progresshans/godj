@@ -6,8 +6,8 @@
 ## GDJ-0100 — Linux PTY 에코 관찰과 Python 호환성 fingerprint 후속 수정
 
 2026-09-27, `c7a0c5e0`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36303289415)에서
-Linux PTY overflow 검사가 완전한 에코가 도착하기 전의 조각만 수집했고, 세 Python 호환성 job의 최종 합산 fingerprint가 이전 GoDj 결정을 사용했다.
-이 실행은 전체 PASS가 아니며 나머지 job의 결과도 계속 확인한다.
+Linux PTY overflow 검사가 완전한 에코가 도착하기 전의 조각만 수집했고, 네 Python 호환성 job의 최종 합산 fingerprint가 이전 GoDj 결정을 사용했다.
+이 실행은 전체 PASS가 아니며, 수정된 source의 새 전체 실행이 시작되면서 미완료 job은 취소됐다.
 
 - PTY의 복원 후 canonical 입력 확인과 master 출력 전달은 별개다. 네 복원 probe가 기존의 5초 제한 marker reader로
   완전한 에코를 기다리고 그 앞의 모든 bytes도 보존하도록 바꿨다. 입력 queue의 정확한 sentinel과 secret 비노출 검사는 유지했다.
@@ -41,8 +41,11 @@ Workflow reference 검사는 갱신된 파일에서 별도로 실행했다.
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/python-compatibility-digest-1790495534360303000/receipt.json`
 - `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/python-compatibility-digest-1790495534360303000/workflow-receipt.json`
 
-현재 Hosted full은 `c7a0c5e0`의 실행으로 이 후속 수정을 포함하지 않는다.
-나머지 결과를 확인한 뒤 최종 수정 source에서 전체 검증을 다시 실행한다.
+후속 수정 `f3264aeffce3c6a07ea07bb3a41097edf26ce15a`을 게시했다.
+같은 head의 [Hosted Fast 36304842192](https://github.com/progresshans/godj/actions/runs/36304842192)는 실제 Go feedback까지 성공했다.
+확인된 실패를 모두 수정한 source의 [Hosted full 36305013585](https://github.com/progresshans/godj/actions/runs/36305013585)을 시작했고 현재 queue/run 중이다.
+이 교체 실행으로 이전 `c7a0c5e0`의 실행은 cancelled로 종료됐다. 실패·취소·미완료 job은 성공으로 세지 않는다.
+이후 Markdown 기록 commit과 실행 head를 구분하며, 전체 PASS는 새 실행이 끝난 뒤 판단한다.
 
 
 ## GDJ-0100 — 관리 기능의 Hosted 통합에서 발견한 소비자와 참조 증거 수정
@@ -104,7 +107,8 @@ inventory가 거부했다. 이를 PASS로 세지 않고 owner를 명시한 뒤 �
 구현 `c7a0c5e0763d7a531f52c3ea9a4bc8af276ffabb`을 게시했고,
 [Hosted Fast 36303277121](https://github.com/progresshans/godj/actions/runs/36303277121)의 실제 Go feedback도 같은 head에서 성공했다. 같은 head의
 [Hosted full 36303289415](https://github.com/progresshans/godj/actions/runs/36303289415)을 다시 시작했다.
-현재 queue/run 중이며 전체 PASS가 아니다. 이후 Markdown 기록만 바꾸는 commit은 이 실행의 head와 구분한다.
+이후 PTY 관찰·합산 fingerprint 실패가 발견돼 후속 수정과 새 전체 실행으로 이어졌다. 전체 PASS가 아니다.
+Markdown 기록만 바꾸는 commit은 이 실행의 head와 구분한다.
 마지막 성공한 Hosted 전체는 `01b67211a083c507d5e69c6be26702439aada559`의
 [36253381368](https://github.com/progresshans/godj/actions/runs/36253381368)이며, 이후 기능의 전체 PASS로 전이하지 않는다.
 

@@ -26,9 +26,9 @@ View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변�
 ## 다음 행동
 
 관리 소비자와 입력 경계의 통합 수정을 게시했고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
-구현 `c7a0c5e0`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36303289415)이 진행 중이며,
-추가로 드러난 PTY 에코 관찰의 시점 문제와 Python 합산 fingerprint를 수정·검증했다.
-현재 실행의 나머지 결과를 확인한 뒤 이 후속 수정을 포함한 source에서 Hosted 전체를 다시 실행한다.
+추가로 드러난 PTY 에코 관찰의 시점 문제와 Python 합산 fingerprint도 수정·검증했다.
+최종 수정 `f3264aef`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36305013585)이 진행 중이다.
+전체 결과를 확인한 뒤 다음 lifecycle을 이어간다.
 그 다음은 사용 불가능한 password의 credential/session 표현과 last_login을 연결하고, self-service/reset을 구현한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.
 
