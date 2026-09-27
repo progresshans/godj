@@ -3,7 +3,6 @@ package identitytest
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -19,6 +18,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -41,15 +41,33 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 }
 
 func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
+	return newIdentityHTTPConfigured(t, authenticator, store, nil, nil, extra...)
+}
+
+func newIdentityHTTPWithRuntime(t *testing.T, runtime *systemstate.Runtime, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
+	return newIdentityHTTPConfigured(t, runtime.Authenticator(), runtime.SessionStore(), runtime.LoginPersistence, nil, extra...)
+}
+
+func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, login func(*sessions.Manager) (auth.LoginPersistence, error), clock func() time.Time, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
 	t.Helper()
-	observedAt := time.Now().UTC()
-	manager, err := sessions.NewManager(store, sessions.Config{Clock: func() time.Time { return observedAt }})
+	observedAt := time.Now().UTC().Truncate(time.Microsecond)
+	if clock == nil {
+		clock = func() time.Time { return observedAt }
+	}
+	manager, err := sessions.NewManager(store, sessions.Config{Clock: clock})
 	if err != nil {
 		t.Fatal(err)
 	}
 	config := sessionauth.Config{Sessions: manager, Authenticator: authenticator, Authorizer: auth.PrincipalAuthorizer{},
 		SessionCookie: sessionauth.CookieConfig{AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{AllowInsecure: true},
 		LoginPath: "/login/", FallbackPath: "/", AllowedNextPaths: []string{"/", "/login/", "/view/", "/change/", "/deny/"}}
+	config.Clock = clock
+	if login != nil {
+		config.LoginPersistence, err = login(manager)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	runtime, err := sessionauth.New(config)
 	if err != nil {
 		t.Fatal(err)
@@ -106,8 +124,13 @@ func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthent
 			if err != nil {
 				return web.NewResponse(400, nil, nil)
 			}
-			result, err := runtime.Login(request, request.HTTP().Header.Get("X-Test-Username"), string(password))
-			if errors.Is(err, auth.ErrInvalidCredentials) {
+			var result sessionauth.LoginResult
+			if request.HTTP().Header.Get("X-Test-Staff") == "required" {
+				result, err = runtime.LoginStaff(request, request.HTTP().Header.Get("X-Test-Username"), string(password), "")
+			} else {
+				result, err = runtime.Login(request, request.HTTP().Header.Get("X-Test-Username"), string(password))
+			}
+			if err == auth.ErrInvalidCredentials {
 				return web.NewResponse(401, nil, nil)
 			}
 			if err != nil {

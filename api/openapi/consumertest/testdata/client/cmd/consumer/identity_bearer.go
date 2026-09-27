@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"time"
 
 	ib "example.com/godj-openapi-client/identitybearer"
 )
@@ -29,6 +30,22 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	for _, user := range page.Items {
 		if !user.PasswordUsable {
 			return fail("identity bearer list password status")
+		}
+	}
+	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
+	detail, err := client.GodjIdentityIdentityUsersDetail(ctx, ib.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
+	logged, ok := detail.(*ib.UserHeaders)
+	if err != nil || !ok || logged.Response.LastLogin.Null || !logged.Response.LastLogin.Value.Equal(loginAt) || logged.Response.Revision != 1 {
+		return fail("identity identity_bearer native login timestamp")
+	}
+	for _, user := range page.Items {
+		wantLogin := user.ID == target.ActorID || user.ID == target.TargetID
+		if wantLogin {
+			if user.LastLogin.Null || !user.LastLogin.Value.Equal(loginAt) {
+				return fail("identity identity_bearer list login timestamp")
+			}
+		} else if !user.LastLogin.Null {
+			return fail("identity identity_bearer never logged in timestamp")
 		}
 	}
 	viewer, err := ib.NewClient(target.URL, identityBearerSource{target.ReadOnlyToken}, ib.WithClient(httpClient))

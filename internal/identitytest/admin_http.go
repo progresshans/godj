@@ -61,7 +61,11 @@ func newIdentityAdminHTTP(t *testing.T, f *managementFixture, backend identityad
 	if err != nil {
 		t.Fatal(err)
 	}
-	authRuntime, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: f.runtime.Authenticator(), Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: paths})
+	loginPersistence, err := f.runtime.LoginPersistence(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authRuntime, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: f.runtime.Authenticator(), LoginPersistence: loginPersistence, Clock: func() time.Time { return now }, Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: paths})
 	if err != nil {
 		t.Fatal(err)
 	}

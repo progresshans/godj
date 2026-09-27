@@ -66,8 +66,8 @@ var requiredChecks = [...]string{
 	"generated_int64_wire",
 	"generated_response_rejections",
 	"pre_canceled_request",
-	"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_stale_bearer_current_authorization",
-	"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_host_deletion",
+	"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_stale_bearer_current_authorization",
+	"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_host_deletion",
 	"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire",
 }
 
@@ -173,9 +173,9 @@ func run(ctx context.Context, config input) ([]string, error) {
 			"generated_int64_wire", "generated_response_rejections",
 			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire", "generated_collection_wire",
 		}},
-		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status"}},
+		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login"}},
 		{func() error { return checkIdentitySession(ctx, config.IdentitySession) }, []string{
-			"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_host_deletion",
+			"identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_host_deletion",
 		}},
 		{func() error { return checkIdentityStaleBearer(ctx, config.IdentityBearer) }, []string{"identity_stale_bearer_current_authorization"}},
 		{func() error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire"}},

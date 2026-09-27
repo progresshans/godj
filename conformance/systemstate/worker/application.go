@@ -228,7 +228,12 @@ func composeWorkerSite(
 	if err != nil {
 		return nil, fail(errorApplication)
 	}
+	loginPersistence, err := runtime.LoginPersistence(manager)
+	if err != nil {
+		return nil, fail(errorApplication)
+	}
 	webAuth, err := websessionauth.New(websessionauth.Config{
+		LoginPersistence: loginPersistence,
 		Sessions:         manager,
 		Authenticator:    runtime.Authenticator(),
 		Authorizer:       auth.PrincipalAuthorizer{},

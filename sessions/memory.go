@@ -103,6 +103,14 @@ func (s *MemoryStore) Access(ctx context.Context, id ID, policy AccessPolicy) (R
 }
 
 func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {
+	return s.replace(ctx, oldID, replacement, false)
+}
+
+func (s *MemoryStore) Replace(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {
+	return s.replace(ctx, oldID, replacement, true)
+}
+
+func (s *MemoryStore) replace(ctx context.Context, oldID ID, replacement Record, fresh bool) (Record, bool, error) {
 	if err := validStoreCall(ctx, s, oldID); err != nil {
 		return Record{}, false, err
 	}
@@ -118,7 +126,7 @@ func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) 
 	if !exists {
 		return Record{}, false, nil
 	}
-	if !replacement.createdAt.Equal(current.createdAt) || !replacement.absoluteExpiresAt.Equal(current.absoluteExpiresAt) {
+	if !fresh && (!replacement.createdAt.Equal(current.createdAt) || !replacement.absoluteExpiresAt.Equal(current.absoluteExpiresAt)) {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotation must preserve creation and absolute expiry"}
 	}
 	rotationAt := replacement.accessedAt
@@ -128,6 +136,11 @@ func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) 
 	}
 	if _, collision := s.records[replacement.id]; collision {
 		return Record{}, false, &Error{Code: CodeEntropy, Detail: "replacement session identifier collided"}
+	}
+	if fresh {
+		delete(s.records, oldID)
+		s.records[replacement.id] = replacement
+		return replacement, true, nil
 	}
 	accessedAt := replacement.accessedAt
 	if accessedAt.Before(current.accessedAt) {

@@ -186,7 +186,7 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 				if err != nil {
 					t.Fatal(err)
 				}
-				h := newIdentityHTTPWithStore(t, reopened.Authenticator(), reopened.SessionStore())
+				h := newIdentityHTTPWithRuntime(t, reopened)
 				h.login(t, h.client, username, managementNewPassword, 200)
 				if trimmed := strings.TrimSpace(managementNewPassword); trimmed != managementNewPassword {
 					h.login(t, h.newClient(t), username, trimmed, 401)

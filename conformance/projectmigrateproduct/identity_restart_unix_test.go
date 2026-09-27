@@ -102,7 +102,7 @@ func authenticatedRestartAssertIdentity(t *testing.T, snapshot authenticatedRest
 	if row.ID != 1 || row.PrincipalID != "article-development-admin" || row.Username != username ||
 		row.EncodedPassword == "" || strings.Contains(row.EncodedPassword, password) ||
 		!row.Active || !row.Staff || !row.Superuser || row.Revision != 1 || row.DateJoined.IsZero() ||
-		row.LastLogin.Valid || row.FirstName != "" || row.LastName != "" || row.Email != "" {
+		row.FirstName != "" || row.LastName != "" || row.Email != "" {
 		t.Fatal("restart identity credential, profile, roles, or revision differs")
 	}
 	codes := []string{"godj.admin.access", "godj_conformance.add_article", "godj_conformance.change_article", "godj_conformance.delete_article", "godj_conformance.view_article"}
@@ -134,4 +134,28 @@ func authenticatedRestartAssertDurableIdentityUnchanged(t *testing.T, before, af
 	if len(before.Identity.Users) != 1 || !reflect.DeepEqual(before.Identity, after.Identity) {
 		t.Fatal("identity user, grants, or receipt changed across runtime processes")
 	}
+}
+
+func authenticatedRestartAssertLoginTime(t *testing.T, snapshot authenticatedRestartDatabaseSnapshot, phase authenticatedRestartPhaseAState) {
+	t.Helper()
+	if len(snapshot.Identity.Users) != 1 {
+		t.Fatal("login user missing")
+	}
+	value := snapshot.Identity.Users[0].LastLogin
+	if !value.Valid || value.Time.Before(phase.LoginStarted) || value.Time.After(phase.LoginEnded) || value.Time.Nanosecond()%1000 != 0 {
+		t.Fatal("restart login observation missing, outside HTTP login interval, or noncanonical")
+	}
+}
+
+func authenticatedRestartAssertOnlyLoginChanged(t *testing.T, before, after authenticatedRestartDatabaseSnapshot, phase authenticatedRestartPhaseAState) {
+	t.Helper()
+	authenticatedRestartAssertLoginTime(t, after, phase)
+	if len(before.Identity.Users) != 1 || before.Identity.Users[0].LastLogin.Valid {
+		t.Fatal("pre-login identity already records a login")
+	}
+	// Compare every other persisted field with a detached copy. The actual
+	// timestamp was independently bounded by the observed HTTP login above.
+	after.Identity.Users = append([]authenticatedRestartIdentityRow(nil), after.Identity.Users...)
+	after.Identity.Users[0].LastLogin = before.Identity.Users[0].LastLogin
+	authenticatedRestartAssertDurableIdentityUnchanged(t, before, after)
 }

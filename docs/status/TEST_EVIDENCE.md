@@ -5,6 +5,69 @@
 
 
 
+
+## GDJ-0100 — 저장 로그인 관찰과 원자 세션 수립
+
+2026-09-27, `2f44a1ab` 이후 non-Markdown **2,466 파일**의 source map
+`00993309981c73bf13f4e046fbadd2dd2399a1d16bfc9d1cb625bb1ce3df1b7f`를 고정했다.
+저장 Identity의 last_login·세션 수립과 현재 credential/admission을 같은 native coordinated transaction에 연결했다.
+관찰은 관리 revision/audit를 늘리지 않는다. 계정 교체는 이전 payload와 lifetime을 버리는 원자 Replace를 사용한다.
+
+- 양 DB에서 실제 HTTP 인증만 수행한 경우, 잘못된 비밀번호/nonstaff 거부, 익명 payload 보존, 재로그인·계정 교체·접근·logout,
+  UTC microsecond와 revision/audit 보존, reopen, 실제 Admin 읽기 전용 표시·API와 입력 위조를 검사했다.
+- Create/Rotate/Replace의 callback zero/nil/twice/swallow, insert 전후·delete 후·last_login 쓰기 전후 실패,
+  취소·unknown rollback/commit·commit 뒤 취소를 실제 native transaction에서 검증했다. Unknown에는 결과를 게시하거나 재시도하지 않는다.
+  읽기 뒤 만료된 세션의 cleanup도 로그인 실패와 함께 rollback한다.
+- 인증 뒤 password/active/staff/grant/삭제 변경을 마지막 fence에서 거부한다. 다른 runtime의 profile 편집과 동시 로그인은
+  시각과 관리 revision을 모두 보존한다. 비밀번호 변경과 동시 로그인은 stale 신규 세션을 남기지 않는다.
+  웹 binding은 정확한 manager, typed-nil 거부, 불완전/다른 ID/stamp 결과의 cookie 비게시와 현재 Principal 게시를 검사했다.
+- Store.Replace의 lifetime/소유 데이터·충돌·누락·만료·취소와 Manager의 source 공유·Peek 무변경을 검증했다.
+  wrapper에 포함된 collision/capacity 원인이 unknown 오류를 지우거나 재시도를 유도하지 않는지 확인했다.
+- 두 독립 Session/Bearer 생성 client는 실제 HTTP 로그인 뒤 User/UserSummary의 nullable last_login을 소비한다.
+  부모는 reopen한 DB의 정확한 시각·revision·credential/session/audit를 확인한다. 기존 다섯 OpenAPI profile의 generated drift,
+  독립 module build·실제 HTTP 소비가 세 mode에서 모두 성공했다. Schema IR/모델 migration 변경은 없다.
+
+| 모드 | 필수 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 15 packages / 315 roots / 1,657 필수 항목 | 2,259 PASS / skip 0 | 83.645초 |
+| race | 15 packages / 315 roots / 1,657 필수 항목 | 2,259 PASS / skip 0 | 342.605초 |
+| CGO=0 | 15 packages / 315 roots / 1,657 필수 항목 | 2,259 PASS / skip 0 | 92.277초 |
+
+총 **6,777 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly Go,
+`TZ=Pacific/Chatham`, `GODJ_REQUIRE_POSTGRES=1`에서 scope를 `go test -json -count=1 -p=2 -timeout=20m`과 각 mode로 실행했다.
+필수 run/pass와 package 종료를 감사했고 private PostgreSQL 17.10 UTF8/libc/C의 종료 `0|0|0`·container 제거를 확인했다.
+Normal DB와 소비자는 앞서 통과한 결과를 재사용했다. 그 뒤의 차이가 각각 소비자 테스트 파일/systemstate의 테스트 전용 DSN,
+그리고 테스트 전용 DSN뿐임을 source map으로 확인했다. 해당 package의 실행 입력은 동일하며 재사용 receipt를 구분한다.
+Final checkpoint의 시작/종료 source map도 동일하다. Race와 CGO=0은 이 final source의 모든 선택 scope를 실행했다.
+
+독립 고정 Django 6.1/CPython 3.14.3 observer를 SQLite와 private PostgreSQL에서 실행해 9개 upstream module hash와
+일반 lifecycle·실패·인증 뒤 변경을 기록했다. 참조 테스트 **2개**, runtime mutation **3개**가 통과했다.
+Signal 누락, Authenticate의 잘못된 시각 갱신, 계정 교체 뒤 payload 잔존을 지정한 관찰 변화로 탐지한다.
+Django의 재로그인 ID 유지·시각만 남는 저장 실패·다음 요청의 stale credential 거부는 fixture에 그대로 남기고
+GoDj의 의도적인 차이를 ADR-0076/DEV-0013에 명시했다. 부작용까지 같은 동작이라고 집계하지 않는다.
+
+Go compiler overlay **6개**는 틀린 시각, 계정 간 payload 유지, credential fence 누락, rollback 누락,
+unknown 분류 누락, 관리 revision 증가를 각각 해당 assertion으로 탐지했다. Compile 실패는 통과로 인정하지 않는다.
+영향 vet, CI 도구 **41개**, gofmt·문서 링크·diff 검사도 통과했다. Python/control의 실행 입력은 final source와 동일함을
+별도 receipt로 확인했다. Process worker와 양 DB의 global Article 재시작 검사는 로그인 HTTP 시간 구간과
+이후 시각 불변성을 검증하도록 보강했으며 로컬 compile만 확인했다. 실제 process/platform 실행은 아래 통합 milestone이 소유한다.
+
+최초 실행의 실패는 보존했다. 삭제 fixture가 relation 정책 없이 raw delete를 호출한 점은 실제 Manager.DeleteUser 경로로 고쳤다.
+기존 복구 테스트의 nil last_login 기대는 실제 로그인 시각을 정확히 확인한 후 다른 모든 field를 비교하도록 보강했다.
+독립 client의 잘못된 generated detail 응답 타입/변수 충돌도 수정했다. 이어 race 실행에서 중복 subtest의 `#`가
+SQLite URI fragment로 해석돼 TempDir 밖 DB가 재사용된 것을 확인했다. Fixture DSN을 URL 인코딩하고 해당 32 KiB DB를
+실패 checkpoint에 보존했으며 공통 scope를 normal/race/CGO=0에서 다시 통과했다. 실패 실행은 PASS 합계에 포함하지 않았다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-lifecycle-checkpoint-1790507318155416000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-lifecycle-checkpoint-1790507318155416000/supplemental.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/login-lifecycle-reference-1790505710776084000/receipt.json`
+
+이번 저장 로그인·세션 수립 통합 milestone은 새 source의 Hosted 전체 platform/cold-build/process 검증을 소유한다.
+현재 로컬 영향 검증은 완료했고 Hosted 전체는 아직 실행 전이다. 로컬 전체 검증을 추가로 중복 실행하지 않았다.
+이전 `f3264aef`의 Hosted full을 이 변경의 전체 성공으로 전이하지 않는다.
+
+
 ## GDJ-0100 — 현재 password 상태의 Admin/API 표현
 
 2026-09-27, `b162f001` 이후 non-Markdown **2,452 파일**의 source map

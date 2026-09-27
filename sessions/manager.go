@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -37,16 +38,21 @@ type Manager struct {
 	idleTimeout      time.Duration
 	accessPolicy     AccessPolicy
 	limits           Limits
-	clock            func() time.Time
-	random           io.Reader
-	sourceMu         sync.Mutex
+	sources          *managerSources
+}
+
+// Rebound managers share one serialized clock and entropy owner.
+type managerSources struct {
+	clock  func() time.Time
+	random io.Reader
+	mu     sync.Mutex
 }
 
 func (*Manager) String() string   { return "sessions.Manager{redacted}" }
 func (*Manager) GoString() string { return "sessions.Manager{redacted}" }
 
 func NewManager(store Store, config Config) (*Manager, error) {
-	if store == nil {
+	if nilStore(store) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "store", Detail: "store is nil"}
 	}
 	if config.AbsoluteLifetime == 0 {
@@ -76,14 +82,47 @@ func NewManager(store Store, config Config) (*Manager, error) {
 		absoluteLifetime: config.AbsoluteLifetime,
 		idleTimeout:      config.IdleTimeout,
 		limits:           limits,
-		clock:            config.Clock,
-		random:           config.Random,
+		sources:          &managerSources{clock: config.Clock, random: config.Random},
 	}
 	manager.accessPolicy, err = NewAccessPolicy(config.IdleTimeout, limits, manager.now)
 	if err != nil {
 		return nil, err
 	}
 	return manager, nil
+}
+
+// Store returns this manager's persistence binding without I/O.
+func (m *Manager) Store() Store {
+	if m == nil {
+		return nil
+	}
+	return m.store
+}
+
+// WithStore prepares an independent persistence binding with the same policy
+// and serialized sources. A transaction-scoped store must not escape its owner;
+// this method does not start a transaction or change the original manager.
+func (m *Manager) WithStore(store Store) (*Manager, error) {
+	if err := m.validCall(context.Background()); err != nil {
+		return nil, err
+	}
+	if nilStore(store) {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "store", Detail: "store is nil"}
+	}
+	result := *m
+	result.store = store
+	return &result, nil
+}
+
+func nilStore(store Store) bool {
+	if store == nil {
+		return true
+	}
+	switch value := reflect.ValueOf(store); value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	}
+	return false
 }
 
 // Load returns a detached active record and atomically advances its sliding
@@ -115,6 +154,39 @@ func (m *Manager) Load(ctx context.Context, id ID) (Record, bool, error) {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touched record"}
 	}
 	return touched, true, nil
+}
+
+// Peek reads an active record without extending its lifetime or deleting an
+// expired row. Login uses it before the atomic create/rotation decision so a
+// failed admission cannot publish a separate sliding-expiry write.
+func (m *Manager) Peek(ctx context.Context, id ID) (Record, bool, error) {
+	if err := m.validCall(ctx); err != nil {
+		return Record{}, false, err
+	}
+	if !id.Valid() {
+		return Record{}, false, &Error{Code: CodeInvalidInput, Field: "session_id", Detail: "session identifier is invalid"}
+	}
+	record, found, err := m.store.Load(ctx, id)
+	if err != nil {
+		return Record{}, false, storeFailure("peek", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return Record{}, false, err
+	}
+	if !found {
+		return Record{}, false, nil
+	}
+	if !record.valid(m.limits) || record.id != id {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid session record"}
+	}
+	now := m.now()
+	if now.IsZero() {
+		return Record{}, false, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
+	}
+	if record.expired(now) {
+		return Record{}, false, nil
+	}
+	return record, true, nil
 }
 
 // Create publishes a new 256-bit session with detached validated values.
@@ -177,14 +249,16 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		if err != nil {
 			return Record{}, err
 		}
+		if id == current.id {
+			continue
+		}
 		replacement := current
 		replacement.id = id
 		replacement.accessedAt = now
 		replacement.idleExpiresAt = minimumTime(now.Add(m.idleTimeout), current.absoluteExpiresAt)
 		published, rotated, err := m.store.Rotate(ctx, current.id, replacement)
 		if err != nil {
-			var classified *Error
-			if errors.As(err, &classified) && classified.Code == CodeEntropy {
+			if classified, ok := err.(*Error); ok && classified != nil && classified.Code == CodeEntropy && classified.Cause == nil {
 				continue
 			}
 			return Record{}, storeFailure("rotate", err)
@@ -198,6 +272,51 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		return published, nil
 	}
 	return Record{}, &Error{Code: CodeEntropy, Detail: "session rotation collision limit was reached"}
+}
+
+// Replace starts a fresh lifetime and drops the previous values. The store
+// replaces the existing identifier atomically, never by Delete then Create.
+// Only a confirmed identifier collision may retry with new entropy.
+func (m *Manager) Replace(ctx context.Context, current Record, values map[string]string) (Record, error) {
+	if err := m.validCall(ctx); err != nil {
+		return Record{}, err
+	}
+	if !current.valid(m.limits) {
+		return Record{}, &Error{Code: CodeInvalidRecord, Field: "record", Detail: "session record is invalid"}
+	}
+	if err := validateValues(values, m.limits); err != nil {
+		return Record{}, err
+	}
+	now := m.now()
+	if now.IsZero() {
+		return Record{}, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
+	}
+	for attempt := 0; attempt < maximumIDAttempts; attempt++ {
+		id, err := m.newID()
+		if err != nil {
+			return Record{}, err
+		}
+		if id == current.id {
+			continue
+		}
+		absolute := now.Add(m.absoluteLifetime)
+		replacement := newRecord(id, values, now, now, absolute, minimumTime(now.Add(m.idleTimeout), absolute))
+		published, replaced, err := m.store.Replace(ctx, current.id, replacement)
+		if err != nil {
+			if classified, ok := err.(*Error); ok && classified != nil && classified.Code == CodeEntropy && classified.Cause == nil {
+				continue
+			}
+			return Record{}, storeFailure("replace", err)
+		}
+		if !replaced {
+			return Record{}, &Error{Code: CodeNotFound, Detail: "session is missing or expired"}
+		}
+		if !published.valid(m.limits) || published.id != replacement.id {
+			return Record{}, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid replacement session record"}
+		}
+		return published, nil
+	}
+	return Record{}, &Error{Code: CodeEntropy, Detail: "session replacement collision limit was reached"}
 }
 
 // Delete removes one session. Deleting an absent ID is idempotent.
@@ -224,7 +343,7 @@ func (m *Manager) validCall(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if m == nil || m.store == nil || m.clock == nil || m.random == nil {
+	if m == nil || m.store == nil || m.sources == nil || m.sources.clock == nil || m.sources.random == nil {
 		return &Error{Code: CodeInvalidConfig, Detail: "session manager is nil or uninitialized"}
 	}
 	return nil
@@ -232,24 +351,23 @@ func (m *Manager) validCall(ctx context.Context) error {
 
 func (m *Manager) newID() (ID, error) {
 	buffer := make([]byte, sessionIDBytes)
-	m.sourceMu.Lock()
-	defer m.sourceMu.Unlock()
-	if _, err := io.ReadFull(m.random, buffer); err != nil {
+	m.sources.mu.Lock()
+	defer m.sources.mu.Unlock()
+	if _, err := io.ReadFull(m.sources.random, buffer); err != nil {
 		return ID{}, &Error{Code: CodeEntropy, Detail: "session entropy source failed", Cause: err}
 	}
 	return ID{encoded: base64.RawURLEncoding.EncodeToString(buffer)}, nil
 }
 
 func (m *Manager) now() time.Time {
-	m.sourceMu.Lock()
-	defer m.sourceMu.Unlock()
-	now := m.clock()
+	m.sources.mu.Lock()
+	defer m.sources.mu.Unlock()
+	now := m.sources.clock()
 	return canonicalTime(now)
 }
 
 func storeFailure(operation string, cause error) error {
-	var classified *Error
-	if errors.As(cause, &classified) && classified.Code == CodeStoreFull {
+	if classified, ok := cause.(*Error); ok && classified != nil && classified.Code == CodeStoreFull && classified.Cause == nil {
 		return classified
 	}
 	return &Error{Code: CodeStoreFailure, Detail: operation + " operation failed", Cause: cause}

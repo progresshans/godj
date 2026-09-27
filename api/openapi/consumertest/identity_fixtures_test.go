@@ -2,6 +2,10 @@ package consumertest_test
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"reflect"
 	"slices"
 	"strings"
@@ -24,6 +28,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/web"
 	websession "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -61,7 +66,8 @@ func identityConsumerSources(t *testing.T) []definition.Source {
 // Both profiles operate on one durable store. The Session profile resolves live
 // credentials; the Bearer verifier deliberately returns its original snapshot.
 // The final Bearer request must therefore still be denied after Session disables
-// the actor. This fixture does not implement a token issuer or a login endpoint.
+// the actor. The session clients start from native HTTP login; token issuance
+// remains the explicit static test verifier above.
 func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identityServerInput, map[string][]byte, func(*testing.T)) {
 	t.Helper()
 	ctx := t.Context()
@@ -145,7 +151,8 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if _, err := hostmodels.AccessNoteObjects.Create(ctx, backend, hostmodels.NewAccessNoteCreate("Cascade with permission", cascadePermission.ID)); err != nil {
 		t.Fatal(err)
 	}
-	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{})
+	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
+	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{Clock: func() time.Time { return loginAt }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +167,6 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		}
 		return record
 	}
-	actorSession, targetSession := seedSession(root.PrincipalID), seedSession(target.PrincipalID)
 	// These sessions never travel through HTTP: lazy invalidation by a later
 	// request must not substitute for transactional revocation of all sessions.
 	actorUnusedSession, targetUnusedSession := seedSession(root.PrincipalID), seedSession(target.PrincipalID)
@@ -168,7 +174,12 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
+	loginPersistence, err := runtime.LoginPersistence(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
 	webAuth, err := websession.New(websession.Config{
+		LoginPersistence: loginPersistence, Clock: func() time.Time { return loginAt },
 		Sessions: manager, Authenticator: runtime.Authenticator(), Authorizer: auth.PrincipalAuthorizer{},
 		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
 		FallbackPath: identityapi.BasePath + "users/", AllowedNextPaths: []string{identityapi.BasePath + "users/"},
@@ -176,6 +187,85 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Establish sessions through real HTTP so last_login is an observed login,
+	// not fixture data written into the model or a manually minted bearer.
+	loginURL := serveConsumerAPI(t, "identity_login", []apps.Config{{Name: "github.com/progresshans/godj/identity", Label: "godj_identity"}}, []web.Route{
+		{Name: "godj_identity:csrf", Method: "GET", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
+			token, err := webAuth.CSRFToken(request)
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := web.NewResponse(200, nil, []byte(token.Value()))
+			if err != nil {
+				return web.Response{}, err
+			}
+			return token.Apply(response)
+		}},
+		{Name: "godj_identity:login", Method: "POST", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
+			if err := webAuth.VerifyCSRF(request, nil); err != nil {
+				return web.NewResponse(403, nil, nil)
+			}
+			result, err := webAuth.Login(request, request.HTTP().Header.Get("X-Test-Username"), "original SDK password")
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := web.NewResponse(200, nil, nil)
+			if err != nil {
+				return web.Response{}, err
+			}
+			return result.Apply(response)
+		}},
+	}, nil)
+	httpLogin := func(username string) sessions.Record {
+		t.Helper()
+		jar, err := cookiejar.New(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+		response, err := client.Get(loginURL + "/login/")
+		if err != nil {
+			t.Fatal(err)
+		}
+		token, err := io.ReadAll(response.Body)
+		closed := response.Body.Close()
+		if err != nil || closed != nil || response.StatusCode != 200 {
+			t.Fatal("consumer CSRF setup failed")
+		}
+		request, err := http.NewRequestWithContext(ctx, "POST", loginURL+"/login/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("X-Test-Username", username)
+		request.Header.Set(websession.DefaultCSRFHeader, string(token))
+		response, err = client.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, readErr := io.Copy(io.Discard, response.Body)
+		closed = response.Body.Close()
+		if readErr != nil || closed != nil || response.StatusCode != 200 {
+			t.Fatal("consumer native login failed")
+		}
+		endpoint, _ := url.Parse(loginURL)
+		for _, cookie := range jar.Cookies(endpoint) {
+			if cookie.Name == websession.DefaultSessionCookieName {
+				id, err := sessions.ParseID(cookie.Value)
+				if err != nil {
+					t.Fatal(err)
+				}
+				record, found, err := runtime.SessionStore().Load(ctx, id)
+				if err != nil || !found {
+					t.Fatal("consumer native login missing session", err)
+				}
+				return record
+			}
+		}
+		t.Fatal("consumer native login missing cookie")
+		return sessions.Record{}
+	}
+	actorSession, targetSession := httpLogin(root.Username), httpLogin(target.Username)
+	root.LastLogin, target.LastLogin = &loginAt, &loginAt
 	sessionAuth, err := apisession.New(webAuth)
 	if err != nil {
 		t.Fatal(err)

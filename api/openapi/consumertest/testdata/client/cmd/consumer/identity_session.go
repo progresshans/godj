@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	is "example.com/godj-openapi-client/identitysession"
 )
@@ -41,6 +42,22 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	}
 	if !page.Response.Items[0].PasswordUsable {
 		return fail("identity session list password status")
+	}
+	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
+	loginDetail, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
+	logged, ok := loginDetail.(*is.GodjIdentityIdentityUsersDetailOKHeaders)
+	if err != nil || !ok || logged.Response.LastLogin.Null || !logged.Response.LastLogin.Value.Equal(loginAt) || logged.Response.Revision != 1 {
+		return fail("identity identity_session native login timestamp")
+	}
+	for _, user := range page.Response.Items {
+		wantLogin := user.ID == target.ActorID || user.ID == target.TargetID
+		if wantLogin {
+			if user.LastLogin.Null || !user.LastLogin.Value.Equal(loginAt) {
+				return fail("identity identity_session list login timestamp")
+			}
+		} else if !user.LastLogin.Null {
+			return fail("identity identity_session never logged in timestamp")
+		}
 	}
 	groups, err := client.GodjIdentityIdentityGroupsList(ctx, is.GodjIdentityIdentityGroupsListParams{})
 	groupPage, ok := groups.(*is.GroupPageHeaders)

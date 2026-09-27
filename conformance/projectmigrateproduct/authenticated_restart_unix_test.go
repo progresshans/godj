@@ -111,7 +111,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectDatabase(t, databasePath)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
-	authenticatedRestartAssertDurableIdentityUnchanged(t, provisionedSnapshot, phaseASnapshot)
+	authenticatedRestartAssertOnlyLoginChanged(t, provisionedSnapshot, phaseASnapshot, phaseAState)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 
 	phaseB := authenticatedRestartRunServer(
@@ -146,14 +146,16 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 }
 
 type authenticatedRestartPhaseAState struct {
-	SessionCookie string
-	CSRFCookie    string
-	StaleCSRF     string
+	LoginStarted, LoginEnded time.Time
+	SessionCookie            string
+	CSRFCookie               string
+	StaleCSRF                string
 }
 
 type authenticatedRestartLoginState struct {
-	SessionCookie string
-	CSRFCookie    string
+	Started, Ended time.Time
+	SessionCookie  string
+	CSRFCookie     string
 }
 
 type authenticatedRestartPhaseResult struct {
@@ -572,6 +574,7 @@ func authenticatedRestartExercisePhaseA(
 		SessionCookie: login.SessionCookie,
 		CSRFCookie:    login.CSRFCookie,
 		StaleCSRF:     csrf,
+		LoginStarted:  login.Started, LoginEnded: login.Ended,
 	}, nil
 }
 
@@ -735,6 +738,7 @@ func authenticatedRestartLogin(
 		"password":            {password},
 		"next":                {"/admin/articles/"},
 	}
+	started := time.Now().UTC().Truncate(time.Microsecond)
 	login, err := authenticatedRestartRequest(
 		client,
 		http.MethodPost,
@@ -775,6 +779,7 @@ func authenticatedRestartLogin(
 	return authenticatedRestartLoginState{
 		SessionCookie: sessionCookie.Value,
 		CSRFCookie:    rotatedCSRF.Value,
+		Started:       started, Ended: time.Now().UTC(),
 	}, nil
 }
 
@@ -1299,6 +1304,7 @@ func authenticatedRestartAssertPhaseAState(
 		{ID: 3, Title: "Admin durable", Published: true, Summary: sql.NullString{String: "admin-updated", Valid: true}},
 	})
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
+	authenticatedRestartAssertLoginTime(t, snapshot, phase)
 	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
 	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
 		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},
@@ -1339,6 +1345,9 @@ func authenticatedRestartAssertProvisionedState(
 		)
 	}
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
+	if snapshot.Identity.Users[0].LastLogin.Valid {
+		t.Fatal("provisioning recorded a login")
+	}
 }
 
 func authenticatedRestartAssertCredentialUnchanged(
@@ -1370,6 +1379,7 @@ func authenticatedRestartAssertPhaseBState(
 		{ID: 5, Title: "API after restart", Summary: sql.NullString{String: "session survived", Valid: true}},
 	})
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
+	authenticatedRestartAssertLoginTime(t, snapshot, phase)
 	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
 	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
 		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},

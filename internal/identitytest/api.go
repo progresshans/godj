@@ -25,7 +25,7 @@ func newManagementHTTP(t *testing.T, f *managementFixture, backend identity.Mana
 	t.Helper()
 	policies := managementHost(t, f.backend)
 	var application *identityapi.Application
-	h := newIdentityHTTPWithStore(t, f.runtime.Authenticator(), f.runtime.SessionStore(), func(runtime *sessionauth.Runtime) ([]web.Route, []web.Middleware, error) {
+	h := newIdentityHTTPWithRuntime(t, f.runtime, func(runtime *sessionauth.Runtime) ([]web.Route, []web.Middleware, error) {
 		authentication, err := apisession.New(runtime)
 		if err != nil {
 			return nil, nil, err

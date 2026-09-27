@@ -219,7 +219,7 @@ func RunUserManagement(t *testing.T, open func(*testing.T) (TransitionBackend, T
 		if err != nil {
 			t.Fatal(err)
 		}
-		httpClient := newIdentityHTTPWithStore(t, reopened.Authenticator(), reopened.SessionStore())
+		httpClient := newIdentityHTTPWithRuntime(t, reopened)
 		httpClient.login(t, httpClient.client, "Renamed", managementOldPassword, 200)
 		httpClient.expect(t, httpClient.client, "/view/", 403, managementOldPassword)
 		httpClient.expect(t, httpClient.client, "/change/", 200, managementOldPassword)

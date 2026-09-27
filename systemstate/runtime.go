@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/identity"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
@@ -83,6 +84,7 @@ type Runtime struct {
 	authenticator auth.CredentialAuthenticator
 	sessionStore  *durableSessionStore
 	auditCapacity int
+	loginRecorder *identity.LoginRecorder
 }
 
 var _ db.Queryer = (*Runtime)(nil)

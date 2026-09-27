@@ -93,7 +93,8 @@ func RunUnusablePasswords(t *testing.T, open func(*testing.T) (TransitionBackend
 			checks = append(checks, err == nil)
 		}
 		assertUnusableReference(t, "checks", checks)
-		h := newIdentityHTTPWithStore(t, f.runtime.Authenticator(), f.runtime.SessionStore())
+		loginAt := time.Now().UTC().Truncate(time.Microsecond)
+		h := newIdentityHTTPConfigured(t, f.runtime.Authenticator(), f.runtime.SessionStore(), f.runtime.LoginPersistence, func() time.Time { return loginAt })
 		address, err := url.Parse(h.server.URL)
 		if err != nil {
 			t.Fatal(err)
@@ -159,6 +160,8 @@ func RunUnusablePasswords(t *testing.T, open func(*testing.T) (TransitionBackend
 		response, _ := h.request(t, h.client, "GET", "/view/", nil)
 		stored := f.stored(t)
 		assertUnusableReference(t, "restored", map[string]any{"usable": current.HasUsablePassword(), "login": err == nil, "identity": map[string]bool{"authenticated": response.StatusCode == 200, "has_view": response.StatusCode == 200}, "active": stored.Active, "staff": stored.Staff, "email_preserved": stored.Email == f.user.Email})
+		requireLoginTime(t, stored.LastLogin, loginAt)
+		stored.LastLogin = f.user.LastLogin
 		stored.EncodedPassword, stored.Revision = f.user.EncodedPassword, f.user.Revision
 		if !reflect.DeepEqual(stored, f.user) {
 			t.Fatal("password lifecycle changed unrelated profile")

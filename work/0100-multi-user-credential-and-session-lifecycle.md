@@ -79,8 +79,11 @@ scalar backfill SQL 실행, 실제 외부 compiler의 위치 인자 누락 판�
 영향 normal/race/CGO=0·양 DB·독립 Django/생성 client와 negative control 검증을 통과했으며 전체 환경 검증과 구분한다. Admin 생성의 사용 불가 선택도 고정 Django와 대조하고 영향 normal/race/CGO=0·양 DB·실제 HTTP 및 실패 경계를 통과했다.
 현재 password 상태를 같은 User snapshot에서 계산해 Admin 상세/편집과 API·독립 generated client에 연결했다.
 Read-only computed serializer와 Admin 표시 field의 입력 거부·소유권·escaping·실패를 포함해 영향 normal/race/CGO=0·양 DB·독립 참조/생성 client 검증을 통과했다.
-다음은 실제 로그인·세션 수립 경계의 last_login이다. Authenticate/Resolve·기존 session 조회와 구분하고
-세션 저장 실패·동시 credential 변경을 고정 참조와 비교한 뒤 기록/transaction 소유권을 구현한다.
+last_login과 실제 세션 수립을 같은 native transaction에 연결했다. Authenticate/Resolve·기존 세션 조회/logout은 기록하지 않는다.
+현재 credential/staff/권한을 마지막 write fence에서 다시 확인하며, 계정 교체는 기존 payload와 lifetime을 버리는 원자 교체를 사용한다.
+Admin 읽기 전용 표시·관리 API·독립 Session/Bearer client와 두 DB 재시작 소비자를 연결했다.
+고정 Django의 실패 부작용·재로그인 ID·인증 뒤 변경과 차이를 ADR-0076에 채택했고 영향 normal/race/CGO=0·양 DB 검증을 통과했다.
+저장 로그인·세션 수립의 이 통합 milestone이 새 source의 Hosted 전체 platform/process 검증을 소유한다.
 self-service password/reset은 별도 미완료 범위다.
 이후 기능을 이전 Hosted 검증의 성공으로 표시하지 않는다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

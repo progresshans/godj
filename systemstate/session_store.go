@@ -201,6 +201,14 @@ func (store *durableSessionStore) Access(
 }
 
 func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {
+	return store.replace(ctx, oldID, replacement, false)
+}
+
+func (store *durableSessionStore) Replace(ctx context.Context, oldID sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {
+	return store.replace(ctx, oldID, replacement, true)
+}
+
+func (store *durableSessionStore) replace(ctx context.Context, oldID sessions.ID, replacement sessions.Record, fresh bool) (sessions.Record, bool, error) {
 	if err := store.validCall(ctx, oldID); err != nil {
 		return sessions.Record{}, false, err
 	}
@@ -226,7 +234,7 @@ func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID,
 		if err != nil {
 			return err
 		}
-		if !replacement.CreatedAt().Equal(current.CreatedAt()) || !replacement.AbsoluteExpiresAt().Equal(current.AbsoluteExpiresAt()) {
+		if !fresh && (!replacement.CreatedAt().Equal(current.CreatedAt()) || !replacement.AbsoluteExpiresAt().Equal(current.AbsoluteExpiresAt())) {
 			return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "rotation must preserve creation and absolute expiry"}
 		}
 		rotationAt := replacement.AccessedAt()
@@ -250,27 +258,31 @@ func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID,
 			}
 			return &sessions.Error{Code: sessions.CodeEntropy, Detail: "replacement session identifier collided"}
 		}
-		accessedAt := replacement.AccessedAt()
-		if accessedAt.Before(current.AccessedAt()) {
-			accessedAt = current.AccessedAt()
-		}
-		idleExpiresAt := replacement.IdleExpiresAt()
-		if idleExpiresAt.Before(current.IdleExpiresAt()) {
-			idleExpiresAt = current.IdleExpiresAt()
-		}
-		if idleExpiresAt.After(current.AbsoluteExpiresAt()) {
-			idleExpiresAt = current.AbsoluteExpiresAt()
-		}
-		published, err = sessions.RestoreRecord(sessions.RecordSnapshot{
-			ID:                replacement.ID(),
-			Values:            replacement.Values(),
-			CreatedAt:         current.CreatedAt(),
-			AccessedAt:        accessedAt,
-			AbsoluteExpiresAt: current.AbsoluteExpiresAt(),
-			IdleExpiresAt:     idleExpiresAt,
-		}, store.limits)
-		if err != nil {
-			return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid", Cause: err}
+		if fresh {
+			published = replacement
+		} else {
+			accessedAt := replacement.AccessedAt()
+			if accessedAt.Before(current.AccessedAt()) {
+				accessedAt = current.AccessedAt()
+			}
+			idleExpiresAt := replacement.IdleExpiresAt()
+			if idleExpiresAt.Before(current.IdleExpiresAt()) {
+				idleExpiresAt = current.IdleExpiresAt()
+			}
+			if idleExpiresAt.After(current.AbsoluteExpiresAt()) {
+				idleExpiresAt = current.AbsoluteExpiresAt()
+			}
+			published, err = sessions.RestoreRecord(sessions.RecordSnapshot{
+				ID:                replacement.ID(),
+				Values:            replacement.Values(),
+				CreatedAt:         current.CreatedAt(),
+				AccessedAt:        accessedAt,
+				AbsoluteExpiresAt: current.AbsoluteExpiresAt(),
+				IdleExpiresAt:     idleExpiresAt,
+			}, store.limits)
+			if err != nil {
+				return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid", Cause: err}
+			}
 		}
 		payload, err := encodeSessionPayload(published, store.limits)
 		if err != nil {

@@ -184,65 +184,77 @@ func (r *Runtime) login(
 	if err != nil {
 		return LoginResult{}, err
 	}
-	credential, err := r.authenticator.Authenticate(httpRequest.Context(), username, password)
-	if errors.Is(err, auth.ErrInvalidCredentials) {
-		return LoginResult{}, auth.ErrInvalidCredentials
+	ctx := httpRequest.Context()
+	credential, err := r.authenticator.Authenticate(ctx, username, password)
+	if err == auth.ErrInvalidCredentials {
+		return LoginResult{}, err
 	}
 	if err != nil {
 		return LoginResult{}, authenticationFailure("credential verification failed", err)
 	}
-	principal := credential.Principal()
-	if !principal.Authenticated() || credential.SessionStamp() == "" || requireStaff && !principal.Staff() {
+	admit := func(ctx context.Context, principal auth.Principal) error {
+		if !principal.Authenticated() || requireStaff && !principal.Staff() {
+			return auth.ErrInvalidCredentials
+		}
+		if requirePermission {
+			allowed, err := r.Authorized(ctx, principal, required)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				return auth.ErrInvalidCredentials
+			}
+		}
+		return nil
+	}
+	if credential.SessionStamp() == "" {
 		return LoginResult{}, auth.ErrInvalidCredentials
 	}
-	if requirePermission {
-		allowed, err := r.Authorized(httpRequest.Context(), principal, required)
-		if err != nil {
-			return LoginResult{}, err
-		}
-		if !allowed {
-			return LoginResult{}, auth.ErrInvalidCredentials
-		}
+	if err := admit(ctx, credential.Principal()); err != nil {
+		return LoginResult{}, err
+	}
+	login := auth.SessionLogin{Credential: credential, At: r.now(), Admit: admit}
+	if err := login.Validate(); err != nil {
+		return LoginResult{}, authenticationFailure("login context is invalid", err)
 	}
 	csrfSecret, err := r.newCSRFSecret()
 	if err != nil {
 		return LoginResult{}, err
 	}
-	var record sessions.Record
 	encoded, cookieFound, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
-	// A duplicated or otherwise malformed bearer cookie is not a session that
-	// can be rotated safely. Treat it as absent and create a fresh identifier;
-	// credential and CSRF verification have already succeeded independently.
+	// A malformed or duplicated bearer cookie cannot identify a session to
+	// rotate. Verified credentials may still create a fresh session.
 	if cookieErr == nil && cookieFound {
 		if id, parseErr := sessions.ParseID(encoded); parseErr == nil {
-			loaded, found, loadErr := r.sessions.Load(httpRequest.Context(), id)
+			loaded, found, loadErr := r.sessions.Peek(ctx, id)
 			if loadErr != nil {
-				return LoginResult{}, sessionFailure("session load before login failed", loadErr)
+				return LoginResult{}, sessionFailure("session read before login failed", loadErr)
 			}
 			if found {
-				loaded, deriveErr := loaded.WithValue(auth.SessionPrincipalIDKey, principal.ID())
-				if deriveErr != nil {
-					return LoginResult{}, sessionFailure("session authentication state is invalid", deriveErr)
-				}
-				loaded, deriveErr = loaded.WithValue(auth.SessionCredentialStampKey, credential.SessionStamp())
-				if deriveErr != nil {
-					return LoginResult{}, sessionFailure("session credential state is invalid", deriveErr)
-				}
-				record, err = r.sessions.Rotate(httpRequest.Context(), loaded)
-				if err != nil {
-					return LoginResult{}, sessionFailure("session rotation failed", err)
-				}
+				login.Previous = loaded
 			}
 		}
 	}
-	if !record.ID().Valid() {
-		record, err = r.sessions.Create(httpRequest.Context(), map[string]string{
-			auth.SessionPrincipalIDKey:     principal.ID(),
-			auth.SessionCredentialStampKey: credential.SessionStamp(),
-		})
-		if err != nil {
-			return LoginResult{}, sessionFailure("session creation failed", err)
-		}
+	var committed auth.SessionLoginResult
+	if r.loginPersistence != nil {
+		committed, err = r.loginPersistence.Login(ctx, login)
+	} else {
+		committed.Credential = credential
+		committed.Record, err = auth.EstablishSession(ctx, r.sessions, credential, login.Previous)
+	}
+	if err == auth.ErrInvalidCredentials {
+		return LoginResult{}, err
+	}
+	if err != nil {
+		return LoginResult{}, sessionFailure("login persistence failed", err)
+	}
+	record := committed.Record
+	principal := committed.Credential.Principal()
+	id, _ := record.Value(auth.SessionPrincipalIDKey)
+	stamp, _ := record.Value(auth.SessionCredentialStampKey)
+	if !record.ID().Valid() || !principal.Authenticated() || principal.ID() != credential.Principal().ID() || id != principal.ID() ||
+		!committed.Credential.MatchesSessionStamp(credential.SessionStamp()) || !committed.Credential.MatchesSessionStamp(stamp) {
+		return LoginResult{}, &Error{Code: CodeSession, Detail: "login persistence returned an invalid result; reconciliation is required"}
 	}
 	change := ResponseChange{cookies: []http.Cookie{
 		r.sessionResponseCookie(record.ID().Encoded(), record.AbsoluteExpiresAt()),

@@ -651,7 +651,11 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: runtime.Authenticator(), Authorizer: authorizer, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
+	loginPersistence, err := runtime.LoginPersistence(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: runtime.Authenticator(), LoginPersistence: loginPersistence, Authorizer: authorizer, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
 	if err != nil {
 		t.Fatal(err)
 	}

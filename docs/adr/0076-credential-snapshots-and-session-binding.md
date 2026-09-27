@@ -25,9 +25,9 @@ Directory가 한 DB snapshot으로 제공한다. 저장 인증과 기존 operato
 누락·위조·stale stamp, 다른 ID, 비활성·없는 사용자는 서버 세션을 폐기하고 anonymous로 처리한다.
 폐기 실패나 backend 오류는 익명 성공으로 숨기지 않는다. 이전 형식의 ID-only 세션을 자동 승격하지 않는다.
 
-로그인 검증 뒤 저장소가 바뀌어도 이미 확인한 credential만 새 세션에 담는다. 다음 요청이 변경을 감지한다.
-한 번 허용한 요청을 소급 취소하거나 자동 재로그인·재시도하지 않는다. 로그인과 비밀번호 변경을 하나의 DB transaction으로
-직렬화한다는 보장은 이 공통 경계에 없다. 실제 durable maintenance의 transaction·revocation 소유권은 별도로 구현한다.
+공통 인증기는 이미 검증한 credential을 반환하며 자동 재로그인하지 않는다. 저장 Identity composition은 아래의
+명시적 LoginPersistence를 연결해 현재 credential/admission·세션·last_login을 같은 write fence에서 확정한다.
+이 binding이 없는 memory/legacy/custom 인증은 다음 요청의 stamp 검사 경계를 사용한다.
 
 ## 기존 operator와 Django 기준
 
@@ -115,8 +115,9 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 앞의 User/session 변경을 rollback한다. 다른 사용자와 anonymous session의 bytes는 보존한다.
 `auth.SessionPrincipalIDKey`·`SessionCredentialStampKey`가 로그인과 maintenance의 같은 서버 저장 키를 소유한다.
 
-모든 협력 writer는 같은 fence와 revision 증가를 따라야 한다. 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니다.
-이전 credential로 시작한 동시 로그인이 commit 뒤 오래된 stamp의 새 세션을 만들 수 있어 다음 요청의 resolver 검사도 유지한다.
+관리 상태를 변경하는 협력 writer는 같은 fence와 revision 증가를 따른다. 관찰 필드 last_login은 같은 fence에서
+해당 열만 갱신하며 관리 revision을 증가시키지 않는다. 저장 Identity 로그인은 현재 credential을 write 안에서 재검사한다.
+임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니며 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
 self-service 흐름과 password reset은 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
@@ -401,7 +402,7 @@ Admin은 required 확인 checkbox·CSRF·revision·change_user 권한을 갖는 
 선택하면 두 입력의 내용·일치 여부와 password 정책을 사용하지 않고 사용 불가 계정을 만든다. 비공개 렌더링과 transport/field 자원 검사는 계속 적용한다.
 Username 정규화·중복 검사와 현재 add/change 권한·감사 transaction은 같은 Manager가 소유한다.
 이 선택은 고정 Django AdminUserCreationForm의 외부 결과를 따른다. Boolean checkbox와 Django radio/field 내부 구조의 소스 호환은 약속하지 않는다.
-전체 UserCreationForm 동작과 last_login 갱신·self-service/reset·다른 인증 provider는 후속 범위다.
+전체 UserCreationForm 동작과 self-service/reset·다른 인증 provider는 후속 범위다.
 
 ## 현재 password 상태의 읽기 전용 표현
 
@@ -427,3 +428,43 @@ Reader는 I/O·인가·객체 보관을 하지 않는다. 생성 화면에는 �
 확인된 입력 거부로 form을 다시 표시할 때도 같은 snapshot의 상태를 유지한다. 실패·취소 때 부분 화면을 게시하지 않는다.
 이 표시는 Django의 `has_usable_password()` 외부 의미를 따른다. hash summary를 렌더링하는 Python widget의 복제가 아니다.
 목록/history만 지원하는 Admin `ReadOnly` 등록에 상세용 field를 주면 명시적 구성 오류로 처리한다.
+
+
+## 로그인 관찰과 세션 수립
+
+`last_login`은 실제 password 로그인에서 서버 세션을 확정할 때 기록한다. Authenticate/Resolve, bearer 검증,
+기존 세션 Access, logout, provision과 관리 생성은 기록하지 않는다. UTC microsecond로 정규화하며 API의 기존 nullable
+DateTime에 노출한다. Admin의 `Last login`은 Never 또는 UTC 시각의 읽기 전용 표시이고 입력으로 받지 않는다.
+이 관찰 때문에 관리 revision·audit를 늘리지 않으며 profile 편집·password 변경은 최신 관찰 값을 보존한다.
+
+`Runtime.LoginPersistence(manager)`는 그 Identity runtime의 durable session store를 사용하는 정확한 Manager에
+명시적으로 결합한다. 구성 중 I/O는 없으며 다른 manager/domain과 typed-nil binding은 거부한다. Article·process worker와
+저장 Identity 소비자는 이 binding을 전달한다. 기존 operator에는 User 필드가 없으므로 이 capability를 제공하지 않는다.
+공통 sessionauth는 memory/custom 인증도 사용하므로 Identity를 암묵적으로 탐지하거나 전역 hook에 연결하지 않는다.
+
+Password 검증과 첫 active/staff/permission admission, 시계·entropy는 DB write scope 밖에서 준비한다.
+`auth.SessionLogin`은 검증한 credential·이전 detached session·시각·동일 admission callback을 전달한다.
+해당 callback은 write owner를 재진입하지 않아야 한다. 저장 owner는 native coordinated transaction에서 세션을 생성/교체하고,
+현재 User·credential stamp·grant union을 다시 읽어 admission을 확인한 뒤 last_login을 갱신한다.
+현재 권한을 담은 Credential과 session 결과는 commit이 확정된 후에만 게시한다. 실패 시 세션과 시각을 함께 rollback한다.
+로그인 전에 `Peek`로 읽어 idle expiry를 별도로 늘리지 않는다. 읽기 뒤 만료된 세션의 cleanup도 실패한 로그인과 함께
+rollback하며, 다음 일반 Access/정리에서 처리한다.
+
+익명 또는 같은 principal/stamp의 재로그인은 payload와 원래 absolute lifetime을 보존하며 ID를 항상 회전한다.
+다른 principal, stale stamp 또는 partial authentication key가 있으면 `Store.Replace`가 이전 ID를 새 lifetime·auth key만
+갖는 세션으로 원자 교체한다. 이전 계정의 값은 이어받지 않는다. 일반 Store.Replace의 만료·누락·충돌 의미는 Rotate와 같다.
+Manager.WithStore는 immutable 정책과 직렬화한 clock/entropy 소유권을 공유하고 원래 store binding을 바꾸지 않는다.
+
+실패/취소/unknown outcome은 credential·session DTO와 cookie를 게시하지 않는다. 확인된 admission 거부만 정확한
+`ErrInvalidCredentials`이고 cleanup/unknown 원인에 이 sentinel이 포함되어도 정상 인증 거부로 낮추지 않는다.
+Unknown transaction/commit 분류와 cancellation을 보존하면서 private driver 진단은 제거한다. 확인된 세션 ID 충돌만
+새 entropy로 bounded retry한다. 확정 commit 뒤 발생한 cancellation은 이미 성공한 결과를 취소하지 않는다.
+
+[독립 Django 관찰](../../conformance/runners/django/login_lifecycle_reference.py)은 양 DB에서 인증만 수행한 경우,
+거부·익명 로그인·재로그인·계정 교체·접근·logout과 저장 실패/인증 뒤 변경을 관찰한다. 기준과 다른 부분은 명시한다.
+Django는 같은 계정 재로그인에서 ID를 유지할 수 있지만 GoDj는 기존 fixation 정책대로 항상 회전한다.
+Django에서 last_login 저장 뒤 session middleware 저장이 실패하면 시각만 남을 수 있고,
+인증 뒤 비밀번호/활성 상태가 바뀌면 먼저 로그인한 뒤 다음 요청에서 거부할 수 있다.
+GoDj 저장 binding은 이 두 경계를 같은 transaction과 현재 admission 재검사로 강화한다.
+정확한 Django 부작용 parity로 합산하지 않으며 [DEV-0013](../DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)과
+실행 evidence에 관찰/차이/검증 범위를 구분한다.

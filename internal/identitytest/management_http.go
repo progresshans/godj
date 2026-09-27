@@ -11,7 +11,7 @@ import (
 
 func verifyManagedPasswordHTTP(t *testing.T, runtime *systemstate.Runtime, f *managementFixture, revision int64) {
 	t.Helper()
-	h := newIdentityHTTPWithStore(t, runtime.Authenticator(), runtime.SessionStore())
+	h := newIdentityHTTPWithRuntime(t, runtime)
 	address, err := url.Parse(h.server.URL)
 	if err != nil {
 		t.Fatal(err)

@@ -3,6 +3,7 @@ package systemstate
 import (
 	"context"
 	"errors"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -22,7 +23,10 @@ import (
 func TestDurableSessionStoreAtomicAccess(t *testing.T) {
 	newStore := func(t *testing.T) sessions.Store {
 		ctx := context.Background()
-		backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "access.sqlite3"))+"?mode=rwc")
+		// Subtest names may contain # (including Go's duplicate-name suffix).
+		// Encode it as a path byte, never a URI fragment outside TempDir.
+		dsn := (&url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Join(t.TempDir(), "access.sqlite3")), RawQuery: "mode=rwc"}).String()
+		backend := openSessionStoreBackend(t, ctx, dsn)
 		t.Cleanup(func() {
 			if err := backend.Close(); err != nil {
 				t.Error(err)
@@ -33,6 +37,7 @@ func TestDurableSessionStoreAtomicAccess(t *testing.T) {
 	}
 	sessiontest.AtomicAccess(t, newStore)
 	sessiontest.AccessValidation(t, newStore)
+	sessiontest.Replacement(t, newStore)
 }
 
 func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing.T) {

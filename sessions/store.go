@@ -26,6 +26,10 @@ type Store interface {
 	Create(context.Context, Record) (created bool, err error)
 	Access(context.Context, ID, AccessPolicy) (Record, AccessStatus, error)
 	Rotate(context.Context, ID, Record) (published Record, rotated bool, err error)
+	// Replace has Rotate's atomic absence/expiry/collision behavior, but uses
+	// the new lifetime and values without retaining the previous identity's
+	// state. Its timestamps must not be merged with the old session.
+	Replace(context.Context, ID, Record) (published Record, replaced bool, err error)
 	Delete(context.Context, ID) error
 }
 

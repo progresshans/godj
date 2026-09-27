@@ -262,6 +262,13 @@ PostgreSQL은 허용한다. 실제 query/write·기존 행 보존·rollback을 �
 Float는 새 제품 의미이므로 이전 Float 데이터의 migration은 필요하지 않다. 향후 transport가 non-finite를 명시적으로 표현하거나
 SQLite adapter가 별도 저장 방식을 제공할 때 이 정책과 정확한 selector를 재검토하고 supersede한다. 제품 source와 실행 환경의 범위는 연결한 TEST_EVIDENCE를 따른다.
 
+[독립 login lifecycle 관찰](../conformance/runners/django/login_lifecycle_reference.py)과 두 backend fixture는
+last_login/세션 저장 실패 및 인증 뒤 password/active 변경을 그대로 기록한다. GoDj의 저장 Identity binding은
+last_login과 세션을 동일 transaction으로 확정하고 현재 credential/admission을 재검사한다.
+Django의 시각만 남는 실패 또는 다음 요청에서 감지하는 stale credential과 의도적으로 다르다.
+같은 계정 재로그인도 GoDj는 항상 ID를 회전한다. 계정 교체의 payload 삭제와 일반 login/access/logout 관찰은 비교한다.
+자세한 소유권과 generic/legacy 범위는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립)을 따른다.
+
 ## DEV-0014 — TimeInput의 초기 microsecond와 변경 감지를 보존
 
 - Status: Verified
@@ -1159,6 +1166,13 @@ GoDj stamp는 서버 내부의 ID·salted encoded-password digest이며 Django�
 Django key fallback, password hash upgrade 정책·unusable password·현재 로그인 세션 보존과 password-reset flow를
 이 단면의 지원으로 추론하지 않는다. ID-only 기존 세션은 재로그인이 필요하며 자동 승격하지 않는다.
 기존 operator policy CAS의 전역 revocation은 여전히 유지한다. 모델 기반 multi-user policy와 권한 갱신은 별도 구현 조건이다.
+
+[독립 login lifecycle 관찰](../conformance/runners/django/login_lifecycle_reference.py)과 두 backend fixture는
+last_login/세션 저장 실패 및 인증 뒤 password/active 변경을 그대로 기록한다. GoDj의 저장 Identity binding은
+last_login과 세션을 동일 transaction으로 확정하고 현재 credential/admission을 재검사한다.
+Django의 시각만 남는 실패 또는 다음 요청에서 감지하는 stale credential과 의도적으로 다르다.
+같은 계정 재로그인도 GoDj는 항상 ID를 회전한다. 계정 교체의 payload 삭제와 일반 login/access/logout 관찰은 비교한다.
+자세한 소유권과 generic/legacy 범위는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립)을 따른다.
 
 ## DEV-0014 — Superuser와 canonical permission 경계
 

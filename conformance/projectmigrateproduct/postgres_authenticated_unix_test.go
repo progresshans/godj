@@ -102,7 +102,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
-	authenticatedRestartAssertDurableIdentityUnchanged(t, provisionedSnapshot, phaseASnapshot)
+	authenticatedRestartAssertOnlyLoginChanged(t, provisionedSnapshot, phaseASnapshot, phaseAState)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
 

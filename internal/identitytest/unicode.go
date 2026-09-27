@@ -65,7 +65,7 @@ func RunIdentityUnicodeProfile(t *testing.T, open func(*testing.T) (TransitionBa
 			if err != nil {
 				t.Fatal(err)
 			}
-			h := newIdentityHTTPWithStore(t, reopened.Authenticator(), reopened.SessionStore())
+			h := newIdentityHTTPWithRuntime(t, reopened)
 			h.login(t, h.client, want.Username, managementNewPassword, 200)
 			if want.Username != input.Username {
 				h.login(t, h.newClient(t), input.Username, managementNewPassword, 401)

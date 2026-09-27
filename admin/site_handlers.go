@@ -73,7 +73,7 @@ func (site *Site) loginPost(request *web.Request) (web.Response, error) {
 		return site.render(request, "login.html", context)
 	}
 	result, err := site.auth.LoginStaff(request, username, password, site.access)
-	if errors.Is(err, auth.ErrInvalidCredentials) {
+	if err == auth.ErrInvalidCredentials {
 		context, contextErr := site.loginContext(username, next, true)
 		if contextErr != nil {
 			return web.Response{}, contextErr

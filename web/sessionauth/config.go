@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	pathpkg "path"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -68,6 +69,7 @@ func DefaultLimits() Limits {
 type Config struct {
 	Sessions         *sessions.Manager
 	Authenticator    auth.CredentialAuthenticator
+	LoginPersistence auth.LoginPersistence `json:"-"`
 	Authorizer       auth.Authorizer
 	SessionCookie    CookieConfig
 	CSRFCookie       CookieConfig
@@ -84,6 +86,7 @@ type Config struct {
 type Runtime struct {
 	sessions         *sessions.Manager
 	authenticator    auth.CredentialAuthenticator
+	loginPersistence auth.LoginPersistence
 	authorizer       auth.Authorizer
 	sessionCookie    CookieConfig
 	csrfCookie       CookieConfig
@@ -168,6 +171,18 @@ func New(config Config) (*Runtime, error) {
 	if config.Sessions == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "sessions", Detail: "session manager is nil"}
 	}
+	if config.LoginPersistence != nil {
+		value := reflect.ValueOf(config.LoginPersistence)
+		switch value.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if value.IsNil() {
+				return nil, &Error{Code: CodeInvalidConfig, Field: "login_persistence", Detail: "login persistence is nil"}
+			}
+		}
+		if config.LoginPersistence.Sessions() != config.Sessions {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "login_persistence", Detail: "login persistence belongs to another session manager"}
+		}
+	}
 	if config.Authenticator == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "authenticator", Detail: "credential authenticator is nil"}
 	}
@@ -249,6 +264,7 @@ func New(config Config) (*Runtime, error) {
 	return &Runtime{
 		sessions:         config.Sessions,
 		authenticator:    config.Authenticator,
+		loginPersistence: config.LoginPersistence,
 		authorizer:       config.Authorizer,
 		sessionCookie:    sessionCookie,
 		csrfCookie:       csrfCookie,

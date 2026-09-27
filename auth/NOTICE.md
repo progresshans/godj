@@ -1,4 +1,4 @@
-# Credential and unusable-password reference
+# Credential and login lifecycle reference
 
 The credential lifecycle is authored against observable behavior in Django 6.1,
 commit `fe0a859f537d4238cf49fca39073513206f83122`, particularly
@@ -25,3 +25,11 @@ they do not verify a hash or decide account admission. A Go zero/empty encoding
 is false (and rejected for a stored credential), rather than adopting Python's
 `None`/empty-string input conventions. Account activation and supported hash
 algorithms remain separate checks.
+
+The independent [login observer](../conformance/runners/django/login_lifecycle_reference.py)
+also records the pinned auth signal, models, backend, Admin authentication form,
+and session middleware/backend source hashes. Its native HTTP observations cover
+last-login timing, rejection, account switching and persistence failures.
+GoDj always rotates a re-login key and couples durable identity/session writes in
+one transaction with current-credential admission. These intentional differences
+are recorded in [ADR-0076](../docs/adr/0076-credential-snapshots-and-session-binding.md#로그인-관찰과-세션-수립).

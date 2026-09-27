@@ -2,6 +2,7 @@ package identityadmin
 
 import (
 	"context"
+	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -69,6 +70,11 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 				return "Enabled", nil
 			}
 			return "Disabled", nil
+		}}, {Name: "last_login", Label: "Last login", Value: func(value userRow) (string, error) {
+			if value.LastLogin == nil {
+				return "Never", nil
+			}
+			return value.LastLogin.UTC().Format(time.RFC3339Nano), nil
 		}}},
 		FormOverrides: []formmodel.Override{username,
 			formmodel.OverrideField("first_name", formmodel.WithRequired(false)), formmodel.OverrideField("last_name", formmodel.WithRequired(false)),

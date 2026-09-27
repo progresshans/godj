@@ -104,6 +104,10 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 		return nil, err
 	}
 	runtime.authenticator = authenticator
+	runtime.loginRecorder, err = identity.NewLoginRecorder(directory)
+	if err != nil {
+		return nil, err
+	}
 	runtime.sessionStore = store
 	runtime.auditCapacity = capacity
 	return runtime, nil

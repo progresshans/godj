@@ -179,9 +179,14 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Admin next paths: %w", err)
 	}
+	loginPersistence, err := runtime.LoginPersistence(manager)
+	if err != nil {
+		return nil, fmt.Errorf("article site application: login persistence: %w", err)
+	}
 	webRuntime, err := websessionauth.New(websessionauth.Config{
 		Sessions:         manager,
 		Authenticator:    runtime.Authenticator(),
+		LoginPersistence: loginPersistence,
 		Authorizer:       auth.PrincipalAuthorizer{},
 		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
 		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
