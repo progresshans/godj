@@ -45,7 +45,7 @@ func (manager *Manager) User(ctx context.Context, actor auth.Principal, id int64
 		return UserDetails{}, managementError(CodeInvalidInput, "user", nil)
 	}
 	return managementSnapshot(ctx, manager, func(reader db.Queryer) (UserDetails, error) {
-		if err := manager.requireUserView(ctx, reader, actor.ID()); err != nil {
+		if err := manager.requireView(ctx, reader, actor.ID(), ViewUser, ChangeUser); err != nil {
 			return UserDetails{}, err
 		}
 		return manager.userDetails(ctx, reader, id)
@@ -62,7 +62,7 @@ func (manager *Manager) Users(ctx context.Context, actor auth.Principal, offset,
 		return UserPage{}, managementError(CodeInvalidInput, "user", nil)
 	}
 	return managementSnapshot(ctx, manager, func(reader db.Queryer) (UserPage, error) {
-		if err := manager.requireUserView(ctx, reader, actor.ID()); err != nil {
+		if err := manager.requireView(ctx, reader, actor.ID(), ViewUser, ChangeUser); err != nil {
 			return UserPage{}, err
 		}
 		objects := models.UserObjects.Using(reader).OrderBy(models.UserFields.ID.Asc())
@@ -93,14 +93,6 @@ func (manager *Manager) Users(ctx context.Context, actor auth.Principal, offset,
 	})
 }
 
-func (manager *Manager) requireUserView(ctx context.Context, reader db.Queryer, actorID string) error {
-	err := manager.requireActor(ctx, reader, actorID, ViewUser)
-	if errors.Is(err, &Error{Code: CodePermission}) {
-		return manager.requireActor(ctx, reader, actorID, ChangeUser)
-	}
-	return err
-}
-
 // CreateUser creates a new credential, profile and requested memberships in one
 // coordinated transaction. It never replaces an existing identity or username.
 // The host supplies a new opaque principal ID; no browser-provided identity is
@@ -110,10 +102,10 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 		return UserDetails{}, err
 	}
 	if password == "" {
-		return UserDetails{}, userInputError("password", "required")
+		return UserDetails{}, managementInputError("password", "required")
 	}
 	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: input.principalID}); err != nil {
-		return UserDetails{}, userInputError("principal_id", "invalid")
+		return UserDetails{}, managementInputError("principal_id", "invalid")
 	}
 	patch, err := input.patch.normalize()
 	if err != nil {
@@ -121,7 +113,7 @@ func (manager *Manager) CreateUser(ctx context.Context, actor auth.Principal, in
 	}
 	username, set := patch.username.Get()
 	if !set {
-		return UserDetails{}, userInputError("username", "required")
+		return UserDetails{}, managementInputError("username", "required")
 	}
 	row, _, _ := patch.apply(models.User{PrincipalID: input.principalID, DateJoined: time.Now().UTC().Truncate(time.Microsecond), Revision: 1})
 	row.Username = username
@@ -338,39 +330,51 @@ func (manager *Manager) userDetails(ctx context.Context, reader db.Queryer, id i
 }
 
 func (manager *Manager) userDetailsFromAccount(ctx context.Context, reader db.Queryer, account Account) (UserDetails, error) {
-	id := account.Profile().ID
+	keys, err := manager.userKeys(ctx, reader, account.Profile().ID)
+	if err != nil {
+		return UserDetails{}, err
+	}
+	return UserDetails{Profile: account.Profile(), GroupIDs: keys.groups, PermissionIDs: keys.permissions}, nil
+}
+
+type userRelationKeys struct{ groups, permissions []int64 }
+
+func (manager *Manager) userKeys(ctx context.Context, reader db.Queryer, id int64) (userRelationKeys, error) {
 	relations := manager.state.directory.state.relations
 	groupsQuery, err := models.GroupObjects.Using(reader).Filter(relations.IdentityGroup.Users.ID.Exact(id)).OrderBy(models.GroupFields.ID.Asc()).Limit(MaximumUserGroups + 1)
 	if err != nil {
-		return UserDetails{}, err
+		return userRelationKeys{}, err
 	}
 	groups, err := groupsQuery.All(ctx)
 	if err != nil {
-		return UserDetails{}, err
+		return userRelationKeys{}, err
 	}
 	if len(groups) > MaximumUserGroups {
-		return UserDetails{}, managementError(CodePersistence, "user", nil)
+		return userRelationKeys{}, managementError(CodePersistence, "user", nil)
 	}
 	permissionQuery, err := models.PermissionObjects.Using(reader).Filter(relations.IdentityPermission.Users.ID.Exact(id)).OrderBy(models.PermissionFields.ID.Asc()).Limit(auth.MaximumPermissions + 1)
 	if err != nil {
-		return UserDetails{}, err
+		return userRelationKeys{}, err
 	}
 	permissions, err := permissionQuery.All(ctx)
 	if err != nil {
-		return UserDetails{}, err
+		return userRelationKeys{}, err
 	}
 	if len(permissions) > auth.MaximumPermissions {
-		return UserDetails{}, managementError(CodePersistence, "user", nil)
+		return userRelationKeys{}, managementError(CodePersistence, "user", nil)
 	}
-	result := UserDetails{Profile: account.Profile(), GroupIDs: make([]int64, len(groups)), PermissionIDs: make([]int64, len(permissions))}
+	result := userRelationKeys{groups: make([]int64, len(groups)), permissions: make([]int64, len(permissions))}
 	for index, group := range groups {
 		if group.Revision <= 0 {
-			return UserDetails{}, managementError(CodePersistence, "user", nil)
+			return userRelationKeys{}, managementError(CodePersistence, "user", nil)
 		}
-		result.GroupIDs[index] = group.ID
+		result.groups[index] = group.ID
 	}
 	for index, permission := range permissions {
-		result.PermissionIDs[index] = permission.ID
+		if permission.Revision <= 0 {
+			return userRelationKeys{}, managementError(CodePersistence, "user", nil)
+		}
+		result.permissions[index] = permission.ID
 	}
 	return result, nil
 }
@@ -381,11 +385,11 @@ func (manager *Manager) validateUserKeys(ctx context.Context, reader db.Queryer,
 		return err
 	}
 	if len(groupRows) != len(groups) {
-		return userInputError("groups", "invalid_choice")
+		return managementInputError("groups", "invalid_choice")
 	}
 	for index, row := range groupRows {
 		if row.ID != groups[index] || row.Revision <= 0 {
-			return userInputError("groups", "invalid_choice")
+			return managementInputError("groups", "invalid_choice")
 		}
 	}
 	permissionRows, err := models.PermissionObjects.Using(reader).Filter(models.PermissionFields.ID.In(permissions...)).OrderBy(models.PermissionFields.ID.Asc()).All(ctx)
@@ -393,11 +397,11 @@ func (manager *Manager) validateUserKeys(ctx context.Context, reader db.Queryer,
 		return err
 	}
 	if len(permissionRows) != len(permissions) {
-		return userInputError("permissions", "invalid_choice")
+		return managementInputError("permissions", "invalid_choice")
 	}
 	for index, row := range permissionRows {
 		if row.ID != permissions[index] {
-			return userInputError("permissions", "invalid_choice")
+			return managementInputError("permissions", "invalid_choice")
 		}
 	}
 	return nil
@@ -414,7 +418,7 @@ func (manager *Manager) validateEffectiveGrants(ctx context.Context, reader db.Q
 		return err
 	}
 	if len(rows) > auth.MaximumPermissions {
-		return userInputError("permissions", "max_items")
+		return managementInputError("permissions", "max_items")
 	}
 	for _, row := range rows {
 		if row.Revision <= 0 {

@@ -14,22 +14,18 @@ Article/Helpdesk·CLI와 durable session 소비자를 연결했고 관리자 비
 [외부 app·호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
 [구현 현황](IMPLEMENTATION_MATRIX.md)이 지원 범위를 설명한다.
 
-사용자 생성·조회·편집·삭제 service와 호스트 관계 삭제를 `48aefdb1`까지 게시하고 영향 검증했다.
-Group/Permission 관리에 필요한 Permission revision을 추가하면서, 기존 행이 있는 테이블의 scalar-default AddField를
-양 DB lifecycle·자동 계획·SQL 출력에 연결했다. 기존 identity migration은 보존하고 새 migration으로 revision 1을 채운다.
-새 runtime은 이 migration 누락을 시작 시 거부하며 관계·credential·session·audit는 보존한다.
+User/password 관리와 scalar-default backfill·Permission revision migration까지 게시·영향 검증했다.
+현재 Group/Permission 관리 service를 추가했다. 현재 권한과 revision을 확인하고 그룹 권한 합집합을 전체 사용자에 대해 검사한다.
+호스트 관계 삭제와 직접 소유자의 revision 증가·감사를 원자적으로 반영하며 credential·session bytes를 보존한다.
+조회에서 인가 처리 오류를 대체 권한으로 우회하지 않는 공통 경계도 보완했다.
 
-이 변경의 영향 normal/race/CGO=0·양 DB·migration process·독립 Django 비교와 변형 검사를 통과했다.
-기본값 보존·DB default 제거·실패 rollback·sequence 상한과 잘못된 Permission revision 거부를 확인했다.
-`292745ea`로 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36279174264)의 실제 Go 검사도 성공했다.
-[Remake와 backfill 결정](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md),
-[독립 관찰의 sequence 차이](../DEVIATIONS.md#dev-0013--sqlite-migration-remake에서-삭제된-id의-sequence-상한을-보존),
-현재 source·scope와 실행 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
-Group/Permission service·전용 관리 Form/Admin/API/client와 GDJ-0100 전체 검증은 미완료다.
+영향 normal/race/CGO=0·양 DB와 독립 Django 비교·negative control을 통과했다.
+설계 의미는 [관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
+실행한 source·환경·범위와 실패 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
+전용 관리 Form/Admin/API/client와 GDJ-0100 전체 검증은 미완료다.
 
 ## 다음 행동
 
-Group/Permission 자체의 생성·조회·편집·삭제와 revision·transaction·감사를 구현하고,
 사용자·비밀번호·그룹·권한 관리의 실제 Form/Admin/API·독립 client를 연결한다.
 Self-service/reset과 나머지 credential lifecycle도 미완료다. 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 이전 Hosted 전체 성공을 이후 identity 변경의 검증으로 전이하지 않는다.

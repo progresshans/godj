@@ -3,6 +3,83 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — Group·Permission 관리와 직접 소유자의 revision
+
+2026-09-27, `e28eccbe` 뒤의 변경이다. 최종 non-Markdown **2,312 파일** source map은
+`a63cb4eaaab3de49bac94993bd1284fc7ebf405446b6ab71459e50065c3e9f1f`다.
+Darwin arm64 / Go 1.26.5, 실제 SQLite·private PostgreSQL **17.10**, **10 packages / 743 required entries**
+(447 roots·296 subcases)의 completion·no-skip을 검사했다. Auth·identity·ORM·systemstate·Admin·Web/API session·Bearer 전체와
+native snapshot/identity/adoption roots가 scope다. Catalog의 필수 entry는 backend당 64개다.
+Schema/생성 ABI 변경은 없다. 전용 관리 Form/Admin/API·독립 client, 별도 process restart와 Hosted full은 이 checkpoint의 대상이 아니다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,501 PASS / skip 0 | 28.084초 |
+| race | 1,501 PASS / skip 0 | 124.219초 |
+| CGO=0 | 1,501 PASS / skip 0 | 30.250초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`와 mode별 `-race`/`CGO_ENABLED=0`을 사용했다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, PostgreSQL image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+양 DB의 실제 두 연결을 각각 max-open=1로 제한했다. 단순 동시 결과뿐 아니라 두 creator·editor의 한 번 성공,
+Group 권한 확장과 User의 그룹 가입이 함께 한도를 넘기지 못하는 공유 fence를 검증했다.
+
+Group/Permission 생성·단건/페이지·편집·삭제와 현재 add/view/change/delete 권한, view/change 대체, deny overlay,
+self-revocation 뒤 과거 actor의 거부를 확인했다. Group의 생략/명시적 빈 선택·중복 정규화·입출력 slice 소유권,
+이름의 문자 수 한도·잘못된 UTF-8/NUL·unique/missing/stale 입력·bounded scalar page·no-op revision/audit를 포함한다.
+Permission code 변경은 직접/그룹 할당 ID를 유지하고 현재 grant를 바꾼다. 생성·관리에는 password hash 작업이 없다.
+호스트의 AccessNote CASCADE/SET_NULL·AccessGuard PROTECT와 membership 제거, 값 없는 감사 기록을 실제 행으로 검사했다.
+Runtime 재접속 뒤 password·session stamp와 기존 session bytes 보존, 현재 권한 반영을 확인했다. 새 관리 HTTP route의 증거는 아니다.
+
+257명째 사용자의 직접 권한과 다른 그룹 권한을 포함해 유효 합집합 256/257 경계를 검사한다.
+Overlap은 한 번만 세며, 첫 batch를 통과해도 뒤 사용자가 초과하면 이름·관계·revision·audit를 모두 보존한다.
+Permission 삭제는 직접 할당 User **258명**과 Group **257개**의 revision을 한 번씩 증가시켰다.
+권한만 상속하는 User는 변경하지 않았고, 마지막 Group revision의 overflow는 먼저 수행한 User/Group 갱신까지 rollback했다.
+Group 삭제도 직접 소속 User의 revision을 갱신한다. 이전 revision으로 재제출한 User/Group 편집은 conflict로 거부했다.
+이 version 전파는 credential/session 변경과 구분하며 정상 삭제가 세션을 폐기하지 않는다.
+
+각 create/update/delete의 audit 실패·callback 취소·unknown rollback/commit·확정 commit 뒤 늦은 취소,
+해당 경로의 update/membership 실패를 실행했다. 지정 fault가 실제 도달했는지 검사하고 확정 rollback의 모든 행과 audit를 비교했다.
+Unknown에는 성공 DTO를 게시하거나 재시도하지 않았다. 누락/nil/중복/삼킨 callback·읽기 종료 오류도 결과를 게시하지 않는다.
+입력 거부에 cleanup 실패가 결합되면 실행 오류다. 인가 callback 오류의 cause가 permission-denied여도 change 권한으로
+우회하지 않는 회귀를 User/Group/Permission의 단건과 목록에 모두 적용했다.
+
+Go overlay **14개 변형 / 28개 실제 assertion 탐지**: view/change 대체 제거, Group 생성에 불필요한 change 강제,
+Group/Permission revision 검사 제거, group membership 생략, 유효 합집합 검사 생략, 첫 user batch만 처리,
+직접 User/Group owner revision 미증가, audit 오류 무시, unknown 성공 게시, 호스트 대신 identity-only 삭제 정책 선택,
+owner revision overflow 허용, 인가 실패를 권한 거부로 오인한 fallback.
+Compile 실패·timeout·race는 탐지로 세지 않았다. 모든 checkpoint/control의 source 전후 동일,
+PostgreSQL 잔여 table·owned schema·다른 connection `0|0|0`, private container 제거를 확인했다.
+영향 `go vet`, CI Python **41/41**, format·diff·문서 링크 검사를 통과했다.
+
+고정 Django 6.1 / Python **3.14.3**, SQLite **3.50.4**·PostgreSQL **17.10**에서 독립
+`identity_catalog_reference.py`를 backend별 `PYTHONHASHSEED=0/813`으로 재실행했다.
+Runner SHA-256은 `fceb04dec06cd7442a4d4e008d787deed82a54780b3a5c7e83a1637d9799e38c`다.
+두 seed의 capture가 backend별 byte 동일했고, 양 DB의 관찰·upstream source hash와 기존 checked-in capture도 일치했다.
+실제 Group/Permission 모델 변경·transaction·GroupAdmin 및 명시적으로 등록한 Permission ModelAdmin admission을 비교한다.
+Django의 기본 Permission admin 등록이나 Go의 revision 정책을 Django 동작으로 주장하지 않는다.
+Python **2/2**는 view/change 대체·Group add admission·저장 codename 변경의 3개 semantic mutation을 구분했다.
+독립 reference의 table 0·DB 삭제·container 제거도 확인했다.
+
+직전 source `029de452d9f08c5368942aba53462508647c20f29dc3965ec7cd8f8c01621fea`의 Article/siteapp/Helpdesk 포함
+**13 packages / 763 entries**는 세 모드 각각 **1,665 PASS / skip 0**이었다.
+이후 공통 view fallback이 인가 실패를 숨기지 않도록 보완하고 위 직접 영향 core/native를 새 source로 재실행했다.
+이전 소비자 실행을 최종 source의 새 실행으로 표현하지 않는다.
+초기 source `8834312718d7a97d57e0de5e6019060d68df2e98e3be6aa2320ad9fe0af92a29`는 감사 이력의 순서를
+테스트가 역순으로 예상해 양 DB lifecycle assertion이 실패했다. 기존 AuditHistory의 ascending 반환 계약과 대조해 수정했다.
+추가 설계 점검에서 관계 삭제에 따른 직접 owner revision 전파를 구현했으며 초기 실행을 완료 근거로 합치지 않는다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `catalog-management-checkpoint-1790467698047895000/receipt.json`: 최종 세 모드·roster·원본 stream·source map.
+- `catalog-management-controls-1790467748170461000/receipt.json`: 최종 14개 overlay·28개 assertion·cleanup.
+- `catalog-management-reference-1790466765831718000/receipt.json`: 양 DB·두 seed·기존 capture와 byte 대조.
+- `catalog-management-supplemental-1790467914175821000/receipt.json`: 같은 source의 vet·CI 도구/format/docs.
+- `catalog-management-checkpoint-1790467183892292000/receipt.json`: 직전 source의 소비자 포함 세 모드.
+- `catalog-management-checkpoint-1790466765830740000/receipt.json`: 초기 감사 순서 assertion 실패와 cleanup.
+
+User/password·Group/Permission service까지 구현했다. 실제 관리 Form/Admin/API·독립 client, self-service/reset·unusable password/
+last_login 등 남은 lifecycle과 GDJ-0100 전체 통합 milestone은 미완료다.
+
 ## GDJ-0100 — 기존 행의 기본값 backfill과 Permission revision migration
 
 2026-09-27, `b6edcb8f` 뒤의 변경이다. Permission revision의 historical migration을 위해 scalar-default AddField를

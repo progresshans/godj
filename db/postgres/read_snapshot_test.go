@@ -115,3 +115,15 @@ func TestPostgresIdentityUserManagement(t *testing.T) {
 		return first, second
 	})
 }
+
+func TestPostgresIdentityCatalogManagement(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	identitytest.RunCatalogManagement(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
+		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+		first := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+		second := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+		first.database.SetMaxOpenConns(1)
+		second.database.SetMaxOpenConns(1)
+		return first, second
+	})
+}

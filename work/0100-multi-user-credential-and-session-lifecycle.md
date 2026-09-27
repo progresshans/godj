@@ -44,7 +44,11 @@ Permission의 expected revision을 위해 기존 행에 revision 1을 채우는 
 초기 identity migration은 유지하며 새 runtime은 current migration 누락을 startup에서 거부한다.
 관계·credential·session·audit 보존과 backend별 상수 표현을 영향 normal/race/CGO=0·양 DB와 독립 기준으로 검증했다.
 
-다음은 Group/Permission 자체의 관리 service와 실제 사용자·비밀번호·그룹·권한 Form/Admin/API·독립 client다.
+Group/Permission 생성·조회·편집·삭제 service를 추가했다. 현재 모델 권한과 revision·unique 선택을 확인하고,
+그룹 권한 편집은 모든 관련 사용자의 직접/다른 그룹 합집합을 bounded batch로 검사한다.
+삭제는 호스트 관계 정책과 직접 소유자 revision 증가·감사를 한 transaction에 반영한다.
+영향 normal/race/CGO=0·양 DB·독립 Django 비교와 negative control을 통과했다.
+다음은 실제 사용자·비밀번호·그룹·권한 Form/Admin/API·독립 client다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.

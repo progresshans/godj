@@ -97,18 +97,18 @@ func (input UserPatch) WithPermissions(keys ...int64) UserPatch {
 	return input
 }
 
-func userInputError(field validation.Field, code validation.Code) error {
+func managementInputError(field validation.Field, code validation.Code) error {
 	return validation.Reject(validation.NewErrors(validation.New(field, code)), nil)
 }
 
 func normalizeIdentityUsername(value string) (string, error) {
 	// Bound work before normalization as well as the final credential envelope.
 	if auth.ValidateUsername(value) != nil {
-		return "", userInputError("username", "invalid")
+		return "", managementInputError("username", "invalid")
 	}
 	value = norm.NFKC.String(value)
 	if auth.ValidateUsername(value) != nil {
-		return "", userInputError("username", "invalid")
+		return "", managementInputError("username", "invalid")
 	}
 	return value, nil
 }
@@ -126,13 +126,13 @@ func normalizeIdentityEmail(value string) string {
 
 func normalizeIdentityKeys(keys []int64, maximum int, field validation.Field) ([]int64, error) {
 	if len(keys) > maximum {
-		return nil, userInputError(field, "max_items")
+		return nil, managementInputError(field, "max_items")
 	}
 	result := append([]int64{}, keys...)
 	slices.Sort(result)
 	for _, key := range result {
 		if key <= 0 {
-			return nil, userInputError(field, "invalid_choice")
+			return nil, managementInputError(field, "invalid_choice")
 		}
 	}
 	return slices.Compact(result), nil
@@ -148,7 +148,7 @@ func (input UserPatch) normalize() (UserPatch, error) {
 	}
 	if email, ok := input.email.Get(); ok {
 		if len(email) > 4096 || !utf8.ValidString(email) || strings.ContainsRune(email, 0) {
-			return UserPatch{}, userInputError("email", "invalid")
+			return UserPatch{}, managementInputError("email", "invalid")
 		}
 		input.email = orm.Set(normalizeIdentityEmail(email))
 	}
@@ -161,7 +161,7 @@ func (input UserPatch) normalize() (UserPatch, error) {
 	} {
 		value, set := item.value.Get()
 		if set && (!utf8.ValidString(value) || strings.ContainsRune(value, 0) || utf8.RuneCountInString(value) > item.maximum) {
-			return UserPatch{}, userInputError(item.field, "invalid")
+			return UserPatch{}, managementInputError(item.field, "invalid")
 		}
 	}
 	if keys, set := input.groups.Get(); set {

@@ -189,14 +189,14 @@ func (manager *Manager) managedUserForChange(ctx context.Context, reader db.Quer
 func (manager *Manager) requireActor(ctx context.Context, reader db.Queryer, actorID string, permission auth.Permission, additional ...auth.Permission) error {
 	actor, present, err := models.UserObjects.Using(reader).Filter(models.UserFields.PrincipalID.Exact(actorID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
 	if err != nil {
-		return err
+		return managementError(CodePersistence, "actor", err)
 	}
 	if !present {
 		return managementError(CodePermission, "actor", nil)
 	}
 	account, err := manager.state.directory.accountFromRow(ctx, reader, actor)
 	if err != nil {
-		return err
+		return managementError(CodePersistence, "actor", err)
 	}
 	principal := account.value().credential.Principal()
 	for _, required := range append([]auth.Permission{permission}, additional...) {
@@ -214,4 +214,15 @@ func (manager *Manager) requireActor(ctx context.Context, reader db.Queryer, act
 		}
 	}
 	return nil
+}
+
+func (manager *Manager) requireView(ctx context.Context, reader db.Queryer, actorID string, view, change auth.Permission) error {
+	err := manager.requireActor(ctx, reader, actorID, view)
+	// Only our definite denial permits the alternative grant. An authorizer
+	// or read failure can wrap a permission-shaped cause and must fail closed.
+	denied, ok := err.(*Error)
+	if ok && denied != nil && denied.Code == CodePermission && denied.Field == "actor" && denied.Unwrap() == nil {
+		return manager.requireActor(ctx, reader, actorID, change)
+	}
+	return err
 }

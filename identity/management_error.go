@@ -74,7 +74,7 @@ func safeManagementClassification(code ErrorCode, field string) bool {
 		return false
 	}
 	switch field {
-	case "password_change", "context", "manager", "actor", "user", "password", "password_hasher", "snapshot_contract", "transaction_contract", "transaction":
+	case "password_change", "context", "manager", "actor", "user", "group", "permission", "password", "password_hasher", "snapshot_contract", "transaction_contract", "transaction":
 		return true
 	default:
 		return false

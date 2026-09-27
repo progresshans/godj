@@ -705,20 +705,40 @@ type userManagementBoundary struct {
 
 func (b *userManagementBoundary) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
 	b.calls++
+	if b.mode == "write_zero" {
+		return nil
+	}
 	owner, ok := b.ManagementBackend.(db.CoordinatedRelationAtomic)
 	if !ok {
 		return errors.New("missing native relation owner")
 	}
 	err := owner.CoordinatedAtomicRelation(ctx, func(session db.RelationSession) error {
+		if b.mode == "write_nil" {
+			return callback(nil)
+		}
+		if b.mode == "write_swallowed_failure" {
+			_ = callback(&userManagementSession{RelationSession: session, owner: b})
+			return nil
+		}
 		if err := callback(&userManagementSession{RelationSession: session, owner: b}); err != nil {
 			return err
+		}
+		if b.mode == "write_twice" {
+			return callback(session)
 		}
 		if b.mode == "callback_cancel" {
 			return context.Canceled
 		}
+		if b.mode == "unknown_rollback" {
+			return &query.Error{Code: query.CodeTransactionOutcomeUnknown, Detail: "private-user-management-fault"}
+		}
 		return nil
 	})
 	if err != nil {
+		if b.mode == "rejected_cleanup" {
+			b.faults++
+			return errors.Join(err, errors.New("private-user-management-cleanup-fault"))
+		}
 		return err
 	}
 	if b.mode == "unknown_commit" {
@@ -740,6 +760,13 @@ func (b *userManagementBoundary) AppendAudit(ctx context.Context, session db.Ses
 type userManagementSession struct {
 	db.RelationSession
 	owner *userManagementBoundary
+}
+
+func (s *userManagementSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if s.owner.mode == "write_swallowed_failure" {
+		return nil, errors.New("private-user-management-query-fault")
+	}
+	return s.RelationSession.Query(ctx, plan)
 }
 
 func (s *userManagementSession) ValidateSession(ctx context.Context) error {
