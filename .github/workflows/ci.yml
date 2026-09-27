@@ -820,7 +820,9 @@ jobs:
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'python-compatibility-matrix')
     name: Python compatibility (${{ matrix.python_version }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The complete reference suite includes native credential hashing. The
+    # 3.14.3 suite alone took 18m18s; retain time for the all-scenario digest.
+    timeout-minutes: 30
     env:
       LC_ALL: C
       PYTHONHASHSEED: "0"

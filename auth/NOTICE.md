@@ -41,3 +41,11 @@ as successful rotation and last_login invariance. GoDj's current-credential fenc
 field-only patch and atomic password/session/audit transaction are intentional
 strengthenings, described in ADR-0076. Product Form/API exposure is separate from
 the session-bound service and Web runtime capability.
+
+The independent [password-reset observer](../conformance/runners/django/password_reset_reference.py)
+executes the pinned PasswordResetTokenGenerator, PasswordResetForm, SetPasswordForm
+and in-process mail backend with private SQLite/PostgreSQL databases. It records
+token invalidation/expiry/key fallback, eligible recipients, mail failures and
+stale-form overwrites, with eight upstream module hashes. No network mail is sent.
+This reference baseline alone does not implement GoDj password reset or establish
+parity for the native HTTP reset views.

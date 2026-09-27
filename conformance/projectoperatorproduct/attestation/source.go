@@ -13,6 +13,7 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"identity/data/common-passwords.txt.gz":                      {},
 	"scripts/conformance.py":                                     {},
 	"conformance/suites.json":                                    {},
 	"conformance/catalog.py":                                     {},
@@ -38,6 +39,17 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"decimal/",
+	"jsonvalue/",
+	"uuid/",
+	"internal/migrationgraph/",
+	"internal/migrationdefault/",
+	"internal/decimalstorage/",
+	"internal/decimalinput/",
+	"internal/jsoninput/",
+	"internal/uuidinput/",
+	"internal/unicode16/",
+
 	"clock/",
 	"duration/",
 	"internal/durationinput/",
@@ -95,6 +107,7 @@ var conformanceConsumerSourcePrefixes = []string{
 }
 
 var embeddedAssetPrefixes = []string{
+	"identity/account/templates/",
 	"admin/site_templates/",
 	"examples/article/webapp/templates/",
 }

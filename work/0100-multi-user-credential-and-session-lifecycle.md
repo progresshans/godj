@@ -99,4 +99,8 @@ Account는 read-only session admission으로 실패 시 무변경을 유지한�
 명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는
 추가 앱 경로를 명시적으로 선언한다. Form의 복합 오류를 native Django fixture에 추가했다.
 소비자 통합의 normal/race/CGO=0·양 DB 영향 checkpoint, 로그인/logout 거부와 필수 실행 목록 검증을 완료했다.
-현재 source의 Hosted 전체 platform/process milestone을 확인한 뒤 reset으로 이어간다.
+현재 Hosted 실행은 Python 3.14.3 시간 초과로 전체 성공 조건을 충족하지 못했다.
+또한 두 attestation의 제품 의존성 목록 누락을 보완하고 native Go toolchain과 독립 대조하는 검사를 추가했다.
+수정 source의 새 capture와 Hosted milestone 검증을 수행한다. 기존 실행·제한·환경별 근거는 TEST_EVIDENCE를 따른다.
+고정 Django의 reset token·Form·in-process mail을 양 DB에서 독립 관찰했다. HTTP reset view의 실제 관찰과
+Go token·현재 credential/profile fence·원자 저장·메일 전달·Form/API 소비자는 다음 구현이다.

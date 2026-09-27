@@ -3,10 +3,50 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 제품 source binding 보완과 reset의 독립 기준
 
+2026-09-27, 실제 제품 entrypoint의 `go list -deps`와 비교해 두 attestation source 목록의 누락을 확인했다.
+Account template, common-password 사전, Unicode·Decimal·JSON·UUID와 migration 내부 패키지를 추가했고,
+system-state 목록에는 현재 Permission revision migration도 추가했다. 두 owner의 독립 검사는 현재 OS·CGO·race
+선택의 local Go/native source·embedded asset과 symlink 방어 범위를 대조한다. 기존 목록을 expected로 재사용하지 않는다.
+Wire format과 dependency lock, 제품 runtime 동작은 바꾸지 않았다.
 
+최종 source map `5ff364d4c681e9e0fe113d020dc0d712d678129e4584fcaabd4a9a130ae9d308` (non-Markdown **2,519 파일**)의 시작/종료 동일성을 확인했다.
+`-trimpath`를 적용한 두 owner와 shared I/O **3 packages / 39 roots**의 normal **254 PASS (4.700초)**,
+race **254 PASS (7.230초)**, CGO=0 **254 PASS (2.143초)**, 합계 **762 PASS / skip 0**이다.
+Shared I/O는 독립 root가 없는 helper이며 두 owner가 실행하는 실제 파일 검증으로 포함한다.
+이전 source 목록 overlay 두 개는 각각 **19개/18개 실제 의존 파일 누락**으로 지정한 assertion에서 실패했다.
+CI 도구 41개, workflow 계약 package, 영향 vet·gofmt와 Markdown 152개 링크·diff 검사를 통과했다.
+최초 checkpoint runner의 helper-package root 필수 가정은 실행 전 discovery에서 실패했으며 별도 기록을 보존했다.
+이 로컬 scope는 새 PostgreSQL process capture나 전체 platform 검증을 대신하지 않는다.
 
+`b995c8c6`의 [Hosted full 36324864466](https://github.com/progresshans/godj/actions/runs/36324864466)은
+Python 3.14.3 owner가 20분 제한에 도달했다. 실제 portable Python **362개**는 **1,098.110초**에 끝났고,
+exact Darwin owner가 맡는 네 항목만 허용된 skip이었다. 후속 all-scenario semantic digest는 취소되고
+clean-worktree step은 실행되지 않았다. Python 3.12.13/3.13.15/3.14.7 owner는 성공했으나 전체 성공을 뜻하지 않는다.
+362개 실행과 all-scenario digest·clean-worktree를 그대로 유지하고 Python compatibility 제한을 **30분**으로 조정했다.
+나머지 live jobs의 terminal 결과도 보존한다. 이 run의 capture를 확인해도 당시 선언 목록의 결합만 입증하며,
+위 누락을 보완한 source의 새 capture와 통합 milestone이 필요하다. 과거 raw evidence는 다시 작성하지 않는다.
 
+별도로 고정 Django 6.1/CPython 3.14.3의 native PasswordResetTokenGenerator·PasswordResetForm·SetPasswordForm과
+in-process mail을 실제 SQLite·PostgreSQL 17.10에서 실행했다. **11개 관찰군**, 양 DB의 observations와
+**8개 upstream module hash**가 일치했다. Private PG table 0과 container 제거를 확인했다.
+Password/email/초 단위 last_login 변경의 token 무효화, 만료 경계·미래 시각·secret fallback,
+대소문자가 다른 중복 email의 active/usable 수신자 선택과 없는 계정의 같은 반환,
+전송 실패를 삼키고 다음 수신자로 진행하는 native 동작·template 실패 전파,
+password 확인/정책/원문 공백과 stale SetPasswordForm의 profile/active 덮어쓰기를 관찰했다.
+Native active 변경만으로는 token이 무효화되지 않는다는 관찰도 그대로 보존한다.
+네트워크 mail은 전송하지 않았고 raw 링크/token/password는 관찰 JSON에 남기지 않았다.
+Python tests **2개**와 token binding·inactive selection·mail delivery mutation **3개**, 두 hashseed 결정성과
+기록된 fixture/upstream hash 비교를 **23.481초**에 확인했다. 초기 deprecated mail 설정의 경고 실패는
+Django 6.1 `MAILERS` 설정으로 해결했으며 warning을 숨기지 않았다.
+이는 독립 기준 확보이며 **Go reset service·메일 전달·Form/API 구현 또는 native HTTP reset view 검증의 완료가 아니다**.
+
+Raw/receipt는 `godj-many-to-many-reference-4sl0bvdp` 아래에 보존했다.
+
+- `source-closure-final-1790520197272757000`: 최종 세 모드 event/inventory·source map·두 누락 controls·CI tools/workflow/vet·Hosted Python logs.
+- `source-closure-checkpoint-1790519442546599000`: 선행 inventory 검사·controls와 trimpath 확인.
+- `password-reset-reference-1790519441441160000`: 양 DB native 관찰·runner/hash·cleanup과 Python tests/controls.
 
 ## GDJ-0100 — 일반 계정 Form·Session API와 독립 client
 

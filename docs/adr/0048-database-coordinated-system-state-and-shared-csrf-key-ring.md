@@ -113,6 +113,11 @@ Missing, trailing/oversize, wrong fingerprint, stale source와 failure fact는 a
 
 GDJ-0057부터 PostgreSQL producer가 성공한 같은 CI 실행의 artifact를 consumer에 전달한다.
 Checkout, repository, run ID와 attempt를 검증하고, source binding은 실행 스크립트와 관찰자도 포함한다.
+두 attestation owner의 수동 source 목록은 실제 제품 entrypoint에 대한 Go toolchain의 `go list -deps` 결과와
+별도로 대조한다. 현재 OS·CGO·race 조건의 local Go/native source와 embedded asset이 목록에서 빠지거나
+그 디렉터리를 symlink로 숨길 수 있으면 실패한다. 이 검사는 expected 목록을 owner의 predicate로 다시 만들지 않는다.
+패키지뿐 아니라 account template·password 사전·migration asset도 실행 입력이다. 이 대조는 기존 source mutation,
+symlink·canonical framing·동일 실행 artifact/producer 검증을 대체하지 않는다.
 매 변경의 live actual을 저장소에 커밋하거나 과거 checked bytes와 cmp하는 절차는 폐기한다.
 과거 actual은 codec fixture이며 현재 검증의 근거가 아니다. Artifact는 CI에서 90일 보존하므로 장기 milestone 인용에는
 source와 run URL을 남기고 만료 전에 필요한 산출물을 별도로 보존한다.

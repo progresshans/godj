@@ -34,6 +34,20 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"identity/account/templates/account.html",
+		"identity/data/common-passwords.txt.gz",
+		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
+		"internal/unicode16/tables_generated.go",
+		"internal/migrationgraph/field_delta.go",
+		"internal/migrationdefault/value.go",
+		"internal/decimalstorage/key.go",
+		"internal/decimalinput/input.go",
+		"internal/jsoninput/equal.go",
+		"internal/uuidinput/input.go",
+		"decimal/decimal.go",
+		"jsonvalue/value.go",
+		"uuid/uuid.go",
+
 		"clock/time.go",
 		"duration/duration.go",
 		"internal/durationinput/duration.go",
