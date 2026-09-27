@@ -12,6 +12,10 @@ HTTP 의미·Schema IR·model/migration은 바꾸지 않았다.
 최종 non-Markdown **2,352 파일** source map은
 `9bd4e1269622d00f5218f404e4181a72ec0aaa3e1375f6f60b2d92c0dc5248cd`다.
 
+구현 commit `b00395a08d6391eda5c0b9f1145340990a7b7f92`를 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36286775333)는 이 source의 실제 **Fast Go feedback**까지 성공했다.
+게시한 non-Markdown bytes는 아래 로컬 검증 source와 같으며 Hosted full이나 새 전체 platform/process 검증을 뜻하지 않는다.
+
 Darwin arm64 / Go 1.26.5에서 **6 packages / 153 required entries**(45 roots·108 subcases)를 실행했다.
 Scope는 identity API·OpenAPI, 독립 client 전체, Article의 실제 identity API/login root,
 SQLite/PostgreSQL `IdentityManagementAPI` root다. JSON event의 전체 completion·no-skip을 감사했다.
