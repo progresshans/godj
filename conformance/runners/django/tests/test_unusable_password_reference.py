@@ -35,6 +35,8 @@ class UnusablePasswordReferenceTests(unittest.TestCase):
     def test_constant_marker_missing_work_or_password_only_resolution_changes_observations(self):
         actual = self.observe()["observations"]
         for mutation in (
+            "from django.contrib.auth.forms import AdminUserCreationForm\noriginal = AdminUserCreationForm.__init__\ndef required(self, *args, **kwargs):\n    original(self, *args, **kwargs)\n    self.fields['password1'].required = True\n    self.fields['password2'].required = True\nAdminUserCreationForm.__init__ = required",
+            "from django.contrib.auth.forms import SetUnusablePasswordMixin, SetPasswordMixin\nSetUnusablePasswordMixin.set_password_and_save = SetPasswordMixin.set_password_and_save",
             "from django.contrib.auth.models import User\nUser.set_unusable_password = lambda self: setattr(self, 'password', '!constant')",
             "from django.contrib.auth.base_user import AbstractBaseUser\nAbstractBaseUser.get_session_auth_hash = lambda self: 'constant'",
             "from django.contrib.auth import hashers\nreal_verify = hashers.verify_password\nhashers.verify_password = lambda password, encoded, preferred='default': (False, False) if encoded.startswith('!') else real_verify(password, encoded, preferred)",

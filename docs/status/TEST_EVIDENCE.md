@@ -4,6 +4,75 @@
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
 
+
+## GDJ-0100 — Admin 생성의 사용 불가 password 선택
+
+2026-09-27, 구현 `f1801d2f` 이후 non-Markdown **2,446 파일** source map
+`bc5436872b7999f9cd0f9e035c52878b80d422ca2f34496796fa852cb406a430`의 시작/종료 동일성을 확인했다.
+Admin 생성의 checkbox는 기본 password 생성, 명시적 선택만 사용 불가 생성이다.
+두 private password field의 required/confirmation을 선택에 맞게 적용하며, 사용 불가 선택은 raw input과 host password 정책을 사용하지 않는다.
+Username·현재 add/change 권한·감사 transaction·CSRF·실패/unknown과 field 자원 제한은 유지한다.
+
+고정 Django AdminUserCreationForm의 8개 관찰을 SQLite/PostgreSQL에서 다시 얻었고 upstream `forms.py`를 포함한 5개 source hash를 기록했다.
+기본/명시적 enabled의 빈 입력, mismatch/equal, disabled의 빈/mismatch/equal, case-insensitive duplicate를 실제 GoDj Admin HTTP·DB 결과와 비교했다.
+Host 정책 분리, 현재 권한 회수, 누락 CSRF, unknown commit/감사 rollback과 무재시도도 확인했다.
+Python 테스트 2개와 6개 runtime mutation, Go compiler overlay의 4개 negative control이 통과했다.
+Go control은 항상 required인 field, disabled 상태의 confirmation 강제, disabled 요청의 raw password 사용,
+기본 생성의 required 진단 누락을 지정된 HTTP/reference assertion으로 탐지했다. Compile 실패는 성공이 아니다.
+
+| 모드 | 필수 scope | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|---|
+| normal | 5 packages / 76 roots / 602 필수 항목 | 687 PASS / skip 0 | 15.414초 |
+| race | 동일 | 687 PASS / skip 0 | 93.464초 |
+| CGO=0 | 동일 | 687 PASS / skip 0 | 18.231초 |
+
+Darwin arm64 / Go 1.26.5, SQLite·PostgreSQL 17.10, offline readonly Go와 `TZ=Pacific/Chatham`에서
+`go test -json -count=1 -p=2 -timeout=20m -run <선택한 roots>`와 각 mode를 실행했다. 총 **2,061 PASS / skip 0**이다.
+Identity Admin·공통 Admin, 양 DB의 관리 Admin/password 정책/사용 불가 HTTP, Article composition이 해당 scope다.
+필수 run/pass/종료를 감사했으며 PostgreSQL은 앞 단계와 같은 pinned UTF8/libc/C image를 사용했다.
+종료 상태 `0|0|0`과 container 제거를 확인했다. 영향 vet·CI 도구 41개·gofmt·문서·diff 검사도 통과했다.
+실제 exporter의 OpenAPI 5개 문서가 기존 bytes와 같아 generated client/model drift의 새 실행은 비대상이다.
+
+첫 checkpoint의 기존 form 참조 검사가 optional 생성 field에 이전 confirmation callback만 붙여 required 세 사례를 놓쳤다.
+테스트를 실제 생성의 conditional validator에 연결하고 고정 Django 기대는 유지했다.
+이 최초 실패 source/receipt는 보존했으며 PASS로 세지 않았다. 갱신한 source에서 전체 선택 scope를 다시 실행했다.
+
+로컬 receipt:
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/admin-password-creation-checkpoint-1790499513285745000/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/admin-password-creation-checkpoint-1790499513285745000/controls/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/admin-password-creation-checkpoint-1790499513285745000/supplemental/receipt.json`
+- `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/unusable-password-reference-1790499360238206000/receipt.json`
+
+현재 password 상태의 Admin/API 표시·last_login·self-service/reset과 전체 UserCreationForm은 남아 있다.
+
+## GDJ-0100 — 관리 소비자·입력 경계 Hosted 전체 통합 완료
+
+2026-09-27, source **`f3264aeffce3c6a07ea07bb3a41097edf26ce15a`**, attempt 1의
+[Hosted full 36305013585](https://github.com/progresshans/godj/actions/runs/36305013585)이 완료됐다.
+**62 jobs 전부 success**, 최종 `CI result (full)`은 `scope: full`, `full_platform_verified: true`이며
+command·conformance·exact Darwin·portable Go·PostgreSQL·외부 project·Python compatibility·relation의 **8개 owner**를 모두 확인했다.
+선택된 platform/normal/race/CGO=0·cold/process·고정 참조 검사를 포함하며 로컬 전체를 중복 실행하지 않았다.
+
+| 같은 실행의 불변 capture | Artifact ID | Producer job ID |
+|---|---|---|
+| systemstate-postgres-1 | 10927027844 | 108580016909 |
+| operator-postgres-1 | 10926129760 | 108580016889 |
+
+두 archive의 GitHub SHA256, repository/run/attempt/head와 producer 성공, 실제 payload SHA256·SHA256SUMS·provenance를 확인했다.
+현재 변경된 checkout을 검증 source로 가장하지 않고, 신뢰된 GitHub 실행 identity를 verifier에 전달했다.
+그 verifier 코드가 `f3264aef`와 같음도 확인했다. 내부 source binding은 해당 commit의 Git blob/mode로 별도 재계산했다.
+System-state는 561 files / 5,849,985 bytes / `10a9d9016d02d90ed869f1581442d98aa36b22f8d9c073f1e7e82b9151545c6c`,
+operator는 638 files / 5,695,466 bytes / `b28679696f65e738fb390d6374ad4ff45fcffbb3a1370e461725084616602984`로 capture와 정확히 일치했다.
+
+종료 감사 receipt:
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/hosted-full-36305013585-1790499733433562000/receipt.json`
+
+이 전체 성공은 이후의 unusable password/Admin 생성 변경으로 전이하지 않는다.
+후속 구현 `f1801d2fa5322f2a4661c5d727ffcd032e5dcce5`의
+[Hosted Fast 36307184357](https://github.com/progresshans/godj/actions/runs/36307184357)는 실제 Fast Go feedback까지 성공했다.
+그 구현의 새 범위는 아래 로컬 checkpoint와 구분한다.
+
+
 ## GDJ-0100 — 사용 불가 password의 credential와 관리 command
 
 2026-09-27, `750632b9` 이후의 변경을 고정한 non-Markdown **2,445 파일** source map
@@ -101,9 +170,9 @@ Workflow reference 검사는 갱신된 파일에서 별도로 실행했다.
 
 후속 수정 `f3264aeffce3c6a07ea07bb3a41097edf26ce15a`을 게시했다.
 같은 head의 [Hosted Fast 36304842192](https://github.com/progresshans/godj/actions/runs/36304842192)는 실제 Go feedback까지 성공했다.
-확인된 실패를 모두 수정한 source의 [Hosted full 36305013585](https://github.com/progresshans/godj/actions/runs/36305013585)을 시작했고 현재 queue/run 중이다.
+확인된 실패를 모두 수정한 source의 [Hosted full 36305013585](https://github.com/progresshans/godj/actions/runs/36305013585)은 이후 전체 성공했다. 종료 감사는 위 기록을 따른다.
 이 교체 실행으로 이전 `c7a0c5e0`의 실행은 cancelled로 종료됐다. 실패·취소·미완료 job은 성공으로 세지 않는다.
-이후 Markdown 기록 commit과 실행 head를 구분하며, 전체 PASS는 새 실행이 끝난 뒤 판단한다.
+이후 Markdown 기록 commit과 실행 head를 구분한다. 새 password 구현은 그 전체 source 이후의 별도 검증 범위다.
 
 
 ## GDJ-0100 — 관리 기능의 Hosted 통합에서 발견한 소비자와 참조 증거 수정

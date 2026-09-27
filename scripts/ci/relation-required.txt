@@ -1344,3 +1344,8 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/compe
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP/api
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP/admin
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/creation_password_choice
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusable_creation_policy_and_validation
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusable_creation_current_authority
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/create_unusable_audit_failure
+github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/create_unusable_unknown_commit

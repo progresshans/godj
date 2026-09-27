@@ -42,7 +42,7 @@ def observe():
         )
         django.setup()
         from django.contrib import auth
-        from django.contrib.auth import backends, base_user, hashers
+        from django.contrib.auth import backends, base_user, hashers, forms
         from django.contrib.auth.models import Group, Permission, User
         from django.contrib.contenttypes.models import ContentType
         from django.contrib.sessions.models import Session
@@ -109,11 +109,34 @@ def observe():
                                         "identity": client.get("/identity/").json(),
                                         "active": user.is_active, "staff": user.is_staff,
                                         "email_preserved": user.email == "member@example.test"}
+            creation = {}
+            for mode, choice, first, second in (
+                ("default_missing", None, "", ""), ("enabled_missing", "true", "", ""),
+                ("enabled_mismatch", "true", "left", "right"),
+                ("enabled_equal", "true", "  new password  ", "  new password  "),
+                ("disabled_empty", "false", "", ""),
+                ("disabled_mismatch", "false", "left", "right"),
+                ("disabled_equal", "false", "  new password  ", "  new password  "),
+                ("disabled_duplicate", "false", "", ""),
+            ):
+                data = {"username": "MEMBER" if mode == "disabled_duplicate" else "candidate_" + mode,
+                        "password1": first, "password2": second}
+                if choice is not None:
+                    data["usable_password"] = choice
+                form = forms.AdminUserCreationForm(data=data)
+                valid = form.is_valid()
+                value = {"valid": valid, "errors": {field: [error.code for error in errors] for field, errors in form.errors.as_data().items()}}
+                if valid:
+                    created = form.save()
+                    value.update({"usable": created.has_usable_password(), "active": created.is_active,
+                                  "matches_input": created.check_password(first)})
+                creation[mode] = value
+            observations["admin_creation"] = creation
             observations["reserved_prefix"] = [hashers.is_password_usable(value) for value in ("!", "!legacy", "!" + "a" * 40)]
             result = {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                       "database_version": str(connection.pg_version) if name else connection.Database.sqlite_version,
                       "source_sha256": {key: hashlib.sha256(Path(inspect.getfile(module)).read_bytes()).hexdigest()
-                                        for key, module in {"auth": auth, "base_user": base_user, "backends": backends, "hashers": hashers}.items()},
+                                        for key, module in {"auth": auth, "base_user": base_user, "backends": backends, "hashers": hashers, "forms": forms}.items()},
                       "observations": observations}
         finally:
             with connection.schema_editor() as editor:

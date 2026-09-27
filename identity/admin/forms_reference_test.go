@@ -56,7 +56,7 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 	}
 	registry := registeredIdentityForTest(t)
 	descriptor, _ := registry.Lookup("godj_identity", "user")
-	spec, err := forms.NewSpec(descriptor.CreateFormFields, passwordConfirmation())
+	spec, err := forms.NewSpec(descriptor.CreateFormFields, creationPasswords())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,7 +2,7 @@
 
 The credential lifecycle is authored against observable behavior in Django 6.1,
 commit `fe0a859f537d4238cf49fca39073513206f83122`, particularly
-`django/contrib/auth/hashers.py`, `base_user.py`, `backends.py` and `__init__.py`.
+`django/contrib/auth/hashers.py`, `base_user.py`, `backends.py`, `forms.py` and `__init__.py`.
 Django is copyright (c) Django Software Foundation and individual contributors,
 under the [BSD-3-Clause license](../LICENSE.django).
 

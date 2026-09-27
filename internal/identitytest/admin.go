@@ -54,6 +54,7 @@ func adminPermissions(t *testing.T, f *managementFixture, staff bool, permission
 
 func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
+	runAdminPasswordCreation(t, open)
 	runAdminFailureBoundaries(t, open)
 	runAdminReadBoundaries(t, open)
 	runAdminSelectionBoundaries(t, open)
@@ -241,6 +242,7 @@ func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, 
 				result.contains(t, "View ticket", "Change ticket")
 			}
 			if tc.name == "user_change_can_select_without_target_view" {
+				h.call(t, h.client, "POST", "/admin/users/add/", url.Values{"username": {"Candidate"}, "unusable_password": {"on"}, "csrfmiddlewaretoken": {result.token(t)}}, 403)
 				result.contains(t, "Editors", "View ticket")
 				h.call(t, h.client, "GET", "/admin/groups/", nil, 403)
 				h.call(t, h.client, "GET", "/admin/permissions/", nil, 403)

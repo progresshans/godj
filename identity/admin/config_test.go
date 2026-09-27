@@ -95,16 +95,19 @@ func TestIdentityRegistrationIsDetachedSecretFreeAndDoesNotReadStorage(t *testin
 		}
 		return values
 	}
-	if !reflect.DeepEqual(names(user.FormFields), userFields) || !reflect.DeepEqual(names(user.CreateFormFields), []string{"username", "password1", "password2"}) {
+	if !reflect.DeepEqual(names(user.FormFields), userFields) || !reflect.DeepEqual(names(user.CreateFormFields), []string{"username", "password1", "password2", "unusable_password"}) {
 		t.Fatal("private fields exposed or create/edit policies conflated")
 	}
 	if user.FormFields[0].MaxLength() != 256 || user.CreateFormFields[0].MaxLength() != 150 {
 		t.Fatal("creation input limit replaced storage-width editing")
 	}
-	for _, field := range user.CreateFormFields[1:] {
+	for _, field := range user.CreateFormFields[1:3] {
 		if field.Widget() != forms.PasswordInput {
 			t.Fatal("password became public text")
 		}
+	}
+	if user.CreateFormFields[3].Widget() != forms.Checkbox {
+		t.Fatal("unusable creation choice missing")
 	}
 	user.CreateFormFields[0] = forms.Field{}
 	again, _ := registry.Lookup("godj_identity", "user")

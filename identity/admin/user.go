@@ -21,7 +21,7 @@ type userRow struct {
 }
 
 func (a *registration) registerUser(builder *admin.Builder) error {
-	passwords, err := passwordFields()
+	passwords, err := passwordFields(true)
 	if err != nil {
 		return err
 	}
@@ -29,6 +29,15 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
+	creationPasswordFields, err := passwordFields(false)
+	if err != nil {
+		return err
+	}
+	unusableChoice, err := forms.BooleanField("unusable_password", forms.WithLabel("Create without password login"))
+	if err != nil {
+		return err
+	}
+	creationPasswordFields = append(creationPasswordFields, unusableChoice)
 	confirmation, err := forms.BooleanField("confirm", forms.WithRequired(true), forms.WithLabel("Disable password login and revoke this user's sessions"))
 	if err != nil {
 		return err
@@ -60,7 +69,7 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			formmodel.OverrideField("email", formmodel.WithRequired(false), formmodel.WithStringNormalizer(trimPythonSpace), formmodel.WithValidators(emailValidator())),
 			formmodel.OverrideField("groups", formmodel.WithRequired(false)), formmodel.OverrideField("permissions", formmodel.WithRequired(false)),
 		},
-		CreateForm:               &admin.FormConfig{Fields: []string{"username"}, Overrides: []formmodel.Override{creationUsername}, ExtraFields: passwords, Validators: []forms.CrossValidator{passwordConfirmation()}},
+		CreateForm:               &admin.FormConfig{Fields: []string{"username"}, Overrides: []formmodel.Override{creationUsername}, ExtraFields: creationPasswordFields, Validators: []forms.CrossValidator{creationPasswords()}},
 		AdditionalAddPermissions: []auth.Permission{identity.ChangeUser}, AdditionalAuditFields: []string{"password"},
 		RelatedChoices: []admin.RelatedChoices{
 			{Field: "groups", Permission: identity.ChangeUser, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {
@@ -104,7 +113,14 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			if err != nil {
 				return userRow{}, err
 			}
-			created, err := a.manager.CreateUser(ctx, p, identity.NewUserCreate(principalID, username).WithCaseInsensitiveUsernameCheck(), password)
+			input := identity.NewUserCreate(principalID, username).WithCaseInsensitiveUsernameCheck()
+			unusable, _ := values.Boolean("unusable_password")
+			var created identity.UserDetails
+			if unusable {
+				created, err = a.manager.CreateUserWithUnusablePassword(ctx, p, input)
+			} else {
+				created, err = a.manager.CreateUser(ctx, p, input, password)
+			}
 			return userRow{created, true}, passwordError(err)
 		},
 		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (userRow, []string, error) {

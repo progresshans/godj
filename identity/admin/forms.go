@@ -10,12 +10,12 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func passwordFields() ([]forms.Field, error) {
-	first, err := forms.CharField("password1", forms.WithLabel("Password"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false))
+func passwordFields(required bool) ([]forms.Field, error) {
+	first, err := forms.CharField("password1", forms.WithLabel("Password"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false), forms.WithRequired(required))
 	if err != nil {
 		return nil, err
 	}
-	second, err := forms.CharField("password2", forms.WithLabel("Password confirmation"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false))
+	second, err := forms.CharField("password2", forms.WithLabel("Password confirmation"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false), forms.WithRequired(required))
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +30,26 @@ func passwordConfirmation() forms.CrossValidator {
 			return validation.NewErrors(validation.New("password2", "password_mismatch"))
 		}
 		return validation.Errors{}
+	})
+}
+
+// The creation choice owns whether password fields are required. A deliberate
+// unusable selection ignores their contents, matching AdminUserCreationForm;
+// transport/resource bounds and private rendering still apply to both fields.
+func creationPasswords() forms.CrossValidator {
+	return forms.CrossValidatorFunc(func(values forms.Values) validation.Errors {
+		unusable, _ := values.Boolean("unusable_password")
+		if unusable {
+			return validation.NewErrors()
+		}
+		var required []validation.Violation
+		for _, name := range []string{"password1", "password2"} {
+			value, present := values.String(name)
+			if present && value == "" {
+				required = append(required, validation.New(validation.Field(name), "required"))
+			}
+		}
+		return validation.Join(validation.NewErrors(required...), passwordConfirmation().ValidateForm(values))
 	})
 }
 

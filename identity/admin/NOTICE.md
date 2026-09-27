@@ -23,3 +23,12 @@ the User Schema IR's 256-code-point storage limit. The credential and private
 CLI transport allow 1,024 UTF-8 bytes, with model character bounds checked
 separately before persistence. This explicit GoDj storage profile does not
 claim Django's default User schema or complete UserCreationForm parity.
+
+The creation checkbox also follows `AdminUserCreationForm` and
+`SetUnusablePasswordMixin` from that pinned `forms.py`: disabled password login
+skips password required/confirmation/strength checks while retaining username
+validation, authority and private input handling. The Go checkbox defaults to
+ordinary password creation. The independent
+[unusable-password observer](../../conformance/runners/django/unusable_password_reference.py)
+records eight creation cases and the upstream forms source hash; it does not
+claim complete UserCreationForm or Python field/widget compatibility.

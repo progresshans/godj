@@ -397,5 +397,9 @@ SetPassword로 복구할 때는 기존 정책·원문·hash 작업을 모두 적
 별도 Session/Bearer OpenAPI client도 nullable string을 사용하며 zero-value 빈 문자열을 null로 해석하지 않는다.
 생성 client의 인코딩은 서버 검증을 대신하지 않는다.
 Admin은 required 확인 checkbox·CSRF·revision·change_user 권한을 갖는 `disable-password` object command를 제공한다.
-기존 생성 폼은 두 비밀번호 입력을 요구한다. 생성 폼의 사용 불가 선택 UX와 전체 UserCreationForm 동작은 후속 범위다.
+생성 폼의 `unusable_password` checkbox는 기본 false다. 선택하지 않으면 두 비밀번호의 required/confirmation과 host 정책을 적용한다.
+선택하면 두 입력의 내용·일치 여부와 password 정책을 사용하지 않고 사용 불가 계정을 만든다. 비공개 렌더링과 transport/field 자원 검사는 계속 적용한다.
+Username 정규화·중복 검사와 현재 add/change 권한·감사 transaction은 같은 Manager가 소유한다.
+이 선택은 고정 Django AdminUserCreationForm의 외부 결과를 따른다. Boolean checkbox와 Django radio/field 내부 구조의 소스 호환은 약속하지 않는다.
+현재 password 상태의 Admin/API 표시와 전체 UserCreationForm 동작은 후속 범위다.
 이 결정은 last_login 갱신·self-service/reset·다른 인증 provider의 구현 완료를 뜻하지 않는다.

@@ -56,7 +56,7 @@ func (b *adminMutationBoundary) AppendAudit(ctx context.Context, session db.Sess
 
 func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	for _, operation := range []string{"create", "update", "delete", "password"} {
+	for _, operation := range []string{"create", "create_unusable", "update", "delete", "password"} {
 		for _, mode := range []string{"audit_failure", "unknown_commit"} {
 			t.Run(operation+"_"+mode, func(t *testing.T) {
 				backend, _ := open(t)
@@ -73,6 +73,8 @@ func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 				switch operation {
 				case "create":
 					response = h.postForm(t, "/admin/users/add/", url.Values{"username": {"Candidate"}, "password1": {managementNewPassword}, "password2": {managementNewPassword}}, want)
+				case "create_unusable":
+					response = h.postForm(t, "/admin/users/add/", url.Values{"username": {"Candidate"}, "unusable_password": {"on"}}, want)
 				case "update":
 					before, err := f.manager(t, f.runtime).User(t.Context(), f.actor, f.user.ID)
 					if err != nil {
@@ -89,6 +91,15 @@ func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 				if boundary.calls != 1 || mode == "audit_failure" && boundary.faults != 1 || response.header.Get("Location") != "" || response.header.Get("Retry-After") != "" {
 					t.Fatal("failed/unknown operation retried, redirected or missed boundary")
 				}
+				if operation == "create_unusable" {
+					want := int64(2)
+					if mode == "unknown_commit" {
+						want = 3
+					}
+					if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != want || f.hasher.calls.Load() != 0 {
+						t.Fatal("unusable creation outcome or password work changed", err)
+					}
+				}
 				afterSessions, afterAudit := snapshotIdentitySystemRows(t, backend)
 				if mode == "audit_failure" {
 					if !reflect.DeepEqual(beforeSessions, afterSessions) || !reflect.DeepEqual(beforeAudit, afterAudit) {
@@ -97,7 +108,7 @@ func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 					f.assertOutcome(t, false)
 				} else {
 					switch operation {
-					case "create":
+					case "create", "create_unusable":
 						if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != 3 {
 							t.Fatal("unknown create was not committed", err)
 						}
