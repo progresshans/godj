@@ -16,7 +16,8 @@ Article의 Admin은 사용자·그룹·권한 CRUD, revision 조건, 별도 pass
 View-only 상세에서는 편집 가능한 선택 목록을 읽지 않고, 변경 POST는 데이터 접근 전에 거부한다.
 
 Identity Admin·기존 Form/Admin/API·Article/Helpdesk와 양 DB의 영향 normal/race/CGO=0, 독립 Django 입력 subset,
-negative control을 통과했다. 현재 이 변경의 게시와 Hosted Fast 확인을 진행한다.
+negative control을 통과했다. 구현 `9fe12534`를 게시했고
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36295406909)의 실제 Go feedback도 성공했다.
 이는 전체 UserCreationForm이나 GDJ-0100 전체 platform/process 검증의 완료가 아니다.
 [Credential·관리 결정](../adr/0076-credential-snapshots-and-session-binding.md),
 [호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),

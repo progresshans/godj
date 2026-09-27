@@ -12,6 +12,10 @@ revision 조건·호스트 관계 삭제, username/email 입력·password confir
 실행 시 non-Markdown **2,398 파일** source map은
 `fbb23e7e8c882f312b6ccd0041e7a72fbdf9a376e1a7020dd430ba7f73255b3b`다.
 최종 source map은 `1ec477347722ddc3f6ecd877c8c9d10011ec97230433871cbd9e0273c8ad3ef2`다.
+구현 commit `9fe12534a25cea1bd56e54b5d3c9ff82f37542c3`을 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36295406909)가 이 source의 실제 Fast Go feedback까지 성공했다.
+최종 non-Markdown bytes는 위 최종 map과 같으며 Hosted full 성공을 뜻하지 않는다.
+
 두 map 사이 차이는 CI 필수 목록 두 파일의 빈 줄/주석 제거뿐이다. 제품·테스트·fixture bytes와 모든 필수 실행 이름의
 동일성을 별도 receipt로 확인하고 여섯 JSON 실행 기록을 최종 roster와 다시 대조했다. Go 테스트를 재실행한 것으로 쓰지 않는다.
 
