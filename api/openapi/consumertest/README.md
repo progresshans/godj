@@ -1,6 +1,6 @@
 # OpenAPI 생성 클라이언트 검증과 갱신
 
-`TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session·Identity Session/Bearer API의 문서를
+`TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session·Identity Session/Bearer·Account API의 문서를
 `testdata/client/specs`와 비교하고, 별도 Go module에서 고정된 `ogen`으로 재생성한 파일이 저장된 생성물과 같은지 확인한다.
 이후 생성 client를 build하고 실제 HTTP로 실행하여 응답·인증·CSRF·관계·DB 변경을 검증한다.
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
@@ -75,9 +75,15 @@ Identity의 `If-Revision`/`Revision` header는 required int64이고 각각 변�
 
 Account Session client는 권한 없는 일반 사용자가 제품 login Form과 CSRF를 제출해 직접 session을 수립한다.
 Generated CSRF/password API로 old-password/policy/CSRF 오류, 같은 원문의 두 변경, required replacement cookie와
-other-session 폐기를 확인하고 제품 logout을 제출한다. 부모는 별도 runtime의 새 password, revision 3, 보존된 last_login,
-unused-session 폐기·foreign-session 보존과 정확한 두 audit를 확인한다. 고정 synthetic 503은 typed unknown/no-retry만
-검사하며 실제 native rollback/unknown HTTP는 양 DB Identity suite가 소유한다.
+other-session 폐기를 확인하고 제품 logout을 제출한다. 이어서 새 익명 jar로 CSRF bootstrap과 같은 공개 응답의 reset request를
+보내며, fixture-only capability로 실제 Memory sender의 메일을 읽는다. 제품 email URL의 token-free redirect/confirmation을
+거쳐 generated proof/completion을 호출한다. Root request는 session security callback을 부르지 않고, proof/completion만
+opaque session cookie를 전송한다. CSRF/origin refusal, policy 오류, cookie 회전·HttpOnly·독립 CSRF pair 보존,
+proof replay 거부·자동 로그인 없음과 no-store/no-referrer를 검사한다. 제품은 메일 조회 경로를 제공하지 않는다.
+부모는 별도 runtime의 최종 reset password, revision 4, 보존된 last_login, unused-session 폐기·foreign-session 보존과
+정확한 세 audit를 확인한다. 고정 synthetic 503은 typed unknown/no-retry만 검사하며 실제 native rollback/unknown HTTP는
+양 DB Identity suite가 소유한다. Safe generated proof GET이 CSRF cookie를 보내지 않으면 새 pair를 받을 수 있으므로,
+완료 전후 비교는 마지막 proof 응답에서 받은 pair를 기준으로 한다.
 
 ## 현재 소스에서 문서 내보내기
 

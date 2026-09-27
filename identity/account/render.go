@@ -35,6 +35,8 @@ func (a *Application) render(request *web.Request, kind string, spec forms.Spec,
 		autocomplete := "new-password"
 		if field.Name() == "username" {
 			autocomplete = "username"
+		} else if field.Name() == "email" {
+			autocomplete = "email"
 		} else if field.Name() == "old_password" || field.Name() == "password" {
 			autocomplete = "current-password"
 		}
@@ -52,10 +54,28 @@ func (a *Application) render(request *web.Request, kind string, spec forms.Spec,
 	if kind == "login" {
 		title, action, submit = "Sign in", a.basePath+"/login/", "Sign in"
 	}
-	if kind == "done" {
+	done, signedIn := kind == "done", kind == "password" || kind == "done"
+	message := "Your password has been changed."
+	switch kind {
+	case "done":
 		title = "Password changed"
+	case "reset-request":
+		title, action, submit = "Reset password", a.basePath+"/reset/", "Send reset link"
+	case "reset-sent":
+		title, message, done = "Check your email", "If an eligible account uses that email address, you will receive a password reset link.", true
+	case "reset-complete":
+		title, message, done = "Password reset", "Your password has been reset. You can now sign in with your new password.", true
+	case "reset-invalid":
+		title, message, done = "Reset link unavailable", "This reset link is invalid or has expired. Request a new link to continue.", true
+	case "reset-confirm":
+		title, submit = "Choose a new password", "Reset password"
+		uid, _ := request.StringParameter("uid")
+		action, err = request.ReverseWith(a.namespace+":account-reset-link", web.StringArgument("uid", uid), web.StringArgument("token", resetTokenMarker))
+		if err != nil {
+			return web.Response{}, err
+		}
 	}
-	values, err := templates.NewContext(map[string]templates.Value{"title": templates.String(title), "kind": templates.String(kind), "login": templates.Bool(kind == "login"), "done": templates.Bool(kind == "done"), "signed_in": templates.Bool(kind != "login"), "action": templates.String(action), "submit": templates.String(submit), "next": templates.String(next), "fields": templates.List(fields...), "errors": templates.List(general...), "password_path": templates.String(a.basePath + "/password/"), "logout_path": templates.String(a.basePath + "/logout/")})
+	values, err := templates.NewContext(map[string]templates.Value{"title": templates.String(title), "kind": templates.String(kind), "login": templates.Bool(kind == "login"), "done": templates.Bool(done), "signed_in": templates.Bool(signedIn), "message": templates.String(message), "reset_enabled": templates.Bool(a.resetMailer != nil), "reset_path": templates.String(a.basePath + "/reset/"), "login_path": templates.String(a.basePath + "/login/"), "action": templates.String(action), "submit": templates.String(submit), "next": templates.String(next), "fields": templates.List(fields...), "errors": templates.List(general...), "password_path": templates.String(a.basePath + "/password/"), "logout_path": templates.String(a.basePath + "/logout/")})
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -86,6 +106,8 @@ func errorValues(failures validation.Errors) ([]templates.Value, error) {
 	for _, failure := range failures.All() {
 		message := "Check this value."
 		switch failure.Code() {
+		case "invalid":
+			message = "Enter a valid value."
 		case "required":
 			message = "This field is required."
 		case "multiple":

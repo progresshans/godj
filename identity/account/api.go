@@ -53,10 +53,16 @@ func (a *Application) prepareAPI() error {
 	errorResponse := func(status int, detail string) openapi.Response {
 		return openapi.Response{Status: status, Description: detail, ContentType: api.JSONContentType, Schema: errorSchema}
 	}
-	a.document, err = openapi.New(openapi.Config{Title: "GoDj account", Version: "0.1", Authentication: a.apiAuth, JSONPolicy: a.policy, Schemas: []openapi.NamedSchema{{Name: "PasswordChange", Schema: input}}, Operations: []openapi.Operation{
+	operations := []openapi.Operation{
 		{Route: web.Route{Name: a.namespace + ":account-api-csrf", Method: http.MethodGet, Path: a.apiBasePath + "/csrf/", Handler: csrf}, AuthenticatedOnly: true, Summary: "Read a masked CSRF token", Description: "Requires an active session, with no model permission or staff requirement. The response header carries a fresh masked CSRF token. Reads do not refresh or clean up server sessions. Query parameters are not accepted.", Responses: []openapi.Response{{Status: 204, Description: "Read the configured CSRF response header and retain its paired cookie."}, errorResponse(400, "Query parameters are not accepted.")}},
 		{Route: web.Route{Name: a.namespace + ":account-api-password", Method: http.MethodPost, Path: a.apiBasePath + "/password/", Handler: password}, AuthenticatedOnly: true, Summary: "Change your password", Description: "The current session identifies the account. Authentication and CSRF precede parsing and perform no session touch or cleanup. Required nonempty old_password and new_password strings preserve whitespace; null, unknown or duplicate members are rejected. No target ID, management permission, revision input or confirmation field is accepted. Current credential, session and password policy are rechecked under one write fence. Success changes password and current revision, rotates the current session cookie while retaining payload and absolute lifetime, revokes other sessions and records value-free audit. last_login is unchanged. Failure publishes no cookie. Outcome unknown is 503 with code outcome_unknown: reconcile durable state before new work; never automatically retry.", RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true}, Responses: []openapi.Response{{Status: 204, Description: "Password, current-session rotation, other-session revocation and audit committed. Accept the replacement session cookie.", Headers: []openapi.Header{{Name: "Set-Cookie", Schema: openapi.String(), Required: true, Description: "Replacement session cookie; the independent CSRF cookie is retained."}}}, errorResponse(400, "Invalid body, query or confirmed password-policy/old-password error."), errorResponse(413, "Body exceeds 65536 bytes. Oversized JSON strings are invalid input (400)."), errorResponse(415, "Only application/json with optional UTF-8 charset is accepted."), errorResponse(503, "Commit outcome unknown. Reconcile before submitting another operation; no Retry-After is sent.")}},
-	}})
+	}
+	resetOperations, resetSchemas, err := a.resetAPI()
+	if err != nil {
+		return err
+	}
+	a.document, err = openapi.New(openapi.Config{Title: "GoDj account", Version: "0.1", Authentication: a.apiAuth, JSONPolicy: a.policy,
+		Schemas: append([]openapi.NamedSchema{{Name: "PasswordChange", Schema: input}}, resetSchemas...), Operations: append(operations, resetOperations...)})
 	return err
 }
 

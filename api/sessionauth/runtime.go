@@ -67,6 +67,7 @@ type Runtime struct {
 
 var _ api.AlternativeAuthentication = (*Runtime)(nil)
 var _ api.PrincipalAuthentication = (*Runtime)(nil)
+var _ api.CSRFAuthentication = (*Runtime)(nil)
 
 type Option interface{ apply(*Runtime) }
 type option func(*Runtime)
@@ -108,6 +109,31 @@ const (
 
 func (r *Runtime) RequireAuthenticated(handler api.AuthenticatedHandler) (web.Handler, error) {
 	return r.protect(onlyAuthenticated, "", handler)
+}
+
+// RequireCSRF admits anonymous or signed-in browsers without resolving a
+// principal. Session credential cookies, including expired/malformed ones, are
+// not consulted. The application handler owns proof/account-specific admission.
+func (r *Runtime) RequireCSRF(handler web.Handler) (web.Handler, error) {
+	if r == nil || r.runtime == nil || r.runtime.CSRFHeader() == "" {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or uninitialized"}
+	}
+	if handler == nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "CSRF API handler is nil"}
+	}
+	return func(request *web.Request) (web.Response, error) {
+		if err := r.runtime.VerifyCSRF(request, nil); err != nil {
+			if classified, ok := err.(*websessionauth.Error); ok && classified != nil && classified.Code == websessionauth.CodeCSRFRejected && classified.Cause == nil {
+				return api.ErrorResponse(http.StatusForbidden, api.CodeCSRFRejected, validation.NewErrors())
+			}
+			return web.Response{}, err
+		}
+		response, err := handler(request)
+		if err != nil || !safeMethod(request.Method()) {
+			return response, err
+		}
+		return r.applySafeToken(request, response)
+	}, nil
 }
 
 // Require resolves an authenticated principal, checks unsafe-method CSRF,
@@ -185,24 +211,7 @@ func (r *Runtime) protect(mode permissionMode, permission auth.Permission, handl
 		if err != nil || !safeMethod(request.Method()) {
 			return response, err
 		}
-		token, err := r.runtime.CSRFToken(request)
-		if err != nil {
-			return web.Response{}, err
-		}
-		header := response.Header()
-		if header == nil {
-			header = make(http.Header)
-		}
-		header.Set(r.runtime.CSRFHeader(), token.Value())
-		response, err = response.WithHeaders(header)
-		if err != nil {
-			return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_header", Detail: "CSRF response header could not be applied", Cause: err}
-		}
-		response, err = token.Apply(response)
-		if err != nil {
-			return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_cookie", Detail: "CSRF response cookie could not be applied", Cause: err}
-		}
-		return response, nil
+		return r.applySafeToken(request, response)
 	}, nil
 }
 
@@ -213,4 +222,26 @@ func safeMethod(method string) bool {
 	default:
 		return false
 	}
+}
+
+// applySafeToken shares the same transport publication for both admissions.
+func (r *Runtime) applySafeToken(request *web.Request, response web.Response) (web.Response, error) {
+	token, err := r.runtime.CSRFToken(request)
+	if err != nil {
+		return web.Response{}, err
+	}
+	header := response.Header()
+	if header == nil {
+		header = make(http.Header)
+	}
+	header.Set(r.runtime.CSRFHeader(), token.Value())
+	response, err = response.WithHeaders(header)
+	if err != nil {
+		return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_header", Detail: "CSRF response header could not be applied", Cause: err}
+	}
+	response, err = token.Apply(response)
+	if err != nil {
+		return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_cookie", Detail: "CSRF response cookie could not be applied", Cause: err}
+	}
+	return response, nil
 }

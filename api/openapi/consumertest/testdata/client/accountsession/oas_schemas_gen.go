@@ -82,6 +82,9 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
+func (*GoDjAPIError) godjConformanceAccountAPIResetCsrfRes()  {}
+func (*GoDjAPIError) godjConformanceAccountAPIResetProofRes() {}
+
 type GoDjAPIErrorErrorsItem struct {
 	Field  string                             `json:"field"`
 	Code   string                             `json:"code"`
@@ -169,7 +172,8 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 	s.Response = val
 }
 
-func (*GoDjAPIErrorHeaders) godjConformanceAccountAPICsrfRes() {}
+func (*GoDjAPIErrorHeaders) godjConformanceAccountAPICsrfRes()      {}
+func (*GoDjAPIErrorHeaders) godjConformanceAccountAPIResetCsrfRes() {}
 
 type GodjConformanceAccountAPICsrfForbidden GoDjAPIError
 
@@ -271,6 +275,190 @@ type GodjConformanceAccountAPIPasswordUnsupportedMediaType GoDjAPIError
 func (*GodjConformanceAccountAPIPasswordUnsupportedMediaType) godjConformanceAccountAPIPasswordRes() {
 }
 
+type GodjConformanceAccountAPIResetCompleteBadRequest GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteBadRequest) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+type GodjConformanceAccountAPIResetCompleteForbidden GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteForbidden) godjConformanceAccountAPIResetCompleteRes() {}
+
+type GodjConformanceAccountAPIResetCompleteInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjConformanceAccountAPIResetCompleteInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjConformanceAccountAPIResetCompleteInternalServerError) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+// GodjConformanceAccountAPIResetCompleteNoContent is response for GodjConformanceAccountAPIResetComplete operation.
+type GodjConformanceAccountAPIResetCompleteNoContent struct {
+	SetCookie string
+}
+
+// GetSetCookie returns the value of SetCookie.
+func (s *GodjConformanceAccountAPIResetCompleteNoContent) GetSetCookie() string {
+	return s.SetCookie
+}
+
+// SetSetCookie sets the value of SetCookie.
+func (s *GodjConformanceAccountAPIResetCompleteNoContent) SetSetCookie(val string) {
+	s.SetCookie = val
+}
+
+func (*GodjConformanceAccountAPIResetCompleteNoContent) godjConformanceAccountAPIResetCompleteRes() {}
+
+type GodjConformanceAccountAPIResetCompleteNotAcceptable GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteNotAcceptable) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+type GodjConformanceAccountAPIResetCompleteRequestEntityTooLarge GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteRequestEntityTooLarge) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+type GodjConformanceAccountAPIResetCompleteServiceUnavailable GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteServiceUnavailable) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+type GodjConformanceAccountAPIResetCompleteUnsupportedMediaType GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetCompleteUnsupportedMediaType) godjConformanceAccountAPIResetCompleteRes() {
+}
+
+type GodjConformanceAccountAPIResetCsrfInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjConformanceAccountAPIResetCsrfInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjConformanceAccountAPIResetCsrfInternalServerError) godjConformanceAccountAPIResetCsrfRes() {
+}
+
+// GodjConformanceAccountAPIResetCsrfNoContent is response for GodjConformanceAccountAPIResetCsrf operation.
+type GodjConformanceAccountAPIResetCsrfNoContent struct {
+	XGodjCsrftoken OptString
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *GodjConformanceAccountAPIResetCsrfNoContent) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *GodjConformanceAccountAPIResetCsrfNoContent) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+func (*GodjConformanceAccountAPIResetCsrfNoContent) godjConformanceAccountAPIResetCsrfRes() {}
+
+type GodjConformanceAccountAPIResetProofBadRequest GoDjAPIErrorHeaders
+
+func (*GodjConformanceAccountAPIResetProofBadRequest) godjConformanceAccountAPIResetProofRes() {}
+
+type GodjConformanceAccountAPIResetProofForbidden GoDjAPIErrorHeaders
+
+func (*GodjConformanceAccountAPIResetProofForbidden) godjConformanceAccountAPIResetProofRes() {}
+
+type GodjConformanceAccountAPIResetProofInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjConformanceAccountAPIResetProofInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjConformanceAccountAPIResetProofInternalServerError) godjConformanceAccountAPIResetProofRes() {
+}
+
+// GodjConformanceAccountAPIResetProofNoContent is response for GodjConformanceAccountAPIResetProof operation.
+type GodjConformanceAccountAPIResetProofNoContent struct {
+	XGodjCsrftoken OptString
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *GodjConformanceAccountAPIResetProofNoContent) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *GodjConformanceAccountAPIResetProofNoContent) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+func (*GodjConformanceAccountAPIResetProofNoContent) godjConformanceAccountAPIResetProofRes() {}
+
+type GodjConformanceAccountAPIResetRequestBadRequest GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetRequestBadRequest) godjConformanceAccountAPIResetRequestRes() {}
+
+type GodjConformanceAccountAPIResetRequestForbidden GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetRequestForbidden) godjConformanceAccountAPIResetRequestRes() {}
+
+type GodjConformanceAccountAPIResetRequestInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjConformanceAccountAPIResetRequestInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjConformanceAccountAPIResetRequestInternalServerError) godjConformanceAccountAPIResetRequestRes() {
+}
+
+// GodjConformanceAccountAPIResetRequestNoContent is response for GodjConformanceAccountAPIResetRequest operation.
+type GodjConformanceAccountAPIResetRequestNoContent struct{}
+
+func (*GodjConformanceAccountAPIResetRequestNoContent) godjConformanceAccountAPIResetRequestRes() {}
+
+type GodjConformanceAccountAPIResetRequestNotAcceptable GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetRequestNotAcceptable) godjConformanceAccountAPIResetRequestRes() {
+}
+
+type GodjConformanceAccountAPIResetRequestRequestEntityTooLarge GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetRequestRequestEntityTooLarge) godjConformanceAccountAPIResetRequestRes() {
+}
+
+type GodjConformanceAccountAPIResetRequestUnsupportedMediaType GoDjAPIError
+
+func (*GodjConformanceAccountAPIResetRequestUnsupportedMediaType) godjConformanceAccountAPIResetRequestRes() {
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -341,6 +529,36 @@ func (s *PasswordChange) SetOldPassword(val string) {
 // SetNewPassword sets the value of NewPassword.
 func (s *PasswordChange) SetNewPassword(val string) {
 	s.NewPassword = val
+}
+
+// Ref: #/components/schemas/PasswordResetComplete
+type PasswordResetComplete struct {
+	NewPassword string `json:"new_password"`
+}
+
+// GetNewPassword returns the value of NewPassword.
+func (s *PasswordResetComplete) GetNewPassword() string {
+	return s.NewPassword
+}
+
+// SetNewPassword sets the value of NewPassword.
+func (s *PasswordResetComplete) SetNewPassword(val string) {
+	s.NewPassword = val
+}
+
+// Ref: #/components/schemas/PasswordResetRequest
+type PasswordResetRequest struct {
+	Email string `json:"email"`
+}
+
+// GetEmail returns the value of Email.
+func (s *PasswordResetRequest) GetEmail() string {
+	return s.Email
+}
+
+// SetEmail sets the value of Email.
+func (s *PasswordResetRequest) SetEmail(val string) {
+	s.Email = val
 }
 
 type SessionAuth struct {

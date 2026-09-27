@@ -24,6 +24,7 @@ import (
 	identityaccount "github.com/progresshans/godj/identity/account"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	identityapi "github.com/progresshans/godj/identity/api"
+	"github.com/progresshans/godj/mail"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/systemstate"
@@ -49,6 +50,28 @@ type configState struct {
 	csrfKeyRing                 websessionauth.CSRFKeyRing
 	allowLoopbackAuthentication bool
 	passwordValidators          []identity.PasswordValidator
+	passwordReset               *passwordResetConfiguration
+}
+
+type passwordResetConfiguration struct {
+	reset  identity.PasswordResetConfig
+	sender mail.Sender
+	mail   identity.PasswordResetMailConfig
+	report identityaccount.PasswordResetErrorReporter
+}
+
+// WithPasswordReset enables the ordinary-account reset routes with explicit
+// signing keys, recipient-link origin, sender and private failure reporting.
+// Global WithPasswordValidators policy also applies; reset.Validators adds any
+// reset-specific requirements. No sender, key or URL is inferred from requests.
+func (config Config) WithPasswordReset(reset identity.PasswordResetConfig, sender mail.Sender, mailConfig identity.PasswordResetMailConfig, report identityaccount.PasswordResetErrorReporter) Config {
+	var configured configState
+	if config.state != nil {
+		configured = *config.state
+	}
+	reset.Validators = append([]identity.PasswordValidator(nil), reset.Validators...)
+	configured.passwordReset = &passwordResetConfiguration{reset, sender, mailConfig, report}
+	return Config{state: &configured}
 }
 
 // NewConfig copies the raw-password-free startup input into opaque immutable
@@ -193,11 +216,28 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: password change persistence: %w", err)
 	}
+	var resetPersistence auth.PasswordResetPersistence
+	var resetSurface *identityaccount.PasswordResetConfig
+	if reset := configured.passwordReset; reset != nil {
+		resetConfig := reset.reset
+		resetConfig.Validators = append(append([]identity.PasswordValidator(nil), configured.passwordValidators...), resetConfig.Validators...)
+		persistence, err := runtime.PasswordResetPersistence(manager, resetConfig)
+		if err != nil {
+			return nil, fmt.Errorf("article site application: password reset persistence: %w", err)
+		}
+		mailer, err := identity.NewPasswordResetMailer(persistence.Resetter(), reset.sender, reset.mail)
+		if err != nil {
+			return nil, fmt.Errorf("article site application: password reset mail: %w", err)
+		}
+		resetPersistence = persistence
+		resetSurface = &identityaccount.PasswordResetConfig{Mailer: mailer, ReportError: reset.report}
+	}
 	webRuntime, err := websessionauth.New(websessionauth.Config{
 		Sessions:                  manager,
 		Authenticator:             runtime.Authenticator(),
 		LoginPersistence:          loginPersistence,
 		PasswordChangePersistence: passwordChangePersistence,
+		PasswordResetPersistence:  resetPersistence,
 		Authorizer:                auth.PrincipalAuthorizer{},
 		SessionCookie:             websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
 		CSRFCookie:                websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
@@ -252,7 +292,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	account, err := identityaccount.New(identityaccount.Config{Apps: projectSettings.Apps(), Namespace: apiapp.Namespace, Auth: webRuntime})
+	account, err := identityaccount.New(identityaccount.Config{Apps: projectSettings.Apps(), Namespace: apiapp.Namespace, Auth: webRuntime, PasswordReset: resetSurface})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: account surface: %w", err)
 	}

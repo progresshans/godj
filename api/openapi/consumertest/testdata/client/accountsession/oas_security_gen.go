@@ -15,7 +15,7 @@ type SecuritySource interface {
 	// HttpOnly CSRF cookie paired with the masked request token.
 	CsrfCookie(ctx context.Context, operationName OperationName) (CsrfCookie, error)
 	// CsrfHeader provides csrfHeader security value.
-	// Masked token obtained from an authenticated safe response.
+	// Masked token obtained from an admitted safe response, including anonymous CSRF bootstrap.
 	CsrfHeader(ctx context.Context, operationName OperationName) (CsrfHeader, error)
 	// SessionAuth provides sessionAuth security value.
 	SessionAuth(ctx context.Context, operationName OperationName) (SessionAuth, error)
@@ -23,7 +23,9 @@ type SecuritySource interface {
 
 // operationRolesCsrfCookie is a private map storing roles per operation.
 var operationRolesCsrfCookie = map[string][]string{
-	GodjConformanceAccountAPIPasswordOperation: []string{},
+	GodjConformanceAccountAPIPasswordOperation:      []string{},
+	GodjConformanceAccountAPIResetCompleteOperation: []string{},
+	GodjConformanceAccountAPIResetRequestOperation:  []string{},
 }
 
 // GetRolesForCsrfCookie returns the required roles for the given operation.
@@ -49,7 +51,9 @@ func GetRolesForCsrfCookie(operation string) []string {
 
 // operationRolesCsrfHeader is a private map storing roles per operation.
 var operationRolesCsrfHeader = map[string][]string{
-	GodjConformanceAccountAPIPasswordOperation: []string{},
+	GodjConformanceAccountAPIPasswordOperation:      []string{},
+	GodjConformanceAccountAPIResetCompleteOperation: []string{},
+	GodjConformanceAccountAPIResetRequestOperation:  []string{},
 }
 
 // GetRolesForCsrfHeader returns the required roles for the given operation.
@@ -75,8 +79,10 @@ func GetRolesForCsrfHeader(operation string) []string {
 
 // operationRolesSessionAuth is a private map storing roles per operation.
 var operationRolesSessionAuth = map[string][]string{
-	GodjConformanceAccountAPICsrfOperation:     []string{},
-	GodjConformanceAccountAPIPasswordOperation: []string{},
+	GodjConformanceAccountAPICsrfOperation:          []string{},
+	GodjConformanceAccountAPIPasswordOperation:      []string{},
+	GodjConformanceAccountAPIResetCompleteOperation: []string{},
+	GodjConformanceAccountAPIResetProofOperation:    []string{},
 }
 
 // GetRolesForSessionAuth returns the required roles for the given operation.

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title></head>
 <body data-account-view="{{ kind }}"><main><h1>{{ title }}</h1>
-{% if done %}<p>Your password has been changed.</p><p><a href="{{ password_path }}">Change password</a></p>
+{% if done %}<p>{{ message }}</p>{% if signed_in %}<p><a href="{{ password_path }}">Change password</a></p>{% else %}<p><a href="{{ login_path }}">Sign in</a></p>{% endif %}
 {% else %}
 {% for error in errors %}<p role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
 <form method="post" action="{{ action }}">{% csrf_token %}
@@ -13,4 +13,5 @@
 <button type="submit">{{ submit }}</button></form>
 {% endif %}
 {% if signed_in %}<form method="post" action="{{ logout_path }}">{% csrf_token %}<button type="submit">Sign out</button></form>{% endif %}
+{% if reset_enabled %}<p><a href="{{ reset_path }}">Request a password reset</a></p>{% endif %}
 </main></body></html>

@@ -46,6 +46,14 @@ type Operation struct {
 	// permission. It requires PrincipalAuthentication and cannot be combined
 	// with any permission fields. A zero/empty permission never implies it.
 	AuthenticatedOnly bool
+	// CSRFOnly requires the explicit anonymous-capable Session CSRF adapter.
+	// It is mutually exclusive with principal/model requirements. Safe methods
+	// require no principal; SessionCookieRequired can declare an application proof.
+	CSRFOnly bool
+	// SessionCookieRequired describes an application-owned server proof on a
+	// CSRFOnly route, without implying an authenticated principal. The handler
+	// validates that proof. Other admission modes already own their transport.
+	SessionCookieRequired bool
 	// AlternativePermissions makes Permission and these entries a disjunction,
 	// matching AlternativeAuthentication.RequireAny. It cannot be combined with
 	// AdditionalPermissions; an authorizer error never selects another branch.
@@ -152,6 +160,14 @@ func New(config Config) (Document, error) {
 				return Document{}, documentError("operation.authentication", "principal authentication capability is required")
 			}
 		}
+		if operation.SessionCookieRequired && !operation.CSRFOnly {
+			return Document{}, documentError("operation.authentication", "an application session proof requires CSRF-only admission")
+		}
+		if operation.CSRFOnly {
+			if _, supported := config.Authentication.(api.CSRFAuthentication); !supported || description.Kind != api.AuthenticationSession {
+				return Document{}, documentError("operation.authentication", "anonymous CSRF admission requires its Session capability")
+			}
+		}
 		route := operation.Route
 		if route.Handler == nil || !validText(route.Name, 256, true) || !supportedMethod(route.Method) {
 			return Document{}, documentError("operation.route", "route needs a handler, a name, and a supported uppercase HTTP method")
@@ -189,7 +205,11 @@ func New(config Config) (Document, error) {
 		}
 		paths[path.Template][method] = value
 	}
-	components := map[string]any{"securitySchemes": securitySchemes(description)}
+	anonymousCSRF := false
+	for _, operation := range config.Operations {
+		anonymousCSRF = anonymousCSRF || operation.CSRFOnly
+	}
+	components := map[string]any{"securitySchemes": securitySchemes(description, anonymousCSRF)}
 	schemas, err := catalog.components()
 	if err != nil {
 		return Document{}, err
@@ -220,15 +240,15 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if len(operation.AdditionalPermissions) != 0 && len(operation.AlternativePermissions) != 0 {
 		return nil, documentError("operation.permission", "conjunction and alternatives cannot be combined")
 	}
-	if operation.AuthenticatedOnly && (operation.Permission != "" || len(operation.AdditionalPermissions) != 0 || len(operation.AlternativePermissions) != 0) {
-		return nil, documentError("operation.permission", "authenticated-only admission cannot declare model permissions")
+	if operation.AuthenticatedOnly && operation.CSRFOnly || (operation.AuthenticatedOnly || operation.CSRFOnly) && (operation.Permission != "" || len(operation.AdditionalPermissions) != 0 || len(operation.AlternativePermissions) != 0) {
+		return nil, documentError("operation.permission", "principal-only or CSRF-only admission cannot be combined with other admission requirements")
 	}
 	remaining := operation.AdditionalPermissions
 	if len(operation.AlternativePermissions) != 0 {
 		remaining = operation.AlternativePermissions
 	}
 	var permissions []auth.Permission
-	if !operation.AuthenticatedOnly {
+	if !operation.AuthenticatedOnly && !operation.CSRFOnly {
 		var err error
 		permissions, err = auth.RequiredPermissions(operation.Permission, remaining...)
 		if err != nil {
@@ -307,7 +327,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		responses[key] = value
 		declarations[response.Status] = response
 	}
-	for _, status := range failureStatuses(profile, negotiatesJSON, operation.AuthenticatedOnly) {
+	for _, status := range failureStatuses(profile, negotiatesJSON, operation.AuthenticatedOnly, operation.CSRFOnly && !operation.SessionCookieRequired && safeMethod(operation.Route.Method)) {
 		key := strconv.Itoa(status)
 		if _, found := responses[key]; found {
 			// A body validation 400 and a Bearer syntax 400 share the same wire
@@ -343,7 +363,9 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if profile.Kind == api.AuthenticationBearer {
 		security["bearerAuth"] = []string{}
 	} else {
-		security["sessionAuth"] = []string{}
+		if !operation.CSRFOnly || operation.SessionCookieRequired {
+			security["sessionAuth"] = []string{}
+		}
 		if !safeMethod(operation.Route.Method) {
 			security["csrfCookie"] = []string{}
 			security["csrfHeader"] = []string{}
@@ -351,7 +373,11 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 			for _, response := range operation.Responses {
 				// Optional because routing/negotiation failures can share a status
 				// while occurring before authentication or the application handler.
-				addResponseHeader(responses[strconv.Itoa(response.Status)].(map[string]any), profile.CSRFHeader, "Fresh masked CSRF token on authenticated safe handler responses; reuse with the HttpOnly CSRF cookie for unsafe methods.")
+				detail := "Fresh masked CSRF token on authenticated safe handler responses; reuse with the HttpOnly CSRF cookie for unsafe methods."
+				if operation.CSRFOnly {
+					detail = "Fresh masked CSRF token on anonymous-capable safe handler responses; reuse with the HttpOnly CSRF cookie for unsafe methods."
+				}
+				addResponseHeader(responses[strconv.Itoa(response.Status)].(map[string]any), profile.CSRFHeader, detail)
 			}
 		}
 	}
@@ -365,7 +391,15 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		"parameters": parameters, "responses": responses, "security": []any{security},
 		"x-godj-permission": string(operation.Permission),
 	}
-	if operation.AuthenticatedOnly {
+	if operation.CSRFOnly {
+		delete(value, "x-godj-permission")
+		value["x-godj-csrf-only"] = true
+		if operation.SessionCookieRequired {
+			value["x-godj-session-cookie-required"] = true
+		} else if safeMethod(operation.Route.Method) {
+			value["security"] = []any{}
+		}
+	} else if operation.AuthenticatedOnly {
 		delete(value, "x-godj-permission")
 		value["x-godj-authenticated-only"] = true
 	} else if len(operation.AlternativePermissions) != 0 {
@@ -515,19 +549,26 @@ func describeAuthentication(authentication api.Authentication) (api.Authenticati
 	return description, nil
 }
 
-func securitySchemes(profile api.AuthenticationDescription) map[string]any {
+func securitySchemes(profile api.AuthenticationDescription, anonymousCSRF bool) map[string]any {
 	if profile.Kind == api.AuthenticationBearer {
 		return map[string]any{"bearerAuth": map[string]string{"type": "http", "scheme": "bearer"}}
+	}
+	csrfDescription := "Masked token obtained from an authenticated safe response."
+	if anonymousCSRF {
+		csrfDescription = "Masked token obtained from an admitted safe response, including anonymous CSRF bootstrap."
 	}
 	return map[string]any{
 		"sessionAuth": map[string]string{"type": "apiKey", "in": "cookie", "name": profile.SessionCookieName},
 		"csrfCookie":  map[string]string{"type": "apiKey", "in": "cookie", "name": profile.CSRFCookieName, "description": "HttpOnly CSRF cookie paired with the masked request token."},
-		"csrfHeader":  map[string]string{"type": "apiKey", "in": "header", "name": profile.CSRFHeader, "description": "Masked token obtained from an authenticated safe response."},
+		"csrfHeader":  map[string]string{"type": "apiKey", "in": "header", "name": profile.CSRFHeader, "description": csrfDescription},
 	}
 }
 
-func failureStatuses(profile api.AuthenticationDescription, negotiatesJSON, authenticatedOnly bool) []int {
+func failureStatuses(profile api.AuthenticationDescription, negotiatesJSON, authenticatedOnly, anonymousSafe bool) []int {
 	statuses := []int{403}
+	if anonymousSafe {
+		statuses = nil
+	}
 	if profile.Kind == api.AuthenticationBearer {
 		statuses = []int{400, 401, 403}
 		if authenticatedOnly {

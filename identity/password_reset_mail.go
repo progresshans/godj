@@ -201,6 +201,15 @@ func CleanPasswordResetEmail(raw string) (string, validation.Errors) {
 	return value, validation.Errors{}
 }
 
+// ConfirmPath reports the normalized recipient link prefix without I/O or
+// credential material. An uninitialized mailer returns an empty path.
+func (mailer *PasswordResetMailer) ConfirmPath() string {
+	if mailer == nil || mailer.state == nil {
+		return ""
+	}
+	return mailer.state.config.ConfirmPath
+}
+
 // Request returns nil for no eligible users as well as confirmed deliveries.
 // All candidates and token-bound recipient data come from one complete read
 // snapshot. It closes before rendering and mail I/O. No later token issuance

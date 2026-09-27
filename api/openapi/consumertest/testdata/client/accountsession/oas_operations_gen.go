@@ -6,6 +6,10 @@ package accountsession
 type OperationName = string
 
 const (
-	GodjConformanceAccountAPICsrfOperation     OperationName = "GodjConformanceAccountAPICsrf"
-	GodjConformanceAccountAPIPasswordOperation OperationName = "GodjConformanceAccountAPIPassword"
+	GodjConformanceAccountAPICsrfOperation          OperationName = "GodjConformanceAccountAPICsrf"
+	GodjConformanceAccountAPIPasswordOperation      OperationName = "GodjConformanceAccountAPIPassword"
+	GodjConformanceAccountAPIResetCompleteOperation OperationName = "GodjConformanceAccountAPIResetComplete"
+	GodjConformanceAccountAPIResetCsrfOperation     OperationName = "GodjConformanceAccountAPIResetCsrf"
+	GodjConformanceAccountAPIResetProofOperation    OperationName = "GodjConformanceAccountAPIResetProof"
+	GodjConformanceAccountAPIResetRequestOperation  OperationName = "GodjConformanceAccountAPIResetRequest"
 )

@@ -92,6 +92,8 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 	if err != nil {
 		a.logger.ErrorContext(logContext(rawRequest), "web request failed", "method", rawRequest.Method, "route", request.routeName, "error", err)
 		response = plainText(http.StatusInternalServerError, "Internal Server Error\n")
+		response.header.Set("Cache-Control", "no-store")
+		response.header.Set("Referrer-Policy", "no-referrer")
 	}
 	writeResponse(writer, response)
 }

@@ -119,7 +119,7 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 해당 열만 갱신하며 관리 revision을 증가시키지 않는다. 저장 Identity 로그인은 현재 credential을 write 안에서 재검사한다.
 임의 SQL이나 이미 승인된 요청까지 소급 통제하는 보장은 아니며 다음 요청의 resolver 검사도 유지한다.
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
-self-service와 reset service는 아래 별도 계약을 사용한다. Reset의 메일 요청 service는 아래 별도 계약을 사용하며 Form/API 소비자는 후속 구현이다. 관리 Form/Admin/API는 이 정책을 사용한다.
+self-service와 reset service, 메일 요청·Form/API 소비자는 아래 별도 계약을 사용한다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
 실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
@@ -547,7 +547,7 @@ rollback/unknown 검증을 구분한다. Reset, 전체 UserCreationForm, token i
 `identity.PasswordResetter`는 `ManagementBackend`와 명시적 hasher·`PasswordResetConfig`에 결합한다.
 서버 내부의 `IssueToken(ctx, principalID)`는 현재 active/usable 계정을 읽어 수신자에게만 전달할 값을 만든다.
 이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택·email 정규화·메일 전달은
-아래 `PasswordResetMailer`가 소유하며 실제 HTTP 소비자는 후속 연결이다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
+아래 `PasswordResetMailer`가 소유하며 실제 HTTP 소비자는 `identity/account`에 연결한다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
 새 hash·write admission·session을 만들지 않는다. Raw token은 명시적인 `Encoded()`로만 꺼내고 fmt/JSON에서는 감춘다.
 
 `PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
@@ -642,8 +642,8 @@ Native HTTP 관찰은 이 결과를 감추지 않는다. GoDj는 기존 reset �
 
 `CheckTokenIn`은 같은 저장 영역의 빌린 coherent read/write scope에서 현재 token만 관찰한다. 새 snapshot·hash·write를 만들지
 않으며 세션에 proof를 저장할 때 같은 fence에서 admission을 확인하기 위한 것이다. 이 관찰은 나중의 write 권한이 아니다.
-실제 proof session persistence와 Web runtime은 아래 계약을 사용한다. Form/API·독립 client 연결은 후속 구현이며
-native fixture나 transaction/runtime 검증을 공개 HTTP 흐름의 완료로 표시하지 않는다.
+실제 proof session persistence와 Web runtime은 아래 계약을 사용하며 Form/API·독립 client는 마지막 소비자 계약을 따른다.
+Native fixture나 transaction/runtime 검증과 실제 공개 HTTP 검증의 범위를 구분한다.
 
 `Runtime.PasswordResetPersistence(manager, config)`는 해당 Identity runtime의 정확한 durable store와 manager에 결합한다.
 생성은 I/O 없이 수행하고, `Resetter()`로 같은 key ring·policy owner에 메일 requester를 연결한다.
@@ -671,4 +671,38 @@ Password/현재 revision·대상 session 폐기·현재 proof 정리·audit는 �
 Web runtime은 확정된 새/회전/삭제 cookie만 적용하며 별도 CSRF cookie를 유지한다. Zero·같은 ID·남은 proof·충돌하는 clear 결과 등
 잘못된 persistence 결과는 cookie 없이 오류로 처리한다. Cause 없는 직접 proof/validation 거부와 cleanup/unknown 오류를 구분한다.
 공개 Form/API 소비자는 entry의 token-free redirect·no-store/no-referrer와 제출 전 CSRF/confirmation을 소유한다.
-현재 실제 DB와 HTTP probe 검증은 이 runtime 계약까지이며 제품 route·Form/JSON·OpenAPI·독립 client는 아직 연결 전이다.
+제품 route·Form/JSON·OpenAPI·독립 client는 아래와 같이 이 runtime을 소비한다. 검증 환경과 실행 상태는 Evidence에서 구분한다.
+
+## 공개 재설정 Form·JSON과 Article 구성
+
+`identity/account.Config.PasswordReset`은 같은 persistence의 resetter로 구성한 mailer와 내부 오류 reporter를 요구한다.
+여기서 reset service는 framework 내부의 token·password·transaction 코드이며 별도 서버 프로세스를 뜻하지 않는다.
+메일 링크 prefix와 cookie 범위를 startup에서 검사한다. 설정하지 않으면 기존 account route와 인증된 schema 조회를 유지한다.
+Article의 `WithPasswordReset`은 같은 resetter/key/policy owner를 persistence와 mailer에 공유하고,
+명시적 sender·origin·From·reporter와 공통 password 정책 및 reset 전용 정책을 함께 구성한다.
+
+Reset email의 GET/POST Form, sent/complete page와 uid/token GET/POST route를 설치한다. 유효 email 입력은 대상 존재 여부,
+active/usable·전달 거절/unknown·DB 오류·취소·sender panic과 무관하게 같은 Form redirect/JSON 204를 반환한다.
+오류는 별도의 내부 reporter로 전달하고 reporter panic도 공개 응답을 바꾸지 않는다. 이는 실제 전달 성공이나 동일 처리 시간의
+보장이 아니다. 전송은 자동 재시도하지 않는다. 주소 정규화·required/length/NUL/문법 검사는 기존 공통 cleaner를 사용한다.
+
+`api.CSRFAuthentication.RequireCSRF`는 익명 요청에서도 origin/CSRF를 검사하되 principal resolution·session touch/cleanup·
+model permission을 실행하지 않는다. Reset root의 GET은 cookie/header pair를 발급하고 POST는 email만 받는다.
+Proof GET과 completion POST는 명시적 `CSRFOnly`와 `SessionCookieRequired` OpenAPI 계약을 사용하며,
+handler가 현재 서버 proof를 검사한다. Schema 조회도 reset 활성화 시 익명 safe admission을 사용한다.
+기존 password change API의 authenticated-only admission은 그대로 유지한다.
+
+UID는 최대 128-byte principal ID의 canonical unpadded base64url이다. Raw token entry는 최종 proof 저장 뒤 곧바로
+`set-password` URL로 redirect한다. Raw URL의 POST도 CSRF 뒤 proof만 교환하며 그 요청으로 password를 바꾸지 않는다.
+Confirmation Form은 required·mismatch·policy 순서를 고정 Django와 대조하며 password를 재표시하지 않는다.
+JSON completion은 `new_password`만 받고 raw token이나 confirmation 입력을 받지 않는다. 현재 proof 없는 hidden link는
+일반 invalid-link page 또는 JSON 403 `invalid_reset_link`로 거부한다. 완료는 자동 로그인이나 last_login 변경을 하지 않는다.
+
+Reset subtree와 활성 schema의 응답은 routing/negotiation 실패까지 no-store/no-referrer를 유지한다. 알려지지 않은
+handler 오류·panic은 내부 보고 뒤 고정 500으로 처리한다. 최종 Web response budget 오류의 500도 같은 privacy header를 유지한다.
+Unknown 완료는 503과 무쿠키/무재시도를 유지하며 typed JSON은 `outcome_unknown`을 반환한다. 상대·본문·query·중복/미지 필드와
+cookie/CSRF 한도는 실제 HTTP 소비자가 검증한다. 독립 generated client는 실제 email의 URL을 따라 proof를 수립한 뒤
+JSON으로 끝내며 부모가 별도 native runtime에서 password/revision/session/audit를 확인한다.
+
+Form/API의 양 DB 재접속은 별도 연결/runtime의 재개 검증이다. 별도 server process restart, 운영 mail provider와 Hosted 전체
+검증을 이 로컬 소비자 결과에서 추론하지 않는다. 실행 상세는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 둔다.

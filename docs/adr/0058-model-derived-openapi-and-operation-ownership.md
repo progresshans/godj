@@ -44,6 +44,16 @@ metadata다. Bearer는 HTTP bearer만 표시하고 JWT 형식·issuer·cookie fa
 빈 permission만으로 인증 전용 route를 추론하지 않는다. 문서는 `x-godj-authenticated-only: true`를 출력하며,
 Session 인증/CSRF의 403은 유지하고 Bearer 인증 전용 route에는 permission 403을 자동 추가하지 않는다.
 Handler 구성/현재 principal resolution은 해당 authentication adapter가 소유한다.
+`CSRFOnly`는 Session profile의 명시적 `api.CSRFAuthentication` capability를 요구한다. Principal/model permission과
+혼합하지 않고 login session의 읽기·touch·cleanup·인가를 실행하지 않는다. Unsafe 요청은 handler 전에 origin과 CSRF pair를
+검사하고, safe handler 응답은 masked token을 게시한다. 문서는 `x-godj-csrf-only: true`와 safe bootstrap의 빈 security를
+출력하며 인증 403을 임의로 추가하지 않는다. Unsafe operation은 CSRF cookie/header의 AND와 403을 유지한다.
+
+`SessionCookieRequired`는 CSRF-only handler가 별도의 서버 proof를 검사할 때 opaque session cookie의 전송을 명시한다.
+`x-godj-session-cookie-required: true`와 해당 security scheme을 출력하지만 authenticated principal을 의미하지 않는다.
+Proof 자체의 현재 상태 검사는 application handler가 소유한다. 이 구분으로 reset request는 익명으로 호출하고,
+reset proof/completion은 같은 생성 client가 보관한 서버 proof cookie를 전송할 수 있다. Safe 요청에 CSRF cookie가
+없으면 새 cookie/header pair가 나올 수 있으므로 이후 unsafe 요청은 마지막으로 받은 pair를 사용한다.
 Description을 제공하지 않는 custom authentication은 기존 API 실행에 사용할 수 있으나 문서 생성은 명시적으로 실패한다.
 
 `New`는 전체 선언을 확인한 뒤 OpenAPI 3.1.1 JSON을 결정적으로 게시한다. 반환 byte·route slice는 복사하고 schema 값은
@@ -75,6 +85,9 @@ Article/Helpdesk Session 검증은 parent fixture의 session을 사용하고 Ide
 `accountsession` profile은 child가 제품 `/account/login/` Form을 제출한 뒤 session cookie를 받아 generated CSRF/password
 operation을 호출한다. 독립 모듈은 GoDj를 import하지 않는다. Header·cookie rotation·다른 session 거부·제품 logout과
 부모의 최종 SQLite 상태를 검사하고 required `Set-Cookie` 및 synthetic 503/no-retry decoder를 별도로 확인한다.
+같은 account profile은 익명 reset request에서 실제 Memory sender 메일을 읽고 제품 token entry/redirect로 proof를 얻어
+generated proof/completion까지 호출한다. 메일 조회는 해당 부모 fixture만 제공하는 별도 capability 보호 경로이며
+제품 route나 schema에 포함하지 않는다. 부모는 reset 뒤 password/revision/session/audit를 별도 runtime에서 확인한다.
 생략/null/value·false, full request default, relation 범위와 권한·취소를 실제 서버에서 검증하고 int64 최대/overflow·잘못된
 response 거부는 별도 wire fixture로 검사한다. 이는 고정된 한 Go generator와 명시한 흐름의 호환성 근거다.
 

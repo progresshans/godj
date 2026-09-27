@@ -8,3 +8,19 @@ type GodjConformanceAccountAPICsrfRes interface {
 type GodjConformanceAccountAPIPasswordRes interface {
 	godjConformanceAccountAPIPasswordRes()
 }
+
+type GodjConformanceAccountAPIResetCompleteRes interface {
+	godjConformanceAccountAPIResetCompleteRes()
+}
+
+type GodjConformanceAccountAPIResetCsrfRes interface {
+	godjConformanceAccountAPIResetCsrfRes()
+}
+
+type GodjConformanceAccountAPIResetProofRes interface {
+	godjConformanceAccountAPIResetProofRes()
+}
+
+type GodjConformanceAccountAPIResetRequestRes interface {
+	godjConformanceAccountAPIResetRequestRes()
+}

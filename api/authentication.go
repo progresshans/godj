@@ -28,6 +28,16 @@ type PrincipalAuthentication interface {
 	RequireAuthenticated(AuthenticatedHandler) (web.Handler, error)
 }
 
+// CSRFAuthentication exposes explicit anonymous-capable CSRF admission. It
+// never resolves a principal or reads, touches or cleans up sessions. Unsafe
+// methods require the paired CSRF cookie/header and origin checks before the
+// handler runs; successful safe handlers receive a fresh masked response token.
+// This is a Session capability, not an implicit effect of empty permissions.
+type CSRFAuthentication interface {
+	Authentication
+	RequireCSRF(web.Handler) (web.Handler, error)
+}
+
 // AlternativeAuthentication additionally supports a nonempty disjunction. The
 // credential and CSRF boundary is evaluated once. Each candidate uses its deny
 // overlay; a definite denial permits the next candidate, but an execution error

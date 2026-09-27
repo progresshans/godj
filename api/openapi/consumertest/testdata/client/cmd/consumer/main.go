@@ -52,6 +52,7 @@ type identityEndpoint struct {
 // The parent independently requires every name. A successful process cannot
 // omit a flow, publish partial results, or infer race instrumentation at runtime.
 var requiredChecks = [...]string{
+	"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry",
 	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
 	"article_bearer_crud",
 	"article_bearer_patch_presence",
@@ -123,7 +124,7 @@ func readInput(reader io.Reader) (input, error) {
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		return config, errors.New("invalid input")
 	}
-	if config.AccountSession.Username == "" || config.AccountSession.Password == "" || config.AccountSession.NewPassword == "" {
+	if config.AccountSession.Username == "" || config.AccountSession.Password == "" || config.AccountSession.NewPassword == "" || config.AccountSession.Email == "" || config.AccountSession.ResetPassword == "" || config.AccountSession.MailProof == "" {
 		return config, errors.New("missing account inputs")
 	}
 	addresses := make(map[string]bool)
@@ -165,6 +166,7 @@ func run(ctx context.Context, config input) ([]string, error) {
 		checks []string
 	}{
 		{func() error { return checkAccountSession(ctx, config.AccountSession) }, []string{"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry"}},
+		{func() error { return checkAccountReset(ctx, config.AccountSession) }, []string{"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry"}},
 		{func() error { return checkArticleBearer(ctx, config.ArticleBearer) }, []string{
 			"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors", "pre_canceled_request",
 		}},

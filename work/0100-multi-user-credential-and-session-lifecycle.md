@@ -87,7 +87,7 @@ Admin 읽기 전용 표시·관리 API·독립 Session/Bearer client와 두 DB �
 자기 비밀번호 확인·교체의 service/session/Web runtime과 양 DB·HTTP runtime 회귀를 추가하고 영향 normal/race/CGO=0 검증을 통과했다.
 제품 Form·JSON/OpenAPI·독립 client도 연결했으며 환경별 검증은 아래 현재 상태를 따른다.
 모델 관리 권한 없이 현재 session으로 본인을 식별하며 credential 변경·현재 session 회전·다른 session 폐기·감사를 원자적으로 처리한다.
-현재 profile을 다시 검증하고 password와 현재 revision만 patch한다. Reset은 후속 미완료 범위다.
+현재 profile을 다시 검증하고 password와 현재 revision만 patch한다. Reset은 아래 별도 소비자 계약과 현재 검증 범위를 따른다.
 소비자는 빈 permission이나 임의 관리 권한으로 우회하지 않고, 인증만 요구하는 명시적 API/OpenAPI 계약을 사용한다.
 Account는 read-only session admission으로 실패 시 무변경을 유지한다. 일반 계정 login/password와 기존 staff Admin을
 같은 실제 Article composition에서 함께 검증했다.
@@ -102,7 +102,7 @@ Proof persistence·Web runtime을 같은 native transaction에 연결했다. Ent
 현재 payload/lifetime 보존, 본인 session 폐기와 cookie 게시의 영향 검증을 양 DB·HTTP probe에서 수행했다.
 실제 URL의 선행 조건인 bounded str route·typed reverse/accessor·OpenAPI와 token을 남기지 않는 기본 오류 진단을 구현했다.
 문자/숫자 충돌·prefix policy·escaping·byte 한도, 고정 Django URL 기준과 독립 ogen HTTP probe의 영향 세 모드 검증을 완료했다.
-로그인 전 CSRF admission과 실제 제품 route·Form/API·독립 client는 다음 연결 범위다.
+로그인 전 CSRF admission과 실제 제품 route·Form/API·독립 client를 연결했으며 마지막 현재 상태를 따른다.
 
 일반 계정의 제품 login/logout/password Form과 Session JSON/OpenAPI, 여섯 번째 독립 ogen client를 연결했다.
 명시적 authenticated-only admission과 read-only session preflight를 사용하며 같은 runtime의 Admin 경로는
@@ -128,3 +128,11 @@ Reset request의 한 snapshot 내 active/DB-iexact·NFKC/full casefold·usable �
 명시적 origin·From·default/custom content, 모든 후보/render 준비 후 전달·실패 원인과 unknown 보존·취소/no-retry를 구현했다.
 고정 Unicode 16 공식 casefold 생성/전체 scalar 기준, 공통 email 문법, 양 DB의 실제 전달 token 소비·snapshot 경합과 실패를
 normal/race/CGO=0에서 검증했다. 공개 reset Form/API·독립 client·HTTP 응답/CSRF/token 숨김은 다음 연결 범위다.
+
+공개 reset 소비자를 `identity/account`에 연결했다. 익명 CSRF와 application proof의 opaque session-cookie 계약,
+메일 실패/unknown/panic에도 같은 공개 응답과 별도 내부 보고, token-free entry·confirmation·Form 오류/JSON 정책,
+no-store/no-referrer·자동 로그인 없음·unknown 무재시도를 구현했다. Article은 동일 resetter/policy로 구성하고
+독립 generated client는 실제 메일에서 얻은 proof로 JSON 완료까지 진행한다. 영향 세 모드·양 DB·HTTP·negative control과
+실제 최종 저장 검증을 통과했다. 기존 문단의 후속 공개 reset 소비자 연결은 이 구현으로 충족했으며,
+다음은 이 source의 Hosted 전체 credential lifecycle 통합 milestone이다. 전체 UserCreationForm과 다른 인증 provider,
+운영 mail provider 검증은 남아 있다. 환경별 세부 결과와 초기 client fixture 실패는 TEST_EVIDENCE 한 곳에 기록한다.

@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/web"
@@ -36,11 +37,12 @@ const (
 var templateFiles embed.FS
 
 type Config struct {
-	Apps        apps.Registry
-	Namespace   string
-	BasePath    string
-	APIBasePath string
-	Auth        *sessionauth.Runtime `json:"-"`
+	Apps          apps.Registry
+	Namespace     string
+	BasePath      string
+	APIBasePath   string
+	Auth          *sessionauth.Runtime `json:"-"`
+	PasswordReset *PasswordResetConfig `json:"-"`
 }
 
 func (Config) Format(state fmt.State, _ rune) {
@@ -49,16 +51,20 @@ func (Config) Format(state fmt.State, _ rune) {
 func (Config) MarshalJSON() ([]byte, error) { return []byte(`"identityaccount.Config{redacted}"`), nil }
 
 type Application struct {
-	basePath, apiBasePath, namespace string
-	auth                             *sessionauth.Runtime
-	apiAuth                          *apisession.Runtime
-	login, password                  forms.Spec
-	passwordJSON                     serializers.Spec
-	parser                           api.Parser
-	policy                           api.JSONPolicy
-	document                         openapi.Document
-	engine                           *templates.Engine
-	routes                           []web.Route
+	basePath, apiBasePath, namespace  string
+	auth                              *sessionauth.Runtime
+	apiAuth                           *apisession.Runtime
+	login, password                   forms.Spec
+	passwordJSON                      serializers.Spec
+	resetMailer                       *identity.PasswordResetMailer
+	reportResetError                  PasswordResetErrorReporter
+	resetEmail, resetPassword         forms.Spec
+	resetEmailJSON, resetPasswordJSON serializers.Spec
+	parser                            api.Parser
+	policy                            api.JSONPolicy
+	document                          openapi.Document
+	engine                            *templates.Engine
+	routes                            []web.Route
 }
 
 func (*Application) Format(state fmt.State, _ rune) {
@@ -131,6 +137,9 @@ func New(config Config) (*Application, error) {
 		return nil, err
 	}
 	a := &Application{basePath: base, apiBasePath: apiBase, namespace: config.Namespace, auth: config.Auth, apiAuth: apiAuth, policy: policy, parser: parser, engine: engine}
+	if err := a.prepareReset(config.PasswordReset); err != nil {
+		return nil, err
+	}
 	if err := a.prepareForms(); err != nil {
 		return nil, err
 	}
@@ -145,8 +154,15 @@ func New(config Config) (*Application, error) {
 		{Name: a.namespace + ":account-password-submit", Method: http.MethodPost, Path: base + "/password/", Handler: a.passwordPost},
 		{Name: a.namespace + ":account-password-done", Method: http.MethodGet, Path: base + "/password/done/", Handler: a.passwordDone},
 	}
+	a.routes = append(a.routes, a.resetRoutes()...)
 	a.routes = append(a.routes, a.document.Routes()...)
-	schema, err := a.apiAuth.RequireAuthenticated(func(request *web.Request, _ auth.Principal) (web.Response, error) { return a.schemaResponse(request) })
+	var schema web.Handler
+	if a.resetMailer != nil {
+		schema, err = a.apiAuth.RequireCSRF(a.schemaResponse)
+
+	} else {
+		schema, err = a.apiAuth.RequireAuthenticated(func(request *web.Request, _ auth.Principal) (web.Response, error) { return a.schemaResponse(request) })
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +186,11 @@ func (a *Application) Middleware() []web.Middleware {
 	if a == nil {
 		return nil
 	}
-	return a.policy.Middleware()
+	middleware := a.policy.Middleware()
+	if a.resetMailer != nil {
+		middleware = append([]web.Middleware{a.resetPrivacy}, middleware...)
+	}
+	return middleware
 }
 func (a *Application) OpenAPI() (openapi.Document, error) {
 	if a == nil {

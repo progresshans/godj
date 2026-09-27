@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-faster/errors"
+	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/uri"
@@ -42,6 +43,49 @@ type Invoker interface {
 	//
 	// POST /api/account/password/
 	GodjConformanceAccountAPIPassword(ctx context.Context, request *PasswordChange) (GodjConformanceAccountAPIPasswordRes, error)
+	// GodjConformanceAccountAPIResetComplete invokes godj_conformance:account-api-reset-complete operation.
+	//
+	// CSRF precedes proof admission and JSON parsing. The uid is the canonical base64url principal ID from
+	// the email link. Required new_password preserves whitespace. Confirmation belongs to the HTML form
+	// and is not accepted by this JSON command. Current proof/account/session/policy are rechecked under
+	// the final write fence. Password/revision, target-session revocation, current-proof cleanup and
+	// value-free audit commit together. No automatic login occurs; last_login is preserved. Success
+	// rotates an anonymous/other-account session or clears the current target login cookie. Keep the
+	// independent CSRF cookie. Invalid proof is 403 invalid_reset_link. A 503 outcome_unknown means
+	// reconcile durable state before another submission; never retry automatically. Null,
+	// duplicate/unknown members and query parameters are rejected.
+	//
+	// POST /api/account/reset/{uid}/
+	GodjConformanceAccountAPIResetComplete(ctx context.Context, request *PasswordResetComplete, params GodjConformanceAccountAPIResetCompleteParams) (GodjConformanceAccountAPIResetCompleteRes, error)
+	// GodjConformanceAccountAPIResetCsrf invokes godj_conformance:account-api-reset-csrf operation.
+	//
+	// No login session is required or read. Retain the CSRF cookie and masked response header for
+	// subsequent unsafe requests. Query parameters are not accepted.
+	//
+	// GET /api/account/reset/
+	GodjConformanceAccountAPIResetCsrf(ctx context.Context) (GodjConformanceAccountAPIResetCsrfRes, error)
+	// GodjConformanceAccountAPIResetProof invokes godj_conformance:account-api-reset-proof operation.
+	//
+	// The uid is the canonical unpadded base64url principal ID from the email link, bounded to 128 decoded
+	// bytes. First follow the email link, including its token-free redirect, retaining cookies. This
+	// endpoint checks the current server proof without session touch, cleanup or password hashing and
+	// returns a fresh masked CSRF header. It neither requires nor creates a login. No token is accepted
+	// here and query parameters are not accepted.
+	//
+	// GET /api/account/reset/{uid}/
+	GodjConformanceAccountAPIResetProof(ctx context.Context, params GodjConformanceAccountAPIResetProofParams) (GodjConformanceAccountAPIResetProofRes, error)
+	// GodjConformanceAccountAPIResetRequest invokes godj_conformance:account-api-reset-request operation.
+	//
+	// No login is required. CSRF and origin checks precede parsing. The required email string uses Unicode
+	// trimming and shared email validation. Every valid email receives the same 204 acknowledgement,
+	// including unknown/inactive/unusable accounts and private delivery or infrastructure failures. This
+	// is not a delivery receipt or a constant-time guarantee. Failures are separately reported to the
+	// host; delivery is never retried automatically. Follow any received email link with the same
+	// cookie-retaining browser/client to establish the server-side proof. No query, null, unknown or
+	// duplicate members are accepted.
+	//
+	// POST /api/account/reset/
+	GodjConformanceAccountAPIResetRequest(ctx context.Context, request *PasswordResetRequest) (GodjConformanceAccountAPIResetRequestRes, error)
 }
 
 // Client implements OAS client.
@@ -264,6 +308,373 @@ func (c *Client) sendGodjConformanceAccountAPIPassword(ctx context.Context, requ
 	}()
 
 	result, err := decodeGodjConformanceAccountAPIPasswordResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjConformanceAccountAPIResetComplete invokes godj_conformance:account-api-reset-complete operation.
+//
+// CSRF precedes proof admission and JSON parsing. The uid is the canonical base64url principal ID from
+// the email link. Required new_password preserves whitespace. Confirmation belongs to the HTML form
+// and is not accepted by this JSON command. Current proof/account/session/policy are rechecked under
+// the final write fence. Password/revision, target-session revocation, current-proof cleanup and
+// value-free audit commit together. No automatic login occurs; last_login is preserved. Success
+// rotates an anonymous/other-account session or clears the current target login cookie. Keep the
+// independent CSRF cookie. Invalid proof is 403 invalid_reset_link. A 503 outcome_unknown means
+// reconcile durable state before another submission; never retry automatically. Null,
+// duplicate/unknown members and query parameters are rejected.
+//
+// POST /api/account/reset/{uid}/
+func (c *Client) GodjConformanceAccountAPIResetComplete(ctx context.Context, request *PasswordResetComplete, params GodjConformanceAccountAPIResetCompleteParams) (GodjConformanceAccountAPIResetCompleteRes, error) {
+	res, err := c.sendGodjConformanceAccountAPIResetComplete(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGodjConformanceAccountAPIResetComplete(ctx context.Context, request *PasswordResetComplete, params GodjConformanceAccountAPIResetCompleteParams) (res GodjConformanceAccountAPIResetCompleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/account/reset/"
+	{
+		// Encode "uid" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "uid",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.UID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjConformanceAccountAPIResetCompleteRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, GodjConformanceAccountAPIResetCompleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, GodjConformanceAccountAPIResetCompleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, GodjConformanceAccountAPIResetCompleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjConformanceAccountAPIResetCompleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjConformanceAccountAPIResetCsrf invokes godj_conformance:account-api-reset-csrf operation.
+//
+// No login session is required or read. Retain the CSRF cookie and masked response header for
+// subsequent unsafe requests. Query parameters are not accepted.
+//
+// GET /api/account/reset/
+func (c *Client) GodjConformanceAccountAPIResetCsrf(ctx context.Context) (GodjConformanceAccountAPIResetCsrfRes, error) {
+	res, err := c.sendGodjConformanceAccountAPIResetCsrf(ctx)
+	return res, err
+}
+
+func (c *Client) sendGodjConformanceAccountAPIResetCsrf(ctx context.Context) (res GodjConformanceAccountAPIResetCsrfRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/account/reset/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjConformanceAccountAPIResetCsrfResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjConformanceAccountAPIResetProof invokes godj_conformance:account-api-reset-proof operation.
+//
+// The uid is the canonical unpadded base64url principal ID from the email link, bounded to 128 decoded
+// bytes. First follow the email link, including its token-free redirect, retaining cookies. This
+// endpoint checks the current server proof without session touch, cleanup or password hashing and
+// returns a fresh masked CSRF header. It neither requires nor creates a login. No token is accepted
+// here and query parameters are not accepted.
+//
+// GET /api/account/reset/{uid}/
+func (c *Client) GodjConformanceAccountAPIResetProof(ctx context.Context, params GodjConformanceAccountAPIResetProofParams) (GodjConformanceAccountAPIResetProofRes, error) {
+	res, err := c.sendGodjConformanceAccountAPIResetProof(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjConformanceAccountAPIResetProof(ctx context.Context, params GodjConformanceAccountAPIResetProofParams) (res GodjConformanceAccountAPIResetProofRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/account/reset/"
+	{
+		// Encode "uid" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "uid",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.UID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, GodjConformanceAccountAPIResetProofOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjConformanceAccountAPIResetProofResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjConformanceAccountAPIResetRequest invokes godj_conformance:account-api-reset-request operation.
+//
+// No login is required. CSRF and origin checks precede parsing. The required email string uses Unicode
+// trimming and shared email validation. Every valid email receives the same 204 acknowledgement,
+// including unknown/inactive/unusable accounts and private delivery or infrastructure failures. This
+// is not a delivery receipt or a constant-time guarantee. Failures are separately reported to the
+// host; delivery is never retried automatically. Follow any received email link with the same
+// cookie-retaining browser/client to establish the server-side proof. No query, null, unknown or
+// duplicate members are accepted.
+//
+// POST /api/account/reset/
+func (c *Client) GodjConformanceAccountAPIResetRequest(ctx context.Context, request *PasswordResetRequest) (GodjConformanceAccountAPIResetRequestRes, error) {
+	res, err := c.sendGodjConformanceAccountAPIResetRequest(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGodjConformanceAccountAPIResetRequest(ctx context.Context, request *PasswordResetRequest) (res GodjConformanceAccountAPIResetRequestRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/account/reset/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjConformanceAccountAPIResetRequestRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, GodjConformanceAccountAPIResetRequestOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, GodjConformanceAccountAPIResetRequestOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000011},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjConformanceAccountAPIResetRequestResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

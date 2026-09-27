@@ -342,3 +342,11 @@ func TestStringRouteOverlapRespectsWholePathLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestInternalErrorResponseAlwaysForbidsCachingAndReferrers(t *testing.T) {
+	app := newTestApplication(t, web.Config{MaxResponseBytes: 1, Routes: []web.Route{{Name: "articles:reset-error", Method: "GET", Path: "/reset/<str:token>/", Handler: textHandler("too large")}}})
+	got := serve(app, "GET", "/reset/private-token/")
+	if got.Code != 500 || got.Header().Get("Cache-Control") != "no-store" || got.Header().Get("Referrer-Policy") != "no-referrer" || strings.Contains(got.Body.String(), "private-token") {
+		t.Fatal("runtime error dropped privacy headers")
+	}
+}

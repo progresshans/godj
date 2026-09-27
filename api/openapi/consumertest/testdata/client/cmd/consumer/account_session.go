@@ -14,10 +14,13 @@ import (
 )
 
 type accountEndpoint struct {
-	URL         string `json:"url"`
-	Username    string `json:"username"`
-	Password    string `json:"password"`
-	NewPassword string `json:"new_password"`
+	URL           string `json:"url"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	NewPassword   string `json:"new_password"`
+	Email         string `json:"email"`
+	ResetPassword string `json:"reset_password"`
+	MailProof     string `json:"mail_proof"`
 }
 type accountSource struct{ *sessionState }
 

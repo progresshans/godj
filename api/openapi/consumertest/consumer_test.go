@@ -25,6 +25,7 @@ import (
 )
 
 var requiredConsumerChecks = []string{
+	"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry",
 	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
 	"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors",
 	"article_session_csrf_crud", "article_session_invalid_csrf", "helpdesk_session_relations", "helpdesk_session_create_defaults",

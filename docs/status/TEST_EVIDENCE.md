@@ -3,6 +3,61 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 공개 password reset Form·JSON과 독립 client
+
+2026-09-28, `95e3c0f0` 이후 실제 email request·hidden-token entry·confirmation Form과 JSON/OpenAPI를 연결했다.
+명시적 anonymous CSRF adapter와 application proof의 session-cookie 계약을 구분하며 Article이 같은 resetter/policy로
+persistence·mailer·Form/API를 구성한다. 새 login은 만들지 않고 마지막 proof/password/session/audit를 원자적으로 정리한다.
+Model IR·migration·생성 model ABI·module/tool lock은 바꾸지 않았다. Account OpenAPI와 해당 ogen 생성물만 갱신했다.
+
+통합 checkpoint source map `6cbce1b957666014843b2908f4d0f2508797ce4478c0fc906ee2c1345d3fc6d2`
+(non-Markdown **2,568 파일**)의 시작/종료 동일성을 확인했다. **12 packages / 213 roots / 842 필수 항목**이며
+Web·API/두 auth adapter·OpenAPI·Account/Identity·Article composition **936 PASS**, 양 DB mail/proof/account/새 reset consumer
+**488 PASS**, 여섯 profile의 기존 generated drift·HTTP와 확장된 account client **10 PASS**를 각 모드에서 실행했다.
+필수 run/pass·package 완료와 모든 child의 skip 부재를 event inventory로 확인했다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,434 PASS / skip 0 | 26.604초 |
+| race | 1,434 PASS / skip 0 | 173.217초 |
+| CGO=0 | 1,434 PASS / skip 0 | 30.652초 |
+
+합계 **4,302 PASS / skip 0**이다. Darwin arm64 / Go 1.26.5, offline readonly와 `TZ=Pacific/Chatham`,
+private PostgreSQL **17.10 UTF8/libc/C**, `GODJ_REQUIRE_POSTGRES=1`을 사용했다. DB 정리 **0|0|0**과 container 제거를 확인했다.
+두 DB 실행 roster에 각각 **120개 필수 항목**을 추가했으며 실제 두 DB의 해당 run/pass를 확인했다.
+
+- Form/JSON 각각 session 없음·anonymous·본인·다른 계정에서 실제 Memory sender 메일의 URL을 사용했다.
+  다른 브라우저의 hidden link 거부, entry ID 회전·token-free redirect, 별도 DB 연결/runtime 재접속 뒤 proof 재개,
+  policy 거부의 무변경, 정확한 password/revision/last_login/session/payload/lifetime/audit·proof 정리와 replay 거부를 검사했다.
+  별도 서버 process restart 증거와는 구분한다. 기존 고정 Django HTTP fixture의 required/mismatch/policy 순서도 대조했다.
+- 유효 email의 known/unknown/inactive/unusable, 전달 거절/unknown/panic/cancel, snapshot 오류와 reporter panic에서
+  동일 공개 status/body/location을 확인했다. 내부 오류 보고·전송 회수와 password/session/audit 무변경을 별도로 검사했다.
+  처리 시간 동일성이나 운영 mail provider의 실제 도착은 검증하지 않았다.
+- CSRF/origin·malformed/padded/wrong-target/missing proof·query/빈 query·duplicate/null/unknown member·body/input 한도·
+  media·method·없는 경로·Accept 거부를 실제 HTTP로 검사했다. Raw-token POST는 CSRF 뒤 proof만 수립한다.
+  실패/404/405/406에도 no-store/no-referrer를 확인했고 Web 최종 response budget의 500 privacy도 검사했다.
+- Password write·proof/session 회전·이전 ID 삭제·audit·revocation 오류, 취소와 unknown rollback/commit을 양 DB에 주입했다.
+  확정 실패는 전체 rollback, unknown commit fixture만 실제 저장을 유지하며 모두 오류 보고·무쿠키·무재시도·hash 1회를 확인했다.
+- Anonymous CSRF adapter는 login store/authenticator/authorizer를 접근하지 않는 guard를 사용한다. Origin/CSRF가
+  handler보다 앞서며 schema는 익명 bootstrap과 proof cookie를 구분한다. Article은 실제 migrated identity와 global password
+  policy를 사용해 요청·메일·entry·JSON 완료·최종 저장을 검증했다.
+- 독립 Go module의 account generated client는 새 익명 jar, 실제 메일 링크, 제품 entry/Form, proof/policy/completion·replay와
+  자동 login 없음까지 실행했다. Parent fixture의 mailbox 읽기만 별도 capability 경로를 사용하며 제품 API/schema에는 없다.
+  부모는 별도 native runtime에서 password/revision 4·last_login 유지·대상 session 폐기/외부 session 보존·audit 3건을 확인했다.
+  Synthetic typed 503/no-retry는 실제 DB unknown 주입과 별도 증거다. 다른 다섯 schema/client와 tool/dependency lock은 불변이다.
+
+Source overlay **6개**는 CSRF 생략, 메일 오류의 공개 응답 차이, raw-token redirect, proof-cookie security 누락,
+unknown을 성공 status로 게시, 마지막 500의 Referrer-Policy 누락을 지정 assertion으로 검출했다. Compile 실패는 control로 세지 않았다.
+영향 vet·gofmt, CI event/roster/scope 도구 **26 tests**, 두 attestation의 실제 native Go dependency 대조도 통과했다.
+
+첫 checkpoint의 core **936 PASS**와 양 DB **488 PASS** 뒤 independent client는 실패했다. 추가 진단에서
+중간 safe generated GET이 CSRF cookie를 보내지 않아 새 pair를 발급받았는데 완료 검사가 이전 bootstrap 값을 비교한 것을 확인했다.
+완료 직전의 proof 응답을 기준으로 수정했고 실제 completion 전후의 cookie 보존 검사는 유지했다. Set-Cookie/HttpOnly 검사를 추가했다.
+실패 실행은 `reset-consumer-checkpoint-1790536911174940000`에 보존했으며 race/CGO=0 미실행을 성공으로 세지 않았다.
+
+최종 raw/receipt·source inventory·6개 control·quality는 `godj-many-to-many-reference-4sl0bvdp/reset-consumer-checkpoint-1790537339279142000`에 있다.
+이 consumer source의 Hosted 전체는 후속 credential lifecycle 통합 milestone에서 실행한다. 로컬 전체 platform/cold build는 중복하지 않았다.
+
 ## GDJ-0100 — bounded 문자열 경로와 reset URL 기반
 
 2026-09-28, `cffb6e10` 이후 실제 reset URL의 선행 조건인 `<str:name>`를 추가했다. Router·typed reverse/accessor와
@@ -51,6 +106,10 @@ Source overlay **4개**는 string byte 한도 생략, mixed-kind overlap 오인,
 준비 중 compile import/이름 충돌과 probe의 generator option 이름을 바로잡았으며 compile 실패를 control 성공으로 세지 않았다.
 원본/receipt·control·probe source/생성물은 `godj-many-to-many-reference-4sl0bvdp/string-routing-checkpoint-1790533946874403000`
 아래 보존했다. Model IR·생성 ABI·기존 제품 client 생성물은 변경하지 않았다. 이 source의 Hosted 전체는 아직 실행하지 않았다.
+
+구현 commit `95e3c0f0bf516652cc33b966bba3c24c4d1d30ee`의
+[Hosted Fast 36341705950](https://github.com/progresshans/godj/actions/runs/36341705950)는 실제 Fast Go feedback step까지 성공했다.
+이후 공개 reset consumer나 Hosted 전체의 검증으로 전이하지 않는다. Run/jobs/steps 원본은 reset-consumer checkpoint의 `hosted/`에 있다.
 
 ## GDJ-0100 — reset proof의 durable session과 Web runtime
 

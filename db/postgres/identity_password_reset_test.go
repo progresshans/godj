@@ -54,3 +54,23 @@ func TestPostgresIdentityPasswordResetSessionHTTP(t *testing.T) {
 func TestPostgresIdentityPasswordResetSessionLatest(t *testing.T) {
 	identitytest.RunPasswordResetSessionLatest(t, openPostgresUnusablePair)
 }
+
+func TestPostgresIdentityPasswordResetConsumer(t *testing.T) {
+	identitytest.RunPasswordResetConsumer(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetConsumerAcknowledgement(t *testing.T) {
+	identitytest.RunPasswordResetConsumerAcknowledgement(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetConsumerRefusals(t *testing.T) {
+	identitytest.RunPasswordResetConsumerRefusals(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetConsumerBoundaries(t *testing.T) {
+	identitytest.RunPasswordResetConsumerBoundaries(t, openPostgresUnusablePair)
+}
+
+func TestPostgresIdentityPasswordResetRequestRefusals(t *testing.T) {
+	identitytest.RunPasswordResetRequestRefusals(t, openPostgresUnusablePair)
+}

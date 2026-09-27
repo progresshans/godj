@@ -263,6 +263,10 @@ Identity는 명시적인 `ProvisionIdentity` 또는 기존 operator의 `AdoptOpe
 새 User·권한·receipt와 옛 credential의 비활성 표시를 같은 transaction으로 쓴다. Unknown outcome은 receipt를 조회해 조정한다.
 이전하지 않은 옛 도메인의 `OpenExisting`/policy CAS도 legacy 저장 의미를 검증한다. 자세한 결정은
 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)을 따른다.
+`identity/account`는 같은 runtime의 일반 login/logout·password change와 선택적인 email reset Form/API를 구성한다.
+Reset은 CSRF-only admission과 application-owned proof cookie를 구분하며, token을 서버 session으로 옮긴 뒤 token-free
+URL로 전환한다. 현재 proof·credential 재검사, password/session/audit의 원자 저장과 공개 응답/내부 오류 보고는 각각
+persistence와 account consumer가 소유한다. Article은 명시적 sender·origin·keys·공통 password 정책을 이 구성에 연결한다.
 Session Store의 `Access`는 현재 record를 한 번 읽고 `AccessPolicy`의 record 검증·clock 확인·idle/absolute 만료 판정·
 갱신 또는 만료 삭제를 한 원자적 연산에서 수행하며 active/expired/missing을 구분한다. Manager.Load는 이 연산을 사용하고,
 Store.Load는 갱신 없는 원시 조회다. 정책 검증·취소가 실패하면 저장 내용을 바꾸지 않는다.
