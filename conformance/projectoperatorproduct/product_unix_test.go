@@ -1198,7 +1198,10 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 	// of treating row shape as proof. This is the no-retry path used after a
 	// lost private response: OpenIdentity must accept the durable ownership receipt and
 	// the supplied password must authenticate against the durable hash.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Default PBKDF2 verification is CPU work and is race-instrumented in the
+	// parent test. Reconciliation checks correctness, not a ten-second latency
+	// promise on every runner. Keep the real hash profile and a bounded context.
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
 	backend, err := sqlitebackend.Open(ctx, path)
 	if err != nil {
@@ -1221,11 +1224,14 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		t.Fatal("open existing external operator runtime")
 	}
 	passwordText := string(password)
+	authenticationStarted := time.Now()
 	principalCredential, err := runtime.Authenticator().Authenticate(ctx, username, passwordText)
 	principal := principalCredential.Principal()
 	passwordText = ""
 	if err != nil || principal.ID() != "external-article-operator" || !principal.Active() || !principal.Staff() || !principal.Superuser() {
-		t.Fatal("authenticate fresh external operator runtime")
+		t.Fatalf("authenticate fresh external operator runtime: failed=%t deadline=%t canceled=%t invalid_credentials=%t elapsed=%s principal_match=%t active=%t staff=%t superuser=%t",
+			err != nil, errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled), errors.Is(err, auth.ErrInvalidCredentials),
+			time.Since(authenticationStarted).Round(time.Millisecond), principal.ID() == "external-article-operator", principal.Active(), principal.Staff(), principal.Superuser())
 	}
 	if err := backend.Close(); err != nil {
 		t.Fatal("close fresh external operator SQLite backend")
