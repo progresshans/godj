@@ -306,6 +306,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
+	renderModelValueAssignment(output, model, descriptorName)
+
 	fmt.Fprintf(output, "type %s struct {\n", fieldSetName)
 	for _, field := range model.Fields {
 		if field.Kind == ir.FieldForeignKey {
@@ -334,6 +336,34 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func %s() ir.Model {\n", metadataFunction)
 	fmt.Fprintln(output, "\treturn ir.Model{")
 	renderModelLiteralBody(output, model, "\t\t")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+}
+
+func renderModelValueAssignment(output *bytes.Buffer, model ir.Model, descriptorName string) {
+	fmt.Fprintf(output, "func (%s) SetFieldValue(value *%s, field ir.Field, input query.Value) bool {\n", descriptorName, model.GoName)
+	fmt.Fprintln(output, "\tif value == nil { return false }")
+	fmt.Fprintln(output, "\tswitch field.Name {")
+	for _, field := range model.Fields {
+		if field.PrimaryKey {
+			continue
+		}
+		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(field.Name))
+		if field.Nullable {
+			fmt.Fprintf(output, "\t\tif input.IsNull() { value.%s = nil; return true }\n", field.GoName)
+		}
+		fmt.Fprintf(output, "\t\tassigned, ok := input.%s()\n", fieldRenderKind(field.Kind).queryValue)
+		fmt.Fprintln(output, "\t\tif !ok { return false }")
+		prefix := ""
+		if field.Nullable {
+			prefix = "&"
+		}
+		fmt.Fprintf(output, "\t\tvalue.%s = %sassigned\n", field.GoName, prefix)
+		fmt.Fprintln(output, "\t\treturn true")
+	}
+	fmt.Fprintln(output, "\tdefault:")
+	fmt.Fprintln(output, "\t\treturn false")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)

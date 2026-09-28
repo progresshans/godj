@@ -72,6 +72,23 @@ func (ChildDescriptor) WriteFieldValue(value Child, field ir.Field) (query.Value
 	}
 }
 
+func (ChildDescriptor) SetFieldValue(value *Child, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RootID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type ChildFieldSet struct {
 	ID orm.AutoField[Child]
 }
@@ -241,6 +258,23 @@ func (GrandchildDescriptor) WriteFieldValue(value Grandchild, field ir.Field) (q
 		return query.Integer(value.ChildID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (GrandchildDescriptor) SetFieldValue(value *Grandchild, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "child":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ChildID = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -425,6 +459,27 @@ func (WatcherDescriptor) WriteFieldValue(value Watcher, field ir.Field) (query.V
 		return query.Integer(*value.ChildID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (WatcherDescriptor) SetFieldValue(value *Watcher, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "child":
+		if input.IsNull() {
+			value.ChildID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ChildID = &assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -632,6 +687,23 @@ func (ProtectedDescriptor) WriteFieldValue(value Protected, field ir.Field) (que
 	}
 }
 
+func (ProtectedDescriptor) SetFieldValue(value *Protected, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "grandchild":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.GrandchildID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type ProtectedFieldSet struct {
 	ID orm.AutoField[Protected]
 }
@@ -804,6 +876,30 @@ func (TwinDescriptor) WriteFieldValue(value Twin, field ir.Field) (query.Value, 
 		return query.Integer(value.SecondID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (TwinDescriptor) SetFieldValue(value *Twin, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "first":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.FirstID = assigned
+		return true
+	case "second":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.SecondID = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1019,6 +1115,23 @@ func (HiddenDescriptor) WriteFieldValue(value Hidden, field ir.Field) (query.Val
 	}
 }
 
+func (HiddenDescriptor) SetFieldValue(value *Hidden, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RootID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type HiddenFieldSet struct {
 	ID orm.AutoField[Hidden]
 }
@@ -1188,6 +1301,23 @@ func (DetailDescriptor) WriteFieldValue(value Detail, field ir.Field) (query.Val
 		return query.Integer(value.RootID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (DetailDescriptor) SetFieldValue(value *Detail, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RootID = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1364,6 +1494,30 @@ func (OverlapDescriptor) WriteFieldValue(value Overlap, field ir.Field) (query.V
 		return query.Integer(value.ProtectedRootID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (OverlapDescriptor) SetFieldValue(value *Overlap, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "cascade_root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.CascadeRootID = assigned
+		return true
+	case "protected_root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ProtectedRootID = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1579,6 +1733,23 @@ func (RightDescriptor) WriteFieldValue(value Right, field ir.Field) (query.Value
 	}
 }
 
+func (RightDescriptor) SetFieldValue(value *Right, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "left":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.LeftID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type RightFieldSet struct {
 	ID orm.AutoField[Right]
 }
@@ -1748,6 +1919,23 @@ func (RequiredRightDescriptor) WriteFieldValue(value RequiredRight, field ir.Fie
 		return query.Integer(value.LeftID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (RequiredRightDescriptor) SetFieldValue(value *RequiredRight, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "left":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.LeftID = assigned
+		return true
+	default:
+		return false
 	}
 }
 

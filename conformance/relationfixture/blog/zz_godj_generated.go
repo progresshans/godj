@@ -90,6 +90,41 @@ func (PostDescriptor) WriteFieldValue(value Post, field ir.Field) (query.Value, 
 	}
 }
 
+func (PostDescriptor) SetFieldValue(value *Post, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "title":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Title = assigned
+		return true
+	case "author":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.AuthorID = assigned
+		return true
+	case "reviewer":
+		if input.IsNull() {
+			value.ReviewerID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ReviewerID = &assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type PostFieldSet struct {
 	ID    orm.AutoField[Post]
 	Title orm.StringField[Post]

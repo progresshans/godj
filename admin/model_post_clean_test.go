@@ -206,7 +206,7 @@ func TestAdminRejectsNilModelValidatorBeforeAnyCallback(t *testing.T) {
 }
 
 func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *testing.T) {
-	for _, mode := range []string{"create", "change", "invalid", "forged", "csrf", "denied", "stale", "late_conflict"} {
+	for _, mode := range []string{"create", "change", "invalid", "unrepresentable", "forged", "csrf", "denied", "stale", "late_conflict"} {
 		t.Run(mode, func(t *testing.T) {
 			calls, checks := 0, 0
 			var state *managementFormState
@@ -217,13 +217,17 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 				clean := formmodel.PostClean{Fields: fields, Clean: func(candidate forms.Values) (forms.Values, validation.Errors) {
 					calls++
 					name, _ := candidate.String("username")
-					return forms.NewValues(map[string]forms.Value{"username": forms.String(strings.ToUpper(name)), "active": forms.Boolean(false)}), validation.Errors{}
+					active := forms.Boolean(false)
+					if mode == "unrepresentable" {
+						active = forms.Null()
+					}
+					return forms.NewValues(map[string]forms.Value{"username": forms.String(strings.ToUpper(name)), "active": active}), validation.Errors{}
 				}}
 				config.PostClean = clean
 				config.CreateForm.Definition.PostClean = clean
 				config.ValidateCreate = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) error {
 					checks++
-					if active, ok := bound.Candidate().Boolean("active"); !ok || active {
+					if active, ok := bound.Candidate().Boolean("active"); mode != "unrepresentable" && (!ok || active) {
 						t.Fatal("read check missed clean candidate")
 					}
 					return nil
@@ -293,6 +297,10 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 			case "create", "change":
 				if response.Code != 302 || state.row.username != "MIXED" || state.row.active || state.writes != 1 || calls != 2 || checks != 1 {
 					t.Fatal("clean outputs lost in typed persistence or audit reconciliation", response.Code, state.row, state.writes, calls, checks)
+				}
+			case "unrepresentable":
+				if response.Code != 500 || state.writes != 0 || calls != 2 || checks != 1 || !state.row.active || state.row.username != "Original" {
+					t.Fatal("clean NULL became a zero-value write", response.Code, state.row, calls, checks)
 				}
 			case "invalid":
 				if response.Code != 200 || state.writes != 0 || calls != 1 || checks != 1 || !strings.Contains(response.Body.String(), `data-error-code="required"`) {

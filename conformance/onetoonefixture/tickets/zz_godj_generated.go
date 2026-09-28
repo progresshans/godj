@@ -71,6 +71,23 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 	}
 }
 
+func (TicketDescriptor) SetFieldValue(value *Ticket, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "subject":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Subject = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type TicketFieldSet struct {
 	ID      orm.AutoField[Ticket]
 	Subject orm.StringField[Ticket]

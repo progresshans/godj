@@ -86,6 +86,15 @@ func (bound BoundForm) Input() (forms.Values, error) {
 		value, _ := bound.candidate.Get(name)
 		input[name] = value
 	}
+	// A valid form can contain a model-clean NULL after field validation. Do
+	// not let a typed adapter turn that NULL into an apparently valid Go zero
+	// value. Keep the candidate/cleaned data intact; this is a preparation error,
+	// not a second round of field validation or permission to perform a write.
+	for _, field := range bound.model.Fields {
+		if value, present := input[field.Name]; present && value.IsNull() && !field.Nullable {
+			return forms.Values{}, &Error{Path: "input." + field.Name, Code: "nonnullable"}
+		}
+	}
 	return forms.NewValues(input), nil
 }
 

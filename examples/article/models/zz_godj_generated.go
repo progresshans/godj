@@ -90,6 +90,41 @@ func (ArticleDescriptor) WriteFieldValue(value Article, field ir.Field) (query.V
 	}
 }
 
+func (ArticleDescriptor) SetFieldValue(value *Article, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "title":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Title = assigned
+		return true
+	case "published":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Published = assigned
+		return true
+	case "summary":
+		if input.IsNull() {
+			value.Summary = nil
+			return true
+		}
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Summary = &assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type ArticleFieldSet struct {
 	ID        orm.AutoField[Article]
 	Title     orm.StringField[Article]

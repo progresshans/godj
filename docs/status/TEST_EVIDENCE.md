@@ -304,7 +304,7 @@ Race/CGO=0은 같은 임시 parent의 `godj-blank-hosted-race-oqc4bzb6`, `godj-b
 실패가 확인된 기존 d2c9d6fe run은 workflow의 같은 ref concurrency 정책으로 대체 취소되어
 **33 성공 / 17 실패 / 11 취소 / 1 skip**, run conclusion `cancelled`로 종료했다. 부분 성공이나 capture를 전체 성공으로 재사용하지 않는다.
 Final 상태·실패 로그와 replacement source/Fast/run JSON은 위 Hosted repair evidence에 보존한다.
-211499d0의 full은 아직 진행 중이며 required owner와 새 capture 결합을 확인하기 전에는 완료로 기록하지 않는다.
+211499d0의 full은 후속 감사에서 62 jobs·8 owners와 새 capture 결합을 확인해 완료했다. 아래 최종 집계 기록을 따른다.
 
 ### 다음 model clean 값 변환의 독립 관찰
 
@@ -376,8 +376,65 @@ run/producer attempt·payload checksum/provenance를 검증했다. 현재 작업
 `bdcb69932aa1bd4063913cc17bdede3755704b96b5da5288422cda75aa96d1c5`, operator는 artifact `10952634816` /
 producer `108804426971`, **705 files / 6,510,618 bytes** /
 `dc5d3c44416ddce338d46a7ef3703ad46e8d8c691f52a456ca130ba0f783a580`로 일치했다. Archive·inventory·receipt는
-기존 Email reference directory의 `hosted-full-36383539735-1790576439131454000`에 있다. **해당 full의 나머지 owner와
-최종 집계는 아직 진행 중**이다. Capture 검증이나 이 로컬 clean checkpoint를 Hosted 전체 PASS로 합치지 않는다.
+기존 Email reference directory의 `hosted-full-36383539735-1790576439131454000`에 있다. 해당 source `211499d0`의 full은
+2026-09-28 최종 감사에서 **62 jobs 모두 success**를 확인했다. Aggregate job `108822511109`의 실제 JSON은
+`scope: full`, `full_platform_verified: true`, 필수 8 owners이며 같은 Git SHA의 scopes.py로 재계산한 결과와 일치했다.
+Artifact ID/같은 attempt/checksum도 완료 시점에 다시 확인했다. Final run/jobs·aggregate 원문·최종 PASS receipt를 같은
+directory에 보존한다. 이 성공은 model clean `36632e24`와 이후 typed 준비를 포함하지 않는다.
+Model clean `36632e24bdd79b1002ef5ce98944d60cb8691995`의 [Fast 36386575601](https://github.com/progresshans/godj/actions/runs/36386575601)는
+terminal success와 실제 Fast Go feedback step success를 별도로 확인했다. 빠른 검사를 Hosted 전체와 합치지 않는다.
+
+### 생성 모델의 typed 준비와 nonnullable NULL 경계
+
+기반 commit `36632e24`에서 `ValueAssignmentDescriptor.SetFieldValue`를 생성하고 ORM Manager의 `Metadata/ModelValues/ApplyValues`,
+Form의 `BindInstance/PreparedInstance`를 구현했다. 생성 코드는 scalar의 직접 Go 대입을 소유하고 runtime은 선언 소유권·
+타입/nullable·결과 값·미변경 field·PK 값/존재를 검사한다. Instance, metadata, nullable pointee와 반환값은 분리한다.
+새 모델은 IR default/unsaved 후보에서 준비하고 기존 모델은 typed snapshot을 사용한다. Collection 선택/명시적 clear와
+command 입력은 별도 값으로 보존하며 scalar 준비만으로 관계 저장/commit을 완료했다고 기록하지 않는다.
+
+Model clean의 nonnullable NULL이 기존 Admin typed callback에서 zero value로 바뀔 수 있는 경계도 막았다. BoundForm.Input은
+해당 값을 준비 오류로 거부하며 후보와 Form의 유효성·cleaned data는 유지한다. Nullable NULL은 그대로 허용한다.
+고정 Django observer를 양 DB **15 cases**로 확장했고 기존 13개 원문 결과가 그대로임을 확인했다. 추가 두 사례는 selected
+counter와 excluded hidden을 clean에서 None으로 바꾸는 경우다. Native는 is_valid/commit=False에 성공한 후 저장에서
+IntegrityError가 된다. Go는 int/string 표현을 위해 준비 단계에서 거부한다. **13개 의미 대조 + 2개 명시적 준비 시점 차이**이며
+Python 객체 identity/반환 규약의 차이도 유지한다. Native source pin·해시·uv.lock 보존, 양 DB 동일 관찰과 table/DB/container
+정리를 확인했다. 원문·observer·환경/명령·비교 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-typed-form-reference-0wl7uxg6`에 있다.
+
+독립 Contact consumer의 수동 필드 복사를 새 typed 준비로 바꾸고 실제 양 DB의 단계별 DB 검사·준비·ORM Save·rollback을
+검증했다. 넓은 forward-scalar 생성 소비자도 11 kinds의 required/nullable snapshot·대입·clear·Form 초기값/제외 값 보존과
+required/nullable FK를 확인한다. Char/Email은 Contact, Boolean·pointer/현재 snapshot·PK present-zero는 별도 core 검사와
+함께 검증한다. 다른 모델 타입을 준비하려는 Go 코드는 독립 module의 compile-negative로 거부했다.
+
+최종 비문서 source inventory는 `f038e3b25b5bceef6cff3208b559b8a5d21228d35382251b31a8a3781a7eba51`다.
+동일 source에서 아래 checkpoint를 실행했고 필수 누락·test skip·비정형/잘린 JSON은 0이다.
+
+| 범위 | normal PASS / 초 | race PASS / 초 | CGO=0 PASS / 초 |
+|---|---:|---:|---:|
+| Form/Admin/Identity/Helpdesk/Systemstate/ORM/codegen, 11 test packages / 569 roots | 3,653 / 33.101 | 3,653 / 178.945 | 3,653 / 28.018 |
+| Identity 실제 양 DB, 4 roots / 370 required cases | 370 / 53.942 | 370 / 174.252 | 370 / 51.626 |
+| 생성 소비자, 3 parents + 3 compile-negative subcases / 필수 child 35+33+5 | 6 / 11.771 | 6 / 41.710 | 6 / 12.795 |
+
+Race는 실제 generated child에 적용한다. 환경은 Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham,
+각 mode 전용 PostgreSQL 17.10 UTF8/libc/C다. Source 전후 동일, DB **0|0|0**, DB/container 제거를 확인했다.
+최초 source `b252e69f…`는 새 collection test fixture의 target/symmetry 누락과 generator의 공개 API 기대에
+SetFieldValue가 빠져 core 두 root가 실패했다. 관계 fixture는 IR normalization을 거치게 하고 새 public capability를
+정확한 기대에 추가했다. 이 실행의 DB/생성 소비자 성공을 전체 성공으로 세지 않는다. 보완 `401f82ac…`에서 core·생성을
+통과한 뒤 NULL 경계를 추가한 최종 source에서 위 세 mode 전체를 별도로 실행했다. 앞선 결과와 합산하지 않는다.
+
+실제 CLI로 Identity→identityfixture→Helpdesk→Article→relationfixture→onetoonefixture→cascadefixture의 생성물을 갱신했다.
+Standalone relationproduct의 두 main companion도 현행 생성기로 갱신했다. 모든 기존 migration bytes는 그대로다.
+`make generate-check`의 전체 7개 CLI project·standalone fixture·Unicode 생성 검사는 PASS다. CI 도구 **41 tests**, 영향 vet,
+전체 **203 packages compile-only / 실행 test 0**도 PASS이며 compile-only를 동작 PASS 수에 포함하지 않는다.
+
+최종 source의 **7개 부정 대조**는 입력 표현의 대입 전 검사, nullable caller 복사, 결과 assignment 일치,
+PK presence 보존, Admin의 clean NULL 저장 입력 거부, collection 저장 의도 보존, present-zero snapshot을 각각 제거하고
+지정 runtime assertion의 실패를 확인했다. Compile 실패·skip·source 변경을 탐지 성공으로 세지 않았다.
+전체 JSON/roster/source/cleanup은 같은 임시 parent의 `godj-typed-form-normal-p26cbhkz`, `godj-typed-form-race-ib63jkmn`,
+`godj-typed-form-cgo0-i8w1d52z`에 있다. Parent는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T`다.
+Normal의 `negative-controls`와 `integration-checks`에 overlay·drift/vet/CI 도구/compile 원문을 보존한다.
+최초/보완 실행은 `godj-typed-form-normal-1yw77b23`, `godj-typed-form-normal-z2w2wfsp`에 보존한다.
+후속 clean/typed 준비를 포함한 Hosted 전체는 새 제출 source에서 별도로 확인한다. 선행 `211499d0`의 완료를 전이하지 않는다.
 
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 

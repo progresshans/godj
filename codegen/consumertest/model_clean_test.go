@@ -37,7 +37,7 @@ func TestGeneratedModelCleanConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, "consumer/"+file, content)
 	}
-	cases := []string{"normalize_selected", "overwrite_duplicate", "introduce_duplicate", "rewrite_excluded_hidden", "excluded_hidden_duplicate", "change_email_after_fields", "repair_invalid_field", "mutate_and_field_error", "mutate_nonfield_error", "existing_selected", "existing_hidden_change", "missing_default", "returns_mapping"}
+	cases := []string{"normalize_selected", "overwrite_duplicate", "introduce_duplicate", "rewrite_excluded_hidden", "excluded_hidden_duplicate", "change_email_after_fields", "repair_invalid_field", "mutate_and_field_error", "mutate_nonfield_error", "existing_selected", "existing_hidden_change", "missing_default", "returns_mapping", "clear_counter_after_fields", "clear_excluded_hidden"}
 	backends := []string{"sqlite"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		backends = append(backends, "postgres")

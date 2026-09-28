@@ -78,6 +78,37 @@ func (PermissionDescriptor) WriteFieldValue(value Permission, field ir.Field) (q
 	}
 }
 
+func (PermissionDescriptor) SetFieldValue(value *Permission, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "code":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Code = assigned
+		return true
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	case "revision":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.Revision = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type PermissionFieldSet struct {
 	ID       orm.AutoField[Permission]
 	Code     orm.StringField[Permission]
@@ -316,6 +347,30 @@ func (GroupDescriptor) WriteFieldValue(value Group, field ir.Field) (query.Value
 		return query.Integer(value.Revision), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (GroupDescriptor) SetFieldValue(value *Group, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	case "revision":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.Revision = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -567,6 +622,104 @@ func (UserDescriptor) WriteFieldValue(value User, field ir.Field) (query.Value, 
 		return query.Integer(value.Revision), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (UserDescriptor) SetFieldValue(value *User, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "principal_id":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.PrincipalID = assigned
+		return true
+	case "username":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Username = assigned
+		return true
+	case "encoded_password":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.EncodedPassword = assigned
+		return true
+	case "first_name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.FirstName = assigned
+		return true
+	case "last_name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.LastName = assigned
+		return true
+	case "email":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Email = assigned
+		return true
+	case "active":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Active = assigned
+		return true
+	case "staff":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Staff = assigned
+		return true
+	case "superuser":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Superuser = assigned
+		return true
+	case "date_joined":
+		assigned, ok := input.DateTime()
+		if !ok {
+			return false
+		}
+		value.DateJoined = assigned
+		return true
+	case "last_login":
+		if input.IsNull() {
+			value.LastLogin = nil
+			return true
+		}
+		assigned, ok := input.DateTime()
+		if !ok {
+			return false
+		}
+		value.LastLogin = &assigned
+		return true
+	case "revision":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.Revision = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1171,6 +1324,30 @@ func (GroupPermissionsLinkDescriptor) WriteFieldValue(value GroupPermissionsLink
 	}
 }
 
+func (GroupPermissionsLinkDescriptor) SetFieldValue(value *GroupPermissionsLink, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "source":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.SourceID = assigned
+		return true
+	case "target":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TargetID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type GroupPermissionsLinkFieldSet struct {
 	ID orm.AutoField[GroupPermissionsLink]
 }
@@ -1389,6 +1566,30 @@ func (UserGroupsLinkDescriptor) WriteFieldValue(value UserGroupsLink, field ir.F
 	}
 }
 
+func (UserGroupsLinkDescriptor) SetFieldValue(value *UserGroupsLink, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "source":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.SourceID = assigned
+		return true
+	case "target":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TargetID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type UserGroupsLinkFieldSet struct {
 	ID orm.AutoField[UserGroupsLink]
 }
@@ -1604,6 +1805,30 @@ func (UserPermissionsLinkDescriptor) WriteFieldValue(value UserPermissionsLink, 
 		return query.Integer(value.TargetID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (UserPermissionsLinkDescriptor) SetFieldValue(value *UserPermissionsLink, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "source":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.SourceID = assigned
+		return true
+	case "target":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TargetID = assigned
+		return true
+	default:
+		return false
 	}
 }
 

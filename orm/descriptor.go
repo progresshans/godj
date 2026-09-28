@@ -60,6 +60,16 @@ type WriteDescriptor[M any] interface {
 	WriteFieldValue(M, ir.Field) (query.Value, bool)
 }
 
+// ValueAssignmentDescriptor supplies the type-specific half of pure model
+// preparation. The manager validates field ownership, representation and the
+// resulting snapshot; generated code performs direct Go field assignments.
+// SetFieldValue must not retain value or field and must leave value unchanged
+// when returning false. Primary-key assignment is owned by WriteDescriptor.
+type ValueAssignmentDescriptor[M any] interface {
+	WriteDescriptor[M]
+	SetFieldValue(value *M, field ir.Field, input query.Value) bool
+}
+
 // descriptorIsNil handles both a nil interface and an interface containing a
 // typed nil pointer. Reflection is limited to this cold API validation path;
 // row decoding remains reflection-free.

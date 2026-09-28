@@ -71,6 +71,23 @@ func (AuthorDescriptor) WriteFieldValue(value Author, field ir.Field) (query.Val
 	}
 }
 
+func (AuthorDescriptor) SetFieldValue(value *Author, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type AuthorFieldSet struct {
 	ID   orm.AutoField[Author]
 	Name orm.StringField[Author]

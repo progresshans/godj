@@ -56,7 +56,7 @@ func TestGeneratedForwardScalarConsumer(t *testing.T) {
 	for _, file := range bundle.Files() {
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	for _, name := range []string{"consumer_test.go", "scalars_test.go"} {
+	for _, name := range []string{"consumer_test.go", "scalars_test.go", "model_values_test.go"} {
 		source, err := os.ReadFile(filepath.Join("testdata/forwardscalar", name))
 		if err != nil {
 			t.Fatal(err)
@@ -71,12 +71,13 @@ func TestGeneratedForwardScalarConsumer(t *testing.T) {
 		writeGeneratedTestFile(t, root, "consumer/"+backend+"_reference.json", raw)
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
-	required := []string{"TestForwardScalarSelections", "TestForwardScalarSelections/sqlite"}
+	required := []string{"TestForwardScalarSelections", "TestForwardScalarSelections/sqlite", "TestForwardScalarSelections/sqlite/typed_preparation"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
-		required = append(required, "TestForwardScalarSelections/postgres")
+		required = append(required, "TestForwardScalarSelections/postgres", "TestForwardScalarSelections/postgres/typed_preparation")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, input := range []struct{ name, source, fragment string }{
+		{"typed model preparation rejects another model", `package wrong;import "example.com/godj-forward-scalar/models";func bad(){_,_=models.DatumObjects.ApplyValues(models.Holder{},nil)}`, "as models.Datum"},
 		{"related values stay nullable", `package wrong;import "example.com/godj-forward-scalar/models";import "example.com/godj-forward-scalar/project";import "github.com/progresshans/godj/orm";func bad(){r,_:=project.BindRelations();_=orm.Project1(r.ModelsHolder.Primary.VInteger,func(value int64)int64{return value});_=models.Holder{}}`, "*int64"},
 		{"target field cannot become source", `package wrong;import "example.com/godj-forward-scalar/models";import "example.com/godj-forward-scalar/project";import "github.com/progresshans/godj/orm";func bad(){r,_:=project.BindRelations();_=orm.Project2(r.ModelsHolder.Primary.VText,models.DatumFields.Label,func(a *string,b string)string{return b})}`, "does not match"},
 	} {

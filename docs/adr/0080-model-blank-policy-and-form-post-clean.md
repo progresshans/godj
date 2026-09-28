@@ -97,6 +97,21 @@ PK·revision은 registry 소유이며 revision의 clean 출력 선언도 거부�
 변경 field/audit reconciliation에 포함하지만 editable Form으로 만들지 않는다. HTTP의 숨긴 입력 위조는 기존대로 거부한다.
 저장 직전에도 원래 제출과 최신 인가 row에서 bind하므로 한 요청에서 재검증이 있을 때 clean을 다시 호출하며, 각 bind에서는
 한 번 실행한다. Callback은 pure하고 동시 실행에 안전해야 한다.
+Typed 준비는 모델 field별 수동 getter를 생성 코드와 공통 runtime으로 대체한다. Generated `ValueAssignmentDescriptor`
+는 직접 Go field 대입을 소유하고 Manager의 `ModelValues/ApplyValues`는 선언 소유권·표현·결과/미변경 field·PK 상태를 확인한다.
+`Metadata`는 같은 construction snapshot의 복사본이다. 이 순수 메서드에는 DB backend와 context가 없으며 실제 I/O는 하지 않는다.
+Form runtime은 query.Value와 forms.Value를 변환하고, 생성 코드는 Form/Web package를 import하지 않는다.
+
+`BindInstance`는 typed 현재 모델의 분리된 snapshot을 사용한다. Nil이면 IR default/unsaved 상태, non-nil이면 제공된
+instance 값을 사용하며 PK 존재를 숫자값에서 추론하지 않는다. `PreparedInstance.Model`은 nullable pointee까지 분리한
+값을 매번 반환한다. Command 입력과 선택된 ManyToMany 저장 의도는 별도 immutable Input/Collections에 남긴다.
+빈 선택 목록과 제외한 컬렉션을 합치지 않으며 scalar 준비만으로 컬렉션 저장 완료를 선언하지 않는다.
+
+고정 Django 추가 두 사례에서 model clean의 nonnullable NULL은 is_valid와 commit=False를 통과하고 실제 DB save에서
+IntegrityError가 된다. Go primitive는 해당 NULL을 표현할 수 없으므로 후보/폼 유효성은 유지하되 저장 Input 또는 typed
+준비 단계에서 명시적으로 거부한다. Admin의 기존 typed callback도 NULL을 zero value로 바꾸기 전에 이 경계를 거친다.
+Nullable NULL과 JSON null은 그대로 구분하고 이메일 문법 같은 field validation을 이 단계에서 다시 실행하지 않는다.
+이 Go 표현 경계는 오류 발생 시점의 명시적 차이이며 native 준비와 완전히 같다고 기록하지 않는다.
 전체 ModelForm 저장 자동화·전체 constraint 종류·custom user model과 모든 제품 소비자 연결의 완료는 별도 작업이다.
 
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며

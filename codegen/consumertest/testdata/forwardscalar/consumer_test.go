@@ -189,6 +189,7 @@ func runResults(t *testing.T, backend resultBackend, native bool) {
 		}
 		holders[i] = row
 	}
+	t.Run("typed_preparation", func(t *testing.T) { checkTypedPreparation(t, data, holders) })
 	numbers := map[int64]int64{}
 	for i, input := range expected.Entries {
 		create := models.NewEntryCreate(input.Label, holders[input.Primary].ID)

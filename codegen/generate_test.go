@@ -130,6 +130,7 @@ func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 		"PostUpdateFields",
 		"PrimaryKey",
 		"Scan",
+		"SetFieldValue",
 		"SetPrimaryKey",
 		"WithAuthorID",
 		"WithAuthorID",

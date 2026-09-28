@@ -56,6 +56,10 @@ with tempfile.TemporaryDirectory(prefix='godj-native-model-clean-') as directory
                 elif mode == 'mutate_nonfield_error':
                     self.code, self.hidden = 'changed', 'changed-hidden'
                     raise ValidationError('Rejected', code='model_policy')
+                elif mode == 'clear_counter_after_fields':
+                    self.counter = None
+                elif mode == 'clear_excluded_hidden':
+                    self.hidden = None
                 elif mode == 'returns_mapping':
                     return {'code': 'ignored'}
             finally:
@@ -73,6 +77,7 @@ with tempfile.TemporaryDirectory(prefix='godj-native-model-clean-') as directory
         'rewrite_excluded_hidden', 'excluded_hidden_duplicate', 'change_email_after_fields',
         'repair_invalid_field', 'mutate_and_field_error', 'mutate_nonfield_error',
         'existing_selected', 'existing_hidden_change', 'missing_default', 'returns_mapping',
+        'clear_counter_after_fields', 'clear_excluded_hidden',
     ]
     class RestoreCase(Exception):
         pass

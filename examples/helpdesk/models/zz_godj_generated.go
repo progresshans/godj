@@ -79,6 +79,23 @@ func (CategoryDescriptor) WriteFieldValue(value Category, field ir.Field) (query
 	}
 }
 
+func (CategoryDescriptor) SetFieldValue(value *Category, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type CategoryFieldSet struct {
 	ID   orm.AutoField[Category]
 	Name orm.StringField[Category]
@@ -431,6 +448,169 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 		return query.JSON(*value.ExternalPayload), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (TicketDescriptor) SetFieldValue(value *Ticket, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "subject":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Subject = assigned
+		return true
+	case "details":
+		if input.IsNull() {
+			value.Details = nil
+			return true
+		}
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Details = &assigned
+		return true
+	case "closed":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Closed = assigned
+		return true
+	case "category":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.CategoryID = assigned
+		return true
+	case "priority":
+		if input.IsNull() {
+			value.Priority = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.Priority = &assigned
+		return true
+	case "resolution":
+		if input.IsNull() {
+			value.Resolution = nil
+			return true
+		}
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Resolution = &assigned
+		return true
+	case "due_at":
+		if input.IsNull() {
+			value.DueAt = nil
+			return true
+		}
+		assigned, ok := input.DateTime()
+		if !ok {
+			return false
+		}
+		value.DueAt = &assigned
+		return true
+	case "reviewed":
+		if input.IsNull() {
+			value.Reviewed = nil
+			return true
+		}
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Reviewed = &assigned
+		return true
+	case "service_on":
+		if input.IsNull() {
+			value.ServiceOn = nil
+			return true
+		}
+		assigned, ok := input.Date()
+		if !ok {
+			return false
+		}
+		value.ServiceOn = &assigned
+		return true
+	case "service_at":
+		if input.IsNull() {
+			value.ServiceAt = nil
+			return true
+		}
+		assigned, ok := input.Time()
+		if !ok {
+			return false
+		}
+		value.ServiceAt = &assigned
+		return true
+	case "elapsed":
+		if input.IsNull() {
+			value.Elapsed = nil
+			return true
+		}
+		assigned, ok := input.Duration()
+		if !ok {
+			return false
+		}
+		value.Elapsed = &assigned
+		return true
+	case "effort":
+		if input.IsNull() {
+			value.Effort = nil
+			return true
+		}
+		assigned, ok := input.Float()
+		if !ok {
+			return false
+		}
+		value.Effort = &assigned
+		return true
+	case "expected_cost":
+		if input.IsNull() {
+			value.ExpectedCost = nil
+			return true
+		}
+		assigned, ok := input.Decimal()
+		if !ok {
+			return false
+		}
+		value.ExpectedCost = &assigned
+		return true
+	case "external_reference":
+		if input.IsNull() {
+			value.ExternalReference = nil
+			return true
+		}
+		assigned, ok := input.UUID()
+		if !ok {
+			return false
+		}
+		value.ExternalReference = &assigned
+		return true
+	case "external_payload":
+		if input.IsNull() {
+			value.ExternalPayload = nil
+			return true
+		}
+		assigned, ok := input.JSON()
+		if !ok {
+			return false
+		}
+		value.ExternalPayload = &assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1569,6 +1749,37 @@ func (ServiceReportDescriptor) WriteFieldValue(value ServiceReport, field ir.Fie
 	}
 }
 
+func (ServiceReportDescriptor) SetFieldValue(value *ServiceReport, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = assigned
+		return true
+	case "summary":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Summary = assigned
+		return true
+	case "completed":
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Completed = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type ServiceReportFieldSet struct {
 	ID        orm.AutoField[ServiceReport]
 	Summary   orm.StringField[ServiceReport]
@@ -1812,6 +2023,30 @@ func (LabelDescriptor) WriteFieldValue(value Label, field ir.Field) (query.Value
 	}
 }
 
+func (LabelDescriptor) SetFieldValue(value *Label, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	case "category":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.CategoryID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type LabelFieldSet struct {
 	ID   orm.AutoField[Label]
 	Name orm.StringField[Label]
@@ -2024,6 +2259,30 @@ func (TicketLabelDescriptor) WriteFieldValue(value TicketLabel, field ir.Field) 
 		return query.Integer(value.LabelID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (TicketLabelDescriptor) SetFieldValue(value *TicketLabel, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = assigned
+		return true
+	case "label":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.LabelID = assigned
+		return true
+	default:
+		return false
 	}
 }
 

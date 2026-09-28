@@ -82,6 +82,30 @@ func (ReportDescriptor) WriteFieldValue(value Report, field ir.Field) (query.Val
 	}
 }
 
+func (ReportDescriptor) SetFieldValue(value *Report, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = assigned
+		return true
+	case "note":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Note = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type ReportFieldSet struct {
 	ID   orm.AutoField[Report]
 	Note orm.StringField[Report]
@@ -304,6 +328,34 @@ func (OptionalReportDescriptor) WriteFieldValue(value OptionalReport, field ir.F
 		return query.String(value.Note), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (OptionalReportDescriptor) SetFieldValue(value *OptionalReport, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		if input.IsNull() {
+			value.TicketID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = &assigned
+		return true
+	case "note":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Note = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -553,6 +605,30 @@ func (LinkDescriptor) WriteFieldValue(value Link, field ir.Field) (query.Value, 
 	}
 }
 
+func (LinkDescriptor) SetFieldValue(value *Link, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = assigned
+		return true
+	case "label":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Label = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type LinkFieldSet struct {
 	ID    orm.AutoField[Link]
 	Label orm.StringField[Link]
@@ -763,6 +839,30 @@ func (CertificateDescriptor) WriteFieldValue(value Certificate, field ir.Field) 
 		return query.String(value.Seal), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (CertificateDescriptor) SetFieldValue(value *Certificate, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "report":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ReportID = assigned
+		return true
+	case "seal":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Seal = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1153,6 +1253,155 @@ func (ReviewDescriptor) WriteFieldValue(value Review, field ir.Field) (query.Val
 		return query.Duration(*value.Elapsed), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (ReviewDescriptor) SetFieldValue(value *Review, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "ticket":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TicketID = assigned
+		return true
+	case "score":
+		if input.IsNull() {
+			value.Score = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.Score = &assigned
+		return true
+	case "title":
+		if input.IsNull() {
+			value.Title = nil
+			return true
+		}
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Title = &assigned
+		return true
+	case "body":
+		if input.IsNull() {
+			value.Body = nil
+			return true
+		}
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Body = &assigned
+		return true
+	case "approved":
+		if input.IsNull() {
+			value.Approved = nil
+			return true
+		}
+		assigned, ok := input.Boolean()
+		if !ok {
+			return false
+		}
+		value.Approved = &assigned
+		return true
+	case "ratio":
+		if input.IsNull() {
+			value.Ratio = nil
+			return true
+		}
+		assigned, ok := input.Float()
+		if !ok {
+			return false
+		}
+		value.Ratio = &assigned
+		return true
+	case "price":
+		if input.IsNull() {
+			value.Price = nil
+			return true
+		}
+		assigned, ok := input.Decimal()
+		if !ok {
+			return false
+		}
+		value.Price = &assigned
+		return true
+	case "token":
+		if input.IsNull() {
+			value.Token = nil
+			return true
+		}
+		assigned, ok := input.UUID()
+		if !ok {
+			return false
+		}
+		value.Token = &assigned
+		return true
+	case "payload":
+		if input.IsNull() {
+			value.Payload = nil
+			return true
+		}
+		assigned, ok := input.JSON()
+		if !ok {
+			return false
+		}
+		value.Payload = &assigned
+		return true
+	case "day":
+		if input.IsNull() {
+			value.Day = nil
+			return true
+		}
+		assigned, ok := input.Date()
+		if !ok {
+			return false
+		}
+		value.Day = &assigned
+		return true
+	case "at":
+		if input.IsNull() {
+			value.At = nil
+			return true
+		}
+		assigned, ok := input.DateTime()
+		if !ok {
+			return false
+		}
+		value.At = &assigned
+		return true
+	case "clock":
+		if input.IsNull() {
+			value.Clock = nil
+			return true
+		}
+		assigned, ok := input.Time()
+		if !ok {
+			return false
+		}
+		value.Clock = &assigned
+		return true
+	case "elapsed":
+		if input.IsNull() {
+			value.Elapsed = nil
+			return true
+		}
+		assigned, ok := input.Duration()
+		if !ok {
+			return false
+		}
+		value.Elapsed = &assigned
+		return true
+	default:
+		return false
 	}
 }
 

@@ -72,6 +72,23 @@ func (LabelDescriptor) WriteFieldValue(value Label, field ir.Field) (query.Value
 	}
 }
 
+func (LabelDescriptor) SetFieldValue(value *Label, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type LabelFieldSet struct {
 	ID   orm.AutoField[Label]
 	Name orm.StringField[Label]
@@ -238,6 +255,23 @@ func (RootDescriptor) WriteFieldValue(value Root, field ir.Field) (query.Value, 
 		return query.String(value.Name), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (RootDescriptor) SetFieldValue(value *Root, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "name":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Name = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -419,6 +453,27 @@ func (NodeDescriptor) WriteFieldValue(value Node, field ir.Field) (query.Value, 
 		return query.Integer(*value.ParentID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (NodeDescriptor) SetFieldValue(value *Node, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "parent":
+		if input.IsNull() {
+			value.ParentID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.ParentID = &assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -638,6 +693,27 @@ func (LeftDescriptor) WriteFieldValue(value Left, field ir.Field) (query.Value, 
 	}
 }
 
+func (LeftDescriptor) SetFieldValue(value *Left, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "right":
+		if input.IsNull() {
+			value.RightID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RightID = &assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type LeftFieldSet struct {
 	ID orm.AutoField[Left]
 }
@@ -842,6 +918,23 @@ func (RequiredLeftDescriptor) WriteFieldValue(value RequiredLeft, field ir.Field
 	}
 }
 
+func (RequiredLeftDescriptor) SetFieldValue(value *RequiredLeft, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "right":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RightID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type RequiredLeftFieldSet struct {
 	ID orm.AutoField[RequiredLeft]
 }
@@ -1014,6 +1107,30 @@ func (RootLabelsDescriptor) WriteFieldValue(value RootLabels, field ir.Field) (q
 		return query.Integer(value.LabelID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (RootLabelsDescriptor) SetFieldValue(value *RootLabels, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "root":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.RootID = assigned
+		return true
+	case "label":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.LabelID = assigned
+		return true
+	default:
+		return false
 	}
 }
 

@@ -1,45 +1,31 @@
 # 현재 상태
 
 - 갱신: 2026-09-28
-- 최근 완료한 통합: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 현재 구현 작업: [GDJ-0102 모델의 빈 입력 정책과 Form 후처리](../../work/0102-model-blank-policy-and-post-clean.md)
-- 최근 구현·영향 검증 완료: [GDJ-0101 이메일 필드와 모델 입력 검증](../../work/0101-email-fields-and-model-input-validation.md)
-- 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
-- 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36374533286), source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`; 62 jobs·8 owners·새 capture의 source 결합 확인
-- 진행 중인 Blank/모델 DB 검증 통합: [보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735), source `211499d05f6763e3dc5ecf501fd4539393c264cb`
-- 같은 source의 [Fast](https://github.com/progresshans/godj/actions/runs/36383495153): 실제 Go 검사 성공
-- Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
+- 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735), source `211499d05f6763e3dc5ecf501fd4539393c264cb`; 62 jobs·8 owners·새 capture와 Git source 결합 확인
+- 후속 model clean source `36632e24`의 [Fast](https://github.com/progresshans/godj/actions/runs/36386575601): 실제 Go 검사 성공
+- Source·환경·scope·실패/수정·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-EmailField를 별도 IR kind, 문자열 query·저장, Form/serializer·EmailInput에 연결했다.
-기본 User의 email migration과 Admin/API·독립 client, 계정 reset의 공통 검증을 구현했다.
-기존 데이터·credential/session/audit·호스트 관계를 보존하며 canonical migration 이력을 확인한다.
-Native와 다른 NUL transport 경계, 입력 default·기존 출력의 의미는 [ADR-0079](../adr/0079-email-fields-and-input-semantics.md)를 따른다.
+Blank의 IR·생성 metadata·DDL 없는 migration과 Form 후보/단계별 DB 후처리를 구현하고 선행 통합을 완료했다.
+User 수정·Group/Permission과 Helpdesk의 Ticket/Label/ServiceReport/TicketLabel은 현재 권한·row/revision·관계를
+확인한 읽기 검증과 최종 저장의 transaction 검사를 구분한다. 선행 인증 lifecycle과 EmailField도 이 source에 포함된다.
+지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md), 입력·후처리 소유권은 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md)을 따른다.
 
-User·Group·Permission 관리, 저장 인증과 일반 계정 login/logout·password change/reset,
-일반/Admin 사용자 생성 Form의 재사용과 prepare/commit 소유권도 구현했다.
-상세 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md), [Account 사용법](../../identity/account/README.md),
-[사용자 생성 Form](../../identity/USER_CREATION.md)을 따른다.
+후속 model clean은 명시한 scalar 변경과 제외 필드의 서버 파생 값을 저장 입력에 연결한다. Form.Cleaned와 후보·오류를
+구분하며 Admin의 PK/revision·숨긴 입력·최종 write fence를 유지한다. 이 변경의 영향 세 mode·양 DB·부정 대조를 완료했다.
 
-Blank의 IR·생성기·migration·Form 후보와 User/Helpdesk/Article 선언·새 이력·생성물을 구현했다.
-Admin은 원래 제출을 보존하고 수정 시 현재 row/revision에서 후보를 만든다.
-모델 DB 후처리의 unique field → 오류 적용/제외 재계산 → constraint를 하나의 읽기 scope에 연결했다.
-User 수정·Group/Permission·Ticket·Label·ServiceReport·TicketLabel은 현재 인가·row·관계를 확인한다.
-Label의 category는 서버 범위가 소유하며 일반 ModelForm의 제외 정책은 유지한다. 최종 저장의 transaction 검사는 그대로다.
-영향 normal/race/CGO=0·실제 양 DB·독립 생성 소비자와 단계별 부정 대조를 확인했다.
-고정 Django의 DB 사례는 각 DB의 15개 의미 일치와 제외 필드 이름을 추가 입력에 재사용하는 1개 명시적 차이를 구분한다.
-현재 정책은 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는 Evidence를 따른다.
+생성 descriptor와 공통 ORM의 typed 값 변환, `BindInstance/PreparedInstance`도 구현했다. 현재 모델·nullable pointer·PK
+존재를 보존하고 collection 저장 의도와 command 입력을 분리한다. 잘못된 nonnullable NULL은 Go zero value로 저장하지 않는다.
+고정 Django 15개 사례의 13개 의미 대조와 2개 준비 시점 차이를 명시한다. [사용법](../../forms/model/README.md)을 따른다.
+Typed 준비의 영향 세 mode·실제 양 DB·생성 drift·7개 부정 대조를 완료했다. 선행 full `211499d0`의 성공을 이 후속 source에 전이하지 않는다.
 
 ## 다음 행동
 
-선택 입력 fixture의 명시적 Blank와 동시 migration 프로젝트의 전체 Article 이력 복사를 보완했다.
-진행 중인 통합 source의 필수 owner·최종 집계·capture source 결합을 확인한다.
-새 Blank/DB 후처리에 선행 source의 Hosted 검증을 전이하지 않는다.
-Model clean의 명시적 scalar 변환·제외 필드 저장 입력과 Admin 연결을 구현했고 영향 세 mode·양 DB·5개 부정 대조를 완료했다.
-고정 Django의 양 DB 13개 사례를 독립 생성 모델의 준비·저장·rollback과 대조했다. [사용법](../../forms/model/README.md)을 따른다.
-진행 중인 Hosted 통합은 선행 Blank/DB 후처리 source이며 이 후속 clean 변경을 포함하지 않는다.
-Custom user model·전체 ModelForm 후처리·다른 인증 provider와 운영 mail provider 검증은 남아 있다.
+Typed 준비와 model clean을 포함한 제출 source의 Hosted 전체를 실행하고 필수 owner·최종 집계·새 capture 결합을 확인한다.
+일반 ModelForm의 scalar·컬렉션 저장 조정과 현재 인가·실패/rollback 경계를 실제 소비자에 이어 연결한다.
+Custom user model·다른 인증 provider·운영 mail provider와 기능 카탈로그의 나머지 범위도 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.

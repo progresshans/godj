@@ -1391,6 +1391,214 @@
       ],
       "valid": true,
       "validation_query_count": 2
+    },
+    {
+      "candidate": {
+        "code": "fresh",
+        "counter": null,
+        "email": "new@example.com",
+        "has_id": false,
+        "hidden": "initial"
+      },
+      "cleaned": {
+        "code": "fresh",
+        "counter": 2,
+        "email": "new@example.com"
+      },
+      "errors": {},
+      "input": {
+        "code": "fresh",
+        "counter": "2",
+        "email": "new@example.com"
+      },
+      "name": "clear_counter_after_fields",
+      "prepare": {
+        "candidate": {
+          "code": "fresh",
+          "counter": null,
+          "email": "new@example.com",
+          "has_id": false,
+          "hidden": "initial"
+        },
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "rows_restored": true,
+      "save_inside_rolled_back_transaction": {
+        "error": "IntegrityError",
+        "ok": false
+      },
+      "trace": [
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "stage": "model_clean_before"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": null,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "stage": "model_clean_after"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": null,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": null,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true,
+      "validation_query_count": 1
+    },
+    {
+      "candidate": {
+        "code": "fresh",
+        "counter": 2,
+        "email": "new@example.com",
+        "has_id": false,
+        "hidden": null
+      },
+      "cleaned": {
+        "code": "fresh",
+        "counter": 2,
+        "email": "new@example.com"
+      },
+      "errors": {},
+      "input": {
+        "code": "fresh",
+        "counter": "2",
+        "email": "new@example.com"
+      },
+      "name": "clear_excluded_hidden",
+      "prepare": {
+        "candidate": {
+          "code": "fresh",
+          "counter": 2,
+          "email": "new@example.com",
+          "has_id": false,
+          "hidden": null
+        },
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "rows_restored": true,
+      "save_inside_rolled_back_transaction": {
+        "error": "IntegrityError",
+        "ok": false
+      },
+      "trace": [
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": "initial"
+          },
+          "stage": "model_clean_before"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": null
+          },
+          "stage": "model_clean_after"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": null
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "candidate": {
+            "code": "fresh",
+            "counter": 2,
+            "email": "new@example.com",
+            "has_id": false,
+            "hidden": null
+          },
+          "exclude": [
+            "hidden",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true,
+      "validation_query_count": 2
     }
   ],
   "cleanup_empty": true,
@@ -1398,7 +1606,7 @@
   "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
   "platform": "darwin",
   "python": "3.14.3",
-  "scope": "exploratory native model-clean mutation and save observations; Go support is not claimed",
+  "scope": "native model-clean mutation, ModelForm preparation and rolled-back persistence observations",
   "source_sha256": {
     "form_models": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
     "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f"

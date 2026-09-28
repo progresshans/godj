@@ -75,6 +75,30 @@ func (NoteDescriptor) WriteFieldValue(value Note, field ir.Field) (query.Value, 
 	}
 }
 
+func (NoteDescriptor) SetFieldValue(value *Note, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "text":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Text = assigned
+		return true
+	case "owner":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.OwnerID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type NoteFieldSet struct {
 	ID   orm.AutoField[Note]
 	Text orm.StringField[Note]
@@ -284,6 +308,23 @@ func (GuardDescriptor) WriteFieldValue(value Guard, field ir.Field) (query.Value
 	}
 }
 
+func (GuardDescriptor) SetFieldValue(value *Guard, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "owner":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.OwnerID = assigned
+		return true
+	default:
+		return false
+	}
+}
+
 type GuardFieldSet struct {
 	ID orm.AutoField[Guard]
 }
@@ -471,6 +512,41 @@ func (AccessNoteDescriptor) WriteFieldValue(value AccessNote, field ir.Field) (q
 		return query.Integer(value.PermissionID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (AccessNoteDescriptor) SetFieldValue(value *AccessNote, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "text":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Text = assigned
+		return true
+	case "group":
+		if input.IsNull() {
+			value.GroupID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.GroupID = &assigned
+		return true
+	case "permission":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.PermissionID = assigned
+		return true
+	default:
+		return false
 	}
 }
 
@@ -780,6 +856,38 @@ func (AccessGuardDescriptor) WriteFieldValue(value AccessGuard, field ir.Field) 
 		return query.Integer(*value.PermissionID), true
 	default:
 		return query.Value{}, false
+	}
+}
+
+func (AccessGuardDescriptor) SetFieldValue(value *AccessGuard, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "group":
+		if input.IsNull() {
+			value.GroupID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.GroupID = &assigned
+		return true
+	case "permission":
+		if input.IsNull() {
+			value.PermissionID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.PermissionID = &assigned
+		return true
+	default:
+		return false
 	}
 }
 

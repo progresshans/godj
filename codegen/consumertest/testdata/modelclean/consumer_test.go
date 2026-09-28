@@ -129,7 +129,7 @@ func runModelClean(t *testing.T, backend probeBackend) {
 	var fixture struct {
 		Cases []observation `json:"cases"`
 	}
-	if err := json.Unmarshal(reference, &fixture); err != nil || len(fixture.Cases) != 13 {
+	if err := json.Unmarshal(reference, &fixture); err != nil || len(fixture.Cases) != 15 {
 		t.Fatal("native clean fixture", err)
 	}
 	metadata := models.ContactDescriptor{}.Metadata()
@@ -154,13 +154,9 @@ func runModelClean(t *testing.T, backend probeBackend) {
 			for name, value := range test.Input {
 				raw[name] = []string{value}
 			}
-			var initial map[string]forms.Value
 			var current *models.Contact
-			base := models.Contact{Counter: 1, Hidden: "initial"}
 			if strings.HasPrefix(test.Name, "existing_") {
-				base = existing
 				current = &existing
-				initial = map[string]forms.Value{"id": forms.Integer(existing.ID), "code": forms.String(existing.Code), "email": forms.String(existing.Email), "counter": forms.Integer(existing.Counter), "hidden": forms.String(existing.Hidden)}
 			}
 			var trace []stage
 			calls := 0
@@ -195,6 +191,10 @@ func runModelClean(t *testing.T, backend probeBackend) {
 						changes["code"] = forms.String("changed")
 						changes["hidden"] = forms.String("changed-hidden")
 						failures = validation.NewErrors(validation.New(validation.NonField, "model_policy"))
+					case "clear_counter_after_fields":
+						changes["counter"] = forms.Null()
+					case "clear_excluded_hidden":
+						changes["hidden"] = forms.Null()
 					case "returns_mapping":
 						// Python ignores Model.clean's returned mapping. Go represents the
 						// same unchanged candidate with an empty explicit change set; its
@@ -205,7 +205,12 @@ func runModelClean(t *testing.T, backend probeBackend) {
 					return forms.NewValues(changes), failures
 				},
 			}}
-			bound, err := projection.Bind(metadata, forms.NewData(raw), initial)
+			spec, err := projection.Spec(metadata)
+			if err != nil {
+				t.Fatal(err)
+			}
+			instanceForm, err := formmodel.BindInstance(models.ContactObjects, spec, forms.NewData(raw), current, projection.PostClean)
+			bound := instanceForm.BoundForm()
 			if err != nil || calls != 1 {
 				t.Fatal("clean", err, calls)
 			}
@@ -241,7 +246,8 @@ func runModelClean(t *testing.T, backend probeBackend) {
 			if err != nil {
 				t.Fatal("read-only checks", err)
 			}
-			bound, err = bound.WithErrors(failures)
+			instanceForm, err = instanceForm.WithErrors(failures)
+			bound = instanceForm.BoundForm()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -268,8 +274,24 @@ func runModelClean(t *testing.T, backend probeBackend) {
 			// Preparation receives no backend. It applies Input to a detached typed
 			// current/default instance, preserving excluded fields unless clean owns
 			// an explicit change. It cannot perform persistence or mutate the caller.
-			prepared, prepareErr := prepareContact(bound, base)
-			if (prepareErr == nil) != test.Prepare.OK || test.Prepare.QueryCount != 0 {
+			prepare := func() (models.Contact, error) {
+				prepared, err := instanceForm.Prepare()
+				if err != nil {
+					return models.Contact{}, err
+				}
+				if len(prepared.Collections().All()) != 0 {
+					t.Fatal("scalar form acquired pending collections")
+				}
+				return prepared.Model()
+			}
+			prepared, prepareErr := prepare()
+			typedNull := test.Name == "clear_counter_after_fields" || test.Name == "clear_excluded_hidden"
+			if typedNull {
+				var invalid *formmodel.Error
+				if !test.Prepare.OK || !test.Valid || test.Prepare.QueryCount != 0 || !errors.As(prepareErr, &invalid) || invalid.Code != "nonnullable" {
+					t.Fatal("typed NULL preparation boundary differs", prepareErr)
+				}
+			} else if (prepareErr == nil) != test.Prepare.OK || test.Prepare.QueryCount != 0 {
 				t.Fatal("invalid form entered preparation", prepareErr)
 			}
 			if prepareErr == nil {
@@ -278,7 +300,7 @@ func runModelClean(t *testing.T, backend probeBackend) {
 			restore := errors.New("restore native observation case")
 			writes := 0
 			saveErr := backend.Atomic(t.Context(), func(session db.Session) error {
-				value, err := prepareContact(bound, base)
+				value, err := prepare()
 				if err != nil {
 					return err
 				}
@@ -304,6 +326,11 @@ func runModelClean(t *testing.T, backend probeBackend) {
 				return restore
 			})
 			switch {
+			case typedNull:
+				var invalid *formmodel.Error
+				if test.Save.Error != "IntegrityError" || !errors.As(saveErr, &invalid) || invalid.Code != "nonnullable" || writes != 0 {
+					t.Fatal("typed NULL was coerced before storage", saveErr, writes)
+				}
 			case test.Save.OK:
 				if !errors.Is(saveErr, restore) || writes != 1 {
 					t.Fatal("expected actual write followed by rollback", saveErr, writes)
@@ -328,20 +355,6 @@ func runModelClean(t *testing.T, backend probeBackend) {
 	}
 }
 
-func prepareContact(bound formmodel.BoundForm, current models.Contact) (models.Contact, error) {
-	input, err := bound.Input()
-	if err != nil {
-		return models.Contact{}, err
-	}
-	next := current
-	next.Code, _ = input.String("code")
-	next.Email, _ = input.String("email")
-	next.Counter, _ = input.Integer("counter")
-	if value, present := input.String("hidden"); present {
-		next.Hidden = value
-	}
-	return next, nil
-}
 func storedCandidate(value models.Contact) map[string]any {
 	_, present := (models.ContactDescriptor{}).PrimaryKey(value)
 	return map[string]any{"code": value.Code, "email": value.Email, "counter": value.Counter, "hidden": value.Hidden, "has_id": present}
