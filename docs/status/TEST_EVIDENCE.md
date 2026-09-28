@@ -259,6 +259,11 @@ DB **0|0|0**, DB/container 제거를 확인했다. 전체 JSON·roster·계획·
 Normal evidence의 `static-checks`, `negative-controls`, `negative-controls-retry`, `negative-controls-combined.json`에 추가 검증이 있다.
 Blank 선언·내부 API와 새 DB 후처리를 포함한 source의 Hosted 전체는 다음 통합 milestone이며 선행 ea2867f4의 성공을 전이하지 않는다.
 
+구현 commit `d2c9d6fef328af5a87dd61cc507b61fe8295912a`를 양 작업 branch에 원자적으로 push하고
+[Hosted full 36381300069](https://github.com/progresshans/godj/actions/runs/36381300069)을 `suite=full`로 시작했다.
+기존 ea2867f4 run이 모두 종료한 뒤 새 source를 확인했으며 현재 결과는 진행 중이다. 로컬 전체를 중복 실행하지 않는다.
+현재 필수 Go source·생성물·DB/process·platform·capture 검증은 이 통합 milestone이 소유한다.
+
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
 기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.
