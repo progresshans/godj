@@ -37,7 +37,7 @@ func choiceModel(t *testing.T) ir.Model {
 	t.Helper()
 	definition, err := schema.Build(schema.Definition{AppLabel: "choice_reference", Models: []schema.Model{{Name: "entry", GoName: "Entry", Fields: []schema.Field{
 		schema.CharField("status", "Status", 12, schema.Default("open"), schema.Choices(schema.Choice("open", "Open"), schema.Choice("closed", "Closed"))),
-		schema.IntegerField("priority", "Priority", schema.Nullable(), schema.Choices(schema.Choice(int64(-1), "Low"), schema.Choice(int64(0), "Normal"), schema.Choice(int64(1), "High"))),
+		schema.IntegerField("priority", "Priority", schema.Nullable(), schema.Blank(), schema.Choices(schema.Choice(int64(-1), "Low"), schema.Choice(int64(0), "Normal"), schema.Choice(int64(1), "High"))),
 	}}}})
 	if err != nil {
 		t.Fatal(err)

@@ -196,11 +196,13 @@ func fullConcurrencyProject(t *testing.T, repository string) string {
 	fullConcurrencyCopy(t, filepath.Join(repository, "go.sum"), filepath.Join(root, "go.sum"))
 	fullConcurrencyWrite(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\n"))
 	fullConcurrencyWrite(t, filepath.Join(root, "cmd", "projectrunner", "main.go"), []byte(fullConcurrencyRunnerSource))
-	fullConcurrencyCopy(
-		t,
-		filepath.Join(repository, "examples", "article", "migrations", "0001_initial.godj.json"),
-		filepath.Join(root, "migrations", "0001_initial.godj.json"),
-	)
+	paths, err := filepath.Glob(filepath.Join(repository, "examples", "article", "migrations", "*.godj.json"))
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("discover current Article migrations: %v", err)
+	}
+	for _, path := range paths {
+		fullConcurrencyCopy(t, path, filepath.Join(root, "migrations", filepath.Base(path)))
+	}
 	return filepath.Join(root, "godj.toml")
 }
 

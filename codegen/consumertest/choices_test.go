@@ -11,8 +11,8 @@ import (
 func TestGeneratedChoicesConsumer(t *testing.T) {
 	definition, err := schema.Build(schema.Definition{AppLabel: "choices", Models: []schema.Model{{Name: "entry", GoName: "Entry", Fields: []schema.Field{
 		schema.CharField("status", "Status", 12, schema.Default("open"), schema.Choices(schema.Choice("open", "<Open>"), schema.Choice("closed", "Closed"))),
-		schema.TextField("reason", "Reason", schema.Nullable(), schema.Choices(schema.Choice(" done ", "Keep spaces"), schema.Choice("new\nline", "Multiline"), schema.Choice("", "Blank"))),
-		schema.IntegerField("priority", "Priority", schema.Nullable(), schema.Choices(schema.Choice(int64(1), "Urgent"), schema.Choice(int64(0), "Normal"), schema.Choice(int64(-1), "Low"))),
+		schema.TextField("reason", "Reason", schema.Nullable(), schema.Blank(), schema.Choices(schema.Choice(" done ", "Keep spaces"), schema.Choice("new\nline", "Multiline"), schema.Choice("", "Blank"))),
+		schema.IntegerField("priority", "Priority", schema.Nullable(), schema.Blank(), schema.Choices(schema.Choice(int64(1), "Urgent"), schema.Choice(int64(0), "Normal"), schema.Choice(int64(-1), "Low"))),
 	}}}})
 	if err != nil {
 		t.Fatal(err)

@@ -54,7 +54,11 @@ blank=True empty는 모델 clean_fields에서 건너뛰며 숫자 None도 포함
 기존 scalar/ManyToMany policy 외의 변경을 metadata-only migration에 섞지 않는다.
 JSON API의 노출·required/empty override와 명시적 omission default는 별도 정책이며 암묵적으로 바꾸지 않는다.
 전체 ModelForm·custom user model의 완료를 이 기반의 존재만으로 선언하지 않는다.
-다음은 이 구현 source의 Hosted 통합과 일반 model clean의 값 변환·저장 후보에 대한 독립 기준 확인이다.
+Hosted 통합에서 optional choices fixture의 Blank와 독립 동시 migration 프로젝트의 Article 이력 복사 누락을 확인했다.
+기존 엄격한 기대를 유지하며 fixture를 보완하고 실제 양 DB/CLI/재시작과 독립 생성 소비자의 영향 세 mode를 통과했다.
+새 source의 Hosted 통합 검증을 진행한다.
+일반 model clean의 값 변환·저장 후보는 양 DB의 native 13개 사례로 독립 관찰했다. Go API와 제외/서버 소유 값의
+저장 의미는 아직 채택·구현하지 않았으며 현재 통합을 닫은 뒤 다음 확장으로 연결한다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

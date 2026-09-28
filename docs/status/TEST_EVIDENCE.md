@@ -264,6 +264,58 @@ Blank 선언·내부 API와 새 DB 후처리를 포함한 source의 Hosted 전�
 기존 ea2867f4 run이 모두 종료한 뒤 새 source를 확인했으며 현재 결과는 진행 중이다. 로컬 전체를 중복 실행하지 않는다.
 현재 필수 Go source·생성물·DB/process·platform·capture 검증은 이 통합 milestone이 소유한다.
 
+### Hosted 통합의 선택 입력·동시 migration fixture 보완
+
+위 d2c9d6fe full에서 선택 입력의 두 소비자와 양 DB 실제 동시 migration 검사가 실패했다.
+`conformance/choicesproduct`의 priority 모델은 독립 Django `choices_reference.py`의 `null=True, blank=True` 중
+Blank가 누락돼 있었다. 독립 generated choices consumer도 optional reason/priority의 Blank 선언이 없었다.
+Generated child의 원래 remote 오류는 진단을 제한했으므로 내용만 추정하지 않았다. 임시 Go overlay로 해당 SQLite-only
+child의 전체 test event를 받아 `optional choices rejected empty input`이라는 실제 runtime 실패를 확인했다.
+두 Go fixture에 Blank를 명시하며 독립 Django 원문·오류/입력 기대와 제품의 Nullable/Blank 분리는 유지한다.
+
+동시 migration용 독립 프로젝트는 Article `0001_initial`만 복사하고 있었다. 현재 기대 catalog는 새 Blank 이력을 포함한
+8개 definition이므로 실제 7개 begin과 정확한 8개 기대가 달랐다. Fixture가 현재 Article의 모든 `.godj.json`을 복사하게 했다.
+8개 history/18 operations, 정확한 private response·source digest, 하나의 승자/하나의 revision contention·무재시도와
+재조정 no-op의 기존 검사는 그대로다. 세 test 파일만 변경했고 제품 코드·기존 migration·oracle은 변경하지 않았다.
+
+실패 jobs 원문·단계·source JSON과 generated child 진단은 catalog normal evidence의
+`hosted-repair-1790573414603119000`에 있다. 보완 source inventory는
+`633062b437e0e642987aef5ba8c0fe67bfafb757f9e6347e15c542ea1499df9a`이며 아래 동일 source checkpoint로 검증한다.
+동일 source에서 아래 세 mode를 완료했다. 모두 skip·필수 누락·실패·잘린/비정형 JSON 0이며 실제 양 DB/독립 CLI·두 process·재시작을 포함한다.
+
+| 범위 | normal PASS / 초 | race PASS / 초 | CGO=0 PASS / 초 |
+|---|---:|---:|---:|
+| choices, 3 roots | 24 / 1.647 | 24 / 3.312 | 24 / 1.825 |
+| generated choices, parent 1·필수 child 2 | 1 / 2.110 | 1 / 5.503 | 1 / 2.251 |
+| 전체 global migrate, 6 roots | 16 / 160.502 | 16 / 179.546 | 16 / 183.816 |
+
+Race는 generated child에 실제 적용되며 global CLI/process child는 기존 일반 build 정책, harness는 해당 mode를 따른다.
+Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham, 각 mode 전용 PostgreSQL 17.10 UTF8/libc/C다.
+영향 vet, source 전후 동일, DB 0|0|0과 DB/container 제거를 확인했다. Source delta는 위 세 test 파일뿐이다.
+환경·전체 JSON·roster·source/cleanup receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-hosted-normal-prremmjq`에 있다.
+Race/CGO=0은 같은 임시 parent의 `godj-blank-hosted-race-oqc4bzb6`, `godj-blank-hosted-cgo0-7smskwu5`다.
+원격 실행은 보완 source에서 새로 검증하며 실패한 d2c9d6fe 실행을 성공으로 합치지 않는다.
+
+### 다음 model clean 값 변환의 독립 관찰
+
+Go 구현에 앞서 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, CPython 3.14.3으로
+실제 SQLite 3.50.4와 private PostgreSQL 17.10 UTF8/libc/C에서 각각 **13개 사례**를 관찰했다.
+Model/form source 두 파일의 SHA는 앞선 고정 native 관찰과 일치하고 uv.lock은 변경하지 않았다.
+캐시된 psycopg 3.3.6의 임시 uv overlay를 사용했다. 두 DB의 유효성·오류·cleaned data·candidate·단계별 trace와
+조회 수, commit=False와 rollback으로 감싼 실제 save 결과는 모두 같았다. 모델 row는 매 사례 뒤 복원하고 table·DB/container를 정리했다.
+
+Model clean은 cleaned data를 그대로 둔 채 instance를 바꾸며 DB unique/constraint는 바뀐 candidate를 본다.
+이미 발생한 field 오류는 값을 고쳐도 사라지지 않는다. Model clean 이후 field 문법을 재검사하지 않으므로 이메일을
+잘못된 문법으로 바꾸어도 이 단계만으로 form 오류가 생기지는 않는다. 제외된 field의 변경도 native save에 반영될 수 있지만
+해당 unique는 제외돼 실제 저장에서 IntegrityError가 날 수 있다. Commit=False는 I/O 없이 같은 instance를 반환하고,
+invalid form의 prepare/save는 ValueError로 실패한다. Clean의 반환 mapping 자체는 native instance를 바꾸지 않는다.
+
+이는 **native 관찰만**이며 Go의 값 변환/제외 field 저장 API를 구현하거나 차이를 채택했다는 뜻이 아니다.
+이후 Go API는 model candidate·selected/서버 소유 값·최종 저장 권한의 경계를 명시한 뒤 실제 소비자로 검증해야 한다.
+원문·observer SHA·명령·비교·정리 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-clean-reference-wo050u9o`에 있다.
+
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
 기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.
