@@ -16,6 +16,77 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
+### BoundForm 전달과 Helpdesk typed 저장 연결
+
+기반 `ce52685c6060b9999a95f7218b59d49d849a31d5` 이후 Admin의 Create/Update callback을 BoundForm으로 전환했다.
+Registry의 최종 원본 제출 재바인딩·현재 선택/row/revision 확인과 Input의 nonnullable 표현 거부를 유지한다. 기존 consumer는
+bound.Input을 읽고, Helpdesk Ticket은 새 `PrepareInstance`로 모델 metadata/PK 일치·기존 제외 값·후처리 변경을 typed 모델에
+직접 연결한다. 과거 callback 형태를 위한 호환 분기는 없다. Command의 Values 계약과 credential/session 저장 의미는 유지한다.
+
+Helpdesk Form의 수동 필드 복사·전체 patch 조립을 제거했다. 같은 기존 relation transaction에서 admitted principal·현재 row의
+category·선택 label 소속·complete write uniqueness를 확인한다. 신규는 전체 Save, 수정은 변경 field mask를 가진 ORM Save
+후 SaveCollections를 호출한다. 변경하지 않은 scalar나 제외된 category를 UPDATE하지 않으며 category 변경 clean을 거부한다.
+JSON Form 동등성의 원문/SQL NULL 보존과 JSON API의 exact-token 계약, changed field/audit·저장된 응답의 사전 변환도 유지한다.
+실제 systemstate Runtime은 기존 coordinated relation domain을 사용한다. Template/CSRF·권한·현재 선택 재검사·관계 실패/
+rollback·outcome-unknown·복구 후 읽기 등 기존 HTTP/DB 회귀는 삭제하거나 완화하지 않았다.
+
+새 단위 검사는 이미 바인딩한 candidate·원래 제출/cleaned 값·현재 제외 값의 분리, nullable 복사, 모델 정책과 이름·PK
+값/존재·적용된 오류·zero BoundForm 거부와 clean 재실행 0을 확인한다. 새 실제 Helpdesk 소비자는 양 DB에서 신규/수정의
+제외 clean 값, 관계만 변경, collection 제외/clear, 신규/수정 category 변경 거부, 바인딩 이후 category 이동의 8개 사례를
+검증한다. 실제 native UpdatePlan도 추적해 category가 갱신되지 않고 collection-only에서는 scalar UPDATE가 0임을 확인했다.
+
+Go/test/fixture를 포함한 비문서 source inventory `e9bc1141586582c453ddcbd4490759306b2b96165ecc71860c1a7e4cf7f284f0`에서
+Darwin arm64 Go 1.26.5·offline/read-only module·TZ Pacific/Chatham·private PostgreSQL 17.10 UTF8/libc/C checkpoint를 실행했다.
+
+| 검사 | normal | race | CGO=0 |
+| --- | --- | --- | --- |
+| Form/Admin/Identity/Article Admin/Helpdesk/systemstate 10 packages / 필수 266 roots·566 cases | 2,705 PASS / 26.556초 | 2,705 PASS / 157.667초 | 2,705 PASS / 25.544초 |
+| 실제 SQLite/PostgreSQL Identity 관리 4 roots·370 cases | 370 PASS / 44.884초 | 370 PASS / 147.366초 | 370 PASS / 45.334초 |
+| Generated model DB/clean/save 소비자 3 parents / 필수 child 113개 | PASS / 7.832초 | PASS / 19.016초 | PASS / 7.782초 |
+
+세 mode 모두 필수 누락·skip·잘린 event 0, 실제 generated child race 상속, source 전후 동일을 확인했다. 각 PostgreSQL의
+잔여 schema/table/다른 연결은 **0|0|0**이며 DB/container를 제거했다. 전체 **203 packages compile-only / 실제 test run 0**도
+39.061초에 통과했다. Model/generator/migration bytes는 변경하지 않았고 로컬 full-platform을 반복하지 않았다.
+
+앞선 normal inventory `de117a1e72995e98aaf45e242db3eea88535da789605064b23f71e9b27bbc1f6`도 core 2,705 / Identity
+370 / generated 3 parents가 통과했다. 그러나 코드 검토에서 기존 객체의 전체 Save가 제외 category column을 다시 쓸 수 있음을
+확인해 field mask와 native write 추적 검사를 추가했다. 앞선 성공으로 이 위험을 덮지 않고 위 수정 source를 세 mode로 검증했다.
+편집 중 compile 확인에서 발견한 테스트 forwarding callback 7개의 이전 Values 인자도 BoundForm으로 전환했다. 이 compile 실패를
+runtime 실패나 PASS로 세지 않는다.
+
+네 negative control은 모델 정책 검사·현재 PK 검사 생략, 제외 clean 변경 누락, UPDATE의 category column 추가를 Go overlay로
+주입했다. **4/4이 지정 runtime assertion에서 실패**했으며 마지막 두 개는 실제 SQLite 제품 저장을 실행한다. Compile 실패/skip은
+대조 성공으로 세지 않았고 baseline/source 전후 동일을 확인했다.
+
+검증 후 CI의 실행 owner 등록을 정리했다. Helpdesk는 portable integration/actual PostgreSQL owner이므로 relation-required에
+추가했던 10개 항목을 제거하고 PostgreSQL 필수 parent/backend/case 19개는 유지했다. 최종 비문서 inventory는
+`48b0e483ee30a7416c958abdff187b7cfcdc07c9dcf3faeae69b96883b378f74`이다. 두 inventory의 차이가 이 파일 하나뿐이고
+**모든 Go/test/generated fixture bytes와 세 mode의 실제 로컬 필수 실행 집합이 동일**함을 독립 비교했다. 변경한 owner 분류의
+CI 도구 **41 tests**(4.262초)와 영향 vet(0.618초), 문서 검사(161 documents)를 최종 source에서 통과했다. 이를 최종 source의 새 full-platform 실행으로 기록하지 않는다.
+
+원문/receipt/source inventory:
+
+- Before-mask normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-product-form-normal-bfrt0pnb`
+- Final Go normal/negative controls/compile/owner correction: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-product-form-normal-wfjh6fmx`
+- Race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-product-form-race-f8z3gp8k`
+- CGO=0: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-product-form-cgo0-mozfvijt`
+
+선행 저장 조정 source `ce52685c`의 [Fast 36393894699](https://github.com/progresshans/godj/actions/runs/36393894699)는
+terminal success와 실제 Fast Go step 성공을 확인했다. 이 후속 callback/Helpdesk source의 검증으로 전이하지 않는다.
+선행 typed 준비 full `36391162296` / `1b2fc492`도 진행 중이며 이 후속 저장 코드는 포함하지 않는다.
+
+같은 full의 새 capture 두 개는 archive checksum·정확한 파일 집합·producer attempt/provenance와 Git blob source binding을
+확인했다. 이 중간 확인은 아직 필수 owner 전체나 최종 aggregate 성공을 뜻하지 않는다.
+
+| capture | artifact / producer job | Git source binding |
+| --- | --- | --- |
+| systemstate | `10957076172` / `108827131757` | 631 files / 6,683,912 bytes / `51227f1c8a4cae15a6260f0cb750bffce995df2bcb4e379c10b0a02e6cbea888` |
+| operator | `10956591365` / `108827131715` | 708 files / 6,533,348 bytes / `0a2e084d44864c1e1a4825a1f02aa8caa15b9c0d3550b71b5e51254709bc3e0c` |
+
+Archive/payload SHA·검증 receipt·정확한 Git source inventory는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-typed-form-full-36391162296-z1evc7q1`에 있다.
+
+
 ### 후속 ModelForm scalar·collection 저장 조정
 
 기반 `da4831303a7d733a0c1339511c8928c57ae12972` 이후 `PreparedInstance.Save/SaveCollections`와 typed

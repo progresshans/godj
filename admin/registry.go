@@ -215,11 +215,14 @@ type ModelConfig[M any] struct {
 	// inside the same read snapshot as database validation; Update still owns
 	// the final authorized write and transaction.
 	ValidateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
-	// Create/Update may return validation.Reject after confirming no mutation
+	// Create/Update receive the final rebound candidate and original submission.
+	// Input has already passed the representation boundary; PrepareInstance can
+	// connect the same candidate to a typed current model without binding twice.
+	// Callbacks may return validation.Reject after confirming no mutation
 	// committed. Diagnostics must name selected form fields or validation.NonField.
 	// Preserve transaction/rollback failures as execution errors instead.
-	Create func(context.Context, auth.Principal, forms.Values) (M, error)
-	Update func(context.Context, auth.Principal, Mutation, forms.Values) (M, []string, error)
+	Create func(context.Context, auth.Principal, formmodel.BoundForm) (M, error)
+	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (M, []string, error)
 	Delete func(context.Context, auth.Principal, Mutation) (M, error)
 	// History is optional. Its absence removes history routes and links.
 	History  func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)

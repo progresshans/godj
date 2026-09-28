@@ -72,6 +72,48 @@ func (form InstanceForm[M]) WithErrors(failures validation.Errors) (InstanceForm
 	return form, nil
 }
 
+// PrepareInstance connects an already-bound model form to an authorized typed
+// current instance without binding again or repeating model clean. The complete
+// model policy and primary-key presence/value must agree. A non-nil instance
+// preserves its excluded fields; nil prepares a new model from IR defaults.
+// Callers still own fresh row/authority checks and transaction admission.
+func PrepareInstance[M any](manager orm.Manager[M], bound BoundForm, instance *M) (PreparedInstance[M], error) {
+	metadata, err := manager.Metadata()
+	if err != nil {
+		return PreparedInstance[M]{}, err
+	}
+	if !metadata.Equal(bound.model) {
+		return PreparedInstance[M]{}, &Error{Path: "model", Code: "mismatch"}
+	}
+	var source M
+	if instance != nil {
+		source = *instance
+	}
+	snapshot, err := manager.ApplyValues(source, nil)
+	if err != nil {
+		return PreparedInstance[M]{}, err
+	}
+	prepared, err := (InstanceForm[M]{bound: bound, manager: manager, instance: snapshot, hasInstance: instance != nil}).Prepare()
+	if err != nil {
+		return PreparedInstance[M]{}, err
+	}
+	values, err := manager.ModelValues(prepared.value)
+	if err != nil {
+		return PreparedInstance[M]{}, err
+	}
+	for _, field := range metadata.Fields {
+		if !field.PrimaryKey {
+			continue
+		}
+		key, present := bound.candidate.Get(field.Name)
+		scalar, valid := queryValue(key)
+		if !present || !valid || !values[field.Name].Equal(scalar) {
+			return PreparedInstance[M]{}, &Error{Path: "instance." + field.Name, Code: "mismatch"}
+		}
+	}
+	return prepared, nil
+}
+
 // PreparedInstance keeps typed scalar preparation separate from selected
 // collection writes and command inputs. Preparation is not a commit. Callers
 // must preserve all intended scalar/collection operations in their authorized

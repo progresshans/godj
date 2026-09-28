@@ -109,7 +109,13 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			return userRow{value, true}, err == nil, operationError(err)
 		},
 		Snapshot: userSnapshot, Initial: func(value userRow) (map[string]forms.Value, error) { return userInitial(value.UserDetails), nil },
-		Create: func(ctx context.Context, actor auth.Principal, values forms.Values) (userRow, error) {
+		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) (userRow, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero userRow
+				return zero, inputErr
+			}
+
 			principalID, err := a.principalID(ctx)
 			if err != nil {
 				return userRow{}, err
@@ -117,7 +123,13 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			created, err := creationForm.Create(ctx, actor, principalID, values)
 			return userRow{created, true}, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (userRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm) (userRow, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero userRow
+				return zero, nil, inputErr
+			}
+
 			before, err := a.manager.User(ctx, p, m.ID)
 			if err != nil {
 				return userRow{}, nil, operationError(err)

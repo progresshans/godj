@@ -81,14 +81,26 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		Initial: func(article articleapp.Article) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, initialSpec, articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (articleapp.Article, error) {
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm) (articleapp.Article, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero articleapp.Article
+				return zero, inputErr
+			}
+
 			input, err := articleInput(values)
 			if err != nil {
 				return articleapp.Article{}, err
 			}
 			return service.Create(ctx, principal.ID(), input)
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, values forms.Values) (articleapp.Article, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (articleapp.Article, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero articleapp.Article
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			input, err := articleInput(values)
 			if err != nil {

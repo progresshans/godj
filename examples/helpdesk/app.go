@@ -237,20 +237,12 @@ func (a *Application) register(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (ticketRecord, error) {
-			input, err := fromForm(values)
-			if err != nil {
-				return ticketRecord{}, err
-			}
-			return a.create(ctx, principal, input)
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm) (ticketRecord, error) {
+			created, _, err := a.saveTicketForm(ctx, principal, 0, bound)
+			return created, err
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, values forms.Values) (ticketRecord, []string, error) {
-			id := mutation.ID
-			input, err := fromForm(values)
-			if err != nil {
-				return ticketRecord{}, nil, err
-			}
-			return a.update(ctx, principal, id, input)
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (ticketRecord, []string, error) {
+			return a.saveTicketForm(ctx, principal, mutation.ID, bound)
 		},
 		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (ticketRecord, error) {
 			id := mutation.ID
@@ -322,113 +314,6 @@ type ticketInput struct {
 	expectedCost      *decimal.Decimal
 	externalReference *uuid.UUID
 	externalPayload   *jsonvalue.Value
-}
-
-func fromForm(values forms.Values) (ticketInput, error) {
-	labels, labelsOK := values.Integers("labels")
-	subject, subjectOK := values.String("subject")
-	closed, closedOK := values.Boolean("closed")
-	details, detailsOK := values.Get("details")
-	priority, priorityOK := values.Get("priority")
-	resolution, resolutionOK := values.Get("resolution")
-	dueAt, dueAtOK := values.Get("due_at")
-	reviewed, reviewedOK := values.Get("reviewed")
-	serviceOn, serviceOnOK := values.Get("service_on")
-	serviceAt, serviceAtOK := values.Get("service_at")
-	elapsed, elapsedOK := values.Get("elapsed")
-	effort, effortOK := values.Get("effort")
-	expectedCost, expectedCostOK := values.Get("expected_cost")
-	externalReference, externalReferenceOK := values.Get("external_reference")
-	externalPayload, externalPayloadOK := values.Get("external_payload")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || !externalPayloadOK || !labelsOK || len(values.All()) != 15 {
-		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
-	}
-	input := ticketInput{subject: subject, closed: closed, labels: labels}
-	if !priority.IsNull() {
-		integer, ok := priority.AsInteger()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid priority")
-		}
-		input.priority = &integer
-	}
-	if !details.IsNull() {
-		text, ok := details.AsString()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid details")
-		}
-		input.details = &text
-	}
-	if !resolution.IsNull() {
-		text, ok := resolution.AsString()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid resolution")
-		}
-		input.resolution = &text
-	}
-	if !dueAt.IsNull() {
-		instant, ok := dueAt.AsDateTime()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid due_at")
-		}
-		input.dueAt = &instant
-	}
-	if !reviewed.IsNull() {
-		boolean, ok := reviewed.AsBoolean()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid reviewed")
-		}
-		input.reviewed = &boolean
-	}
-	if !serviceOn.IsNull() {
-		date, ok := serviceOn.AsDate()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid service_on")
-		}
-		input.serviceOn = &date
-	}
-	if !externalReference.IsNull() {
-		identifier, ok := externalReference.AsUUID()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid external_reference")
-		}
-		input.externalReference = &identifier
-	}
-	if !externalPayload.IsNull() {
-		document, ok := externalPayload.AsJSON()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid external_payload")
-		}
-		input.externalPayload = &document
-	}
-	if !expectedCost.IsNull() {
-		number, ok := expectedCost.AsDecimal()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid expected_cost")
-		}
-		input.expectedCost = &number
-	}
-	if !effort.IsNull() {
-		floatValue, ok := effort.AsFloat()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid effort")
-		}
-		input.effort = &floatValue
-	}
-	if !elapsed.IsNull() {
-		durationValue, ok := elapsed.AsDuration()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid elapsed")
-		}
-		input.elapsed = &durationValue
-	}
-	if !serviceAt.IsNull() {
-		clockValue, ok := serviceAt.AsTime()
-		if !ok {
-			return ticketInput{}, errors.New("helpdesk: invalid service_at")
-		}
-		input.serviceAt = &clockValue
-	}
-	return input, nil
 }
 
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
@@ -535,76 +420,11 @@ func (a *Application) create(ctx context.Context, principal auth.Principal, inpu
 	}
 	return created, nil
 }
-func (a *Application) update(ctx context.Context, principal auth.Principal, id int64, input ticketInput) (ticketRecord, []string, error) {
-	patch := models.TicketPatch{}.WithSubject(input.subject).WithClosed(input.closed)
-	if input.priority == nil {
-		patch = patch.WithPriorityNull()
-	} else {
-		patch = patch.WithPriority(*input.priority)
-	}
-	if input.details == nil {
-		patch = patch.WithDetailsNull()
-	} else {
-		patch = patch.WithDetails(*input.details)
-	}
-	if input.resolution == nil {
-		patch = patch.WithResolutionNull()
-	} else {
-		patch = patch.WithResolution(*input.resolution)
-	}
-	if input.dueAt == nil {
-		patch = patch.WithDueAtNull()
-	} else {
-		patch = patch.WithDueAt(*input.dueAt)
-	}
-
-	if input.reviewed == nil {
-		patch = patch.WithReviewedNull()
-	} else {
-		patch = patch.WithReviewed(*input.reviewed)
-	}
-	if input.serviceOn == nil {
-		patch = patch.WithServiceOnNull()
-	} else {
-		patch = patch.WithServiceOn(*input.serviceOn)
-	}
-	if input.externalReference == nil {
-		patch = patch.WithExternalReferenceNull()
-	} else {
-		patch = patch.WithExternalReference(*input.externalReference)
-	}
-	if input.externalPayload == nil {
-		patch = patch.WithExternalPayloadNull()
-	} else {
-		patch = patch.WithExternalPayload(*input.externalPayload)
-	}
-	if input.expectedCost == nil {
-		patch = patch.WithExpectedCostNull()
-	} else {
-		patch = patch.WithExpectedCost(*input.expectedCost)
-	}
-	if input.effort == nil {
-		patch = patch.WithEffortNull()
-	} else {
-		patch = patch.WithEffort(*input.effort)
-	}
-	if input.elapsed == nil {
-		patch = patch.WithElapsedNull()
-	} else {
-		patch = patch.WithElapsed(*input.elapsed)
-	}
-	if input.serviceAt == nil {
-		patch = patch.WithServiceAtNull()
-	} else {
-		patch = patch.WithServiceAt(*input.serviceAt)
-	}
-	return a.updatePatch(ctx, principal, id, patch, input.labels, true)
-}
 
 // Resolve the current row and apply explicit changes in the same transaction.
 // Comparing assignments preserves omitted fields and does not expose or mutate
 // the generated mutation's private model value.
-func (a *Application) updatePatch(ctx context.Context, principal auth.Principal, id int64, patch models.TicketPatch, labels []int64, formInput bool) (ticketRecord, []string, error) {
+func (a *Application) updatePatch(ctx context.Context, principal auth.Principal, id int64, patch models.TicketPatch, labels []int64) (ticketRecord, []string, error) {
 	var updated ticketRecord
 	var changed []string
 	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
@@ -625,7 +445,7 @@ func (a *Application) updatePatch(ctx context.Context, principal auth.Principal,
 				return err
 			}
 		}
-		raw, scalarChanged, err := updateTicketScalars(ctx, session, current, patch, formInput)
+		raw, scalarChanged, err := updateTicketScalars(ctx, session, current, patch)
 		if err != nil {
 			return err
 		}
@@ -651,7 +471,7 @@ func (a *Application) updatePatch(ctx context.Context, principal auth.Principal,
 	return updated, changed, nil
 }
 
-func updateTicketScalars(ctx context.Context, session db.Session, current models.Ticket, patch models.TicketPatch, formInput bool) (models.Ticket, []string, error) {
+func updateTicketScalars(ctx context.Context, session db.Session, current models.Ticket, patch models.TicketPatch) (models.Ticket, []string, error) {
 	var changed []string
 	mutation := patch.BuildPatch(current)
 	if err := mutation.Err(); err != nil {
@@ -661,39 +481,7 @@ func updateTicketScalars(ctx context.Context, session db.Session, current models
 		}
 		return models.Ticket{}, nil, err
 	}
-	if formInput {
-		for _, assignment := range mutation.Assignments() {
-			if assignment.Field().Name() != "external_payload" {
-				continue
-			}
-			before, after := jsonvalue.Null(), jsonvalue.Null()
-			if current.ExternalPayload != nil {
-				before = *current.ExternalPayload
-			}
-			if !assignment.Value().IsNull() {
-				var valid bool
-				after, valid = assignment.Value().JSON()
-				if !valid {
-					return models.Ticket{}, nil, errors.New("helpdesk: invalid JSON form assignment")
-				}
-			}
-			// Form ignores object order and equivalent floating spellings,
-			// and cannot distinguish SQL NULL from a stored JSON null. Keep
-			// the original document even when another field changes. API
-			// input retains its separate explicit-null and exact-token rules.
-			if forms.JSON(before).Equal(forms.JSON(after)) {
-				if current.ExternalPayload == nil {
-					patch = patch.WithExternalPayloadNull()
-				} else {
-					patch = patch.WithExternalPayload(before)
-				}
-			}
-		}
-		mutation = patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil {
-			return models.Ticket{}, nil, err
-		}
-	}
+
 	descriptor := models.TicketDescriptor{}
 	assignments := mutation.Assignments()
 	for _, field := range descriptor.Metadata().Fields {

@@ -46,14 +46,26 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 		Initial: func(row multipleSelection) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"labels": forms.Integers(row.keys...)}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, values forms.Values) (multipleSelection, error) {
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (multipleSelection, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero multipleSelection
+				return zero, inputErr
+			}
+
 			keys, ok := values.Integers("labels")
 			if !ok {
 				return multipleSelection{}, errors.New("missing collection")
 			}
 			return multipleSelection{1, keys}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (multipleSelection, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (multipleSelection, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero multipleSelection
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			keys, ok := values.Integers("labels")
 			if !ok {
@@ -79,15 +91,27 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { reads++; return choices, failure }
 	create, update := config.Create, config.Update
 	var received []int64
-	config.Create = func(ctx context.Context, p auth.Principal, v forms.Values) (multipleSelection, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (multipleSelection, error) {
+		v, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero multipleSelection
+			return zero, inputErr
+		}
+
 		writes++
 		received, _ = v.Integers("labels")
-		return create(ctx, p, v)
+		return create(ctx, p, bound)
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, v forms.Values) (multipleSelection, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm) (multipleSelection, []string, error) {
+		v, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero multipleSelection
+			return zero, nil, inputErr
+		}
+
 		writes++
 		received, _ = v.Integers("labels")
-		return update(ctx, p, mutation, v)
+		return update(ctx, p, mutation, bound)
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)

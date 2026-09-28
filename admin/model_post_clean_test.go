@@ -52,10 +52,22 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 					}
 					return registryArticle{id: id, title: got}
 				}
-				config.Create = func(_ context.Context, _ auth.Principal, values forms.Values) (registryArticle, error) {
+				config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+					values, inputErr := bound.Input()
+					if inputErr != nil {
+						var zero registryArticle
+						return zero, inputErr
+					}
+
 					return accept(values, 2), nil
 				}
-				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+					values, inputErr := bound.Input()
+					if inputErr != nil {
+						var zero registryArticle
+						return zero, nil, inputErr
+					}
+
 					return accept(values, mutation.ID), []string{"title"}, nil
 				}
 				builder := NewBuilder(mustApps(t))
@@ -172,9 +184,9 @@ func TestAdminChangeRechecksObservedRevisionBeforeCandidateWrite(t *testing.T) {
 	callbacks := 0
 	_, state, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
 		original := config.Update
-		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, values forms.Values) (managementFormRow, []string, error) {
+		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, bound formmodel.BoundForm) (managementFormRow, []string, error) {
 			callbacks++
-			return original(ctx, actor, mutation, values)
+			return original(ctx, actor, mutation, bound)
 		}
 	})
 	model := registry.models[0]
@@ -236,8 +248,20 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					return config.ValidateCreate(ctx, actor, bound)
 				}
 				original := config.Create
-				config.Create = func(ctx context.Context, actor auth.Principal, values forms.Values) (managementFormRow, error) {
-					row, err := original(ctx, actor, values)
+				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) (managementFormRow, error) {
+					values, inputErr := bound.Input()
+					if inputErr != nil {
+						var zero managementFormRow
+						return zero, inputErr
+					}
+
+					raw, _ := bound.Form().Submitted().Get("username")
+					cleaned, _ := bound.Form().Cleaned().String("username")
+					candidate, _ := bound.Candidate().String("username")
+					if len(raw) != 1 || raw[0] != "mixed" || cleaned != "mixed" || candidate != "MIXED" {
+						t.Fatal("final write callback lost submitted, cleaned or model candidate")
+					}
+					row, err := original(ctx, actor, bound)
 					if err != nil {
 						return row, err
 					}

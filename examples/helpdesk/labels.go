@@ -63,14 +63,26 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.Label, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (models.Label, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.Label
+				return zero, inputErr
+			}
+
 			name, ok := values.String("name")
 			if !ok {
 				return models.Label{}, errors.New("helpdesk: invalid label name")
 			}
 			return a.createLabel(ctx, name)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.Label, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (models.Label, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.Label
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			name, ok := values.String("name")
 			if !ok {

@@ -67,7 +67,13 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkReportForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.ServiceReport, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (models.ServiceReport, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.ServiceReport
+				return zero, inputErr
+			}
+
 			key, ok := values.Integer("ticket")
 			if !ok {
 				return models.ServiceReport{}, errors.New("helpdesk: invalid report ticket")
@@ -82,7 +88,13 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			}
 			return a.createReport(ctx, serviceReportInput{ticketID: key, summary: summary, completed: completed})
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.ServiceReport, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (models.ServiceReport, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.ServiceReport
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			key, ok := values.Integer("ticket")
 			if !ok {

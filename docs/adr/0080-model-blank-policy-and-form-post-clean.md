@@ -136,5 +136,22 @@ SaveCollections는 이미 저장한 모델의 relation 단계만 수행한다. �
 사례는 기존 GoDj의 outcome-unknown 계약을 유지한다. Django IntegrityError와 오류 종류의 동일성을 주장하지 않고,
 테스트의 새 조회를 통한 저장 상태 확인과 일반 운영의 commit 확실성을 구분한다.
 
+## BoundForm과 제품 adapter
+
+Admin의 Create/Update callback에 Values만 넘기면 모델 metadata·후보/입력 차이·collection 선택을 복원해야 한다.
+최종 원본 제출로 다시 바인딩한 BoundForm을 직접 전달하고 Input의 표현 검사는 callback 전에 유지한다. 기존 내부 callback
+형태를 보존하는 별도 호환 분기는 추가하지 않는다. Credential/session 같은 별도 저장 의미는 bound.Input을 명시적으로 읽는다.
+
+PrepareInstance는 전체 model metadata와 PK presence/value를 확인한 뒤 기존 bound의 선택 입력·clean 변경과 현재 typed
+instance의 제외 값을 결합한다. Model clean을 재실행하지 않는다. 현재 row에 의존하는 clean의 freshness나 authority/revision은
+이 값 변환으로 증명하지 않으며 최종 write owner가 보장한다.
+
+Helpdesk Ticket Form은 현재 인가/category·관계 소속·complete write uniqueness·typed 준비·scalar/collection 쓰기·저장 결과의
+응답 변환을 기존 relation transaction에 연결한다. 실제 Runtime은 기존 cooperative coordination domain을 유지한다.
+신규 객체에는 준비된 모델의 전체 Save를 사용하고, 수정에는 변경 field mask와 deferred SaveCollections를 사용한다.
+전체 모델 Save가 category 같은 제외된 서버 column을 다시 쓰도록 하지 않는다. Category를 바꾸는 clean 결과도 거부한다.
+Form의 JSON 동등성은 원래 SQL NULL/JSON 문서 표현을 보존하고 API의 exact-token 입력과 구분한다. Collection-only/no-op은
+scalar를 다시 쓰지 않으며 changed field와 audit 정보는 실제 scalar 차이 및 relation 변경에서 얻는다.
+
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며
 [Django license](../../LICENSE.django)와 [출처](../SOURCES.md)를 따른다. 구현·소비자 연결·환경별 검증은 별도로 기록한다.

@@ -28,7 +28,9 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [ ] 후속 clean/prepare source의 Hosted 통합 완료
 - [x] Scalar/선택 collection 저장 조정과 deferred 단계·실패/현재 인가 경계를 독립 생성 소비자에 연결
 - [x] 저장 lifecycle의 고정 Django 관찰·영향 세 mode·양 DB·6개 부정 대조 완료
-- [ ] 저장 조정의 제품 adapter 확대와 후속 통합 완료
+- [x] Admin BoundForm callback과 Helpdesk typed 저장 연결·기존 인가/범위/JSON/실패 경계 보존
+- [x] 영향 세 mode·양 DB·203 packages compile-only·4개 부정 대조 완료
+- [ ] 후속 저장 조정/제품 연결 source의 Hosted 통합 완료
 
 ## 현재와 다음
 
@@ -85,8 +87,13 @@ Native 15개 사례 중 기존 13개의 의미와 nonnullable NULL 2개의 준�
 Scalar 뒤 IR 순서로 저장하고 사전 구성 검사·빈 선택/제외·PK presence·context/session lifetime·오류 전달을 보존한다.
 고정 native 양 DB 15개 사례의 저장 상태를 대조하며 literal COMMIT 오류 2개의 Go outcome-unknown 차이는 명시한다.
 독립 생성 소비자에서 현재 권한·row/revision·선택 범위가 달라지는 쓰기와 late callback 실패·만료/취소도 검증했다.
-영향 normal/race/CGO=0과 여섯 부정 대조를 통과했다. 기존 제품 adapter의 최종 write fence는 바꾸지 않았으며 일반
-저장 adapter 확대와 새 저장 조정 source의 Hosted 통합은 아직 남아 있다.
+영향 normal/race/CGO=0과 여섯 부정 대조를 통과했다. 이 저장 조정 source `ce52685c`의 실제 Hosted Fast도 성공했다.
+후속 Admin Create/Update는 최종 BoundForm을 전달하며 PrepareInstance는 명세/PK를 확인하고 clean 재실행 없이 typed 준비한다.
+Helpdesk Ticket은 현재 category/label 범위·complete write uniqueness·JSON 원문·changed/audit·응답 변환과 같은 transaction을
+유지하며 이 API를 사용한다. 수정은 변경 field mask와 deferred 관계 저장으로 제외 column 재기록을 막는다. 나머지 typed
+credential/session adapter는 bound.Input을 읽으며 내부 callback 호환 분기는 없다. 영향 세 mode·양 DB·전체 compile-only와
+네 부정 대조를 완료했다. CI owner 등록 정정은 Go 입력/로컬 필수 집합 동일성 확인과 최종 CI 도구 검사로 구분한다.
+후속 저장 조정/제품 연결 source의 Hosted 통합은 아직 남아 있다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

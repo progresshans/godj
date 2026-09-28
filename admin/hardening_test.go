@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"math"
 	"reflect"
 	"sync"
@@ -226,7 +227,7 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "create",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Create = func(context.Context, auth.Principal, forms.Values) (registryArticle, error) {
+				config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
 					*called = true
 					return registryArticle{title: "Created"}, nil
 				}
@@ -239,7 +240,7 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "update",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (registryArticle, []string, error) {
+				config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (registryArticle, []string, error) {
 					*called = true
 					return registryArticle{id: 2, title: "Updated"}, []string{"title"}, nil
 				}
@@ -301,7 +302,13 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 		return registryArticle{id: 1, title: existing}, true, nil
 	}
 	var received string
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero registryArticle
+			return zero, nil, inputErr
+		}
+
 		id := mutation.ID
 		received, _ = values.String("title")
 		return registryArticle{id: id, title: received}, []string{"title"}, nil

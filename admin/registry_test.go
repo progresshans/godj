@@ -307,11 +307,11 @@ func TestRegisteredActionCannotMutateAuthoritativeSelection(t *testing.T) {
 func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *testing.T) {
 	config := validRegistryConfig(t)
 	called := 0
-	config.Create = func(context.Context, auth.Principal, forms.Values) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
 		called++
 		return registryArticle{id: 2, title: "Created"}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (registryArticle, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (registryArticle, []string, error) {
 		called++
 		return registryArticle{id: 1, title: "Updated"}, []string{"title"}, nil
 	}
@@ -403,7 +403,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 		})),
 	)}
 	called := 0
-	config.Create = func(context.Context, auth.Principal, forms.Values) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
 		called++
 		return registryArticle{id: 2, title: "Blocked"}, nil
 	}
@@ -585,11 +585,23 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 				"summary":   summary,
 			}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, values forms.Values) (registryArticle, error) {
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero registryArticle
+				return zero, inputErr
+			}
+
 			title, _ := values.String("title")
 			return registryArticle{id: 2, title: title}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero registryArticle
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			title, _ := values.String("title")
 			published, _ := values.Boolean("published")

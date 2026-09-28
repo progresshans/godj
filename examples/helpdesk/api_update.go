@@ -130,7 +130,7 @@ func (a *Application) apiUpdateMode(request *web.Request, principal auth.Princip
 			return web.Response{}, errors.New("helpdesk: validated update contains an unhandled field")
 		}
 	}
-	updated, _, err := a.updatePatch(request.Context(), principal, id, patch, labels, false)
+	updated, _, err := a.updatePatch(request.Context(), principal, id, patch, labels)
 	if err != nil {
 		return objectFailure(err)
 	}

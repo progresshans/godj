@@ -28,9 +28,10 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Create selection"}}, nil
 	}}}}
 	create := config.Create
-	config.Create = func(ctx context.Context, p auth.Principal, v forms.Values) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+
 		writes++
-		return create(ctx, p, v)
+		return create(ctx, p, bound)
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)

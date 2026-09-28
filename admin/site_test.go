@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -777,7 +778,13 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		article, found := state.articles[id]
 		return cloneSiteArticle(article), found, nil
 	}
-	config.Create = func(ctx context.Context, _ auth.Principal, values forms.Values) (registryArticle, error) {
+	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero registryArticle
+			return zero, inputErr
+		}
+
 		if err := ctx.Err(); err != nil {
 			return registryArticle{}, err
 		}
@@ -790,7 +797,13 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.mutations.creates++
 		return cloneSiteArticle(article), nil
 	}
-	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (registryArticle, []string, error) {
+	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero registryArticle
+			return zero, nil, inputErr
+		}
+
 		id := mutation.ID
 		if err := ctx.Err(); err != nil {
 			return registryArticle{}, nil, err

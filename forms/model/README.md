@@ -89,6 +89,23 @@ counter 또는 제외한 hidden field를 NULL로 만드는 경우다. Django는 
 내지만 Go는 primitive int/string의 zero value로 바꾸지 않도록 준비 단계에서 거부한다. 이 두 준비 시점의 차이와 Python
 instance identity·clean 반환 규약의 차이를 native 완전 동등성으로 합치지 않는다.
 
+## 이미 바인딩한 Form과 제품 저장
+
+`PrepareInstance(manager, bound, current)`는 기존 BoundForm을 typed 준비에 연결한다. 다시 입력을 해석하거나 model clean을
+호출하지 않으며, 전체 모델 metadata와 PK 값/존재가 일치해야 한다. 선택한 값·명시적 clean 변경은 bound가 소유하고,
+선택하지 않은 값은 전달한 typed current가 소유한다. 현재 row에 의존하는 후처리의 최신성은 호출자의 revision 검사 또는
+명시적 재바인딩이 계속 보장해야 한다. 이 메서드는 현재 권한이나 row 버전을 검증했다는 표시가 아니다.
+
+Admin의 `ModelConfig.Create/Update`는 최종 재바인딩한 `BoundForm`을 받는다. Registry는 `Input()`의 저장 표현 경계를
+통과시킨 뒤 호출하며 원래 제출·cleaned 값·후처리 후보를 함께 보존한다. Typed 모델이 필요한 callback은 `PrepareInstance`를,
+별도 credential/session 처리가 필요한 callback은 `bound.Input()`을 사용한다. Command callback의 별도 Values 계약은 유지한다.
+
+Helpdesk Ticket Form은 같은 transaction에서 인가된 principal·현재 row/category·전체 저장 후보의 unique 제약과 label 소속을
+확인하고 typed 준비/관계 저장을 사용한다. 신규 모델은 `Save`, 기존 모델은 실제 변경 필드만 ORM의 `UpdateFieldNames`로
+저장한 뒤 `SaveCollections`를 호출한다. 제외된 서버 category를 UPDATE에 넣지 않고, 관계만 바뀌면 scalar 쓰기를 생략한다.
+Category를 바꾸는 후처리는 저장 전에 거부한다. JSON의 Form 동등성·기존 원문/SQL NULL 보존, 변경 field/audit와 저장된 결과의
+응답 변환 확인도 같은 scope에 남긴다. JSON API는 별도 입력/부분 변경 계약을 사용한다.
+
 ## Scalar와 선택한 컬렉션 저장
 
 `PreparedInstance.Save(ctx, backend, &candidate, savers...)`는 caller가 소유한 typed 모델을 일반 ORM Save로 저장한 뒤,

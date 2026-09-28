@@ -52,15 +52,18 @@ func (model registeredModel) bind(data forms.Data, initial map[string]forms.Valu
 	return formmodel.Bind(model.model, model.form, data, initial, model.postClean)
 }
 
-func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, initial map[string]forms.Value, postClean formmodel.PostClean) (forms.Values, error) {
+func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, initial map[string]forms.Value, postClean formmodel.PostClean) (formmodel.BoundForm, error) {
 	bound, err := formmodel.Bind(model, spec, data, initial, postClean)
 	if err != nil {
-		return forms.Values{}, &ConfigError{Path: "form", Code: "model_validation_failed", Cause: err}
+		return formmodel.BoundForm{}, &ConfigError{Path: "form", Code: "model_validation_failed", Cause: err}
 	}
 	if !bound.Form().Valid() {
-		return forms.Values{}, validation.Reject(bound.Form().Errors(), nil)
+		return formmodel.BoundForm{}, validation.Reject(bound.Form().Errors(), nil)
 	}
-	return bound.Input()
+	if _, err := bound.Input(); err != nil {
+		return formmodel.BoundForm{}, err
+	}
+	return bound, nil
 }
 
 // Initial comes from the same typed object as Snapshot, never from a submitted

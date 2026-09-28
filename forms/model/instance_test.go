@@ -243,3 +243,104 @@ func TestInstanceFormRejectsUnsupportedTypedPreparationBeforeClean(t *testing.T)
 type instanceWriteOnlyDescriptor struct {
 	orm.WriteDescriptor[models.Article]
 }
+
+func TestPrepareInstancePreservesBoundCandidateAndTypedCurrentOwnership(t *testing.T) {
+	metadata, err := models.ArticleObjects.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := formmodel.Definition{Fields: []string{"title"}, PostClean: formmodel.PostClean{Fields: []string{"title"}, Clean: func(candidate forms.Values) (forms.Values, validation.Errors) {
+		title, _ := candidate.String("title")
+		return forms.NewValues(map[string]forms.Value{"title": forms.String(strings.ToUpper(title))}), validation.Errors{}
+	}}}
+	current := models.NewArticleWithID(0)
+	current.Summary = new("original")
+	current.Published = true
+	values, err := models.ArticleObjects.ModelValues(current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := map[string]forms.Value{"id": forms.Integer(0), "summary": forms.String("original"), "published": forms.Boolean(true)}
+	if !values["id"].Equal(query.Integer(0)) {
+		t.Fatal("present zero fixture lost")
+	}
+	bound, err := definition.Bind(metadata, forms.NewData(map[string][]string{"title": {"mixed"}}), initial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*current.Summary = "fresh-excluded"
+	prepared, err := formmodel.PrepareInstance(models.ArticleObjects, bound, &current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := prepared.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ID != 0 || result.Title != "MIXED" || !result.Published || *result.Summary != "fresh-excluded" {
+		t.Fatal("bound/current ownership lost")
+	}
+	*result.Summary = "result-only"
+	if *current.Summary != "fresh-excluded" {
+		t.Fatal("preparation borrowed current pointee")
+	}
+	raw, _ := bound.Form().Submitted().Get("title")
+	cleaned, _ := bound.Form().Cleaned().String("title")
+	if !reflect.DeepEqual(raw, []string{"mixed"}) || cleaned != "mixed" {
+		t.Fatal("preparation rebound or rewrote input")
+	}
+}
+
+func TestPrepareInstanceRejectsPolicyIdentityAndAppliedErrors(t *testing.T) {
+	metadata, err := models.ArticleObjects.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"different_policy", "different_model", "different_key", "absent_current", "unexpected_present_zero", "errors", "zero_bound"} {
+		t.Run(mode, func(t *testing.T) {
+			policy := metadata.Clone()
+			current := models.NewArticleWithID(0)
+			current.Title = "current"
+			initial := map[string]forms.Value{"id": forms.Integer(0)}
+			if mode == "different_policy" {
+				policy.Fields[1].Blank = !policy.Fields[1].Blank
+			}
+			if mode == "different_model" {
+				policy.Name = "other"
+			}
+			if mode == "unexpected_present_zero" {
+				initial = nil
+			}
+			calls := 0
+			bound, err := (formmodel.Definition{Fields: []string{"title"}, PostClean: formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
+				calls++
+				return forms.Values{}, validation.Errors{}
+			}}}).Bind(policy, forms.NewData(map[string][]string{"title": {"new"}}), initial)
+			if err != nil {
+				t.Fatal(err)
+			}
+			instance := &current
+			if mode == "different_key" {
+				current = models.NewArticleWithID(7)
+			}
+			if mode == "absent_current" {
+				instance = nil
+			}
+			if mode == "errors" {
+				bound, err = bound.WithErrors(validation.NewErrors(validation.New("title", "unique")))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if mode == "zero_bound" {
+				bound = formmodel.BoundForm{}
+			}
+			if _, err := formmodel.PrepareInstance(models.ArticleObjects, bound, instance); err == nil {
+				t.Fatal("incompatible bound/current preparation accepted")
+			}
+			if calls != 1 {
+				t.Fatal("preparation reran model clean")
+			}
+		})
+	}
+}

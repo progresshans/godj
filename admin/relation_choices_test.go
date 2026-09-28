@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -25,11 +26,23 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 	config.Initial = func(row selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"category": forms.Integer(row.category)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, values forms.Values) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero selectionTicket
+			return zero, inputErr
+		}
+
 		id, _ := values.Integer("category")
 		return selectionTicket{1, "Printer", id}, nil
 	}
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (selectionTicket, []string, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero selectionTicket
+			return zero, nil, inputErr
+		}
+
 		id := mutation.ID
 		key, _ := values.Integer("category")
 		return selectionTicket{id, "Printer", key}, []string{"category"}, nil
@@ -90,13 +103,15 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	var failure error
 	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { loads++; return choices, failure }
 	create, update := config.Create, config.Update
-	config.Create = func(ctx context.Context, p auth.Principal, v forms.Values) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+
 		mutations++
-		return create(ctx, p, v)
+		return create(ctx, p, bound)
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, v forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm) (selectionTicket, []string, error) {
+
 		mutations++
-		return update(ctx, p, mutation, v)
+		return update(ctx, p, mutation, bound)
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)

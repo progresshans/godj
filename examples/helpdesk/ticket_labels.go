@@ -78,14 +78,26 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.TicketLabel, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (models.TicketLabel, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.TicketLabel
+				return zero, inputErr
+			}
+
 			ticket, label, err := keys(values)
 			if err != nil {
 				return models.TicketLabel{}, err
 			}
 			return a.createTicketLabel(ctx, ticket, label)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, values forms.Values) (models.TicketLabel, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (models.TicketLabel, []string, error) {
+			values, inputErr := bound.Input()
+			if inputErr != nil {
+				var zero models.TicketLabel
+				return zero, nil, inputErr
+			}
+
 			id := mutation.ID
 			ticket, label, err := keys(values)
 			if err != nil {

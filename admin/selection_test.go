@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"strings"
 	"testing"
 
@@ -162,14 +163,20 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	config.Initial = func(ticket selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"subject": forms.String(ticket.subject)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, values forms.Values) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+		values, inputErr := bound.Input()
+		if inputErr != nil {
+			var zero selectionTicket
+			return zero, inputErr
+		}
+
 		if len(values.All()) != 1 {
 			t.Fatal("unselected data reached create")
 		}
 		subject, _ := values.String("subject")
 		return selectionTicket{2, subject, 2}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, forms.Values) (selectionTicket, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (selectionTicket, []string, error) {
 		return selectionTicket{1, "Updated", 2}, []string{"subject"}, nil
 	}
 	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
