@@ -72,6 +72,12 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		Initial: func(value models.TicketLabel) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
 		},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return a.checkTicketLabelForm(ctx, actor, 0, bound)
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return a.checkTicketLabelForm(ctx, actor, mutation.ID, bound)
+		},
 		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.TicketLabel, error) {
 			ticket, label, err := keys(values)
 			if err != nil {

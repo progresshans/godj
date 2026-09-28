@@ -136,23 +136,26 @@ func TestAdminModelCleanSeesCurrentExcludedValuesAfterFieldFailure(t *testing.T)
 }
 
 func TestAdminModelInitialRejectsIncompleteOrForgedStoredSnapshots(t *testing.T) {
-	for _, mode := range []string{"missing_model_value", "primary_key_mismatch", "unknown_field", "nonnullable", "invalid_model_value"} {
+	for _, mode := range []string{"missing_model_value", "primary_key_mismatch", "revision_mismatch", "unknown_field", "nonnullable", "invalid_model_value"} {
 		t.Run(mode, func(t *testing.T) {
 			_, _, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
+				config.Model.Fields = append(config.Model.Fields, ir.Field{Name: "hidden", GoName: "Hidden", Column: "hidden", Kind: ir.FieldInteger})
 				config.ModelValidators = []formmodel.Validator{formmodel.ValidatorFunc(func(forms.Values) validation.Errors { return validation.NewErrors() })}
 				config.Initial = func(row managementFormRow) (map[string]forms.Value, error) {
-					values := map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active), "revision": forms.Integer(row.revision)}
+					values := map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active), "hidden": forms.Integer(3)}
 					switch mode {
 					case "missing_model_value":
-						delete(values, "revision")
+						delete(values, "hidden")
 					case "primary_key_mismatch":
 						values["id"] = forms.Integer(2)
+					case "revision_mismatch":
+						values["revision"] = forms.Integer(row.revision + 1)
 					case "unknown_field":
 						values["forged"] = forms.Integer(1)
 					case "nonnullable":
-						values["revision"] = forms.Null()
+						values["hidden"] = forms.Null()
 					case "invalid_model_value":
-						values["revision"] = forms.String("private-value")
+						values["hidden"] = forms.String("private-value")
 					}
 					return values, nil
 				}

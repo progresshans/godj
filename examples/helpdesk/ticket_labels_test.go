@@ -291,16 +291,26 @@ type ticketLabelFaultSession struct {
 }
 
 func (s *ticketLabelFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	s.owner.queries++
-	if plan.Table() == "helpdesk_label" && s.owner.mode == "label_lookup_error" {
+	return s.owner.query(ctx, s.Session, plan, s.written)
+}
+
+func (b *ticketLabelFaultBackend) ReadSnapshot(ctx context.Context, check func(db.Queryer) error) error {
+	return b.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		return check(formReadFaultQueryer(func(ctx context.Context, plan query.Plan) (db.Rows, error) { return b.query(ctx, reader, plan, false) }))
+	})
+}
+
+func (b *ticketLabelFaultBackend) query(ctx context.Context, reader db.Queryer, plan query.Plan, written bool) (db.Rows, error) {
+	b.queries++
+	if plan.Table() == "helpdesk_label" && b.mode == "label_lookup_error" {
 		return nil, errors.New("second endpoint lookup failed")
 	}
 	if plan.Table() == "helpdesk_ticket_label" {
-		if s.written && s.owner.mode == "reload_error" {
+		if written && b.mode == "reload_error" {
 			return nil, errors.New("link reload failed")
 		}
 		if plan.ResultShape().Kind() == query.ResultProjection {
-			switch s.owner.mode {
+			switch b.mode {
 			case "query_error":
 				return nil, errors.New("pair uniqueness lookup failed")
 			case "cancel":
@@ -310,7 +320,7 @@ func (s *ticketLabelFaultSession) Query(ctx context.Context, plan query.Plan) (d
 			}
 		}
 	}
-	return s.Session.Query(ctx, plan)
+	return reader.Query(ctx, plan)
 }
 func (s *ticketLabelFaultSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	s.owner.writes++

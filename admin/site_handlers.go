@@ -222,12 +222,13 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			form, err := requestModel.bind(modelData(model, values), nil)
+			bound, err := requestModel.bind(modelData(model, values), nil)
 			if err != nil {
 				return operationResponse(err)
 			}
+			form := bound.Form()
 			if model.validateCreate != nil {
-				if checkErr := model.validateCreate(request.Context(), principal, form); checkErr != nil {
+				if checkErr := model.validateCreate(request.Context(), principal, bound); checkErr != nil {
 					form, err = formWithRejection(request.Context(), form, checkErr)
 					if err != nil {
 						return operationResponse(err)
@@ -374,9 +375,20 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			form, err := requestModel.bind(modelData(model, values), record.candidateInitial)
+			bound, err := requestModel.bind(modelData(model, values), record.candidateInitial)
 			if err != nil {
 				return operationResponse(err)
+			}
+			form := bound.Form()
+			if model.validateChange != nil {
+				if checkErr := model.validateChange(request.Context(), principal, mutation, bound); checkErr != nil {
+					form, err = formWithRejection(request.Context(), form, checkErr)
+					if err != nil {
+						return operationResponse(err)
+					}
+				} else if err := request.Context().Err(); err != nil {
+					return operationResponse(err)
+				}
 			}
 			if form.Valid() {
 				_, _, saveErr := model.update(request.Context(), principal, mutation, form)

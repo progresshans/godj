@@ -114,20 +114,36 @@ type uniqueHelpdeskSession struct {
 }
 
 func (s uniqueHelpdeskSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	return s.owner.query(ctx, s.Session, plan)
+}
+
+type formReadFaultQueryer func(context.Context, query.Plan) (db.Rows, error)
+
+func (read formReadFaultQueryer) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	return read(ctx, plan)
+}
+
+func (b *uniqueHelpdeskBackend) ReadSnapshot(ctx context.Context, check func(db.Queryer) error) error {
+	return b.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		return check(formReadFaultQueryer(func(ctx context.Context, plan query.Plan) (db.Rows, error) { return b.query(ctx, reader, plan) }))
+	})
+}
+
+func (b *uniqueHelpdeskBackend) query(ctx context.Context, reader db.Queryer, plan query.Plan) (db.Rows, error) {
 	if plan.ResultShape().Kind() == query.ResultProjection {
 		for _, condition := range plan.Conditions() {
 			if condition.Field().Name() == "external_reference" {
-				s.owner.checks++
-				if s.owner.mode == "query_error" {
+				b.checks++
+				if b.mode == "query_error" {
 					return nil, errors.New("injected unique lookup failure")
 				}
-				if s.owner.mode == "stale_read" || s.owner.mode == "rollback_unknown" {
+				if b.mode == "stale_read" || b.mode == "rollback_unknown" {
 					return uniqueEmptyRows{}, nil
 				}
 			}
 		}
 	}
-	return s.Session.Query(ctx, plan)
+	return reader.Query(ctx, plan)
 }
 func (s uniqueHelpdeskSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	s.owner.inserts++
@@ -207,6 +223,19 @@ func verifyHelpdeskUnique(t *testing.T, ctx context.Context, runtime *systemstat
 		response := client.request("POST", target, form.Encode(), false)
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-error-field="external_reference"`) || !strings.Contains(response.Body.String(), `data-error-code="unique"`) || !strings.Contains(response.Body.String(), html.EscapeString(form.Get("subject"))) || strings.Contains(response.Body.String(), "<script>") || !strings.Contains(response.Body.String(), form.Get("external_reference")) || !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, runtime, id)) {
 			t.Fatal("Admin uniqueness did not preserve safe raw input", response.Code, response.Body)
+		}
+	}
+	partial := maps.Clone(form)
+	partial.Set("subject", "")
+	for _, target := range []string{"/admin/tickets/add/", changePath} {
+		partial.Set("csrfmiddlewaretoken", client.csrf)
+		transactions, writes := backend.transactions, backend.inserts+backend.updates
+		response := client.request("POST", target, partial.Encode(), false)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-error-field="subject" data-error-code="required"`) || !strings.Contains(response.Body.String(), `data-error-field="external_reference" data-error-code="unique"`) {
+			t.Fatal("invalid subject suppressed an unrelated model uniqueness check", response.Code, response.Body)
+		}
+		if backend.transactions != transactions || backend.inserts+backend.updates != writes || !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, runtime, id)) {
+			t.Fatal("invalid model form reached a write transaction")
 		}
 	}
 	// Suppress only the advisory read to represent a competing write after a

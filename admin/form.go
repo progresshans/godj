@@ -48,12 +48,8 @@ func (model registeredModel) forCreate() registeredModel {
 	return model
 }
 
-func (model registeredModel) bind(data forms.Data, initial map[string]forms.Value) (forms.Form, error) {
-	bound, err := formmodel.Bind(model.model, model.form, data, initial, model.modelValidators...)
-	if err != nil {
-		return forms.Form{}, err
-	}
-	return bound.Form(), nil
+func (model registeredModel) bind(data forms.Data, initial map[string]forms.Value) (formmodel.BoundForm, error) {
+	return formmodel.Bind(model.model, model.form, data, initial, model.modelValidators...)
 }
 
 func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, initial map[string]forms.Value, validators []formmodel.Validator) (forms.Values, error) {
@@ -70,7 +66,7 @@ func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, in
 // Initial comes from the same typed object as Snapshot, never from a submitted
 // form. Selected values are rendered; additional model values remain private
 // to the candidate. A model validator must receive a complete stored snapshot.
-func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]forms.Value, id int64, complete bool) (map[string]forms.Value, map[string]forms.Value, error) {
+func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]forms.Value, id int64, revisionField string, revision int64, complete bool) (map[string]forms.Value, map[string]forms.Value, error) {
 	selected := make(map[string]forms.Value, len(spec.Fields()))
 	candidate := make(map[string]forms.Value, len(provided)+1)
 	inputs := make(map[string]bool, len(spec.Fields()))
@@ -96,6 +92,14 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 			}
 			candidate[field.Name] = forms.Integer(id)
 			continue
+		}
+		if field.Name == revisionField {
+			if found {
+				if version, valid := value.AsInteger(); !valid || version != revision {
+					return nil, nil, &ConfigError{Path: "get.result.initial." + field.Name, Code: "revision_mismatch"}
+				}
+			}
+			value, found = forms.Integer(revision), true
 		}
 		if complete && !found {
 			return nil, nil, &ConfigError{Path: "get.result.initial." + field.Name, Code: "missing_model_value"}

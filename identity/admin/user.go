@@ -73,8 +73,11 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 		}}},
 		FormOverrides: []formmodel.Override{username},
 		CreateForm:    &admin.FormConfig{Definition: creationForm.Definition()},
-		ValidateCreate: func(ctx context.Context, actor auth.Principal, form forms.Form) error {
-			return operationError(creationForm.Check(ctx, actor, form))
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return operationError(creationForm.Check(ctx, actor, bound.Form()))
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return operationError(a.manager.CheckUserChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
 		AdditionalAddPermissions: []auth.Permission{identity.ChangeUser}, AdditionalAuditFields: []string{"password"},
 		RelatedChoices: []admin.RelatedChoices{

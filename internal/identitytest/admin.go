@@ -59,6 +59,7 @@ func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, 
 	runAdminReadBoundaries(t, open)
 	runAdminSelectionBoundaries(t, open)
 	runPasswordPolicyBoundaries(t, open)
+	runUserChangeModelValidation(t, open)
 	t.Run("real_forms_relations_password_history_and_host_delete", func(t *testing.T) {
 		backend, second := open(t)
 		f := newManagementFixture(t, backend, 3)

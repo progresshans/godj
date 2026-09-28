@@ -10,7 +10,8 @@ scalar ChangeBlank와 columnless AlterManyToMany를 구현했다. Form required�
 모델 candidate를 분리했다. 원래 제출의 생략/반복값, 기본값/기존 값, checkbox/multiple-select 생략을 보존하며
 모델 field·pure model validator와 단계별 exclusion, scalar unique/constraint의 별도 read-only ORM API를 작성했다.
 User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Admin/Identity의 pure 모델 후처리는 연결했다.
-현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint 연결과 native DB 대조는 **아직 미완료**다.
+현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint를 User 수정·Ticket·TicketLabel에 연결하고 native DB와
+대조했다. Group/Permission·Label/Report의 해당 읽기 검증 연결과 전체 ModelForm은 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
 ### 독립 입력 기준과 Go 대조
@@ -20,7 +21,7 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 `next-input-policy`에 있다. 실제 임시 SQLite와 private PostgreSQL 17.10 UTF8/libc/C의 ModelForm **16 cases**는
 오류·cleaned data·단계별 제외와 query 수가 일치했다. 각각 DB 불변과 table 정리, PostgreSQL DB/container 제거를 확인했다.
 최초 PostgreSQL 시도는 psycopg 누락으로 실패했고 별도 `psycopg[binary]==3.3.6` overlay로 재실행했다. Lock은 그대로다.
-이 **DB 16개 사례는 아직 Go 대조 미완료**이며 원문은 같은 보완 evidence의 `next-model-postclean`과
+이 관찰 단계의 **DB 16개 사례는 아래 후속 generated consumer에서 Go와 대조**했으며 원문은 같은 보완 evidence의 `next-model-postclean`과
 `next-model-postclean-postgres-with-driver`에 있다.
 
 아래 core source의 별도 Go probe로 160개 입력의 Form required/widget, 유효성·오류 code·cleaned data·model candidate를
@@ -160,6 +161,61 @@ Clean primary의 `037f8b6f` 위에서 이 두 test 파일만 변경해 `./system
 normal **9.664초**, race **22.881초**, CGO=0 **3.501초**에 각각 확인했다. 필수 누락 0, source 전후 동일이며 제품 코드는
 변경하지 않았다. 최초 Hosted 실패 로그와 exact changed-file hash·roster·세 JSON event stream은 기존 final core normal
  evidence의 `hosted-fast-failure/history-repair`에 있다. 진행 중인 별도 DB 후처리 작업과 결과를 합치지 않는다.
+
+보완 commit `65a0e6ba750a8cd2d7ce0d09ed107a340cc2d16f`의
+[Fast 36378041214](https://github.com/progresshans/godj/actions/runs/36378041214)은 실제 `Fast Go feedback` 단계까지 성공했다.
+이후 DB 후처리 작업본의 Hosted 결과는 아니다.
+
+### 인가된 읽기 scope의 모델 DB 후처리
+
+기반 commit `65a0e6ba`의 비문서 source inventory
+`d5805bef28bd0fa34b93472eed5575a975a2fea16efc70e178091dba02960fdd`에서 `BoundForm.CheckDatabase`를 구현했다.
+Unique field 진단을 내부 Form 복사본에 적용한 뒤 constraint의 제외와 candidate를 다시 계산한다. 이미 실패한 field가
+있어도 다른 유효 값은 검증하며 새 진단만 반환한다. 실행·취소 실패는 이전 단계의 진단까지 버리고 원인은 보존하되
+일반 formatting으로 raw DB 오류를 노출하지 않는다. Callback map 변경도 다음 단계나 caller의 Form을 바꾸지 않는다.
+
+Admin의 ValidateCreate/ValidateChange는 BoundForm을 받는다. CSRF·입장/선택 권한과 change의 observed revision 뒤에
+실행하고, registry가 현재 Snapshot의 PK와 revision을 후보에 공급한다. 명시한 initial 값이 다르면 거부한다.
+기본 User 수정은 같은 management snapshot에서 현재 저장된 actor 권한·대상 row/revision·DB 제약을 확인한다.
+Ticket과 TicketLabel은 같은 read snapshot에서 category·현재 row를 확인하고, TicketLabel은 선택 목록 이후 바뀐
+양 endpoint의 소속을 재검사한다. 범위 밖 endpoint는 constraint 검사에서도 제외하여 foreign tuple 존재를 노출하지 않는다.
+입력 진단은 read scope cleanup 성공 뒤에만 공개하며 최종 write transaction·revision·DB 제약 검사는 그대로다.
+기존 late DB conflict 테스트는 새 advisory 조회와 마지막 write 조회 모두를 명시적으로 건너뛰게 하여 실제 저장 실패를 계속 검증한다.
+
+| 동일 source checkpoint | Required roots / required cases | normal PASS / 초 | race PASS / 초 | CGO=0 PASS / 초 |
+|---|---:|---:|---:|---:|
+| forms/Admin/Identity/Helpdesk/systemstate, 9 test packages | 235 / 536 | 2,572 / 32.519 | 2,572 / 125.274 | 2,572 / 24.497 |
+| SQLite·PostgreSQL Identity ManagementAdmin, 2 packages | 2 / 130 | 130 / 24.972 | 130 / 61.873 | 130 / 18.831 |
+| 독립 생성 ModelForm DB 소비자 parent | 1 / 1 | 1 / 2.609 | 1 / 6.186 | 1 / 2.292 |
+
+모든 필수 항목과 package 완료를 확인했고 test skip·누락·실패·잘린/비정형 JSON은 0이다. 첫 그룹의 테스트 없는
+5개 identity package는 no-test roster로 따로 기록한다. 새 Identity DB 사례는 복합 오류·same row·현재 권한 회수·revision 변경,
+읽기/정리 실패·foreign model/key/revision·unbound·취소와 실제 HTTP 복합 오류를 포함한다. Borrowed reader의 수명과
+무해싱·profile/credential/session/audit 불변도 검증한다. Helpdesk의 관계 재검사는 stale choice에서 tuple 조회 0을 확인한다.
+
+독립 공개 import module은 양 DB 각각 native 16개 사례를 실행하며 root/backend/case **35개 child 필수 항목**을
+strict JSON event 검사로 확인한다. Parent race/CGO 모드는 기존 generated command 환경으로 child에 전달한다.
+각 DB의 **15개 사례**에서 유효성·오류 code·cleaned data·unique/constraint 단계별 제외·조회 수와 pure model clean 실행이
+native 관찰과 일치하며 저장 row는 불변이다. **1개 excluded_extra**는 Django가 허용하는 제외 field 이름의 추가 입력 재사용을
+GoDj가 construction 단계의 shadows_model로 거부하는 기존 차이로 명시한다. 16개 전체 동등성으로 세지 않는다.
+Checked-in reference에는 native 원문 SHA와 Django source hash·고정 버전/라이선스·양 DB 정리 근거를 보존했다.
+
+환경은 Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham, private PostgreSQL **17.10 UTF8/libc/C**다.
+세 mode의 source 전후 동일, DB **0|0|0**, DB/container 제거를 확인했다. Evidence는 각각
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-db-normal-srsfhzf2`,
+`godj-model-db-race-aqe9ffnv`, `godj-model-db-cgo0-vsuj7i0e`이며 뒤 두 경로도 같은 임시 parent 아래다.
+Normal evidence의 `negative-controls`에는 unique 오류 적용 생략·실패 시 부분 진단 공개·현재 actor 권한 확인 생략·
+관계 소속 재검사 생략의 Go overlay 네 개가 각각 지정한 runtime assertion에서 실패한 원문과 source 불변 receipt가 있다.
+Compile 실패나 일반 nonzero만을 부정 대조 성공으로 세지 않았다.
+
+영향 go vet는 성공했다. 최초 CI 도구 검사는 forms/model의 네 root를 relation owner 필수 목록에 잘못 넣은 것을
+검출했다. 해당 package는 원래 portable core의 전체 package 실행 소유이므로 잘못된 relation 목록 네 줄만 제거했다.
+Generated 소비자·Identity DB의 relation 필수 목록과 PostgreSQL 필수 항목은 유지한다. 실제 Go 검사를 다시 했다고
+합산하지 않으며 수정 전/후 source delta와 CI 도구 재실행은 normal evidence의 `static-checks`/`static-checks-retry`에 있다.
+재실행은 **41 tests 성공**이며 최종 inventory `74750eb98b07a2d611ed665b6289556dce0b2ef91f3bb16145b3035e374f85da`와
+앞선 checkpoint의 차이는 `scripts/ci/relation-required.txt` 한 파일이다. 제품·Go test bytes는 동일하다.
+모델 metadata·generator는 이 DB 후처리 묶음에서 변경하지 않았고 새 independent consumer는 매 실행 실제 생성한다.
+이 scoped checkpoint는 최신 source의 전체 platform/process milestone 또는 전체 ModelForm 완료가 아니다.
 
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 

@@ -14,7 +14,7 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`의 별도 실행으로 추�
 
 ## 구현 조건
 
-- [ ] 고정 Django/DRF에서 null·blank·default와 Form/ModelForm·선택값·오류 제외·unique/constraint 순서를 독립 관찰
+- [x] 고정 Django/DRF에서 null·blank·default와 Form/ModelForm·선택값·오류 제외·unique/constraint 순서를 독립 관찰
 - [x] Scalar/FK/ManyToMany의 blank 정책을 선언·정규화 IR·생성 metadata·historical wire/digest에 보존
 - [x] 저장 구조를 바꾸지 않는 blank 변경과 reverse를 capability·history/revision fence·자동 계획·SQL projection에 연결
 - [x] Form의 required/empty 값과 모델 null/blank 검증을 구분하고, 이미 실패한 field·명시적 override·default 후보의 의미를 유지
@@ -34,12 +34,18 @@ User/Helpdesk/Article에 명시적 Blank 선언과 새 migration·생성물을 �
 현재 snapshot을 요구하며, 추가 값은 렌더링이나 저장 입력에 노출하지 않는다. 재사용 User creation Form도 모델 후처리를 사용한다.
 실제 CLI 연결에서 발견한 Blank private wire 누락과 imported app의 External 소유권 손실도 수정했다.
 영향 세 mode·생성/migration drift, actual DB/CLI/서버/재시작 normal과 세 부정 대조를 확인했다.
-최종 foundation 세 mode도 현재 generated metadata와 함께 확인했다. 다음은 DB 단계의 제품 연결과 native 대조다.
-현재 권한을 갖는 DB read scope에서 model clean → unique field → 오류 적용/제외 재계산 → constraint 순서를 연결한다.
+최종 foundation 세 mode도 현재 generated metadata와 함께 확인했다.
+BoundForm.CheckDatabase와 Admin의 읽기 ValidateCreate/ValidateChange를 추가했다. User 수정·Ticket·TicketLabel에
+현재 권한을 갖는 DB read scope의 model clean → unique field → 오류 적용/제외 재계산 → constraint를 연결했다.
+User는 현재 저장된 actor·row/revision을 다시 확인하고 TicketLabel은 양 endpoint의 category 소속을 다시 확인한다.
+실행·취소·scope 정리 실패는 부분 입력 진단을 공개하지 않는다. Registry는 현재 Snapshot의 PK/revision을 후보에 소유한다.
+영향 세 mode·실제 양 DB와 독립 생성 모듈, 네 부정 대조를 확인했다. Group/Permission·Label/Report 연결은 다음 범위다.
 기존 ValidateUniqueCreate/Update의 complete write 검증과 최종 write fence/DB 제약/transaction은 유지한다.
 
 고정 Django 32 profile/160 input과 양 DB ModelForm 16개 사례의 원문을 확보했다. Go 대조는 현재 pure input 160개이며
-156개 의미 일치와 기존 checkbox 4개 차이·Integer widget 8 profile 차이를 구분한다. DB 16개 사례는 아직 Go 대조 전이다.
+156개 의미 일치와 기존 checkbox 4개 차이·Integer widget 8 profile 차이를 구분한다. DB 16개 사례도 독립 생성 소비자에서
+양 DB로 대조했다. 각각 15개는 유효성·오류·cleaned 값·unique/constraint 단계별 제외·조회 수가 일치한다.
+나머지 제외된 모델 field와 추가 입력의 이름 중복은 GoDj의 기존 construction refusal이며 native 일치로 세지 않는다.
 blank=True empty는 모델 clean_fields에서 건너뛰며 숫자 None도 포함한다. 이를 nonnullable 저장 허용으로 옮기지 않는다.
 기존 scalar/ManyToMany policy 외의 변경을 metadata-only migration에 섞지 않는다.
 JSON API의 노출·required/empty override와 명시적 omission default는 별도 정책이며 암묵적으로 바꾸지 않는다.

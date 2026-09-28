@@ -38,6 +38,11 @@ func (BoundForm) Format(state fmt.State, _ rune) { fmt.Fprint(state, "model.Boun
 func (bound BoundForm) Form() forms.Form         { return bound.form }
 func (bound BoundForm) Candidate() forms.Values  { return bound.candidate }
 
+// Model returns a detached copy of the model policy used to build the form.
+// A read-check adapter can reject a form belonging to a different model before
+// entering its database scope. This metadata is not persistence authority.
+func (bound BoundForm) Model() ir.Model { return bound.model.Clone() }
+
 // Excluded returns model fields in declaration order that must not participate
 // in field/uniqueness/constraint validation. A constraint with any excluded
 // member is excluded as a whole. Collection fields are not scalar model fields.

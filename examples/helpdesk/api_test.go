@@ -387,6 +387,11 @@ func helpdeskConstructionApplication(t *testing.T) *helpdesk.Application {
 
 type helpdeskConstructionBackend struct{ t *testing.T }
 
+func (backend helpdeskConstructionBackend) ReadSnapshot(context.Context, func(db.Queryer) error) error {
+	backend.t.Fatal("API construction opened a read snapshot")
+	return nil
+}
+
 func (backend helpdeskConstructionBackend) Query(context.Context, query.Plan) (db.Rows, error) {
 	backend.t.Fatal("API construction performed a query")
 	return nil, nil

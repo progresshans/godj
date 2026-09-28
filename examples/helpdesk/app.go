@@ -53,6 +53,7 @@ const (
 
 type Backend interface {
 	db.Queryer
+	db.SnapshotReader
 	db.Mutator
 	db.Atomic
 	db.RelationAtomic
@@ -229,6 +230,12 @@ func (a *Application) register(builder *admin.Builder) error {
 		},
 		Initial: func(value ticketRecord) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, ticketScalar, ticketCollection)
+		},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return a.checkTicketForm(ctx, actor, 0, bound)
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return a.checkTicketForm(ctx, actor, mutation.ID, bound)
 		},
 		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (ticketRecord, error) {
 			input, err := fromForm(values)

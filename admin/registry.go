@@ -198,15 +198,23 @@ type ModelConfig[M any] struct {
 	Snapshot func(M) (Object, error)
 	// Initial supplies all selected fields and may include other stored model
 	// fields for model validation. Extra values never enter rendered Form.Initial
-	// or the persistence input. The registry owns the row's primary key value.
+	// or the persistence input. The registry owns the primary key and configured
+	// revision field from the validated Snapshot; supplied values must agree.
 	Initial func(M) (map[string]forms.Value, error)
 	// ValidateCreate is an optional read-only post-clean check. The Site invokes
 	// it after CSRF and add/choice admission, even when field cleaning failed.
-	// Consult Form.Errors before using a field from Cleaned. Return only a
+	// BoundForm retains model defaults/current values separately from Cleaned.
+	// Use its exclusions for database checks. Return only a
 	// confirmed validation.Reject for input errors; cancellation and storage
 	// failures remain execution errors. This is not reusable write authority:
 	// Create must still enforce current authorization and database constraints.
-	ValidateCreate func(context.Context, auth.Principal, forms.Form) error
+	ValidateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
+	// ValidateChange is the read-only post-clean check for a current row. It
+	// runs after change/choice admission and the observed revision check, even
+	// when field cleaning failed. Recheck current authority and row/revision
+	// inside the same read snapshot as database validation; Update still owns
+	// the final authorized write and transaction.
+	ValidateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
 	// Create/Update may return validation.Reject after confirming no mutation
 	// committed. Diagnostics must name selected form fields or validation.NonField.
 	// Preserve transaction/rollback failures as execution errors instead.
@@ -370,7 +378,8 @@ type registeredModel struct {
 	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
 	get            func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
 	create         func(context.Context, auth.Principal, forms.Form) (Object, error)
-	validateCreate func(context.Context, auth.Principal, forms.Form) error
+	validateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
+	validateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
 	update         func(context.Context, auth.Principal, Mutation, forms.Form) (Object, []string, error)
 	delete         func(context.Context, auth.Principal, Mutation) (Object, error)
 	history        func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
@@ -424,7 +433,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.ModelValidators) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.ModelValidators) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -578,6 +587,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 
 	registered := registeredModel{
 		validateCreate:          config.ValidateCreate,
+		validateChange:          config.ValidateChange,
 		readOnlyFields:          readOnlyFields,
 		readOnly:                config.ReadOnly,
 		hasHistory:              config.History != nil,
@@ -674,7 +684,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := validateSnapshot(object); err != nil {
 			return registeredRecord{}, false, err
 		}
-		if _, err := registered.revision(object); err != nil {
+		revision, err := registered.revision(object)
+		if err != nil {
 			return registeredRecord{}, false, err
 		}
 		object.readOnlyValues, err = readOnlyValues(ctx, item)
@@ -688,7 +699,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredRecord{}, false, err
 		}
-		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, len(modelValidators) > 0)
+		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, registered.revisionField, revision, len(modelValidators) > 0)
 		if err != nil {
 			return registeredRecord{}, false, err
 		}

@@ -31,6 +31,25 @@ ORM의 `ValidateUniqueFields`와 `ValidateUniqueConstraints`는 이를 별도로
 `ValidateUniqueCreate/Update`와 역할을 구분한다. 인가된 현재 row의 명시적 PK 상태로 자신을 제외하며 0도 유효한 PK다.
 I/O 또는 취소 실패는 그 호출의 부분 진단을 버린다. 소비자는 여러 단계를 같은 인가된 read scope에 연결해야 한다.
 
+`BoundForm.CheckDatabase`는 `DatabaseChecks.UniqueFields`와 `Constraints`를 순서대로 호출한다. 두 callback을 모두
+명시하며 해당 제약이 없는 모델은 빈 진단을 반환한다. 이미 실패한 입력이 있어도 다른 유효 field의 검사는 진행한다.
+첫 단계의 오류를 내부 Form 복사본에 적용한 뒤 두 번째 단계의 candidate/exclusion을 다시 계산한다. 반환값은 새 진단만
+포함하므로 기존 Form 오류를 중복 적용하지 않는다. Callback 오류·취소는 앞 단계의 진단도 버리고 실행 오류로 유지한다.
+Callback이 오류 반환값으로 input rejection을 잘못 보내도 renderable rejection으로 내보내지 않는다. 실행 오류의 원인은
+errors.Is/As로 보존하지만 일반 formatting으로 raw DB 오류를 노출하지 않는다. Scope cleanup까지 성공해야 진단을 공개한다.
+
+Admin의 `ValidateCreate`와 `ValidateChange`는 immutable BoundForm을 받는 명시적 읽기 검증 port다. CSRF·현재 admission과
+선택 목록 권한 뒤에 호출하고, change는 observed revision도 먼저 확인한다. Invalid Form도 callback에 전달한다.
+Callback은 같은 read snapshot에서 필요한 현재 권한·row·관계와 DB 제약을 확인하며 직접적인 validation.Reject만 입력
+오류로 전달한다. Site의 호출 순서는 Manager의 최종 저장 검사를 대신하지 않는다.
+
+기본 User 수정의 CheckUserChange는 User 모델과 후보의 ID/revision 결합을 먼저 확인한다. 현재 저장된 actor의 change_user
+권한과 대상 row/revision, unique/constraint 조회는 하나의 management snapshot을 사용한다. 기본 User creation의 별도
+대소문자 무시 username 검사와 password profile 순서는 기존 UserCreationForm 계약을 유지한다.
+Helpdesk는 SnapshotReader를 명시적으로 요구하며 parent category와 수정 row를 같은 read snapshot에서 확인한다.
+TicketLabel은 projection 이후 달라질 수 있는 양 endpoint의 category 소속도 다시 확인하고, 거부된 endpoint는 tuple 검사에서
+제외한다. 범위 밖 관계의 존재를 unique_together 오류로 공개하지 않는다. 저장 transaction의 최종 검사는 별도로 유지한다.
+
 모델 default, Form initial, 제출 생략과 JSON omission default를 같은 것으로 처리하지 않는다.
 일반 ORM 저장은 모델 full_clean이나 email 문법을 암묵적으로 호출하지 않는다. 기존 데이터의 문법상 잘못된 값을
 정리하거나 조회에서 숨기지 않는다. JSON API의 명시적 노출·required/empty/partial 정책은 유지한다.
@@ -42,11 +61,15 @@ password widget은 이를 계속 감춘다. 직접 field를 선택해 읽는 것
 Admin은 초기 제출과 저장 직전 재검증 모두 원래 제출값을 사용한다. Cleaned 문자열을 다시 직렬화해 normalizer를
 중복 적용하지 않는다. 수정의 후보 initial은 현재 인가된 Get의 row에서 얻고 observed revision을 재확인한다.
 호출자가 넘긴 Form.Initial은 기존 값의 권한 근거가 아니다. Pure model validator가 등록된 수정 폼은 제외된 scalar도
-포함한 현재 모델 snapshot을 Initial에 제공해야 하며, registry가 PK를 소유한다. 이 추가 값은 모델 검증에만 쓰고
+포함한 현재 모델 snapshot을 Initial에 제공해야 하며, registry가 PK와 구성된 revision field를 검증된 Snapshot에서 소유한다.
+이 두 값은 Initial에서 생략할 수 있고 명시했다면 Snapshot과 일치해야 한다. 이 추가 값은 모델 검증에만 쓰고
 rendered initial·typed mutation 입력에 포함하지 않는다. 저장 직전 재조회도 최종 transaction의 revision fence를 대체하지 않는다.
 
 기존 nonnullable checkbox의 임의 문자열 거부와 정수의 TextInput/inputmode는 이번 변경에서 유지한다.
 Native 160개 입력 대조의 checkbox 4개 의미 차이와 8개 integer profile의 widget 차이를 전체 동등성으로 합치지 않는다.
+모델에서 제외한 field 이름을 ExtraFields가 다시 사용하는 경우도 명시적으로 거부한다. 고정 Django ModelForm은 이를
+허용하지만 GoDj의 모델 입력과 추가 command 입력은 겹치지 않는 소유권을 가진다. DB 16개 사례 중 이 1개는
+construction 단계의 shadows_model 오류로 검증하며 나머지 15개의 native DB 후처리 일치와 구분한다.
 일반 model clean의 값 변환, 전체 constraint 종류·custom user model과 모든 제품 소비자 연결의 완료는 별도 작업이다.
 
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며

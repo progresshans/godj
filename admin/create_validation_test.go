@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -18,7 +18,8 @@ func TestCreateValidationKeepsFieldErrorsAndExecutionFailures(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			calls := 0
 			client, state, _ := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
-				config.ValidateCreate = func(ctx context.Context, actor auth.Principal, form forms.Form) error {
+				config.ValidateCreate = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+					form := bound.Form()
 					calls++
 					if !form.Bound() || form.Valid() || form.Errors().ByField("password2").Len() != 1 || actor.ID() != "manager" {
 						t.Fatal("post-clean check lost invalid form/current actor")
@@ -67,7 +68,7 @@ func TestCreateValidationKeepsFieldErrorsAndExecutionFailures(t *testing.T) {
 func TestCreateValidationRunsAfterCSRFAndAllAddPermissions(t *testing.T) {
 	calls := 0
 	client, state, _ := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
-		config.ValidateCreate = func(context.Context, auth.Principal, forms.Form) error { calls++; return nil }
+		config.ValidateCreate = func(context.Context, auth.Principal, formmodel.BoundForm) error { calls++; return nil }
 	})
 	client.login(t, "admin", "secret", "/admin/accounts/")
 	values := url.Values{"username": {"Candidate"}, "password1": {"same"}, "password2": {"same"}}
