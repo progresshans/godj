@@ -6,8 +6,8 @@
 - 최근 구현·영향 검증 완료: [GDJ-0101 이메일 필드와 모델 입력 검증](../../work/0101-email-fields-and-model-input-validation.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36374533286), source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`; 62 jobs·8 owners·새 capture의 source 결합 확인
-- Blank/모델 DB 검증 통합: [Hosted full](https://github.com/progresshans/godj/actions/runs/36381300069), source `d2c9d6fe`; 선택 입력·동시 migration fixture의 누락을 보완하고 영향 세 mode 통과, 새 source의 통합은 다음 실행
-- 최근 모델 DB 검증 [Fast](https://github.com/progresshans/godj/actions/runs/36379234202), source `b8cc51b5`: 실제 Go 검사 성공
+- 진행 중인 Blank/모델 DB 검증 통합: [보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735), source `211499d05f6763e3dc5ecf501fd4539393c264cb`
+- 같은 source의 [Fast](https://github.com/progresshans/godj/actions/runs/36383495153): 실제 Go 검사 성공
 - Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -34,7 +34,7 @@ Label의 category는 서버 범위가 소유하며 일반 ModelForm의 제외 �
 ## 다음 행동
 
 선택 입력 fixture의 명시적 Blank와 동시 migration 프로젝트의 전체 Article 이력 복사를 보완했다.
-새 통합 source의 필수 owner·최종 집계·capture source 결합을 확인한다.
+진행 중인 통합 source의 필수 owner·최종 집계·capture source 결합을 확인한다.
 새 Blank/DB 후처리에 선행 source의 Hosted 검증을 전이하지 않는다.
 Model clean의 값 변환·저장 후보는 고정 Django의 양 DB 13개 사례로 먼저 확인했다. 현재 통합을 닫은 뒤 Go API와 저장 소유권을 설계한다.
 Custom user model·전체 ModelForm 후처리·다른 인증 provider와 운영 mail provider 검증은 남아 있다.

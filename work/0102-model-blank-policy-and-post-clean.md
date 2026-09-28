@@ -56,7 +56,8 @@ JSON API의 노출·required/empty override와 명시적 omission default는 별
 전체 ModelForm·custom user model의 완료를 이 기반의 존재만으로 선언하지 않는다.
 Hosted 통합에서 optional choices fixture의 Blank와 독립 동시 migration 프로젝트의 Article 이력 복사 누락을 확인했다.
 기존 엄격한 기대를 유지하며 fixture를 보완하고 실제 양 DB/CLI/재시작과 독립 생성 소비자의 영향 세 mode를 통과했다.
-새 source의 Hosted 통합 검증을 진행한다.
+보완 source `211499d0`의 실제 Fast Go 검사가 성공했고 [Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735)을 진행한다.
+기존 실패 run은 대체 취소됐으며 이 작업의 통합 완료로 세지 않는다.
 일반 model clean의 값 변환·저장 후보는 양 DB의 native 13개 사례로 독립 관찰했다. Go API와 제외/서버 소유 값의
 저장 의미는 아직 채택·구현하지 않았으며 현재 통합을 닫은 뒤 다음 확장으로 연결한다.
 

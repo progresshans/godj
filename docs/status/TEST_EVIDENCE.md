@@ -297,6 +297,14 @@ Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham, 각 mode 전�
 Race/CGO=0은 같은 임시 parent의 `godj-blank-hosted-race-oqc4bzb6`, `godj-blank-hosted-cgo0-7smskwu5`다.
 원격 실행은 보완 source에서 새로 검증하며 실패한 d2c9d6fe 실행을 성공으로 합치지 않는다.
 
+보완 commit `211499d05f6763e3dc5ecf501fd4539393c264cb`를 양 branch에 원자적으로 push했고
+[Fast 36383495153](https://github.com/progresshans/godj/actions/runs/36383495153)의 실제 Go 검사도 성공했다.
+[보완 full 36383539735](https://github.com/progresshans/godj/actions/runs/36383539735)을 같은 source의 `suite=full`로 시작했다.
+실패가 확인된 기존 d2c9d6fe run은 workflow의 같은 ref concurrency 정책으로 대체 취소되어
+**33 성공 / 17 실패 / 11 취소 / 1 skip**, run conclusion `cancelled`로 종료했다. 부분 성공이나 capture를 전체 성공으로 재사용하지 않는다.
+Final 상태·실패 로그와 replacement source/Fast/run JSON은 위 Hosted repair evidence에 보존한다.
+211499d0의 full은 아직 진행 중이며 required owner와 새 capture 결합을 확인하기 전에는 완료로 기록하지 않는다.
+
 ### 다음 model clean 값 변환의 독립 관찰
 
 Go 구현에 앞서 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, CPython 3.14.3으로
