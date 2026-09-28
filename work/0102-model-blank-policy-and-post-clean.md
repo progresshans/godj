@@ -26,6 +26,9 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] 생성 descriptor·ORM typed 준비와 Form instance/collection·command 입력 소유권 구현
 - [x] Typed 준비·표현 불가능한 NULL 경계의 영향 세 mode·양 DB·생성 drift·7개 부정 대조 완료
 - [ ] 후속 clean/prepare source의 Hosted 통합 완료
+- [x] Scalar/선택 collection 저장 조정과 deferred 단계·실패/현재 인가 경계를 독립 생성 소비자에 연결
+- [x] 저장 lifecycle의 고정 Django 관찰·영향 세 mode·양 DB·6개 부정 대조 완료
+- [ ] 저장 조정의 제품 adapter 확대와 후속 통합 완료
 
 ## 현재와 다음
 
@@ -71,12 +74,19 @@ Python clean 반환값의 무시와 Go의 명시적 변경 집합, Python instan
 후속 model clean source `36632e24`의 실제 Hosted Fast Go 검사도 성공했다. 선행 통합 `211499d0`을 후속 구현의
 Hosted 전체 검증으로 전이하지 않는다. Generated SetFieldValue와 ORM의 ModelValues/ApplyValues, Form의 typed instance
 준비를 추가해 scalar별 수동 복사와 NULL의 zero-value 변환을 없앤다. Nullable pointer와 PK 존재·미변경 field를 보존하고
-collection 저장 의도와 command 입력을 별도 보관한다. 자동 commit/관계 저장은 아직 포함하지 않는다.
+collection 저장 의도와 command 입력을 별도 보관한다. 준비는 자동 commit하지 않으며 후속 저장 조정과 구분한다.
 Native 15개 사례 중 기존 13개의 의미와 nonnullable NULL 2개의 준비 시점 차이를 분리하고 영향 세 mode·양 DB·생성 drift·7개 부정 대조를 완료했다.
 
 후속 clean/typed 준비 commit `1b2fc49267181f321c0a079844e945cd6cf81584`를 양 branch에 원자적으로 push했다.
 [Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296)과
 [Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)을 실행했다. Fast는 실제 Go step·terminal success를 확인했고 full은 진행 중이다. Source가 다른 검증을 전이하지 않는다.
+
+후속 `PreparedInstance.Save/SaveCollections`는 caller가 소유하는 typed 모델과 선택 collection adapter를 연결한다.
+Scalar 뒤 IR 순서로 저장하고 사전 구성 검사·빈 선택/제외·PK presence·context/session lifetime·오류 전달을 보존한다.
+고정 native 양 DB 15개 사례의 저장 상태를 대조하며 literal COMMIT 오류 2개의 Go outcome-unknown 차이는 명시한다.
+독립 생성 소비자에서 현재 권한·row/revision·선택 범위가 달라지는 쓰기와 late callback 실패·만료/취소도 검증했다.
+영향 normal/race/CGO=0과 여섯 부정 대조를 통과했다. 기존 제품 adapter의 최종 write fence는 바꾸지 않았으며 일반
+저장 adapter 확대와 새 저장 조정 source의 Hosted 통합은 아직 남아 있다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

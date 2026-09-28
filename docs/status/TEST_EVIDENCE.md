@@ -13,8 +13,66 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint를 User 수정·Ticket·TicketLabel에 연결하고 native DB와
 대조했다. 후속 checkpoint에서 Group/Permission·Label/ServiceReport의 읽기 검증도 연결했다.
 후속 model clean의 명시적 변환과 저장 입력·Admin 연결 및 영향 checkpoint를 완료했다.
-전체 ModelForm 저장 자동화와 후속 clean source의 Hosted 전체는 **아직 미완료**다.
+명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
+
+### 후속 ModelForm scalar·collection 저장 조정
+
+기반 `da4831303a7d733a0c1339511c8928c57ae12972` 이후 `PreparedInstance.Save/SaveCollections`와 typed
+`CollectionSaver`를 구현했다. Caller 소유의 모델 pointer를 먼저 일반 ORM Save하고 선택 collection을 IR 선언 순서로
+반영한다. 누락·중복·nil·제외 field/부족한 backend capability는 첫 scalar 쓰기 전에 거부한다. 모델/nullable pointee와
+key 목록은 callback마다 분리하고 빈 선택은 clear, 제외는 무호출로 유지한다. 발급 PK/present zero·반복 저장 identity,
+취소·만료 session·오류 그대로 전달과 deferred 관계 단계도 검증한다. Runtime은 암묵적 transaction/재시도나 권한 승인을 하지 않는다.
+
+고정 Django 6.1 `fe0a859f537d4238cf49fca39073513206f83122` / CPython 3.14.3의 **15 cases × 양 DB**를
+독립 관찰했다. SQLite 3.50.4와 private PostgreSQL 17.10 UTF8/libc/C의 관찰 차이는 0이다. 설치한 임시 app의 두
+automatic ManyToMany를 사용해 신규/반복/deferred/미저장 relation·기존 교체/clear/제외·무효 scalar/choice·두 번째 relation
+실패·명시적 atomic rollback·validation 뒤 선택 대상 삭제를 실행했다. 모든 commit=False의 I/O는 0이며 schema와
+DB/container 정리를 확인했다. `uv run --frozen --offline --with 'psycopg[binary]==3.3.6'` overlay만 사용했고 lock은 불변이다.
+Observer는 독립 작성했고 출처/라이선스 주석만 실행 파일 앞에 추가했다. 실행 본문과 tracked observer의 일치를 확인했다.
+첫 wrapper 시도는 이전 observer의 `rows_restored` 키 검사를 남겨 결과 수집에서 실패했다. 새 observer의 준비 I/O·schema
+정리 조건으로 수정했고 양 DB를 다시 실행했다. 이를 native 동작 실패나 Go PASS로 세지 않는다.
+
+Generated `example.com/godj-model-save` 소비자는 양 DB에서 15개 native 사례의 유효성·오류·준비·저장 성공 여부·PK 존재와
+실제 scalar/collection 결과를 대조한다. Python 객체 identity와 M2M signal event API는 Go 동등성 대상으로 세지 않는다.
+특히 지연 FK로 literal COMMIT이 실패하는 **2개 사례**에서 Django는 IntegrityError지만 Go는 기존
+`backend_error/commit_outcome_unknown`을 **반드시 유지**한다. 이후 새 조회로 테스트 DB 결과를 대조하며 자동 재시도하지 않는다.
+현재 actor 거부·저장 직전 row 변경·선택 대상 범위 변경·collection 실제 쓰기 뒤 callback 실패·session 만료·context 취소
+**6개 추가 사례**는 실제 DB의 coordinated relation transaction과 무변경/rollback을 확인한다. 최종 권한/revision 검사는
+소비자 소유이며 이 API가 모든 제품의 adapter를 대체했다는 뜻은 아니다.
+
+최종 비문서 source inventory `0ad55a985d8b896c9e2a1c14e16df47e272c4ba9dc23d1ac66da9ada60ee453c`에서
+Darwin arm64 Go 1.26.5·offline/read-only module·TZ Pacific/Chatham의 normal/race/CGO=0 checkpoint를 실행했다.
+
+| 검사 | normal | race | CGO=0 |
+| --- | --- | --- | --- |
+| Form 2 packages / 필수 79 roots | 1,497 PASS / 1.557초 | 1,497 PASS / 3.272초 | 1,497 PASS / 1.486초 |
+| Generated save consumer 1 parent / 필수 child 45개 | PASS / 5.847초 | PASS / 12.511초 | PASS / 5.793초 |
+
+각 mode에 private PostgreSQL 17.10 UTF8/libc/C를 사용했으며 SQLite도 실제 실행했다. 필수 누락·skip·잘린 JSON event는 0이고
+parent는 모든 child의 정확히 한 번 PASS를 확인한다. Race child도 실제 race mode를 상속한다. 세 mode 모두 source 전후 동일,
+DB 잔여 schema/table/다른 연결 **0|0|0**, DB/container 제거를 확인했다. CI의 relation/PostgreSQL 필수 parent roster에도 등록했다.
+CI 도구 **41 tests**, 영향 `go vet ./forms/... ./codegen/consumertest`도 통과했다. 기존 generator/생성물/migration bytes는
+변경하지 않아 전체 generation/full-platform을 로컬에서 관성적으로 반복하지 않았다.
+
+최초 normal source `25a77fdff89f5c1f9a520c4b20fb29c8f99669a4e81f7e801d425fe15dfa54e2`에서는 Form
+**1,460 PASS / 4 roots 실패**와 generated parent 실패를 보존했다. Unit fixture의 lowercase GoName을 바로잡았고,
+redacted child summary만으로 추측하지 않고 진단 overlay에서 실제 SQLite의 위 **2개 COMMIT 오류 기대 실패**를 확인했다.
+기존 backend 의미를 바꾸지 않고 정확한 outcome-unknown 기대를 추가했다. Final source에서는 양 DB/세 mode를 모두 다시 검증했다.
+
+여섯 negative control은 실제 source를 바꾸지 않는 Go overlay로 필수 saver 생략·빈 선택 누락·collection 역순·callback pointee
+공유·만료 callback 성공·미저장 collection 허용을 각각 주입했다. **6/6이 지정 runtime assertion에서 실패**했고 compile 실패/skip을
+대조 성공으로 세지 않았다. Baseline·전후 inventory도 동일하다.
+
+원문/receipt/source inventory:
+
+- Native: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-reference-gsfe3nca`
+- First normal/diagnostic: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-normal-dzrnth8j`
+- Final normal/checks/negative controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-normal-ttgq080b`
+- Race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-race-jwgtopzs`
+- CGO=0: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-cgo0-erb39vgg`
+
+이 후속 저장 source는 진행 중인 clean/typed 준비 full `36391162296` / `1b2fc492`에 포함되지 않는다.
 
 ### 독립 입력 기준과 Go 대조
 

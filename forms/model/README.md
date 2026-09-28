@@ -49,7 +49,7 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 
 실제 생성 모델의 준비·SQLite/PostgreSQL 저장·rollback과 고정 Django 15개 사례의 비교는
 [독립 생성 소비자](../../codegen/consumertest/testdata/modelclean/consumer_test.go)가 검증한다.
-일반 `ModelForm.save()` 자동 생성, 관계 컬렉션 저장·전체 constraint 종류·formset/files는 이 API의 존재만으로 완료되지 않는다.
+일반 `ModelForm.save()` 전체 자동 생성·전체 constraint 종류·formset/files는 이 API의 존재만으로 완료되지 않는다.
 장기 의미는 [ADR-0080](../../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
@@ -82,9 +82,55 @@ if err != nil { return err }
 선택하지 않은 컬렉션과 선택했지만 비운 컬렉션은 다르다. 후자는 명시적 clear intent를 가진 빈 목록이다.
 `Model()`은 호출마다 별도 값을 반환하므로 nullable field를 바꿔 다른 결과나 원래 row를 수정하지 않는다.
 Prepared 값은 저장 성공도 저장 권한도 아니다. 모든 scalar·컬렉션 쓰기와 현재 권한/revision 재검사는 실제 저장 scope가
-계속 소유한다. 이 API에 자동 commit·관계 저장·재시도는 포함하지 않는다.
+계속 소유한다. 준비 자체는 저장하지 않는다. 명시적 scalar/관계 저장 조정은 아래 API를 사용하며 자동 commit·재시도는 하지 않는다.
 
 Django의 15개 native 관찰 중 기존 13개의 값·오류·준비/저장 결과를 대조한다. 나머지 두 사례는 clean이 nonnullable
 counter 또는 제외한 hidden field를 NULL로 만드는 경우다. Django는 commit=False 후보를 허용하고 저장에서 IntegrityError를
 내지만 Go는 primitive int/string의 zero value로 바꾸지 않도록 준비 단계에서 거부한다. 이 두 준비 시점의 차이와 Python
 instance identity·clean 반환 규약의 차이를 native 완전 동등성으로 합치지 않는다.
+
+## Scalar와 선택한 컬렉션 저장
+
+`PreparedInstance.Save(ctx, backend, &candidate, savers...)`는 caller가 소유한 typed 모델을 일반 ORM Save로 저장한 뒤,
+선택한 컬렉션을 **Schema IR 선언 순서**로 반영한다. `candidate`는 위의 `prepared.Model()`로 얻고 필요한 서버 변경을
+적용할 수 있다. Save는 준비 당시 값을 다시 덮어쓰지 않는다. 같은 pointer를 재사용하면 저장된 PK로 update하며,
+다시 `Model()`을 호출하면 원래 준비 snapshot의 새 복사본을 얻으므로 새 객체의 반복 저장에 사용해서는 안 된다.
+
+`CollectionSaver[M]`는 field 이름과 명시적 저장 callback을 연결한다. 선택한 컬렉션마다 정확히 하나가 필요하며
+누락·중복·nil callback·제외된 field의 등록은 scalar 쓰기 전에 거부한다. 순서는 saver 인자나 Form 표시 순서에 따르지 않는다.
+빈 목록은 clear 요청이고 제외된 컬렉션은 호출하지 않는다. Callback마다 분리된 모델/nullable pointee와 key 목록을 전달한다.
+Command 입력은 callback에 자동 전달하지 않으며 필요하면 `prepared.Input()`에서 애플리케이션이 별도로 소비한다.
+
+```go
+candidate, err := prepared.Model()
+if err != nil { return err }
+labels := formmodel.CollectionSaver[models.Article]{
+    Field: "labels",
+    Save: func(ctx context.Context, session db.Session, article models.Article, keys []int64) error {
+        // 현재 선택 대상의 소속/권한과 필요한 through payload를 같은 scope에서 확인한다.
+        collection, err := relations.ModelsArticleLabels.InSession(session, article)
+        if err != nil { return err }
+        return collection.SetKeys(ctx, keys)
+    },
+}
+err = backend.CoordinatedAtomicRelation(ctx, func(session db.RelationSession) error {
+    // 현재 actor·row/revision을 확인하고 필요하면 최신 row와 원래 제출로 재바인딩한다.
+    return prepared.Save(ctx, session, &candidate, labels)
+})
+```
+
+Callback은 전달된 session을 사용하고 오류를 반환해야 한다. 이미 빌린 session에서 root backend의 transaction을 다시
+시작하지 않는다. Root backend를 직접 사용하는 경우에는 생성 relation의 `From(backend, owner)`를 사용할 수 있다.
+원자적 scope가 없으면 scalar와 먼저 성공한 collection은 뒤의 오류에도 남을 수 있다. Django의 기본 저장도 이 순서다.
+여러 쓰기의 원자성과 최종 권한/revision은 호출자의 `AtomicRelation/CoordinatedAtomicRelation`이 소유한다.
+Callback의 nil error는 outer commit 성공이 아니며, COMMIT의 `commit_outcome_unknown`은 그대로 전달하고 자동 재시도하지 않는다.
+
+Deferred 흐름은 `candidate`를 원하는 ORM 저장 경로로 저장한 뒤 `prepared.SaveCollections(ctx, backend, candidate, savers...)`를
+호출한다. 이 메서드는 scalar를 다시 저장하지 않는다. 선택한 collection이 있으면 PK의 명시적 presence가 필요하고 0도 유효하다.
+일반 저장과 마찬가지로 PK의 존재는 저장된 row나 권한의 증명이 아니다. Context 취소와 session lifetime은 빈 작업에서도 확인한다.
+실패나 outer rollback 뒤에도 caller 모델의 이미 발급된 PK는 남는다. 다음 시도는 현재 DB 상태를 확인하고 새 작업으로 판단한다.
+
+독립 [생성 소비자](../../codegen/consumertest/testdata/modelsave/consumer_test.go)는 고정 Django의 15개 저장 사례와
+추가 인가·현재 row·선택 변경·실패/취소/session 사례를 실제 SQLite/PostgreSQL에서 검증한다. 저장 결과·PK/collection 경계를
+대조하지만, 지연 FK 제약으로 COMMIT이 실패하는 두 사례는 Django IntegrityError와 GoDj의 기존 outcome-unknown 오류를
+의도적으로 구분한다. DB를 새로 조회한 테스트 결과를 일반적인 commit 보장으로 바꾸지 않는다.

@@ -22,10 +22,14 @@ User 수정·Group/Permission과 Helpdesk의 Ticket/Label/ServiceReport/TicketLa
 고정 Django 15개 사례의 13개 의미 대조와 2개 준비 시점 차이를 명시한다. [사용법](../../forms/model/README.md)을 따른다.
 Typed 준비의 영향 세 mode·실제 양 DB·생성 drift·7개 부정 대조를 완료했다. 선행 full `211499d0`의 성공을 이 후속 source에 전이하지 않는다.
 
+`PreparedInstance.Save/SaveCollections`의 scalar·선택 collection 저장 조정도 구현했다. Caller 모델의 identity와
+IR 순서·빈 선택·제외·실패/rollback을 독립 생성 소비자에서 대조하고 영향 세 mode·양 DB·6개 부정 대조를 완료했다.
+지연 FK COMMIT 오류는 기존 outcome-unknown 계약을 유지한다. 이 후속 저장 코드는 진행 중인 `1b2fc492` full에 포함되지 않는다.
+
 ## 다음 행동
 
 진행 중인 `1b2fc492` Hosted 전체의 필수 owner·최종 집계·새 capture 결합을 확인한다. 관찰 지연만으로 재실행하지 않는다.
-일반 ModelForm의 scalar·컬렉션 저장 조정과 현재 인가·실패/rollback 경계를 실제 소비자에 이어 연결한다.
+새 저장 조정 API를 실제 제품 adapter에 이어 연결하고 현재 actor·row/revision·선택 범위와 최종 commit 경계를 확인한다.
 Custom user model·다른 인증 provider·운영 mail provider와 기능 카탈로그의 나머지 범위도 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 

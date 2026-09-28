@@ -114,5 +114,27 @@ Nullable NULL과 JSON null은 그대로 구분하고 이메일 문법 같은 fie
 이 Go 표현 경계는 오류 발생 시점의 명시적 차이이며 native 준비와 완전히 같다고 기록하지 않는다.
 전체 ModelForm 저장 자동화·전체 constraint 종류·custom user model과 모든 제품 소비자 연결의 완료는 별도 작업이다.
 
+## Scalar와 collection 저장의 소유권
+
+PreparedInstance는 immutable 저장 의도를 소유하며 Save는 caller가 별도로 소유하는 모델 pointer를 받는다.
+이 pointer는 Model()에서 얻은 뒤 서버가 추가 수정할 수 있다. Save는 후보를 다시 적용하지 않고 일반 ORM Save 뒤
+선택한 collection을 IR 선언 순서로 저장한다. 같은 pointer의 PK presence가 반복 저장의 identity를 소유한다.
+PreparedInstance.Model()의 매번 새 복사본과 저장된 caller pointer를 같은 상태로 취급하지 않는다.
+
+CollectionSaver는 선택 field마다 정확히 하나의 typed write adapter다. 누락·중복·nil·제외 field와 필요한 relation backend
+capability는 scalar 쓰기 전에 거부한다. 빈 선택과 제외를 구분하며 callback별 owner pointee/key 목록을 분리한다.
+실제 relation binding·through 기본값·현재 선택 대상의 소속/권한은 adapter가 같은 전달 backend/session에서 확인한다.
+Form runtime은 애플리케이션의 권한을 추론하거나 callback이 수행한 쓰기를 commit으로 증명하지 않는다.
+
+SaveCollections는 이미 저장한 모델의 relation 단계만 수행한다. 선택 collection에는 PK presence가 필요하고 present zero도
+허용한다. Context 취소·borrowed session lifetime을 no-op과 callback 후에도 확인한다. scalar write나 collection 오류를
+재시도하지 않으며 반환 오류를 그대로 보존한다. 발급한 PK는 이후 실패나 outer rollback으로 메모리에서 지우지 않는다.
+
+기본 Save는 암묵적인 전체 transaction을 추가하지 않는다. 고정 Django의 15개 native 관찰에서 scalar·첫 relation은
+두 번째 relation 실패 뒤 남지만 explicit atomic은 모두 rollback한다. GoDj도 같은 호출 순서를 사용한다.
+원자성·현재 actor/row/revision 재검사·최종 선택 범위는 실제 write scope가 소유한다. 지연 FK의 literal COMMIT 오류 두
+사례는 기존 GoDj의 outcome-unknown 계약을 유지한다. Django IntegrityError와 오류 종류의 동일성을 주장하지 않고,
+테스트의 새 조회를 통한 저장 상태 확인과 일반 운영의 commit 확실성을 구분한다.
+
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며
 [Django license](../../LICENSE.django)와 [출처](../SOURCES.md)를 따른다. 구현·소비자 연결·환경별 검증은 별도로 기록한다.
