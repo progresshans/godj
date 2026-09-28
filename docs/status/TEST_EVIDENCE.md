@@ -16,6 +16,47 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
+### 생성 소비자의 임시 경로와 build cache 재사용
+
+기반 `c5f5e56a8603ff22bc4b8324f1e261bf147935bf`의 기본 collection saver는 양 branch에 게시했고
+[Fast 36402154359](https://github.com/progresshans/godj/actions/runs/36402154359)의 실제 Fast Go step·terminal success를 확인했다.
+이후 `codegen/consumertest` 자식 Go 명령에 `-trimpath`를 적용했다. 격리된 writable module·같은 shared GOCACHE와
+원래 CGO/OS/arch·실제 race·`-count=1`은 유지한다. 부모와 CLI/process의 컴파일 설정은 바꾸지 않는다.
+
+새 실제 Go 검사는 다른 임시 디렉터리의 동일 source/embedded input에서 같은 BuildID와 Export cache 파일을 확인한다.
+한 module의 source를 바꾸면 다른 identity를 사용하고, 원래 module의 identity/값은 보존한다. 같은 명령 반복을 포함한 다섯 번의
+test body 실행을 module 밖 marker로 확인하여 build cache 재사용과 test-result 재사용을 구분한다. 기본 cache를 지우거나
+private GOCACHE를 새로 만들지 않는다. 첫 `-trimpath` profile 준비와 source 변경에는 정상적인 새 build/cache가 필요할 수 있다.
+SSD 전체 write 양·일반 workload의 감소율은 실측하지 않았으며 이 검사를 성능 benchmark로 표현하지 않는다.
+
+비문서 inventory `2c2140904f55a582d72e69eb91ac5d3aad8895d918ef2c9f49a8205f1692e3c5`, Darwin arm64 Go 1.26.5·offline modules·공유 기본 cache·TZ Pacific/Chatham,
+전용 PostgreSQL 17.10 UTF8/libc/C에서 다음 영향 검증을 완료했다.
+
+| 범위 | 결과 |
+| --- | --- |
+| Normal: 영향을 받는 생성 소비자 package 전체 | 실제 71 roots / 필수 26 cases / 134 PASS / 228.636초 |
+| Race: helper·cache 재사용·취소·실제 자식 race·ManyToMany/ModelFormSave·오용 compile 경계 | 7 roots / 12 PASS / 62.331초 |
+| CGO=0: 같은 관련 범위 | 7 roots / 12 PASS / 10.865초 |
+
+선택한 두 DB 소비자는 실제 SQLite/PostgreSQL의 collection child 336개와 native save 필수 child 45개를 포함하며,
+각 부모가 complete event·필수 실행을 검증한다. 필수 누락·test skip·잘린 event 0, source 전후 동일과 각 DB의 잔여
+schema/table/다른 연결 **0|0|0**, DB/container 제거를 확인했다. 영향 vet·gofmt·161개 문서 링크·diff 검사를 통과했다.
+정규화 제거와 `-count=1` 제거의 두 overlay 부정 대조는 각각 지정된 실제 runtime assertion에서 실패했다.
+
+최초 normal의 실제 Go 실행은 exit 0이었다. 임시 집계 script가 raw fixture 문자열 속 child Test 선언 39개를 부모 root로
+잘못 세어 missing으로 보고했다. `go test -json -list '^Test'`가 제공하는 실제 71개 부모 목록과 기존 전체 JSON의 run/pass
+각 1회를 대조하고 source 동일성을 확인했다. 최초 집계 receipt와 정정 근거를 모두 보존했으며 runtime 검사를 재실행하지 않았다.
+후속 mode의 목록 수집도 실제 Go 목록을 사용한다. 저장소의 필수 child 검사나 CI no-skip 조건을 줄이지 않았다.
+
+원문/receipt/source inventory:
+
+- Normal 전체·실제 test 목록/집계 정정·두 controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-generated-cache-normal-16evu_k7`
+- Race 관련 범위: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-generated-cache-race-x5uzawwo`
+- CGO=0 관련 범위: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-generated-cache-cgo0-axiyl_4c`
+
+현재 변경에는 새로운 제품 runtime·generator·Schema IR·migration 변경이 없다. 로컬 전체 platform/cold build는 반복하지 않았다.
+이 helper 후속 source의 Hosted 환경 검증은 남아 있으며, 선행 full `36397837881`의 성공을 이 변경으로 전이하지 않는다.
+
 ### Typed 관계에서 유도한 기본 Form collection saver
 
 `SaveManyToMany`가 기존 forward typed binding에서 field 이름과 저장 callback을 만든다. `ManyToMany.Declaration`은

@@ -34,7 +34,7 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] 교차 앱·자동/명시적 through·self 관계·실패의 영향 세 mode/양 DB·4개 부정 대조
 - [ ] 후속 저장 조정/제품 연결 source의 Hosted 통합 완료
 - [ ] 기본 saver 후속 source의 Hosted 통합 완료
-- [ ] 생성 소비자의 임시 절대경로로 인한 중복 build/cache 개선
+- [x] 생성 소비자의 임시 절대경로로 인한 중복 build/cache 개선과 실행/격리·source 변경 검증
 
 ## 현재와 다음
 
@@ -105,7 +105,8 @@ credential/session adapter는 bound.Input을 읽으며 내부 callback 호환 �
 
 기본 `SaveManyToMany`는 typed 선언에서 saver를 만들고 저장 전에 전체 모델/field 결합을 확인한다.
 Helpdesk와 독립 생성 소비자에 연결했으며 실행/중단/환경 복구와 검증 한계는 Evidence에 구분한다.
-다음으로 generated 소비자의 임시 경로로 인한 cache 중복을 개선한다. 공유 build cache·동시 실행 속도를 유지하고,
+Generated 소비자 자식의 `-trimpath`와 실제 캐시 identity/실행 marker·두 부정 대조로 경로 중복을 개선했다.
+일반 package 전체와 관련 race/CGO=0·양 DB를 확인했다. 공유 build cache·동시 실행 속도를 유지하고,
 이미 성공한 영향 검사를 반복하거나 전체 compile을 추가하는 관행을 피한다. 실제 DB/race/실패 검증은 계속 유지한다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는

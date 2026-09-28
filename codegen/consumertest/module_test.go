@@ -64,9 +64,12 @@ func generatedGoCommand(ctx context.Context, directory string, arguments ...stri
 }
 
 func generatedTestEnvironment(environment []string) []string {
-	flags := ""
+	// Each consumer keeps its own writable module. Trim only compiler paths so
+	// equivalent generated packages can share build artifacts across TempDirs.
+	// Test results remain uncached via -count=1 in generatedGoCommand.
+	flags := "-trimpath"
 	if consumerRaceEnabled {
-		flags = "-race"
+		flags += " -race"
 	}
 	return testenv.OfflineGo(environment, flags)
 }
@@ -75,9 +78,9 @@ func TestGeneratedConsumerEnvironmentKeepsModeAndIsolatesHostControls(t *testing
 	t.Parallel()
 	input := []string{"CGO_ENABLED=0", "GOARCH=386", "GOCACHE=/shared-build-cache", "GOWORK=/host/workspace", "GOWORK=auto", "GOTOOLCHAIN=auto", "GOPROXY=https://host-proxy", "GOSUMDB=host-sumdb", "GONOPROXY=*", "GOFLAGS=-overlay=host.json"}
 	before := slices.Clone(input)
-	want := []string{"CGO_ENABLED=0", "GOARCH=386", "GOCACHE=/shared-build-cache", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GONOPROXY=none", "GOFLAGS="}
+	want := []string{"CGO_ENABLED=0", "GOARCH=386", "GOCACHE=/shared-build-cache", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GONOPROXY=none", "GOFLAGS=-trimpath"}
 	if consumerRaceEnabled {
-		want[len(want)-1] = "GOFLAGS=-race"
+		want[len(want)-1] = "GOFLAGS=-trimpath -race"
 	}
 	want = append(want, "GOENV=off", "GOCACHEPROG=")
 	slices.Sort(want)

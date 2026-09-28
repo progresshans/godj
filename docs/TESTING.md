@@ -52,7 +52,14 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
 생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
 `codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
-생성 module의 자식 테스트도 부모의 race build tag에 따라 실제 `-race`로 실행하고 `-count=1`로 결과 cache를 끈다. Host GOFLAGS·workspace로 검사를
+생성 module의 자식 Go 명령은 `-trimpath`를 사용한다. 각 fixture의 writable 임시 디렉터리와 실행 위치는 계속 분리하면서,
+컴파일 결과에 포함되는 임시 절대경로가 동일 소스의 cache key를 매번 바꾸지 않게 한다. 기본 GOCACHE를 공유하며 별도 cache나
+고정 workspace를 매 실행마다 만들지 않는다. 새 compiler 설정의 첫 빌드는 별도 cache를 만들 수 있지만 이후 동일 입력은 재사용한다.
+다른 디렉터리의 동일 source가 같은 BuildID/Export 파일을 사용하는지, source 변경이 새 결과를 만들고 원래 module을 건드리지
+않는지 검사한다. 모듈 밖 실행 marker로 동일 명령을 반복해도 test body가 실제 실행됨을 별도로 확인한다.
+이 설정은 `codegen/consumertest`의 자식에 한정하며 실제 경로를 검증하는 CLI/process profile에 암묵적으로 확대하지 않는다.
+
+자식 테스트는 부모의 race build tag에 따라 실제 `-race`로 실행하고 `-count=1`로 결과 cache를 끈다. Host GOFLAGS·workspace로 검사를
 바꾸지 않으며 CGO/OS/arch 설정은 유지한다. 별도 `internal/compiletest`의 ABI·오용·정적 source 검사는 normal과
 CGO-disabled가 소유한다(`!race`). Runtime facade JSON·candidate verifier 검사는 같은 패키지의 세 mode에서 계속 실행한다.
 따라서 부모 race 실행에서 동일한 비계측 ABI child compile을 반복하지 않는다. 외부 fixture는 실행 owner가 locked
@@ -64,7 +71,8 @@ dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=o
 host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
-DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
+DB schema/port/temp 디렉터리는 lane별로 분리하고 기본 build cache와 병렬 실행을 유지한다. 캐시 누적만을 이유로 매번
+cache를 비우거나 실행을 일괄 직렬화하지 않는다. 먼저 중복 build·불필요한 검증 범위·cache 누적과 실행 중 임시 공간을 구분한다.
 
 `internal/projectcheck`의 다섯 protocol과 projectgenerate/projectmigration protocol은 Portable core가 문법·resource 검사를
 소유한다. 공용 `wirejson`과 `projectwire`도 core에 속한다. CLI platform owner는 이들을 사용하는 실제 outer command와
