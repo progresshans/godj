@@ -107,7 +107,13 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 		}
 		var savers []formmodel.CollectionSaver[models.Ticket]
 		if selected {
-			savers = append(savers, formmodel.CollectionSaver[models.Ticket]{Field: "labels", Save: func(callbackCtx context.Context, backend db.Session, owner models.Ticket, submitted []int64) error {
+			saver, err := formmodel.SaveManyToMany(a.collections.ModelsTicketLabels)
+			if err != nil {
+				return err
+			}
+			// Keep the built-in declaration check while adding application
+			// admission/audit behavior to this explicitly trusted callback.
+			saver.Save = func(callbackCtx context.Context, backend db.Session, owner models.Ticket, submitted []int64) error {
 				relationSession, ok := backend.(db.RelationSession)
 				if !ok {
 					return errors.New("helpdesk: form collection lost relation session")
@@ -125,7 +131,8 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 					changed = append(changed, "labels")
 				}
 				return nil
-			}})
+			}
+			savers = append(savers, saver)
 		}
 		if id == 0 {
 			err = prepared.Save(ctx, session, &candidate, savers...)

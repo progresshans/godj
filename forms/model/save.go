@@ -2,9 +2,11 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // CollectionSaver binds one selected model collection to the application's
@@ -15,6 +17,18 @@ import (
 type CollectionSaver[M any] struct {
 	Field string
 	Save  func(context.Context, db.Session, M, []int64) error
+	// Built-in adapters retain the declaration that selected their typed
+	// relation. Custom application callbacks continue to own their binding.
+	binding *collectionSaveBinding
+}
+
+func (CollectionSaver[M]) Format(state fmt.State, _ rune) {
+	fmt.Fprint(state, "model.CollectionSaver{redacted}")
+}
+
+type collectionSaveBinding struct {
+	model ir.Model
+	field ir.ManyToManyField
 }
 
 type collectionSave[M any] struct {
@@ -70,6 +84,9 @@ func (prepared PreparedInstance[M]) collectionSaves(ctx context.Context, backend
 	byName := make(map[string]CollectionSaver[M], len(savers))
 	for _, saver := range savers {
 		path := "collections." + saver.Field
+		if saver.binding != nil && (!saver.binding.model.Equal(metadata) || saver.binding.field.Name != saver.Field) {
+			return nil, &Error{Path: path, Code: "binding_mismatch"}
+		}
 		if saver.Save == nil {
 			return nil, &Error{Path: path, Code: "nil_saver"}
 		}

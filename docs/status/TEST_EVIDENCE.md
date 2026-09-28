@@ -16,6 +16,59 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
+### Typed 관계에서 유도한 기본 Form collection saver
+
+`SaveManyToMany`가 기존 forward typed binding에서 field 이름과 저장 callback을 만든다. `ManyToMany.Declaration`은
+분리된 모델/field IR을 반환하고 reverse/zero binding을 거부한다. Form 저장 시작 시 전체 모델 정책·field 이름을 확인해
+잘못 연결한 모델/관계가 scalar 쓰기에 도달하지 않게 한다. Options를 복사하고 typed nil through 입력을 거부하며,
+실제 쓰기는 기존 From/InSession과 SetKeys로 위임한다. 외부 transaction·현재 인가·선택 검증·불투명 custom through
+callback의 동시 실행 안전성을 대신하지 않는다. Helpdesk의 실제 관계 저장과 native 15-case 생성 소비자를 연결했다.
+
+교차 앱 생성 소비자에는 자동 through의 retained ID와 Clear/options 소유권, nullable endpoint를 가진 explicit through의
+required unique payload·실패/owner 변경 거부, 대칭/방향 자기 참조, 빌린 transaction의 rollback·중첩 0·만료·취소를 추가했다.
+기존 15개 native 저장 관찰의 대조와 원래 COMMIT outcome-unknown 차이는 유지한다. 새로운 Python API 동등성을 주장하지 않는다.
+
+비문서 source inventory `52ce41f39a087b49f093c034e61bf7ea9a41da9f77ca16bcd793a363d920498d`에서 Darwin arm64 Go 1.26.5·offline modules·TZ Pacific/Chatham,
+전용 PostgreSQL 17.10 UTF8/libc/C와 실제 SQLite를 사용했다.
+
+| 검사 | normal | race | CGO=0 |
+| --- | --- | --- | --- |
+| Form/ORM/Helpdesk 4 packages / 324 roots / 필수 73 cases | 2,380 PASS / 22.608초 | 2,380 PASS / 325.73초 | 2,380 PASS / 50.391초 |
+| 두 독립 generated parents / collection 336·native save 필수 45 child events | PASS / 19.539초 | PASS / 53.412초 | PASS / 20.127초 |
+
+필수 누락·test skip·잘린 JSON event는 없다. Race core는 중단 전에 전체 package/필수 case가 이미 성공했으므로 반복하지 않고
+미완료 generated 그룹만 다시 실행했다. 그 원문과 정상 종료한 generated source 전후 inventory·현재 전체 비문서 inventory가
+동일함을 별도 combined receipt로 확인했다. 정상 종료 checkpoint의 DB 잔여 schema/table/다른 연결은 **0|0|0**이고
+DB/container를 제거했다. 중단됐던 race도 소유 container 제거를 확인했지만 그 checkpoint의 DB 잔여 카운트는 미측정이다.
+
+모델 연결 검사 생략, typed nil through 허용, 모델/through metadata 복사 제거의 네 overlay 부정 대조는 모두 지정 runtime
+assertion에서 실패했다. Compile 실패나 skip으로 대체하지 않았으며 source 불변을 확인했다. 영향 vet는 3.39초에
+통과했다. Generated ABI·정규화 model·migration bytes는 바뀌지 않으며 독립 모듈은 실제 현재 생성기로 만들었다.
+
+실패/환경 복구와 검증 범위:
+
+- 최초 normal의 새 generated fixture 두 조회가 실제 API(Exact/All)와 달라 compile 실패했다. 올바른 API로 고치고 위 source를 검증했다.
+- 영향 검증과 함께 추가 실행한 전체 compile에서 실제 `no space left on device`를 확인했다. 이 부가 전체 compile은 미완료이며
+  현재 source의 PASS로 집계하지 않는다. 영향 범위를 넘어선 전체 compile 재실행은 이번 checkpoint에서 제외했다.
+- 사용자가 빌드를 종료하고 공용 Go cache를 지웠음을 확인했다. 삭제와 겹친 재시도는 표준 패키지의 cache 파일 부재로 실패했다.
+  임시 전용 cache를 쓴 시도도 중단됐으며 소유 container·cache를 정리하고 기본 GOCACHE로 복귀했다. 테스트/보호 조건은 완화하지 않았다.
+- 동시 실행 제한을 지속하지 않는다는 사용자 지시를 반영했다. 성공한 범위의 관성적인 재실행과 불필요한 전체 compile을 피한다.
+  `-count=1`은 test result cache만 끄며 build cache는 공유한다. 실제 Go 1.26.5 compiler action key와 generated helper를 확인한 결과,
+  새 t.TempDir 경로가 generated package의 cache key에 포함된다. 경로로 인한 중복 build/cache 개선은 별도 후속 작업이며 아직 구현하지 않았다.
+  이 분석은 SSD 전체 write 양을 실측한 결과가 아니다.
+
+원문/receipt/source inventory:
+
+- Normal·4 controls·vet·최종 combined receipt: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-collection-saver-normal-m8a2uqz9`
+- Race core(성공 후 suite 중단): `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-collection-saver-race-pql3rj1e`
+- Race generated(별도 정상 종료): `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-collection-saver-race-jz1dl7kk`
+- CGO=0 최종 정상 종료: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-collection-saver-cgo0-yr48xok2`
+- 최초 normal, 공간 부족/공용 cache 삭제와 겹친 시도 및 임시 cache 정리는 `/tmp/godj-collection-saver-*-path`가 가리키는 별도 원문에 보존한다.
+
+이 기본 saver 후속 source의 Hosted 검증은 아직 남아 있다. 진행 중인 full `36397837881`은 선행 `f5b0020f`를 검사한다.
+해당 run의 두 PostgreSQL capture는 archive checksum·producer attempt/provenance와 Git blob source 결합까지 확인했지만
+최종 aggregate는 아직 미완료다. Capture 원문은 `/tmp/godj-product-save-full-closeout-path`가 가리킨다.
+
 ### BoundForm 전달과 Helpdesk typed 저장 연결
 
 기반 `ce52685c6060b9999a95f7218b59d49d849a31d5` 이후 Admin의 Create/Update callback을 BoundForm으로 전환했다.

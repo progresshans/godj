@@ -1,6 +1,8 @@
 package orm_test
 
 import (
+	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/examples/helpdesk/project"
 	"testing"
 
 	"github.com/progresshans/godj/orm"
@@ -37,5 +39,33 @@ func TestManyToManyBindingOwnsColumnlessAndAutomaticStorageMetadata(t *testing.T
 	}
 	if got, err := orm.BindProject(input); err == nil || len(got.ManyToManyRelations()) != 0 {
 		t.Fatal("failed binding published partial result")
+	}
+}
+
+func TestManyToManyDeclarationOwnsForwardPolicyAndRejectsReverse(t *testing.T) {
+	collections, err := project.BindCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, field, err := collections.ModelsTicketLabels.Declaration()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !owner.Equal((models.TicketDescriptor{}).Metadata()) || field.Name != "labels" || field.Through == nil {
+		t.Fatal("wrong declared field metadata")
+	}
+	owner.Fields[1].Name = "changed"
+	field.Through.SourceField = "changed"
+	owner.ManyToMany[0].Target.ModelName = "changed"
+	again, againField, err := collections.ModelsTicketLabels.Declaration()
+	if err != nil || againField.Through.SourceField == "changed" || !again.Equal((models.TicketDescriptor{}).Metadata()) {
+		t.Fatal("declaration borrowed metadata", err)
+	}
+	if _, _, err := collections.ModelsLabelTickets.Declaration(); err == nil {
+		t.Fatal("reverse accessor became a declared field")
+	}
+	var zero orm.ManyToMany[models.Ticket, models.Label, models.TicketLabel]
+	if _, _, err := zero.Declaration(); err == nil {
+		t.Fatal("zero factory published declaration")
 	}
 }

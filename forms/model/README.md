@@ -113,7 +113,10 @@ Category를 바꾸는 후처리는 저장 전에 거부한다. JSON의 Form 동�
 적용할 수 있다. Save는 준비 당시 값을 다시 덮어쓰지 않는다. 같은 pointer를 재사용하면 저장된 PK로 update하며,
 다시 `Model()`을 호출하면 원래 준비 snapshot의 새 복사본을 얻으므로 새 객체의 반복 저장에 사용해서는 안 된다.
 
-`CollectionSaver[M]`는 field 이름과 명시적 저장 callback을 연결한다. 선택한 컬렉션마다 정확히 하나가 필요하며
+`SaveManyToMany(relations.ModelsArticleLabels)`는 typed forward binding에서 field 이름과 기본 저장 callback을
+만든다. 같은 모델의 전체 IR 정책과 field 이름을 저장 전에 확인하므로 다른 모델/관계로 잘못 연결하면 scalar 쓰기부터
+거부한다. Reverse accessor는 모델이 선언한 Form field가 아니므로 구성 단계에서 거부한다.
+`CollectionSaver[M]`는 이 기본 adapter나 애플리케이션이 명시한 callback을 담는다. 선택한 컬렉션마다 정확히 하나가 필요하며
 누락·중복·nil callback·제외된 field의 등록은 scalar 쓰기 전에 거부한다. 순서는 saver 인자나 Form 표시 순서에 따르지 않는다.
 빈 목록은 clear 요청이고 제외된 컬렉션은 호출하지 않는다. Callback마다 분리된 모델/nullable pointee와 key 목록을 전달한다.
 Command 입력은 callback에 자동 전달하지 않으며 필요하면 `prepared.Input()`에서 애플리케이션이 별도로 소비한다.
@@ -121,22 +124,24 @@ Command 입력은 callback에 자동 전달하지 않으며 필요하면 `prepar
 ```go
 candidate, err := prepared.Model()
 if err != nil { return err }
-labels := formmodel.CollectionSaver[models.Article]{
-    Field: "labels",
-    Save: func(ctx context.Context, session db.Session, article models.Article, keys []int64) error {
-        // 현재 선택 대상의 소속/권한과 필요한 through payload를 같은 scope에서 확인한다.
-        collection, err := relations.ModelsArticleLabels.InSession(session, article)
-        if err != nil { return err }
-        return collection.SetKeys(ctx, keys)
-    },
-}
+labels, err := formmodel.SaveManyToMany(relations.ModelsArticleLabels)
+if err != nil { return err }
 err = backend.CoordinatedAtomicRelation(ctx, func(session db.RelationSession) error {
-    // 현재 actor·row/revision을 확인하고 필요하면 최신 row와 원래 제출로 재바인딩한다.
+    // 현재 actor·row/revision·선택 대상의 소속/권한을 확인한다.
+    // 필요하면 최신 row와 원래 제출로 재바인딩한다.
     return prepared.Save(ctx, session, &candidate, labels)
 })
 ```
 
-Callback은 전달된 session을 사용하고 오류를 반환해야 한다. 이미 빌린 session에서 root backend의 transaction을 다시
+기본 adapter는 root에서는 `From`, 빌린 scope에서는 `InSession`을 사용하여 `SetKeys`에 연결한다. 선택적으로
+`orm.ManyToManySetOptions[Through]{Clear: ..., ThroughDefaults: ...}`를 한 개 전달할 수 있다. Options 값은 복사하고
+기존 link의 ID/payload 보존, 명시적 Clear, through endpoint 보호와 실패 원자성은 원래 ORM 관계 의미를 따른다.
+Custom ThroughDefaults는 불투명 callback capability이므로 caller가 immutable·동시 실행 안전성을 보장한다.
+생성 시 실행하지 않으며 typed nil은 거부한다. 기본 adapter는 인가·선택의 현재 유효성·외부 transaction을 대신하지 않는다.
+
+별도 감사/인가 처리가 필요하면 기본 saver의 `Save`를 감싸거나 명시적 `CollectionSaver`를 구성할 수 있다.
+이는 신뢰하는 애플리케이션 코드이며 callback 자체가 검증되거나 봉인되었다는 의미는 아니다. 기본 saver를 감싼 경우에도
+선언된 모델/field 검사는 유지한다. Callback은 전달된 session을 사용하고 오류를 반환해야 한다. 이미 빌린 session에서 root backend의 transaction을 다시
 시작하지 않는다. Root backend를 직접 사용하는 경우에는 생성 relation의 `From(backend, owner)`를 사용할 수 있다.
 원자적 scope가 없으면 scalar와 먼저 성공한 collection은 뒤의 오류에도 남을 수 있다. Django의 기본 저장도 이 순서다.
 여러 쓰기의 원자성과 최종 권한/revision은 호출자의 `AtomicRelation/CoordinatedAtomicRelation`이 소유한다.
@@ -151,3 +156,6 @@ Deferred 흐름은 `candidate`를 원하는 ORM 저장 경로로 저장한 뒤 `
 추가 인가·현재 row·선택 변경·실패/취소/session 사례를 실제 SQLite/PostgreSQL에서 검증한다. 저장 결과·PK/collection 경계를
 대조하지만, 지연 FK 제약으로 COMMIT이 실패하는 두 사례는 Django IntegrityError와 GoDj의 기존 outcome-unknown 오류를
 의도적으로 구분한다. DB를 새로 조회한 테스트 결과를 일반적인 commit 보장으로 바꾸지 않는다.
+
+[교차 앱 생성 소비자](../../codegen/consumertest/testdata/manytomany/form_save_test.go)는 기본 adapter의 자동/명시적 through,
+nullable endpoint, 자기 참조의 대칭/방향, options 소유권과 borrowed transaction·rollback·만료를 검사한다.

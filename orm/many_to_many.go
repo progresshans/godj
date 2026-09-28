@@ -34,6 +34,7 @@ type ManyToMany[O, T, L any] struct {
 	prefetchTarget BoundModel[T]
 	prefetchOwner  BoundModel[O]
 	prefetchName   string
+	reverse        bool
 }
 
 type manyToManyState struct {
@@ -123,7 +124,25 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 		return zero, err
 	}
 	plan := target.objectPlan
-	return ManyToMany[O, T, L]{owner: ownerDescriptor, target: targetDescriptor, through: throughDescriptor, state: state, plan: plan, path: path, prefetchSource: through, prefetchTarget: target, prefetchOwner: owner, prefetchName: name}, nil
+	return ManyToMany[O, T, L]{owner: ownerDescriptor, target: targetDescriptor, through: throughDescriptor, state: state, plan: plan, path: path, prefetchSource: through, prefetchTarget: target, prefetchOwner: owner, prefetchName: name, reverse: reverse}, nil
+}
+
+// Declaration returns owned metadata for the collection field on its declaring
+// model. A reverse accessor is not a declared model field. This pure snapshot
+// neither binds a backend nor authorizes any read or write.
+func (r ManyToMany[O, T, L]) Declaration() (ir.Model, ir.ManyToManyField, error) {
+	if r.state == nil {
+		return ir.Model{}, ir.ManyToManyField{}, relationInvalidPlan("collection binding is empty")
+	}
+	if r.reverse {
+		return ir.Model{}, ir.ManyToManyField{}, relationInvalidPlan("reverse collection accessor is not a declared model field")
+	}
+	for _, field := range r.prefetchOwner.model.ManyToMany {
+		if field.Name == r.prefetchName {
+			return r.prefetchOwner.model.Clone(), field.Clone(), nil
+		}
+	}
+	return ir.Model{}, ir.ManyToManyField{}, relationInvalidPlan("collection declaration is absent from its owner snapshot")
 }
 
 // ManyCollection owns a lazy target QuerySet. A mutation invalidates this

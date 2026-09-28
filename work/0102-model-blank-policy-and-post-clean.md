@@ -30,7 +30,11 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] 저장 lifecycle의 고정 Django 관찰·영향 세 mode·양 DB·6개 부정 대조 완료
 - [x] Admin BoundForm callback과 Helpdesk typed 저장 연결·기존 인가/범위/JSON/실패 경계 보존
 - [x] 영향 세 mode·양 DB·203 packages compile-only·4개 부정 대조 완료
+- [x] Typed 관계 binding에서 기본 Form saver 유도·모델/field 결합 검사·실제 Helpdesk 연결
+- [x] 교차 앱·자동/명시적 through·self 관계·실패의 영향 세 mode/양 DB·4개 부정 대조
 - [ ] 후속 저장 조정/제품 연결 source의 Hosted 통합 완료
+- [ ] 기본 saver 후속 source의 Hosted 통합 완료
+- [ ] 생성 소비자의 임시 절대경로로 인한 중복 build/cache 개선
 
 ## 현재와 다음
 
@@ -98,6 +102,11 @@ credential/session adapter는 bound.Input을 읽으며 내부 callback 호환 �
 [Fast 36397043744](https://github.com/progresshans/godj/actions/runs/36397043744)의 실제 Go step·terminal success를 확인했다.
 선행 full 완료 후 같은 제품 코드를 가진 문서 후속 commit `f5b0020fa6c3f2c150eed720464b8e6765521113`의
 [Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)을 `suite=full`로 시작했다.
+
+기본 `SaveManyToMany`는 typed 선언에서 saver를 만들고 저장 전에 전체 모델/field 결합을 확인한다.
+Helpdesk와 독립 생성 소비자에 연결했으며 실행/중단/환경 복구와 검증 한계는 Evidence에 구분한다.
+다음으로 generated 소비자의 임시 경로로 인한 cache 중복을 개선한다. 공유 build cache·동시 실행 속도를 유지하고,
+이미 성공한 영향 검사를 반복하거나 전체 compile을 추가하는 관행을 피한다. 실제 DB/race/실패 검증은 계속 유지한다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

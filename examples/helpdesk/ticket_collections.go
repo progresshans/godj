@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
@@ -145,11 +146,11 @@ func (a *Application) setTicketLabelKeys(ctx context.Context, session db.Relatio
 		before[index] = link.LabelID
 	}
 	slices.Sort(before)
-	collection, err := a.collections.ModelsTicketLabels.InSession(session, owner)
+	saver, err := formmodel.SaveManyToMany(a.collections.ModelsTicketLabels)
 	if err != nil {
 		return false, err
 	}
-	if err := collection.SetKeys(ctx, keys); err != nil {
+	if err := saver.Save(ctx, session, owner, keys); err != nil {
 		return false, writeRejection(err)
 	}
 	return !slices.Equal(slices.Compact(before), keys), nil

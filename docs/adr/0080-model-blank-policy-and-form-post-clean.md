@@ -155,3 +155,15 @@ scalar를 다시 쓰지 않으며 changed field와 audit 정보는 실제 scalar
 
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며
 [Django license](../../LICENSE.django)와 [출처](../SOURCES.md)를 따른다. 구현·소비자 연결·환경별 검증은 별도로 기록한다.
+
+기본 collection 저장 adapter는 `SaveManyToMany`가 기존 typed forward binding의 `Declaration`에서 유도한다.
+ORM은 backend 없는 분리된 IR model/field snapshot을 제공하고 reverse accessor는 선언 field로 공개하지 않는다.
+Form runtime은 `PreparedInstance.Save/SaveCollections` 시작 시 전체 model 정책과 field 이름을 확인하여 잘못된
+연결을 scalar 쓰기 전에 거부한다. Typed/generated 관계의 자동/명시적 through와 self symmetry 의미는 다시 구현하지
+않고 기존 `From/InSession`과 `SetKeys`로 위임한다. 생성 코드는 Form package에 의존하지 않는다.
+
+Options struct는 construction snapshot이다. 불투명 ThroughDefaults 구현은 기존 ManyToManyInput과 같이 caller가
+immutable·동시 실행 안전성을 보장하며 생성 시 실행하지 않는다. 기본 adapter는 외부 transaction·인가·현재 선택 검증을
+소유하지 않는다. 애플리케이션은 감사/권한 처리를 위해 Save callback을 감쌀 수 있다. 이 callback은 신뢰하는 코드이며
+private binding 검사가 callback 동작을 검증하거나 권한을 부여하는 것은 아니다. Helpdesk의 실제 관계 저장은 이 기본
+adapter를 사용하면서 기존 권한/category·changed/audit와 동일 scope·오류 의미를 유지한다.

@@ -25,7 +25,6 @@ import (
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
@@ -110,22 +109,6 @@ func TestGeneratedModelFormSave(t *testing.T) {
 	})
 }
 
-func collectionSetter[O, T, L any](name string, relation orm.ManyToMany[O, T, L]) formmodel.CollectionSaver[O] {
-	return formmodel.CollectionSaver[O]{Field: name, Save: func(ctx context.Context, backend db.Session, owner O, keys []int64) error {
-		var collection *orm.ManyCollection[T, L]
-		var err error
-		if _, borrowed := backend.(db.SessionValidator); borrowed {
-			collection, err = relation.InSession(backend, owner)
-		} else {
-			collection, err = relation.From(backend, owner)
-		}
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
-	}}
-}
-
 func runSave(t *testing.T, b probeBackend) {
 	t.Helper()
 	t.Cleanup(func() {
@@ -161,8 +144,14 @@ func runSave(t *testing.T, b probeBackend) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	labelsSaver := collectionSetter("labels", collections.ModelsArticleLabels)
-	reviewersSaver := collectionSetter("reviewers", collections.ModelsArticleReviewers)
+	labelsSaver, err := formmodel.SaveManyToMany(collections.ModelsArticleLabels)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewersSaver, err := formmodel.SaveManyToMany(collections.ModelsArticleReviewers)
+	if err != nil {
+		t.Fatal(err)
+	}
 	reset := func(t *testing.T) {
 		t.Helper()
 		articles, err := models.ArticleObjects.Using(b).OrderBy(models.ArticleFields.ID.Asc()).All(t.Context())
