@@ -109,15 +109,31 @@ Article의 `cmd/projectrunner/main_test.go`·`cmd/site/main_test.go` 네 테스�
 영향 vet와 158개 문서의 로컬 링크·format/diff 검사를 통과하고 commit `b6bff156224a205bd4247b42e72be46254c49828`을 게시했다.
 [Fast 36364530446](https://github.com/progresshans/godj/actions/runs/36364530446)와
 [Full 36364531786](https://github.com/progresshans/godj/actions/runs/36364531786)은 이 source의 새 실행이다.
-Fast는 실제 `Fast Go feedback` 단계까지 성공했다. Full은 실행 중이며, 새 capture와 모든 필수 owner·최종 집계가
-확인되기 전에는 전체 PASS로 기록하지 않는다. 원격 JSON과 Fast 전체 로그도 같은 보완 evidence directory에 보존한다.
+Fast는 실제 `Fast Go feedback` 단계까지 성공했다. Full은 **62 jobs = 60 성공 / 2 실패**, conclusion `failure`로 종료했다.
+실패한 실행 owner는 `Relation product (macos-15-intel, race)` 한 개이며 다른 실패는 필수 owner를 확인하는 최종 집계다.
+원격 JSON과 Fast 전체 로그도 같은 보완 evidence directory에 보존한다.
 
 Full의 새 두 capture는 같은 run/producer/attempt, artifact archive digest와 payload checksum/provenance를 확인했다.
 해당 commit의 Git blob에서 직접 재계산한 source binding도 일치한다:
 systemstate **620 files / 6,602,368 bytes / `a48f1df484273b364d5e2ab9d615c2a1d336f8b515752d4cbf754c1957ca1bc5`**,
 operator **696 files / 6,447,359 bytes / `ce498f1cd0621ce0f0e50e591cbea447b08cc2ee02ef59acd520190528a35d6c`**.
 Archive·원문·source inventory와 receipt는 같은 evidence root의 `hosted-full-36364531786-1790558077664132000`에 보존한다.
-Capture 일치만으로 아직 진행 중인 필수 owner의 성공을 대신하지 않는다.
+Capture 일치만으로 실패한 필수 owner의 성공을 대신하지 않는다.
+
+실패 job `108748227586`의 전체 로그에서 generated consumer package가 **35분 합산 시간 제한**을 초과했다.
+이때 `TestGeneratedNestedEagerConsumer`는 2분 11초 실행 중이었다. 앞선 25개 parent root의 완료가 보이지만,
+이는 전체 필수 inventory의 완료가 아니다. 로그에 assertion 실패나 race 진단은 없었고 진행 중인 child의 성공도
+확정하지 않는다. Exact macOS는 **16분 12초**, native **375 tests / 769.878초**와 전체 locked-oracle replay를 완료했다.
+Full에서 별도 relation/project matrix가 소유하는 focused Go 중복 단계는 exact job에서 선택되지 않았다.
+
+Source `bb9eae3c7e50df29cb19e15a8407d9e703026d0c`는 b6 이후 비문서 변경이 CI 예산 수정 하나뿐이다.
+Intel race만 package **70분**, job **90분**으로 조정하고 다른 runner/mode는 유지했다.
+필수 package/root 목록·race 전파·no-skip·capture 대조·집계 조건은 그대로다.
+YAML 구조를 이전 commit과 비교해 변경 위치를 확인했고 세 mode의 shell syntax, CI 도구 **10 tests**와 diff 검사가 통과했다.
+실패 원문·최종 run JSON·검증 receipt는 보완 evidence의 `hosted-b6-failure`에 있다.
+[새 full 36369062484](https://github.com/progresshans/godj/actions/runs/36369062484)과
+[Fast 36369057930](https://github.com/progresshans/godj/actions/runs/36369057930)은 이 source의 별도 실행이다. Fast는 실제 Go 단계까지 성공했고 full은 진행 중이다.
+새 Form/Blank 구현은 작업본에 보존했고 이 실행에는 포함하지 않았다.
 
 ### 선행 재사용 Form Hosted 전체의 종료
 
