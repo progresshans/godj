@@ -6,6 +6,7 @@
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료한 전체 검증: [계정 소비자·reset service·source 목록 보완 Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
 - 선행 전체 검증: [재사용 Form·외부 CLI 수정 Hosted full](https://github.com/progresshans/godj/actions/runs/36353329053), source `563aac29`, exact macOS 시간 제한 취소·최종 집계 실패
+- 최근 Hosted 실패: [EmailField Fast](https://github.com/progresshans/godj/actions/runs/36359488366)·[full](https://github.com/progresshans/godj/actions/runs/36359485025), source `2b612968`, capability·Article 이력 기대값 누락으로 실패 후 full 대체 취소
 - Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -23,7 +24,8 @@ User·Group·Permission 관리, 저장 인증과 일반 계정 login/logout·pas
 
 ## 다음 행동
 
-새 구현 소스를 게시하고 Hosted 전체를 실행한다. Exact macOS는 같은 필수 명령을 유지하며 시간 예산을 30분으로 늘렸다.
+누락된 backend capability·Article 이력 기대값 네 테스트를 수정하고 영향 세 모드 검증을 완료했다.
+수정 소스를 게시하고 새 Hosted 전체를 실행한다. Exact macOS는 같은 필수 명령을 유지하며 시간 예산은 30분이다.
 필수 owner·최종 집계·새 capture의 source 결합이 모두 확인되어야 전체 통합 완료로 기록한다.
 Custom user model·전체 ModelForm 후처리·다른 인증 provider와 운영 mail provider 검증은 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.

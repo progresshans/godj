@@ -16,11 +16,21 @@ import (
 func TestPostgresMigrationCapabilities(t *testing.T) {
 	t.Parallel()
 	capabilities := (*Backend)(nil).MigrationCapabilities()
-	if !capabilities.CreateModelForeignKeys ||
-		!capabilities.AddNullableForeignKey ||
-		!capabilities.AddRequiredForeignKeyToEmptyTable ||
-		!capabilities.RemoveForeignKey {
-		t.Fatalf("capabilities = %+v", capabilities)
+	want := migrationbackend.MigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             true,
+		AddRequiredForeignKeyToEmptyTable: true,
+		RemoveForeignKey:                  true,
+		AlterFieldChoices:                 true,
+		AlterFieldStringSemantics:         true,
+		AlterFieldDecimalPrecision:        true,
+		AlterFieldRelation:                true,
+		UniqueConstraints:                 true,
+		ExplicitManyToMany:                true,
+		AutomaticManyToMany:               true,
+	}
+	if capabilities != want {
+		t.Fatalf("capabilities = %+v, want %+v", capabilities, want)
 	}
 }
 

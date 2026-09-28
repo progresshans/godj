@@ -27,6 +27,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldStringSemantics:         true,
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,
 		UniqueConstraints:                 true,

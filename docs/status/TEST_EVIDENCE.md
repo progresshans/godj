@@ -74,6 +74,40 @@ Native 원문/receipt와 foundation·integration의 전체 로그는
 실행마다 source inventory·필수 root/subtest roster·JSON event stream·실패와 cleanup receipt를 구분한다.
 최종 영향 실행은 `integration-repair-1790550447642973000`, process 실행은 `process-1790551790811322000`에 있다.
 
+### EmailField Hosted 실패와 계약 검사 보완
+
+구현 source `2b6129683c68c185188ab477be5c000ee1a4ac5e`의
+[Fast 36359488366](https://github.com/progresshans/godj/actions/runs/36359488366)는
+`TestSQLiteMigrationCapabilities`의 새 `AlterFieldStringSemantics` 기대 누락으로 실패했다.
+[Full 36359485025](https://github.com/progresshans/godj/actions/runs/36359485025)에서도 같은 원인이 네 relation job에,
+새 migration 이전의 개수·key 기대가 세 portable integration job에 나타났다. 실패한 여덟 job의 전체 로그를 확인했다.
+나머지 하나는 필수 owner 실패·취소를 거부한 최종 집계다. 확인된 실패를 수정한 소스로 대체하기 위해 실행을 취소했다.
+최종 **62 jobs = 28 성공 / 26 취소 / 8 실패**, run conclusion `cancelled`이며 전체 성공으로 기록하지 않는다.
+원문과 failure summary는 위 process evidence의 `hosted`에 있다.
+
+제품 코드는 유지하고 SQLite의 명시적 capability 기대에 새 항목을 포함했다. PostgreSQL도 일부 boolean 확인을
+현재 지원하는 11개 capability의 정확한 계약으로 강화했다. Article projectrunner는 definitions 6개와
+두 번째 실행/no-op의 전체 ordered history, site는 Identity/system의 정확한 다섯 key를 기대하도록 보완했다.
+첫 보완 실행에서는 backend/guard가 통과했으나 두 번째 실행 이력의 이전 5개 기대가 남아 실패했다.
+이 실패와 DB 정리는 `hosted-repair-1790553045708567000`에 보존하고 수정 후 별도로 재검증했다.
+
+최종 비문서 source inventory는 `079ff433c5b21bc0d49f4f26bfc900d52fc3ff2c0422ad46a9aa3e96a17a810a`다.
+직전 process source와의 차이는 `db/sqlite/migration_relation_test.go`, `db/postgres/migration_lifecycle_test.go`,
+Article의 `cmd/projectrunner/main_test.go`·`cmd/site/main_test.go` 네 테스트 파일뿐이다.
+**7 packages / 46 required roots**를 strict JSON event inventory와 대조했다.
+
+| 보완 검증 범위 | normal | race | CGO=0 |
+|---|---|---|---|
+| 양 DB capability·SQL renderer·physical limit/integrity 계약 | 35 PASS | 35 PASS | 35 PASS |
+| Email capability 요구·capability 구조 guard | 2 PASS | 2 PASS | 2 PASS |
+| Article cmd 전체 | 32 PASS | 32 PASS | 32 PASS |
+
+각 모드 **69 PASS / skip 0**, 합계 **207 PASS**다. Darwin arm64 / Go 1.26.5 / offline readonly /
+`TZ=Pacific/Chatham`, private PostgreSQL **17.10 UTF8/libc/C**, 실제 SQLite에서 수행했다.
+소스 전후 동일, DB **0|0|0**과 container 제거를 확인했다. Receipt·roster·전체 로그는
+`hosted-repair-1790553210826583000`에 있다. 이전 제품 검사를 이 수정 source에서 다시 실행했다고 합산하지 않는다.
+다음 Hosted 전체는 이 보완 소스로 새 실행과 capture를 사용하며, 기존 부분 성공을 전체 검증으로 전이하지 않는다.
+
 ### 선행 재사용 Form Hosted 전체의 종료
 
 Source `563aac29d611f08e0b943cc24bfb334881e72ba1`의 [Hosted full 36353329053](https://github.com/progresshans/godj/actions/runs/36353329053)은

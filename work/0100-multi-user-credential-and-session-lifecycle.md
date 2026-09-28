@@ -161,3 +161,8 @@ ID/hash/write 없음·read 실패/취소·hash 뒤 경합과 최종 fence를 영
 구현 `563aac29`의 Hosted Fast는 실제 Go 검사까지 성공했다. 전체 `36353329053`은 60 jobs 성공,
 exact macOS의 15분 시간 제한 취소와 최종 집계 실패로 종료했다. 두 capture는 해당 source와 일치한다.
 후속 EmailField source에서 같은 필수 검사를 30분 예산으로 다시 검증하며 실행 상세는 Evidence를 따른다.
+
+EmailField 구현 `2b612968`의 Hosted Fast/full에서 backend capability와 Article migration 이력의 이전 기대값이
+남은 것을 확인했다. 해당 full은 실패가 확인된 뒤 대체 취소했다. 제품 코드 변경 없이 네 테스트의 명시적 계약을
+수정하고 양 DB·Article 명령 전체의 영향 normal/race/CGO=0을 통과했다. 새 source의 Hosted 전체와 capture를
+검증하며 실패·재검증·환경의 상세는 TEST_EVIDENCE를 따른다.
