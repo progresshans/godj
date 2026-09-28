@@ -57,6 +57,12 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		Initial: func(value models.Label) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
 		},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return a.checkLabelForm(ctx, actor, 0, bound)
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
+		},
 		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.Label, error) {
 			name, ok := values.String("name")
 			if !ok {

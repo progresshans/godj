@@ -143,6 +143,11 @@ func (b *labelFaultBackend) Query(ctx context.Context, plan query.Plan) (db.Rows
 	b.queries++
 	return b.Backend.Query(ctx, plan)
 }
+func (b *labelFaultBackend) ReadSnapshot(ctx context.Context, check func(db.Queryer) error) error {
+	return b.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		return check(formReadFaultQueryer(func(ctx context.Context, plan query.Plan) (db.Rows, error) { return b.query(ctx, reader, plan, false) }))
+	})
+}
 func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) error) error {
 	b.transactions++
 	err := b.Backend.Atomic(ctx, func(session db.Session) error {
@@ -197,14 +202,17 @@ type labelFaultSession struct {
 }
 
 func (s *labelFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	s.owner.queries++
+	return s.owner.query(ctx, s.Session, plan, s.written)
+}
+func (b *labelFaultBackend) query(ctx context.Context, reader db.Queryer, plan query.Plan, written bool) (db.Rows, error) {
+	b.queries++
 	if plan.Table() == "helpdesk_label" {
-		if s.written && s.owner.mode == "reload_error" {
+		if written && b.mode == "reload_error" {
 			return nil, errors.New("label reload failed")
 		}
 		if plan.ResultShape().Kind() == query.ResultProjection {
-			s.owner.checks++
-			switch s.owner.mode {
+			b.checks++
+			switch b.mode {
 			case "query_error":
 				return nil, errors.New("label uniqueness read failed")
 			case "cancel":
@@ -214,7 +222,7 @@ func (s *labelFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows
 			}
 		}
 	}
-	return s.Session.Query(ctx, plan)
+	return reader.Query(ctx, plan)
 }
 func (s *labelFaultSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	s.owner.writes++
@@ -369,8 +377,9 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 	response = client.request("PUT", fmt.Sprintf("/api/labels/%d/", first.ID), labelInput("<script>shared</script>"), true)
 	first = decode(response.Code, response.Body.Bytes())
 	for _, target := range []string{"/admin/labels/add/", change} {
+		transactions := backend.transactions
 		response = client.request("POST", target, form.Encode(), false)
-		if response.Code != 200 || !strings.Contains(response.Body.String(), `data-error-field="__all__"`) || !strings.Contains(response.Body.String(), `data-error-code="unique_together"`) || !strings.Contains(response.Body.String(), html.EscapeString(form.Get("name"))) || strings.Contains(response.Body.String(), "<script>") {
+		if response.Code != 200 || !strings.Contains(response.Body.String(), `data-error-field="__all__"`) || !strings.Contains(response.Body.String(), `data-error-code="unique_together"`) || !strings.Contains(response.Body.String(), html.EscapeString(form.Get("name"))) || strings.Contains(response.Body.String(), "<script>") || backend.transactions != transactions {
 			t.Fatal("Admin tuple diagnostic/raw-input escaping", response.Code, response.Body)
 		}
 	}

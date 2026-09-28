@@ -10,7 +10,7 @@ integration_owner: "root"
 
 기본 User의 이메일은 CharField와 소비자별 validator로 표현돼 있다. 카탈로그의 EmailField를
 Schema IR에서 선언하고 모델·migration·Form/Admin/API가 그 의미를 함께 사용하도록 한다.
-GDJ-0100 source의 Hosted 전체는 별도로 진행하며 이 후속 변경에 결과를 전이하지 않는다.
+GDJ-0100의 후속 source `ea2867f4`가 이 구현을 포함하여 Hosted 전체를 완료했다. 이후 Blank/ModelForm 변경에 결과를 전이하지 않는다.
 
 ## 구현 조건
 
@@ -33,4 +33,4 @@ Native Form은 기본 320자, model EmailField는 기본 254자를 사용한다.
 
 실제 migrate/runserver·양 DB A/B/C 재시작의 명시적 이력을 새 migration까지 갱신하고 각 harness 모드를 검증했다.
 생성 drift·migration 변경 없음·소스 결합·부정 대조를 확인했다. 단계별 source와 실행 범위는 TEST_EVIDENCE를 따른다.
-새 source의 Hosted 전체 검증은 GDJ-0100 통합 milestone이 소유한다.
+GDJ-0100 통합 milestone의 source `ea2867f4`에서 62 jobs·8 owners와 새 capture의 source 결합까지 확인했다.

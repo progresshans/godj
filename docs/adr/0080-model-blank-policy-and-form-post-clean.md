@@ -46,9 +46,15 @@ Callback은 같은 read snapshot에서 필요한 현재 권한·row·관계와 D
 기본 User 수정의 CheckUserChange는 User 모델과 후보의 ID/revision 결합을 먼저 확인한다. 현재 저장된 actor의 change_user
 권한과 대상 row/revision, unique/constraint 조회는 하나의 management snapshot을 사용한다. 기본 User creation의 별도
 대소문자 무시 username 검사와 password profile 순서는 기존 UserCreationForm 계약을 유지한다.
+Group/Permission create/change도 올바른 모델과 unsaved/current ID·revision을 I/O 전에 확인하며 같은 management snapshot의
+현재 actor·row/revision에서 검사한다. Group의 유효한 permission 선택은 현재 존재를 다시 확인한다. 입력 진단과 관계 I/O 오류는
+분리하며 최종 저장의 grant 한도·관계 변경·revision·audit는 기존 write transaction이 계속 소유한다.
 Helpdesk는 SnapshotReader를 명시적으로 요구하며 parent category와 수정 row를 같은 read snapshot에서 확인한다.
 TicketLabel은 projection 이후 달라질 수 있는 양 endpoint의 category 소속도 다시 확인하고, 거부된 endpoint는 tuple 검사에서
 제외한다. 범위 밖 관계의 존재를 unique_together 오류로 공개하지 않는다. 저장 transaction의 최종 검사는 별도로 유지한다.
+ServiceReport도 Ticket 소속을 먼저 확인하여 거부된 관계의 OneToOne unique를 조회하지 않는다. Label은 서버가 고정한
+category를 constraint 후보에 명시적으로 공급해 제품의 scoped name을 확인한다. Excluded initial이나 client가 category를
+소유하지 않으며 일반 ModelForm의 제외 field를 암묵적으로 다시 포함하는 동작으로 확장하지 않는다.
 
 모델 default, Form initial, 제출 생략과 JSON omission default를 같은 것으로 처리하지 않는다.
 일반 ORM 저장은 모델 full_clean이나 email 문법을 암묵적으로 호출하지 않는다. 기존 데이터의 문법상 잘못된 값을

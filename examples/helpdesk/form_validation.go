@@ -3,6 +3,7 @@ package helpdesk
 import (
 	"context"
 	"errors"
+	"reflect"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -38,7 +39,7 @@ func (a *Application) readFormValidation(ctx context.Context, actor auth.Princip
 	calls := 0
 	err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
 		calls++
-		if calls != 1 || reader == nil {
+		if calls != 1 || nilFormReader(reader) {
 			callbackErr = errors.New("helpdesk: invalid read snapshot callback")
 			return callbackErr
 		}
@@ -68,6 +69,19 @@ func (a *Application) readFormValidation(ctx context.Context, actor auth.Princip
 		return admin.ErrObjectNotFound
 	}
 	return validation.Reject(failures, nil)
+}
+
+func nilFormReader(reader db.Queryer) bool {
+	if reader == nil {
+		return true
+	}
+	value := reflect.ValueOf(reader)
+	switch value.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func checkFormUnique[M any](ctx context.Context, reader db.Queryer, manager orm.Manager[M], current *M, bound formmodel.BoundForm) (validation.Errors, error) {
@@ -146,6 +160,77 @@ func (a *Application) checkTicketLabelForm(ctx context.Context, actor auth.Princ
 			return validation.Errors{}, err
 		}
 		unique, err := checkFormUnique(ctx, reader, models.TicketLabelObjects, current, checked)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		return validation.Join(related, unique), nil
+	})
+}
+
+func (a *Application) checkLabelForm(ctx context.Context, actor auth.Principal, id int64, bound formmodel.BoundForm) error {
+	permission := AddLabel
+	if id != 0 {
+		permission = ChangeLabel
+	}
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission}, func(reader db.Queryer) (validation.Errors, error) {
+		var current *models.Label
+		if id != 0 {
+			row, present, err := a.label(ctx, reader, id)
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			if !present {
+				return validation.Errors{}, admin.ErrObjectNotFound
+			}
+			current = &row
+		}
+		return bound.CheckDatabase(ctx, formmodel.DatabaseChecks{
+			UniqueFields: func(ctx context.Context, values map[string]query.Value) (validation.Errors, error) {
+				return models.LabelObjects.ValidateUniqueFields(ctx, reader, values, current)
+			},
+			Constraints: func(ctx context.Context, values map[string]query.Value) (validation.Errors, error) {
+				// Category is a fixed application scope, not an editable form
+				// field. Supply only this server-owned value for the product's
+				// scoped name check; absent/invalid names remain excluded.
+				values["category"] = query.Integer(a.categoryID)
+				return models.LabelObjects.ValidateUniqueConstraints(ctx, reader, values, current)
+			},
+		})
+	})
+}
+
+func (a *Application) checkReportForm(ctx context.Context, actor auth.Principal, id int64, bound formmodel.BoundForm) error {
+	permission := AddServiceReport
+	if id != 0 {
+		permission = ChangeServiceReport
+	}
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewTicket}, func(reader db.Queryer) (validation.Errors, error) {
+		var current *models.ServiceReport
+		if id != 0 {
+			row, present, err := a.report(ctx, reader, id)
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			if !present {
+				return validation.Errors{}, admin.ErrObjectNotFound
+			}
+			current = &row
+		}
+		var related validation.Errors
+		if key, valid := bound.Form().Cleaned().Integer("ticket"); valid {
+			present, err := models.TicketObjects.Using(reader).Filter(models.TicketFields.ID.Exact(key), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).Exists(ctx)
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			if !present {
+				related = validation.NewErrors(validation.New("ticket", "invalid_choice"))
+			}
+		}
+		checked, err := bound.WithErrors(related)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		unique, err := checkFormUnique(ctx, reader, models.ServiceReportObjects, current, checked)
 		if err != nil {
 			return validation.Errors{}, err
 		}

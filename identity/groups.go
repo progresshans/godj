@@ -272,22 +272,30 @@ func (manager *Manager) groupDetailsFromRow(ctx context.Context, reader db.Query
 }
 
 func (manager *Manager) validateGroupPermissions(ctx context.Context, reader db.Queryer, permissions []int64) error {
-	rows, err := models.PermissionObjects.Using(reader).Filter(models.PermissionFields.ID.In(permissions...)).OrderBy(models.PermissionFields.ID.Asc()).All(ctx)
+	failures, err := manager.groupPermissionViolations(ctx, reader, permissions)
 	if err != nil {
 		return err
 	}
+	return validation.Reject(failures, nil)
+}
+
+func (manager *Manager) groupPermissionViolations(ctx context.Context, reader db.Queryer, permissions []int64) (validation.Errors, error) {
+	rows, err := models.PermissionObjects.Using(reader).Filter(models.PermissionFields.ID.In(permissions...)).OrderBy(models.PermissionFields.ID.Asc()).All(ctx)
+	if err != nil {
+		return validation.Errors{}, err
+	}
 	if len(rows) != len(permissions) {
-		return managementInputError("permissions", "invalid_choice")
+		return validation.NewErrors(validation.New("permissions", "invalid_choice")), nil
 	}
 	for index, row := range rows {
 		if row.ID != permissions[index] {
-			return managementInputError("permissions", "invalid_choice")
+			return validation.NewErrors(validation.New("permissions", "invalid_choice")), nil
 		}
 		if _, err := permissionProfile(row); err != nil {
-			return err
+			return validation.Errors{}, err
 		}
 	}
-	return nil
+	return validation.Errors{}, nil
 }
 
 func (manager *Manager) setGroupPermissions(ctx context.Context, session db.RelationSession, row models.Group, permissions []int64) error {

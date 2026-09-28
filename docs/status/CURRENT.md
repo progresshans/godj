@@ -1,13 +1,12 @@
 # 현재 상태
 
 - 갱신: 2026-09-28
-- 현재 통합 작업: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
+- 최근 완료한 통합: [GDJ-0100 다중 사용자·credential/session lifecycle](../../work/0100-multi-user-credential-and-session-lifecycle.md)
 - 현재 구현 작업: [GDJ-0102 모델의 빈 입력 정책과 Form 후처리](../../work/0102-model-blank-policy-and-post-clean.md)
 - 최근 구현·영향 검증 완료: [GDJ-0101 이메일 필드와 모델 입력 검증](../../work/0101-email-fields-and-model-input-validation.md)
 - 최근 완료: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
-- 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36328590201), source `fb817d6b58b53f147067d027624786e004df8dda`
-- 진행 중인 선행 통합: [인증 확인 테스트 예산 보완 full](https://github.com/progresshans/godj/actions/runs/36374533286), source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`
-- 최근 Blank [Fast](https://github.com/progresshans/godj/actions/runs/36378041214), source `65a0e6ba`: 새 Identity 이력 기대 보완 후 실제 Go 검사 성공
+- 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36374533286), source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`; 62 jobs·8 owners·새 capture의 source 결합 확인
+- 최근 모델 DB 검증 [Fast](https://github.com/progresshans/godj/actions/runs/36379234202), source `b8cc51b5`: 실제 Go 검사 성공
 - Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -25,16 +24,17 @@ User·Group·Permission 관리, 저장 인증과 일반 계정 login/logout·pas
 Blank의 IR·생성기·migration·Form 후보와 User/Helpdesk/Article 선언·새 이력·생성물을 구현했다.
 Admin은 원래 제출을 보존하고 수정 시 현재 row/revision에서 후보를 만든다.
 모델 DB 후처리의 unique field → 오류 적용/제외 재계산 → constraint를 하나의 읽기 scope에 연결했다.
-User 수정·Ticket·TicketLabel은 현재 인가·row·관계를 확인하며 최종 저장의 transaction 검사는 유지한다.
-영향 normal/race/CGO=0·실제 양 DB·독립 생성 소비자와 네 부정 대조를 확인했다.
+User 수정·Group/Permission·Ticket·Label·ServiceReport·TicketLabel은 현재 인가·row·관계를 확인한다.
+Label의 category는 서버 범위가 소유하며 일반 ModelForm의 제외 정책은 유지한다. 최종 저장의 transaction 검사는 그대로다.
+영향 normal/race/CGO=0·실제 양 DB·독립 생성 소비자와 단계별 부정 대조를 확인했다.
 고정 Django의 DB 사례는 각 DB의 15개 의미 일치와 제외 필드 이름을 추가 입력에 재사용하는 1개 명시적 차이를 구분한다.
 현재 정책은 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는 Evidence를 따른다.
 
 ## 다음 행동
 
-기본 Group/Permission과 Helpdesk Label/Report의 읽기 모델 DB 검증을 이어 연결한다.
-선행 Hosted full은 필수 owner·최종 집계·새 capture의 source 결합까지 확인한다.
+Blank/DB 후처리 source의 통합 검증을 실행하고 필수 owner·최종 집계·새 capture의 source 결합까지 확인한다.
 새 Blank/DB 후처리에 선행 source의 Hosted 검증을 전이하지 않는다.
+다음 모델 Form 확장은 model clean의 값 변환·저장 후보 의미를 고정 Django에서 먼저 확인한다.
 Custom user model·전체 ModelForm 후처리·다른 인증 provider와 운영 mail provider 검증은 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 

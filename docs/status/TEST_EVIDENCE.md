@@ -11,7 +11,8 @@ scalar ChangeBlank와 columnless AlterManyToMany를 구현했다. Form required�
 모델 field·pure model validator와 단계별 exclusion, scalar unique/constraint의 별도 read-only ORM API를 작성했다.
 User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Admin/Identity의 pure 모델 후처리는 연결했다.
 현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint를 User 수정·Ticket·TicketLabel에 연결하고 native DB와
-대조했다. Group/Permission·Label/Report의 해당 읽기 검증 연결과 전체 ModelForm은 **아직 미완료**다.
+대조했다. 후속 checkpoint에서 Group/Permission·Label/ServiceReport의 읽기 검증도 연결했다.
+일반 model clean 값 변환·전체 ModelForm과 이 새 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
 ### 독립 입력 기준과 Go 대조
@@ -217,6 +218,47 @@ Generated 소비자·Identity DB의 relation 필수 목록과 PostgreSQL 필수 
 모델 metadata·generator는 이 DB 후처리 묶음에서 변경하지 않았고 새 independent consumer는 매 실행 실제 생성한다.
 이 scoped checkpoint는 최신 source의 전체 platform/process milestone 또는 전체 ModelForm 완료가 아니다.
 
+### Group·Permission·Label·ServiceReport의 읽기 후처리
+
+기반 `b8cc51b56a5c03a1815181ced5406e1154cdc2b9` 위의 비문서 source inventory
+`d9b1a3111ba51a63472d6292f53f9689085f6098320258a4d3c73de6c480c004`에서 나머지 기본 관리 폼을 연결했다.
+Group/Permission create/change는 올바른 모델과 unsaved/current ID·revision 후보를 I/O 전에 확인하고, 같은 management
+snapshot에서 현재 actor 권한·현재 row/revision·unique/constraint를 확인한다. Group은 선택 권한의 삭제도 다시 확인한다.
+유효한 중복 field는 다른 입력/선택 오류가 있어도 검사하며 오류를 합친다. 마지막 저장의 권한·revision·관계·사용자 grant 한도는
+기존 transaction에서 계속 검증한다. Group 관계의 읽기 진단과 I/O 실패는 별도 반환값으로 구분한다.
+
+Label은 서버가 고정한 category만 constraint 후보에 명시적으로 공급해 이름과의 tuple을 검사한다. Excluded initial의
+category를 신뢰하거나 editable input에 포함하지 않는다. 이는 제품의 고정 parent 범위 검사이며 일반 ModelForm이
+제외된 값을 자동으로 포함하는 규칙이 아니다. ServiceReport는 같은 snapshot에서 현재 row와 선택 Ticket 소속을 확인한 뒤
+OneToOne unique를 검사한다. 범위 밖 Ticket은 unique 조회에서 제외하므로 private report 존재를 공개하지 않는다.
+Helpdesk read scope의 typed-nil reader도 일반 오류로 거부한다. 기존 Label/Report fault adapter는 새로운 사전 읽기와
+최종 write 읽기에 같은 실패 주입을 적용하며 late native constraint·rollback/unknown 검증을 유지한다.
+
+| 동일 source checkpoint | Required roots / cases | normal PASS / 초 | race PASS / 초 | CGO=0 PASS / 초 |
+|---|---:|---:|---:|---:|
+| Identity/Helpdesk, 5 test packages | 30 / 547 | 746 / 21.547 | 746 / 167.282 | 746 / 39.293 |
+| 양 DB Identity ManagementAdmin/CatalogManagement, 2 packages | 4 / 370 | 370 / 48.470 | 370 / 159.789 | 370 / 53.564 |
+
+모든 필수 항목·package 완료와 source 불변을 확인했고 test skip·누락·실패·비정형 JSON은 0이다.
+Core의 테스트 없는 identity 5 packages는 no-test roster로 따로 기록한다. 신규 catalog matrix는 네 create/change 경로의
+**50개 사례**와 실제 HTTP 복합 오류를 포함한다. 같은 row·현재 권한 회수·revision 변경·삭제·읽기/정리 실패,
+잘못된 모델/키/revision·취소·unbound·삭제된 선택과 순서/중복 선택, 빌린 reader 수명과 무해싱·전체 durable 상태 불변을 확인한다.
+Helpdesk는 Label/ServiceReport의 서버 범위·복합 오류·같은 row·외부 row/관계·정리 실패를 검사하고,
+양 DB 실제 Admin 소비자에서도 입력 오류/중복 거부가 write transaction을 시작하지 않음을 확인한다.
+
+네 부정 대조는 Label의 서버 category를 excluded initial로 바꾸기, Report의 Ticket 소속 검사 생략,
+Group의 현재 권한 검사 생략, Permission의 현재 revision 검사 생략을 각각 지정 runtime assertion으로 검출했다.
+Group 첫 overlay는 미사용 permission 변수 때문에 compile 실패했으므로 검출 성공으로 세지 않았다. 앞의 두 성공을 재실행하지
+않고 수정한 Group과 남은 Permission만 실행했다. 원래 실패·두 receipt·source 불변과 네 결과의 독립 집계를 보존했다.
+영향 vet와 CI 도구 **41 tests**도 성공했다. 모델 선언·generator는 바뀌지 않아 generated drift를 반복하지 않았다.
+
+Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham에서 각 mode 전용 PostgreSQL **17.10 UTF8/libc/C**를 사용했다.
+DB **0|0|0**, DB/container 제거를 확인했다. 전체 JSON·roster·계획·source/cleanup receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-catalog-normal-7v5xa_c4`,
+`godj-model-catalog-race-32k4re6w`, `godj-model-catalog-cgo0-6om1qtqk`에 있다. 뒤 두 경로도 같은 임시 parent 아래다.
+Normal evidence의 `static-checks`, `negative-controls`, `negative-controls-retry`, `negative-controls-combined.json`에 추가 검증이 있다.
+Blank 선언·내부 API와 새 DB 후처리를 포함한 source의 Hosted 전체는 다음 통합 milestone이며 선행 ea2867f4의 성공을 전이하지 않는다.
+
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
 기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.
@@ -379,8 +421,8 @@ Normal **11 PASS / skip 0 / 117.717초**, race **11 PASS / skip 0 / 141.210초**
 독립 명시해 기존 전체 JSON에 누락·추가·skip·실패가 없음을 다시 감사했으며 실행을 다시 했다고 세지 않는다.
 수정은 `ea2867f4323fb34e713fc1d10d8a62c05c785d37`로 양 작업 branch에 원자적으로 push했고
 [Fast 36372684175](https://github.com/progresshans/godj/actions/runs/36372684175)의 실제 Go 검사도 성공했다.
-이 수정의 remote 실패 원인 해소는 [새 full 36374533286](https://github.com/progresshans/godj/actions/runs/36374533286)의
-같은 owner를 확인해야 하며 현재 진행 중이다. 미커밋 Blank source의 검증으로 전이하지 않는다.
+이 수정 source의 [새 full 36374533286](https://github.com/progresshans/godj/actions/runs/36374533286)은 아래 감사까지 완료했다.
+이후 Blank/DB 후처리 source의 검증으로 전이하지 않는다.
 
 bb9 capture의 동일 run/attempt/producer, archive/payload checksum과 실제 Git blob source 결합은 별도로 확인했다.
 System-state는 620 files / 6,602,601 bytes / `84e242a4872dd9ab96a1ecb9f668070bde9da7d6b9d644b05dc00c7aba41e752`,
@@ -388,6 +430,36 @@ operator는 696 files / 6,447,592 bytes / `590017b6b975363cd88ebb4b86be7299c3630
 Capture 성공은 실패한 전체 run의 성공이 아니다. Exact macOS job도 성공했지만 앞선 source의 native test count를 전이하지 않는다.
 종료 run JSON·capture audit·실패 원문과 repair receipt는 GDJ-0101 evidence 아래
 `hosted-repair-1790553210826583000/hosted-full-36369062484-1790563600816040000`에 보존한다.
+
+### EmailField·인증 lifecycle의 Hosted 전체 완료
+
+Source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`의
+[full 36374533286](https://github.com/progresshans/godj/actions/runs/36374533286), attempt **1**이
+**62 jobs 모두 completed/success**로 종료했다. 이전 실패 owner인 Intel race command products와 Intel relation의
+normal/race도 성공했다. 기본 password 해싱 정책·필수 검사 조건은 그대로다. 원래 실패 로그에 없던 원인을 사후 단정하지 않는다.
+
+최종 aggregate `108791644519`의 실제 로그에서 `scope: full`, `full_platform_verified: true`와
+**8개 실행 owner**의 정확한 목록을 확인했다: command-product-matrix, conformance-validation,
+exact-darwin-validation, portable-go-matrix, postgresql-product, product-project-check-matrix,
+python-compatibility-matrix, relation-product-matrix. 각 job의 성공, aggregate 단계의 실행과 source에 고정된 scope 정의를 대조했다.
+
+같은 run/attempt의 새 system-state·operator capture를 성공 producer에 결합해 받았고 artifact archive SHA,
+payload checksum·provenance·정확한 3개 파일 집합을 검사했다. 해당 source의 Git blob에서 behavioral inventory를
+독립 재구성해 capture의 source binding과 일치함을 확인했다.
+
+| Capture | Producer job / artifact | 파일 / bytes | Source SHA-256 |
+|---|---|---:|---|
+| system-state | 108777568350 / 10950812106 | 620 / 6,602,601 | `84e242a4872dd9ab96a1ecb9f668070bde9da7d6b9d644b05dc00c7aba41e752` |
+| operator | 108777568304 / 10949823725 | 696 / 6,448,276 | `9ee194d758c208b2c002419da72055dc3311bec16f85b336f6cb1966b3b164da` |
+
+Run/jobs/artifacts JSON·새 archive·payload/provenance·source inventory·최종 aggregate 원문과 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-email-field-reference-kz1sj84g/hosted-full-36374533286-1790571899785049000`에 있다.
+이 결과는 GDJ-0100의 선택한 lifecycle 통합과 GDJ-0101을 포함한 해당 source의 전체 검증이다.
+뒤의 Blank 및 모델 DB 검증 구현, custom user model·다른 인증 provider·운영 mail provider 또는 전체 기능 카탈로그 완료가 아니다.
+
+후속 DB 후처리 첫 묶음 `b8cc51b56a5c03a1815181ced5406e1154cdc2b9`의
+[Fast 36379234202](https://github.com/progresshans/godj/actions/runs/36379234202)는 실제 Go 검사까지 성공했다.
+이후 catalog Form 작업본과 Hosted full 성공으로 합치지 않는다.
 
 ### 선행 재사용 Form Hosted 전체의 종료
 

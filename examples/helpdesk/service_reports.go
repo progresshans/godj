@@ -61,6 +61,12 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		Initial: func(value models.ServiceReport) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
 		},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return a.checkReportForm(ctx, actor, 0, bound)
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return a.checkReportForm(ctx, actor, mutation.ID, bound)
+		},
 		Create: func(ctx context.Context, _ auth.Principal, values forms.Values) (models.ServiceReport, error) {
 			key, ok := values.Integer("ticket")
 			if !ok {

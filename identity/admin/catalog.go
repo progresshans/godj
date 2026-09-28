@@ -58,6 +58,12 @@ func (a *registration) registerGroup(builder *admin.Builder) error {
 			return admin.NewObject(value.ID, value.Name, values)
 		},
 		Initial: func(value groupRow) (map[string]forms.Value, error) { return groupInitial(value.GroupDetails), nil },
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return operationError(a.manager.CheckGroupCreate(ctx, actor, bound))
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return operationError(a.manager.CheckGroupChange(ctx, actor, mutation.ID, mutation.Revision, bound))
+		},
 		Create: func(ctx context.Context, p auth.Principal, values forms.Values) (groupRow, error) {
 			name, ok := values.String("name")
 			ids, present := values.Integers("permissions")
@@ -135,6 +141,12 @@ func (a *registration) registerPermission(builder *admin.Builder) error {
 		},
 		Initial: func(value identity.PermissionProfile) (map[string]forms.Value, error) {
 			return permissionInitial(value), nil
+		},
+		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+			return operationError(a.manager.CheckPermissionCreate(ctx, actor, bound))
+		},
+		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
+			return operationError(a.manager.CheckPermissionChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
 		Create: func(ctx context.Context, p auth.Principal, values forms.Values) (identity.PermissionProfile, error) {
 			code, ok := values.String("code")

@@ -90,6 +90,11 @@ func (b *reportFaultBackend) Query(ctx context.Context, plan query.Plan) (db.Row
 	}
 	return b.Backend.Query(ctx, plan)
 }
+func (b *reportFaultBackend) ReadSnapshot(ctx context.Context, check func(db.Queryer) error) error {
+	return b.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		return check(formReadFaultQueryer(func(ctx context.Context, plan query.Plan) (db.Rows, error) { return b.query(ctx, reader, plan) }))
+	})
+}
 func (b *reportFaultBackend) Atomic(ctx context.Context, fn func(db.Session) error) error {
 	b.transactions++
 	err := b.Backend.Atomic(ctx, func(session db.Session) error {
@@ -131,12 +136,15 @@ type reportFaultSession struct {
 }
 
 func (s reportFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	s.owner.queries++
+	return s.owner.query(ctx, s.Session, plan)
+}
+func (b *reportFaultBackend) query(ctx context.Context, reader db.Queryer, plan query.Plan) (db.Rows, error) {
+	b.queries++
 	if plan.ResultShape().Kind() == query.ResultProjection {
 		for _, condition := range plan.Conditions() {
 			if condition.Field().Name() == "ticket" {
-				s.owner.checks++
-				switch s.owner.mode {
+				b.checks++
+				switch b.mode {
 				case "query_error":
 					return nil, errors.New("report uniqueness query failed")
 				case "cancel":
@@ -147,7 +155,7 @@ func (s reportFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows
 			}
 		}
 	}
-	return s.Session.Query(ctx, plan)
+	return reader.Query(ctx, plan)
 }
 func (s reportFaultSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	s.owner.writes++
@@ -312,6 +320,12 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 	response = client.request("POST", "/admin/service-reports/add/", invalidForm.Encode(), false)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `data-error-code="unique"`) || !strings.Contains(response.Body.String(), html.EscapeString(invalidForm.Get("summary"))) || strings.Contains(response.Body.String(), "<script>") {
 		t.Fatal("Admin duplicate lost safe raw input", response.Code, response.Body)
+	}
+	transactions := backend.transactions
+	invalidForm.Set("summary", "")
+	response = client.request("POST", "/admin/service-reports/add/", invalidForm.Encode(), false)
+	if response.Code != 200 || !strings.Contains(response.Body.String(), `data-error-field="ticket" data-error-code="unique"`) || !strings.Contains(response.Body.String(), `data-error-field="summary" data-error-code="required"`) || backend.transactions != transactions {
+		t.Fatal("invalid summary suppressed report uniqueness or began a write", response.Code, response.Body)
 	}
 	deleteTicket := fmt.Sprintf("/admin/tickets/delete/?id=%d", first.ID)
 	confirmation := url.Values{"confirm": {"yes"}, "csrfmiddlewaretoken": {client.csrf}}.Encode()
