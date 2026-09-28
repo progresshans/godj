@@ -4,7 +4,7 @@
 - 현재 작업: [GDJ-0102 모델의 빈 입력 정책과 Form 후처리](../../work/0102-model-blank-policy-and-post-clean.md)
 - 최근 완료한 전체 검증: [Hosted full 36383539735](https://github.com/progresshans/godj/actions/runs/36383539735), source `211499d05f6763e3dc5ecf501fd4539393c264cb`; 필수 owner·최종 집계·새 capture의 Git source 결합 확인
 - 진행 중인 clean/typed 준비: [Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296), source `1b2fc49267181f321c0a079844e945cd6cf81584`
-- 선행 저장 조정 `ce52685c`의 [Fast](https://github.com/progresshans/godj/actions/runs/36393894699): terminal success·실제 Go 검사 성공
+- 최신 제품 연결 `996ff5eccf0393781080d834ddd9636e981e53bd`의 [Fast](https://github.com/progresshans/godj/actions/runs/36397043744): terminal success·실제 Go 검사 성공
 - Source·환경·scope·실패/수정·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -21,7 +21,7 @@ Helpdesk Ticket의 실제 Form 저장도 이 경로를 사용하며 인가/categ
 ## 다음 행동
 
 `1b2fc492` Hosted 전체의 남은 owner와 최종 집계를 확인한다. 새 capture 두 개의 provenance/Git source 결합은 확인했다.
-후속 저장 조정/제품 연결 source를 게시하고 통합 milestone을 실행한다. 관찰 지연만으로 기존 run을 재시작하지 않는다.
+게시한 저장 조정/제품 연결 source의 통합 milestone을 선행 run 완료 뒤 실행한다. 관찰 지연만으로 기존 run을 재시작하지 않는다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 나머지 ModelForm·custom user model·인증/mail provider와
 기능 카탈로그를 이어 구현한다. 로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다.
 
