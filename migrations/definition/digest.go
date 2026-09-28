@@ -100,7 +100,7 @@ func canonicalDefinitionSet(definitions []migrations.Migration) ([]byte, error) 
 
 func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]byte, error) {
 	switch value := operation.(type) {
-	case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+	case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 		return appendCanonicalManyOperation(output, operation)
 	case migrations.CreateModel:
 		return appendCanonicalCreateModel(output, value)
@@ -274,6 +274,9 @@ func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	var err error
 	output = append(output, '{')
+	if field.Blank {
+		output = append(output, `"blank":true,`...)
+	}
 	if len(field.Choices) > 0 {
 		output = append(output, `"choices":[`...)
 		for index, choice := range field.Choices {

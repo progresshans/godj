@@ -30,6 +30,7 @@ type ThroughModel struct {
 // self target and directed otherwise. Normalize makes that choice explicit.
 type ManyToManyField struct {
 	Name     string             `json:"name"`
+	Blank    bool               `json:"blank,omitempty"`
 	GoName   string             `json:"go_name"`
 	Target   ModelIdentity      `json:"target"`
 	Reverse  ReverseRelation    `json:"reverse"`
@@ -46,7 +47,7 @@ func (field ManyToManyField) Clone() ManyToManyField {
 }
 
 func (field ManyToManyField) Equal(other ManyToManyField) bool {
-	return field.Name == other.Name && field.GoName == other.GoName && field.Target == other.Target &&
+	return field.Name == other.Name && field.Blank == other.Blank && field.GoName == other.GoName && field.Target == other.Target &&
 		field.Reverse == other.Reverse && field.Symmetry == other.Symmetry &&
 		(field.Through == nil && other.Through == nil || field.Through != nil && other.Through != nil && *field.Through == *other.Through)
 }
@@ -58,6 +59,16 @@ func ManyToManyRename(before, after ManyToManyField) bool {
 		return false
 	}
 	before.Name, before.GoName = after.Name, after.GoName
+	return before.Equal(after)
+}
+
+// ManyToManyBlankChange admits only a changed input blank policy.
+// Storage, ordering, relation identity and bindings remain exactly the same.
+func ManyToManyBlankChange(before, after ManyToManyField) bool {
+	if before.Blank == after.Blank {
+		return false
+	}
+	before.Blank = after.Blank
 	return before.Equal(after)
 }
 

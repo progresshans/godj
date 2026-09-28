@@ -47,10 +47,7 @@ func TestArticleAdminSitePostgresUserFlow(t *testing.T) {
 		}
 	})
 
-	loaded, _, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "migrations/0001_initial.godj.json",
-		Document: append([]byte(nil), articlePostgresInitialDefinition...),
-	})
+	loaded, _, err := migrationdefinition.Load(articleCurrentDefinitionSources()...)
 	if err != nil {
 		t.Fatalf("load Article Admin PostgreSQL migration definition: %v", err)
 	}

@@ -197,7 +197,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
 	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "labels"}
-	overrides := []formmodel.Override{formmodel.OverrideField("labels", formmodel.WithRequired(false)), formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
+	overrides := []formmodel.Override{formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		if value.IsNull() {
 			return validation.NewErrors()
 		}

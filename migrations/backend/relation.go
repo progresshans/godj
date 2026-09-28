@@ -11,8 +11,10 @@ type MigrationCapabilities struct {
 	RemoveForeignKey                  bool
 	AlterFieldChoices                 bool
 	AlterFieldStringSemantics         bool
-	AlterFieldDecimalPrecision        bool
-	AlterFieldRelation                bool
+	// AlterFieldBlank covers stored and columnless model input policy changes.
+	AlterFieldBlank            bool
+	AlterFieldDecimalPrecision bool
+	AlterFieldRelation         bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool

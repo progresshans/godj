@@ -48,6 +48,11 @@ type preparedUniqueConstraint struct {
 	violation validation.Violation
 }
 
+type uniqueCheck struct {
+	violation validation.Violation
+	plan      query.Plan
+}
+
 // Bind the immutable metadata once. Custom descriptors must not turn a missing
 // or repeated member into a shorter, apparently valid uniqueness query.
 func prepareUniqueConstraints(model ir.Model, byName map[string]int) ([]preparedUniqueConstraint, string) {
@@ -94,38 +99,11 @@ func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, writ
 		values[assignment.Field().Name()] = assignment.Value()
 		assigned[assignment.Field().Name()] = true
 	}
-	primary := fieldReference(model.primaryKey)
-	projection, err := query.NewProjectionResult(query.FieldResult(primary))
+	base, err := uniqueBasePlan(model, write.key, write.mutation.kind == MutationPatch)
 	if err != nil {
 		return validation.Errors{}, err
 	}
-	base, err := model.plan.WithResultShape(projection)
-	if err != nil {
-		return validation.Errors{}, err
-	}
-	base, err = base.WithLimit(1)
-	if err != nil {
-		return validation.Errors{}, err
-	}
-	if write.mutation.kind == MutationPatch {
-		self, err := query.NewExpression(query.NewCondition(primary, query.LookupExact, write.key))
-		if err != nil {
-			return validation.Errors{}, err
-		}
-		other, err := query.NotExpression(self)
-		if err != nil {
-			return validation.Errors{}, err
-		}
-		base, err = base.WithWhere(other)
-		if err != nil {
-			return validation.Errors{}, err
-		}
-	}
-	type check struct {
-		violation validation.Violation
-		plan      query.Plan
-	}
-	var checks []check
+	var checks []uniqueCheck
 	// Construct every AST before any I/O, in declaration order rather than
 	// patch assignment order. Plans and scalar values own their immutable data.
 	for _, field := range model.metadata.Fields {
@@ -137,7 +115,7 @@ func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, writ
 		if err != nil {
 			return validation.Errors{}, err
 		}
-		checks = append(checks, check{violation: validation.New(validation.Field(field.Name), validation.CodeUnique), plan: plan})
+		checks = append(checks, uniqueCheck{violation: validation.New(validation.Field(field.Name), validation.CodeUnique), plan: plan})
 	}
 	for _, constraint := range model.unique {
 		touched, generatedKey := false, false
@@ -171,8 +149,43 @@ func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, writ
 		if err != nil {
 			return validation.Errors{}, err
 		}
-		checks = append(checks, check{violation: constraint.violation, plan: plan})
+		checks = append(checks, uniqueCheck{violation: constraint.violation, plan: plan})
 	}
+	return runUniqueChecks(ctx, backend, checks)
+}
+
+func uniqueBasePlan(model *preparedModel, key query.Value, excludeCurrent bool) (query.Plan, error) {
+	primary := fieldReference(model.primaryKey)
+	projection, err := query.NewProjectionResult(query.FieldResult(primary))
+	if err != nil {
+		return query.Plan{}, err
+	}
+	base, err := model.plan.WithResultShape(projection)
+	if err != nil {
+		return query.Plan{}, err
+	}
+	base, err = base.WithLimit(1)
+	if err != nil {
+		return query.Plan{}, err
+	}
+	if excludeCurrent {
+		self, err := query.NewExpression(query.NewCondition(primary, query.LookupExact, key))
+		if err != nil {
+			return query.Plan{}, err
+		}
+		other, err := query.NotExpression(self)
+		if err != nil {
+			return query.Plan{}, err
+		}
+		base, err = base.WithWhere(other)
+		if err != nil {
+			return query.Plan{}, err
+		}
+	}
+	return base, nil
+}
+
+func runUniqueChecks(ctx context.Context, backend db.Queryer, checks []uniqueCheck) (validation.Errors, error) {
 	var violations []validation.Violation
 	for _, check := range checks {
 		if err := ctx.Err(); err != nil {

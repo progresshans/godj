@@ -201,7 +201,7 @@ func candidateOperations(app string, change appChange, current, desired migratio
 				continue
 			}
 			existing = append(existing, value)
-		case migrations.AddManyToMany, migrations.RenameManyToMany:
+		case migrations.AddManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			manyAdds = append(manyAdds, operation)
 		case migrations.RemoveManyToMany:
 			manyRemovals = append(manyRemovals, operation)

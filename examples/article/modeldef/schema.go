@@ -20,7 +20,7 @@ var Definition = schema.Definition{
 		Fields: []schema.Field{
 			schema.CharField("title", "Title", 200),
 			schema.BooleanField("published", "Published", schema.Default(false)),
-			schema.CharField("summary", "Summary", 200, schema.Nullable()),
+			schema.CharField("summary", "Summary", 200, schema.Nullable(), schema.Blank()),
 		},
 	}},
 }

@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "a91c29d1ec0bb44b908c2984de562c889e244215097d125a226281d07e66faf5"
+const GoDjRelationSchemaSHA256 = "93c0fbb6f91de0f58cba0bb7586fb8cce934ea664726f0ad648dcf3a222ce9a2"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -77,7 +77,7 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 				ManyToMany: []ir.ManyToManyField{
-					{Name: "permissions", GoName: "Permissions", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, Reverse: ir.ReverseRelation{Name: "groups", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed")},
+					{Name: "permissions", GoName: "Permissions", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, Reverse: ir.ReverseRelation{Name: "groups", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Blank: true},
 				},
 			},
 			{
@@ -120,6 +120,7 @@ func GoDjRelationSchema() ir.Schema {
 						GoName:    "FirstName",
 						Column:    "first_name",
 						Kind:      ir.FieldChar,
+						Blank:     true,
 						MaxLength: 150,
 						Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
 					},
@@ -128,6 +129,7 @@ func GoDjRelationSchema() ir.Schema {
 						GoName:    "LastName",
 						Column:    "last_name",
 						Kind:      ir.FieldChar,
+						Blank:     true,
 						MaxLength: 150,
 						Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
 					},
@@ -136,6 +138,7 @@ func GoDjRelationSchema() ir.Schema {
 						GoName:    "Email",
 						Column:    "email",
 						Kind:      ir.FieldEmail,
+						Blank:     true,
 						MaxLength: 254,
 						Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
 					},
@@ -171,6 +174,7 @@ func GoDjRelationSchema() ir.Schema {
 						GoName:   "LastLogin",
 						Column:   "last_login",
 						Kind:     ir.FieldDateTime,
+						Blank:    true,
 						Nullable: true,
 					},
 					{
@@ -182,14 +186,14 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 				ManyToMany: []ir.ManyToManyField{
-					{Name: "groups", GoName: "Groups", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}, Reverse: ir.ReverseRelation{Name: "users", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed")},
-					{Name: "permissions", GoName: "Permissions", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, Reverse: ir.ReverseRelation{Name: "users", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed")},
+					{Name: "groups", GoName: "Groups", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}, Reverse: ir.ReverseRelation{Name: "users", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Blank: true},
+					{Name: "permissions", GoName: "Permissions", Target: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, Reverse: ir.ReverseRelation{Name: "users", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Blank: true},
 				},
 			},
 		},
 	}
 }
 
-type GoDjAppPart1_ad6950a04f703f6523ef9066c8ef339235cdaa143d1f76bb6cc09cae8d0c816c struct{}
+type GoDjAppPart1_6f7db3055d02f9876abe3643e4d2ae973fc198051acff11353218653353146e4 struct{}
 
-var _ GoDjProjectSnapshot_60299d999290081f0810fdfce23c9ac24578ed324f0b7cb1d4ac2f0ace977fcf
+var _ GoDjProjectSnapshot_eb3c0b60d8d1cbb1bec02c66f1646e3318639a34576b69c61744f5c10935f880

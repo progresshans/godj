@@ -27,8 +27,10 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("forms/model: %s: %s", e.Path, e.Code)
 }
 
-// OverrideOption is a closed form override. Storage kind, nullability and
-// default cannot change. An input length limit may narrow the stored limit.
+// OverrideOption is a closed form override. Storage metadata and its default
+// cannot change. Optional input may clean to Null even for a nonnullable model;
+// Bind owns the subsequent model validation. An input length limit may narrow
+// the stored limit.
 type OverrideOption interface {
 	apply(*overrideConfig)
 }
@@ -244,6 +246,10 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 	if override.hasLabel {
 		label = override.label
 	}
+	required := !field.Blank
+	if override.hasRequired {
+		required = override.required
+	}
 	options := []forms.FieldOption{forms.WithLabel(label)}
 	if override.hasStringNormalizer {
 		options = append(options, forms.WithStringNormalizer(override.normalizeString))
@@ -276,11 +282,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			(field.Relation.Cardinality == ir.RelationOneToOne && !field.Unique) {
 			return forms.Field{}, &Error{Code: "invalid_relation_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -294,11 +300,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() {
 			return forms.Field{}, &Error{Code: "invalid_decimal_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -313,11 +319,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
 			return forms.Field{}, &Error{Code: "invalid_json_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -332,11 +338,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
 			return forms.Field{}, &Error{Code: "invalid_uuid_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -351,11 +357,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_float_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -370,11 +376,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_time_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -389,11 +395,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_time_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -408,11 +414,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_date_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -427,11 +433,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_datetime_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -446,11 +452,11 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_integer_metadata"}
 		}
-		options = append(options, forms.WithRequired(!field.Nullable))
+		options = append(options, forms.WithRequired(required))
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}
-		if field.Nullable {
+		if field.Nullable || !required {
 			options = append(options, forms.WithNullable())
 		}
 		if field.Default != nil {
@@ -472,7 +478,7 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		if field.Kind == ir.FieldText && field.Choices == nil {
 			options = append(options, forms.WithEmptyValue(forms.String("")))
 		}
-		options = append(options, forms.WithRequired(!field.Nullable), forms.WithMaxLength(field.MaxLength))
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(field.MaxLength))
 		if override.hasMaxLength {
 			if override.maxLength <= 0 || field.MaxLength > 0 && override.maxLength > field.MaxLength {
 				return forms.Field{}, &Error{Code: "invalid_input_max_length"}

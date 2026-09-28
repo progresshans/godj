@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "a91c29d1ec0bb44b908c2984de562c889e244215097d125a226281d07e66faf5"
+const GoDjRelationObjectSchemaSHA256 = "93c0fbb6f91de0f58cba0bb7586fb8cce934ea664726f0ad648dcf3a222ce9a2"
 
 var _ orm.RelationObjectDescriptor[Permission] = PermissionDescriptor{}
 
@@ -339,6 +339,6 @@ func (input UserPermissionsLinkCreate) BuildManyToManyCreate(source, target ir.F
 	return input.BuildCreate()
 }
 
-type GoDjAppPart2_ad6950a04f703f6523ef9066c8ef339235cdaa143d1f76bb6cc09cae8d0c816c struct{}
+type GoDjAppPart2_6f7db3055d02f9876abe3643e4d2ae973fc198051acff11353218653353146e4 struct{}
 
-var _ GoDjProjectSnapshot_60299d999290081f0810fdfce23c9ac24578ed324f0b7cb1d4ac2f0ace977fcf
+var _ GoDjProjectSnapshot_eb3c0b60d8d1cbb1bec02c66f1646e3318639a34576b69c61744f5c10935f880

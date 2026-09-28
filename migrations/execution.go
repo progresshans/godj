@@ -217,6 +217,9 @@ func cloneMigrationOperation(operation Operation) Operation {
 	case RenameManyToMany:
 		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
 		return operation
+	case AlterManyToMany:
+		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
+		return operation
 	case CreateModel:
 		operation.Model = operation.Model.Clone()
 		return operation
@@ -252,6 +255,10 @@ func operationValue(operation Operation) Operation {
 			return *value
 		}
 	case *RenameManyToMany:
+		if value != nil {
+			return *value
+		}
+	case *AlterManyToMany:
 		if value != nil {
 			return *value
 		}

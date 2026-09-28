@@ -50,7 +50,7 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 	}
 	for index, operation := range snapshot.Operations {
 		switch value := operation.(type) {
-		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			document.Migration.Operations[index] = manyOperationDocument(operation)
 		case migrations.CreateModel:
 			document.Migration.Operations[index] = createModelDocument{
@@ -154,7 +154,7 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 	for index, operation := range migration.Operations {
 		path := fmt.Sprintf("migration.operations[%d]", index)
 		switch value := operation.(type) {
-		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			doc := manyOperationDocument(operation)
 			if doc.AppLabel != migration.App || !validManyOperation(doc) {
 				return encodeFailure(path, "ManyToMany requires exact normalized declarations and an unchanged rename binding")
@@ -276,6 +276,7 @@ type fieldDocument struct {
 	Kind       ir.FieldKind      `json:"kind"`
 	PrimaryKey bool              `json:"primary_key"`
 	Nullable   bool              `json:"nullable"`
+	Blank      bool              `json:"blank,omitempty"`
 	Unique     bool              `json:"unique,omitempty"`
 	MaxLength  int               `json:"max_length"`
 	Decimal    *ir.DecimalSpec   `json:"decimal,omitempty"`
@@ -384,6 +385,7 @@ func encodeField(field ir.Field) fieldDocument {
 		Kind:       field.Kind,
 		PrimaryKey: field.PrimaryKey,
 		Nullable:   field.Nullable,
+		Blank:      field.Blank,
 		Unique:     field.Unique,
 		MaxLength:  field.MaxLength,
 		Default:    encodeDefault(field.Default),

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -167,6 +166,10 @@ type ModelConfig[M any] struct {
 	Slug          string
 	Model         ir.Model
 	FormOverrides []formmodel.Override
+	// ModelValidators are pure post-clean checks of the model candidate. For
+	// changes, Initial must supply every stored non-primary field so a validator
+	// observes the actual row, including fields excluded from the form.
+	ModelValidators []formmodel.Validator
 	// FormFields selects editable fields in model declaration order. nil means
 	// all supported editable fields. Omitted fields never enter cleaned input.
 	FormFields []string
@@ -193,7 +196,10 @@ type ModelConfig[M any] struct {
 	// Snapshot must include ListFields and the selected editable fields. Other
 	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
-	Initial  func(M) (map[string]forms.Value, error)
+	// Initial supplies all selected fields and may include other stored model
+	// fields for model validation. Extra values never enter rendered Form.Initial
+	// or the persistence input. The registry owns the row's primary key value.
+	Initial func(M) (map[string]forms.Value, error)
 	// ValidateCreate is an optional read-only post-clean check. The Site invokes
 	// it after CSRF and add/choice admission, even when field cleaning failed.
 	// Consult Form.Errors before using a field from Cleaned. Return only a
@@ -344,9 +350,11 @@ type registeredModel struct {
 	slug                    string
 	model                   ir.Model
 	form                    forms.Spec
+	modelValidators         []formmodel.Validator
 	formFor                 func(context.Context, auth.Principal) (forms.Spec, error)
 	choicePermissions       []auth.Permission
 	createForm              forms.Spec
+	createModelValidators   []formmodel.Validator
 	createFormFor           func(context.Context, auth.Principal) (forms.Spec, error)
 	createChoicePermissions []auth.Permission
 	addPermissions          []auth.Permission
@@ -376,8 +384,9 @@ type registeredPage struct {
 }
 
 type registeredRecord struct {
-	object  Object
-	initial map[string]forms.Value
+	object           Object
+	initial          map[string]forms.Value
+	candidateInitial map[string]forms.Value
 }
 
 type registeredAction struct {
@@ -408,14 +417,14 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	var form forms.Spec
 	if !config.ReadOnly {
-		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides}})
+		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides, ModelValidators: config.ModelValidators}})
 		if err != nil {
 			if invalid, ok := err.(*ConfigError); ok {
 				return registeredModel{}, invalid
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.ModelValidators) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -467,6 +476,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	createForm, createFormFor, createChoicePermissions := form, formFor, choicePermissions
+	modelValidators := append([]formmodel.Validator(nil), config.ModelValidators...)
+	createModelValidators := modelValidators
 	if config.CreateForm != nil {
 		createForm, err = prepareModelForm(model, *config.CreateForm)
 		if err != nil {
@@ -476,6 +487,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredModel{}, err
 		}
+		createModelValidators = append([]formmodel.Validator(nil), config.CreateForm.Definition.ModelValidators...)
 	}
 	if config.RevisionField != "" {
 		field, found := fieldByName[config.RevisionField]
@@ -573,9 +585,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		slug:                    config.Slug,
 		model:                   model.Clone(),
 		form:                    form,
+		modelValidators:         modelValidators,
 		formFor:                 formFor,
 		choicePermissions:       choicePermissions,
 		createForm:              createForm,
+		createModelValidators:   createModelValidators,
 		createFormFor:           createFormFor,
 		createChoicePermissions: createChoicePermissions,
 		addPermissions:          addPermissions,
@@ -674,10 +688,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredRecord{}, false, err
 		}
-		if len(initial) != len(formFields) {
-			return registeredRecord{}, false, &ConfigError{Path: "get.result.initial", Code: "field_count_mismatch"}
+		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, len(modelValidators) > 0)
+		if err != nil {
+			return registeredRecord{}, false, err
 		}
-		unbound, err := form.Unbound(initial)
+		unbound, err := form.Unbound(selectedInitial)
 		if err != nil {
 			return registeredRecord{}, false, &ConfigError{Path: "get.result.initial", Code: "invalid", Cause: err}
 		}
@@ -685,7 +700,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := validateInitialValues(resolved, formFields, object); err != nil {
 			return registeredRecord{}, false, err
 		}
-		return registeredRecord{object: object, initial: valuesMap(resolved)}, true, nil
+		return registeredRecord{object: object, initial: valuesMap(resolved), candidateInitial: candidateInitial}, true, nil
 	}
 	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (Object, error) {
 		if config.ReadOnly {
@@ -696,7 +711,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 				return Object{}, err
 			}
 		}
-		data, err := canonicalFormData(submitted, createForm.Fields())
+		data, err := validatedSubmission(submitted, createForm.Fields())
 		if err != nil {
 			return Object{}, err
 		}
@@ -704,7 +719,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, err
 		}
-		values, err := validateBoundData(data, currentForm, currentForm.Fields())
+		values, err := validateModelBoundData(model, data, currentForm, nil, createModelValidators)
 		if err != nil {
 			return Object{}, err
 		}
@@ -735,7 +750,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := registered.validateMutation(mutation); err != nil {
 			return Object{}, nil, err
 		}
-		data, err := canonicalFormData(submitted, formFields)
+		data, err := validatedSubmission(submitted, formFields)
 		if err != nil {
 			return Object{}, nil, err
 		}
@@ -743,7 +758,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, nil, err
 		}
-		values, err := validateBoundData(data, currentForm, currentForm.Fields())
+		current, found, err := registered.get(ctx, principal, id)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		if !found {
+			return Object{}, nil, ErrObjectNotFound
+		}
+		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
+			return Object{}, nil, err
+		}
+		values, err := validateModelBoundData(model, data, currentForm, current.candidateInitial, modelValidators)
 		if err != nil {
 			return Object{}, nil, err
 		}
@@ -1031,14 +1056,14 @@ func validatePrincipalRead(ctx context.Context, principal auth.Principal, permis
 }
 
 func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
-	data, err := canonicalFormData(submitted, fields)
+	data, err := validatedSubmission(submitted, fields)
 	if err != nil {
 		return forms.Values{}, err
 	}
 	return validateBoundData(data, spec, fields)
 }
 
-func canonicalFormData(submitted forms.Form, fields []forms.Field) (forms.Data, error) {
+func validatedSubmission(submitted forms.Form, fields []forms.Field) (forms.Data, error) {
 	if !submitted.Bound() || !submitted.Valid() || !submitted.Errors().Empty() {
 		return forms.Data{}, &ConfigError{Path: "form", Code: "not_bound_valid"}
 	}
@@ -1047,7 +1072,6 @@ func canonicalFormData(submitted forms.Form, fields []forms.Field) (forms.Data, 
 	if len(entries) != len(fields) {
 		return forms.Data{}, &ConfigError{Path: "form.cleaned", Code: "field_count_mismatch"}
 	}
-	canonicalData := make(map[string][]string, len(fields))
 	for index, field := range fields {
 		entry := entries[index]
 		if entry.Name() != field.Name() {
@@ -1056,104 +1080,11 @@ func canonicalFormData(submitted forms.Form, fields []forms.Field) (forms.Data, 
 		if !validFormValue(entry.Value(), field) {
 			return forms.Data{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
-		switch field.Kind() {
-		case forms.FieldIntegerList:
-			keys, _ := entry.Value().AsIntegers()
-			text := make([]string, len(keys))
-			for i, key := range keys {
-				text[i] = strconv.FormatInt(key, 10)
-			}
-			canonicalData[field.Name()] = text
-		case forms.FieldJSON:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsJSON()
-				canonicalData[field.Name()] = []string{value.Text}
-			}
-		case forms.FieldUUID:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsUUID()
-				canonicalData[field.Name()] = []string{value.String()}
-			}
-		case forms.FieldDecimal:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsDecimal()
-				_, places, _ := field.DecimalPrecision()
-				text, err := value.Fixed(places)
-				if err != nil {
-					return forms.Data{}, &ConfigError{Path: "form.cleaned", Code: "invalid_decimal", Cause: err}
-				}
-				canonicalData[field.Name()] = []string{text}
-			}
-		case forms.FieldFloat:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsFloat()
-				text, _ := floatvalue.JSON(value)
-				canonicalData[field.Name()] = []string{text}
-			}
-		case forms.FieldDuration:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsDuration()
-				canonicalData[field.Name()] = []string{value.String()}
-			}
-		case forms.FieldTime:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsTime()
-				canonicalData[field.Name()] = []string{value.String()}
-			}
-		case forms.FieldDate:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsDate()
-				canonicalData[field.Name()] = []string{value.String()}
-			}
-		case forms.FieldDateTime:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsDateTime()
-				canonicalData[field.Name()] = []string{temporal.Format(value)}
-			}
-		case forms.FieldInteger:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsInteger()
-				canonicalData[field.Name()] = []string{strconv.FormatInt(value, 10)}
-			}
-		case forms.FieldChar, forms.FieldEmail:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{""}
-			} else {
-				value, _ := entry.Value().AsString()
-				canonicalData[field.Name()] = []string{value}
-			}
-		case forms.FieldBoolean:
-			if entry.Value().IsNull() {
-				canonicalData[field.Name()] = []string{"unknown"}
-				break
-			}
-			value, _ := entry.Value().AsBoolean()
-			if value {
-				canonicalData[field.Name()] = []string{"true"}
-			} else {
-				canonicalData[field.Name()] = []string{"false"}
-			}
-		}
 	}
-	return forms.NewData(canonicalData), nil
+	// Rebind the original submission against current server-owned choices and
+	// policy. Re-serializing cleaned values loses omission and repeats string
+	// normalization, which need not be idempotent.
+	return submitted.Submitted(), nil
 }
 
 func validateBoundData(data forms.Data, spec forms.Spec, fields []forms.Field) (forms.Values, error) {

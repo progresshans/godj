@@ -65,15 +65,12 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 		}
 	})
 
-	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "migrations/0001_initial.godj.json",
-		Document: append([]byte(nil), articlePostgresInitialDefinition...),
-	})
+	loaded, report, err := migrationdefinition.Load(articleCurrentDefinitionSources()...)
 	if err != nil {
 		t.Fatalf("load Article PostgreSQL migration definition: %v", err)
 	}
-	if report.DocumentsReceived != 1 || report.HeadersValidated != 1 || report.OperationsDecoded != 1 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 1 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 2 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article PostgreSQL definition load report = %+v", report)
 	}
 
@@ -112,7 +109,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read reopened Article PostgreSQL migration history: %v", err)
 	}
-	wantHistory := []migrationbackend.AppliedMigration{{App: "godj_conformance", Name: "0001_initial"}}
+	wantHistory := []migrationbackend.AppliedMigration{{App: "godj_conformance", Name: "0001_initial"}, {App: "godj_conformance", Name: "0002_alter_article_summary"}}
 	if !reflect.DeepEqual(history, wantHistory) {
 		t.Fatalf("reopened Article PostgreSQL history = %v, want %v", history, wantHistory)
 	}

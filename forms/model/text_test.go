@@ -11,8 +11,8 @@ import (
 
 func TestTextProjectionUsesTextareaAndKeepsEmptyStringDistinctFromNull(t *testing.T) {
 	model, err := schema.Build(schema.Definition{AppLabel: "notes", Models: []schema.Model{{Name: "note", GoName: "Note", Fields: []schema.Field{
-		schema.TextField("body", "Body", schema.Nullable()),
-		schema.CharField("summary", "Summary", 40, schema.Nullable()),
+		schema.TextField("body", "Body", schema.Nullable(), schema.Blank()),
+		schema.CharField("summary", "Summary", 40, schema.Nullable(), schema.Blank()),
 	}}}})
 	if err != nil {
 		t.Fatal(err)

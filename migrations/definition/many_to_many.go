@@ -28,6 +28,8 @@ func manyOperationDocument(operation migrations.Operation) manyDocument {
 		return manyDocument{Kind: "remove_many_to_many", AppLabel: op.AppLabel, ModelName: op.ModelName, Field: &op.Field, BeforeField: op.BeforeField}
 	case migrations.RenameManyToMany:
 		return manyDocument{Kind: "rename_many_to_many", AppLabel: op.AppLabel, ModelName: op.ModelName, Before: &op.Before, After: &op.After}
+	case migrations.AlterManyToMany:
+		return manyDocument{Kind: "alter_many_to_many", AppLabel: op.AppLabel, ModelName: op.ModelName, Before: &op.Before, After: &op.After}
 	}
 	return manyDocument{}
 }
@@ -44,6 +46,9 @@ func validManyOperation(op manyDocument) bool {
 		if err != nil || !normalized.Equal(*field) {
 			return false
 		}
+	}
+	if op.Kind == "alter_many_to_many" {
+		return op.Before != nil && op.After != nil && ir.ManyToManyBlankChange(*op.Before, *op.After)
 	}
 	if op.Kind == "rename_many_to_many" {
 		return op.Before != nil && op.After != nil && ir.ManyToManyRename(*op.Before, *op.After)
@@ -86,7 +91,7 @@ func materializeManyIdentity(value jsonValue) (ir.ModelIdentity, bool) {
 
 func materializeManyField(value jsonValue) (ir.ManyToManyField, bool) {
 	var field ir.ManyToManyField
-	if !manyObject(value, []string{"name", "go_name", "target", "reverse", "symmetry"}, []string{"through"}) {
+	if !manyObject(value, []string{"name", "go_name", "target", "reverse", "symmetry"}, []string{"blank", "through"}) {
 		return field, false
 	}
 	name, a := manyString(value, "name")
@@ -99,6 +104,12 @@ func materializeManyField(value jsonValue) (ir.ManyToManyField, bool) {
 		return field, false
 	}
 	field = ir.ManyToManyField{Name: name, GoName: goName, Target: identity, Symmetry: ir.ManyToManySymmetry(symmetry)}
+	if v, exists := value.member("blank"); exists {
+		if v.kind != jsonBoolean {
+			return field, false
+		}
+		field.Blank = v.boolean
+	}
 	if v, exists := reverse.member("name"); exists {
 		if v.kind != jsonString {
 			return field, false
@@ -131,6 +142,14 @@ func materializeManyOperation(value jsonValue, app, kind string) (migrations.Ope
 	model, ok := manyString(value, "model_name")
 	if !ok {
 		return nil, false
+	}
+	if kind == "alter_many_to_many" {
+		rawBefore, _ := value.member("before")
+		rawAfter, _ := value.member("after")
+		before, b := materializeManyField(rawBefore)
+		after, a := materializeManyField(rawAfter)
+		op := migrations.AlterManyToMany{AppLabel: app, ModelName: model, Before: before, After: after}
+		return op, a && b && validManyOperation(manyOperationDocument(op))
 	}
 	if kind == "rename_many_to_many" {
 		rawBefore, _ := value.member("before")
@@ -188,6 +207,11 @@ func (scanner *encodingSizeScanner) scanManyOperation(path string, op manyDocume
 }
 
 func (scanner *encodingSizeScanner) scanManyField(path string, field ir.ManyToManyField) error {
+	if field.Blank {
+		if err := scanner.addStructural(path+".blank", uint64(len(`,"blank":true`))); err != nil {
+			return err
+		}
+	}
 	if err := scanner.addStructural(path, uint64(len(`{"name":"","go_name":"","target":{"app_label":"","model_name":""},"reverse":{},"symmetry":""}`))); err != nil {
 		return err
 	}
@@ -234,6 +258,9 @@ func canonicalManyField(field ir.ManyToManyField) map[string]any {
 		reverse["disabled"] = true
 	}
 	value := map[string]any{"name": field.Name, "go_name": field.GoName, "target": identity(field.Target), "reverse": reverse, "symmetry": string(field.Symmetry)}
+	if field.Blank {
+		value["blank"] = true
+	}
 	if through := field.Through; through != nil {
 		value["through"] = map[string]any{"model": identity(through.Model), "source_field": through.SourceField, "target_field": through.TargetField}
 	}

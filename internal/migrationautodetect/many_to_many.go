@@ -20,9 +20,14 @@ func manyChanges(app string, before, after ir.Model) ([]migrations.Operation, er
 		newFields[field.Name] = field
 	}
 	renames := map[string]ir.ManyToManyField{}
+	alterations := map[string]ir.ManyToManyField{}
 	for _, field := range before.ManyToMany {
 		if current, exists := newFields[field.Name]; exists {
 			if field.Equal(current) {
+				continue
+			}
+			if ir.ManyToManyBlankChange(field, current) {
+				alterations[field.Name] = current
 				continue
 			}
 			if !ir.ManyToManyRename(field, current) {
@@ -67,6 +72,10 @@ func manyChanges(app string, before, after ir.Model) ([]migrations.Operation, er
 		working = slices.Delete(working, index, index+1)
 	}
 	for index, field := range working {
+		if altered, ok := alterations[field.Name]; ok {
+			operations = append(operations, migrations.AlterManyToMany{AppLabel: app, ModelName: after.Name, Before: field.Clone(), After: altered.Clone()})
+			working[index] = altered.Clone()
+		}
 		if renamed, ok := renames[field.Name]; ok {
 			operations = append(operations, migrations.RenameManyToMany{AppLabel: app, ModelName: after.Name, Before: field.Clone(), After: renamed.Clone()})
 			working[index] = renamed.Clone()
@@ -104,6 +113,8 @@ func collectManyOperationReferences(references *[]relationReference, operation m
 	case migrations.RemoveManyToMany:
 		app, model, field = op.AppLabel, op.ModelName, op.Field
 	case migrations.RenameManyToMany:
+		app, model, field = op.AppLabel, op.ModelName, op.Before
+	case migrations.AlterManyToMany:
 		app, model, field = op.AppLabel, op.ModelName, op.Before
 	default:
 		return

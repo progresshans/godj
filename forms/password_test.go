@@ -25,7 +25,7 @@ func TestUnstrippedPasswordPreservesWhitespaceAndNeverFormatsPrivateValues(t *te
 		if actual, ok := bound.Cleaned().String("password"); !ok || actual != password {
 			t.Fatal("password was stripped")
 		}
-		for _, value := range []any{data, bound, bound.Cleaned(), bound.Cleaned().All()[0], forms.String(password)} {
+		for _, value := range []any{data, bound, bound.Submitted(), bound.Cleaned(), bound.Cleaned().All()[0], forms.String(password)} {
 			for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q", "%p", "%w"} {
 				if text := fmt.Sprintf(format, value); strings.Contains(text, password) {
 					t.Fatal("private form value exposed by formatting")

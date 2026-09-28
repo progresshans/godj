@@ -222,7 +222,7 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			form, err := requestModel.form.Bind(modelData(model, values), nil)
+			form, err := requestModel.bind(modelData(model, values), nil)
 			if err != nil {
 				return operationResponse(err)
 			}
@@ -374,7 +374,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			form, err := requestModel.form.Bind(modelData(model, values), record.initial)
+			form, err := requestModel.bind(modelData(model, values), record.candidateInitial)
 			if err != nil {
 				return operationResponse(err)
 			}

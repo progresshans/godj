@@ -84,6 +84,9 @@ func renderModelLiteralBody(output *bytes.Buffer, model ir.Model, indent string)
 		for _, field := range model.ManyToMany {
 			fmt.Fprintf(output, "%s\t{Name:%q, GoName:%q, Target:ir.ModelIdentity{AppLabel:%q, ModelName:%q}, Reverse:ir.ReverseRelation{Name:%q, Disabled:%t}, Symmetry:ir.ManyToManySymmetry(%q),",
 				indent, field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, field.Reverse.Name, field.Reverse.Disabled, field.Symmetry)
+			if field.Blank {
+				fmt.Fprint(output, "Blank:true,")
+			}
 			if through := field.Through; through != nil {
 				fmt.Fprintf(output, "Through:&ir.ThroughModel{Model:ir.ModelIdentity{AppLabel:%q, ModelName:%q}, SourceField:%q, TargetField:%q},", through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField)
 			}
@@ -100,6 +103,9 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 	fmt.Fprintf(output, "%sKind: %s,\n", indent, irKind(field.Kind))
 	if field.PrimaryKey {
 		fmt.Fprintf(output, "%sPrimaryKey: true,\n", indent)
+	}
+	if field.Blank {
+		fmt.Fprintf(output, "%sBlank: true,\n", indent)
 	}
 	if field.Nullable {
 		fmt.Fprintf(output, "%sNullable: true,\n", indent)

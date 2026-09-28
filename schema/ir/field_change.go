@@ -10,6 +10,7 @@ const (
 	ChangeUnique
 	ChangeRelation
 	ChangeStringSemantics
+	ChangeBlank
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
@@ -43,6 +44,11 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 		}
 	}
 	previous, next := before, after
+	previous.Blank, next.Blank = false, false
+	if previous.Equal(next) {
+		return ChangeBlank, nil
+	}
+	previous, next = before, after
 	previous.Choices, next.Choices = nil, nil
 	if previous.Equal(next) {
 		return ChangeChoices, nil
@@ -74,5 +80,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy Decimal precision or Char/Email input semantics changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy Decimal precision, blank policy or Char/Email input semantics changes")
 }

@@ -17,7 +17,7 @@ func articleModel() ir.Model {
 			{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
 			{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
 			{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
-			{Name: "summary", GoName: "Summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 500},
+			{Name: "summary", GoName: "Summary", Kind: ir.FieldChar, Nullable: true, Blank: true, MaxLength: 500},
 		},
 	}
 }
@@ -103,7 +103,7 @@ func TestOverridesCannotChangeStorageAuthority(t *testing.T) {
 func TestIntegerProjectionPreservesNullabilityAndExactInitialDefault(t *testing.T) {
 	model := ir.Model{Name: "counter", GoName: "Counter", Fields: []ir.Field{
 		{Name: "count", GoName: "Count", Kind: ir.FieldInteger, Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: math.MinInt64}},
-		{Name: "priority", GoName: "Priority", Kind: ir.FieldInteger, Nullable: true},
+		{Name: "priority", GoName: "Priority", Kind: ir.FieldInteger, Nullable: true, Blank: true},
 	}}
 	spec, err := formmodel.NewSpec(model)
 	if err != nil {
@@ -131,7 +131,8 @@ func TestIntegerProjectionPreservesNullabilityAndExactInitialDefault(t *testing.
 	if value, ok := bound.Cleaned().Integer("count"); !ok || value != 0 {
 		t.Fatal("zero was replaced by the default")
 	}
-	if _, err := formmodel.NewSpec(model, formmodel.OverrideField("count", formmodel.WithRequired(false))); err == nil {
-		t.Fatal("optional nonnullable integer has no representation for empty input")
+	optional, err := formmodel.NewSpec(model, formmodel.OverrideField("count", formmodel.WithRequired(false)))
+	if err != nil || optional.Fields()[0].Required() || !optional.Fields()[0].Nullable() || model.Fields[0].Nullable {
+		t.Fatal("optional integer input changed storage nullability", err)
 	}
 }

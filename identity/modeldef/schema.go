@@ -25,7 +25,7 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("name", "Name", 150, schema.Unique()),
 			schema.IntegerField("revision", "Revision", schema.Default(int64(1))),
 		}, ManyToMany: []schema.ManyToManyField{
-			schema.ManyToMany("permissions", "Permissions", schema.Target(AppLabel, "permission"), schema.RelatedName("groups")),
+			schema.ManyToMany("permissions", "Permissions", schema.Target(AppLabel, "permission"), schema.RelatedName("groups"), schema.ManyToManyBlank()),
 		}},
 		{Name: "user", GoName: "User", Fields: []schema.Field{
 			// Principal IDs remain opaque authentication/audit identities. They
@@ -33,18 +33,18 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("principal_id", "PrincipalID", 128, schema.Unique()),
 			schema.CharField("username", "Username", 256, schema.Unique()),
 			schema.CharField("encoded_password", "EncodedPassword", 2048),
-			schema.CharField("first_name", "FirstName", 150, schema.Default("")),
-			schema.CharField("last_name", "LastName", 150, schema.Default("")),
-			schema.EmailField("email", "Email", schema.Default("")),
+			schema.CharField("first_name", "FirstName", 150, schema.Default(""), schema.Blank()),
+			schema.CharField("last_name", "LastName", 150, schema.Default(""), schema.Blank()),
+			schema.EmailField("email", "Email", schema.Default(""), schema.Blank()),
 			schema.BooleanField("active", "Active", schema.Default(true)),
 			schema.BooleanField("staff", "Staff", schema.Default(false)),
 			schema.BooleanField("superuser", "Superuser", schema.Default(false)),
 			schema.DateTimeField("date_joined", "DateJoined"),
-			schema.DateTimeField("last_login", "LastLogin", schema.Nullable()),
+			schema.DateTimeField("last_login", "LastLogin", schema.Nullable(), schema.Blank()),
 			schema.IntegerField("revision", "Revision", schema.Default(int64(1))),
 		}, ManyToMany: []schema.ManyToManyField{
-			schema.ManyToMany("groups", "Groups", schema.Target(AppLabel, "group"), schema.RelatedName("users")),
-			schema.ManyToMany("permissions", "Permissions", schema.Target(AppLabel, "permission"), schema.RelatedName("users")),
+			schema.ManyToMany("groups", "Groups", schema.Target(AppLabel, "group"), schema.RelatedName("users"), schema.ManyToManyBlank()),
+			schema.ManyToMany("permissions", "Permissions", schema.Target(AppLabel, "permission"), schema.RelatedName("users"), schema.ManyToManyBlank()),
 		}},
 	}})
 }

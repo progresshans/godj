@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v2"
-const GoDjSchemaSHA256 = "e9c1d9c7cbb5bf6e6a84963653497a4f608c3cac105a74aee21362ca36bd6eb4"
+const GoDjSchemaSHA256 = "95508c81a67d9824440e2c97ea51ad1350421e4ba1a52030364ed33738be9e4f"
 
 type Category struct {
 	ID                    int64
@@ -1379,6 +1379,7 @@ func ticketMetadata() ir.Model {
 				GoName:    "Details",
 				Column:    "details",
 				Kind:      ir.FieldChar,
+				Blank:     true,
 				Nullable:  true,
 				MaxLength: 400,
 			},
@@ -1406,6 +1407,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "Priority",
 				Column:   "priority",
 				Kind:     ir.FieldInteger,
+				Blank:    true,
 				Nullable: true,
 				Choices: []ir.Choice{
 					{Value: ir.Scalar{Kind: ir.ScalarInteger, Integer: 1}, Label: "Urgent"},
@@ -1418,6 +1420,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "Resolution",
 				Column:   "resolution",
 				Kind:     ir.FieldText,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1425,6 +1428,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "DueAt",
 				Column:   "due_at",
 				Kind:     ir.FieldDateTime,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1432,6 +1436,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "Reviewed",
 				Column:   "reviewed",
 				Kind:     ir.FieldBoolean,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1439,6 +1444,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "ServiceOn",
 				Column:   "service_on",
 				Kind:     ir.FieldDate,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1446,6 +1452,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "ServiceAt",
 				Column:   "service_at",
 				Kind:     ir.FieldTime,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1453,6 +1460,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "Elapsed",
 				Column:   "elapsed",
 				Kind:     ir.FieldDuration,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1460,6 +1468,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "Effort",
 				Column:   "effort",
 				Kind:     ir.FieldFloat,
+				Blank:    true,
 				Nullable: true,
 			},
 			{
@@ -1467,6 +1476,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "ExpectedCost",
 				Column:   "expected_cost",
 				Kind:     ir.FieldDecimal,
+				Blank:    true,
 				Nullable: true,
 				Decimal:  &ir.DecimalSpec{MaxDigits: 14, DecimalPlaces: 2},
 			},
@@ -1475,6 +1485,7 @@ func ticketMetadata() ir.Model {
 				GoName:   "ExternalReference",
 				Column:   "external_reference",
 				Kind:     ir.FieldUUID,
+				Blank:    true,
 				Nullable: true,
 				Unique:   true,
 			},
@@ -1483,11 +1494,12 @@ func ticketMetadata() ir.Model {
 				GoName:   "ExternalPayload",
 				Column:   "external_payload",
 				Kind:     ir.FieldJSON,
+				Blank:    true,
 				Nullable: true,
 			},
 		},
 		ManyToMany: []ir.ManyToManyField{
-			{Name: "labels", GoName: "Labels", Target: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}, Reverse: ir.ReverseRelation{Name: "tickets", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"}, SourceField: "ticket", TargetField: "label"}},
+			{Name: "labels", GoName: "Labels", Target: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}, Reverse: ir.ReverseRelation{Name: "tickets", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Blank: true, Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"}, SourceField: "ticket", TargetField: "label"}},
 		},
 	}
 }
@@ -2171,6 +2183,6 @@ func ticketLabelMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_5f42928abb0fb813592b966c9b1b9789e769333be7a003a856368dc1a5aa06db struct{}
+type GoDjAppPart0_504ec82c627e23f15539a320f4524c87258f84a65edbc5f9d8499c0ba501adf8 struct{}
 
-type GoDjProjectSnapshot_0f39f9c51b9ce699c1ac93d1c4f2e4b86a3d8e78c945ebe4e59733472a4ad39d struct{}
+type GoDjProjectSnapshot_8358fff902044d01249d75107acffdd2dc8f4bc5929bec9c32ffd10313b926a7 struct{}

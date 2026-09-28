@@ -397,6 +397,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresRemoveForeignKey, capabilities.RemoveForeignKey, "RemoveForeignKey"},
 		{loadedRequiresAlterFieldChoices, capabilities.AlterFieldChoices, "AlterFieldChoices"},
 		{loadedRequiresAlterFieldStringSemantics, capabilities.AlterFieldStringSemantics, "AlterFieldStringSemantics"},
+		{loadedRequiresAlterFieldBlank, capabilities.AlterFieldBlank, "AlterFieldBlank"},
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
@@ -652,7 +653,7 @@ func definitionsContainRelation(definitions []Migration) bool {
 func migrationContainsRelation(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch value := operationValue(operation).(type) {
-		case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+		case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 			return true
 		case CreateModel:
 			if modelContainsRelation(value.Model) {

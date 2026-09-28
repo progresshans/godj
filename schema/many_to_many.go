@@ -25,6 +25,11 @@ func Through(model ModelTarget, sourceField, targetField string) ManyToManyOptio
 	}
 }
 
+// ManyToManyBlank permits an empty input collection without changing link storage.
+func ManyToManyBlank() ManyToManyOption {
+	return func(field *ir.ManyToManyField) { field.Blank = true }
+}
+
 func Directed() ManyToManyOption {
 	return func(field *ir.ManyToManyField) { field.Symmetry = ir.ManyToManyDirected }
 }

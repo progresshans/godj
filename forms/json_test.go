@@ -109,7 +109,7 @@ func TestJSONModelFormsAgainstPinnedDjango(t *testing.T) {
 
 func TestJSONFormDefaultsOwnershipAndNullInitial(t *testing.T) {
 	value := jsonDocument(t, `{"": [340282366920938463463374607431768211455,null]}`)
-	built, err := schema.Build(schema.Definition{AppLabel: "refs", Models: []schema.Model{{Name: "record", GoName: "Record", Fields: []schema.Field{schema.JSONField("payload", "Payload", schema.Nullable(), schema.Default(value))}}}})
+	built, err := schema.Build(schema.Definition{AppLabel: "refs", Models: []schema.Model{{Name: "record", GoName: "Record", Fields: []schema.Field{schema.JSONField("payload", "Payload", schema.Nullable(), schema.Blank(), schema.Default(value))}}}})
 	if err != nil {
 		t.Fatal(err)
 	}

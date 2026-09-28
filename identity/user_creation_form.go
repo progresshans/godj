@@ -134,10 +134,11 @@ func (form *UserCreationForm) Bind(ctx context.Context, actor auth.Principal, da
 	if form == nil || form.manager == nil {
 		return forms.Form{}, managementError(CodeInvalidConfig, "user_creation_form", nil)
 	}
-	bound, err := form.spec.Bind(data, nil)
+	modelBound, err := form.definition.Bind(models.UserDescriptor{}.Metadata(), data, nil)
 	if err != nil {
 		return forms.Form{}, err
 	}
+	bound := modelBound.Form()
 	if err := form.Check(ctx, actor, bound); err != nil {
 		if failures, rejected := validation.Rejected(err); rejected {
 			return bound.WithErrors(failures)
@@ -178,10 +179,11 @@ func (form *UserCreationForm) Prepare(ctx context.Context, actor auth.Principal,
 			return PreparedUserCreation{}, managementError(CodeInvalidInput, "user_creation_form", nil)
 		}
 	}
-	bound, err := form.spec.Bind(forms.NewData(data), nil)
+	modelBound, err := form.definition.Bind(models.UserDescriptor{}.Metadata(), forms.NewData(data), nil)
 	if err != nil {
 		return PreparedUserCreation{}, err
 	}
+	bound := modelBound.Form()
 	if !bound.Valid() {
 		return PreparedUserCreation{}, validation.Reject(bound.Errors(), nil)
 	}

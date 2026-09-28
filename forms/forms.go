@@ -5,6 +5,7 @@ package forms
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -593,6 +594,17 @@ type Values struct {
 	values map[string]Value
 }
 
+// NewValues snapshots explicitly supplied typed values in lexical name order.
+// A value collection is not a validation or persistence authorization token.
+func NewValues(values map[string]Value) Values {
+	order := make([]string, 0, len(values))
+	for name := range values {
+		order = append(order, name)
+	}
+	slices.Sort(order)
+	return Values{order: order, values: cloneValueMap(values)}
+}
+
 func (v Values) Get(name string) (Value, bool) {
 	value, ok := v.values[name]
 	return value, ok
@@ -701,12 +713,13 @@ func (s Spec) Fields() []Field {
 
 // Form is an immutable result of evaluating a Spec.
 type Form struct {
-	bound   bool
-	valid   bool
-	errors  validation.Errors
-	cleaned Values
-	initial Values
-	changed []string
+	submitted Data
+	bound     bool
+	valid     bool
+	errors    validation.Errors
+	cleaned   Values
+	initial   Values
+	changed   []string
 }
 
 func (f Form) Bound() bool               { return f.bound }
@@ -715,6 +728,11 @@ func (f Form) Errors() validation.Errors { return f.errors }
 func (f Form) Cleaned() Values           { return f.cleaned }
 func (f Form) Initial() Values           { return f.initial }
 func (f Form) Changed() []string         { return append([]string(nil), f.changed...) }
+
+// Submitted preserves the original immutable submission, including omission
+// and repeated values. Reading a secret requires explicitly selecting it;
+// normal formatting and password widgets continue to redact it.
+func (f Form) Submitted() Data { return f.submitted }
 
 // Unbound constructs a form without running validators. Initial values are
 // checked against the Spec and copied before publication.
@@ -769,20 +787,25 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		}
 	}
 	cleaned := Values{order: cleanedOrder, values: cleanedMap}
+	errors := validation.Join(failures...)
+	bound := Form{
+		submitted: data,
+		bound:     true,
+		valid:     errors.Empty(),
+		errors:    errors,
+		cleaned:   cleaned,
+		initial:   resolvedInitial,
+		changed:   changed,
+	}
 	for _, validator := range s.cross {
-		if failure := validator.ValidateForm(cleaned); !failure.Empty() {
-			failures = append(failures, failure)
+		if failure := validator.ValidateForm(bound.cleaned); !failure.Empty() {
+			bound, err = bound.WithErrors(failure)
+			if err != nil {
+				return Form{}, err
+			}
 		}
 	}
-	errors := validation.Join(failures...)
-	return Form{
-		bound:   true,
-		valid:   errors.Empty(),
-		errors:  errors,
-		cleaned: cleaned,
-		initial: resolvedInitial,
-		changed: changed,
-	}, nil
+	return bound, nil
 }
 
 func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {

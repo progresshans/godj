@@ -87,7 +87,7 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 			if err := model.validateMutation(mutation); err != nil {
 				return CommandResult{}, err
 			}
-			data, err := canonicalFormData(submitted, fields)
+			data, err := validatedSubmission(submitted, fields)
 			if err != nil {
 				return CommandResult{}, err
 			}

@@ -214,7 +214,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -336,6 +336,7 @@ const (
 	loadedRequiresRemoveForeignKey
 	loadedRequiresAlterFieldChoices
 	loadedRequiresAlterFieldStringSemantics
+	loadedRequiresAlterFieldBlank
 	loadedRequiresAlterFieldDecimalPrecision
 	loadedRequiresUniqueConstraints
 	loadedRequiresAlterFieldRelation
@@ -641,7 +642,7 @@ func collectLoadedStateGraph(
 						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, field: field.Clone()})
 					}
 				}
-			case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+			case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 				app, name := operationSourceModel(operation)
 				var field ir.ManyToManyField
 				switch op := operation.(type) {
@@ -650,6 +651,8 @@ func collectLoadedStateGraph(
 				case RemoveManyToMany:
 					field = op.Field
 				case RenameManyToMany:
+					field = op.Before
+				case AlterManyToMany:
 					field = op.Before
 				}
 				targets := []ir.ModelIdentity{field.Target}
@@ -921,7 +924,7 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	hadMany := builder.manyCount != 0
 	var err error
 	switch value := operation.(type) {
-	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+	case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		err = builder.changeMany(operation, direction == DirectionBackward)
 	case CreateModel:
 		if direction == DirectionForward {
@@ -1610,9 +1613,13 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				requirements |= loadedRequiresAlterFieldDecimalPrecision
 			} else if change == ir.ChangeStringSemantics {
 				requirements |= loadedRequiresAlterFieldStringSemantics
+			} else if change == ir.ChangeBlank {
+				requirements |= loadedRequiresAlterFieldBlank
 			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}
+		} else if _, ok := operation.(AlterManyToMany); ok {
+			requirements |= loadedRequiresAlterFieldBlank
 		} else {
 			requirements |= loadedRequirementsForSourceFields(kind, changedRelationFields)
 		}
@@ -1972,7 +1979,7 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 
 func loadedBackendOperationKind(operation Operation, direction Direction) (loadedRelationOperationKind, error) {
 	switch operation.(type) {
-	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+	case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		return loadedRelationAlterManyToMany, nil
 	case CreateModel:
 		if direction == DirectionForward {
@@ -2083,6 +2090,8 @@ func operationSourceModel(operation Operation) (string, string) {
 	case RemoveManyToMany:
 		return value.AppLabel, value.ModelName
 	case RenameManyToMany:
+		return value.AppLabel, value.ModelName
+	case AlterManyToMany:
 		return value.AppLabel, value.ModelName
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
@@ -2259,7 +2268,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 	default:
 		return
 	}
@@ -2273,6 +2282,8 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	case RemoveManyToMany:
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, value.BeforeField, value.Field)
 	case RenameManyToMany:
+		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
+	case AlterManyToMany:
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
 	case CreateModel:
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
@@ -2307,6 +2318,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "remove_many_to_many"
 	case RenameManyToMany, *RenameManyToMany:
 		return "rename_many_to_many"
+	case AlterManyToMany, *AlterManyToMany:
+		return "alter_many_to_many"
 	case CreateModel, *CreateModel:
 		return "create_model"
 	case AddField, *AddField:

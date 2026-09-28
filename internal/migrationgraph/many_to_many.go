@@ -23,7 +23,7 @@ func References(app string, model ir.Model) []ir.ModelIdentity {
 	return result
 }
 
-// ChangedManyToMany admits one addition, removal or name-only change. All
+// ChangedManyToMany admits one addition, removal, name-only or blank-only change. All
 // concrete storage and retained declarations must stay identical and ordered.
 // A zero Before/After declaration denotes addition/removal respectively.
 func (op MigrationOperation) ChangedManyToMany() (ir.ManyToManyField, ir.ManyToManyField, error) {
@@ -43,7 +43,7 @@ func (op MigrationOperation) ChangedManyToMany() (ir.ManyToManyField, ir.ManyToM
 			if left[index].Equal(right[index]) {
 				continue
 			}
-			if changed >= 0 || !ir.ManyToManyRename(left[index], right[index]) {
+			if changed >= 0 || (!ir.ManyToManyRename(left[index], right[index]) && !ir.ManyToManyBlankChange(left[index], right[index])) {
 				return fail()
 			}
 			changed = index

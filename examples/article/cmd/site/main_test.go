@@ -744,6 +744,7 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 		{App: "godj_identity", Name: "0001_initial"}:             true,
 		{App: "godj_identity", Name: "0002_permission_revision"}: true,
 		{App: "godj_identity", Name: "0003_alter_user_email"}:    true,
+		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}:   true,
 	}
 	if err != nil || len(history) != len(want) {
 		t.Fatalf("Article identity migration history = (%+v,%v), want exact current identity/system keys", history, err)

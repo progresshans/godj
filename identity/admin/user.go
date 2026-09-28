@@ -71,12 +71,8 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			}
 			return value.LastLogin.UTC().Format(time.RFC3339Nano), nil
 		}}},
-		FormOverrides: []formmodel.Override{username,
-			formmodel.OverrideField("first_name", formmodel.WithRequired(false)), formmodel.OverrideField("last_name", formmodel.WithRequired(false)),
-			formmodel.OverrideField("email", formmodel.WithRequired(false)),
-			formmodel.OverrideField("groups", formmodel.WithRequired(false)), formmodel.OverrideField("permissions", formmodel.WithRequired(false)),
-		},
-		CreateForm: &admin.FormConfig{Definition: creationForm.Definition()},
+		FormOverrides: []formmodel.Override{username},
+		CreateForm:    &admin.FormConfig{Definition: creationForm.Definition()},
 		ValidateCreate: func(ctx context.Context, actor auth.Principal, form forms.Form) error {
 			return operationError(creationForm.Check(ctx, actor, form))
 		},

@@ -54,7 +54,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
 		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
-			response.Result.Execute.SourceCount != 6 || response.Result.Execute.DefinitionCount != 6 {
+			response.Result.Execute.SourceCount != 8 || response.Result.Execute.DefinitionCount != 8 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
@@ -97,13 +97,15 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	if !reflect.DeepEqual(historyAfterPlan, historyBeforePlan) {
 		t.Fatalf("project migration plan changed history: before=%+v after=%+v", historyBeforePlan, historyAfterPlan)
 	}
-	if len(historyAfterPlan) != 6 ||
+	if len(historyAfterPlan) != 8 ||
 		historyAfterPlan[0].App != "godj_conformance" || historyAfterPlan[0].Name != "0001_initial" ||
-		historyAfterPlan[1].App != "godj_identity" || historyAfterPlan[1].Name != "0001_initial" ||
-		historyAfterPlan[2].App != "godj_identity" || historyAfterPlan[2].Name != "0002_permission_revision" ||
-		historyAfterPlan[3].App != "godj_identity" || historyAfterPlan[3].Name != "0003_alter_user_email" ||
-		historyAfterPlan[4].App != "godj_system" || historyAfterPlan[4].Name != "0001_initial" ||
-		historyAfterPlan[5].App != "godj_system" || historyAfterPlan[5].Name != "0002_identity_transition" {
+		historyAfterPlan[1].App != "godj_conformance" || historyAfterPlan[1].Name != "0002_alter_article_summary" ||
+		historyAfterPlan[2].App != "godj_identity" || historyAfterPlan[2].Name != "0001_initial" ||
+		historyAfterPlan[3].App != "godj_identity" || historyAfterPlan[3].Name != "0002_permission_revision" ||
+		historyAfterPlan[4].App != "godj_identity" || historyAfterPlan[4].Name != "0003_alter_user_email" ||
+		historyAfterPlan[5].App != "godj_identity" || historyAfterPlan[5].Name != "0004_auto_1da4dbd173ec" ||
+		historyAfterPlan[6].App != "godj_system" || historyAfterPlan[6].Name != "0001_initial" ||
+		historyAfterPlan[7].App != "godj_system" || historyAfterPlan[7].Name != "0002_identity_transition" {
 		t.Fatalf("second invocation history=%+v", historyAfterPlan)
 	}
 }

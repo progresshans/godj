@@ -95,7 +95,7 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			}
 		}
 		switch value := operationValue(operation).(type) {
-		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			if err := scanner.scanManyOperation(path, manyOperationDocument(value)); err != nil {
 				return err
 			}
@@ -274,6 +274,11 @@ func (scanner *encodingSizeScanner) scanModel(path string, model ir.Model) error
 func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error {
 	if err := scanner.addStructural(path, fieldStructuralLowerBound); err != nil {
 		return err
+	}
+	if field.Blank {
+		if err := scanner.addStructural(path+".blank", uint64(len(`,"blank":true`))); err != nil {
+			return err
+		}
 	}
 	if field.Unique {
 		if err := scanner.addStructural(path+".unique", uint64(len(`,"unique":true`))); err != nil {

@@ -79,6 +79,10 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 2. Desired state는 `LoadProjectSpec`의 normalized app schemas로 구성합니다. Historical state는 exactly-once loaded
    `LoadedDefinitionSet`을 `LatestStateRequest()`로 재구성합니다. Pure detector는 desired app과 filesystem-source가 소유했던
    app의 합집합만 managed app으로 비교하고 programmatic-only app은 현재 historical state 그대로 보존합니다.
+   `External`로 선언한 app은 generated package와 migration의 소유자가 외부에 있으므로 이 합집합에서 제외합니다.
+   프로젝트 선언의 정규화·복사·private protocol은 External을 보존하고, 해당 선언은 공급된 programmatic history의
+   현재 상태와 정확히 같아야 합니다. 누락·불일치 또는 host filesystem의 소유권 주장은 candidate를 공개하기 전에
+   거부합니다. Host가 소유한 FK는 외부 app의 이력을 의존하되 외부 app의 migration을 생성하지 않습니다.
 3. 현재 delta domain은 다음과 같습니다.
    - history가 없는 managed app/model의 `CreateModel`
    - existing model의 지원되는 nullable/no-default scalar와 ForeignKey `AddField`

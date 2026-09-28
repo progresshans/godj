@@ -15,6 +15,7 @@ func parseManyToMany(decoder *json.Decoder, budget *specBudget) error {
 	}
 	return wirejson.Object(decoder, []string{"name", "go_name", "target", "reverse", "symmetry"}, map[string]func() error{
 		"name": stringValue, "go_name": stringValue, "symmetry": stringValue, "target": identity,
+		"blank": func() error { return wirejson.Bool(decoder) },
 		"reverse": func() error {
 			return wirejson.Object(decoder, nil, map[string]func() error{"name": stringValue, "disabled": func() error { return wirejson.Bool(decoder) }})
 		},
@@ -54,6 +55,9 @@ func measureManyToMany(sizer *wirejson.Sizer, field ir.ManyToManyField) bool {
 			!sizer.Literal(`,"target_field":`) || !sizer.String(through.TargetField) || !sizer.Literal(`}`) {
 			return false
 		}
+	}
+	if field.Blank && !sizer.Literal(`,"blank":true`) {
+		return false
 	}
 	return sizer.Literal(`}`)
 }

@@ -18,12 +18,15 @@ var permissionRevisionDefinition []byte
 //go:embed migrations/godj_identity_0003_alter_user_email.godj.json
 var userEmailDefinition []byte
 
+//go:embed migrations/godj_identity_0004_auto_1da4dbd173ec.godj.json
+var blankPolicyDefinition []byte
+
 func InitialMigrationKey() migrations.MigrationKey {
 	return migrations.MigrationKey{App: "godj_identity", Name: "0001_initial"}
 }
 
 func CurrentMigrationKey() migrations.MigrationKey {
-	return migrations.MigrationKey{App: "godj_identity", Name: "0003_alter_user_email"}
+	return migrations.MigrationKey{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}
 }
 
 // MigrationSources returns detached historical definitions. Reading them never
@@ -33,5 +36,6 @@ func MigrationSources() []definition.Source {
 		{SourceID: "identity/0001_initial", Document: append([]byte(nil), initialDefinition...)},
 		{SourceID: "identity/0002_permission_revision", Document: append([]byte(nil), permissionRevisionDefinition...)},
 		{SourceID: "identity/0003_alter_user_email", Document: append([]byte(nil), userEmailDefinition...)},
+		{SourceID: "identity/0004_auto_1da4dbd173ec", Document: append([]byte(nil), blankPolicyDefinition...)},
 	}
 }

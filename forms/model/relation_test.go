@@ -54,6 +54,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 				nullable := model
 				nullable.Fields = []ir.Field{original.Clone()}
 				nullable.Fields[0].Nullable = true
+				nullable.Fields[0].Blank = true
 				optional, err := formmodel.NewSpecForFields(nullable, []string{fieldName})
 				if err != nil {
 					t.Fatal(err)

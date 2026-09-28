@@ -512,6 +512,8 @@ func operationSlug(operations []migrations.Operation) string {
 			return "remove_" + operation.ModelName + "_" + operation.Field.Name
 		case migrations.RenameManyToMany:
 			return "rename_" + operation.ModelName + "_" + operation.After.Name
+		case migrations.AlterManyToMany:
+			return "rename_" + operation.ModelName + "_" + operation.After.Name
 		case migrations.AddConstraint:
 			return "add_" + operation.ModelName + "_" + operation.Constraint.Name
 		case migrations.RemoveConstraint:
@@ -553,6 +555,9 @@ func operationSlug(operations []migrations.Operation) string {
 		case migrations.RenameManyToMany:
 			before, after := value.Before.Clone(), value.After.Clone()
 			values = append(values, change{Kind: "rename_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &after, ManyBefore: &before})
+		case migrations.AlterManyToMany:
+			before, after := value.Before.Clone(), value.After.Clone()
+			values = append(values, change{Kind: "alter_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &after, ManyBefore: &before})
 		case migrations.CreateModel:
 			model := value.Model.Clone()
 			values = append(values, change{Kind: "create_model", App: value.AppLabel, Model: value.Model.Name, Value: &model})
@@ -635,7 +640,17 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 			copy := value
 			copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
 			result[index] = copy
+		case migrations.AlterManyToMany:
+			copy := value
+			copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
+			result[index] = copy
 		case *migrations.RenameManyToMany:
+			if value != nil {
+				copy := *value
+				copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
+				result[index] = &copy
+			}
+		case *migrations.AlterManyToMany:
 			if value != nil {
 				copy := *value
 				copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()

@@ -136,6 +136,7 @@ func parseField(decoder *json.Decoder, budget *specBudget) error {
 		"kind":        func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"primary_key": func() error { return wirejson.Bool(decoder) },
 		"nullable":    func() error { return wirejson.Bool(decoder) },
+		"blank":       func() error { return wirejson.Bool(decoder) },
 		"unique":      func() error { return wirejson.Bool(decoder) },
 		"max_length":  func() error { _, err := wirejson.IntToken(decoder); return err },
 		"decimal": func() error {

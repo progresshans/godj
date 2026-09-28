@@ -224,7 +224,7 @@ func TestRegisteredGetRejectsPartialOrSnapshotDivergentInitial(t *testing.T) {
 					"summary": forms.Null(),
 				}, nil
 			},
-			code: "field_count_mismatch",
+			code: "missing_value",
 		},
 		{
 			name: "snapshot divergent",
@@ -423,8 +423,8 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 		t.Fatalf("alternate Bind() = %#v, %v", foreign, err)
 	}
 	_, err = registry.models[0].create(context.Background(), mustPrincipal(t), foreign)
-	if got := errorCode(err); got != "spec_validation_failed" {
-		t.Fatalf("create foreign form error = %v, code %q", err, got)
+	if rejected, ok := validation.Rejected(err); !ok || rejected.ByField("title").Len() != 1 {
+		t.Fatalf("create foreign form must retain the current input rejection: %v", err)
 	}
 	if called != 0 {
 		t.Fatalf("create callback count = %d", called)
@@ -632,7 +632,7 @@ func mustModel(t *testing.T) ir.Model {
 			Fields: []ir.Field{
 				{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 200},
 				{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
-				{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200},
+				{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, Nullable: true, Blank: true, MaxLength: 200},
 			},
 		}},
 	})

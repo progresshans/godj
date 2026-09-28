@@ -75,7 +75,7 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
    아니며 renderer가 code를 표시 문구로 변환합니다.
 6. `forms`는 immutable Spec과 Data를 bind해 Bound/Valid/Errors/Cleaned/Initial/Changed를 제공합니다. Unbound form은 validation
    error를 만들지 않고 bound-empty는 required rule을 실행합니다. Field와 cross-field validator는 DB I/O를 소유하지 않습니다.
-7. `forms/model`은 normalized `ir.Model`의 declaration order, Char/Boolean/nullability/default/max length를 structural field spec으로
+7. `forms/model`은 normalized `ir.Model`의 declaration order, kind/Blank/nullability/default/max length를 structural field spec으로
    투영합니다. Auto primary key는 editable field가 아니고 unsupported kind/override는 startup error입니다.
    Nullable Boolean은 `NullBooleanSelect`로 투영하며 unknown/true/false를 null/참/거짓으로 구분합니다. 고정 Django 6.1의
    widget 입력처럼 `true`·`True`·`2`는 참, `false`·`False`·`3`은 거짓이고 생략·나머지 입력은 null입니다. Trim/lower를
@@ -83,6 +83,8 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
    선택에 적용하지 않습니다. 반드시 결정하게 하려면 null을 거부하는 pure validator를 명시합니다. Default는 초기값이며
    bound 입력 생략을 덮어쓰지 않습니다. Admin의 초기값·snapshot·재검증에서도 null을 false로 바꾸지 않습니다.
    독립 관찰과 실제 소비자 범위는 [GDJ-0086](../../work/0086-nullable-boolean-models.md)을 따릅니다.
+   Blank와 모델 candidate 후처리는 [ADR-0080](0080-model-blank-policy-and-form-post-clean.md)이 보완합니다. Standalone
+   Spec의 cleaned data와 모델 default 후보를 구분하며 Form field 오류는 후속 cross-validator의 cleaned data에서도 제외합니다.
 8. Persistence는 Form core가 소유하지 않습니다. Article adapter가 typed cleaned accessor를 generated `NewArticleCreate`와
    `ArticlePatch`에 명시적으로 연결하고 Manager Create/Update를 호출합니다. Reflection, dynamic field assignment와 generic autosave는
    추가하지 않습니다.

@@ -28,6 +28,10 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 		if value != nil {
 			return *value
 		}
+	case *migrations.AlterManyToMany:
+		if value != nil {
+			return *value
+		}
 	case *migrations.CreateModel:
 		if value != nil {
 			return *value
@@ -61,6 +65,9 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		value.Field = value.Field.Clone()
 		return value
 	case migrations.RenameManyToMany:
+		value.Before, value.After = value.Before.Clone(), value.After.Clone()
+		return value
+	case migrations.AlterManyToMany:
 		value.Before, value.After = value.Before.Clone(), value.After.Clone()
 		return value
 	case migrations.CreateModel:

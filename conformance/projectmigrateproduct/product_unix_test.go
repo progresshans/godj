@@ -271,12 +271,17 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	}
 	sources := append(systemstate.IdentityMigrationSources(),
 		migrationdefinition.Source{SourceID: "migrations/0001_initial.godj.json", Document: document})
+	blankDocument, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", "godj_conformance_0002_alter_article_summary.godj.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources = append(sources, migrationdefinition.Source{SourceID: "migrations/godj_conformance_0002_alter_article_summary.godj.json", Document: blankDocument})
 	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 6 || report.HeadersValidated != 6 || report.OperationsDecoded != 10 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 6 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 8 || report.HeadersValidated != 8 || report.OperationsDecoded != 18 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 8 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -293,9 +298,11 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	})
 	wantHistory := []dbstate.HistoryRow{
 		{App: "godj_conformance", Name: "0001_initial"},
+		{App: "godj_conformance", Name: "0002_alter_article_summary"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
+		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
 		{App: "godj_system", Name: "0001_initial"},
 		{App: "godj_system", Name: "0002_identity_transition"},
 	}

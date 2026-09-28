@@ -1630,3 +1630,4 @@ github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/co
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserCreationForm/foreign_attempts_do_not_consume
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedEmailConsumer
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUserEmailMigration
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedBlankPolicyConsumer

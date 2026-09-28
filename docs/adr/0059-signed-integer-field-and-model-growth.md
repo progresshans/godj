@@ -33,8 +33,11 @@ typed Save mask에 사용할 수 있다. 둘의 비교와 정렬·F reference는
 관찰해 부호·선행 0·정수 사이 underscore·0뿐인 소수부·범위 오류 코드를 비교한다. Unicode decimal digit은 Go의 Unicode
 table을 사용한다. 이 비교는 명시한 입력 roster의 실제 관찰이며 모든 Unicode 버전의 동등성이나 Python 객체 입력을 주장하지 않는다.
 
-정수 0은 값이다. optional empty는 nullable일 때 Null이며 optional nonnullable Form 설정은 시작 시 거부한다.
-required 정수의 기본 초기 화면은 빈 값이고 명시적 default가 있으면 그대로 표시한다. 제출한 빈 값을 default로 대체하지 않는다.
+정수 0은 값이다. [ADR-0080](0080-model-blank-policy-and-form-post-clean.md)에 따라 모델 Blank가 기본 required를
+소유하며 optional Form의 empty는 저장 nullable과 독립적으로 Null로 표현할 수 있다. ModelForm 검증을 통과한
+Null도 nonnullable 저장을 허용하지 않는다. 이전의 optional nonnullable 설정 거부는 이 입력/저장 분리로 대체한다.
+required 정수의 기본 초기 화면은 빈 값이고 명시적 default가 있으면 그대로 표시한다. Form.cleaned data에 default를
+대입하지 않으며 모델 후보의 생략/default/명시적 empty는 별도 후처리에서 구분한다.
 Admin은 int64를 정확히 표시·재검증하며 숫자 입력은 decimal text와 `inputmode="numeric"`을 사용한다.
 
 Integer serializer는 canonical int64 Value만 받는다. 공통 JSON parser는 [ADR-0067](0067-duration-model-range-and-number-input.md)에 따라

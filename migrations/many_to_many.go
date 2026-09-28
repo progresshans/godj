@@ -110,6 +110,25 @@ func changedManyModel(app string, model ir.Model, operation Operation, reverse b
 			return normalizedSingleModel(app, model)
 		}
 		return ir.Model{}, fmt.Errorf("ManyToMany %q does not exist", before.Name)
+	case AlterManyToMany:
+		before, after := op.Before, op.After
+		if reverse {
+			before, after = after, before
+		}
+		if !ir.ManyToManyBlankChange(before, after) {
+			return ir.Model{}, fmt.Errorf("AlterManyToMany must change only blank policy")
+		}
+		for index, existing := range model.ManyToMany {
+			if existing.Name != before.Name {
+				continue
+			}
+			if !existing.Equal(before) {
+				return ir.Model{}, fmt.Errorf("ManyToMany %q differs from its historical definition", before.Name)
+			}
+			model.ManyToMany[index] = after.Clone()
+			return normalizedSingleModel(app, model)
+		}
+		return ir.Model{}, fmt.Errorf("ManyToMany %q does not exist", before.Name)
 	default:
 		return ir.Model{}, fmt.Errorf("unsupported ManyToMany operation %T", operation)
 	}
@@ -188,7 +207,7 @@ func (op RenameManyToMany) databaseBackward(ctx context.Context, editor backend.
 
 func isManyOperation(operation Operation) bool {
 	switch operation.(type) {
-	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+	case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		return true
 	}
 	return false

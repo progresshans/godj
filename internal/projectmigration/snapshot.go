@@ -212,10 +212,21 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, err)
 	}
+	ownedSpec := normalized
+	ownedSpec.Apps = nil
+	for _, app := range normalized.Apps {
+		if !app.External {
+			ownedSpec.Apps = append(ownedSpec.Apps, app)
+		}
+	}
+	ownedDesired, err := desiredState(ownedSpec)
+	if err != nil {
+		return Snapshot{}, snapshotError(CategoryProject, CodeInvalidProjectSpec, err)
+	}
 
 	plan, err := migrationautodetect.Detect(migrationautodetect.Request{
 		Definitions: loaded,
-		Desired:     desired,
+		Desired:     ownedDesired,
 		ManagedApps: managed,
 	})
 	if err != nil {
@@ -239,6 +250,16 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 		return Snapshot{}, snapshotError(CategoryPlanning, CodeInvalidPlan, err)
 	}
 	current := plan.BaseState()
+	for _, app := range normalized.Apps {
+		if !app.External {
+			continue
+		}
+		actual, present := current.Schema(app.Schema.AppLabel)
+		expected, _ := desired.Schema(app.Schema.AppLabel)
+		if !present || !reflect.DeepEqual(actual, expected) {
+			return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, errors.New("imported app declaration differs from its supplied historical state"))
+		}
+	}
 
 	migrationsPlan := plan.Migrations()
 	if len(migrationsPlan) > protocol.MaxCandidates {
@@ -354,11 +375,8 @@ func validateWriterRoot(root string) error {
 func cloneProjectSpec(input codegen.ProjectSpec) codegen.ProjectSpec {
 	cloned := codegen.ProjectSpec{Project: input.Project, Apps: make([]codegen.AppSpec, len(input.Apps))}
 	for index := range input.Apps {
-		cloned.Apps[index] = codegen.AppSpec{
-			Alias:   input.Apps[index].Alias,
-			Package: input.Apps[index].Package,
-			Schema:  input.Apps[index].Schema.Clone(),
-		}
+		cloned.Apps[index] = input.Apps[index]
+		cloned.Apps[index].Schema = input.Apps[index].Schema.Clone()
 	}
 	return cloned
 }
@@ -481,7 +499,12 @@ func managedApps(
 	loaded migrations.LoadedDefinitionSet,
 ) ([]string, error) {
 	managed := make(map[string]struct{}, len(spec.Apps)+len(filesystem))
+	external := make(map[string]bool)
 	for _, app := range spec.Apps {
+		if app.External {
+			external[app.Schema.AppLabel] = true
+			continue
+		}
 		managed[app.Schema.AppLabel] = struct{}{}
 	}
 	filesystemIDs := make(map[string]struct{}, len(filesystem))
@@ -494,6 +517,9 @@ func managedApps(
 			continue
 		}
 		matched[source.SourceID] = struct{}{}
+		if external[source.Migration.App] {
+			return nil, errors.New("filesystem history cannot own an imported app")
+		}
 		managed[source.Migration.App] = struct{}{}
 	}
 	if len(matched) != len(filesystemIDs) {

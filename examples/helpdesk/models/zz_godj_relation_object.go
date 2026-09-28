@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "e9c1d9c7cbb5bf6e6a84963653497a4f608c3cac105a74aee21362ca36bd6eb4"
+const GoDjRelationObjectSchemaSHA256 = "95508c81a67d9824440e2c97ea51ad1350421e4ba1a52030364ed33738be9e4f"
 
 var _ orm.RelationObjectDescriptor[Category] = CategoryDescriptor{}
 
@@ -236,6 +236,6 @@ func (input TicketLabelCreate) BuildManyToManyCreate(source, target ir.Field, so
 	return input.BuildCreate()
 }
 
-type GoDjAppPart2_5f42928abb0fb813592b966c9b1b9789e769333be7a003a856368dc1a5aa06db struct{}
+type GoDjAppPart2_504ec82c627e23f15539a320f4524c87258f84a65edbc5f9d8499c0ba501adf8 struct{}
 
-var _ GoDjProjectSnapshot_0f39f9c51b9ce699c1ac93d1c4f2e4b86a3d8e78c945ebe4e59733472a4ad39d
+var _ GoDjProjectSnapshot_8358fff902044d01249d75107acffdd2dc8f4bc5929bec9c32ffd10313b926a7

@@ -120,8 +120,8 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 	if err != nil {
 		t.Fatalf("load Article and system PostgreSQL initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 6 || report.HeadersValidated != 6 || report.OperationsDecoded != 10 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 6 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 7 || report.HeadersValidated != 7 || report.OperationsDecoded != 17 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 7 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system PostgreSQL initial migration load report = %+v", report)
 	}
 

@@ -41,6 +41,7 @@ type Field struct {
 	Column    string
 	Kind      ir.FieldKind
 	Nullable  bool
+	Blank     bool
 	Unique    bool
 	MaxLength int
 	Decimal   *ir.DecimalSpec
@@ -65,6 +66,11 @@ func Nullable() FieldOption {
 	return func(field *Field) {
 		field.Nullable = true
 	}
+}
+
+// Blank permits empty model input independently of SQL NULL storage.
+func Blank() FieldOption {
+	return func(field *Field) { field.Blank = true }
 }
 
 // Unique requires table-wide uniqueness for non-NULL stored values. A primary
@@ -311,6 +317,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				Kind:       field.Kind,
 				PrimaryKey: field.Kind == ir.FieldAuto,
 				Nullable:   field.Nullable,
+				Blank:      field.Blank,
 				Unique:     field.Unique,
 				MaxLength:  field.MaxLength,
 				Decimal:    field.Decimal,

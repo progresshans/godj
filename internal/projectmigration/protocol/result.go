@@ -143,11 +143,8 @@ func normalizeProjectSpec(input codegen.ProjectSpec) (codegen.ProjectSpec, error
 		if err != nil {
 			return codegen.ProjectSpec{}, fmt.Errorf("normalize app[%d]: %w", index, err)
 		}
-		normalized.Apps[index] = codegen.AppSpec{
-			Alias:   app.Alias,
-			Package: app.Package,
-			Schema:  schema,
-		}
+		app.Schema = schema
+		normalized.Apps[index] = app
 	}
 	sort.Slice(normalized.Apps, func(left, right int) bool {
 		if normalized.Apps[left].Schema.AppLabel != normalized.Apps[right].Schema.AppLabel {

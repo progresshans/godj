@@ -19,7 +19,7 @@ func projectManyToMany(field ir.ManyToManyField, override overrideConfig) (forms
 	if override.hasLabel {
 		label = override.label
 	}
-	options := []forms.FieldOption{forms.WithLabel(label)}
+	options := []forms.FieldOption{forms.WithLabel(label), forms.WithRequired(!field.Blank)}
 	if override.hasRequired {
 		options = append(options, forms.WithRequired(override.required))
 	}

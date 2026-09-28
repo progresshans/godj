@@ -16,24 +16,29 @@ import (
 //go:embed migrations/0001_initial.godj.json
 var articleProjectInitialDefinition []byte
 
+//go:embed migrations/godj_conformance_0002_alter_article_summary.godj.json
+var articleProjectBlankDefinition []byte
+
+func articleCurrentDefinitionSources() []migrationdefinition.Source {
+	return []migrationdefinition.Source{
+		{SourceID: "migrations/0001_initial.godj.json", Document: append([]byte(nil), articleProjectInitialDefinition...)},
+		{SourceID: "migrations/godj_conformance_0002_alter_article_summary.godj.json", Document: append([]byte(nil), articleProjectBlankDefinition...)},
+	}
+}
+
 func TestArticleStableMigrationRootFreshLatestAndReopenNoop(t *testing.T) {
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "migrations/0001_initial.godj.json",
-			Document: append([]byte(nil), articleProjectInitialDefinition...),
-		},
-		systemstate.InitialDefinitionSource(),
-	)
+	loaded, report, err := migrationdefinition.Load(append(articleCurrentDefinitionSources(), systemstate.InitialDefinitionSource())...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 3 || report.HeadersValidated != 3 || report.OperationsDecoded != 5 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 3 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("definition load report = %+v", report)
 	}
-	if sources := loaded.Sources(); len(sources) != 2 ||
+	if sources := loaded.Sources(); len(sources) != 3 ||
 		sources[0].SourceID != "migrations/0001_initial.godj.json" ||
-		sources[1].SourceID != "systemstate/godj_system.0001_initial" {
+		sources[1].SourceID != "migrations/godj_conformance_0002_alter_article_summary.godj.json" ||
+		sources[2].SourceID != "systemstate/godj_system.0001_initial" {
 		t.Fatalf("definition sources = %+v", sources)
 	}
 
@@ -109,8 +114,9 @@ func TestArticleStableMigrationRootFreshLatestAndReopenNoop(t *testing.T) {
 	if closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	if len(records) != 2 || records[0].App != "godj_conformance" || records[0].Name != "0001_initial" ||
-		records[1].App != "godj_system" || records[1].Name != "0001_initial" {
+	if len(records) != 3 || records[0].App != "godj_conformance" || records[0].Name != "0001_initial" ||
+		records[1].App != "godj_conformance" || records[1].Name != "0002_alter_article_summary" ||
+		records[2].App != "godj_system" || records[2].Name != "0001_initial" {
 		t.Fatalf("applied migration history = %+v", records)
 	}
 }

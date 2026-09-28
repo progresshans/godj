@@ -54,6 +54,9 @@ func (operation MigrationOperation) AutomaticStorageChanges(app string) ([]Model
 		if err != nil {
 			return nil, err
 		}
+		if ir.ManyToManyBlankChange(before, after) {
+			return nil, nil
+		}
 		if previous.Name == "" && next.Name == "" {
 			return nil, nil
 		}

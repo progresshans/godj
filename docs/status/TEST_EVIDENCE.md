@@ -3,6 +3,149 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0102 — 모델 Blank와 Form 후처리 구현 중
+
+기반 `d95b969b3297bcad13fd6760706e733684cb8add` 이후 Blank metadata·생성 metadata·historical wire/digest,
+scalar ChangeBlank와 columnless AlterManyToMany를 구현했다. Form required를 Blank에서 투영하고 입력 cleaned data와
+모델 candidate를 분리했다. 원래 제출의 생략/반복값, 기본값/기존 값, checkbox/multiple-select 생략을 보존하며
+모델 field·pure model validator와 단계별 exclusion, scalar unique/constraint의 별도 read-only ORM API를 작성했다.
+User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Admin/Identity의 pure 모델 후처리는 연결했다.
+현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint 연결과 native DB 대조는 **아직 미완료**다.
+기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
+
+### 독립 입력 기준과 Go 대조
+
+고정 Django 6.1 / DRF 3.18.0 / CPython 3.14.3에서 Char/Email/Integer/Boolean의 null·blank·default
+**32 profiles / 160 inputs**를 관찰했다. DB 조회는 0이다. Native source hash와 원문은 GDJ-0101 보완 evidence의
+`next-input-policy`에 있다. 실제 임시 SQLite와 private PostgreSQL 17.10 UTF8/libc/C의 ModelForm **16 cases**는
+오류·cleaned data·단계별 제외와 query 수가 일치했다. 각각 DB 불변과 table 정리, PostgreSQL DB/container 제거를 확인했다.
+최초 PostgreSQL 시도는 psycopg 누락으로 실패했고 별도 `psycopg[binary]==3.3.6` overlay로 재실행했다. Lock은 그대로다.
+이 **DB 16개 사례는 아직 Go 대조 미완료**이며 원문은 같은 보완 evidence의 `next-model-postclean`과
+`next-model-postclean-postgres-with-driver`에 있다.
+
+아래 core source의 별도 Go probe로 160개 입력의 Form required/widget, 유효성·오류 code·cleaned data·model candidate를
+대조했다. **156개 입력의 의미가 일치**했고 기존 nonnullable checkbox의 임의 문자열 입력 거부 **4개 차이**를 분리했다.
+Django는 해당 문자열을 true로 읽지만 GoDj는 invalid로 거부한다. Integer의 기존 TextInput/inputmode와 Django NumberInput도
+**8 profiles의 widget 차이**로 기록한다. 나머지 예상하지 않은 차이는 0이다. 전체 native 동등성으로 합산하지 않는다.
+DRF serializer 정책·초기 렌더링·DB 검사 순서는 이 Go probe의 범위가 아니다.
+첫 비교에서 `blank=True` 숫자 None을 모델 단계에서 거부한 잘못된 해석을 발견했다. Native model.clean_fields는
+blank empty를 먼저 건너뛰므로 이를 수정했다. 읽기 검사의 NULL 생략도 저장의 nullable 검사와 분리했고,
+기존 complete write 검증이 여전히 nonnullable NULL을 거부하는 검사를 추가했다. 최초 차이 원문도 보존한다.
+
+### 기반 checkpoint
+
+Core 비문서 source inventory `9278407916c01486032c4502b0ada4150d3206893f11c9d2e99f9d3c04b64f17`에서
+schema/IR·migration/definition/backend·autodetect/graph·codegen·forms/model·ORM의 **11 packages / 750 required roots**를
+normal로 실행했다. **3,333 PASS / skip 0**, 필수 누락 0, source 전후 동일이다. 초기 실행의 automatic relation owner
+fixture 불일치·두 기존 Form fixture의 nullable/optional 기대를 바로잡았다. JSON optional fixture에는 명시적 Blank를
+추가하고 선택 목록 검사에는 nonempty 입력을 사용했다. 빈 값 의미는 별도 null/blank/override matrix가 소유한다.
+Typed-nil callback·잘못된 initial/spec 입력의 callback 이전 거부, secret formatting/입력 소유권,
+기본값/명시적 empty·후속 validator에서 실패 값 제외·unique/constraint의 부분 candidate·present zero self exclusion,
+read/row/close/cancel 실패의 partial diagnostic 폐기와 자원 정리를 포함한다.
+
+다음 source `33926a5faa220b1fab70ca5b978fa33a6b5fd0e7181c2b1cec1a179a5382ce3f`에서는
+별도로 생성한 실제 Go 모듈의 Blank consumer를 **SQLite·PostgreSQL 17.10 UTF8/libc/C**에서 실행했다.
+필수 parent 1개와 child root/sqlite/postgres 3개를 strict event inventory로 확인했고 skip 0이다.
+Blank scalar·automatic ManyToMany의 metadata 출력·wire·양 renderer DDL 0·forward/reverse·연결 재개 후
+기존 malformed email/빈 문자열/default·관계 link·자동 ID 보존을 확인했다. DB **0|0|0**, DB/container 제거와
+source 불변을 확인했다. 최초 consumer는 First의 필수 명시적 ordering 누락으로 실패했다. 제한된 기본 진단만으로
+원인을 추정하지 않고 별도 진단 overlay의 child 원문에서 런타임 실패를 확인해 수정했다.
+Core source와의 차이는 이 consumer 한 줄과 CI 필수 목록 두 파일뿐이며 core 전체 재실행으로 합산하지 않는다.
+
+이어 자동 계획의 scalar/ManyToMany 양방향 변경·정확한 logical operation·결정성·재구성과 mixed storage/binding 거부
+**7 PASS / skip 0**를 추가했다. 초기 test의 정규화 전 field index 가정 오류를 고친 재실행이다.
+최종 inventory `43907ed2525141978fed72d79b4b5562dd2497e9f8d27c0c55aca2b6dae60443`는 직전 source와
+이 자동 계획 test 파일만 다르다. 영향 `go vet`와 CI 도구 **26 tests**도 통과했다.
+160개 문서의 코드 구문을 제외한 로컬 링크 target 1,245개와 diff 검사를 통과했다. Heading fragment는 검사 범위가 아니다.
+Darwin arm64 / Go 1.26.5 / offline readonly이며 core는 `TZ=Pacific/Chatham`이다.
+실행·roster·JSON 전체 로그·실패/재실행·native Go probe·source inventory/차이·cleanup receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-form-core-6xu_ecd0`에 있다.
+최초 core/Go 대조 실패는 같은 parent의 `godj-blank-form-core-s_w3dh7t`에 보존한다.
+
+선행 기반 compile-only source `bab62e7aa2823df1714de716da0e2341d2b800a48d875b0b489cc3252cc3e412`의
+11 packages와 후속 forms/model/ORM 세 package compile 확인은 동작 PASS 수에 포함하지 않는다.
+원문은 `godj-model-blank-foundation-gitc3a4s`와 세션 출력이다. 아래 제품 전환과 검증은 후속 source의 별도 checkpoint다.
+전체 DB ModelForm 대조와 부정 대조·이후 소스의 Hosted 전체는 별도로 남아 있다.
+
+
+### 제품 선언·원래 제출과 현재 row의 모델 후보
+
+비문서 source inventory `c0af85b28dff1e00bdaa0725020ab4455a6541e13982ea056c96c9705306a74a`에서
+User의 optional scalar·Group/User 컬렉션, Helpdesk의 optional scalar·labels, Article summary에 Blank를 명시했다.
+기존 migration을 수정하지 않고 Identity `0004_auto_1da4dbd173ec` 7개, Helpdesk `0021_auto_72857bab23b6` 13개,
+Article `0002_alter_article_summary` 1개 연산을 추가했다. 모든 연산이 before의 Blank=false에서 true만 바꾸며
+나머지 scalar/relation 속성은 같고 기존 세 프로젝트의 tracked migration bytes는 그대로임을 확인했다.
+
+Admin과 재사용 User creation Form을 model Bind로 전환했다. 저장 직전 재검증은 원래 입력을 사용하므로 생략/default를
+유지하고 non-idempotent string normalizer를 정리 값에 다시 적용하지 않는다. 수정은 인가된 현재 row를 다시 읽어
+revision을 확인하고 그 값에서 candidate를 만든다. Pure model validator가 있으면 Initial은 제외된 stored scalar도
+포함해야 한다. Registry가 PK를 소유하고 추가 값은 rendered initial과 typed mutation input에 포함하지 않는다.
+선택 입력 실패 뒤의 모델 clean, nil validator의 callback 이전 거부, 불완전/위조된 현재 snapshot과 최종 fence를 검증한다.
+
+실제 CLI generate는 internal/projectwire의 Blank 전달·wire 크기 계산 누락을 드러냈고 scalar/collection의 optional bool과
+정확한 크기 경계·중복/잘못된 타입 거부를 함께 수정했다. 실제 Helpdesk makemigrations는 private protocol 정규화와
+snapshot 복사가 External을 잃는 문제를 드러냈다. 전체 AppSpec을 복사하고 imported declaration을 host managed app에서
+제외했다. 공급 history와 정확히 같아야 하며 누락·불일치·host filesystem의 소유권 주장은 후보를 공개하지 않는다.
+소유 app의 외부 FK 의존·역사 재구성·두 번째 no-op도 검증했다. Directory를 꾸며 우회하지 않는다.
+
+| 동일 source 영향 검증 | Required roots | PASS | Test skip | 시간 |
+|---|---:|---:|---:|---:|
+| normal | 304 | 2,662 | 0 | 24.773초 |
+| race | 304 | 2,662 | 0 | 139.277초 |
+| CGO=0 | 304 | 2,662 | 0 | 32.046초 |
+
+23개 test package의 source 파일에서 active-platform root를 독립 수집했으며 필수 누락·실패·잘린/비정형 JSON은 0이다.
+테스트 파일이 없는 14개 package의 Go `skip` event는 no-test roster로 따로 기록했고 test skip으로 합치지 않았다.
+환경은 Darwin arm64 / Go 1.26.5 / offline readonly / `TZ=Pacific/Chatham`, private PostgreSQL **17.10 UTF8/libc/C**다.
+각 mode에서 실제 Article/Helpdesk PostgreSQL 소비자를 포함하고 DB **0|0|0**, DB/container 제거와 source 불변을 확인했다.
+Identity의 DB backend 전용 제품 검사와 별도 child process는 아래 후속 checkpoint의 소유다.
+
+최초 source `cacb52ffca9796e6a7e88b7563edb5b5ef156280c6344536d9e30761a0472517`의 실행은 세 root에서 실패했다.
+새 빈 title fixture의 표시 label도 빈 값이던 오류, 누락 initial의 개선된 오류 code 기대, 새 generated metadata와 이전
+Article migration만 읽던 PostgreSQL fixture를 수정했다. Article의 현재 schema를 쓰는 PostgreSQL와 stable-root/reopen
+검사는 새 migration도 읽고 정확한 history를 확인한다. 과거 migration 파일 자체는 바꾸지 않았다.
+첫 실행 로그·receipt를 보존하고 재실행 결과와 합산하지 않는다.
+
+같은 source에서 Identity·Identity fixture·Helpdesk·Article의 `generate --check` 네 번과 Identity·Helpdesk·Article의
+`makemigrations --check` 세 번이 성공했고 source 전후 동일이다. 영향 `go vet`도 통과했다.
+각 source inventory·root roster·모든 event·실패 원문·DB cleanup과 drift 명령 결과는 아래 임시 evidence에 보존한다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-product-normal-7rthvmly`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-product-race-c8o1pzo2`
+- CGO=0: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-product-cgo0-_w2s8raw`
+- initial failure: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-product-normal-3illnvpz`
+
+동일 `c0af85b2` source의 후속 actual DB/process checkpoint는 **5 packages / 14 roots / 394 required root/subtest 항목**으로
+normal **410 PASS / skip 0 / 74.776초**, 필수 누락 0이다. SQLite·PostgreSQL 각각 Identity email migration, 실제 관리 Form,
+사용자 생성 Form/복합 오류·현재 권한 **196 PASS**, 실제 global migrate **8 PASS**, SQLite/PostgreSQL runserver와 stale source
+거부 **8 PASS**, 양 DB A/B/C 독립 process 재시작 **2 PASS**다. 이 checkpoint의 race/CGO=0은 실행하지 않았다.
+DB **0|0|0**과 database 제거를 확인했다. 최초 orchestration은 roster loop가 container-name 변수를 덮어써 container cleanup을
+완료하지 못했으므로 첫 receipt는 false로 보존했다. 별도로 기록해 둔 해당 container ID와 name을 대조한 뒤 그 container만
+종료하고 제거를 확인해 final receipt를 갱신했다. 테스트 재실행으로 세지 않는다. 원문은
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-blank-integration-normal-tvgp80sr`에 있다.
+
+그 뒤 revision 검사에서 실제 typed update callback도 호출되지 않아야 한다는 assertion을 Admin test 한 파일에 보강했다.
+Source `b4fde05f9c4786b905e213bee78f9df94048a2526d7babc2535427a9386b5661`에서 Admin **71 roots / 193 PASS / skip 0**를
+normal/race/CGO=0 각각 확인했다. Go overlay 세 개가 정확한 runtime assertion을 실패시킴을 확인했다:
+client Form.Initial을 현재 row 대신 사용, pure model validator 생략, observed revision 검사 생략이다. Compile 실패나 단순
+exit nonzero를 부정 대조 성공으로 쓰지 않는다. 양 backend의 정확한 capability 목록 **2 PASS**도 세 mode에서 확인했다.
+이 범위의 source 전후 동일과 source 차이, 세 overlay·전체 로그는 normal evidence의 `admin-controls`에 있다.
+
+현재 제품 generated metadata가 Article summary의 Blank를 포함하므로 최종 foundation도 통합 검증했다. 처음에는
+`TestGenerateIsDeterministicAndContainsProvenance`의 이전 Article schema hash 기대가 세 mode에서 실패했다.
+Article의 현재 canonical IR에서 summary Blank만 false로 되돌리면 이전 고정 hash `3e6ec104…`가 재현됨을 독립 확인하고,
+새 hash `922c4f2b…`를 고정했다. 생성 결과만 그대로 복사해 의미 변화의 검사를 없애지 않았다.
+
+최종 비문서 source `7aa5b67934029ebd4e3b28666f2f9014d501e5fa773a7a414d8b969c24508df7`에서 foundation
+**11 packages / 751 roots / 3,340 PASS / skip 0**를 normal **5.839초**, race **13.852초**, CGO=0 **4.174초**에 각각 완료했다.
+모든 필수 root·source 불변을 확인했다. 앞선 product `c0af85b2`와의 차이는 Admin assertion과 generator hash 기대의
+**두 test 파일만**이며 앞선 제품/DB/process 실행을 최종 source에서 다시 했다고 합산하지 않는다.
+실패 source/로그도 보존한다. 세 최종 core evidence는 각각
+`godj-blank-final-core-normal-yhmjmww7`, `godj-blank-final-core-race-3fss7vwn`, `godj-blank-final-core-cgo0-jibfwpiu`이며
+모두 위 evidence들과 같은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T` 아래에 있다.
+CI 도구 **41 tests**, 160개 문서의 local target **1,245개**와 `git diff --check`도 통과했다. Heading fragment는 검사하지 않았다.
+전체 ModelForm DB 후처리나 이 새 소스의 Hosted 전체 성공이 아니다.
+
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
 기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.
@@ -134,6 +277,46 @@ YAML 구조를 이전 commit과 비교해 변경 위치를 확인했고 세 mode
 [새 full 36369062484](https://github.com/progresshans/godj/actions/runs/36369062484)과
 [Fast 36369057930](https://github.com/progresshans/godj/actions/runs/36369057930)은 이 source의 별도 실행이다. Fast는 실제 Go 단계까지 성공했고 full은 진행 중이다.
 새 Form/Blank 구현은 작업본에 보존했고 이 실행에는 포함하지 않았다.
+
+이 새 실행의 두 capture도 같은 run/producer/attempt·archive digest·payload checksum/provenance를 확인했다.
+수정 commit의 실제 Git blob 목록에서 재계산한 source binding과 일치한다:
+systemstate **620 files / 6,602,601 bytes / `84e242a4872dd9ab96a1ecb9f668070bde9da7d6b9d644b05dc00c7aba41e752`**,
+operator **696 files / 6,447,592 bytes / `590017b6b975363cd88ebb4b86be7299c3630461e4f263e319c4afefdd1fbac3`**.
+두 source 목록에 CI workflow도 포함되므로 예산 수정이 binding에도 반영됐다. 원문과 receipt는
+`hosted-full-36369062484-1790563600816040000`에 있다. 같은 source의 Fast 전체 로그와 실제 Go step 성공도 확인했다.
+최근 snapshot은 **49 성공 / 6 실행 / 6 대기**, exact macOS 성공, final 집계 미생성이다.
+Intel race와 나머지 owner·최종 집계가 끝나기 전에는 전체 PASS로 기록하지 않는다.
+
+
+### Intel race 인증 확인 보완과 새 Hosted 실행
+
+Source `bb9eae3c7e50df29cb19e15a8407d9e703026d0c`의
+[full 36369062484](https://github.com/progresshans/godj/actions/runs/36369062484)은 **62 jobs 중 60 성공 / 2 실패**로 종료했다.
+이전 시간 초과 대상 Intel relation race `108761357035`는 **02:28:51~03:21:12 UTC**에 성공했고 모든 relation owner가 통과했다.
+실패는 Intel race command products `108761356952`와 최종 aggregate다. 해당 job의 targeted migrate는 통과했으나
+SQLite operator lost-response의 known-created backend-close/response failure, malformed response, over-limit response
+세 사례가 새 runtime의 credential 확인에서 실패했다. 원래 진단에는 실패 이유가 없어 실제 deadline 발생을 단정하지 않는다.
+
+인증 확인 helper의 10초 context는 runtime open과 기본 PBKDF2 계산을 함께 포함했다. 검증 예산을 `t.Context()`에
+결합한 1분으로 분리하고 failed/deadline/canceled/invalid-credentials 분류·경과 시간과 principal/active/staff/superuser
+일치 여부만 출력한다. Password/hash/username/raw error는 노출하지 않는다. 제품의 기본 hash 정책·반복 횟수,
+principal/flag 검사와 응답 유실 뒤 자동 재시도 금지 조건은 그대로다.
+
+Clean primary의 `4d451c39` 위에서 이 helper 한 파일만 바꾼 source로 SQLite operator 제품 전체를 실행했다.
+Normal **11 PASS / skip 0 / 117.717초**, race **11 PASS / skip 0 / 141.210초**이며 source는 그대로다.
+최초 집계는 잘못 고른 required roster가 비어 있었으므로 완료 증거로 사용하지 않았다. 이후 source의 실제 11개 root/subtest를
+독립 명시해 기존 전체 JSON에 누락·추가·skip·실패가 없음을 다시 감사했으며 실행을 다시 했다고 세지 않는다.
+수정은 `ea2867f4323fb34e713fc1d10d8a62c05c785d37`로 양 작업 branch에 원자적으로 push했고
+[Fast 36372684175](https://github.com/progresshans/godj/actions/runs/36372684175)의 실제 Go 검사도 성공했다.
+이 수정의 remote 실패 원인 해소는 [새 full 36374533286](https://github.com/progresshans/godj/actions/runs/36374533286)의
+같은 owner를 확인해야 하며 현재 진행 중이다. 미커밋 Blank source의 검증으로 전이하지 않는다.
+
+bb9 capture의 동일 run/attempt/producer, archive/payload checksum과 실제 Git blob source 결합은 별도로 확인했다.
+System-state는 620 files / 6,602,601 bytes / `84e242a4872dd9ab96a1ecb9f668070bde9da7d6b9d644b05dc00c7aba41e752`,
+operator는 696 files / 6,447,592 bytes / `590017b6b975363cd88ebb4b86be7299c3630461e4f263e319c4afefdd1fbac3`다.
+Capture 성공은 실패한 전체 run의 성공이 아니다. Exact macOS job도 성공했지만 앞선 source의 native test count를 전이하지 않는다.
+종료 run JSON·capture audit·실패 원문과 repair receipt는 GDJ-0101 evidence 아래
+`hosted-repair-1790553210826583000/hosted-full-36369062484-1790563600816040000`에 보존한다.
 
 ### 선행 재사용 Form Hosted 전체의 종료
 
