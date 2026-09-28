@@ -74,5 +74,9 @@ Hosted 전체 검증으로 전이하지 않는다. Generated SetFieldValue와 OR
 collection 저장 의도와 command 입력을 별도 보관한다. 자동 commit/관계 저장은 아직 포함하지 않는다.
 Native 15개 사례 중 기존 13개의 의미와 nonnullable NULL 2개의 준비 시점 차이를 분리하고 영향 세 mode·양 DB·생성 drift·7개 부정 대조를 완료했다.
 
+후속 clean/typed 준비 commit `1b2fc49267181f321c0a079844e945cd6cf81584`를 양 branch에 원자적으로 push했다.
+[Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296)과
+[Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)을 실행했다. Fast는 실제 Go step·terminal success를 확인했고 full은 진행 중이다. Source가 다른 검증을 전이하지 않는다.
+
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

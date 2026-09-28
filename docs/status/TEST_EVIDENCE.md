@@ -434,7 +434,10 @@ PK presence 보존, Admin의 clean NULL 저장 입력 거부, collection 저장 
 `godj-typed-form-cgo0-i8w1d52z`에 있다. Parent는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T`다.
 Normal의 `negative-controls`와 `integration-checks`에 overlay·drift/vet/CI 도구/compile 원문을 보존한다.
 최초/보완 실행은 `godj-typed-form-normal-1yw77b23`, `godj-typed-form-normal-z2w2wfsp`에 보존한다.
-후속 clean/typed 준비를 포함한 Hosted 전체는 새 제출 source에서 별도로 확인한다. 선행 `211499d0`의 완료를 전이하지 않는다.
+후속 clean/typed 준비 commit `1b2fc49267181f321c0a079844e945cd6cf81584`를 양 branch에 원자적으로 push한 뒤
+[Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296)을 해당 SHA의 `suite=full`로 시작했다.
+[Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)은 같은 source에서 terminal success와 실제 Fast Go feedback step success를 확인했다.
+현재 source의 전체 완료로 기록하지 않으며 선행 `211499d0`의 완료를 전이하지 않는다.
 
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 

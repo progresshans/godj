@@ -3,7 +3,8 @@
 - 갱신: 2026-09-28
 - 현재 구현 작업: [GDJ-0102 모델의 빈 입력 정책과 Form 후처리](../../work/0102-model-blank-policy-and-post-clean.md)
 - 최근 완료한 전체 검증: [Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735), source `211499d05f6763e3dc5ecf501fd4539393c264cb`; 62 jobs·8 owners·새 capture와 Git source 결합 확인
-- 후속 model clean source `36632e24`의 [Fast](https://github.com/progresshans/godj/actions/runs/36386575601): 실제 Go 검사 성공
+- 진행 중인 후속 clean/typed 준비: [Hosted full](https://github.com/progresshans/godj/actions/runs/36391162296), source `1b2fc49267181f321c0a079844e945cd6cf81584`
+- 같은 source의 [Fast](https://github.com/progresshans/godj/actions/runs/36391165591): terminal success·실제 Go 검사 성공
 - Source·환경·scope·실패/수정·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -23,7 +24,7 @@ Typed 준비의 영향 세 mode·실제 양 DB·생성 drift·7개 부정 대조
 
 ## 다음 행동
 
-Typed 준비와 model clean을 포함한 제출 source의 Hosted 전체를 실행하고 필수 owner·최종 집계·새 capture 결합을 확인한다.
+진행 중인 `1b2fc492` Hosted 전체의 필수 owner·최종 집계·새 capture 결합을 확인한다. 관찰 지연만으로 재실행하지 않는다.
 일반 ModelForm의 scalar·컬렉션 저장 조정과 현재 인가·실패/rollback 경계를 실제 소비자에 이어 연결한다.
 Custom user model·다른 인증 provider·운영 mail provider와 기능 카탈로그의 나머지 범위도 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
