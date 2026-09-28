@@ -2106,3 +2106,4 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/catalog
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/catalog_model_validation/permission_change/revision_changed
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/catalog_model_validation/permission_change/missing_row
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/catalog_model_validation_http
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelCleanConsumer

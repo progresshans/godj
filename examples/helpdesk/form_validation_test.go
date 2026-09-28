@@ -136,7 +136,7 @@ func TestHelpdeskModelValidationReadScope(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := formmodel.Bind(models.TicketLabelDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(ticket.ID, 10)}, "label": {strconv.FormatInt(label.ID, 10)}}), nil)
+			bound, err := formmodel.Bind(models.TicketLabelDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(ticket.ID, 10)}, "label": {strconv.FormatInt(label.ID, 10)}}), nil, formmodel.PostClean{})
 			if err != nil || !bound.Form().Valid() {
 				t.Fatal("valid prior choice projection", err)
 			}
@@ -358,7 +358,7 @@ func TestHelpdeskReportModelValidationRechecksTicketBeforeUniqueness(t *testing.
 			if mode == "field_error" {
 				summary = ""
 			}
-			bound, err := formmodel.Bind(models.ServiceReportDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(selected, 10)}, "summary": {summary}}), nil)
+			bound, err := formmodel.Bind(models.ServiceReportDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(selected, 10)}, "summary": {summary}}), nil, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}

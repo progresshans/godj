@@ -36,7 +36,9 @@ Label의 category는 서버 범위가 소유하며 일반 ModelForm의 제외 �
 선택 입력 fixture의 명시적 Blank와 동시 migration 프로젝트의 전체 Article 이력 복사를 보완했다.
 진행 중인 통합 source의 필수 owner·최종 집계·capture source 결합을 확인한다.
 새 Blank/DB 후처리에 선행 source의 Hosted 검증을 전이하지 않는다.
-Model clean의 값 변환·저장 후보는 고정 Django의 양 DB 13개 사례로 먼저 확인했다. 현재 통합을 닫은 뒤 Go API와 저장 소유권을 설계한다.
+Model clean의 명시적 scalar 변환·제외 필드 저장 입력과 Admin 연결을 구현했고 영향 세 mode·양 DB·5개 부정 대조를 완료했다.
+고정 Django의 양 DB 13개 사례를 독립 생성 모델의 준비·저장·rollback과 대조했다. [사용법](../../forms/model/README.md)을 따른다.
+진행 중인 Hosted 통합은 선행 Blank/DB 후처리 source이며 이 후속 clean 변경을 포함하지 않는다.
 Custom user model·전체 ModelForm 후처리·다른 인증 provider와 운영 mail provider 검증은 남아 있다.
 로컬 전체와 Hosted 전체를 관성적으로 중복 실행하지 않는다.
 

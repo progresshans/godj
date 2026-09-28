@@ -20,7 +20,10 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] Form의 required/empty 값과 모델 null/blank 검증을 구분하고, 이미 실패한 field·명시적 override·default 후보의 의미를 유지
 - [x] 모델 field 후처리와 read-only DB 검사·인가·오류 소유권을 실제 User/Helpdesk 소비자와 최종 저장 재검사에 연결
 - [x] 기존 DB 데이터·관계·credential/session/audit 보존, 구조가 다른 생성 소비자, 실패·부정 대조와 영향 checkpoint 검증
-- [ ] Blank·내부 Form API·제품 DB 후처리를 포함한 통합 source의 Hosted 전체와 새 capture source 결합 확인
+- [ ] Blank·내부 Form API·제품 DB 후처리 source `211499d0`의 Hosted 전체와 새 capture source 결합 확인
+- [x] Pure model clean의 명시적 scalar 변환·제외 필드 저장 입력·Admin 현재 row/revision 소유권과 독립 생성 모델 연결
+- [x] 후속 model clean의 영향 세 mode·양 DB·native 대조·실패/5개 부정 대조 완료
+- [ ] 후속 model clean source의 별도 Hosted 통합 완료
 
 ## 현재와 다음
 
@@ -58,8 +61,12 @@ Hosted 통합에서 optional choices fixture의 Blank와 독립 동시 migration
 기존 엄격한 기대를 유지하며 fixture를 보완하고 실제 양 DB/CLI/재시작과 독립 생성 소비자의 영향 세 mode를 통과했다.
 보완 source `211499d0`의 실제 Fast Go 검사가 성공했고 [Hosted full](https://github.com/progresshans/godj/actions/runs/36383539735)을 진행한다.
 기존 실패 run은 대체 취소됐으며 이 작업의 통합 완료로 세지 않는다.
-일반 model clean의 값 변환·저장 후보는 양 DB의 native 13개 사례로 독립 관찰했다. Go API와 제외/서버 소유 값의
-저장 의미는 아직 채택·구현하지 않았으며 현재 통합을 닫은 뒤 다음 확장으로 연결한다.
+후속 model clean은 `PostClean.Fields`에 선언한 scalar 변경 집합을 반환한다. 후보와 Form.Cleaned를 분리하고 오류가
+남아도 후보 변경을 보존하며 field cleaning을 재실행하지 않는다. 명시적으로 바꾼 제외 field만 유효한 Input에 포함한다.
+Admin은 현재 전체 row를 요구하고 PK/revision 출력과 숨긴 HTTP 입력 위조를 거부하며 typed 저장·audit 검사에 연결한다.
+Native 양 DB 13개 사례를 독립 생성 모델의 DB 검사·준비·저장·rollback과 대조하고 영향 세 mode·5개 부정 대조를 완료했다.
+Python clean 반환값의 무시와 Go의 명시적 변경 집합, Python instance identity와 Go typed 준비 소유권은 같은 API가 아니다.
+진행 중인 선행 통합 `211499d0`의 성공을 이 후속 구현의 Hosted 검증으로 전이하지 않는다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

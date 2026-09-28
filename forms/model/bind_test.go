@@ -169,7 +169,7 @@ func TestModelBindRevalidatesEmailAndChoicesAndRunsCleanAfterErrors(t *testing.T
 					}
 					return validation.NewErrors(validation.New(validation.NonField, "semantic"))
 				})
-				bound, err := formmodel.Bind(metadata, spec, forms.NewData(map[string][]string{"key": {"new"}, "address": {address}, "counter": {"bad"}}), nil, validator)
+				bound, err := formmodel.Bind(metadata, spec, forms.NewData(map[string][]string{"key": {"new"}, "address": {address}, "counter": {"bad"}}), nil, formmodel.PostClean{Validators: []formmodel.Validator{validator}})
 				if err != nil || calls != 1 {
 					t.Fatal("model clean did not run after field failure", err)
 				}
@@ -257,7 +257,7 @@ func TestModelBindRejectsBadConfigurationBeforeCallbacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := formmodel.Bind(metadata, spec, forms.NewData(map[string][]string{"counter": {"x"}}), nil); err == nil || calls != 0 {
+	if _, err := formmodel.Bind(metadata, spec, forms.NewData(map[string][]string{"counter": {"x"}}), nil, formmodel.PostClean{}); err == nil || calls != 0 {
 		t.Fatal("incompatible model input invoked validator")
 	}
 	proper, err := formmodel.NewSpecForFields(metadata, []string{"counter"}, formmodel.OverrideField("counter", formmodel.WithValidators(forms.FieldValidatorFunc(func(forms.Value) validation.Errors { calls++; return validation.Errors{} }))))
@@ -265,11 +265,11 @@ func TestModelBindRejectsBadConfigurationBeforeCallbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	var nilValidator formmodel.ValidatorFunc
-	if _, err := formmodel.Bind(metadata, proper, forms.NewData(map[string][]string{"counter": {"1"}}), nil, nilValidator); err == nil || calls != 0 {
+	if _, err := formmodel.Bind(metadata, proper, forms.NewData(map[string][]string{"counter": {"1"}}), nil, formmodel.PostClean{Validators: []formmodel.Validator{nilValidator}}); err == nil || calls != 0 {
 		t.Fatal("typed nil model validator reached callbacks")
 	}
 	for _, initial := range []map[string]forms.Value{{"address": forms.Integer(3)}, {"unknown": forms.String("x")}, {"address": forms.String("\xff")}} {
-		if _, err := formmodel.Bind(metadata, proper, forms.NewData(map[string][]string{"counter": {"1"}}), initial); err == nil || calls != 0 {
+		if _, err := formmodel.Bind(metadata, proper, forms.NewData(map[string][]string{"counter": {"1"}}), initial, formmodel.PostClean{}); err == nil || calls != 0 {
 			t.Fatal("invalid initial snapshot reached callbacks")
 		}
 	}
@@ -301,7 +301,7 @@ func TestModelBindCollectionOmissionClearsInitialAndBlankOwnsRequired(t *testing
 			if spec.Fields()[0].Required() == blank {
 				t.Fatal("collection input ignored Blank policy")
 			}
-			bound, err := formmodel.Bind(metadata, spec, forms.NewData(nil), map[string]forms.Value{"labels": forms.Integers(7)})
+			bound, err := formmodel.Bind(metadata, spec, forms.NewData(nil), map[string]forms.Value{"labels": forms.Integers(7)}, formmodel.PostClean{})
 			if err != nil || bound.Form().Valid() != blank {
 				t.Fatal("collection required policy changed", err)
 			}

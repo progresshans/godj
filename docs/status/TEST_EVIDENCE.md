@@ -12,7 +12,8 @@ scalar ChangeBlank와 columnless AlterManyToMany를 구현했다. Form required�
 User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Admin/Identity의 pure 모델 후처리는 연결했다.
 현재 권한을 갖는 같은 DB read scope의 단계별 unique/constraint를 User 수정·Ticket·TicketLabel에 연결하고 native DB와
 대조했다. 후속 checkpoint에서 Group/Permission·Label/ServiceReport의 읽기 검증도 연결했다.
-일반 model clean 값 변환·전체 ModelForm과 이 새 source의 Hosted 전체는 **아직 미완료**다.
+후속 model clean의 명시적 변환과 저장 입력·Admin 연결 및 영향 checkpoint를 완료했다.
+전체 ModelForm 저장 자동화와 후속 clean source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
 ### 독립 입력 기준과 Go 대조
@@ -319,10 +320,64 @@ Model clean은 cleaned data를 그대로 둔 채 instance를 바꾸며 DB unique
 해당 unique는 제외돼 실제 저장에서 IntegrityError가 날 수 있다. Commit=False는 I/O 없이 같은 instance를 반환하고,
 invalid form의 prepare/save는 ValueError로 실패한다. Clean의 반환 mapping 자체는 native instance를 바꾸지 않는다.
 
-이는 **native 관찰만**이며 Go의 값 변환/제외 field 저장 API를 구현하거나 차이를 채택했다는 뜻이 아니다.
-이후 Go API는 model candidate·selected/서버 소유 값·최종 저장 권한의 경계를 명시한 뒤 실제 소비자로 검증해야 한다.
+이 관찰 단계만으로 Go의 값 변환/제외 field 저장 API를 구현하거나 차이를 채택했다고 기록하지 않았다.
+이후 Go의 소유권 채택과 소비자 검증은 다음 checkpoint로 구분한다.
 원문·observer SHA·명령·비교·정리 receipt는
 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-clean-reference-wo050u9o`에 있다.
+
+### Model clean의 명시적 변경과 저장 입력
+
+`PostClean.Fields/Clean/Validators`로 pure 모델 변환과 읽기 validator를 함께 구성한다. Field cleaning 뒤의 후보만
+바꾸고 Form.Cleaned·원래 제출·기존 오류를 유지한다. 후보는 후속 DB 검사에 사용하며 selection/error exclusion은
+다시 계산한다. Input은 선택 입력 외에 명시적으로 반환한 제외 scalar 변경만 포함한다. PK·컬렉션·command input·미선언
+변경과 잘못된 값 kind는 거부한다. Admin은 현재 전체 row·PK/revision 소유권, 생성/수정 typed 저장·audit 검사를 연결한다.
+
+독립 생성 Contact 모듈은 앞선 고정 Django **13 cases × SQLite/PostgreSQL**의 유효성·오류·cleaned data·후보,
+clean 전후·unique/constraint trace와 조회 수, typed 준비·실제 ORM Save·row 수와 rollback 복원을 대조했다.
+변환된 이메일의 field validation을 재실행하지 않고, 제외 hidden의 중복은 실제 저장의 unique 제약으로 거부한다.
+Invalid form은 typed 준비와 저장에 진입하지 않는다. Python clean의 무시되는 반환 mapping은 Go의 빈 변경 집합에
+대응시키며 반환 규약과 Python instance identity를 Go API 일치로 주장하지 않는다. Go 준비는 detached typed 값이다.
+기존 16-case DB consumer도 함께 실행해 단계별 진단·제외의 회귀를 확인했다.
+
+| 범위 | normal PASS / 초 | race PASS / 초 | CGO=0 PASS / 초 |
+|---|---:|---:|---:|
+| Form/Admin/Identity/Helpdesk/Systemstate, 9 test packages / 243 roots | 2,620 / 24.332 | 2,620 / 155.192 | 2,620 / 41.166 |
+| Identity 실제 양 DB, 4 roots / 370 required cases | 370 / 53.697 | 370 / 150.285 | 370 / 57.670 |
+| 독립 생성 모듈, 2 parents / 필수 child 35+29 | 2 / 3.992 | 2 / 10.681 | 2 / 4.190 |
+
+모든 성공 범위에서 test skip·필수 누락·비정형/잘린 JSON은 0이다. Race는 generated child에도 적용한다.
+Darwin arm64 / Go 1.26.5 / offline readonly / TZ=Pacific/Chatham, 각 mode 전용 PostgreSQL 17.10 UTF8/libc/C다.
+각 source 전후 동일, DB **0|0|0**, DB/container 제거를 확인했다. 일반 실행의 첫 core source는
+`6ffb3d8fac3dbb7f9f9e05bdc490dd89510b9d4dd2dec9efc55b8c6779fd70c2`이며 동일 실행의 DB/새 consumer 실패는 성공으로 세지 않는다.
+Internal Identity fixture의 Bind 인자 전환 누락과 consumer의 First 명시적 ordering 누락을 수정했다. Child의 원인은 임시
+진단 overlay로 실제 runtime event를 확보해 확인했다. 이 두 test-support 파일만 바뀐 source
+`25cfe8bac2c58e6f7aed12ec9aa718132b0e9f04acd4e283efc11298e58bc485`에서 DB/두 생성 parent를 재검증했다.
+
+최종 inventory는 `24ce7de04bc6c8e025480db85b07b368959620672e9f3dabd10031963f409dc4`다. 직전과의 차이는
+relation-required의 잘못 배치한 Admin 10 entries 제거뿐이다. Admin은 portable core가 소유하며 위 core 검사에서
+해당 두 root와 HTTP 8개 사례를 실제 실행했다. 최초 CI 도구의 owner 오류 10개와 수정 뒤 **41 tests PASS**를 구분한다.
+Race/CGO=0은 최종 inventory에서 전체 위 scoped checkpoint를 실행했다. 범위 밖 로컬 전체 테스트를 반복하지 않았다.
+영향 vet와 **203 packages compile-only / 실행 test 0**도 성공했다. Compile-only를 제품 동작 PASS 수에 합치지 않는다.
+
+최종 source에서 overlay로 제외 변경의 저장 입력 전달, clean 선언 소유권, DB 검사의 변환 후보 사용,
+Admin revision 보호, Admin의 현재 전체 snapshot 요구를 각각 제거한 **5개 부정 대조**가 지정 runtime assertion에서
+실패했다. Compile 실패로 대신한 사례·skip·source 변경은 0이다. HTTP는 생성/수정·필드 오류·숨긴 입력 위조·CSRF·권한
+거부·이미 stale인 revision과 최종 transaction 경쟁을 포함한다. Form 정의 복사·동시 bind 후보 격리도 검사한다.
+
+전체 JSON·필수 roster·source inventory/delta·최초 실패·진단 원문·cleanup receipt는 같은 임시 parent의
+`godj-model-clean-normal-d7j8dfzk`(첫 core/실패), `godj-model-clean-normal-zpoc8y08`(DB/생성 재검증),
+`godj-model-clean-race-19sg4rxt`, `godj-model-clean-cgo0-ec2clpgb`에 있다. Parent는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T`다. 마지막 cgo0 directory의 `negative-controls`에 5개 overlay와 receipt,
+normal 재검증 directory의 `final-checks`에 vet/CI 도구/compile-only 원문을 보존한다.
+
+선행 full `36383539735`, source `211499d0`, attempt 1의 두 새 capture는 archive checksum·정확한 3-file 구성·같은
+run/producer attempt·payload checksum/provenance를 검증했다. 현재 작업 파일 대신 해당 SHA의 Git blob에서 source binding을
+독립 재구성했다. Systemstate는 artifact `10953619007` / producer `108804427006`, **628 files / 6,662,330 bytes** /
+`bdcb69932aa1bd4063913cc17bdede3755704b96b5da5288422cda75aa96d1c5`, operator는 artifact `10952634816` /
+producer `108804426971`, **705 files / 6,510,618 bytes** /
+`dc5d3c44416ddce338d46a7ef3703ad46e8d8c691f52a456ca130ba0f783a580`로 일치했다. Archive·inventory·receipt는
+기존 Email reference directory의 `hosted-full-36383539735-1790576439131454000`에 있다. **해당 full의 나머지 owner와
+최종 집계는 아직 진행 중**이다. Capture 검증이나 이 로컬 clean checkpoint를 Hosted 전체 PASS로 합치지 않는다.
 
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 

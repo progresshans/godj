@@ -166,12 +166,12 @@ type ModelConfig[M any] struct {
 	Slug          string
 	Model         ir.Model
 	FormOverrides []formmodel.Override
-	// ModelValidators are pure post-clean checks of the model candidate. For
-	// changes, Initial must supply every stored non-primary field so a validator
-	// observes the actual row, including fields excluded from the form.
-	ModelValidators []formmodel.Validator
+	// PostClean transforms and checks the model candidate. On changes, Initial
+	// must supply every stored non-primary field. Declared outputs may include
+	// excluded scalar fields; the primary key and revision remain registry-owned.
+	PostClean formmodel.PostClean
 	// FormFields selects editable fields in model declaration order. nil means
-	// all supported editable fields. Omitted fields never enter cleaned input.
+	// all supported editable fields. Excluded fields never enter Form.Cleaned.
 	FormFields []string
 	// RelatedChoices supplies each selected relation field's scoped choices.
 	// The Site checks these permissions before any choice or object query.
@@ -197,8 +197,8 @@ type ModelConfig[M any] struct {
 	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
 	// Initial supplies all selected fields and may include other stored model
-	// fields for model validation. Extra values never enter rendered Form.Initial
-	// or the persistence input. The registry owns the primary key and configured
+	// fields for model validation. Extra values never enter rendered Form.Initial;
+	// only explicitly declared clean changes enter the persistence input. The registry owns the primary key and configured
 	// revision field from the validated Snapshot; supplied values must agree.
 	Initial func(M) (map[string]forms.Value, error)
 	// ValidateCreate is an optional read-only post-clean check. The Site invokes
@@ -358,11 +358,11 @@ type registeredModel struct {
 	slug                    string
 	model                   ir.Model
 	form                    forms.Spec
-	modelValidators         []formmodel.Validator
+	postClean               formmodel.PostClean
 	formFor                 func(context.Context, auth.Principal) (forms.Spec, error)
 	choicePermissions       []auth.Permission
 	createForm              forms.Spec
-	createModelValidators   []formmodel.Validator
+	createPostClean         formmodel.PostClean
 	createFormFor           func(context.Context, auth.Principal) (forms.Spec, error)
 	createChoicePermissions []auth.Permission
 	addPermissions          []auth.Permission
@@ -426,14 +426,14 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	var form forms.Spec
 	if !config.ReadOnly {
-		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides, ModelValidators: config.ModelValidators}})
+		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides, PostClean: config.PostClean}})
 		if err != nil {
 			if invalid, ok := err.(*ConfigError); ok {
 				return registeredModel{}, invalid
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.ModelValidators) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -485,8 +485,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	createForm, createFormFor, createChoicePermissions := form, formFor, choicePermissions
-	modelValidators := append([]formmodel.Validator(nil), config.ModelValidators...)
-	createModelValidators := modelValidators
+	postClean := config.PostClean.Clone()
+	createPostClean := postClean.Clone()
 	if config.CreateForm != nil {
 		createForm, err = prepareModelForm(model, *config.CreateForm)
 		if err != nil {
@@ -496,12 +496,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredModel{}, err
 		}
-		createModelValidators = append([]formmodel.Validator(nil), config.CreateForm.Definition.ModelValidators...)
+		createPostClean = config.CreateForm.Definition.PostClean.Clone()
 	}
 	if config.RevisionField != "" {
 		field, found := fieldByName[config.RevisionField]
 		if !found || field.Kind != ir.FieldInteger || field.Nullable {
 			return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "invalid"}
+		}
+		for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
+			if name == config.RevisionField {
+				return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "clean_output"}
+			}
 		}
 		for _, input := range append(form.Fields(), createForm.Fields()...) {
 			if input.Name() == config.RevisionField {
@@ -529,6 +534,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		editable[field.Name()] = struct{}{}
 	}
+	for _, name := range postClean.Fields {
+		editable[name] = struct{}{}
+	}
 	// Only fields consumed by this registration are required. A storage-only
 	// field must not force an otherwise unchanged Admin adapter to expose it.
 	requiredSnapshotFields := make(map[string]struct{}, len(listFields)+len(formFields))
@@ -540,6 +548,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	for _, field := range formFields {
 		requiredSnapshotFields[field.Name()] = struct{}{}
+	}
+	for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
+		requiredSnapshotFields[name] = struct{}{}
 	}
 	requiredSnapshotOrder := make([]string, 0, len(requiredSnapshotFields))
 	for _, field := range model.Fields {
@@ -595,11 +606,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		slug:                    config.Slug,
 		model:                   model.Clone(),
 		form:                    form,
-		modelValidators:         modelValidators,
+		postClean:               postClean,
 		formFor:                 formFor,
 		choicePermissions:       choicePermissions,
 		createForm:              createForm,
-		createModelValidators:   createModelValidators,
+		createPostClean:         createPostClean,
 		createFormFor:           createFormFor,
 		createChoicePermissions: createChoicePermissions,
 		addPermissions:          addPermissions,
@@ -699,7 +710,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredRecord{}, false, err
 		}
-		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, registered.revisionField, revision, len(modelValidators) > 0)
+		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, registered.revisionField, revision, !postClean.Empty())
 		if err != nil {
 			return registeredRecord{}, false, err
 		}
@@ -730,7 +741,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, err
 		}
-		values, err := validateModelBoundData(model, data, currentForm, nil, createModelValidators)
+		values, err := validateModelBoundData(model, data, currentForm, nil, createPostClean)
 		if err != nil {
 			return Object{}, err
 		}
@@ -779,7 +790,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
 			return Object{}, nil, err
 		}
-		values, err := validateModelBoundData(model, data, currentForm, current.candidateInitial, modelValidators)
+		values, err := validateModelBoundData(model, data, currentForm, current.candidateInitial, postClean)
 		if err != nil {
 			return Object{}, nil, err
 		}

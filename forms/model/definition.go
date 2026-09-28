@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/progresshans/godj/forms"
@@ -12,11 +11,11 @@ import (
 // Schema IR supplies stored fields; extra inputs are command data and cannot
 // shadow any model field, even a field excluded from this projection.
 type Definition struct {
-	Fields          []string
-	Overrides       []Override
-	ExtraFields     []forms.Field
-	Validators      []forms.CrossValidator
-	ModelValidators []Validator
+	Fields      []string
+	Overrides   []Override
+	ExtraFields []forms.Field
+	Validators  []forms.CrossValidator
+	PostClean   PostClean
 }
 
 func (definition Definition) Clone() Definition {
@@ -24,15 +23,13 @@ func (definition Definition) Clone() Definition {
 	definition.Overrides = slices.Clone(definition.Overrides)
 	definition.ExtraFields = slices.Clone(definition.ExtraFields)
 	definition.Validators = slices.Clone(definition.Validators)
-	definition.ModelValidators = slices.Clone(definition.ModelValidators)
+	definition.PostClean = definition.PostClean.Clone()
 	return definition
 }
 
 func (definition Definition) Spec(model ir.Model) (forms.Spec, error) {
-	for i, validator := range definition.ModelValidators {
-		if nilValidator(validator) {
-			return forms.Spec{}, &Error{Path: fmt.Sprintf("model_validators[%d]", i), Code: "nil"}
-		}
+	if err := definition.PostClean.validate(model); err != nil {
+		return forms.Spec{}, err
 	}
 	projected, err := NewSpecForFields(model, definition.Fields, definition.Overrides...)
 	if err != nil {

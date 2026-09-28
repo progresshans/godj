@@ -105,7 +105,7 @@ func TestAdminModelCleanSeesCurrentExcludedValuesAfterFieldFailure(t *testing.T)
 		config.Initial = func(row managementFormRow) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active), "revision": forms.Integer(row.revision)}, nil
 		}
-		config.ModelValidators = []formmodel.Validator{formmodel.ValidatorFunc(func(candidate forms.Values) validation.Errors {
+		config.PostClean.Validators = []formmodel.Validator{formmodel.ValidatorFunc(func(candidate forms.Values) validation.Errors {
 			calls++
 			name, a := candidate.String("username")
 			id, b := candidate.Integer("id")
@@ -140,7 +140,7 @@ func TestAdminModelInitialRejectsIncompleteOrForgedStoredSnapshots(t *testing.T)
 		t.Run(mode, func(t *testing.T) {
 			_, _, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
 				config.Model.Fields = append(config.Model.Fields, ir.Field{Name: "hidden", GoName: "Hidden", Column: "hidden", Kind: ir.FieldInteger})
-				config.ModelValidators = []formmodel.Validator{formmodel.ValidatorFunc(func(forms.Values) validation.Errors { return validation.NewErrors() })}
+				config.PostClean.Validators = []formmodel.Validator{formmodel.ValidatorFunc(func(forms.Values) validation.Errors { return validation.NewErrors() })}
 				config.Initial = func(row managementFormRow) (map[string]forms.Value, error) {
 					values := map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active), "hidden": forms.Integer(3)}
 					switch mode {
@@ -195,12 +195,155 @@ func TestAdminRejectsNilModelValidatorBeforeAnyCallback(t *testing.T) {
 		config := validRegistryConfig(t)
 		var typedNil formmodel.ValidatorFunc
 		if creation {
-			config.CreateForm = &FormConfig{Definition: formmodel.Definition{ModelValidators: []formmodel.Validator{typedNil}}}
+			config.CreateForm = &FormConfig{Definition: formmodel.Definition{PostClean: formmodel.PostClean{Validators: []formmodel.Validator{typedNil}}}}
 		} else {
-			config.ModelValidators = []formmodel.Validator{typedNil}
+			config.PostClean.Validators = []formmodel.Validator{typedNil}
 		}
 		if err := RegisterModel(NewBuilder(mustApps(t)), config); err == nil {
 			t.Fatal("nil model validator entered registry")
 		}
+	}
+}
+
+func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *testing.T) {
+	for _, mode := range []string{"create", "change", "invalid", "forged", "csrf", "denied", "stale", "late_conflict"} {
+		t.Run(mode, func(t *testing.T) {
+			calls, checks := 0, 0
+			var state *managementFormState
+			var fields []string
+			client, owned, _ := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
+				config.FormFields = []string{"username"}
+				fields = []string{"username", "active"}
+				clean := formmodel.PostClean{Fields: fields, Clean: func(candidate forms.Values) (forms.Values, validation.Errors) {
+					calls++
+					name, _ := candidate.String("username")
+					return forms.NewValues(map[string]forms.Value{"username": forms.String(strings.ToUpper(name)), "active": forms.Boolean(false)}), validation.Errors{}
+				}}
+				config.PostClean = clean
+				config.CreateForm.Definition.PostClean = clean
+				config.ValidateCreate = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) error {
+					checks++
+					if active, ok := bound.Candidate().Boolean("active"); !ok || active {
+						t.Fatal("read check missed clean candidate")
+					}
+					return nil
+				}
+				config.ValidateChange = func(ctx context.Context, actor auth.Principal, _ Mutation, bound formmodel.BoundForm) error {
+					return config.ValidateCreate(ctx, actor, bound)
+				}
+				original := config.Create
+				config.Create = func(ctx context.Context, actor auth.Principal, values forms.Values) (managementFormRow, error) {
+					row, err := original(ctx, actor, values)
+					if err != nil {
+						return row, err
+					}
+					active, ok := values.Boolean("active")
+					if !ok {
+						t.Fatal("excluded clean change missing from typed create")
+					}
+					state.mu.Lock()
+					defer state.mu.Unlock()
+					row.active = active
+					state.row = row
+					return row, nil
+				}
+			})
+			state = owned
+			// Registry configuration owns the allowlist independently of caller edits.
+			fields[0] = "revision"
+			login := "admin"
+			if mode == "denied" {
+				login = "viewer"
+			}
+			client.login(t, login, "secret", "/admin/accounts/")
+			path := "/admin/accounts/change/?id=1"
+			if mode == "create" {
+				path = "/admin/accounts/add/"
+			}
+			// Obtain a valid CSRF token through an admitted page for the denial control.
+			getPath := path
+			if mode == "denied" {
+				getPath = "/admin/accounts/"
+			}
+			get := client.do("GET", getPath, nil)
+			if get.Code != 200 || calls != 0 || strings.Contains(get.Body.String(), `name="active"`) {
+				t.Fatal("GET executed clean or exposed hidden output", get.Code)
+			}
+			values := url.Values{"username": {"mixed"}, "csrfmiddlewaretoken": {siteCSRFToken(t, get.Body.String())}}
+			if mode == "create" {
+				values.Set("password1", "private-password")
+				values.Set("password2", "private-password")
+			} else {
+				values.Set("expected_revision", "1")
+			}
+			switch mode {
+			case "invalid":
+				values.Set("username", "")
+			case "forged":
+				values.Set("active", "on")
+			case "csrf":
+				values.Set("csrfmiddlewaretoken", "forged")
+			case "stale":
+				state.row.revision = 2
+			case "late_conflict":
+				state.race = true
+			}
+			response := client.do("POST", path, values)
+			switch mode {
+			case "create", "change":
+				if response.Code != 302 || state.row.username != "MIXED" || state.row.active || state.writes != 1 || calls != 2 || checks != 1 {
+					t.Fatal("clean outputs lost in typed persistence or audit reconciliation", response.Code, state.row, state.writes, calls, checks)
+				}
+			case "invalid":
+				if response.Code != 200 || state.writes != 0 || calls != 1 || checks != 1 || !strings.Contains(response.Body.String(), `data-error-code="required"`) {
+					t.Fatal("model clean bypassed existing errors", response.Code, calls, checks)
+				}
+			case "forged":
+				if response.Code != 400 || state.writes != 0 || calls != 0 || checks != 0 {
+					t.Fatal("hidden input was admitted", response.Code, calls, checks)
+				}
+			case "csrf", "denied":
+				if response.Code != 403 || state.writes != 0 || calls != 0 || checks != 0 {
+					t.Fatal("model clean ran before admission", response.Code, calls, checks)
+				}
+			case "stale":
+				if response.Code != 409 || state.writes != 0 || calls != 0 || checks != 0 {
+					t.Fatal("model clean ran before observed revision check", response.Code, calls, checks)
+				}
+			case "late_conflict":
+				if response.Code != 409 || state.writes != 0 || state.row.username != "Concurrent" || calls != 2 {
+					t.Fatal("clean candidate bypassed final transaction fence", response.Code, calls, state.row)
+				}
+			}
+		})
+	}
+}
+
+func TestAdminModelCleanProtectsRevisionAndRequiresCompleteCurrentSnapshot(t *testing.T) {
+	for _, creation := range []bool{false, true} {
+		config := validRegistryConfig(t)
+		// Published is not a revision integer, so use a dedicated stored integer.
+		config.Model.Fields = append(config.Model.Fields, ir.Field{Name: "revision", GoName: "Revision", Column: "revision", Kind: ir.FieldInteger})
+		config.FormFields = []string{"title"}
+		config.RevisionField = "revision"
+		clean := formmodel.PostClean{Fields: []string{"revision"}, Clean: func(forms.Values) (forms.Values, validation.Errors) { return forms.Values{}, validation.Errors{} }}
+		if creation {
+			config.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"title"}, PostClean: clean}}
+		} else {
+			config.PostClean = clean
+		}
+		if err := RegisterModel(NewBuilder(mustApps(t)), config); errorCode(err) != "clean_output" {
+			t.Fatal("clean could own revision", err)
+		}
+	}
+	_, _, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
+		config.PostClean = formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
+			t.Fatal("read executed clean")
+			return forms.Values{}, validation.Errors{}
+		}}
+		config.Model.Fields = append(config.Model.Fields, ir.Field{Name: "hidden", GoName: "Hidden", Column: "hidden", Kind: ir.FieldInteger})
+	})
+	if _, found, err := registry.models[0].get(t.Context(), sitePrincipal(t, "manager", true, "accounts.change"), 1); found || errorCode(err) != "missing_model_value" {
+		t.Fatal("clean received incomplete current snapshot", found, err)
 	}
 }

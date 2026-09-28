@@ -76,7 +76,28 @@ Native 160개 입력 대조의 checkbox 4개 의미 차이와 8개 integer profi
 모델에서 제외한 field 이름을 ExtraFields가 다시 사용하는 경우도 명시적으로 거부한다. 고정 Django ModelForm은 이를
 허용하지만 GoDj의 모델 입력과 추가 command 입력은 겹치지 않는 소유권을 가진다. DB 16개 사례 중 이 1개는
 construction 단계의 shadows_model 오류로 검증하며 나머지 15개의 native DB 후처리 일치와 구분한다.
-일반 model clean의 값 변환, 전체 constraint 종류·custom user model과 모든 제품 소비자 연결의 완료는 별도 작업이다.
+`PostClean`은 pure `Clean`의 명시적 변경 집합과 read-only `Validators`를 소유한다. Field cleaning 뒤 실행하고
+field 오류가 있어도 모델 후보를 전달한다. Clean의 변경과 입력 오류는 함께 보존하며 필드 검증을 다시 실행하지 않는다.
+후속 validator와 DB unique/constraint는 변환된 후보를 읽는다. Form.Cleaned와 원래 제출은 바꾸지 않으며,
+exclusion은 Form 선택·오류에서 계속 계산하므로 제외 필드의 변경만으로 DB 사전 검사의 대상을 늘리지 않는다.
+
+`PostClean.Fields`는 선택 여부와 별개로 변경할 수 있는 stored scalar의 명시적 목록이다. PK·ManyToMany·command input과
+알 수 없는 field는 포함할 수 없고, 미선언 변경 또는 값 표현 불일치는 부분 결과 없이 construction/execution error가 된다.
+모델 field의 email/choices/blank/max-length 검증을 clean 뒤 암묵적으로 반복하지 않는다. 최종 typed writer의 저장 표현
+검사와 DB 제약은 그대로다. Python의 mutable instance와 무시되는 clean 반환값 대신 immutable 후보와 명시적 변경 집합을
+사용한다. 이는 Go API 소유권의 차이이며 native 반환 프로토콜과 일치한다고 주장하지 않는다.
+
+유효한 `BoundForm.Input`은 선택 입력과 command input 외에 **실제로 반환한 명시적 clean 변경**을 포함한다. 따라서
+제외한 field도 서버가 선언한 파생 값을 typed adapter에 전달할 수 있다. 선언만 하고 변경하지 않은 제외 field를 추가하지 않는다.
+Input/typed instance 준비는 I/O를 소유하지 않고 저장 권한도 부여하지 않는다. Consumer는 현재 인가된 typed row/default에
+해당 입력을 적용하고 최종 transaction/revision·관계 인가·DB 제약을 유지한다. 일반 ORM Save에는 full_clean을 추가하지 않는다.
+
+Admin은 일반/생성 전용 PostClean을 복사해 소유한다. 후처리가 있는 수정 폼은 모든 stored scalar의 현재 initial을 요구한다.
+PK·revision은 registry 소유이며 revision의 clean 출력 선언도 거부한다. 명시적 출력 field는 typed 입력·Snapshot 구조 검사와
+변경 field/audit reconciliation에 포함하지만 editable Form으로 만들지 않는다. HTTP의 숨긴 입력 위조는 기존대로 거부한다.
+저장 직전에도 원래 제출과 최신 인가 row에서 bind하므로 한 요청에서 재검증이 있을 때 clean을 다시 호출하며, 각 bind에서는
+한 번 실행한다. Callback은 pure하고 동시 실행에 안전해야 한다.
+전체 ModelForm 저장 자동화·전체 constraint 종류·custom user model과 모든 제품 소비자 연결의 완료는 별도 작업이다.
 
 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`와 DRF 3.18.0을 참조하며
 [Django license](../../LICENSE.django)와 [출처](../SOURCES.md)를 따른다. 구현·소비자 연결·환경별 검증은 별도로 기록한다.

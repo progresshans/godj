@@ -32,6 +32,7 @@ type BoundForm struct {
 	candidate forms.Values
 	model     ir.Model
 	fields    []forms.Field
+	changed   []string
 }
 
 func (BoundForm) Format(state fmt.State, _ rune) { fmt.Fprint(state, "model.BoundForm{redacted}") }
@@ -63,9 +64,9 @@ func (bound BoundForm) Excluded() []string {
 	return excluded
 }
 
-// Input returns only selected stored values and command inputs after every
-// applied check succeeded. Omitted defaults come from the model candidate;
-// command-only inputs continue to come from the form's cleaned data.
+// Input returns selected stored values, explicitly declared model-clean changes
+// and command inputs after every applied check succeeded. Omitted defaults come
+// from the candidate; command inputs continue to come from the cleaned data.
 func (bound BoundForm) Input() (forms.Values, error) {
 	if !bound.form.Bound() || !bound.form.Valid() {
 		return forms.Values{}, &Error{Path: "form", Code: "not_bound_valid"}
@@ -80,6 +81,10 @@ func (bound BoundForm) Input() (forms.Values, error) {
 			return forms.Values{}, &Error{Path: "form." + field.Name(), Code: "missing_value"}
 		}
 		input[field.Name()] = value
+	}
+	for _, name := range bound.changed {
+		value, _ := bound.candidate.Get(name)
+		input[name] = value
 	}
 	return forms.NewValues(input), nil
 }
@@ -96,16 +101,15 @@ func (bound BoundForm) WithErrors(failures validation.Errors) (BoundForm, error)
 }
 
 // Bind constructs an immutable model candidate, validates selected model
-// fields, then runs pure model validators even if field cleaning failed.
+// fields, then runs pure model clean and validators even if fields failed.
 // Initial may contain explicitly supplied model values outside the form; such
-// values are available to model validators but never enter Input. Omitted
-// initial model values use model defaults or the unsaved empty state.
+// values enter Input only if explicitly changed by PostClean. Omitted initial
+// model values use model defaults or the unsaved empty state.
 // No relation existence, uniqueness or persistence I/O is performed here.
-func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, validators ...Validator) (BoundForm, error) {
-	for i, validator := range validators {
-		if nilValidator(validator) {
-			return BoundForm{}, &Error{Path: fmt.Sprintf("validators[%d]", i), Code: "nil"}
-		}
+func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
+	postClean = postClean.Clone()
+	if err := postClean.validate(model); err != nil {
+		return BoundForm{}, err
 	}
 	fields := spec.Fields()
 	byName := make(map[string]ir.Field, len(model.Fields))
@@ -211,22 +215,15 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 	if err != nil {
 		return BoundForm{}, err
 	}
-	for _, validator := range validators {
-		bound, err = bound.WithErrors(validator.ValidateModel(bound.candidate))
-		if err != nil {
-			return BoundForm{}, err
-		}
-	}
-	return bound, nil
+	return postClean.apply(bound)
 }
 
-func (definition Definition) Bind(model ir.Model, data forms.Data, initial map[string]forms.Value, validators ...Validator) (BoundForm, error) {
+func (definition Definition) Bind(model ir.Model, data forms.Data, initial map[string]forms.Value) (BoundForm, error) {
 	spec, err := definition.Spec(model)
 	if err != nil {
 		return BoundForm{}, err
 	}
-	all := append(append([]Validator(nil), definition.ModelValidators...), validators...)
-	return Bind(model, spec, data, initial, all...)
+	return Bind(model, spec, data, initial, definition.PostClean)
 }
 
 func nilValidator(value Validator) bool {

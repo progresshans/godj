@@ -43,17 +43,17 @@ func additionalPermissions(primary auth.Permission, additional []auth.Permission
 
 func (model registeredModel) forCreate() registeredModel {
 	model.form, model.formFor, model.choicePermissions = model.createForm, model.createFormFor, model.createChoicePermissions
-	model.modelValidators = model.createModelValidators
+	model.postClean = model.createPostClean
 	model.revisionField = ""
 	return model
 }
 
 func (model registeredModel) bind(data forms.Data, initial map[string]forms.Value) (formmodel.BoundForm, error) {
-	return formmodel.Bind(model.model, model.form, data, initial, model.modelValidators...)
+	return formmodel.Bind(model.model, model.form, data, initial, model.postClean)
 }
 
-func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, initial map[string]forms.Value, validators []formmodel.Validator) (forms.Values, error) {
-	bound, err := formmodel.Bind(model, spec, data, initial, validators...)
+func validateModelBoundData(model ir.Model, data forms.Data, spec forms.Spec, initial map[string]forms.Value, postClean formmodel.PostClean) (forms.Values, error) {
+	bound, err := formmodel.Bind(model, spec, data, initial, postClean)
 	if err != nil {
 		return forms.Values{}, &ConfigError{Path: "form", Code: "model_validation_failed", Cause: err}
 	}
