@@ -106,7 +106,18 @@ Article의 `cmd/projectrunner/main_test.go`·`cmd/site/main_test.go` 네 테스�
 `TZ=Pacific/Chatham`, private PostgreSQL **17.10 UTF8/libc/C**, 실제 SQLite에서 수행했다.
 소스 전후 동일, DB **0|0|0**과 container 제거를 확인했다. Receipt·roster·전체 로그는
 `hosted-repair-1790553210826583000`에 있다. 이전 제품 검사를 이 수정 source에서 다시 실행했다고 합산하지 않는다.
-다음 Hosted 전체는 이 보완 소스로 새 실행과 capture를 사용하며, 기존 부분 성공을 전체 검증으로 전이하지 않는다.
+영향 vet와 158개 문서의 로컬 링크·format/diff 검사를 통과하고 commit `b6bff156224a205bd4247b42e72be46254c49828`을 게시했다.
+[Fast 36364530446](https://github.com/progresshans/godj/actions/runs/36364530446)와
+[Full 36364531786](https://github.com/progresshans/godj/actions/runs/36364531786)은 이 source의 새 실행이다.
+Fast는 실제 `Fast Go feedback` 단계까지 성공했다. Full은 실행 중이며, 새 capture와 모든 필수 owner·최종 집계가
+확인되기 전에는 전체 PASS로 기록하지 않는다. 원격 JSON과 Fast 전체 로그도 같은 보완 evidence directory에 보존한다.
+
+Full의 새 두 capture는 같은 run/producer/attempt, artifact archive digest와 payload checksum/provenance를 확인했다.
+해당 commit의 Git blob에서 직접 재계산한 source binding도 일치한다:
+systemstate **620 files / 6,602,368 bytes / `a48f1df484273b364d5e2ab9d615c2a1d336f8b515752d4cbf754c1957ca1bc5`**,
+operator **696 files / 6,447,359 bytes / `ce498f1cd0621ce0f0e50e591cbea447b08cc2ee02ef59acd520190528a35d6c`**.
+Archive·원문·source inventory와 receipt는 같은 evidence root의 `hosted-full-36364531786-1790558077664132000`에 보존한다.
+Capture 일치만으로 아직 진행 중인 필수 owner의 성공을 대신하지 않는다.
 
 ### 선행 재사용 Form Hosted 전체의 종료
 
