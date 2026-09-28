@@ -32,6 +32,7 @@ func TestIdentityHistoryRequiresEveryOwnedMigrationExactlyOnce(t *testing.T) {
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
+		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
 	}
 	check := func(t *testing.T, rows []migrationbackend.AppliedMigration, valid bool) {
 		t.Helper()

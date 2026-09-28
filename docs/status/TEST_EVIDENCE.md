@@ -146,6 +146,21 @@ Article의 현재 canonical IR에서 summary Blank만 false로 되돌리면 이�
 CI 도구 **41 tests**, 160개 문서의 local target **1,245개**와 `git diff --check`도 통과했다. Heading fragment는 검사하지 않았다.
 전체 ModelForm DB 후처리나 이 새 소스의 Hosted 전체 성공이 아니다.
 
+
+### Blank Hosted Fast의 이력 기대 보완
+
+구현 commit `037f8b6f9a90e325b9e7aec6e30fed6932bff0de`의
+[Fast 36375502838](https://github.com/progresshans/godj/actions/runs/36375502838)은 systemstate의 두 테스트에서 실패했다.
+`TestIdentityTransitionDefinitionMatchesNormalizedSchemaAndIsDetached`는 내장 migration 문서 수를 이전 5개로,
+`TestIdentityHistoryRequiresEveryOwnedMigrationExactlyOnce`는 이전 다섯 key로 기대했다. 제품의 canonical 이력 검사는
+새 `godj_identity.0004_auto_1da4dbd173ec`를 요구하고 있었다. 문서 수를 6개로, 독립 key roster에도 새 migration을
+명시했다. 누락/중복/미지 key 거부와 원본 document의 소유권 검사는 유지하며, 새 key의 누락·중복도 같은 검사를 받는다.
+
+Clean primary의 `037f8b6f` 위에서 이 두 test 파일만 변경해 `./systemstate` **68 required roots / 210 PASS / skip 0**를
+normal **9.664초**, race **22.881초**, CGO=0 **3.501초**에 각각 확인했다. 필수 누락 0, source 전후 동일이며 제품 코드는
+변경하지 않았다. 최초 Hosted 실패 로그와 exact changed-file hash·roster·세 JSON event stream은 기존 final core normal
+ evidence의 `hosted-fast-failure/history-repair`에 있다. 진행 중인 별도 DB 후처리 작업과 결과를 합치지 않는다.
+
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
 기반 commit `76f7b8e44650c874cb61f43e323f52c15707bb15`에서 EmailField를 별도 IR kind로 추가했다.

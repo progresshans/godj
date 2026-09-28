@@ -11,6 +11,7 @@
 - 최근 Hosted 종료: [수정 full](https://github.com/progresshans/godj/actions/runs/36364531786), source `b6bff156224a205bd4247b42e72be46254c49828`, 60 성공·Intel race package 시간 초과·최종 집계 실패; 같은 source의 [Fast](https://github.com/progresshans/godj/actions/runs/36364530446)는 실제 Go 검사까지 성공
 - 최근 Hosted 종료: [시간 예산 보완 full](https://github.com/progresshans/godj/actions/runs/36369062484), source `bb9eae3c`, 60 성공·Intel race 명령 제품과 최종 집계 실패; Intel relation race는 성공
 - 진행 중: [인증 확인 테스트 예산 보완 full](https://github.com/progresshans/godj/actions/runs/36374533286), source `ea2867f4323fb34e713fc1d10d8a62c05c785d37`; [Fast](https://github.com/progresshans/godj/actions/runs/36372684175)의 실제 Go 검사 성공
+- 최근 Blank [Fast](https://github.com/progresshans/godj/actions/runs/36375502838), source `037f8b6f`: systemstate 두 테스트의 새 Identity 이력 기대 누락으로 실패; 목록 보완 후 해당 package normal/race/CGO=0 통과
 - Source·환경·scope·선행 실패와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
