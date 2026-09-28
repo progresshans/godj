@@ -32,8 +32,8 @@ GDJ-0102는 Blank 입력 정책·metadata-only migration, 모델 candidate·pure
 최종 저장 검사를 구분한다. 현재 인가·row/revision·관계 scope와 오류/cleanup 소유권을 영향 세 mode·실제 양 DB·독립 생성 소비자에서 검증했다.
 고정 Django의 입력/DB 사례와 명시적 차이는 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md)을 따른다.
 후속 model clean의 명시적 scalar 변경과 제외 필드 저장 입력·Admin 연결을 구현하고 영향 세 mode·실제 양 DB·5개 부정 대조를 완료했다.
-Generated descriptor와 ORM의 typed 값 준비·Form instance 연결을 구현하고 영향 세 mode·양 DB·생성 drift·7개 부정 대조를 완료했다. 선행 Blank/DB 후처리 source `211499d0`의 Hosted 전체 62 jobs·8 owners·새 capture 결합은 완료했다.
-선택 collection의 명시적 adapter와 scalar 저장 조정·deferred 관계 저장을 구현하고 영향 세 mode·양 DB·6개 부정 대조를 완료했다. Admin의 BoundForm 전달과 Helpdesk Ticket의 실제 저장 adapter 연결을 구현했다. 전체 ModelForm 저장 자동화·나머지 제품 adapter 확대와 후속 source의 Hosted 전체는 아직 완료하지 않았다. [모델 Form 사용법](../../forms/model/README.md)을 따른다.
+Generated descriptor와 ORM의 typed 값 준비·Form instance 연결을 구현하고 영향 세 mode·양 DB·생성 drift·7개 부정 대조를 완료했다. clean/typed 준비 source `1b2fc492`의 Hosted 전체 62 jobs·8 owners·새 capture 결합까지 완료했다.
+선택 collection의 명시적 adapter와 scalar 저장 조정·deferred 관계 저장을 구현하고 영향 세 mode·양 DB·6개 부정 대조를 완료했다. Admin의 BoundForm 전달과 Helpdesk Ticket의 실제 저장 adapter 연결을 구현했다. 전체 ModelForm 저장 자동화·나머지 제품 adapter 확대는 남아 있다. 저장 조정/제품 연결을 포함한 `f5b0020f`의 Hosted full `36397837881`은 진행 중이다. [모델 Form 사용법](../../forms/model/README.md)을 따른다.
 
 GDJ-0101은 EmailField의 별도 IR kind, 문자열 저장·typed/dynamic/관계 query, Form/serializer·EmailInput,
 기본 User migration·Admin/API와 독립 client를 연결했다. 기존 이메일 데이터는 재작성하지 않으며 입력 검증과 저장을 구분한다.

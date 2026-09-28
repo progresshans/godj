@@ -25,7 +25,7 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] 후속 model clean의 영향 세 mode·양 DB·native 대조·실패/5개 부정 대조 완료
 - [x] 생성 descriptor·ORM typed 준비와 Form instance/collection·command 입력 소유권 구현
 - [x] Typed 준비·표현 불가능한 NULL 경계의 영향 세 mode·양 DB·생성 drift·7개 부정 대조 완료
-- [ ] 후속 clean/prepare source의 Hosted 통합 완료
+- [x] 후속 clean/prepare `1b2fc492`의 Hosted 통합·62 jobs/8 owners/새 capture source 결합 완료
 - [x] Scalar/선택 collection 저장 조정과 deferred 단계·실패/현재 인가 경계를 독립 생성 소비자에 연결
 - [x] 저장 lifecycle의 고정 Django 관찰·영향 세 mode·양 DB·6개 부정 대조 완료
 - [x] Admin BoundForm callback과 Helpdesk typed 저장 연결·기존 인가/범위/JSON/실패 경계 보존
@@ -81,7 +81,7 @@ Native 15개 사례 중 기존 13개의 의미와 nonnullable NULL 2개의 준�
 
 후속 clean/typed 준비 commit `1b2fc49267181f321c0a079844e945cd6cf81584`를 양 branch에 원자적으로 push했다.
 [Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296)과
-[Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)을 실행했다. Fast는 실제 Go step·terminal success를 확인했고 full은 진행 중이다. Source가 다른 검증을 전이하지 않는다.
+[Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)을 실행했다. Fast와 full의 terminal success를 확인했다. Full은 62 jobs·8 owners·최종 집계·새 capture의 Git source 결합까지 완료했다. Source가 다른 검증을 전이하지 않는다.
 
 후속 `PreparedInstance.Save/SaveCollections`는 caller가 소유하는 typed 모델과 선택 collection adapter를 연결한다.
 Scalar 뒤 IR 순서로 저장하고 사전 구성 검사·빈 선택/제외·PK presence·context/session lifetime·오류 전달을 보존한다.
@@ -96,6 +96,8 @@ credential/session adapter는 bound.Input을 읽으며 내부 callback 호환 �
 후속 저장 조정/제품 연결 source의 Hosted 통합은 아직 남아 있다.
 제품 연결 commit `996ff5eccf0393781080d834ddd9636e981e53bd`를 양 branch에 원자적으로 push했고
 [Fast 36397043744](https://github.com/progresshans/godj/actions/runs/36397043744)의 실제 Go step·terminal success를 확인했다.
+선행 full 완료 후 같은 제품 코드를 가진 문서 후속 commit `f5b0020fa6c3f2c150eed720464b8e6765521113`의
+[Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)을 `suite=full`로 시작했다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

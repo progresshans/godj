@@ -74,14 +74,18 @@ CI 도구 **41 tests**(4.262초)와 영향 vet(0.618초), 문서 검사(161 docu
 제품 연결 commit `996ff5eccf0393781080d834ddd9636e981e53bd`를 양 branch에 원자적으로 push했다.
 [Fast 36397043744](https://github.com/progresshans/godj/actions/runs/36397043744)는 해당 source의 실제 Fast Go step과
 terminal success를 확인했다. 원문은 위 normal evidence의 `hosted/fast-run.json`, `hosted/fast-jobs.json`에 보존한다.
-제품 source의 Hosted 전체는 아직 실행하지 않았다. 이미 진행 중인 선행 full의 관찰 지연만으로 새 dispatch해 취소하지 않는다.
+선행 full의 terminal success를 확인한 뒤 제품/검증 입력이 같은 문서 후속 commit
+`f5b0020fa6c3f2c150eed720464b8e6765521113`의 [Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)을
+`suite=full`로 dispatch했다. 정확한 head/event/ref와 live queued 상태를 확인했고 `hosted/full-dispatch.json`에 보존했다.
+이 새 실행은 아직 미완료이며 다른 source의 full 성공을 전이하지 않는다.
 
 선행 저장 조정 source `ce52685c`의 [Fast 36393894699](https://github.com/progresshans/godj/actions/runs/36393894699)는
 terminal success와 실제 Fast Go step 성공을 확인했다. 이 후속 callback/Helpdesk source의 검증으로 전이하지 않는다.
-선행 typed 준비 full `36391162296` / `1b2fc492`도 진행 중이며 이 후속 저장 코드는 포함하지 않는다.
+선행 typed 준비 full `36391162296` / `1b2fc492`는 **62 jobs / 8 owners 모두 success**로 완료했다. 이 후속 저장 코드는 포함하지 않는다.
 
 같은 full의 새 capture 두 개는 archive checksum·정확한 파일 집합·producer attempt/provenance와 Git blob source binding을
-확인했다. 이 중간 확인은 아직 필수 owner 전체나 최종 aggregate 성공을 뜻하지 않는다.
+확인했다. 최종 aggregate job `108847611870`의 실제 JSON도 `scope=full`, `full_platform_verified=true`와 8개 owner를
+반환했다. 같은 Git SHA의 `scripts/ci/scopes.py`가 계산한 full owner 목록과 대조했으며 skip/cancel/실패는 0이다.
 
 | capture | artifact / producer job | Git source binding |
 | --- | --- | --- |
@@ -148,7 +152,7 @@ redacted child summary만으로 추측하지 않고 진단 overlay에서 실제 
 - Race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-race-jwgtopzs`
 - CGO=0: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-save-cgo0-erb39vgg`
 
-이 후속 저장 source는 진행 중인 clean/typed 준비 full `36391162296` / `1b2fc492`에 포함되지 않는다.
+이 후속 저장 source는 완료된 clean/typed 준비 full `36391162296` / `1b2fc492`에 포함되지 않는다.
 
 ### 독립 입력 기준과 Go 대조
 
@@ -571,7 +575,8 @@ Normal의 `negative-controls`와 `integration-checks`에 overlay·drift/vet/CI �
 후속 clean/typed 준비 commit `1b2fc49267181f321c0a079844e945cd6cf81584`를 양 branch에 원자적으로 push한 뒤
 [Hosted full 36391162296](https://github.com/progresshans/godj/actions/runs/36391162296)을 해당 SHA의 `suite=full`로 시작했다.
 [Fast 36391165591](https://github.com/progresshans/godj/actions/runs/36391165591)은 같은 source에서 terminal success와 실제 Fast Go feedback step success를 확인했다.
-현재 source의 전체 완료로 기록하지 않으며 선행 `211499d0`의 완료를 전이하지 않는다.
+해당 full은 62 jobs·8 owners와 최종 aggregate·새 capture의 Git source 결합까지 완료했다. 상세 closeout은 이 절 상단의
+BoundForm/제품 연결 evidence에 있다. 선행 `211499d0`이나 이후 저장 조정/제품 source의 결과로 혼동하지 않는다.
 
 ## GDJ-0101 — 모델 이메일 필드와 Identity 입력
 
