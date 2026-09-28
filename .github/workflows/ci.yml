@@ -396,7 +396,7 @@ jobs:
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
-            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
+            timeout_minutes: {normal: 45, race: 90, cgo0: 45}
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
@@ -436,7 +436,9 @@ jobs:
           # process. Allow their combined build/runtime budget in every mode and
           # runner, with time left for diagnostics before the outer job limit.
           # Package/test inventory, race propagation and no-skip checks stay fixed.
-          test_timeout=35m
+          # Intel race reached the aggregate package limit with the active
+          # generated consumer only two minutes into its own run.
+          test_timeout="${{ matrix.platform.runs_on == 'macos-15-intel' && matrix.mode == 'race' && '70m' || '35m' }}"
           test_flags=(-timeout="$test_timeout" -json -count=1)
           case "$mode" in
             normal) ;;
