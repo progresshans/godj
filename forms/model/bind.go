@@ -69,6 +69,9 @@ func (bound BoundForm) Excluded() []string {
 // and command inputs after every applied check succeeded. Omitted defaults come
 // from the candidate; command inputs continue to come from the cleaned data.
 func (bound BoundForm) Input() (forms.Values, error) {
+	if bound.form.ReadOnly() {
+		return forms.Values{}, &Error{Path: "form", Code: "read_only"}
+	}
 	if !bound.form.Bound() || !bound.form.Valid() {
 		return forms.Values{}, &Error{Path: "form", Code: "not_bound_valid"}
 	}

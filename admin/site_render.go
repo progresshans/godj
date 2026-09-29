@@ -321,7 +321,7 @@ func (site *Site) formContext(
 		selected := []string{value}
 		if field.Widget() == forms.SelectMultiple {
 			selected = nil
-			if form.Bound() {
+			if form.Bound() && !form.ReadOnly() {
 				for _, raw := range submitted[field.Name()] {
 					selected = append(selected, safeDisplayText(raw))
 				}
@@ -403,7 +403,7 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 		return "", false
 	}
 	if field.Widget() == forms.NullBooleanSelect {
-		if form.Bound() {
+		if form.Bound() && !form.ReadOnly() {
 			if value, known := booleaninput.NullableSelect(submitted.Get(field.Name())); known {
 				return strconv.FormatBool(value), false
 			}
@@ -414,7 +414,7 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 		}
 		return "unknown", false
 	}
-	if form.Bound() {
+	if form.Bound() && !form.ReadOnly() {
 		if raw, ok := submitted[field.Name()]; ok {
 			first := ""
 			if len(raw) > 0 {

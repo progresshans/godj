@@ -1819,8 +1819,10 @@ github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/inline_parent/deferred
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/inline_parent/late_failure
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/inline_parent/unsaved_parent
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/inline_readonly
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_parent
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_parent/parent_then_children
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_parent/deferred
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_parent/late_failure
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_parent/unsaved_parent
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/inline_readonly

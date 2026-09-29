@@ -273,6 +273,7 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 		})
 	}
 	t.Run("inline_parent", func(t *testing.T) { verifyInlineParentPersistence(t, b) })
+	t.Run("inline_readonly", func(t *testing.T) { verifyReadOnlyInlinePersistence(t, b) })
 }
 
 // Trace real native writes while retaining borrowed lifetime and conflict

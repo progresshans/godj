@@ -75,6 +75,12 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 직렬화하거나 재바인딩하지 않는다. 원래 제출, 제외한 기존 값, IR default, 명시적 clean 변경을 단일 Form과 동일하게 보존한다.
 기존 scalar와 nullable pointer는 복사하며 `Current(index)`도 분리된 모델을 반환한다.
 
+`SetConfig.ReadOnlyInitial`인 기존 행에는 검증 대신 서버의 읽기 전용 후보를 제공한다. 일반 field/model clean을 실행하지 않고
+서버 값을 유지한다. 이 후보도 형제 unique tuple 비교에 참여하지만 `Input()`과 독립 `Instance().Prepare()`는 `read_only`로
+거부한다. 전체 `Prepare().Rows()`에서도 제외한다. 명시적으로 허용한 DELETE는 별도 `Deleted()`의 서버 snapshot으로 남는다.
+조회 전용 행에도 management·PK/cohort·Inline 부모 admission을 적용하며 새 행은 정상 검증한다. 상태 표시에는
+`instance.BoundForm().Form().ReadOnly()`를 사용한다. 이 기능만으로 Admin의 권한 분기·HTML·합성 저장을 구현했다고 주장하지 않는다.
+
 선택한 ManyToMany field가 있으면 이미 읽은 관계 데이터를 돌려주는 하나의 pure reader를 마지막 인자로 제공한다.
 Reader는 `func(M, ir.ManyToManyField) ([]int64, bool)`이며 별도 모델/metadata snapshot을 받는다. 기존 행의 관계 값을
 읽을 수 없으면 명시적으로 실패한다. 관계 query를 binding 안에 숨기지 않는다. 새 행에 필요한 서버 소유 값은
@@ -98,7 +104,7 @@ for _, row := range preparedSet.Rows() {
 ```
 
 `Prepare()`는 삭제되지 않은 기존 행과 변경된 추가 행을 typed 후보로 준비하고, 기존 행의 삭제 의도를 `Deleted()`로
-분리한다. Django `save(commit=False)`와 달리 **변경하지 않은 기존 행도 Rows에 남긴다**. Caller는 모델 후처리와 실제 쓰기
+분리한다. Django `save(commit=False)`와 달리 **편집 가능한 기존 행은 변경하지 않아도 Rows에 남긴다**. Caller는 모델 후처리와 실제 쓰기
 정책에 맞춰 저장할 대상을 정한다. `Changed()`는 Form의 입력 변경이며 model clean의 변경 field 목록이 아니다.
 삭제한 추가 행과 변경하지 않은 optional 추가 행은 저장 후보에 포함하지 않는다. 삭제 대상의 Model은 원래 서버의 모델
 snapshot이다. 준비는 저장/삭제·transaction·인가·여러 행 DB 제약을 자동 실행하지 않는다.

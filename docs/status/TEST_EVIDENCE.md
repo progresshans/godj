@@ -5,6 +5,70 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 조회 전용 기존 행과 추가 행의 분리
+
+기반 `ed1dc79f932e8cc552326f1b23c4da78d656b63c` 이후 `SetConfig.ReadOnlyInitial`과 `Form.ReadOnly()`를 연결했다.
+기존 행의 일반 field/cross/model clean을 실행하지 않고 서버 initial을 cleaned 값/모델 후보에 보존한다. 추가 행은 정상
+검증하고 구성에서 켠 ORDER/DELETE는 독립 제어로 처리한다. 형제 고유성에는 조회 전용 행을 포함하지만 저장용 Input과
+독립 Instance.Prepare를 거부하고 PreparedSet.Rows에서는 제외한다. PK/cohort·parent·count/전체 진단은 계속 적용한다.
+Admin 값 출력은 readonly에서 제출 대신 Initial을 사용하며 nullable Boolean·선택 값·PasswordInput 비공개 정책을 유지한다.
+
+고정 Django 6.1/CPython 3.14.3에서 독립 `admin_inline_readonly_reference.py`가 실제 Admin `_create_formsets`와 SQLite를
+사용해 10개 관찰을 생성했다. `django.contrib.admin.options` SHA는
+`7526be63d08ff1338acc3e78e56171683bcdc697d32ce4af1de17aff8f328a48`이다. Unbound·누락/위조/반복 일반값·좁아진 입력 길이·
+새 행·기존 행과 중복·invalid extra·삭제·삭제 후 같은 값 추가를 관찰하고 DB 무변경/정리를 확인했다. Go의 서버 후보·쓰기/삭제
+선택을 대조한다. 삭제할 readonly 행의 일반 callback/오류 생략은 명시적 차이다. Native는 같은 unique 값의 추가를 삭제 전 DB
+검사에서 거부하지만 pure Go 준비에는 DB 읽기가 없어 해당 삭제/추가 의도를 준비한다. 이를 native Admin의 전체 동등성이나
+DB 검증 완료로 합치지 않는다. Admin 권한별 전체 HTML/합성 저장은 아직 연결하지 않았다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| normal | forms/model/admin/Helpdesk 4 packages / 197 roots / 130 required cases / 2,175 PASS / 23.219초 |
+| pure race | 3 packages / 5 roots / 15 PASS / 1.940초; readonly initial·독립 준비 거부·동시 준비·안전한 표시 |
+| 실제 저장 race | 양 DB `inline_readonly`, 1 root / 2 required cases / 5 PASS / 4.067초 |
+| 부정 대조 | initial 고정 제거→위조/반복 입력 검증, readonly Input guard 제거→독립 쓰기 준비, readonly unique 참여 제거→기존 행과 새 행 중복 허용을 각각 검출 |
+
+양 DB의 public InlineSpec 소비자는 위조된 기존 이름을 무시하고 새 행 한 개만 준비/저장해 기존 행이 유지됨을 확인했다.
+Go 1.26.5 Darwin arm64, PostgreSQL 17.10 UTF8/libc/C와 SQLite, readonly/offline module·Pacific/Chatham·기본 공유 cache/
+병렬 실행이다. 위 normal/race 전후의 비문서 inventory는
+`5617dc14b71826a60ca53751079ca43c5d8131f314d764d700256acadd1eedd3`이다. Compiled root 목록과 필수 하위 run/pass를
+대조했고 성공 scope의 누락·skip·잘린 event 0, DB 잔여 `0|0|0`과 임시 DB/container 삭제를 확인했다. 세 overlay는 빌드 오류나
+skip이 아닌 지정 runtime assertion에서 실패했다. IR/generator를 바꾸지 않아 generated drift·CGO0·전체 compile을 추가하지 않았다.
+마지막 검토에서 일반 편집 행에 사용하지 않을 후보 복사본을 만들지 않게 `forms/model/set.go`의 분기를 정리했다.
+최종 inventory `067c494bd75179be14b39334f5429a83a804d451b9e0b270ee2f17bf5747f1b2`와의 유일한 비문서 차이는 그 파일이다.
+최종 모델의 Inline/Readonly 6 roots를 normal/race 각각 38 PASS로 확인했으며 앞선 전체 affected/양 DB 실행을 반복하지 않았다.
+변경 Go의 gofmt와 local Markdown 164개 링크·diff 검사도 통과했다.
+
+- normal/controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-inline-readonly-normal-y5atbh5d`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-inline-readonly-race-98i4ydly`
+- native 원문: `forms/model/testdata/admin-inline-readonly-django61.json`
+- 최종 모델 분기 검사/source: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-readonly-final-model-nkr8bom3`
+
+### Formset/Helpdesk 통합 source의 Hosted full 완료
+
+[Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), attempt 1, source
+`6d8afda5086ba3fc058376a60dc567bdcd5a05d7`은 최종 success다. 62개 job이 모두 completed/success이고 최종 집계 job
+`109254088312`의 `scope: full` / `full_platform_verified: true`를 확인했다. 같은 Git source의 `scopes.py`와 대조해
+portable Go·PostgreSQL·관계·command·project check·고정 darwin·Python·conformance의 필수 owner 8개가 모두 성공함을 확인했다.
+이는 core/typed Formset·Helpdesk HTTP·여러 행 고유값·CI 선택자 수정까지의 통합이며 이후 Inline/readonly 소스에는 전이하지 않는다.
+
+같은 run/attempt의 새 PostgreSQL capture 두 개를 내려받아 archive digest, 정확한 파일 집합, SHA256SUMS와 provenance를
+검사했다. Producer job의 실제 success/attempt와 repository/run/checkout을 대조하고 source binding은 현재 dirty 파일이 아닌
+해당 commit의 Git 객체에서 재계산했다. Systemstate 636 files / SHA
+`0af369b39f90c62ba9cda5682e8fcf11b7be35d6b07812a971e8e7b55face094`, operator 713 files / SHA
+`9e3105b552eb1ffaaa49d18c31bb94dbf57162dcd92a6d0c5ec36c39dad4b2fe`가 capture와 일치한다.
+
+| capture | artifact / producer job | payload SHA256 |
+| --- | --- | --- |
+| systemstate-postgres-1 | 11011053746 / 109240390377 | `a6c86bb1fbd5de02db6d12b5cd9af35033efcf8f0a93e2a4c358178df1a2d723` |
+| operator-postgres-1 | 11011637601 / 109240390006 | `0428148513319ffe77ff4ef1fe0a5c62d414d07c3a36b7864ccb6b01b227a993` |
+
+원문·archive·inventory·최종 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-formset-integration-full-36516565253-_fa5jbg9`에 있다.
+실행 지연 때문에 교체하거나 로컬 전체를 중복하지 않았다. 이후 Inline source `ed1dc79f`의
+[PR feedback 36519619103](https://github.com/progresshans/godj/actions/runs/36519619103)은 실제 Fast Go feedback step과
+job `109249407379`이 success다. Documentation-only step은 비대상이며 이 결과를 full-platform 성공으로 표현하지 않는다.
+
 ### Inline 부모 결합과 새 부모 저장 후 자식 준비
 
 기반 `6d8afda5086ba3fc058376a60dc567bdcd5a05d7` 이후 InlineSpec/InlineSet을 구현했다. Canonical project의 FK와 양 typed
@@ -48,9 +112,9 @@ Pacific/Chatham에서 실행했다. 성공한 각 범위의 compiled root/requir
 DB 잔여 `0|0|0`과 임시 DB/container 제거를 확인했다. 모델-only repair helper도 불필요하게 private DB를 시작했다가 제거했으며
 순수 모델 재검사에는 필요하지 않다. IR/generator 변경이 없어 generated drift·CGO0·cold/full compile을 추가하지 않았다.
 
-`6d8afda5`의 [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), attempt 1은 진행 중이다.
-최근 관찰의 61개 job 중 완료 성공 51·실행 중 5·대기 5이며 이 시점 실패는 없지만 전체 PASS는 아니다. API의 상위 queued 상태와
-개별 실행 job을 구분한다. 이 run은 Inline 변경 이전 소스이고 이후 Inline의 full-platform 증거로 전이하지 않는다.
+Inline checkpoint 당시 `6d8afda5`의 [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253)은
+61개 job 중 성공 51·실행 중 5·대기 5였다. 이후 위 별도 항목에서 62 jobs·최종 success/capture 결합을 완료했다.
+이 run은 Inline 변경 이전 소스이며 이후 Inline의 full-platform 증거로 전이하지 않는다.
 
 원문·source·compiled 목록·receipt/controls:
 
@@ -98,7 +162,7 @@ Helpdesk 하위 사례 31개가 실행되지 않았다. 이 실패를 PASS/skip 
 완전한 원래 하위 이름을 유지하도록 고쳤다. 현 소스의 SQLite editor 필수 32개로 원래 workflow 코드를 실행하면 **run 0**과
 inventory 거부가 재현되며, 수정한 workflow 코드는 **106 run / 필수 32개 전부 PASS / skip 0**이다. 다른 실행 owner의 누락을
 허용하거나 테스트를 삭제한 수정이 아니다. 이 run은 최종 `cancelled`이며 62 jobs 중 success 45·cancelled 14·failure 3이다.
-위 두 core job과 최종 집계의 실패를 보존한다. 전체 platform 성공은 없으며 수정 소스의 새 통합 결과를 기다린다.
+위 두 core job과 최종 집계의 실패를 보존한다. 이 실패 run에는 전체 platform 성공이 없고 수정 소스의 성공은 위 별도 run에 기록했다.
 
 원문·source/receipt·controls:
 

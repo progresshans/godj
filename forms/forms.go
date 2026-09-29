@@ -722,6 +722,7 @@ type Form struct {
 	binding   *formBindingToken
 	submitted Data
 	bound     bool
+	readOnly  bool
 	valid     bool
 	errors    validation.Errors
 	cleaned   Values
@@ -730,6 +731,7 @@ type Form struct {
 }
 
 func (f Form) Bound() bool               { return f.bound }
+func (f Form) ReadOnly() bool            { return f.readOnly }
 func (f Form) Valid() bool               { return f.valid }
 func (f Form) Errors() validation.Errors { return f.errors }
 func (f Form) Cleaned() Values           { return f.cleaned }

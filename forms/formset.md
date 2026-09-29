@@ -75,3 +75,16 @@ Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/a
 다른 숫자·비정규 표기·중복 scalar는 거부하며 항상 Changed에서 제외한다. `HiddenInput`은 현재 Integer field에 제공한다.
 렌더러는 `InlineParent()`의 서버 값을 사용한다. 이 저수준 field만으로는 검증을 건너뛰는 빈 행이나 삭제 행의 전체 admission을
 보장하지 않는다. 모델 InlineSpec이 그런 행의 원래 제출도 검사하고 parent cohort·pending key·여러 행 제약을 함께 소유한다.
+
+## 조회 전용 기존 행과 편집 가능한 추가 행
+
+`SetConfig.ReadOnlyInitial`은 기존 행의 일반 field를 서버 initial에 고정한다. `Form.ReadOnly()`로 표시 정책을 읽는다.
+기존 값이 POST에서 빠지거나 다른 값/중복값이 들어와도 initial을 cleaned 값으로 보존하고 일반 field/cross validator를
+호출하거나 Changed에 넣지 않는다. 원래 제출은 명시적 accessor에 남는다. 더 좁은 입력 길이로 기존 값을 다시 검증하지 않는다.
+추가 행은 정상 검증한다. ORDER/DELETE는 구성에서 켠 경우에만 별도 검증·변경 추적을 하는 독립 제어 입력이다.
+그 오류나 whole-set 검증·management·상한을 조회 전용 정책으로 건너뛰지 않는다.
+
+렌더러는 조회 전용 field에 서버 Initial을 표시한다. PasswordInput의 비공개 출력은 그대로 적용하고 DELETE/ORDER 제어는
+해당 SetForm의 선택 결과에서 별도로 표시한다. 이 정책은 조회·추가·수정·삭제 권한을 부여하지 않는다. 현재 권한과 표시할
+current 집합은 제품이 정한다. [모델 준비](model/README.md#여러-모델-행의-준비)는 조회 전용 행의 저장 후보 생성을 막으면서
+서버 identity와 여러 행 고유성 검사를 유지한다.

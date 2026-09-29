@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/progresshans/godj/db"
@@ -144,6 +145,69 @@ func verifyInlineParentPersistence(t *testing.T, backend formSaveDatabase) {
 				t.Fatal("child rows survived wrong transaction outcome", names, observed.Children)
 			}
 		})
+	}
+}
+
+func verifyReadOnlyInlinePersistence(t *testing.T, backend formSaveDatabase) {
+	t.Helper()
+	binding, err := project.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	childSpec, err := formmodel.NewSpecForFields((models.LabelDescriptor{}).Metadata(), []string{"name"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := forms.DefaultSetConfig()
+	config.Prefix, config.ReadOnlyInitial = "items", true
+	rows, err := forms.NewSetSpec(childSpec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly, err := formmodel.NewInlineSpec(binding, models.CategoryObjects, models.LabelObjects, "category", rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := models.Category{Name: "inline-readonly"}
+	old := models.Label{Name: "kept"}
+	writes := 0
+	err = backend.AtomicRelation(t.Context(), func(session db.RelationSession) error {
+		if err := models.CategoryObjects.Save(t.Context(), session, &parent); err != nil {
+			return err
+		}
+		old.CategoryID = parent.ID
+		if err := models.LabelObjects.Save(t.Context(), session, &old); err != nil {
+			return err
+		}
+		children, err := readOnly.Bind(forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"1"}, "items-0-id": {strconv.FormatInt(old.ID, 10)}, "items-0-name": {"forged"}, "items-1-name": {"new"}}), parent, []models.Label{old}, formmodel.PostClean{})
+		if err != nil {
+			return err
+		}
+		prepared, err := children.Prepare()
+		if err != nil {
+			return err
+		}
+		if len(prepared.Rows()) != 1 || prepared.Rows()[0].Existing() || len(prepared.Deleted()) != 0 {
+			t.Fatal("read-only row reached save selection")
+		}
+		for _, row := range prepared.Rows() {
+			child, err := row.Model()
+			if err != nil {
+				return err
+			}
+			if err := row.Prepared().Save(t.Context(), session, &child); err != nil {
+				return err
+			}
+			writes++
+		}
+		return nil
+	})
+	if err != nil || writes != 1 {
+		t.Fatal("read-only/new child transaction failed", err, writes)
+	}
+	stored, found, err := models.LabelObjects.Using(backend).Filter(models.LabelFields.ID.Exact(old.ID)).OrderBy(models.LabelFields.ID.Asc()).First(t.Context())
+	if err != nil || !found || stored.Name != "kept" || stored.CategoryID != parent.ID {
+		t.Fatal("forged read-only input changed the database", err)
 	}
 }
 

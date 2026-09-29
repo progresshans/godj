@@ -23,7 +23,9 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 현행 사용법·지원 범위·환경별 증거 정리
 - [x] 여러 행 unique/복합 제약·compound cleaned 제외와 실제 HTTP 쓰기 전 거부
 - [x] canonical 부모 FK·InlineSet과 pending key 준비·실제 HTTP/양 DB parent-child 저장 및 rollback
-- [ ] core/typed/Helpdesk 제품 묶음의 Hosted full 통합 milestone
+- [x] core/typed/Helpdesk 제품 묶음의 Hosted full 통합: source `6d8afda5`, 이후 Inline는 별도 검증
+- [x] 조회 전용 기존 행과 추가 행의 분리·typed 저장 준비 차단·형제 고유성/부모/PK 보존
+- [ ] Admin inline의 권한별 표시/입력·부모/자식 합성 저장과 실제 HTML 성공/실패 경로
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -45,11 +47,17 @@ management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 �
 ModelFormSet의 고유값 검증은 고정 Django 23개 사례와 실제 양 DB HTTP로 연결했다. 겹친 제약은 검사 시작 시점의 완전한
 튜플을 IR 순서로 비교하며, 후속 사용자 validator가 모델 진단을 없애지 않는다. `568b75b4`의 Hosted full은 새 하위 사례의
 부모 테스트를 실행 정규식에서 선택하지 못해 필수 job이 실패했다. 실행할 부모와 확인할 전체 하위 이름을 구분하도록 고쳤고,
-기존 선택자 0회/수정 선택자의 필수 32개 실행을 실제 Go에서 재현했다. 수정 소스의 전체 통합은 아직 남아 있다.
+기존 선택자 0회/수정 선택자의 필수 32개 실행을 실제 Go에서 재현했다. 수정 소스의 전체 통합은 아래 실행에서 완료했다.
 
-`6d8afda5`의 Hosted full `36516565253`이 core/typed/Helpdesk·고유값 검증의 통합을 진행한다. 이후 InlineSpec은 canonical
+`6d8afda5`의 Hosted full `36516565253`은 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합까지 완료했다. 이후 InlineSpec은 canonical
 project FK와 양 manager를 결합하고 서버 부모를 hidden 입력·모델 후보·형제 unique 검사에 연결했다. 다른 부모/중복 scalar를
 삭제/빈 행에서도 전체 거부한다. Pending 부모는 저장으로 key를 받은 뒤 순수 준비하며 nullable FK도 orphan 준비를 허용하지 않는다.
 고정 native 22개 입력/4개 저장 관찰, 양 DB의 부모/자식 저장·지연 쓰기·늦은 실패 rollback, 실제 HTTP 위조 거부와 관련 race/
 세 부정 대조를 확인했다. 처음 지원하지 않는 FK default로 만든 테스트 fixture는 실패했고 canonical 정책 거부로 고친 모델 범위를
 다시 검증했다. 실행별 source/범위는 TEST_EVIDENCE에 분리했다. 새 부모 HTML 화면과 Admin inline UI는 남아 있다.
+
+고정 Admin에서 조회 전용 기존 행은 POST의 일반 값이 없어도 initial을 유지하고 callback을 건너뛴다는 동작을 확인했다.
+공통 SetConfig의 ReadOnlyInitial로 일반 입력과 명시적 ORDER/DELETE를 분리했다. 모델 후보는 서버 값을 유지하며 독립/전체
+준비에서 읽기 전용 행을 쓰기로 바꾸지 않는다. 새 행의 고유성 비교에서는 기존 행을 제외하지 않는다. Native 10개 관찰,
+양 DB의 기존 행 무변경/새 행 저장과 같은 source의 normal·관련 race·세 실패 대조를 확인했다. 삭제 행의 callback 생략과
+native의 삭제 전 DB 고유성 거부는 pure 준비와 구분한다. 다음 단계는 권한별 inline 표시와 단일 합성 저장을 Admin에 연결하는 일이다.

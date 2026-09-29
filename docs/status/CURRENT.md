@@ -2,31 +2,30 @@
 
 - 갱신: 2026-09-29
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
-- 최근 완료한 전체 검증: [Hosted full 36504649962](https://github.com/progresshans/godj/actions/runs/36504649962), source `cb76b165aa3379c8c40aabfa7d12354460c57bf7`; 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
-- Helpdesk source `568b75b40ac5da5b3d03b2406808d33c6c23f911`의 [Hosted full 36514445961](https://github.com/progresshans/godj/actions/runs/36514445961): 하위 사례만 등록한 부모 테스트의 선택 누락으로 필수 job 실패; 전체 PASS 아님
-- 수정 source `6d8afda5086ba3fc058376a60dc567bdcd5a05d7`의 [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253): 실행 중; 아래 Inline 변경은 포함하지 않음
+- 최근 완료한 전체 검증: [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), source `6d8afda5086ba3fc058376a60dc567bdcd5a05d7`; 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
 - Source·환경·scope·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-Formset core·typed 모델 준비를 [Helpdesk 여러 행 편집](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)에 연결했다.
-서버 Category의 현재 페이지와 관계 선택지를 다시 읽고, 같은 transaction에서 여러 행 scalar/collection·삭제 정책·감사 기록을
-저장한다. 권한/CSRF·cohort/identity·입력 재표시와 늦은 실패/롤백·unknown outcome을 실제 양 DB HTTP로 확인했다.
-ModelFormSet의 unique field/복합 제약을 여러 행의 cleaned 입력에서 검사하고 중복 행/전체 진단과 typed/core exclusion을 함께 갱신한다.
-필수 하위 사례의 부모를 실행하도록 Hosted 선택자를 고쳤으며 기존 선택자의 0회 실행과 수정 후 실제 실행을 대조했다.
-공통 InlineSpec이 canonical project FK·서버 부모와 자식 집합을 결합한다. 저장된 부모와 pending 부모의 검증·key 연결,
-삭제/빈 행의 부모 위조 거부와 nullable/cross-app/OneToOne 의미를 구현하고 Helpdesk HTTP에 연결했다.
-새 부모 저장→자식 저장과 늦은 실패의 전체 rollback도 실제 양 DB로 확인했다. 영향 normal·관련 race·부정 대조와 native 기준을 확인했다.
-[모델 Form 사용법](../../forms/model/README.md), [ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)이 모델/제품 책임을 구분한다.
+Formset core·typed 모델 준비와 [Helpdesk 여러 행 편집](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기),
+여러 행 unique/복합 제약·compound cleaned 제외의 통합을 완료했다. 서버 current 집합·권한/CSRF·관계·삭제 정책·감사 기록을
+같은 transaction에서 처리하고 늦은 실패/rollback·unknown outcome을 검증했다. Hosted 필수 하위 사례의 부모 선택 누락을
+수정한 위 source의 전체 통합과 source 결합을 확인했다.
 
-`cb76b165`의 전체 성공에는 Formset이 없다. 현재 코드의 전체 platform 완료를 선행 결과에서 추론하지 않는다.
-진행 중인 `6d8afda5`의 Formset 통합과 그 이후 Inline 로컬 검증을 구분한다.
+이후 공통 InlineSpec이 canonical project FK·서버 부모와 자식 집합을 결합한다. 저장된 부모와 pending 부모의 검증/key 연결,
+삭제/빈 행의 부모 위조 거부와 nullable/cross-app/OneToOne을 구현하고 Helpdesk HTTP에 연결했다. 새 부모 저장→자식 저장과
+늦은 실패의 전체 rollback도 실제 양 DB로 확인했다. Admin inline 권한 분기의 기반인 조회 전용 기존 행은 서버 initial과 형제
+고유성을 보존하고 일반 입력/후처리가 기존 행을 바꾸거나 저장 후보로 만들지 못하게 한다. 추가 행과 명시적 삭제는 별도로 준비한다.
+영향 normal·관련 race·native 관찰/부정 대조를 확인했다. [모델 Form 사용법](../../forms/model/README.md)과
+[ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)이 모델/제품 책임과 native 차이를 구분한다.
+
+위 Hosted full에는 Inline과 조회 전용 행의 후속 변경이 없다. 로컬 영향 검증을 현재 전체 platform 완료로 확대하지 않는다.
 
 ## 다음 행동
 
-진행 중인 Hosted full의 필수 owner·최종 집계·새 capture source 결합 또는 실패를 확인한다. 단순 대기 때문에 실행을 교체하지 않는다.
-Inline의 새 부모 HTML 흐름·Admin inline UI와 ModelFormSet의 남은 자동화/files를 고정 Django와 실제 소비자로 이어 확장한다.
-그 묶음의 다른 환경 검증은 다음 통합 checkpoint가 소유한다.
+Admin의 모델별 저장 callback 경계에 부모·자식 전체의 합성 저장을 연결한다. 권한별 inline 표시/입력과 오류 재표시,
+새 부모 HTML 생성·자식 저장·실패 rollback을 실제 소비자로 완성한다. ModelFormSet의 나머지 자동화/files를 이어 구현하며,
+이 후속 묶음의 다른 환경 검증은 다음 통합 checkpoint가 소유한다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
 기능 카탈로그의 남은 범위를 계속 구현한다.
 

@@ -105,3 +105,17 @@ Helpdesk editor는 서버 Category의 현재 ID 순서 20행을 cohort로 삼는
 모든 권한은 인증된 immutable principal과 deny overlay에서 얻는다. Form 데이터 진단은 확실히 rollback이 완료되어 직접 반환된
 rejection일 때만 재표시하며, rollback 실패·commit 결과 불명·취소를 validation 또는 성공으로 축소하지 않는다. 자동 재시도하지 않는다.
 저장된 기존 scalar를 새 입력으로 다시 검증하는 범위와 제외 field 보존은 기존 단일 Ticket Form의 의미를 따른다.
+
+## 조회 전용 기존 행
+
+Admin inline에서 Change 권한이 없는 기존 행은 일반 편집 입력을 POST하지 않는다. 고정 Django Admin도 그 행의 검증을
+건너뛰고 서버 initial을 사용하며 Add 권한의 새 행은 검증한다. GoDj는 Python Form의 `_errors`/`cleaned_data`를 직접 바꾸는
+방식 대신 `SetConfig.ReadOnlyInitial`과 결과의 `Form.ReadOnly()`로 이 의미를 명시한다. 일반 입력·field/cross/model clean은
+기존 행을 바꾸지 못하고 선언된 ORDER/DELETE는 별도 제어로 검증한다. Typed 준비는 읽기 전용 행의 저장 입력 생성을 거부한다.
+이를 전체 skip으로 구현하지 않아 identity·parent admission, management/count, 형제 고유성 및 전체 진단은 계속 적용한다.
+
+Django는 삭제할 조회 전용 행에서 일반 Form/model clean을 실행한 뒤 그 오류를 무시한다. GoDj는 삭제 의도와 서버 모델을
+분리하여 그 callback도 실행하지 않는다. 제어 필드의 변경은 Go Form의 Changed에 남을 수 있으며 native `has_changed`와
+동일한 권한 표식으로 사용하지 않는다. 저장된 행을 삭제하고 같은 unique 값의 새 행을 만들 때 native Admin은 삭제 전 DB 검사로
+새 행을 거부한다. Go의 순수 준비는 삭제/추가 의도를 기술하므로 이 DB 검사와 같다고 주장하지 않는다. 실제 Admin 소비자의
+읽기 검증·현재 권한·원자 저장과 오류 경계를 별도로 연결해야 한다. 조회 전용 snapshot은 저장 권한이나 DB 유효성 증명이 아니다.

@@ -23,6 +23,10 @@ type SetConfig struct {
 	CanOrder       bool
 	CanDelete      bool
 	CanDeleteExtra bool
+	// ReadOnlyInitial keeps existing row fields at their server initial values.
+	// ORDER/DELETE remain separate controls when explicitly enabled. Extra rows
+	// still use ordinary validation. This policy does not grant write authority.
+	ReadOnlyInitial bool
 }
 
 func DefaultSetConfig() SetConfig {
@@ -381,14 +385,20 @@ func (s SetSpec) makeRow(index int, initial []map[string]Value, data Data, bound
 		name = "__prefix__"
 	}
 	row := SetForm{index: index, prefix: s.config.Prefix + "-" + name, spec: spec, emptyPermitted: index < 0 || index >= len(initial) && index >= s.config.MinForms, canDelete: canDelete}
+	readOnly := s.config.ReadOnlyInitial && index >= 0 && index < len(initial)
 	if !bound {
 		row.form, err = spec.Unbound(values)
+		row.form.readOnly = readOnly
 		return row, err
 	}
 	submitted := prefixedData(data, row.prefix, spec.fields)
 	resolved, err := spec.resolveInitial(values)
 	if err != nil {
 		return SetForm{}, err
+	}
+	if readOnly {
+		row.form, err = bindReadOnlyRow(spec, submitted, resolved, fields[len(s.row.fields):])
+		return row, err
 	}
 	if row.emptyPermitted {
 		changed := false

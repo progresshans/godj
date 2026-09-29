@@ -32,8 +32,9 @@ type setModelSnapshot[M any] struct {
 func (set InstanceSet[M]) FormSet() forms.Set { return set.set }
 func (set InstanceSet[M]) Valid() bool        { return set.set.Valid() }
 
-// Instance returns only rows whose field/model cleaning ran. Unbound rows and
-// unchanged optional extras do not manufacture a model candidate.
+// Instance returns evaluated rows and read-only current snapshots. A read-only
+// snapshot cannot produce persistence input. Unbound rows and unchanged extras
+// do not manufacture a model candidate.
 func (set InstanceSet[M]) Instance(index int) (InstanceForm[M], bool) {
 	instance, present := set.instances[index]
 	return instance, present
@@ -205,9 +206,14 @@ func bindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		if err != nil {
 			return forms.Form{}, err
 		}
-		bound, err := binding.finish(row.Form())
-		if err != nil {
-			return forms.Form{}, err
+		var bound BoundForm
+		if row.Form().ReadOnly() {
+			bound = BoundForm{form: row.Form(), candidate: forms.NewValues(binding.candidate), model: binding.model, fields: binding.fields}
+		} else {
+			bound, err = binding.finish(row.Form())
+			if err != nil {
+				return forms.Form{}, err
+			}
 		}
 		bound.parent = parent
 		snapshot, err := manager.ApplyValues(source, nil)
@@ -345,8 +351,8 @@ func setFormInitial[M any](manager orm.Manager[M], model ir.Model, spec forms.Sp
 	return initial, nil
 }
 
-// PreparedSetRow is a typed candidate for one active row. Existing unchanged
-// rows are retained; callers decide their actual write mask in the final scope.
+// PreparedSetRow is a typed candidate for one active editable row. Unchanged
+// editable rows remain; read-only current rows cannot become write candidates.
 type PreparedSetRow[M any] struct {
 	index    int
 	existing bool
@@ -391,6 +397,9 @@ func (set InstanceSet[M]) Prepare() (PreparedSet[M], error) {
 	}
 	result := PreparedSet[M]{rows: make([]PreparedSetRow[M], 0, len(active)), deleted: make([]DeletedSetRow[M], 0, len(deleted))}
 	for _, row := range active {
+		if row.Form().ReadOnly() {
+			continue
+		}
 		instance, present := set.instances[row.Index()]
 		if !present {
 			return PreparedSet[M]{}, &Error{Path: "set.row", Code: "not_evaluated"}
