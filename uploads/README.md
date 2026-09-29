@@ -91,6 +91,7 @@ stale session을 정리하지 않는다. 본문을 파싱한 뒤에도 CSRF와 �
 최종 쓰기 권한을 확인한다. Hidden inline의 파일-only 위조도 거부하고 readonly 기존 행은 업로드를 채택하지 않는다.
 파일은 동기 callback 안에서만 읽을 수 있다. 입력 한도/형식 오류와 취소·읽기/임시 저장/정리 오류를 구분한다.
 
-현재 구현은 입력·순수 바인딩·수명과 Admin 전송이다. Schema IR의 모델 FileField, 영구 storage와
+현재 구현은 입력·순수 바인딩·수명과 Admin 전송이다. [storage.SaveUpload](../storage/README.md)는 명시적으로 선택한 로컬
+저장소로 내용을 옮기며 요청 종료 뒤에도 유지한다. Schema IR의 모델 FileField와
 DB/파일 저장 결과의 조정은 후속 구현 범위다. 임의 auto-save·image 검증·공개 파일 serving을 제공한다고 주장하지 않는다.
 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [Web 검사](../web/multipart_test.go)와 [Admin 검사](../admin/site_uploads_test.go)에 있다.

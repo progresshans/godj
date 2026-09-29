@@ -75,6 +75,7 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
 		"uploads/multipart.go",
+		"storage/filesystem.go",
 		"admin/site_assets/inlines.js",
 		"identity/account/templates/account.html",
 		"identity/data/common-passwords.txt.gz",
@@ -176,6 +177,8 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 
 func TestSourceScopeIncludesLiveRestartTestsButExcludesOrdinaryTests(t *testing.T) {
 	tests := map[string]bool{
+		"storage/filesystem.go":                                    true,
+		"storage/filesystem_test.go":                               false,
 		"uploads/multipart.go":                                     true,
 		"uploads/multipart_test.go":                                false,
 		"admin/site_assets/inlines.js":                             true,

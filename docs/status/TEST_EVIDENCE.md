@@ -6,6 +6,56 @@
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
 
+### 로컬 파일 storage와 요청 이후 수명
+
+기반 `ec18a213528094f3994ce5e70def9ff47b282cef` 이후 `storage.Backend`와 os.Root 기반 Filesystem을 구현했다. 전체 상대
+이름·파일 크기·collision 시도 예산, private staging·File.Sync/Close 뒤 no-replace hard link, 독립 reader/Close를 제공한다.
+Save는 borrowed reader를 닫거나 재탐색하지 않으며 SaveUpload는 자신이 연 업로드 reader만 닫는다. Info는 실제 저장 이름과
+크기를 담은 metadata이며 권한이나 DB commit 증명이 아니다. 게시 전 실패·게시 후 정리 실패·결과 불확실을 구분한다.
+모델 FileField의 IR/생성/ORM/Form 저장과 storage alias·다른 backend·URL/serving, DB/파일 결과 조정은 이번 범위가 아니다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| normal | storage·uploads·forms·web·두 attestation 6 packages / 158 roots / 1,778 PASS / 5.442초 |
+| 관련 race | Filesystem·업로드 수명·source binding 6 packages / 33 roots / 227 PASS / 3.723초 |
+| native | 고정 Django 6.1/CPython 3.14.3 FileSystemStorage 7개 이름/내용/오류 관찰, 기존 내용 보존·없는 파일 삭제 관찰을 두 번 실행해 같은 원문 |
+| 부정 대조 | 기존 destination 삭제 후 게시·파일 예산 제거·staging 정리 제거·불확실을 미게시로 축소·entropy 뒤 취소 검사 제거의 5개 overlay가 지정 runtime assertion에서 실패 |
+
+Go 1.26.5 Darwin arm64·offline/readonly module·Pacific/Chatham·기본 공유 cache/병렬 실행이다. 각 실행 전후 source inventory는
+`f4ca8cbc64b8dfcbd74e32cc2c6477ef6ddcd5bf3ac3fcd4d55b5888b5d97426`로 같고 compiled roots와 실제 run/pass를 대조했다.
+누락·skip·잘린 event·stderr는 0이다. 프로세스 검사는 새 Go build를 반복하지 않고 현재 test binary의 helper를 두 번 실행해
+기존 파일과 각 process의 내용을 각각 보존함을 확인한다. 같은 root를 연 8개 독립 인스턴스/goroutine도 서로 덮어쓰지 않는다.
+
+Actual Application.ServeHTTP 소비자는 multipart/Form을 통과한 바이너리를 저장한 뒤 request upload의 Open 거부/임시 정리,
+backend Close/재개방 후 동일 내용을 확인한다. source가 아직 읽히는 동안 최종 이름은 없으며 읽기 오류·파일 예산 초과·취소·
+reader panic은 부분 파일을 게시하지 않는다. traversal·절대 경로/backslash·제어문자/Windows 예약 이름·예약 staging 이름과
+root 밖 symlink를 통한 Save/Open/Delete를 거부하고 외부 파일을 보존한다. 디렉터리 삭제 거부, 없는 파일 분류/삭제 멱등,
+이름/Unicode 길이/compound suffix·빈 파일·entropy 실패·bounded collision·일반 formatting 비공개·POSIX mode도 확인했다.
+Windows ACL과 다른 OS 실행은 이 로컬 결과에 포함하지 않는다.
+
+비공개 rootOperations fault port는 실제 filesystem 연산을 유지하면서 성공한 Link의 응답 유실과 staging Remove 실패를 주입한다.
+오류가 있어도 새 파일이 실제 존재하는 경우에 후보 Info와 Uncertain/Published가 보존되고 원래 파일도 남는지 확인했다.
+이는 실제 정전/디스크 손상 실험이나 directory entry의 power-loss durability 검증이 아니다. 강제 종료 후 orphan staging 회수와
+DB 저장 결과/보상 정책을 구현했다고 주장하지 않는다.
+
+Native base/filesystem source SHA256은 각각 `774578b9e5c43daf46fb4fb5f0d020b96c2c4c1df795b4100d8643a0296203c9`,
+`58590ed08e59875f970c889188deeb1d914a56d61da7e750652fd797a631ffeb`이다. Random spelling을 고정해 실제 collision/truncation을
+대조했다. Portable 이름 제한·private staging·bounded 실행과 불확실한 결과 분리는 명시적 GoDj 정책이다.
+
+처음 덮어쓰기 부정 대조는 두 process가 destination을 보기 전에 함께 진행하는 스케줄에서 통과했다. 기존 파일을 먼저 둔 뒤
+그 내용과 두 새 파일이 모두 남도록 process 회귀를 보강했고 같은 mutation이 지정 assertion에서 실패함을 확인했다. 취소
+부정 대조도 별도 미사용 suffix를 갖는 target을 사용해, 다음 collision의 취소 검사에 우연히 의존하지 않도록 했다. 최종
+normal/race와 5개 부정 대조는 이 보강 뒤 source다. 실제 source는 overlay로 수정하지 않았다. Go vet·gofmt·169개 문서 링크·diff
+검사를 통과했다. IR/generator/DB writer를 바꾸지 않아 generated drift·DB matrix·cold/local full을 중복하지 않았다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-storage-normal-z5w_592f`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-storage-race-dtaaixul`
+- controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-storage-controls-371gcmzc`
+- native: `storage/testdata/filesystem-django61.json`, observer `conformance/runners/django/storage_reference.py`
+- 선행 Admin 파일 source `ec18a213`의 [Fast 36541475262](https://github.com/progresshans/godj/actions/runs/36541475262)는 success로 확인했다.
+
+
+
 ### Admin 파일 widget·multipart·요청 수명 연결
 
 기반 `29c86df1f8c4014013613e539d5523a38d2218bb` 이후 부모 생성·수정·inline·명령의 Form 입력에 파일 capability와 clear를

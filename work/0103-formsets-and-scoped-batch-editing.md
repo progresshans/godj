@@ -30,6 +30,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] Admin 합성 저장 source `6d3fe97f`의 Hosted full·새 capture 결합
 - [x] 파일 multipart/임시 자원 수명·FileField와 Formset·typed 파일 명령·실제 HTTP 입력과 실패 정리
 - [x] Admin 부모/inline/명령 파일 widget·multipart·권한/CSRF·오류 재표시와 실제 브라우저 파일 전달
+- [x] 로컬 storage의 no-overwrite 게시·독립 파일 수명·명시적 HTTP 업로드 소비와 불확실/정리 실패 분리
 - [ ] 남은 ModelFormSet/files 범위의 구현·후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의

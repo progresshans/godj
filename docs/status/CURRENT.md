@@ -25,9 +25,13 @@ readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실
 본문 전 읽기 전용 admission과 CSRF/최종 권한 검사를 유지하고 임시 자원 정리를 확인했다. 위 Hosted full은 이후 동적 UI·파일
 입력/Admin 전송을 포함하지 않으며 영향 검증을 전체 성공으로 확대하지 않는다.
 
+[로컬 storage](../../storage/README.md)의 상대 이름·제한된 스트리밍·완성 후 no-overwrite 게시와 독립 reader를 구현했다.
+같은 이름의 별도 인스턴스/프로세스 저장, 요청 종료 후 영구 파일 재개방, 게시/정리/불확실한 결과를 구분한다.
+모델 FileField와 DB 참조 저장은 아직 연결하지 않았다. [결정](../adr/0082-file-storage-publication-and-reference.md)과 실행 증거를 따른다.
+
 ## 다음 행동
 
-Schema IR의 모델 FileField·영구 storage, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
+Schema IR의 모델 FileField와 생성 모델/ORM/Form의 저장 이름을 연결하고, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
 자동화와 후속 통합도 남아 있다. 파일 입력 capability의 수명을 영구 저장이나 권한으로 해석하지 않는다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
 기능 카탈로그의 남은 범위도 계속 구현한다.
