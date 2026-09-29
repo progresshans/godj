@@ -60,6 +60,6 @@ identity·권한 등 요청 자체를 거절하는 진단은 반드시 전체 `W
 transaction/rollback 의미는 모델/애플리케이션 연결이 담당한다.
 
 Database-independent core와 [typed 모델의 여러 행 준비](model/README.md#여러-모델-행의-준비)를 구현했다.
-실제 여러 행 저장·Helpdesk HTTP 편집·inline/file upload는 [GDJ-0103](../work/0103-formsets-and-scoped-batch-editing.md)의
-후속 구현이다. 고정 Django 관찰에서 Go의 count 거부와
+[Helpdesk HTTP 편집](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)은 typed 준비와 실제 여러 행/관계/감사 기록의
+원자 저장을 연결한다. 일반 Formset의 자동 저장·inline/file upload는 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
 Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/adr/0081-formset-counts-and-row-ownership.md)에 따라 구분한다.

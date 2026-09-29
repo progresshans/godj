@@ -9,6 +9,54 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 기존 TicketLabel CRUD도 같은 연결 행을 사용한다. 구현과 환경별 통합 상태는 [GDJ-0099](../../work/0099-many-to-many-and-ticket-label-collections.md)를 따른다.
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
+
+## 여러 티켓을 함께 편집하기
+
+`application.TicketEditor`는 GET/POST `/tickets/edit/`의 HTML 편집 화면을 제공한다. Subject·Closed·External reference·Labels를
+한 페이지에서 수정하고 새 티켓과 삭제 요청을 함께 저장한다. 그 밖의 기존 scalar는 보존한다. 생성도 서버가 지정한 Category를
+사용하며 Category/PK는 editable input이 아니다. 두 개의 빈 추가 행은 AddTicket이 있을 때만 표시한다.
+
+```go
+editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{
+    Auth: webAuth,
+    AppendAudit: runtime.AppendAudit,
+})
+if err != nil { return err }
+routes = append(routes, editor.Routes()...)
+// web.Config에서 MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes를 사용한다.
+```
+
+같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`를 추가하고,
+`admin.SiteConfig.AdditionalNextPaths`에도 같은 경로를 선언한다. Session/CSRF cookie 경로는 두 화면을 모두 포함해야 한다.
+편집기는 cookie 범위나 로그인 복귀 경로가 맞지 않으면 시작 시 거부한다. `AppendAudit`는 필수이며 제공된 session에 기록해야
+한다. 별도 transaction을 열거나 commit하지 않는다. 위 Runtime의 callback은 scalar·관계·삭제와 같은 transaction에 기록한다.
+
+ViewTicket·ChangeTicket·ViewLabel을 데이터 조회 전에 확인한다. AddTicket/DeleteTicket은 해당 조작에 별도로 필요하며
+Authorizer의 거부도 적용한다. 기존 ticket writer와 같이 인증이 승인한 불변 principal을 요청에서 사용한다. 정책 변경은 후속
+인증에 적용되며 이미 승인된 요청을 소급해서 취소한다고 주장하지 않는다. POST는 CSRF 검증 뒤에만 제품 transaction에 들어간다.
+
+`p`는 1부터 시작하는 페이지다. 서버는 지정 Category의 ID 순서로 기존 20행을 읽고 제출 PK를 이 현재 집합 안에 연결한다.
+순서를 바꿀 수 있지만 누락/중복/외부 PK나 추가 행의 PK는 DELETE와 무관하게 전체 거부한다. GET 이후 대상이 이동·삭제되거나
+페이지 구성이 바뀌면 관리 개수/identity 검사를 통해 재검토하게 한다. 행의 값 자체는 저장 transaction에서 다시 읽으며 별도
+optimistic revision 입력은 제공하지 않는다. 동일 행의 동시 입력은 기존 Ticket 편집과 같은 현재 row/선택 field 저장 의미다.
+
+GET은 한 read snapshot에서 행·관계·선택지를 읽는다. POST는 같은 category/cohort/선택지를 하나의 `AtomicRelation`에서
+다시 읽고 Formset/모델 검증, 기존 행 삭제, active 행 scalar/collection 저장과 감사 기록을 수행한다. 삭제는 프로젝트의 완전한
+PROTECT/CASCADE 정책을 borrowed session에서 실행한다. 변경 없는 기존 행은 데이터/audit 쓰기를 생략한다. 고유성 검사·관계
+저장·감사 기록·취소가 실패하면 앞서 수행한 행의 변경도 outer transaction이 롤백한다. Runtime을 사용하면 다른 cooperative
+write와 같은 DB/schema fence를 사용한다. 다른 connection에서 이 규약을 우회하는 직접 SQL까지 인가/직렬화를 보장하지 않는다.
+
+Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입력을 안전하게 재표시한다. 확실히 롤백된 삭제 보호/고유성 오류도
+같은 흐름을 사용한다. Parser 오류는 400, 권한/CSRF 거부는 403, 없는 Category는 404다. 운영 오류·rollback/commit 결과 불확실성은
+성공 redirect나 입력 오류로 바꾸지 않고 자동 재시도하지 않는다. Commit이 확인된 경우에만 같은 페이지로 303 redirect한다.
+
+제출 상한은 40행·64 KiB·총 1,024개 값·값 하나당 4 KiB다. 선택지 query는 257개에서 잘라 256개 초과를 명시적으로 거부하며
+선택지를 조용히 누락하지 않는다. HTML escaping으로 확장되는 선택지를 포함해 template/Web 출력 한도를
+`TicketEditorMaxResponseBytes`(8 MiB)로 함께 설정한다. 기본 Web 1 MiB를 그대로 사용하면 유효한 큰 페이지가 거부될 수 있다. 임의 index/필드·중복 query와 외부 Category 입력은
+parser에서 거부한다. 일반 field의 중복값은 Form 진단으로 남긴다. Inline/files·전체 ModelFormSet 자동 저장은 이 제품 화면의 범위가 아니다.
+
+## JSON API
+
 `application.API(authentication)`으로 API를 한 번 조합한 뒤 `api.Routes()`를 Web 설정에 연결한다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
 문서화 profile이 없는 custom authentication도 Routes에 사용할 수 있지만 OpenAPI 구성은 명시적으로 실패한다.

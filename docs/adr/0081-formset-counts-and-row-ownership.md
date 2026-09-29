@@ -57,3 +57,15 @@ Typed Prepare는 모든 active 후보와 기존 삭제 의도를 분리한다. �
 후속 DB 데이터 오류는 immutable row 결과에 추가할 수 있다. 기존 callback/count 검증을 재실행하거나 invalid 결과를
 valid로 바꾸지 않는다. DELETE가 데이터 오류를 무시할 수 있는 성질과 요청 admission은 별개다. Identity·권한·운영 실패는
 전체 진단 또는 operation error로 전달하며 행 오류로 축소하지 않는다. 실제 제품의 최종 인가·원자 저장은 별도 소유자다.
+
+## Helpdesk의 페이지 단위 저장
+
+Helpdesk editor는 서버 Category의 현재 ID 순서 20행을 cohort로 삼는다. GET은 하나의 read snapshot을 사용하고 POST는
+현재 cohort·관계·선택지를 outer `AtomicRelation`에서 다시 읽어 바인딩한다. 현재 권한과 선택 field 경계를 유지하며,
+일반 ticket 저장의 session 내부 helper를 재사용한다. 삭제는 완전한 project relation deleter의 `DeleteInSession`을 사용한다.
+존재하는 삭제를 먼저 처리한 뒤 active 행을 저장한다. Immediate DB unique 제약을 우회하는 값 교환 알고리즘을 추가하지 않는다.
+
+각 변경/생성/삭제의 audit도 같은 session에 기록하고, 후속 행·관계·audit의 실패는 outer rollback으로 전체를 되돌린다.
+모든 권한은 인증된 immutable principal과 deny overlay에서 얻는다. Form 데이터 진단은 확실히 rollback이 완료되어 직접 반환된
+rejection일 때만 재표시하며, rollback 실패·commit 결과 불명·취소를 validation 또는 성공으로 축소하지 않는다. 자동 재시도하지 않는다.
+저장된 기존 scalar를 새 입력으로 다시 검증하는 범위와 제외 field 보존은 기존 단일 Ticket Form의 의미를 따른다.

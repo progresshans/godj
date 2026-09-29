@@ -5,6 +5,57 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### Helpdesk 여러 행 HTTP 편집과 원자 저장
+
+기반 `812d0136962ca46251deb22ad80e84077402ea80` 이후 `/tickets/edit/`의 GET/POST 편집기를 연결했다.
+서버 Category의 페이지별 20개 current 모델과 선택지를 snapshot/최종 transaction에서 각각 읽는다. Subject·Closed·External
+reference·Labels를 한 요청에서 편집·생성·삭제하고 제외 scalar를 보존한다. Typed 준비와 단일 Ticket writer의 session 내부
+helper를 재사용한다. Project relation deleter의 borrowed PROTECT/CASCADE와 모든 감사 기록도 같은 transaction에 둔다.
+권한/CSRF·cohort/identity·bounded parser·출력 escaping·오류 재표시·commit 이후 303을 제공하며 실행 실패/unknown outcome은
+입력 오류나 성공으로 바꾸지 않는다. 임의 SQL/새로운 optimistic revision/전체 ModelFormSet 자동 저장을 이 증거로 주장하지 않는다.
+
+실제 SQLite/PostgreSQL에서 HTML을 DOM으로 읽고 successful controls를 제출했다. Mixed 수정/삭제/생성·선택 관계·제외값과
+감사 기록의 동시 commit·다른 Runtime 재개를 확인했다. Invalid 뒤쪽 행·중복/외부/추가 PK·외부 라벨·삭제 보호·늦은 고유성
+충돌·두 번째 audit 실패·관계 쓰기 실패·취소에서 행/관계/audit의 원자성을 검사했다. Commit-unknown fixture는 실제 commit 뒤
+오류를 반환하여 결과가 저장됐어도 성공 redirect/자동 재시도가 없음을 확인했다. Rollback-unknown의 추가 오류는 렌더 가능한
+입력 거부로 축소하지 않았다. 현재 scope 이동·forged/duplicate management·권한 overlay·CSRF/파서·pagination도 포함한다.
+
+제품 코드의 비문서 inventory `c39ee9c8ac6f6b17cab2a5168d7563f3c644714bb1057a712ef2a54c611e82e0`, Darwin arm64
+Go 1.26.5·offline modules·기본 공유 cache/병렬 실행·TZ Pacific/Chatham에서 확인했다.
+
+| 범위 | 결과 |
+| --- | --- |
+| Helpdesk 전체 normal | 1 package / 9 roots / 필수 108 cases / 261 PASS / 23.221초 |
+| 최초 editor의 모든 관련 race | 초기 inventory `0b955c4f…`, 2 roots / 필수 60 cases / 66 PASS / 62.176초 |
+| startup/응답 한도 보강 후 관련 race | inventory `c39ee9c8…`, 구성 거부·양 DB mixed HTTP/원자 저장·pagination·최대 출력 3 roots / 11 PASS / 50.272초 |
+| 부정 대조 | Add 권한 overlay 제거·audit 오류 무시·unknown 오류를 입력 재표시로 축소한 3 overlay가 지정 runtime assertion에서 실패 |
+| 공통 검사 | CI 도구 41 tests, gofmt·문서 링크 164개·diff 검사 성공 |
+
+각 DB 실행은 PostgreSQL 17.10 UTF8/libc/C와 실제 SQLite를 사용하고 compiled 목록·필수 run/pass·complete JSON event를 대조했다.
+누락/skip/잘린 event 0, source 전후 동일, 남은 schema/table/다른 연결 `0|0|0`과 DB/container 제거를 확인했다.
+최초 normal/race는 성공했다. 검토에서 startup cookie/복귀 경로 검사와 큰 선택지 페이지의 template/Web 응답 한도 정합성을
+보강했다. 256개 최대 길이 label의 escaping 확대와 40행 오류 재표시를 실제 HTTP로 확인해 기본 Web 1 MiB 때문에 정상
+페이지가 거부되지 않게 했다. Template과 Web 출력 예산은 명시적 8 MiB이며 선택지/요청/반복 한도는 유지한다.
+
+마지막에는 출력 한도 테스트가 pagination subtest 없이도 독립 실행되도록 그 테스트의 데이터 준비만 보완했다.
+최종 inventory `f4f658ab8554ee4f5c93c4691b14ddab8a84242cbc40ae55a9cdb35ae28b05dc`에서 해당 양 DB 사례를
+별도로 실행해 2 roots / 6 PASS / 7.893초를 확인했다. 두 inventory의 유일한 차이는 이 test fixture이며 제품 코드는 동일하다.
+기존 2 MiB template 한도를 복원한 추가 overlay는 40행 invalid POST 재표시가 500이 되는 runtime assertion에서 실패했다.
+첫 audit는 최초 GET의 실패 문구를 기대해 false였으나 실제 실패는 더 큰 POST 재표시였다. 원래 raw/실패 receipt를 보존하고,
+동일 정상 사례의 PASS·정확한 overlay 차이·전체 event와 실제 실패 문구를 재대조했다. Go build를 반복하지 않았다.
+이전 race의 모든 사례를 최종 source에서 재실행했다고 합치지 않는다. IR/generator 변경이 없어 generated drift·별도 module
+전체·CGO=0·로컬 전체 compile을 추가하지 않았다. Formset core/typed/실제 제품을 묶은 Hosted full milestone이 나머지 환경을 소유한다.
+
+원문·실제 목록·receipt/source와 controls:
+
+- 제품 normal/controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-normal-szfxlbm0`
+- 제품 관련 race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-race-lninn10f`
+- 독립 출력 한도 사례: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-edge-0bhzkjtd`
+- 최초 normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-normal-j8bi8497`
+- 최초 전체 관련 race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-race-c3qqe3kq`
+- startup 보강 후 normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-normal-_eshc3_y`
+- startup 보강 후 관련 race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-race-thgczlmt`
+
 ### 서버 identity와 모델 후보의 typed 여러 행 준비
 
 기반 `7d56b3c9ff284eb68ef743e5646c6dc0ab18da3c` 이후 `InstanceSet`과 typed 준비를 연결했다. 모델 PK로 서버 current 집합의
@@ -50,7 +101,7 @@ IR/generator 변경이 없어 generated drift·독립 module 전체·CGO=0·전�
 Prefix·management·서버 initial 개수·생성 상한, 빈 추가 행·정렬/삭제·행별/전체 진단·불변 선택과 pure 여러 행 validator를
 제공한다. Required choice의 빈 값이 초기 빈 값과 같을 때 Changed를 false로 처리해 optional 추가 행이 불필요하게
 검증되지 않게 했다. 이 core checkpoint 시점에는 실제 model identity·typed 여러 행 준비를 포함하지 않았다.
-후속 typed 준비는 위 항목에 별도로 기록한다. Helpdesk 여러 행 HTTP/저장·inline/file upload는 아직 미구현이다.
+후속 typed 준비와 Helpdesk 여러 행 HTTP/저장은 위 항목에 별도로 기록한다. Inline/file upload는 아직 미구현이다.
 이 core checkpoint를 ModelFormSet 또는 제품 수직 단면의 완료로 표현하지 않는다.
 
 고정 Django 6.1 / CPython 3.14.3에서 독립 `formset_reference.py`를 실행했다. 총 33개 사례 중 30개에서
@@ -84,6 +135,9 @@ non-form 진단 소유권을 수정하고, 33-case 최종 source에서 영향 �
 게시된 core source `7d56b3c9ff284eb68ef743e5646c6dc0ab18da3c`의
 [Fast 36507584740](https://github.com/progresshans/godj/actions/runs/36507584740)은 terminal success와 실제 Go step 성공을
 확인했다. 이 source에는 위의 후속 typed 여러 행 준비가 없다.
+후속 typed 준비 source `812d0136962ca46251deb22ad80e84077402ea80`의
+[Fast 36510853114](https://github.com/progresshans/godj/actions/runs/36510853114)도 실제 Go step·terminal success를 확인했다.
+이 source에는 후속 Helpdesk 편집기가 없다.
 
 ## GDJ-0102 — 모델 Blank와 Form 후처리 구현 중
 
@@ -98,21 +152,22 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
-### 저장/캐시/초기값 source의 Hosted 통합 진행
+### 저장/캐시/초기값 source의 Hosted 통합 완료
 
 `cb76b165aa3379c8c40aabfa7d12354460c57bf7`를 양 branch에 게시했고
 [Fast 36504615628](https://github.com/progresshans/godj/actions/runs/36504615628)의 terminal success와 실제 Fast Go step 성공을 확인했다.
-같은 source의 [full 36504649962](https://github.com/progresshans/godj/actions/runs/36504649962), attempt 1은 진행 중이다.
-최종 owner 집계는 아직 확인하지 않았으며 full PASS로 세지 않는다. 새 capture의 checksum/provenance·Git source 결합은 확인했다.
+같은 source의 [full 36504649962](https://github.com/progresshans/godj/actions/runs/36504649962), attempt 1은 terminal success다.
+62개 실제 job이 모두 성공했고 최종 aggregate job `109223107908`의 `full_platform_verified=true`와 필수 8개 owner를 source의
+검증 규칙에 대조했다. 새 capture의 checksum/provenance·producer attempt와 Git 객체 기반 source 결합도 함께 확인했다.
 
 | capture | artifact / producer job | Git source binding |
 | --- | --- | --- |
 | systemstate | `11007292394` / `109203252031` | 633 files / 6,694,950 bytes / `132d29a16f87adfd4067d4bf2d339275a95037251b18e8a5ba6510129bb8f6a9` |
 | operator | `11006837748` / `109203252101` | 710 files / 6,544,386 bytes / `2067975d74c57aebb0bf8a69fc70029e05ea80e140b33d38cd89340b7429756c` |
 
-Archive/payload SHA·run/jobs·producer attempt·Git 객체 inventory와 pending receipt:
+Archive/payload SHA·run/jobs·producer attempt·Git 객체 inventory와 최종 성공 receipt:
 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-full-36504649962-r71rryo8`.
-관찰 지연만으로 재시작하지 않는다. 이 source에는 후속 Formset 구현이 없다.
+이 source에는 후속 Formset 구현이 없으며 이후 소스의 전체 검증으로 전이하지 않는다.
 
 ### 기존 initial과 제출 입력 제약의 분리
 

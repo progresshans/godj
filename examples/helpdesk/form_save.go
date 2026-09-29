@@ -22,6 +22,22 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 	var saved ticketRecord
 	var changed []string
 	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		var err error
+		saved, changed, err = a.saveTicketFormInSession(ctx, session, principal, id, bound)
+		return err
+	})
+	if err != nil {
+		return ticketRecord{}, nil, operationError(ctx, err)
+	}
+	return saved, changed, nil
+}
+
+// saveTicketFormInSession borrows the caller's transaction. A returned error
+// must leave the outer callback; no row or audit may be published before commit.
+func (a *Application) saveTicketFormInSession(ctx context.Context, session db.RelationSession, principal auth.Principal, id int64, bound formmodel.BoundForm) (ticketRecord, []string, error) {
+	var saved ticketRecord
+	var changed []string
+	err := func() error {
 		permission := AddTicket
 		if id != 0 {
 			permission = ChangeTicket
@@ -151,7 +167,7 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 		}
 		saved, err = a.publishableTicket(ctx, session, candidate.ID)
 		return err
-	})
+	}()
 	if err != nil {
 		return ticketRecord{}, nil, operationError(ctx, err)
 	}

@@ -107,7 +107,9 @@ snapshot이다. 준비는 저장/삭제·transaction·인가·여러 행 DB 제�
 DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 identity·인가 실패에는 `WithErrors` 또는 operation error를 쓴다.
 고정 Django 20개 관찰에서 정상/모델 오류/삭제/정렬 11개 결과를 대조하고 identity 9개는 전체 거부한다. 그중 native가 허용한
 6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
-실제 Helpdesk 여러 행 HTTP/원자 저장·inline/files는 후속 작업이다.
+실제 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 요청별 현재 cohort/인가·관계 선택지를 확인하고,
+같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
+전체 ModelFormSet 자동화·inline/files는 후속 작업이다.
 
 ## 생성 모델의 typed 준비
 

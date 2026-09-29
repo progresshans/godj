@@ -508,6 +508,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("ticket_collections", func(t *testing.T) {
 		verifyHelpdeskTicketCollections(t, ctx, runtime, open, client, category.ID, other.ID, after, seedLargeLabel)
 	})
+	t.Run("ticket_editor", func(t *testing.T) {
+		verifyHelpdeskTicketEditor(t, ctx, runtime, open, client, after)
+	})
 }
 
 // Seed through the historical column set before the new generated model can be
@@ -637,7 +640,7 @@ type helpdeskClient struct {
 
 var csrfPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
 
-func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *systemstate.Runtime, authorizer auth.Authorizer) *helpdeskClient {
+func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *systemstate.Runtime, authorizer auth.Authorizer, editorAudit ...func(context.Context, db.Session, admin.PreparedEvent) error) *helpdeskClient {
 	t.Helper()
 	configured, err := settings.New(settings.Definition{ProjectName: "helpdesk", InstalledApps: helpdesk.InstalledApps()})
 	if err != nil {
@@ -651,6 +654,7 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowed = append(allowed, helpdesk.TicketEditorPath)
 	loginPersistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		t.Fatal(err)
@@ -659,7 +663,7 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: application.Registry(), Auth: webAuth})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: application.Registry(), Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -675,7 +679,20 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: append(site.Routes(), adapter.Routes()...)})
+	appendAudit := runtime.AppendAudit
+	if len(editorAudit) > 1 {
+		t.Fatal("multiple editor audit callbacks")
+	}
+	if len(editorAudit) == 1 {
+		appendAudit = editorAudit[0]
+	}
+	editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{Auth: webAuth, AppendAudit: appendAudit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := append(site.Routes(), adapter.Routes()...)
+	routes = append(routes, editor.Routes()...)
+	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
 		t.Fatal(err)
 	}
