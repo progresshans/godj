@@ -180,7 +180,10 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 남을 수 있다. 자동 재시도하지 않는다. 실제 양 DB 저장 소비자는 [inline 저장 검사](../../examples/helpdesk/inline_save_test.go)에 있다.
 
 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 저장된 Category의 InlineSet을 실제 HTTP로 사용한다.
-[Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 새 부모/자식 HTML과 권한별 inline 편집·원자 저장을 연결한다. 동적 행 JavaScript·file upload는 미완료다.
+[Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 새 부모/자식 HTML과 권한별 inline 편집·원자 저장을 연결한다.
+`InlineSpec.EmptyForm(parent)`는 validator나 I/O 없이 서버 부모·기본값과 `__prefix__`를 가진 빈 행을 만든다. 자식 PK와 기존
+입력값은 포함하지 않는다. [Admin inline](../../admin/inlines.md)은 이를 비활성 prototype으로 렌더링하고 권한·개수 범위에서
+브라우저의 미저장 행 추가/제거에 사용한다. File upload와 전체 ModelFormSet 자동화는 후속 작업이다.
 
 ## 생성 모델의 typed 준비
 

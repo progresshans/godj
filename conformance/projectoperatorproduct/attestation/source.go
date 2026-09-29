@@ -13,6 +13,7 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"admin/site_assets/inlines.js":                               {},
 	"identity/data/common-passwords.txt.gz":                      {},
 	"scripts/conformance.py":                                     {},
 	"conformance/suites.json":                                    {},

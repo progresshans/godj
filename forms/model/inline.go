@@ -111,6 +111,16 @@ type InlineSet[P, C any] struct {
 	set    InstanceSet[C]
 }
 
+// EmptyForm is the inert prototype for a newly added child. It retains the
+// server parent's hidden key but has no child identity and runs no validators.
+func (spec InlineSpec[P, C]) EmptyForm(parent P) (forms.SetForm, error) {
+	_, row, err := spec.start(parent, nil)
+	if err != nil {
+		return forms.SetForm{}, err
+	}
+	return row.EmptyForm()
+}
+
 func (spec InlineSpec[P, C]) Unbound(parent P, current []C, related ...func(C, ir.ManyToManyField) ([]int64, bool)) (InlineSet[P, C], error) {
 	result, row, err := spec.start(parent, current)
 	if err != nil {

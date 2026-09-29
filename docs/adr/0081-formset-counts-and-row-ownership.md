@@ -135,4 +135,9 @@ stored/form/audit field와 충돌할 수 없다. Direct RejectInline만 confirme
 Helpdesk의 opt-in AdminRegistry는 transactional audit callback을 명시적으로 받는다. 독립 Registry의 기존 저장 경로와
 application을 바꾸지 않고 티켓/OneToOne 보고서의 새 부모 생성·원자 수정/삭제를 조합한다. Native가 확인한 readonly 정책과
 삭제 전 DB 고유성 검사를 적용하며 모든 API/HTML 오류 문구나 동작을 Django 전체와 동일하다고 선언하지 않는다.
-현재 UI는 선언한 추가 행의 서버 렌더링이며 동적 행 JavaScript/files와 일반 자동 persistence는 별도 미완료 범위다.
+동적 행은 서버의 `InlineSpec.EmptyForm(parent)`를 비활성 HTML prototype으로 렌더링한다. Add 권한이 없는 요청에는
+prototype을 게시하지 않으며 빈 추가 행은 기존 자식 identity·revision·입력 상태를 복제하지 않는다. 외부 script는 선언한
+min/max 안에서 미저장 행만 추가/제거하고 이름·오류 anchor를 다시 매긴다. 입력값·checkbox 상태와 기존 cohort는 보존하며
+저장된 행의 삭제는 별도 DELETE 의도다. JavaScript를 우회해도 서버 admission·현재 scope·최종 원자 저장 책임은 그대로다.
+내용 SHA256으로 식별한 script는 session 없는 public asset이고 로그인 후 이동 대상으로 사용하지 않는다. Files와 일반 자동
+persistence는 별도 미완료 범위다.

@@ -74,6 +74,7 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"admin/site_assets/inlines.js",
 		"identity/account/templates/account.html",
 		"identity/data/common-passwords.txt.gz",
 		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
@@ -174,6 +175,8 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 
 func TestSourceScopeIncludesLiveRestartTestsButExcludesOrdinaryTests(t *testing.T) {
 	tests := map[string]bool{
+		"admin/site_assets/inlines.js":                             true,
+		"admin/testdata/browser/main.go":                           false,
 		"conformance/systemstate/restart/restart_unix_test.go":     true,
 		"conformance/systemstate/product/product_test.go":          false,
 		"systemstate/runtime_test.go":                              false,

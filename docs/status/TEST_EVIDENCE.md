@@ -5,6 +5,69 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### Admin 동적 행 UI와 실제 브라우저 소비자
+
+기반 `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f` 이후 서버의 EmptyForm·권한별 inert prototype과 외부 JavaScript를
+연결했다. 미저장 행만 min/max 안에서 추가/제거하며 기존 PK·INITIAL_FORMS·다른 inline과 입력값/checkbox 상태를 보존한다.
+오류 재표시의 구조적 이름/anchor도 재번호하고 사용자 텍스트에 있는 `__prefix__`/이전 행 이름은 수정하지 않는다.
+내용 SHA256 asset의 public cache·session 무변경·login next 제외를 검사했다. 실제 embed한 JS를 두 attestation의 정확한
+source 경로에도 포함하고 변경 감지 회귀를 추가했다. 기존 Helpdesk HTML 제출 helper는 inert template 안의 입력을 제외한다.
+
+| 실행 | 범위와 실제 결과 |
+| --- | --- |
+| normal | admin/forms-model/두 attestation의 Inline·source-binding 24 roots / 193 PASS / 1.585초; 양 DB Admin HTTP 2 roots / 필수 62 cases / 66 PASS / 10.004초 |
+| race | 같은 pure 24 roots / 193 PASS / 3.294초; 같은 양 DB HTTP 2 roots / 필수 62 cases / 66 PASS / 56.663초 |
+| 실제 브라우저 | Playwright CLI 0.1.22, Chrome UA 154.0.0.0, 별도 loopback SQLite 소비자 33개 조건 PASS |
+| 브라우저 부정 대조 | asset 응답의 최대 행 수 guard만 제거한 1회 주입이 `programmatic click cannot exceed the UI maximum`에서 실패 |
+
+Go 1.26.5 Darwin arm64·PostgreSQL 17.10 UTF8/libc/C·SQLite, offline/readonly module·Pacific/Chatham·기본 공유 cache와
+병렬 실행이다. 성공한 normal/race의 전후 비문서 inventory는
+`2134a9be74ed21e668a1054231a5b77a3744e5ef747d241abbfd4af48af130d1`로 동일하다. Compiled root 목록과 required 하위
+run/pass를 대조했으며 누락·skip·잘린 event는 0, DB 잔여 `0|0|0`과 임시 DB/container 삭제도 확인했다. IR/generator를
+바꾸지 않아 generated drift·cold build·전체 compile을 추가하지 않았다. 새 UI의 다른 OS·browser·CGO mode 전체는 미검증이다.
+
+[브라우저 fixture와 재현법](../../admin/testdata/browser/README.md)은 공개 API로 Category의 두 HasMany inline을 구성한다.
+ExtraForms 0·min/max·독립 count/identity·default/checkbox·focus·추가/제거 이벤트·오류 행 재번호·no-add/readonly/view-only,
+수정 후 readback과 새 부모/자식의 실제 저장을 확인했다. 동일한 prototype을 사용하는 Helpdesk OneToOne의 transaction/audit는
+위 양 DB HTTP 회귀로 확인한다. 브라우저 fixture의 synthetic 인증은 운영 인증 검증으로 확대하지 않는다.
+
+첫 DB checkpoint는 disabled fieldset에 data 속성을 더한 뒤 남아 있던 literal HTML 비교에서 실패했다. DOM을 파싱해 실제
+일반 필드의 disabled·독립 PK·부모 mutation form 부재를 검사하도록 고치고 위 normal/race를 실행했다. 브라우저 fixture의
+부모 First 조회에는 명시적 정렬이 필요했고, probe의 숨겨진 버튼/목록 링크 선택도 수정했다. 부정 대조 후 같은 세션의 정상
+재실행은 변조 영향이 남아 실패했으므로 새 세션에서 원래 asset으로 33개 전체를 다시 확인했다. 첫 결과 추출 스크립트는
+성공 JSON 뒤 CLI 로그까지 JSON으로 파싱해 실패했다. 원래 로그에서 하나의 JSON 결과를 읽어 33개를 확인했으며 브라우저를
+반복 실행하지 않았다. 초기 favicon 404는 관찰했고 마지막 페이지의 console error는 0이다. 이 실패들을 성공으로 합치지 않는다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-dynamic-inline-normal-_izuh1wf`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-dynamic-inline-race-an4ijtlf`
+- 최초 DB 실패: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-dynamic-inline-normal-rikndhmb`
+- 브라우저 원문: worker의 `output/playwright/replay-clean.log`, `negative.log`, `browser-receipt.json` (ignored local artifacts)
+
+고정 Django inline script는 동작 참고로 읽었지만 새 native 브라우저 differential을 실행한 것은 아니다. Files와 전체
+ModelFormSet 저장 자동화는 남아 있으며 선행 `6d3fe97f`의 Hosted full에 이 UI 변경을 포함시키지 않는다.
+최종 비문서 source가 위 normal/race와 같음을 재확인했고 `make format-check docs-check`(166개 문서)와 diff 검사를 통과했다.
+
+### Admin 합성 저장 source의 Hosted 통합 진행
+
+Source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`의 [PR feedback 36526887945](https://github.com/progresshans/godj/actions/runs/36526887945)은
+terminal success다. [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), attempt 1은
+아직 in_progress이며 마지막 관찰에서 61개 job 중 59개 success, macOS Intel의 relation/project-check race 두 개가 실행 중이다.
+최종 집계 전이므로 전체 PASS로 쓰지 않는다. 기다리는 동안 실행을 교체하거나 로컬 전체를 중복하지 않았다.
+
+같은 run/attempt의 새 capture를 내려받아 archive digest·파일 집합·SHA256SUMS·producer/provenance를 검증했다. 현재 dirty
+파일이 아닌 해당 Git commit에서 source binding을 재계산해 systemstate 644 files / SHA
+`5cbade384a5a86dbc4f7bb3ccc23495b1ed02b476772dea39273e2f286611c3f`, operator 721 files / SHA
+`e9c97e13938c3e277b29561c75b1ddbb35e65d9a6f0e8e3adbc00aada9dafd0e` 일치를 확인했다.
+
+| capture | artifact / producer job | payload SHA256 |
+| --- | --- | --- |
+| systemstate-postgres-1 | 11015278425 / 109271888854 | `22908a10d7d6bc1303946e6d3b01f0cf3016fbc95aa8bbc453737d3a99124e3a` |
+| operator-postgres-1 | 11014897454 / 109271888891 | `491eb375b991f3c4d5cf304cca1067c01863b13611d865bec246c3fc56ce1e34` |
+
+원문과 아직 `pass: false`인 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-inline-integration-full-36526909898-9gg5e6lj`에 있다.
+이 통합 source는 위 동적 행 UI와 새 JS source inventory 정책을 포함하지 않는다.
+
 ### Admin inline HTML과 부모·자식 원자 저장
 
 기반 `00e07e1f4552f895dae3397b4687a89892566555` 뒤 Admin Inline을 canonical 부모 registration에 연결했다.

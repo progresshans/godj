@@ -34,6 +34,7 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"admin/site_assets/inlines.js",
 		"identity/account/templates/account.html",
 		"identity/data/common-passwords.txt.gz",
 		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
@@ -186,12 +187,14 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 
 func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 	tests := map[string]bool{
-		".github/workflows/ci.yml": true,
-		"Makefile":                 true,
-		"go.mod":                   true,
-		"go.sum":                   true,
-		"cmd/godj/main_unix.go":    true,
-		"cmd/godj/main_test.go":    false,
+		"admin/site_assets/inlines.js":   true,
+		"admin/testdata/browser/main.go": false,
+		".github/workflows/ci.yml":       true,
+		"Makefile":                       true,
+		"go.mod":                         true,
+		"go.sum":                         true,
+		"cmd/godj/main_unix.go":          true,
+		"cmd/godj/main_test.go":          false,
 		"internal/projectcheck/createsuperuser_run_unix.go":                        true,
 		"internal/projectcheck/createsuperuser_run_unix_test.go":                   false,
 		"internal/projectgenerate/candidate.go":                                    true,

@@ -1,11 +1,7 @@
-{% for inline in inlines %}<fieldset data-inline-prefix="{{ inline.prefix }}"><legend>{{ inline.label }}</legend>
+{% for inline in inlines %}<fieldset data-inline-prefix="{{ inline.prefix }}" data-inline-min="{{ inline.minimum }}" data-inline-max="{{ inline.maximum }}"><legend>{{ inline.label }}</legend>
 <input type="hidden" name="{{ inline.prefix }}-TOTAL_FORMS" value="{{ inline.total }}"><input type="hidden" name="{{ inline.prefix }}-INITIAL_FORMS" value="{{ inline.initial }}">
 {% for error in inline.errors %}<p data-inline-error="{{ inline.prefix }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
-{% for row in inline.rows %}<fieldset data-inline-row="{{ row.index }}"><legend>Item {{ row.number }}</legend>
-<input type="hidden" name="{{ row.identity_name }}" value="{{ row.identity }}">
-{% if row.has_revision %}<input type="hidden" name="{{ row.prefix }}-expected_revision" value="{{ row.revision }}">{% endif %}
-<fieldset{% if row.readonly %} disabled{% endif %}>{% for field in row.fields %}{% include "field.html" %}{% endfor %}</fieldset>
-{% if row.can_order %}<label>Order <input name="{{ row.prefix }}-ORDER" value="{{ row.order }}" inputmode="numeric"></label>{% endif %}
-{% if row.can_delete %}<label>Delete <input type="checkbox" name="{{ row.prefix }}-DELETE" value="on"{% if row.deleted %} checked{% endif %}></label>{% endif %}
-{% for error in row.errors %}<p data-inline-error="{{ row.prefix }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
-</fieldset>{% endfor %}</fieldset>{% endfor %}
+<div data-inline-rows>{% for row in inline.rows %}{% include "inline_row.html" %}{% endfor %}</div>
+{% if inline.can_add %}<template data-inline-empty>{% for row in inline.empty %}{% include "inline_row.html" %}{% endfor %}</template>
+<button type="button" data-inline-add hidden>Add another item</button>{% endif %}
+</fieldset>{% endfor %}

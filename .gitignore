@@ -6,3 +6,4 @@ conformance/.tmp/
 **/.godj/generate.lock
 **/.godj/publication-journal.json
 **/.godj/transactions/
+output/playwright/

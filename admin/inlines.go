@@ -84,6 +84,8 @@ type inlineBound struct {
 	set        forms.Set
 	identities []forms.Value
 	revisions  []int64
+	empty      *forms.SetForm
+	policy     forms.SetConfig
 }
 
 func NewInline[P, C any](config InlineConfig[P, C]) (Inline, error) {
@@ -253,7 +255,14 @@ func NewInline[P, C any](config InlineConfig[P, C]) (Inline, error) {
 		if err != nil {
 			return inlineBound{}, err
 		}
-		result := inlineBound{definition: definition, access: access, parentID: parentID, set: bound.FormSet()}
+		result := inlineBound{definition: definition, access: access, parentID: parentID, set: bound.FormSet(), policy: policy}
+		if access.Add {
+			empty, err := requestSpec.EmptyForm(owner)
+			if err != nil {
+				return inlineBound{}, err
+			}
+			result.empty = &empty
+		}
 		for _, row := range result.set.Forms() {
 			identity, _ := bound.Identity(row.Index())
 			result.identities = append(result.identities, identity)

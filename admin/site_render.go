@@ -33,6 +33,7 @@ func (site *Site) render(request *web.Request, name string, values map[string]te
 	}
 	// Site handlers transfer a fresh context map. NewContext snapshots it once
 	// after these shared navigation values have been added.
+	values["inline_script_url"] = templates.String(site.inlineScriptPath())
 	values["index_path"] = templates.String(site.basePath + "/")
 	values["login_path"] = templates.String(site.basePath + "/login/")
 	values["logout_path"] = templates.String(site.basePath + "/logout/")

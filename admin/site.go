@@ -175,6 +175,9 @@ func (site *Site) buildRoutes() error {
 		{Name: name("logout-post"), Method: http.MethodPost, Path: logoutPath, Handler: site.logoutPost},
 		{Name: name("index"), Method: http.MethodGet, Path: indexPath, Handler: site.adminRequire("", site.indexGet)},
 	}
+	if site.hasInlines() {
+		routes = append(routes, web.Route{Name: name("inline-script"), Method: http.MethodGet, Path: site.inlineScriptPath(), Handler: site.inlineScript})
+	}
 	for index := range site.registry.models {
 		model := site.registry.models[index]
 		prefix := site.basePath + "/" + model.slug
@@ -273,7 +276,7 @@ func (site *Site) validateRoutesAndNextPaths() error {
 			return &ConfigError{Path: "site.routes.method_path", Code: "duplicate"}
 		}
 		byMethodPath[key] = struct{}{}
-		if route.Method == http.MethodGet && route.Path != site.basePath+"/login/" && !site.auth.AllowsNext(route.Path) {
+		if route.Method == http.MethodGet && route.Path != site.basePath+"/login/" && route.Path != site.inlineScriptPath() && !site.auth.AllowsNext(route.Path) {
 			return &ConfigError{Path: "site.auth.allowed_next_paths", Code: "missing", Cause: fmt.Errorf("path %q", route.Path)}
 		}
 	}

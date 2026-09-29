@@ -37,7 +37,22 @@ field이며, 부모에 RevisionField가 있으면 child-only 변경도 revision�
 전체 집합 또는 operation error로 전달한다. Wrapped/joined rejection, context 취소, DB/rollback 실패나 unknown outcome은
 성공 또는 입력 진단으로 축소하지 않는다. 다른 inline/없는 행을 지목한 오류도 실행 오류다.
 
-현재 화면은 선언한 추가 행을 서버에서 렌더링한다. 동적 행 추가/제거 JavaScript, file upload, arbitrary 자동 저장은 별도 범위다.
+## 동적 행 추가와 제거
+
+Add 권한이 있는 inline은 서버가 만든 빈 행을 비활성 `template`에 담는다. `ExtraForms: 0`이어도 새 행을 추가할 수 있다.
+빈 행은 기본값과 서버 부모를 유지하며 기존 자식의 PK·revision·입력값을 복제하지 않는다. 새 부모의 FK는 저장 전까지 빈 값이다.
+기존 readonly 행과 독립적으로 새 행을 편집한다. Add가 없으면 빈 행과 추가/제거 버튼을 게시하지 않는다.
+
+Site가 제공하는 버전별 외부 JavaScript는 `min(MaxForms, AbsoluteMax)`까지 행을 추가하고 MinForms보다 많은 미저장 행만
+제거한다. 기존 행은 DOM에서 제거하지 않으며 허용한 DELETE 제어로 삭제 의도를 전달한다. 제거 후 미저장 행의 이름과 오류
+위치만 연속 번호로 바꾸고 입력값·checkbox 상태·기존 PK·INITIAL_FORMS·다른 inline은 보존한다. 추가 시 첫 입력으로 focus를
+옮기며 `formset:added`/`formset:removed` 이벤트의 `detail.formsetName`에 prefix를 전달한다.
+
+Script는 내용 SHA256을 포함한 URL로 제공하며 session을 읽거나 쓰지 않는다. CDN·inline script·eval은 사용하지 않는다.
+JavaScript가 없으면 서버가 렌더링한 기존/추가 행으로 제출할 수 있다. 브라우저의 버튼 제한은 서버의 count·권한·부모/PK·
+transaction 검사를 대체하지 않는다. 재현 가능한 실제 브라우저 소비자는 [검증 fixture](testdata/browser/README.md)에 있다.
+
+File upload와 arbitrary 자동 저장은 별도 범위다.
 등록당 inline 8개, 합산 AbsoluteMax 100행이며 부모를 합친 기본 입력 개수도 startup에서 확인한다. Request 전체의 64 KiB body,
 1,024 values, 값당 4 KiB 제한과 template의 loop/1 MiB 출력 제한은 계속 적용된다. Multiple choices는 같은 입력/출력 예산을
 사용한다. 한도 초과는 명시적 오류이며 행·값·HTML을 잘라 성공으로 반환하지 않는다.

@@ -33,14 +33,7 @@ func adminInlineSubmission(t *testing.T, response *httptest.ResponseRecorder) (u
 	if err != nil {
 		t.Fatal(err)
 	}
-	attr := func(n *html.Node, key string) (string, bool) {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return a.Val, true
-			}
-		}
-		return "", false
-	}
+	attr := adminInlineAttribute
 	values := url.Values{}
 	action := ""
 	var content func(*html.Node) string
@@ -56,6 +49,9 @@ func adminInlineSubmission(t *testing.T, response *httptest.ResponseRecorder) (u
 	}
 	var controls func(*html.Node, bool)
 	controls = func(n *html.Node, disabled bool) {
+		if n.Type == html.ElementNode && n.Data == "template" {
+			return
+		}
 		_, off := attr(n, "disabled")
 		disabled = disabled || off
 		name, exists := attr(n, "name")
@@ -116,6 +112,49 @@ func adminInlineSubmission(t *testing.T, response *httptest.ResponseRecorder) (u
 		t.Fatal("missing actual Admin form")
 	}
 	return values, action
+}
+
+func adminInlineAttribute(n *html.Node, key string) (string, bool) {
+	for _, a := range n.Attr {
+		if a.Key == key {
+			return a.Val, true
+		}
+	}
+	return "", false
+}
+
+func assertAdminInlineReadOnly(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(response.Body.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"reports-0-summary": true, "reports-0-id": false}
+	var visit func(*html.Node, bool)
+	visit = func(n *html.Node, disabled bool) {
+		_, off := adminInlineAttribute(n, "disabled")
+		disabled = disabled || off
+		name, _ := adminInlineAttribute(n, "name")
+		if expected, ok := want[name]; ok {
+			if disabled != expected {
+				t.Errorf("%s disabled = %t, want %t", name, disabled, expected)
+			}
+			delete(want, name)
+		}
+		if n.Type == html.ElementNode && n.Data == "form" {
+			action, _ := adminInlineAttribute(n, "action")
+			if strings.HasPrefix(action, "/admin/tickets/") {
+				t.Error("read-only parent published a mutation form")
+			}
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			visit(child, disabled)
+		}
+	}
+	visit(doc, false)
+	if len(want) != 0 {
+		t.Errorf("read-only parent omitted controls: %v", want)
+	}
 }
 
 func verifyHelpdeskAdminInlines(t *testing.T, ctx context.Context, runtime *systemstate.Runtime, authenticated *helpdeskClient) {
@@ -191,9 +230,10 @@ func verifyHelpdeskAdminInlines(t *testing.T, ctx context.Context, runtime *syst
 			}
 			response := client.request("GET", path, "", false)
 			if mode == "view_parent" {
-				if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Before &lt;report&gt;") || !strings.Contains(response.Body.String(), "<fieldset disabled>") {
+				if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Before &lt;report&gt;") {
 					t.Fatal("read-only parent detail lost inline", response.Code, response.Body.String())
 				}
+				assertAdminInlineReadOnly(t, response)
 				return
 			}
 			values, action := adminInlineSubmission(t, response)

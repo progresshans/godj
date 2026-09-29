@@ -3,6 +3,7 @@
 - 갱신: 2026-09-29
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
 - 최근 완료한 전체 검증: [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), source `6d8afda5086ba3fc058376a60dc567bdcd5a05d7`; 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
+- 실행 중 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f`; Admin 합성 저장까지 포함하며 동적 행 UI는 이후 변경
 - Source·환경·scope·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -16,13 +17,16 @@ Formset·모델 여러 행 unique·canonical InlineSpec·조회 전용 기존 �
 readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실패·rollback/unknown outcome을 검증한다.
 구현/실행 상세와 실패 후 수정은 [TEST_EVIDENCE](TEST_EVIDENCE.md), 설계는 [ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)에 둔다.
 
-위 마지막 Hosted full은 Formset 통합 source이며 이후 Inline/readonly/Admin 변경을 포함하지 않는다. 현재 영향 검증을 전체
-platform 성공으로 확대하지 않는다. 이 묶음의 다음 Hosted full을 별도 source로 검증한다.
+서버가 만든 빈 행과 외부 script로 미저장 inline 행의 동적 추가/제거를 연결했다. 권한별 prototype·min/max·입력값과
+오류 위치·기존 identity를 보존하며 실제 브라우저의 두 inline·새 부모/자식 SQLite 저장과 관련 양 DB/race를 확인했다.
+
+위 완료된 Hosted full은 Formset 통합 source이며 이후 Inline/readonly/Admin 변경을 포함하지 않는다. 실행 중인 Admin 통합의
+새 capture와 Git source 결합은 확인했고 최종 CI 집계가 남아 있다. 현재 영향 검증을 전체 platform 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-Admin/Formset 통합 source의 Hosted full과 capture 결합을 확인하고, 동적 행 추가/제거 UI와 남은 ModelFormSet/files 범위를
-구현한다. 현재 inline은 선언한 추가 행을 서버에서 렌더링하며 arbitrary 자동 persistence를 제공하지 않는다.
+Admin/Formset 통합 source의 Hosted full과 capture 결합을 확인하고, 남은 ModelFormSet/files 범위를 구현한다.
+동적 행 UI의 로컬 검증을 선행 source의 Hosted 결과와 합치지 않는다. Arbitrary 자동 persistence는 별도 구현 범위다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
 기능 카탈로그의 남은 범위도 계속 구현한다.
 
