@@ -63,8 +63,8 @@ func BindInstance[M any](manager orm.Manager[M], spec forms.Spec, data forms.Dat
 	return InstanceForm[M]{bound: bound, manager: manager, instance: snapshot, hasInstance: instance != nil}, nil
 }
 
-func (form InstanceForm[M]) WithErrors(failures validation.Errors) (InstanceForm[M], error) {
-	bound, err := form.bound.WithErrors(failures)
+func (form InstanceForm[M]) WithErrors(failures validation.Errors, rejectedFields ...string) (InstanceForm[M], error) {
+	bound, err := form.bound.WithErrors(failures, rejectedFields...)
 	if err != nil {
 		return InstanceForm[M]{}, err
 	}

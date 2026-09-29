@@ -58,6 +58,20 @@ Typed Prepare는 모든 active 후보와 기존 삭제 의도를 분리한다. �
 valid로 바꾸지 않는다. DELETE가 데이터 오류를 무시할 수 있는 성질과 요청 admission은 별개다. Identity·권한·운영 실패는
 전체 진단 또는 operation error로 전달하며 행 오류로 축소하지 않는다. 실제 제품의 최종 인가·원자 저장은 별도 소유자다.
 
+## 여러 행의 고유값 검사
+
+ModelFormSet은 행별 model clean 뒤 개수 제약을 확인하고, 사용자 여러 행 검증 전에 unique field·IR의 명시적 복합 unique를
+검사한다. Django와 같이 candidate가 아닌 Form cleaned 입력을 비교한다. NULL·제외 field·invalid 행을 건너뛰고, 삭제 선택은
+검사 직전 Set의 유효성에 따른다. 중복된 뒤쪽 행의 non-field 진단과 cleaned tuple 제거, 전체 진단을 함께 적용한다.
+후속 DB 검사에는 갱신한 exclusion이 전달되며 후보·원래 입력·변경 목록은 유지한다. 자동 저장이나 DB 검증 완료를 뜻하지 않는다.
+
+GoDj는 IR 순서와 검사 시작 snapshot의 완전한 튜플을 사용한다. 앞선 제약 오류로 일부 field가 cleaned data에서 제거되어도
+다른 제약을 부분 튜플로 비교하지 않는다. 이는 Django 내부 set iteration/cleaned dict 수정 순서를 복제하지 않는 명시적 선택이다.
+Django의 코드 없는 cross-row 메시지는 GoDj의 안정된 `unique` 진단으로 표현하며 입력값은 오류 parameter에 넣지 않는다.
+
+Core SetProcessor의 Form/Clean 단계는 행과 전체의 private binding token을 보존한다. 같은 의미의 데이터를 새로 bind하거나 다른
+바인딩 결과를 가져와 검증을 우회할 수 없다. Compound 진단이 제거할 cleaned field는 명시하고, 진단 없는 제거는 허용하지 않는다.
+
 ## Helpdesk의 페이지 단위 저장
 
 Helpdesk editor는 서버 Category의 현재 ID 순서 20행을 cohort로 삼는다. GET은 하나의 read snapshot을 사용하고 POST는

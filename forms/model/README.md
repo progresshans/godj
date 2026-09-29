@@ -111,6 +111,16 @@ DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 id
 같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
 전체 ModelFormSet 자동화·inline/files는 후속 작업이다.
 
+`BindSet`은 행 검증과 개수 제한 뒤, 사용자 SetValidator 전에 선택한 unique field와 IR의 복합 UniqueConstraint를 행 사이에서
+검사한다. Valid인 행의 **cleaned 입력값**을 비교하며, model clean이 바꾼 candidate나 DB 저장값의 검사를 대체하지 않는다.
+NULL이 포함된 튜플·제외된 field·invalid 행·바뀌지 않은 빈 추가 행은 비교하지 않는다. 삭제 행을 제외하는 시점도 기존 Formset의
+유효성/개수 규칙을 따른다. 다른 invalid 행 때문에 삭제 선택이 아직 유효하지 않으면 유효한 삭제 표시 행도 중복 검사에 참여한다.
+
+뒤에 나온 중복 행에는 non-field `unique` 진단을 붙이고 해당 튜플의 cleaned field를 제거하며, 전체에도 진단을 남긴다.
+Typed/core 오류와 exclusion은 함께 바뀌고 원래 제출·candidate는 보존한다. 모든 제약은 같은 검사 시작 snapshot의 완전한 튜플로
+비교한다. 겹친 제약에서 앞선 오류가 field를 제거했다고 다른 제약을 부분 튜플로 비교하지 않는다. 제약 순서는 IR 순서로 결정적이다.
+이 pure 검사에는 backend collation·저장된 다른 행·동시 쓰기와 candidate 변환이 포함되지 않으므로 최종 transaction의 DB 검사는 필수다.
+
 ## 생성 모델의 typed 준비
 
 `orm.Manager.Metadata`는 생성 시점 IR의 복사본, `ModelValues`는 PK 존재와 nullable 값을 보존한 scalar snapshot을 반환한다.

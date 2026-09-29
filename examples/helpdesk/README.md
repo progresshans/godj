@@ -50,6 +50,9 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 같은 흐름을 사용한다. Parser 오류는 400, 권한/CSRF 거부는 403, 없는 Category는 404다. 운영 오류·rollback/commit 결과 불확실성은
 성공 redirect나 입력 오류로 바꾸지 않고 자동 재시도하지 않는다. Commit이 확인된 경우에만 같은 페이지로 303 redirect한다.
 
+같은 제출 안의 중복 External reference는 UUID 표기가 달라도 Formset 단계에서 거부하므로 행 쓰기/audit에 도달하지 않는다.
+선택 페이지 밖의 기존 값이나 model clean 이후의 충돌은 최종 transaction의 기존 DB 고유성 검사가 계속 확인한다.
+
 제출 상한은 40행·64 KiB·총 1,024개 값·값 하나당 4 KiB다. 선택지 query는 257개에서 잘라 256개 초과를 명시적으로 거부하며
 선택지를 조용히 누락하지 않는다. HTML escaping으로 확장되는 선택지를 포함해 template/Web 출력 한도를
 `TicketEditorMaxResponseBytes`(8 MiB)로 함께 설정한다. 기본 Web 1 MiB를 그대로 사용하면 유효한 큰 페이지가 거부될 수 있다. 임의 index/필드·중복 query와 외부 Category 입력은

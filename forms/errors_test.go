@@ -65,3 +65,42 @@ func TestFormWithErrorsRetainsInitialChangesAndDetachesCleanedFields(t *testing.
 		t.Fatal("empty diagnostics changed bound form", err)
 	}
 }
+
+func TestFormCompoundRejectionRemovesOnlyNamedCleanedValues(t *testing.T) {
+	first, err := CharField("first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := CharField("second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := NewSpec([]Field{first, second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := spec.Bind(NewData(map[string][]string{"first": {"private-one"}, "second": {"private-two"}}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diagnostic := validation.NewErrors(validation.New(validation.NonField, "unique"))
+	rejected, err := bound.WithErrors(diagnostic, "first")
+	if err != nil || rejected.Valid() || !bound.Valid() || rejected.Errors().Len() != 1 {
+		t.Fatal("compound rejection mutated input or lost non-field error", err)
+	}
+	if _, present := rejected.Cleaned().Get("first"); present {
+		t.Fatal("rejected member retained")
+	}
+	if value, present := rejected.Cleaned().String("second"); !present || value != "private-two" {
+		t.Fatal("unrelated member removed")
+	}
+	if raw, present := rejected.Submitted().Get("first"); !present || len(raw) != 1 || raw[0] != "private-one" || !reflect.DeepEqual(rejected.Changed(), bound.Changed()) {
+		t.Fatal("original submission/change detection lost")
+	}
+	if _, err := bound.WithErrors(diagnostic, "unknown"); err == nil {
+		t.Fatal("unknown compound member accepted")
+	}
+	if _, err := bound.WithErrors(validation.Errors{}, "first"); err == nil {
+		t.Fatal("cleaned data removed without a diagnostic")
+	}
+}

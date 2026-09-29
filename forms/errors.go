@@ -3,13 +3,22 @@ package forms
 import "github.com/progresshans/godj/validation"
 
 // WithErrors returns a new bound form with additional post-clean diagnostics.
-// Fields with new errors leave cleaned data; non-field errors retain it. Initial
+// Fields with new errors leave cleaned data. For a compound/non-field error,
+// rejectedFields can explicitly remove its participating cleaned values. Initial
 // values and change detection remain available, and the caller can redisplay
 // its original submitted data. Unknown fields and unbound forms fail explicitly.
 // This operation performs no validation callbacks or persistence.
-func (f Form) WithErrors(diagnostics validation.Errors) (Form, error) {
+func (f Form) WithErrors(diagnostics validation.Errors, rejectedFields ...string) (Form, error) {
 	if !f.bound {
 		return Form{}, &ConfigError{Path: "form", Code: "unbound"}
+	}
+	if diagnostics.Empty() && len(rejectedFields) != 0 {
+		return Form{}, &ConfigError{Path: "errors", Code: "missing_diagnostic"}
+	}
+	for _, name := range rejectedFields {
+		if _, known := f.initial.Get(name); !known {
+			return Form{}, &ConfigError{Path: "errors." + name, Code: "unknown_field"}
+		}
 	}
 	for _, diagnostic := range diagnostics.All() {
 		if diagnostic.Field() == validation.NonField {
@@ -25,6 +34,9 @@ func (f Form) WithErrors(diagnostics validation.Errors) (Form, error) {
 	cleaned := cloneValueMap(f.cleaned.values)
 	for _, diagnostic := range diagnostics.All() {
 		delete(cleaned, string(diagnostic.Field()))
+	}
+	for _, name := range rejectedFields {
+		delete(cleaned, name)
 	}
 	order := make([]string, 0, len(cleaned))
 	for _, name := range f.cleaned.order {

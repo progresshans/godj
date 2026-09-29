@@ -127,7 +127,7 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := []string{"mixed", "unchanged", "invalid_row", "duplicate_identity", "deleted_outside_identity", "empty_extra_identity", "forbidden_label", "protected_delete", "late_unique", "audit_failure", "collection_failure", "read_failure", "rollback_unknown", "commit_unknown", "cancellation", "late_scope_change", "forged_initial", "duplicate_management"}
+	cases := []string{"mixed", "unchanged", "invalid_row", "duplicate_identity", "deleted_outside_identity", "empty_extra_identity", "forbidden_label", "protected_delete", "duplicate_tuple", "late_unique", "audit_failure", "collection_failure", "read_failure", "rollback_unknown", "commit_unknown", "cancellation", "late_scope_change", "forged_initial", "duplicate_management"}
 	for _, mode := range cases {
 		t.Run(mode, func(t *testing.T) {
 			category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Editor "+mode))
@@ -229,6 +229,10 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 			case "late_unique":
 				values.Set("tickets-2-subject", "Duplicate reference")
 				values.Set("tickets-2-external_reference", unique.String())
+				wantCode = "unique"
+			case "duplicate_tuple":
+				values.Set("tickets-0-external_reference", "12345678-1234-4234-8234-123456789001")
+				values.Set("tickets-1-external_reference", "12345678123442348234123456789001")
 				wantCode = "unique"
 			case "audit_failure":
 				values.Set("tickets-1-subject", "Second changed")
@@ -334,6 +338,9 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 			}
 			if mode == "late_unique" && backend.writes == 0 || mode == "audit_failure" && audits != 2 || mode == "collection_failure" && backend.writes == 0 {
 				t.Fatal("failure fixture did not reach preceding real writes")
+			}
+			if mode == "duplicate_tuple" && (backend.writes != 0 || audits != 0) {
+				t.Fatal("cross-row duplicate reached writes or audit")
 			}
 			if mode == "mixed" {
 				connection, err := open(ctx)

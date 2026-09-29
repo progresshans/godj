@@ -53,16 +53,16 @@ func (set InstanceSet[M]) WithErrors(failures validation.Errors) (InstanceSet[M]
 // WithRowErrors attaches data-validation diagnostics to an evaluated row and
 // keeps its typed candidate/exclusions in sync with the ordinary formset.
 // Such diagnostics may be ignored for a deleted row; they are not admission.
-func (set InstanceSet[M]) WithRowErrors(index int, failures validation.Errors) (InstanceSet[M], error) {
+func (set InstanceSet[M]) WithRowErrors(index int, failures validation.Errors, rejectedFields ...string) (InstanceSet[M], error) {
 	instance, present := set.instances[index]
 	if !present {
 		return InstanceSet[M]{}, &Error{Path: "set.row", Code: "not_evaluated"}
 	}
-	updated, err := instance.WithErrors(failures)
+	updated, err := instance.WithErrors(failures, rejectedFields...)
 	if err != nil {
 		return InstanceSet[M]{}, err
 	}
-	bound, err := set.set.WithFormErrors(index, failures)
+	bound, err := set.set.WithFormErrors(index, failures, rejectedFields...)
 	if err != nil {
 		return InstanceSet[M]{}, err
 	}
@@ -177,7 +177,7 @@ func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		return InstanceSet[M]{}, err
 	}
 	instances := make(map[int]InstanceForm[M])
-	set, err := spec.BindWith(data, initial, forms.SetProcessorFunc(func(row forms.SetForm) (forms.Form, error) {
+	set, err := spec.BindWith(data, initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
 		var source M
 		var values map[string]forms.Value
 		hasInstance := row.Index() < len(snapshots)
@@ -203,7 +203,9 @@ func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		}
 		instances[row.Index()] = InstanceForm[M]{bound: bound, manager: manager, instance: snapshot, hasInstance: hasInstance}
 		return bound.Form(), nil
-	}))
+	}, Clean: func(set forms.Set) (forms.Set, error) {
+		return validateSetUnique(metadata, set, instances)
+	}})
 	if err != nil {
 		return InstanceSet[M]{}, err
 	}

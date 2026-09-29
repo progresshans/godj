@@ -1052,7 +1052,14 @@ jobs:
           esac
           required_tests=()
           for sentinel in "${required_passes[@]}"; do
-            required_tests+=("${sentinel#*|}")
+            test_name="${sentinel#*|}"
+            test_root="${test_name%%/*}"
+            # Select the enclosing test even when only a child is a sentinel.
+            # Keep complete child names in the inventory checked after Go exits.
+            case " ${required_tests[*]-} " in
+              *" $test_root "*) ;;
+              *) required_tests+=("$test_root") ;;
+            esac
           done
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_flags=(-p=1 -timeout=18m -json -count=1 -run "$required_regex")

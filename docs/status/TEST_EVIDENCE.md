@@ -5,6 +5,51 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 여러 행 고유값 검증과 Hosted 테스트 선택 수정
+
+기반 `568b75b40ac5da5b3d03b2406808d33c6c23f911` 이후 ModelFormSet의 unique field/복합 UniqueConstraint 검증을 연결했다.
+행별 검증→개수 검사→모델 여러 행 검사→사용자 SetValidator 순서다. Valid 행의 cleaned 입력과 완전한 tuple을 비교하며,
+뒤쪽 중복 행의 non-field/전체 `unique` 진단과 cleaned member 제거를 typed/core에 같이 반영한다. Candidate·raw·initial은
+보존한다. 겹친 제약은 동일 시작 snapshot과 IR 순서로 검사하며 부분 tuple 비교로 인한 오진을 방지한다. 최종 DB/candidate
+고유성 검사는 유지하고 Helpdesk의 UUID 표기만 다른 중복을 실제 쓰기/audit 전에 거부한다.
+
+고정 Django 6.1/CPython 3.14.3의 `model_formset_unique_reference.py`를 실제 SQLite에서 실행했다. 기존 고정 source와 같은
+`django.forms.models` SHA `858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910`이며 저장 무변경/정리를 확인했다.
+23개 사례에서 valid·행/전체 오류·cleaned field 제거·clean 횟수를 대조했다. NULL·삭제와 다른 invalid 행의 조합·UUID 별칭·복합
+FK/문자열·제외 field·개수 우선·model clean 후보와 cleaned 입력의 분리를 포함한다. Native의 코드 없는 중복 메시지는 안정된
+`unique`로, editable Form 밖의 PK는 별도 identity로 비교한다. 겹친 제약의 결정적 snapshot 정책은 Go-native 검사로 구분한다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| normal | Form/model/Helpdesk 3 packages / 110 roots / 110 required cases / 1,898 PASS / 19.612초 |
+| pure race | compound 거부·Set binding/순서·native unique/겹친 제약/동시 바인딩, 2 packages / 5 roots / 31 PASS / 1.721초 |
+| product race | 양 DB `duplicate_tuple`/`late_unique`, 1 package / 2 roots / 4 required cases / 8 PASS / 46.040초 |
+| 부정 대조 | 여러 행 검사를 제거하면 HTTP가 쓰기에 도달, cleaned member 제거를 생략하면 native 대조 실패, Set token 검사를 생략하면 다른 binding 허용을 검출 |
+| CI 도구 | 42 Python tests PASS; 처음의 macOS Bash empty-array/nounset 실패는 `${required_tests[*]-}`로 수정 후 재검증 |
+
+Go 1.26.5 Darwin arm64, 기본 공유 cache/병렬 실행, readonly/offline module·Pacific/Chatham과 PostgreSQL 17.10 UTF8/libc/C를
+사용했다. 필수 누락·skip·잘린 event 0, 실제 compiled root 목록과 run/pass를 대조했다. DB 잔여 0/0/0과 임시 DB/container 삭제를
+확인했다. Normal inventory는 `3d182b41d484f2ba428581d434e489b952c3bf8bd7abb70ab067b288c9640ed9`, race는
+`ab976cbe3f720bcfb693256e98caac8eb50b07a64c4cecb5e154b5bf039427d8`다. 최종 비문서 inventory
+`14c4a385594800d066997e5974cc25e8763476a2d77dde6d9b1078c45bd7bcd6`와의 차이는 CI workflow/Python 회귀뿐이며 제품/Go 테스트는 같다.
+이후 CI 선택자 실제 실행과 42 Python 검사는 최종 파일에 수행했다. IR/generator 변경이나 local 전체 검증은 없다.
+
+선행 소스의 [Hosted full 36514445961](https://github.com/progresshans/godj/actions/runs/36514445961), attempt 1은 PostgreSQL core
+normal job `109233540180`, CGO=0 job `109233540143`의 필수 목록 검증에서 실패했다. 실제 Go 명령은 0으로 끝났지만 새 SQLite
+Helpdesk 하위 사례 31개가 실행되지 않았다. 이 실패를 PASS/skip 면제로 바꾸지 않았다. 전체 경로를 괄호 안에 합친 기존 `-run`
+선택자는 부모의 별도 sentinel이 없는 경우 부모를 선택하지 않았다. 실행 regex는 중복 없는 부모 이름에서 만들고, 결과 검증은
+완전한 원래 하위 이름을 유지하도록 고쳤다. 현 소스의 SQLite editor 필수 32개로 원래 workflow 코드를 실행하면 **run 0**과
+inventory 거부가 재현되며, 수정한 workflow 코드는 **106 run / 필수 32개 전부 PASS / skip 0**이다. 다른 실행 owner의 누락을
+허용하거나 테스트를 삭제한 수정이 아니다. 이 run의 전체 platform 성공은 없으며 수정 소스의 새 통합 결과를 기다린다.
+
+원문·source/receipt·controls:
+
+- normal/부정 대조: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-set-unique-normal-7jki55aq`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-set-unique-race-2d1y1_7s`
+- 실행 선택자 대조: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-set-unique-selector-ud204vn5`
+- Hosted 실패 logs/run/jobs: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-ticket-editor-hosted-failure-9hdohriz`
+- 파일별 source 재대조: `/tmp/godj-set-unique-source-reconciliation.json`
+
 ### Helpdesk 여러 행 HTTP 편집과 원자 저장
 
 기반 `812d0136962ca46251deb22ad80e84077402ea80` 이후 `/tickets/edit/`의 GET/POST 편집기를 연결했다.

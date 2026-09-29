@@ -218,6 +218,33 @@ class ExecutionOwnerTests(unittest.TestCase):
                 self.assertTrue(relation_owned(relative) or relative in supplemental,
                                 'required test belongs to another execution owner')
 
+    def test_postgres_child_sentinels_select_their_enclosing_tests(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/ci.yml').read_text()
+        start = workflow.index('          required_tests=()')
+        end = workflow.index('          test_flags=', start)
+        selection = workflow[start:end]
+        entries = (root / 'scripts/ci/postgres-core-required.txt').read_text().splitlines()
+        # Reproduce the failure: the new SQLite editor had child requirements
+        # but no separate top-level sentinel. Never rely on that duplication.
+        child_only = [entry for entry in entries if '/ticket_editor/' in entry]
+        self.assertTrue(child_only)
+        for required in [entries, child_only]:
+            with self.subTest(child_only=required is child_only):
+                script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'
+                script += selection + '\nprintf "%s\\n" "$required_regex"\n'
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
+                                        input='\n'.join(required) + '\n', cwd=root,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(0, result.returncode, result.stderr)
+                pattern = result.stdout.strip()
+                self.assertNotIn('/', pattern)
+                expected = {entry.split('|')[1].split('/')[0] for entry in required}
+                for name in expected:
+                    self.assertRegex(name, pattern)
+                self.assertNotRegex('TestUnrelatedUnregisteredProduct', pattern)
+                self.assertEqual(len(expected), len(pattern.removeprefix('^(').removesuffix(')$').split('|')))
+
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
         from scopes import SCOPES, selected as select_owners

@@ -21,6 +21,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 실제 Helpdesk 입력/편집과 권한·서버 범위·오류 재표시·원자 저장/실패 경로 연결
 - [x] 구조가 다른 모델 소비자·관련 실제 DB/race·필수 실패 대조와 영향 checkpoint
 - [x] 현행 사용법·지원 범위·환경별 증거 정리
+- [x] 여러 행 unique/복합 제약·compound cleaned 제외와 실제 HTTP 쓰기 전 거부
 - [ ] core/typed/Helpdesk 제품 묶음의 Hosted full 통합 milestone
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -39,3 +40,8 @@ management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 �
 재표시·페이지 범위와 원자 scalar/collection·PROTECT/CASCADE·audit를 연결했다. 양 DB의 실제 HTTP 성공/실패·롤백·재개와
 관련 race, Add 거부/audit 실패/unknown outcome의 부정 대조를 확인했다. 새로운 전체 플랫폼 증거는 게시한 소스의 Hosted
 통합에서 얻으며 선행 소스의 성공을 전이하지 않는다. Inline/files·전체 ModelFormSet 자동화는 이 작업의 완료와 별개다.
+
+ModelFormSet의 고유값 검증은 고정 Django 23개 사례와 실제 양 DB HTTP로 연결했다. 겹친 제약은 검사 시작 시점의 완전한
+튜플을 IR 순서로 비교하며, 후속 사용자 validator가 모델 진단을 없애지 않는다. `568b75b4`의 Hosted full은 새 하위 사례의
+부모 테스트를 실행 정규식에서 선택하지 못해 필수 job이 실패했다. 실행할 부모와 확인할 전체 하위 이름을 구분하도록 고쳤고,
+기존 선택자 0회/수정 선택자의 필수 32개 실행을 실제 Go에서 재현했다. 수정 소스의 전체 통합은 아직 남아 있다.

@@ -23,14 +23,14 @@ func TestFormSetProcessorOwnsBindingAndRunsBeforeSetLimits(t *testing.T) {
 	}
 	initial := []map[string]forms.Value{{"title": forms.String("old")}}
 	data := setData(2, 1, map[string]string{"title": "old", "DELETE": "on"}, map[string]string{"title": "bad"})
-	bound, err := spec.BindWith(data, initial, forms.SetProcessorFunc(func(row forms.SetForm) (forms.Form, error) {
+	bound, err := spec.BindWith(data, initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
 		modelCalls++
 		title, _ := row.Form().Cleaned().String("title")
 		if title == "bad" {
 			return row.Form().WithErrors(validation.NewErrors(validation.New("title", "model_rejected")))
 		}
 		return row.Form(), nil
-	}))
+	}})
 	if err != nil || bound.Valid() || fieldCalls != 2 || modelCalls != 2 {
 		t.Fatal("processor did not run after one field binding", err, fieldCalls, modelCalls)
 	}
@@ -43,15 +43,15 @@ func TestFormSetProcessorOwnsBindingAndRunsBeforeSetLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	fieldCalls, modelCalls = 0, 0
-	bound, err = spec.BindWith(setData(2, 1, map[string]string{"title": "old"}, nil), initial, forms.SetProcessorFunc(func(row forms.SetForm) (forms.Form, error) { modelCalls++; return row.Form(), nil }))
+	bound, err = spec.BindWith(setData(2, 1, map[string]string{"title": "old"}, nil), initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) { modelCalls++; return row.Form(), nil }})
 	if err != nil || !bound.Valid() || fieldCalls != 1 || modelCalls != 1 {
 		t.Fatal("empty extra ran cleaning/processor", err, fieldCalls, modelCalls)
 	}
 	operationErr := errors.New("post-processing stopped")
-	if _, err := spec.BindWith(data, initial, forms.SetProcessorFunc(func(forms.SetForm) (forms.Form, error) { return forms.Form{}, operationErr })); !errors.Is(err, operationErr) {
+	if _, err := spec.BindWith(data, initial, forms.SetProcessor{Form: func(forms.SetForm) (forms.Form, error) { return forms.Form{}, operationErr }}); !errors.Is(err, operationErr) {
 		t.Fatal("operation failure was treated as deletable diagnostics", err)
 	}
-	var nilProcessor forms.SetProcessorFunc
+	var nilProcessor forms.SetProcessor
 	if _, err := spec.BindWith(data, initial, nilProcessor); err == nil {
 		t.Fatal("typed nil processor accepted")
 	}
@@ -69,7 +69,7 @@ func TestFormSetProcessorRejectsRebindingAndOtherRows(t *testing.T) {
 	for _, mode := range []string{"rebound", "other_row", "unbound", "zero"} {
 		t.Run(mode, func(t *testing.T) {
 			var first forms.Form
-			_, err := spec.BindWith(data, nil, forms.SetProcessorFunc(func(row forms.SetForm) (forms.Form, error) {
+			_, err := spec.BindWith(data, nil, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
 				switch mode {
 				case "rebound":
 					return base.Bind(row.Form().Submitted(), nil)
@@ -85,10 +85,80 @@ func TestFormSetProcessorRejectsRebindingAndOtherRows(t *testing.T) {
 					return first, nil
 				}
 				return row.Form(), nil
-			}))
+			}})
 			var configErr *forms.ConfigError
 			if !errors.As(err, &configErr) || configErr.Code != "binding_mismatch" {
 				t.Fatal("row binding replacement accepted", err)
+			}
+		})
+	}
+}
+
+func TestFormSetCleanProcessorOrderBindingAndFailure(t *testing.T) {
+	row := setRowSpec(t)
+	config := forms.DefaultSetConfig()
+	config.Prefix, config.MaxForms, config.ValidateMax = "items", 1, true
+	cleanCalls, customCalls := 0, 0
+	custom := forms.SetValidatorFunc(func(rows []forms.SetForm) validation.Errors {
+		customCalls++
+		if rows[1].Form().Valid() {
+			t.Fatal("set validator ran before row rejection")
+		}
+		return validation.NewErrors(validation.New(validation.NonField, "custom"))
+	})
+	spec, err := forms.NewSetSpec(row, config, custom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := setData(2, 0, map[string]string{"title": "one"}, map[string]string{"title": "two"})
+	processor := forms.SetProcessor{Clean: func(set forms.Set) (forms.Set, error) {
+		cleanCalls++
+		original := set
+		set, err := set.WithFormErrors(1, validation.NewErrors(validation.New(validation.NonField, "unique")), "title")
+		if err != nil {
+			return forms.Set{}, err
+		}
+		if !original.Valid() || !original.Forms()[1].Form().Valid() {
+			t.Fatal("clean processor mutated earlier snapshot")
+		}
+		return set.WithErrors(validation.NewErrors(validation.New(validation.NonField, "unique")))
+	}}
+	limited, err := spec.BindWith(data, nil, processor)
+	if err != nil || limited.Valid() || cleanCalls != 0 || customCalls != 0 {
+		t.Fatal("clean ran before limits", err, cleanCalls, customCalls)
+	}
+	config.MaxForms = 2
+	spec, err = forms.NewSetSpec(row, config, custom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := spec.BindWith(data, nil, processor)
+	if err != nil || bound.Valid() || cleanCalls != 1 || customCalls != 1 || bound.NonFormErrors().Len() != 2 {
+		t.Fatal("clean ordering/errors lost", err, cleanCalls, customCalls)
+	}
+	plain, err := forms.NewSetSpec(row, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operationErr := errors.New("set clean stopped")
+	if _, err := plain.BindWith(data, nil, forms.SetProcessor{Clean: func(forms.Set) (forms.Set, error) { return forms.Set{}, operationErr }}); !errors.Is(err, operationErr) {
+		t.Fatal("set processor failure became input diagnostics", err)
+	}
+	for _, mode := range []string{"rebound", "unbound", "zero"} {
+		t.Run(mode, func(t *testing.T) {
+			_, err := plain.BindWith(data, nil, forms.SetProcessor{Clean: func(forms.Set) (forms.Set, error) {
+				switch mode {
+				case "rebound":
+					return plain.Bind(data, nil)
+				case "unbound":
+					return plain.Unbound(nil)
+				default:
+					return forms.Set{}, nil
+				}
+			}})
+			var failure *forms.ConfigError
+			if !errors.As(err, &failure) || failure.Code != "binding_mismatch" {
+				t.Fatal("different whole-set binding accepted", err)
 			}
 		})
 	}

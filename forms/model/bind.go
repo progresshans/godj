@@ -100,8 +100,8 @@ func (bound BoundForm) Input() (forms.Values, error) {
 
 // WithErrors retains the candidate for later model checks, while removing
 // rejected form values and recomputing the exclusions of subsequent checks.
-func (bound BoundForm) WithErrors(failures validation.Errors) (BoundForm, error) {
-	form, err := bound.form.WithErrors(failures)
+func (bound BoundForm) WithErrors(failures validation.Errors, rejectedFields ...string) (BoundForm, error) {
+	form, err := bound.form.WithErrors(failures, rejectedFields...)
 	if err != nil {
 		return BoundForm{}, err
 	}

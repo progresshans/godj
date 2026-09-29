@@ -39,16 +39,15 @@ type SetValidatorFunc func([]SetForm) validation.Errors
 
 func (f SetValidatorFunc) ValidateSet(rows []SetForm) validation.Errors { return f(rows) }
 
-// SetProcessor adds pure row post-processing after ordinary field/cross-form
-// cleaning and before set count/cross-row validation. It must return that row's
-// Form or a WithErrors derivative, never a separately rebound or different row.
-// Unchanged optional extras skip both cleaning and this callback.
-type SetProcessor interface {
-	ProcessForm(SetForm) (Form, error)
+// SetProcessor adds pure model processing to the normal binding lifecycle.
+// Form runs after field cleaning, before count validation; unchanged optional
+// extras skip it. Clean runs after count validation, before SetValidators, and
+// can reject both rows and the whole set. Each callback must return its input
+// binding or a WithErrors derivative, never another binding. No I/O is allowed.
+type SetProcessor struct {
+	Form  func(SetForm) (Form, error)
+	Clean func(Set) (Set, error)
 }
-type SetProcessorFunc func(SetForm) (Form, error)
-
-func (f SetProcessorFunc) ProcessForm(row SetForm) (Form, error) { return f(row) }
 
 // SetSpec is immutable. Each binding owns its rows, management form and initial
 // snapshots. It does not load models or confer any permission to persist them.
@@ -130,6 +129,7 @@ func (row SetForm) FieldName(name string) (string, error) {
 // Set retains row errors for redisplay, including errors on deleted rows. Its
 // validity ignores deleted row errors, while its non-form errors remain fatal.
 type Set struct {
+	binding    *formBindingToken
 	config     SetConfig
 	submitted  Data
 	management Form
@@ -194,14 +194,14 @@ func (s SetSpec) Unbound(initial []map[string]Value) (Set, error) {
 // required current row into an unchanged, optional extra row. Counts and the
 // hard cap are checked before constructing any row or running its callbacks.
 func (s SetSpec) Bind(data Data, initial []map[string]Value) (Set, error) {
-	return s.bind(data, initial, nil)
+	return s.bind(data, initial, SetProcessor{})
 }
 
 // BindWith evaluates fields once, then applies the supplied pure row processor.
 // Processor failures are operational/configuration errors, not deletable row
 // diagnostics. Database I/O and final write admission remain separate.
 func (s SetSpec) BindWith(data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
-	if nilInterface(processor) {
+	if processor.Form == nil && processor.Clean == nil {
 		return Set{}, &ConfigError{Path: "set.processor", Code: "nil"}
 	}
 	return s.bind(data, initial, processor)
@@ -234,7 +234,7 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 	if total < int64(count) {
 		count = int(max(total, 0))
 	}
-	set := Set{config: s.config, submitted: data, initial: len(initial), management: management, bound: true, rows: make([]SetForm, 0, count)}
+	set := Set{binding: &formBindingToken{}, config: s.config, submitted: data, initial: len(initial), management: management, bound: true, rows: make([]SetForm, 0, count)}
 	if !management.Valid() {
 		set.errors = validation.NewErrors(validation.New(validation.NonField, "missing_management_form"))
 	}
@@ -244,8 +244,8 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 		if err != nil {
 			return Set{}, err
 		}
-		if processor != nil && !(row.emptyPermitted && len(row.form.changed) == 0) {
-			processed, err := processor.ProcessForm(row)
+		if processor.Form != nil && !(row.emptyPermitted && len(row.form.changed) == 0) {
+			processed, err := processor.Form(row)
 			if err != nil {
 				return Set{}, err
 			}
@@ -275,6 +275,17 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 	case s.config.ValidateMin && count-deleted-empty < s.config.MinForms:
 		set.errors = validation.NewErrors(validation.New(validation.NonField, "too_few_forms", validation.NewParam("num", strconv.Itoa(s.config.MinForms))))
 	default:
+		if processor.Clean != nil {
+			set.valid = management.Valid() && set.rowsValid() && set.errors.Empty()
+			processed, err := processor.Clean(set)
+			if err != nil {
+				return Set{}, err
+			}
+			if !processed.bound || processed.binding != set.binding {
+				return Set{}, &ConfigError{Path: "set.processor", Code: "binding_mismatch"}
+			}
+			set = processed
+		}
 		var failures []validation.Errors
 		for _, validator := range s.validators {
 			errors := validator.ValidateSet(set.Forms())
@@ -286,7 +297,12 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 		if errors := validation.Join(failures...); !errors.Empty() {
 			// As with BaseFormSet.clean(), cross-form diagnostics own the
 			// non-form result. Detailed management errors remain available.
-			set.errors = errors
+			if processor.Clean != nil {
+				// Later custom diagnostics cannot erase a model rejection.
+				set.errors = validation.Join(set.errors, errors)
+			} else {
+				set.errors = errors
+			}
 		}
 	}
 	set.valid = management.Valid() && set.rowsValid() && set.errors.Empty()
@@ -444,11 +460,11 @@ func (set Set) OrderedForms() ([]SetForm, error) {
 // WithFormErrors appends row data diagnostics without running callbacks.
 // Deleted-row data errors remain deletable. A whole-request admission failure
 // must instead be attached through WithErrors or returned as an operation error.
-func (set Set) WithFormErrors(index int, diagnostics validation.Errors) (Set, error) {
+func (set Set) WithFormErrors(index int, diagnostics validation.Errors, rejectedFields ...string) (Set, error) {
 	if !set.bound || index < 0 || index >= len(set.rows) {
 		return Set{}, &ConfigError{Path: "set.row", Code: "invalid"}
 	}
-	form, err := set.rows[index].form.WithErrors(diagnostics)
+	form, err := set.rows[index].form.WithErrors(diagnostics, rejectedFields...)
 	if err != nil {
 		return Set{}, err
 	}
