@@ -5,10 +5,52 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 서버 identity와 모델 후보의 typed 여러 행 준비
+
+기반 `7d56b3c9ff284eb68ef743e5646c6dc0ab18da3c` 이후 `InstanceSet`과 typed 준비를 연결했다. 모델 PK로 서버 current 집합의
+행을 찾아 순서 변경을 허용하며 누락/중복/외부/추가 행 PK는 전체 요청을 거부한다. DELETE나 빈 추가 행이 이 경계를
+우회하지 못한다. 일반 Form binding 뒤의 pure processor와 단일/여러 행 공통 model candidate 경로를 사용한다.
+다른 binding/행으로 교체할 수 없고, raw input을 재바인딩하거나 field/model clean을 반복하지 않는다. 모델 오류 뒤에
+count/set 검증을 수행한다. 늦은 DB 데이터 진단과 요청 전체 admission을 구분한다.
+
+고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122` / CPython 3.14.3에서 독립
+`model_formset_reference.py`가 실제 SQLite/queryset과 `save(commit=False)`를 관찰했다. 20개 중 정상/모델 오류/삭제/정렬
+11개는 후보·field 오류·validity·변경·model clean 호출 순서·deferred 값/삭제 ID/정렬을 대조한다. Identity 9개는 GoDj가
+전체 거부하며, 그중 native가 허용하는 6개는 의도적 강화 차이다. 나머지 3개도 오류 위치/후보가 같다고 주장하지 않는다.
+원문 SHA256 `40d061e30e1dd253cdceede3b9abe7fd18f6a6bd5c4256392b12f4aa1246a159`, native models.py SHA256
+`858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910`이다. Native DB의 무변경을 확인했다.
+Go binding은 이미 읽은 모델/관계 snapshot을 받으며 query 수를 native와 동등하다고 세지 않는다. Go Prepare는 변경하지 않은
+기존 행도 보존하므로 deferred 비교는 변경/신규 행을 선택한 값으로 수행했다. 삭제 비교는 원래 서버 snapshot의 ID다.
+
+최종 비문서 inventory `9e272267cc017f99d7a2a9e6b5db0e25e7dae6e35303c450b12d4d7245ad01d8`, Darwin arm64
+Go 1.26.5·offline modules·기본 공유 cache/병렬 실행·TZ Pacific/Chatham에서 확인했다.
+
+| 범위 | 결과 |
+| --- | --- |
+| Normal Form/model·Admin·Helpdesk | 4 packages / 181 roots / 2,013 PASS / 22.336초 |
+| 관련 Formset/InstanceSet·Helpdesk typed 저장 race | 3 packages / 11 roots / 96 PASS / 5.053초 |
+| 기존 실제 SQLite/PostgreSQL consumer | 필수 backend/case 실행, PostgreSQL 17.10 UTF8/libc/C, 잔여 schema/table/다른 연결 `0|0|0`, DB/container 제거 |
+| 부정 대조 | binding 소유권 제거·identity 전체 거부 제거·model clean 반복의 3 overlay가 지정 runtime assertion에서 실패 |
+
+Article의 nullable/제외 값·PK 재정렬·input 비노출·후처리와 Ticket의 선택 ManyToMany·서버 category·24개 동시 typed 준비를
+검사했다. 일반 field/model clean의 정확한 실행 횟수·raw 공백과 cleaned 값 분리·DELETE 데이터 오류와 admission·복사본
+소유권/formatting도 확인했다. 실제 compiled test 목록과 JSON run/pass를 대조했고 누락/skip/잘린 event 0이다.
+첫 normal과 관련 race가 성공했으며 source 전후 동일이다. 이 증거는 아직 새로운 여러 행 HTTP/DB 저장 consumer가 아니다.
+IR/generator 변경이 없어 generated drift·독립 module 전체·CGO=0·전체 compile을 반복하지 않았다. 후속 제품 연결 milestone이
+추가 범위를 소유한다. 선행 initial source의 Hosted full을 새로 시작하거나 현재 source로 전이하지 않았다.
+
+원문·실제 목록·receipt/source·부정 대조:
+
+- Normal/controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-formset-normal-fmk4fqfq`
+- Race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-formset-race-isk8_6ve`
+
+### Pure Formset core checkpoint
+
 기반 `cb76b165aa3379c8c40aabfa7d12354460c57bf7` 이후 database-independent `SetSpec/Set`을 구현했다.
 Prefix·management·서버 initial 개수·생성 상한, 빈 추가 행·정렬/삭제·행별/전체 진단·불변 선택과 pure 여러 행 validator를
 제공한다. Required choice의 빈 값이 초기 빈 값과 같을 때 Changed를 false로 처리해 optional 추가 행이 불필요하게
-검증되지 않게 했다. 실제 model identity·typed 여러 행 준비·Helpdesk HTTP/저장·inline/file upload는 **아직 미구현**이다.
+검증되지 않게 했다. 이 core checkpoint 시점에는 실제 model identity·typed 여러 행 준비를 포함하지 않았다.
+후속 typed 준비는 위 항목에 별도로 기록한다. Helpdesk 여러 행 HTTP/저장·inline/file upload는 아직 미구현이다.
 이 core checkpoint를 ModelFormSet 또는 제품 수직 단면의 완료로 표현하지 않는다.
 
 고정 Django 6.1 / CPython 3.14.3에서 독립 `formset_reference.py`를 실행했다. 총 33개 사례 중 30개에서
@@ -38,6 +80,10 @@ non-form 진단 소유권을 수정하고, 33-case 최종 source에서 영향 �
 앞선 32-case 원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-formset-core-k1lb4u4d`에 보존한다.
 이번 core에는 I/O·Schema IR·generator·migration 변경이 없어 DB/container·전체 compile·CGO=0·Hosted 전체를 새로 반복하지
 않았다. 후속 모델/제품 묶음에서 필요한 소비자와 환경 범위를 정한다. 선행 `cb76b165`의 CI는 이 core를 포함하지 않는다.
+
+게시된 core source `7d56b3c9ff284eb68ef743e5646c6dc0ab18da3c`의
+[Fast 36507584740](https://github.com/progresshans/godj/actions/runs/36507584740)은 terminal success와 실제 Go step 성공을
+확인했다. 이 source에는 위의 후속 typed 여러 행 준비가 없다.
 
 ## GDJ-0102 — 모델 Blank와 Form 후처리 구현 중
 

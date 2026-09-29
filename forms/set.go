@@ -39,6 +39,17 @@ type SetValidatorFunc func([]SetForm) validation.Errors
 
 func (f SetValidatorFunc) ValidateSet(rows []SetForm) validation.Errors { return f(rows) }
 
+// SetProcessor adds pure row post-processing after ordinary field/cross-form
+// cleaning and before set count/cross-row validation. It must return that row's
+// Form or a WithErrors derivative, never a separately rebound or different row.
+// Unchanged optional extras skip both cleaning and this callback.
+type SetProcessor interface {
+	ProcessForm(SetForm) (Form, error)
+}
+type SetProcessorFunc func(SetForm) (Form, error)
+
+func (f SetProcessorFunc) ProcessForm(row SetForm) (Form, error) { return f(row) }
+
 // SetSpec is immutable. Each binding owns its rows, management form and initial
 // snapshots. It does not load models or confer any permission to persist them.
 type SetSpec struct {
@@ -86,6 +97,7 @@ func NewSetSpec(row Spec, config SetConfig, validators ...SetValidator) (SetSpec
 }
 
 func (s SetSpec) Config() SetConfig { return s.config }
+func (s SetSpec) FormSpec() Spec    { return s.row }
 
 // SetForm identifies one display row. FieldName returns its prefixed HTML
 // input name; Form uses the ordinary, unprefixed field names for diagnostics.
@@ -182,6 +194,20 @@ func (s SetSpec) Unbound(initial []map[string]Value) (Set, error) {
 // required current row into an unchanged, optional extra row. Counts and the
 // hard cap are checked before constructing any row or running its callbacks.
 func (s SetSpec) Bind(data Data, initial []map[string]Value) (Set, error) {
+	return s.bind(data, initial, nil)
+}
+
+// BindWith evaluates fields once, then applies the supplied pure row processor.
+// Processor failures are operational/configuration errors, not deletable row
+// diagnostics. Database I/O and final write admission remain separate.
+func (s SetSpec) BindWith(data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
+	if nilInterface(processor) {
+		return Set{}, &ConfigError{Path: "set.processor", Code: "nil"}
+	}
+	return s.bind(data, initial, processor)
+}
+
+func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
 	if err := s.checkInitial(initial); err != nil {
 		return Set{}, err
 	}
@@ -217,6 +243,16 @@ func (s SetSpec) Bind(data Data, initial []map[string]Value) (Set, error) {
 		row, err := s.makeRow(index, initial, data, true)
 		if err != nil {
 			return Set{}, err
+		}
+		if processor != nil && !(row.emptyPermitted && len(row.form.changed) == 0) {
+			processed, err := processor.ProcessForm(row)
+			if err != nil {
+				return Set{}, err
+			}
+			if !processed.bound || processed.binding == nil || processed.binding != row.form.binding {
+				return Set{}, &ConfigError{Path: "set.processor", Code: "binding_mismatch"}
+			}
+			row.form = processed
 		}
 		if index >= len(initial) && len(row.form.changed) == 0 {
 			empty++
@@ -321,7 +357,7 @@ func (s SetSpec) makeRow(index int, initial []map[string]Value, data Data, bound
 			}
 		}
 		if !changed {
-			row.form = Form{submitted: submitted, initial: resolved, bound: true, valid: true}
+			row.form = Form{binding: &formBindingToken{}, submitted: submitted, initial: resolved, bound: true, valid: true}
 			return row, nil
 		}
 	}
@@ -404,6 +440,24 @@ func (set Set) OrderedForms() ([]SetForm, error) {
 	})
 	return rows, nil
 }
+
+// WithFormErrors appends row data diagnostics without running callbacks.
+// Deleted-row data errors remain deletable. A whole-request admission failure
+// must instead be attached through WithErrors or returned as an operation error.
+func (set Set) WithFormErrors(index int, diagnostics validation.Errors) (Set, error) {
+	if !set.bound || index < 0 || index >= len(set.rows) {
+		return Set{}, &ConfigError{Path: "set.row", Code: "invalid"}
+	}
+	form, err := set.rows[index].form.WithErrors(diagnostics)
+	if err != nil {
+		return Set{}, err
+	}
+	set.rows = slices.Clone(set.rows)
+	set.rows[index].form = form
+	set.valid = set.valid && set.rowsValid()
+	return set, nil
+}
+
 func validateSetErrors(errors validation.Errors) error {
 	for _, diagnostic := range errors.All() {
 		if diagnostic.Field() != validation.NonField {

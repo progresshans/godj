@@ -36,3 +36,24 @@ accessor로만 읽는다. 여러 행 validator도 pure·동시 실행 안전성�
 행 오류와 non-form 오류는 분리한다. Invalid/미바인딩 결과로 저장용 active/deleted/ordered 선택을 얻으려 하면 명시적으로
 실패한다. 이 선택이 유효하다는 사실은 현재 DB에서 쓰기 권한이나 원자성을 확인했다는 뜻이 아니다. 모델/제품 연결에서
 현재 scope·identity·revision·제약을 확인하고 전체 요청이 요구하는 transaction/rollback 의미를 보장한다.
+
+## 모델의 identity와 typed 준비
+
+`forms/model.InstanceSet`은 caller가 미리 조회한 current 모델 집합을 소유한다. Auto/Integer PK의 presence를 요구하며,
+기존 행을 제출 PK로 이 집합에 연결한다. 순서 변경은 허용하지만 누락·중복·외부 PK·추가 행의 PK 주입은 전체 요청 오류다.
+새 행과 삭제된 행에도 같은 규칙을 적용한다. Hidden PK는 Form의 editable input과 분리한다. 고정 Django의 model formset은
+관찰한 외부/중복/추가 PK 및 삭제와 결합한 일부 사례를 허용하지만 GoDj는 이 6개를 의도적으로 거부한다.
+Native도 거부한 3개 identity 사례는 오류 위치와 후보 구성까지 동일하다고 주장하지 않는다.
+
+일반 Form 바인딩이 끝난 뒤 pure processor가 같은 binding에 모델 후처리를 붙인다. 각 bound Form은 비공개 binding token을
+갖고, 새 Bind 결과나 다른 행의 결과로 교체할 수 없다. 모델 후처리까지 끝난 후 count/set 검증을 수행한다. 단일/여러 행은
+같은 내부 model candidate 경로를 사용하고 raw input을 보존한다. Optional 빈 추가 행은 모델 후처리도 실행하지 않는다.
+
+Typed Prepare는 모든 active 후보와 기존 삭제 의도를 분리한다. 변경 없는 기존 행도 보존해 caller가 모델 후처리의 변경과
+최종 쓰기 정책을 명시할 수 있게 한다. Django의 `save(commit=False)`가 반환하는 변경 행 목록과 이 API를 동일시하지 않는다.
+삭제 Model은 원래 current snapshot이고, 새 행의 DELETE는 DB 삭제 의도가 되지 않는다. Selected ManyToMany는 미리 읽은
+관계 값을 pure reader로 전달하고 준비된 collection intent를 별도로 유지한다. 이 계층은 query·쓰기·transaction을 실행하지 않는다.
+
+후속 DB 데이터 오류는 immutable row 결과에 추가할 수 있다. 기존 callback/count 검증을 재실행하거나 invalid 결과를
+valid로 바꾸지 않는다. DELETE가 데이터 오류를 무시할 수 있는 성질과 요청 admission은 별개다. Identity·권한·운영 실패는
+전체 진단 또는 operation error로 전달하며 행 오류로 축소하지 않는다. 실제 제품의 최종 인가·원자 저장은 별도 소유자다.

@@ -54,9 +54,60 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 
 실제 생성 모델의 준비·SQLite/PostgreSQL 저장·rollback과 고정 Django 15개 사례의 비교는
 [독립 생성 소비자](../../codegen/consumertest/testdata/modelclean/consumer_test.go)가 검증한다.
-일반 `ModelForm.save()` 전체 자동 생성·전체 constraint 종류·formset/files는 이 API의 존재만으로 완료되지 않는다.
+일반 `ModelForm.save()` 전체 자동 생성·전체 constraint 종류·여러 행 자동 저장/files는 이 API의 존재만으로 완료되지 않는다.
 장기 의미는 [ADR-0080](../../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
+## 여러 모델 행의 준비
+
+`UnboundSet(manager, setSpec, current)`는 화면용 모델/identity snapshot을 만들고,
+`BindSet(manager, setSpec, data, current, postClean)`은 [Formset](../formset.md)의 여러 행에 같은 모델 후보 검증을 연결한다.
+현재 지원하는 PK는 Auto/Integer다. `current`는 caller가 조회하고 허용한 기존 모델 집합이며 자동으로 query를 실행하지 않는다.
+저장되지 않았거나 PK가 중복된 current는 구성 오류이고, 명시적으로 존재하는 PK 0은 다른 PK와 같은 값으로 처리한다.
+
+각 기존 행은 `IdentityName(index)`의 이름(예: `items-0-id`)과 `Identity(index)` 값으로 별도 hidden input을 제출한다.
+서버 집합 안에서 PK 순서를 바꿀 수 있지만 누락·중복·잘못된 값·외부 PK는 전체 요청을 거부한다. 추가 행의 PK는 없거나
+단일 빈 값이어야 한다. 빈 추가 행이나 DELETE로 표시한 행도 이 identity 규칙을 우회하지 못한다. PK는 editable field나
+`BoundForm.Input()`에 들어가지 않는다. 이 집합은 검증 시점의 snapshot이며 최종 저장 시 현재 인가를 다시 확인해야 한다.
+
+`Instance(index)`는 실제 field/model 검증을 수행한 행의 `InstanceForm`을 제공한다. Unbound와 그대로 둔 optional 추가 행에는
+모델 후보를 만들지 않는다. 일반 Form을 한 번 바인딩한 결과에 model field/clean/validator를 적용하며 cleaned 값을 다시
+직렬화하거나 재바인딩하지 않는다. 원래 제출, 제외한 기존 값, IR default, 명시적 clean 변경을 단일 Form과 동일하게 보존한다.
+기존 scalar와 nullable pointer는 복사하며 `Current(index)`도 분리된 모델을 반환한다.
+
+선택한 ManyToMany field가 있으면 이미 읽은 관계 데이터를 돌려주는 하나의 pure reader를 마지막 인자로 제공한다.
+Reader는 `func(M, ir.ManyToManyField) ([]int64, bool)`이며 별도 모델/metadata snapshot을 받는다. 기존 행의 관계 값을
+읽을 수 없으면 명시적으로 실패한다. 관계 query를 binding 안에 숨기지 않는다. 새 행에 필요한 서버 소유 값은
+`PostClean.Fields/Clean`으로 명시한다.
+
+```go
+boundSet, err := formmodel.BindSet(
+    models.ArticleObjects, setSpec, submitted, currentArticles, postClean,
+)
+if err != nil { return err }
+// 현재 권한과 DB 진단을 명시적으로 확인한 뒤 전체 요청이 유효할 때 준비한다.
+preparedSet, err := boundSet.Prepare()
+if err != nil { return err }
+for _, row := range preparedSet.Rows() {
+    candidate, err := row.Model()
+    if err != nil { return err }
+    // row.Index()/Existing()/Changed()와 row.Prepared().Input()/Collections()를
+    // 실제 transaction의 저장 정책에 연결한다.
+    _ = candidate
+}
+```
+
+`Prepare()`는 삭제되지 않은 기존 행과 변경된 추가 행을 typed 후보로 준비하고, 기존 행의 삭제 의도를 `Deleted()`로
+분리한다. Django `save(commit=False)`와 달리 **변경하지 않은 기존 행도 Rows에 남긴다**. Caller는 모델 후처리와 실제 쓰기
+정책에 맞춰 저장할 대상을 정한다. `Changed()`는 Form의 입력 변경이며 model clean의 변경 field 목록이 아니다.
+삭제한 추가 행과 변경하지 않은 optional 추가 행은 저장 후보에 포함하지 않는다. 삭제 대상의 Model은 원래 서버의 모델
+snapshot이다. 준비는 저장/삭제·transaction·인가·여러 행 DB 제약을 자동 실행하지 않는다.
+
+행 데이터의 DB 진단은 `WithRowErrors`로 붙여 typed/core 결과를 함께 갱신한다. Callback과 앞선 개수 검증을 반복하지 않는다.
+DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 identity·인가 실패에는 `WithErrors` 또는 operation error를 쓴다.
+고정 Django 20개 관찰에서 정상/모델 오류/삭제/정렬 11개 결과를 대조하고 identity 9개는 전체 거부한다. 그중 native가 허용한
+6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
+실제 Helpdesk 여러 행 HTTP/원자 저장·inline/files는 후속 작업이다.
 
 ## 생성 모델의 typed 준비
 

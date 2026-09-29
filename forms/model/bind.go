@@ -116,28 +116,48 @@ func (bound BoundForm) WithErrors(failures validation.Errors) (BoundForm, error)
 // model values use model defaults or the unsaved empty state.
 // No relation existence, uniqueness or persistence I/O is performed here.
 func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
-	postClean = postClean.Clone()
-	if err := postClean.validate(model); err != nil {
+	binding, formInitial, err := prepareModelBinding(model, spec.Fields(), initial, postClean)
+	if err != nil {
 		return BoundForm{}, err
 	}
-	fields := spec.Fields()
+	form, err := spec.Bind(data, formInitial)
+	if err != nil {
+		return BoundForm{}, err
+	}
+	return binding.finish(form)
+}
+
+type modelBinding struct {
+	model     ir.Model
+	fields    []forms.Field
+	candidate map[string]forms.Value
+	byName    map[string]ir.Field
+	many      map[string]bool
+	postClean PostClean
+}
+
+func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[string]forms.Value, postClean PostClean) (modelBinding, map[string]forms.Value, error) {
+	postClean = postClean.Clone()
+	if err := postClean.validate(model); err != nil {
+		return modelBinding{}, nil, err
+	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	candidate := make(map[string]forms.Value, len(model.Fields)+len(model.ManyToMany))
 	for _, field := range model.Fields {
 		if _, duplicate := byName[field.Name]; duplicate {
-			return BoundForm{}, &Error{Path: "model." + field.Name, Code: "duplicate"}
+			return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "duplicate"}
 		}
 		byName[field.Name] = field
 		value := forms.Null()
 		if field.Default != nil {
 			projected, err := projectField(field, overrideConfig{hasRequired: true, required: true})
 			if err != nil {
-				return BoundForm{}, err
+				return modelBinding{}, nil, err
 			}
 			var present bool
 			value, present = projected.Default()
 			if !present {
-				return BoundForm{}, &Error{Path: "model." + field.Name, Code: "missing_default"}
+				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
 			}
 		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldText) {
 			value = forms.String("")
@@ -147,7 +167,7 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 	many := make(map[string]bool, len(model.ManyToMany))
 	for _, field := range model.ManyToMany {
 		if _, duplicate := byName[field.Name]; duplicate || many[field.Name] {
-			return BoundForm{}, &Error{Path: "model." + field.Name, Code: "duplicate"}
+			return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "duplicate"}
 		}
 		many[field.Name] = true
 	}
@@ -156,13 +176,13 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 		selected[field.Name()] = field
 		if metadata, stored := byName[field.Name()]; stored {
 			if metadata.PrimaryKey {
-				return BoundForm{}, &Error{Path: "fields." + field.Name(), Code: "non_editable"}
+				return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "non_editable"}
 			}
 			if !inputKindMatches(metadata.Kind, field.Kind()) {
-				return BoundForm{}, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
+				return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
 			}
 		} else if many[field.Name()] && field.Kind() != forms.FieldIntegerList {
-			return BoundForm{}, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
+			return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
 		}
 	}
 	formInitial := make(map[string]forms.Value, len(fields))
@@ -170,14 +190,14 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 		_, scalar := byName[name]
 		_, input := selected[name]
 		if !scalar && !many[name] && !input {
-			return BoundForm{}, &Error{Path: "initial." + name, Code: "unknown_field"}
+			return modelBinding{}, nil, &Error{Path: "initial." + name, Code: "unknown_field"}
 		}
 		if scalar && !initialModelValueMatches(byName[name], value) {
-			return BoundForm{}, &Error{Path: "initial." + name, Code: "type_or_constraint_mismatch"}
+			return modelBinding{}, nil, &Error{Path: "initial." + name, Code: "type_or_constraint_mismatch"}
 		}
 		if many[name] {
 			if _, ok := value.AsIntegers(); !ok {
-				return BoundForm{}, &Error{Path: "initial." + name, Code: "type_mismatch"}
+				return modelBinding{}, nil, &Error{Path: "initial." + name, Code: "type_mismatch"}
 			}
 		}
 		if scalar || many[name] {
@@ -187,10 +207,15 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 			formInitial[name] = value
 		}
 	}
-	form, err := spec.Bind(data, formInitial)
-	if err != nil {
-		return BoundForm{}, err
-	}
+	return modelBinding{model: model.Clone(), fields: fields, candidate: candidate, byName: byName, many: many, postClean: postClean}, formInitial, nil
+}
+
+// finish attaches model semantics to an already-cleaned form. Both single forms
+// and formsets use this path; it never serializes or binds cleaned values again.
+func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
+	model, fields, candidate := binding.model, binding.fields, binding.candidate
+	byName, many := binding.byName, binding.many
+	data := form.Submitted()
 	for _, field := range fields {
 		value, present := form.Cleaned().Get(field.Name())
 		if !present || !form.Errors().ByField(validation.Field(field.Name())).Empty() {
@@ -220,11 +245,11 @@ func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]f
 		}
 		failures = append(failures, modelFieldErrors(field, candidate[field.Name]))
 	}
-	bound, err = bound.WithErrors(validation.Join(failures...))
+	bound, err := bound.WithErrors(validation.Join(failures...))
 	if err != nil {
 		return BoundForm{}, err
 	}
-	return postClean.apply(bound)
+	return binding.postClean.apply(bound)
 }
 
 func (definition Definition) Bind(model ir.Model, data forms.Data, initial map[string]forms.Value) (BoundForm, error) {

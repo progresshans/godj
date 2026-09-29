@@ -711,8 +711,13 @@ func (s Spec) Fields() []Field {
 	return fields
 }
 
+// formBindingToken has nonzero size so distinct live bindings have distinct
+// identities. WithErrors retains it; a fresh Bind cannot impersonate a row.
+type formBindingToken struct{ marker byte }
+
 // Form is an immutable result of evaluating a Spec.
 type Form struct {
+	binding   *formBindingToken
 	submitted Data
 	bound     bool
 	valid     bool
@@ -790,6 +795,7 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 	cleaned := Values{order: cleanedOrder, values: cleanedMap}
 	errors := validation.Join(failures...)
 	bound := Form{
+		binding:   &formBindingToken{},
 		submitted: data,
 		bound:     true,
 		valid:     errors.Empty(),
