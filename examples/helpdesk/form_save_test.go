@@ -116,7 +116,7 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 		t.Fatal(err)
 	}
 	metadata := models.TicketDescriptor{}.Metadata()
-	for _, mode := range []string{"new_clean_excluded", "change_clean_excluded", "collection_only", "excluded_collection", "clear_collection", "category_rejected", "new_category_rejected", "late_scope_change"} {
+	for _, mode := range []string{"new_clean_excluded", "change_clean_excluded", "collection_only", "excluded_collection", "clear_collection", "category_rejected", "new_category_rejected", "late_scope_change", "narrowed_initial_corrected", "narrowed_initial_invalid"} {
 		t.Run(mode, func(t *testing.T) {
 			creating := strings.HasPrefix(mode, "new_")
 			current := models.Ticket{}
@@ -138,6 +138,9 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 				fields = []string{"subject"}
 			}
 			definition := formmodel.Definition{Fields: fields}
+			if strings.HasPrefix(mode, "narrowed_initial_") {
+				definition.Overrides = []formmodel.Override{formmodel.OverrideField("subject", formmodel.WithMaxLength(4))}
+			}
 			calls := 0
 			if strings.Contains(mode, "clean_excluded") || strings.Contains(mode, "category_rejected") {
 				definition.PostClean = formmodel.PostClean{Fields: []string{"resolution", "category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
@@ -160,6 +163,12 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 				}
 			}
 			subject := "saved-" + mode
+			if mode == "narrowed_initial_corrected" {
+				subject = "new"
+			}
+			if mode == "narrowed_initial_invalid" {
+				subject = current.Subject
+			}
 			if mode == "collection_only" || mode == "clear_collection" {
 				subject = current.Subject
 			}
@@ -168,6 +177,9 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 				data["labels"] = nil
 			}
 			initial := map[string]forms.Value{"category": forms.Integer(category.ID)}
+			if strings.HasPrefix(mode, "narrowed_initial_") {
+				initial["subject"] = forms.String(current.Subject)
+			}
 			if !creating {
 				initial["id"] = forms.Integer(current.ID)
 				initial["resolution"] = forms.String("keep")
@@ -175,6 +187,9 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 			bound, err := formmodel.Bind(metadata, spec, forms.NewData(data), initial, definition.PostClean)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if mode == "narrowed_initial_invalid" && (bound.Form().Valid() || bound.Form().Errors().ByField("subject").Empty()) {
+				t.Fatal("narrowed form accepted an unchanged invalid subject")
 			}
 			if mode == "late_scope_change" {
 				moved := current
@@ -189,10 +204,10 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 			}
 			traced.ticketUpdates = nil
 			saved, changed, err := app.saveTicketForm(t.Context(), actor, current.ID, bound)
-			rejected := strings.Contains(mode, "category_rejected") || mode == "late_scope_change"
+			rejected := strings.Contains(mode, "category_rejected") || mode == "late_scope_change" || mode == "narrowed_initial_invalid"
 			if rejected {
 				if err == nil || saved.ID != 0 || len(changed) != 0 {
-					t.Fatal("server category scope was writable", err, changed)
+					t.Fatal("rejected form was writable", err, changed)
 				}
 				count, err := models.TicketObjects.Using(b).Count(t.Context())
 				if err != nil || count != beforeCount {
@@ -202,6 +217,16 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 					fresh, present, err := ticket(t.Context(), b, current.ID)
 					if err != nil || !present || fresh.Subject != current.Subject || fresh.Resolution == nil || *fresh.Resolution != "keep" {
 						t.Fatal("rejected form changed current scalar", err)
+					}
+					if mode == "narrowed_initial_invalid" {
+						collection, err := app.collections.ModelsTicketLabels.From(b, current)
+						if err != nil {
+							t.Fatal(err)
+						}
+						labels, err := collection.All(t.Context())
+						if err != nil || len(labels) != 1 || labels[0].ID != first.ID || len(traced.ticketUpdates) != 0 {
+							t.Fatal("invalid input changed scalar or collection storage", err)
+						}
 					}
 				}
 			} else {

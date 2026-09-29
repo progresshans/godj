@@ -452,7 +452,12 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldDecimal {
 		value, _ := initial.AsDecimal()
 		_, places, _ := field.DecimalPrecision()
-		text, _ := value.Fixed(places)
+		text, err := value.Fixed(places)
+		if err != nil {
+			// A displayed initial may have more fractional digits than the
+			// current input allows. Never erase it or round it into a new value.
+			text = value.String()
+		}
 		return text, false
 	}
 	if field.Kind() == forms.FieldFloat {

@@ -57,6 +57,12 @@ category를 constraint 후보에 명시적으로 공급해 제품의 scoped name
 소유하지 않으며 일반 ModelForm의 제외 field를 암묵적으로 다시 포함하는 동작으로 확장하지 않는다.
 
 모델 default, Form initial, 제출 생략과 JSON omission default를 같은 것으로 처리하지 않는다.
+
+제공한 Form initial은 새 입력의 validation 대상이 아니라 표시·변경 비교의 원본이다. 타입과 유효한 표현은 검사하되
+입력의 max_length·Decimal 정밀도를 좁혔다는 이유로 기존 값을 거부하지 않는다. 입력 제약은 제출값에 적용하고,
+동일한 invalid 제출도 변경 여부와 오류를 구분한다. Decimal initial은 가능한 경우 widget의 고정 scale을 사용하며,
+표현할 수 없는 scale이면 원래 수치의 문자열을 유지해 값이 비거나 반올림되지 않게 한다. 선언 default는 계속 엄격하게
+검사하며, Admin의 모델 snapshot·typed 준비·최종 model/DB 저장 검사의 책임을 initial 표시로 대체하지 않는다.
 일반 ORM 저장은 모델 full_clean이나 email 문법을 암묵적으로 호출하지 않는다. 기존 데이터의 문법상 잘못된 값을
 정리하거나 조회에서 숨기지 않는다. JSON API의 명시적 노출·required/empty/partial 정책은 유지한다.
 모델 default가 있는 field는 제출이 생략되고 정리 값도 empty인 경우 기존/default 후보를 유지한다. 명시적 empty는

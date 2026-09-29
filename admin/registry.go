@@ -722,7 +722,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			return registeredRecord{}, false, &ConfigError{Path: "get.result.initial", Code: "invalid", Cause: err}
 		}
 		resolved := unbound.Initial()
-		if err := validateInitialValues(resolved, formFields, object); err != nil {
+		if err := validateInitialSnapshot(resolved, formFields, object); err != nil {
 			return registeredRecord{}, false, err
 		}
 		return registeredRecord{object: object, initial: valuesMap(resolved), candidateInitial: candidateInitial}, true, nil
@@ -1125,85 +1125,9 @@ func validateBoundData(data forms.Data, spec forms.Spec, fields []forms.Field) (
 	return revalidated.Cleaned(), nil
 }
 
-func validInitialValue(value forms.Value, field forms.Field) bool {
-	switch field.Kind() {
-	case forms.FieldIntegerList:
-		_, ok := value.AsIntegers()
-		return ok
-	case forms.FieldJSON:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsJSON()
-		return ok
-	case forms.FieldUUID:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsUUID()
-		return ok
-	case forms.FieldDecimal:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		number, ok := value.AsDecimal()
-		digits, places, configured := field.DecimalPrecision()
-		return ok && configured && number.Fits(digits, places)
-	case forms.FieldFloat:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsFloat()
-		return ok
-	case forms.FieldDuration:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsDuration()
-		return ok
-	case forms.FieldTime:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsTime()
-		return ok
-	case forms.FieldDate:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsDate()
-		return ok
-	case forms.FieldDateTime:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsDateTime()
-		return ok
-	case forms.FieldInteger:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsInteger()
-		return ok
-	case forms.FieldChar, forms.FieldEmail:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		text, ok := value.AsString()
-		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) &&
-			(field.MaxLength() == 0 || utf8.RuneCountInString(text) <= field.MaxLength())
-	case forms.FieldBoolean:
-		if value.IsNull() {
-			return field.Nullable()
-		}
-		_, ok := value.AsBoolean()
-		return ok
-	default:
-		return false
-	}
-}
-
-func validateInitialValues(values forms.Values, fields []forms.Field, object Object) error {
+// validateInitialSnapshot matches values already checked by Spec.Unbound to the
+// authorized, model-validated snapshot. Input constraints belong to submissions.
+func validateInitialSnapshot(values forms.Values, fields []forms.Field, object Object) error {
 	entries := values.All()
 	if len(entries) != len(fields) {
 		return &ConfigError{Path: "get.result.initial", Code: "field_count_mismatch"}
@@ -1212,9 +1136,6 @@ func validateInitialValues(values forms.Values, fields []forms.Field, object Obj
 		entry := entries[index]
 		if entry.Name() != field.Name() {
 			return &ConfigError{Path: fmt.Sprintf("get.result.initial[%d]", index), Code: "field_order_mismatch"}
-		}
-		if !validInitialValue(entry.Value(), field) {
-			return &ConfigError{Path: "get.result.initial." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		snapshot, ok := object.Value(field.Name())
 		if !ok || !initialMatchesSnapshot(entry.Value(), snapshot) {

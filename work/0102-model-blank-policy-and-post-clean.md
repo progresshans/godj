@@ -1,7 +1,7 @@
 ---
 id: GDJ-0102
 status: active
-updated: 2026-09-28
+updated: 2026-09-29
 baseline_commit: "d95b969b3297bcad13fd6760706e733684cb8add"
 integration_owner: "root"
 ---
@@ -32,9 +32,10 @@ GDJ-0100/0101의 Hosted 통합은 source `ea2867f4`에서 완료했으며 이 �
 - [x] 영향 세 mode·양 DB·203 packages compile-only·4개 부정 대조 완료
 - [x] Typed 관계 binding에서 기본 Form saver 유도·모델/field 결합 검사·실제 Helpdesk 연결
 - [x] 교차 앱·자동/명시적 through·self 관계·실패의 영향 세 mode/양 DB·4개 부정 대조
-- [ ] 후속 저장 조정/제품 연결 source의 Hosted 통합 완료
+- [x] 저장 조정/제품 연결 `f5b0020f`의 Hosted 62 jobs/8 owners·새 capture source 결합 완료
 - [ ] 기본 saver 후속 source의 Hosted 통합 완료
 - [x] 생성 소비자의 임시 절대경로로 인한 중복 build/cache 개선과 실행/격리·source 변경 검증
+- [x] 기존 initial과 새 입력 제약 분리·Admin 스냅샷/표시·수정 저장·native 대조와 영향 검증
 
 ## 현재와 다음
 
@@ -97,17 +98,21 @@ Helpdesk Ticket은 현재 category/label 범위·complete write uniqueness·JSON
 유지하며 이 API를 사용한다. 수정은 변경 field mask와 deferred 관계 저장으로 제외 column 재기록을 막는다. 나머지 typed
 credential/session adapter는 bound.Input을 읽으며 내부 callback 호환 분기는 없다. 영향 세 mode·양 DB·전체 compile-only와
 네 부정 대조를 완료했다. CI owner 등록 정정은 Go 입력/로컬 필수 집합 동일성 확인과 최종 CI 도구 검사로 구분한다.
-후속 저장 조정/제품 연결 source의 Hosted 통합은 아직 남아 있다.
+저장 조정/제품 연결 source `f5b0020f`의 Hosted 통합을 완료했다. 이후 source의 통합은 별도로 확인한다.
 제품 연결 commit `996ff5eccf0393781080d834ddd9636e981e53bd`를 양 branch에 원자적으로 push했고
 [Fast 36397043744](https://github.com/progresshans/godj/actions/runs/36397043744)의 실제 Go step·terminal success를 확인했다.
 선행 full 완료 후 같은 제품 코드를 가진 문서 후속 commit `f5b0020fa6c3f2c150eed720464b8e6765521113`의
-[Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)을 `suite=full`로 시작했다.
+[Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)의 필수 owner·최종 aggregate·새 capture의 Git source 결합을 완료했다.
 
 기본 `SaveManyToMany`는 typed 선언에서 saver를 만들고 저장 전에 전체 모델/field 결합을 확인한다.
 Helpdesk와 독립 생성 소비자에 연결했으며 실행/중단/환경 복구와 검증 한계는 Evidence에 구분한다.
 Generated 소비자 자식의 `-trimpath`와 실제 캐시 identity/실행 marker·두 부정 대조로 경로 중복을 개선했다.
 일반 package 전체와 관련 race/CGO=0·양 DB를 확인했다. 공유 build cache·동시 실행 속도를 유지하고,
 이미 성공한 영향 검사를 반복하거나 전체 compile을 추가하는 관행을 피한다. 실제 DB/race/실패 검증은 계속 유지한다.
+
+기존 initial은 표시·변경 비교의 원본으로 유지하고 입력 제약은 제출값에 적용한다. Admin의 중복 제약 검사를 없애되
+인가된 모델 snapshot 일치 검사는 유지하며, Decimal initial이 입력 scale을 넘을 때도 값을 보존한다. 고정 native 대조와
+Form/model·Admin·Helpdesk의 영향 normal/관련 race·양 DB·세 부정 대조를 완료했다. 실패 수정과 재사용 증거는 Evidence를 따른다.
 
 장기 의미는 [ADR-0080](../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 상세는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

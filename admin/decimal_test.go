@@ -86,3 +86,39 @@ func TestDecimalAdminTypedSnapshotPrecisionAndRevalidation(t *testing.T) {
 		t.Fatal("bound form lost submitted decimal")
 	}
 }
+
+func TestDecimalAdminInitialPreservesValuesOutsideInputPrecision(t *testing.T) {
+	field, err := forms.DecimalField("cost", 5, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := forms.NewSpec([]forms.Field{field})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{{"1.234", "1.234"}, {"1234.56", "1234.56"}, {"1.2", "1.20"}} {
+		number, err := decimal.Parse(pair[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		initial := map[string]forms.Value{"cost": forms.Decimal(number)}
+		unbound, err := spec.Unbound(initial)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if text, _ := renderedFieldValue(field, unbound, nil); text != pair[1] || field.NumberStep() != "0.01" {
+			t.Fatal("rendering erased or rounded the existing decimal", text)
+		}
+		if pair[0] == "1.2" {
+			continue
+		}
+		submitted := map[string][]string{"cost": {pair[0]}}
+		bound, err := spec.Bind(forms.NewData(submitted), initial)
+		if err != nil || bound.Valid() || len(bound.Changed()) != 0 {
+			t.Fatal("unchanged initial bypassed precision validation", err)
+		}
+		if text, _ := renderedFieldValue(field, bound, submitted); text != pair[0] {
+			t.Fatal("rendering lost an invalid raw decimal submission", text)
+		}
+	}
+}

@@ -148,8 +148,10 @@ func TestDecimalFormPrecisionProfilesAndInitialBounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := spec.Unbound(map[string]forms.Value{"cost": forms.Decimal(decimal.Decimal{Coefficient: "1", Exponent: 3})}); err == nil {
-		t.Fatal("out-of-field initial accepted")
+	initial := decimal.Decimal{Coefficient: "1", Exponent: 3}
+	unbound, err := spec.Unbound(map[string]forms.Value{"cost": forms.Decimal(initial)})
+	if value, ok := unbound.Initial().Decimal("cost"); err != nil || !ok || value != initial {
+		t.Fatal("representable initial was subjected to submitted precision", err)
 	}
 	bound, err := spec.Bind(forms.NewData(map[string][]string{"cost": {"1.500"}}), map[string]forms.Value{"cost": forms.Decimal(decimal.Decimal{Coefficient: "15", Exponent: -1})})
 	if err != nil || bound.Valid() || len(bound.Changed()) != 0 {

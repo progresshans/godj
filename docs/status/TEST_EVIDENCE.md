@@ -16,6 +16,50 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
 
+### 기존 initial과 제출 입력 제약의 분리
+
+기반 `eca6ec108a43864fb07a0c75f7ce28ca665511d6` 이후 Form의 initial을 표시·변경 비교 값으로 처리한다.
+새 입력의 길이·Decimal 정밀도가 기존 저장값보다 좁아도 폼을 열고 수정할 수 있다. 제공한 initial의 타입·유효한 표현과
+UTF-8/NUL, 선언 default의 제약은 유지한다. Admin은 Spec.Unbound 뒤의 중복 초기값 제약 검사를 제거하고,
+인가된 모델 snapshot과 initial의 동일성을 계속 확인한다. Decimal 표시가 입력 scale에 맞지 않으면 수치를 유지한
+문자열을 사용한다. 제출·typed 준비·최종 저장의 검증과 현재 권한/revision 경계는 바꾸지 않는다.
+
+고정 Django 6.1 / CPython 3.14.3에서 독립 observer `form_initial_reference.py`를 실행하고 저장된 원문과 byte 일치를
+확인했다. Pure Form 12개와 ModelForm 2개를 initial·유효성·오류 코드·cleaned/candidate·Changed·commit=False 결과로
+대조했으며 DB query는 0이다. 원문 SHA256은 `c359e9cd1467599030279735aaf2687ab7c57e368cb502eadc582572cd097d27`이다.
+Unbound 전체 HTML 및 Python 객체 identity의 동일성을 주장하지 않는다. Admin 실제 HTTP는 기존 값 escaping·잘못된
+동일 제출의 무변경·유효한 수정 저장을 검증하고, Helpdesk는 실제 SQLite/PostgreSQL에서 scalar/선택 관계를 함께 확인한다.
+
+최종 비문서 source inventory `6aa1e47a4444ac1c211a0e47355e5ec189629811192fe18f30ba56c6a1f7bccc`,
+Darwin arm64 Go 1.26.5·기본 공유 cache·기본 병렬 실행·offline modules·TZ Pacific/Chatham에서 다음을 확인했다.
+
+| 범위 | 최종 성공 증거 |
+| --- | --- |
+| Normal Form/model·Admin·Helpdesk | 4 packages / 171 roots / 1,940 PASS |
+| 관련 race: initial/typed 준비·Admin snapshot/표시·Helpdesk 저장 | 4 packages / 10 roots / 54 PASS |
+| Native PostgreSQL | 17.10 UTF8/libc/C, 필수 양 backend/case 실행·잔여 schema/table/다른 연결 0|0|0·DB/container 제거 |
+| 회귀 대조 | 이전 Form 초기값 제약, Admin 중복 제약, Decimal 빈 표시를 각각 복원한 3 overlay가 지정 runtime assertion에서 실패 |
+| 검증 도구 | CI 도구 41 tests PASS; 실제 Go test의 기본 vet 포함 |
+
+첫 normal에서 Form/model·Helpdesk는 성공했지만 Admin의 중복 max_length 검사로 GET 500이 발생했다. 이를 고친 두 번째
+normal과 첫 race는 GET 200을 반환했으나, 새 테스트가 현행 template에 없는 maxlength HTML 속성을 요구해 실패했다.
+전체 HTML 동등성은 이 변경의 계약이 아니므로 이 잘못된 기대를 제거하고, 기존 값 표시와 서버의 입력 제약·무변경·저장
+결과를 검사했다. Final Admin 전체 normal 77 roots/215 PASS(0.646초), 관련 race 5 roots/13 PASS(1.625초)를 확인했다.
+실패한 aggregate receipt는 그대로 보존하며 성공으로 바꾸지 않는다.
+
+성공한 Form/model normal·Helpdesk normal/race·관련 pure race는 재실행하지 않았다. 각 원문에서 실제 package 종료,
+필수 run/pass·누락/skip/잘린 event 없음과 source 전후 동일을 확인하고, 최종 source와의 변경 파일이 해당 package의
+실제 `go list -deps -test` 입력 집합 밖에 있음을 독립 검증했다. 이 성공 결과와 최종 Admin 검사를 합친 수치가 위 표다.
+소스가 다른 결과를 무조건 전이한 것이 아니며 monolithic 전체 실행으로 표현하지 않는다. Schema IR·generator·ABI는
+바뀌지 않아 generated drift/별도 module 전체를 반복하지 않았고, CGO=0·다른 platform은 후속 Hosted 통합이 소유한다.
+
+원문/receipt/source inventory:
+
+- 최초 normal·Admin GET 500: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-normal-r_hz0knv`
+- Admin 수정 후 normal·native 원문: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-normal-70j7hv_x`
+- 관련 race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-race-lrd_qad6`
+- 최종 Admin·세 부정 대조·package별 입력 집합/결합 receipt: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-admin-final-k9svwtfy`
+
 ### 생성 소비자의 임시 경로와 build cache 재사용
 
 기반 `c5f5e56a8603ff22bc4b8324f1e261bf147935bf`의 기본 collection saver는 양 branch에 게시했고
@@ -55,7 +99,7 @@ schema/table/다른 연결 **0|0|0**, DB/container 제거를 확인했다. 영�
 - CGO=0 관련 범위: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-generated-cache-cgo0-axiyl_4c`
 
 현재 변경에는 새로운 제품 runtime·generator·Schema IR·migration 변경이 없다. 로컬 전체 platform/cold build는 반복하지 않았다.
-이 helper 후속 source의 Hosted 환경 검증은 남아 있으며, 선행 full `36397837881`의 성공을 이 변경으로 전이하지 않는다.
+Helper commit `eca6ec108a43864fb07a0c75f7ce28ca665511d6`의 [Fast 36404332456](https://github.com/progresshans/godj/actions/runs/36404332456)는 실제 Fast Go step·terminal success를 확인했다. Hosted 전체는 후속 통합에 남으며, 선행 full `36397837881`의 성공을 이 변경으로 전이하지 않는다.
 
 ### Typed 관계에서 유도한 기본 Form collection saver
 
@@ -106,7 +150,7 @@ assertion에서 실패했다. Compile 실패나 skip으로 대체하지 않았�
 - CGO=0 최종 정상 종료: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-collection-saver-cgo0-yr48xok2`
 - 최초 normal, 공간 부족/공용 cache 삭제와 겹친 시도 및 임시 cache 정리는 `/tmp/godj-collection-saver-*-path`가 가리키는 별도 원문에 보존한다.
 
-이 기본 saver 후속 source의 Hosted 검증은 아직 남아 있다. 진행 중인 full `36397837881`은 선행 `f5b0020f`를 검사한다.
+이 기본 saver 후속 source의 Hosted 전체는 아직 남아 있다. 완료한 full `36397837881`은 선행 `f5b0020f`를 검사했다.
 해당 run의 두 PostgreSQL capture는 archive checksum·producer attempt/provenance와 Git blob source 결합까지 확인했지만
 최종 aggregate는 아직 미완료다. Capture 원문은 `/tmp/godj-product-save-full-closeout-path`가 가리킨다.
 
@@ -171,7 +215,18 @@ terminal success를 확인했다. 원문은 위 normal evidence의 `hosted/fast-
 선행 full의 terminal success를 확인한 뒤 제품/검증 입력이 같은 문서 후속 commit
 `f5b0020fa6c3f2c150eed720464b8e6765521113`의 [Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881)을
 `suite=full`로 dispatch했다. 정확한 head/event/ref와 live queued 상태를 확인했고 `hosted/full-dispatch.json`에 보존했다.
-이 새 실행은 아직 미완료이며 다른 source의 full 성공을 전이하지 않는다.
+해당 full은 attempt 1에서 **62 jobs / 8 owners 모두 success**로 완료했다. 최종 aggregate job `108874801710`의 실제
+JSON에서 `scope=full`, `full_platform_verified=true`와 같은 Git source의 CI owner 집합 일치를 확인했다.
+다음 새 capture의 archive checksum·producer attempt/provenance·payload SHA와 Git 객체 source binding도 확인했다.
+
+| capture | artifact / producer job | Git source binding |
+| --- | --- | --- |
+| systemstate | `10958519547` / `108848428582` | 632 files / 6,693,101 bytes / `466aa524b5431b18e4f85544f3cfe52ad91e44439a9868f848e6b8c49979e36f` |
+| operator | `10958528374` / `108848428562` | 709 files / 6,542,537 bytes / `4864a2dfd6899ac5170373f6c4694ff2eceebafba919e9ca9da878c7901bf267` |
+
+최종 run/jobs·aggregate·capture receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-product-save-full-36397837881-iaom3qp_`에 보존한다.
+이 full에는 이후 기본 saver·cache·initial 변경이 없으므로 그 결과를 후속 source의 검증으로 전이하지 않는다.
 
 선행 저장 조정 source `ce52685c`의 [Fast 36393894699](https://github.com/progresshans/godj/actions/runs/36393894699)는
 terminal success와 실제 Fast Go step 성공을 확인했다. 이 후속 callback/Helpdesk source의 검증으로 전이하지 않는다.

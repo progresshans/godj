@@ -1729,6 +1729,8 @@ github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/category_rejected
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/new_category_rejected
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/late_scope_change
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/narrowed_initial_corrected
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/narrowed_initial_invalid
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/new_clean_excluded
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/change_clean_excluded
@@ -1738,3 +1740,5 @@ github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/category_rejected
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/new_category_rejected
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/late_scope_change
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/narrowed_initial_corrected
+github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/postgres/narrowed_initial_invalid

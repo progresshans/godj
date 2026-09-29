@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -37,7 +38,16 @@ func TestInitialValuesSelectsTypedFieldsAndDetachesNullableValue(t *testing.T) {
 	if err != nil || !cleared["priority"].IsNull() {
 		t.Fatal("nullable integer initial became zero")
 	}
-	for _, bad := range []models.Ticket{{Subject: strings.Repeat("x", 121)}, {Subject: "bad\x00text"}} {
+	oversized := strings.Repeat("x", 121)
+	legacy, err := formmodel.InitialValues(metadata, spec, models.Ticket{Subject: oversized}, (models.TicketDescriptor{}).WriteFieldValue)
+	if err != nil {
+		t.Fatal("representable stored initial was treated as a new submission", err)
+	}
+	bound, err := spec.Bind(forms.NewData(map[string][]string{"subject": {oversized}}), legacy)
+	if err != nil || bound.Valid() || bound.Errors().ByField("subject").Empty() {
+		t.Fatal("displayed initial bypassed submitted length validation", err)
+	}
+	for _, bad := range []models.Ticket{{Subject: "bad\x00text"}, {Subject: string([]byte{255})}} {
 		if _, err := formmodel.InitialValues(metadata, spec, bad, (models.TicketDescriptor{}).WriteFieldValue); err == nil {
 			t.Fatal("invalid model text accepted")
 		}

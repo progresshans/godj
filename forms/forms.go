@@ -734,8 +734,9 @@ func (f Form) Changed() []string         { return append([]string(nil), f.change
 // normal formatting and password widgets continue to redact it.
 func (f Form) Submitted() Data { return f.submitted }
 
-// Unbound constructs a form without running validators. Initial values are
-// checked against the Spec and copied before publication.
+// Unbound constructs a form without running validators. Supplied initial values
+// are checked for field type and representation, then copied before publication.
+// Input length and precision apply to submissions, not existing display values.
 func (s Spec) Unbound(initial map[string]Value) (Form, error) {
 	if !s.valid {
 		return Form{}, &ConfigError{Path: "spec", Code: "uninitialized"}
@@ -821,17 +822,11 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 		if !validValueForField(value, field.kind, field.nullable) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "type_mismatch"}
 		}
-		if field.kind == FieldDecimal && !value.IsNull() {
-			number, ok := value.AsDecimal()
-			if !ok || !number.Fits(field.decimalDigits, field.decimalPlaces) {
-				return Values{}, &ConfigError{Path: "initial." + name, Code: "precision"}
-			}
-		}
+		// Existing values are display/change-comparison input, not a new
+		// submission. Preserve representable values even when today's input
+		// length or precision is narrower. Bind still validates submitted data.
 		if value.kind == ValueString && (!utf8.ValidString(value.text()) || strings.ContainsRune(value.text(), 0)) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "invalid_text"}
-		}
-		if value.kind == ValueString && field.maxLength > 0 && utf8.RuneCountInString(value.text()) > field.maxLength {
-			return Values{}, &ConfigError{Path: "initial." + name, Code: "max_length"}
 		}
 	}
 	values := cloneValueMap(s.initial.values)

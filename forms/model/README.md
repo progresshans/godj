@@ -4,6 +4,11 @@ Schema IR에서 선택한 필드를 `Definition`으로 투영한다. `Bind`는 �
 현재/default 모델 후보를 별도로 만든다. 모델 field cleaning 뒤 `PostClean.Clean`, 읽기 전용 `PostClean.Validators`를
 실행한다. 필드가 실패해도 후처리는 실행하며, 값 변환이 기존 오류를 없애거나 field cleaning을 다시 실행하지 않는다.
 
+제공한 initial은 기존 값의 표시와 변경 비교에 사용한다. Form 입력의 길이·Decimal 정밀도를 더 좁혀도 기존 값을
+자르거나 거부하지 않아 사용자가 유효한 값으로 수정할 수 있다. 같은 기존 값을 그대로 제출하면 현재 입력 제약으로
+검증하므로 오류가 나면서도 Changed는 비어 있을 수 있다. 타입·유효한 표현·UTF-8/NUL 검사와 선언한 default의 제약,
+Admin의 모델 snapshot 및 최종 ORM 저장 검사는 유지한다. `InitialValues`는 저장 가능성이나 권한 검사의 대체가 아니다.
+
 ```go
 definition := formmodel.Definition{
     Fields: []string{"code", "email", "counter"},
