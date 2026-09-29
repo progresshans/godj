@@ -40,6 +40,10 @@ Authorizer의 거부도 적용한다. 기존 ticket writer와 같이 인증이 �
 페이지 구성이 바뀌면 관리 개수/identity 검사를 통해 재검토하게 한다. 행의 값 자체는 저장 transaction에서 다시 읽으며 별도
 optimistic revision 입력은 제공하지 않는다. 동일 행의 동시 입력은 기존 Ticket 편집과 같은 현재 row/선택 field 저장 의미다.
 
+공통 `InlineSpec`이 canonical project FK와 서버 Category를 결합한다. 각 행의 hidden category는 현재 부모를 확인하는 값이다.
+빈 값/생략은 서버 Category를 사용하고 다른 부모·중복값 제출은 DELETE나 빈 추가 행이어도 전체 `invalid_parent`로 거부한다.
+오류 화면의 hidden category에는 항상 서버 값을 표시한다. 부모를 선택하거나 티켓을 다른 Category로 옮기는 입력이 아니다.
+
 GET은 한 read snapshot에서 행·관계·선택지를 읽는다. POST는 같은 category/cohort/선택지를 하나의 `AtomicRelation`에서
 다시 읽고 Formset/모델 검증, 기존 행 삭제, active 행 scalar/collection 저장과 감사 기록을 수행한다. 삭제는 프로젝트의 완전한
 PROTECT/CASCADE 정책을 borrowed session에서 실행한다. 변경 없는 기존 행은 데이터/audit 쓰기를 생략한다. 고유성 검사·관계
@@ -55,8 +59,9 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 
 제출 상한은 40행·64 KiB·총 1,024개 값·값 하나당 4 KiB다. 선택지 query는 257개에서 잘라 256개 초과를 명시적으로 거부하며
 선택지를 조용히 누락하지 않는다. HTML escaping으로 확장되는 선택지를 포함해 template/Web 출력 한도를
-`TicketEditorMaxResponseBytes`(8 MiB)로 함께 설정한다. 기본 Web 1 MiB를 그대로 사용하면 유효한 큰 페이지가 거부될 수 있다. 임의 index/필드·중복 query와 외부 Category 입력은
-parser에서 거부한다. 일반 field의 중복값은 Form 진단으로 남긴다. Inline/files·전체 ModelFormSet 자동 저장은 이 제품 화면의 범위가 아니다.
+`TicketEditorMaxResponseBytes`(8 MiB)로 함께 설정한다. 기본 Web 1 MiB를 그대로 사용하면 유효한 큰 페이지가 거부될 수 있다.
+임의 index/필드·중복 query는 parser에서 거부한다. 일반 field의 중복값은 Form 진단으로 남기고 category는 위의 전체 admission을
+적용한다. 새 부모 생성 화면·Admin inline UI·files와 전체 ModelFormSet 자동 저장은 이 제품 화면의 범위가 아니다.
 
 ## JSON API
 

@@ -12,8 +12,10 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
@@ -52,6 +54,7 @@ type TicketEditor struct {
 	appendAudit func(context.Context, db.Session, admin.PreparedEvent) error
 	engine      *templates.Engine
 	row         forms.Spec
+	binding     orm.ProjectBinding
 }
 
 func (a *Application) TicketEditor(config TicketEditorConfig) (*TicketEditor, error) {
@@ -73,7 +76,11 @@ func (a *Application) TicketEditor(config TicketEditorConfig) (*TicketEditor, er
 	if err != nil {
 		return nil, err
 	}
-	return &TicketEditor{app: a, auth: config.Auth, appendAudit: config.AppendAudit, engine: engine, row: row}, nil
+	binding, err := project.Bind()
+	if err != nil {
+		return nil, err
+	}
+	return &TicketEditor{app: a, auth: config.Auth, appendAudit: config.AppendAudit, engine: engine, row: row, binding: binding}, nil
 }
 
 func (editor *TicketEditor) Routes() []web.Route {
@@ -105,7 +112,7 @@ func (editor *TicketEditor) permissions(ctx context.Context, actor auth.Principa
 }
 
 type ticketEditorPage struct {
-	set         formmodel.InstanceSet[models.Ticket]
+	set         formmodel.InlineSet[models.Category, models.Ticket]
 	choices     []forms.Choice
 	next        bool
 	page        int
@@ -183,18 +190,20 @@ func (editor *TicketEditor) load(ctx context.Context, reader db.Queryer, page in
 	if err != nil {
 		return ticketEditorPage{}, err
 	}
+	inline, err := formmodel.NewInlineSpec(editor.binding, models.CategoryObjects, models.TicketObjects, "category", spec)
+	if err != nil {
+		return ticketEditorPage{}, err
+	}
+	parent := models.NewCategoryWithID(editor.app.categoryID)
 	readerFn := func(value models.Ticket, field ir.ManyToManyField) ([]int64, bool) {
 		values, found := members[value.ID]
 		return values, found && field.Name == "labels"
 	}
 	view := ticketEditorPage{choices: choices, next: next, page: page, permissions: permissions}
 	if submitted == nil {
-		view.set, err = formmodel.UnboundSet(models.TicketObjects, spec, current, readerFn)
+		view.set, err = inline.Unbound(parent, current, readerFn)
 	} else {
-		post := formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
-			return forms.NewValues(map[string]forms.Value{"category": forms.Integer(editor.app.categoryID)}), validation.Errors{}
-		}}
-		view.set, err = formmodel.BindSet(models.TicketObjects, spec, *submitted, current, post, readerFn)
+		view.set, err = inline.Bind(*submitted, parent, current, formmodel.PostClean{}, readerFn)
 	}
 	return view, err
 }

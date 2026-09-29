@@ -98,6 +98,33 @@ func NewSetSpec(row Spec, config SetConfig, validators ...SetValidator) (SetSpec
 func (s SetSpec) Config() SetConfig { return s.config }
 func (s SetSpec) FormSpec() Spec    { return s.row }
 
+// WithFormField replaces a row field in place, or appends a new field, while
+// preserving the row and set validators. The original specification is intact.
+func (s SetSpec) WithFormField(field Field) (SetSpec, error) {
+	if !s.valid {
+		return SetSpec{}, &ConfigError{Path: "set", Code: "uninitialized"}
+	}
+	fields := s.row.Fields()
+	if index, found := s.row.index[field.Name()]; found {
+		fields[index] = field
+	} else {
+		fields = append(fields, field)
+	}
+	row, err := NewSpec(fields, s.row.cross...)
+	if err != nil {
+		return SetSpec{}, err
+	}
+	return NewSetSpec(row, s.config, s.validators...)
+}
+
+// WithConfig keeps the row and validators while validating new server policy.
+func (s SetSpec) WithConfig(config SetConfig) (SetSpec, error) {
+	if !s.valid {
+		return SetSpec{}, &ConfigError{Path: "set", Code: "uninitialized"}
+	}
+	return NewSetSpec(s.row, config, s.validators...)
+}
+
 // SetForm identifies one display row. FieldName returns its prefixed HTML
 // input name; Form uses the ordinary, unprefixed field names for diagnostics.
 type SetForm struct {

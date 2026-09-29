@@ -129,6 +129,10 @@ func UnboundSet[M any](manager orm.Manager[M], spec forms.SetSpec, current []M, 
 // PostClean is applied once to each evaluated row before set count validation;
 // ordinary field/cross-field cleaning is not repeated by the model adapter.
 func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related ...func(M, ir.ManyToManyField) ([]int64, bool)) (InstanceSet[M], error) {
+	return bindSet(manager, spec, data, current, postClean, related, "")
+}
+
+func bindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related []func(M, ir.ManyToManyField) ([]int64, bool), parent string) (InstanceSet[M], error) {
 	metadata, primary, snapshots, err := setSnapshots(manager, spec, current, related)
 	if err != nil {
 		return InstanceSet[M]{}, err
@@ -189,6 +193,14 @@ func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 				values[name] = value
 			}
 		}
+		if parent != "" {
+			if values == nil {
+				values = map[string]forms.Value{}
+			}
+			// The server parent wins over a model default, including NULL
+			// while its generated key is still pending.
+			values[parent], _ = row.Form().Initial().Get(parent)
+		}
 		binding, _, err := prepareModelBinding(metadata, row.Fields(), values, postClean)
 		if err != nil {
 			return forms.Form{}, err
@@ -197,6 +209,7 @@ func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		if err != nil {
 			return forms.Form{}, err
 		}
+		bound.parent = parent
 		snapshot, err := manager.ApplyValues(source, nil)
 		if err != nil {
 			return forms.Form{}, err
@@ -204,7 +217,7 @@ func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		instances[row.Index()] = InstanceForm[M]{bound: bound, manager: manager, instance: snapshot, hasInstance: hasInstance}
 		return bound.Form(), nil
 	}, Clean: func(set forms.Set) (forms.Set, error) {
-		return validateSetUnique(metadata, set, instances)
+		return validateSetUnique(metadata, set, instances, parent)
 	}})
 	if err != nil {
 		return InstanceSet[M]{}, err

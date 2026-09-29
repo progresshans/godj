@@ -131,6 +131,7 @@ const (
 	SelectMultiple
 	PasswordInput
 	EmailInput
+	HiddenInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -253,6 +254,7 @@ type Field struct {
 	widget          Widget
 	choices         []Choice
 	modelChoice     bool
+	inlineParent    bool
 	emptyValue      Value
 	required        bool
 	nullable        bool
@@ -341,7 +343,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		config.widget = NullBooleanSelect
 	}
 	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
-		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
+		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && (config.widget == TextInput || config.widget == HiddenInput) || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
 		(kind == FieldDuration || kind == FieldUUID) && config.widget == TextInput ||
@@ -781,7 +783,9 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		cleanedOrder = append(cleanedOrder, field.name)
 		initialValue, _ := resolvedInitial.Get(field.name)
 		var sameInitial bool
-		if field.modelChoice {
+		if field.inlineParent {
+			sameInitial = true
+		} else if field.modelChoice {
 			sameInitial = !fieldChanged(field, data, initialValue)
 		} else if field.kind == FieldJSON {
 			sameInitial = equalJSON(value, initialValue)
@@ -825,6 +829,9 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "unknown_field"}
 		}
 		field := s.fields[index]
+		if field.inlineParent && !value.Equal(field.defaultValue) {
+			return Values{}, &ConfigError{Path: "initial." + name, Code: "parent_mismatch"}
+		}
 		if !validValueForField(value, field.kind, field.nullable) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "type_mismatch"}
 		}
@@ -846,6 +853,12 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	submitted, present := data.raw(field.name)
 	if len(submitted) > 1 && field.kind != FieldIntegerList {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "multiple"))
+	}
+	if field.inlineParent {
+		if len(submitted) == 0 || submitted[0] == "" || !field.defaultValue.IsNull() && submitted[0] == modelChoiceInitial(field.defaultValue) {
+			return field.defaultValue, validation.Errors{}
+		}
+		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "invalid_choice"))
 	}
 	var value Value
 	var failures []validation.Errors
@@ -1067,6 +1080,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 }
 
 func fieldChanged(field Field, data Data, initial Value) bool {
+	if field.inlineParent {
+		return false
+	}
 	submitted, present := data.raw(field.name)
 	if field.kind == FieldIntegerList {
 		return modelMultipleChoiceChanged(submitted, initial)

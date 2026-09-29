@@ -13,7 +13,7 @@ import (
 // model-clean candidates and stored rows still need their final DB checks.
 // All tuples come from the same pre-rejection snapshot. A failed overlapping
 // constraint must not turn another complete tuple into a partial comparison.
-func validateSetUnique[M any](metadata ir.Model, set forms.Set, instances map[int]InstanceForm[M]) (forms.Set, error) {
+func validateSetUnique[M any](metadata ir.Model, set forms.Set, instances map[int]InstanceForm[M], parent string) (forms.Set, error) {
 	checks := make([][]string, 0, len(metadata.UniqueConstraints))
 	known := make(map[string]bool, len(metadata.Fields))
 	seenChecks := map[string]bool{}
@@ -80,6 +80,12 @@ func validateSetUnique[M any](metadata ir.Model, set forms.Set, instances map[in
 		for _, row := range rows {
 			tuple := make([]forms.Value, 0, len(fields))
 			for _, name := range fields {
+				if name == parent {
+					// Every inline row belongs to the same server parent, even
+					// before a new parent's generated key exists.
+					tuple = append(tuple, forms.String(parent))
+					continue
+				}
 				value, present := row.cleaned.Get(name)
 				if !present || value.IsNull() || slices.Contains(row.excluded, name) {
 					break

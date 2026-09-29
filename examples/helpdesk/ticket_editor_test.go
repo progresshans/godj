@@ -127,7 +127,7 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := []string{"mixed", "unchanged", "invalid_row", "duplicate_identity", "deleted_outside_identity", "empty_extra_identity", "forbidden_label", "protected_delete", "duplicate_tuple", "late_unique", "audit_failure", "collection_failure", "read_failure", "rollback_unknown", "commit_unknown", "cancellation", "late_scope_change", "forged_initial", "duplicate_management"}
+	cases := []string{"mixed", "unchanged", "invalid_row", "duplicate_identity", "deleted_outside_identity", "empty_extra_identity", "forbidden_label", "protected_delete", "duplicate_tuple", "late_unique", "audit_failure", "collection_failure", "read_failure", "rollback_unknown", "commit_unknown", "cancellation", "late_scope_change", "forged_initial", "duplicate_management", "forged_parent", "deleted_forged_parent", "empty_extra_forged_parent", "repeated_parent"}
 	for _, mode := range cases {
 		t.Run(mode, func(t *testing.T) {
 			category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Editor "+mode))
@@ -182,7 +182,7 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 			client.cookies, client.csrf = maps.Clone(authenticated.cookies), authenticated.csrf
 			page := client.request("GET", helpdesk.TicketEditorPath, "", false)
 			values, path := editorSubmission(t, page)
-			if values.Get("tickets-INITIAL_FORMS") != "2" || values.Get("tickets-TOTAL_FORMS") != "4" || values.Get("tickets-0-id") != strconv.FormatInt(first.ID, 10) {
+			if values.Get("tickets-INITIAL_FORMS") != "2" || values.Get("tickets-TOTAL_FORMS") != "4" || values.Get("tickets-0-id") != strconv.FormatInt(first.ID, 10) || values.Get("tickets-0-category") != strconv.FormatInt(category.ID, 10) {
 				t.Fatal("wrong server cohort/blank rows")
 			}
 			if strings.Contains(page.Body.String(), "private outside") || strings.Contains(page.Body.String(), "Old <script>") || !strings.Contains(page.Body.String(), "Old &lt;script&gt;") {
@@ -234,6 +234,21 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 				values.Set("tickets-0-external_reference", "12345678-1234-4234-8234-123456789001")
 				values.Set("tickets-1-external_reference", "12345678123442348234123456789001")
 				wantCode = "unique"
+			case "forged_parent", "deleted_forged_parent", "empty_extra_forged_parent", "repeated_parent":
+				index := 0
+				if mode == "empty_extra_forged_parent" {
+					index = 2
+				}
+				name := fmt.Sprintf("tickets-%d-category", index)
+				if mode == "repeated_parent" {
+					values.Add(name, values.Get(name))
+				} else {
+					values.Set(name, strconv.FormatInt(outside.ID, 10))
+				}
+				if mode == "deleted_forged_parent" {
+					values.Set("tickets-0-DELETE", "on")
+				}
+				wantCode = "invalid_parent"
 			case "audit_failure":
 				values.Set("tickets-1-subject", "Second changed")
 				wantStatus = http.StatusInternalServerError
@@ -342,6 +357,15 @@ func verifyHelpdeskTicketEditor(t *testing.T, ctx context.Context, runtime *syst
 			if mode == "duplicate_tuple" && (backend.writes != 0 || audits != 0) {
 				t.Fatal("cross-row duplicate reached writes or audit")
 			}
+			if strings.Contains(mode, "parent") && (backend.writes != 0 || audits != 0) {
+				t.Fatal("parent mismatch reached writes or audit")
+			}
+			if strings.Contains(mode, "parent") {
+				redisplayed, _ := editorSubmission(t, response)
+				if redisplayed.Get("tickets-0-category") != strconv.FormatInt(category.ID, 10) || redisplayed.Get("tickets-2-category") != strconv.FormatInt(category.ID, 10) {
+					t.Fatal("hidden parent replayed attacker input")
+				}
+			}
 			if mode == "mixed" {
 				connection, err := open(ctx)
 				if err != nil {
@@ -427,7 +451,7 @@ func verifyTicketEditorAdmission(t *testing.T, ctx context.Context, runtime *sys
 					input.Add("csrfmiddlewaretoken", input.Get("csrfmiddlewaretoken"))
 					want = http.StatusForbidden
 				case "unknown_scope":
-					input.Set("tickets-0-category", "999")
+					input.Set("tickets-0-details", "excluded scalar")
 				case "row_index":
 					input.Set("tickets-01-subject", "alias")
 				case "body_limit":

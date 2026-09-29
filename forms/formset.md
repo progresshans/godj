@@ -64,5 +64,14 @@ transaction/rollback 의미는 모델/애플리케이션 연결이 담당한다.
 
 Database-independent core와 [typed 모델의 여러 행 준비](model/README.md#여러-모델-행의-준비)를 구현했다.
 [Helpdesk HTTP 편집](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)은 typed 준비와 실제 여러 행/관계/감사 기록의
-원자 저장을 연결한다. 일반 Formset의 자동 저장·inline/file upload는 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
+원자 저장을 연결한다. 부모에 연결한 행은 [InlineSpec](model/README.md#부모에-연결한-여러-행)을 사용한다.
+일반 Formset의 자동 저장·file upload와 Admin inline 화면은 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
 Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/adr/0081-formset-counts-and-row-ownership.md)에 따라 구분한다.
+
+`SetSpec.WithFormField(field)`는 행 field를 같은 위치에서 교체하거나 끝에 추가하고, `WithConfig(config)`는 개수/prefix 정책을
+교체한다. 둘 다 기존 row/set validator를 보존하고 구성 검사를 수행하며 원래 명세를 바꾸지 않는다.
+
+`InlineParentField(name, identity)`는 서버의 Integer/NULL 부모를 보유한 optional hidden field다. 빈 제출은 서버 값으로 정리하고
+다른 숫자·비정규 표기·중복 scalar는 거부하며 항상 Changed에서 제외한다. `HiddenInput`은 현재 Integer field에 제공한다.
+렌더러는 `InlineParent()`의 서버 값을 사용한다. 이 저수준 field만으로는 검증을 건너뛰는 빈 행이나 삭제 행의 전체 admission을
+보장하지 않는다. 모델 InlineSpec이 그런 행의 원래 제출도 검사하고 parent cohort·pending key·여러 행 제약을 함께 소유한다.

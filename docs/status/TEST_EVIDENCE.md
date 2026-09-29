@@ -5,6 +5,63 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### Inline 부모 결합과 새 부모 저장 후 자식 준비
+
+기반 `6d8afda5086ba3fc058376a60dc567bdcd5a05d7` 이후 InlineSpec/InlineSet을 구현했다. Canonical project의 FK와 양 typed
+manager를 확인하고 서버 부모·current 자식의 소속을 검증한다. Hidden parent는 Changed에 들어가지 않고 raw 위조/중복을
+삭제 행·빈 extra에서도 전체 거부한다. Model clean은 부모 FK를 소유할 수 없다. Pending parent를 먼저 검증하고, 저장에서
+받은 key로 별도 자식 후보를 준비한다. nullable/cross-app FK·명시적 PK 0·OneToOne과 같은 부모의 unique tuple을 유지한다.
+독립 행 Prepare로 pending 부모 검사를 우회할 수 없다. Helpdesk의 기존 Category 편집기를 공통 InlineSet으로 이관했다.
+
+독립 `conformance/runners/django/inline_formset_reference.py`를 고정 Django 6.1/CPython 3.14.3에서 실제 실행했다.
+`django.forms.models` SHA는 `858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910`이며 22개 입력/표시와
+4개 SQLite 저장 관찰을 fixture에 기록했다. Ordinary validity·행/전체 진단·clean 횟수·서버 부모 후보와 hidden/optional 의미를
+대조한다. 부모 관련 7개 입력은 GoDj의 전체 `invalid_parent`를 검사하며 native가 허용한 삭제/빈 extra 위조·반복 부모값·Python
+`None` 표기 네 경우는 강화 차이다. 나머지 세 거부도 native와 오류 위치가 동일하다고 합치지 않는다.
+
+실제 양 DB의 public Form/InlineSpec/ORM 소비자는 부모 생성→자식 두 개 저장, 지연 준비의 child write 0, 늦은 두 번째 자식
+고유성 실패의 부모/첫 자식 rollback, unsaved parent의 준비 거부를 네 native 저장 결과와 대조했다. Rollback 뒤 발급된 key가
+Go 값에 남아도 저장됐다고 판단하지 않는다. Helpdesk HTTP는 다른 부모·삭제된 위조 행·빈 extra 위조·반복값의 쓰기/audit 0과
+서버 부모를 사용한 안전한 오류 재표시를 확인했다. 신규 부모 HTML 화면이나 Admin inline 편집 UI는 이 실행에 포함하지 않는다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 최초 affected normal의 성공 package | forms/admin/Helpdesk 3 packages / 141 roots / 128 required cases / 1,680 PASS |
+| 모델 fixture 수정 후 normal | forms/model 1 package / 52 roots / 479 PASS / 0.518초 |
+| pure race | 3 packages / 6 roots / 28 PASS / 2.213초; 부모 소유권·동시 key 완성·native/hidden 출력 |
+| HTTP race | 양 DB mixed/4가지 부모 위조, 2 roots / 10 required cases / 14 PASS / 46.820초 |
+| 저장 race | 양 DB의 inline parent/child subtree, 1 root / 10 required cases / 13 PASS / 3.585초 |
+| 부정 대조 | 부모 전체 admission 제거→삭제 위조 HTTP 저장, pending guard 제거→nullable orphan 준비, parent tuple 상수 제거→새 부모 형제 중복 허용을 각각 검출 |
+| CI 도구/형식 | 42 Python tests PASS / 6.638초; 변경 Go 16개 gofmt clean |
+
+최초 4-package normal은 21.952초 / 2,158 PASS와 **1개 테스트 실패**로 전체 실패했다. 지원하지 않는 FK default를 IR에 넣은
+`TestInlineUnsavedParentOverridesForeignKeyDefault` fixture가 원인이다. IR 기능을 임의로 넓히지 않고 canonical project와 다른
+manager 정책을 거부하는 `TestInlineRejectsNoncanonicalForeignKeyPolicy`로 교정했다. 모델 package 전체를 다시 실행해 위 479 PASS를
+얻었다. 처음 통과한 다른 세 package는 반복하지 않았다. 두 실행의 합은 193 roots / 2,159 PASS이지만 최종 소스의 한 번의 전체
+실행으로 표현하지 않는다. 초기 실패 receipt와 raw event는 보존한다.
+
+Go 1.26.5 Darwin arm64, PostgreSQL 17.10 UTF8/libc/C와 SQLite, 기본 공유 cache/병렬 실행·readonly/offline module·
+Pacific/Chatham에서 실행했다. 성공한 각 범위의 compiled root/required child와 실제 run/pass를 대조했고 누락·skip·잘린 event는
+0이다. 첫 normal inventory `32edc66b688d6b36798e6be66ec81c5d83bf36e800660289657b01498be7ec2c`에서 최종 inventory
+`206eaaeb8502936c62cc1b102ed852350f0b79d3d691b3371f19ad4c3e0f0ecc`로의 유일한 비문서 차이는 `forms/model/inline_test.go`다.
+제품/다른 테스트/fixture는 같고 수정 모델 normal과 모든 race는 최종 inventory에서 실행했다. 각 실행 전후 source 일치,
+DB 잔여 `0|0|0`과 임시 DB/container 제거를 확인했다. 모델-only repair helper도 불필요하게 private DB를 시작했다가 제거했으며
+순수 모델 재검사에는 필요하지 않다. IR/generator 변경이 없어 generated drift·CGO0·cold/full compile을 추가하지 않았다.
+
+`6d8afda5`의 [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), attempt 1은 진행 중이다.
+최근 관찰의 61개 job 중 완료 성공 51·실행 중 5·대기 5이며 이 시점 실패는 없지만 전체 PASS는 아니다. API의 상위 queued 상태와
+개별 실행 job을 구분한다. 이 run은 Inline 변경 이전 소스이고 이후 Inline의 full-platform 증거로 전이하지 않는다.
+
+원문·source·compiled 목록·receipt/controls:
+
+- 최초 normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-inline-normal-_evmy71h`
+- 모델 repair/부정 대조: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-inline-model-normal-viwc5d7p`
+- 관련 race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-inline-race-9zwgztzw`
+- source와 성공 범위 재대조: `/tmp/godj-inline-source-reconciliation.json`
+- Hosted run/job 관찰 원문: `/tmp/godj-inline-hosted-observation`
+
+이후 문서 정리는 local Markdown 164개 링크와 diff 검사로 확인했다. 비문서 source는 위 최종 inventory와 같다.
+
 ### 여러 행 고유값 검증과 Hosted 테스트 선택 수정
 
 기반 `568b75b40ac5da5b3d03b2406808d33c6c23f911` 이후 ModelFormSet의 unique field/복합 UniqueConstraint 검증을 연결했다.
@@ -40,7 +97,8 @@ Helpdesk 하위 사례 31개가 실행되지 않았다. 이 실패를 PASS/skip 
 선택자는 부모의 별도 sentinel이 없는 경우 부모를 선택하지 않았다. 실행 regex는 중복 없는 부모 이름에서 만들고, 결과 검증은
 완전한 원래 하위 이름을 유지하도록 고쳤다. 현 소스의 SQLite editor 필수 32개로 원래 workflow 코드를 실행하면 **run 0**과
 inventory 거부가 재현되며, 수정한 workflow 코드는 **106 run / 필수 32개 전부 PASS / skip 0**이다. 다른 실행 owner의 누락을
-허용하거나 테스트를 삭제한 수정이 아니다. 이 run의 전체 platform 성공은 없으며 수정 소스의 새 통합 결과를 기다린다.
+허용하거나 테스트를 삭제한 수정이 아니다. 이 run은 최종 `cancelled`이며 62 jobs 중 success 45·cancelled 14·failure 3이다.
+위 두 core job과 최종 집계의 실패를 보존한다. 전체 platform 성공은 없으며 수정 소스의 새 통합 결과를 기다린다.
 
 원문·source/receipt·controls:
 

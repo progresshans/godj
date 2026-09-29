@@ -345,9 +345,10 @@ func (site *Site) formContext(
 			"label":       templates.String(field.Label()),
 			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":    templates.Bool(field.Widget() == forms.PasswordInput),
+			"hidden":      templates.Bool(field.Widget() == forms.HiddenInput),
 			"email":       templates.Bool(field.Widget() == forms.EmailInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
-			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
+			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
 			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
 			"options":     templates.List(options...),
 			"multiple":    templates.Bool(field.Widget() == forms.SelectMultiple),
@@ -390,6 +391,12 @@ func (site *Site) formContext(
 }
 
 func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values) (string, bool) {
+	if parent, fixed := field.InlineParent(); fixed {
+		if key, present := parent.AsInteger(); present {
+			return strconv.FormatInt(key, 10), false
+		}
+		return "", false
+	}
 	// Never put a raw password into a render context, even after a confirmed
 	// validation rejection or when a caller supplied an initial value.
 	if field.Widget() == forms.PasswordInput {

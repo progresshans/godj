@@ -109,7 +109,7 @@ DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 id
 6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
 실제 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 요청별 현재 cohort/인가·관계 선택지를 확인하고,
 같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
-전체 ModelFormSet 자동화·inline/files는 후속 작업이다.
+전체 ModelFormSet 자동화·file upload와 Admin inline 화면은 후속 작업이다. 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
 
 `BindSet`은 행 검증과 개수 제한 뒤, 사용자 SetValidator 전에 선택한 unique field와 IR의 복합 UniqueConstraint를 행 사이에서
 검사한다. Valid인 행의 **cleaned 입력값**을 비교하며, model clean이 바꾼 candidate나 DB 저장값의 검사를 대체하지 않는다.
@@ -120,6 +120,61 @@ NULL이 포함된 튜플·제외된 field·invalid 행·바뀌지 않은 빈 추
 Typed/core 오류와 exclusion은 함께 바뀌고 원래 제출·candidate는 보존한다. 모든 제약은 같은 검사 시작 snapshot의 완전한 튜플로
 비교한다. 겹친 제약에서 앞선 오류가 field를 제거했다고 다른 제약을 부분 튜플로 비교하지 않는다. 제약 순서는 IR 순서로 결정적이다.
 이 pure 검사에는 backend collation·저장된 다른 행·동시 쓰기와 candidate 변환이 포함되지 않으므로 최종 transaction의 DB 검사는 필수다.
+
+## 부모에 연결한 여러 행
+
+`NewInlineSpec(projectBinding, parentManager, childManager, foreignKey, setSpec)`은 프로젝트의 canonical IR에서 자식 FK와
+대상 부모를 확인한다. 부모/자식 manager의 전체 metadata가 일치해야 하며 다른 앱의 부모도 같은 project binding으로 연결한다.
+현재 Auto/Integer 부모 PK와 required/nullable FK·OneToOne을 지원한다. FK 이름은 명시하고 모호한 관계는 거부한다.
+OneToOne은 표시 MaxForms를 1로 제한하고 여러 행의 부모 고유성도 검사한다. IR이 지원하지 않는 FK default는 추가하지 않는다.
+
+```go
+inline, err := formmodel.NewInlineSpec(
+    binding, models.CategoryObjects, models.LabelObjects, "category", setSpec,
+)
+if err != nil { return err }
+children, err := inline.Bind(submitted, parent, currentLabels, formmodel.PostClean{})
+if err != nil { return err }
+```
+
+`Unbound(parent, current)`와 `Bind`는 이미 인가하고 읽은 snapshot을 받으며 I/O를 하지 않는다. 기존 current 자식은 모두 같은
+부모에 속해야 하고, PK가 아직 없는 새 부모에는 기존 자식을 넘길 수 없다. 선택한 collection은 일반 InstanceSet과 같은 pure
+reader로 전달한다. 부모와 자식은 복사하며 입력 필드/validator·개수 정책은 기존 SetSpec에서 보존한다.
+
+FK는 서버 identity를 가진 optional `HiddenInput`으로 추가하거나 교체한다. 빈 값/생략은 서버 값을 쓰고 nonempty 제출은
+정확한 canonical 숫자여야 한다. 명시한 PK 0도 유효하다. 부모 field는 Changed에 들어가지 않으며 빈 추가 행을 활성화하지 않는다.
+부모 표시에는 `ParentIdentity()` 또는 field의 `InlineParent()`를 사용한다. 공격자가 제출한 다른 부모를 재표시하지 않는다.
+삭제 행·그대로 둔 빈 추가 행도 잘못된 부모/중복값 제출이면 전체 `invalid_parent`로 거부한다. `PostClean`은 이 FK를 변경할 수 없다.
+
+새 부모의 key가 없어도 자식 Form을 검증할 수 있다. 이때 후보의 FK는 NULL이고, 부모를 포함한 unique tuple은 같은 부모라는
+상수를 사용해 형제끼리 비교한다. 개별 `Instance(index).Prepare()`와 전체 `Prepare()`는 부모 key가 없으면 `unsaved_parent`다.
+nullable FK여도 연결이 풀린 자식으로 준비하지 않는다. `PrepareWithParent(parent)`는 caller가 부모 저장으로 얻은 key를 별도
+자식 후보에 적용한다. 기존 부모의 identity 변경은 거부하고, field/model clean을 재실행하거나 원래 pending snapshot을 바꾸지 않는다.
+
+새 부모를 만드는 흐름에서는 일반 `BindInstance`로 얻은 `preparedParent`와 위의 `children`을 하나의 transaction에 연결한다.
+
+```go
+err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+    // 현재 권한과 최종 모델 제약은 이 scope에서 확인한다.
+    if err := preparedParent.Save(ctx, session, &parent); err != nil { return err }
+    prepared, err := children.PrepareWithParent(parent)
+    if err != nil { return err }
+    for _, row := range prepared.Rows() {
+        child, err := row.Model()
+        if err != nil { return err }
+        if err := row.Prepared().Save(ctx, session, &child); err != nil { return err }
+    }
+    return nil
+})
+```
+
+이 예시는 collection 없는 신규 Label이다. Collection saver·기존 행의 변경/삭제·감사 기록은 제품의 저장 정책에서 명시한다.
+`PrepareWithParent`는 순수한 key 연결이며 부모의 DB 존재/인가나 commit을 증명하지 않는다. 지연 저장도 같은 준비 결과를 사용하되
+부모와 모든 자식의 원자성은 caller가 유지한다. 뒤쪽 자식 실패는 전체 scope를 롤백해야 하며 이미 발급된 parent PK는 Go 값에
+남을 수 있다. 자동 재시도하지 않는다. 실제 양 DB 저장 소비자는 [inline 저장 검사](../../examples/helpdesk/inline_save_test.go)에 있다.
+
+[Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 저장된 Category의 InlineSet을 실제 HTTP로 사용한다.
+새 부모와 자식을 함께 만드는 HTML 화면, Admin inline 편집 UI와 file upload는 아직 구현하지 않았다.
 
 ## 생성 모델의 typed 준비
 

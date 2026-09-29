@@ -8,6 +8,7 @@
 {% for error in errors %}<p role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
 {% for row in rows %}<fieldset data-row="{{ row.prefix }}"><legend>Ticket {{ row.number }}</legend>
 <input type="hidden" name="{{ row.prefix }}-id" value="{{ row.identity }}">
+<input type="hidden" name="{{ row.prefix }}-category" value="{{ row.parent }}">
 <p><label>Subject <input name="{{ row.prefix }}-subject" value="{{ row.subject }}" maxlength="120"></label></p>
 <p><label><input type="checkbox" name="{{ row.prefix }}-closed" value="on"{% if row.closed %} checked{% endif %}> Closed</label></p>
 <p><label>External reference <input name="{{ row.prefix }}-external_reference" value="{{ row.reference }}"></label></p>

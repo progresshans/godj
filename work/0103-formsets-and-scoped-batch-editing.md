@@ -22,6 +22,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 구조가 다른 모델 소비자·관련 실제 DB/race·필수 실패 대조와 영향 checkpoint
 - [x] 현행 사용법·지원 범위·환경별 증거 정리
 - [x] 여러 행 unique/복합 제약·compound cleaned 제외와 실제 HTTP 쓰기 전 거부
+- [x] canonical 부모 FK·InlineSet과 pending key 준비·실제 HTTP/양 DB parent-child 저장 및 rollback
 - [ ] core/typed/Helpdesk 제품 묶음의 Hosted full 통합 milestone
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -39,9 +40,16 @@ management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 �
 실제 [Helpdesk 편집기](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 현재 cohort/인가·권한별 추가/삭제·원래 입력
 재표시·페이지 범위와 원자 scalar/collection·PROTECT/CASCADE·audit를 연결했다. 양 DB의 실제 HTTP 성공/실패·롤백·재개와
 관련 race, Add 거부/audit 실패/unknown outcome의 부정 대조를 확인했다. 새로운 전체 플랫폼 증거는 게시한 소스의 Hosted
-통합에서 얻으며 선행 소스의 성공을 전이하지 않는다. Inline/files·전체 ModelFormSet 자동화는 이 작업의 완료와 별개다.
+통합에서 얻으며 선행 소스의 성공을 전이하지 않는다. Admin inline UI/files·전체 ModelFormSet 자동화는 별도 미완료 범위다.
 
 ModelFormSet의 고유값 검증은 고정 Django 23개 사례와 실제 양 DB HTTP로 연결했다. 겹친 제약은 검사 시작 시점의 완전한
 튜플을 IR 순서로 비교하며, 후속 사용자 validator가 모델 진단을 없애지 않는다. `568b75b4`의 Hosted full은 새 하위 사례의
 부모 테스트를 실행 정규식에서 선택하지 못해 필수 job이 실패했다. 실행할 부모와 확인할 전체 하위 이름을 구분하도록 고쳤고,
 기존 선택자 0회/수정 선택자의 필수 32개 실행을 실제 Go에서 재현했다. 수정 소스의 전체 통합은 아직 남아 있다.
+
+`6d8afda5`의 Hosted full `36516565253`이 core/typed/Helpdesk·고유값 검증의 통합을 진행한다. 이후 InlineSpec은 canonical
+project FK와 양 manager를 결합하고 서버 부모를 hidden 입력·모델 후보·형제 unique 검사에 연결했다. 다른 부모/중복 scalar를
+삭제/빈 행에서도 전체 거부한다. Pending 부모는 저장으로 key를 받은 뒤 순수 준비하며 nullable FK도 orphan 준비를 허용하지 않는다.
+고정 native 22개 입력/4개 저장 관찰, 양 DB의 부모/자식 저장·지연 쓰기·늦은 실패 rollback, 실제 HTTP 위조 거부와 관련 race/
+세 부정 대조를 확인했다. 처음 지원하지 않는 FK default로 만든 테스트 fixture는 실패했고 canonical 정책 거부로 고친 모델 범위를
+다시 검증했다. 실행별 source/범위는 TEST_EVIDENCE에 분리했다. 새 부모 HTML 화면과 Admin inline UI는 남아 있다.

@@ -72,10 +72,32 @@ Django의 코드 없는 cross-row 메시지는 GoDj의 안정된 `unique` 진단
 Core SetProcessor의 Form/Clean 단계는 행과 전체의 private binding token을 보존한다. 같은 의미의 데이터를 새로 bind하거나 다른
 바인딩 결과를 가져와 검증을 우회할 수 없다. Compound 진단이 제거할 cleaned field는 명시하고, 진단 없는 제거는 허용하지 않는다.
 
+## Inline의 부모 소유권과 지연 key 연결
+
+`InlineSpec`은 canonical project binding에서 명시한 자식 FK와 대상 부모를 확인한다. 양 typed manager의 전체 metadata가
+project 모델과 같아야 하며 앱 이름을 추측하지 않는다. Current 자식은 같은 부모에 속해야 한다. 부모 PK가 없는 상태에서 기존
+자식을 채택할 수 없다. 현재 Auto/Integer PK와 required/nullable FK·OneToOne을 지원하며 IR의 FK default 범위를 넓히지 않는다.
+
+부모 FK는 서버가 정한 optional hidden field이며 제출값으로 reparent하지 않는다. 빈 값/생략은 서버 값을 사용하고 nonempty
+입력은 canonical 숫자와 일치해야 한다. 부모 값은 Changed에서 제외하여 빈 extra 행을 활성화하지 않는다. Model clean 전에
+서버 부모를 candidate에 넣고 PostClean의 변경 소유권에서도 제외한다. 고정 Django가 허용한 삭제 행/빈 추가 행의 다른 부모,
+반복 부모 scalar, 새 부모의 Python `None` 문자열 네 사례를 GoDj는 의도적으로 전체 거부한다. Native도 거부한 다른 세 부모
+사례는 오류 위치까지 같다고 주장하지 않는다. 저수준 field 검사 외에 InlineSet이 raw 입력의 전체 admission을 소유한다.
+
+아직 key가 없는 부모의 자식 검증은 허용한다. 부모를 포함한 unique tuple은 실제 key 대신 같은 부모라는 상수로 형제 사이를
+비교한다. Typed scalar로 준비할 때는 nullable FK여도 부모 key가 필요하다. 독립 행 Prepare로 이 조건을 우회할 수 없다.
+`PrepareWithParent`는 caller가 저장한 부모의 key를 별도 후보에 적용하고 callback을 반복하지 않는다. 기존 부모 identity는
+바꿀 수 없다. PK 0의 명시적 presence를 보존하며 원래 pending 후보·nullable pointer·동시 준비의 소유권을 분리한다.
+
+Binding/준비는 I/O·인가·부모 존재 조회를 수행하지 않는다. Caller는 부모 Form 저장과 모든 자식 쓰기/삭제/감사 기록을 같은
+transaction에서 처리한다. 뒤의 오류는 전체 scope를 벗어나 rollback해야 한다. Rollback 뒤 Go 값에 남은 parent key를 commit
+증거로 쓰지 않는다. 이 API와 실제 양 DB 저장 검증은 새 부모 HTML 화면이나 Admin inline UI의 구현 완료를 뜻하지 않는다.
+
 ## Helpdesk의 페이지 단위 저장
 
 Helpdesk editor는 서버 Category의 현재 ID 순서 20행을 cohort로 삼는다. GET은 하나의 read snapshot을 사용하고 POST는
 현재 cohort·관계·선택지를 outer `AtomicRelation`에서 다시 읽어 바인딩한다. 현재 권한과 선택 field 경계를 유지하며,
+공통 InlineSpec으로 Category FK와 hidden 부모 검사를 연결한다.
 일반 ticket 저장의 session 내부 helper를 재사용한다. 삭제는 완전한 project relation deleter의 `DeleteInSession`을 사용한다.
 존재하는 삭제를 먼저 처리한 뒤 active 행을 저장한다. Immediate DB unique 제약을 우회하는 값 교환 알고리즘을 추가하지 않는다.
 

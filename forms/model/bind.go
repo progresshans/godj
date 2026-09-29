@@ -33,6 +33,7 @@ type BoundForm struct {
 	model     ir.Model
 	fields    []forms.Field
 	changed   []string
+	parent    string
 }
 
 func (BoundForm) Format(state fmt.State, _ rune) { fmt.Fprint(state, "model.BoundForm{redacted}") }
@@ -70,6 +71,12 @@ func (bound BoundForm) Excluded() []string {
 func (bound BoundForm) Input() (forms.Values, error) {
 	if !bound.form.Bound() || !bound.form.Valid() {
 		return forms.Values{}, &Error{Path: "form", Code: "not_bound_valid"}
+	}
+	if bound.parent != "" {
+		value, present := bound.candidate.Get(bound.parent)
+		if !present || value.IsNull() {
+			return forms.Values{}, &Error{Path: "parent." + bound.parent, Code: "unsaved_parent"}
+		}
 	}
 	input := make(map[string]forms.Value, len(bound.fields))
 	for _, field := range bound.fields {

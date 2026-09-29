@@ -76,7 +76,7 @@ func ticketEditorData(request *web.Request) (url.Values, error) {
 				return nil, errors.New("helpdesk: invalid editor row")
 			}
 			switch parts[2] {
-			case "id", "subject", "closed", "external_reference", "labels", "DELETE":
+			case "id", "category", "subject", "closed", "external_reference", "labels", "DELETE":
 				allowed = true
 			}
 		}
@@ -157,6 +157,11 @@ func ticketEditorErrors(diagnostics validation.Errors) (templates.Value, error) 
 			message = "This value is too long."
 		case "invalid_choice":
 			message = "Choose a label from this category."
+			if failure.Field() == "category" {
+				message = "Use the current category for every ticket."
+			}
+		case "invalid_parent":
+			message = "The submitted category does not match this page. Reload and review your changes."
 		case "multiple":
 			message = "Submit only one value for this field."
 		case "unique":
@@ -179,6 +184,7 @@ func ticketEditorErrors(diagnostics validation.Errors) (templates.Value, error) 
 
 func (editor *TicketEditor) render(request *web.Request, page ticketEditorPage) (web.Response, error) {
 	set := page.set.FormSet()
+	parent, _ := page.set.ParentIdentity().AsInteger()
 	rows := make([]templates.Value, 0, set.TotalForms())
 	for _, row := range set.Forms() {
 		identity := ""
@@ -215,6 +221,7 @@ func (editor *TicketEditor) render(request *web.Request, page ticketEditorPage) 
 		}
 		value, err := templates.Object(map[string]templates.Value{
 			"prefix": templates.String(row.Prefix()), "number": templates.Integer(int64(row.Index() + 1)), "identity": templates.String(identity),
+			"parent":  templates.Integer(parent),
 			"subject": templates.String(ticketEditorFieldText(row.Form(), "subject")), "reference": templates.String(ticketEditorFieldText(row.Form(), "external_reference")),
 			"closed": templates.Bool(ticketEditorChecked(row.Form(), "closed")), "deleted": templates.Bool(row.DeletionRequested()), "options": templates.List(options...), "errors": diagnostics,
 		})

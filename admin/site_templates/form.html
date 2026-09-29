@@ -4,7 +4,7 @@
 <main><h1>{{ title }}</h1><dl>{% for field in readonly_fields %}<dt>{{ field.label }}</dt><dd data-field-name="{{ field.name }}">{{ field.value }}</dd>{% endfor %}</dl>{% for command in commands %}<p><a href="{{ command.path }}">{{ command.label }}</a></p>{% endfor %}<form method="post" action="{{ action }}">{% csrf_token %}
 {% if has_revision %}<input type="hidden" name="expected_revision" value="{{ revision }}">{% endif %}
 {% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
-{% for field in fields %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
+{% for field in fields %}{% if field.hidden %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}{% else %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
 {% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.email %}<input type="email" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.password %}<input type="password" name="{{ field.name }}" autocomplete="new-password"{% if field.required %} required{% endif %}>{% endif %}
@@ -19,6 +19,6 @@
 {% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.select %}<select name="{{ field.name }}"{% if field.multiple %} multiple{% endif %}{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>{% endif %}
 {% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
-{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endfor %}
+{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endif %}{% endfor %}
 <button type="submit">{{ submit_label }}</button></form><p><a href="{{ list_path }}">Back to list</a></p></main>
 </body></html>
