@@ -3,6 +3,42 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
+
+기반 `cb76b165aa3379c8c40aabfa7d12354460c57bf7` 이후 database-independent `SetSpec/Set`을 구현했다.
+Prefix·management·서버 initial 개수·생성 상한, 빈 추가 행·정렬/삭제·행별/전체 진단·불변 선택과 pure 여러 행 validator를
+제공한다. Required choice의 빈 값이 초기 빈 값과 같을 때 Changed를 false로 처리해 optional 추가 행이 불필요하게
+검증되지 않게 했다. 실제 model identity·typed 여러 행 준비·Helpdesk HTTP/저장·inline/file upload는 **아직 미구현**이다.
+이 core checkpoint를 ModelFormSet 또는 제품 수직 단면의 완료로 표현하지 않는다.
+
+고정 Django 6.1 / CPython 3.14.3에서 독립 `formset_reference.py`를 실행했다. 총 33개 사례 중 30개에서
+management·row 수/field 순서·bound/valid·empty_permitted·Changed·cleaned/errors·삭제/정렬 index·row clean 실행 수를
+대조했다. 음수 TOTAL, INITIAL>TOTAL, 서버 initial과 다른 INITIAL의 세 사례는 native가 허용하지만 GoDj는 명시적으로
+거부한다. Int64/단일 값 중복 입력·기존 Boolean/Choice parser 경계는 전체 Python coercion 동등성으로 세지 않는다.
+원문 SHA256: `428e21e1652b88eb1549d320cace0e4a6c02564f0267618a4a5ca5a0e35f4472`.
+
+최종 비문서 inventory `b66cf31a17ae0015ff420e8536a509206be5b88046d02a1e7b4a85ba8bb738ee`,
+Darwin arm64 Go 1.26.5·offline modules·기본 공유 cache/병렬 실행·TZ Pacific/Chatham에서 다음을 확인했다.
+
+| 범위 | 결과 |
+| --- | --- |
+| `go test -json -count=1 ./forms/...` | 2 packages / 89 roots / 1,573 PASS / 0.749초 |
+| 관련 Formset race | 3 roots / 42 PASS / 1.511초, 같은 불변 spec의 24개 동시 binding 포함 |
+| Admin choice의 실제 HTTP/검증 경계 | 9 roots / 21 PASS / 0.571초 |
+| 부정 대조 | 서버 initial count 일치 제거·생성 상한 +1·빈 추가 행 검증 skip 제거의 3 overlay가 지정 runtime assertion에서 실패 |
+
+각 실행은 실제 Go test 목록과 complete JSON event의 필수 실행/종료를 대조했다. Missing/skip/잘린 event 0,
+source 전후 동일을 확인했다. Count overflow·중복·잘못된 prefix/config·reserved ORDER/DELETE 충돌·typed nil·
+입력/initial/result 소유권·formatting 비공개·선택 시 callback 재실행 없음도 포함한다.
+처음 32-case checkpoint는 성공했다. 검토 중 management 오류와 cross-form 오류가 함께 생기는 우선순위를 추가 관찰해
+non-form 진단 소유권을 수정하고, 33-case 최종 source에서 영향 검사를 다시 수행했다. 이전 성공을 최종 source로 옮기지 않았다.
+
+최종 원문/목록/receipt/source/세 controls·Admin 확인:
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-formset-core-9ym8729b`.
+앞선 32-case 원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-formset-core-k1lb4u4d`에 보존한다.
+이번 core에는 I/O·Schema IR·generator·migration 변경이 없어 DB/container·전체 compile·CGO=0·Hosted 전체를 새로 반복하지
+않았다. 후속 모델/제품 묶음에서 필요한 소비자와 환경 범위를 정한다. 선행 `cb76b165`의 CI는 이 core를 포함하지 않는다.
+
 ## GDJ-0102 — 모델 Blank와 Form 후처리 구현 중
 
 기반 `d95b969b3297bcad13fd6760706e733684cb8add` 이후 Blank metadata·생성 metadata·historical wire/digest,
@@ -15,6 +51,22 @@ User/Helpdesk/Article의 명시적 Blank 선언·새 migration·생성물과 Adm
 후속 model clean의 명시적 변환과 저장 입력·Admin 연결 및 영향 checkpoint를 완료했다.
 명시적 scalar/collection 저장 조정의 후속 구현·영향 검증도 완료했다. 전체 ModelForm 자동화·제품 adapter 확대와 후속 source의 Hosted 전체는 **아직 미완료**다.
 기반 검증을 전체 제품 또는 전체 ModelForm 완료로 기록하지 않는다. 이 작업본은 게시된 EmailField CI에 포함되지 않는다.
+
+### 저장/캐시/초기값 source의 Hosted 통합 진행
+
+`cb76b165aa3379c8c40aabfa7d12354460c57bf7`를 양 branch에 게시했고
+[Fast 36504615628](https://github.com/progresshans/godj/actions/runs/36504615628)의 terminal success와 실제 Fast Go step 성공을 확인했다.
+같은 source의 [full 36504649962](https://github.com/progresshans/godj/actions/runs/36504649962), attempt 1은 진행 중이다.
+최종 owner 집계는 아직 확인하지 않았으며 full PASS로 세지 않는다. 새 capture의 checksum/provenance·Git source 결합은 확인했다.
+
+| capture | artifact / producer job | Git source binding |
+| --- | --- | --- |
+| systemstate | `11007292394` / `109203252031` | 633 files / 6,694,950 bytes / `132d29a16f87adfd4067d4bf2d339275a95037251b18e8a5ba6510129bb8f6a9` |
+| operator | `11006837748` / `109203252101` | 710 files / 6,544,386 bytes / `2067975d74c57aebb0bf8a69fc70029e05ea80e140b33d38cd89340b7429756c` |
+
+Archive/payload SHA·run/jobs·producer attempt·Git 객체 inventory와 pending receipt:
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-form-initial-full-36504649962-r71rryo8`.
+관찰 지연만으로 재시작하지 않는다. 이 source에는 후속 Formset 구현이 없다.
 
 ### 기존 initial과 제출 입력 제약의 분리
 

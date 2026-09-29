@@ -1,12 +1,18 @@
 # 현재 상태
 
 - 갱신: 2026-09-29
-- 현재 작업: [GDJ-0102 모델의 빈 입력 정책과 Form 후처리](../../work/0102-model-blank-policy-and-post-clean.md)
+- 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
 - 최근 완료한 전체 검증: [Hosted full 36397837881](https://github.com/progresshans/godj/actions/runs/36397837881), source `f5b0020fa6c3f2c150eed720464b8e6765521113`; 필수 owner·최종 집계·새 capture의 Git source 결합 확인
-- Cache 개선 `eca6ec108a43864fb07a0c75f7ce28ca665511d6`의 [Fast](https://github.com/progresshans/godj/actions/runs/36404332456): terminal success·실제 Go 검사 성공
+- 진행 중인 Hosted 통합: [full 36504649962](https://github.com/progresshans/godj/actions/runs/36504649962), source `cb76b165aa3379c8c40aabfa7d12354460c57bf7`; 기본 saver·cache·initial 수정 포함
+- 선행 initial source `cb76b165aa3379c8c40aabfa7d12354460c57bf7`의 [Fast](https://github.com/progresshans/godj/actions/runs/36504615628): terminal success·실제 Go 검사 성공
 - Source·환경·scope·실패/수정·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
+
+Formset을 시작했다. 고정 Django의 33개 사례에서 management·빈 행·개수 제한·정렬/삭제·오류 순서를 관찰했다.
+불변 SetSpec/Set과 count/빈 행/삭제/정렬·오류/선택을 구현했다. Pure/기존 model Form·Admin choice·관련 race와
+세 부정 대조를 확인했다. [사용법](../../forms/formset.md)은 core 범위이며 typed 여러 행 준비·실제 Helpdesk 저장/권한은 남아 있다.
+[ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)의 count/소유권 경계와 native 차이를 따른다.
 
 Blank 정책·model clean·단계별 DB 후처리와 typed instance 준비를 연결했다. 지원 범위는
 [구현 현황](IMPLEMENTATION_MATRIX.md), 입력·준비·저장 소유권은 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md)과
@@ -25,7 +31,9 @@ Decimal 표시를 보존한다. 고정 native·영향 normal/관련 race·실제
 
 ## 다음 행동
 
-기본 saver·생성 소비자 cache·initial 수정을 포함한 후속 source를 게시하고 Hosted 통합을 확인한다.
+Formset 행 검증을 반복하지 않고 모델 후보와 typed 준비에 연결한다. 이어 Helpdesk의 실제 여러 행 입력/편집에서
+서버 소유 identity·현재 인가·오류 재표시·원자 저장/실패를 검증한다.
+진행 중인 `cb76b165` Hosted 통합의 실패 또는 최종 집계·새 capture 결합을 확인한다.
 선행 `f5b0020f` 전체의 성공은 이후 source에 전이하지 않는다. 공유 cache와 동시 실행 속도를 유지한다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 나머지 ModelForm·custom user model·인증/mail provider와
 기능 카탈로그를 이어 구현한다. 로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다.

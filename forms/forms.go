@@ -1080,6 +1080,12 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
 		}
+		if raw == "" {
+			if field.kind == FieldChar {
+				return !field.emptyValue.Equal(initial)
+			}
+			return !initial.IsNull()
+		}
 		value, code := cleanChoice(field, raw)
 		return code != "" || !value.Equal(initial)
 	}

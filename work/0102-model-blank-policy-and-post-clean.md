@@ -1,6 +1,6 @@
 ---
 id: GDJ-0102
-status: active
+status: implemented
 updated: 2026-09-29
 baseline_commit: "d95b969b3297bcad13fd6760706e733684cb8add"
 integration_owner: "root"

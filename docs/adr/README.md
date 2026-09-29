@@ -87,6 +87,10 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0075](0075-many-to-many-storage-and-mutation-ownership.md) | Accepted design | ManyToMany 저장과 변경 소유권 |
 | [0076](0076-credential-snapshots-and-session-binding.md) | Accepted | Credential snapshot과 서버 세션 결합 |
 | [0077](0077-reusable-app-models-and-host-relation-ownership.md) | Accepted design | 재사용 app 모델의 파일 소유권과 호스트 전체 관계 graph |
+| [0078](0078-mail-message-ownership-and-delivery.md) | Accepted design | Mail message와 전달 소유권 |
+| [0079](0079-email-fields-and-input-semantics.md) | Accepted design | EmailField와 모델 입력 의미 |
+| [0080](0080-model-blank-policy-and-form-post-clean.md) | Accepted design | Blank·Form 후처리·typed 준비와 저장 소유권 |
+| [0081](0081-formset-counts-and-row-ownership.md) | Accepted design | Formset의 bounded 행 수·initial·선택과 저장 권한 경계 |
 
 ## 대체된 결정
 
