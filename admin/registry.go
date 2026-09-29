@@ -1251,6 +1251,22 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldFile:
+		if value.IsNull() {
+			return !field.Required()
+		}
+		file, ok := value.AsFile()
+		if !ok {
+			return false
+		}
+		if file.Clear() {
+			return !field.Required() && field.Widget() == forms.ClearableFileInput
+		}
+		if received, present := file.Upload(); present {
+			return (field.AllowEmptyFile() || received.Size() > 0) &&
+				(field.MaxLength() == 0 || utf8.RuneCountInString(received.Name()) <= field.MaxLength())
+		}
+		return file.Name() != ""
 	case forms.FieldIntegerList:
 		keys, ok := value.AsIntegers()
 		return ok && (!field.Required() || len(keys) > 0)

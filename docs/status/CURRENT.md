@@ -21,11 +21,13 @@ readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실
 
 [파일 입력](../../uploads/README.md)의 bounded multipart·공유 메모리 예산/임시 파일·요청 수명과 Form/FileField·Formset·typed
 파일 명령을 연결했다. 기존 파일 유지·교체·clear 충돌, 실제 HTTP 입력과 종료/오류/panic·취소 정리를 검증했다. 모델 FileField와
-영구 저장 결과를 의미하지 않는다. 위 Hosted full은 이후 동적 UI·파일 입력을 포함하지 않으며 영향 검증을 전체 성공으로 확대하지 않는다.
+영구 저장 결과를 의미하지 않는다. Admin의 부모·inline·명령 폼도 파일 widget/multipart·파일 전달·오류 재표시를 연결했다.
+본문 전 읽기 전용 admission과 CSRF/최종 권한 검사를 유지하고 임시 자원 정리를 확인했다. 위 Hosted full은 이후 동적 UI·파일
+입력/Admin 전송을 포함하지 않으며 영향 검증을 전체 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-Admin의 파일 widget/전송과 Schema IR의 모델 FileField·영구 storage, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
+Schema IR의 모델 FileField·영구 storage, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
 자동화와 후속 통합도 남아 있다. 파일 입력 capability의 수명을 영구 저장이나 권한으로 해석하지 않는다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
 기능 카탈로그의 남은 범위도 계속 구현한다.

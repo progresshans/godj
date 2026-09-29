@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net"
@@ -28,6 +29,7 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/validation"
@@ -317,7 +319,11 @@ func policy(prefix string, extra, maximum int) forms.SetConfig {
 	return c
 }
 func newInline[C any](binding orm.ProjectBinding, manager orm.Manager[C], prefix string, fields []string, extra, maximum int, reader db.Queryer, load func(context.Context, db.Queryer, int64) ([]C, error)) (admin.Inline, error) {
-	return admin.NewInline(admin.InlineConfig[models.Category, C]{Project: binding, Parent: models.CategoryObjects, Child: manager, ParentWithID: models.NewCategoryWithID, ForeignKey: "category", Label: prefix, Form: admin.FormConfig{Definition: formmodel.Definition{Fields: fields}}, Set: policy(prefix, extra, maximum), Permissions: permissions(prefix), Load: func(ctx context.Context, _ auth.Principal, id int64) (admin.InlineSnapshot[C], error) {
+	definition, err := browserFormDefinition(prefix, fields)
+	if err != nil {
+		return admin.Inline{}, err
+	}
+	return admin.NewInline(admin.InlineConfig[models.Category, C]{Project: binding, Parent: models.CategoryObjects, Child: manager, ParentWithID: models.NewCategoryWithID, ForeignKey: "category", Label: prefix, Form: admin.FormConfig{Definition: definition}, Set: policy(prefix, extra, maximum), Permissions: permissions(prefix), Load: func(ctx context.Context, _ auth.Principal, id int64) (admin.InlineSnapshot[C], error) {
 		current, err := load(ctx, reader, id)
 		if err == nil && len(current) > maximum {
 			err = errors.New("fixture cohort overflow")
@@ -343,7 +349,7 @@ func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth
 	if err != nil {
 		return false, err
 	}
-	row, err := formmodel.NewSpecForFields(metadata, fields)
+	row, err := browserRowSpec(prefix, metadata, fields)
 	if err != nil {
 		return false, err
 	}
@@ -387,6 +393,9 @@ func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth
 		changed = true
 	}
 	for _, row := range prepared.Rows() {
+		if err := validateLabelUpload(ctx, prefix, row.Index(), row.Prepared().Input()); err != nil {
+			return false, err
+		}
 		if row.Existing() && len(row.Changed()) == 0 {
 			continue
 		}
@@ -403,4 +412,58 @@ func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth
 		changed = true
 	}
 	return changed, nil
+}
+
+// This fixture consumes an upload command; it does not claim to store files.
+// The file must contain the label name. A mismatch proves that content reached
+// the transactional consumer and exercises rollback plus browser reselection.
+func browserFormDefinition(prefix string, fields []string) (formmodel.Definition, error) {
+	definition := formmodel.Definition{Fields: fields}
+	if prefix == "labels" {
+		field, err := forms.FileField("document", forms.WithRequired(false), forms.WithLabel("Verify label file"))
+		if err != nil {
+			return definition, err
+		}
+		definition.ExtraFields = []forms.Field{field}
+	}
+	return definition, nil
+}
+func browserRowSpec(prefix string, metadata ir.Model, fields []string) (forms.Spec, error) {
+	definition, err := browserFormDefinition(prefix, fields)
+	if err != nil {
+		return forms.Spec{}, err
+	}
+	return definition.Spec(metadata)
+}
+func validateLabelUpload(ctx context.Context, prefix string, index int, input forms.Values) error {
+	if prefix != "labels" {
+		return nil
+	}
+	value, present := input.File("document")
+	if !present {
+		return nil
+	}
+	file, received := value.Upload()
+	if !received {
+		return nil
+	}
+	reject := func() error {
+		return admin.RejectInline(prefix, index, validation.NewErrors(validation.New("document", "file_mismatch")), nil)
+	}
+	if file.Size() > 1024 {
+		return reject()
+	}
+	reader, err := file.Open(ctx)
+	if err != nil {
+		return err
+	}
+	content, readErr := io.ReadAll(reader)
+	if err = errors.Join(readErr, reader.Close()); err != nil {
+		return err
+	}
+	name, _ := input.String("name")
+	if string(content) != name {
+		return reject()
+	}
+	return nil
 }

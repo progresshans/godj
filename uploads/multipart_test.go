@@ -393,3 +393,20 @@ func TestFileSnapshotPrivacyAndConcurrentClose(t *testing.T) {
 	wg.Wait()
 	empty(t, c.TempDir)
 }
+
+type uploadTerminalFailure struct{ err error }
+
+func (r uploadTerminalFailure) Read([]byte) (int, error) { return 0, r.err }
+
+func TestMultipartExactWireBudgetPreservesReaderFailure(t *testing.T) {
+	input, typ := body(t, part{name: "document", filename: "a.txt", content: "abcdef", file: true})
+	policy := config(t)
+	policy.MaxBodyBytes = int64(len(input))
+	policy.MemoryBytes = 0
+	sentinel := errors.New("transport failed after exact wire budget")
+	parsed, err := uploads.Parse(t.Context(), io.MultiReader(bytes.NewReader(input), uploadTerminalFailure{sentinel}), typ, policy)
+	if parsed != nil || !errors.Is(err, sentinel) || !errors.Is(err, &uploads.Error{Code: "read_failed"}) {
+		t.Fatal("transport failure became malformed input", err)
+	}
+	empty(t, policy.TempDir)
+}

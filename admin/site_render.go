@@ -336,6 +336,7 @@ func (site *Site) formContext(
 		"fields":           templates.List(fieldValues...),
 		"non_field_errors": templates.List(nonField...),
 		"bound":            templates.Bool(form.Bound()),
+		"multipart":        templates.Bool(model.form.IsMultipart()),
 	}, nil
 }
 
@@ -343,6 +344,22 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 	fieldValues := make([]templates.Value, len(fields))
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
+		fileName, fileInitial, clearChecked, reselect := "", false, false, false
+		if field.Kind() == forms.FieldFile {
+			if initial, present := form.Initial().File(field.Name()); present && !initial.Clear() {
+				fileName, fileInitial = safeDisplayText(initial.Name()), true
+			}
+			if form.Bound() && !form.ReadOnly() {
+				files, _ := form.Submitted().Files(field.Name())
+				reselect = len(files) != 0
+				if raw, _ := form.Submitted().Get(field.Name() + "-clear"); len(raw) == 1 {
+					switch strings.ToLower(strings.TrimSpace(raw[0])) {
+					case "1", "true", "on", "yes":
+						clearChecked = true
+					}
+				}
+			}
+		}
 		selected := []string{value}
 		if field.Widget() == forms.SelectMultiple {
 			selected = nil
@@ -366,30 +383,37 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			return nil, err
 		}
 		item, err := templateObject(map[string]templates.Value{
-			"name":        templates.String(prefix + field.Name()),
-			"label":       templates.String(field.Label()),
-			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
-			"password":    templates.Bool(field.Widget() == forms.PasswordInput),
-			"hidden":      templates.Bool(field.Widget() == forms.HiddenInput),
-			"email":       templates.Bool(field.Widget() == forms.EmailInput),
-			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
-			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
-			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
-			"options":     templates.List(options...),
-			"multiple":    templates.Bool(field.Widget() == forms.SelectMultiple),
-			"datetime":    templates.Bool(field.Kind() == forms.FieldDateTime),
-			"time":        templates.Bool(field.Kind() == forms.FieldTime),
-			"duration":    templates.Bool(field.Kind() == forms.FieldDuration),
-			"number":      templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.NumberInput),
-			"number_step": templates.String(field.NumberStep()),
-			"number_text": templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
-			"date":        templates.Bool(field.Kind() == forms.FieldDate),
-			"boolean":     templates.Bool(field.Widget() == forms.Checkbox),
-			"required":    templates.Bool(require && field.Required() && field.Widget() != forms.NullBooleanSelect),
-			"max_length":  templates.Integer(int64(field.MaxLength())),
-			"value":       templates.String(value),
-			"checked":     templates.Bool(checked),
-			"errors":      templates.List(errors...),
+			"name":          templates.String(prefix + field.Name()),
+			"label":         templates.String(field.Label()),
+			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
+			"password":      templates.Bool(field.Widget() == forms.PasswordInput),
+			"file":          templates.Bool(field.Kind() == forms.FieldFile),
+			"file_initial":  templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput),
+			"file_name":     templates.String(fileName),
+			"file_clear":    templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput && !field.Required() && !form.ReadOnly()),
+			"clear_name":    templates.String(prefix + field.Name() + "-clear"),
+			"clear_checked": templates.Bool(clearChecked),
+			"file_reselect": templates.Bool(reselect),
+			"hidden":        templates.Bool(field.Widget() == forms.HiddenInput),
+			"email":         templates.Bool(field.Widget() == forms.EmailInput),
+			"textarea":      templates.Bool(field.Widget() == forms.Textarea),
+			"integer":       templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
+			"select":        templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
+			"options":       templates.List(options...),
+			"multiple":      templates.Bool(field.Widget() == forms.SelectMultiple),
+			"datetime":      templates.Bool(field.Kind() == forms.FieldDateTime),
+			"time":          templates.Bool(field.Kind() == forms.FieldTime),
+			"duration":      templates.Bool(field.Kind() == forms.FieldDuration),
+			"number":        templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.NumberInput),
+			"number_step":   templates.String(field.NumberStep()),
+			"number_text":   templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
+			"date":          templates.Bool(field.Kind() == forms.FieldDate),
+			"boolean":       templates.Bool(field.Widget() == forms.Checkbox),
+			"required":      templates.Bool(require && field.Required() && field.Widget() != forms.NullBooleanSelect && !fileInitial),
+			"max_length":    templates.Integer(int64(field.MaxLength())),
+			"value":         templates.String(value),
+			"checked":       templates.Bool(checked),
+			"errors":        templates.List(errors...),
 		})
 		if err != nil {
 			return nil, err
@@ -408,7 +432,7 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	}
 	// Never put a raw password into a render context, even after a confirmed
 	// validation rejection or when a caller supplied an initial value.
-	if field.Widget() == forms.PasswordInput {
+	if field.Widget() == forms.PasswordInput || field.Kind() == forms.FieldFile {
 		return "", false
 	}
 	if field.Widget() == forms.NullBooleanSelect {

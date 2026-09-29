@@ -3,7 +3,6 @@ package admin
 import (
 	"context"
 	"errors"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/web"
 )
 
@@ -107,7 +107,7 @@ func (model registeredModel) checkedInlines(ctx context.Context, actor auth.Prin
 	return submission, nil
 }
 
-func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model registeredModel, parentID int64, submitted url.Values, editable bool) (InlineSubmission, error) {
+func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model registeredModel, parentID int64, submitted *siteForm, editable bool) (InlineSubmission, error) {
 	if len(model.inlines) == 0 {
 		return InlineSubmission{}, nil
 	}
@@ -129,13 +129,21 @@ func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model 
 			access.Add, access.Change, access.Delete = false, false, false
 		}
 		values := map[string][]string{}
-		for name, raw := range submitted {
-			if strings.HasPrefix(name, inline.prefix+"-") {
-				values[name] = raw
+		files := map[string][]uploads.File{}
+		if submitted != nil {
+			for name, raw := range submitted.values {
+				if strings.HasPrefix(name, inline.prefix+"-") {
+					values[name] = raw
+				}
+			}
+			for name, received := range submitted.files {
+				if strings.HasPrefix(name, inline.prefix+"-") {
+					files[name] = received
+				}
 			}
 		}
 		if !access.visible() {
-			if len(values) != 0 {
+			if len(values) != 0 || len(files) != 0 {
 				return InlineSubmission{}, NewOperationError(OperationDenied, nil)
 			}
 			continue
@@ -153,7 +161,7 @@ func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model 
 		}
 		var data *forms.Data
 		if submitted != nil {
-			value := forms.NewData(values)
+			value := forms.NewDataWithFiles(values, files)
 			data = &value
 		}
 		bound, err := inline.bind(request.Context(), actor, parentID, access, data)

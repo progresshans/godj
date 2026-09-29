@@ -110,6 +110,15 @@ func addInlineContext(context map[string]templates.Value, submission InlineSubmi
 	value, err := inlineContext(submission)
 	if err == nil {
 		context["inlines"] = value
+		for _, entry := range submission.entries {
+			if entry.access.Add || entry.access.Change {
+				for _, field := range entry.definition.fields {
+					if field.Kind() == forms.FieldFile {
+						context["multipart"] = templates.Bool(true)
+					}
+				}
+			}
+		}
 	}
 	return err
 }

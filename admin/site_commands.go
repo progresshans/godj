@@ -77,10 +77,14 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 		if err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, modelFormRules(commandModel))
-		if err != nil {
-			return siteBadRequest()
+		if response, rejected, err := site.admitMultipart(request, command.permission); rejected || err != nil {
+			return response, err
 		}
+		input, err := site.parseModelForm(request, commandModel)
+		if err != nil {
+			return siteFormResponse(err)
+		}
+		values := input.values
 		if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 			return response, err
 		}
@@ -104,7 +108,7 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 			if err := model.checkObservedMutation(mutation, record.object); err != nil {
 				return operationResponse(err)
 			}
-			form, err := command.form.Bind(modelData(commandModel, values), nil)
+			form, err := command.form.Bind(modelData(commandModel, input), nil)
 			if err != nil {
 				return operationResponse(err)
 			}

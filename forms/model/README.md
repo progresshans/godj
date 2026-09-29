@@ -184,7 +184,7 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 [Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 새 부모/자식 HTML과 권한별 inline 편집·원자 저장을 연결한다.
 `InlineSpec.EmptyForm(parent)`는 validator나 I/O 없이 서버 부모·기본값과 `__prefix__`를 가진 빈 행을 만든다. 자식 PK와 기존
 입력값은 포함하지 않는다. [Admin inline](../../admin/inlines.md)은 이를 비활성 prototype으로 렌더링하고 권한·개수 범위에서
-브라우저의 미저장 행 추가/제거에 사용한다. 파일의 multipart 수신과 Form/Formset 바인딩 기반은 구현했고 Admin의 파일 widget과
+브라우저의 미저장 행 추가/제거에 사용한다. 파일의 multipart 수신·Form/Formset 바인딩과 Admin 파일 widget/전송을 연결했다.
 모델 storage·전체 ModelFormSet 자동화는 후속 작업이다.
 
 ## 생성 모델의 typed 준비

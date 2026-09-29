@@ -206,10 +206,14 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, modelFormRules(model), model.inlines...)
-		if err != nil {
-			return siteBadRequest()
+		if response, rejected, err := site.admitMultipart(request, model.permissions.Add); rejected || err != nil {
+			return response, err
 		}
+		input, err := site.parseModelForm(request, model, model.inlines...)
+		if err != nil {
+			return siteFormResponse(err)
+		}
+		values := input.values
 		if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 			return response, err
 		}
@@ -229,11 +233,11 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			bound, err := requestModel.bind(modelData(model, values), nil)
+			bound, err := requestModel.bind(modelData(model, input), nil)
 			if err != nil {
 				return operationResponse(err)
 			}
-			inlines, err := site.loadInlines(request, principal, model, 0, values, true)
+			inlines, err := site.loadInlines(request, principal, model, 0, &input, true)
 			if err != nil {
 				return operationResponse(err)
 			}
@@ -366,10 +370,14 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 		if err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, modelFormRules(model), model.inlines...)
-		if err != nil {
-			return siteBadRequest()
+		if response, rejected, err := site.admitMultipart(request, model.permissions.Change); rejected || err != nil {
+			return response, err
 		}
+		input, err := site.parseModelForm(request, model, model.inlines...)
+		if err != nil {
+			return siteFormResponse(err)
+		}
+		values := input.values
 		if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 			return response, err
 		}
@@ -403,11 +411,11 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
-			bound, err := requestModel.bind(modelData(model, values), record.candidateInitial)
+			bound, err := requestModel.bind(modelData(model, input), record.candidateInitial)
 			if err != nil {
 				return operationResponse(err)
 			}
-			inlines, err := site.loadInlines(request, principal, model, id, values, true)
+			inlines, err := site.loadInlines(request, principal, model, id, &input, true)
 			if err != nil {
 				return operationResponse(err)
 			}

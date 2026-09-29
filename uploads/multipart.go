@@ -279,6 +279,9 @@ func (r *boundedReader) Read(p []byte) (int, error) {
 		if err == io.EOF {
 			r.end.eof()
 		}
+		if err != nil && !errors.Is(err, io.EOF) {
+			err = &Error{Code: "read_failed", Cause: err}
+		}
 		return 0, err
 	}
 	if int64(len(p)) > r.remaining {

@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/web"
 )
 
@@ -53,6 +54,13 @@ func parseSiteValues(encoded string, rules inputRules, inlines ...Inline) (url.V
 	if err != nil {
 		return nil, &ConfigError{Path: "request.values", Code: "malformed", Cause: err}
 	}
+	if err := validateSiteValues(values, rules, inlines...); err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+func validateSiteValues(values url.Values, rules inputRules, inlines ...Inline) error {
 	count := 0
 	for name, submitted := range values {
 		maximum, allowed := rules[name]
@@ -69,19 +77,19 @@ func parseSiteValues(encoded string, rules inputRules, inlines ...Inline) (url.V
 			maximum = -maximum
 		}
 		if !allowed || maximum < 1 || len(submitted) > maximum {
-			return nil, &ConfigError{Path: "request.values." + name, Code: "invalid_count"}
+			return &ConfigError{Path: "request.values." + name, Code: "invalid_count"}
 		}
 		count += len(submitted)
 		if count > MaximumInputValues {
-			return nil, &ConfigError{Path: "request.values", Code: "limit_exceeded"}
+			return &ConfigError{Path: "request.values", Code: "limit_exceeded"}
 		}
 		for _, value := range submitted {
 			if len(value) > MaximumInputBytes || !formText && (!utf8.ValidString(value) || strings.ContainsRune(value, 0)) {
-				return nil, &ConfigError{Path: "request.values." + name, Code: "invalid_value"}
+				return &ConfigError{Path: "request.values." + name, Code: "invalid_value"}
 			}
 		}
 	}
-	return values, nil
+	return nil
 }
 
 func modelFormRules(model registeredModel) inputRules {
@@ -93,6 +101,9 @@ func modelFormRules(model registeredModel) inputRules {
 		// data so Forms can publish its stable ordered validation violations.
 		// Display projection is separately sanitized before template rendering.
 		rules[field.Name()] = -MaximumInputValues
+		if field.Kind() == forms.FieldFile && field.Widget() == forms.ClearableFileInput {
+			rules[field.Name()+"-clear"] = -MaximumInputValues
+		}
 	}
 	// VerifyCSRF receives the complete slice and owns duplicate rejection.
 	rules["csrfmiddlewaretoken"] = MaximumInputValues
@@ -102,14 +113,25 @@ func modelFormRules(model registeredModel) inputRules {
 	return rules
 }
 
-func modelData(model registeredModel, values url.Values) forms.Data {
+func modelData(model registeredModel, input siteForm) forms.Data {
 	data := make(map[string][]string, len(model.form.Fields()))
+	files := make(map[string][]uploads.File)
 	for _, field := range model.form.Fields() {
-		if submitted, ok := values[field.Name()]; ok {
+		if submitted, ok := input.values[field.Name()]; ok {
 			data[field.Name()] = append([]string(nil), submitted...)
 		}
+		if field.Kind() == forms.FieldFile {
+			if submitted, present := input.files[field.Name()]; present {
+				files[field.Name()] = submitted
+			}
+			if field.Widget() == forms.ClearableFileInput {
+				if submitted, present := input.values[field.Name()+"-clear"]; present {
+					data[field.Name()+"-clear"] = submitted
+				}
+			}
+		}
 	}
-	return forms.NewData(data)
+	return forms.NewDataWithFiles(data, files)
 }
 
 func exactValue(values url.Values, name string) (string, bool) {

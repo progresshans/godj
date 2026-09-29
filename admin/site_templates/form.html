@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title>{% if inlines %}<script src="{{ inline_script_url }}" defer></script>{% endif %}</head>
 <body data-admin-view="form"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
-<main><h1>{{ title }}</h1><dl>{% for field in readonly_fields %}<dt>{{ field.label }}</dt><dd data-field-name="{{ field.name }}">{{ field.value }}</dd>{% endfor %}</dl>{% for command in commands %}<p><a href="{{ command.path }}">{{ command.label }}</a></p>{% endfor %}<form method="post" action="{{ action }}">{% csrf_token %}
+<main><h1>{{ title }}</h1><dl>{% for field in readonly_fields %}<dt>{{ field.label }}</dt><dd data-field-name="{{ field.name }}">{{ field.value }}</dd>{% endfor %}</dl>{% for command in commands %}<p><a href="{{ command.path }}">{{ command.label }}</a></p>{% endfor %}<form method="post" action="{{ action }}"{% if multipart %} enctype="multipart/form-data"{% endif %}>{% csrf_token %}
 {% if has_revision %}<input type="hidden" name="expected_revision" value="{{ revision }}">{% endif %}
 {% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
 {% for field in fields %}{% include "field.html" %}{% endfor %}

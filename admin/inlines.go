@@ -372,6 +372,9 @@ func inlineInputNames(definition Inline) map[string]bool {
 	names := map[string]bool{definition.primary: true}
 	for _, field := range definition.fields {
 		names[field.Name()] = true
+		if field.Kind() == forms.FieldFile && field.Widget() == forms.ClearableFileInput {
+			names[field.Name()+"-clear"] = true
+		}
 	}
 	if definition.config.CanDelete {
 		names["DELETE"] = true

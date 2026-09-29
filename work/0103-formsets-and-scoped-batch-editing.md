@@ -29,6 +29,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 동적 미저장 행 추가/제거·권한별 prototype·실제 브라우저 입력/오류 재표시/SQLite 저장
 - [x] Admin 합성 저장 source `6d3fe97f`의 Hosted full·새 capture 결합
 - [x] 파일 multipart/임시 자원 수명·FileField와 Formset·typed 파일 명령·실제 HTTP 입력과 실패 정리
+- [x] Admin 부모/inline/명령 파일 widget·multipart·권한/CSRF·오류 재표시와 실제 브라우저 파일 전달
 - [ ] 남은 ModelFormSet/files 범위의 구현·후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -46,7 +47,7 @@ management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 �
 실제 [Helpdesk 편집기](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 현재 cohort/인가·권한별 추가/삭제·원래 입력
 재표시·페이지 범위와 원자 scalar/collection·PROTECT/CASCADE·audit를 연결했다. 양 DB의 실제 HTTP 성공/실패·롤백·재개와
 관련 race, Add 거부/audit 실패/unknown outcome의 부정 대조를 확인했다. 새로운 전체 플랫폼 증거는 게시한 소스의 Hosted
-통합에서 얻으며 선행 소스의 성공을 전이하지 않는다. Files·전체 ModelFormSet 자동화는 별도 미완료 범위다.
+통합에서 얻으며 선행 소스의 성공을 전이하지 않는다. 모델 파일/storage·전체 ModelFormSet 자동화는 별도 미완료 범위다.
 
 ModelFormSet의 고유값 검증은 고정 Django 23개 사례와 실제 양 DB HTTP로 연결했다. 겹친 제약은 검사 시작 시점의 완전한
 튜플을 IR 순서로 비교하며, 후속 사용자 validator가 모델 진단을 없애지 않는다. `568b75b4`의 Hosted full은 새 하위 사례의
@@ -80,4 +81,4 @@ Admin 합성 저장 `6d3fe97f`는 Hosted full 62 jobs·8 owners·새 capture 결
 `uploads`는 bounded multipart와 메모리/임시 파일·request/reader 수명을 소유하고 Form/FileField는 기존 참조 유지·새 업로드·
 clear 의도를 순수하게 구분한다. 여러 행 prefix·readonly·삭제와 typed 준비의 파일 명령을 연결했다. Native 22개 관찰·
 실제 HTTP의 성공/입력 오류/handler 오류/panic/한도 초과·중단 정리와 관련 race/부정 대조를 확인했다. 실행 상세는
-TEST_EVIDENCE에 둔다. [사용법](../uploads/README.md)을 따르며 Admin의 파일 UI·모델 FileField/storage·DB 연계는 남아 있다.
+TEST_EVIDENCE에 둔다. [사용법](../uploads/README.md)을 따르며 Admin 파일 widget/전송을 후속으로 연결했다. 모델 FileField/storage·DB 연계는 남아 있다.

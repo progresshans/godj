@@ -52,7 +52,14 @@ Script는 내용 SHA256을 포함한 URL로 제공하며 session을 읽거나 �
 JavaScript가 없으면 서버가 렌더링한 기존/추가 행으로 제출할 수 있다. 브라우저의 버튼 제한은 서버의 count·권한·부모/PK·
 transaction 검사를 대체하지 않는다. 재현 가능한 실제 브라우저 소비자는 [검증 fixture](testdata/browser/README.md)에 있다.
 
-File upload와 arbitrary 자동 저장은 별도 범위다.
-등록당 inline 8개, 합산 AbsoluteMax 100행이며 부모를 합친 기본 입력 개수도 startup에서 확인한다. Request 전체의 64 KiB body,
-1,024 values, 값당 4 KiB 제한과 template의 loop/1 MiB 출력 제한은 계속 적용된다. Multiple choices는 같은 입력/출력 예산을
+파일 입력은 `Form.Definition.ExtraFields`의 FileField와 multipart로 전달한다. 편집 가능한 inline의 파일 필드는 ExtraForms가
+0이어도 부모 form의 multipart 전송을 활성화한다. 기존 readonly 행의 파일은 disabled이며 submitted file은 채택하지 않는다.
+`Lookup`은 원래 파일 capability와 clear 입력을 보존하므로 writer는 같은 권한/현재 행으로 다시 bind한 결과를 사용한다.
+동적 행 재번호는 선택한 파일을 보존하지만 서버 오류로 페이지를 다시 표시하면 파일을 재선택해야 한다. 파일을 영구 저장하거나
+clear 의도를 실제 파일 삭제로 처리하는 동작은 application의 별도 저장 계약이며 자동으로 수행하지 않는다.
+[파일 입력 정책](../uploads/README.md#admin)을 따른다.
+
+등록당 inline 8개, 합산 AbsoluteMax 100행이며 부모를 합친 기본 입력 개수도 startup에서 확인한다. URL-encoded 64 KiB body,
+multipart 문자열 합계 64 KiB, 전체 입력 1,024개, 값당 4 KiB 제한과 template의 loop/1 MiB 출력 제한은 계속 적용된다.
+파일 payload는 SiteConfig.Uploads의 별도 body/file/공유 메모리 예산을 따른다. Multiple choices는 같은 입력/출력 예산을
 사용한다. 한도 초과는 명시적 오류이며 행·값·HTML을 잘라 성공으로 반환하지 않는다.

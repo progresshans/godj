@@ -2,6 +2,7 @@
 {% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.email %}<input type="email" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.password %}<input type="password" name="{{ field.name }}" autocomplete="new-password"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.file %}<input type="file" name="{{ field.name }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>
 {{ field.value }}</textarea>{% endif %}
 {% if field.time %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="HH:MM:SS"{% if field.required %} required{% endif %}>{% endif %}
@@ -13,4 +14,7 @@
 {% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.select %}<select name="{{ field.name }}"{% if field.multiple %} multiple{% endif %}{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>{% endif %}
 {% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
+{% if field.file_initial %}<span>Currently: {{ field.file_name }}</span>{% endif %}
+{% if field.file_clear %}<label><input type="checkbox" name="{{ field.clear_name }}" value="on"{% if field.clear_checked %} checked{% endif %}>Clear {{ field.label }}</label>{% endif %}
+{% if field.file_reselect %}<p data-file-reselect="{{ field.name }}">Select the file again before submitting.</p>{% endif %}
 {% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endif %}

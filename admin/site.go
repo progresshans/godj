@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -40,6 +41,10 @@ type SiteConfig struct {
 	Registry  Registry
 	Auth      *sessionauth.Runtime
 	PageSize  int
+	// Uploads snapshots a multipart policy. nil uses uploads.DefaultConfig.
+	// Admin's text and input-count ceilings also apply; this policy may tighten
+	// them. File capabilities expire when the synchronous request returns.
+	Uploads *uploads.Config
 	// AdditionalNextPaths explicitly declares destinations owned by other apps
 	// that share this runtime. The runtime must accept exactly the Admin paths
 	// plus these distinct destinations. Admission to their routes is separate.
@@ -59,6 +64,7 @@ type Site struct {
 	templates *templates.Engine
 	routes    []web.Route
 	pageSize  int
+	uploads   uploads.Config
 	access    auth.Permission
 	noticeKey [32]byte
 }
@@ -83,6 +89,17 @@ func NewSite(config SiteConfig) (*Site, error) {
 	if pageSize < 1 || pageSize > MaximumListLimit {
 		return nil, &ConfigError{Path: "site.page_size", Code: "invalid"}
 	}
+	uploadPolicy := uploads.DefaultConfig()
+	if config.Uploads != nil {
+		uploadPolicy = *config.Uploads
+	}
+	if err := uploadPolicy.Validate(); err != nil {
+		return nil, &ConfigError{Path: "site.uploads", Code: "invalid", Cause: err}
+	}
+	uploadPolicy.MaxValueBytes = min(uploadPolicy.MaxValueBytes, MaximumInputBytes)
+	uploadPolicy.MaxValueTotalBytes = min(uploadPolicy.MaxValueTotalBytes, MaximumFormBodyBytes)
+	uploadPolicy.MaxParts = min(uploadPolicy.MaxParts, MaximumInputValues)
+	uploadPolicy.MaxFiles = min(uploadPolicy.MaxFiles, uploadPolicy.MaxParts)
 	access := config.AccessPermission
 	validatedAccess, err := auth.NewPermission(string(access))
 	if access != "" && (err != nil || validatedAccess != access) {
@@ -115,6 +132,7 @@ func NewSite(config SiteConfig) (*Site, error) {
 		auth:      config.Auth,
 		templates: engine,
 		pageSize:  pageSize,
+		uploads:   uploadPolicy,
 		access:    access,
 		noticeKey: noticeKey,
 	}

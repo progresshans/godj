@@ -73,6 +73,24 @@ Formset은 각 행의 파일/clear prefix를 분리하고 파일을 받은 추�
 않으며 삭제 행/전체 진단의 기존 의미를 유지한다. Pure field/cross validator는 metadata만 검사하며 `Open` 등의 I/O를 실행하지
 않는다. Typed ModelForm의 ExtraFields로 파일 명령을 선언하면 준비 결과의 Input에 남고 stored scalar에는 들어가지 않는다.
 
-현재 구현은 입력·순수 바인딩·수명 기반이다. Admin 파일 widget/전송 연결, Schema IR의 모델 FileField, 영구 storage와
+## Admin
+
+Admin의 생성·수정·명령 폼은 선언한 FileField를 `type="file"`로 표시하고 편집 가능한 inline의 빈 prototype까지 포함해
+multipart 전송 여부를 결정한다. `CreateForm.Definition.ExtraFields`, inline의 `Form.Definition.ExtraFields`와
+`CommandConfig.Form`으로 비저장 파일 명령을 선언할 수 있다. 기존 저장 이름은 표시 텍스트로만 다루며 URL을 만들어 링크하지
+않는다. 기존 값이 있으면 파일의 HTML required를 생략하고 optional clear 선택과 오류를 재표시한다. 업로드는 오류 화면에
+보존되지 않으므로 재선택 안내를 표시한다. 일반 FileInput에는 clear 제어를 만들지 않는다.
+
+`SiteConfig.Uploads`는 `uploads.Config`의 snapshot을 받으며 nil이면 위 기본값을 사용한다. Admin은 문자열 값당 4 KiB·합계
+64 KiB와 전체 입력 1,024개 상한을 추가로 적용하고 더 작은 설정을 유지한다. URL-encoded 본문은 기존 64 KiB 한도를 따른다.
+파일은 선언된 FileField에만 전달하며 scalar·PK·management·CSRF 이름의 파일 part는 거부한다. 중복 파일은 Form의 `multiple`
+진단으로 전달한다. 생략한 파일과 clear 제어는 원래 제출에서도 생략된 상태를 유지한다.
+
+Multipart 본문을 읽기 전에 현재 principal을 조회해 staff/site/route 권한을 검사한다. 이때 session의 idle expiry를 갱신하거나
+stale session을 정리하지 않는다. 본문을 파싱한 뒤에도 CSRF와 현재 권한·관계/inline 범위·revision을 검사하며, callback은
+최종 쓰기 권한을 확인한다. Hidden inline의 파일-only 위조도 거부하고 readonly 기존 행은 업로드를 채택하지 않는다.
+파일은 동기 callback 안에서만 읽을 수 있다. 입력 한도/형식 오류와 취소·읽기/임시 저장/정리 오류를 구분한다.
+
+현재 구현은 입력·순수 바인딩·수명과 Admin 전송이다. Schema IR의 모델 FileField, 영구 storage와
 DB/파일 저장 결과의 조정은 후속 구현 범위다. 임의 auto-save·image 검증·공개 파일 serving을 제공한다고 주장하지 않는다.
-실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [검사](../web/multipart_test.go)에 있다.
+실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [Web 검사](../web/multipart_test.go)와 [Admin 검사](../admin/site_uploads_test.go)에 있다.

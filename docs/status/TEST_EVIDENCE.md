@@ -5,6 +5,66 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+
+### Admin 파일 widget·multipart·요청 수명 연결
+
+기반 `29c86df1f8c4014013613e539d5523a38d2218bb` 이후 부모 생성·수정·inline·명령의 Form 입력에 파일 capability와 clear를
+전달했다. 편집 가능한 inline의 zero-extra prototype도 부모 multipart를 활성화한다. 위젯은 기존 이름/clear·required를
+구분하고 파일 value나 임의 URL을 출력하지 않는다. 오류 화면은 파일 재선택을 안내한다. 파일-only hidden inline·비파일
+필드/PK/management/CSRF의 파일 part를 거부하고 readonly 기존 행은 파일을 채택하지 않는다. 기존 명령/저장 재검증도
+FileValue를 허용하되 파일 수명을 늘리거나 영구 저장을 수행하지 않는다.
+
+Multipart 본문 전 `InspectPrincipal`로 session 무변경 staff/site/route admission을 확인하고 파싱 후 CSRF·현재 인가를 다시
+검사한다. `SiteConfig.Uploads`는 immutable snapshot이며 Admin의 값당 4 KiB·문자열 합계 64 KiB·입력 1,024개 상한도 유지한다.
+실제 body I/O·임시 저장·취소/정리 오류는 입력 오류로 낮추지 않는다. Wire 예산이 정확히 소진된 뒤의 reader 오류도
+`read_failed`와 원래 cause를 보존하도록 고쳤다. 파일/clear 생략을 빈 supplied key로 바꾸지 않는다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| normal | admin·uploads·forms·forms/model·web·두 attestation 7 packages / 296 roots / 2,503 PASS / 6.437초 |
+| 관련 race | Admin 파일/inline·업로드/파일 Form·source binding 7 packages / 47 roots / 297 PASS / 5.096초 |
+| 기존 양 DB HTTP/race | Helpdesk Admin 부모/자식 합성 저장 SQLite·PostgreSQL 2 roots / 필수 62 cases / 66 PASS / 57.278초 |
+| 실제 브라우저 | Playwright CLI 0.1.22·Chrome UA 154.0.0.0, 독립 loopback SQLite의 기존 33개 + 파일 17개 조건 PASS |
+| 부정 대조 | 생략 보존·본문 전 admission·파일 전달·file-field allowlist·요청 정리·정확한 wire 상한 뒤 I/O 분류를 제거한 6개 overlay가 지정 runtime assertion에서 실패 |
+
+Go 1.26.5 Darwin arm64·offline/readonly module·Pacific/Chatham이며 공유 cache·기본 병렬 실행을 사용했다. 각 checkpoint의
+compiled root와 실제 run/pass를 대조했고 누락·skip·잘린 event·stderr는 0이다. PostgreSQL은 고정 17.10/C/UTF8의 별도
+container와 DB를 사용했다. 실행 후 schema/table/다른 connection `0|0|0`, DB 제거와 해당 container 종료/제거를 확인했다.
+브라우저 두 probe는 각각 새 SQLite DB에서 실행했다. 파일을 고른 행의 앞 행을 제거해도 File 객체/내용이 보존되고, 실제
+transaction에서 내용 불일치로 거부하면 자식 cohort가 늘지 않으며 원문/진단·재선택 안내가 남는다. 재선택 후 저장과 재조회,
+readonly file disabled·successful control 제외를 확인했다. Fixture는 파일 내용을 검증하는 비저장 명령이며 파일 storage
+구현 증거가 아니다. Console 오류는 fixture의 `/favicon.ico` 404 한 건이고 JavaScript 실행 오류는 없었다.
+
+고정 Django 6.1/CPython 3.14.3에서 required/optional·기존 파일·일반/clearable widget의 8개 HTML 관찰과 zero-extra Formset의
+multipart/prototype 관찰 1개가 통과했다. 기존 파일의 required 생략·file input value 없음·optional clear 조건과 일치한다.
+Django Stored.url의 링크 기능과 달리 GoDj의 opaque ExistingFile 이름은 URL 권한이 아니므로 텍스트로만 표시한다. 기존 22개
+FileField 차등 관찰은 위 normal에도 포함된다. Native widgets/formsets SHA256은 각각
+`e743c7612a74ca1106ef1ee9aca760e7bcbff1901be7d186b1bb1f63ee830b47`,
+`de64ae2a70f2e85b2b479b93cea8fb315f39ab9beaf9840d2306c842f9e71380`이다.
+
+최종 normal/race/DB 실행의 원래 비문서 inventory는 모두 `f165604de408354e4bddc0d1eb4ebe082def0e20416f7ea7b155f9961e215bbe`다.
+이 inventory에 함께 들어간 자동 생성 `.playwright-cli` console/snapshot 2개를 제외한 2,722개 code/config 파일의 digest는
+`953bc562db816e60ffd7f070f0c57d5bbc0311f1ad9ad50f84fb6538acca4fe3`이다. 각 실행의 before/after 목록과 실제 최종 파일을
+내용·크기별로 대조해 같음을 확인했으며 원래 receipt는 수정하지 않았다. 브라우저 산출물은 무시되는 output/playwright로 옮긴다.
+
+초기 test fixture는 examples/helpdesk root를 admin 내부 테스트에서 import해 순환 의존성이 생겼다. 생성 모델/metadata와
+독립 앱 등록을 사용하도록 수정했다. 비staff를 Admin 로그인 성공으로 준비한 기대도 기존 admission 정책에 어긋나 제거했다.
+비staff 로그인 거부는 기존 Site 검사가 계속 소유하며 새 body-before-admission 검사는 익명·모델 권한 없음·view-only·deny
+추가 정책을 확인한다. 첫 집중 검사 후 누락 키 보존 문제를 검토에서 찾아 실제 최종 callback 회귀를 추가했고 영향·race·양 DB와
+브라우저를 최종 source로 다시 확인했다. 이전 source의 결과를 위 최종 수치에 합산하지 않았다. 부정 대조는 build-fail/skip이
+아닌 runtime assertion 실패이고 실제 source를 바꾸지 않았다. Go vet·gofmt·브라우저 probe 문법·167개 문서 링크·diff 검사 통과.
+IR/generator/DB writer를 바꾸지 않아 generated drift·cold/local full을 추가하지 않았다. 모델 FileField/storage와 DB/파일 결과
+연계, 다른 OS 및 새 Hosted 전체는 후속 통합 범위다. 선행 source `29c86df1`의 Fast `36537367025`는 success로 확인했다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-upload-normal-0l68w7sf`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-upload-race-bssk_b9w`
+- DB/race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-dynamic-inline-race-b2lnsdnw`
+- controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-upload-controls-qvib7ak0`
+- source 대조: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-upload-source-a0wbrnf3`
+- browser 원문: `/tmp/godj-admin-upload-browser-baseline.log`, `/tmp/godj-admin-upload-browser-files.log`
+- native observer/원문: `/tmp/godj-admin-upload-widget-reference.py`, `/tmp/godj-admin-upload-widget-reference.json`
+
+
 ### Multipart 파일 입력과 Form/Formset 수명
 
 기반 `db1e85e2a716dad9a4c0eb05768580d2217aea22` 뒤 `uploads`의 bounded multipart와 메모리/임시 파일·독립 reader 수명을
