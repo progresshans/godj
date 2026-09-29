@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
@@ -203,7 +204,7 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 				t.Fatal(err)
 			}
 			traced.ticketUpdates = nil
-			saved, changed, err := app.saveTicketForm(t.Context(), actor, current.ID, bound)
+			saved, changed, err := app.saveTicketForm(t.Context(), actor, current.ID, bound, admin.InlineSubmission{})
 			rejected := strings.Contains(mode, "category_rejected") || mode == "late_scope_change" || mode == "narrowed_initial_invalid"
 			if rejected {
 				if err == nil || saved.ID != 0 || len(changed) != 0 {

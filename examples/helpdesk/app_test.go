@@ -508,6 +508,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("ticket_collections", func(t *testing.T) {
 		verifyHelpdeskTicketCollections(t, ctx, runtime, open, client, category.ID, other.ID, after, seedLargeLabel)
 	})
+	t.Run("admin_inlines", func(t *testing.T) {
+		verifyHelpdeskAdminInlines(t, ctx, runtime, client)
+	})
 	t.Run("ticket_editor", func(t *testing.T) {
 		verifyHelpdeskTicketEditor(t, ctx, runtime, open, client, after)
 	})
@@ -642,6 +645,11 @@ var csrfPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"
 
 func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *systemstate.Runtime, authorizer auth.Authorizer, editorAudit ...func(context.Context, db.Session, admin.PreparedEvent) error) *helpdeskClient {
 	t.Helper()
+	return helpdeskHTTPRegistry(t, application, application.Registry(), runtime, authorizer, editorAudit...)
+}
+
+func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, registry admin.Registry, runtime *systemstate.Runtime, authorizer auth.Authorizer, editorAudit ...func(context.Context, db.Session, admin.PreparedEvent) error) *helpdeskClient {
+	t.Helper()
 	configured, err := settings.New(settings.Definition{ProjectName: "helpdesk", InstalledApps: helpdesk.InstalledApps()})
 	if err != nil {
 		t.Fatal(err)
@@ -650,7 +658,7 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed, err := admin.SiteAllowedNextPaths(application.Registry(), "/admin")
+	allowed, err := admin.SiteAllowedNextPaths(registry, "/admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -663,7 +671,7 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: application.Registry(), Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}})
 	if err != nil {
 		t.Fatal(err)
 	}

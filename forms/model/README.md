@@ -115,7 +115,7 @@ DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 id
 6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
 실제 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 요청별 현재 cohort/인가·관계 선택지를 확인하고,
 같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
-전체 ModelFormSet 자동화·file upload와 Admin inline 화면은 후속 작업이다. 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
+전체 ModelFormSet 자동화·file upload는 후속 작업이다. [Admin inline](../../admin/inlines.md)은 권한별 표시와 합성 저장을 연결하며, 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
 
 `BindSet`은 행 검증과 개수 제한 뒤, 사용자 SetValidator 전에 선택한 unique field와 IR의 복합 UniqueConstraint를 행 사이에서
 검사한다. Valid인 행의 **cleaned 입력값**을 비교하며, model clean이 바꾼 candidate나 DB 저장값의 검사를 대체하지 않는다.
@@ -180,7 +180,7 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 남을 수 있다. 자동 재시도하지 않는다. 실제 양 DB 저장 소비자는 [inline 저장 검사](../../examples/helpdesk/inline_save_test.go)에 있다.
 
 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 저장된 Category의 InlineSet을 실제 HTTP로 사용한다.
-새 부모와 자식을 함께 만드는 HTML 화면, Admin inline 편집 UI와 file upload는 아직 구현하지 않았다.
+[Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 새 부모/자식 HTML과 권한별 inline 편집·원자 저장을 연결한다. 동적 행 JavaScript·file upload는 미완료다.
 
 ## 생성 모델의 typed 준비
 

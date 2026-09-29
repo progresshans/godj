@@ -63,7 +63,7 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (models.Label, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero models.Label
@@ -76,7 +76,7 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 			}
 			return a.createLabel(ctx, name)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (models.Label, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero models.Label

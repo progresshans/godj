@@ -5,6 +5,49 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### Admin inline HTML과 부모·자식 원자 저장
+
+기반 `00e07e1f4552f895dae3397b4687a89892566555` 뒤 Admin Inline을 canonical 부모 registration에 연결했다.
+권한별 current 조회/readonly/추가/DELETE, 합산 allocation·input 예산, parent/PK/optional revision, immutable 제출과 오류
+재표시를 구현했다. Create/Update callback은 필수 InlineSubmission을 받고 실제 소비자 전부를 새 계약으로 compile/검증했다.
+Helpdesk의 opt-in AdminRegistry는 같은 transaction에서 티켓·OneToOne 보고서·양쪽 audit를 저장한다. 원래 Application과
+독립 Registry는 변경하지 않는다. Callback 자체가 transaction을 소유하며 공통 Site가 개별 행별 commit을 실행하지 않는다.
+
+실제 HTML의 성공 제어(ancestor disabled, textarea, select, hidden PK/management)를 읽어 다시 POST한 31개 사례를
+SQLite/PostgreSQL 각각 실행했다. 새 부모/자식·child-only·무변경·긴 본문·invalid 부모/자식·삭제·readonly/Add-only/deny
+overlay·부모/자식 위조·개수/unknown 입력·삭제 전 DB unique·늦은 parent scope/cohort/자식 쓰기/audit 실패·rollback/commit
+unknown을 확인했다. Unknown outcome은 500으로 남고 자동 재시도하지 않는다. 성공한 child-only 변경은 부모 audit에
+`reports`를 남기며 무변경은 audit를 추가하지 않는다. 실제 DB의 후속 상태와 감사 기록도 대조했다.
+
+| 실행 | 정확한 범위와 결과 |
+| --- | --- |
+| normal | forms/model·admin·Helpdesk·identity/admin·Article Admin 5 packages / 159 roots / 필수 532 cases / 1,416 PASS / 24.289초 |
+| pure race | Admin inline 4 roots / 10 PASS / 1.831초; origin/인가·readonly·bounds·revision/DELETE·동시 입력 소유권 |
+| 실제 HTTP race | 양 DB 2 roots / 필수 62 cases / 66 PASS / 58.362초 |
+| 부정 대조 | readonly admission 제거, 부모 audit 오류 무시, invisible inline 입력 거부 제거의 3개 overlay가 지정 runtime assertion에서 실패 |
+
+Go 1.26.5 Darwin arm64, SQLite/PostgreSQL 17.10 UTF8/libc/C, offline/readonly module·Pacific/Chatham·기본 공유 cache와
+기본 병렬 실행이다. 성공한 normal/race 전후 비문서 source inventory는 모두
+`3fb2f4c6965d6f85cf4049b6a1e6d06e7065c02465ded9a2c6066a48395a1003`이다. Compiled root 목록과 required 하위 사례의
+실제 run/pass를 대조했고 누락·skip·잘린 event는 0이다. DB 잔여 `0|0|0` 및 임시 DB/container 삭제를 확인했다.
+부정 대조는 build-fail/skip이 아니며 overlay 밖 실제 source가 같았다. 신규 HTTP 62개를 Hosted required roster에도 넣었다.
+IR·generator를 변경하지 않아 generated drift/cold build를 추가하지 않았고, 공개 callback의 모든 저장소 소비자와 external test
+package를 위 영향 compile/실행에 포함했다. 별도 설치 archive/다른 OS·CGO mode는 다음 Hosted 통합 소유다.
+
+첫 checkpoint에서는 fixture의 PK presence 누락·Admin의 기존 302와 잘못된 303 기대·제약 없는 Text의 잘못된 max_length 기대와
+실제 삭제 후 audit ID 소실을 검출했다. 삭제 전 ID를 보존하고 긴 본문을 bounded audit label로 복사하지 않게 고쳤다. 이후
+두 checkpoint에서 무변경 fixture의 nullable/blank 초기값 차이로 audit가 추가되는 것을 검출했고, details는 NULL·resolution은
+빈 문자열이라는 실제 HTML 변환에 맞춰 fixture를 고쳤다. 마지막 진단은 SQLite의 해당 사례만 실행했다. 이 실패들을 성공으로
+합치지 않았으며 최종 소스의 위 normal/race와 DB 상태를 다시 확인했다. gofmt·165개 문서 링크·diff 검사도 통과했다.
+
+- normal/controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-inline-normal-hrvr16ui`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-inline-race-osa3pihq`
+- 초기 실패: `godj-admin-inline-normal-yk2o_r2n`, `godj-admin-inline-normal-sixvnd8i`, `godj-admin-inline-normal-jk0kcvkr` (같은 임시 부모 디렉터리)
+
+고정 Django의 기존 inline/readonly 관찰과 삭제 전 고유성 계약을 연결했다. 새로운 Django 전체 Admin HTTP 동등성이나
+동적 행 JavaScript/files 완료를 주장하지 않는다. `00e07e1f`의 [PR feedback 36522197482](https://github.com/progresshans/godj/actions/runs/36522197482)은
+terminal success를 확인했다. 아래 선행 Hosted full은 이후 Inline/readonly/Admin source의 전체 증거가 아니다.
+
 ### 조회 전용 기존 행과 추가 행의 분리
 
 기반 `ed1dc79f932e8cc552326f1b23c4da78d656b63c` 이후 `SetConfig.ReadOnlyInitial`과 `Form.ReadOnly()`를 연결했다.

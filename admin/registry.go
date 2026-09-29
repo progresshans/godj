@@ -180,6 +180,10 @@ type ModelConfig[M any] struct {
 	// form remains the change form and the default for ordinary CRUD creation.
 	CreateForm               *FormConfig
 	AdditionalAddPermissions []auth.Permission
+	// Inlines share this parent's Create/Update operation. Prefixes are also
+	// semantic changed-field names: report a prefix when its children changed
+	// so a configured parent revision advances for that composite mutation.
+	Inlines []Inline
 	// RevisionField identifies a nonnullable integer model field excluded from
 	// editable input. Its observed value is submitted as a separate condition.
 	RevisionField  string
@@ -221,8 +225,8 @@ type ModelConfig[M any] struct {
 	// Callbacks may return validation.Reject after confirming no mutation
 	// committed. Diagnostics must name selected form fields or validation.NonField.
 	// Preserve transaction/rollback failures as execution errors instead.
-	Create func(context.Context, auth.Principal, formmodel.BoundForm) (M, error)
-	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (M, []string, error)
+	Create func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (M, error)
+	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (M, []string, error)
 	Delete func(context.Context, auth.Principal, Mutation) (M, error)
 	// History is optional. Its absence removes history routes and links.
 	History  func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)
@@ -316,6 +320,7 @@ func (builder *Builder) Build() (Registry, error) {
 // ModelDescriptor is a detached public registration description. It contains
 // no persistence or authorization callback.
 type ModelDescriptor struct {
+	Inlines          []InlineDescriptor
 	ReadOnly         bool
 	AppLabel         string
 	Slug             string
@@ -355,6 +360,8 @@ func (registry Registry) Lookup(appLabel, modelName string) (ModelDescriptor, bo
 }
 
 type registeredModel struct {
+	inlines                 []Inline
+	inlineOwner             *inlineToken
 	readOnly                bool
 	hasHistory              bool
 	appLabel                string
@@ -380,10 +387,10 @@ type registeredModel struct {
 
 	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
 	get            func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
-	create         func(context.Context, auth.Principal, forms.Form) (Object, error)
+	create         func(context.Context, auth.Principal, forms.Form, InlineSubmission) (Object, error)
 	validateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
 	validateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
-	update         func(context.Context, auth.Principal, Mutation, forms.Form) (Object, []string, error)
+	update         func(context.Context, auth.Principal, Mutation, forms.Form, InlineSubmission) (Object, []string, error)
 	delete         func(context.Context, auth.Principal, Mutation) (Object, error)
 	history        func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
 }
@@ -436,7 +443,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -501,6 +508,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		createPostClean = config.CreateForm.Definition.PostClean.Clone()
 	}
+	inlines, err := prepareInlines(config.Inlines, installed, config.AppLabel, model, form, createForm)
+	if err != nil {
+		return registeredModel{}, err
+	}
 	if config.RevisionField != "" {
 		field, found := fieldByName[config.RevisionField]
 		if !found || field.Kind != ir.FieldInteger || field.Nullable {
@@ -527,7 +538,13 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	if config.RevisionField != "" {
 		conditions++
 	}
-	if len(formFields)+conditions > MaximumInputValues || len(createForm.Fields())+1 > MaximumInputValues {
+	inlineInputs := 0
+	for _, inline := range inlines {
+		// Four management values plus one value for each possible row field.
+		// Multiple choices still share the request-wide runtime budget.
+		inlineInputs += 4 + inline.config.AbsoluteMax*len(inline.inputs)
+	}
+	if len(formFields)+conditions+inlineInputs > MaximumInputValues || len(createForm.Fields())+1+inlineInputs > MaximumInputValues {
 		return registeredModel{}, &ConfigError{Path: "model.form", Code: "limit_exceeded"}
 	}
 	editable := make(map[string]struct{}, len(formFields))
@@ -539,6 +556,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	for _, name := range postClean.Fields {
 		editable[name] = struct{}{}
+	}
+	for _, inline := range inlines {
+		editable[inline.prefix] = struct{}{}
 	}
 	// Only fields consumed by this registration are required. A storage-only
 	// field must not force an otherwise unchanged Admin adapter to expose it.
@@ -599,7 +619,15 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		auditable[name] = struct{}{}
 	}
 
+	for _, inline := range inlines {
+		if _, exists := auditable[inline.prefix]; exists {
+			return registeredModel{}, &ConfigError{Path: "model.inlines", Code: "audit_field_conflict"}
+		}
+		auditable[inline.prefix] = struct{}{}
+	}
+
 	registered := registeredModel{
+		inlines: inlines, inlineOwner: &inlineToken{},
 		validateCreate:          config.ValidateCreate,
 		validateChange:          config.ValidateChange,
 		readOnlyFields:          readOnlyFields,
@@ -727,7 +755,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		return registeredRecord{object: object, initial: valuesMap(resolved), candidateInitial: candidateInitial}, true, nil
 	}
-	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (Object, error) {
+	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form, inlines InlineSubmission) (Object, error) {
 		if config.ReadOnly {
 			return Object{}, &ConfigError{Path: "create", Code: "read_only"}
 		}
@@ -748,7 +776,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, err
 		}
-		item, err := config.Create(ctx, principal, values)
+		inlines, err = registered.checkedInlines(ctx, principal, 0, inlines)
+		if err != nil {
+			return Object{}, err
+		}
+		item, err := config.Create(ctx, principal, values, inlines)
 		if err != nil {
 			return Object{}, err
 		}
@@ -764,7 +796,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		return object, nil
 	}
-	registered.update = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (Object, []string, error) {
+	registered.update = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form, inlines InlineSubmission) (Object, []string, error) {
 		id := mutation.ID
 		if config.ReadOnly {
 			return Object{}, nil, &ConfigError{Path: "update", Code: "read_only"}
@@ -797,7 +829,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, nil, err
 		}
-		item, changed, err := config.Update(ctx, principal, mutation, values)
+		inlines, err = registered.checkedInlines(ctx, principal, id, inlines)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		item, changed, err := config.Update(ctx, principal, mutation, values, inlines)
 		if err != nil {
 			return Object{}, nil, err
 		}
@@ -955,7 +991,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 	for index, action := range model.actions {
 		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permission: action.permission}
 	}
-	return ModelDescriptor{
+	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
 		ReadOnly:         model.readOnly,
 		AppLabel:         model.appLabel,
 		Slug:             model.slug,

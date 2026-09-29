@@ -7,27 +7,24 @@
 
 ## 현재
 
-Formset core·typed 모델 준비와 [Helpdesk 여러 행 편집](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기),
-여러 행 unique/복합 제약·compound cleaned 제외의 통합을 완료했다. 서버 current 집합·권한/CSRF·관계·삭제 정책·감사 기록을
-같은 transaction에서 처리하고 늦은 실패/rollback·unknown outcome을 검증했다. Hosted 필수 하위 사례의 부모 선택 누락을
-수정한 위 source의 전체 통합과 source 결합을 확인했다.
+Formset·모델 여러 행 unique·canonical InlineSpec·조회 전용 기존 행을 기반으로 [Admin inline](../../admin/inlines.md)의
+권한별 HTML 표시와 부모·자식 합성 저장 callback을 연결했다. 기존 행의 일반 입력과 PK/DELETE·추가 행을 구분하고,
+서버 부모/cohort·binding owner·optional child revision과 오류 재표시를 유지한다.
 
-이후 공통 InlineSpec이 canonical project FK·서버 부모와 자식 집합을 결합한다. 저장된 부모와 pending 부모의 검증/key 연결,
-삭제/빈 행의 부모 위조 거부와 nullable/cross-app/OneToOne을 구현하고 Helpdesk HTTP에 연결했다. 새 부모 저장→자식 저장과
-늦은 실패의 전체 rollback도 실제 양 DB로 확인했다. Admin inline 권한 분기의 기반인 조회 전용 기존 행은 서버 initial과 형제
-고유성을 보존하고 일반 입력/후처리가 기존 행을 바꾸거나 저장 후보로 만들지 못하게 한다. 추가 행과 명시적 삭제는 별도로 준비한다.
-영향 normal·관련 race·native 관찰/부정 대조를 확인했다. [모델 Form 사용법](../../forms/model/README.md)과
-[ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)이 모델/제품 책임과 native 차이를 구분한다.
+[Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 explicit transactional audit를 받아
+새 티켓/보고서 생성과 수정·삭제·감사 기록을 하나의 transaction에서 수행한다. 실제 HTML 성공 제어의 재제출, child-only/무변경,
+readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실패·rollback/unknown outcome을 검증한다.
+구현/실행 상세와 실패 후 수정은 [TEST_EVIDENCE](TEST_EVIDENCE.md), 설계는 [ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)에 둔다.
 
-위 Hosted full에는 Inline과 조회 전용 행의 후속 변경이 없다. 로컬 영향 검증을 현재 전체 platform 완료로 확대하지 않는다.
+위 마지막 Hosted full은 Formset 통합 source이며 이후 Inline/readonly/Admin 변경을 포함하지 않는다. 현재 영향 검증을 전체
+platform 성공으로 확대하지 않는다. 이 묶음의 다음 Hosted full을 별도 source로 검증한다.
 
 ## 다음 행동
 
-Admin의 모델별 저장 callback 경계에 부모·자식 전체의 합성 저장을 연결한다. 권한별 inline 표시/입력과 오류 재표시,
-새 부모 HTML 생성·자식 저장·실패 rollback을 실제 소비자로 완성한다. ModelFormSet의 나머지 자동화/files를 이어 구현하며,
-이 후속 묶음의 다른 환경 검증은 다음 통합 checkpoint가 소유한다.
+Admin/Formset 통합 source의 Hosted full과 capture 결합을 확인하고, 동적 행 추가/제거 UI와 남은 ModelFormSet/files 범위를
+구현한다. 현재 inline은 선언한 추가 행을 서버에서 렌더링하며 arbitrary 자동 persistence를 제공하지 않는다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
-기능 카탈로그의 남은 범위를 계속 구현한다.
+기능 카탈로그의 남은 범위도 계속 구현한다.
 
 생성 소비자의 `-trimpath`와 기본 공유 cache·병렬 실행을 유지한다. 성공한 영향 검사와 무관한 전체 compile을 덧붙이지 않고,
 로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다. 실행 규칙은 [검증 문서](../TESTING.md)를 따른다.

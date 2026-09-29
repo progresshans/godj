@@ -46,7 +46,7 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 		Initial: func(row multipleSelection) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"labels": forms.Integers(row.keys...)}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (multipleSelection, error) {
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero multipleSelection
@@ -59,7 +59,7 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 			}
 			return multipleSelection{1, keys}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (multipleSelection, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero multipleSelection
@@ -91,7 +91,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { reads++; return choices, failure }
 	create, update := config.Create, config.Update
 	var received []int64
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (multipleSelection, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, error) {
 		v, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero multipleSelection
@@ -100,9 +100,9 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 
 		writes++
 		received, _ = v.Integers("labels")
-		return create(ctx, p, bound)
+		return create(ctx, p, bound, InlineSubmission{})
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm) (multipleSelection, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, []string, error) {
 		v, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero multipleSelection
@@ -111,7 +111,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 
 		writes++
 		received, _ = v.Integers("labels")
-		return update(ctx, p, mutation, bound)
+		return update(ctx, p, mutation, bound, InlineSubmission{})
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
@@ -133,10 +133,10 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	for _, isUpdate := range []bool{false, true} {
 		run := func(form forms.Form) error {
 			if isUpdate {
-				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form)
+				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form, InlineSubmission{})
 				return err
 			}
-			_, err := model.create(context.Background(), principal, form)
+			_, err := model.create(context.Background(), principal, form, InlineSubmission{})
 			return err
 		}
 		before := writes
@@ -160,7 +160,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	}
 	denied := mustPrincipalWithPermissions(t, config.Permissions.Add)
 	beforeReads, beforeWrites := reads, writes
-	if _, err := model.create(context.Background(), denied, bound); err == nil || reads != beforeReads || writes != beforeWrites {
+	if _, err := model.create(context.Background(), denied, bound, InlineSubmission{}); err == nil || reads != beforeReads || writes != beforeWrites {
 		t.Fatal("unauthorized collection queried or mutated", err)
 	}
 }

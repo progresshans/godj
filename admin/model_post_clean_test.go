@@ -52,7 +52,7 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 					}
 					return registryArticle{id: id, title: got}
 				}
-				config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+				config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
 						var zero registryArticle
@@ -61,7 +61,7 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 
 					return accept(values, 2), nil
 				}
-				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
 						var zero registryArticle
@@ -99,9 +99,9 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 					t.Fatal("bind", err, submitted.Errors())
 				}
 				if operation == "create" {
-					_, err = model.create(t.Context(), mustPrincipal(t), submitted)
+					_, err = model.create(t.Context(), mustPrincipal(t), submitted, InlineSubmission{})
 				} else {
-					_, _, err = model.update(t.Context(), mustPrincipal(t), Mutation{ID: 1}, submitted)
+					_, _, err = model.update(t.Context(), mustPrincipal(t), Mutation{ID: 1}, submitted, InlineSubmission{})
 				}
 				if err != nil || writes != 1 || got != want {
 					t.Fatalf("candidate: got %q, want %q, writes %d, error %v", got, want, writes, err)
@@ -184,9 +184,9 @@ func TestAdminChangeRechecksObservedRevisionBeforeCandidateWrite(t *testing.T) {
 	callbacks := 0
 	_, state, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
 		original := config.Update
-		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, bound formmodel.BoundForm) (managementFormRow, []string, error) {
+		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, []string, error) {
 			callbacks++
-			return original(ctx, actor, mutation, bound)
+			return original(ctx, actor, mutation, bound, InlineSubmission{})
 		}
 	})
 	model := registry.models[0]
@@ -195,7 +195,7 @@ func TestAdminChangeRechecksObservedRevisionBeforeCandidateWrite(t *testing.T) {
 		t.Fatal("valid submission", err)
 	}
 	state.row.revision = 2
-	_, _, err = model.update(t.Context(), sitePrincipal(t, "manager", true, "accounts.change"), Mutation{ID: 1, Revision: 1}, form)
+	_, _, err = model.update(t.Context(), sitePrincipal(t, "manager", true, "accounts.change"), Mutation{ID: 1, Revision: 1}, form, InlineSubmission{})
 	var conflict *OperationError
 	if !errors.As(err, &conflict) || conflict.Code != OperationConflict || state.reads != 1 || state.writes != 0 || callbacks != 0 {
 		t.Fatal("current revision was not checked before mutation", err, state.reads, state.writes, callbacks)
@@ -248,7 +248,7 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					return config.ValidateCreate(ctx, actor, bound)
 				}
 				original := config.Create
-				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) (managementFormRow, error) {
+				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
 						var zero managementFormRow
@@ -261,7 +261,7 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					if len(raw) != 1 || raw[0] != "mixed" || cleaned != "mixed" || candidate != "MIXED" {
 						t.Fatal("final write callback lost submitted, cleaned or model candidate")
 					}
-					row, err := original(ctx, actor, bound)
+					row, err := original(ctx, actor, bound, InlineSubmission{})
 					if err != nil {
 						return row, err
 					}

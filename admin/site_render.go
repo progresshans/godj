@@ -314,7 +314,31 @@ func (site *Site) formContext(
 	form forms.Form,
 	submitted url.Values,
 ) (map[string]templates.Value, error) {
-	fields := model.form.Fields()
+	fieldValues, err := formFieldContext(model.form.Fields(), form, submitted, "", true)
+	if err != nil {
+		return nil, err
+	}
+	nonField, err := violationValues(form.Errors().ByField(validation.NonField))
+	if err != nil {
+		return nil, err
+	}
+	return map[string]templates.Value{
+		"title":            templates.String(title),
+		"has_revision":     templates.Bool(false),
+		"commands":         templates.List(),
+		"readonly_fields":  templates.List(),
+		"inlines":          templates.List(),
+		"revision":         templates.Integer(0),
+		"action":           templates.String(action),
+		"submit_label":     templates.String(submit),
+		"list_path":        templates.String(site.modelPath(model)),
+		"fields":           templates.List(fieldValues...),
+		"non_field_errors": templates.List(nonField...),
+		"bound":            templates.Bool(form.Bound()),
+	}, nil
+}
+
+func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Values, prefix string, require bool) ([]templates.Value, error) {
 	fieldValues := make([]templates.Value, len(fields))
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
@@ -341,7 +365,7 @@ func (site *Site) formContext(
 			return nil, err
 		}
 		item, err := templateObject(map[string]templates.Value{
-			"name":        templates.String(field.Name()),
+			"name":        templates.String(prefix + field.Name()),
 			"label":       templates.String(field.Label()),
 			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":    templates.Bool(field.Widget() == forms.PasswordInput),
@@ -360,7 +384,7 @@ func (site *Site) formContext(
 			"number_text": templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
 			"date":        templates.Bool(field.Kind() == forms.FieldDate),
 			"boolean":     templates.Bool(field.Widget() == forms.Checkbox),
-			"required":    templates.Bool(field.Required() && field.Widget() != forms.NullBooleanSelect),
+			"required":    templates.Bool(require && field.Required() && field.Widget() != forms.NullBooleanSelect),
 			"max_length":  templates.Integer(int64(field.MaxLength())),
 			"value":       templates.String(value),
 			"checked":     templates.Bool(checked),
@@ -371,23 +395,7 @@ func (site *Site) formContext(
 		}
 		fieldValues[index] = item
 	}
-	nonField, err := violationValues(form.Errors().ByField(validation.NonField))
-	if err != nil {
-		return nil, err
-	}
-	return map[string]templates.Value{
-		"title":            templates.String(title),
-		"has_revision":     templates.Bool(false),
-		"commands":         templates.List(),
-		"readonly_fields":  templates.List(),
-		"revision":         templates.Integer(0),
-		"action":           templates.String(action),
-		"submit_label":     templates.String(submit),
-		"list_path":        templates.String(site.modelPath(model)),
-		"fields":           templates.List(fieldValues...),
-		"non_field_errors": templates.List(nonField...),
-		"bound":            templates.Bool(form.Bound()),
-	}, nil
+	return fieldValues, nil
 }
 
 func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values) (string, bool) {
@@ -563,7 +571,8 @@ func (site *Site) detailContext(model registeredModel, object Object) (map[strin
 	}
 	readOnly, _ := object.readOnlyValues.Items()
 	fields = append(fields, readOnly...)
-	return map[string]templates.Value{"title": templates.String("View " + object.label), "fields": templates.List(fields...), "list_path": templates.String(site.modelPath(model))}, nil
+	return map[string]templates.Value{
+		"inlines": templates.List(), "title": templates.String("View " + object.label), "fields": templates.List(fields...), "list_path": templates.String(site.modelPath(model))}, nil
 }
 
 func (site *Site) deleteContext(model registeredModel, object Object) (map[string]templates.Value, error) {

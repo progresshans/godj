@@ -78,7 +78,7 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (models.TicketLabel, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.TicketLabel, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero models.TicketLabel
@@ -91,7 +91,7 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 			}
 			return a.createTicketLabel(ctx, ticket, label)
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (models.TicketLabel, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.TicketLabel, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero models.TicketLabel

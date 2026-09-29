@@ -108,7 +108,7 @@ func TestRegisteredModelValidatesTypedOperationBoundaries(t *testing.T) {
 	if err != nil || !bound.Valid() {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
-	updated, changed, err := model.update(context.Background(), principal, Mutation{ID: 1}, bound)
+	updated, changed, err := model.update(context.Background(), principal, Mutation{ID: 1}, bound, InlineSubmission{})
 	if err != nil || updated.id != 1 || !reflect.DeepEqual(changed, []string{"title", "published", "summary"}) {
 		t.Fatalf("update() = %#v, %v, %v", updated, changed, err)
 	}
@@ -307,11 +307,11 @@ func TestRegisteredActionCannotMutateAuthoritativeSelection(t *testing.T) {
 func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *testing.T) {
 	config := validRegistryConfig(t)
 	called := 0
-	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
 		called++
 		return registryArticle{id: 2, title: "Created"}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (registryArticle, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (registryArticle, []string, error) {
 		called++
 		return registryArticle{id: 1, title: "Updated"}, []string{"title"}, nil
 	}
@@ -336,10 +336,10 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 		t.Fatalf("valid Bind() = %#v, %v", valid, err)
 	}
 	unpermissioned := mustPrincipalWithPermissions(t)
-	if _, err := model.create(context.Background(), unpermissioned, valid); errorCode(err) != "denied" {
+	if _, err := model.create(context.Background(), unpermissioned, valid, InlineSubmission{}); errorCode(err) != "denied" {
 		t.Fatalf("create permission error = %v", err)
 	}
-	if _, _, err := model.update(context.Background(), unpermissioned, Mutation{ID: 1}, valid); errorCode(err) != "denied" {
+	if _, _, err := model.update(context.Background(), unpermissioned, Mutation{ID: 1}, valid, InlineSubmission{}); errorCode(err) != "denied" {
 		t.Fatalf("update permission error = %v", err)
 	}
 	if _, err := model.delete(context.Background(), unpermissioned, Mutation{ID: 1}); errorCode(err) != "denied" {
@@ -358,10 +358,10 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 	if err != nil || invalid.Valid() {
 		t.Fatalf("invalid Bind() = %#v, %v", invalid, err)
 	}
-	if _, err := model.create(context.Background(), mustPrincipal(t), invalid); errorCode(err) != "not_bound_valid" {
+	if _, err := model.create(context.Background(), mustPrincipal(t), invalid, InlineSubmission{}); errorCode(err) != "not_bound_valid" {
 		t.Fatalf("create invalid form error = %v", err)
 	}
-	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, invalid); errorCode(err) != "not_bound_valid" {
+	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, invalid, InlineSubmission{}); errorCode(err) != "not_bound_valid" {
 		t.Fatalf("update invalid form error = %v", err)
 	}
 	if called != 0 {
@@ -403,7 +403,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 		})),
 	)}
 	called := 0
-	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
 		called++
 		return registryArticle{id: 2, title: "Blocked"}, nil
 	}
@@ -422,7 +422,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 	if err != nil || !foreign.Valid() {
 		t.Fatalf("alternate Bind() = %#v, %v", foreign, err)
 	}
-	_, err = registry.models[0].create(context.Background(), mustPrincipal(t), foreign)
+	_, err = registry.models[0].create(context.Background(), mustPrincipal(t), foreign, InlineSubmission{})
 	if rejected, ok := validation.Rejected(err); !ok || rejected.ByField("title").Len() != 1 {
 		t.Fatalf("create foreign form must retain the current input rejection: %v", err)
 	}
@@ -585,7 +585,7 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 				"summary":   summary,
 			}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero registryArticle
@@ -595,7 +595,7 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 			title, _ := values.String("title")
 			return registryArticle{id: 2, title: title}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero registryArticle

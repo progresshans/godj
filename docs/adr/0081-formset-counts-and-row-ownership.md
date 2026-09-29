@@ -119,3 +119,20 @@ Django는 삭제할 조회 전용 행에서 일반 Form/model clean을 실행한
 동일한 권한 표식으로 사용하지 않는다. 저장된 행을 삭제하고 같은 unique 값의 새 행을 만들 때 native Admin은 삭제 전 DB 검사로
 새 행을 거부한다. Go의 순수 준비는 삭제/추가 의도를 기술하므로 이 DB 검사와 같다고 주장하지 않는다. 실제 Admin 소비자의
 읽기 검증·현재 권한·원자 저장과 오류 경계를 별도로 연결해야 한다. 조회 전용 snapshot은 저장 권한이나 DB 유효성 증명이 아니다.
+
+## Admin의 합성 저장
+
+Admin Inline은 typed InlineSpec을 표시·인가 경계에 연결하는 type-erased adapter다. 공통 Site는 부모 등록과 canonical
+FK/app identity를 결합하고 권한·count·PK/parent·optional child revision과 오류 재표시를 처리한다. 부모 Create/Update의
+필수 InlineSubmission 인자로 자식의 원래 입력과 허용한 동작을 전달한다. 별도 inline writer나 개별 transaction callback을
+두지 않고 하나의 application callback이 전체 저장을 소유한다. Site는 writer 직전 같은 자식을 추가로 재조회/재검증하지 않는다.
+Writer가 transaction 안에서 현재 집합으로 다시 바인딩하고 final uniqueness/관계·삭제 정책과 감사 기록을 책임진다.
+
+Child-only 변경은 inline prefix라는 semantic changed field로 표현하여 부모 revision/audit 정책에 연결한다. Prefix는 부모의
+stored/form/audit field와 충돌할 수 없다. Direct RejectInline만 confirmed input rejection이며 wrapped/joined execution failure를
+재표시로 낮추지 않는다. 삭제 불가·인가/집합 진단은 삭제 행의 ordinary errors에 숨기지 않는다.
+
+Helpdesk의 opt-in AdminRegistry는 transactional audit callback을 명시적으로 받는다. 독립 Registry의 기존 저장 경로와
+application을 바꾸지 않고 티켓/OneToOne 보고서의 새 부모 생성·원자 수정/삭제를 조합한다. Native가 확인한 readonly 정책과
+삭제 전 DB 고유성 검사를 적용하며 모든 API/HTML 오류 문구나 동작을 Django 전체와 동일하다고 선언하지 않는다.
+현재 UI는 선언한 추가 행의 서버 렌더링이며 동적 행 JavaScript/files와 일반 자동 persistence는 별도 미완료 범위다.

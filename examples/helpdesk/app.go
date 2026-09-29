@@ -60,6 +60,7 @@ type Backend interface {
 }
 
 type Application struct {
+	inlineAudit   func(context.Context, db.Session, admin.PreparedEvent) error
 	backend       Backend
 	categoryID    int64
 	registry      admin.Registry
@@ -213,7 +214,12 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
+	inlines, err := a.ticketAdminInlines()
+	if err != nil {
+		return err
+	}
 	if err := admin.RegisterModel(builder, admin.ModelConfig[ticketRecord]{
+		Inlines:  inlines,
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
 		FormOverrides:  overrides,
 		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
@@ -237,12 +243,12 @@ func (a *Application) register(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm) (ticketRecord, error) {
-			created, _, err := a.saveTicketForm(ctx, principal, 0, bound)
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, error) {
+			created, _, err := a.saveTicketForm(ctx, principal, 0, bound, inlines)
 			return created, err
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) (ticketRecord, []string, error) {
-			return a.saveTicketForm(ctx, principal, mutation.ID, bound)
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, []string, error) {
+			return a.saveTicketForm(ctx, principal, mutation.ID, bound, inlines)
 		},
 		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (ticketRecord, error) {
 			id := mutation.ID

@@ -26,7 +26,7 @@ func parseSiteQuery(request *web.Request, rules inputRules) (url.Values, error) 
 	return parseSiteValues(httpRequest.URL.RawQuery, rules)
 }
 
-func parseSiteForm(request *web.Request, rules inputRules) (url.Values, error) {
+func parseSiteForm(request *web.Request, rules inputRules, inlines ...Inline) (url.Values, error) {
 	httpRequest := request.HTTP()
 	if httpRequest == nil || httpRequest.Body == nil {
 		return nil, &ConfigError{Path: "request.body", Code: "invalid"}
@@ -45,10 +45,10 @@ func parseSiteForm(request *web.Request, rules inputRules) (url.Values, error) {
 	if len(body) > MaximumFormBodyBytes {
 		return nil, &ConfigError{Path: "request.body", Code: "limit_exceeded"}
 	}
-	return parseSiteValues(string(body), rules)
+	return parseSiteValues(string(body), rules, inlines...)
 }
 
-func parseSiteValues(encoded string, rules inputRules) (url.Values, error) {
+func parseSiteValues(encoded string, rules inputRules, inlines ...Inline) (url.Values, error) {
 	values, err := url.ParseQuery(encoded)
 	if err != nil {
 		return nil, &ConfigError{Path: "request.values", Code: "malformed", Cause: err}
@@ -56,6 +56,14 @@ func parseSiteValues(encoded string, rules inputRules) (url.Values, error) {
 	count := 0
 	for name, submitted := range values {
 		maximum, allowed := rules[name]
+		if !allowed {
+			for _, inline := range inlines {
+				if limit, ok := inlineInputRule(inline, name); ok {
+					maximum, allowed = limit, true
+					break
+				}
+			}
+		}
 		formText := maximum < 0
 		if formText {
 			maximum = -maximum

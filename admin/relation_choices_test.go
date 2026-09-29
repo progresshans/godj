@@ -26,7 +26,7 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 	config.Initial = func(row selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"category": forms.Integer(row.category)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero selectionTicket
@@ -36,7 +36,7 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 		id, _ := values.Integer("category")
 		return selectionTicket{1, "Printer", id}, nil
 	}
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (selectionTicket, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero selectionTicket
@@ -103,15 +103,15 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	var failure error
 	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { loads++; return choices, failure }
 	create, update := config.Create, config.Update
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 
 		mutations++
-		return create(ctx, p, bound)
+		return create(ctx, p, bound, InlineSubmission{})
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm) (selectionTicket, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, []string, error) {
 
 		mutations++
-		return update(ctx, p, mutation, bound)
+		return update(ctx, p, mutation, bound, InlineSubmission{})
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
@@ -133,10 +133,10 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	for _, update := range []bool{false, true} {
 		run := func(form forms.Form) error {
 			if update {
-				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form)
+				_, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, form, InlineSubmission{})
 				return err
 			}
-			_, err := model.create(context.Background(), principal, form)
+			_, err := model.create(context.Background(), principal, form, InlineSubmission{})
 			return err
 		}
 		before := loads
@@ -158,12 +158,12 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 		}
 		failure = nil
 	}
-	if _, err := model.create(context.Background(), principal, bound); err != nil || mutations != 1 {
+	if _, err := model.create(context.Background(), principal, bound, InlineSubmission{}); err != nil || mutations != 1 {
 		t.Fatal("valid snapshot could not recover", err, mutations)
 	}
 	denied := mustPrincipalWithPermissions(t, config.Permissions.Add)
 	before := loads
-	if _, err := model.create(context.Background(), denied, bound); err == nil || loads != before || mutations != 1 {
+	if _, err := model.create(context.Background(), denied, bound, InlineSubmission{}); err == nil || loads != before || mutations != 1 {
 		t.Fatal("missing target permission performed IO", err)
 	}
 }

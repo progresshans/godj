@@ -25,7 +25,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] canonical 부모 FK·InlineSet과 pending key 준비·실제 HTTP/양 DB parent-child 저장 및 rollback
 - [x] core/typed/Helpdesk 제품 묶음의 Hosted full 통합: source `6d8afda5`, 이후 Inline는 별도 검증
 - [x] 조회 전용 기존 행과 추가 행의 분리·typed 저장 준비 차단·형제 고유성/부모/PK 보존
-- [ ] Admin inline의 권한별 표시/입력·부모/자식 합성 저장과 실제 HTML 성공/실패 경로
+- [x] Admin inline의 권한별 표시/입력·부모/자식 합성 저장과 실제 HTML 성공/실패 경로
+- [ ] 동적 행 추가/제거 UI와 남은 ModelFormSet/files 범위의 구현·후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -61,3 +62,9 @@ project FK와 양 manager를 결합하고 서버 부모를 hidden 입력·모델
 준비에서 읽기 전용 행을 쓰기로 바꾸지 않는다. 새 행의 고유성 비교에서는 기존 행을 제외하지 않는다. Native 10개 관찰,
 양 DB의 기존 행 무변경/새 행 저장과 같은 source의 normal·관련 race·세 실패 대조를 확인했다. 삭제 행의 callback 생략과
 native의 삭제 전 DB 고유성 거부는 pure 준비와 구분한다. 다음 단계는 권한별 inline 표시와 단일 합성 저장을 Admin에 연결하는 일이다.
+
+Admin은 canonical typed inline을 부모 registration의 합성 callback에 연결했다. 서버에서 선언한 추가 행을 표시하며
+권한별 current 조회·readonly·extra/DELETE, 원래 입력/오류 재표시와 binding owner를 유지한다. Helpdesk AdminRegistry는
+transactional audit를 명시적으로 받아 새 티켓과 보고서·양쪽 감사 기록을 같은 transaction에 저장한다. 현재 부모/자식 scope,
+삭제 전 DB unique·child-only audit·늦은 실패와 unknown outcome을 실제 양 DB HTML 소비자로 검증한다. 독립 Registry와
+Application 상태는 바꾸지 않는다. 현재/실행 범위는 CURRENT와 TEST_EVIDENCE, API는 [Admin inline](../admin/inlines.md)에 있다.

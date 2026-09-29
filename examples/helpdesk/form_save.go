@@ -18,14 +18,53 @@ import (
 // The Admin candidate retains field selection, clean changes and collection
 // intent. Current admission/row/category, complete write uniqueness, relation
 // endpoints and publishable output all remain in the original write scope.
-func (a *Application) saveTicketForm(ctx context.Context, principal auth.Principal, id int64, bound formmodel.BoundForm) (ticketRecord, []string, error) {
+func (a *Application) saveTicketForm(ctx context.Context, principal auth.Principal, id int64, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, []string, error) {
 	var saved ticketRecord
 	var changed []string
+	var callbackErr error
+	calls := 0
 	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
-		var err error
-		saved, changed, err = a.saveTicketFormInSession(ctx, session, principal, id, bound)
-		return err
+		calls++
+		if calls != 1 {
+			callbackErr = errors.New("helpdesk: repeated Admin transaction callback")
+			return callbackErr
+		}
+		callbackErr = func() error {
+			inline, present, err := a.bindAdminReports(ctx, session, principal, id, inlines)
+			if err != nil {
+				return err
+			}
+			saved, changed, err = a.saveTicketFormInSession(ctx, session, principal, id, bound)
+			if err != nil {
+				return err
+			}
+			if present {
+				childChanged, err := a.saveAdminReports(ctx, session, principal, saved.Ticket, inline)
+				if err != nil {
+					return err
+				}
+				if childChanged {
+					changed = append(changed, reportInlinePrefix)
+				}
+			}
+			if a.inlineAudit != nil && (id == 0 || len(changed) > 0) {
+				action := admin.ActionChange
+				if id == 0 {
+					action = admin.ActionAdd
+				}
+				event, err := admin.PrepareEvent(principal.ID(), "helpdesk.ticket", saved.ID, action, changed, saved.Subject)
+				if err != nil {
+					return err
+				}
+				return a.inlineAudit(ctx, session, event)
+			}
+			return nil
+		}()
+		return callbackErr
 	})
+	if calls > 1 || calls == 0 && err == nil || callbackErr != nil && (err == nil || !errors.Is(err, callbackErr)) {
+		return ticketRecord{}, nil, errors.Join(errors.New("helpdesk: invalid Admin transaction ownership"), err, callbackErr)
+	}
 	if err != nil {
 		return ticketRecord{}, nil, operationError(ctx, err)
 	}

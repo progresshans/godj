@@ -102,7 +102,7 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 		Initial: func(row managementFormRow) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active)}, nil
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (managementFormRow, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero managementFormRow
@@ -119,7 +119,7 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 			state.found = true
 			return state.row, ctx.Err()
 		},
-		Update: func(ctx context.Context, p auth.Principal, m Mutation, bound formmodel.BoundForm) (managementFormRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m Mutation, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero managementFormRow

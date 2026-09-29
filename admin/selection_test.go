@@ -120,10 +120,10 @@ func TestReadOnlyRelationModelRequiresNoMutationOrFormAdapter(t *testing.T) {
 	if err != nil || len(page.objects) != 1 {
 		t.Fatalf("relation list: %v %v", page, err)
 	}
-	if _, err := model.create(context.Background(), principal, forms.Form{}); errorCode(err) != "read_only" {
+	if _, err := model.create(context.Background(), principal, forms.Form{}, InlineSubmission{}); errorCode(err) != "read_only" {
 		t.Fatalf("create: %v", err)
 	}
-	if _, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, forms.Form{}); errorCode(err) != "read_only" {
+	if _, _, err := model.update(context.Background(), principal, Mutation{ID: 1}, forms.Form{}, InlineSubmission{}); errorCode(err) != "read_only" {
 		t.Fatalf("update: %v", err)
 	}
 	if _, err := model.delete(context.Background(), principal, Mutation{ID: 1}); errorCode(err) != "read_only" {
@@ -163,7 +163,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	config.Initial = func(ticket selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"subject": forms.String(ticket.subject)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero selectionTicket
@@ -176,7 +176,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 		subject, _ := values.String("subject")
 		return selectionTicket{2, subject, 2}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (selectionTicket, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (selectionTicket, []string, error) {
 		return selectionTicket{1, "Updated", 2}, []string{"subject"}, nil
 	}
 	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
@@ -205,7 +205,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := model.create(context.Background(), principal, bound)
+	created, err := model.create(context.Background(), principal, bound, InlineSubmission{})
 	if err != nil || created.ID() != 2 {
 		t.Fatalf("selected create: %v", err)
 	}

@@ -64,7 +64,7 @@ func (a *registration) registerGroup(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(a.manager.CheckGroupChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (groupRow, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (groupRow, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero groupRow
@@ -79,7 +79,7 @@ func (a *registration) registerGroup(builder *admin.Builder) error {
 			value, err := a.manager.CreateGroup(ctx, p, identity.NewGroupCreate(name).WithPermissions(ids...))
 			return groupRow{value, true}, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm) (groupRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (groupRow, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero groupRow
@@ -160,7 +160,7 @@ func (a *registration) registerPermission(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(a.manager.CheckPermissionChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (identity.PermissionProfile, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (identity.PermissionProfile, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero identity.PermissionProfile
@@ -175,7 +175,7 @@ func (a *registration) registerPermission(builder *admin.Builder) error {
 			value, err := a.manager.CreatePermission(ctx, p, identity.NewPermissionCreate(code, name))
 			return value, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm) (identity.PermissionProfile, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (identity.PermissionProfile, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				var zero identity.PermissionProfile

@@ -89,6 +89,9 @@ func (s *collectionFaultSession) Query(ctx context.Context, plan query.Plan) (db
 	return s.RelationSession.Query(ctx, plan)
 }
 func (s *collectionFaultSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	if s.owner.mode == "report_error" && plan.Table() == "helpdesk_service_report" {
+		return 0, errors.New("late child write failed")
+	}
 	s.owner.writes++
 	rows, err := s.RelationSession.Update(ctx, plan)
 	if err == nil {

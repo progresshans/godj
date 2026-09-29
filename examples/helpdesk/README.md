@@ -262,3 +262,28 @@ Dynamic 경로는 `category__name__icontains`, `category__name__in`이며 입력
 Identity 전환 소비자는 기존 system `0001` operator의 권한 CAS를 먼저 실행한 뒤 새 migration graph와 `AdoptOperator`를 명시적으로
 적용한다. 재접속한 Admin/API 및 collection 동시 수정 runtime은 `OpenIdentity`를 사용한다. Staff는 이전 입력에 명시하며 기존
 permission에서 추론하지 않는다. 호스트 선언은 재사용 identity 앱의 전체 관계·삭제 graph를 포함하고 외부 앱 파일은 생성하지 않는다.
+
+## Admin에서 티켓과 보고서를 함께 편집하기
+
+기존 `Registry()`의 독립 CRUD 화면 외에, `AdminRegistry`로 티켓의 서비스 보고서를 같은 화면에 연결할 수 있다.
+
+```go
+registry, err := application.AdminRegistry(helpdesk.AdminConfig{
+    AppendAudit: runtime.AppendAudit,
+})
+```
+
+이 registry를 `admin.SiteConfig.Registry`와 `admin.SiteAllowedNextPaths`에 함께 전달한다. `AppendAudit`는 전달받은
+session에만 기록해야 한다. 별도 transaction을 열면 부모·자식과 감사 기록의 원자성이 깨진다. Registry 생성은 I/O를 하지
+않고 기존 Application/Registry를 변경하지 않는다. 공통 계약은 [Admin inline](../../admin/inlines.md)을 따른다.
+
+새 티켓과 optional 보고서를 한 POST로 만들거나 기존 티켓·보고서를 함께 수정/삭제한다. OneToOne의 추가 행은 한 개이며,
+부모 key/category·자식 current 집합·권한·고유성을 쓰기 transaction에서 확인한다. 기존 보고서를 삭제하면서 새 보고서를
+같은 부모에 추가하는 요청도 삭제 전 DB 고유성 검사를 우회하지 않는다. 부모·자식·양쪽 감사 기록은 같은 transaction을
+사용하고 뒤의 실패는 모두 롤백한다. Report 삭제는 incoming relation이 없는 이 모델의 typed Delete를 사용한다.
+긴 보고서 본문을 감사 label로 복사하지 않고 안정된 `Service report` 표시명을 사용한다.
+
+View/Add/Change/Delete는 별도 권한이다. 조회 전용 행의 위조 입력은 기존 값을 바꾸지 않으며 Add-only 사용자는 기존
+보고서를 읽을 수 없다. 저장 당시의 부모/자식 scope가 달라진 경우 다시 검증한다. 현재 인증 모델은 요청에서 받아들인
+immutable principal과 deny overlay를 유지하며 계정의 권한 변경은 후속 세션에 적용된다. Request 중간의 별도 계정 재인증이나
+revision 없는 모델의 일반적 동시 편집 충돌 감지를 이 예제에서 보장한다고 주장하지 않는다.

@@ -227,26 +227,26 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "create",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Create = func(context.Context, auth.Principal, formmodel.BoundForm) (registryArticle, error) {
+				config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
 					*called = true
 					return registryArticle{title: "Created"}, nil
 				}
 			},
 			run: func(model registeredModel, form forms.Form) error {
-				_, err := model.create(context.Background(), mustPrincipal(t), form)
+				_, err := model.create(context.Background(), mustPrincipal(t), form, InlineSubmission{})
 				return err
 			},
 		},
 		{
 			name: "update",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) (registryArticle, []string, error) {
+				config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (registryArticle, []string, error) {
 					*called = true
 					return registryArticle{id: 2, title: "Updated"}, []string{"title"}, nil
 				}
 			},
 			run: func(model registeredModel, form forms.Form) error {
-				_, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, form)
+				_, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, form, InlineSubmission{})
 				return err
 			},
 		},
@@ -302,7 +302,7 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 		return registryArticle{id: 1, title: existing}, true, nil
 	}
 	var received string
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero registryArticle
@@ -327,7 +327,7 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 	if err != nil || !bound.Valid() {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
-	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, bound); err != nil {
+	if _, _, err := model.update(context.Background(), mustPrincipal(t), Mutation{ID: 1}, bound, InlineSubmission{}); err != nil {
 		t.Fatalf("update() error = %v", err)
 	}
 	if received != "new title" {

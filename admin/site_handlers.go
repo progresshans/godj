@@ -189,6 +189,13 @@ func (site *Site) modelAddGet(model registeredModel) sessionauth.AuthenticatedHa
 		if err != nil {
 			return operationResponse(err)
 		}
+		inlines, err := site.loadInlines(request, principal, model, 0, nil, true)
+		if err != nil {
+			return operationResponse(err)
+		}
+		if err := addInlineContext(context, inlines); err != nil {
+			return operationResponse(err)
+		}
 		return site.render(request, "form.html", context)
 	}
 }
@@ -199,7 +206,7 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, modelFormRules(model))
+		values, err := parseSiteForm(request, modelFormRules(model), model.inlines...)
 		if err != nil {
 			return siteBadRequest()
 		}
@@ -226,6 +233,10 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
+			inlines, err := site.loadInlines(request, principal, model, 0, values, true)
+			if err != nil {
+				return operationResponse(err)
+			}
 			form := bound.Form()
 			if model.validateCreate != nil {
 				if checkErr := model.validateCreate(request.Context(), principal, bound); checkErr != nil {
@@ -237,12 +248,12 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 					return operationResponse(err)
 				}
 			}
-			if form.Valid() {
-				_, saveErr := model.create(request.Context(), principal, form)
+			if form.Valid() && inlines.valid() {
+				_, saveErr := model.create(request.Context(), principal, form, inlines)
 				if saveErr == nil {
 					return siteRedirect(site.signedNoticeLocation(model, "added", ""))
 				}
-				form, err = formWithRejection(request.Context(), form, saveErr)
+				form, inlines, err = inlineFormRejection(request.Context(), form, inlines, saveErr)
 				if err != nil {
 					return operationResponse(err)
 				}
@@ -250,6 +261,9 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			context, contextErr := site.formContext(requestModel, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
 			if contextErr != nil {
 				return web.Response{}, contextErr
+			}
+			if err := addInlineContext(context, inlines); err != nil {
+				return operationResponse(err)
 			}
 			return site.render(request, "form.html", context)
 		})
@@ -285,6 +299,13 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 			}
 			values, err := site.detailContext(model, record.object)
 			if err != nil {
+				return operationResponse(err)
+			}
+			inlines, err := site.loadInlines(request, principal, model, id, nil, false)
+			if err != nil {
+				return operationResponse(err)
+			}
+			if err := addInlineContext(values, inlines); err != nil {
 				return operationResponse(err)
 			}
 			return site.render(request, "detail.html", values)
@@ -324,6 +345,13 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 		if err != nil {
 			return operationResponse(err)
 		}
+		inlines, err := site.loadInlines(request, principal, model, id, nil, true)
+		if err != nil {
+			return operationResponse(err)
+		}
+		if err := addInlineContext(context, inlines); err != nil {
+			return operationResponse(err)
+		}
 		return site.render(request, "form.html", context)
 	}
 }
@@ -338,7 +366,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 		if err != nil {
 			return siteBadRequest()
 		}
-		values, err := parseSiteForm(request, modelFormRules(model))
+		values, err := parseSiteForm(request, modelFormRules(model), model.inlines...)
 		if err != nil {
 			return siteBadRequest()
 		}
@@ -379,6 +407,10 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if err != nil {
 				return operationResponse(err)
 			}
+			inlines, err := site.loadInlines(request, principal, model, id, values, true)
+			if err != nil {
+				return operationResponse(err)
+			}
 			form := bound.Form()
 			if model.validateChange != nil {
 				if checkErr := model.validateChange(request.Context(), principal, mutation, bound); checkErr != nil {
@@ -390,15 +422,15 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 					return operationResponse(err)
 				}
 			}
-			if form.Valid() {
-				_, _, saveErr := model.update(request.Context(), principal, mutation, form)
+			if form.Valid() && inlines.valid() {
+				_, _, saveErr := model.update(request.Context(), principal, mutation, form, inlines)
 				if saveErr == nil {
 					return siteRedirect(site.signedNoticeLocation(model, "changed", ""))
 				}
 				if saveErr == ErrObjectNotFound {
 					return siteNotFound()
 				}
-				form, err = formWithRejection(request.Context(), form, saveErr)
+				form, inlines, err = inlineFormRejection(request.Context(), form, inlines, saveErr)
 				if err != nil {
 					return operationResponse(err)
 				}
@@ -411,6 +443,9 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			context["readonly_fields"] = record.object.readOnlyValues
 			context["commands"], err = site.commandLinks(request.Context(), principal, model, id)
 			if err != nil {
+				return operationResponse(err)
+			}
+			if err := addInlineContext(context, inlines); err != nil {
 				return operationResponse(err)
 			}
 			return site.render(request, "form.html", context)

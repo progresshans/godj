@@ -778,7 +778,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		article, found := state.articles[id]
 		return cloneSiteArticle(article), found, nil
 	}
-	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm) (registryArticle, error) {
+	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero registryArticle
@@ -797,7 +797,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.mutations.creates++
 		return cloneSiteArticle(article), nil
 	}
-	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm) (registryArticle, []string, error) {
+	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
 			var zero registryArticle

@@ -23,6 +23,10 @@ type InlineSpec[P, C any] struct {
 	valid      bool
 }
 
+// SetSpec returns the immutable row/count policy, including the server-parent
+// field and OneToOne bound. Request adapters may derive a stricter policy.
+func (spec InlineSpec[P, C]) SetSpec() forms.SetSpec { return spec.row }
+
 // NewInlineSpec resolves the child's declaring model and target from the
 // project, and checks both typed managers against that canonical metadata.
 // ForeignKey input is replaced by a hidden server-parent field when bound.

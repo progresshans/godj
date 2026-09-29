@@ -28,10 +28,10 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Create selection"}}, nil
 	}}}}
 	create := config.Create
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 
 		writes++
-		return create(ctx, p, bound)
+		return create(ctx, p, bound, InlineSubmission{})
 	}
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 	if err != nil || !bound.Valid() {
 		t.Fatal("create choice rejected")
 	}
-	if _, err := model.create(context.Background(), creator, bound); err != nil || writes != 1 || changeLoads != 0 {
+	if _, err := model.create(context.Background(), creator, bound, InlineSubmission{}); err != nil || writes != 1 || changeLoads != 0 {
 		t.Fatal("add-only action required unrelated view/change authority", err)
 	}
 	if _, err := model.formFor(context.Background(), creator); err == nil || changeLoads != 0 {
@@ -58,7 +58,7 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		t.Fatal("change choice scope failed", err)
 	}
 	available = false
-	if _, err := model.create(context.Background(), creator, bound); err == nil {
+	if _, err := model.create(context.Background(), creator, bound, InlineSubmission{}); err == nil {
 		t.Fatal("stale create choice reached mutation")
 	} else if diagnostics, ok := validation.Rejected(err); !ok || diagnostics.All()[0].Code() != "invalid_choice" || writes != 1 {
 		t.Fatal("stale create choice was not a confirmed rejection")
