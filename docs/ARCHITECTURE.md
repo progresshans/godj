@@ -223,6 +223,10 @@ JSON·HTML escape는 출력 예산을 검사하며 최종 버퍼에 직접 기�
 오류가 나면 부분 출력을 게시하지 않는다. 성공한 독점 출력 버퍼는 반환 시 소유권을 이전한다.
 Public Response 입력과 mutable getter의 방어적 복사는 유지한다.
 
+Multipart 업로드는 `uploads`가 크기/개수·메모리/임시 파일과 읽기 capability의 수명을 소유한다. Web Request는 한 번 파싱하고
+handler 종료 시 자원을 정리한다. Form은 문자열과 파일을 분리해 metadata만 순수 검증하며 파일 내용 읽기·영구 저장은
+명시적인 context/error 경계에서 수행한다. 기존 참조·새 파일·clear 의도와 저장 결과를 구분한다.
+
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
 application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.

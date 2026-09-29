@@ -5,6 +5,54 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### Multipart 파일 입력과 Form/Formset 수명
+
+기반 `db1e85e2a716dad9a4c0eb05768580d2217aea22` 뒤 `uploads`의 bounded multipart와 메모리/임시 파일·독립 reader 수명을
+구현했다. Request는 결과와 실패를 한 번만 파싱하고 정상 반환/오류/panic에서 임시 자원을 닫는다. Parser는 한도·취소·
+malformed body와 reader panic에서도 부분 업로드를 게시하지 않고 정리한다. FileField는 metadata로 기존 참조/새 파일/clear를
+구분하고 Formset prefix·빈 extra·readonly·삭제 및 typed ExtraFields 명령에 연결한다. Admin 파일 UI·모델 FileField·영구
+storage/DB 쓰기와 인증된 파일 serving은 이 구현과 검증에 포함하지 않는다.
+
+고정 Django 6.1/CPython 3.14.3에서 `file_form_reference.py`를 두 번 실행해 같은 22개 관찰을 얻었다. 필수/optional·기존 파일
+유지·새 파일/빈 파일·Unicode filename 길이·clear와 충돌·required/plain widget·POST 문자열 위조·callback 횟수를 비교했다.
+20개는 관찰한 결과/진단/변경/validator 실행과 일치한다. 반복 파일에서 마지막 값을 선택하는 동작과 arbitrary 문자열 clear는
+GoDj가 각각 `multiple`/`invalid`로 거부하는 명시적 차이다. Field/widget source SHA256은 각각
+`2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66`,
+`e743c7612a74ca1106ef1ee9aca760e7bcbff1901be7d186b1bb1f63ee830b47`이다.
+
+| 실행 | 범위와 실제 결과 |
+| --- | --- |
+| normal | uploads·forms·forms/model·web·두 attestation·admin 7 packages / 287 roots / 2,452 PASS / 2.345초 |
+| 관련 race | 업로드/파일 Form/typed 명령/실제 HTTP와 source binding 6 packages / 27 roots / 207 PASS / 3.783초 |
+| 부정 대조 | 값 formatting 비공개·종료 경계 확인·공유 메모리 예산·upload/clear 충돌·request 정리·reader panic 정리를 각각 제거한 6개 overlay가 지정 runtime assertion에서 실패 |
+
+Go 1.26.5 Darwin arm64, offline/readonly module·Pacific/Chatham·공유 cache·기본 병렬 실행이다. 실제 HTTP server/client는
+바이너리 payload의 SHA256, 파일만 받은 extra 행, invalid input/handler error/panic/413, 재파싱 금지와 종료 후 capability
+거부를 확인한다. 메모리-only에서는 디스크 무쓰기, 전역 예산 초과의 private spill·독립 cursor, partial 실패/취소/reader panic의
+임시 디렉터리 정리·다른 파일 보존·동시 Open/Read/Close와 일반 formatting 비공개를 확인했다. 이 테스트는 영구 DB/파일 저장
+성공이나 업로드 endpoint의 인증 정책 검증이 아니다. IR/generator/DB writer를 바꾸지 않아 DB matrix·generated drift·cold/local
+full을 반복하지 않았다. 새 package는 기존 core 분류에 포함되고 두 attestation의 product prefix가 소스를 소유한다.
+
+최종 normal/race 전후 비문서 inventory는 `0cd0318911a1125efb897c169791a84bdb172323116cb347b49af2bd2167f02d`로 같고
+compiled root 목록과 실제 run/pass를 대조했다. 실행 누락·skip·잘린 event·stderr는 0이다. 부정 대조는 실제 runtime 실패이며
+build-fail/skip이 아니고 실제 소스는 바꾸지 않았다. 별도 OS/browser/전체 platform 검증으로 확대하지 않는다.
+
+첫 normal은 잘못된 multipart 입력의 EOF를 성공으로 받아 실패했다. Wrapped EOF를 거부한 뒤에도 MIME parser가 part header
+누락에서 plain EOF를 반환하는 사례를 발견해 실제 종료 delimiter 관찰을 더했다. 빈 form의 LF-only 종료는 표준 Go parser가
+허용하지 않는 fixture 기대여서 CRLF/끝 newline 생략/transport padding/epilogue와 분할 입력을 확인하도록 고쳤다. 마지막
+검토에서는 reader panic 중 아직 열린 spool writer도 닫고 Parse의 자원을 정리하도록 보강했다. 위 성공은 이 수정 뒤 source의
+결과이며 이전 실패를 PASS에 합치지 않았다.
+공개 Reader를 private cursor state의 handle로 바꿔 값 복사가 lock을 복제하지 않게 하고 Form/Reader/Error의 값 formatting도
+비공개로 유지했다. 공유 cursor·복사본 Close와 실제 formatting 부정 대조를 확인했다. Windows의 os.FileMode 0666을 POSIX
+권한으로 오해하지 않게 해당 mode 검사는 POSIX에 적용한다. Windows ACL 검증은 이 로컬 실행에 포함하지 않는다. 최종
+영향 go vet·gofmt·167개 문서 링크·diff 검사도 통과했다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-file-input-normal-ieoh9qqc`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-file-input-race-lz26_g9z`
+- controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-file-input-controls-43jvl_p1`
+- 초기 실패: `/tmp/godj-file-input-normal.jsonl`, `/tmp/godj-file-input-normal-final.jsonl`, `/tmp/godj-file-envelope-normal.jsonl`
+- native 원문: `forms/testdata/file-django61.json`
+
 ### Admin 동적 행 UI와 실제 브라우저 소비자
 
 기반 `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f` 이후 서버의 EmptyForm·권한별 inert prototype과 외부 JavaScript를
@@ -47,12 +95,13 @@ ExtraForms 0·min/max·독립 count/identity·default/checkbox·focus·추가/�
 ModelFormSet 저장 자동화는 남아 있으며 선행 `6d3fe97f`의 Hosted full에 이 UI 변경을 포함시키지 않는다.
 최종 비문서 source가 위 normal/race와 같음을 재확인했고 `make format-check docs-check`(166개 문서)와 diff 검사를 통과했다.
 
-### Admin 합성 저장 source의 Hosted 통합 진행
+### Admin 합성 저장 source의 Hosted 통합 완료
 
 Source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`의 [PR feedback 36526887945](https://github.com/progresshans/godj/actions/runs/36526887945)은
 terminal success다. [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), attempt 1은
-아직 in_progress이며 마지막 관찰에서 61개 job 중 59개 success, macOS Intel의 relation/project-check race 두 개가 실행 중이다.
-최종 집계 전이므로 전체 PASS로 쓰지 않는다. 기다리는 동안 실행을 교체하거나 로컬 전체를 중복하지 않았다.
+최종 completed/success이며 62개 job이 모두 success다. 집계 job `109290129336`의 `scope: full`과
+`full_platform_verified: true`, 같은 Git source의 scopes.py가 요구하는 8개 owner 일치를 확인했다.
+기다리는 동안 실행을 교체하거나 로컬 전체를 중복하지 않았다.
 
 같은 run/attempt의 새 capture를 내려받아 archive digest·파일 집합·SHA256SUMS·producer/provenance를 검증했다. 현재 dirty
 파일이 아닌 해당 Git commit에서 source binding을 재계산해 systemstate 644 files / SHA
@@ -64,9 +113,10 @@ terminal success다. [Hosted full 36526909898](https://github.com/progresshans/g
 | systemstate-postgres-1 | 11015278425 / 109271888854 | `22908a10d7d6bc1303946e6d3b01f0cf3016fbc95aa8bbc453737d3a99124e3a` |
 | operator-postgres-1 | 11014897454 / 109271888891 | `491eb375b991f3c4d5cf304cca1067c01863b13611d865bec246c3fc56ce1e34` |
 
-원문과 아직 `pass: false`인 receipt는
+원문·source inventory·최종 `pass: true` receipt는
 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-admin-inline-integration-full-36526909898-9gg5e6lj`에 있다.
-이 통합 source는 위 동적 행 UI와 새 JS source inventory 정책을 포함하지 않는다.
+이 통합 source는 위 동적 행 UI와 새 JS source inventory 정책·파일 입력을 포함하지 않는다. 동적 UI source `db1e85e2`의
+[PR feedback 36532302315](https://github.com/progresshans/godj/actions/runs/36532302315)도 terminal success를 확인했다.
 
 ### Admin inline HTML과 부모·자식 원자 저장
 

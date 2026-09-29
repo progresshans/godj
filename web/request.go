@@ -3,10 +3,12 @@ package web
 import (
 	"context"
 	"net/http"
+	"sync"
 	"sync/atomic"
 
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/uploads"
 )
 
 var inactiveRequestContext = func() context.Context {
@@ -18,13 +20,18 @@ var inactiveRequestContext = func() context.Context {
 // Request is borrowed for exactly one synchronous handler and middleware
 // invocation. Context is authoritative for all request-scoped I/O.
 type Request struct {
-	httpRequest *http.Request
-	settings    settings.Settings
-	reverse     func(string, []ReverseArgument) (string, error)
-	parameters  []routeParameterValue
-	routeName   string
-	active      atomic.Bool
-	nextCalls   []atomic.Uint32
+	httpRequest  *http.Request
+	settings     settings.Settings
+	reverse      func(string, []ReverseArgument) (string, error)
+	parameters   []routeParameterValue
+	routeName    string
+	active       atomic.Bool
+	nextCalls    []atomic.Uint32
+	uploadMu     sync.Mutex
+	uploadParsed bool
+	uploadConfig uploads.Config
+	uploadForm   *uploads.Form
+	uploadErr    error
 }
 
 func newRequest(
@@ -168,9 +175,13 @@ func (r *Request) setRouteParameters(parameters []routeParameterValue) {
 	r.parameters = parameters
 }
 
-func (r *Request) release() {
+func (r *Request) release() error {
 	if r != nil {
 		r.active.Store(false)
 		r.parameters = nil
+		r.uploadMu.Lock()
+		defer r.uploadMu.Unlock()
+		return r.uploadForm.Close()
 	}
+	return nil
 }

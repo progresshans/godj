@@ -2,8 +2,7 @@
 
 - 갱신: 2026-09-29
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
-- 최근 완료한 전체 검증: [Hosted full 36516565253](https://github.com/progresshans/godj/actions/runs/36516565253), source `6d8afda5086ba3fc058376a60dc567bdcd5a05d7`; 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
-- 실행 중 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f`; Admin 합성 저장까지 포함하며 동적 행 UI는 이후 변경
+- 최근 완료한 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`; Admin 합성 저장까지 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
 - Source·환경·scope·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -20,13 +19,14 @@ readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실
 서버가 만든 빈 행과 외부 script로 미저장 inline 행의 동적 추가/제거를 연결했다. 권한별 prototype·min/max·입력값과
 오류 위치·기존 identity를 보존하며 실제 브라우저의 두 inline·새 부모/자식 SQLite 저장과 관련 양 DB/race를 확인했다.
 
-위 완료된 Hosted full은 Formset 통합 source이며 이후 Inline/readonly/Admin 변경을 포함하지 않는다. 실행 중인 Admin 통합의
-새 capture와 Git source 결합은 확인했고 최종 CI 집계가 남아 있다. 현재 영향 검증을 전체 platform 성공으로 확대하지 않는다.
+[파일 입력](../../uploads/README.md)의 bounded multipart·공유 메모리 예산/임시 파일·요청 수명과 Form/FileField·Formset·typed
+파일 명령을 연결했다. 기존 파일 유지·교체·clear 충돌, 실제 HTTP 입력과 종료/오류/panic·취소 정리를 검증했다. 모델 FileField와
+영구 저장 결과를 의미하지 않는다. 위 Hosted full은 이후 동적 UI·파일 입력을 포함하지 않으며 영향 검증을 전체 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-Admin/Formset 통합 source의 Hosted full과 capture 결합을 확인하고, 남은 ModelFormSet/files 범위를 구현한다.
-동적 행 UI의 로컬 검증을 선행 source의 Hosted 결과와 합치지 않는다. Arbitrary 자동 persistence는 별도 구현 범위다.
+Admin의 파일 widget/전송과 Schema IR의 모델 FileField·영구 storage, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
+자동화와 후속 통합도 남아 있다. 파일 입력 capability의 수명을 영구 저장이나 권한으로 해석하지 않는다.
 Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
 기능 카탈로그의 남은 범위도 계속 구현한다.
 

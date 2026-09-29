@@ -27,6 +27,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 조회 전용 기존 행과 추가 행의 분리·typed 저장 준비 차단·형제 고유성/부모/PK 보존
 - [x] Admin inline의 권한별 표시/입력·부모/자식 합성 저장과 실제 HTML 성공/실패 경로
 - [x] 동적 미저장 행 추가/제거·권한별 prototype·실제 브라우저 입력/오류 재표시/SQLite 저장
+- [x] Admin 합성 저장 source `6d3fe97f`의 Hosted full·새 capture 결합
+- [x] 파일 multipart/임시 자원 수명·FileField와 Formset·typed 파일 명령·실제 HTTP 입력과 실패 정리
 - [ ] 남은 ModelFormSet/files 범위의 구현·후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -73,3 +75,9 @@ Application 상태는 바꾸지 않는다. 현재/실행 범위는 CURRENT와 TE
 동적 UI는 미저장 행만 추가/제거하며 기존 identity·INITIAL_FORMS·다른 inline과 원래 입력값을 유지한다. 고정 Django의
 inline script를 동작 참고로 읽었지만 전체 브라우저 동등성을 주장하지 않는다. 실제 GoDj 브라우저 소비자는 두 HasMany inline,
 min/max·오류 행 재번호·readonly/no-add·새 부모/자식의 SQLite 저장을 확인한다. Files·전체 ModelFormSet 저장 자동화는 남아 있다.
+
+Admin 합성 저장 `6d3fe97f`는 Hosted full 62 jobs·8 owners·새 capture 결합까지 완료했다. 이후 파일 입력은 별도 source다.
+`uploads`는 bounded multipart와 메모리/임시 파일·request/reader 수명을 소유하고 Form/FileField는 기존 참조 유지·새 업로드·
+clear 의도를 순수하게 구분한다. 여러 행 prefix·readonly·삭제와 typed 준비의 파일 명령을 연결했다. Native 22개 관찰·
+실제 HTTP의 성공/입력 오류/handler 오류/panic/한도 초과·중단 정리와 관련 race/부정 대조를 확인했다. 실행 상세는
+TEST_EVIDENCE에 둔다. [사용법](../uploads/README.md)을 따르며 Admin의 파일 UI·모델 FileField/storage·DB 연계는 남아 있다.

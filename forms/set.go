@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -429,12 +430,21 @@ func (s SetSpec) EmptyForm() (SetForm, error) {
 
 func prefixedData(data Data, prefix string, fields []Field) Data {
 	values := make(map[string][]string, len(fields))
+	files := make(map[string][]uploads.File)
 	for _, field := range fields {
 		if raw, present := data.raw(prefix + "-" + field.name); present {
 			values[field.name] = raw
 		}
+		if raw, present := data.rawFiles(prefix + "-" + field.name); present {
+			files[field.name] = raw
+		}
+		if field.kind == FieldFile && field.widget == ClearableFileInput {
+			if raw, present := data.raw(prefix + "-" + field.name + "-clear"); present {
+				values[field.name+"-clear"] = raw
+			}
+		}
 	}
-	return NewData(values)
+	return NewDataWithFiles(values, files)
 }
 
 func (set Set) rowsValid() bool {

@@ -1,0 +1,78 @@
+# 파일 입력과 요청 수명
+
+`web.Request.Multipart(uploads.DefaultConfig())`는 multipart 본문을 한 번 읽고 문자열 값과 파일을 분리한다. 같은 요청에서
+같은 설정으로 다시 호출하면 같은 결과를 반환한다. 파싱 실패도 기억하며 설정을 바꿔 본문을 다시 읽거나 한도를 높이지 않는다.
+직접 사용하는 `uploads.Parse(ctx, reader, contentType, config)`의 결과는 caller가 `Close()`해야 한다. Request 경로는
+정상 반환·handler 오류·panic 후 모두 업로드 자원을 정리한다.
+
+```go
+parsed, err := request.Multipart(uploads.DefaultConfig())
+if err != nil {
+    return web.Response{}, err // 실제 handler는 입력 오류와 실행 오류의 응답을 구분한다.
+}
+bound, err := spec.Bind(forms.NewDataWithFiles(parsed.Values(), parsed.Files()), initial)
+if err != nil {
+    return web.Response{}, err
+}
+if !bound.Valid() {
+    return web.NewResponse(400, nil, []byte("invalid form"))
+}
+// 이 route의 인가와 CSRF도 확인한 뒤 처리한다.
+value, ok := bound.Cleaned().File("document")
+if ok {
+    if file, uploaded := value.Upload(); uploaded {
+        reader, err := file.Open(request.Context())
+        if err != nil {
+            return web.Response{}, err
+        }
+        // processUpload는 application이 제공하는 context/error 기반 처리다.
+        processErr := processUpload(request.Context(), reader)
+        closeErr := reader.Close()
+        if err := errors.Join(processErr, closeErr); err != nil {
+            return web.Response{}, err
+        }
+    }
+}
+```
+
+기본 한도는 wire body 32 MiB, 파일당 16 MiB, 메모리에 남기는 파일 payload 합계 2.5 MiB, 문자열 값당 64 KiB/합계 1 MiB,
+전체 part 1,000개·파일 part 100개다. `MemoryBytes: 0`은 비어 있지 않은 파일을 바로 임시 파일에 둔다. 이 메모리 한도는
+payload 합계이며 parser/metadata/일시 버퍼까지 포함한 전체 heap 한도가 아니다. 서버 설정으로 각 한도를 명시적으로 바꾼다.
+파일이 메모리 예산 안에 있으면 디스크를 쓰지 않으며 초과하면 서버가 만든 private 디렉터리와 임의 파일명을 사용한다.
+TempDir의 운영체제 접근권한은 서버 배포 설정이 소유한다. POSIX mode와 Windows ACL을 같은 권한 표식으로 해석하지 않는다.
+클라이언트 filename은 경로가 아닌 표시용 basename이다. `ContentType()`도 클라이언트의 선언이며 내용 검증 결과가 아니다.
+
+값/파일 container는 복사본이고 파일마다 독립 reader를 열 수 있다. Reader 값을 복사하면 같은 cursor/수명을 공유하며 lock을
+복제하지 않는다. Form/Reader/Error의 pointer와 값 formatting 모두 payload를 숨긴다. 파일 metadata는 불변이며 `File.Valid()`는 생성 여부만
+나타낸다. 실제 읽기는 context와 소유 수명을 검사한다. Form을 닫으면 이미 열린 reader도 닫히고 임시 파일이 제거되며 이후
+`Open`/`Read`는 실패한다. Handler 밖으로 capability를 보관해 수명을 늘릴 수 없다. 일반 formatting은 이름·내용·임시 경로를
+공개하지 않는다. 수신 파일을 영구히 사용할 때는 요청이 살아 있을 때 명시적인 저장을 완료해야 한다.
+
+크기·개수 초과, malformed/incomplete body, 취소와 I/O 오류에서 부분 Form을 반환하지 않는다. MIME 종료 경계 뒤 epilogue도
+wire body 예산에 포함한다. 누락된 part header의 EOF를 빈 성공으로 처리하지 않는다. 이름 없는 payload, 잘못된 part와
+Content-Transfer-Encoding은 명시적으로 거부한다. 브라우저의 빈 파일 선택(`filename=""`, 본문 없음)은 파일로 만들지 않는다.
+메타데이터를 파싱해도 실행 파일/이미지 안전성·파일 내용·인가·저장소 경계가 검증된 것은 아니다.
+
+정리 실패는 `Form.Close()`에서 반환한다. Web runtime은 이미 결정된 handler 결과를 재시도 가능한 실패로 바꾸지 않고 별도
+정리 오류를 기록한다. 저장된 DB/파일의 결과와 임시 자원 정리를 같은 성공 표식으로 합치지 않는다.
+
+## Form과 Formset
+
+`forms.FileField`는 기본적으로 required이며 `ClearableFileInput`을 사용한다. `WithRequired(false)`,
+`WithAllowEmptyFile(true)`, filename의 Unicode 문자 수를 제한하는 `WithMaxLength`, 일반 `FileInput`을 선택할 수 있다.
+`Spec.IsMultipart()`와 `SetSpec.IsMultipart()`로 HTML의 `enctype="multipart/form-data"` 필요 여부를 확인한다.
+파일 input에는 value를 렌더링하지 않는다. 파일 재선택 없이 이전 업로드를 브라우저에 채워 넣지 않는다.
+
+서버의 기존 저장 이름은 `forms.ExistingFile(name)`으로 initial에 넣는다. 새 파일이 없으면 그 참조를 보존하고 검증 callback을
+재실행하지 않는다. optional clearable 필드의 `<name>-clear`는 삭제 의도이며 `FileValue.Clear()`로 구분한다. 업로드와 clear를
+함께 제출하면 `contradiction`, 단일 file에 파일을 반복 제출하면 `multiple`이다. 문자열 POST는 파일 capability나 기존 참조를
+만들지 못한다. 고정 Django가 마지막 파일을 선택하는 반복 입력과 임의 문자열 clear를 허용하는 동작은 GoDj가 강화한 차이다.
+삭제 의도는 실제 저장 파일 삭제 권한이 아니며 파일 이름도 저장 경로나 URL로 직접 사용하지 않는다.
+
+Formset은 각 행의 파일/clear prefix를 분리하고 파일을 받은 추가 행을 활성화한다. readonly initial은 위조된 업로드를 채택하지
+않으며 삭제 행/전체 진단의 기존 의미를 유지한다. Pure field/cross validator는 metadata만 검사하며 `Open` 등의 I/O를 실행하지
+않는다. Typed ModelForm의 ExtraFields로 파일 명령을 선언하면 준비 결과의 Input에 남고 stored scalar에는 들어가지 않는다.
+
+현재 구현은 입력·순수 바인딩·수명 기반이다. Admin 파일 widget/전송 연결, Schema IR의 모델 FileField, 영구 storage와
+DB/파일 저장 결과의 조정은 후속 구현 범위다. 임의 auto-save·image 검증·공개 파일 serving을 제공한다고 주장하지 않는다.
+실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [검사](../web/multipart_test.go)에 있다.

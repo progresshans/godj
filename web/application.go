@@ -85,7 +85,11 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 	}
 	request := newRequest(rawRequest, a.settings, a.router.reverse, a.middlewareCount)
 	response, err := a.execute(request)
-	request.release()
+	if cleanupErr := request.release(); cleanupErr != nil {
+		// Resource cleanup cannot turn an already-committed handler result
+		// into a retryable HTTP failure. Keep the result and report cleanup.
+		a.logger.ErrorContext(logContext(rawRequest), "web upload cleanup failed", "route", request.routeName, "error", cleanupErr)
+	}
 	if err == nil {
 		err = response.validate(a.maxResponseBytes)
 	}

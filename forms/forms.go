@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/internal/booleaninput"
 	"github.com/progresshans/godj/internal/emailinput"
 	"github.com/progresshans/godj/internal/jsoninput"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -34,6 +35,7 @@ const (
 	ValueUUID
 	ValueJSON
 	ValueIntegerList
+	ValueFile
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -42,6 +44,7 @@ type Value struct {
 	textState *privateText
 	boolean   bool
 	integer   int64
+	fileState *privateFile
 }
 
 // Text payloads are opaque even to fmt's reflection fallback for unsupported
@@ -65,6 +68,13 @@ func Integer(value int64) Value { return Value{kind: ValueInteger, integer: valu
 func (v Value) Kind() ValueKind { return v.kind }
 func (v Value) IsNull() bool    { return v.kind == ValueNull }
 func (v Value) Equal(o Value) bool {
+	if v.kind == ValueFile && o.kind == ValueFile {
+		if v.fileState == nil || o.fileState == nil {
+			return v.fileState == o.fileState
+		}
+		left, right := v.fileState, o.fileState
+		return left.name == right.name && left.clear == right.clear && (left.upload.Equal(right.upload) || !left.upload.Valid() && !right.upload.Valid())
+	}
 	if v.kind == ValueJSON && o.kind == ValueJSON {
 		left, lok := v.AsJSON()
 		right, rok := o.AsJSON()
@@ -112,6 +122,7 @@ const (
 	FieldJSON
 	FieldIntegerList
 	FieldEmail
+	FieldFile
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -132,6 +143,8 @@ const (
 	PasswordInput
 	EmailInput
 	HiddenInput
+	FileInput
+	ClearableFileInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -223,6 +236,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
+	allowEmptyFile      bool
+	hasAllowEmptyFile   bool
 	normalizeString     func(string) string
 	hasStringNormalizer bool
 	trimWhitespace      bool
@@ -246,6 +261,7 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
+	allowEmptyFile  bool
 	normalizeString func(string) string
 	trimWhitespace  bool
 	name            string
@@ -318,6 +334,9 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasAllowEmptyFile && kind != FieldFile {
+		return Field{}, &ConfigError{Path: "fields." + name + ".allow_empty_file", Code: "unsupported"}
+	}
 	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".normalizer", Code: "invalid"}
 	}
@@ -342,7 +361,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
+	if !(kind == FieldFile && (config.widget == FileInput || config.widget == ClearableFileInput) || kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && (config.widget == TextInput || config.widget == HiddenInput) || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -365,6 +384,13 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldFile:
+		if config.maxLength < 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, true) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+		}
 	case FieldIntegerList:
 		if !config.modelChoice || config.nullable || config.maxLength != 0 {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "invalid_multiple_choice"}
@@ -499,6 +525,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
+		allowEmptyFile:  config.allowEmptyFile,
 		normalizeString: config.normalizeString,
 		trimWhitespace:  config.trimWhitespace,
 		name:            name,
@@ -519,6 +546,9 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 }
 
 func validValueForField(value Value, kind FieldKind, nullable bool) bool {
+	if kind == FieldFile {
+		return value.IsNull() || value.kind == ValueFile && value.fileState != nil && !value.fileState.clear && !value.fileState.upload.Valid()
+	}
 	if kind == FieldIntegerList {
 		_, ok := value.AsIntegers()
 		return ok
@@ -554,11 +584,14 @@ func (f Field) clone() Field {
 	return clone
 }
 
-// Data is an immutable copy of submitted string values. Presence and an empty
+// Data is an immutable copy of submitted string values and file capabilities. Presence and an empty
 // value are distinct; repeated values are retained for deterministic rejection
 // by scalar fields.
 type Data struct{ state *submittedData }
-type submittedData struct{ values map[string][]string }
+type submittedData struct {
+	values map[string][]string
+	files  map[string][]uploads.File
+}
 
 func (d Data) raw(name string) ([]string, bool) {
 	if d.state == nil {
@@ -569,11 +602,7 @@ func (d Data) raw(name string) ([]string, bool) {
 }
 
 func NewData(values map[string][]string) Data {
-	clone := make(map[string][]string, len(values))
-	for name, submitted := range values {
-		clone[name] = append([]string(nil), submitted...)
-	}
-	return Data{state: &submittedData{values: clone}}
+	return NewDataWithFiles(values, nil)
 }
 
 func (d Data) Get(name string) ([]string, bool) {
@@ -684,6 +713,8 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		switch {
 		case field.hasDefault:
 			value = field.defaultValue
+		case field.kind == FieldFile:
+			value = Null()
 		case field.kind == FieldIntegerList:
 			value = Integers()
 		case field.kind == FieldBoolean && !field.nullable:
@@ -772,7 +803,14 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 	changed := make([]string, 0, len(s.fields))
 	var failures []validation.Errors
 	for _, field := range s.fields {
-		value, fieldErrors := cleanField(field, data)
+		var value Value
+		var fieldErrors validation.Errors
+		if field.kind == FieldFile {
+			initialValue, _ := resolvedInitial.Get(field.name)
+			value, fieldErrors = cleanFile(field, data, initialValue)
+		} else {
+			value, fieldErrors = cleanField(field, data)
+		}
 		if !fieldErrors.Empty() {
 			failures = append(failures, fieldErrors)
 			initialValue, _ := resolvedInitial.Get(field.name)
@@ -787,7 +825,7 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		var sameInitial bool
 		if field.inlineParent {
 			sameInitial = true
-		} else if field.modelChoice {
+		} else if field.modelChoice || field.kind == FieldFile {
 			sameInitial = !fieldChanged(field, data, initialValue)
 		} else if field.kind == FieldJSON {
 			sameInitial = equalJSON(value, initialValue)
@@ -1082,6 +1120,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 }
 
 func fieldChanged(field Field, data Data, initial Value) bool {
+	if field.kind == FieldFile {
+		return fileChanged(field, data)
+	}
 	if field.inlineParent {
 		return false
 	}

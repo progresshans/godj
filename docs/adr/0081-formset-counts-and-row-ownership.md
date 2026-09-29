@@ -141,3 +141,16 @@ min/max 안에서 미저장 행만 추가/제거하고 이름·오류 anchor를 
 저장된 행의 삭제는 별도 DELETE 의도다. JavaScript를 우회해도 서버 admission·현재 scope·최종 원자 저장 책임은 그대로다.
 내용 SHA256으로 식별한 script는 session 없는 public asset이고 로그인 후 이동 대상으로 사용하지 않는다. Files와 일반 자동
 persistence는 별도 미완료 범위다.
+
+## 파일 명령과 수신 자원
+
+문자열 값과 수신 파일 capability를 `forms.Data`에서 분리한다. FileField는 metadata로만 순수 검증하며 기존 서버 참조 유지,
+새 업로드, 명시적 clear를 구분한다. 임의 POST 문자열로 기존 참조/파일 capability를 만들지 않는다. 단일 파일의 반복 제출과
+upload/clear 충돌을 거부하며 Formset의 행 prefix·readonly·빈 extra·삭제 선택을 적용한다. Typed 준비에서도 파일 명령을
+stored scalar로 바꾸지 않는다. Model FileField와 저장소는 별도 IR/쓰기 계약을 요구한다.
+
+`uploads`는 wire/파일/문자열 크기·part 개수와 공유 메모리 payload 예산을 소유한다. 작은 파일은 복사한 메모리, 초과분은
+private 임시 파일로 보관한다. Request는 한 번 파싱한 결과와 실패를 기억하며 설정 교체로 한도를 우회하지 못하게 한다.
+요청 반환/오류/panic과 직접 Parse의 Close 경계에서 reader와 임시 파일을 닫는다. Metadata의 불변성과 I/O capability의
+수명을 구분하며 요청 밖에 보관한 Form/Value가 읽기 권한을 연장하지 않는다. 정리 실패는 명시적으로 기록하되 이미 확정된
+handler의 저장 결과를 덮어써 재시도를 유도하지 않는다. 영구 저장·원자 DB 연계·공개 serving의 완료 증거로 확대하지 않는다.

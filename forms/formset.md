@@ -65,7 +65,9 @@ transaction/rollback 의미는 모델/애플리케이션 연결이 담당한다.
 Database-independent core와 [typed 모델의 여러 행 준비](model/README.md#여러-모델-행의-준비)를 구현했다.
 [Helpdesk HTTP 편집](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)은 typed 준비와 실제 여러 행/관계/감사 기록의
 원자 저장을 연결한다. 부모에 연결한 행은 [InlineSpec](model/README.md#부모에-연결한-여러-행)을 사용한다.
-일반 Formset의 자동 저장·file upload와 Admin inline 화면은 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
+파일/clear 입력은 `NewDataWithFiles`로 전달하며 행 prefix와 빈 추가 행·readonly·삭제 의미를 유지한다.
+[파일 입력](../uploads/README.md)의 수명과 순수 검증 경계를 따른다. [Admin inline](../admin/inlines.md)의 동적 행은 연결했고
+일반 Formset 자동 저장·모델 파일 storage·Admin 파일 UI는 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
 Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/adr/0081-formset-counts-and-row-ownership.md)에 따라 구분한다.
 
 `SetSpec.WithFormField(field)`는 행 field를 같은 위치에서 교체하거나 끝에 추가하고, `WithConfig(config)`는 개수/prefix 정책을

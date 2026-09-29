@@ -40,6 +40,7 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"uploads/",
 	"decimal/",
 	"jsonvalue/",
 	"uuid/",

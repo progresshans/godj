@@ -115,7 +115,8 @@ DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 id
 6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
 실제 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 요청별 현재 cohort/인가·관계 선택지를 확인하고,
 같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
-전체 ModelFormSet 자동화·file upload는 후속 작업이다. [Admin inline](../../admin/inlines.md)은 권한별 표시와 합성 저장을 연결하며, 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
+전체 ModelFormSet 자동화·모델 FileField의 영구 저장은 후속 작업이다. ExtraFields의 [파일 명령 입력](../../uploads/README.md)은
+typed 준비 결과의 Input에 보존하며 model scalar에 넣지 않는다. [Admin inline](../../admin/inlines.md)은 권한별 표시와 합성 저장을 연결하며, 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
 
 `BindSet`은 행 검증과 개수 제한 뒤, 사용자 SetValidator 전에 선택한 unique field와 IR의 복합 UniqueConstraint를 행 사이에서
 검사한다. Valid인 행의 **cleaned 입력값**을 비교하며, model clean이 바꾼 candidate나 DB 저장값의 검사를 대체하지 않는다.
@@ -183,7 +184,8 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 [Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 새 부모/자식 HTML과 권한별 inline 편집·원자 저장을 연결한다.
 `InlineSpec.EmptyForm(parent)`는 validator나 I/O 없이 서버 부모·기본값과 `__prefix__`를 가진 빈 행을 만든다. 자식 PK와 기존
 입력값은 포함하지 않는다. [Admin inline](../../admin/inlines.md)은 이를 비활성 prototype으로 렌더링하고 권한·개수 범위에서
-브라우저의 미저장 행 추가/제거에 사용한다. File upload와 전체 ModelFormSet 자동화는 후속 작업이다.
+브라우저의 미저장 행 추가/제거에 사용한다. 파일의 multipart 수신과 Form/Formset 바인딩 기반은 구현했고 Admin의 파일 widget과
+모델 storage·전체 ModelFormSet 자동화는 후속 작업이다.
 
 ## 생성 모델의 typed 준비
 
