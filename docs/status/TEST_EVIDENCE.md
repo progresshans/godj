@@ -151,7 +151,18 @@ Codegen/ORM/migration backend 전체 331 roots는 normal/race/CGO=0 각각 **1,0
 비Markdown inventory는 2,891 files / `a5927169218fcfd50408d1dae5d1603dfd93a812182e26e219b242fb793aa18b`다.
 `godj-slug-repair-checks-rutif3cj`에서 일곱 테스트 외 제품/생성 source의 byte identity와
 Go 2,204 files format·문서 175개 local link·diff whitespace도 확인했다.
-이 보정 source의 Fast/Hosted full은 별도 실행이 필요하며 이전 source의 실패를 성공으로 덮지 않는다.
+보정 source `e124dda8de6934b039f56cf80b80839f2db2333a`의
+[PR feedback 36781940910](https://github.com/progresshans/godj/actions/runs/36781940910)은 성공했다.
+실제 job `110114072843`의 merge checkout `286170938b1ef46ca5e7d471d6ee0a91ec812ccf`는 source를 parent로 갖고,
+source와 tree `6ca2c545914aba53177a148c0fd95d1dd4efd171`가 같다. Log SHA256은
+`c1a55e94d797ab70b7a2d049bd91c429ee9106f9b07b1a4f729cdc63d7b3c863`이며 receipt는 `godj-slug-repaired-feedback-36781940910-0qvvpv__`다.
+이전 source의 실패를 성공으로 덮지 않는다.
+
+같은 source의 [Hosted full 36782116636](https://github.com/progresshans/godj/actions/runs/36782116636), attempt 1을 새로 시작했다.
+Plan job `110114666889`의 실제 checkout과 full 선택을 확인했으며 plan log SHA256은
+`f4cf6b1da7f0c7915d2ff8f5b356b1f9bc9ed554f940e7c3469fae8aab9d33b2`다. 최종 job/owner·집계와 새 capture/Git source 결합은 진행 중이다.
+실행 receipt는 `godj-slug-repaired-hosted-full-36782116636-4dun59i1`에 보존하며 아직 전체 PASS가 아니다.
+이 실행을 기록하는 문서 갱신은 별도이며 실제 검증 source는 위 commit으로 고정한다.
 
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 

@@ -11,7 +11,7 @@ integration_owner: "root"
 Article에 사용자가 정하는 읽기 쉬운 주소를 연결한다. SlugField의 입력 의미와 기본 검색 인덱스가
 Schema IR·migration·생성 모델·ORM·Form/Admin·JSON/OpenAPI에서 하나의 모델 선언을 따라야 한다.
 일반 필드 인덱스의 선언·생성/삭제·물리 소유권 검사는 이 요구에 필요한 기반이다.
-GDJ-0104의 게시 source에 대한 Hosted full 검증은 별도로 계속 추적한다.
+GDJ-0104의 URL source Hosted full은 완료했으며 이 Slug source의 전체 검증과 구분한다.
 
 ## 구현과 검증
 
@@ -26,5 +26,7 @@ GDJ-0104의 게시 source에 대한 Hosted full 검증은 별도로 계속 추�
 
 자동 slug 생성·소문자화·Unicode 정규화를 입력 검증과 섞지 않는다. 일반 ORM은 기존 문자열을 보존한다.
 양 DB·영향 세 mode·독립 생성 client·프로젝트 명령과 실제 Admin/공개 상세 브라우저를 검증했다.
+공유 fixture 보정 source `e124dda8`의 Fast feedback을 통과했고
+[Hosted full](https://github.com/progresshans/godj/actions/runs/36782116636)의 실제 checkout/full 선택을 확인했다. 최종 집계·capture 결합은 진행 중이다.
 [ADR-0084](../docs/adr/0084-slug-fields-and-column-index-ownership.md)가 장기 의미를 소유한다.
 검증 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하며, 구현과 환경별 실행을 구분한다.
