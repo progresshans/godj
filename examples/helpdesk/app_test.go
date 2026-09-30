@@ -40,7 +40,10 @@ import (
 )
 
 func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFields(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	// Schema growth, identity, HTTP, collections and Admin formsets share this
+	// database. Allow their cumulative race cost when other packages also run;
+	// individual cancellation/concurrency scenarios keep their own deadlines.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 	dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "helpdesk.sqlite3")) + "?mode=rwc&_busy_timeout=5000"
 	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) }, insertLargeCollectionLabel)

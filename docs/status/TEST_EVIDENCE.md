@@ -68,13 +68,52 @@ live 서명 만료 사례의 위 timing 보정뿐이다.
 `4f6c278307aa2211c5ed7d9a17b8126ddd759c6f`가 source와 일치한다. 첫 [Hosted web 36731449591](https://github.com/progresshans/godj/actions/runs/36731449591)의
 새 S3 service build는 통과했지만 여러 owner가 clean-worktree gate에서 실패했다. 확인한 command/portable/operator 제품
 실행은 통과했고, `go mod download all`이 tidy에서 제거된 기존 checksum 7줄을 복구한 것이 공통 원인이었다. 이 run을
-Hosted 통합 PASS로 기록하지 않는다.
+Hosted 통합 PASS로 기록하지 않는다. 수정 source의 새 실행이 시작되면서 남은 작업은 취소됐고 최종 conclusion은
+`cancelled`다. 세 S3 core 작업의 실제 제품 실행도 취소됐으므로 service build의 성공을 제품 PASS로 사용하지 않는다.
 
 `go.sum`만 전체 graph 준비 결과로 복구했다. Blob은 `cf0374450c58065e5b15cb4e5c5dd2446b885519`, SHA256은
 `7f8b2a7638acafa9b1d5a641c7091732e218d44109cc762ff3a2fdb62aab41fc`이며 실제 CI의 추가 diff와 일치한다.
 `go mod download all`을 두 번 더 실행해 byte 무변경을 확인하고 `go mod verify`도 통과했다. 제품/생성기/선택한 dependency
 version은 바꾸지 않았으며 해당 부분의 로컬 제품 검사를 반복하지 않는다. 이 checksum 수정 뒤의 Hosted web을 새 source로
 검증한다. 수정 실행의 receipt 위치는 `/tmp/godj-s3-module-graph-repair-path`가 가리키는 소유 임시 디렉터리다.
+
+2026-10-01, 수정 source `3965ad02cb75bd2f128aba86920b7a09dc21610f`의
+[PR feedback 36733079080](https://github.com/progresshans/godj/actions/runs/36733079080)은 통과했다. 실제 merge checkout
+`576df90b5102fbe662f5c54023208f27a0dae854`의 tree `dc36ba8f58cb19c9dedf30709929d86ad7f74b7b`가 source와 일치한다.
+같은 source의 [Hosted web 36733177546](https://github.com/progresshans/godj/actions/runs/36733177546)은 30 success / 2 failure /
+5 비대상 skip으로 끝났다. Plan의 실제 checkout·`web` 범위와 필수 command/portable/PostgreSQL 세 owner를 확인했다.
+S3를 실행하는 PostgreSQL core는 normal/race/CGO=0 모두 성공했지만 portable integration race와 최종 집계가 실패했으므로
+전체 web 통합 PASS가 아니다.
+
+세 S3 core 작업은 각각 15 packages / 4,368 runs·passes / 0 skip이며 공통 필수 목록 1,915개를 충족했다. 목록에는 실제 S3
+부모/하위 7개, Admin S3 이미지의 16개 조합과 생성 FileConsumer 부모가 포함된다. 실행 source의 필수 목록과 검사기를 확인하고
+실제 job checkout·제품 실행·clean worktree·서비스/DB 종료 step의 성공을 확인했다.
+
+| S3 mode | 실제 producer job | Artifact | Archive SHA256 |
+| --- | --- | --- | --- |
+| normal | `109949061246` | `11107396536` | `9a41dbb45ef39395138b8ffaa3234cf8577a0b49f31c147c88d19677d7b612c1` |
+| race | `109949061106` | `11108055274` | `f45ed5ed5b4a4bedf9b894dbb9359a4c7986971624910b11fd13234c89ae197b` |
+| CGO=0 | `109949061419` | `11107735451` | `0c17e700d9c65c74a50f32ecc0226c160e6ae8fba0698cc3b4d88ff43ccf287e` |
+
+Artifact의 run/head·실제 producer log의 artifact ID와 archive digest를 대조했다. `build.json`의 module/commit·dependency
+checksum·Go 1.26.5, `buildinfo.txt` hash와 Linux/amd64/CGO=0을 확인했다. 세 독립 빌드의 binary SHA256은 모두
+`c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`다. 각 `run.json`은 같은 binary·ready·child exit 0·
+child 종료 후 server alive·server exit 0·양 process reap·graceful cleanup을 기록한다. 제품 테스트와 source가 다른 서버
+receipt를 섞지 않았다. 이 상세는 임시 디렉터리 `godj-s3-hosted-web-36733177546-ce7pljo5`에 보존한다.
+
+실패 job `109949062019`에서는 Helpdesk SQLite 소비자 전체가 공유한 2분 context가 만료됐다. 부모 테스트는 120.31초에
+실패했고 `admin_inlines/readonly_delete`의 조회부터 후속 초기화와 ticket editor가 같은 `context deadline exceeded`를
+받았다. Race detector 경고나 다른 제품 assertion 실패는 없었지만 후반 사례는 완료되지 않았다. Web scope의 portable
+integration은 생성 소비자를 포함한 여러 package를 병렬 실행하며, 이 job의 생성 소비자 package도 1,383.739초 실행했다.
+공유 CPU 부하의 기여는 추정이며 확인된 직접 원인은 소비자 전체의 만료된 context다.
+
+SQLite 소비자의 누적 예산을 test 수명에 결합한 5분으로 조정했다. 제품 code·scenario·assertion·package 병렬 실행과 개별
+취소/경합 검사의 별도 deadline은 바꾸지 않았다. 수정 후 Go 1.26.5 / darwin-arm64 / CGO=1에서 해당 부모 전체를 normal과
+race로 실행해 각각 142개 run/pass·0 skip과 필수 68개를 확인했다. Package 실행은 각각 6.619초/72.709초, compile을 포함한
+명령 전체는 42.113초/127.643초다. Admin의 `readonly_delete`·unknown rollback/commit과 ticket editor/collection의 실제
+취소·후반 저장 검사가 모두 완료됐다. 비Markdown inventory `4fa05601be33b1996eb8b6ae7f4e19cadc72b2db2d51a12942da9c32804a5f68`는
+두 실행의 전후에 같았다. 로컬 상세는 `godj-helpdesk-budget-normal-gyrks930`, `godj-helpdesk-budget-race-2qc23c3g`다.
+새 source의 Hosted web으로 최종 통합을 다시 확인한다. 앞선 세 S3 component의 성공을 새 source 전체의 PASS로 사용하지 않는다.
 
 ### 저장 이미지·추가 codec의 Hosted 통합
 

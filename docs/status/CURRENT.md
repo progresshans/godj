@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-09-30
+- 갱신: 2026-10-01
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
 - 최근 완료한 전체 검증: [Hosted full 36711704536](https://github.com/progresshans/godj/actions/runs/36711704536), source `bcc7b76a17aacc6a90a3f360bb8f25fe080a840d`; 필수 owner·최종 집계·새 capture/Git source 결합 완료
 - Source·환경·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -32,12 +32,14 @@ Form/Admin·typed 저장/재검사에 연결했다. APNG는 별도 기본 이미
 S3의 conditional PUT·전체 checksum·불확실한 결과 보존과 version 고정 읽기를 연결했다. 명시적 서명 URL은
 현재 모델 소유권을 확인한 뒤 발급한다. 실제 MinIO·Form/Admin·양 DB의 생성 소비자와 관련 race를 검증했다.
 새 dependency와 service profile의 Hosted web 통합은 별도로 확인한다.
+S3의 세 모드 service 실행·종료와 source 결합은 확인했고, Helpdesk 소비자의 누적 시간 한도를 보정한 새 source에서
+최종 web 집계를 확인한다.
 
 ## 다음 행동
 
-S3는 최근 Hosted full source 이후의 별도 변경이다. 로컬 영향 검증에 이어 Hosted web 범위에서 새 service의 필수 실제
-실행과 종료 증거를 확인한다. 이미지 변경의 전체 통합 결과를 이 새 provider의 검증으로 전이하지 않는다.
-남은 codec 특성·storage provider와 파일 의미를 의존 순서에 따라 구현한다. 새 파일 게시와 DB commit은 별도 결과이며,
+S3는 최근 Hosted full source 이후의 별도 변경이다. 수정 source의 Hosted web 범위에서 필수 owner와 최종 집계를 확인한다.
+이어서 저장 이름을 선택하는 파일 choices와 이미지 검사의 연결, 남은 codec 특성·storage provider를 의존 순서에 따라 구현한다.
+새 파일 게시와 DB commit은 별도 결과이며,
 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 
