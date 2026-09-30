@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 func TestPrivateWorkspaceCleanupRejectsReplacedParentWhileRetainedRootRemains(t *testing.T) {
@@ -49,6 +52,15 @@ func TestPrivateWorkspaceCleanupRejectsReplacedParentWhileRetainedRootRemains(t 
 
 func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) {
 	fixture := newGlobalFixture(t, 0)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	moduleCommand := exec.CommandContext(ctx, "go", "list", "-mod=readonly", "-m", "-f", "{{.Path}}@{{.Version}}", "golang.org/x/sys")
+	moduleCommand.Env = testenv.OfflineGo(os.Environ(), "")
+	moduleBytes, err := moduleCommand.CombinedOutput()
+	if err != nil {
+		t.Fatalf("resolve current module dependency: %v\n%s", err, moduleBytes)
+	}
+	module := strings.TrimSpace(string(moduleBytes))
 	ambientBytes, err := exec.Command("go", "env", "GOMODCACHE").Output()
 	if err != nil {
 		t.Fatalf("locate ambient module cache: %v", err)
@@ -91,7 +103,7 @@ func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) 
 	}
 	result := processBackend{}.Execute(context.Background(), nil, BuildStage, Command{
 		Dir:  fixture.project,
-		Argv: []string{"go", "mod", "download", "golang.org/x/sys@v0.47.0"},
+		Argv: []string{"go", "mod", "download", module},
 		Env:  workspace.environment,
 	})
 	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.CleanupFailed || result.Failure != nil {
@@ -99,7 +111,7 @@ func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) 
 		_ = selected.close()
 		t.Fatalf("real private module download=%+v", result)
 	}
-	downloaded := filepath.Join(values["GOMODCACHE"], "golang.org", "x", "sys@v0.47.0")
+	downloaded := filepath.Join(values["GOMODCACHE"], filepath.FromSlash(module))
 	info, err := os.Stat(downloaded)
 	if err != nil {
 		_ = workspace.cleanup()

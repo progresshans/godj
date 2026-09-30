@@ -5,6 +5,28 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 누적 파일/이미지 Hosted 통합의 의존성 준비 수정
+
+2026-09-30, source `4cfa1b40c4417b02aea3f8221a4bddeee13e06be`의
+[Hosted full 36688158690](https://github.com/progresshans/godj/actions/runs/36688158690)에서 세 가지 불일치를 확인했다.
+CLI/private workspace 테스트가 이전 `x/sys v0.47.0` 캐시를 요구했고, 현재 전체 module graph의 checksum 7줄이 빠져
+`go mod download all` 뒤 clean-worktree 검사가 실패했다. Pillow 추가 뒤 `pyproject.toml`/`uv.lock`의 reference byte lock도
+갱신되지 않았다. 해당 실행의 부분 성공과 같은 source의 PR feedback 성공을 전체 통합 PASS로 사용하지 않는다.
+
+외부 CLI fixture는 framework의 실제 의존성을 준비하고 불필요한 `x/sys` 로컬 replacement를 제거했다. Private download
+검사는 readonly/offline `go list -m`으로 현재 선택 버전을 사용한다. 실제 module downloader로 checksum을 보완했으며,
+Python lock은 이전 전체 검증 source와 비교해 Pillow 12.3.0만 추가되고 기존 패키지 기록이 같음을 확인한 뒤 두 byte lock을
+명시적으로 갱신했다. 기존 oracle/기대 관찰의 내용과 checksum 검사는 유지한다.
+
+로컬 Go 1.26.5 / darwin-arm64에서 현재 graph만 담은 새 GOMODCACHE를 만들었다. 이전 x/sys의 내용과 download metadata가
+모두 없으며 공유 GOCACHE는 유지했다. 실제 CLI check/generate·TTY 중단·migration 게시/재시작·dry-run·별도 migrate/show
+runner와 private download/cleanup의 8 roots / 26 PASS를 62.470초에 확인했다. Darwin에서 제외된 Linux deleted-cwd 하위
+사례 2개는 별도 미실행이다. 최초 검증 driver의 허용 skip 이름 오타를 수정해 이미 완료한 JSON의 시작/종료·필수 실행을
+재검사했으며 제품 테스트를 반복하지 않았다. 같은 캐시에서 수정 전 두 helper를 각각 overlay하면 지정 assertion에서 실패했고
+컴파일 실패가 아님을 확인했다. 준비/실행 뒤 루트 lock bytes도 같았다. Reference artifact 1 root / 98 PASS와
+`uv lock --check --offline`, 포맷·문서 링크·diff 검사를 확인한다. 전체 OS/arch·race·CGO·cold/reference와 실제 양 DB 통합은
+수정 소스의 새 Hosted full이 소유하며 이 로컬 검사로 대체하지 않는다.
+
 ### 모델 ImageField·크기 소유권과 생성/저장 연결
 
 2026-09-30, 기반 `61540ea29904a7e6a83c5ba97b0f1965521f40f3` 이후 모델 ImageField의 canonical IR·가로/세로 필드

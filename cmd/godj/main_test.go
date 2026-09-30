@@ -337,11 +337,9 @@ func newProcessFixture(t *testing.T) processFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	xsys := filepath.Join(strings.TrimSpace(string(moduleCacheBytes)), "golang.org", "x", "sys@v0.47.0")
-	if info, err := os.Stat(xsys); err != nil || !info.IsDir() {
-		t.Fatalf("x/sys module cache unavailable at %s: %v", xsys, err)
-	}
-	goMod := fmt.Sprintf("module example.com/godj-e2e\n\ngo 1.26.0\n\ntoolchain go1.26.5\n\nrequire (\n\tgithub.com/progresshans/godj v0.0.0\n\tgolang.org/x/sys v0.47.0\n)\n\nreplace github.com/progresshans/godj => %s\nreplace golang.org/x/sys => %s\n", repository, xsys)
+	// Let fixture preparation resolve the framework's current dependency graph.
+	// A replacement into an old ambient module cache can hide dependency drift.
+	goMod := fmt.Sprintf("module example.com/godj-e2e\n\ngo 1.26.0\n\ntoolchain go1.26.5\n\nrequire github.com/progresshans/godj v0.0.0\n\nreplace github.com/progresshans/godj => %s\n", repository)
 	if err := os.WriteFile(filepath.Join(fixture.project, "go.mod"), []byte(goMod), 0o600); err != nil {
 		t.Fatal(err)
 	}

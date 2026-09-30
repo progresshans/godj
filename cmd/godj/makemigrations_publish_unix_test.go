@@ -255,22 +255,6 @@ func TestActualGodjMakemigrationsSQLiteRestartHelper(t *testing.T) {
 
 func prepareActualMakemigrationsFixture(t *testing.T, fixture processFixture) {
 	t.Helper()
-	modulePath := filepath.Join(fixture.project, "go.mod")
-	moduleDocument, err := os.ReadFile(modulePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	moduleLines := strings.Split(string(moduleDocument), "\n")
-	filtered := moduleLines[:0]
-	for _, line := range moduleLines {
-		if !strings.HasPrefix(line, "replace golang.org/x/sys => ") {
-			filtered = append(filtered, line)
-		}
-	}
-	if err := os.WriteFile(modulePath, []byte(strings.Join(filtered, "\n")), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	tidyActualE2EProject(t, fixture)
 	if err := os.Mkdir(filepath.Join(fixture.project, "migrations"), 0o700); err != nil {
 		t.Fatal(err)
 	}
