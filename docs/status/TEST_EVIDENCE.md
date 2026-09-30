@@ -231,6 +231,54 @@ Receipts는 `godj-slug-iexact-normal-onqjm8i8`, `godj-slug-iexact-race-nacxxseo`
 iexact normal의 이전 inventory는 `9b378fc712ab75480781fb4a8d169795e21563be9441e399e1f32c44be9530c8`이며,
 그 후 바뀐 파일은 위 별도 세 mode로 실행한 Admin audit fixture 한 곳뿐이다. 다른 source를 동일하다고 기록하지 않는다.
 
+### 최종 Hosted full과 source 결합
+
+2026-10-01, source `99ac532a2cfc5e694bfcad4f0d64a6d42c09857a`의
+[Hosted full 36785492754](https://github.com/progresshans/godj/actions/runs/36785492754), attempt 1이 완료됐다.
+고정 workflow에서 독립적으로 도출한 62개 job 이름·좌표와 실제 목록이 일치하며 **62/62 success**, 취소·실패·미선택은 없다.
+Plan job `110125789091`의 실제 checkout/full 선택과 aggregate job `110148500083`의
+`scope: full`, `full_platform_verified: true` 및 아래 여덟 필수 owner를 확인했다:
+`command-product-matrix`, `conformance-validation`, `exact-darwin-validation`, `portable-go-matrix`,
+`postgresql-product`, `product-project-check-matrix`, `python-compatibility-matrix`, `relation-product-matrix`.
+Linux/macOS amd64·arm64의 관계/명령/project-check 세 mode, 고정 darwin profile, Python 네 버전과
+기존 32-bit/외부 archive 경계를 포함한다. 앞선 실패/취소 실행의 부분 결과는 재사용하지 않았다.
+
+같은 source의 [Fast feedback 36785469445](https://github.com/progresshans/godj/actions/runs/36785469445)도 성공했다.
+Job `110125708900`의 실제 merge checkout `1ce50ea47f98d29ad7bacd5bb3c08ba15fb7871b`는 source를 parent로 갖고,
+tree `f30cdcf1edf9520274453ce002035396fec8e2f3`가 source와 같다. Log SHA256은
+`7463f2be3f2ec68daf5a70909497f762142d5a3f4a6b6a711f0cd3a83451bf4b`다.
+
+새 capture 두 개는 archive SHA256·payload·provenance·동일 run/attempt/producer·Git 객체의 source binding을 확인했다.
+Consumer job `110137935093`에서 같은 artifact와 producer ID, checkout, 실제 conformance·32-bit 세 단계·
+두 oracle checksum·reference 무변경을 포함한 필수 열 단계를 확인했다.
+Consumer log SHA256은 `3cb99d193649497b20ead596a77df8036f055e9048c05f75628d355d066ea398`다.
+
+| Capture | Artifact / producer job | Archive SHA256 | Payload SHA256 |
+|---|---|---|---|
+| `systemstate-postgres-1` | `11129813046` / `110125834250` | `546e90c3893528ef9e99f25feeee2d2aea4b590a8ddea7785b877e8d16a073df` | `7875689ec4429058d0571fcc7f74740a5ad93210277448cbd5ad2d91116557c9` |
+| `operator-postgres-1` | `11129633993` / `110125834257` | `cbbdc0960046709b8718842bdf7e479e6e025eec85fad6a351ebd071a3cac87e` | `cff5331e8f4affff25ec56bc4de492afdd94a1e5dd38a4643f0163a345c340d4` |
+
+Git에 저장된 해당 source로 다시 계산한 binding은 다음과 같다. BinaryField 작업 사본의 미검증 파일을 읽지 않았다.
+
+- systemstate: 690 files / 7079516 bytes / `02e19e675448901e350bf894c88c231de64c25981f79982a52248e2e6f3ec947`.
+- operator: 768 files / 6933461 bytes / `6bec55ee0cf90be074d17a31f42d1afbc38c5eb81af42eef1253a831dc531213`.
+
+PostgreSQL core normal/race/CGO=0 각각 15 packages, **4,445 run/pass**, 0 skip를 확인했고
+필수 1,954 경로와 실제 S3 필수 23개를 포함한다. 고정 MinIO module·commit·lock·Go build info·binary hash와
+ready, child/server exit 0, 양쪽 reap, graceful cleanup을 세 mode의 archive에서 따로 검사했다.
+Binary SHA256은 세 mode 모두 `c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`다.
+
+| S3 mode | Artifact | Archive SHA256 |
+|---|---|---|
+| normal | `11130047803` | `266fcd806d29371b8877045c8f99c44ba92b071c2f0b906a5b4d8e0e3ecbf94a` |
+| race | `11131400911` | `d0d6e72f00bf02f956179059904fcadcf438fbc40c8d7724e10ad4211090538a` |
+| cgo0 | `11130520271` | `618598a0abea9bf509dbd39f03264379d1da3946ecfd3143be4e20d9eb52fa72` |
+
+최종 receipt는 `godj-slug-tail-hosted-full-36785492754-5g4s85rl/receipt.json`이다.
+위 결과는 GDJ-0105 source의 누적 전체 검증이며 BinaryField의 진행 중인 변경 또는 기능 카탈로그 전체 완료를 뜻하지 않는다.
+완료 기록은 Markdown 세 파일만 변경하며 제품·생성물·workflow·lock은 위 검증 source와 같다.
+로컬 전체/cold와 같은 source의 Hosted full을 다시 실행하지 않는다.
+
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 
 ### 독립 native 기준

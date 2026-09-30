@@ -1,6 +1,6 @@
 ---
 id: GDJ-0105
-status: active
+status: completed
 updated: 2026-10-01
 baseline_commit: "90b9b59fc6753092b653d87635c5bb08ad7165df"
 integration_owner: "root"
@@ -22,14 +22,14 @@ GDJ-0104의 URL source Hosted full은 완료했으며 이 Slug source의 전체 
 - [x] Form/ModelForm·서버 후처리·JSON 입력/출력·OpenAPI와 독립 client
 - [x] Article의 기존 데이터 migration·Admin/API 편집·안전한 주소 조회와 오류/인가/rollback
 - [x] 완성된 변경 묶음의 영향 검증·필수 실패 대조·생성 drift와 현행 문서
-- [ ] 새 IR·일반 index·migration·생성/Article 소비자의 Hosted full 통합
+- [x] 새 IR·일반 index·migration·생성/Article 소비자의 Hosted full 통합
 
 자동 slug 생성·소문자화·Unicode 정규화를 입력 검증과 섞지 않는다. 일반 ORM은 기존 문자열을 보존한다.
 양 DB·영향 세 mode·독립 생성 client·프로젝트 명령과 실제 Admin/공개 상세 브라우저를 검증했다.
-공유 fixture 보정 source `e124dda8`의 Fast feedback을 통과했고
-[Hosted full](https://github.com/progresshans/godj/actions/runs/36782116636)의 실제 checkout/full 선택을 확인했으나
-공유 Form 필드 선택·native 체크섬·iexact table·Python 호환 digest의 회귀가 드러났다.
-고정 native 네 묶음과 311개 시나리오를 재관찰하고, 관련 세 mode·실제 양 DB와 실패 대조를 통과했다.
-중간 full은 추가 실패 확인 후 취소했다. 새 source 전체 검증과 최종 capture 결합이 남아 있다.
+공유 fixture·Form 선택·native checksum·iexact table·Python digest 회귀를 보정한
+source `99ac532a2cfc5e694bfcad4f0d64a6d42c09857a`의 Fast feedback과
+[Hosted full](https://github.com/progresshans/godj/actions/runs/36785492754)을 완료했다.
+고정 workflow의 62개 job, 여덟 필수 owner·최종 집계, 새 capture의 실제 소비·Git source 결합과
+세 S3 build/lifecycle receipt를 확인했다. 앞선 실패/취소 결과는 실행 증거에 별도로 보존한다.
 [ADR-0084](../docs/adr/0084-slug-fields-and-column-index-ownership.md)가 장기 의미를 소유한다.
 검증 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하며, 구현과 환경별 실행을 구분한다.
