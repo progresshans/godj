@@ -54,7 +54,14 @@ uv run --project conformance/reference/images --frozen python conformance/runner
 uv run --project conformance/reference/images --frozen python conformance/runners/django/image_codec_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/apng_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/webp_animation_reference.py
+uv run --project conformance/reference/images --frozen python conformance/runners/django/bigtiff_reference.py
 ```
+
+BigTIFF observer는 별도로 설치된 LibTIFF **4.7.1**의 `tiffcp`와 `tiffinfo`를 요구하며 버전과 실행 파일 hash를 기록한다.
+Pillow의 `big_tiff` 플래그만으로 압축 BigTIFF를 만들었다고 간주하지 않는다. 합성 입력을 `tiffcp -8`로 생성하고 두 도구의
+전체 디코딩 결과·페이지별 픽셀 hash·Django 폼 승인 결과를 구분한다. 도구는 제품 runtime dependency가 아니다.
+Palette는 TIFF의 16-bit ColorMap을 그대로 비교한다. 고정 x/image의 CCITT BlackIsZero 색 해석은 LibTIFF와 차이가 있어
+독립 classic CCITT와 BigTIFF 뷰의 결과를 함께 대조하며 테스트에 차이를 명시한다. 이미지 검사는 렌더링 픽셀을 반환하지 않는다.
 
 - Product scenario는 사용자 API, 별도 module과 실제 child/DB를 사용한다. Test-local counters만으로 process 종료·restart를 대신하지 않는다.
 - DB/schema/temp/port는 lane마다 분리한다. 필요한 모듈·build cache는 재사용하되 격리 자체를 검사하는 경계는 유지한다.

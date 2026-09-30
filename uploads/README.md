@@ -99,8 +99,8 @@ if verified {
 }
 ```
 
-PNG/APNG·GIF·WebP의 모든 프레임, 정적 JPEG·Windows BMP/DIB와 classic TIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
-PNG/WebP의 container와 애니메이션 표식을 검사하며 BigTIFF·TIFF SubIFD와 지원하지 않는 codec
+PNG/APNG·GIF·WebP의 모든 프레임, 정적 JPEG·Windows BMP/DIB와 classic TIFF/BigTIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
+PNG/WebP의 container와 애니메이션 표식을 검사하며 TIFF SubIFD와 지원하지 않는 codec
 특성은 명시적으로 거부한다. 표준 decoder의 전역 등록 목록에 따라 허용 형식이 바뀌지 않는다. 잘린 내용·손상은 `invalid_image`,
 파일/픽셀/프레임 한도는 `image_bytes`/`image_pixels`/`image_frames` 진단이다. 내용 검증 뒤 확장자를 검사하며 허용 목록은
 `.png`, `.apng`, `.jpg`, `.jpeg`, `.jpe`, `.gif`, `.webp`, `.bmp`, `.dib`, `.tif`, `.tiff`(대소문자 무관)다. 검증된 PNG의
@@ -128,13 +128,19 @@ RLE·다른 header/mask 등 지원하지 않는 특성은 `unsupported_image`다
 읽고 원본을 바꾸지 않는다. `FormatName()`은 `dib`, `ContentType()`은 `image/bmp`다.
 
 TIFF는 little/big endian의 주 페이지 목록을 먼저 읽어 IFD 순환·겹침·범위 밖 offset/값, 모든 페이지 크기와 합산 예산을 검사한다.
-Strip/tile 개수와 각 데이터 범위를 확인하고 첫 8-byte header를 pixel 데이터로 참조하는 입력은 거부한다. 모든 페이지가 참조하는
+Strip/tile 개수와 각 데이터 범위를 확인하고 파일 header(classic 8-byte, BigTIFF 16-byte)를 pixel 데이터로 참조하는 입력은 거부한다. 모든 페이지가 참조하는
 압축/비압축 블록의 byte 합에도 `MaxBytes`를 적용한다. 같은 블록을 여러 번 사용하면 매번 합산하므로 작은 파일의 반복 참조로
 디코딩 작업을 증폭할 수 없다. 공유 블록 자체는 이 예산 안에서 허용한다.
 그 뒤 같은 immutable bytes 위에 페이지별 header view를 만들고 전체 pixel을 디코딩한다. 페이지마다 파일 전체를 복사하지 않는다.
 표시 크기는 첫 페이지이며 `Frames()`는 페이지 수다. Uncompressed·LZW·Deflate·PackBits·Group 3/4와 gray/palette/RGB/alpha의
 지원 범위는 고정 decoder를 따른다. TIFF JPEG/CMYK·분리 plane·volume·SubIFD는 현재 명시적 미지원이다. 원본 방향의 치수를
 사용하며 EXIF 회전이나 재인코딩은 하지 않는다.
+
+BigTIFF의 64-bit IFD·값 개수·offset과 LONG8 strip/tile 배열은 곱셈이나 정수 축소 전에 범위를 검사한다. 검사할 때만 작은
+classic IFD와 header를 제공하며 LONG8 배열은 읽는 부분만 변환한다. 픽셀 bytes와 저장 파일은 원문 그대로다. `FormatName()`은
+`tiff`, MIME은 `image/tiff`, 확장자는 `.tif`/`.tiff`다. 64-bit 컨테이너도 아래 파일/픽셀 한도를 따른다.
+[고정 LibTIFF 관찰](testdata/bigtiff-libtiff471.json)은 모든 페이지의 디코딩된 픽셀과 Django/Pillow의 폼 승인을 구분한다.
+LibTIFF가 읽는 big-endian BigTIFF를 Pillow 12.3.0 폼이 거부하는 차이를 그대로 재현하지 않는다.
 
 | 한도 | 기본값 | 설정 상한 |
 | --- | --- | --- |

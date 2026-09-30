@@ -244,6 +244,10 @@ func FuzzInspectImage(f *testing.F) {
 	for _, observed := range codecs.Cases {
 		f.Add(codecPayload(f, codecs, observed.Name))
 	}
+	bigTIFF := bigTIFFReference(f)
+	for _, observed := range bigTIFF.Cases {
+		f.Add(bigTIFFPayload(f, bigTIFF, observed.Name))
+	}
 	shared, _ := sharedTIFFBlocks(f, 2)
 	f.Add(shared)
 	animations := apngFixture(f)

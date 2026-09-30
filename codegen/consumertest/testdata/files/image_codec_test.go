@@ -27,6 +27,9 @@ var nativeAPNG []byte
 //go:embed webp-reference.json
 var nativeWebP []byte
 
+//go:embed bigtiff-reference.json
+var nativeBigTIFF []byte
+
 func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend, label string, spec forms.Spec) {
 	t.Helper()
 	type observation struct {
@@ -46,7 +49,7 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 	for _, source := range []struct {
 		data   []byte
 		prefix string
-	}{{nativeImageCodecs, ""}, {nativeAPNG, "apng_"}, {nativeWebP, "webp_"}} {
+	}{{nativeImageCodecs, ""}, {nativeAPNG, "apng_"}, {nativeWebP, "webp_"}, {nativeBigTIFF, "bigtiff_"}} {
 		var part observation
 		if err := json.Unmarshal(source.data, &part); err != nil {
 			t.Fatal(err)
@@ -71,6 +74,9 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 		return content
 	}
 	selected := map[string]bool{"bmp_palette": true, "dib_rgb": true, "tiff_pages": true, "tiff_bigendian16": true, "tiff_tile": true, "apng_rgba": true, "apng_poster": true, "apng_palette4": true, "apng_adam7": true, "webp_lossy": true, "webp_lossless": true, "webp_compressed_alpha": true, "webp_mixed": true}
+	for _, name := range []string{"bigtiff_le_pages", "bigtiff_be_gray16", "bigtiff_be_tile", "bigtiff_le_strips"} {
+		selected[name] = true
+	}
 	for _, observed := range reference.Cases {
 		if !selected[observed.Name] {
 			continue
@@ -138,6 +144,30 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 			}
 			if strings.HasPrefix(observed.Name, "webp_") {
 				brokenPayload, brokenName = "webp_late_lossless_pixels", "broken.webp"
+			}
+			if strings.HasPrefix(observed.Name, "bigtiff_") {
+				brokenPayload, brokenName = "bigtiff_late_pixels", "broken.tiff"
+				inspector, err := storage.NewImageInspector(backend)
+				if err != nil {
+					t.Fatal(err)
+				}
+				field, err := forms.ImageField("selected", forms.WithChoices(forms.Choice{Value: forms.String(*current.Photo), Label: "Stored BigTIFF"}), forms.WithImageChoiceInspector(inspector.Inspect))
+				if err != nil {
+					t.Fatal(err)
+				}
+				selection, err := forms.NewSpec([]forms.Field{field})
+				if err != nil {
+					t.Fatal(err)
+				}
+				chosen, err := selection.Bind(ctx, forms.NewData(map[string][]string{"selected": {*current.Photo}}), nil)
+				if err != nil || !chosen.Valid() {
+					t.Fatal("stored BigTIFF choice rejected", err)
+				}
+				value, ok := chosen.Cleaned().File("selected")
+				verified, checked := value.Image()
+				if !ok || !checked || verified.Width() != observed.Cleaned.Width || verified.Height() != observed.Cleaned.Height || verified.Frames() != observed.Cleaned.Frames {
+					t.Fatal("BigTIFF choice lost full inspection")
+				}
 			}
 			broken, err := uploads.NewFile(brokenName, "application/x-untrusted", payload(brokenPayload))
 			if err != nil {

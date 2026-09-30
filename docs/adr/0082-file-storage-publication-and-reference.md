@@ -48,7 +48,7 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-추가 storage provider·multipart 저장·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+추가 storage provider·multipart 저장·추가 image codec과 자동 orphan 회수는 미완료다. 파일 choices의 별도 결정은 아래에 있다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
@@ -86,6 +86,16 @@ Tile padding도 실제 decoder 작업 예산에 포함한다. Strip/tile의 개�
 같은 원문에서 첫 IFD pointer만 바꾼 불변 page view와 context 기반
 ReadAt으로 각 페이지를 검사하고 파일 전체를 페이지마다 복사하지 않는다. 첫 페이지 치수를 모델에 연결하며 페이지 수와
 decoder metadata를 분리한다. 고정 Django 폼이 허용하는 잘린 내용/후속 페이지 손상은 GoDj가 전체 디코딩으로 거부한다.
+
+BigTIFF도 같은 파일/페이지/픽셀/참조 byte 예산을 사용한다. [공개 구조](https://libtiff.gitlab.io/libtiff/specification/bigtiff.html)의
+64-bit 개수와 offset은 뺄셈/나눗셈으로 범위를 먼저 검증한다. 전체 metadata의 구조를 확인한 뒤 고정 decoder가 소비하는
+래스터 tag만 작은 classic IFD로 표현한다. LONG8 배열은 읽을 때 필요한 부분만 LONG으로 변환하며 실제 pixel은 원문 offset을
+유지한다. 지원하지 않는 codec·SubIFD를 우회하거나 저장 원문을 다시 인코딩하지 않는다. LibTIFF 4.7.1 writer가 생성하는
+2-byte 정렬 IFD도 허용하며 8-byte 정렬을 강제해 그 정상 파일을 거부하지 않는다.
+[독립 observer](../../conformance/runners/django/bigtiff_reference.py)는 고정 [tiffcp](https://libtiff.gitlab.io/libtiff/tools/tiffcp.html)의
+`-8`로 합성 파일을 만들고 `tiffinfo -D` 및 classic 변환 후 전체 페이지 픽셀을 읽는다. Pillow 12.3.0의 압축 저장이 BigTIFF
+요청을 무시하거나 big-endian BigTIFF 폼 검증이 실패하는 경우는 원본 도구의 차이로 기록한다. GoDj의 유효성 기준은 실제
+형식/내용과 자원 예산이다. 이 컨테이너 지원이 64 MiB 상한 해제나 TIFF의 모든 색/압축 특성 지원을 뜻하지 않는다.
 
 APNG는 기본 이미지의 animation 참여 여부를 구분하되 검사할 raster 수에는 항상 포함한다. PNG 3의 chunk CRC·sequence·
 frame 개수/영역·disposal/blend를 먼저 확인하고, 모든 frame의 실제 pixels를 표준 PNG decoder로 검사한다. 원문의 압축 data를

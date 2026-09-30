@@ -5,12 +5,64 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### BigTIFF의 전체 페이지 검사와 파일 소비자
+
+2026-10-01, 기반 `e824fdd74b72cde17452bf502e5a7a4b6c4eec09` 이후 BigTIFF의 little/big endian·64-bit IFD와 값/offset을
+기존 bounded 이미지 검사에 연결했다. 비Markdown code/config inventory는 2,833 files /
+`4c51d4cd6d4c7d1caa1a2eb8349ae967e3d3cb5ad87a4e66e515d40adcedcea7`이며 normal/race와 후속 검사의 source가 같다.
+이 변경은 아래 File/Image choices의 Hosted source 이후다. 새 소스의 Hosted web을 후속 통합 범위로 둔다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; uploads·forms·forms/model·storage·storage/model·admin의 Image/TIFF 선택, 6 packages / 49 roots / 433 PASS / 2.152초 |
+| 생성 소비자 normal | FileConsumer parent 1 PASS / 8.747초; SQLite/PostgreSQL × filesystem/memory/S3, BigTIFF 4개 사례와 기존 파일·이미지·choices·서빙 회귀 |
+| 관련 race | 같은 Image/TIFF 범위, 6 packages / 49 roots / 433 PASS / 3.911초 |
+| 생성 소비자 race | 부모·생성 child 모두 race, 같은 양 DB/세 backend / parent 1 PASS / 16.238초 |
+| Native reference | 고정 Django 6.1 `fe0a859f537d4238cf49fca39073513206f83122` / Python 3.14.3 / Pillow 12.3.0 / LibTIFF 4.7.1, 18개 사례를 독립 2회 실행해 fixture byte 일치 |
+| Fuzz | `go test -json -run '^$' -fuzz '^FuzzInspectImage$' -fuzztime=30s -parallel=4 ./uploads`, seed/cache baseline 430개·3,519,173 executions·신규 interesting 46개, PASS |
+| 실패 대조 | 후속 페이지 생략·64-bit offset 상위 bit 제거·압축 블록 참조 byte 예산 제거·tile padding 예산 제거, 원본 선택자 PASS 뒤 네 runtime 실패 검출 |
+| 생성 drift/정적 검사 | `make generate-check`의 Unicode·일곱 저장 프로젝트·relation consumer, 영향 7 packages vet, `make docs-check format-check`의 171문서 링크/포맷과 `git diff --check` PASS |
+
+[독립 observer](../../conformance/runners/django/bigtiff_reference.py)는 `tiffcp -8`로 16개 정상 파일과 후속 픽셀/디렉터리가
+손상된 2개 파일을 만들었다. LE/BE·raw/LZW/Deflate/PackBits·gray16/RGBA/palette·Group 3/4·다중 strip/tile/page를 포함하고
+JPEG/CMYK의 현재 명시적 미지원도 유지한다. Fixture SHA256은
+`d7a43569d3770d8be19ea076e102498e0e64a1c529c3eb76901b3a90dff562e0`다. 두 도구의 버전·binary SHA와 Django/Pillow source
+SHA를 fixture에 남겼다. 모든 정상 페이지를 LibTIFF로 읽고 classic 변환 후 실제 픽셀을 검사하며 폼의 첫 이미지 승인과 구분한다.
+후속 directory 손상에서 `tiffcp`가 첫 페이지만 내보내고 exit 0을 반환했지만 `tiffinfo -D`가 실패하므로 정상으로 취급하지 않는다.
+
+Big-endian BigTIFF를 고정 Pillow 폼이 잘못 식별해 거부하는 차이를 기록한다. 압축 저장에서 `big_tiff=True`가 classic TIFF를
+만드는 것도 직접 확인해 생성기를 `tiffcp -8`로 정했다. 최초 픽셀 대조는 palette를 8-bit로 낮춘 뒤 다시 16-bit로 늘리는 관찰
+오류가 있어 원래 TIFF의 16-bit ColorMap으로 수정했다. Group 3/4 BlackIsZero의 두 사례에서는 고정 x/image가 LibTIFF와
+반대의 fax-run 색을 반환했다. 독립 LibTIFF가 만든 classic CCITT에서도 같은 디코더 결과를 확인하고 BigTIFF 뷰와 픽셀 일치를
+검사한다. 이 알려진 색 해석 차이는 테스트에 명시하며, GoDj 검사는 픽셀을 노출하거나 재인코딩하지 않고 메타데이터와 원문만
+사용한다. 따라서 저장 내용이나 반환 치수가 변경되는 문제로 표현하지 않으며 렌더러의 색 동등성도 주장하지 않는다.
+
+공통 preflight는 unsigned 64-bit 개수·offset·width/height의 overflow/절삭, 양 byte order의 순환·겹침·header 참조·잘린 값,
+SubIFD/분리 plane·후속 압축 오류를 검사한다. LONG8 배열의 부분 ReadAt·EOF/취소·동시 독립 읽기와 원문 보존을 확인했다.
+반복 LZW strip은 파일 크기보다 큰 참조 작업량을 만들며 `MaxBytes` 경계에서 거부/승인을 대조한다. Tile padding과 뒤 페이지의
+개별/합산 pixel/frame 예산도 포함한다. 기존 classic TIFF·다른 이미지 형식의 선택 회귀를 같은 checkpoint에서 실행했다.
+
+생성 Photograph의 BigTIFF 4개 사례 × 양 DB × 세 backend = 필수 24개 조합에서 업로드→typed 준비→게시→DB 저장→재조회·
+DB 재개방→명시적 저장 이미지 검사와 저장 이름 choices를 확인했다. 같은 부모가 기존 rollback/실패 소비자도 실행한다.
+후속 pixel 손상은 valid model/게시 준비로 진행하지 않는다. Admin의 생성/명령 × 세 backend × 새 2개 variant는 실제 로그인·
+CSRF·multipart·내용 오류/재선택·요청 임시 정리와 원문 게시를 확인한다. 새 decoder dependency나 생성 ABI 변경은 없다.
+
+전체 부모 JSON·필수 하위 경로·0 skip/0 missing을 확인했다. Normal/race는 각각 새 PostgreSQL 17.10 Debian container·
+UTF8/libc/C/C·독립 DB/port와 고정 MinIO process를 사용했다. DB 최종 상태 `0|0|0`·DB/container 제거, S3 child/server exit 0·
+양 process reap·graceful cleanup을 확인했다. Source/binary 결합은 기존 service wrapper가 검사한다. 로컬 전체/cold 검증은
+중복하지 않았다. 첫 시도의 테스트 컴파일 오류, 최초 독립 대조의 위 네 assertion 실패는 최종 PASS에 합치지 않는다.
+
+상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-bigtiff-db-normal-bz3el1gp`,
+`godj-bigtiff-db-race-yak5trmk`, `godj-bigtiff-service-normal-ctbm0c2b`, `godj-bigtiff-service-race-y_ftf5qp`,
+`godj-bigtiff-controls-dhix5evo`, `godj-bigtiff-final-checks-b6h8wgnn`에 보존한다. TIFF의 나머지 codec 특성·추가 provider와
+전체 기능 카탈로그는 계속 미완료다.
+
 ### File/Image choices의 저장 이름 선택과 명시적 검사
 
 2026-10-01, 기반 `ac4c40d5061dd427543a33fd08d0dc71b0b1159a` 이후 File/Image choices를 canonical IR·Form/Admin·
 typed 준비에 연결했다. Runtime checkpoint의 비Markdown code/config inventory는 2,829 files /
 `9ffe85c86ed6a7a1635df6e5cec3c6fa8be9634a5c328889cb1a7979f84434d5`이며 normal/race의 실행 전후가 같다.
-선행 S3 Hosted web은 이 choices 변경의 검증이 아니다. 새 source의 Hosted web을 후속 통합 범위로 둔다.
+선행 S3 Hosted web은 이 choices 변경의 검증이 아니다. 후속 source의 Hosted web 결과는 아래에 별도로 기록한다.
 
 | 실행 | 범위와 결과 |
 | --- | --- |
@@ -49,8 +101,30 @@ formset_unique 필수 하위 경로를 검사한다. 각 normal/race는 PostgreS
 
 로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-file-choices-db-normal-0520q418`,
 `godj-file-choices-db-race-1gwiygm6`, `godj-file-choices-service-normal-ltvohu8r`, `godj-file-choices-service-race-35uu9ve6`,
-`godj-file-choices-controls-no0hr63b`에 보존한다. 사용법/장기 의미는 모델 Form 문서와 ADR-0082에 둔다. 새 Hosted 통합·추가
-codec/provider·전체 파일 및 기능 카탈로그 범위는 완료로 표현하지 않는다.
+`godj-file-choices-controls-no0hr63b`에 보존한다. 사용법/장기 의미는 모델 Form 문서와 ADR-0082에 둔다. 추가 codec/provider·
+전체 파일 및 기능 카탈로그 범위는 완료로 표현하지 않는다.
+
+게시 source `e824fdd74b72cde17452bf502e5a7a4b6c4eec09`의
+[PR feedback 36744894940](https://github.com/progresshans/godj/actions/runs/36744894940)은 PASS다. 실제 merge checkout
+`ebf663fe115c286ad0cf6bd82a24aff755263803`의 tree `2b6b5743bc5fd8c377ea869bb59710e1e7e91b7b`가 source와 일치한다.
+[Hosted web 36744929499](https://github.com/progresshans/godj/actions/runs/36744929499), attempt 1도 PASS다. 총 37 jobs 중
+필수 32 success·비대상 5 skip, plan `109988588777`과 최종 집계 `110004033413`을 확인했다. 실제 checkout과 `web` 선택을
+대조하고 `command-product-matrix`, `portable-go-matrix`, `postgresql-product` 세 owner를 검증했다.
+`full_platform_verified=false`이며 선행 full이나 이후 BigTIFF source의 검증으로 바꾸지 않는다.
+
+세 PostgreSQL core는 각각 15 packages / 4,368 runs·passes / 0 skip과 source의 필수 1,915개 경로를 충족했다. FileConsumer
+부모는 choices의 양 DB/세 backend·formset_unique 하위 실행을 강제한다. S3 필수 23개와 세 build/lifecycle artifact도 source에
+결합했다. Linux binary SHA256 `c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`, 고정 module/commit·
+checksum·Go 1.26.5와 각 ready·child/server exit 0·child 뒤 server alive·양 process reap·graceful cleanup을 확인했다.
+
+| S3 mode | 실제 producer job | Artifact | Archive SHA256 |
+| --- | --- | --- | --- |
+| normal | `109988661897` | `11112788099` | `26748cf7ab505fbe778c906c80adaff81f955221774a015e3d0567a4d1ddaf60` |
+| race | `109988661800` | `11113309332` | `b269a172b73c9217ec9c30d192b6da4cf9229e4c7735ac32dd9669e0c073ebbb` |
+| CGO=0 | `109988661757` | `11112951711` | `f12df77f8e830627dd898fa49d7c9aee93c86a496cc49b3181157732fa8208f7` |
+
+API 응답·실제 job log·artifact ID/archive digest·receipt와 최종 scope 결과는 위 임시 경로 아래
+`godj-file-choices-hosted-web-36744929499-43l8ppqy`, `godj-file-choices-feedback-36744894940-dywltnce`에 보존한다.
 
 ### S3의 게시 결과·독립 reader·서명 다운로드
 

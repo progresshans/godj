@@ -12,6 +12,16 @@ import (
 type tiffImagePage struct {
 	offset, end   uint64
 	width, height int
+	view          *bigTIFFDecoderView
+}
+
+func (page tiffImagePage) reader(ctx context.Context, content []byte, order binary.ByteOrder) io.Reader {
+	if page.view != nil {
+		return io.NewSectionReader(page.view, 0, page.view.size)
+	}
+	var patch [4]byte
+	order.PutUint32(patch[:], uint32(page.offset))
+	return io.NewSectionReader(tiffPageReader{ctx, content, patch}, 0, int64(len(content)))
 }
 
 // Values remain views into already bounded encoded input. Even a large array
@@ -28,7 +38,9 @@ func (values tiffImageValues) at(order binary.ByteOrder, index uint64) uint64 {
 		return uint64(values.raw[index])
 	case 3:
 		return uint64(order.Uint16(values.raw[index*2 : index*2+2]))
-	default: // Only BYTE, SHORT and LONG vectors pass preflight.
+	case 16:
+		return order.Uint64(values.raw[index*8 : index*8+8])
+	default: // Only unsigned integer vectors pass preflight.
 		return uint64(order.Uint32(values.raw[index*4 : index*4+4]))
 	}
 }
@@ -42,10 +54,7 @@ func inspectTIFFImage(ctx context.Context, content []byte, limits ImageLimits) (
 		return ImageInfo{}, err
 	}
 	for _, page := range pages {
-		var patch [4]byte
-		order.PutUint32(patch[:], uint32(page.offset))
-		reader := io.NewSectionReader(tiffPageReader{ctx, content, patch}, 0, int64(len(content)))
-		decoded, err := tiff.Decode(reader)
+		decoded, err := tiff.Decode(page.reader(ctx, content, order))
 		if err != nil {
 			return ImageInfo{}, imageDecodeError(ctx, err)
 		}
@@ -67,28 +76,52 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 		return invalid()
 	}
 	var order binary.ByteOrder
-	switch string(content[:4]) {
-	case "II\x2a\x00":
+	switch string(content[:2]) {
+	case "II":
 		order = binary.LittleEndian
-	case "MM\x00\x2a":
+	case "MM":
 		order = binary.BigEndian
 	default:
 		return invalid()
 	}
+	header, countBytes, entryBytes, offsetBytes := uint64(8), uint64(2), uint64(12), uint64(4)
+	first := uint64(order.Uint32(content[4:8]))
+	big := order.Uint16(content[2:4]) == 43
+	if big {
+		if len(content) < 16 || order.Uint16(content[4:6]) != 8 || order.Uint16(content[6:8]) != 0 {
+			return invalid()
+		}
+		header, countBytes, entryBytes, offsetBytes = 16, 8, 20, 8
+		first = order.Uint64(content[8:16])
+	} else if order.Uint16(content[2:4]) != 42 {
+		return invalid()
+	}
+	integer := func(raw []byte) uint64 {
+		if big {
+			return order.Uint64(raw)
+		}
+		return uint64(order.Uint32(raw))
+	}
+	length := uint64(len(content))
 	var pages []tiffImagePage
 	var totalPixels, totalBlockBytes uint64
-	for offset := uint64(order.Uint32(content[4:8])); offset != 0; {
+	for offset := first; offset != 0; {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		if offset < 8 || offset%2 != 0 || offset > uint64(len(content))-2 {
+		// LibTIFF 4.7.1 writes word-aligned BigTIFF directories even when
+		// their offsets are not multiples of eight. Accept those real files.
+		if offset < header || offset%2 != 0 || offset > length || length-offset < countBytes+offsetBytes {
 			return invalid()
 		}
 		count := uint64(order.Uint16(content[offset : offset+2]))
-		end := offset + 2 + count*12 + 4
-		if end > uint64(len(content)) {
+		if big {
+			count = order.Uint64(content[offset : offset+8])
+		}
+		if count > (length-offset-countBytes-offsetBytes)/entryBytes {
 			return invalid()
 		}
+		end := offset + countBytes + count*entryBytes + offsetBytes
 		// Disjoint tables bound total metadata work by encoded bytes, and also
 		// reject repeated, cyclic or partially overlapping directory chains.
 		for _, earlier := range pages {
@@ -101,42 +134,49 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 		}
 		var width, height, tileWidth, tileHeight, rowsPerStrip uint64
 		var stripOffsets, stripCounts, tileOffsets, tileCounts tiffImageValues
+		var raster []bigTIFFRasterField
 		previousTag := -1
-		for position := offset + 2; position < end-4; position += 12 {
+		for position := offset + countBytes; position < end-offsetBytes; position += entryBytes {
 			if err := ctx.Err(); err != nil {
 				return nil, nil, err
 			}
-			entry := content[position : position+12]
+			entry := content[position : position+entryBytes]
 			tag := int(order.Uint16(entry[:2]))
 			if tag <= previousTag {
 				return invalid()
 			}
 			previousTag = tag
 			typ := order.Uint16(entry[2:4])
-			// Classic TIFF field widths, including signed/float/IFD metadata
-			// which the pixel decoder may safely ignore. BigTIFF is separate.
-			widths := [...]uint64{0, 1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8, 4}
-			if typ == 0 || int(typ) >= len(widths) {
+			// Validate even ignored metadata without allocating its value array.
+			widths := [...]uint64{0, 1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8, 4, 0, 0, 8, 8, 8}
+			if int(typ) >= len(widths) || widths[typ] == 0 || !big && typ > 13 {
 				return nil, nil, &Error{Code: "unsupported_image"}
 			}
-			values := uint64(order.Uint32(entry[4:8]))
+			values := integer(entry[4 : 4+offsetBytes])
+			if values > length/widths[typ] {
+				return invalid()
+			}
 			size := widths[typ] * values
-			var raw []byte
-			if size > 4 {
-				start := uint64(order.Uint32(entry[8:12]))
-				if start < 8 || start+size > uint64(len(content)) {
+			start := position + 4 + offsetBytes
+			if size > offsetBytes {
+				start = integer(entry[4+offsetBytes : entryBytes])
+				if start < header || start > length || size > length-start {
 					return invalid()
 				}
-				raw = content[start : start+size]
-			} else {
-				raw = entry[8 : 8+size]
 			}
+			raw := content[start : start+size]
 			if tag == 330 && values != 0 { // SubIFDs contain additional images.
 				return nil, nil, &Error{Code: "unsupported_image"}
 			}
+			if big && bigTIFFRasterTag(tag) {
+				if typ != 1 && typ != 3 && typ != 4 && typ != 16 {
+					return nil, nil, &Error{Code: "unsupported_image"}
+				}
+				raster = append(raster, bigTIFFRasterField{uint16(tag), start, tiffImageValues{raw, typ, values}})
+			}
 			switch tag {
 			case 273, 279, 324, 325:
-				if values == 0 || typ != 1 && typ != 3 && typ != 4 {
+				if values == 0 || typ != 1 && typ != 3 && typ != 4 && typ != 16 {
 					return invalid()
 				}
 				vector := tiffImageValues{raw, typ, values}
@@ -151,15 +191,10 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 					tileCounts = vector
 				}
 			case 256, 257, 278, 284, 322, 323, 32997, 32998:
-				if values != 1 || typ != 1 && typ != 3 && typ != 4 {
+				if values != 1 || typ != 1 && typ != 3 && typ != 4 && typ != 16 {
 					return invalid()
 				}
-				value := uint64(entry[8])
-				if typ == 3 {
-					value = uint64(order.Uint16(entry[8:10]))
-				} else if typ == 4 {
-					value = uint64(order.Uint32(entry[8:12]))
-				}
+				value := (tiffImageValues{raw, typ, values}).at(order, 0)
 				switch tag {
 				case 256:
 					width = value
@@ -181,8 +216,12 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 		if width == 0 || height == 0 || (tileWidth == 0) != (tileHeight == 0) {
 			return invalid()
 		}
-		pixels := width * height // Two uint32 dimensions fit the uint64 product.
-		if width > uint64(limits.MaxWidth) || height > uint64(limits.MaxHeight) || pixels > uint64(limits.MaxPixels) {
+		// Bound 64-bit dimensions before multiplying or converting to int.
+		if width > uint64(limits.MaxWidth) || height > uint64(limits.MaxHeight) {
+			return nil, nil, &Error{Code: "image_pixels"}
+		}
+		pixels := width * height
+		if pixels > uint64(limits.MaxPixels) {
 			return nil, nil, &Error{Code: "image_pixels"}
 		}
 		blockHeight := height
@@ -220,7 +259,7 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 			start, size := offsets.at(order, block), counts.at(order, block)
 			// The per-page header view must never become pixel data. Check full
 			// encoded spans before the decoder can allocate or follow offsets.
-			if start < 8 || size == 0 || start+size > uint64(len(content)) {
+			if start < header || start > length || size == 0 || size > length-start {
 				return invalid()
 			}
 			// Shared/overlapping blocks are legal within the inspection budget;
@@ -231,17 +270,23 @@ func tiffImagePages(ctx context.Context, content []byte, limits ImageLimits) ([]
 			}
 			totalBlockBytes += size
 		}
-		var patch [4]byte
-		order.PutUint32(patch[:], uint32(offset))
-		config, err := tiff.DecodeConfig(io.NewSectionReader(tiffPageReader{ctx, content, patch}, 0, int64(len(content))))
+		page := tiffImagePage{offset: offset, end: end, width: int(width), height: int(height)}
+		if big {
+			var err error
+			page.view, err = newBigTIFFDecoderView(ctx, content, order, raster)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		config, err := tiff.DecodeConfig(page.reader(ctx, content, order))
 		if err != nil {
 			return nil, nil, imageDecodeError(ctx, err)
 		}
 		if config.Width != int(width) || config.Height != int(height) {
 			return invalid()
 		}
-		pages = append(pages, tiffImagePage{offset, end, int(width), int(height)})
-		offset = uint64(order.Uint32(content[end-4 : end]))
+		pages = append(pages, page)
+		offset = integer(content[end-offsetBytes : end])
 	}
 	if len(pages) == 0 {
 		return invalid()

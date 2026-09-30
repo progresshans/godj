@@ -81,8 +81,8 @@ func (ImageInfo) Format(state fmt.State, _ rune) { fmt.Fprint(state, "uploads.Im
 
 // InspectImage opens and closes its own upload reader, leaving every other
 // reader's cursor unchanged. It decodes static JPEG/BMP/DIB, every PNG/APNG,
-// GIF or WebP frame, or every page in a classic TIFF's main directory chain.
-// BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
+// GIF or WebP frame, or every main-chain page in classic TIFF or BigTIFF.
+// TIFF SubIFDs and unsupported codec features are errors.
 // Content errors use invalid_image, unsupported_image, image_bytes,
 // image_pixels, or image_frames; I/O, lifetime and cancellation errors remain
 // operational errors. No decoded pixels or encoded copies escape this call.
@@ -252,7 +252,8 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 		if err := bitmapImageBudget(content, 0, limits); err != nil {
 			return ImageInfo{}, err
 		}
-	case bytes.HasPrefix(content, []byte("II\x2a\x00")) || bytes.HasPrefix(content, []byte("MM\x00\x2a")):
+	case bytes.HasPrefix(content, []byte("II\x2a\x00")) || bytes.HasPrefix(content, []byte("MM\x00\x2a")) ||
+		bytes.HasPrefix(content, []byte("II\x2b\x00")) || bytes.HasPrefix(content, []byte("MM\x00\x2b")):
 		return inspectTIFFImage(ctx, content, limits)
 	default:
 		return ImageInfo{}, &Error{Code: "unsupported_image"}

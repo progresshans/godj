@@ -104,6 +104,11 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/webp-reference.json", webpReference)
+	bigTIFFReference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "uploads/testdata/bigtiff-libtiff471.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/bigtiff-reference.json", bigTIFFReference)
 	choiceReference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "forms/model/testdata/file-choice-django61.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +131,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend)
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/formset")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/stored_inspection")
-			for _, codec := range []string{"bmp_palette", "dib_rgb", "tiff_pages", "tiff_bigendian16", "tiff_tile", "apng_rgba", "apng_poster", "apng_palette4", "apng_adam7", "webp_lossy", "webp_lossless", "webp_compressed_alpha", "webp_mixed"} {
+			for _, codec := range []string{"bmp_palette", "dib_rgb", "tiff_pages", "tiff_bigendian16", "tiff_tile", "apng_rgba", "apng_poster", "apng_palette4", "apng_adam7", "webp_lossy", "webp_lossless", "webp_compressed_alpha", "webp_mixed", "bigtiff_le_pages", "bigtiff_be_gray16", "bigtiff_be_tile", "bigtiff_le_strips"} {
 				required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/codecs/"+codec)
 			}
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend+"/ranges_and_conditionals")

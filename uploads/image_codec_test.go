@@ -271,8 +271,9 @@ func TestInspectTIFFRejectsMalformedDirectoryGraphsAndDataSpans(t *testing.T) {
 				order.PutUint32(field[8:12], uint32(offset))
 				want = "unsupported_image"
 			case "bigtiff":
+				// Merely changing classic magic does not produce a valid BigTIFF
+				// header/directory. Real BigTIFF files have separate coverage.
 				order.PutUint16(content[2:4], 43)
-				want = "unsupported_image"
 			case "late_invalid_compression":
 				_, field := tiffTestEntry(t, content, 1, 259)
 				order.PutUint16(field[8:10], 65000)

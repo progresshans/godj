@@ -37,11 +37,16 @@ S3의 conditional PUT·전체 checksum·불확실한 결과 보존과 version �
 
 저장 이름을 선택하는 [File/ImageField choices](../../forms/model/README.md#저장-이름-선택)를 IR·Form·Admin과 명시적 이미지
 검사에 연결했다. Native 비교·양 DB/세 backend의 생성 소비자·관련 race와 실패 대조를 확인했다.
-이 변경은 위 Hosted source 이후의 별도 영향 검증이며 새로운 Hosted 결과를 아직 포함하지 않는다.
+Source `e824fdd7`의 [Hosted web](https://github.com/progresshans/godj/actions/runs/36744929499)에서 필수 owner·집계와
+세 모드 service receipt를 source에 결합했다. 전체 플랫폼 검증과는 구분한다.
+
+BigTIFF의 양 byte order·64-bit IFD/값 배열을 공통 검사기에 연결했다. 모든 주 페이지와 tile/strip의 내용·합산 예산을 검사하며
+원문을 보존한다. 고정 LibTIFF 비교·Form/Admin·양 DB/세 backend의 생성 소비자·관련 race/fuzz와 실패 대조를 확인했다.
+이 변경은 위 Hosted source 이후의 별도 영향 검증이며 새로운 Hosted 결과는 아직 포함하지 않는다.
 
 ## 다음 행동
 
-파일 choices를 게시하고 변경 source의 Hosted web 범위를 확인한다.
+BigTIFF 변경 source의 Hosted web 범위를 확인한다.
 이어서 남은 codec 특성·storage provider를 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며,
 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.

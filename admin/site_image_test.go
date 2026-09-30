@@ -27,7 +27,7 @@ import (
 
 func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 	payloads := map[string]string{}
-	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}, {"webp-animation-django61.json", "webp_"}} {
+	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}, {"webp-animation-django61.json", "webp_"}, {"bigtiff-libtiff471.json", "bigtiff_"}} {
 		var reference struct{ Payloads map[string]string }
 		raw, err := os.ReadFile("../uploads/testdata/" + source.name)
 		if err != nil {
@@ -61,6 +61,8 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 		{"bmp", ".bmp", "image/bmp", 1, payload("bmp_palette")},
 		{"dib", ".dib", "image/bmp", 1, payload("dib_rgb")},
 		{"tiff", ".tiff", "image/tiff", 2, payload("tiff_pages")},
+		{"bigtiff_pages", ".tiff", "image/tiff", 2, payload("bigtiff_le_pages")},
+		{"bigtiff_be", ".tiff", "image/tiff", 1, payload("bigtiff_be_gray16")},
 		{"apng", ".apng", "image/png", 2, payload("apng_rgba")},
 		{"apng_poster", ".apng", "image/png", 3, payload("apng_poster")},
 		{"webp_mixed", ".webp", "image/webp", 2, payload("webp_mixed")},
@@ -168,6 +170,11 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 					failures := []struct{ name, content, code string }{{"photo" + variant.extension, "text pretending to be an image", "invalid_image"}, {"photo.txt", encoded.String(), "invalid_extension"}}
 					if variant.name == "tiff" {
 						failures = append(failures, struct{ name, content, code string }{"later.tiff", string(payload("tiff_late_truncated")), "invalid_image"})
+					}
+					if strings.HasPrefix(variant.name, "bigtiff_") {
+						for _, broken := range []string{"bigtiff_late_pixels", "bigtiff_late_directory"} {
+							failures = append(failures, struct{ name, content, code string }{"later.tiff", string(payload(broken)), "invalid_image"})
+						}
 					}
 					if strings.HasPrefix(variant.name, "apng") {
 						for _, broken := range []string{"apng_late_pixel_error", "apng_later_control_sequence"} {
