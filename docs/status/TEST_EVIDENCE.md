@@ -123,6 +123,32 @@ symlink 거부다. Receipt와 전체 JSON은 `godj-url-attestation-fix-x3l_1as2`
 이 후속 변경은 attestation 네 파일뿐이며 URL 제품/생성기/소비자의 위 로컬 검증 source는 `a1fa31d4`로 유지한다.
 수정 source를 게시한 뒤 새 Hosted full과 새 capture/source 결합을 실행하며, 결과 전까지 플랫폼 통합은 미완료다.
 
+
+### 후속 source의 PostgreSQL race 작업 예산
+
+수정 source `90b9b59fc6753092b653d87635c5bb08ad7165df`의
+[PR feedback 36761888911](https://github.com/progresshans/godj/actions/runs/36761888911)은 PASS다. 실제 job `110046259094`의
+merge checkout `3491a99bb6c5f587a00a32d6a97cb123e178fe48`는 source를 parent로 가지며,
+tree `4d4b8c5acfe91049404d5ec04ba8a94f2a7e2813`가 source tree와 같다. Log SHA256은
+`dedae709b28360bf4b6681618a000932fdd2182214df3f7e4edc5a37785001d4`이며
+`godj-url-repaired-feedback-36761888911-t32e7rl5`에 보존했다.
+
+[Hosted full 36761947384](https://github.com/progresshans/godj/actions/runs/36761947384), attempt 1의 세 Portable Go conformance는
+통과했지만 PostgreSQL race/core job `110046536528`은 **40분 작업 제한**에 의해 취소됐다. GitHub annotation의
+`The job has exceeded the maximum execution time of 40m0s`와 실제 종료 로그를 확인했다. 전체 작업 2,418초 중
+고정 S3 service build 125초·제품 실행 2,249초였고, 종료 당시 restart test의 Go compile 자식이 남아 있었다.
+이 로그로 테스트 전체 통과나 정상 service 수명 종료를 주장하지 않는다. 같은 source의 normal/core는 1,183초에 성공했고,
+이전 두 race/core 성공 실행도 각각 1,893초(BigTIFF)·2,258초(File/Image choices)가 걸렸다.
+
+Normal/CGO=0 core의 각 15 packages·4,385 run/pass·0 skip과 필수 1,920개 경로, 두 mode의 S3 build/lifecycle receipt는
+확인했다. 두 새 PostgreSQL capture의 producer·archive/payload·실제 checkout·Git blob source binding도 확인했으나,
+race·후속 conformance/집계까지 포함한 전체 통합 성공으로 세지 않는다. API 응답·annotation·로그·부분 audit는
+`godj-url-repaired-hosted-full-36761947384-p7v_8zsp`에 보존했다.
+
+PostgreSQL race/core의 작업 예산만 40분에서 60분으로 조정했다. 18분의 각 Go package 제한, 전체 필수 roster,
+no-skip 검사·source/capture 결합·service cleanup 조건은 유지한다. 실제 작업 제한에 도달한 실패를 근거로 한 수정이며
+관찰 도구 timeout 때문에 같은 실행을 다시 시작하는 조치가 아니다. 새 source의 Hosted full 결과는 별도로 통합한다.
+
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
 ### BigTIFF source의 Hosted web 완료

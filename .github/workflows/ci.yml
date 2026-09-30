@@ -963,7 +963,9 @@ jobs:
             timeout_minutes: 35
           - mode: race
             shard: core
-            timeout_minutes: 40
+            # Includes pinned service build and serial generated/process tests.
+            # Keep the 18m per-package deadline and all required sentinels.
+            timeout_minutes: 60
           - mode: race
             shard: operator-target
             timeout_minutes: 35
