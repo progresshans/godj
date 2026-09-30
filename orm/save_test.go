@@ -24,10 +24,11 @@ func TestSaveNewInstanceInsertsAllWritableFieldsAndAssignsGeneratedKey(t *testin
 	if !slices.Equal(backend.calls, []string{"insert"}) {
 		t.Fatalf("backend calls = %v, want [insert]", backend.calls)
 	}
-	assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "title", "published", "summary")
+	assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "title", "published", "summary", "slug")
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "title", query.String("New"))
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "published", query.Boolean(false))
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "summary", query.String(""))
+	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "slug", query.Null())
 	assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 	if article.ID != 41 {
 		t.Fatalf("article.ID = %d, want 41", article.ID)
@@ -40,13 +41,14 @@ func TestSaveNewInstanceInsertsAllWritableFieldsAndAssignsGeneratedKey(t *testin
 func TestSaveLoadedInstanceUpdatesEveryWritableFieldFromSnapshot(t *testing.T) {
 	t.Parallel()
 
-	summary := "Before"
-	article := models.Article{Title: "Memory title", Published: true, Summary: &summary}
+	summary, slug := "Before", "Before_주소"
+	article := models.Article{Title: "Memory title", Published: true, Summary: &summary, Slug: &slug}
 	(models.ArticleDescriptor{}).SetPrimaryKey(&article, 7)
 	backend := &saveBackendSpy{updateRows: []int64{1}}
 	backend.onUpdate = func() {
 		article.Title = "Changed during backend call"
 		*article.Summary = "Changed during backend call"
+		*article.Slug = "Changed_Address"
 	}
 
 	if err := models.ArticleObjects.Save(context.Background(), backend, &article); err != nil {
@@ -56,14 +58,15 @@ func TestSaveLoadedInstanceUpdatesEveryWritableFieldFromSnapshot(t *testing.T) {
 		t.Fatalf("backend calls = %v, want [update]", backend.calls)
 	}
 	plan := backend.updatePlans[0]
-	assertAssignmentNames(t, plan.Assignments(), "title", "published", "summary")
+	assertAssignmentNames(t, plan.Assignments(), "title", "published", "summary", "slug")
 	assertSaveAssignment(t, plan.Assignments(), "title", query.String("Memory title"))
 	assertSaveAssignment(t, plan.Assignments(), "published", query.Boolean(true))
 	assertSaveAssignment(t, plan.Assignments(), "summary", query.String("Before"))
+	assertSaveAssignment(t, plan.Assignments(), "slug", query.String("Before_주소"))
 	if !plan.KeyValue().Equal(query.Integer(7)) || plan.KeyField().Name() != "id" {
 		t.Fatalf("update key = (%v, %s), want (7, id)", plan.KeyValue(), plan.KeyField().Name())
 	}
-	if article.Title != "Changed during backend call" || article.Summary == nil || *article.Summary != "Changed during backend call" {
+	if article.Title != "Changed during backend call" || article.Summary == nil || *article.Summary != "Changed during backend call" || article.Slug == nil || *article.Slug != "Changed_Address" {
 		t.Fatalf("Save unexpectedly restored caller mutation: %#v", article)
 	}
 }
@@ -340,8 +343,8 @@ func TestSaveExplicitKeyUpdateFallbackAndForceInsertPlans(t *testing.T) {
 		if !slices.Equal(backend.calls, []string{"update", "insert"}) {
 			t.Fatalf("backend calls = %v, want [update insert]", backend.calls)
 		}
-		assertAssignmentNames(t, backend.updatePlans[0].Assignments(), "title", "published", "summary")
-		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary")
+		assertAssignmentNames(t, backend.updatePlans[0].Assignments(), "title", "published", "summary", "slug")
+		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary", "slug")
 		assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "id", query.Integer(22))
 		assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 		if article.ID != 22 {
@@ -359,7 +362,7 @@ func TestSaveExplicitKeyUpdateFallbackAndForceInsertPlans(t *testing.T) {
 		if !slices.Equal(backend.calls, []string{"insert"}) {
 			t.Fatalf("backend calls = %v, want [insert]", backend.calls)
 		}
-		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary")
+		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary", "slug")
 		assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "id", query.Integer(23))
 		assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 		if article.ID != 23 {

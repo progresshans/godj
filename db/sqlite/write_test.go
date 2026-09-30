@@ -185,7 +185,7 @@ func TestArticleManagerWriteVerticalSlice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if created.ID != 5 || created.Published || created.Summary != nil {
+	if created.ID != 5 || created.Published || created.Summary != nil || created.Slug != nil {
 		t.Fatalf("created Article = %#v", created)
 	}
 
@@ -193,24 +193,24 @@ func TestArticleManagerWriteVerticalSlice(t *testing.T) {
 		ctx,
 		backend,
 		created,
-		models.ArticlePatch{}.WithTitle("").WithPublished(false).WithSummary(""),
+		models.ArticlePatch{}.WithTitle("").WithPublished(false).WithSummary("").WithSlug("Stored_주소"),
 	)
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if updated.Title != "" || updated.Published || updated.Summary == nil || *updated.Summary != "" {
+	if updated.Title != "" || updated.Published || updated.Summary == nil || *updated.Summary != "" || updated.Slug == nil || *updated.Slug != "Stored_주소" {
 		t.Fatalf("updated Article = %#v", updated)
 	}
 
-	nulled, err := models.ArticleObjects.Update(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull())
+	nulled, err := models.ArticleObjects.Update(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull().WithSlugNull())
 	if err != nil {
 		t.Fatalf("explicit NULL Update() error = %v", err)
 	}
-	if nulled.Summary != nil {
+	if nulled.Summary != nil || nulled.Slug != nil {
 		t.Fatalf("explicit NULL summary = %#v", nulled.Summary)
 	}
 	stored, err := models.ArticleObjects.Using(backend).Filter(models.ArticleFields.ID.Exact(nulled.ID)).All(ctx)
-	if err != nil || len(stored) != 1 || stored[0].Summary != nil || stored[0].Title != "" || stored[0].Published {
+	if err != nil || len(stored) != 1 || stored[0].Summary != nil || stored[0].Slug != nil || stored[0].Title != "" || stored[0].Published {
 		t.Fatalf("stored after update = %#v, error = %v", stored, err)
 	}
 

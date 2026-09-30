@@ -309,12 +309,16 @@ func TestGeneratedDescriptorMetadataIsAnIndependentCopy(t *testing.T) {
 	first := descriptor.Metadata()
 	first.Fields[0].Name = "changed"
 	first.Fields[2].Default.Boolean = true
+	first.Fields[4].DBIndex, first.Fields[4].AllowUnicode = false, false
 	second := descriptor.Metadata()
 	if second.Fields[0].Name != "id" {
 		t.Fatalf("descriptor metadata was mutable: %#v", second.Fields[0])
 	}
 	if second.Fields[2].Default == nil || second.Fields[2].Default.Boolean {
 		t.Fatalf("descriptor default metadata was mutable: %#v", second.Fields[2].Default)
+	}
+	if second.Fields[4].Kind != ir.FieldSlug || !second.Fields[4].DBIndex || !second.Fields[4].AllowUnicode {
+		t.Fatal("descriptor slug metadata was mutable or incomplete")
 	}
 }
 
@@ -329,8 +333,8 @@ func TestGeneratedDescriptorConcurrentReads(t *testing.T) {
 			defer group.Done()
 			for count := 0; count < 100; count++ {
 				metadata := descriptor.Metadata()
-				if len(metadata.Fields) != 4 {
-					t.Errorf("field count = %d, want 4", len(metadata.Fields))
+				if len(metadata.Fields) != 5 {
+					t.Errorf("field count = %d, want 5", len(metadata.Fields))
 					return
 				}
 			}

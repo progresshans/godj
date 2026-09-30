@@ -4,7 +4,7 @@
 현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
 GDJ-0104의 URLField·Helpdesk 외부 참조는 제품/생성/소비자와 native·양 DB·독립 client·Admin 브라우저 및
-영향 세 mode·실패 대조/fuzz 검증을 완료했다. 새 source의 Hosted full은 후속 통합 범위다. [URL 의미](../adr/0083-url-fields-and-input-normalization.md)를 따른다.
+영향 세 mode·실패 대조/fuzz와 source `e79d7795`의 Hosted full 통합을 완료했다. [URL 의미](../adr/0083-url-fields-and-input-normalization.md)를 따른다.
 
 GDJ-0105의 SlugField·일반 DBIndex·Article 주소는 native·양 DB·영향 세 mode·독립 client·프로젝트 명령·
 실제 Admin/공개 상세 브라우저와 실패 대조/fuzz·생성 drift를 검증했다. 새 source의 Hosted full은 남아 있다.

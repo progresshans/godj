@@ -21,6 +21,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AlterFieldDecimalPrecision",
 		"AlterFieldRelation",
 		"UniqueConstraints",
+		"ColumnIndexes",
 		"ExplicitManyToMany",
 		"AutomaticManyToMany",
 	}

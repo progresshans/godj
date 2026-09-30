@@ -127,6 +127,32 @@ late-DDL 재분류 방지, duplicate projection 거부, CSRF 검증과 과거 mi
 새 IR kind·일반 index·migration·생성과 Article의 누적 플랫폼 통합은 이 source의 **Hosted full**이 소유한다.
 현재 실행 중인 URL source의 결과는 이 변경의 Hosted 성공으로 전이하지 않는다. 로컬 전체/cold는 중복하지 않았다.
 
+### Hosted feedback의 공유 fixture 회귀와 보정
+
+Slug 구현 source `e7dfddfec7a78e3ee7c19376895507cc10b02b2d`의
+[PR feedback 36779684516](https://github.com/progresshans/godj/actions/runs/36779684516)은 실패했다.
+실제 job `110106390097`의 checkout `3ac8c2e65f5805dd75dab3681db43596f1ed2131`는 해당 source를 parent로 가지며,
+두 tree `ee5d1b4f5e14c70467a42820c77648fda5aee0f4`의 일치를 확인했다. Log SHA256은 `f7c64a17c67d2e804c3844b4621df8590847d9f79156bccc7545f79c5e420333`다.
+Codegen의 기존 Article 기준 hash, SQLite의 네 column 임시 table과 capability 기대값,
+backend capability field 목록, ORM의 네 field metadata/세 writable field 기대값이 현재 선언을 반영하지 못했다.
+
+공유 SQLite fixture에 실제 nullable/unique slug column을 추가하고 SQL NULL decode·Unicode 저장/명시적 NULL을 검사했다.
+이전에는 SQLite의 quoted identifier fallback 때문에 일부 조회만 통과할 수 있었으므로 실제 NULL도 assert한다.
+현재 generator hash와 13개 capability의 엄격한 목록을 갱신했고, concurrent descriptor의 다섯 field와
+Slug flag 복사, Save snapshot의 독립 Slug pointer·NULL/전체 writable field 순서를 확인했다.
+제품 코드·생성기·생성물은 바꾸지 않았으며 기존 실패/취소/rollback/trigger-ignored 행 검사는 유지한다.
+
+Codegen/ORM/migration backend 전체 331 roots는 normal/race/CGO=0 각각 **1,033 run/pass**,
+공유 fixture를 직접 쓰는 SQLite 열 roots와 capability 한 root는 각각 **11 run/pass**로 통과했다.
+필수 root·package의 시작/종료·0 skip·0 누락과 변경한 일곱 테스트 파일의 source 전후 일치를 확인했다.
+각 mode의 unit/SQLite wall seconds는 1.015/1.274, 6.046/2.715, 0.984/1.255다.
+초기 fragment 검사의 gofmt 정렬 공백 불일치도 runtime metadata 검사와 구분해 보정했다.
+실패 receipt는 `godj-slug-feedback-36779684516-cnkzvc8x`, 보정의 scoped 세 mode는 `godj-slug-feedback-regressions-ogc6zzle`에 보존한다.
+비Markdown inventory는 2,891 files / `a5927169218fcfd50408d1dae5d1603dfd93a812182e26e219b242fb793aa18b`다.
+`godj-slug-repair-checks-rutif3cj`에서 일곱 테스트 외 제품/생성 source의 byte identity와
+Go 2,204 files format·문서 175개 local link·diff whitespace도 확인했다.
+이 보정 source의 Fast/Hosted full은 별도 실행이 필요하며 이전 source의 실패를 성공으로 덮지 않는다.
+
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 
 ### 독립 native 기준
@@ -291,6 +317,52 @@ checkout/log를 보존했다. 전체 성공이 아니며 실패한 검사를 삭
 Full 실행과 artifact의 별도 검증 receipt는 `godj-url-budget-hosted-full-36767526813-ansg035r`,
 Fast feedback receipt는 `godj-url-budget-feedback-36767491339` prefix directory에 보존한다.
 
+
+### URL source의 Hosted full 완료
+
+2026-10-01, source `e79d7795f4735ba7dbf02bb0d6b399a3475451e2`, attempt 1의
+[Hosted full 36772676839](https://github.com/progresshans/godj/actions/runs/36772676839)을 완료했다.
+Plan `110083395228`의 실제 checkout과 full 선택을 확인했고 **62/62 jobs success, skip 0**이다.
+필수 여덟 owner(command product, conformance, exact Darwin, portable Go, PostgreSQL,
+project check, Python compatibility, relation product)가 모두 성공했다.
+실제 aggregate `110110865352`의 `full_platform_verified=true`와 정확한 owner 목록을 검증했다.
+
+새 capture 두 개는 같은 run/attempt의 실제 producer checkout·성공 step·artifact ID·archive SHA256·provenance·
+payload SHA256을 결합했다. 현재 dirty 파일을 사용하지 않고 위 source의 Git objects에서 다시 계산한 binding도 같다.
+System-state는 682 files/7,042,587 bytes, SHA256 `65c9f630422d9ba40dd0c7e9cc9e38185b5fbf0136b4cfc626a7bb2cec008b99`,
+operator는 759 files/6,895,897 bytes, SHA256 `86940f1d1f175177fd08f60159360d07ea3035fb2f9ea09000e4fce2455d248b`다.
+
+| Capture | Producer job | Artifact | Archive SHA256 | Payload SHA256 |
+|---|---|---|---|---|
+| systemstate-postgres-1 | `110083452938` | `11125651795` | `41b838fe068171c1b7ae6a0dfe3134da0db9a6ecd5364bc342371022472768bb` | `5d152d0753a281e124767213d8869eab6af3ec4abd242c420de6919ae0bc8f3e` |
+| operator-postgres-1 | `110083452973` | `11123899162` | `f1ec5f6ed3f30895b3fa905629d444fc0b195dc37cbc4780258a66c2bafb7bb2` | `21027b3617a6362c4e660140930232f760f07cfadd0c5621fd2b6821a1f9f117` |
+
+Consumer `110099258242`의 실제 checkout과 두 artifact/producer ID를 확인했다.
+Same-run provenance·conformance 실행, 32-bit migration/project-check/runserver compile·relation runtime,
+두 oracle checksum·reference artifact 비변경 step이 모두 성공했다.
+Consumer log SHA256은 `9b04e9e05976c8992edc07e92f0e869809bb05c754497f936b11da6a5779dfaf`다.
+
+PostgreSQL core의 normal/race/CGO=0은 각각 15 packages, **4,385 run/pass, 0 skip**이며 필수 1,920 경로와
+S3 23 경로를 포함한다. 세 S3 artifact에서 pinned build/module/buildinfo와 동일한 Linux/amd64 binary
+`c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`, child/server exit 0·양 process reaped·
+graceful cleanup을 확인했다. 이전 run의 서비스 종료 결과를 전이하지 않았다.
+
+| Mode | Producer job | S3 artifact | Archive SHA256 |
+|---|---|---|---|
+| normal | `110083452938` | `11124739290` | `d12254ef41de03ad022f71848511975c5279bb32e31fcdf0a59a2877878914be` |
+| race | `110083453116` | `11126027387` | `312c00ec16cb1b25b8c5fd308a7323228c789f2896d824c4a65dced23e39cd64` |
+| cgo0 | `110083453052` | `11125111458` | `c149f4439e12dac8f05ea993491a997133c64f621f93aae9dc5b7aa1a47a4310` |
+
+같은 source의 [PR feedback 36770722357](https://github.com/progresshans/godj/actions/runs/36770722357)도 성공했다.
+실제 job `110076115531`의 merge checkout `9a8d92c56f090a2c07aee833e263320a698f1c5e`는 source를 parent로 갖고,
+source와 tree `73e85eb03259dfd7bed5f40e8110f2fc377cc214`가 같다. Log SHA256은
+`09ffc59a7c2c27ef97466be9bbdc3320f346914217ce873d98ce82d12cf69f14`다.
+Full receipt는 `godj-url-comment-hosted-full-36772676839-xb84w8xi`, Fast receipt는 `godj-url-comment-feedback-36770722357-uq9x16gc`다.
+
+별도 검증 도구의 첫 terminal audit는 consumer에 존재하지 않는 `Require a clean worktree` step 이름을 요구해 중단했다.
+고정 source의 실제 선언인 `Ensure reference artifacts were not rewritten`와 32-bit/oracle 필수 step 전체로
+검사 대상을 바로잡고 모두 확인했다. Workflow나 필수 실행을 바꾸지 않았으며 실패한 audit를 전체 PASS로 세지 않았다.
+이 결과로 GDJ-0104의 누적 통합을 완료한다. 이후 Slug source의 Hosted 증거는 별도로 확인한다.
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 

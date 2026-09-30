@@ -2,8 +2,8 @@
 
 - 갱신: 2026-10-01
 - 현재 구현: [GDJ-0105 Slug 모델 필드와 Article 주소](../../work/0105-slug-fields-and-indexed-article-addresses.md)
-- 통합 검증: [GDJ-0104 URL 모델 필드와 Helpdesk 외부 참조](../../work/0104-url-fields-and-helpdesk-links.md), source `e79d7795`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36772676839) 실행 중
-- 최근 전체 검증: [Hosted full 36711704536](https://github.com/progresshans/godj/actions/runs/36711704536), source `bcc7b76a17aacc6a90a3f360bb8f25fe080a840d`; 필수 owner·집계·새 capture/Git source 결합 완료
+- 통합 검증: GDJ-0105의 공유 fixture 보정을 포함한 새 Slug source의 Hosted full 예정
+- 최근 전체 검증: [URL Hosted full 36772676839](https://github.com/progresshans/godj/actions/runs/36772676839), source `e79d7795f4735ba7dbf02bb0d6b399a3475451e2`; 필수 owner·집계·새 capture/Git source 결합 완료
 - 최근 영향 통합: [BigTIFF Hosted web 36751035636](https://github.com/progresshans/godj/actions/runs/36751035636), source `8d89ec28b10cbba4787a439142354a6c6d8bb73d`; 전체 플랫폼 성공과 구분
 - Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
@@ -26,8 +26,8 @@ URLField를 Schema IR·생성 모델·문자열 ORM·migration·Form/Admin·JSON
 
 ## 다음 행동
 
-URL source의 Hosted full 최종 집계와 새 capture/source 결합을 확인한다.
-Slug source를 게시한 뒤 새 **Hosted full**로 일반 index·migration·생성·공통 Form/OpenAPI/Admin과
+PR feedback에서 드러난 기존 공유 Article fixture와 capability/provenance 기대값을 보정하고 관련 세 mode를 통과했다.
+보정 source를 게시한 뒤 새 **Hosted full**로 일반 index·migration·생성·공통 Form/OpenAPI/Admin과
 Article 소비자의 누적 플랫폼 검증을 통합한다. 로컬 전체/cold를 중복하지 않으며 이전 source의 성공은 전이하지 않는다.
 남은 codec 특성/storage provider·custom user model·인증/mail provider와 다른 카탈로그 기능은 의존 순서에 따라 이어간다.
 현재 외부 입력이 필요한 blocker는 없다.

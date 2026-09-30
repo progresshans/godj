@@ -1,6 +1,6 @@
 ---
 id: GDJ-0104
-status: active
+status: completed
 updated: 2026-10-01
 baseline_commit: "8d89ec28b10cbba4787a439142354a6c6d8bb73d"
 integration_owner: "root"
@@ -21,14 +21,16 @@ GDJ-0103의 파일 기능 중 남은 codec/provider는 해당 작업에 그대�
 - [x] OpenAPI와 독립 생성 client의 실제 HTTP·wire/domain·최종 DB 검증
 - [x] 완성된 변경 묶음의 영향 normal/race/CGO=0·생성 drift·필수 실패 대조
 - [x] 현행 문서와 source별 검증 범위 정리
-- [ ] 새 IR/migration/생성·공통 OpenAPI/Admin 소비자의 Hosted full 통합
+- [x] 새 IR/migration/생성·공통 OpenAPI/Admin 소비자의 Hosted full 통합
 
 [ADR-0083](../docs/adr/0083-url-fields-and-input-normalization.md)이 장기 의미를 소유하고,
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 실제 실행과 실패를 기록한다.
 제품·생성물·실제 양 DB/독립 client와 Admin 브라우저 흐름의 영향 검증을 완료했다.
 다섯 실패 대조·fuzz·생성 drift를 확인했으며 새 source의 플랫폼 통합은 Hosted full이 소유한다.
 첫 Hosted full의 dependency closure 검사가 URL 공통 코드의 소유 목록 누락을 검출했다.
-두 attestation 목록과 변조/symlink 회귀를 보완하고 관련 세 mode를 통과했으며 수정 source의 Hosted 통합은 남아 있다.
+두 attestation 목록과 변조/symlink 회귀 및 workflow 실행 경계를 보정했다.
+Source `e79d7795`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/36772676839)에서
+62개 job·여덟 owner·최종 집계와 새 capture/Git source 결합을 확인해 통합을 완료했다.
 
 URL 문법 검증은 fetch/redirect/HTML href의 허가가 아니다. 일반 ORM은 저장 문자열을 자동 정규화하거나
 검증하지 않는다. Form은 생략 스킴을 보완하고 JSON은 완전한 URL을 요구한다.

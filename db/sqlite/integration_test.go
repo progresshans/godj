@@ -36,6 +36,9 @@ func TestArticleQueryVerticalSlice(t *testing.T) {
 		t.Fatalf("exact All() error = %v", err)
 	}
 	assertIDs(t, exact, 1)
+	if exact[0].Slug != nil {
+		t.Fatal("current nullable slug column was not decoded as SQL NULL")
+	}
 
 	icontains, err := base.
 		Filter(models.ArticleFields.Title.IContains("django")).
@@ -973,7 +976,8 @@ func openArticleDatabaseWithoutCleanup(t *testing.T, ctx context.Context, name s
   "id" INTEGER NOT NULL PRIMARY KEY,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`,
 		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
   (1, 'Alpine Guide', TRUE, NULL),
