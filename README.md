@@ -5,7 +5,7 @@ Schema에서 ORM·Migration·Form·Admin·API를 연결한다. 현재는 개발 
 구현 범위와 제한은 [구현 현황](docs/status/IMPLEMENTATION_MATRIX.md)에 있다.
 
 이미지 업로드는 [공통 ImageField](uploads/README.md#이미지-내용-검증)의 context 기반 내용 검증과 자원 한도를 사용한다.
-모델 ImageField·폭/높이 자동 반영과 추가 codec은 다음 구현 범위다.
+모델 [ImageField](forms/model/README.md#모델-이미지와-크기-필드)는 검증한 크기를 typed 저장에 반영한다. 저장된 이미지의 명시적 재검사·추가 codec/provider는 다음 범위다.
 
 ## Article 실행
 

@@ -166,3 +166,11 @@ portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-
 GoDj wrapper와 GIF/container 예산 검사는 독립 작성했으며 실제 디코딩은 Go 1.26.5의 `image/png`, `image/jpeg`, `image/gif`
 및 [golang.org/x/image v0.46.0의 WebP decoder](https://pkg.go.dev/golang.org/x/image@v0.46.0/webp)(BSD-3-Clause)를 사용한다.
 지원 형식·전체 GIF 검증·한도/취소의 차이는 [이미지 계약](../uploads/README.md#이미지-내용-검증)과 ADR-0082를 따른다.
+
+
+모델 이미지의 기본 이름 길이·폭/높이 필드 반영·기존 파일 재개방·clear/DB rollback/삭제 의미는 같은 고정 Django 6.1의
+`django/db/models/fields/files.py`(BSD-3-Clause, SHA-256
+`fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8`)를 참조한다.
+[독립 observer](../conformance/runners/django/model_image_reference.py)는 Pillow 12.3.0으로 합성 PNG만 만들며
+[관찰값](../forms/model/testdata/model-image-django61.json)에 15개 폼 결과와 실제 저장/rollback을 남긴다. 기존 파일을 다시 여는
+Django의 동작과 GoDj의 명시적인 I/O 경계는 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)에 구분한다.

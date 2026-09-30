@@ -28,13 +28,13 @@ bound, err := definition.Bind(ctx, metadata, submitted, authorizedInitial)
 
 `PostClean.Fields`는 callback이 바꿀 수 있는 scalar의 명시적 목록이다. 선택 입력도 여기에 선언해야 변경할 수 있다.
 제외한 scalar를 선언하면 숨긴 입력을 클라이언트에게 허용하지 않고 서버가 파생한 값을 저장 adapter에 전달할 수 있다.
-PK·모델 파일·컬렉션·추가 command input·알 수 없는 field는 변경할 수 없다. 선언하지 않은 변경이나 잘못된 값 표현은
+PK·모델 파일·이미지 소유 크기 필드·컬렉션·추가 command input·알 수 없는 field는 변경할 수 없다. 선언하지 않은 변경이나 잘못된 값 표현은
 부분 후보를 반환하지 않고 configuration error로 처리한다. 이 오류에는 입력값을 넣지 않는다.
 Callback은 pure하고 동시 호출에 안전해야 한다. 반환한 `forms.Values`는 **변경 집합**이며 빈 집합은 후보를 그대로 둔다.
 Python `Model.clean()`의 반환값을 무시하는 규약과 다르다. 후보를 암묵적으로 수정하는 Python 객체 구조는 구현 목표가 아니다.
 
 `Form.Cleaned()`는 사용자 입력 정리 결과다. `Candidate()`는 clean 변경과 오류를 반영한 모델 상태다.
-`Input()`은 유효한 bound form에서만 선택 입력·command input·실제로 반환한 명시적 clean 변경을 제공한다.
+`Input()`은 유효한 bound form에서만 선택 입력·command input·이미지에서 파생한 크기·실제로 반환한 명시적 clean 변경을 제공한다.
 선언만 하고 바꾸지 않은 제외 필드는 저장 입력에 추가하지 않는다. Clean이 nonnullable field에 만든 NULL은 후보에
 보존하지만 `Input()`에서 `nonnullable` 준비 오류로 거부한다. Form의 유효성과 기존 field 오류는 바꾸지 않는다.
 `Input()`과 typed instance 준비는 I/O를 수행하지 않으며,
@@ -195,7 +195,7 @@ if err != nil { return err }
 ```
 
 `Unbound(parent, current)`와 `Bind(ctx, ...)`는 이미 인가하고 읽은 snapshot을 받으며 DB를 조회하지 않는다.
-Bind는 ImageField 명령 입력의 내용 검증에 같은 context를 전달한다. 기존 current 자식은 모두 같은
+Bind는 모델/명령 ImageField 입력의 내용 검증에 같은 context를 전달한다. 기존 current 자식은 모두 같은
 부모에 속해야 하고, PK가 아직 없는 새 부모에는 기존 자식을 넘길 수 없다. 선택한 collection은 일반 InstanceSet과 같은 pure
 reader로 전달한다. 부모와 자식은 복사하며 입력 필드/validator·개수 정책은 기존 SetSpec에서 보존한다.
 
@@ -390,8 +390,55 @@ err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
 애플리케이션이 계속 소유한다. [storage](../../storage/README.md), [결정](../../docs/adr/0082-file-storage-publication-and-reference.md)을 따른다.
 
 Read-only JSON 투영은 `serializers.ModelField{Name: "file", ReadOnly: true}`로 저장 이름을 제공한다. Writable JSON 문자열,
-자동 URL/다운로드 인가, 모델 ImageField·폭/높이 자동 반영·파일 choices는 아직 지원하지 않는다. 명시적인 alias와 인가된 serving은
+자동 URL/다운로드 인가·파일 choices는 아직 지원하지 않는다. 명시적인 alias와 인가된 serving은
 [storage](../../storage/README.md)와 [파일 응답](../../web/streaming.md)에 있다. ExtraFields의 `forms.ImageField`는
 [내용 검증](../../uploads/README.md#이미지-내용-검증)을 사용하며 저장된 일반 FileField의 IR 의미를 변경하지 않는다.
 [독립 생성 소비자](../../codegen/consumertest/testdata/files/consumer_test.go)는 실제 multipart→typed 준비→파일/DB 저장과
 DB rollback·clear·모델 삭제·재개방을 실행한다. 실행 source와 환경은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)에 둔다.
+
+
+## 모델 이미지와 크기 필드
+
+```go
+schema.ImageField("photo", "Photo", schema.Nullable(), schema.Blank(),
+    schema.ImageDimensions("width", "height")),
+schema.IntegerField("width", "Width", schema.Nullable()),
+schema.IntegerField("height", "Height", schema.Nullable()),
+```
+
+`schema.ImageField`는 기본 100 문자의 저장 이름과 별도 `ir.FieldImage` 의미를 선언한다. `ImageDimensions`는 같은 모델의
+일반 IntegerField 이름을 참조한다. 한쪽 이름을 비우면 그 크기는 저장하지 않는다. 존재하지 않는 필드·PK·다른 타입·같은
+필드의 가로/세로 겸용·여러 이미지의 공유 대상은 거부한다. 생성 모델/ORM에서는 파일처럼 `string` 또는 `*string`이며,
+명시적인 서버 이름 대입과 일반 ORM Save는 파일을 검사하거나 크기를 자동 계산하지 않는다.
+
+모델 Form은 같은 IR에서 `forms.ImageField`를 투영하고 [내용 검증](../../uploads/README.md#이미지-내용-검증)을 수행한다.
+`formmodel.WithImageLimits`로 검사 한도를 지정할 수 있다. 일반 FileField나 문자 입력으로 바꿔 검사를 우회할 수 없다.
+IR의 크기 필드는 기본 폼에서 제외하고 명시적인 필드 선택·수동 Spec 바인딩·`PostClean.Fields`에서도 편집을 거부한다.
+JSON 투영은 이미지 이름과 소유 크기를 모두 `ReadOnly: true`로 선언해야 한다. 일반 Form은 선택하지 않은 크기 문자열을 무시하고,
+Admin은 허용한 입력 이름 밖의 크기 필드 제출을 기존 정책대로 HTTP 400으로 거부한다.
+
+새 업로드는 검사한 원본의 폭/높이를 **모델 검증 전에** candidate에 넣는다. 모델 clean/validator와 `SaveFiles`의 이름
+callback도 이 크기를 본다. 늦은 non-field 오류가 생기면 candidate는 유지하지만 Input/저장은 거부한다. 명시적 clear는
+이름을 빈 문자열로, 소유 크기를 NULL로 만든다. 크기 필드가 nonnullable이면 유효한 폼이어도 `Input/Prepare`에서 실패하며
+NULL을 0으로 바꾸거나 게시/DB 쓰기를 시작하지 않는다. 이미지 업로드/clear가 만든 크기는 excluded field여도 저장 Input에 포함된다.
+`Changed()`는 사용자 입력 변경 목록이므로 직접 선택 열을 저장하는 adapter는 `Prepared().Input()`의 파생 크기도 반영해야 한다.
+
+`Prepare`는 기존/default 이름과 새 크기를 가진 분리된 모델을 준비하지만 업로드가 남아 있으면 모델/DB 쓰기를 허용하지 않는다.
+명시적 `SaveFiles` 뒤 실제 충돌 처리 이름과 크기를 함께 저장한다. Formset도 같은 준비와 저장 경계를 사용한다. 게시 성공 뒤
+DB 실패/rollback·clear·모델 삭제는 이전/새 이미지 파일을 제거하지 않는다.
+
+기존 이름 유지와 이미지가 제외된 폼은 저장소를 읽지 않고 서버 크기를 유지한다. Django 6.1은 포함된 기존 ImageField를
+다시 대입할 때 파일을 열어 stale 크기도 갱신한다. GoDj는 숨은 I/O를 하지 않으며 저장된 이미지의 명시적 재검사/크기 갱신 API는
+후속 범위다. 이미지 decoder의 원본 치수를 사용하며 EXIF 회전·변환·정화는 수행하지 않는다.
+
+Admin의 `Initial`에는 선택한 이미지의 크기 값도 제공하고 `Snapshot`과 일치시킨다. `InitialValues`는 선택된 폼 값만
+투영하므로 Admin adapter가 크기를 별도로 추가한다. 이 값들은 폼 input으로 렌더링하지 않으며 revision 필드로 사용할 수 없다.
+현재 인가된 행에서 다시 얻은 초기값·CSRF·최종 revision/transaction 검사를 유지한다.
+
+IR 정규화·생성 descriptor·migration wire/hash/이력에 이미지 kind와 참조 이름이 남는다. Char/Email/File/Image 간 같은 길이의
+종류 변경과 Image의 크기 참조 변경은 별도 물리 DDL 없이 이력을 바꾼다. 다른 저장 조건 변경을 함께 숨길 수 없다. 자동 감지는
+새 크기 열과 기존 소유자의 참조 해제를 먼저 배치하며 선언 순서는 insertion anchor로 보존한다. 참조 중인 크기 열은 제거할 수
+없다. 여러 이미지가 서로의 크기 소유권을 교환하는 순환은 명시적 중간 migration으로 참조를 먼저 해제해야 한다.
+
+고정 [Django 관찰](../../conformance/runners/django/model_image_reference.py)과 생성 소비자·Admin의 환경별 실행 결과는
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다. 지원 codec·I/O 차이와 남은 storage 범위를 전체 파일 기능 완료로 합치지 않는다.

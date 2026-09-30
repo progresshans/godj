@@ -488,6 +488,7 @@ func writeRelationModel(hash sqliteRelationHashWriter, model ir.Model) {
 		for _, value := range []string{field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, field.Reverse.Name, string(field.Symmetry)} {
 			writeRelationString(hash, value)
 		}
+		writeRelationBool(hash, field.Blank)
 		writeRelationBool(hash, field.Reverse.Disabled)
 		writeRelationBool(hash, field.Through != nil)
 		if through := field.Through; through != nil {
@@ -511,8 +512,12 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationString(hash, field.GoName)
 	writeRelationString(hash, field.Column)
 	writeRelationString(hash, string(field.Kind))
+	writeRelationString(hash, field.WidthField)
+	writeRelationString(hash, field.HeightField)
+
 	writeRelationBool(hash, field.PrimaryKey)
 	writeRelationBool(hash, field.Nullable)
+	writeRelationBool(hash, field.Blank)
 	writeRelationBool(hash, field.Unique)
 	writeRelationInt(hash, field.MaxLength)
 	if field.Decimal != nil {
@@ -2723,7 +2728,7 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "INTEGER", nil
 	case ir.FieldInteger:
 		return "BIGINT", nil
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
 	case ir.FieldJSON:
 		return "TEXT", nil

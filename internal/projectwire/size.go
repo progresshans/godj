@@ -132,6 +132,12 @@ func measureField(sizer *wirejson.Sizer, field ir.Field) bool {
 	if field.MaxLength != 0 && (!sizer.Literal(`,"max_length":`) || !sizer.Integer(int64(field.MaxLength))) {
 		return false
 	}
+	if field.WidthField != "" && (!sizer.Literal(`,"width_field":`) || !sizer.String(field.WidthField)) {
+		return false
+	}
+	if field.HeightField != "" && (!sizer.Literal(`,"height_field":`) || !sizer.String(field.HeightField)) {
+		return false
+	}
 	if field.Blank && !sizer.Literal(`,"blank":true`) {
 		return false
 	}

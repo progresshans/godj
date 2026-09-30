@@ -6,6 +6,9 @@ import (
 )
 
 func projectManyToMany(field ir.ManyToManyField, override overrideConfig) (forms.Field, error) {
+	if override.hasImageLimits {
+		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "unsupported_image_override"}
+	}
 	if override.hasStringNormalizer || override.hasMaxLength {
 		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "unsupported_string_override"}
 	}

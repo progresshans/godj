@@ -71,6 +71,10 @@ func validateModelBoundData(ctx context.Context, model ir.Model, data forms.Data
 // form. Selected values are rendered; additional model values remain private
 // to the candidate. A model validator must receive a complete stored snapshot.
 func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]forms.Value, id int64, revisionField string, revision int64, complete bool) (map[string]forms.Value, map[string]forms.Value, error) {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return nil, nil, &ConfigError{Path: "model", Code: "invalid_image_dimensions", Cause: err}
+	}
 	selected := make(map[string]forms.Value, len(spec.Fields()))
 	candidate := make(map[string]forms.Value, len(provided)+1)
 	inputs := make(map[string]bool, len(spec.Fields()))
@@ -105,7 +109,7 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 			}
 			value, found = forms.Integer(revision), true
 		}
-		if complete && !found {
+		if (complete || inputs[dimensions[field.Name]]) && !found {
 			return nil, nil, &ConfigError{Path: "get.result.initial." + field.Name, Code: "missing_model_value"}
 		}
 		if found && value.IsNull() && !field.Nullable {
@@ -113,6 +117,12 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 		}
 		if found {
 			candidate[field.Name] = value
+			if dimensions[field.Name] != "" {
+				if _, integer := value.AsInteger(); !value.IsNull() && !integer {
+					return nil, nil, &ConfigError{Path: "get.result.initial." + field.Name, Code: "invalid_model_value"}
+				}
+				continue
+			}
 			if !inputs[field.Name] {
 				extra[field.Name] = value
 				extraNames = append(extraNames, field.Name)

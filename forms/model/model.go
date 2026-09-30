@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/uuid"
 )
 
@@ -76,7 +77,14 @@ func WithMaxLength(limit int) OverrideOption {
 	return overrideOption(func(config *overrideConfig) { config.maxLength, config.hasMaxLength = limit, true })
 }
 
+// WithImageLimits configures bounded content inspection for a model ImageField.
+func WithImageLimits(limits uploads.ImageLimits) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.imageLimits, config.hasImageLimits = limits, true })
+}
+
 type overrideConfig struct {
+	imageLimits         uploads.ImageLimits
+	hasImageLimits      bool
 	normalizeString     func(string) string
 	hasStringNormalizer bool
 	maxLength           int
@@ -113,8 +121,8 @@ func OverrideField(name string, options ...OverrideOption) Override {
 }
 
 // NewSpec projects editable scalar and relation fields in exact IR declaration
-// order. An Auto primary key is non-editable; every other unsupported kind is
-// rejected rather than silently omitted.
+// order. Auto primary keys and image-owned dimensions are non-editable.
+// Unsupported kinds are rejected rather than silently omitted.
 func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
 	return NewSpecForFields(model, nil, overrides...)
 }
@@ -124,6 +132,10 @@ func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
 // never grants permission to assign an omitted field, including a relation.
 // Declaration order remains authoritative regardless of selection order.
 func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (forms.Spec, error) {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return forms.Spec{}, &Error{Path: "model", Code: "invalid_image_dimensions"}
+	}
 	if names != nil {
 		known := make(map[string]struct{}, len(model.Fields))
 		for _, field := range model.Fields {
@@ -153,7 +165,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		projection.ManyToMany = nil
 		for _, field := range model.Fields {
 			if selected[field.Name] {
-				if field.PrimaryKey {
+				if field.PrimaryKey || dimensions[field.Name] != "" {
 					return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "non_editable"}
 				}
 				projection.Fields = append(projection.Fields, field.Clone())
@@ -194,7 +206,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		}
 		known[field.Name] = struct{}{}
 		override := overrideByName[field.Name]
-		if field.Kind == ir.FieldAuto && field.PrimaryKey {
+		if field.Kind == ir.FieldAuto && field.PrimaryKey || dimensions[field.Name] != "" {
 			if _, configured := overrideByName[field.Name]; configured {
 				return forms.Spec{}, &Error{Path: "overrides." + field.Name, Code: "non_editable"}
 			}
@@ -233,7 +245,10 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
-	if (override.hasStringNormalizer || override.hasMaxLength && field.Kind != ir.FieldFile) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
+	if override.hasImageLimits && field.Kind != ir.FieldImage {
+		return forms.Field{}, &Error{Code: "unsupported_image_override"}
+	}
+	if (override.hasStringNormalizer || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
 		return forms.Field{}, &Error{Code: "unsupported_string_override"}
 	}
 	if err := ir.ValidateChoices(field); err != nil {
@@ -275,7 +290,7 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
-	case ir.FieldFile:
+	case ir.FieldFile, ir.FieldImage:
 		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength <= 0 {
 			return forms.Field{}, &Error{Code: "invalid_file_metadata"}
 		}
@@ -296,6 +311,12 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 				return forms.Field{}, err
 			}
 			options = append(options, forms.WithDefault(value))
+		}
+		if field.Kind == ir.FieldImage {
+			if override.hasImageLimits {
+				options = append(options, forms.WithImageLimits(override.imageLimits))
+			}
+			return forms.ImageField(field.Name, options...)
 		}
 		return forms.FileField(field.Name, options...)
 	case ir.FieldForeignKey:

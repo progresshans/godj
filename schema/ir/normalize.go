@@ -120,21 +120,8 @@ func normalizeModel(model *Model, path string) error {
 				field.Relation.Reverse.Name = model.Name
 			}
 		}
-		if field.Column == "" {
-			if field.Kind == FieldForeignKey {
-				field.Column = field.Name + "_id"
-			} else {
-				field.Column = field.Name
-			}
-		}
-		if !identifiers.SQL(field.Name) {
-			return validation(fieldPath+".name", "invalid_identifier", field.Name)
-		}
-		if !identifiers.ExportedGo(field.GoName) {
-			return validation(fieldPath+".go_name", "invalid_go_identifier", field.GoName)
-		}
-		if !identifiers.SQL(field.Column) {
-			return validation(fieldPath+".column", "invalid_identifier", field.Column)
+		if err := normalizeField(field, fieldPath); err != nil {
+			return err
 		}
 		if duplicate(names, field.Name) {
 			return validation(fieldPath+".name", "duplicate", field.Name)
@@ -147,21 +134,63 @@ func normalizeModel(model *Model, path string) error {
 		}
 		if field.PrimaryKey {
 			primaryKeys++
-			// The primary key already owns its uniqueness. Canonical metadata
-			// must not request a duplicate independent unique constraint.
-			field.Unique = false
-		}
-		if err := validateField(*field, fieldPath); err != nil {
-			return err
 		}
 	}
 	if primaryKeys != 1 {
 		return validation(path+".fields", "primary_key_count", fmt.Sprintf("got %d, want 1", primaryKeys))
 	}
+	if _, err := imageDimensionOwners(*model, path); err != nil {
+		return err
+	}
 	return normalizeUniqueConstraints(model, path)
 }
 
+// NormalizeField normalizes a detached scalar field without inventing a model.
+// Cross-field references (including image dimensions) are validated by Normalize
+// after the complete owning model is available. One-to-one reverse names must
+// already be resolved by the declaring model.
+func NormalizeField(input Field) (Field, error) {
+	field := input.Clone()
+	if err := normalizeField(&field, "field"); err != nil {
+		return Field{}, err
+	}
+	return field, nil
+}
+
+func normalizeField(field *Field, path string) error {
+	if field.Kind == FieldForeignKey && field.Relation != nil && field.Relation.Cardinality == RelationOneToOne {
+		field.Unique = true
+		if field.Relation.Reverse == (ReverseRelation{}) {
+			return validation(path+".relation.reverse", "unresolved", "one-to-one reverse name requires the declaring model")
+		}
+	}
+	if field.Column == "" {
+		if field.Kind == FieldForeignKey {
+			field.Column = field.Name + "_id"
+		} else {
+			field.Column = field.Name
+		}
+	}
+	if !identifiers.SQL(field.Name) {
+		return validation(path+".name", "invalid_identifier", field.Name)
+	}
+	if !identifiers.ExportedGo(field.GoName) {
+		return validation(path+".go_name", "invalid_go_identifier", field.GoName)
+	}
+	if !identifiers.SQL(field.Column) {
+		return validation(path+".column", "invalid_identifier", field.Column)
+	}
+	// A primary key owns its uniqueness without a second independent constraint.
+	if field.PrimaryKey {
+		field.Unique = false
+	}
+	return validateField(*field, path)
+}
+
 func validateField(field Field, path string) error {
+	if err := validateImageField(field, path); err != nil {
+		return err
+	}
 	if field.Kind != FieldDecimal && field.Decimal != nil {
 		return validation(path+".decimal", "unsupported", "decimal arm requires DecimalField kind")
 	}
@@ -262,11 +291,11 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarInteger {
 			return validation(path+".default", "type_mismatch", "IntegerField default must be an int64")
 		}
-	case FieldChar, FieldEmail, FieldFile, FieldText:
+	case FieldChar, FieldEmail, FieldFile, FieldImage, FieldText:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind == FieldFile) && field.MaxLength <= 0 {
+		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind.IsFile()) && field.MaxLength <= 0 {
 			return validation(path+".max_length", "invalid", "CharField max length must be positive")
 		}
 		if field.Kind == FieldText && field.MaxLength != 0 {

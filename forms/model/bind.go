@@ -66,8 +66,8 @@ func (bound BoundForm) Excluded() []string {
 	return excluded
 }
 
-// Input returns selected stored values, explicitly declared model-clean changes
-// and command inputs after every applied check succeeded. Omitted defaults come
+// Input returns selected stored values, image-derived dimensions, explicitly
+// declared model-clean changes and command inputs after every check succeeded. Omitted defaults come
 // from the candidate; command inputs continue to come from the cleaned data.
 func (bound BoundForm) Input() (forms.Values, error) {
 	if bound.form.ReadOnly() {
@@ -130,8 +130,9 @@ func (bound BoundForm) WithErrors(failures validation.Errors, rejectedFields ...
 // Bind constructs an immutable model candidate, validates selected model
 // fields, then runs pure model clean and validators even if fields failed.
 // Initial may contain explicitly supplied model values outside the form; such
-// values enter Input only if explicitly changed by PostClean. Omitted initial
-// model values use model defaults or the unsaved empty state.
+// values enter Input only through image dimension derivation or explicitly
+// declared PostClean changes. Omitted initial model values use model defaults
+// or the unsaved empty state.
 // No relation existence, uniqueness or persistence I/O is performed here.
 func Bind(ctx context.Context, model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
 	binding, formInitial, err := prepareModelBinding(model, spec.Fields(), initial, postClean)
@@ -159,6 +160,10 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	if err := postClean.validate(model); err != nil {
 		return modelBinding{}, nil, err
 	}
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return modelBinding{}, nil, &Error{Path: "model", Code: "invalid_image_dimensions"}
+	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	candidate := make(map[string]forms.Value, len(model.Fields)+len(model.ManyToMany))
 	for _, field := range model.Fields {
@@ -177,10 +182,10 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			if !present {
 				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
 			}
-		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldFile || field.Kind == ir.FieldText) {
+		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind.IsFile() || field.Kind == ir.FieldText) {
 			value = forms.String("")
 		}
-		if field.Kind == ir.FieldFile {
+		if field.Kind.IsFile() {
 			var err error
 			value, err = fileReferenceValue(value)
 			if err != nil {
@@ -200,7 +205,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	for _, field := range fields {
 		selected[field.Name()] = field
 		if metadata, stored := byName[field.Name()]; stored {
-			if metadata.PrimaryKey {
+			if metadata.PrimaryKey || dimensions[field.Name()] != "" {
 				return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "non_editable"}
 			}
 			if !inputKindMatches(metadata.Kind, field.Kind()) {
@@ -212,7 +217,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	}
 	formInitial := make(map[string]forms.Value, len(fields))
 	for name, input := range selected {
-		if metadata, found := byName[name]; found && metadata.Kind == ir.FieldFile && input.Kind() == forms.FieldFile {
+		if metadata, found := byName[name]; found && metadata.Kind.IsFile() && input.IsFile() {
 			value, err := fileInitialValue(candidate[name])
 			if err != nil {
 				return modelBinding{}, nil, err
@@ -223,7 +228,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	for name, value := range initial {
 		_, scalar := byName[name]
 		_, input := selected[name]
-		if scalar && byName[name].Kind == ir.FieldFile {
+		if scalar && byName[name].Kind.IsFile() {
 			var err error
 			value, err = fileReferenceValue(value)
 			if err != nil {
@@ -245,7 +250,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			candidate[name] = value
 		}
 		if input {
-			if scalar && byName[name].Kind == ir.FieldFile {
+			if scalar && byName[name].Kind.IsFile() {
 				var err error
 				value, err = fileInitialValue(value)
 				if err != nil {
@@ -264,6 +269,7 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 	model, fields, candidate := binding.model, binding.fields, binding.candidate
 	byName, many := binding.byName, binding.many
 	data := form.Submitted()
+	var changed []string
 	for _, field := range fields {
 		value, present := form.Cleaned().Get(field.Name())
 		if !present || !form.Errors().ByField(validation.Field(field.Name())).Empty() {
@@ -273,7 +279,7 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 		if !scalar && !many[field.Name()] {
 			continue
 		}
-		if scalar && metadata.Kind == ir.FieldFile {
+		if scalar && metadata.Kind.IsFile() {
 			// Missing file input leaves the stored/default reference unchanged.
 			// Clear is a present FileValue with an empty name, including null=True.
 			if value.IsNull() {
@@ -284,6 +290,29 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 				return BoundForm{}, &Error{Path: "form." + field.Name(), Code: "type_mismatch"}
 			}
 			candidate[field.Name()] = forms.String(file.Name())
+			if metadata.Kind == ir.FieldImage {
+				info, verified := file.Image()
+				if _, uploaded := file.Upload(); uploaded && !verified {
+					return BoundForm{}, &Error{Path: "form." + field.Name(), Code: "unverified_image"}
+				}
+				if file.Clear() || verified {
+					for _, dimension := range []struct {
+						name  string
+						value int
+					}{{metadata.WidthField, info.Width()}, {metadata.HeightField, info.Height()}} {
+						if dimension.name == "" {
+							continue
+						}
+						value := forms.Null()
+						if verified {
+							value = forms.Integer(int64(dimension.value))
+						}
+						candidate[dimension.name] = value
+						changed = append(changed, dimension.name)
+					}
+				}
+			}
+
 			continue
 		}
 		_, submitted := data.Get(field.Name())
@@ -294,7 +323,7 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 		}
 		candidate[field.Name()] = value
 	}
-	bound := BoundForm{form: form, candidate: forms.NewValues(candidate), model: model.Clone(), fields: fields}
+	bound := BoundForm{form: form, candidate: forms.NewValues(candidate), model: model.Clone(), fields: fields, changed: changed}
 	excluded := make(map[string]bool)
 	for _, name := range bound.Excluded() {
 		excluded[name] = true
@@ -337,6 +366,8 @@ func inputKindMatches(model ir.FieldKind, input forms.FieldKind) bool {
 	switch model {
 	case ir.FieldFile:
 		return input == forms.FieldFile
+	case ir.FieldImage:
+		return input == forms.FieldImage
 	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
 		return input == forms.FieldChar || input == forms.FieldEmail
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
@@ -371,7 +402,7 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 		return true
 	}
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		text, ok := value.AsString()
 		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) && (field.MaxLength == 0 || utf8.RuneCountInString(text) <= field.MaxLength)
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
@@ -468,7 +499,7 @@ func modelFieldErrors(field ir.Field, value forms.Value) validation.Errors {
 	}
 	var failures []validation.Violation
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		text, ok := value.AsString()
 		if !ok {
 			return reject("invalid")

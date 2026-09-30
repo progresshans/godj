@@ -94,7 +94,7 @@ func (budget *Budget) ScanField(path string, field ir.Field) error {
 	if err := budget.ConsumeNodes(path, 1); err != nil {
 		return err
 	}
-	for _, value := range []string{field.Name, field.GoName, field.Column, string(field.Kind)} {
+	for _, value := range []string{field.Name, field.GoName, field.Column, string(field.Kind), field.WidthField, field.HeightField} {
 		if err := budget.ConsumeString(path, value); err != nil {
 			return err
 		}

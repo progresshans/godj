@@ -623,7 +623,7 @@ func assertPostgresMigrationColumnCatalog(
 		if actual.typeName != "int8" || actual.typeModifier != -1 || !actual.notNull || actual.identity != "d" {
 			return fmt.Errorf("AutoField column %q has an unsupported physical shape", field.Column)
 		}
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage:
 		if actual.typeName != "varchar" || actual.typeModifier != field.MaxLength+4 || actual.notNull == field.Nullable || actual.identity != "" {
 			return fmt.Errorf("CharField column %q has an unsupported physical shape", field.Column)
 		}

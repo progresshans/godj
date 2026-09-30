@@ -82,7 +82,7 @@ func siteUploadSubmit(t *testing.T, client *siteHTTPClient, target string, value
 	return siteUploadRequest(client, target, bytes.NewReader(body), contentType)
 }
 
-func uploadTestSite(t *testing.T, config ModelConfig[registryArticle], policy uploads.Config, authorizer auth.Authorizer) (*siteHTTPClient, *Site, *siteCountingStore) {
+func uploadTestSite[M any](t *testing.T, config ModelConfig[M], policy uploads.Config, authorizer auth.Authorizer) (*siteHTTPClient, *Site, *siteCountingStore) {
 	t.Helper()
 	installed := mustApps(t)
 	builder := NewBuilder(installed)

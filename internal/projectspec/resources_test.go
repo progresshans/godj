@@ -199,3 +199,32 @@ func TestUUIDPayloadResourceCapsApplyBeforeSemantics(t *testing.T) {
 		}
 	}
 }
+
+func TestImageDimensionResourceCapsPrecedeSemanticValidation(t *testing.T) {
+	for _, kind := range []ir.FieldKind{ir.FieldImage, ir.FieldFile} {
+		for _, height := range []bool{false, true} {
+			field := ir.Field{Kind: kind}
+			reference := &field.WidthField
+			if height {
+				reference = &field.HeightField
+			}
+			*reference = strings.Repeat("x", MaxSchemaStringBytes)
+			schema := ir.Schema{AppLabel: "images", Models: []ir.Model{{Fields: []ir.Field{field}}}}
+			if err := ValidateSchemas([]ir.Schema{schema}); err != nil {
+				t.Fatal("exact dimension string cap rejected", err)
+			}
+			if height {
+				schema.Models[0].Fields[0].HeightField += "x"
+			} else {
+				schema.Models[0].Fields[0].WidthField += "x"
+			}
+			assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_bytes")
+			if height {
+				schema.Models[0].Fields[0].HeightField = string([]byte{0xff})
+			} else {
+				schema.Models[0].Fields[0].WidthField = string([]byte{0xff})
+			}
+			assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_utf8")
+		}
+	}
+}

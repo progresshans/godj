@@ -298,6 +298,17 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 			return err
 		}
 	}
+	for _, dimension := range []struct{ name, value string }{{"width_field", field.WidthField}, {"height_field", field.HeightField}} {
+		if dimension.value == "" {
+			continue
+		}
+		if err := scanner.addStructural(path+"."+dimension.name, uint64(len(dimension.name)+6)); err != nil {
+			return err
+		}
+		if err := scanner.addString(path+"."+dimension.name, dimension.value); err != nil {
+			return err
+		}
+	}
 	if field.Decimal != nil {
 		if err := scanner.addStructural(path+".decimal", uint64(len(`,"decimal":{"max_digits":0,"decimal_places":0}`))); err != nil {
 			return err

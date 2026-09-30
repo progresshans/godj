@@ -5,6 +5,70 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 모델 ImageField·크기 소유권과 생성/저장 연결
+
+2026-09-30, 기반 `61540ea29904a7e6a83c5ba97b0f1965521f40f3` 이후 모델 ImageField의 canonical IR·가로/세로 필드
+참조·생성 descriptor·typed/dynamic/관계 query·migration·Form/Admin과 typed 저장을 연결했다. 원본 디코딩의 검증 크기를
+model clean 전에 candidate/Input에 넣으며 일반 저장 이름 대입에는 I/O를 넣지 않는다. 크기 필드는 폼/JSON/PostClean의
+독립 입력에서 제외하고 clear의 NULL·파일 게시·DB commit을 구분한다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 넓은 영향 normal | schema/IR·ORM·codegen·serializer·모델 Form·Admin·IR resource·project spec/wire·autodetect·migration/definition/backend·SQLite/PostgreSQL 16 packages / 1,573 roots / 필수 하위 3,216개 / 14,089 PASS / 253.309초. 아래 중간 source이며 같은 실행의 소비자 그룹은 컴파일 오류로 FAIL |
+| 최종 영향 normal | SQLite·모델 Form 2 packages / 448 roots / 필수 하위 1,490개 / 5,052 PASS / 46.113초 |
+| 최종 생성 소비자 양 DB/normal | FileConsumer parent PASS / 7.061초; 이미지의 SQLite/PostgreSQL × filesystem/memory와 각 Formset 필수 이름을 한 번씩 PASS로 검사 |
+| 최종 관련 race | 이미지 IR·후보·폼/JSON 소유권·Admin HTTP·wire/자원 경계·이력/자동 계획·SQLite 실행 의도 10 packages / 14 roots / 49 PASS / 4.967초 |
+| 최종 생성 소비자 양 DB/race | FileConsumer parent PASS / 19.281초; 생성 자식도 `-trimpath -race`와 필수 실행/skip/잘린 결과 검사를 사용 |
+| 독립 native | Django 6.1·CPython 3.14.3·Pillow 12.3.0, 15개 폼 사례와 실제 저장/충돌/rollback/clear/삭제; 두 번 생성한 fixture bytes 일치 |
+| 실제 CLI | 별도 Go module의 public project runner→`godj generate`→`--check`→생성 model/form 소비자 PASS; 잘못된 크기 참조의 재생성 실패 뒤 기존 생성 파일/manifest bytes 보존 |
+| 부정 대조 | 크기 타입·검증 결과 파생·저장 Input·이미지 폼 투영·SQLite 참조 seal·Admin private snapshot·정확한 wire 크기·복사 전 예산 8개 overlay 검출. 최종 seal에서 참조·scalar Blank·collection Blank의 추가 3개 overlay 검출 |
+| 생성 drift | 최종 `make generate-check`: Unicode16 생성/2 Python tests·7 projects·checked-in relation product PASS; 기존 생성 파일 bytes 유지 |
+
+생성 소비자는 실제 PNG의 크기를 typed 준비와 이름 callback에 전달하고 충돌 뒤 반환된 저장 이름을 같은 크기와 저장한다.
+Nullable 이름/크기·JSON read-only·typed/dynamic AST·forward 관계 조회를 확인했다. 게시 뒤 DB uniqueness 오류와 transaction
+rollback은 이미지 파일을 제거하지 않고, rollback 뒤 재조회한 모델 이름/크기는 이전 값이다. Clear와 모델 삭제도 기존 파일을
+유지한다. 여러 행의 pending upload 차단·행별 게시·같은 DB scope 저장과 재개방 후 크기/빈 이름을 확인했다.
+ImageField 직접 DDL과 File→Image·크기 참조 변경/역방향의 실제 migration은 같은 물리 열과 저장 값을 보존한다.
+
+Native 15개 중 stale 크기 유지 한 사례는 의도적인 결과 차이다. Django는 포함된 기존 ImageField를 다시 대입할 때 storage를
+열어 실제 크기를 갱신한다. GoDj는 저장소를 열지 않고 서버 크기를 유지한다. 다른 유지 사례도 같은 값이지만 I/O 횟수의 동등성을
+주장하지 않는다. 새 업로드·clear·충돌·늦은 폼 오류의 candidate/model clean·업로드 제외/위조 크기·저장 결과는 비교했다.
+실제 Admin은 로그인/CSRF와 디스크 multipart 뒤 생성/교체/유지/오류/clear를 처리했다. 크기 input은 렌더링하지 않고
+위조 POST는 기존 이름 allowlist에서 400으로 거부한다. 누락/불일치/잘못된 서버 크기는 500으로 거부하며 현재 파일 수명과
+게시한 원문을 보존한다. 이 HTTP 검증을 별도 브라우저 시각 검증으로 표현하지 않는다.
+
+마이그레이션의 field 단독 정규화를 실제 모델 참조 검사와 분리해 가짜 PK/model을 만들던 경로를 제거했다. 새 크기 열·기존
+소유자 해제의 순서와 선언 위치, dangling/공유/비정수 참조 거부, wire 재직렬화·semantic digest·source/실행 의도 결합과
+자원 한도를 확인했다. SQLite seal의 기존 scalar/collection Blank 누락도 찾아 보완했다. 이 hash는 실행 중의 의도 검사이며
+저장된 migration definition wire/digest를 재작성하지 않는다.
+
+최종 비Markdown code/config inventory는 `d90802c9e6ac9a55e7f8691e20944c73772fb2ab8a5b6f6164b72560c93bc609`
+(2,788 files)다. 최종 normal/race와 추가 seal 대조는 같은 source다. 넓은 영향 normal·8개 대조의 source는
+`e7d9a78bedb3e89025122ebaa6565c61652cfbde6453382ca0ae76378ea409df`다. 이후 차이는 SQLite hash/2개 테스트,
+생성 image 소비자의 잘못된 메서드명 수정, 모델 Form 3개 파일의 API 설명 주석이다. 해당 3개 파일은 주석을 역치환한 bytes가
+이전 inventory와 정확히 일치함을 검사했다. 변경한 SQLite·모델 Form과 생성 FileConsumer는 최종 소스로 다시 검증했다.
+나머지 제품/테스트는 같은 bytes이며 넓은 실행을 최종 source 전체 실행으로 표현하지 않는다.
+
+첫 checkpoint는 새 참조의 semantic digest 누락과 Admin 테스트의 잘못된 허용 입력 가정 때문에 실패했다. 해시·resource/wire
+경로를 보완하고 Admin의 기존 거부 정책을 유지했다. 두 소비자 컴파일 실패는 새 테스트가 존재하지 않는 StartsWith/Contains를
+호출한 문제였으며 실제 API `IContains`로 수정한 뒤 양 DB의 normal/race를 실행했다. 실패 실행의 부분 성공을 소비자 PASS로
+사용하지 않는다. Native observer의 clean 호출 목록은 저장 후 관찰이 앞선 폼 기록을 바꾸지 않도록 분리했다.
+
+환경은 Go 1.26.5 darwin/arm64·CGO=1·offline/readonly modules·공유 cache/기본 병렬 실행이다. 각 DB checkpoint는 독립
+PostgreSQL 17.10 Debian/C/UTF8 container/DB를 사용했고 schema/table/다른 connection `0|0|0`, DB/container 제거를 확인했다.
+Compiled root·필수 하위 이름·완료 JSON·누락/skip·실행 전후 source 불변을 검사했다. Native fixture
+`forms/model/testdata/model-image-django61.json`의 SHA256은
+`61f6fabe5fa2d73c06d1f14af60446bf472215a96959e1cc74943e4f39479a90`이다. 출처·라이선스는 SOURCES·ADR-0082를 따른다.
+
+결합 receipt는 `/tmp/godj-model-image-validation/receipt.json`, 원문은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의
+`godj-model-image-db-normal-5e26nxp1`(첫 실패), `godj-model-image-db-final-normal-9bd444v4`(넓은 normal/소비자 실패),
+`godj-model-image-db-confirmed-normal-gp6u4f3c`, `godj-model-image-db-confirmed-race-eu61izrd`,
+`godj-model-image-controls-ksa0q2l_`, `godj-model-image-seal-controls-w_ovq7_1`, `godj-model-image-cli-et4efzlp`에 있다.
+
+이 checkpoint에서 전체/cold·다른 OS/arch·CGO=0·Hosted full은 실행하지 않았다. Memory·Range/conditional·이미지 기반/모델과
+누적 의존성의 새 Hosted full 통합을 다음 milestone으로 실행한다. 기존 `365ad9d4`의 결과를 전이하지 않으며 저장된 이미지의
+명시적 검사/크기 갱신·추가 codec/provider·기능 카탈로그 전체는 미완료다.
+
 ### 공통 ImageField 입력과 context 기반 바인딩
 
 2026-09-30, 기반 `1ec857477db4d641d23d566bed78eee1487ca9f0` 이후 이미지의 실제 내용 검증을 Form/Formset·모델 폼의

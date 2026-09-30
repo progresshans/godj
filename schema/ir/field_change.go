@@ -20,6 +20,9 @@ const (
 // The arguments and their nested metadata remain owned by their callers.
 func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	for _, field := range []Field{before, after} {
+		if err := validateImageField(field, "field"); err != nil {
+			return 0, err
+		}
 		if field.Relation != nil && (!field.Relation.OnDelete.Valid() || field.Relation.OnDelete == DeleteSetNull && !field.Nullable) {
 			return 0, validation("field.relation.on_delete", "invalid_relation", "delete policy must be recognized and SET_NULL requires a nullable field")
 		}
@@ -36,9 +39,10 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	if before.Equal(after) {
 		return 0, validation("field", "unchanged", "AlterField requires a changed field")
 	}
-	if before.Kind != after.Kind && boundedStringKind(before.Kind) && boundedStringKind(after.Kind) && before.MaxLength > 0 {
+	if boundedStringKind(before.Kind) && boundedStringKind(after.Kind) && before.MaxLength > 0 {
 		previous := before
 		previous.Kind = after.Kind
+		previous.WidthField, previous.HeightField = after.WidthField, after.HeightField
 		if previous.Equal(after) {
 			return ChangeStringSemantics, nil
 		}
@@ -84,5 +88,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 }
 
 func boundedStringKind(kind FieldKind) bool {
-	return kind == FieldChar || kind == FieldEmail || kind == FieldFile
+	return kind == FieldChar || kind == FieldEmail || kind.IsFile()
 }

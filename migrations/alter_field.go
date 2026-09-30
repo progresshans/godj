@@ -72,6 +72,11 @@ func (op AlterField) replaceState(state ProjectState, reverse bool) (ProjectStat
 					return state, fmt.Errorf("field %s.%s.%s differs from AlterField source", op.AppLabel, op.ModelName, before.Name)
 				}
 				model.Fields[fieldIndex] = after.Clone()
+				if before.Kind == ir.FieldImage || after.Kind == ir.FieldImage {
+					if _, err := ir.ImageDimensionOwners(*model); err != nil {
+						return state, err
+					}
+				}
 				return state.withSchema(schema), nil
 			}
 		}
@@ -120,6 +125,14 @@ func (builder *loadedStateBuilder) alterField(operation AlterField, reverse bool
 	if !exists || !model.value.Fields[index].Equal(before) {
 		return fmt.Errorf("AlterField source field %s.%s.%s is missing or changed", operation.AppLabel, operation.ModelName, before.Name)
 	}
+	candidate := model.value
+	candidate.Fields = slices.Clone(model.value.Fields)
+	candidate.Fields[index] = after.Clone()
+	if before.Kind == ir.FieldImage || after.Kind == ir.FieldImage {
+		if _, err := ir.ImageDimensionOwners(candidate); err != nil {
+			return err
+		}
+	}
 	if before.Relation != nil && after.Relation != nil && before.Relation.Reverse != after.Relation.Reverse {
 		if err := builder.alterReverseNamespace(loadedModelIdentity{app: operation.AppLabel, model: operation.ModelName}, before, after); err != nil {
 			return err
@@ -128,8 +141,7 @@ func (builder *loadedStateBuilder) alterField(operation AlterField, reverse bool
 	// Materialized operation views borrow the previous immutable field slice.
 	// Replacing an element must detach that slice before publishing the new
 	// field, or the sealed before-state would become the after-state as well.
-	model.value.Fields = slices.Clone(model.value.Fields)
-	model.value.Fields[index] = after.Clone()
+	model.value.Fields = candidate.Fields
 	return nil
 }
 

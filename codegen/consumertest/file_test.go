@@ -19,6 +19,13 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			schema.FileField("optional", "Optional", schema.Nullable(), schema.Blank()),
 			schema.CharField("owner", "Owner", 40, schema.Default("alice")),
 		}},
+		{Name: "photograph", GoName: "Photograph", Fields: []schema.Field{
+			schema.CharField("title", "Title", 40, schema.Unique()),
+			schema.ImageField("photo", "Photo", schema.Nullable(), schema.Blank(), schema.ImageDimensions("width", "height")),
+			schema.IntegerField("width", "Width", schema.Nullable()), schema.IntegerField("height", "Height", schema.Nullable()),
+		}},
+		{Name: "raw_image", GoName: "RawImage", Fields: []schema.Field{schema.ImageField("image", "Image")}},
+		{Name: "photo_link", GoName: "PhotoLink", Fields: []schema.Field{schema.ForeignKey("photograph", "PhotographID", schema.Target("file_reference", "photograph"), schema.RelatedName("links"), schema.Protect)}},
 		{Name: "archive", GoName: "Archive", Fields: []schema.Field{schema.FileField("reference", "Reference")}},
 		{Name: "link", GoName: "Link", Fields: []schema.Field{schema.ForeignKey("document", "DocumentID", schema.Target("file_reference", "document"), schema.RelatedName("links"), schema.Protect)}},
 	}})
@@ -46,7 +53,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go"} {
+	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go", "image_test.go"} {
 		consumer, err := os.ReadFile("testdata/files/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -58,6 +65,11 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
+	imageReference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "forms/model/testdata/model-image-django61.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/image-reference.json", imageReference)
 	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving", "TestGeneratedFileStorageAndHistory/sqlite/serving/filesystem", "TestGeneratedFileStorageAndHistory/sqlite/serving/memory"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
@@ -67,6 +79,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			continue
 		}
 		for _, backend := range []string{"filesystem", "memory"} {
+			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/formset")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend+"/ranges_and_conditionals")
 		}
 	}

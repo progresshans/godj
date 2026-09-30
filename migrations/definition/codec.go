@@ -546,7 +546,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldFile) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldFile) && fieldKind.string != string(ir.FieldImage) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -674,7 +674,7 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
 	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
-		value, fields, []string{"blank", "choices", "decimal", "relation", "unique"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+		value, fields, []string{"blank", "choices", "decimal", "relation", "unique", "width_field", "height_field"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
 	)
 	if !objectOK {
 		return candidates
@@ -699,6 +699,14 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		stringValid[field] = valid
 		if !valid {
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/"+field, app, name, operationIndex, "invalid_ir"))
+		}
+	}
+	for _, dimension := range []string{"width_field", "height_field"} {
+		if child, exists := object.member(dimension); exists {
+			kind, _ := object.member("kind")
+			if child.kind != jsonString || !identifiers.SQL(child.string) || kind.kind != jsonString || kind.string != string(ir.FieldImage) {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/"+dimension, app, name, operationIndex, "invalid_ir"))
+			}
 		}
 	}
 	booleanValid := make(map[string]bool, 3)
@@ -765,14 +773,14 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 			if defaultValid && defaultValue != nil && defaultValue.Kind != ir.ScalarString {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
-			if (kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || kind.string == string(ir.FieldFile)) && defaultValid && defaultValue != nil && defaultValue.Kind == ir.ScalarString && maxLengthValid && int64(utf8.RuneCountInString(defaultValue.String)) > maxLength {
+			if (kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || ir.FieldKind(kind.string).IsFile()) && defaultValid && defaultValue != nil && defaultValue.Kind == ir.ScalarString && maxLengthValid && int64(utf8.RuneCountInString(defaultValue.String)) > maxLength {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
-			if maxLengthValid && ((kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || kind.string == string(ir.FieldFile)) && maxLength <= 0 || kind.string == string(ir.FieldText) && maxLength != 0) {
+			if maxLengthValid && ((kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || ir.FieldKind(kind.string).IsFile()) && maxLength <= 0 || kind.string == string(ir.FieldText) && maxLength != 0) {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/max_length", app, name, operationIndex, "invalid_ir"))
 			}
 			if booleanValid["primary_key"] {
@@ -1290,6 +1298,17 @@ func materializeField(value jsonValue) (ir.Field, bool) {
 		Nullable:   nullable.boolean,
 		MaxLength:  int(parsedMaximum),
 		Default:    decodedDefault,
+	}
+	for _, dimension := range []struct {
+		name   string
+		target *string
+	}{{"width_field", &field.WidthField}, {"height_field", &field.HeightField}} {
+		if child, exists := value.member(dimension.name); exists {
+			if child.kind != jsonString || !identifiers.SQL(child.string) || field.Kind != ir.FieldImage {
+				return ir.Field{}, false
+			}
+			*dimension.target = child.string
+		}
 	}
 	if blank, exists := value.member("blank"); exists {
 		if blank.kind != jsonBoolean {

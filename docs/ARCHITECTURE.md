@@ -230,10 +230,15 @@ Multipart 업로드는 `uploads`가 크기/개수·메모리/임시 파일과 �
 handler 종료 시 자원을 정리한다. Form은 문자열과 파일을 분리해 metadata만 순수 검증하며 파일 내용 읽기·영구 저장은
 명시적인 context/error 경계에서 수행한다. 기존 참조·새 파일·clear 의도와 저장 결과를 구분한다.
 
-모델 FileField는 Schema IR에서 이름 길이·nullability를 정의하고 생성 값은 string 또는 *string이다. Query AST와 DB에는
+모델 FileField/ImageField는 Schema IR에서 이름 길이·nullability를 정의하고 생성 값은 string 또는 *string이다. Query AST와 DB에는
 저장 이름만 전달한다. Model Form은 이름 후보와 업로드 capability를 분리하며 typed 준비에 남은 업로드는 Model/Save를
 차단한다. 명시적인 SaveFiles가 실제 게시 이름과 필드별 결과를 반환한 뒤 caller의 DB scope가 참조를 저장한다. 파일 게시와
 DB commit을 하나의 결과로 합치거나 모델 삭제/clear에 파일 삭제를 숨기지 않는다. [파일 경계](adr/0082-file-storage-publication-and-reference.md)를 따른다.
+
+모델 ImageField의 폭/높이 참조는 Schema IR에 저장하고 같은 모델의 정수 필드 소유권을 정규화한다. 공통 ModelForm이 검증한
+업로드에서 크기를 계산해 model clean 전에 후보와 typed 저장 입력에 넣는다. 크기 필드는 폼·JSON·PostClean의 독립 입력이
+아니며 생성 모델/ORM의 일반 이름 대입은 I/O를 하지 않는다. 실제 모델에서 역사적 참조를 검사하고 wire/생성 metadata/이력의
+동일성에 포함한다. 저장 이름 유지 시 자동 재검사와 전체 파일 기능의 남은 범위는 [ADR-0082](adr/0082-file-storage-publication-and-reference.md)를 따른다.
 
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는

@@ -17,8 +17,8 @@ application 소유 root handle과 예약 staging namespace를 사용한다. 불�
 이름과 Uncertain을 보존한다. DB transaction은 별도이며 확인되지 않은 결과를 자동 재시도하거나 보상 삭제하지 않는다.
 파일 Sync와 원자적 이름 게시는 directory entry의 power-loss durability 또는 DB/파일 분산 transaction의 증명이 아니다.
 
-Schema IR의 `FieldFile`은 기본 100 Unicode 문자의 저장 이름을 선언한다. 생성 모델은 `string` 또는 `*string`, query는
-기존 DB 독립 문자열 AST, SQLite/PostgreSQL은 같은 길이의 varchar를 사용한다. Char/Email/File 간 kind만 바꾸면 역사와
+Schema IR의 `FieldFile`과 `FieldImage`는 기본 100 Unicode 문자의 저장 이름을 선언한다. 생성 모델은 `string` 또는 `*string`, query는
+기존 DB 독립 문자열 AST, SQLite/PostgreSQL은 같은 길이의 varchar를 사용한다. Char/Email/File/Image 간 kind만 바꾸면 역사와
 입력 의미는 달라지지만 같은 물리 열을 보존한다. 다른 저장 조건의 변경을 이 전환에 숨기지 않는다. ORM의 명시적인 이름
 대입은 파일을 열거나 쓰지 않으며 해당 이름의 존재/권한도 증명하지 않는다.
 
@@ -35,7 +35,7 @@ IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비�
 
 이름 callback은 다른 준비 값과 기존/default 파일 참조를 담은 분리된 모델을 받는다. Backend alias나 I/O 객체를 Schema IR에
 직렬화하지 않는다. 등록되지 않은 implicit storage, 전역 설정 조회, template에서의 숨은 파일 I/O는 없다. JSON serializer의
-FileField 투영은 명시적인 read-only 저장 이름에 한정한다. JSON 문자열을 upload로 받거나 참조를 URL/다운로드 권한으로 바꾸지 않는다.
+File/ImageField와 이미지 소유 크기의 투영은 명시적인 read-only 값에 한정한다. JSON 문자열을 upload로 받거나 참조를 URL/다운로드 권한으로 바꾸지 않는다.
 
 Application별 storage Registry는 이미 초기화한 backend를 빌리고 설정/alias 목록만 snapshot으로 소유한다. Alias는 backend를
 조회하는 설정 key이며 I/O 권한이 아니다. 전역 default·lazy factory·registry의 자원 Close는 없다. URL capability는 별도로 등록하며
@@ -48,7 +48,7 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-외부 object-storage backend·서명 URL provider·모델 ImageField·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+외부 object-storage backend·서명 URL provider·저장된 이미지의 명시적 재검사·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
@@ -76,5 +76,19 @@ FileValue에만 연결하며 client MIME을 덮어쓰거나 참조 이름을 자
 
 현재 GIF는 모든 frame을 디코딩하며 APNG·애니메이션 WebP·BMP·TIFF 등 추가 codec은 명시적으로 미지원이다. Header만 읽어
 검증 성공으로 처리하지 않는다. 잘못된 이미지와 실제 I/O/취소/정리 실패를 분리한다. Limit는 검사별 예산이며 전체 process
-heap/동시 요청 제한을 대신하지 않는다. 검증 원문은 변환/정화하지 않고 그대로 저장한다. 모델 ImageField의 canonical IR·
-크기 field 소유권·생성 모델·migration 연결은 이 기반 뒤의 별도 미완료 범위다. [이미지 계약](../../uploads/README.md#이미지-내용-검증)을 따른다.
+heap/동시 요청 제한을 대신하지 않는다. 검증 원문은 변환/정화하지 않고 그대로 저장한다. [이미지 계약](../../uploads/README.md#이미지-내용-검증)을 따른다.
+
+
+모델 ImageField의 width/height 참조는 canonical IR이 소유한다. 같은 모델의 일반 정수 필드를 각각 한 이미지가 소유하고,
+shared/잘못된 참조는 정규화에서 거부한다. 개별 migration field는 가짜 모델을 만들지 않고 로컬 의미를 정규화한 뒤 실제 모델의
+historical state에서 참조를 검사한다. 추가 크기 열·이전 참조 해제는 이미지 연산보다 먼저 수행하고 참조 중인 열의 제거를 거부한다.
+Wire·hash·생성 metadata·revision 의도에 참조 이름을 포함한다. 같은 저장 조건의 이미지 kind/참조 변경은 이력 의미만 바꾼다.
+
+Form은 새 업로드의 검증 결과를 model clean 전에 candidate와 저장 Input에 반영한다. Clear는 소유 크기를 NULL로 만들며
+nonnullable typed 준비에서는 I/O 전에 실패한다. 크기 필드는 폼/JSON/모델 clean의 독립 쓰기 대상이 아니고 Admin revision으로도
+쓸 수 없다. Typed 파일 준비·이름 callback·게시 결과와 DB 저장은 이미 정한 파일 경계를 유지한다. 일반 ORM 이름 대입에는
+이미지 검사나 크기 갱신을 숨기지 않는다. Mutable 지연 모델은 신뢰하는 application writer가 최종 값과 저장 권한을 소유한다.
+
+Django 6.1은 폼이 기존 ImageField를 재대입하면 storage를 열어 stale 크기를 갱신한다. GoDj의 기존/제외 입력은 현재 서버
+snapshot을 그대로 사용하며 별도 backend 없는 binding에 저장소 접근을 넣지 않는다. 이 차이는 [모델 이미지 관찰](../../conformance/runners/django/model_image_reference.py)에
+남긴다. 저장된 참조의 명시적 검사/갱신은 다음 기반이며 새 업로드 검사와 같은 완료 범위로 취급하지 않는다.

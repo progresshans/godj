@@ -38,7 +38,9 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 같은 열린 파일의 조건부 조회·단일/여러 Range·HEAD와 양 DB/양 backend의 인가된 소비자
 - [x] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합: source `365ad9d4`
 - [x] context 기반 이미지 내용 검증·Form/Formset·Admin 명령과 명시적 파일 게시의 공통 기반
-- [ ] 모델 ImageField·폭/높이 field 의미·추가 codec/storage backend와 남은 파일 의미
+- [x] 모델 ImageField의 IR·폭/높이 소유권·생성/migration·Form/Admin·양 DB와 관련 race
+- [ ] 저장된 이미지의 명시적 검사/크기 갱신·추가 codec/storage backend와 남은 파일 의미
+- [ ] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -133,3 +135,11 @@ Memory backend·Range/conditional과 전체 플랫폼 통합은 아래에서 연
 분리하고 기존 파일 이름은 읽지 않는다. Native 비교·Admin 실제 multipart→검증→filesystem/memory 저장·실패/정리와 기존
 양 DB 소비자의 관련 회귀를 확인했다. Source 차이와 실행 범위는 TEST_EVIDENCE에 둔다. 이 변경은 모델 ImageField·크기 field
 자동 반영·추가 codec/전체 플랫폼 완료를 뜻하지 않으며, 다음 단계는 이 기반을 canonical 모델 의미에 연결하는 것이다.
+
+
+모델 ImageField는 canonical IR의 이름·크기 참조와 생성 descriptor를 공유하고 Form/ImageField의 내용 검증을 재사용한다.
+검증한 크기는 model clean 전에 후보/typed 입력에 반영하며 크기 필드는 Form/JSON/PostClean의 독립 변경 대상에서 제외한다.
+Admin의 현재 snapshot·CSRF/인가와 파일/DB 저장 경계를 유지한다. IR/이력의 참조 소유권·변경 순서·digest/자원 한도와 SQLite의
+입력 정책 sealing을 확인했고, 고정 Django·양 DB/양 backend·생성 소비자/CLI·관련 race로 검증했다. 자세한 실행/source 차이는
+TEST_EVIDENCE, 장기 의미와 차이는 ADR-0082, 사용법은 모델 Form 문서에 둔다. 기존 저장 파일을 여는 명시적 검사/갱신과
+추가 codec/provider, 전체 기능 카탈로그는 계속 미완료이며 이전 Hosted full 결과를 현재 source에 전이하지 않는다.

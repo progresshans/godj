@@ -323,6 +323,13 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if field.HeightField != "" {
+		output = append(output, `,"height_field":`...)
+		output, err = appendCanonicalString(output, field.HeightField)
+		if err != nil {
+			return nil, err
+		}
+	}
 	output = append(output, `,"kind":`...)
 	output, err = appendCanonicalString(output, string(field.Kind))
 	if err != nil {
@@ -372,7 +379,13 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	if field.Unique {
 		output = append(output, `,"unique":true`...)
 	}
-
+	if field.WidthField != "" {
+		output = append(output, `,"width_field":`...)
+		output, err = appendCanonicalString(output, field.WidthField)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return append(output, '}'), nil
 }
 

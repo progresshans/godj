@@ -124,9 +124,9 @@ Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 
 요청 수명이 끝나기 전에 `storage.SaveUpload` 등 명시적인 저장을 완료해야 한다. 고정 Django/Pillow가 받아들이는 손상된
 GIF 후속 frame은 GoDj가 전체 frame을 디코딩해 거부한다. [관찰](../forms/testdata/image-django61.json)의 차이를 별도로 검증한다.
 
-현재 모델 폼의 ExtraFields/파일 명령으로 ImageField를 사용할 수 있다. 모델 `schema.ImageField`, IR의 폭/높이 참조,
-생성 descriptor·migration·typed 모델의 자동 크기 반영은 다음 구현 범위다. 일반 FileField에 ImageField를 덮어씌워 이 연결을
-우회하지 않는다. 추가 codec 지원도 미완료다.
+모델 폼의 ExtraFields/파일 명령과 `schema.ImageField`는 같은 검사기를 사용한다. 모델 이미지의 IR·크기 참조·생성 descriptor·
+migration·typed 저장은 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)를 따른다. 일반 FileField의 입력 종류만
+바꿔 이 연결을 우회할 수 없다. 기존 저장 이름의 내용과 크기를 자동으로 다시 검사하지 않는다.
 
 ## Admin
 
@@ -150,5 +150,5 @@ Admin ImageField는 `accept="image/*"`와 검증 오류·재선택 안내를 표
 
 현재 구현은 파일/이미지 입력·context 기반 바인딩·수명과 Admin 전송이다. [storage.SaveUpload](../storage/README.md)는 명시적으로 선택한 로컬
 저장소로 내용을 옮기며 요청 종료 뒤에도 유지한다. [모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는
-Schema IR·생성 모델·ORM/Form의 저장 이름과 명시적인 SaveFiles를 연결하며 파일 게시와 DB commit 결과를 구분한다. 모델 ImageField의 크기 반영과 임의 auto-save는 아직 제공하지 않는다. 인가된 다운로드는 [파일 응답](../web/streaming.md)을 따른다.
+Schema IR·생성 모델·ORM/Form의 저장 이름과 명시적인 SaveFiles를 연결하며 파일 게시와 DB commit 결과를 구분한다. 모델 ImageField는 검사한 업로드의 크기를 반영하며 임의 auto-save는 제공하지 않는다. 인가된 다운로드는 [파일 응답](../web/streaming.md)을 따른다.
 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [Web 검사](../web/multipart_test.go)와 [Admin 검사](../admin/site_uploads_test.go)에 있다.

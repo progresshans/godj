@@ -575,7 +575,7 @@ func fieldReference(field ir.Field) query.FieldRef {
 		return query.NewFieldRef(field.Name, field.Column, query.FieldDate, field.Nullable)
 	case ir.FieldDateTime:
 		return query.NewFieldRef(field.Name, field.Column, query.FieldDateTime, field.Nullable)
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		kind = query.FieldString
 	case ir.FieldBoolean:
 		kind = query.FieldBoolean

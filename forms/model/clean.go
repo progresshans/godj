@@ -37,6 +37,10 @@ func (clean PostClean) Empty() bool {
 }
 
 func (clean PostClean) validate(model ir.Model) error {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return &Error{Path: "model", Code: "invalid_image_dimensions"}
+	}
 	if clean.Clean == nil && len(clean.Fields) != 0 {
 		return &Error{Path: "post_clean.clean", Code: "nil"}
 	}
@@ -47,7 +51,7 @@ func (clean PostClean) validate(model ir.Model) error {
 	seen := make(map[string]bool, len(clean.Fields))
 	for _, name := range clean.Fields {
 		field, found := byName[name]
-		if !found || field.PrimaryKey || field.Kind == ir.FieldFile {
+		if !found || field.PrimaryKey || field.Kind.IsFile() || dimensions[name] != "" {
 			return &Error{Path: "post_clean.fields." + name, Code: "non_writable_scalar"}
 		}
 		if seen[name] {

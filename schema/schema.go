@@ -36,18 +36,20 @@ type Model struct {
 type UniqueConstraint = ir.UniqueConstraint
 
 type Field struct {
-	Name      string
-	GoName    string
-	Column    string
-	Kind      ir.FieldKind
-	Nullable  bool
-	Blank     bool
-	Unique    bool
-	MaxLength int
-	Decimal   *ir.DecimalSpec
-	Default   *ir.Scalar
-	Choices   []ir.Choice
-	Relation  *ir.ForeignKeyRelation
+	WidthField  string
+	HeightField string
+	Name        string
+	GoName      string
+	Column      string
+	Kind        ir.FieldKind
+	Nullable    bool
+	Blank       bool
+	Unique      bool
+	MaxLength   int
+	Decimal     *ir.DecimalSpec
+	Default     *ir.Scalar
+	Choices     []ir.Choice
+	Relation    *ir.ForeignKeyRelation
 }
 
 type ModelTarget = ir.ModelIdentity
@@ -158,6 +160,15 @@ func EmailField(name, goName string, options ...FieldOption) Field {
 // are explicit runtime operations; model writes never perform hidden file I/O.
 func FileField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldFile, 100, options)
+}
+
+// ImageField stores a storage name and selects verified image form input.
+// ImageDimensions declares optional integer fields owned by image preparation.
+func ImageField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldImage, 100, options)
+}
+func ImageDimensions(widthField, heightField string) FieldOption {
+	return func(field *Field) { field.WidthField, field.HeightField = widthField, heightField }
 }
 
 // MaxLength overrides a bounded string field's declared character limit.
@@ -327,10 +338,11 @@ func Build(definition Definition) (ir.Schema, error) {
 				Blank:      field.Blank,
 				Unique:     field.Unique,
 				MaxLength:  field.MaxLength,
-				Decimal:    field.Decimal,
-				Default:    defaultValue,
-				Choices:    field.Choices,
-				Relation:   relation,
+				WidthField: field.WidthField, HeightField: field.HeightField,
+				Decimal:  field.Decimal,
+				Default:  defaultValue,
+				Choices:  field.Choices,
+				Relation: relation,
 			}
 		}
 	}

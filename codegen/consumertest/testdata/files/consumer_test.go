@@ -172,17 +172,27 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	metadata := (models.DocumentDescriptor{}).Metadata()
 	before := metadata.Clone()
 	before.Fields[2].Kind, before.Fields[3].Kind = ir.FieldChar, ir.FieldChar
+	imageMetadata := (models.PhotographDescriptor{}).Metadata()
+	beforeImage := imageMetadata.Clone()
+	beforeImage.Fields[2].Kind, beforeImage.Fields[2].WidthField, beforeImage.Fields[2].HeightField = ir.FieldFile, "", ""
 	initial := migrations.Migration{App: "file_reference", Name: "0001_initial", Operations: []migrations.Operation{
 		migrations.CreateModel{AppLabel: "file_reference", Model: before},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.ArchiveDescriptor{}).Metadata()},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.LinkDescriptor{}).Metadata()},
+		migrations.CreateModel{AppLabel: "file_reference", Model: beforeImage},
+		migrations.CreateModel{AppLabel: "file_reference", Model: (models.RawImageDescriptor{}).Metadata()},
+		migrations.CreateModel{AppLabel: "file_reference", Model: (models.PhotoLinkDescriptor{}).Metadata()},
 	}}
 	change := migrations.Migration{App: "file_reference", Name: "0002_file", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{
 		migrations.AlterField{AppLabel: "file_reference", ModelName: "document", Before: before.Fields[2], After: metadata.Fields[2]},
 		migrations.AlterField{AppLabel: "file_reference", ModelName: "document", Before: before.Fields[3], After: metadata.Fields[3]},
+		migrations.AlterField{AppLabel: "file_reference", ModelName: "photograph", Before: beforeImage.Fields[2], After: imageMetadata.Fields[2]},
 	}}
+	swappedImage := imageMetadata.Fields[2]
+	swappedImage.WidthField, swappedImage.HeightField = swappedImage.HeightField, swappedImage.WidthField
+	dimensions := migrations.Migration{App: "file_reference", Name: "0003_image_dimensions", Dependencies: []migrations.MigrationKey{change.Key()}, Operations: []migrations.Operation{migrations.AlterField{AppLabel: "file_reference", ModelName: "photograph", Before: imageMetadata.Fields[2], After: swappedImage}}}
 	var sources []definition.Source
-	for _, migration := range []migrations.Migration{initial, change} {
+	for _, migration := range []migrations.Migration{initial, change, dimensions} {
 		wire, err := definition.Encode(definition.Producer{Name: "file-consumer", Version: "1"}, migration)
 		if err != nil {
 			t.Fatal(err)
@@ -194,9 +204,11 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		t.Fatal(err)
 	}
 	for _, renderer := range []migrationbackend.MigrationSQLRenderer{sqlite.NewMigrationSQLRenderer(), postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"})} {
-		statements, err := migrations.RenderMigrationSQL(ctx, loaded, change.Key(), renderer)
-		if err != nil || len(statements) != 0 {
-			t.Fatal("file meaning transition attempted physical DDL", err, statements)
+		for _, target := range []migrations.MigrationKey{change.Key(), dimensions.Key()} {
+			statements, err := migrations.RenderMigrationSQL(ctx, loaded, target, renderer)
+			if err != nil || len(statements) != 0 {
+				t.Fatal("file meaning transition attempted physical DDL", err, statements)
+			}
 		}
 	}
 	migrate := func(name string) migrations.ProjectState {
@@ -208,6 +220,11 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		return state
 	}
 	previous := migrate(initial.Name)
+	rawImage, err := models.RawImageObjects.Create(ctx, backend, models.NewRawImageCreate("trusted/application-name.dat"))
+	if err != nil || rawImage.Image != "trusted/application-name.dat" {
+		t.Fatal("direct ImageField DDL/typed storage name failed", err)
+	}
+
 	archive, err := models.ArchiveObjects.Create(ctx, backend, models.NewArchiveCreate("archive/name.txt"))
 	if err != nil || archive.Reference != "archive/name.txt" {
 		t.Fatal("direct FileField DDL or write failed", err)
@@ -473,6 +490,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		t.Fatal("stored content lost across request/backend lifetime", err, closeErr)
 	}
 	t.Run("formset", func(t *testing.T) { runFileSet(t, backend, root) })
+	t.Run("images", func(t *testing.T) { runImageBackends(t, backend) })
 	t.Run("serving", func(t *testing.T) {
 		t.Run("filesystem", func(t *testing.T) { runFileServing(t, backend, root, "disk") })
 		t.Run("memory", func(t *testing.T) {
@@ -488,6 +506,19 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 			runFileServing(t, backend, memory, "memory")
 		})
 	})
+	dimensionState := migrate(dimensions.Name)
+	dimensionModel, ok := dimensionState.Model("file_reference", "photograph")
+	if !ok || !dimensionModel.Fields[2].Equal(swappedImage) {
+		t.Fatal("dimension-only migration lost historical meaning")
+	}
+	if rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact("filesystem-set-current")).All(ctx); err != nil || len(rows) != 1 || rows[0].Width == nil || *rows[0].Width != 6 || rows[0].Height == nil || *rows[0].Height != 4 {
+		t.Fatal("dimension-only migration rewrote stored dimensions", err)
+	}
+	restoredImage := migrate(change.Name)
+	restoredModel, _ := restoredImage.Model("file_reference", "photograph")
+	if !restoredModel.Fields[2].Equal(imageMetadata.Fields[2]) {
+		t.Fatal("image reference reversal failed")
+	}
 	if err := backend.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -495,6 +526,9 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	backend, err = open(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact("filesystem-first")).All(ctx); err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "" || rows[0].Width != nil || rows[0].Height != nil {
+		t.Fatal("image clear/dimensions lost on reopen", err)
 	}
 	if read(received.ID).File != received.File {
 		t.Fatal("file reference lost on DB reopen")

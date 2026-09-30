@@ -3,6 +3,8 @@ package definition
 import (
 	"reflect"
 
+	"github.com/progresshans/godj/internal/identifiers"
+
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -127,40 +129,9 @@ func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
 }
 
 func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
-	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldFile && field.Kind != ir.FieldText && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat && field.Kind != ir.FieldDecimal && field.Kind != ir.FieldUUID && field.Kind != ir.FieldJSON) && field.Kind != ir.FieldBoolean && field.Kind != ir.FieldInteger && field.Kind != ir.FieldForeignKey) {
+	if !identifiers.SQL(appLabel) || field.PrimaryKey || field.Kind == ir.FieldAuto {
 		return false
 	}
-
-	syntheticName := "_godj_loader_pk"
-	syntheticGoName := "GodjLoaderPK"
-	syntheticColumn := "_godj_loader_pk"
-	for field.Name == syntheticName || field.GoName == syntheticGoName || field.Column == syntheticColumn {
-		syntheticName += "_"
-		syntheticGoName += "X"
-		syntheticColumn += "_"
-	}
-	synthetic := ir.Field{
-		Name:       syntheticName,
-		GoName:     syntheticGoName,
-		Column:     syntheticColumn,
-		Kind:       ir.FieldAuto,
-		PrimaryKey: true,
-	}
-	model := ir.Model{
-		Name:    "_godj_loader_validation",
-		GoName:  "GodjLoaderValidation",
-		DBTable: "_godj_loader_validation",
-		Fields:  []ir.Field{synthetic, cloneField(field)},
-	}
-	wrapper := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      appLabel,
-		Models:        []ir.Model{model},
-	}
-	normalized, err := ir.Normalize(wrapper)
-	return err == nil &&
-		reflect.DeepEqual(normalized, wrapper) &&
-		len(normalized.Models) == 1 &&
-		len(normalized.Models[0].Fields) == 2 &&
-		reflect.DeepEqual(normalized.Models[0].Fields[1], field)
+	normalized, err := ir.NormalizeField(field)
+	return err == nil && field.Equal(normalized)
 }

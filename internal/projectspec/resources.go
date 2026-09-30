@@ -126,6 +126,8 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 					{path: fieldPath + ".go_name", value: field.GoName},
 					{path: fieldPath + ".column", value: field.Column},
 					{path: fieldPath + ".kind", value: string(field.Kind)},
+					{path: fieldPath + ".width_field", value: field.WidthField},
+					{path: fieldPath + ".height_field", value: field.HeightField},
 				} {
 					if err := validateString(value.path, value.value); err != nil {
 						return budget, err

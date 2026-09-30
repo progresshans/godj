@@ -181,6 +181,10 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 // FromModel creates a serializer from an explicit allowlist. It never discovers
 // or exposes new fields automatically, accesses model values, or performs I/O.
 func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return Spec{}, invalidConfig("model", "invalid image dimension ownership")
+	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	for _, field := range model.Fields {
 		if _, exists := byName[field.Name]; exists {
@@ -219,8 +223,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		if err := ir.ValidateChoices(field); err != nil {
 			return Spec{}, invalidConfig("model."+selection.Name, "invalid model choices")
 		}
-		if field.Kind == ir.FieldFile && !selection.ReadOnly {
-			return Spec{}, invalidConfig("model."+selection.Name, "file references require read-only JSON projection; uploads use explicit file input")
+		if (field.Kind.IsFile() || dimensions[field.Name] != "") && !selection.ReadOnly {
+			return Spec{}, invalidConfig("model."+selection.Name, "file references and image dimensions require read-only JSON projection; uploads use explicit file input")
 		}
 		options := []FieldOption{}
 		if field.Choices != nil {
@@ -309,7 +313,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		var projected Field
 		var err error
 		switch field.Kind {
-		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			if field.Kind == ir.FieldEmail && field.Choices == nil {
 				projected, err = EmailField(field.Name, options...)

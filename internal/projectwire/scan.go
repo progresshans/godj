@@ -130,15 +130,17 @@ func parseUniqueConstraint(decoder *json.Decoder, budget *specBudget) error {
 func parseField(decoder *json.Decoder, budget *specBudget) error {
 	required := []string{"name", "go_name", "column", "kind", "primary_key", "nullable"}
 	return wirejson.Object(decoder, required, map[string]func() error{
-		"name":        func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"go_name":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"column":      func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"kind":        func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"primary_key": func() error { return wirejson.Bool(decoder) },
-		"nullable":    func() error { return wirejson.Bool(decoder) },
-		"blank":       func() error { return wirejson.Bool(decoder) },
-		"unique":      func() error { return wirejson.Bool(decoder) },
-		"max_length":  func() error { _, err := wirejson.IntToken(decoder); return err },
+		"name":         func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"go_name":      func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"column":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"kind":         func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"primary_key":  func() error { return wirejson.Bool(decoder) },
+		"nullable":     func() error { return wirejson.Bool(decoder) },
+		"blank":        func() error { return wirejson.Bool(decoder) },
+		"unique":       func() error { return wirejson.Bool(decoder) },
+		"max_length":   func() error { _, err := wirejson.IntToken(decoder); return err },
+		"width_field":  func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"height_field": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"decimal": func() error {
 			if err := budget.consumeNodes(1); err != nil {
 				return err

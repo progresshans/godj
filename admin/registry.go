@@ -431,6 +431,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, &ConfigError{Path: "model.ir", Code: "invalid", Cause: err}
 	}
 	model := normalized.Models[0]
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return registeredModel{}, &ConfigError{Path: "model", Code: "invalid_image_dimensions", Cause: err}
+	}
 	if config.ReadOnly && len(config.ReadOnlyFields) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only_fields", Code: "detail_unavailable"}
 	}
@@ -514,7 +518,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	if config.RevisionField != "" {
 		field, found := fieldByName[config.RevisionField]
-		if !found || field.Kind != ir.FieldInteger || field.Nullable {
+		if !found || field.Kind != ir.FieldInteger || field.Nullable || dimensions[config.RevisionField] != "" {
 			return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "invalid"}
 		}
 		for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
@@ -557,6 +561,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	for _, name := range postClean.Fields {
 		editable[name] = struct{}{}
 	}
+	for dimension, owner := range dimensions {
+		if _, selected := editable[owner]; selected {
+			editable[dimension] = struct{}{}
+		}
+	}
 	for _, inline := range inlines {
 		editable[inline.prefix] = struct{}{}
 	}
@@ -571,6 +580,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	for _, field := range formFields {
 		requiredSnapshotFields[field.Name()] = struct{}{}
+	}
+	for dimension, owner := range dimensions {
+		if _, selected := requiredSnapshotFields[owner]; selected {
+			requiredSnapshotFields[dimension] = struct{}{}
+		}
 	}
 	for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
 		requiredSnapshotFields[name] = struct{}{}
@@ -748,6 +762,18 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		unbound, err := form.Unbound(selectedInitial)
 		if err != nil {
 			return registeredRecord{}, false, &ConfigError{Path: "get.result.initial", Code: "invalid", Cause: err}
+		}
+		for _, field := range formFields {
+			for dimension, owner := range dimensions {
+				if owner != field.Name() {
+					continue
+				}
+				value, present := candidateInitial[dimension]
+				snapshot, found := object.Value(dimension)
+				if !present || !found || !initialMatchesSnapshot(value, snapshot) {
+					return registeredRecord{}, false, &ConfigError{Path: "get.result.initial." + dimension, Code: "snapshot_mismatch"}
+				}
+			}
 		}
 		resolved := unbound.Initial()
 		if err := validateInitialSnapshot(resolved, formFields, object); err != nil {
@@ -1024,7 +1050,7 @@ func validateFieldSelection(path string, fields []string, known map[string]ir.Fi
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
 		}
 		seen[name] = struct{}{}
-		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldFile && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
+		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && !field.Kind.IsFile() && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
 		}
 	}
@@ -1501,7 +1527,7 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		}
 		_, ok := value.AsInteger()
 		return ok
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		if value.IsNull() {
 			return field.Nullable
 		}

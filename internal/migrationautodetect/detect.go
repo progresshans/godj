@@ -406,7 +406,7 @@ func safeExistingAddField(field ir.Field) bool {
 		// prefix; no guessed key, default, or populated-table backfill is used.
 		return field.Default == nil && field.Relation.OnDelete.Valid() && (field.Nullable || field.Relation.OnDelete != ir.DeleteSetNull)
 	}
-	return (field.Nullable || field.Default != nil) && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldFile || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
+	return (field.Nullable || field.Default != nil) && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind.IsFile() || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
 }
 
 func validateAddedRelation(

@@ -42,6 +42,7 @@ const (
 	FieldChar       FieldKind = "char"
 	FieldEmail      FieldKind = "email"
 	FieldFile       FieldKind = "file"
+	FieldImage      FieldKind = "image"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
 	FieldTime       FieldKind = "time"
@@ -50,6 +51,9 @@ const (
 	FieldBoolean    FieldKind = "boolean"
 	FieldForeignKey FieldKind = "foreign_key"
 )
+
+// IsFile identifies scalar storage-name fields with explicit content I/O.
+func (kind FieldKind) IsFile() bool { return kind == FieldFile || kind == FieldImage }
 
 type ModelIdentity struct {
 	AppLabel  string `json:"app_label"`
@@ -147,19 +151,21 @@ func (spec DecimalSpec) Valid() bool {
 }
 
 type Field struct {
-	Name       string              `json:"name"`
-	GoName     string              `json:"go_name"`
-	Column     string              `json:"column"`
-	Kind       FieldKind           `json:"kind"`
-	PrimaryKey bool                `json:"primary_key"`
-	Nullable   bool                `json:"nullable"`
-	Blank      bool                `json:"blank,omitempty"`
-	Unique     bool                `json:"unique,omitempty"`
-	MaxLength  int                 `json:"max_length,omitempty"`
-	Decimal    *DecimalSpec        `json:"decimal,omitempty"`
-	Default    *Scalar             `json:"default,omitempty"`
-	Choices    []Choice            `json:"choices,omitempty"`
-	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
+	WidthField  string              `json:"width_field,omitempty"`
+	HeightField string              `json:"height_field,omitempty"`
+	Name        string              `json:"name"`
+	GoName      string              `json:"go_name"`
+	Column      string              `json:"column"`
+	Kind        FieldKind           `json:"kind"`
+	PrimaryKey  bool                `json:"primary_key"`
+	Nullable    bool                `json:"nullable"`
+	Blank       bool                `json:"blank,omitempty"`
+	Unique      bool                `json:"unique,omitempty"`
+	MaxLength   int                 `json:"max_length,omitempty"`
+	Decimal     *DecimalSpec        `json:"decimal,omitempty"`
+	Default     *Scalar             `json:"default,omitempty"`
+	Choices     []Choice            `json:"choices,omitempty"`
+	Relation    *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
 func (s Schema) Clone() Schema {
@@ -222,7 +228,7 @@ func (f Field) Clone() Field {
 // treating independently owned default/relation pointers as different fields.
 func (f Field) Equal(other Field) bool {
 	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
-		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.Unique == other.Unique && f.MaxLength == other.MaxLength &&
+		f.Kind == other.Kind && f.WidthField == other.WidthField && f.HeightField == other.HeightField && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.Unique == other.Unique && f.MaxLength == other.MaxLength &&
 		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
 		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
 }

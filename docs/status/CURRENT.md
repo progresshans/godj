@@ -44,12 +44,15 @@ normal/race·부정 대조를 검증했다. 이 변경은 위 Hosted full source
 공통 [이미지 입력](../../uploads/README.md#이미지-내용-검증)은 실제 내용 디코딩·읽기 context·자원 한도를 Form/Formset과
 Admin 생성/명령의 검증·오류 재표시·명시적 저장에 연결했다. 현재 PNG/JPEG/GIF/정적 WebP와 명시적 미지원 형식을 구분한다.
 고정 Django 관찰·영향 normal/관련 race·기존 양 DB 소비자를 확인했으며 위 Hosted full에는 포함되지 않는다.
-모델 ImageField·폭/높이 필드 반영은 아직 연결하지 않았다. 검증 범위는 TEST_EVIDENCE를 따른다.
+모델 ImageField도 canonical IR·폭/높이 참조·생성 metadata·migration과 typed 준비/저장에 연결했다. 크기는 검사한 업로드에서
+model clean 전에 파생하며 폼/JSON의 독립 입력으로 받지 않는다. Native·실제 양 DB/양 backend·Admin HTTP·관련 race와
+CLI 생성/실패 보존을 확인했다. 참조의 해시/자원 한도와 SQLite scalar/collection Blank 실행 의도 결합도 검증했다.
+환경별 범위와 source 차이는 TEST_EVIDENCE를 따른다. 이 변경도 위 Hosted full에는 포함되지 않는다.
 
 ## 다음 행동
 
-공통 이미지 검증을 모델 ImageField의 canonical IR·폭/높이 field 참조·생성 descriptor·migration·typed 저장과 연결한다.
-추가 image codec·storage provider와 나머지 파일 의미도 의존 순서에 따라 구현한다.
+Memory·Range/conditional·이미지 입력/모델과 누적 의존성을 새로운 Hosted full 통합 milestone으로 검증한다.
+저장된 이미지의 명시적 검사/크기 갱신, 추가 image codec·storage provider와 나머지 파일 의미를 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 

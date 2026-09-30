@@ -162,3 +162,18 @@ func TestSQLiteExplicitManyToManySealBindsNestedMetadata(t *testing.T) {
 		t.Fatal("seal omitted nested relation metadata")
 	}
 }
+
+func TestSQLiteExplicitManyToManySealBindsBlankPolicy(t *testing.T) {
+	_, models, field := manytomanytest.History(t, false, true, false)
+	owner := models[0].Clone()
+	owner.ManyToMany = []ir.ManyToManyField{field}
+	intent := mb.MigrationIntent{Operations: []mb.MigrationOperation{{OperationIndex: 0, Kind: mb.MigrationAlterManyToMany, Before: models[0], After: owner, RelatedModels: []mb.MigrationModel{{AppLabel: "manyhistory", Model: models[1]}, {AppLabel: "manyhistory", Model: models[2]}}}}}
+	seal, err := validateAndSealSQLiteRelationIntent(mb.HistoryTransition{Migration: mb.AppliedMigration{App: "manyhistory", Name: "0002_labels"}, Kind: mb.HistoryTransitionApply}, intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seal.intent.Operations[0].After.ManyToMany[0].Blank = !field.Blank
+	if err := verifySQLiteRelationIntentSeal(&seal); err == nil {
+		t.Fatal("collection input policy mutation retained sealed authority")
+	}
+}

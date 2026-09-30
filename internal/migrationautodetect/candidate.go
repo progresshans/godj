@@ -232,6 +232,10 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	for _, model := range before.Models {
 		available[model.Name] = fieldNameSet(model.Fields)
 	}
+	operations, err = orderImageOperations(operations, before.Models)
+	if err != nil {
+		return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", err)
+	}
 	after, _ := desired.Schema(app)
 	models := make(map[string]ir.Model, len(after.Models))
 	for _, model := range after.Models {
@@ -310,4 +314,103 @@ func fieldNameSet(fields []ir.Field) map[string]bool {
 		set[field.Name] = true
 	}
 	return set
+}
+
+// Image references introduce local field dependencies even though all involved
+// columns have ordinary scalar storage. Order additions and ownership releases
+// before their new image owner, then compute insertion anchors in that order.
+func orderImageOperations(operations []migrations.Operation, before []ir.Model) ([]migrations.Operation, error) {
+	needed := false
+	for _, operation := range operations {
+		var field ir.Field
+		switch value := operation.(type) {
+		case migrations.AddField:
+			field = value.Field
+		case migrations.AlterField:
+			field = value.After
+		}
+		if field.WidthField != "" || field.HeightField != "" {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return operations, nil
+	}
+
+	type key struct{ model, field string }
+	additions := map[key]int{}
+	alterations := map[key]int{}
+	owners := map[key]string{}
+	for _, model := range before {
+		dimensions, err := ir.ImageDimensionOwners(model)
+		if err != nil {
+			return nil, err
+		}
+		for dimension, owner := range dimensions {
+			owners[key{model.Name, dimension}] = owner
+		}
+	}
+	for index, operation := range operations {
+		switch value := operation.(type) {
+		case migrations.AddField:
+			additions[key{value.ModelName, value.Field.Name}] = index
+		case migrations.AlterField:
+			alterations[key{value.ModelName, value.After.Name}] = index
+		}
+	}
+	dependencies := make([][]int, len(operations))
+	for index, operation := range operations {
+		var model string
+		var field ir.Field
+		switch value := operation.(type) {
+		case migrations.AddField:
+			model, field = value.ModelName, value.Field
+		case migrations.AlterField:
+			model, field = value.ModelName, value.After
+		default:
+			continue
+		}
+		for _, dimension := range []string{field.WidthField, field.HeightField} {
+			if dimension == "" {
+				continue
+			}
+			if addition, found := additions[key{model, dimension}]; found {
+				dependencies[index] = append(dependencies[index], addition)
+			}
+			if owner := owners[key{model, dimension}]; owner != "" && owner != field.Name {
+				release, found := alterations[key{model, owner}]
+				if !found {
+					return nil, fmt.Errorf("image dimension %s.%s still belongs to %s", model, dimension, owner)
+				}
+				dependencies[index] = append(dependencies[index], release)
+			}
+		}
+	}
+	ordered := make([]migrations.Operation, 0, len(operations))
+	marks := make([]uint8, len(operations))
+	var visit func(int) error
+	visit = func(index int) error {
+		if marks[index] == 2 {
+			return nil
+		}
+		if marks[index] == 1 {
+			return fmt.Errorf("cyclic image dimension ownership requires an explicit intermediate migration")
+		}
+		marks[index] = 1
+		for _, dependency := range dependencies[index] {
+			if err := visit(dependency); err != nil {
+				return err
+			}
+		}
+		marks[index] = 2
+		ordered = append(ordered, operations[index])
+		return nil
+	}
+	for index := range operations {
+		if err := visit(index); err != nil {
+			return nil, err
+		}
+	}
+	return ordered, nil
 }

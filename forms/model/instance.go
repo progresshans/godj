@@ -7,7 +7,6 @@ import (
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -148,7 +147,7 @@ func (prepared PreparedInstance[M]) Collections() forms.Values { return prepared
 // Prepare constructs the typed scalar instance without I/O. It rejects NULL
 // for a nonnullable Go field instead of silently converting it to a zero value.
 // A new model also applies excluded defaults; an existing instance preserves
-// every excluded field unless PostClean explicitly owns a returned change.
+// every excluded field unless an image or PostClean owns a derived change.
 // ManyToMany values stay separate for their later, explicit persistence phase.
 func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 	input, err := form.bound.Input()
@@ -162,7 +161,7 @@ func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 			continue
 		}
 		value, present := input.Get(field.Name)
-		if field.Kind == ir.FieldFile && present {
+		if field.Kind.IsFile() && present {
 			if file, ok := value.AsFile(); ok {
 				if upload, pending := file.Upload(); pending {
 					files = append(files, pendingFile{field: field.Clone(), upload: upload})

@@ -105,7 +105,7 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 		} else {
 			declaration += " NOT NULL"
 		}
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage:
 		if field.MaxLength <= 0 {
 			return "", fmt.Errorf("CharField max length must be positive")
 		}

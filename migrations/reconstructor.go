@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/internal/irresource"
 	"github.com/progresshans/godj/internal/migrationgraph"
 	"github.com/progresshans/godj/schema/ir"
@@ -1086,6 +1087,13 @@ func (builder *loadedStateBuilder) addField(operation AddField) error {
 	if err != nil {
 		return err
 	}
+	if field.Kind == ir.FieldImage {
+		candidate := model.value
+		candidate.Fields = append(slices.Clone(candidate.Fields), field)
+		if _, err := ir.ImageDimensionOwners(candidate); err != nil {
+			return err
+		}
+	}
 	model.goNames[field.GoName] = field.Name
 	model.columns[field.Column] = field.Name
 	fields := model.value.Fields
@@ -1127,6 +1135,11 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 			return fmt.Errorf("field %s.%s.%s is still owned by constraint %s", identity.app, identity.model, actual.Name, constraint.Name)
 		}
 	}
+	for _, field := range model.value.Fields {
+		if field.WidthField == actual.Name || field.HeightField == actual.Name {
+			return fmt.Errorf("field %s.%s.%s is still owned by image %s", identity.app, identity.model, actual.Name, field.Name)
+		}
+	}
 	if err := builder.removeRelation(identity, actual); err != nil {
 		return err
 	}
@@ -1143,34 +1156,10 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 }
 
 func normalizeLoadedAddedField(appLabel string, value ir.Field) (ir.Field, error) {
-	if value.Relation != nil && value.Relation.Cardinality == ir.RelationOneToOne && value.Relation.Reverse == (ir.ReverseRelation{}) {
-		return ir.Field{}, fmt.Errorf("one-to-one migration fields require a reverse name resolved from the declaring model or an explicitly disabled reverse")
+	if !identifiers.SQL(appLabel) || value.PrimaryKey || value.Kind == ir.FieldAuto {
+		return ir.Field{}, fmt.Errorf("added field requires a valid app and a non-primary field")
 	}
-	syntheticName := "_godj_loaded_pk"
-	syntheticGoName := "GodjLoadedPK"
-	syntheticColumn := "_godj_loaded_pk"
-	for value.Name == syntheticName || value.GoName == syntheticGoName || value.Column == syntheticColumn {
-		syntheticName += "_"
-		syntheticGoName += "X"
-		syntheticColumn += "_"
-	}
-	schema, err := ir.Normalize(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      appLabel,
-		Models: []ir.Model{{
-			Name:    "_godj_loaded_validation",
-			GoName:  "GodjLoadedValidation",
-			DBTable: "_godj_loaded_validation",
-			Fields: []ir.Field{
-				{Name: syntheticName, GoName: syntheticGoName, Column: syntheticColumn, Kind: ir.FieldAuto, PrimaryKey: true},
-				value.Clone(),
-			},
-		}},
-	})
-	if err != nil {
-		return ir.Field{}, err
-	}
-	return schema.Models[0].Fields[1].Clone(), nil
+	return ir.NormalizeField(value)
 }
 
 func (builder *loadedStateBuilder) addRelation(source loadedModelIdentity, field ir.Field) error {
@@ -2416,6 +2405,8 @@ func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, 
 	loadedConsumeString(budget, migration, operationIndex, kind, path+".go_name", field.GoName, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, path+".column", field.Column, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, path+".kind", string(field.Kind), false)
+	loadedConsumeString(budget, migration, operationIndex, kind, path+".width_field", field.WidthField, false)
+	loadedConsumeString(budget, migration, operationIndex, kind, path+".height_field", field.HeightField, false)
 	if field.Default != nil {
 		loadedConsumeNodes(budget, 1)
 		if budget.nodeOverflow {
