@@ -15,8 +15,8 @@ import (
 // GDJ-0100 separately adopts the reviewed SYS-028 ADR-0076 identity-adoption
 // decision and SYS-023 credential transport bounds (1,024 username bytes,
 // 2,060 frame bytes). No Django-owned observation changes with those decisions.
-// GDJ-0103 adds Pillow 12.3.0 for the image reference observers; existing locked
-// package records and Django-owned observations remain unchanged.
+// GDJ-0103 keeps Pillow 12.3.0 in its own locked image reference project; the
+// existing Django/DRF profile locks and oracle provenance remain unchanged.
 func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 	t.Parallel()
 	root := conformanceRepositoryRoot(t)
@@ -119,8 +119,10 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                           {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
 		"conformance/reference/drf/pyproject.toml":                                                      {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
 		"conformance/reference/drf/uv.lock":                                                             {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
-		"pyproject.toml":                                                                                {249, "065be370b3101f6b27644b5aaaa725e5243e18b4c8eb8e311949a128a4e87645"},
-		"uv.lock":                                                                                       {10306, "6ac58a9d188ed506be847d4a8cf92d8f48772449f4622b03e1081316523f7f1b"},
+		"conformance/reference/images/pyproject.toml":                                                   {255, "bc377676720faf1ca72950a879c2668d196799c36994348b22dbfdb1cc9e342f"},
+		"conformance/reference/images/uv.lock":                                                          {10312, "ed2c75f3a12db3514a23bc9a08f10318c63e94d1bcda6bd6d81bdba5fdc9a6bd"},
+		"pyproject.toml":                                                                                {227, "3076234a966a3bdbb3a0d775576764709632e2e160594040b1fee65d8ad591bd"},
+		"uv.lock":                                                                                       {3162, "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7"},
 	}
 	for name, want := range expected {
 		t.Run(name, func(t *testing.T) {
@@ -133,6 +135,29 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 			}
 			if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != want.sha256 {
 				t.Fatalf("artifact %s checksum = %s, want %s", name, got, want.sha256)
+			}
+		})
+	}
+}
+
+// Byte locks alone cannot detect a reviewed artifact update that forgot the
+// profile naming that lock. Check the linkage on every platform, before the
+// exact Darwin runner reaches environment-dependent oracle replay.
+func TestReferenceProfileLocksMatchTheirEnvironmentFiles(t *testing.T) {
+	t.Parallel()
+	root := conformanceRepositoryRoot(t)
+	for _, name := range []string{"django-6.1-sqlite-darwin-arm64", "drf-3.18.0-django-6.1-sqlite-darwin-arm64"} {
+		t.Run(name, func(t *testing.T) {
+			profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", name+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(profile.Lock.File)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != profile.Lock.SHA256 {
+				t.Fatalf("environment lock does not match profile provenance: got %s, want %s", got, profile.Lock.SHA256)
 			}
 		})
 	}

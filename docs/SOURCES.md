@@ -161,7 +161,8 @@ portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-
 
 
 이미지 입력은 고정 Django 6.1의 `django/forms/fields.py`(BSD-3-Clause)와 Pillow 12.3.0(MIT-CMU)의 공개 Image API를
-[독립 관찰](../conformance/runners/django/image_field_reference.py)한다. Python/Pillow 버전은 pyproject/uv.lock으로 고정하고
+[독립 관찰](../conformance/runners/django/image_field_reference.py)한다. Python/Django/Pillow 버전은 별도
+[이미지 reference 프로젝트](../conformance/reference/images/pyproject.toml)와 [lock](../conformance/reference/images/uv.lock)으로 고정하고
 [관찰 fixture](../forms/testdata/image-django61.json)에 실행 source SHA256과 직접 생성한 합성 image bytes를 둔다.
 GoDj wrapper와 GIF/container 예산 검사는 독립 작성했으며 실제 디코딩은 Go 1.26.5의 `image/png`, `image/jpeg`, `image/gif`
 및 [golang.org/x/image v0.46.0의 WebP decoder](https://pkg.go.dev/golang.org/x/image@v0.46.0/webp)(BSD-3-Clause)를 사용한다.

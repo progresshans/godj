@@ -7,6 +7,22 @@
 
 ### 누적 파일/이미지 Hosted 통합의 의존성 준비 수정
 
+수정 source `958f7facec853f2fe99cbd12dae9c626c3a26fee`의
+[후속 Hosted full 36689657934](https://github.com/progresshans/godj/actions/runs/36689657934)에서는 앞선 Go 의존성 검사가
+진행됐지만 exact Darwin reference가 기존 profile의 root lock 해시 불일치로 실패했다. Byte catalog만 새 Pillow lock에
+맞춘 것으로는 profile/oracle provenance가 보존되지 않았다. Pillow 관찰을 `conformance/reference/images`의 별도 고정
+프로젝트로 옮기고 root pyproject/lock을 마지막 전체 검증 source의 bytes로 복원했다. 기존 Django/DRF profile·oracle는
+재작성하지 않는다. 새 이미지 lock은 기존 Django/asgiref/sqlparse/tzdata 기록과 Pillow 12.3.0을 그대로 사용한다.
+아래 첫 수정의 검사와 이 추가 수정의 검증을 구분하며, 두 실패 실행의 부분 성공을 전체 통합 PASS로 합치지 않는다.
+
+환경 분리 뒤 CPython 3.14.3 / Django 6.1 / uv 0.10.12 / darwin-arm64의 exact reference 경계 4 tests가 4.137초에
+skip 없이 통과했다. 기본 suite 결정성·manifest 순서·14개 reference suite의 기존 oracle bytes·migration의 별도 hashseed
+process 결과를 확인했다. 새 이미지 환경의 기존 입력/모델 observer 출력도 저장된 두 fixture bytes와 각각 일치했다.
+새 portable profile→lock 연결 검사와 artifact byte 검사는 2 roots / 103 PASS이며, 수정 전 Pillow root lock을 넣은 별도
+fixture에서는 Django profile 연결만 지정 assertion으로 실패했다. DRF 연결은 통과했고 컴파일 실패는 없었다.
+Root/image lock offline 검사·포맷·170개 문서 링크와 diff 검사도 통과했다. 원래 profile·oracle·DRF 환경의 Git diff는 없다.
+전체 Python suite와 OS/DB 통합은 새 Hosted 실행이 소유하며 위 관련 검사를 전체 통합 완료로 표현하지 않는다.
+
 2026-09-30, source `4cfa1b40c4417b02aea3f8221a4bddeee13e06be`의
 [Hosted full 36688158690](https://github.com/progresshans/godj/actions/runs/36688158690)에서 세 가지 불일치를 확인했다.
 CLI/private workspace 테스트가 이전 `x/sys v0.47.0` 캐시를 요구했고, 현재 전체 module graph의 checksum 7줄이 빠져

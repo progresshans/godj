@@ -51,8 +51,8 @@ CLI 생성/실패 보존을 확인했다. 참조의 해시/자원 한도와 SQLi
 
 ## 다음 행동
 
-Memory·Range/conditional·이미지 입력/모델의 첫 [Hosted 통합](https://github.com/progresshans/godj/actions/runs/36688158690)에서
-의존성 캐시·checksum·Python reference lock 불일치를 발견해 수정했다. 수정 소스의 새 Hosted full로 통합 검증을 완료한다.
+Memory·Range/conditional·이미지 입력/모델의 [후속 Hosted 통합](https://github.com/progresshans/godj/actions/runs/36689657934)에서
+고정 reference profile과 Pillow lock의 결합 문제를 확인했다. 이미지 관찰 환경을 분리하고 새 Hosted full로 통합 검증을 완료한다.
 저장된 이미지의 명시적 검사/크기 갱신, 추가 image codec·storage provider와 나머지 파일 의미를 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.

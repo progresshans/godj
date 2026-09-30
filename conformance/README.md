@@ -43,6 +43,14 @@ Reference-only MIG-075..086은 제품 registry에 등록되지 않은 진단이�
 [TESTING](../docs/TESTING.md)이 빠른 feedback, 관련 integration, CLI/process, reference와 전체 platform의 실행 시점을 설명한다.
 명령과 source의 실행 결과는 [Evidence](../docs/status/TEST_EVIDENCE.md)에 기록한다.
 
+이미지 입력/모델 observer는 [별도 고정 환경](reference/images/pyproject.toml)에서 실행한다. Pillow를 추가하기 위해
+기존 Django/DRF profile의 lock과 oracle provenance를 바꾸지 않는다. 루트 `uv.lock`은 Django profile이 계속 소유한다.
+
+```sh
+uv run --project conformance/reference/images --frozen python conformance/runners/django/image_field_reference.py
+uv run --project conformance/reference/images --frozen python conformance/runners/django/model_image_reference.py
+```
+
 - Product scenario는 사용자 API, 별도 module과 실제 child/DB를 사용한다. Test-local counters만으로 process 종료·restart를 대신하지 않는다.
 - DB/schema/temp/port는 lane마다 분리한다. 필요한 모듈·build cache는 재사용하되 격리 자체를 검사하는 경계는 유지한다.
 - Source-bound PostgreSQL producer는 해당 source/observer/profile의 실제 scenario를 실행한다. Consumer는 같은 신뢰된 실행의
