@@ -928,6 +928,8 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  # The race/core budget includes the pinned service build and serial process tests.
+  # Per-package deadlines and every required sentinel remain unchanged.
   postgresql-product:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'postgresql-product')
@@ -963,8 +965,6 @@ jobs:
             timeout_minutes: 35
           - mode: race
             shard: core
-            # Includes pinned service build and serial generated/process tests.
-            # Keep the 18m per-package deadline and all required sentinels.
             timeout_minutes: 60
           - mode: race
             shard: operator-target

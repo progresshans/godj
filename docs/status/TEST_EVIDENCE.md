@@ -149,6 +149,25 @@ PostgreSQL race/core의 작업 예산만 40분에서 60분으로 조정했다. 1
 no-skip 검사·source/capture 결합·service cleanup 조건은 유지한다. 실제 작업 제한에 도달한 실패를 근거로 한 수정이며
 관찰 도구 timeout 때문에 같은 실행을 다시 시작하는 조치가 아니다. 새 source의 Hosted full 결과는 별도로 통합한다.
 
+### Workflow 주석과 선언된 matrix 검사
+
+예산 보정 source `8184da6ae7bebea3b5f26cf503e0e62cd03cca0a`의
+[PR feedback 36767491339](https://github.com/progresshans/godj/actions/runs/36767491339)은 PASS다.
+실제 job `110065220249`의 merge checkout `12a2b12a19a99e1685a3a0059c23b6287a8ffda8`가 source를 parent로 가지며,
+tree `d1b43f7867775eab850a880c744b56ec2c38909a`가 source tree와 같다. Log SHA256은
+`202a11d995e6ee06b2a2425e90c33f47f196020fd4a4a65e7df571a1cf2d2729`다.
+
+[Hosted full 36767526813](https://github.com/progresshans/godj/actions/runs/36767526813), attempt 1에서
+`TestWorkflowRetainsDeclaredCoordinatesAndModes`가 matrix include 행 내부의 두 설명 주석을
+`unsupported matrix include property`로 거부했다. 실제 relation jobs `110066000090`과 `110066000212`의
+checkout/log를 보존했다. 전체 성공이 아니며 실패한 검사를 삭제하거나 완화하지 않았다.
+두 주석을 job 선언 바로 위로 옮겨 좁은 workflow reader가 기존 matrix를 그대로 검사하도록 했다.
+수정된 작업 사본에서 `go test ./conformance/internal/protocol -run '^TestWorkflow' -count=1`의 다섯 검사 PASS
+(0.678초), CI Python 도구 45개 PASS (4.053초)를 확인했다. 이 후속 수정은 실행 예산과 matrix 값에 영향을 주지 않는다.
+Full 실행과 artifact의 별도 검증 receipt는 `godj-url-budget-hosted-full-36767526813-ansg035r`,
+Fast feedback receipt는 `godj-url-budget-feedback-36767491339` prefix directory에 보존한다.
+
+
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
 ### BigTIFF source의 Hosted web 완료
