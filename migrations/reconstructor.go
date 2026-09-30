@@ -343,6 +343,7 @@ const (
 	loadedRequiresAlterFieldRelation
 	loadedRequiresExplicitManyToMany
 	loadedRequiresAutomaticManyToMany
+	loadedRequiresColumnIndexes
 )
 
 const (
@@ -1600,7 +1601,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				requirements |= loadedRequiresUniqueConstraints
 			} else if change == ir.ChangeDecimalPrecision {
 				requirements |= loadedRequiresAlterFieldDecimalPrecision
-			} else if change == ir.ChangeStringSemantics {
+			} else if change == ir.ChangeStringSemantics || change == ir.ChangeIndex &&
+				(alteration.Before.Kind != alteration.After.Kind || alteration.Before.AllowUnicode != alteration.After.AllowUnicode ||
+					alteration.Before.WidthField != alteration.After.WidthField || alteration.Before.HeightField != alteration.After.HeightField) {
 				requirements |= loadedRequiresAlterFieldStringSemantics
 			} else if change == ir.ChangeBlank {
 				requirements |= loadedRequiresAlterFieldBlank
@@ -1638,10 +1641,16 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			if modelHasUniqueConstraints(view.before) || modelHasUniqueConstraints(view.after) {
 				requirements |= loadedRequiresUniqueConstraints
 			}
+			if modelHasColumnIndexes(view.before) || modelHasColumnIndexes(view.after) {
+				requirements |= loadedRequiresColumnIndexes
+			}
 			for _, related := range view.relatedModels {
 				requirements |= loadedManyRequirements(related.Model)
 				if modelHasUniqueConstraints(related.Model) {
 					requirements |= loadedRequiresUniqueConstraints
+				}
+				if modelHasColumnIndexes(related.Model) {
+					requirements |= loadedRequiresColumnIndexes
 				}
 			}
 			kind, err := loadedBackendOperationKind(view.operation, step.Direction)
@@ -1656,6 +1665,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				requirements |= loadedManyRequirements(view.targets[targetIndex].targetModel)
 				if modelHasUniqueConstraints(view.targets[targetIndex].targetModel) {
 					requirements |= loadedRequiresUniqueConstraints
+				}
+				if modelHasColumnIndexes(view.targets[targetIndex].targetModel) {
+					requirements |= loadedRequiresColumnIndexes
 				}
 				backendTargets[targetIndex] = loadedRelationBackendTarget{
 					sourceField: view.sourceFields[targetIndex].Clone(),

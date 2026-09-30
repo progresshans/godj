@@ -12,7 +12,7 @@ import (
 
 const articleModelIdentity = "godj_conformance.article"
 
-var articleWritableFields = []string{"title", "published", "summary"}
+var articleWritableFields = []string{"title", "published", "summary", "slug"}
 
 // TransactionalAuditWriter is the exact same-transaction write capability
 // required by Article Admin. Implementations may append and prune through the

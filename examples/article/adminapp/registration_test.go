@@ -35,9 +35,10 @@ func TestRegisterArticlePublishesIRDerivedTypedConfiguration(t *testing.T) {
 		t.Fatal("Lookup() ok = false")
 	}
 	if descriptor.Slug != "articles" || descriptor.Model.DBTable != "godj_conformance_article" ||
-		!reflect.DeepEqual(descriptor.ListFields, []string{"id", "title", "published", "summary"}) ||
+		!reflect.DeepEqual(descriptor.ListFields, []string{"id", "title", "published", "summary", "slug"}) ||
 		!reflect.DeepEqual(descriptor.SearchFields, []string{"title", "summary"}) ||
-		len(descriptor.FormFields) != 3 || descriptor.FormFields[0].Name() != "title" ||
+		len(descriptor.FormFields) != 4 || descriptor.FormFields[0].Name() != "title" ||
+		descriptor.FormFields[3].Name() != "slug" || !descriptor.FormFields[3].AllowUnicode() || descriptor.FormFields[3].MaxLength() != 50 ||
 		len(descriptor.Actions) != 1 || descriptor.Actions[0].Name != "publish" {
 		t.Fatalf("descriptor = %#v", descriptor)
 	}

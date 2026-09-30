@@ -21,6 +21,7 @@
 | Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
 | Automatic ManyToMany migration | 소유 table Create/Add/Remove/Rename·reverse, link PK·sqlite_sequence·rootpage 보존, managed pair index 이름 변경 | 같은 logical operation, link PK·table/sequence OID·last_value/is_called 보존, managed PK/FK/unique/sequence 이름 변경 |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
+| 일반 column index | DBIndex의 BINARY/ASC 단일 index·Create/Add/Alter/Remove·reverse·remake 보존·namespace/catalog 소유권 | column collation·default B-tree opclass의 단일 index·같은 lifecycle/소유권; Django pattern-opclass 추가 최적화는 별도 |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
@@ -40,12 +41,16 @@ TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경
 Default 없는 required 추가는 빈 테이블을 요구한다. Legacy SQLite DirectExecutor는 기존 empty-table 제한을 유지한다.
 PK·FK 기본값, callable default와 임의 data migration은 별도 범위다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Email, URL, Slug, File, Image, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
 nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간 값과 남은 범위](adr/0061-datetime-field-and-canonical-instant-values.md)를 따른다.
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
+`schema.DBIndex(bool)`와 SlugField의 기본 index는 `ColumnIndexes` capability를 통해 양 DB lifecycle에 연결한다.
+PrimaryKey/Unique는 별도 일반 index를 만들지 않으며 flag는 history와 생성 metadata에 남는다.
+일반 index의 추가/제거·unique 전환과 같은 저장 구조의 string 의미 변경은 선언한 범위에서 원자적으로 실행한다.
+미선언/변조 index·다른 owner의 이름·capability 누락은 거부한다. [Slug/인덱스 의미](adr/0084-slug-fields-and-column-index-ownership.md)를 따른다.
 Column uniqueness는 `schema.Unique()`·IR·생성 metadata·historical definition/digest·자동 변경 계획까지 연결했다.
 PK는 이미 고유하므로 별도 Unique flag를 정규화하며, Unique FK는 many-to-one/reverse collection을 유지한다.
 양 DB는 field·named model uniqueness의 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.

@@ -14,6 +14,8 @@ import (
 	"github.com/progresshans/godj/db"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/validation"
 )
 
 const (
@@ -84,6 +86,7 @@ type Article struct {
 	Title     string
 	Published bool
 	Summary   *string
+	Slug      *string
 }
 
 // Input is already-cleaned Article data. Repository validation remains
@@ -93,6 +96,7 @@ type Input struct {
 	Title     string
 	Published bool
 	Summary   *string
+	Slug      *string
 }
 
 // PublishedFilter is the closed Article publication-state filter. Its zero
@@ -140,6 +144,7 @@ type Patch struct {
 	title     patchString
 	published patchBool
 	summary   patchNullableString
+	slug      patchNullableString
 }
 
 type patchString struct {
@@ -178,8 +183,18 @@ func (patch Patch) WithSummaryNull() Patch {
 	return patch
 }
 
+func (patch Patch) WithSlug(value string) Patch {
+	patch.slug = patchNullableString{supplied: true, value: value}
+	return patch
+}
+
+func (patch Patch) WithSlugNull() Patch {
+	patch.slug = patchNullableString{supplied: true, null: true}
+	return patch
+}
+
 func (patch Patch) Empty() bool {
-	return !patch.title.supplied && !patch.published.supplied && !patch.summary.supplied
+	return !patch.title.supplied && !patch.published.supplied && !patch.summary.supplied && !patch.slug.supplied
 }
 
 type Page struct {
@@ -358,15 +373,27 @@ func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
 		} else {
 			create = create.WithSummary(*input.Summary)
 		}
-		value, err := articlemodels.ArticleObjects.Create(ctx, session, create)
+		if input.Slug == nil {
+			create = create.WithSlugNull()
+		} else {
+			create = create.WithSlug(*input.Slug)
+		}
+		violations, err := articlemodels.ArticleObjects.ValidateUniqueCreate(ctx, session, create)
 		if err != nil {
 			return MutationResult{}, err
+		}
+		if !violations.Empty() {
+			return MutationResult{}, validation.Reject(violations, nil)
+		}
+		value, err := articlemodels.ArticleObjects.Create(ctx, session, create)
+		if err != nil {
+			return MutationResult{}, writeRejection(err)
 		}
 		created = value
 		return mutationResult(MutationCreate, snapshot(created), nil), nil
 	})
 	if err != nil {
-		return Article{}, fmt.Errorf("article create: %w", err)
+		return Article{}, mutationError(ctx, "create", err)
 	}
 	return snapshot(created), nil
 }
@@ -383,6 +410,11 @@ func (r Repository) Update(ctx context.Context, id int64, input Input) (Article,
 		patch = patch.WithSummaryNull()
 	} else {
 		patch = patch.WithSummary(*input.Summary)
+	}
+	if input.Slug == nil {
+		patch = patch.WithSlugNull()
+	} else {
+		patch = patch.WithSlug(*input.Slug)
 	}
 	return r.update(ctx, id, patch, MutationUpdate)
 }
@@ -438,15 +470,29 @@ func (r Repository) update(ctx context.Context, id int64, patch Patch, operation
 				modelPatch = modelPatch.WithSummary(patch.summary.value)
 			}
 		}
-		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, modelPatch)
+		if operation == MutationUpdate || patch.slug.supplied && !patchSummaryEquals(current.Slug, patch.slug) {
+			if patch.slug.null {
+				modelPatch = modelPatch.WithSlugNull()
+			} else {
+				modelPatch = modelPatch.WithSlug(patch.slug.value)
+			}
+		}
+		violations, err := articlemodels.ArticleObjects.ValidateUniqueUpdate(ctx, session, current, modelPatch)
 		if err != nil {
 			return MutationResult{}, err
+		}
+		if !violations.Empty() {
+			return MutationResult{}, validation.Reject(violations, nil)
+		}
+		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, modelPatch)
+		if err != nil {
+			return MutationResult{}, writeRejection(err)
 		}
 		updated = value
 		return mutationResult(operation, snapshot(updated), changed), nil
 	})
 	if err != nil {
-		return Article{}, nil, fmt.Errorf("article %s: %w", operation, err)
+		return Article{}, nil, mutationError(ctx, string(operation), err)
 	}
 	return snapshot(updated), append([]string(nil), changed...), nil
 }
@@ -551,6 +597,9 @@ func mutationResult(operation MutationOperation, article Article, changedFields 
 // ValidateInput applies the scalar validation used immediately before Article
 // writes. It performs no I/O.
 func ValidateInput(input Input) error {
+	if input.Slug != nil && *input.Slug != "" && !ValidAddressSlug(*input.Slug) {
+		return invalid("slug", "slug is outside the model input policy")
+	}
 	if err := validateModelText("title", input.Title, false); err != nil {
 		return err
 	}
@@ -609,6 +658,9 @@ func validateListOptions(options ListOptions) error {
 }
 
 func validatePatch(patch Patch) error {
+	if patch.slug.supplied && !patch.slug.null && patch.slug.value != "" && !ValidAddressSlug(patch.slug.value) {
+		return invalid("slug", "slug is outside the model input policy")
+	}
 	if patch.title.supplied {
 		if err := validateModelText("title", patch.title.value, false); err != nil {
 			return err
@@ -685,7 +737,7 @@ func canonicalIDs(ids []int64) ([]int64, error) {
 }
 
 func patchChangedFields(current articlemodels.Article, patch Patch) []string {
-	changed := make([]string, 0, 3)
+	changed := make([]string, 0, 4)
 	if patch.title.supplied && current.Title != patch.title.value {
 		changed = append(changed, "title")
 	}
@@ -694,6 +746,9 @@ func patchChangedFields(current articlemodels.Article, patch Patch) []string {
 	}
 	if patch.summary.supplied && !patchSummaryEquals(current.Summary, patch.summary) {
 		changed = append(changed, "summary")
+	}
+	if patch.slug.supplied && !patchSummaryEquals(current.Slug, patch.slug) {
+		changed = append(changed, "slug")
 	}
 	return changed
 }
@@ -715,6 +770,10 @@ func snapshot(value articlemodels.Article) Article {
 		summary := *value.Summary
 		result.Summary = &summary
 	}
+	if value.Slug != nil {
+		slug := *value.Slug
+		result.Slug = &slug
+	}
 	return result
 }
 
@@ -722,6 +781,10 @@ func cloneArticle(article Article) Article {
 	if article.Summary != nil {
 		summary := *article.Summary
 		article.Summary = &summary
+	}
+	if article.Slug != nil {
+		slug := *article.Slug
+		article.Slug = &slug
 	}
 	return article
 }
@@ -731,7 +794,7 @@ func cloneArticle(article Article) Article {
 func ModelSnapshot(article Article) articlemodels.Article {
 	article = cloneArticle(article)
 	model := articlemodels.NewArticleWithID(article.ID)
-	model.Title, model.Published, model.Summary = article.Title, article.Published, article.Summary
+	model.Title, model.Published, model.Summary, model.Slug = article.Title, article.Published, article.Summary, article.Slug
 	return model
 }
 
@@ -759,4 +822,35 @@ func interfaceNil(value any) bool {
 func IsCode(err error, code ErrorCode) bool {
 	var target *Error
 	return errors.As(err, &target) && target.Code == code
+}
+
+// ValidAddressSlug follows the model's length and character policy. It performs
+// no trimming, case folding or Unicode normalization and permits no empty path.
+func ValidAddressSlug(value string) bool {
+	for _, field := range (articlemodels.ArticleDescriptor{}).Metadata().Fields {
+		if field.Name == "slug" {
+			return utf8.RuneCountInString(value) <= field.MaxLength && validation.ValidSlug(value, field.AllowUnicode)
+		}
+	}
+	return false
+}
+
+// Translate only the direct DML conflict inside the owning transaction. A
+// failed rollback or unknown commit never becomes an input rejection.
+func writeRejection(err error) error {
+	conflict, ok := err.(*query.Error)
+	if !ok || conflict.Category != query.CategoryIntegrity || conflict.Code != query.CodeUniqueConstraint {
+		return err
+	}
+	return validation.Reject(validation.NewErrors(validation.New(validation.NonField, validation.CodeUnique)), err)
+}
+
+func mutationError(ctx context.Context, operation string, err error) error {
+	if contextErr := ctx.Err(); contextErr != nil {
+		return errors.Join(err, contextErr)
+	}
+	if _, rejected := validation.Rejected(err); rejected {
+		return err
+	}
+	return fmt.Errorf("article %s: %w", operation, err)
 }

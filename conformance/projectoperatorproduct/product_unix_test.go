@@ -80,6 +80,7 @@ type operatorArticlePage struct {
 		Title     string  `json:"title"`
 		Published bool    `json:"published"`
 		Summary   *string `json:"summary"`
+		Slug      *string `json:"slug"`
 	} `json:"results"`
 }
 
@@ -967,7 +968,7 @@ func operatorExercisePhaseB(
 		return errors.New("phase B durable-session API access failed")
 	}
 	page, err := operatorDecodeArticlePage(listed.body)
-	if err != nil || page.Count != 1 || len(page.Results) != 1 || page.Results[0].Title != "phase-a-durable" {
+	if err != nil || page.Count != 1 || len(page.Results) != 1 || page.Results[0].Title != "phase-a-durable" || page.Results[0].Slug != nil {
 		return fmt.Errorf("phase B API durable Article shape = decode:%t count:%d results:%d first:%t", err == nil, page.Count, len(page.Results), len(page.Results) == 1 && page.Results[0].Title == "phase-a-durable")
 	}
 	freshCSRF := listed.header.Get(websessionauth.DefaultCSRFHeader)

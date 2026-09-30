@@ -144,6 +144,12 @@ func measureField(sizer *wirejson.Sizer, field ir.Field) bool {
 	if field.Unique && !sizer.Literal(`,"unique":true`) {
 		return false
 	}
+	if field.DBIndex && !sizer.Literal(`,"db_index":true`) {
+		return false
+	}
+	if field.AllowUnicode && !sizer.Literal(`,"allow_unicode":true`) {
+		return false
+	}
 	if field.Decimal != nil && (!sizer.Literal(`,"decimal":{"max_digits":`) || !sizer.Integer(int64(field.Decimal.MaxDigits)) || !sizer.Literal(`,"decimal_places":`) || !sizer.Integer(int64(field.Decimal.DecimalPlaces)) || !sizer.Literal(`}`)) {
 		return false
 	}

@@ -274,6 +274,9 @@ func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	var err error
 	output = append(output, '{')
+	if field.AllowUnicode {
+		output = append(output, `"allow_unicode":true,`...)
+	}
 	if field.Blank {
 		output = append(output, `"blank":true,`...)
 	}
@@ -301,6 +304,9 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	output, err = appendCanonicalString(output, field.Column)
 	if err != nil {
 		return nil, err
+	}
+	if field.DBIndex {
+		output = append(output, `,"db_index":true`...)
 	}
 	if field.Decimal != nil {
 		output = append(output, `,"decimal":{"decimal_places":`...)

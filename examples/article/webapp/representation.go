@@ -13,6 +13,8 @@ type ArticleView struct {
 	Title     string  `json:"title"`
 	Published bool    `json:"published"`
 	Summary   *string `json:"summary"`
+	Slug      *string `json:"slug"`
+	URL       string  `json:"url"`
 }
 
 // NewArticleView explicitly unwraps and snapshots one generated facade model.
@@ -29,6 +31,7 @@ func NewArticleView(article *articleproject.ModelsArticle) (ArticleView, error) 
 		Title:     raw.Title,
 		Published: raw.Published,
 		Summary:   raw.Summary,
+		Slug:      raw.Slug,
 	}, nil
 }
 
@@ -49,4 +52,10 @@ type articleListPagination struct {
 	Offset   int
 	Limit    int
 	Returned int
+}
+
+type articleDetailPage struct {
+	ProjectName string
+	ListURL     string
+	Article     ArticleView
 }

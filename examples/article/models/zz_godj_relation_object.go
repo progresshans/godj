@@ -8,7 +8,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "922c4f2ba399aaaa8cfa39a4cc572928559c391ef07728dea3a2d16cea3dc62c"
+const GoDjRelationObjectSchemaSHA256 = "de0cbfa6d4bb1b194b86de168e3e1c7d5780b971e37068a4f8db23b163c12cdc"
 
 var _ orm.RelationObjectDescriptor[Article] = ArticleDescriptor{}
 
@@ -20,6 +20,6 @@ func (ArticleDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorag
 	return nil, false
 }
 
-type GoDjAppPart2_ed9b5b85d843494caf956fce1fa0db26bfe9c90fb602ea9077d0a5f8361cc76f struct{}
+type GoDjAppPart2_8e1ee4fcb8b1d2cd7cda05aca0dacf291838324d8f3f6fb4bee54a4860fd3074 struct{}
 
-var _ GoDjProjectSnapshot_ea7ae06864cbf76e535b88a1cf2f977ac7f2fad396f868b299bdd1c5bfeb0723
+var _ GoDjProjectSnapshot_4a723e4838932fc48bb7ee0549b9bbbfaa6d87dd20d4909375c2b1faedf40742

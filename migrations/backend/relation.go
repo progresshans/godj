@@ -18,6 +18,9 @@ type MigrationCapabilities struct {
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
+	// ColumnIndexes covers declared ordinary column indexes and their retained
+	// catalog ownership, including uniqueness transitions that replace an index.
+	ColumnIndexes bool
 	// ExplicitManyToMany admits columnless changes using existing through models.
 	// Automatic intermediary creation/removal/rename needs separate storage support.
 	ExplicitManyToMany bool

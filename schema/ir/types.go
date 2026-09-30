@@ -42,6 +42,7 @@ const (
 	FieldChar       FieldKind = "char"
 	FieldEmail      FieldKind = "email"
 	FieldURL        FieldKind = "url"
+	FieldSlug       FieldKind = "slug"
 	FieldFile       FieldKind = "file"
 	FieldImage      FieldKind = "image"
 	FieldText       FieldKind = "text"
@@ -152,21 +153,23 @@ func (spec DecimalSpec) Valid() bool {
 }
 
 type Field struct {
-	WidthField  string              `json:"width_field,omitempty"`
-	HeightField string              `json:"height_field,omitempty"`
-	Name        string              `json:"name"`
-	GoName      string              `json:"go_name"`
-	Column      string              `json:"column"`
-	Kind        FieldKind           `json:"kind"`
-	PrimaryKey  bool                `json:"primary_key"`
-	Nullable    bool                `json:"nullable"`
-	Blank       bool                `json:"blank,omitempty"`
-	Unique      bool                `json:"unique,omitempty"`
-	MaxLength   int                 `json:"max_length,omitempty"`
-	Decimal     *DecimalSpec        `json:"decimal,omitempty"`
-	Default     *Scalar             `json:"default,omitempty"`
-	Choices     []Choice            `json:"choices,omitempty"`
-	Relation    *ForeignKeyRelation `json:"relation,omitempty"`
+	WidthField   string              `json:"width_field,omitempty"`
+	HeightField  string              `json:"height_field,omitempty"`
+	Name         string              `json:"name"`
+	GoName       string              `json:"go_name"`
+	Column       string              `json:"column"`
+	Kind         FieldKind           `json:"kind"`
+	PrimaryKey   bool                `json:"primary_key"`
+	Nullable     bool                `json:"nullable"`
+	Blank        bool                `json:"blank,omitempty"`
+	Unique       bool                `json:"unique,omitempty"`
+	DBIndex      bool                `json:"db_index,omitempty"`
+	AllowUnicode bool                `json:"allow_unicode,omitempty"`
+	MaxLength    int                 `json:"max_length,omitempty"`
+	Decimal      *DecimalSpec        `json:"decimal,omitempty"`
+	Default      *Scalar             `json:"default,omitempty"`
+	Choices      []Choice            `json:"choices,omitempty"`
+	Relation     *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
 func (s Schema) Clone() Schema {
@@ -225,11 +228,15 @@ func (f Field) Clone() Field {
 	return clone
 }
 
+// HasColumnIndex reports the separate non-unique index required by this
+// normalized field. A primary key or column-unique constraint supplies it.
+func (f Field) HasColumnIndex() bool { return f.DBIndex && !f.PrimaryKey && !f.Unique }
+
 // Equal compares metadata values, including the ordered choices, rather than
 // treating independently owned default/relation pointers as different fields.
 func (f Field) Equal(other Field) bool {
 	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
-		f.Kind == other.Kind && f.WidthField == other.WidthField && f.HeightField == other.HeightField && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.Unique == other.Unique && f.MaxLength == other.MaxLength &&
+		f.Kind == other.Kind && f.WidthField == other.WidthField && f.HeightField == other.HeightField && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.Unique == other.Unique && f.DBIndex == other.DBIndex && f.AllowUnicode == other.AllowUnicode && f.MaxLength == other.MaxLength &&
 		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
 		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
 }

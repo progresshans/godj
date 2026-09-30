@@ -36,20 +36,22 @@ type Model struct {
 type UniqueConstraint = ir.UniqueConstraint
 
 type Field struct {
-	WidthField  string
-	HeightField string
-	Name        string
-	GoName      string
-	Column      string
-	Kind        ir.FieldKind
-	Nullable    bool
-	Blank       bool
-	Unique      bool
-	MaxLength   int
-	Decimal     *ir.DecimalSpec
-	Default     *ir.Scalar
-	Choices     []ir.Choice
-	Relation    *ir.ForeignKeyRelation
+	WidthField   string
+	HeightField  string
+	Name         string
+	GoName       string
+	Column       string
+	Kind         ir.FieldKind
+	Nullable     bool
+	Blank        bool
+	Unique       bool
+	DBIndex      bool
+	AllowUnicode bool
+	MaxLength    int
+	Decimal      *ir.DecimalSpec
+	Default      *ir.Scalar
+	Choices      []ir.Choice
+	Relation     *ir.ForeignKeyRelation
 }
 
 type ModelTarget = ir.ModelIdentity
@@ -82,6 +84,18 @@ func Unique() FieldOption {
 	return func(field *Field) {
 		field.Unique = true
 	}
+}
+
+// DBIndex declares a non-unique index on this stored column. Primary keys and
+// column uniqueness already supply an index, so no redundant index is created.
+func DBIndex(enabled bool) FieldOption {
+	return func(field *Field) { field.DBIndex = enabled }
+}
+
+// AllowUnicode permits pinned Unicode letters and numbers in Slug input.
+// It never lowercases, normalizes or generates a stored slug.
+func AllowUnicode(enabled bool) FieldOption {
+	return func(field *Field) { field.AllowUnicode = enabled }
 }
 
 func Column(name string) FieldOption {
@@ -159,6 +173,14 @@ func EmailField(name, goName string, options ...FieldOption) Field {
 // maximum is 200 characters; ordinary ORM writes preserve the supplied text.
 func URLField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldURL, 200, options)
+}
+
+// SlugField stores a case-preserving string with slug input semantics, a
+// default 50-character limit and a default column index. ORM writes do not
+// implicitly validate slug syntax. DBIndex(false) disables the index.
+func SlugField(name, goName string, options ...FieldOption) Field {
+	defaults := append([]FieldOption{DBIndex(true)}, options...)
+	return newField(name, goName, ir.FieldSlug, 50, defaults)
 }
 
 // FileField stores a storage-relative name, never an upload or an open file.
@@ -335,16 +357,18 @@ func Build(definition Definition) (ir.Schema, error) {
 				relation = &copy
 			}
 			result.Models[modelIndex].Fields[fieldIndex] = ir.Field{
-				Name:       field.Name,
-				GoName:     field.GoName,
-				Column:     field.Column,
-				Kind:       field.Kind,
-				PrimaryKey: field.Kind == ir.FieldAuto,
-				Nullable:   field.Nullable,
-				Blank:      field.Blank,
-				Unique:     field.Unique,
-				MaxLength:  field.MaxLength,
-				WidthField: field.WidthField, HeightField: field.HeightField,
+				Name:         field.Name,
+				GoName:       field.GoName,
+				Column:       field.Column,
+				Kind:         field.Kind,
+				PrimaryKey:   field.Kind == ir.FieldAuto,
+				Nullable:     field.Nullable,
+				Blank:        field.Blank,
+				Unique:       field.Unique,
+				DBIndex:      field.DBIndex,
+				AllowUnicode: field.AllowUnicode,
+				MaxLength:    field.MaxLength,
+				WidthField:   field.WidthField, HeightField: field.HeightField,
 				Decimal:  field.Decimal,
 				Default:  defaultValue,
 				Choices:  field.Choices,

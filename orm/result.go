@@ -222,6 +222,31 @@ func Project4[M, A, B, C, D, R any](first ScalarField[M, A], second ScalarField[
 	return result
 }
 
+func Project5[M, A, B, C, D, E, R any](first ScalarField[M, A], second ScalarField[M, B], third ScalarField[M, C], fourth ScalarField[M, D], fifth ScalarField[M, E], build func(A, B, C, D, E) R) Projection[M, R] {
+	firstField, firstCell, err := scalarResult(first)
+	secondField, secondCell, secondErr := scalarResult(second)
+	thirdField, thirdCell, thirdErr := scalarResult(third)
+	fourthField, fourthCell, fourthErr := scalarResult(fourth)
+	fifthField, fifthCell, fifthErr := scalarResult(fifth)
+	result := Projection[M, R]{
+		expressions: []query.ResultExpression{firstField, secondField, thirdField, fourthField, fifthField},
+		err:         firstError(err, secondErr, thirdErr, fourthErr, fifthErr),
+	}
+	if build == nil && result.err == nil {
+		result.err = invalidResultBuilder("projection builder is nil")
+	}
+	result.newDecoder = func() resultDecoder[R] {
+		firstValue, secondValue, thirdValue, fourthValue, fifthValue := firstCell(), secondCell(), thirdCell(), fourthCell(), fifthCell()
+		return resultDecoder[R]{
+			destinations: []any{firstValue.destination, secondValue.destination, thirdValue.destination, fourthValue.destination, fifthValue.destination},
+			decode: func() R {
+				return build(firstValue.value(), secondValue.value(), thirdValue.value(), fourthValue.value(), fifthValue.value())
+			},
+		}
+	}
+	return result
+}
+
 type AggregateExpression[M, V any] struct {
 	expression query.ResultExpression
 	newCell    func() scalarCell[V]

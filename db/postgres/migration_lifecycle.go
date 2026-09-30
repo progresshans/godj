@@ -85,6 +85,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
+		ColumnIndexes:                     true,
 		ExplicitManyToMany:                true,
 		AutomaticManyToMany:               true,
 	}

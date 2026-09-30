@@ -544,15 +544,42 @@ func assertPostgresMigrationModelCatalog(
 	if _, exists := indexConstraints[primaryName]; !exists {
 		return postgresMigrationCatalogDrift(model.DBTable, "has no exact framework primary key")
 	}
-	if len(catalog.indexes) != len(indexConstraints) {
-		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d indexes, want %d declared primary/unique indexes", len(catalog.indexes), len(indexConstraints)))
+	columnIndexes := make(map[string]ir.Field)
+	for _, field := range model.Fields {
+		if !field.HasColumnIndex() {
+			continue
+		}
+		name, err := postgresColumnIndexName(model.DBTable, field.Column)
+		if err != nil {
+			return err
+		}
+		if _, collision := indexConstraints[name]; collision {
+			return postgresMigrationIntentIntegrity("column index collides with a constraint index", nil)
+		}
+		if _, collision := columnIndexes[name]; collision {
+			return postgresMigrationIntentIntegrity("column index has multiple owners", nil)
+		}
+		columnIndexes[name] = field
+	}
+	if len(catalog.indexes) != len(indexConstraints)+len(columnIndexes) {
+		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d indexes, want %d declared indexes", len(catalog.indexes), len(indexConstraints)+len(columnIndexes)))
 	}
 	for _, index := range catalog.indexes {
+		if field, exists := columnIndexes[index.name]; exists {
+			if !exactPostgresColumnIndex(index, index.name, field, postgresMigrationCatalogAttributeNumber(catalog, field.Column)) {
+				return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("index %q is outside its declared column profile", index.name))
+			}
+			delete(columnIndexes, index.name)
+			continue
+		}
 		constraint, exists := indexConstraints[index.name]
 		if !exists || !exactPostgresConstraintIndex(index, constraint, indexFields[index.name]) {
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("index %q is outside its declared constraint profile", index.name))
 		}
 		delete(indexConstraints, index.name)
+	}
+	if len(indexConstraints) != 0 || len(columnIndexes) != 0 {
+		return postgresMigrationCatalogDrift(model.DBTable, "declared index ownership is incomplete")
 	}
 	return nil
 }
@@ -623,7 +650,7 @@ func assertPostgresMigrationColumnCatalog(
 		if actual.typeName != "int8" || actual.typeModifier != -1 || !actual.notNull || actual.identity != "d" {
 			return fmt.Errorf("AutoField column %q has an unsupported physical shape", field.Column)
 		}
-	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage:
 		if actual.typeName != "varchar" || actual.typeModifier != field.MaxLength+4 || actual.notNull == field.Nullable || actual.identity != "" {
 			return fmt.Errorf("CharField column %q has an unsupported physical shape", field.Column)
 		}

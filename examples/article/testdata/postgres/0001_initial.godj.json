@@ -59,6 +59,20 @@
               "nullable": true,
               "max_length": 200,
               "default": null
+            },
+            {
+              "name": "slug",
+              "go_name": "Slug",
+              "column": "slug",
+              "kind": "slug",
+              "primary_key": false,
+              "nullable": true,
+              "blank": true,
+              "unique": true,
+              "db_index": true,
+              "allow_unicode": true,
+              "max_length": 50,
+              "default": null
             }
           ]
         }

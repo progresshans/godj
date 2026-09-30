@@ -113,6 +113,12 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 	if field.Unique {
 		fmt.Fprintf(output, "%sUnique: true,\n", indent)
 	}
+	if field.DBIndex {
+		fmt.Fprintf(output, "%sDBIndex: true,\n", indent)
+	}
+	if field.AllowUnicode {
+		fmt.Fprintf(output, "%sAllowUnicode: true,\n", indent)
+	}
 	if field.WidthField != "" {
 		fmt.Fprintf(output, "%sWidthField: %q,\n", indent, field.WidthField)
 	}

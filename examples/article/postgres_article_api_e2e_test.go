@@ -62,8 +62,8 @@ func newArticleAPIPostgresBackend(t *testing.T, schemaPrefix string) *postgres.B
 	if err != nil {
 		t.Fatalf("load Article API PostgreSQL migration definition: %v", err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 2 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 3 || report.HeadersValidated != 3 || report.OperationsDecoded != 3 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 3 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article API PostgreSQL definition load report = %+v", report)
 	}
 	backend, err := postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})

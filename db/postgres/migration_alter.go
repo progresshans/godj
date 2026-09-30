@@ -26,13 +26,13 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 	if err != nil || !reflect.DeepEqual(model, operation.Before) || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 		return postgresMigrationIntentIntegrity("AlterField arguments differ from the sealed field transition", err)
 	}
-	if wantBefore.Unique != wantAfter.Unique {
-		statement, err := compilePostgresUniqueAlter(schema.namespace, model, wantAfter)
-		if err != nil {
-			return err
-		}
+	statements, err := compilePostgresFieldIndexes(schema.namespace, model, wantBefore, wantAfter)
+	if err != nil {
+		return err
+	}
+	for _, statement := range statements {
 		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL unique constraint", err)
+			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL column indexes", err)
 		}
 	}
 	if postgresForeignKeyDeferred(wantBefore) != postgresForeignKeyDeferred(wantAfter) {

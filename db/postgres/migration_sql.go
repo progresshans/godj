@@ -102,6 +102,12 @@ func compilePostgresMigrationCreateModel(
 		}
 		statements = append(statements, statement)
 	}
+	for _, field := range model.Fields {
+		statements, err = appendPostgresColumnIndex(statements, namespace, model, field)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return statements, nil
 }
 
@@ -154,7 +160,7 @@ func compilePostgresMigrationAddFieldStatements(
 			}
 			statements = append(statements, "ALTER TABLE "+table+" ALTER COLUMN "+name+" DROP DEFAULT")
 		}
-		return statements, nil
+		return appendPostgresColumnIndex(statements, namespace, model, field)
 	}
 	if target == nil || !migrationFieldsEqual(target.SourceField, field) {
 		return nil, errors.New("PostgreSQL ForeignKey AddField lacks its exact target metadata")
@@ -163,7 +169,7 @@ func compilePostgresMigrationAddFieldStatements(
 	if err != nil {
 		return nil, err
 	}
-	return []string{statement + ", ADD " + constraint}, nil
+	return appendPostgresColumnIndex([]string{statement + ", ADD " + constraint}, namespace, model, field)
 }
 
 func postgresMigrationAddFieldTarget(
@@ -233,7 +239,7 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 		} else {
 			declaration += " NOT NULL"
 		}
-	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage:
 		if field.PrimaryKey || field.MaxLength <= 0 || field.Relation != nil {
 			return "", errors.New("CharField has an invalid PostgreSQL migration shape")
 		}

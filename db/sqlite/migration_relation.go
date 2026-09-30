@@ -50,6 +50,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
+		ColumnIndexes:                     true,
 		ExplicitManyToMany:                true,
 		AutomaticManyToMany:               true,
 	}
@@ -519,6 +520,8 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationBool(hash, field.Nullable)
 	writeRelationBool(hash, field.Blank)
 	writeRelationBool(hash, field.Unique)
+	writeRelationBool(hash, field.DBIndex)
+	writeRelationBool(hash, field.AllowUnicode)
 	writeRelationInt(hash, field.MaxLength)
 	if field.Decimal != nil {
 		writeRelationString(hash, "decimal")
@@ -629,7 +632,7 @@ func validateSQLiteRelationIntent(
 	// semantic app/model identities exact; this backend additionally rejects
 	// physical table/column aliases and reverse-name collisions.
 	tableOwners := make(map[string]ir.ModelIdentity)
-	indexOwners := make(map[string]sqliteUniqueIndexOwner)
+	indexOwners := make(map[string]sqliteIndexOwner)
 	modelNames := make(map[struct{ app, name string }]ir.ModelIdentity)
 	reverseOwners := make(map[ir.ModelIdentity]map[string]struct {
 		source ir.ModelIdentity
@@ -651,7 +654,7 @@ func validateSQLiteRelationIntent(
 			return relationIntentIntegrity("relation model names collide under SQLite identifier folding")
 		}
 		modelNames[modelKey] = identity
-		declared, err := sqliteModelUniqueIndexOwners(model)
+		declared, err := sqliteModelIndexOwners(model)
 		if err != nil {
 			return err
 		}
@@ -1107,20 +1110,22 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 		if err != nil {
 			return err
 		}
-		if wantField.Unique {
+		indexesRemoved := wantField.Unique || wantField.HasColumnIndex()
+		if indexesRemoved {
 			removed := wantField.Clone()
 			removed.Unique = false
-			drop, err := compileSQLiteUniqueAlter(operation.Before, removed)
+			removed.DBIndex = false
+			drops, err := compileSQLiteFieldIndexes(operation.Before, wantField, removed)
 			if err != nil {
 				return err
 			}
-			if _, err := executor.ExecContext(ctx, drop); err != nil {
-				return fmt.Errorf("drop unique index before removing SQLite field: %w", err)
+			if err := executeSQLiteMigrationStatements(ctx, executor, drops); err != nil {
+				return fmt.Errorf("drop declared index before removing SQLite field: %w", err)
 			}
 		}
 		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			if wantField.Unique {
-				return newSQLiteMigrationDDLExecutionError("remove SQLite column after its unique index", err)
+			if indexesRemoved {
+				return newSQLiteMigrationDDLExecutionError("remove SQLite column after its index", err)
 			}
 			if sqliteDropColumnCapabilityFailure(err) {
 				return migrationbackend.NewCapabilityError(
@@ -1133,8 +1138,8 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 		}
 		state.cursor++
 		err = transaction.completeRelationOperationIfLast(ctx, executor)
-		if err != nil && wantField.Unique {
-			return newSQLiteMigrationDDLExecutionError("verify SQLite unique column removal", err)
+		if err != nil && indexesRemoved {
+			return newSQLiteMigrationDDLExecutionError("verify SQLite indexed column removal", err)
 		}
 		return err
 	})
@@ -1471,7 +1476,7 @@ func loadSQLiteRelationCatalog(ctx context.Context, executor migrationSQLExecuto
 }
 
 func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *sqliteRelationIntentSeal) error {
-	indexes, err := sqliteUniqueIndexOwners(seal)
+	indexes, err := sqliteIndexOwners(seal)
 	if err != nil {
 		return err
 	}
@@ -2473,7 +2478,7 @@ func assertSQLiteRelationModelShape(
 			return fmt.Errorf("table %q foreign key %q target: %w", model.DBTable, field.Column, err)
 		}
 	}
-	if err := assertSQLiteUniqueIndexes(ctx, executor, model, layout); err != nil {
+	if err := assertSQLiteIndexes(ctx, executor, model, layout); err != nil {
 		return err
 	}
 	cache.layouts[model.DBTable] = layout
@@ -2728,7 +2733,7 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "INTEGER", nil
 	case ir.FieldInteger:
 		return "BIGINT", nil
-	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
 	case ir.FieldJSON:
 		return "TEXT", nil

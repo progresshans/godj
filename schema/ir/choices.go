@@ -21,7 +21,7 @@ func validateChoices(field Field, path string) error {
 	}
 	var kind ScalarKind
 	switch field.Kind {
-	case FieldChar, FieldEmail, FieldURL, FieldFile, FieldImage, FieldText:
+	case FieldChar, FieldEmail, FieldURL, FieldSlug, FieldFile, FieldImage, FieldText:
 		kind = ScalarString
 	case FieldInteger:
 		kind = ScalarInteger
@@ -47,7 +47,7 @@ func validateChoices(field Field, path string) error {
 		if choice.Value.Kind == ScalarString && strings.ContainsRune(choice.Value.String, 0) {
 			return validation(itemPath+".value", "invalid", "choice value must not contain NUL")
 		}
-		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind == FieldURL || field.Kind.IsFile()) && utf8.RuneCountInString(choice.Value.String) > field.MaxLength {
+		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind == FieldURL || field.Kind == FieldSlug || field.Kind.IsFile()) && utf8.RuneCountInString(choice.Value.String) > field.MaxLength {
 			return validation(itemPath+".value", "max_length", "choice value exceeds the field length")
 		}
 	}

@@ -345,6 +345,7 @@ type authenticatedRestartArticle struct {
 	Title     string  `json:"title"`
 	Published bool    `json:"published"`
 	Summary   *string `json:"summary"`
+	Slug      *string `json:"slug"`
 }
 
 type authenticatedRestartArticlePage struct {
@@ -359,6 +360,7 @@ type authenticatedRestartPersistedArticle struct {
 	Title     string
 	Published bool
 	Summary   sql.NullString
+	Slug      sql.NullString
 }
 
 type authenticatedRestartSessionRow struct {
@@ -964,7 +966,8 @@ func authenticatedRestartRequireArticle(
 		return errors.New("Article response has trailing JSON")
 	}
 	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published ||
-		!authenticatedRestartOptionalStringEqual(got.Summary, want.Summary) {
+		!authenticatedRestartOptionalStringEqual(got.Summary, want.Summary) ||
+		!authenticatedRestartOptionalStringEqual(got.Slug, want.Slug) {
 		return errors.New("Article response semantic fields differ")
 	}
 	return nil
@@ -1210,13 +1213,13 @@ func authenticatedRestartInspectDatabase(t *testing.T, databasePath string) auth
 	}
 
 	var snapshot authenticatedRestartDatabaseSnapshot
-	articleRows, err := database.QueryContext(ctx, `SELECT "id", "title", "published", "summary" FROM "godj_conformance_article" ORDER BY "id"`)
+	articleRows, err := database.QueryContext(ctx, `SELECT "id", "title", "published", "summary", "slug" FROM "godj_conformance_article" ORDER BY "id"`)
 	if err != nil {
 		t.Fatal("query authenticated restart Articles")
 	}
 	for articleRows.Next() {
 		var row authenticatedRestartPersistedArticle
-		if err := articleRows.Scan(&row.ID, &row.Title, &row.Published, &row.Summary); err != nil {
+		if err := articleRows.Scan(&row.ID, &row.Title, &row.Published, &row.Summary, &row.Slug); err != nil {
 			_ = articleRows.Close()
 			t.Fatal("scan authenticated restart Article")
 		}

@@ -11,6 +11,7 @@ const (
 	ChangeRelation
 	ChangeStringSemantics
 	ChangeBlank
+	ChangeIndex
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
@@ -20,6 +21,9 @@ const (
 // The arguments and their nested metadata remain owned by their callers.
 func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	for _, field := range []Field{before, after} {
+		if field.Kind != FieldSlug && field.AllowUnicode {
+			return 0, validation("field.allow_unicode", "unsupported", "Unicode slug input requires SlugField kind")
+		}
 		if err := validateImageField(field, "field"); err != nil {
 			return 0, err
 		}
@@ -43,11 +47,21 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 		previous := before
 		previous.Kind = after.Kind
 		previous.WidthField, previous.HeightField = after.WidthField, after.HeightField
+		previous.AllowUnicode = after.AllowUnicode
 		if previous.Equal(after) {
 			return ChangeStringSemantics, nil
 		}
+		previous.DBIndex = after.DBIndex
+		if before.DBIndex != after.DBIndex && previous.Equal(after) {
+			return ChangeIndex, nil
+		}
 	}
 	previous, next := before, after
+	previous.DBIndex, next.DBIndex = false, false
+	if previous.Equal(next) {
+		return ChangeIndex, nil
+	}
+	previous, next = before, after
 	previous.Blank, next.Blank = false, false
 	if previous.Equal(next) {
 		return ChangeBlank, nil
@@ -84,9 +98,9 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy Decimal precision, blank policy or bounded string input semantics changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy, Decimal precision, blank policy, column indexing or bounded string input semantics changes")
 }
 
 func boundedStringKind(kind FieldKind) bool {
-	return kind == FieldChar || kind == FieldEmail || kind == FieldURL || kind.IsFile()
+	return kind == FieldChar || kind == FieldEmail || kind == FieldURL || kind == FieldSlug || kind.IsFile()
 }

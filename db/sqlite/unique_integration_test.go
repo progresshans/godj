@@ -252,7 +252,7 @@ func TestSQLiteUniqueReferenceWrites(t *testing.T) {
 			if actual := sqliteUniqueCount(t, reopened, "SELECT value IS NULL FROM "+model.DBTable+" WHERE id=?", nullID); actual != 1 {
 				t.Fatal("failed update changed original NULL")
 			}
-			if err := assertSQLiteUniqueIndexes(ctx, reopened.database, model, model.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, reopened.database, model, model.Fields); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := (migrations.Executor{Backend: reopened}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
@@ -361,11 +361,19 @@ func TestSQLiteUniqueConcurrentWritesAndAtomicRollback(t *testing.T) {
 }
 
 func TestSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t *testing.T) {
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed_%t", indexed), func(t *testing.T) {
+			testSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t, indexed)
+		})
+	}
+}
+
+func testSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t *testing.T, indexed bool) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "alter.sqlite")
 	backend := openMigrationHistoryFileBackend(t, path)
 	built, err := schema.Build(schema.Definition{AppLabel: "uniqueref", Models: []schema.Model{
-		{Name: "owner", GoName: "Owner", Fields: []schema.Field{schema.TextField("reference", "Reference", schema.Nullable())}},
+		{Name: "owner", GoName: "Owner", Fields: []schema.Field{schema.TextField("reference", "Reference", schema.Nullable(), schema.DBIndex(indexed))}},
 		{Name: "child", GoName: "Child", Fields: []schema.Field{schema.ForeignKey("owner", "Owner", schema.Target("uniqueref", "owner"), schema.RelatedName("children"), schema.Protect)}},
 	}})
 	if err != nil {
@@ -427,7 +435,7 @@ func TestSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t *testing.T)
 		if _, err := executor.Migrate(ctx, loaded, uniqueTarget); err != nil {
 			t.Fatal("explicit repair and retry failed", err)
 		}
-		if err := assertSQLiteUniqueIndexes(ctx, backend.database, after, after.Fields); err != nil {
+		if err := assertSQLiteIndexes(ctx, backend.database, after, after.Fields); err != nil {
 			t.Fatal(err)
 		}
 		if n := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM uniqueref_child WHERE owner_id=1`); n != 1 {
@@ -457,6 +465,7 @@ func TestSQLiteUniqueNullableAddAndRetainedIndexesThroughForeignKeyRemake(t *tes
 		parent := schema.Model{Name: "entry", GoName: "Entry", Fields: []schema.Field{parentField}}
 		child := schema.Model{Name: "child", GoName: "Child", Fields: []schema.Field{
 			schema.TextField("label", "Label", schema.Unique()),
+			schema.IntegerField("ranking", "Ranking", schema.Nullable(), schema.DBIndex(true)),
 			schema.ForeignKey("keeper", "Keeper", schema.Target("uniqueref", "entry"), schema.RelatedName("keepers"), schema.Protect, schema.Nullable(), schema.Unique()),
 		}}
 		if extended {
@@ -477,7 +486,7 @@ func TestSQLiteUniqueNullableAddAndRetainedIndexesThroughForeignKeyRemake(t *tes
 	initial := migrations.Migration{App: "uniqueref", Name: "0001_initial", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "uniqueref", Model: before["entry"]}, migrations.CreateModel{AppLabel: "uniqueref", Model: before["child"]}}}
 	addition := migrations.Migration{App: "uniqueref", Name: "0002_fields", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{
 		migrations.AddField{AppLabel: "uniqueref", ModelName: "entry", Field: after["entry"].Fields[2]},
-		migrations.AddField{AppLabel: "uniqueref", ModelName: "child", Field: after["child"].Fields[3]},
+		migrations.AddField{AppLabel: "uniqueref", ModelName: "child", Field: after["child"].Fields[4]},
 	}}
 	loaded := sqliteUniqueHistory(t, initial, addition)
 	executor := migrations.Executor{Backend: backend}
@@ -533,7 +542,7 @@ func TestSQLiteUniqueNullableAddAndRetainedIndexesThroughForeignKeyRemake(t *tes
 		t.Fatal("reverse unique additions failed", err)
 	}
 	for _, model := range before {
-		if err := assertSQLiteUniqueIndexes(ctx, backend.database, model, model.Fields); err != nil {
+		if err := assertSQLiteIndexes(ctx, backend.database, model, model.Fields); err != nil {
 			t.Fatal("retained indexes lost during remake", err)
 		}
 	}
@@ -555,7 +564,7 @@ func TestSQLiteUniqueNullableAddAndRetainedIndexesThroughForeignKeyRemake(t *tes
 	if _, err := executor.Migrate(ctx, loaded, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("uniqueref"))); err != nil {
 		t.Fatal("unique graph reverse failed", err)
 	}
-	if count := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE 'godj_uq_%'`); count != 0 {
+	if count := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE 'godj_uq_%' OR name LIKE 'godj_ix_%'`); count != 0 {
 		t.Fatal("deleted models left owned indexes")
 	}
 	if count := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM sqlite_sequence WHERE name IN ('uniqueref_entry','uniqueref_child')`); count != 0 {
@@ -600,7 +609,7 @@ func TestSQLiteUniqueChangesBeforeRemakeUseOperationState(t *testing.T) {
 					t.Fatal("mixed unique/remake failed", err)
 				}
 			}
-			if err := assertSQLiteUniqueIndexes(ctx, backend.database, without, without.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, backend.database, without, without.Fields); err != nil {
 				t.Fatal(err)
 			}
 			if n := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM news_article WHERE id=7 AND title='one'`); n != 1 {
@@ -911,7 +920,7 @@ func TestSQLiteUniqueRemakeIndexFailureRestoresOriginalRowsIndexesSequenceAndFK(
 	if _, err := executor.Migrate(ctx, loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(initial.Key()))); err != nil {
 		t.Fatal("rollback did not permit clean retry", err)
 	}
-	if err := assertSQLiteUniqueIndexes(ctx, backend.database, without, without.Fields); err != nil {
+	if err := assertSQLiteIndexes(ctx, backend.database, without, without.Fields); err != nil {
 		t.Fatal("retry lost retained uniqueness", err)
 	}
 }

@@ -40,7 +40,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 	if err != nil {
 		return err
 	}
-	projector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "title", "published", "summary")
+	projector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "title", "published", "summary", "slug")
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			formmodel.OverrideField("title", formmodel.WithValidators(articleDisplayTextValidator("title"))),
 			formmodel.OverrideField("summary", formmodel.WithValidators(articleDisplayTextValidator("summary"))),
 		},
-		ListFields:   []string{"id", "title", "published", "summary"},
+		ListFields:   []string{"id", "title", "published", "summary", "slug"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[articleapp.Article], error) {
@@ -190,7 +190,19 @@ func articleInput(values forms.Values) (articleapp.Input, error) {
 	default:
 		return articleapp.Input{}, invalid("summary", "cleaned summary type is invalid")
 	}
-	input := articleapp.Input{Title: title, Published: published, Summary: summary}
+	slugValue, ok := values.Get("slug")
+	if !ok {
+		return articleapp.Input{}, invalid("slug", "cleaned slug is unavailable")
+	}
+	var slug *string
+	if !slugValue.IsNull() {
+		value, ok := slugValue.AsString()
+		if !ok {
+			return articleapp.Input{}, invalid("slug", "cleaned slug type is invalid")
+		}
+		slug = &value
+	}
+	input := articleapp.Input{Title: title, Published: published, Summary: summary, Slug: slug}
 	if err := articleapp.ValidateInput(input); err != nil {
 		return articleapp.Input{}, fmt.Errorf("article admin form conversion: %w", err)
 	}

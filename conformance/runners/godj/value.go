@@ -75,6 +75,8 @@ func djangoInternalType(kind ir.FieldKind) (string, error) {
 		return "AutoField", nil
 	case ir.FieldChar:
 		return "CharField", nil
+	case ir.FieldSlug:
+		return "SlugField", nil
 	case ir.FieldBoolean:
 		return "BooleanField", nil
 	default:

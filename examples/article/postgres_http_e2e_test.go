@@ -69,8 +69,8 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load Article PostgreSQL migration definition: %v", err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 2 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 3 || report.HeadersValidated != 3 || report.OperationsDecoded != 3 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 3 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article PostgreSQL definition load report = %+v", report)
 	}
 
@@ -109,7 +109,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read reopened Article PostgreSQL migration history: %v", err)
 	}
-	wantHistory := []migrationbackend.AppliedMigration{{App: "godj_conformance", Name: "0001_initial"}, {App: "godj_conformance", Name: "0002_alter_article_summary"}}
+	wantHistory := []migrationbackend.AppliedMigration{{App: "godj_conformance", Name: "0001_initial"}, {App: "godj_conformance", Name: "0002_alter_article_summary"}, {App: "godj_conformance", Name: "0003_article_slug"}}
 	if !reflect.DeepEqual(history, wantHistory) {
 		t.Fatalf("reopened Article PostgreSQL history = %v, want %v", history, wantHistory)
 	}

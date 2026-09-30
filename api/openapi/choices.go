@@ -67,7 +67,7 @@ func choiceInputSchema(field serializers.Field) (Schema, error) {
 }
 
 func inputDefaultName(field serializers.Field, value serializers.Value) string {
-	if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL {
+	if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug {
 		return "x-godj-omission-default"
 	}
 	if document, ok := value.AsJSON(); ok && !field.Nullable() && document.Text == "null" {

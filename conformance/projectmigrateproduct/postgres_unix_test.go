@@ -542,10 +542,10 @@ func projectMigratePostgresAssertLatest(
 		t.Fatal("PostgreSQL latest column shape did not match the exact current Article/system/control schema")
 	}
 	if !reflect.DeepEqual(snapshot.Constraints, projectMigratePostgresExpectedConstraints()) {
-		t.Fatal("PostgreSQL latest constraints did not match the exact current primary-key profile")
+		t.Fatal("PostgreSQL latest constraints did not match the exact current constraint/index profile")
 	}
 	if !reflect.DeepEqual(snapshot.Indexes, projectMigratePostgresExpectedIndexes()) {
-		t.Fatal("PostgreSQL latest indexes did not match the exact current primary-key profile")
+		t.Fatal("PostgreSQL latest indexes did not match the exact current constraint/index profile")
 	}
 	if snapshot.Triggers != 24 || snapshot.Policies != 0 || snapshot.Rules != 0 {
 		t.Fatalf(
@@ -641,6 +641,7 @@ func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
 		}
 	}
 	out := []dbstate.PostgresConstraint{
+		{Table: "godj_conformance_article", Name: "godj_uq_5075d44673860b0ab62632fb43465e91144966a49b62e716", Kind: "u", Validated: true, Key: "5", IndexName: "godj_uq_5075d44673860b0ab62632fb43465e91144966a49b62e716"},
 		{Table: "godj_identity_group", Name: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", Kind: "p", Validated: true, Key: "1", IndexName: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc"},
 		{Table: "godj_identity_group", Name: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4"},
 		{Table: "godj_identity_group_permissions", Name: "godj_fk_4d941cdcb1482febe5876a931ec55f074ae5f49d21fb135b", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "3", IndexName: "godj_pk_81b5075da6e298b86fd86bf47e14d3a90d26545657d27593", InternalTriggers: 4},
@@ -696,6 +697,7 @@ func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
 		}
 	}
 	out := []dbstate.PostgresIndex{
+		{Table: "godj_conformance_article", Name: "godj_uq_5075d44673860b0ab62632fb43465e91144966a49b62e716", Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "slug", Method: "btree"},
 		{Table: "godj_identity_group", Name: "godj_pk_3e82b0051a7b46d4c048cc3b39646a339afb6cad0eb810fc", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
 		{Table: "godj_identity_group", Name: "godj_uq_eee573325ab096e9d2cc0c7cc7f403194f15652afe0589e4", Primary: false, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "name", Method: "btree"},
 		{Table: "godj_identity_group_permissions", Name: "godj_pk_bdf464a175800635e3e03d60480045e3cf1eedd17d325e37", Primary: true, Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "id", Method: "btree"},
@@ -784,6 +786,7 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 		column("godj_conformance_article", 2, "title", "character varying(200)", true, "", false),
 		column("godj_conformance_article", 3, "published", "boolean", true, "", false),
 		column("godj_conformance_article", 4, "summary", "character varying(200)", false, "", false),
+		column("godj_conformance_article", 5, "slug", "character varying(50)", false, "", false),
 		column("godj_migration_revision", 1, "singleton", "smallint", true, "", true),
 		column("godj_migration_revision", 2, "format_version", "integer", true, "", false),
 		column("godj_migration_revision", 3, "epoch", "bytea", true, "", false),

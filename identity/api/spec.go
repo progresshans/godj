@@ -50,7 +50,7 @@ func (a *Application) prepareSpecs() error {
 			allowEmpty := false
 			for _, field := range definition.model.Fields {
 				if field.Name == name {
-					allowEmpty = field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldText
+					allowEmpty = field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind == ir.FieldText
 				}
 			}
 			selected = append(selected, serializers.ModelField{Name: name, ReadOnly: true, AllowEmpty: allowEmpty})

@@ -125,6 +125,7 @@ const (
 	FieldIntegerList
 	FieldEmail
 	FieldURL
+	FieldSlug
 	FieldFile
 	FieldImage
 )
@@ -241,6 +242,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
+	allowUnicode        bool
+	hasAllowUnicode     bool
 	assumeScheme        string
 	hasAssumeScheme     bool
 	inspectImageChoice  ImageChoiceInspector
@@ -272,6 +275,7 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
+	allowUnicode       bool
 	assumeScheme       string
 	inspectImageChoice ImageChoiceInspector
 	imageLimits        uploads.ImageLimits
@@ -348,6 +352,9 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasAllowUnicode && kind != FieldSlug {
+		return Field{}, &ConfigError{Path: "fields." + name + ".allow_unicode", Code: "unsupported"}
+	}
 	if config.hasAssumeScheme && kind != FieldURL {
 		return Field{}, &ConfigError{Path: "fields." + name + ".assume_scheme", Code: "unsupported"}
 	}
@@ -535,7 +542,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
-	case FieldChar, FieldEmail, FieldURL:
+	case FieldChar, FieldEmail, FieldURL, FieldSlug:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
 		}
@@ -561,6 +568,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
+		allowUnicode:       config.allowUnicode,
 		assumeScheme:       config.assumeScheme,
 		inspectImageChoice: config.inspectImageChoice,
 		allowEmptyFile:     config.allowEmptyFile,
@@ -1101,7 +1109,7 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			if value.IsNull() && field.required {
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
 			}
-		case FieldChar, FieldEmail, FieldURL:
+		case FieldChar, FieldEmail, FieldURL, FieldSlug:
 			raw := ""
 			if present && len(submitted) == 1 {
 				raw = submitted[0]
@@ -1131,6 +1139,10 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			}
 			if field.kind == FieldURL {
 				failures = append(failures, urlinput.FormErrors(field.name, raw, field.maxLength))
+				break
+			}
+			if field.kind == FieldSlug {
+				failures = append(failures, slugFormErrors(field, raw))
 				break
 			}
 			if raw != "" && !utf8.ValidString(raw) {
@@ -1280,7 +1292,7 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		}
 		value, code := cleanInteger(raw)
 		return code != "" || !value.Equal(initial)
-	case FieldChar, FieldEmail, FieldURL:
+	case FieldChar, FieldEmail, FieldURL, FieldSlug:
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]

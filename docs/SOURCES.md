@@ -220,3 +220,16 @@ Dependency version과 module checksum은 go.mod/go.sum이 소유한다. 서비�
 정확한 module/해시/빌드 profile은 [S3 service owner](../scripts/ci/s3_service.py), 독립 bucket setup/cleanup은
 [s3fixture](../conformance/s3fixture/fixture.go)가 소유한다. 고정 service의 checksum 거부 코드와 version/range/서명 동작은
 실제 요청으로 확인하며 AWS 자체의 실행 증거와 구분한다.
+
+
+SlugField의 기본 길이/인덱스·ASCII/Unicode 문법·Form/serializer는 고정 Django 6.1의
+`django/db/models/fields/__init__.py`, `django/forms/fields.py`, `django/core/validators.py`(BSD-3-Clause)와
+DRF 3.18.0의 `rest_framework/fields.py`(BSD-3-Clause)를 독립 실행한다.
+[Observer](../conformance/runners/django/slug_field_reference.py)는 합성 73개 입력만 사용하며
+[SQLite](../internal/slugtest/testdata/slug-django61-sqlite.json)·[PostgreSQL](../internal/slugtest/testdata/slug-django61-postgres.json)
+관찰에 실행 source SHA256을 보존한다. 모델 선택·후보·commit=False/저장·rollback과 여섯 index 변경 단계를 포함한다.
+Unicode 문자표는 기존 고정 Unicode 16 구현을 재사용한다. 공개 문서는
+[Django SlugField](https://docs.djangoproject.com/en/6.1/ref/models/fields/#slugfield),
+[Django Form SlugField](https://docs.djangoproject.com/en/6.1/ref/forms/fields/#slugfield),
+[DRF SlugField](https://www.django-rest-framework.org/api-guide/fields/#slugfield)를 참고하며
+마지막 LF와 PostgreSQL pattern-opclass 차이는 [ADR-0084](adr/0084-slug-fields-and-column-index-ownership.md)에 구분한다.

@@ -84,10 +84,8 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			}
 			if sqliteRelationOperationNeedsRemake(operation) {
 				groups[index], err = compileSQLiteRelationRemakeSQL(transition, operation)
-			} else if before.Unique != field.Unique {
-				var statement string
-				statement, err = compileSQLiteUniqueAlter(operation.After, field)
-				groups[index] = []string{statement}
+			} else {
+				groups[index], err = compileSQLiteFieldIndexes(operation.After, before, field)
 			}
 		case migrationbackend.MigrationCreateModel:
 			groups[index], err = compileSQLiteStorageOperation(request.App, operation)

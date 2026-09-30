@@ -228,12 +228,20 @@ func TestPostgresUniqueConcurrentWritersAndAtomicRollback(t *testing.T) {
 }
 
 func TestPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t *testing.T) {
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed_%t", indexed), func(t *testing.T) {
+			testPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t, indexed)
+		})
+	}
+}
+
+func testPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK(t *testing.T, indexed bool) {
 	ctx := t.Context()
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, ctx, url)
 	writer := openPostgresMigrationIntegrationBackend(t, ctx, url, namespace)
 	built, err := schema.Build(schema.Definition{AppLabel: "uniqueref", Models: []schema.Model{
-		{Name: "owner", GoName: "Owner", Fields: []schema.Field{schema.TextField("reference", "Reference", schema.Nullable())}},
+		{Name: "owner", GoName: "Owner", Fields: []schema.Field{schema.TextField("reference", "Reference", schema.Nullable(), schema.DBIndex(indexed))}},
 		{Name: "child", GoName: "Child", Fields: []schema.Field{schema.ForeignKey("owner", "Owner", schema.Target("uniqueref", "owner"), schema.RelatedName("children"), schema.Protect)}},
 	}})
 	if err != nil {

@@ -36,13 +36,13 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 			if err := executeSQLiteRelationRemake(ctx, executor, plan); err != nil {
 				return newSQLiteMigrationDDLExecutionError("alter SQLite foreign key timing by bounded remake", err)
 			}
-		} else if wantBefore.Unique != wantAfter.Unique {
-			statement, err := compileSQLiteUniqueAlter(operation.After, wantAfter)
+		} else {
+			statements, err := compileSQLiteFieldIndexes(operation.After, wantBefore, wantAfter)
 			if err != nil {
 				return err
 			}
-			if _, err := executor.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("alter SQLite column uniqueness: %w", err)
+			if err := executeSQLiteMigrationStatements(ctx, executor, statements); err != nil {
+				return fmt.Errorf("alter SQLite column indexes: %w", err)
 			}
 		}
 		if kind == ir.ChangeDecimalPrecision {

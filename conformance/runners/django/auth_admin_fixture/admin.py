@@ -25,7 +25,7 @@ def publish_selected(modeladmin, request, queryset) -> None:
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     actions = (publish_selected,)
-    list_display = ("id", "title", "published", "summary")
+    list_display = ("id", "title", "published", "summary", "slug")
     list_per_page = 2
     ordering = ("id",)
     search_fields = ("title", "summary")

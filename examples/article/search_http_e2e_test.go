@@ -204,7 +204,8 @@ func provisionSearchArticles(t *testing.T, backend *sqlite.Backend) {
   "id" INTEGER NOT NULL PRIMARY KEY,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`,
 		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
   (1, 'Go Launch', TRUE, NULL),
@@ -305,7 +306,7 @@ func assertArticleAdvancedFilterPlans(t *testing.T, plans []query.Plan, search s
 		t.Fatalf("advanced-filter result shapes = %q/%q, want projection/aggregate", page.ResultShape().Kind(), report.ResultShape().Kind())
 	}
 	projection := page.ResultShape().Expressions()
-	wantProjection := []string{"id", "title", "published", "summary"}
+	wantProjection := []string{"id", "title", "published", "summary", "slug"}
 	if len(projection) != len(wantProjection) {
 		t.Fatalf("advanced-filter projection cells = %d, want %d", len(projection), len(wantProjection))
 	}

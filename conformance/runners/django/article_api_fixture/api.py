@@ -120,7 +120,7 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ("id", "title", "published", "summary")
+        fields = ("id", "title", "published", "summary", "slug")
 
     def to_internal_value(self, data):
         if not isinstance(data, Mapping):
@@ -128,7 +128,7 @@ class ArticleSerializer(serializers.ModelSerializer):
                 {"non_field_errors": [serializers.ErrorDetail("Expected an object.", code="invalid")]}
             )
 
-        declared = {"id", "title", "published", "summary"}
+        declared = {"id", "title", "published", "summary", "slug"}
         pre_errors: dict[str, list[serializers.ErrorDetail]] = {}
         if "id" in data:
             pre_errors["id"] = [serializers.ErrorDetail("This field is read-only.", code="read_only")]
@@ -145,7 +145,7 @@ class ArticleSerializer(serializers.ModelSerializer):
 
         if pre_errors or field_errors:
             ordered: OrderedDict[str, object] = OrderedDict()
-            for name in ("id", "title", "published", "summary"):
+            for name in ("id", "title", "published", "summary", "slug"):
                 if name in pre_errors:
                     ordered[name] = pre_errors[name]
                 elif name in field_errors:

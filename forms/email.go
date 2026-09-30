@@ -21,11 +21,11 @@ func EmailField(name string, options ...FieldOption) (Field, error) {
 }
 
 func stringFieldKind(kind FieldKind) bool {
-	return kind == FieldChar || kind == FieldEmail || kind == FieldURL
+	return kind == FieldChar || kind == FieldEmail || kind == FieldURL || kind == FieldSlug
 }
 
 func trimStringInput(kind FieldKind, value string) string {
-	if kind == FieldEmail || kind == FieldURL {
+	if kind == FieldEmail || kind == FieldURL || kind == FieldSlug {
 		return unicode16.TrimSpace(value)
 	}
 	return strings.TrimSpace(value)

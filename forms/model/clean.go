@@ -116,7 +116,7 @@ func cleanValueMatches(field ir.Field, value forms.Value) bool {
 		return true
 	}
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText:
 		return value.Kind() == forms.ValueString
 	case ir.FieldInteger, ir.FieldForeignKey:
 		return value.Kind() == forms.ValueInteger

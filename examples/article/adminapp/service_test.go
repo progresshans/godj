@@ -25,7 +25,8 @@ func TestServicePublishesAuditOnlyForConfirmedSemanticWrites(t *testing.T) {
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 		"title" TEXT NOT NULL,
 		"published" INTEGER NOT NULL,
-		"summary" TEXT NULL
+		"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 	)`); err != nil {
 		t.Fatalf("create Article table: %v", err)
 	}
@@ -160,7 +161,8 @@ func TestDurableServiceAuditSharesArticleTransactionAndPublishOrder(t *testing.T
 			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 			"title" TEXT NOT NULL,
 			"published" INTEGER NOT NULL,
-			"summary" TEXT NULL
+			"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 		)`,
 		`CREATE TABLE "test_audit" (
 			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -269,7 +271,8 @@ func TestMemoryServiceCommitUnknownDoesNotRetryOrPublishSyntheticAudit(t *testin
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 		"title" TEXT NOT NULL,
 		"published" INTEGER NOT NULL,
-		"summary" TEXT NULL
+		"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 	)`); err != nil {
 		t.Fatalf("create Article table: %v", err)
 	}

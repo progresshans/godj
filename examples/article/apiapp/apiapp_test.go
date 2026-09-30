@@ -145,7 +145,7 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 	token, csrf := harness.csrf(t, harness.allSession, "/api/articles/")
 
 	list := harness.do(t, http.MethodGet, "/api/articles/", requestOptions{session: harness.allSession})
-	assertResponse(t, list, http.StatusOK, api.JSONContentType, `{"count":1,"next":null,"previous":null,"results":[{"id":1,"title":"Existing","published":true,"summary":null}]}`)
+	assertResponse(t, list, http.StatusOK, api.JSONContentType, `{"count":1,"next":null,"previous":null,"results":[{"id":1,"title":"Existing","published":true,"summary":null,"slug":null}]}`)
 
 	create := harness.do(t, http.MethodPost, "/api/articles/", requestOptions{
 		body:        `{"title":"  Created  ","published":true,"summary":"before PUT"}`,
@@ -154,13 +154,13 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 		csrf:        csrf,
 		token:       token,
 	})
-	assertResponse(t, create, http.StatusCreated, api.JSONContentType, `{"id":2,"title":"Created","published":true,"summary":"before PUT"}`)
+	assertResponse(t, create, http.StatusCreated, api.JSONContentType, `{"id":2,"title":"Created","published":true,"summary":"before PUT","slug":null}`)
 	if got := create.header.Get("Location"); got != "/api/articles/2/" || strings.Contains(got, "example.test") {
 		t.Fatalf("Location = %q", got)
 	}
 
 	detail := harness.do(t, http.MethodGet, "/api/articles/2/", requestOptions{session: harness.allSession})
-	assertResponse(t, detail, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Created","published":true,"summary":"before PUT"}`)
+	assertResponse(t, detail, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Created","published":true,"summary":"before PUT","slug":null}`)
 	head := harness.do(t, http.MethodHead, "/api/articles/2/", requestOptions{session: harness.allSession})
 	assertResponse(t, head, http.StatusOK, api.JSONContentType, "")
 	options := harness.do(t, http.MethodOptions, "/api/articles/2/", requestOptions{session: harness.allSession})
@@ -197,7 +197,7 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 		csrf:        csrf,
 		token:       token,
 	})
-	assertResponse(t, put, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":false,"summary":"before PUT"}`)
+	assertResponse(t, put, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":false,"summary":"before PUT","slug":null}`)
 
 	patch := harness.do(t, http.MethodPatch, "/api/articles/2/", requestOptions{
 		body:        `{"published":true,"summary":""}`,
@@ -206,7 +206,7 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 		csrf:        csrf,
 		token:       token,
 	})
-	assertResponse(t, patch, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":true,"summary":""}`)
+	assertResponse(t, patch, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":true,"summary":"","slug":null}`)
 	emptyPatch := harness.do(t, http.MethodPatch, "/api/articles/2/", requestOptions{
 		body:        `{}`,
 		contentType: api.JSONContentType,
@@ -222,7 +222,7 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 		csrf:        csrf,
 		token:       token,
 	})
-	assertResponse(t, nullPatch, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":true,"summary":null}`)
+	assertResponse(t, nullPatch, http.StatusOK, api.JSONContentType, `{"id":2,"title":"Replaced","published":true,"summary":null,"slug":null}`)
 
 	deleted := harness.do(t, http.MethodDelete, "/api/articles/2/", requestOptions{
 		session: harness.allSession,
@@ -257,7 +257,7 @@ func TestListFilterOrderingPaginationAndInvalidQueries(t *testing.T) {
 	}
 
 	combined := harness.do(t, http.MethodGet, "/api/articles/?search=go&published=true&ordering=-id", requestOptions{session: harness.allSession})
-	assertResponse(t, combined, http.StatusOK, api.JSONContentType, `{"count":2,"next":null,"previous":null,"results":[{"id":4,"title":"Go Deep Dive","published":true,"summary":"API"},{"id":1,"title":"Go Guide","published":true,"summary":null}]}`)
+	assertResponse(t, combined, http.StatusOK, api.JSONContentType, `{"count":2,"next":null,"previous":null,"results":[{"id":4,"title":"Go Deep Dive","published":true,"summary":"API","slug":null},{"id":1,"title":"Go Guide","published":true,"summary":null,"slug":null}]}`)
 	titleOnly := harness.do(t, http.MethodGet, "/api/articles/?search=needle", requestOptions{session: harness.allSession})
 	assertResponse(t, titleOnly, http.StatusOK, api.JSONContentType, `{"count":0,"next":null,"previous":null,"results":[]}`)
 
@@ -447,7 +447,8 @@ func newHarness(t *testing.T) *harness {
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 		"title" TEXT NOT NULL,
 		"published" INTEGER NOT NULL,
-		"summary" TEXT NULL
+		"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 	)`); err != nil {
 		t.Fatal(err)
 	}

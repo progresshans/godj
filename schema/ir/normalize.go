@@ -188,6 +188,9 @@ func normalizeField(field *Field, path string) error {
 }
 
 func validateField(field Field, path string) error {
+	if field.Kind != FieldSlug && field.AllowUnicode {
+		return validation(path+".allow_unicode", "unsupported", "Unicode slug input requires SlugField kind")
+	}
 	if err := validateImageField(field, path); err != nil {
 		return err
 	}
@@ -291,11 +294,11 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarInteger {
 			return validation(path+".default", "type_mismatch", "IntegerField default must be an int64")
 		}
-	case FieldChar, FieldEmail, FieldURL, FieldFile, FieldImage, FieldText:
+	case FieldChar, FieldEmail, FieldURL, FieldSlug, FieldFile, FieldImage, FieldText:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind == FieldURL || field.Kind.IsFile()) && field.MaxLength <= 0 {
+		if (field.Kind == FieldChar || field.Kind == FieldEmail || field.Kind == FieldURL || field.Kind == FieldSlug || field.Kind.IsFile()) && field.MaxLength <= 0 {
 			return validation(path+".max_length", "invalid", "CharField max length must be positive")
 		}
 		if field.Kind == FieldText && field.MaxLength != 0 {

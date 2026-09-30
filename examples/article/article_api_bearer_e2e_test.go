@@ -53,7 +53,8 @@ func TestArticleAPIBearerSQLiteUserFlow(t *testing.T) {
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +76,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		target:        apiapp.ListPath,
 		authorization: "Bearer " + articleAPIFullBearer,
 	})
-	listed.requireJSON(t, http.StatusOK, `{"count":5,"next":"/api/articles/?page=2","previous":null,"results":[{"id":1,"title":"Go Alpha","published":true,"summary":null},{"id":2,"title":"Rust Beta","published":false,"summary":"second"}]}`)
+	listed.requireJSON(t, http.StatusOK, `{"count":5,"next":"/api/articles/?page=2","previous":null,"results":[{"id":1,"title":"Go Alpha","published":true,"summary":null,"slug":null},{"id":2,"title":"Rust Beta","published":false,"summary":"second","slug":null}]}`)
 	listed.requireChallenge(t, "")
 
 	// Bearer mutations deliberately omit both the CSRF header and CSRF cookie.
@@ -86,7 +87,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		body:          `{"title":"  Bearer Created  ","published":true,"summary":"from bearer"}`,
 		authorization: "Bearer " + articleAPIFullBearer,
 	})
-	created.requireJSON(t, http.StatusCreated, `{"id":6,"title":"Bearer Created","published":true,"summary":"from bearer"}`)
+	created.requireJSON(t, http.StatusCreated, `{"id":6,"title":"Bearer Created","published":true,"summary":"from bearer","slug":null}`)
 	created.requireChallenge(t, "")
 	if got := created.header.Get("Location"); got != "/api/articles/6/" {
 		t.Fatal("Bearer create Location was not the expected relative Article path")
@@ -100,7 +101,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		target:        "/api/articles/6/",
 		authorization: "Bearer " + articleAPIFullBearer,
 	})
-	detail.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Created","published":true,"summary":"from bearer"}`)
+	detail.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Created","published":true,"summary":"from bearer","slug":null}`)
 
 	replaced := fixture.request(t, articleAPIBearerRequest{
 		method:        http.MethodPut,
@@ -109,7 +110,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		body:          `{"title":"Bearer Replaced","summary":null}`,
 		authorization: "Bearer " + articleAPIFullBearer,
 	})
-	replaced.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Replaced","published":false,"summary":null}`)
+	replaced.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Replaced","published":false,"summary":null,"slug":null}`)
 
 	patched := fixture.request(t, articleAPIBearerRequest{
 		method:        http.MethodPatch,
@@ -118,7 +119,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		body:          `{"published":true,"summary":"patched"}`,
 		authorization: "Bearer " + articleAPIFullBearer,
 	})
-	patched.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Replaced","published":true,"summary":"patched"}`)
+	patched.requireJSON(t, http.StatusOK, `{"id":6,"title":"Bearer Replaced","published":true,"summary":"patched","slug":null}`)
 	article := articleAPIGet(t, fixture.repository, 6)
 	if article.Title != "Bearer Replaced" || !article.Published || article.Summary == nil || *article.Summary != "patched" {
 		t.Fatal("valid Bearer PUT/PATCH did not persist the expected Article state")

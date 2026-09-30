@@ -67,8 +67,8 @@ func (b *Backend) BeginMigration(ctx context.Context) (migrationbackend.Transact
 }
 
 func (transaction *migrationTransaction) CreateModel(ctx context.Context, model ir.Model) error {
-	if sqliteModelHasUnique(model) {
-		return relationIntentUnsupported("column uniqueness requires the revision-fenced migration lifecycle")
+	if sqliteModelHasIndexes(model) {
+		return relationIntentUnsupported("declared indexes require the revision-fenced migration lifecycle")
 	}
 	statement, err := compileMigrationCreateModel(model)
 	if err != nil {
@@ -83,8 +83,8 @@ func (transaction *migrationTransaction) CreateModel(ctx context.Context, model 
 }
 
 func (transaction *migrationTransaction) DeleteModel(ctx context.Context, model ir.Model) error {
-	if sqliteModelHasUnique(model) {
-		return relationIntentUnsupported("column uniqueness requires the revision-fenced migration lifecycle")
+	if sqliteModelHasIndexes(model) {
+		return relationIntentUnsupported("declared indexes require the revision-fenced migration lifecycle")
 	}
 	statement, err := compileMigrationDeleteModel(model)
 	if err != nil {
@@ -121,8 +121,8 @@ func (transaction *migrationTransaction) TableExists(ctx context.Context, table 
 }
 
 func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if sqliteModelHasUnique(model) || field.Unique {
-		return relationIntentUnsupported("column uniqueness requires the revision-fenced migration lifecycle")
+	if sqliteModelHasIndexes(model) || field.Unique || field.DBIndex {
+		return relationIntentUnsupported("declared indexes require the revision-fenced migration lifecycle")
 	}
 	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(
@@ -164,8 +164,8 @@ func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.
 }
 
 func (transaction *migrationTransaction) RemoveField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if sqliteModelHasUnique(model) || field.Unique {
-		return relationIntentUnsupported("column uniqueness requires the revision-fenced migration lifecycle")
+	if sqliteModelHasIndexes(model) || field.Unique || field.DBIndex {
+		return relationIntentUnsupported("declared indexes require the revision-fenced migration lifecycle")
 	}
 	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(

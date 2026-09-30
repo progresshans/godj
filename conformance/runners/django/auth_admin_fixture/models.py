@@ -5,6 +5,7 @@ class Article(models.Model):
     title = models.CharField(max_length=200)
     published = models.BooleanField(default=False)
     summary = models.CharField(max_length=200, null=True, blank=True)
+    slug = models.SlugField(max_length=50, allow_unicode=True, null=True, blank=True, unique=True)
 
     class Meta:
         app_label = "godj_auth_admin"

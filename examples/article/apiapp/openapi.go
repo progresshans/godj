@@ -118,7 +118,7 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 	listOptionsResponse.Headers = []openapi.Header{{Name: "Allow", Description: "GET, HEAD, OPTIONS, POST", Schema: openapi.String(), Required: true}}
 	detailOptionsResponse := articleJSONResponse(http.StatusOK, "The methods supported by the detail route; no Article lookup is performed.", detailOptions)
 	detailOptionsResponse.Headers = []openapi.Header{{Name: "Allow", Description: "DELETE, GET, HEAD, OPTIONS, PATCH, PUT", Schema: openapi.String(), Required: true}}
-	const bodyLimits = "The body is a JSON object, limited to 4096 bytes and depth 16. Individual JSON strings are limited to 1024 bytes. Duplicate JSON members and trailing data are rejected. Text is trimmed and non-text control characters are rejected."
+	const bodyLimits = "The body is a JSON object, limited to 4096 bytes and depth 16. Individual JSON strings are limited to 1024 bytes. Duplicate JSON members and trailing data are rejected. Text is trimmed and non-text control characters are rejected. Slugs accept Unicode letters or numbers, underscore and hyphen, with at most 50 characters. No slug is generated from the title. Non-null slugs are unique across Articles; SQL nulls are distinct. Omitted slugs preserve the current value in PUT and PATCH; explicit null clears it. Confirmed duplicate input returns slug/unique, and a concurrent storage conflict returns __all__/unique after rollback."
 	const updateOrder = "Authentication, CSRF when required, and permission checks precede the Article lookup. A missing Article returns 404 before the update body is parsed."
 	declarations := []struct {
 		operation openapi.Operation

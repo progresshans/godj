@@ -191,7 +191,7 @@ func postgresMigrationTestCatalog(
 			column.typeName = "int8"
 			column.notNull = true
 			column.identity = "d"
-		case ir.FieldChar:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage:
 			column.typeName = "varchar"
 			column.typeModifier = field.MaxLength + 4
 			column.notNull = !field.Nullable
@@ -281,6 +281,22 @@ func postgresMigrationTestCatalog(
 			keyCount: 1, totalCount: 1, vectorsExact: true, immediate: true,
 			accessMethod: "btree", keys: []postgresMigrationIndexKey{{attributeNumber: attribute, columnCollation: true, operatorClassSchema: "pg_catalog",
 				operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true}},
+		})
+	}
+	for index, field := range model.Fields {
+		if !field.HasColumnIndex() {
+			continue
+		}
+		name, err := postgresColumnIndexName(model.DBTable, field.Column)
+		if err != nil {
+			t.Fatal(err)
+		}
+		attribute := postgresMigrationCatalogAttributeNumber(catalog, field.Column)
+		catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{
+			oid: int64(801 + index), name: name, valid: true, ready: true, live: true,
+			keyCount: 1, totalCount: 1, vectorsExact: true, immediate: true, accessMethod: "btree",
+			keys: []postgresMigrationIndexKey{{attributeNumber: attribute, columnCollation: true,
+				operatorClassSchema: "pg_catalog", operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true}},
 		})
 	}
 	for index, constraint := range model.UniqueConstraints {

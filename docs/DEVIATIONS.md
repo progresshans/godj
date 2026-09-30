@@ -1221,3 +1221,19 @@ superuser에게도 적용한다. `Principal.Has`는 false, permission 선언/검
 
 `Principal.Permissions()`는 명시적 grant snapshot이며 Django superuser의 전체 등록 permission 열거 API와 같은 기능이 아니다.
 Catalog enumeration·관리 API의 후속 구현을 이 반환값으로 대체하지 않는다.
+
+
+## DEV-0015 — Slug JSON의 절대 문자열 끝
+
+- 상태: accepted; 구현·환경별 실행은 [GDJ-0105](../work/0105-slug-fields-and-indexed-article-addresses.md)와 [Evidence](status/TEST_EVIDENCE.md) 참조
+- 기준: 고정 Django 6.1/DRF 3.18.0/Python 3.14.3
+- 범위: [ADR-0084](adr/0084-slug-fields-and-column-index-ownership.md)의 ASCII SlugField JSON 입력
+
+DRF ASCII SlugField의 `$`는 `trim_whitespace=False`일 때 단일 마지막 LF 앞에서도 일치한다.
+독립 fixture의 `serializers.untrimmed.newline_end`는 원문 `plain\n`을 성공으로 보존한다.
+GoDj는 Django의 Slug validator/Form과 같은 절대 끝 의미를 JSON에도 적용하여 이 경우 `invalid`로 거부한다.
+정상 trim profile과 Unicode profile의 결과를 이 예외로 면제하지 않는다. 테스트는 native의 수용 관찰과 Go의 거부를
+모두 명시적으로 확인하며 해당 사례를 DRF parity로 집계하지 않는다.
+
+JSON의 NUL은 기존 전역 값 경계에서 거부한다(두 입력 × 여덟 profile). Native validator의 `None`→`"None"`
+coercion은 Go string validator의 입력 범위 밖이고, Form/JSON의 null 처리는 별도로 비교한다.

@@ -221,13 +221,29 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 			annotations = append(annotations, serializers.MemberOf("x-godj-url", policy.Value()))
 		}
-		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL {
+		if field.Kind() == serializers.FieldSlug {
+			profile := "ascii-alphanumeric"
+			if field.AllowUnicode() {
+				profile = "python-unicode-16-alphanumeric"
+			}
+			policy, err := serializers.NewObject(
+				serializers.MemberOf("validator", serializers.String("django-6.1")),
+				serializers.MemberOf("allowUnicode", serializers.Boolean(field.AllowUnicode())),
+				serializers.MemberOf("characterProfile", serializers.String(profile)),
+				serializers.MemberOf("afterNormalization", serializers.Boolean(true)),
+			)
+			if err != nil {
+				return Schema{}, schemaConfigError("slug", "slug input policy is invalid")
+			}
+			annotations = append(annotations, serializers.MemberOf("x-godj-slug", policy.Value()))
+		}
+		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug {
 			if field.TrimWhitespace() {
 				normalization := []serializers.Member{
 					serializers.MemberOf("trimWhitespace", serializers.Boolean(true)),
 					serializers.MemberOf("allowEmptyAfterTrim", serializers.Boolean(field.AllowEmpty())),
 				}
-				if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL {
+				if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug {
 					normalization = append(normalization, serializers.MemberOf("whitespaceProfile", serializers.String("python-unicode-16")))
 				}
 				if field.MaxLength() > 0 {
@@ -307,7 +323,7 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 		if field.ReadOnly() {
 			annotations = append(annotations, serializers.MemberOf("readOnly", serializers.Boolean(true)))
 		}
-		if (field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL) && field.MaxLength() > 0 {
+		if (field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug) && field.MaxLength() > 0 {
 			// Keep string assertions on the string branch. Attaching maxLength
 			// beside nullable anyOf is valid JSON Schema, but loses the bound
 			// in clients that build field validators from the selected branch.
@@ -336,7 +352,7 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 func schemaFieldType(field serializers.Field) (Schema, error) {
 	var schema Schema
 	switch field.Kind() {
-	case serializers.FieldString, serializers.FieldEmail, serializers.FieldURL:
+	case serializers.FieldString, serializers.FieldEmail, serializers.FieldURL, serializers.FieldSlug:
 		schema = String()
 	case serializers.FieldJSON:
 		return jsonFieldSchema(field, false)

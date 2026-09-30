@@ -24,7 +24,8 @@ func openArticleRepository(t *testing.T, name string) (context.Context, *sqlite.
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 		"title" TEXT NOT NULL,
 		"published" INTEGER NOT NULL,
-		"summary" TEXT NULL
+		"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 	)`); err != nil {
 		t.Fatalf("create Article table: %v", err)
 	}
@@ -46,7 +47,8 @@ func TestRepositoryProvidesNeutralArticlePersistenceAndNotFoundMarker(t *testing
 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 		"title" TEXT NOT NULL,
 		"published" INTEGER NOT NULL,
-		"summary" TEXT NULL
+		"summary" TEXT NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 	)`); err != nil {
 		t.Fatalf("create Article table: %v", err)
 	}

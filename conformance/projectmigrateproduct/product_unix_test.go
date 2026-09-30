@@ -276,12 +276,17 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		t.Fatal(err)
 	}
 	sources = append(sources, migrationdefinition.Source{SourceID: "migrations/godj_conformance_0002_alter_article_summary.godj.json", Document: blankDocument})
+	slugDocument, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", "godj_conformance_0003_article_slug.godj.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources = append(sources, migrationdefinition.Source{SourceID: "migrations/godj_conformance_0003_article_slug.godj.json", Document: slugDocument})
 	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 8 || report.HeadersValidated != 8 || report.OperationsDecoded != 18 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 8 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 9 || report.HeadersValidated != 9 || report.OperationsDecoded != 19 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 9 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -299,6 +304,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	wantHistory := []dbstate.HistoryRow{
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0002_alter_article_summary"},
+		{App: "godj_conformance", Name: "0003_article_slug"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
@@ -698,7 +704,7 @@ func assertPrefixDatabase(t *testing.T, databasePath, sentinel string) {
 		t.Fatalf("prefix history = %+v", snapshot.History)
 	}
 	assertRevision(t, snapshot.Revision, 1, snapshot.History, dbstate.FingerprintHistory(snapshot.History))
-	assertExpectedColumns(t, snapshot, wantTables)
+	assertExpectedColumns(t, snapshot, wantTables, false)
 	assertArticleSentinel(t, databasePath, sentinel)
 }
 
@@ -728,7 +734,7 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 		t.Fatalf("latest history = %+v, want %+v", snapshot.History, wantHistory)
 	}
 	assertRevision(t, snapshot.Revision, int64(len(wantHistory)), wantHistory, expected.HistoryFingerprint)
-	assertExpectedColumns(t, snapshot, wantTables)
+	assertExpectedColumns(t, snapshot, wantTables, true)
 	assertArticleSentinel(t, databasePath, sentinel)
 }
 
@@ -779,9 +785,12 @@ func decodeSHA256Digest(t *testing.T, digest string) [sha256.Size]byte {
 	return result
 }
 
-func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []string) {
+func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []string, hasSlug bool) {
 	t.Helper()
 	expected := expectedColumns()
+	if hasSlug {
+		expected["godj_conformance_article"] = append(expected["godj_conformance_article"], columnSnapshot{Name: "slug", Type: "VARCHAR(50)"})
+	}
 	for _, table := range tables {
 		want, exists := expected[table]
 		if !exists {

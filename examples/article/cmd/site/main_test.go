@@ -297,7 +297,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 		`{"title":"Before restart","published":true}`,
 		staleCSRF,
 	)
-	if created.status != http.StatusCreated || created.body != `{"id":1,"title":"Before restart","published":true,"summary":null}` {
+	if created.status != http.StatusCreated || created.body != `{"id":1,"title":"Before restart","published":true,"summary":null,"slug":null}` {
 		t.Fatalf("first-process API create = status %d body %q", created.status, created.body)
 	}
 	if got := articleSiteTableRowCount(t, ctx, firstBackend, "godj_system_audit"); got != 0 {
@@ -320,7 +320,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	secondServer := httptest.NewServer(secondApplication)
 	t.Cleanup(secondServer.Close)
 	restartedSafe := articleSiteGET(t, client, secondServer.URL+"/api/articles/", api.JSONContentType)
-	if restartedSafe.status != http.StatusOK || restartedSafe.body != `{"count":1,"next":null,"previous":null,"results":[{"id":1,"title":"Before restart","published":true,"summary":null}]}` {
+	if restartedSafe.status != http.StatusOK || restartedSafe.body != `{"count":1,"next":null,"previous":null,"results":[{"id":1,"title":"Before restart","published":true,"summary":null,"slug":null}]}` {
 		t.Fatalf("restarted authenticated API = status %d body %q", restartedSafe.status, restartedSafe.body)
 	}
 	if got := articleSiteCookieValue(t, jar, secondServer.URL, websessionauth.DefaultSessionCookieName); got != login.sessionCookie {
@@ -349,7 +349,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 		`{"title":"After restart"}`,
 		freshCSRF,
 	)
-	if freshAttempt.status != http.StatusCreated || freshAttempt.body != `{"id":2,"title":"After restart","published":false,"summary":null}` {
+	if freshAttempt.status != http.StatusCreated || freshAttempt.body != `{"id":2,"title":"After restart","published":false,"summary":null,"slug":null}` {
 		t.Fatalf("restarted fresh-CSRF API write = status %d body %q", freshAttempt.status, freshAttempt.body)
 	}
 	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_conformance_article"); got != 2 {
@@ -717,7 +717,8 @@ func createArticleSiteArticleTable(t *testing.T, backend *sqlite.Backend) {
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`); err != nil {
 		t.Fatal(err)
 	}

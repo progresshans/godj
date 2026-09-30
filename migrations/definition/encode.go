@@ -270,21 +270,23 @@ type modelDocument struct {
 }
 
 type fieldDocument struct {
-	Name        string            `json:"name"`
-	GoName      string            `json:"go_name"`
-	Column      string            `json:"column"`
-	Kind        ir.FieldKind      `json:"kind"`
-	PrimaryKey  bool              `json:"primary_key"`
-	Nullable    bool              `json:"nullable"`
-	Blank       bool              `json:"blank,omitempty"`
-	Unique      bool              `json:"unique,omitempty"`
-	MaxLength   int               `json:"max_length"`
-	WidthField  string            `json:"width_field,omitempty"`
-	HeightField string            `json:"height_field,omitempty"`
-	Decimal     *ir.DecimalSpec   `json:"decimal,omitempty"`
-	Default     any               `json:"default"`
-	Choices     []choiceDocument  `json:"choices,omitempty"`
-	Relation    *relationDocument `json:"relation,omitempty"`
+	Name         string            `json:"name"`
+	GoName       string            `json:"go_name"`
+	Column       string            `json:"column"`
+	Kind         ir.FieldKind      `json:"kind"`
+	PrimaryKey   bool              `json:"primary_key"`
+	Nullable     bool              `json:"nullable"`
+	Blank        bool              `json:"blank,omitempty"`
+	Unique       bool              `json:"unique,omitempty"`
+	DBIndex      bool              `json:"db_index,omitempty"`
+	AllowUnicode bool              `json:"allow_unicode,omitempty"`
+	MaxLength    int               `json:"max_length"`
+	WidthField   string            `json:"width_field,omitempty"`
+	HeightField  string            `json:"height_field,omitempty"`
+	Decimal      *ir.DecimalSpec   `json:"decimal,omitempty"`
+	Default      any               `json:"default"`
+	Choices      []choiceDocument  `json:"choices,omitempty"`
+	Relation     *relationDocument `json:"relation,omitempty"`
 }
 
 type choiceDocument struct {
@@ -381,18 +383,20 @@ func encodeModel(model ir.Model) modelDocument {
 
 func encodeField(field ir.Field) fieldDocument {
 	encoded := fieldDocument{
-		Name:        field.Name,
-		GoName:      field.GoName,
-		Column:      field.Column,
-		Kind:        field.Kind,
-		PrimaryKey:  field.PrimaryKey,
-		Nullable:    field.Nullable,
-		Blank:       field.Blank,
-		Unique:      field.Unique,
-		MaxLength:   field.MaxLength,
-		WidthField:  field.WidthField,
-		HeightField: field.HeightField,
-		Default:     encodeDefault(field.Default),
+		Name:         field.Name,
+		GoName:       field.GoName,
+		Column:       field.Column,
+		Kind:         field.Kind,
+		PrimaryKey:   field.PrimaryKey,
+		Nullable:     field.Nullable,
+		Blank:        field.Blank,
+		Unique:       field.Unique,
+		DBIndex:      field.DBIndex,
+		AllowUnicode: field.AllowUnicode,
+		MaxLength:    field.MaxLength,
+		WidthField:   field.WidthField,
+		HeightField:  field.HeightField,
+		Default:      encodeDefault(field.Default),
 	}
 	if field.Decimal != nil {
 		copy := *field.Decimal

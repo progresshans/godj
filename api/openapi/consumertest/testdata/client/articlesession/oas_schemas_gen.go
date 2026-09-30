@@ -14,6 +14,7 @@ type Article struct {
 	Title     string    `json:"title"`
 	Published bool      `json:"published"`
 	Summary   NilString `json:"summary"`
+	Slug      NilString `json:"slug"`
 }
 
 // GetID returns the value of ID.
@@ -36,6 +37,11 @@ func (s *Article) GetSummary() NilString {
 	return s.Summary
 }
 
+// GetSlug returns the value of Slug.
+func (s *Article) GetSlug() NilString {
+	return s.Slug
+}
+
 // SetID sets the value of ID.
 func (s *Article) SetID(val int64) {
 	s.ID = val
@@ -56,6 +62,11 @@ func (s *Article) SetSummary(val NilString) {
 	s.Summary = val
 }
 
+// SetSlug sets the value of Slug.
+func (s *Article) SetSlug(val NilString) {
+	s.Slug = val
+}
+
 func (*Article) godjConformanceArticlePartialUpdateRes() {}
 func (*Article) godjConformanceArticleUpdateRes()        {}
 
@@ -64,6 +75,7 @@ type ArticleCreate struct {
 	Title     string       `json:"title"`
 	Published OptBool      `json:"published"`
 	Summary   OptNilString `json:"summary"`
+	Slug      OptNilString `json:"slug"`
 }
 
 // GetTitle returns the value of Title.
@@ -81,6 +93,11 @@ func (s *ArticleCreate) GetSummary() OptNilString {
 	return s.Summary
 }
 
+// GetSlug returns the value of Slug.
+func (s *ArticleCreate) GetSlug() OptNilString {
+	return s.Slug
+}
+
 // SetTitle sets the value of Title.
 func (s *ArticleCreate) SetTitle(val string) {
 	s.Title = val
@@ -94,6 +111,11 @@ func (s *ArticleCreate) SetPublished(val OptBool) {
 // SetSummary sets the value of Summary.
 func (s *ArticleCreate) SetSummary(val OptNilString) {
 	s.Summary = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *ArticleCreate) SetSlug(val OptNilString) {
+	s.Slug = val
 }
 
 // ArticleHeaders wraps Article with response headers.
@@ -205,6 +227,7 @@ type ArticlePatch struct {
 	Title     OptString    `json:"title"`
 	Published OptBool      `json:"published"`
 	Summary   OptNilString `json:"summary"`
+	Slug      OptNilString `json:"slug"`
 }
 
 // GetTitle returns the value of Title.
@@ -222,6 +245,11 @@ func (s *ArticlePatch) GetSummary() OptNilString {
 	return s.Summary
 }
 
+// GetSlug returns the value of Slug.
+func (s *ArticlePatch) GetSlug() OptNilString {
+	return s.Slug
+}
+
 // SetTitle sets the value of Title.
 func (s *ArticlePatch) SetTitle(val OptString) {
 	s.Title = val
@@ -237,11 +265,17 @@ func (s *ArticlePatch) SetSummary(val OptNilString) {
 	s.Summary = val
 }
 
+// SetSlug sets the value of Slug.
+func (s *ArticlePatch) SetSlug(val OptNilString) {
+	s.Slug = val
+}
+
 // Ref: #/components/schemas/ArticleReplace
 type ArticleReplace struct {
 	Title     string       `json:"title"`
 	Published OptBool      `json:"published"`
 	Summary   OptNilString `json:"summary"`
+	Slug      OptNilString `json:"slug"`
 }
 
 // GetTitle returns the value of Title.
@@ -259,6 +293,11 @@ func (s *ArticleReplace) GetSummary() OptNilString {
 	return s.Summary
 }
 
+// GetSlug returns the value of Slug.
+func (s *ArticleReplace) GetSlug() OptNilString {
+	return s.Slug
+}
+
 // SetTitle sets the value of Title.
 func (s *ArticleReplace) SetTitle(val string) {
 	s.Title = val
@@ -272,6 +311,11 @@ func (s *ArticleReplace) SetPublished(val OptBool) {
 // SetSummary sets the value of Summary.
 func (s *ArticleReplace) SetSummary(val OptNilString) {
 	s.Summary = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *ArticleReplace) SetSlug(val OptNilString) {
+	s.Slug = val
 }
 
 type CsrfCookie struct {

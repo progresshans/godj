@@ -54,11 +54,11 @@ type identityEndpoint struct {
 var requiredChecks = [...]string{
 	"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry",
 	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
-	"article_bearer_crud",
+	"article_bearer_slug", "article_bearer_crud",
 	"article_bearer_patch_presence",
 	"article_bearer_put_defaults",
 	"article_bearer_auth_errors",
-	"article_session_csrf_crud",
+	"article_session_slug", "article_session_csrf_crud",
 	"article_session_invalid_csrf",
 	"helpdesk_session_relations",
 	"helpdesk_session_create_defaults",
@@ -66,7 +66,7 @@ var requiredChecks = [...]string{
 	"helpdesk_session_read_only_denied",
 	"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 	"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_url_wire", "generated_json_wire", "generated_collection_wire",
-	"generated_int64_wire",
+	"generated_slug_wire", "generated_int64_wire",
 	"generated_response_rejections",
 	"pre_canceled_request",
 	"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email", "identity_stale_bearer_current_authorization",
@@ -168,17 +168,17 @@ func run(ctx context.Context, config input) ([]string, error) {
 		{func() error { return checkAccountSession(ctx, config.AccountSession) }, []string{"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry"}},
 		{func() error { return checkAccountReset(ctx, config.AccountSession) }, []string{"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry"}},
 		{func() error { return checkArticleBearer(ctx, config.ArticleBearer) }, []string{
-			"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors", "pre_canceled_request",
+			"article_bearer_slug", "article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors", "pre_canceled_request",
 		}},
 		{func() error { return checkArticleSession(ctx, config.ArticleSession) }, []string{
-			"article_session_csrf_crud", "article_session_invalid_csrf",
+			"article_session_slug", "article_session_csrf_crud", "article_session_invalid_csrf",
 		}},
 		{func() error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
 			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_url_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_ticket_collections", "helpdesk_session_read_only_denied",
 			"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 		}},
 		{func() error { return checkGeneratedWire(ctx) }, []string{
-			"generated_int64_wire", "generated_response_rejections",
+			"generated_slug_wire", "generated_int64_wire", "generated_response_rejections",
 			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_url_wire", "generated_json_wire", "generated_collection_wire",
 		}},
 		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email"}},

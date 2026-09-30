@@ -98,6 +98,7 @@ func articleAPISerializerSemantics(_ context.Context, contract protocol.Contract
 			"id":        parameterRoutingInt64(7),
 			"published": protocol.Boolean(true),
 			"summary":   protocol.Null(),
+			"slug":      protocol.Null(),
 			"title":     protocol.String("Existing"),
 		}),
 		"field_order": protocol.List(fieldOrder...),
@@ -634,7 +635,11 @@ func articleAPIConformanceSpec() (serializers.Spec, error) {
 	if err != nil {
 		return serializers.Spec{}, err
 	}
-	return serializers.NewSpec([]serializers.Field{id, title, published, summary})
+	slug, err := serializers.SlugField("slug", serializers.WithRequired(false), serializers.WithNullable(), serializers.WithAllowEmpty(), serializers.WithAllowUnicode(true), serializers.WithMaxLength(50))
+	if err != nil {
+		return serializers.Spec{}, err
+	}
+	return serializers.NewSpec([]serializers.Field{id, title, published, summary, slug})
 }
 
 func articleAPISerializerErrors(errors validation.Errors) (protocol.Value, protocol.Value) {

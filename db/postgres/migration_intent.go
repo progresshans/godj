@@ -421,7 +421,7 @@ func validateExactPostgresMigrationModel(model ir.Model) error {
 		if err := validateIdentifier(field.Column); err != nil {
 			return postgresMigrationIntentIntegrity(fmt.Sprintf("field %q column is invalid for PostgreSQL", field.Name), err)
 		}
-		if (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind.IsFile()) && field.MaxLength > postgresMigrationMaxVarcharChars {
+		if (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile()) && field.MaxLength > postgresMigrationMaxVarcharChars {
 			return postgresMigrationCapability(
 				fmt.Sprintf(
 					"field %q max_length %d exceeds the PostgreSQL VARCHAR limit %d",
@@ -507,6 +507,15 @@ func registerPostgresModelDerivedNames(
 		return err
 	}
 	for _, field := range model.Fields {
+		if field.HasColumnIndex() {
+			name, err := postgresColumnIndexName(model.DBTable, field.Column)
+			if err != nil {
+				return postgresMigrationIntentIntegrity("derive PostgreSQL column index", err)
+			}
+			if err := registerPostgresRelationName(relationOwners, name, model.DBTable+"."+field.Column+" column index"); err != nil {
+				return err
+			}
+		}
 		if !field.Unique {
 			continue
 		}

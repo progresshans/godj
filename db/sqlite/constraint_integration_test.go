@@ -89,7 +89,7 @@ func TestSQLiteNamedConstraintNativeScalarTuples(t *testing.T) {
 				t.Fatal(err)
 			}
 			reopened := openMigrationHistoryFileBackend(t, path)
-			if err := assertSQLiteUniqueIndexes(ctx, reopened.database, model, model.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, reopened.database, model, model.Fields); err != nil {
 				t.Fatal("reopened composite catalog", err)
 			}
 			if _, err := (migrations.Executor{Backend: reopened}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
@@ -331,7 +331,7 @@ func TestSQLiteNamedConstraintRemakeFailureRestoresAndRetriesRetainedTuple(t *te
 	if _, err := executor.Migrate(ctx, loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(initial.Key()))); err != nil {
 		t.Fatal("ordered removal/remake retry failed", err)
 	}
-	if err := assertSQLiteUniqueIndexes(ctx, backend.database, without, without.Fields); err != nil {
+	if err := assertSQLiteIndexes(ctx, backend.database, without, without.Fields); err != nil {
 		t.Fatal("remake dropped retained compound index", err)
 	}
 	if got := sqliteUniqueCount(t, backend, `SELECT seq FROM sqlite_sequence WHERE name='news_article'`); got != 99 {

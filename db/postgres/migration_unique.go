@@ -150,7 +150,7 @@ func postgresBtreeOperatorClass(kind ir.FieldKind) string {
 	switch kind {
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 		return "int8_ops"
-	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		return "text_ops"
 	case ir.FieldBoolean:
 		return "bool_ops"

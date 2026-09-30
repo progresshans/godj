@@ -14,7 +14,7 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 )
 
-const maxArticleJSON = `{"id":9223372036854775807,"title":"wire","published":false,"summary":null}`
+const maxArticleJSON = `{"id":9223372036854775807,"title":"wire","published":false,"summary":null,"slug":null}`
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
@@ -25,6 +25,9 @@ func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, 
 // These responses belong exclusively to the generated-code wire regression.
 // The preceding application flows use the three real parent-owned servers.
 func checkGeneratedWire(ctx context.Context) error {
+	if err := checkGeneratedSlugWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedCollectionWire(ctx); err != nil {
 		return err
 	}
@@ -34,10 +37,10 @@ func checkGeneratedWire(ctx context.Context) error {
 		reject bool
 	}{
 		{"maximum int64", maxArticleJSON, false},
-		{"int64 overflow", `{"id":9223372036854775808,"title":"wire","published":false,"summary":null}`, true},
-		{"required nullable response", `{"id":1,"title":"wire","published":false}`, true},
-		{"required readonly response", `{"title":"wire","published":false,"summary":null}`, true},
-		{"closed response", `{"id":1,"title":"wire","published":false,"summary":null,"unknown":true}`, true},
+		{"int64 overflow", `{"id":9223372036854775808,"title":"wire","published":false,"summary":null,"slug":null}`, true},
+		{"required nullable response", `{"id":1,"title":"wire","published":false,"slug":null}`, true},
+		{"required readonly response", `{"title":"wire","published":false,"summary":null,"slug":null}`, true},
+		{"closed response", `{"id":1,"title":"wire","published":false,"summary":null,"slug":null,"unknown":true}`, true},
 	}
 	for _, test := range cases {
 		calls := 0

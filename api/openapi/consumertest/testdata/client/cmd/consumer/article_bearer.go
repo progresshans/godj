@@ -111,7 +111,10 @@ func checkArticleBearer(ctx context.Context, target endpoint) error {
 		return fail("pre-canceled generated request")
 	}
 	// The parent also checks the database independently after process success.
-	return requireEmptyBearerList(ctx, client, transport)
+	if err := requireEmptyBearerList(ctx, client, transport); err != nil {
+		return err
+	}
+	return checkArticleBearerSlug(ctx, client, transport)
 }
 
 func requireEmptyBearerList(ctx context.Context, client *ab.Client, transport *observedTransport) error {

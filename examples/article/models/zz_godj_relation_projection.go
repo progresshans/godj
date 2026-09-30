@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "922c4f2ba399aaaa8cfa39a4cc572928559c391ef07728dea3a2d16cea3dc62c"
+const GoDjRelationProjectionSchemaSHA256 = "de0cbfa6d4bb1b194b86de168e3e1c7d5780b971e37068a4f8db23b163c12cdc"
 
 var _ orm.ProjectionDescriptor[Article] = ArticleDescriptor{}
 
@@ -22,6 +22,7 @@ type articleProjectionScan struct {
 	scanTitle     sql.NullString
 	scanPublished sql.NullBool
 	scanSummary   sql.NullString
+	scanSlug      sql.NullString
 }
 
 func (_scan *articleProjectionScan) Destinations() []any {
@@ -33,6 +34,7 @@ func (_scan *articleProjectionScan) Destinations() []any {
 		&_scan.scanTitle,
 		&_scan.scanPublished,
 		&_scan.scanSummary,
+		&_scan.scanSlug,
 	}
 }
 
@@ -40,7 +42,7 @@ func (_scan *articleProjectionScan) Decode() (Article, query.Value, orm.Projecti
 	if _scan == nil {
 		return Article{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanPublished.Valid && !_scan.scanSummary.Valid {
+	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanPublished.Valid && !_scan.scanSummary.Valid && !_scan.scanSlug.Valid {
 		return Article{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -60,10 +62,14 @@ func (_scan *articleProjectionScan) Decode() (Article, query.Value, orm.Projecti
 		_scanned := _scan.scanSummary.String
 		_value.Summary = &_scanned
 	}
+	if _scan.scanSlug.Valid {
+		_scanned := _scan.scanSlug.String
+		_value.Slug = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_ed9b5b85d843494caf956fce1fa0db26bfe9c90fb602ea9077d0a5f8361cc76f struct{}
+type GoDjAppPart3_8e1ee4fcb8b1d2cd7cda05aca0dacf291838324d8f3f6fb4bee54a4860fd3074 struct{}
 
-var _ GoDjProjectSnapshot_ea7ae06864cbf76e535b88a1cf2f977ac7f2fad396f868b299bdd1c5bfeb0723
+var _ GoDjProjectSnapshot_4a723e4838932fc48bb7ee0549b9bbbfaa6d87dd20d4909375c2b1faedf40742

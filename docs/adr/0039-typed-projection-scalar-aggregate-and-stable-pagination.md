@@ -48,7 +48,7 @@ cache를 오염시키지 않습니다.
 ### Typed ORM 표면
 
 Model-specific scalar fields는 sealed `ScalarField[M,V]` capability를 구현합니다. DTO projection은
-`Projection[M,R]`, fixed-arity `Project1`..`Project4`와 top-level
+`Projection[M,R]`, fixed-arity `Project1`..`Project5`와 top-level
 `SelectInto[M,R](context.Context, QuerySet[M], Projection[M,R])`를 사용합니다.
 
 Scalar aggregate는 typed `CountRows`, `Min`, `Max` expression, fixed-arity aggregate result builder와 top-level
@@ -88,7 +88,7 @@ JOIN alias는 root 선택값만 한정합니다. 모델 또는 related-object sc
 ### Forward scalar 결과
 
 `RelatedFieldResult`는 root metadata에 target field를 섞지 않고 exact terminal field와 immutable `RelationPath`를
-보존합니다. `Project1..4`는 generated direct selector 및 `ChainForward`로 바인딩한 Integer·String·Boolean·Float·
+보존합니다. `Project1..5`는 generated direct selector 및 `ChainForward`로 바인딩한 Integer·String·Boolean·Float·
 Decimal·DateTime·Date·Time·Duration·UUID·JSON 값을 선택합니다. 기존 related field 타입은 target 선언과
 optional ancestry를 runtime metadata로 소유하므로 선택값 타입은 모두 `*V`입니다. 필수 경로도 같은 API를 쓰며
 대상 부재 또는 SQL NULL은 nil입니다. 선택을 위해 원본 field의 nullability나 Decimal precision을 바꾸지 않습니다.

@@ -109,17 +109,14 @@ func compileSQLiteUniqueAlter(model ir.Model, after ir.Field) (string, error) {
 	return `CREATE UNIQUE INDEX "main".` + index + " ON " + table + " (" + column + ")", nil
 }
 
-func compileSQLiteUniqueIndexes(model ir.Model) ([]string, error) {
+func compileSQLiteIndexes(model ir.Model) ([]string, error) {
 	var statements []string
 	for _, field := range model.Fields {
-		if !field.Unique {
-			continue
-		}
-		statement, err := compileSQLiteUniqueAlter(model, field)
+		indexes, err := compileSQLiteFieldIndexes(model, ir.Field{}, field)
 		if err != nil {
 			return nil, err
 		}
-		statements = append(statements, statement)
+		statements = append(statements, indexes...)
 	}
 	for _, constraint := range model.UniqueConstraints {
 		statement, err := compileSQLiteNamedUniqueAlter(model, constraint, true)
@@ -136,7 +133,7 @@ func compileSQLiteCreateModelStatements(model ir.Model, targets []migrationbacke
 	if err != nil {
 		return nil, err
 	}
-	indexes, err := compileSQLiteUniqueIndexes(model)
+	indexes, err := compileSQLiteIndexes(model)
 	if err != nil {
 		return nil, err
 	}
@@ -155,13 +152,11 @@ func compileSQLiteAddFieldStatements(model ir.Model, field ir.Field, targets []m
 		return nil, err
 	}
 	statements := []string{statement}
-	if field.Unique {
-		index, err := compileSQLiteUniqueAlter(model, field)
-		if err != nil {
-			return nil, err
-		}
-		statements = append(statements, index)
+	indexes, err := compileSQLiteFieldIndexes(model, ir.Field{}, field)
+	if err != nil {
+		return nil, err
 	}
+	statements = append(statements, indexes...)
 	return statements, nil
 }
 
@@ -179,57 +174,63 @@ func executeSQLiteMigrationStatements(ctx context.Context, executor migrationSQL
 	return nil
 }
 
-func sqliteModelHasUnique(model ir.Model) bool {
+func sqliteModelHasIndexes(model ir.Model) bool {
 	if len(model.UniqueConstraints) != 0 {
 		return true
 	}
 	for _, field := range model.Fields {
-		if field.Unique {
+		if field.Unique || field.DBIndex {
 			return true
 		}
 	}
 	return false
 }
 
-type sqliteUniqueIndexOwner struct {
+type sqliteIndexOwner struct {
 	name, table, column, constraint string
 }
 
-func sqliteModelUniqueIndexOwners(model ir.Model) ([]sqliteUniqueIndexOwner, error) {
-	var owners []sqliteUniqueIndexOwner
+func sqliteModelIndexOwners(model ir.Model) ([]sqliteIndexOwner, error) {
+	var owners []sqliteIndexOwner
 	for _, field := range model.Fields {
-		if !field.Unique {
+		if !field.Unique && !field.HasColumnIndex() {
 			continue
 		}
-		name, err := sqliteUniqueIndexName(model.DBTable, field.Column)
+		var name string
+		var err error
+		if field.Unique {
+			name, err = sqliteUniqueIndexName(model.DBTable, field.Column)
+		} else {
+			name, err = sqliteColumnIndexName(model.DBTable, field.Column)
+		}
 		if err != nil {
 			return nil, err
 		}
-		owners = append(owners, sqliteUniqueIndexOwner{name: name, table: model.DBTable, column: field.Column})
+		owners = append(owners, sqliteIndexOwner{name: name, table: model.DBTable, column: field.Column})
 	}
 	for _, constraint := range model.UniqueConstraints {
 		name, err := sqliteNamedUniqueIndexName(model.DBTable, constraint.Name)
 		if err != nil {
 			return nil, err
 		}
-		owners = append(owners, sqliteUniqueIndexOwner{name: name, table: model.DBTable, constraint: constraint.Name})
+		owners = append(owners, sqliteIndexOwner{name: name, table: model.DBTable, constraint: constraint.Name})
 	}
 	return owners, nil
 }
 
 // This union reserves intermediate names as well as boundary names. Exact
 // existence and shape still belong to the initial/final model inspections.
-func sqliteUniqueIndexOwners(seal *sqliteRelationIntentSeal) (map[string]sqliteUniqueIndexOwner, error) {
-	owners := make(map[string]sqliteUniqueIndexOwner)
+func sqliteIndexOwners(seal *sqliteRelationIntentSeal) (map[string]sqliteIndexOwner, error) {
+	owners := make(map[string]sqliteIndexOwner)
 	add := func(model ir.Model) error {
-		declared, err := sqliteModelUniqueIndexOwners(model)
+		declared, err := sqliteModelIndexOwners(model)
 		if err != nil {
 			return err
 		}
 		for _, owner := range declared {
 			key := sqliteRelationIdentifierKey(owner.name)
 			if previous, exists := owners[key]; exists && previous != owner {
-				return relationIntentIntegrity("SQLite unique index has multiple declared owners")
+				return relationIntentIntegrity("SQLite index has multiple declared owners")
 			}
 			owners[key] = owner
 		}
@@ -243,7 +244,7 @@ func sqliteUniqueIndexOwners(seal *sqliteRelationIntentSeal) (map[string]sqliteU
 		}
 		graph, exists := seal.graphPlan.Operation(position)
 		if !exists {
-			return nil, relationIntentIntegrity("unique index namespace has no sealed operation graph")
+			return nil, relationIntentIntegrity("index namespace has no sealed operation graph")
 		}
 		for _, snapshot := range graph.Models() {
 			if err := add(snapshot.Model); err != nil {
@@ -266,45 +267,53 @@ func sqliteUniqueIndexOwners(seal *sqliteRelationIntentSeal) (map[string]sqliteU
 	return owners, nil
 }
 
-type sqliteUniqueIndexColumn struct {
+type sqliteIndexColumn struct {
 	column   string
 	position int
 }
 
-func assertSQLiteUniqueIndexes(ctx context.Context, executor migrationSQLExecutor, model ir.Model, layout []ir.Field) (resultErr error) {
+func assertSQLiteIndexes(ctx context.Context, executor migrationSQLExecutor, model ir.Model, layout []ir.Field) (resultErr error) {
 	// Rowid is the primary-key B-tree. Every separate index must belong to an
 	// exact declared column or model constraint; unmanaged indexes remain drift.
-	expected := make(map[string][]sqliteUniqueIndexColumn)
+	expected := make(map[string][]sqliteIndexColumn)
+	uniqueIndexes := make(map[string]bool)
 	order := make([]string, 0)
-	columns := make(map[string]sqliteUniqueIndexColumn, len(layout))
+	columns := make(map[string]sqliteIndexColumn, len(layout))
 	for position, field := range layout {
-		columns[field.Column] = sqliteUniqueIndexColumn{column: field.Column, position: position}
+		columns[field.Column] = sqliteIndexColumn{column: field.Column, position: position}
 	}
-	add := func(name string, fields []ir.Field) error {
+	add := func(name string, fields []ir.Field, unique bool) error {
 		if _, exists := expected[name]; exists {
-			return relationIntentIntegrity("multiple declarations own unique index %q", name)
+			return relationIntentIntegrity("multiple declarations own index %q", name)
 		}
-		keys := make([]sqliteUniqueIndexColumn, len(fields))
+		keys := make([]sqliteIndexColumn, len(fields))
 		for position, field := range fields {
 			column, exists := columns[field.Column]
 			if !exists {
-				return relationPhysicalDrift("unique index %q is missing column %q", name, field.Column)
+				return relationPhysicalDrift("index %q is missing column %q", name, field.Column)
 			}
 			keys[position] = column
 		}
 		expected[name] = keys
+		uniqueIndexes[name] = unique
 		order = append(order, name)
 		return nil
 	}
 	for _, field := range model.Fields {
-		if !field.Unique {
+		if !field.Unique && !field.HasColumnIndex() {
 			continue
 		}
-		name, err := sqliteUniqueIndexName(model.DBTable, field.Column)
+		var name string
+		var err error
+		if field.Unique {
+			name, err = sqliteUniqueIndexName(model.DBTable, field.Column)
+		} else {
+			name, err = sqliteColumnIndexName(model.DBTable, field.Column)
+		}
 		if err != nil {
 			return err
 		}
-		if err := add(name, []ir.Field{field}); err != nil {
+		if err := add(name, []ir.Field{field}, field.Unique); err != nil {
 			return err
 		}
 	}
@@ -317,7 +326,7 @@ func assertSQLiteUniqueIndexes(ctx context.Context, executor migrationSQLExecuto
 		if err != nil {
 			return err
 		}
-		if err := add(name, fields); err != nil {
+		if err := add(name, fields, true); err != nil {
 			return err
 		}
 	}
@@ -327,10 +336,10 @@ func assertSQLiteUniqueIndexes(ctx context.Context, executor migrationSQLExecuto
 	}
 	rows, err := executor.QueryContext(ctx, `PRAGMA main.index_list(`+table+`)`)
 	if err != nil {
-		return classifyRevisionIO("list declared unique indexes", err)
+		return classifyRevisionIO("list declared indexes", err)
 	}
 	defer func() {
-		resultErr = errors.Join(resultErr, classifyRevisionIO("close unique index list", rows.Close()))
+		resultErr = errors.Join(resultErr, classifyRevisionIO("close index list", rows.Close()))
 	}()
 	seen := make(map[string]struct{}, len(expected))
 	for rows.Next() {
@@ -340,50 +349,54 @@ func assertSQLiteUniqueIndexes(ctx context.Context, executor migrationSQLExecuto
 		var sequence, unique, partial int
 		var name, origin string
 		if err := rows.Scan(&sequence, &name, &unique, &origin, &partial); err != nil {
-			return classifyRevisionIO("scan unique index list", err)
+			return classifyRevisionIO("scan index list", err)
 		}
 		_, declared := expected[name]
 		_, duplicate := seen[name]
-		if !declared || duplicate || sequence < 0 || unique != 1 || origin != "c" || partial != 0 {
-			return relationPhysicalDrift("table %q index %q differs from declared uniqueness", model.DBTable, name)
+		wantUnique := 0
+		if uniqueIndexes[name] {
+			wantUnique = 1
+		}
+		if !declared || duplicate || sequence < 0 || unique != wantUnique || origin != "c" || partial != 0 {
+			return relationPhysicalDrift("table %q index %q differs from its declared shape", model.DBTable, name)
 		}
 		seen[name] = struct{}{}
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return classifyRevisionIO("read unique index list", err)
+		return classifyRevisionIO("read index list", err)
 	}
 	if len(seen) != len(expected) {
-		return relationPhysicalDrift("table %q is missing declared unique indexes", model.DBTable)
+		return relationPhysicalDrift("table %q is missing declared indexes", model.DBTable)
 	}
 	for _, name := range order {
-		if err := assertSQLiteUniqueIndexColumns(ctx, executor, name, expected[name]); err != nil {
+		if err := assertSQLiteIndexColumns(ctx, executor, name, expected[name]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func assertSQLiteUniqueIndexColumns(ctx context.Context, executor migrationSQLExecutor, name string, columns []sqliteUniqueIndexColumn) (resultErr error) {
+func assertSQLiteIndexColumns(ctx context.Context, executor migrationSQLExecutor, name string, columns []sqliteIndexColumn) (resultErr error) {
 	index, err := quoteIdentifier(name)
 	if err != nil {
 		return err
 	}
 	if len(columns) == 0 {
-		return relationIntentIntegrity("unique index %q has no declared key", name)
+		return relationIntentIntegrity("index %q has no declared key", name)
 	}
 	rows, err := executor.QueryContext(ctx, `PRAGMA main.index_xinfo(`+index+`)`)
 	if err != nil {
-		return classifyRevisionIO("inspect unique index columns", err)
+		return classifyRevisionIO("inspect index columns", err)
 	}
 	defer func() {
-		resultErr = errors.Join(resultErr, classifyRevisionIO("close unique index columns", rows.Close()))
+		resultErr = errors.Join(resultErr, classifyRevisionIO("close index columns", rows.Close()))
 	}()
 	count := 0
 	for rows.Next() {
 		var sequence, cid, descending, key int
 		var field, collation sql.NullString
 		if err := rows.Scan(&sequence, &cid, &field, &descending, &collation, &key); err != nil {
-			return classifyRevisionIO("scan unique index columns", err)
+			return classifyRevisionIO("scan index columns", err)
 		}
 		if count > len(columns) || sequence != count || descending != 0 || !collation.Valid || collation.String != "BINARY" {
 			return relationPhysicalDrift("index %q differs from ordered BINARY ASC keys and auxiliary rowid", name)
@@ -399,7 +412,7 @@ func assertSQLiteUniqueIndexColumns(ctx context.Context, executor migrationSQLEx
 		count++
 	}
 	if err := rows.Err(); err != nil {
-		return classifyRevisionIO("read unique index columns", err)
+		return classifyRevisionIO("read index columns", err)
 	}
 	if count != len(columns)+1 {
 		return relationPhysicalDrift("index %q is missing declared keys or auxiliary rowid", name)

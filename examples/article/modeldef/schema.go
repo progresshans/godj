@@ -21,6 +21,7 @@ var Definition = schema.Definition{
 			schema.CharField("title", "Title", 200),
 			schema.BooleanField("published", "Published", schema.Default(false)),
 			schema.CharField("summary", "Summary", 200, schema.Nullable(), schema.Blank()),
+			schema.SlugField("slug", "Slug", schema.Nullable(), schema.Blank(), schema.Unique(), schema.AllowUnicode(true)),
 		},
 	}},
 }

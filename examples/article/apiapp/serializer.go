@@ -17,6 +17,7 @@ func articleSpec() (serializers.Spec, error) {
 		serializers.ModelField{Name: "title"},
 		serializers.ModelField{Name: "published"},
 		serializers.ModelField{Name: "summary", Optional: true, AllowEmpty: true},
+		serializers.ModelField{Name: "slug", Optional: true, AllowEmpty: true},
 	)
 }
 
@@ -64,17 +65,21 @@ func fullInput(values serializers.Values) articleapp.Input {
 	if supplied && !null {
 		input.Summary = &summary
 	}
+	if slug, supplied, null := nullableStringValue(values, "slug"); supplied && !null {
+		input.Slug = &slug
+	}
 	return input
 }
 
 func fullUpdateInput(current articleapp.Article, values serializers.Values) articleapp.Input {
 	input := fullInput(values)
-	if _, supplied := values.Get("summary"); supplied {
-		return input
-	}
-	if current.Summary != nil {
+	if _, supplied := values.Get("summary"); !supplied && current.Summary != nil {
 		summary := *current.Summary
 		input.Summary = &summary
+	}
+	if _, supplied := values.Get("slug"); !supplied && current.Slug != nil {
+		slug := *current.Slug
+		input.Slug = &slug
 	}
 	return input
 }
@@ -92,6 +97,13 @@ func partialInput(values serializers.Values) articleapp.Patch {
 			patch = patch.WithSummaryNull()
 		} else {
 			patch = patch.WithSummary(summary)
+		}
+	}
+	if slug, supplied, null := nullableStringValue(values, "slug"); supplied {
+		if null {
+			patch = patch.WithSlugNull()
+		} else {
+			patch = patch.WithSlug(slug)
 		}
 	}
 	return patch

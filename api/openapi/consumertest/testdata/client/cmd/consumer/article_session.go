@@ -57,7 +57,7 @@ func checkArticleSession(ctx context.Context, target endpoint) error {
 	if err != nil || final.Count != 0 || len(final.Results) != 0 || !final.Next.Null || !final.Previous.Null {
 		return fail("session final article list")
 	}
-	return nil
+	return checkArticleSessionSlug(ctx, client, transport, state)
 }
 
 func sessionArticleList(ctx context.Context, client *as.Client, transport *observedTransport, state *sessionState) (*as.ArticlePage, error) {

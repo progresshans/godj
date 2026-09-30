@@ -234,6 +234,9 @@ func (a *Application) readError(err error) (web.Response, error) {
 }
 
 func (a *Application) writeError(err error) (web.Response, error) {
+	if failures, rejected := validation.Rejected(err); rejected {
+		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, failures)
+	}
 	return a.readError(err)
 }
 

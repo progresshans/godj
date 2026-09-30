@@ -18,7 +18,7 @@
       {{range .Articles}}
       <li data-article-id="{{.ID}}" data-published="{{.Published}}">
         <article>
-          <h2>{{.Title}}</h2>
+          <h2>{{if .URL}}<a href="{{.URL}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h2>
           {{with .Summary}}<p class="summary">{{.}}</p>{{else}}<p class="summary summary-null" aria-label="No summary"></p>{{end}}
         </article>
       </li>

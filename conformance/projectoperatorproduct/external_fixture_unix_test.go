@@ -115,11 +115,13 @@ replace github.com/progresshans/godj => %s
 	operatorWriteFile(t, filepath.Join(root, "cmd", "site", "main.go"), []byte(operatorSiteSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "modeldef", "schema.go"), []byte(operatorModelDefinitionSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "operatorpolicy", "policy.go"), []byte(operatorPolicySource), 0o600)
-	migration, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", "0001_initial.godj.json"))
-	if err != nil {
-		t.Fatal("read Article migration fixture")
+	for _, name := range []string{"0001_initial.godj.json", "godj_conformance_0002_alter_article_summary.godj.json", "godj_conformance_0003_article_slug.godj.json"} {
+		migration, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", name))
+		if err != nil {
+			t.Fatal("read Article migration fixture", name)
+		}
+		operatorWriteFile(t, filepath.Join(root, "migrations", name), migration, 0o600)
 	}
-	operatorWriteFile(t, filepath.Join(root, "migrations", "0001_initial.godj.json"), migration, 0o600)
 
 	moduleCacheDocument, err := exec.Command("go", "env", "GOMODCACHE").Output()
 	if err != nil {

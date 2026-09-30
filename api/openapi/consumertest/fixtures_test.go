@@ -65,18 +65,22 @@ type serverInput struct {
 // databases after the generated client has completed its HTTP operations.
 func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*testing.T)) {
 	t.Helper()
-	articleMigration, err := os.ReadFile(filepath.Join(repositoryRoot(t), "examples", "article", "migrations", "0001_initial.godj.json"))
-	if err != nil {
-		t.Fatal("read fixed Article migration:", err)
+	var articleSources []definition.Source
+	for _, name := range []string{"0001_initial.godj.json", "godj_conformance_0002_alter_article_summary.godj.json", "godj_conformance_0003_article_slug.godj.json"} {
+		document, err := os.ReadFile(filepath.Join(repositoryRoot(t), "examples", "article", "migrations", name))
+		if err != nil {
+			t.Fatal("read current Article migration", err)
+		}
+		articleSources = append(articleSources, definition.Source{SourceID: "article/" + name, Document: document})
 	}
-	articleSource := definition.Source{SourceID: "article/0001_initial", Document: articleMigration}
+
 	articleAll := consumerPrincipal(t, "article-client-all",
 		articleapp.ArticleViewPermission, articleapp.ArticleAddPermission,
 		articleapp.ArticleChangePermission, articleapp.ArticleDeletePermission,
 	)
 	articleView := consumerPrincipal(t, "article-client-view", articleapp.ArticleViewPermission)
 
-	bearerBackend := newConsumerBackend(t, "article-bearer", articleSource)
+	bearerBackend := newConsumerBackend(t, "article-bearer", articleSources...)
 	fullToken, viewToken := consumerToken(t), consumerToken(t)
 	bearer, err := bearerauth.New(bearerauth.Config{
 		Verifier:   consumerTokenVerifier{fullToken: articleAll, viewToken: articleView},
@@ -87,7 +91,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	}
 	bearerURL, bearerDocument := newArticleConsumerAPI(t, bearerBackend, bearer)
 
-	sessionBackend := newConsumerBackend(t, "article-session", articleSource)
+	sessionBackend := newConsumerBackend(t, "article-session", articleSources...)
 	articleSessionAuth, articleSession, articleViewSession := newConsumerSessionAuthentication(t, articleAll, articleView, apiapp.ListPath)
 	sessionURL, sessionDocument := newArticleConsumerAPI(t, sessionBackend, articleSessionAuth)
 
@@ -164,9 +168,9 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			name    string
 			backend *sqlite.Backend
 		}{{"Article Bearer", bearerBackend}, {"Article Session", sessionBackend}} {
-			count, err := articlemodels.ArticleObjects.Using(fixture.backend).Count(t.Context())
-			if err != nil || count != 0 {
-				t.Errorf("%s generated client left %d Article rows after create/update/delete: %v", fixture.name, count, err)
+			rows, err := articlemodels.ArticleObjects.Using(fixture.backend).OrderBy(articlemodels.ArticleFields.ID.Asc()).All(t.Context())
+			if err != nil || len(rows) != 1 || rows[0].Title != "Retained Slug Article" || rows[0].Published || rows[0].Summary != nil || rows[0].Slug == nil || *rows[0].Slug != "Client_읽기-주소" {
+				t.Fatalf("%s generated slug client final DB state differs: %v", fixture.name, err)
 			}
 		}
 		tickets, err := helpdeskmodels.TicketObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketFields.ID.Asc()).All(t.Context())

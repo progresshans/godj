@@ -288,7 +288,8 @@ func newArticleAdminSiteFixture(t *testing.T) articleAdminSiteFixture {
   "id" INTEGER NOT NULL PRIMARY KEY,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`,
 		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
   (1, 'Go Alpha', FALSE, NULL),
@@ -526,7 +527,7 @@ func (result articleAdminHTTPResult) csrfToken(t *testing.T) string {
 
 func assertArticleAdminArticleEqual(t *testing.T, got, want articleapp.Article) {
 	t.Helper()
-	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAdminOptionalStringEqual(got.Summary, want.Summary) {
+	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAdminOptionalStringEqual(got.Summary, want.Summary) || !articleAdminOptionalStringEqual(got.Slug, want.Slug) {
 		t.Fatalf("Article = %#v, want %#v", got, want)
 	}
 }

@@ -212,3 +212,10 @@ Helpdesk URL 입력은 정리 전 문자열을 그대로 보내고 서버에서 
 Client는 생성·PUT/PATCH·생략/blank/null·IDN/대소문자·잘못된 입력의 거부와 기존 값 보존을 HTTP로 확인한다.
 별도 wire 사례는 기존 잘못된 문자열의 decode, required/null/type/길이를 검증하고 부모가 최종 DB를 직접 확인한다.
 필수 receipt는 `helpdesk_session_url_values`와 `generated_url_wire`다.
+
+
+Article Session/Bearer client는 Unicode slug의 padding 입력, 문법·길이·중복 거부 뒤 저장값 보존,
+PUT/PATCH 생략, 명시적 null/빈 문자열을 서버에서 확인한다. 세 개의 현재 Article migration을 적용한 뒤 실행하며
+부모는 남겨 둔 Article의 정확한 slug와 다른 필드를 독립 DB 조회로 확인한다.
+Wire 검사는 nullable 출력의 누락/잘못된 타입/초과 길이를 거부하고 기존 잘못된 문법의 출력은 보존한다.
+입력은 원문을 전달하며 `x-godj-slug`·정리 metadata를 client 쪽 재작성으로 바꾸지 않는다.

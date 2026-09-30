@@ -46,7 +46,8 @@ func TestArticleAPIAdminSessionSQLiteUserFlow(t *testing.T) {
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`); err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		"",
 		"",
 	)
-	filtered.requireJSON(t, http.StatusOK, `{"count":3,"next":"/api/articles/?search=go&published=true&ordering=-id&page=2","previous":null,"results":[{"id":5,"title":"Go Omega","published":true,"summary":"fifth"},{"id":3,"title":"Go Gamma","published":true,"summary":"third"}]}`)
+	filtered.requireJSON(t, http.StatusOK, `{"count":3,"next":"/api/articles/?search=go&published=true&ordering=-id&page=2","previous":null,"results":[{"id":5,"title":"Go Omega","published":true,"summary":"fifth","slug":null},{"id":3,"title":"Go Gamma","published":true,"summary":"third","slug":null}]}`)
 	freshCSRF := filtered.header.Get(websessionauth.DefaultCSRFHeader)
 	if len(freshCSRF) != 128 || freshCSRF == login.preLoginCSRF || freshCSRF == login.csrfCookie {
 		t.Fatalf("fresh API CSRF token has unsafe shape or reused pre-login/raw bytes: length=%d", len(freshCSRF))
@@ -126,7 +127,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		"",
 		"",
 	)
-	secondPage.requireJSON(t, http.StatusOK, `{"count":3,"next":null,"previous":"/api/articles/?search=go&published=true&ordering=-id","results":[{"id":1,"title":"Go Alpha","published":true,"summary":null}]}`)
+	secondPage.requireJSON(t, http.StatusOK, `{"count":3,"next":null,"previous":"/api/articles/?search=go&published=true&ordering=-id","results":[{"id":1,"title":"Go Alpha","published":true,"summary":null,"slug":null}]}`)
 
 	created := fixture.request(
 		t,
@@ -137,7 +138,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		`{"title":"  API Created  ","published":true,"summary":"from API"}`,
 		freshCSRF,
 	)
-	created.requireJSON(t, http.StatusCreated, `{"id":6,"title":"API Created","published":true,"summary":"from API"}`)
+	created.requireJSON(t, http.StatusCreated, `{"id":6,"title":"API Created","published":true,"summary":"from API","slug":null}`)
 	if got := created.header.Get("Location"); got != "/api/articles/6/" || strings.Contains(got, fixture.server.URL) {
 		t.Fatalf("create Location = %q", got)
 	}
@@ -152,7 +153,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 	})
 
 	detail := fixture.request(t, fixture.client, http.MethodGet, "/api/articles/6/", "", "", "")
-	detail.requireJSON(t, http.StatusOK, `{"id":6,"title":"API Created","published":true,"summary":"from API"}`)
+	detail.requireJSON(t, http.StatusOK, `{"id":6,"title":"API Created","published":true,"summary":"from API","slug":null}`)
 
 	beforeInvalidPUT := articleAPIGet(t, fixture.repository, 6)
 	invalidPUT := fixture.request(
@@ -176,7 +177,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		`{"title":"Replaced","summary":null}`,
 		freshCSRF,
 	)
-	validPUT.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":false,"summary":null}`)
+	validPUT.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":false,"summary":null,"slug":null}`)
 	articleAPIRequireArticle(t, fixture.repository, articleapp.Article{ID: 6, Title: "Replaced"})
 
 	beforeInvalidPatch := articleAPIGet(t, fixture.repository, 6)
@@ -201,7 +202,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		`{"published":true,"summary":""}`,
 		freshCSRF,
 	)
-	validPatch.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":true,"summary":""}`)
+	validPatch.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":true,"summary":"","slug":null}`)
 	articleAPIRequireArticle(t, fixture.repository, articleapp.Article{
 		ID:        6,
 		Title:     "Replaced",
@@ -214,7 +215,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 	viewer := fixture.newClient(t)
 	fixture.login(t, viewer, articleAPIViewerUsername, articleAPIViewerPassword)
 	viewerSafe := fixture.request(t, viewer, http.MethodGet, "/api/articles/6/", "", "", "")
-	viewerSafe.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":true,"summary":""}`)
+	viewerSafe.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":true,"summary":"","slug":null}`)
 	viewerCSRF := viewerSafe.header.Get(websessionauth.DefaultCSRFHeader)
 	if len(viewerCSRF) != 128 {
 		t.Fatalf("viewer fresh CSRF token length = %d", len(viewerCSRF))
@@ -625,7 +626,7 @@ func articleAPIGet(t *testing.T, repository articleapp.Repository, id int64) art
 func articleAPIRequireArticle(t *testing.T, repository articleapp.Repository, want articleapp.Article) {
 	t.Helper()
 	got := articleAPIGet(t, repository, want.ID)
-	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAPIStringPointersEqual(got.Summary, want.Summary) {
+	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAPIStringPointersEqual(got.Summary, want.Summary) || !articleAPIStringPointersEqual(got.Slug, want.Slug) {
 		t.Fatalf("Article %d = %#v, want %#v", want.ID, got, want)
 	}
 }

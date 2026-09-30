@@ -56,7 +56,7 @@ func TestSQLiteCascadePolicyMigrationPreservesRowsConstraintsSequenceAndReopens(
 					t.Fatal("historical policy/add-field state was lost")
 				}
 				assertSQLiteCascadeTiming(t, backend, true)
-				if err := assertSQLiteUniqueIndexes(ctx, backend.database, model, model.Fields); err != nil {
+				if err := assertSQLiteIndexes(ctx, backend.database, model, model.Fields); err != nil {
 					t.Fatal(err)
 				}
 				if err := backend.Close(); err != nil {
@@ -75,7 +75,7 @@ func TestSQLiteCascadePolicyMigrationPreservesRowsConstraintsSequenceAndReopens(
 					t.Fatal("policy reverse failed", err)
 				}
 				assertSQLiteCascadeTiming(t, backend, false)
-				if err := assertSQLiteUniqueIndexes(ctx, backend.database, before, before.Fields); err != nil {
+				if err := assertSQLiteIndexes(ctx, backend.database, before, before.Fields); err != nil {
 					t.Fatal(err)
 				}
 				if sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM cascadehistory_child WHERE id=1 AND owner_id=1 AND code='kept'`) != 1 ||
@@ -194,7 +194,7 @@ func TestSQLiteCascadeSQLProjectionPreservesSequencePresenceAndHighWater(t *test
 			if want != 0 && sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM cascadehistory_child WHERE id=1 AND owner_id=1 AND code='kept'`) != 1 {
 				t.Fatal("projection changed stored row contents")
 			}
-			if err := assertSQLiteUniqueIndexes(ctx, backend.database, after, after.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, backend.database, after, after.Fields); err != nil {
 				t.Fatal(err)
 			}
 		})

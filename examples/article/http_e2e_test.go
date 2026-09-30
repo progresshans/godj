@@ -245,7 +245,8 @@ func provisionArticles(t *testing.T, backend *sqlite.Backend) {
   "id" INTEGER NOT NULL PRIMARY KEY,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`,
 		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
   (1, '<script>alert(1)</script>', TRUE, NULL),

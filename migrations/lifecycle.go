@@ -401,6 +401,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
+		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
 		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},
 		{loadedRequiresAutomaticManyToMany, capabilities.AutomaticManyToMany, "AutomaticManyToMany"},
 	}

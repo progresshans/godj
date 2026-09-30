@@ -3,6 +3,130 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0105 — Slug 모델 필드와 Article 주소
+
+### 독립 native 기준과 현재 범위
+
+2026-10-01, 고정 Django 6.1/DRF 3.18.0/Python 3.14.3의 `slug_field_reference.py`를
+SQLite 및 PostgreSQL 17.10 Debian/UTF8/libc/C/C에서 각각 독립 두 프로세스로 실행해 byte-identical 결과를 확인했다.
+합성 73개 입력에 Form 9 profile 657개·serializer 8 profile 584개·validator 2 profile 146개,
+Changed 6개·전체 ModelForm ASCII/Unicode 각각 5개·choices 3개·default 4개와 실제 저장/인덱스 변경을 관찰했다.
+Char→ASCII Slug/index→Unicode→index 제거→재추가→unique→nonunique와 Char reverse에서 기존 문자열을 보존했다.
+중복 unique 실패·commit=False 후보의 I/O 없음·명시적 save·transaction rollback도 관찰했다.
+SQLite 여섯 변경의 SQL count는 5/5/4/5/4/5, PostgreSQL은 2/0/4/2/6/4다.
+Go의 default btree 구현과 Django PostgreSQL의 pattern-opclass 최적화/SQL count를 동일하다고 하지 않는다.
+
+- SQLite fixture SHA256: `d191049fcf08617786bf7f5bbd94f01d5b76b789b60f4239eb9feab202325dde`
+- PostgreSQL fixture SHA256: `3bd978bd2c11ebe8cd44d61027c62020dba3952a3b0bd5a65d0528ca61433f6b`
+- Corpus SHA256: `dc4e8ef4f3b07d9fa705b7b28e64c807a97d1a35c5a1836c64cc1614ac472886`
+- Observer SHA256: `63433f68e3c362734840c8a502a7cf6a7efe17ec885743fe2c4389e5a8f7a15f`
+- 전용 PG container/DB의 잔여 `0|0`, DB 제거와 container 종료 확인. Receipt: `godj-slug-native-_7zqmrag/receipt.json`.
+- DRF untrimmed ASCII의 마지막 LF 수용 한 사례와 JSON NUL 16개는 명시한 차이로 검사하며 parity로 세지 않는다.
+  Validator의 Python None 두 사례는 Go string 입력 domain 밖이다. [DEV-0015](../DEVIATIONS.md#dev-0015--slug-json의-절대-문자열-끝)를 따른다.
+
+Article fixture에 현재 모델 slug를 추가한 뒤 정확한 고정 profile의 native suite 27개를 새 임시 출력에 실행했다.
+변경된 read/Admin/API 세 묶음은 별도 프로세스의 재실행도 byte-identical이었고 나머지 24개는 기존 바이트와 같았다.
+기본 uv 0.12.3은 profile guard가 거부했고, 기존 cache의 실제 uv 0.10.12 실행기를 PATH로 지정해 재실행했다.
+Go actual을 기대값 생성에 사용하지 않았다. Receipt: `godj-slug-reference-refresh-3xtkbc0k/receipt.json`.
+
+### 제품·생성·양 DB 소비자의 영향 검증
+
+Slug/DBIndex를 history wire·정규화·digest·capability와 seal에 보존하고 일반 단일 column index를 양 DB에 연결했다.
+Create/Add/Remove/Delete·reverse·SQLite remake·default backfill과 일반 index↔unique 전환을 실제 DB에서 검사했다.
+중복·중간 DDL 실패·취소·revision/retry·새 연결과 namespace/catalog 위조를 포함하며 기존 행·recorder·index를 보존한다.
+Scalar 저장 profile 13개(SQLite)/12개(PostgreSQL)에서는 중복과 NULL을 허용하는 일반 index를 확인했고,
+PrimaryKey/Unique의 중복 일반 index 생성은 금지했다. 별도 생성 module은 일곱 단계 history·typed/dynamic 문자열 query·
+ModelForm 지연 후보/명시적 typed Save·rollback/재개방을 native 저장 결과와 비교한다.
+
+Article `0003_article_slug`는 기존 행에 NULL을 더하고 Unicode/nullable/blank/unique 선언을 Admin·Session/Bearer API에
+연결한다. 공개 상세는 게시 행만 정확한 slug로 조회하며 미지정·잘못된 기존 값은 ID 주소로 연결한다.
+인가·CSRF·입력 오류·중복·rollback과 실제 unique 충돌 뒤 오류 분류를 양 DB에서 실행했다. Rollback이 확인된 직접 거부만
+입력 진단으로 전달하고 추가 소유자 실패·취소를 입력 오류로 숨기지 않는다.
+독립 ogen client는 정리 전 긴 입력·Unicode·생략/null/blank·기존 값 출력·응답 누락/타입/길이 위조를 검사한다.
+Parent는 최종 retained Article의 정확한 slug를 DB에서 따로 확인한다. 고정 생성기를 실행했으며 생성 코드를 수동 수정하지 않았다.
+
+Go 1.26.5/darwin/arm64, `TZ=Pacific/Chatham`, 공유 Go cache와 GOPROXY/GOSUMDB off·`-mod=readonly`를 사용했다.
+각 mode마다 PostgreSQL 17.10 Debian/UTF8/libc/C/C의 독립 container/DB에서 실제 PostgreSQL과 SQLite를 실행했다.
+모든 최종 checkpoint는 실행 전후 source identity·잔여 `0|0|0`·DB 제거·container 종료를 확인했다.
+
+| 실행 group | 실제 범위 | normal/race/CGO=0 결과 | 각 mode wall seconds |
+|---|---|---|---|
+| fields | schema/IR·validation·Form/ModelForm·serializer·ORM·history/자동 계획·project wire·codegen/Admin의 133 roots, 13 실행 packages | 각각 3,042 pass, 0 skip | 3.159 / 7.082 / 3.902 |
+| db | 양 DB index/unique·named constraint·remake·field 순서·string/OneToOne 변경의 73 roots | 각각 850 pass, 0 skip | 7.700 / 17.551 / 18.432 |
+| api_schema | OpenAPI 전체 44 roots | 각각 136 pass, 0 skip | 0.595 / 1.702 / 0.586 |
+| consumers | Slug/URL/Email 생성 소비자 세 roots와 필수 자식의 실제 양 DB 실행 | 각각 부모 3 pass, 필수 자식 누락/skip 없음 | 5.514 / 24.049 / 13.825 |
+| article | Article 전체 88 roots, 11 실행 packages와 현재 필수 32 경로 | 각각 150 pass, 0 skip | 6.265 / 50.613 / 8.947 |
+| openapi_client | 독립 module 생성/드리프트·실제 HTTP/wire·필수 receipt·부모 DB 검증 | 각각 1 pass | 4.692 / 18.438 / 6.709 |
+| conformance | Article Admin/API·현재 runner/schema의 28 roots | 각각 82 pass, 0 skip | 1.947 / 5.435 / 3.122 |
+
+각 mode 합계는 4,264 run/pass다. 실행 전에 compile된 root 목록과 필수 하위 경로를 고정하고,
+`go test -json -count=1 -timeout=15m`의 전체 시작/종료를 검사했다. Skip·누락·잘린/비JSON 출력은 없다.
+자식 생성 소비자는 실제 mode와 `-trimpath`를 이어받는다.
+Normal 최종 receipt는 `godj-slug-db-normal-qjyt42yh`, race는 `godj-slug-db-race-t06oy6fb`,
+CGO=0은 `godj-slug-db-cgo0-egihnjdt`다.
+
+위 일곱 group의 normal 비Markdown source inventory는 2,891 files /
+`524345b33dd625d817c76fbe8414892492b11f01694bf8ffdf74e38f45262c51`다.
+Race/CGO=0은 `79894a8f41af37d5d7abe004fefd26171c20cb0d067ccf50ed1f0faa0c8174ed`로 실행했으며,
+이후 바뀐 것은 아래 process fixture의 기대값 세 파일과 `postgres-core-required.txt`뿐이다.
+제품·생성기·생성물·위 일곱 group의 테스트는 byte-identical이다. 추가된 Article 필수 26 경로도 저장한 두 mode의
+실제 JSON에서 모두 pass했음을 현재 32 경로 roster로 재검사했다. 서로 다른 inventory를 같은 source로 표기하지 않는다.
+
+현재 모델을 실제 독립 executable에 연결하는 project migrate/createsuperuser 네 roots는 별도 normal checkpoint에서
+24 run/pass, 0 skip·누락으로 완료했다(175.994초). SQLite/PG의 새 column·unique catalog·이전 prefix·9개 history와
+operator의 실제 목록 decoding을 확인했다. `godj-slug-db-normal-xgw599sn`은 위 normal과 같은 inventory이며
+별도 DB 잔여 `0|0|0`·DB/container 제거를 확인했다. 이 네 roots의 race/cold 전체 플랫폼 결과는 Hosted 소유다.
+
+공유 Article 실행기를 마지막으로 확인하면서 격리된 system-state/runserver용 합성 초기 스키마도 현재 slug column에
+맞췄다. 실제 Article migration 이력은 변경하지 않았으며 기존 행의 변경은 계속 별도 `0003_article_slug`가 소유한다.
+Authenticated restart의 엄격한 JSON decoding과 실제 양 DB row snapshot에 slug를 추가해 NULL 보존을 검사했다.
+그 결과 final inventory는 같은 2,891 files /
+`d1a8b967bb914555d9f3defb6ff7c85f2aecbfcbe4ebc51fe0b7398bc547135f`다.
+위 normal과 달라진 파일은 두 authenticated restart 테스트와 합성 `testdata/postgres/0001_initial.godj.json`뿐이다.
+새 범위의 양 DB authenticated restart·runserver development loop/stale generated code 거부·system-state product/
+distinct-process restart·고정 native 결과 비교는 10 roots, **15 run/pass, 0 skip·누락**으로 통과했다(48.451초).
+`godj-slug-db-normal-5vieq8vh`에서 source 전후 일치·잔여 `0|0|0`·DB/container 제거를 확인했다.
+
+이 확장의 첫 로컬 묶음 `godj-slug-db-normal-dcy34e5o`는 Linux/amd64 전용 capture producer를 잘못 포함해 실패했다.
+별도 진단 overlay에서 `command.Start`의 `exec format error`를 확인했으며 해당 build 환경은 고정
+`attestation.ProducerOS/ProducerArch`를 사용한다. 제품·검사·CI 필수 roster를 변경하거나 성공으로 세지 않았다.
+위 로컬 범위에서 해당 전용 producer를 제외하고 다시 실행했으며, 실제 Linux producer와 새 capture/source 결합은
+이 source의 Hosted full에서 확인한다. 진단 원문과 실패 receipt도 별도 보존했다.
+
+### 브라우저·실패 대조·보조 검사와 초기 실패
+
+실제 Chrome과 격리된 loopback Article/Admin·SQLite에서 합성 editor의 로그인/CSRF를 사용했다.
+Padding을 포함한 Unicode 입력은 `Browser_읽기-주소`로 저장됐고 목록의 escaped slug link와 공개 상세를 확인했다.
+`bad/slug`의 문법 거부와 `reserved_slug`의 실제 중복 거부는 제출 원문·서버 진단을 표시하고 DB의 두 행을 보존했다.
+빈 값은 NULL로 저장되며 ID 상세 주소로 이동했다. 읽기 전용 SQLite snapshot을 각 실패 뒤 따로 확인했다.
+전용 tab을 닫고 서버 정상 종료·임시 DB directory 제거를 확인했다. Receipt와 screenshot은
+`godj-slug-browser-u_arzpb3`에 보존하며 배포 또는 다른 브라우저의 증거가 아니다.
+
+여섯 overlay 실패 대조는 각각 원본 positive의 성공과 mutant의 실제 assertion 실패를 확인했다:
+ASCII slash 허용, JSON 마지막 LF 허용, ModelForm 후처리 생략, digest의 DBIndex 누락,
+ColumnIndexes capability 누락, SQLite catalog uniqueness 무시. Build 실패/skip을 대조 성공으로 세지 않았다.
+Receipt는 `godj-slug-controls-uohzrxwu`다. `FuzzSlugValidator` 30초/4 workers는 72 baseline,
+**3,872,083 executions**, 47 new interesting, 31.393초로 PASS했다. 존재하지 않는 이전 fuzz 이름의
+`no fuzz tests to fuzz` 실행은 증거에 포함하지 않는다.
+
+영향 package vet와 `make generate-check`(Unicode tables·일곱 프로젝트·checked-in relation 생성물),
+CI 도구 45개(3.867초), 두 native dependency closure와 workflow 다섯 검사를 통과했다.
+로컬 Git의 `setup_standard_excludes → access()` 정지 때문에 Go build의 VCS stamp만 `-buildvcs=false`로 제외했다.
+Source inventory는 실제 ignore 규칙과 동등한 명시적 파일 목록으로 확인했고 저장소/전역 설정을 변경하지 않았다.
+전체 Go 파일 2,204개의 gofmt, 현재 문서 175개의 local link와 diff whitespace 검사도 통과했다.
+Receipt는 `godj-slug-final-checks-_9hdnku6`이며, 공유 실행기 fixture를 반영한 final source에서도
+`godj-slug-final-checks-r9k4y80w`로 같은 문서/format/diff 검사를 통과했다.
+
+초기 normal checkpoint는 history digest의 두 flag 누락, SQLite의 중간 DDL 오류 marker가 숨긴 native unique cause,
+생성 소비자의 잘못된 URL 설정명, Project5 테스트의 중복 column/이전 네 column helper,
+session client의 갱신 전 CSRF token과 옛 Article field/history 기대값으로 실패했다.
+Digest와 제한된 constraint cause 전달을 수정하고 나머지 fixture를 실제 계약에 맞췄다. BUSY/capability 오류의
+late-DDL 재분류 방지, duplicate projection 거부, CSRF 검증과 과거 migration prefix 계약은 유지했다.
+최종 묶음을 위 일곱 group으로 다시 실행했으며 실패한 초기 receipt도 보존했다.
+
+새 IR kind·일반 index·migration·생성과 Article의 누적 플랫폼 통합은 이 source의 **Hosted full**이 소유한다.
+현재 실행 중인 URL source의 결과는 이 변경의 Hosted 성공으로 전이하지 않는다. 로컬 전체/cold는 중복하지 않았다.
+
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 
 ### 독립 native 기준

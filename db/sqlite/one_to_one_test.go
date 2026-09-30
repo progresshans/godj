@@ -71,7 +71,7 @@ func TestSQLiteOneToOneAlterFailureRetryReverseAndReopen(t *testing.T) {
 			if !ok || !reflect.DeepEqual(model, after) {
 				t.Fatal("one-to-one state differs from declared result")
 			}
-			if err := assertSQLiteUniqueIndexes(ctx, backend.database, after, after.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, backend.database, after, after.Fields); err != nil {
 				t.Fatal(err)
 			}
 			if err := backend.Close(); err != nil {
@@ -96,7 +96,7 @@ func TestSQLiteOneToOneAlterFailureRetryReverseAndReopen(t *testing.T) {
 			} else if err != nil {
 				t.Fatal("reverse did not restore ordinary FK", err)
 			}
-			if err := assertSQLiteUniqueIndexes(ctx, backend.database, before, before.Fields); err != nil {
+			if err := assertSQLiteIndexes(ctx, backend.database, before, before.Fields); err != nil {
 				t.Fatal(err)
 			}
 		})

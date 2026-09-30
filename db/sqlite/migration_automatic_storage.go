@@ -73,7 +73,7 @@ func compileSQLiteAutomaticRename(before, after ir.Model) ([]string, error) {
 		}
 		statements = append(statements, body)
 	}
-	indexes, err := compileSQLiteUniqueIndexes(after)
+	indexes, err := compileSQLiteIndexes(after)
 	if err != nil {
 		return nil, err
 	}

@@ -33,7 +33,7 @@ const (
 	articleListBadQueryBody   = "Bad Request\n"
 )
 
-//go:embed templates/article_list.html
+//go:embed templates/*.html
 var templateFiles embed.FS
 
 // NewApplication builds the Article HTTP application without performing
@@ -88,7 +88,7 @@ func newApplication(
 	}
 	articleTemplate, err := template.New("article_list.html").
 		Option("missingkey=error").
-		ParseFS(templateFiles, "templates/article_list.html")
+		ParseFS(templateFiles, "templates/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("article web application: parse templates: %w", err)
 	}
@@ -98,13 +98,24 @@ func newApplication(
 		template:  articleTemplate,
 		routeName: articleListRoute,
 	}
-	routes := make([]web.Route, 0, len(additionalRoutes)+1)
+	routes := make([]web.Route, 0, len(additionalRoutes)+5)
 	routes = append(routes, web.Route{
 		Name:    articleListRoute,
 		Method:  http.MethodGet,
 		Path:    ArticleListPath,
 		Handler: handler.serve,
 	})
+	detail := articleDetailHandler{backend: backend, template: articleTemplate, listRouteName: articleListRoute}
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		suffix := ""
+		if method == http.MethodHead {
+			suffix = "-head"
+		}
+		routes = append(routes,
+			web.Route{Name: ArticleSlugRoute + suffix, Method: method, Path: ArticleSlugPath, Handler: detail.serveSlug},
+			web.Route{Name: ArticleIDRoute + suffix, Method: method, Path: ArticleIDPath, Handler: detail.serveID},
+		)
+	}
 	routes = append(routes, additionalRoutes...)
 	application, err := web.NewApplication(web.Config{
 		Settings:   configured,
@@ -177,18 +188,25 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 	if err != nil {
 		return web.Response{}, fmt.Errorf("article list: apply limit: %w", err)
 	}
-	projection := orm.Project4(
+	projection := orm.Project5(
 		articlemodels.ArticleFields.ID,
 		articlemodels.ArticleFields.Title,
 		articlemodels.ArticleFields.Published,
 		articlemodels.ArticleFields.Summary,
-		func(id int64, title string, published bool, summary *string) ArticleView {
-			return ArticleView{ID: id, Title: title, Published: published, Summary: summary}
+		articlemodels.ArticleFields.Slug,
+		func(id int64, title string, published bool, summary, slug *string) ArticleView {
+			return ArticleView{ID: id, Title: title, Published: published, Summary: summary, Slug: slug}
 		},
 	)
 	views, err := articleproject.SelectModelsArticleInto(request.Context(), pageQuery, projection)
 	if err != nil {
 		return web.Response{}, fmt.Errorf("article list: project page: %w", err)
+	}
+	for i := range views {
+		views[i].URL, err = articleAddress(request, views[i])
+		if err != nil {
+			return web.Response{}, err
+		}
 	}
 	aggregate := orm.Aggregate2(
 		orm.CountRows[articlemodels.Article](),

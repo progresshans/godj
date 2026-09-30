@@ -483,3 +483,13 @@ Form은 Unicode 공백 정리 후 bare domain에 `https`를 붙이고, `forms.Wi
 전체 ModelForm의 후보 검증은 choices나 대체 문자열 field를 거쳐도 URL 문법을 적용한다.
 JSON serializer는 스킴을 보완하지 않는다. 일반 ORM 저장·초기 표시·응답은 문자열을 고치거나 URL 문법을 다시 검증하지 않는다.
 [입력/저장 경계와 출처](../../docs/adr/0083-url-fields-and-input-normalization.md)를 따른다.
+
+
+## Slug 모델 입력
+
+`schema.SlugField("slug", "Slug", schema.AllowUnicode(true))`는 기본 50자와 DBIndex를 선언한다.
+ASCII 기본값은 영문·숫자·hyphen·underscore를, Unicode 옵션은 고정 Unicode 16 alphanumeric을 허용한다.
+Form은 공백을 trim하지만 slugify·lowercase·Unicode 정규화를 수행하지 않는다. 단독 Form에는 암묵적인 최대 길이가 없다.
+모델의 `AllowUnicode`와 길이는 projection과 서버 post-clean이 함께 적용하며 대체 CharField/choices도 이를 우회하지 않는다.
+Nullable blank Form의 빈 값은 NULL이며, JSON의 blank/null/생략과 일반 ORM/출력 보존은 별도 정책이다.
+[Slug/인덱스 결정](../../docs/adr/0084-slug-fields-and-column-index-ownership.md)을 따른다.

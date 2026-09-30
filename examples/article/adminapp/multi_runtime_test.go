@@ -342,23 +342,16 @@ func openArticleMultiRuntimeBackend(t *testing.T, ctx context.Context, dataSourc
 func migrateArticleSystemState(t *testing.T, ctx context.Context, backend *sqlite.Backend) {
 	t.Helper()
 	repository := articleMultiRuntimeRepositoryRoot(t)
-	document, err := os.ReadFile(filepath.Join(
-		repository,
-		"examples",
-		"article",
-		"migrations",
-		"0001_initial.godj.json",
-	))
-	if err != nil {
-		t.Fatalf("read Article definition: %v", err)
+	var sources []migrationdefinition.Source
+	for _, name := range []string{"0001_initial.godj.json", "godj_conformance_0002_alter_article_summary.godj.json", "godj_conformance_0003_article_slug.godj.json"} {
+		document, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sources = append(sources, migrationdefinition.Source{SourceID: "examples/article/migrations/" + name, Document: document})
 	}
-	loaded, _, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "examples/article/migrations/0001_initial.godj.json",
-			Document: document,
-		},
-		systemstate.InitialDefinitionSource(),
-	)
+	sources = append(sources, systemstate.InitialDefinitionSource())
+	loaded, _, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system-state definitions: %v", err)
 	}

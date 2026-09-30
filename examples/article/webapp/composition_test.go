@@ -22,7 +22,8 @@ func TestComposedApplicationKeepsLegacyConstructorReverseAndUsesPrivateWebIdenti
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`); err != nil {
 		t.Fatal(err)
 	}

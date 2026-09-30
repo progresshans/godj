@@ -159,7 +159,7 @@ func authenticatedRestartInspectPostgres(
 	var snapshot authenticatedRestartDatabaseSnapshot
 	articleRows, err := connection.Query(
 		ctx,
-		`SELECT "id", "title", "published", "summary" FROM `+
+		`SELECT "id", "title", "published", "summary", "slug" FROM `+
 			pgx.Identifier{schema, "godj_conformance_article"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
@@ -167,7 +167,7 @@ func authenticatedRestartInspectPostgres(
 	}
 	for articleRows.Next() {
 		var row authenticatedRestartPersistedArticle
-		if err := articleRows.Scan(&row.ID, &row.Title, &row.Published, &row.Summary); err != nil {
+		if err := articleRows.Scan(&row.ID, &row.Title, &row.Published, &row.Summary, &row.Slug); err != nil {
 			articleRows.Close()
 			t.Fatalf("scan authenticated restart PostgreSQL Article: %v", testfixture.PostgresSafeError(err))
 		}

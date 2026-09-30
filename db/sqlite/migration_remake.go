@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
+
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -54,8 +57,9 @@ type sqliteRelationRemakeSealSequence struct {
 }
 
 // sqliteMigrationDDLExecutionError deliberately preserves errors.Is without
-// exposing backend capability/revision/sqlite classification through
-// errors.As. Once a DDL stream starts, the public owner is its migration
+// exposing backend capability/revision/contention classification through
+// errors.As. Native constraint diagnostics remain inspectable. Once a DDL
+// stream starts, the public owner is its migration
 // operation; a late SQLITE_BUSY or defensive final-shape failure must
 // not be reclassified as a preclaim capability/fence error.
 type sqliteMigrationDDLExecutionError struct {
@@ -69,6 +73,19 @@ func (e sqliteMigrationDDLExecutionError) Error() string {
 
 func (e sqliteMigrationDDLExecutionError) Is(target error) bool {
 	return errors.Is(e.cause, target)
+}
+
+func (e sqliteMigrationDDLExecutionError) As(target any) bool {
+	constraint, ok := target.(**modernsqlite.Error)
+	if !ok {
+		return false
+	}
+	var native *modernsqlite.Error
+	if !errors.As(e.cause, &native) || native.Code()&0xff != sqlite3.SQLITE_CONSTRAINT {
+		return false
+	}
+	*constraint = native
+	return true
 }
 
 func newSQLiteMigrationDDLExecutionError(stage string, cause error) error {
@@ -312,7 +329,7 @@ func executeSQLiteRelationRemake(
 	executor migrationSQLExecutor,
 	plan sqliteRelationRemakePlan,
 ) error {
-	indexes, err := compileSQLiteUniqueIndexes(plan.after)
+	indexes, err := compileSQLiteIndexes(plan.after)
 	if err != nil {
 		return err
 	}
@@ -464,7 +481,7 @@ func compileSQLiteRelationRemakeSQL(transition migrationbackend.HistoryTransitio
 	if err != nil {
 		return nil, err
 	}
-	indexes, err := compileSQLiteUniqueIndexes(plan.after)
+	indexes, err := compileSQLiteIndexes(plan.after)
 	if err != nil {
 		return nil, err
 	}

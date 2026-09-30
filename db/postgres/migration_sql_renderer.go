@@ -102,12 +102,9 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if deltaErr != nil {
 				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
 			}
-			if before.Unique != field.Unique {
-				statement, err = compilePostgresUniqueAlter(renderer.schema, operation.After, field)
-				if err != nil {
-					return nil, err
-				}
-				groups[index] = append(groups[index], statement)
+			groups[index], err = compilePostgresFieldIndexes(renderer.schema, operation.After, before, field)
+			if err != nil {
+				return nil, err
 			}
 			if postgresForeignKeyDeferred(before) != postgresForeignKeyDeferred(field) {
 				statement, err = compilePostgresForeignKeyTimingAlter(renderer.schema, operation.After, field)

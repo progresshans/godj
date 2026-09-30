@@ -27,6 +27,7 @@ func TestPostgresMigrationCapabilities(t *testing.T) {
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,
 		UniqueConstraints:                 true,
+		ColumnIndexes:                     true,
 		ExplicitManyToMany:                true,
 		AutomaticManyToMany:               true,
 	}
