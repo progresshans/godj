@@ -30,17 +30,27 @@ func TestGeneratedModelFormSaveConsumer(t *testing.T) {
 	for _, file := range bundle.Files() {
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
+	var setFixture struct {
+		Cases []struct {
+			Name string `json:"name"`
+		} `json:"cases"`
+	}
 	var fixture struct {
 		Cases []struct {
 			Name string `json:"name"`
 		} `json:"cases"`
 	}
-	for _, file := range []string{"consumer_test.go", "reference.json"} {
+	for _, file := range []string{"consumer_test.go", "reference.json", "formset_test.go", "formset-reference.json"} {
 		content, err := os.ReadFile("testdata/modelsave/" + file)
 		if err != nil {
 			t.Fatal(err)
 		}
 		writeGeneratedTestFile(t, root, "consumer/"+file, content)
+		if file == "formset-reference.json" {
+			if err := json.Unmarshal(content, &setFixture); err != nil || len(setFixture.Cases) != 13 {
+				t.Fatal("native formset save fixture", err)
+			}
+		}
 		if file == "reference.json" {
 			if err := json.Unmarshal(content, &fixture); err != nil || len(fixture.Cases) != 15 {
 				t.Fatal("native save fixture", err)
@@ -57,6 +67,10 @@ func TestGeneratedModelFormSaveConsumer(t *testing.T) {
 		required = append(required, prefix)
 		for _, test := range fixture.Cases {
 			required = append(required, prefix+"/"+test.Name)
+		}
+		required = append(required, prefix+"/formset")
+		for _, test := range setFixture.Cases {
+			required = append(required, prefix+"/formset/"+test.Name)
 		}
 		for _, name := range []string{"transaction_guard_denied", "transaction_guard_stale", "transaction_choice_changed", "transaction_callback_failure_after_write", "expired_session", "canceled"} {
 			required = append(required, prefix+"/"+name)

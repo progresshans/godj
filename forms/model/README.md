@@ -115,7 +115,7 @@ DELETE는 행 데이터 오류를 무시할 수 있으므로 요청 전체의 id
 6개는 의도적인 강화 차이다. Native의 queryset 조회 수와 GoDj의 미리 읽은 snapshot 처리는 같은 query 계약으로 세지 않는다.
 실제 [Helpdesk 편집기](../../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)는 요청별 현재 cohort/인가·관계 선택지를 확인하고,
 같은 relation transaction 안에서 여러 행·삭제 정책·감사 기록을 저장한다. 일반 `InstanceSet`이 자동으로 이 저장 정책을 실행하지는 않는다.
-전체 ModelFormSet 자동화·모델 FileField의 영구 저장은 후속 작업이다. ExtraFields의 [파일 명령 입력](../../uploads/README.md)은
+일반 저장은 아래 `SavePlan`으로 연결하며 모델 파일은 명시적인 `SaveFiles`를 사용한다. ExtraFields의 [파일 명령 입력](../../uploads/README.md)은
 typed 준비 결과의 Input에 보존하며 model scalar에 넣지 않는다. [Admin inline](../../admin/inlines.md)은 권한별 표시와 합성 저장을 연결하며, 부모에 연결한 여러 행 준비는 아래 Inline API를 사용한다.
 
 `BindSet`은 행 검증과 개수 제한 뒤, 사용자 SetValidator 전에 선택한 unique field와 IR의 복합 UniqueConstraint를 행 사이에서
@@ -127,6 +127,56 @@ NULL이 포함된 튜플·제외된 field·invalid 행·바뀌지 않은 빈 추
 Typed/core 오류와 exclusion은 함께 바뀌고 원래 제출·candidate는 보존한다. 모든 제약은 같은 검사 시작 snapshot의 완전한 튜플로
 비교한다. 겹친 제약에서 앞선 오류가 field를 제거했다고 다른 제약을 부분 튜플로 비교하지 않는다. 제약 순서는 IR 순서로 결정적이다.
 이 pure 검사에는 backend collation·저장된 다른 행·동시 쓰기와 candidate 변환이 포함되지 않으므로 최종 transaction의 DB 검사는 필수다.
+
+## 여러 행의 저장과 지연 저장
+
+`preparedSet.SavePlan()`은 변경된 기존 행·변경된 새 행과 기존 행의 삭제 의도를 모은다. `Prepare().Rows()`에 남아 있는
+변경 없는 기존 행은 제외한다. MinForms 때문에 검증한 빈 추가 행도 변경이 없으면 저장하지 않는다. 조회 전용 행·DELETE인
+추가 행도 저장하지 않는다. Form의 `Changed()`를 기준으로 하므로 model clean만 바꾼 후보를 자동 저장하지 않는다.
+
+기존 행의 변경과 삭제는 **제출된 행 순서**로 실행하고 그다음 새 행을 저장한다. `ORDER`는 이 실행 순서를 바꾸지 않는다.
+ORDER만 바뀐 editable 행은 Django처럼 변경 행에 속하지만 정렬 번호를 모델 열에 자동 저장하지 않는다.
+
+```go
+plan, err := preparedSet.SavePlan()
+if err != nil { return err }
+err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+    // 현재 권한·revision·DB 제약은 애플리케이션이 이 scope에서 확인한다.
+    _, err := plan.Save(ctx, session, formmodel.SetSaveOptions[models.Article]{
+        Collections: collectionSavers,
+        Delete: deleteAdmittedArticle,
+    })
+    return err
+})
+```
+
+기본 쓰기는 각 행의 `PreparedInstance.Save`로 scalar와 IR 순서의 selected collection을 저장한다. `Delete`는
+`func(context.Context, db.Session, DeletedSetRow[M]) error`이며 기존 삭제가 있으면 반드시 제공한다. 완전한 project relation
+정책을 가진 모델에는 해당 deleter의 `DeleteInSession`을 연결한다. 일반 manager 삭제로 PROTECT/CASCADE를 생략하지 않는다.
+외부 transaction을 열지 않은 사용에서는 앞선 쓰기가 뒤쪽 실패 뒤에도 남을 수 있다.
+
+`SetSaveOptions.Save`는 `func(context.Context, db.Session, *SetSaveRow[M]) error`로 **행의 전체 쓰기**를 대체한다.
+이 callback이 선택된 collection까지 소유하므로 `Collections`와 동시에 지정하면 오류다. 최종 인가·revision 확인·update-only
+저장·감사 기록이 필요한 제품은 이 callback에서 기존 writer를 연결한다. [Helpdesk Admin](../../examples/helpdesk/admin_inlines.go)은
+이 방식으로 report의 권한·고유값·선택 열 저장·audit를 유지한다. Callback은 제공된 scope를 사용하고 오류를 그대로 반환한다.
+
+기본 collection 설정과 필수 삭제 callback은 첫 쓰기 전에 전부 검사한다. `Save`는 첫 실패에서 중단하고 실패 연산까지의
+`[]SetWrite`와 원래 error를 반환한다. 각 결과의 `Index()`는 원래 행 위치, `Kind()`는 선택된 create/update/delete 의도이며 실제
+SQL 종류나 commit receipt가 아니다. Callback이 반환한 validation/운영 오류를 wrapping해서 의미를 바꾸지 않는다.
+Callback 성공과 Go 값에 남은 PK도 최종 commit 증거가 아니므로 outer transaction의 terminal 결과를 따로 보존한다.
+
+지연 저장에서는 `plan.Rows()`의 `row.Model()`이 반환한 **plan 소유의 mutable pointer**를 수정하고 caller가 scalar 저장을 수행한다.
+그 뒤 `plan.SaveCollections(ctx, session, savers...)`가 selected 관계만 저장한다. 모든 selected 모델의 PK와 collection 설정을
+첫 관계 쓰기 전에 검사한다. 지연 단계는 scalar나 삭제를 실행하지 않으므로 `plan.Deleted()`는 별도로 처리한다.
+같은 plan을 복사하면 pointer를 공유하며 동시 수정하면 안 된다. 독립 작업에는 원래 불변 `PreparedSet`에서 새 `SavePlan`을 만든다.
+발급된 key는 뒤쪽 오류나 rollback 후에도 pointer에 남는다. 반복 저장은 명시적인 새 시도이고 자동 재시도·멱등 보장은 없다.
+
+모델 업로드가 남아 있으면 `SavePlan` 생성도 거부한다. 먼저 `preparedSet.SaveFiles(ctx, selectSavers)`를 호출한다.
+Pure selector `func(PreparedSetRow[M]) ([]FileSaver[M], error)`는 저장할 업로드가 있는 행에만 한 번 호출되며 행마다 필요한
+storage/name binding을 반환한다. 모든 행의 binding·제안 이름을 확인한 후 행 순서/IR field 순서로 게시한다. 성공 결과의 새
+PreparedSet에서 `SavePlan`을 만들면 충돌 처리 후의 실제 파일 이름을 DB에 저장한다. 원래 입력과 준비 결과는 바뀌지 않는다.
+`[]SetFilePublication`은 실패한 게시를 포함해 행 위치와 file outcome을 보존한다. DB rollback·clear·행 삭제는 파일을 자동
+제거하지 않으며, 요청이 끝난 upload capability로 다시 게시할 수 없다. [파일/DB 경계](#모델-파일의-준비와-저장)를 따른다.
 
 ## 부모에 연결한 여러 행
 
@@ -166,12 +216,10 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
     if err := preparedParent.Save(ctx, session, &parent); err != nil { return err }
     prepared, err := children.PrepareWithParent(parent)
     if err != nil { return err }
-    for _, row := range prepared.Rows() {
-        child, err := row.Model()
-        if err != nil { return err }
-        if err := row.Prepared().Save(ctx, session, &child); err != nil { return err }
-    }
-    return nil
+    plan, err := prepared.SavePlan()
+    if err != nil { return err }
+    _, err = plan.Save(ctx, session, formmodel.SetSaveOptions[models.Label]{})
+    return err
 })
 ```
 
@@ -185,7 +233,7 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 `InlineSpec.EmptyForm(parent)`는 validator나 I/O 없이 서버 부모·기본값과 `__prefix__`를 가진 빈 행을 만든다. 자식 PK와 기존
 입력값은 포함하지 않는다. [Admin inline](../../admin/inlines.md)은 이를 비활성 prototype으로 렌더링하고 권한·개수 범위에서
 브라우저의 미저장 행 추가/제거에 사용한다. 파일의 multipart 수신·Form/Formset 바인딩과 Admin 파일 widget/전송을 연결했다.
-모델 storage·전체 ModelFormSet 자동화는 후속 작업이다.
+일반 여러 행 저장과 모델 파일 게시도 아래와 같은 `PreparedSet.SaveFiles`·`SavePlan`으로 연결한다. Storage alias·URL/인가된 serving·추가 backend는 별도 미완료 범위다.
 
 ## 생성 모델의 typed 준비
 

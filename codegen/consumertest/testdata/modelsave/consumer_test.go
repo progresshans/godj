@@ -470,5 +470,23 @@ func runSave(t *testing.T, b probeBackend) {
 			}
 		})
 	}
+	t.Run("formset", func(t *testing.T) {
+		runSetSave(t, b, reset, snapshot, labelsSaver, reviewersSaver, func(ctx context.Context, backend db.Session, value models.Article) error {
+			if _, borrowed := backend.(db.SessionValidator); borrowed {
+				session, ok := backend.(db.RelationSession)
+				if !ok {
+					return errors.New("lost relation scope")
+				}
+				_, err := deleters.ModelsArticle.DeleteInSession(ctx, session, value)
+				return err
+			}
+			atomic, ok := backend.(db.RelationAtomic)
+			if !ok {
+				return errors.New("lost atomic backend")
+			}
+			_, err := deleters.ModelsArticle.Delete(ctx, atomic, &value)
+			return err
+		})
+	})
 	reset(t)
 }

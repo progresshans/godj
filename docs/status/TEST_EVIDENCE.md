@@ -5,6 +5,69 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 일반 모델 여러 행의 저장 계획과 파일 게시
+
+2026-09-30, 기반 `e613660f8033a4e461a6fc419e01cfa4c1a77f19` 이후 `PreparedSet.SavePlan`의 changed/new/deleted 선택과
+mutable typed 모델·제출 순서 저장·지연 collection·실패 연산까지의 결과를 구현했다. 기본 collection binding과 필수 delete
+callback을 첫 쓰기 전에 검사하고 callback error를 그대로 보존한다. Set SaveFiles는 모든 행의 pure binding/name을 검사한 뒤
+게시하고 실제 이름과 행별 partial/uncertain outcome을 반환한다. Helpdesk Admin report의 최종 인가·고유값·선택 열 저장·audit를
+같은 계획에 연결했다. 삭제 정책·현재 권한·outer transaction terminal 결과는 여전히 애플리케이션이 소유한다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 영향 normal | Form/model·storage/uploads·Web·Admin 6 packages / 285 roots / 2,354 PASS / 1.853초 |
+| 관련 race | 모델 여러 행 저장·파일/단일 저장 관련 21 roots / 97 PASS / 1.877초 |
+| 생성 소비자 양 DB/race | ModelForm 저장과 FileField 2 parent roots PASS / 12.229초; 생성본 ModelForm 필수 73개와 FileField 필수 6개 이름을 각각 한 번의 PASS로 확인 |
+| Helpdesk Admin 양 DB/race | SQLite/PostgreSQL 2 roots / 필수 inline 하위 62개 / 총 66 PASS / 61.411초 |
+| 독립 native | 고정 Django 6.1/CPython 3.14.3의 모델 여러 행 저장 13개 관찰; 두 번 같은 원문 |
+| 부정 대조 | unchanged 선택·제출 순서·전체 deferred key 사전 검사·전체 file 사전 검사·행별 partial receipt·원래 callback error 보존을 각각 훼손한 6개 overlay가 지정 runtime assertion에서 실패 |
+| 실행 소유자 | relation/PostgreSQL의 FileConsumer 필수 sentinel 추가, 현행 ExecutionOwnerTests 3개 PASS; 수정한 필수 이름으로 완료한 소비자 JSON을 재평가하여 runs=passes=2 / skips=0 확인 |
+
+기존 native 단일 Form 15개 비교도 보존했다. 새 13개는 mixed/reordered·unchanged·ORDER만 변경·collection만 변경·excluded
+model clean만 변경·deferred/명시적 삭제·동일 new 모델 반복 저장·늦은 writer/collection 실패와 원자/비원자 결과다.
+SQLite/PostgreSQL의 실제 행·관계 상태와 발급된 key를 비교했다. Native의 callback 역할 이름과 Go의 SetWrite.Kind는 원래
+폼의 create/update/delete 의도이며 실제 SQL 종류나 commit 증명이 아니다. Go의 더 엄격한 identity/인가 규칙을 완화하지 않았다.
+
+파일 소비자는 실제 multipart 네 행 중 변경/신규 두 행만 게시한다. 기존 삭제/삭제된 extra의 업로드는 게시하지 않으며,
+게시 후 PROTECT 실패에서 앞선 DB update를 롤백하고 새 파일·원래 파일과 게시 receipt를 보존한다. 요청 종료 뒤 upload가 닫히고
+임시 파일이 제거됨을 확인했다. 별도의 명시적 재검토 후 같은 저장 계획의 이미 게시된 이름으로 저장하며 자동 파일 재게시/재시도는
+하지 않는다. 기존 생성 소비자의 migration·query·FileField/DB 재개방 검증도 실행했다. Helpdesk의 인증/CSRF·권한·cohort/revision·
+unique·child-only audit·뒤쪽 실패·rollback/commit unknown 검사는 기존 실제 HTTP 경로를 통해 실행했다.
+
+Go 1.26.5 Darwin arm64·offline/readonly module·기본 공유 cache/병렬 실행이다. 생성 자식도 `-trimpath -race`를 전달한다.
+Compiled roots/필수 하위 이름·완료한 JSON·skip/잘린 출력·source 전후 불변을 확인했다. 각 DB 실행은 별도 PostgreSQL 17.10
+Debian/C/UTF8 container/DB를 사용했고 종료 후 schema/table/다른 connection `0|0|0`, DB 제거와 해당 container 제거를 확인했다.
+
+소스 범위를 합쳐 쓰지 않는다. 최종 비Markdown code/config inventory는
+`13c5a2d1ac76222d180f823a5380e81f18ccc442d1f5d329d77c7ab34da21386`이다.
+Normal/race/부정 대조는 `a9178d026c37f322df0ac4b965f96a5253b5736cb43bb9ab3f2703df8d25e852`에서 실행했고 이후 두 CI roster만
+바뀌었다. 소비자 최종 실행은 `1beb3ccc58791ae3c870f30468326800dca26ac08063d119bb702b295d2384e1`이며 이후 core의 테스트
+`forms/model/set_files_test.go`와 두 roster만 바뀌었다. Helpdesk 성공은 `5110e713d9f6c144fd22b6b240dfc359434424c352de8b8de1b7403c331ab83a`
+실행의 해당 group 결과다. 이후 위 core 테스트·별도 File 생성 소비자 테스트와 roster만 수정됐다. 전체 파일 inventory 대조로
+**모든 DB 검사의 runtime 제품 코드와 Helpdesk 테스트는 최종 소스와 동일**함을 확인했다. 수정한 core 테스트는 final normal/race로,
+File 소비자는 수정한 양 DB 실행으로 검증했다. 서로 다른 전체 source를 같은 실행으로 표기하지 않고, 변경 없는 DB/Helpdesk 검사를
+반복하지 않았다. 최종 결합 receipt는 `/tmp/godj-formset-save-validation/receipt.json`에 있다.
+
+초기 normal/race는 새 테스트가 ValidateMin과 unchanged extra 선택을 잘못 기대하여 실패했다. 고정 Django에서 ValidateMin=true는
+`too_few_forms`, false는 valid·changed=false·deferred 저장 0행임을 따로 관찰하고, 이미 core ActiveForms가 빈 extra를 제외한다는
+현행 경계에 맞게 테스트를 수정했다. 최초 DB 실행은 File 소비자가 없는 `uploads.DefaultPolicy`를 참조하여 compile 실패했고
+`DefaultConfig`로 수정했다. 같은 실행의 ModelForm 소비자와 Helpdesk group 성공을 전체 PASS로 쓰지 않았다. CI 검사 첫 호출은
+경로/class 지정 오류로 실행되지 않았고 현행 ExecutionOwnerTests 3개를 지정하여 완료했다. 제품 저장 의미를 통과용으로 변경하지 않았다.
+
+Local receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래
+`godj-formset-save-normal-siicyg6a`, `godj-formset-save-race-nqlmhwg9`, `godj-formset-save-controls-0pl396fe`,
+`godj-formset-save-db-race-xtkm7emt`와 최초 DB/Helpdesk `godj-formset-save-db-race-qh8d2s38`에 있다.
+고정 observer는 `conformance/runners/django/model_formset_save_reference.py`, golden은
+`codegen/consumertest/testdata/modelsave/formset-reference.json`이다. Native forms/models.py SHA256은
+`858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910`, golden SHA256은
+`d8058ff7690397fd01c70e556d35913f7263daa2b23d6cd19b02428d07dead66`이며 commit/라이선스는 observer와 SOURCES를 따른다.
+
+영향 8 packages의 go vet·gofmt/diff와 169개 문서의 local Markdown 링크 검사 PASS. 생성기·IR·모델 선언과 checked-in generated Go는 바꾸지 않아 generate-check를 반복하지 않았고,
+별도 생성 module에서 현재 public API를 compile/실행했다. HTML/JS 변경이 없어 브라우저를 반복하지 않았다. 이번 source의 전체/cold·
+CGO=0·Hosted full은 실행하지 않았으며 선행 `6d3fe97f`의 전체 결과를 전이하지 않는다. Storage alias·URL/인가된 serving·다른 backend와
+나머지 기능 카탈로그는 계속 미완료다.
+
+
 
 ### 모델 FileField와 명시적인 파일/DB 참조 저장
 

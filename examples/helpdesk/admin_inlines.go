@@ -213,89 +213,91 @@ func (a *Application) saveAdminReports(ctx context.Context, session db.RelationS
 	if err != nil {
 		return false, err
 	}
-	changed := false
-	for _, row := range prepared.Deleted() {
-		current, err := row.Model()
-		if err != nil {
-			return false, err
-		}
-		if !input.access.Delete || !actor.Has(DeleteServiceReport) {
-			return false, admin.NewOperationError(admin.OperationDenied, nil)
-		}
-		removed := current
-		if _, err := models.ServiceReportObjects.Delete(ctx, session, &current); err != nil {
-			return false, err
-		}
-		event, err := admin.PrepareEvent(actor.ID(), "helpdesk.service_report", removed.ID, admin.ActionDelete, nil, "Service report")
-		if err != nil {
-			return false, err
-		}
-		if err := a.inlineAudit(ctx, session, event); err != nil {
-			return false, err
-		}
-		changed = true
+	plan, err := prepared.SavePlan()
+	if err != nil {
+		return false, err
 	}
-	for _, row := range prepared.Rows() {
-		candidate, err := row.Model()
-		if err != nil {
-			return false, err
-		}
-		if row.Existing() && len(row.Changed()) == 0 {
-			continue
-		}
-		permission, admitted := AddServiceReport, input.access.Add
-		if row.Existing() {
-			permission, admitted = ChangeServiceReport, input.access.Change
-		}
-		if !admitted || !actor.Has(permission) {
-			return false, admin.NewOperationError(admin.OperationDenied, nil)
-		}
-		values, err := models.ServiceReportObjects.ModelValues(candidate)
-		if err != nil {
-			return false, err
-		}
-		delete(values, "id")
-		current, existing, err := input.set.Current(row.Index())
-		if err != nil {
-			return false, err
-		}
-		var before *models.ServiceReport
-		if existing {
-			before = &current
-		}
-		failures, err := models.ServiceReportObjects.ValidateUniqueFields(ctx, session, values, before)
-		if err != nil {
-			return false, err
-		}
-		if !failures.Empty() {
-			return false, admin.RejectInline(reportInlinePrefix, row.Index(), failures, nil)
-		}
-		if existing {
-			err = models.ServiceReportObjects.Save(ctx, session, &candidate, orm.UpdateFieldNames[models.ServiceReport](row.Changed()...))
-		} else {
-			err = row.Prepared().Save(ctx, session, &candidate)
-		}
-		if err != nil {
-			if failures, rejected := validation.Rejected(writeRejection(err)); rejected {
-				return false, admin.RejectInline(reportInlinePrefix, row.Index(), failures, err)
+	writes, err := plan.Save(ctx, session, formmodel.SetSaveOptions[models.ServiceReport]{
+		Delete: func(ctx context.Context, session db.Session, row formmodel.DeletedSetRow[models.ServiceReport]) error {
+			current, err := row.Model()
+			if err != nil {
+				return err
 			}
-			return false, err
-		}
-		if _, err = a.publishableReport(ctx, session, candidate.ID); err != nil {
-			return false, err
-		}
-		action := admin.ActionAdd
-		if existing {
-			action = admin.ActionChange
-		}
-		event, err := admin.PrepareEvent(actor.ID(), "helpdesk.service_report", candidate.ID, action, row.Changed(), "Service report")
-		if err != nil {
-			return false, err
-		}
-		if err = a.inlineAudit(ctx, session, event); err != nil {
-			return false, err
-		}
-		changed = true
+			if !input.access.Delete || !actor.Has(DeleteServiceReport) {
+				return admin.NewOperationError(admin.OperationDenied, nil)
+			}
+			removed := current
+			if _, err := models.ServiceReportObjects.Delete(ctx, session, &current); err != nil {
+				return err
+			}
+			event, err := admin.PrepareEvent(actor.ID(), "helpdesk.service_report", removed.ID, admin.ActionDelete, nil, "Service report")
+			if err != nil {
+				return err
+			}
+			if err := a.inlineAudit(ctx, session, event); err != nil {
+				return err
+			}
+			return nil
+		},
+		Save: func(ctx context.Context, session db.Session, row *formmodel.SetSaveRow[models.ServiceReport]) error {
+			candidate := row.Model()
+			permission, admitted := AddServiceReport, input.access.Add
+			if row.Existing() {
+				permission, admitted = ChangeServiceReport, input.access.Change
+			}
+			if !admitted || !actor.Has(permission) {
+				return admin.NewOperationError(admin.OperationDenied, nil)
+			}
+			values, err := models.ServiceReportObjects.ModelValues(*candidate)
+			if err != nil {
+				return err
+			}
+			delete(values, "id")
+			current, existing, err := input.set.Current(row.Index())
+			if err != nil {
+				return err
+			}
+			var before *models.ServiceReport
+			if existing {
+				before = &current
+			}
+			failures, err := models.ServiceReportObjects.ValidateUniqueFields(ctx, session, values, before)
+			if err != nil {
+				return err
+			}
+			if !failures.Empty() {
+				return admin.RejectInline(reportInlinePrefix, row.Index(), failures, nil)
+			}
+			if existing {
+				err = models.ServiceReportObjects.Save(ctx, session, candidate, orm.UpdateFieldNames[models.ServiceReport](row.Changed()...))
+			} else {
+				err = row.Prepared().Save(ctx, session, candidate)
+			}
+			if err != nil {
+				if failures, rejected := validation.Rejected(writeRejection(err)); rejected {
+					return admin.RejectInline(reportInlinePrefix, row.Index(), failures, err)
+				}
+				return err
+			}
+			if _, err = a.publishableReport(ctx, session, candidate.ID); err != nil {
+				return err
+			}
+			action := admin.ActionAdd
+			if existing {
+				action = admin.ActionChange
+			}
+			event, err := admin.PrepareEvent(actor.ID(), "helpdesk.service_report", candidate.ID, action, row.Changed(), "Service report")
+			if err != nil {
+				return err
+			}
+			if err = a.inlineAudit(ctx, session, event); err != nil {
+				return err
+			}
+			return nil
+		},
+	})
+	if err != nil {
+		return false, err
 	}
-	return changed, nil
+	return len(writes) != 0, nil
 }

@@ -61,7 +61,7 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 선택지를 조용히 누락하지 않는다. HTML escaping으로 확장되는 선택지를 포함해 template/Web 출력 한도를
 `TicketEditorMaxResponseBytes`(8 MiB)로 함께 설정한다. 기본 Web 1 MiB를 그대로 사용하면 유효한 큰 페이지가 거부될 수 있다.
 임의 index/필드·중복 query는 parser에서 거부한다. 일반 field의 중복값은 Form 진단으로 남기고 category는 위의 전체 admission을
-적용한다. 새 부모 생성 화면·Admin inline UI·files와 전체 ModelFormSet 자동 저장은 이 제품 화면의 범위가 아니다.
+적용한다. 이 편집기의 삭제 우선 정책은 제품 writer가 소유한다. 일반 모델 여러 행의 native 저장 순서는 [SavePlan](../../forms/model/README.md#여러-행의-저장과-지연-저장)을 따른다. 새 부모/자식과 Admin inline은 아래 별도 화면에서 제공한다.
 
 ## JSON API
 
@@ -264,6 +264,8 @@ Identity 전환 소비자는 기존 system `0001` operator의 권한 CAS를 먼�
 permission에서 추론하지 않는다. 호스트 선언은 재사용 identity 앱의 전체 관계·삭제 graph를 포함하고 외부 앱 파일은 생성하지 않는다.
 
 ## Admin에서 티켓과 보고서를 함께 편집하기
+
+보고서 저장은 공통 `SavePlan`의 변경/추가/삭제 선택에 기존 권한·고유값·선택 열 쓰기·감사 기록을 연결한다. Callback의 오류를 그대로 outer transaction에 전달한다.
 
 기존 `Registry()`의 독립 CRUD 화면 외에, `AdminRegistry`로 티켓의 서비스 보고서를 같은 화면에 연결할 수 있다.
 

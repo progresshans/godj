@@ -1719,6 +1719,7 @@ github.com/progresshans/godj/examples/helpdesk|TestHelpdeskReportModelValidation
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskModelValidationReadScope/typed_nil_reader
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelCleanConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelFormSaveConsumer
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFileConsumer
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite
 github.com/progresshans/godj/examples/helpdesk|TestHelpdeskTypedFormPersistence/sqlite/new_clean_excluded

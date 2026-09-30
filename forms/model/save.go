@@ -136,22 +136,9 @@ func (prepared PreparedInstance[M]) saveCollections(ctx context.Context, backend
 	if len(operations) == 0 {
 		return nil
 	}
-	snapshot, err := prepared.manager.ApplyValues(instance, nil)
+	snapshot, err := prepared.collectionOwner(instance)
 	if err != nil {
 		return err
-	}
-	values, err := prepared.manager.ModelValues(snapshot)
-	if err != nil {
-		return err
-	}
-	metadata, err := prepared.manager.Metadata()
-	if err != nil {
-		return err
-	}
-	for _, field := range metadata.Fields {
-		if field.PrimaryKey && values[field.Name].IsNull() {
-			return &Error{Path: "instance." + field.Name, Code: "primary_key_required"}
-		}
 	}
 	for _, operation := range operations {
 		if err := validateSaveScope(ctx, backend); err != nil {
@@ -168,6 +155,28 @@ func (prepared PreparedInstance[M]) saveCollections(ctx context.Context, backend
 		}
 	}
 	return validateSaveScope(ctx, backend)
+}
+
+func (prepared PreparedInstance[M]) collectionOwner(instance M) (M, error) {
+	var zero M
+	snapshot, err := prepared.manager.ApplyValues(instance, nil)
+	if err != nil {
+		return zero, err
+	}
+	values, err := prepared.manager.ModelValues(snapshot)
+	if err != nil {
+		return zero, err
+	}
+	metadata, err := prepared.manager.Metadata()
+	if err != nil {
+		return zero, err
+	}
+	for _, field := range metadata.Fields {
+		if field.PrimaryKey && values[field.Name].IsNull() {
+			return zero, &Error{Path: "instance." + field.Name, Code: "primary_key_required"}
+		}
+	}
+	return snapshot, nil
 }
 
 func validateSaveScope(ctx context.Context, backend db.Session) error {

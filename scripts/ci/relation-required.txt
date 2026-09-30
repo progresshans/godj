@@ -2115,3 +2115,4 @@ github.com/progresshans/godj/orm|TestApplyModelValuesRejectsDescriptorViolations
 github.com/progresshans/godj/orm|TestApplyModelValuesConcurrentPreparationDoesNotShareState
 github.com/progresshans/godj/orm|TestApplyModelValuesRequiresGeneratedAssignmentCapability
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelFormSaveConsumer
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFileConsumer

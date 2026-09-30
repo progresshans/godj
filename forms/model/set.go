@@ -386,6 +386,7 @@ func (row DeletedSetRow[M]) Model() (M, error) { return row.manager.ApplyValues(
 // It schedules no writes and opens no transaction. New rows marked DELETE and
 // unchanged optional extras never become a persistence operation.
 type PreparedSet[M any] struct {
+	manager orm.Manager[M]
 	rows    []PreparedSetRow[M]
 	deleted []DeletedSetRow[M]
 }
@@ -402,7 +403,7 @@ func (set InstanceSet[M]) Prepare() (PreparedSet[M], error) {
 	if err != nil {
 		return PreparedSet[M]{}, err
 	}
-	result := PreparedSet[M]{rows: make([]PreparedSetRow[M], 0, len(active)), deleted: make([]DeletedSetRow[M], 0, len(deleted))}
+	result := PreparedSet[M]{manager: set.manager, rows: make([]PreparedSetRow[M], 0, len(active)), deleted: make([]DeletedSetRow[M], 0, len(deleted))}
 	for _, row := range active {
 		if row.Form().ReadOnly() {
 			continue

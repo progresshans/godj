@@ -109,14 +109,28 @@ func (prepared PreparedInstance[M]) requireStoredFiles() error {
 // reconcile those results first. The original preparation and uploads retain
 // their existing lifetimes and are not consumed, mutated or silently prolonged.
 func (prepared PreparedInstance[M]) SaveFiles(ctx context.Context, savers ...FileSaver[M]) (PreparedInstance[M], []FilePublication, error) {
+	operations, err := prepared.fileSaves(ctx, savers)
+	if err != nil {
+		return PreparedInstance[M]{}, nil, err
+	}
+	return prepared.saveFiles(ctx, operations)
+}
+
+type fileSave[M any] struct {
+	file  pendingFile
+	saver FileSaver[M]
+	name  string
+}
+
+func (prepared PreparedInstance[M]) fileSaves(ctx context.Context, savers []FileSaver[M]) ([]fileSave[M], error) {
 	if nilSaveValue(ctx) {
-		return PreparedInstance[M]{}, nil, &Error{Path: "context", Code: "nil"}
+		return nil, &Error{Path: "context", Code: "nil"}
 	}
 	if err := ctx.Err(); err != nil {
-		return PreparedInstance[M]{}, nil, err
+		return nil, err
 	}
 	if _, err := prepared.manager.Metadata(); err != nil {
-		return PreparedInstance[M]{}, nil, err
+		return nil, err
 	}
 	pending := make(map[string]bool, len(prepared.files))
 	for _, file := range prepared.files {
@@ -126,46 +140,51 @@ func (prepared PreparedInstance[M]) SaveFiles(ctx context.Context, savers ...Fil
 	for _, saver := range savers {
 		path := "files." + saver.Field
 		if _, found := byName[saver.Field]; found {
-			return PreparedInstance[M]{}, nil, &Error{Path: path, Code: "duplicate_saver"}
+			return nil, &Error{Path: path, Code: "duplicate_saver"}
 		}
 		if !pending[saver.Field] {
-			return PreparedInstance[M]{}, nil, &Error{Path: path, Code: "unselected_saver"}
+			return nil, &Error{Path: path, Code: "unselected_saver"}
 		}
 		if nilSaveValue(saver.Backend) || saver.Name == nil {
-			return PreparedInstance[M]{}, nil, &Error{Path: path, Code: "invalid_saver"}
+			return nil, &Error{Path: path, Code: "invalid_saver"}
 		}
 		byName[saver.Field] = saver
 	}
 	// Validate completeness before invoking any caller callback.
 	for _, file := range prepared.files {
 		if _, found := byName[file.field.Name]; !found {
-			return PreparedInstance[M]{}, nil, &Error{Path: "files." + file.field.Name, Code: "missing_saver"}
+			return nil, &Error{Path: "files." + file.field.Name, Code: "missing_saver"}
 		}
 	}
-	names := make([]string, len(prepared.files))
+	operations := make([]fileSave[M], len(prepared.files))
 	for i, file := range prepared.files {
 		if err := ctx.Err(); err != nil {
-			return PreparedInstance[M]{}, nil, err
+			return nil, err
 		}
 		instance, err := prepared.manager.ApplyValues(prepared.value, nil)
 		if err != nil {
-			return PreparedInstance[M]{}, nil, err
+			return nil, err
 		}
 		name, err := byName[file.field.Name].Name(instance, file.upload)
 		if err != nil {
-			return PreparedInstance[M]{}, nil, err
+			return nil, err
 		}
 		// Validate the backend-independent name before any file is published.
 		// MaxLength is applied by storage, which may shorten a collision name.
 		if _, err := storage.NewInfo(name, file.upload.Size()); err != nil {
-			return PreparedInstance[M]{}, nil, err
+			return nil, err
 		}
-		names[i] = name
+		operations[i] = fileSave[M]{file: file, saver: byName[file.field.Name], name: name}
 	}
-	values := make(map[string]query.Value, len(prepared.files))
-	results := make([]FilePublication, 0, len(prepared.files))
-	for i, file := range prepared.files {
-		info, err := storage.SaveUpload(ctx, byName[file.field.Name].Backend, names[i], file.upload, storage.SaveOptions{MaxLength: file.field.MaxLength})
+	return operations, nil
+}
+
+func (prepared PreparedInstance[M]) saveFiles(ctx context.Context, operations []fileSave[M]) (PreparedInstance[M], []FilePublication, error) {
+	values := make(map[string]query.Value, len(operations))
+	results := make([]FilePublication, 0, len(operations))
+	for _, operation := range operations {
+		file := operation.file
+		info, err := storage.SaveUpload(ctx, operation.saver.Backend, operation.name, file.upload, storage.SaveOptions{MaxLength: file.field.MaxLength})
 		if err == nil && utf8.RuneCountInString(info.Name()) > file.field.MaxLength {
 			err = &storage.Error{Code: "invalid_result", Outcome: storage.Uncertain}
 		}

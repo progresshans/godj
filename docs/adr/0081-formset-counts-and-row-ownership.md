@@ -139,8 +139,8 @@ application을 바꾸지 않고 티켓/OneToOne 보고서의 새 부모 생성·
 prototype을 게시하지 않으며 빈 추가 행은 기존 자식 identity·revision·입력 상태를 복제하지 않는다. 외부 script는 선언한
 min/max 안에서 미저장 행만 추가/제거하고 이름·오류 anchor를 다시 매긴다. 입력값·checkbox 상태와 기존 cohort는 보존하며
 저장된 행의 삭제는 별도 DELETE 의도다. JavaScript를 우회해도 서버 admission·현재 scope·최종 원자 저장 책임은 그대로다.
-내용 SHA256으로 식별한 script는 session 없는 public asset이고 로그인 후 이동 대상으로 사용하지 않는다. Files와 일반 자동
-persistence는 별도 미완료 범위다.
+내용 SHA256으로 식별한 script는 session 없는 public asset이고 로그인 후 이동 대상으로 사용하지 않는다. 파일 입력과 모델 파일
+게시·일반 저장 계획은 아래의 소유권을 따른다.
 
 ## 파일 명령과 수신 자원
 
@@ -154,3 +154,27 @@ private 임시 파일로 보관한다. Request는 한 번 파싱한 결과와 �
 요청 반환/오류/panic과 직접 Parse의 Close 경계에서 reader와 임시 파일을 닫는다. Metadata의 불변성과 I/O capability의
 수명을 구분하며 요청 밖에 보관한 Form/Value가 읽기 권한을 연장하지 않는다. 정리 실패는 명시적으로 기록하되 이미 확정된
 handler의 저장 결과를 덮어써 재시도를 유도하지 않는다. 영구 저장·원자 DB 연계·공개 serving의 완료 증거로 확대하지 않는다.
+
+## 일반 모델 여러 행의 저장 계획
+
+`PreparedSet`의 순수 후보 보존과 `SavePlan`의 실제 저장 선택을 구분한다. 저장 계획은 Form Changed가 있는 editable 기존/새
+행과 서버 current의 기존 삭제 의도를 모은다. MinForms 때문에 검증한 빈 추가 행도 바뀌지 않았으면 쓰지 않는다. Excluded
+model clean만 바꾼 값은 변경 없는 행의 자동 저장을 유도하지 않는다. 기존 변경/삭제를 제출 행 순서로 실행한 뒤 새 행을 저장하며
+ORDER는 실행 순서를 바꾸지 않는다. 이는 고정 Django BaseModelFormSet의 저장/지연 저장 관찰을 기준으로 한다.
+
+계획은 caller 소유의 mutable 모델 pointer를 제공하며 독립 생성한 계획은 nullable pointee까지 분리한다. 기본 Save는 기존
+PreparedInstance의 scalar·collection 경로를 사용한다. Deferred scalar 저장 뒤 SaveCollections는 selected 관계만 저장하고
+삭제를 숨겨 실행하지 않는다. Generated key는 뒤쪽 실패와 outer rollback 뒤에도 Go 값에 남을 수 있다. 계획의 재사용은 새 시도이며
+자동 재시도·멱등·commit 증명이 아니다. 원래 immutable 준비 결과는 변하지 않는다.
+
+모든 default collection binding과 필수 deletion callback을 첫 쓰기 전에 검사하며 각 연산 전후에 context/session 수명을 확인한다.
+삭제 정책은 명시적인 application callback이 소유한다. 완전한 incoming relation이 필요한 모델을 scalar Delete로 대체하지 않는다.
+Custom Save는 selected collection을 포함한 행의 전체 쓰기를 소유하며 default collection callback과 중복 구성할 수 없다.
+현재 권한·revision·DB 고유값/관계 검사·감사 기록과 전체 transaction의 terminal outcome은 caller가 소유한다. 연산별 결과는
+실패 연산까지 보존하며 callback error를 wrapping/축소하지 않는다. Helpdesk Admin report는 이 계획 안에 기존 checks를 연결한다.
+기존 Ticket editor의 삭제 우선 정책은 그 제품의 명시적 writer가 계속 소유하며 일반 계획의 native 순서와 혼동하지 않는다.
+
+Set SaveFiles는 저장 대상 중 pending model upload가 있는 행만 게시한다. 모든 행의 pure binding/이름을 먼저 확인하고
+행/IR 순서로 게시하여 실제 이름을 새 PreparedSet에 넣는다. Pending upload가 있으면 SavePlan을 만들 수 없다. 부분 결과는
+실패한 file까지 row index와 함께 반환하고 실패 preparation은 저장할 수 없다. 게시 결과와 DB commit은 별개이며 rollback,
+clear, 행 삭제 뒤 파일을 자동 제거하지 않는다. 요청 수명과 storage 소유권은 [ADR-0082](0082-file-storage-publication-and-reference.md)를 따른다.

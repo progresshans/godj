@@ -66,8 +66,9 @@ Database-independent core와 [typed 모델의 여러 행 준비](model/README.md
 [Helpdesk HTTP 편집](../examples/helpdesk/README.md#여러-티켓을-함께-편집하기)은 typed 준비와 실제 여러 행/관계/감사 기록의
 원자 저장을 연결한다. 부모에 연결한 행은 [InlineSpec](model/README.md#부모에-연결한-여러-행)을 사용한다.
 파일/clear 입력은 `NewDataWithFiles`로 전달하며 행 prefix와 빈 추가 행·readonly·삭제 의미를 유지한다.
-[파일 입력](../uploads/README.md)의 수명과 순수 검증 경계를 따른다. [Admin inline](../admin/inlines.md)의 동적 행은 연결했고
-일반 Formset 자동 저장·모델 파일 storage·Admin 파일 UI는 후속 범위다. 고정 Django 관찰에서 Go의 count 거부와
+[파일 입력](../uploads/README.md)의 수명과 순수 검증 경계를 따른다. [Admin inline](../admin/inlines.md)의 동적 행·파일 UI와
+[모델 여러 행 저장](model/README.md#여러-행의-저장과-지연-저장)의 명시적 storage·SavePlan을 연결한다. Core Formset 자체는
+DB 쓰기·인가·transaction을 소유하지 않는다. 고정 Django 관찰에서 Go의 count 거부와
 Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/adr/0081-formset-counts-and-row-ownership.md)에 따라 구분한다.
 
 `SetSpec.WithFormField(field)`는 행 field를 같은 위치에서 교체하거나 끝에 추가하고, `WithConfig(config)`는 개수/prefix 정책을

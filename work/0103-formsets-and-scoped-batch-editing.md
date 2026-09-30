@@ -32,7 +32,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] Admin 부모/inline/명령 파일 widget·multipart·권한/CSRF·오류 재표시와 실제 브라우저 파일 전달
 - [x] 로컬 storage의 no-overwrite 게시·독립 파일 수명·명시적 HTTP 업로드 소비와 불확실/정리 실패 분리
 - [x] 모델 FileField의 IR/생성/ORM/Form·Admin 연결, 실제 저장 이름과 파일/DB 결과 구분
-- [ ] 남은 ModelFormSet/files 범위의 구현·후속 통합
+- [x] 일반 모델 여러 행의 변경/추가/삭제·지연 collection·행별 결과와 파일 게시 연결
+- [ ] Storage alias·URL/인가된 serving·추가 backend와 후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -90,4 +91,11 @@ TEST_EVIDENCE에 둔다. [사용법](../uploads/README.md)을 따르며 Admin �
 candidate 이름과 pending upload를 구분하며 typed 준비는 명시적 `SaveFiles` 이후에 모델/DB 쓰기를 허용한다. 파일 게시 후의
 부분 실패·DB rollback·clear·모델 삭제를 분리하고 기존 파일을 자동 제거하지 않는다. Native 비교와 실제 Admin HTTP·양 DB
 생성 소비자의 실행 범위는 TEST_EVIDENCE, 사용법은 [모델 파일](../forms/model/README.md#모델-파일의-준비와-저장)에 둔다.
-Storage alias·다른 backend·URL/serving과 일반 ModelFormSet 자동화는 남아 있다.
+Storage alias·다른 backend·URL/serving은 남아 있으며 일반 여러 행 저장은 아래에서 연결했다.
+
+일반 모델 여러 행 저장은 `SavePlan`으로 changed 기존/새 행과 삭제 의도를 선택한다. Mutable 모델의 key를 보존하고 기존
+변경/삭제의 제출 순서·새 행 저장·지연 collection·첫 실패까지의 결과를 연결했다. 모든 selected row의 파일 binding/name을
+게시 전에 검사하며 삭제/readonly 행은 게시하지 않는다. Callback의 원래 오류와 outer transaction 결과는 구분한다.
+Helpdesk Admin 보고서의 인가·고유값·선택 열 저장/audit를 계획에 연결했고, native 13개 관찰과 양 DB의 실제 저장/rollback,
+multipart 파일 게시 뒤 PROTECT rollback·파일 보존, 관련 race·부정 대조를 확인했다. [증거](../docs/status/TEST_EVIDENCE.md)의
+소스별 범위를 따른다. 기존 Ticket editor의 제품 전용 삭제 우선 저장은 그대로이며 일반 계획의 native 순서를 대신하지 않는다.

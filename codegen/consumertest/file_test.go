@@ -45,19 +45,21 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	consumer, err := os.ReadFile("testdata/files/consumer_test.go")
-	if err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"consumer_test.go", "formset_test.go"} {
+		consumer, err := os.ReadFile("testdata/files/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/"+name, consumer)
 	}
-	writeGeneratedTestFile(t, root, "consumer/consumer_test.go", consumer)
 	reference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "forms/model/testdata/model-file-django61.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
-	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite"}
+	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
-		required = append(required, "TestGeneratedFileStorageAndHistory/postgres")
+		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset")
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)

@@ -22,11 +22,16 @@ Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 �
 고정 Django 관찰, 실제 Admin multipart, 생성 소비자의 SQLite/PostgreSQL 저장·재개방과 관련 race를 확인했다.
 [파일 결정](../adr/0082-file-storage-publication-and-reference.md)과 실행 증거를 따른다.
 
-위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField를 포함하지 않는다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
+일반 [모델 여러 행 저장](../../forms/model/README.md#여러-행의-저장과-지연-저장)은 변경·추가·삭제의 실행 순서와 mutable 저장 계획,
+지연 컬렉션 저장·행별 실패 결과를 연결했다. 여러 행 파일의 사전 검사/부분 게시 결과를 보존하며 Helpdesk Admin 보고서는
+기존 인가·고유값·감사 기록을 같은 계획 안에 연결한다. 고정 Django 관찰과 실제 양 DB·관련 race를 확인했다.
+
+위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField·일반 모델 여러 행 저장을 포함하지 않는다.
+현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-일반 ModelFormSet 저장 자동화와 파일의 storage alias·URL/인가된 serving·추가 backend를 의존 순서에 따라 연결한다.
+파일의 storage alias·URL/인가된 serving·추가 backend를 의존 순서에 따라 연결하고 저장 경로의 후속 통합 범위를 정한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 
