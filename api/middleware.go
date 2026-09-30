@@ -45,7 +45,7 @@ func Representation(prefix string) (web.Middleware, error) {
 			if allow := response.Header().Get("Allow"); allow != "" {
 				header.Set("Allow", allow)
 			}
-			return web.NewResponse(converted.Status(), header, converted.Body())
+			return converted.WithHeaders(header)
 		}
 	}, nil
 }

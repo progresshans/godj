@@ -26,12 +26,13 @@ func TestJSONResponseLimitsBoundTheWholeCollection(t *testing.T) {
 		t.Fatal("default response budget changed or emitted a partial response", err)
 	}
 	response, err := api.JSONWithLimits(http.StatusOK, value, serializers.Limits{MaxValues: 4101})
-	if err != nil || response.Status() != http.StatusOK || response.Header().Get("Content-Type") != api.JSONContentType || string(response.Body()) != "["+strings.TrimSuffix(strings.Repeat(document.Text+",", 4), ",")+"]" {
+	if err != nil || response.Status() != http.StatusOK || response.Header().Get("Content-Type") != api.JSONContentType || string(requireBufferedBody(t, response)) != "["+strings.TrimSuffix(strings.Repeat(document.Text+",", 4), ",")+"]" {
 		t.Fatal("explicit collection budget changed content", err)
 	}
 	for _, limits := range []serializers.Limits{{MaxValues: 4100}, {MaxValues: 4101, MaxDocumentBytes: 100}, {MaxValues: 4101, MaxDepth: 2}, {MaxValues: 4101, MaxArrayItems: 1023}, {MaxValues: 1<<16 + 1}} {
 		response, err := api.JSONWithLimits(http.StatusOK, value, limits)
-		if !errors.Is(err, &api.Error{Code: api.FailureInvalidResponse}) || response.Status() != 0 || len(response.Body()) != 0 {
+		body, bodyErr := response.Body()
+		if !errors.Is(err, &api.Error{Code: api.FailureInvalidResponse}) || response.Status() != 0 || len(body) != 0 || !errors.Is(bodyErr, &web.Error{Code: web.CodeInvalidResponse}) {
 			t.Fatal("collection rendering bypassed a shared budget or hard cap", err)
 		}
 	}

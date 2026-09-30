@@ -85,3 +85,14 @@ implicit I/O가 생길 수 있습니다. 첫 Web slice 전에 request lifetime�
 - DTO boilerplate가 생기지만 lazy relation state와 serialization I/O가 명시적으로 분리됩니다.
 - Q-011의 synchronous request subset만 닫히며 transaction container/async lifetime은 `Partial`로 남습니다.
 - Q-017의 Web representation 선택은 bounded하지만 general raw-model/facade UX는 P1/open으로 남습니다.
+
+## 유한 streaming 확장 (2026-09-30)
+
+첫 slice의 bounded buffer에 유한 stream descriptor를 추가한다. Buffered body와 stream은 명시적으로 구분하며 `Body()`가
+stream을 암묵적으로 읽지 않는다. 전체 middleware chain이 성공한 뒤 Request/upload를 해제하고 새 reader를 연다. 응답 교체·
+오류는 자원을 열지 않으며, opener는 불변 인가 값과 application 수명의 backend만 빌린다. 이미 반환한 reader는 opener의
+error 여부와 무관하게 Application이 한 번 닫는다. Header 전 실패는 500, 이후에는 net/http abort를 통해 미완료 전송으로
+남긴다. 마지막 known-length 조각을 EOF 확인 전 게시하지 않는다. Shutdown drain은 이 전송 완료도 포함한다.
+
+[파일 경계](0082-file-storage-publication-and-reference.md), [API와 제한](../../web/streaming.md)을 따른다. 이 확장은 무한 stream,
+WebSocket/SSE나 borrowed Request·DB scope의 async 사용을 허용하지 않는다. 원래 비목표는 첫 slice의 범위 기록이다.

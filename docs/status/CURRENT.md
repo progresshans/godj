@@ -26,12 +26,17 @@ Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 �
 지연 컬렉션 저장·행별 실패 결과를 연결했다. 여러 행 파일의 사전 검사/부분 게시 결과를 보존하며 Helpdesk Admin 보고서는
 기존 인가·고유값·감사 기록을 같은 계획 안에 연결한다. 고정 Django 관찰과 실제 양 DB·관련 race를 확인했다.
 
-위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField·일반 모델 여러 행 저장을 포함하지 않는다.
-현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
+[Storage alias/URL](../../storage/README.md)과 [인가된 파일 응답](../../web/streaming.md)을 연결했다. 전체 middleware 성공 뒤
+독립 reader를 열고 Request/upload 수명을 분리한다. 같은 열린 handle의 metadata·유한 전송/EOF·HEAD·정리·실패 시 중단과
+실제 로그인/CSRF·모델 소유권·양 DB 다운로드 및 기존 Helpdesk HTTP의 관련 race를 확인했다.
+
+위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField·일반 모델 여러 행 저장·alias/streaming을 포함하지 않는다.
+이 변경들을 묶은 새 Hosted full 통합 milestone을 진행한다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-파일의 storage alias·URL/인가된 serving·추가 backend를 의존 순서에 따라 연결하고 저장 경로의 후속 통합 범위를 정한다.
+새 Hosted full의 동일 source·필수 owner·aggregate·새 capture 결합을 확인한다. 이후 추가 storage backend와 파일 응답의
+Range/conditional·ImageField 등 남은 파일 의미를 의존 순서에 따라 연결한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 

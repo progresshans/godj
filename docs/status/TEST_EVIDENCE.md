@@ -5,6 +5,70 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+
+### Storage alias와 인가된 파일 streaming
+
+2026-09-30, 기반 `249bc9bacb2f021d2f1f6975feb78939b5705d8d` 이후 application별 immutable storage registry와 별도 URL
+capability를 Settings에 연결했다. 유한 Web stream은 전체 middleware 성공 뒤에만 독립 reader를 열고 borrowed Request/upload를
+연장하지 않는다. 같은 opened handle의 metadata·알려진 길이/EOF·상한·HEAD·한 번의 close와 header 이후 transport abort를
+구현했다. FileResponse의 기본 attachment/octet-stream/no-store/nosniff/no-referrer, 현재 모델과 principal을 조회하는 파일
+다운로드 소비자를 연결했다. `Body()`는 buffered 복사본/error를 반환하고 stream을 암묵적으로 소비하지 않는다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 영향 normal | storage/settings/uploads/Web/sessionauth/API/OpenAPI/Admin/모델 Form 9 packages / 334 roots / 1,538 PASS / 6.401초 |
+| 관련 race | storage/settings/Web/sessionauth의 alias·파일/stream·cookie·server drain 20 roots / 60 PASS / 9.738초 |
+| 생성 소비자 양 DB/race | FileConsumer parent PASS / 8.256초; 별도 생성 module의 projection·저장·SQLite/PostgreSQL·각 formset/serving 필수 8개 이름을 각 한 번의 PASS로 검사 |
+| Helpdesk 양 DB/race | 실제 공개 HTTP 소비자 2 roots / 필수 하위 141개 / 총 284 PASS / 134.091초 |
+| 독립 native | 고정 Django 6.1/CPython 3.14.3 alias 관찰, URL 12개·FileResponse 6개와 명시적 이름 차이 4개; 두 번 같은 원문 |
+| 부정 대조 | 응답 구성의 I/O 지연·reader close·정확한 EOF·전송 abort·framing header 소유·불필요한 Stat를 훼손한 6개 overlay가 지정 runtime assertion에서 실패 |
+| ABI/생성/정적 확인 | 전체 205 packages compile-only, 영향 10 packages go vet, `make generate-check`의 7개 프로젝트/checked-in 관계 생성물, gofmt·diff·170개 문서 링크 PASS |
+
+생성 소비자는 실제 cookie login과 CSRF 갱신 뒤 1 MiB보다 큰 multipart 파일을 게시하고 DB에 충돌 후 실제 저장 이름과 서버
+소유자를 기록한다. 기존 파일은 보존한다. 미인증/무권한/다른 소유자·CSRF 실패·파일 이름 문자열 위조에서 storage I/O가 없고,
+GET/HEAD·query의 alias/name 위조·소유권 변경 후 이전 사용자 거부·새 소유자 허용·인가된 missing file 404를 확인했다.
+성공 reader는 한 번만 닫고 read buffer는 32 KiB 이하이며 별도 Stat와 남은 upload staging이 없다. Helpdesk의 기존 로그인·
+Form/Admin/API·revision·권한·audit·실패/rollback 경로도 실제 SQLite/PostgreSQL 소비자로 실행했다.
+
+Web 검사는 handler/middleware 거부·응답 교체·panic·repeated next에서 open 0, 요청 해제 후 stream의 살아 있는 transport
+context, 재사용/동시 요청의 새 reader, reader/writer 오류·panic·짧거나 긴 길이·무진행·joined EOF 실패·close 실패 진단을 포함한다.
+실제 TCP client가 잘못된 길이에서 불완전 body 오류를 받고 취소 시 reader가 닫히며 graceful server drain이 전송을 기다리는 것을
+확인했다. 임의 context 비협조 reader의 막힌 Read를 강제 종료하는 API나 SSE/WebSocket 검증은 아니다.
+
+Go 1.26.5 Darwin arm64·영향/DB 실행의 offline/readonly module·기본 공유 cache와 병렬 실행이다. 생성 자식에도 `-trimpath -race`를
+전달했다. Compiled roots·required 이름·완료 JSON·skip/잘린 출력과 source 전후 불변을 확인했다. 별도 PostgreSQL 17.10
+Debian/C/UTF8 container/DB에서 종료 후 schema/table/다른 connection `0|0|0`, DB 제거·해당 container 제거를 확인했다.
+
+최종 비Markdown code/config inventory는 `0d7f60679b23dbfbf7817ddaf71f4c86bd8f0df358d0d528a222272f727681a2`다.
+양 DB/race와 부정 대조는 이 소스다. Normal/관련 race는 `768108cff81494d55540b785fc20022b95d5d3f8162b0e4034512b4368526018`이며
+이후 바뀐 유일한 파일은 별도 생성 fixture `codegen/consumertest/testdata/files/serving_test.go`의 HTTP helper nil-header 수정이다.
+해당 fixture는 최종 양 DB/race에서 다시 실행했고 **제품 코드와 core 테스트는 동일**함을 전체 inventory로 확인했다. 결합 receipt는
+`/tmp/godj-streaming-validation/receipt.json`이다. 변경하지 않은 core normal/race를 반복하지 않았다.
+
+초기 compile의 미사용 import와 새 fixture의 literal 괄호를 수정했다. 최초 normal은 short reader가 첫 Read에서 EOF를 주지 않아
+이미 header를 보낸 뒤 abort했으나 테스트가 500을 기대해 실패했다. 첫 Read의 EOF를 명시해 header 전 실패와 기존 late-EOF
+검사를 분리했으며 제품의 framing 의미를 완화하지 않았다. 최초 양 DB 소비자 실행은 compile 실패가 아니라 테스트 HTTP helper가
+nil Header를 넣어 cookie jar의 AddCookie에서 panic한 것이다. 요약 진단만 보고 compiler 오류로 추정했다가 compile-only와
+실제 원문으로 바로잡았다. Helper는 NewRequest의 header map을 보존하며 최종 양 DB 실행이 통과했다. 처음 metadata 부정 대조는
+Stat 오류로 더 이른 500/MIME 진단에서 실패해 계획한 assertion을 만족하지 못했다. 같은 handle의 Info를 유지하며 불필요한 Stat
+호출만 주입하는 대조로 명확히 분리한 뒤 6개 최종 대조를 완료했다. 이 초기 실행들을 PASS에 합치지 않았다.
+
+Local receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의
+`godj-streaming-normal-cdhezhm9`, `godj-streaming-race-wzp7zi59`, `godj-streaming-db-race-ohbi2hr3`,
+`godj-streaming-controls-2_ul5sf3`다. 최초 실패는 `godj-streaming-normal-gih0ptph`, `godj-streaming-db-race-tz2a5mky`,
+`godj-streaming-controls-febvewrl`에 남긴다. Native observer는 `conformance/runners/django/storage_serving_reference.py`,
+golden은 `storage/testdata/serving-django61.json`이고 SHA256은 `37cfb4f1313d2c51c0988e823e732a07ca6861b3274ce9eb6adb7662bacd3ad7`이다.
+Django `handler.py`, `filesystem.py`, `response.py` SHA256은 golden에 보관한다. Upstream commit
+`fe0a859f537d4238cf49fca39073513206f83122`/BSD-3-Clause를 참조한다. Go의 eager backend 등록·pure lazy response·portable 이름·
+안전한 attachment/MIME 기본은 native의 lazy factory/eager file ownership·MIME 추측/inline 기본과 구분한다.
+
+이번 로컬 checkpoint는 전체/cold·CGO=0·Hosted full 성공이 아니다. `6d3fe97f` 이후 동적 inline UI·파일 입력/storage·FileField·
+일반 ModelFormSet 저장과 이번 alias/streaming을 함께 묶은 **Hosted full 통합 milestone**을 다음 실행 범위로 정했다. 로컬 전체
+`make ci`를 중복하지 않고, 해당 실행의 source·각 owner·최종 aggregate·같은 run의 새 capture 결합을 확인한 뒤 별도로 기록한다.
+HTML/JS 변경이 없어 이번 slice의 브라우저를 반복하지 않았다. 추가 storage backend·서명 URL provider·Range/conditional,
+ImageField와 나머지 기능 카탈로그는 계속 미완료다.
+
+
 ### 일반 모델 여러 행의 저장 계획과 파일 게시
 
 2026-09-30, 기반 `e613660f8033a4e461a6fc419e01cfa4c1a77f19` 이후 `PreparedSet.SavePlan`의 changed/new/deleted 선택과

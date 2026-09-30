@@ -473,6 +473,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		t.Fatal("stored content lost across request/backend lifetime", err, closeErr)
 	}
 	t.Run("formset", func(t *testing.T) { runFileSet(t, backend, root) })
+	t.Run("serving", func(t *testing.T) { runFileServing(t, backend, root) })
 	if err := backend.Close(); err != nil {
 		t.Fatal(err)
 	}

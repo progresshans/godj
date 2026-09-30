@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sync"
 
 	"github.com/progresshans/godj/uploads"
@@ -84,11 +85,20 @@ type Backend interface {
 	Delete(context.Context, string) error
 }
 
+// Reader optionally supplies metadata from the same opened content handle.
+// This avoids a separate Stat/Open race when a HTTP response declares length.
+// Info is an immutable snapshot, not a promise that external writers cannot
+// alter the content. Readers without this capability have unknown length.
+type Reader interface {
+	io.ReadCloser
+	Info() Info
+}
+
 // SaveUpload opens a request capability while it is alive, consumes it through
 // the explicitly chosen backend/name, and closes only that new reader. It does
 // not commit a database reference, delete an old file, or prolong the upload.
 func SaveUpload(ctx context.Context, backend Backend, name string, file uploads.File, options SaveOptions) (info Info, err error) {
-	if backend == nil {
+	if nilValue(backend) {
 		return Info{}, &Error{Code: "invalid_backend", Outcome: NotPublished}
 	}
 	reader, err := file.Open(ctx)
@@ -114,13 +124,25 @@ func SaveUpload(ctx context.Context, backend Backend, name string, file uploads.
 }
 
 func contextError(ctx context.Context) error {
-	if ctx == nil {
+	if nilValue(ctx) {
 		return &Error{Code: "invalid_context", Outcome: NotPublished}
 	}
 	if err := ctx.Err(); err != nil {
 		return &Error{Code: "canceled", Outcome: NotPublished, Cause: err}
 	}
 	return nil
+}
+
+func nilValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
 }
 
 type contextReader struct {
@@ -141,8 +163,16 @@ type fileReaderState struct {
 	mu       sync.Mutex
 	ctx      context.Context
 	reader   io.ReadCloser
+	info     Info
 	closed   bool
 	closeErr error
+}
+
+func (r *fileReader) Info() Info {
+	if r == nil || r.state == nil {
+		return Info{}
+	}
+	return r.state.info
 }
 
 func (r *fileReader) Read(p []byte) (int, error) {

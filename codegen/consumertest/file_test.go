@@ -17,6 +17,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			schema.CharField("title", "Title", 40, schema.Unique()),
 			schema.FileField("file", "File", schema.MaxLength(40), schema.Blank(), schema.Default(""), schema.Unique()),
 			schema.FileField("optional", "Optional", schema.Nullable(), schema.Blank()),
+			schema.CharField("owner", "Owner", 40, schema.Default("alice")),
 		}},
 		{Name: "archive", GoName: "Archive", Fields: []schema.Field{schema.FileField("reference", "Reference")}},
 		{Name: "link", GoName: "Link", Fields: []schema.Field{schema.ForeignKey("document", "DocumentID", schema.Target("file_reference", "document"), schema.RelatedName("links"), schema.Protect)}},
@@ -45,7 +46,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	for _, name := range []string{"consumer_test.go", "formset_test.go"} {
+	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go"} {
 		consumer, err := os.ReadFile("testdata/files/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -57,9 +58,9 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
-	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset"}
+	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
-		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset")
+		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving")
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)

@@ -37,8 +37,20 @@ IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비�
 직렬화하지 않는다. 등록되지 않은 implicit storage, 전역 설정 조회, template에서의 숨은 파일 I/O는 없다. JSON serializer의
 FileField 투영은 명시적인 read-only 저장 이름에 한정한다. JSON 문자열을 upload로 받거나 참조를 URL/다운로드 권한으로 바꾸지 않는다.
 
-[storage 계약](../../storage/README.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다. Alias 등록,
-다른 backend·URL/인가된 serving·ImageField·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+Application별 storage Registry는 이미 초기화한 backend를 빌리고 설정/alias 목록만 snapshot으로 소유한다. Alias는 backend를
+조회하는 설정 key이며 I/O 권한이 아니다. 전역 default·lazy factory·registry의 자원 Close는 없다. URL capability는 별도로 등록하며
+URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Portable 이름을 URI path로 한 번 escape하며 private alias에는 URL이 없다.
+
+인가된 FileResponse는 매 요청 현재 권한과 모델을 조회한 뒤 얻은 저장 이름을 사용한다. 전체 middleware가 성공한 이후에만
+독립 reader를 열고, 동일 handle의 metadata를 사용한다. Stat→Open 경쟁·자동 MIME sniff·디렉터리 공개를 추가하지 않는다.
+기본 attachment/octet-stream/no-store/nosniff를 사용하고 inline은 명시한다. Buffered 응답 한도를 늘려 파일 전체를 메모리에
+올리는 대신 유한 streaming 수명과 별도 byte 한도를 연결한다. Reader는 Application이 한 번 닫으며 HTTP header 뒤 실패는
+전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
+
+[storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
+다른 backend·서명 URL provider·ImageField·파일 choices·Range/conditional 응답과 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
+Alias/URL/FileResponse의 [serving observer](../../conformance/runners/django/storage_serving_reference.py)는 같은 pinned source를 사용한다.
+GoDj의 pure lazy response descriptor·안전한 기본 attachment/MIME·명시적 admission은 Django의 eager file 소유·자동 MIME/inline 기본과 다르다.

@@ -99,3 +99,12 @@ Storage alias·다른 backend·URL/serving은 남아 있으며 일반 여러 행
 Helpdesk Admin 보고서의 인가·고유값·선택 열 저장/audit를 계획에 연결했고, native 13개 관찰과 양 DB의 실제 저장/rollback,
 multipart 파일 게시 뒤 PROTECT rollback·파일 보존, 관련 race·부정 대조를 확인했다. [증거](../docs/status/TEST_EVIDENCE.md)의
 소스별 범위를 따른다. 기존 Ticket editor의 제품 전용 삭제 우선 저장은 그대로이며 일반 계획의 native 순서를 대신하지 않는다.
+
+Storage alias를 application 설정의 불변 capability 등록으로 연결하고 URL 생성과 파일 인가를 구분했다. 유한 Web stream은
+전체 middleware 성공 뒤 독립 reader를 열며 Request/upload 수명을 연장하지 않는다. 모델 ID와 현재 principal을 조회한
+FileResponse 소비자에서 cookie login/CSRF·multipart 게시·DB 저장·권한별 다운로드를 연결했다. Header 후 오류의 전송 중단·
+같은 열린 handle의 metadata·HEAD·정리/종료 수명은 [파일 응답](../web/streaming.md)을 따르고 실제 검증은 TEST_EVIDENCE에 둔다.
+추가 backend·서명 URL provider·Range/conditional과 전체 플랫폼 통합은 계속 별도 범위다.
+
+`6d3fe97f` 이후 동적 inline UI·업로드/storage·모델 파일·일반 여러 행 저장·alias/streaming을 합친 Hosted full을 다음 통합
+milestone으로 정했다. 로컬 전체와 중복하지 않으며 같은 source의 필수 owner·최종 aggregate·새 capture 결합이 완료 근거다.

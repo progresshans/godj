@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +18,7 @@ type Application struct {
 	handler          Handler
 	logger           *slog.Logger
 	maxResponseBytes int64
+	maxStreamBytes   int64
 	middlewareCount  int
 }
 
@@ -31,6 +33,13 @@ func NewApplication(config Config) (*Application, error) {
 	}
 	if maxResponseBytes < 0 {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "max_response_bytes", Detail: "limit must be positive"}
+	}
+	maxStreamBytes := config.MaxStreamBytes
+	if maxStreamBytes == 0 {
+		maxStreamBytes = DefaultMaxStreamBytes
+	}
+	if maxStreamBytes < 0 {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "max_stream_bytes", Detail: "limit must be positive"}
 	}
 	if len(config.Routes) > maximumRoutes {
 		return nil, &Error{Code: CodeInvalidRoute, Field: "routes", Detail: "route count exceeds the application limit"}
@@ -49,6 +58,7 @@ func NewApplication(config Config) (*Application, error) {
 		router:           configuredRouter,
 		logger:           logger,
 		maxResponseBytes: maxResponseBytes,
+		maxStreamBytes:   maxStreamBytes,
 		middlewareCount:  len(config.Middleware),
 	}
 	application.handler, err = applyMiddleware(application.dispatch, append([]Middleware(nil), config.Middleware...))
@@ -76,9 +86,10 @@ func (a *Application) ReverseWith(name string, arguments ...ReverseArgument) (st
 	return a.router.reverse(name, arguments)
 }
 
-// ServeHTTP executes one synchronous, fully buffered request. Errors are
-// logged and replaced by a fixed 500 response before any client bytes are
-// written.
+// ServeHTTP executes the synchronous handler chain, releases the borrowed
+// request, then writes buffered content or opens its finite stream. Handler and
+// pre-header failures produce a fixed 500; a later stream failure aborts the
+// transport so it cannot look like a complete successful body.
 func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Request) {
 	if a == nil || writer == nil || rawRequest == nil {
 		return
@@ -93,13 +104,33 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 	if err == nil {
 		err = response.validate(a.maxResponseBytes)
 	}
+	if err == nil && response.stream != nil {
+		committed, streamErr, closeErr := writeStream(rawRequest.Context(), writer, response, rawRequest.Method == http.MethodHead, a.maxStreamBytes)
+		if closeErr != nil {
+			a.logger.ErrorContext(logContext(rawRequest), "web stream cleanup failed", "route", request.routeName, "error", closeErr)
+		}
+		if streamErr == nil {
+			return
+		}
+		err = streamErr
+		if committed {
+			a.logger.ErrorContext(logContext(rawRequest), "web stream failed", "route", request.routeName, "error", err)
+			panic(http.ErrAbortHandler)
+		}
+		if errors.Is(streamErr, errStoredFileMissing) {
+			response = plainText(http.StatusNotFound, "Not Found\n")
+			response.header.Set("Cache-Control", "no-store")
+			response.header.Set("X-Content-Type-Options", "nosniff")
+			err = nil
+		}
+	}
 	if err != nil {
 		a.logger.ErrorContext(logContext(rawRequest), "web request failed", "method", rawRequest.Method, "route", request.routeName, "error", err)
 		response = plainText(http.StatusInternalServerError, "Internal Server Error\n")
 		response.header.Set("Cache-Control", "no-store")
 		response.header.Set("Referrer-Policy", "no-referrer")
 	}
-	writeResponse(writer, response)
+	writeResponse(writer, response, rawRequest.Method == http.MethodHead)
 }
 
 func (a *Application) execute(request *Request) (response Response, err error) {
@@ -137,16 +168,22 @@ func (a *Application) dispatch(request *Request) (Response, error) {
 	}
 }
 
-func writeResponse(writer http.ResponseWriter, response Response) {
-	header := writer.Header()
-	for name, values := range response.header {
+func copyResponseHeaders(header http.Header, source http.Header) {
+	for name, values := range source {
 		for _, value := range values {
 			header.Add(name, value)
 		}
 	}
+}
+
+func writeResponse(writer http.ResponseWriter, response Response, head bool) {
+	header := writer.Header()
+	copyResponseHeaders(header, response.header)
 	header.Set("Content-Length", strconv.Itoa(len(response.body)))
 	writer.WriteHeader(response.status)
-	_, _ = writer.Write(response.body)
+	if !head {
+		_, _ = writer.Write(response.body)
+	}
 }
 
 func plainText(status int, body string) Response {

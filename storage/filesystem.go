@@ -283,7 +283,7 @@ func (f *Filesystem) Open(ctx context.Context, name string) (io.ReadCloser, erro
 		closeErr := file.Close()
 		return nil, &Error{Code: "not_regular", Cause: errors.Join(err, closeErr)}
 	}
-	return &fileReader{state: &fileReaderState{ctx: ctx, reader: file}}, nil
+	return &fileReader{state: &fileReaderState{ctx: ctx, reader: file, info: Info{name: name, size: info.Size()}}}, nil
 }
 func (f *Filesystem) Delete(ctx context.Context, name string) error {
 	if err := validateName(name); err != nil {

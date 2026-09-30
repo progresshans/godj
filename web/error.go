@@ -16,6 +16,8 @@ const (
 	CodeInvalidRequest      ErrorCode = "invalid_request"
 	CodeInvalidResponse     ErrorCode = "invalid_response"
 	CodeResponseTooLarge    ErrorCode = "response_too_large"
+	CodeBodyNotBuffered     ErrorCode = "body_not_buffered"
+	CodeStreamFailure       ErrorCode = "stream_failure"
 	CodeMiddlewareViolation ErrorCode = "middleware_violation"
 	CodeHandlerFailure      ErrorCode = "handler_failure"
 	CodeServerState         ErrorCode = "server_state"

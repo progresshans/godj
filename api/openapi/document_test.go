@@ -366,7 +366,8 @@ func TestDocumentPreservesTransportPresenceAndBodylessResponses(t *testing.T) {
 		t.Fatalf("500 did not preserve Web's plain-text error representation: %#v", internalError.Content)
 	}
 	response, err := document.Response()
-	if err != nil || response.Status() != http.StatusOK || response.Header().Get("Content-Type") != api.JSONContentType || !bytes.Equal(response.Body(), document.Bytes()) {
+	body, bodyErr := response.Body()
+	if err != nil || bodyErr != nil || response.Status() != http.StatusOK || response.Header().Get("Content-Type") != api.JSONContentType || !bytes.Equal(body, document.Bytes()) {
 		t.Fatalf("document response status=%d headers=%v err=%v", response.Status(), response.Header(), err)
 	}
 }

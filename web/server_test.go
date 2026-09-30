@@ -232,3 +232,72 @@ func waitForValue[T any](t *testing.T, channel <-chan T, description string) T {
 		return zero
 	}
 }
+
+func TestServerDrainsFiniteStreamAfterBorrowedHandlerEnds(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	closed := make(chan struct{}, 1)
+	response, err := web.NewStreamResponse(200, nil, func(ctx context.Context) (web.Stream, error) {
+		reader := &streamProbe{read: func(p []byte) (int, error) {
+			select {
+			case <-release:
+				if ctx.Err() != nil {
+					return 0, ctx.Err()
+				}
+				return 0, io.EOF
+			default:
+			}
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			select {
+			case <-release:
+				return copy(p, []byte("drained")), io.EOF
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			}
+		}, close: func() error { closed <- struct{}{}; return nil }}
+		return web.Stream{Reader: reader, Size: 7}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	application := newTestApplication(t, web.Config{Routes: []web.Route{{Name: "articles:stream", Method: "GET", Path: "/", Handler: func(*web.Request) (web.Response, error) { return response, nil }}}})
+	server, err := web.NewServer(application, web.ServerOptions{ShutdownTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener := observeClose(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() { result <- server.Serve(ctx, listener) }()
+	clientResult := make(chan httpResult, 1)
+	go func() {
+		response, err := http.Get("http://" + listener.Addr().String() + "/")
+		if err != nil {
+			clientResult <- httpResult{err: err}
+			return
+		}
+		defer response.Body.Close()
+		body, err := io.ReadAll(response.Body)
+		clientResult <- httpResult{status: response.StatusCode, body: string(body), err: err}
+	}()
+	waitFor(t, entered, "stream reader entry")
+	cancel()
+	waitFor(t, listener.closed, "listener close while streaming")
+	select {
+	case err := <-result:
+		t.Fatal("server returned before stream drained", err)
+	default:
+	}
+	close(release)
+	if client := waitForValue(t, clientResult, "stream client"); client.err != nil || client.status != 200 || client.body != "drained" {
+		t.Fatal("stream used canceled serve context", client)
+	}
+	waitFor(t, closed, "stream close")
+	if err := waitForValue(t, result, "drained server"); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -31,6 +31,28 @@ caller가 소유한다. 읽기 취소는 다음 Read에서 검사하고 외부 r
 진행 중인 연산이 끝날 때까지 기다리고 이후 새 연산을 거부한다. Delete는 없는 파일에 대해 성공하며 디렉터리와 마지막 symlink를
 파일로 삭제하지 않는다. Open/Stat의 없는 파일은 `errors.Is(err, fs.ErrNotExist)`로 검사한다.
 
+로컬 reader는 선택적 `storage.Reader`도 구현한다. `Info()`는 동일하게 열린 handle에서 확인한 이름/크기의 불변 snapshot이며
+뒤에 같은 이름의 파일이 교체되거나 backend가 닫혀도 바뀌지 않는다. 임의 backend가 이 인터페이스를 구현하지 않으면 HTTP는
+길이 미상으로 전송한다. 별도 Stat 결과를 다음 Open의 metadata로 취급하지 않는다.
+
+## 별칭과 URL
+
+`NewRegistry(Registration{Alias: "documents", Backend: files})`는 이미 연 backend를 빌리는 application별 불변 등록이다.
+`Settings.Definition.Storages`에 전달하고 `request.Settings().Storages().Lookup("documents")`로 조회한다. `Default()`는
+명시적으로 등록한 `"default"`만 찾으며 전역 fallback·lazy 생성·암묵적인 파일 open은 없다. Registry가 backend를 닫지 않는다.
+같은 backend를 여러 alias에 등록할 수 있고 각 alias의 URL capability는 독립이다. Alias는 대소문자를 구분하는 1..64 ASCII
+문자(영숫자·`_`·`.`·`-`, 단독 `.`/`..` 제외)이며 입력 등록과 Aliases getter의 slice를 공유하지 않는다.
+
+URL은 선택적 `Registration.URL`로만 제공한다. `NewURLPrefix("https://cdn.example.test/media/")` 또는 root-relative prefix는
+portable 저장 이름을 한 번 escape해 붙이며 기존 파일 조회/읽기·route 등록을 하지 않는다. 설정 없는 alias의 `URL`은
+`url_unavailable`이다. Scheme-relative·userinfo·fragment·control·backslash와 잘못된 URL은 거부하며 prefix의 query는 허용하지
+않는다. 서명 URL 등의 별도 resolver는 유효한 query를 포함할 수 있지만 생성 전 인가와 유효기간·provider 동작은 caller가 소유한다.
+URL 자체가 credential일 수 있으므로 사용자에게 주기 전에 admission을 확인하고 로그에 남기지 않는다.
+
+고정 Django StorageHandler의 같은 alias 재사용·없는 alias 오류와 URL의 경로 escaping을 대조한다. GoDj는 이미 초기화한
+capability를 등록하므로 Django의 lazy factory/cache를 복제하지 않는다. Django가 받아들이는 빈 이름·상위/절대/역슬래시 이름은
+GoDj의 portable 이름 계약에서 거부한다. [독립 관찰](../conformance/runners/django/storage_serving_reference.py)에 이 차이를 남긴다.
+
 ## HTTP 업로드 소비
 
 ```go
@@ -55,9 +77,10 @@ name := info.Name()
 
 고정 Django 6.1의 FileSystemStorage 기본 no-overwrite, 이름 충돌/compound suffix/Unicode 길이, 내용·빈 파일·없는 파일 삭제를
 독립 실행과 대조한다. [reference observer](../conformance/runners/django/storage_reference.py)의 출처는 upstream BSD-3-Clause다.
-GoDj는 portable 이름 제한, bounded 시도/입력, 게시 전 완성, 불확실한 결과를 명시한다. Django의 선택적 overwrite·절대 Path/URL
+GoDj는 portable 이름 제한, bounded 시도/입력, 게시 전 완성, 불확실한 결과를 명시한다. Django의 선택적 overwrite·절대 Path
 편의 API를 구현했다고 주장하지 않는다. root confinement을 보장하지 못하는 js/plan9는 명시적으로 거부한다.
 
 [모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는 IR/생성/ORM/Form의 참조와 명시적 `SaveFiles`를 연결한다.
-Storage alias 등록, 다른 backend·URL/인증된 serving과 자동 파일 회수는 후속 범위다. 파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
+별칭과 URL, [인가된 파일 응답](../web/streaming.md)을 연결했다. 추가 backend·서명 URL provider·자동 파일 회수는 후속 범위다.
+파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.

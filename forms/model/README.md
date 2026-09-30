@@ -233,7 +233,7 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 `InlineSpec.EmptyForm(parent)`는 validator나 I/O 없이 서버 부모·기본값과 `__prefix__`를 가진 빈 행을 만든다. 자식 PK와 기존
 입력값은 포함하지 않는다. [Admin inline](../../admin/inlines.md)은 이를 비활성 prototype으로 렌더링하고 권한·개수 범위에서
 브라우저의 미저장 행 추가/제거에 사용한다. 파일의 multipart 수신·Form/Formset 바인딩과 Admin 파일 widget/전송을 연결했다.
-일반 여러 행 저장과 모델 파일 게시도 아래와 같은 `PreparedSet.SaveFiles`·`SavePlan`으로 연결한다. Storage alias·URL/인가된 serving·추가 backend는 별도 미완료 범위다.
+일반 여러 행 저장과 모델 파일 게시도 아래와 같은 `PreparedSet.SaveFiles`·`SavePlan`으로 연결한다. [Storage alias/URL](../../storage/README.md)과 [인가된 serving](../../web/streaming.md)을 명시적으로 연결하며 추가 backend는 미완료 범위다.
 
 ## 생성 모델의 typed 준비
 

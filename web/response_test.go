@@ -19,12 +19,12 @@ func TestResponseSnapshotsHeadersAndBody(t *testing.T) {
 	if got := response.Header().Get("X-Test"); got != "before" {
 		t.Fatalf("Header() = %q", got)
 	}
-	if got := string(response.Body()); got != "body" {
+	if got := string(requireBufferedBody(t, response)); got != "body" {
 		t.Fatalf("Body() = %q", got)
 	}
-	returned := response.Body()
+	returned := requireBufferedBody(t, response)
 	returned[0] = 'B'
-	if got := string(response.Body()); got != "body" {
+	if got := string(requireBufferedBody(t, response)); got != "body" {
 		t.Fatalf("Body() after returned mutation = %q", got)
 	}
 }
@@ -59,11 +59,11 @@ func TestResponseWithHeadersPreservesBodyAndRoutingOrigin(t *testing.T) {
 	}
 	header["X-New"][0] = "mutated"
 	derived.Header().Set("X-New", "also mutated")
-	derived.Body()[0] = 'B'
-	if derived.Status() != http.StatusCreated || derived.Header().Get("X-New") != "new" || derived.Header().Get("X-Old") != "" || string(derived.Body()) != "body" {
+	requireBufferedBody(t, derived)[0] = 'B'
+	if derived.Status() != http.StatusCreated || derived.Header().Get("X-New") != "new" || derived.Header().Get("X-Old") != "" || string(requireBufferedBody(t, derived)) != "body" {
 		t.Fatal("derived response did not retain its immutable snapshot")
 	}
-	if original.Header().Get("X-Old") != "old" || original.Header().Get("X-New") != "" || string(original.Body()) != "body" {
+	if original.Header().Get("X-Old") != "old" || original.Header().Get("X-New") != "" || string(requireBufferedBody(t, original)) != "body" {
 		t.Fatal("original response changed")
 	}
 	if _, err := original.WithHeaders(http.Header{"X-Bad": {"line\r\nbreak"}}); err == nil {
@@ -92,4 +92,13 @@ func TestResponseWithHeadersPreservesBodyAndRoutingOrigin(t *testing.T) {
 	if got := serve(application, http.MethodGet, "/missing/"); got.Code != http.StatusNotFound || got.Header().Get("X-Trace") != "checked" {
 		t.Fatalf("derived router response = %d", got.Code)
 	}
+}
+
+func requireBufferedBody(t *testing.T, response web.Response) []byte {
+	t.Helper()
+	body, err := response.Body()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
 }

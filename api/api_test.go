@@ -118,7 +118,7 @@ func TestErrorResponseIsOrderedSecretFreeAndMachineReadable(t *testing.T) {
 		t.Fatalf("response = %d %#v", response.Status(), response.Header())
 	}
 	want := `{"code":"validation_error","errors":[{"field":"title","code":"max_length","params":[{"key":"max_length","value":"200"}]}]}`
-	if got := string(response.Body()); got != want {
+	if got := string(requireBufferedBody(t, response)); got != want {
 		t.Fatalf("body = %s, want %s", got, want)
 	}
 	if _, err := api.ErrorResponse(http.StatusOK, api.CodeValidationError, diagnostics); !errors.Is(err, &api.Error{Code: api.FailureInvalidResponse}) {
@@ -149,14 +149,14 @@ func TestPageUsesRelativeLinksStableFieldOrderAndObjectResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `{"count":3,"next":"/api/articles/?page=2&ordering=-id","previous":null,"results":[{"id":1,"title":"Go"}]}`
-	if got := string(response.Body()); got != want {
+	if got := string(requireBufferedBody(t, response)); got != want {
 		t.Fatalf("body = %s, want %s", got, want)
 	}
-	body := response.Body()
+	body := requireBufferedBody(t, response)
 	body[0] = '!'
 	again, err := page.Response()
-	if err != nil || string(again.Body()) != want {
-		t.Fatalf("repeated page response changed: %s, %v", again.Body(), err)
+	if err != nil || string(requireBufferedBody(t, again)) != want {
+		t.Fatalf("repeated page response changed: %s, %v", requireBufferedBody(t, again), err)
 	}
 	for _, invalid := range []string{
 		"", "//evil.test/a", "https://evil.test/a", "/a\\b", "/a#fragment", "/a\n",
@@ -308,8 +308,8 @@ func TestNoContentHasEmptyBodyAndNoRepresentationHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Status() != http.StatusNoContent || len(response.Body()) != 0 || response.Header().Get("Content-Type") != "" {
-		t.Fatalf("response = %d %#v %q", response.Status(), response.Header(), response.Body())
+	if response.Status() != http.StatusNoContent || len(requireBufferedBody(t, response)) != 0 || response.Header().Get("Content-Type") != "" {
+		t.Fatalf("response = %d %#v %q", response.Status(), response.Header(), requireBufferedBody(t, response))
 	}
 }
 
@@ -333,8 +333,8 @@ func TestRequestErrorResponseMapsOnlyExpectedClientFailures(t *testing.T) {
 		if !mapped {
 			continue
 		}
-		if response.Status() != test.status || !strings.Contains(string(response.Body()), `"code":"`+string(test.code)+`"`) {
-			t.Fatalf("response = %d %s", response.Status(), response.Body())
+		if response.Status() != test.status || !strings.Contains(string(requireBufferedBody(t, response)), `"code":"`+string(test.code)+`"`) {
+			t.Fatalf("response = %d %s", response.Status(), requireBufferedBody(t, response))
 		}
 	}
 }
@@ -375,3 +375,12 @@ func (failingBody) Read([]byte) (int, error) { return 0, errForcedRead }
 func (failingBody) Close() error             { return nil }
 
 var _ io.ReadCloser = failingBody{}
+
+func requireBufferedBody(t *testing.T, response web.Response) []byte {
+	t.Helper()
+	body, err := response.Body()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
+}

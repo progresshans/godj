@@ -12,10 +12,12 @@ import (
 )
 
 const DefaultMaxResponseBytes int64 = 1 << 20
+const DefaultMaxStreamBytes int64 = 32 << 20
 
-// Handler synchronously handles one borrowed request and returns one fully
-// buffered response. The request and its raw HTTP request must not be retained
-// after Handler returns.
+// Handler synchronously handles one borrowed request and returns a buffered or
+// streaming response description. The request and its raw HTTP request must
+// not be retained after the middleware chain returns. A streaming opener gets
+// the transport context separately, never a live borrowed Request.
 type Handler func(*Request) (Response, error)
 
 // Middleware wraps a synchronous Handler. The first declared middleware is
@@ -73,4 +75,5 @@ type Config struct {
 	Middleware       []Middleware
 	Logger           *slog.Logger
 	MaxResponseBytes int64
+	MaxStreamBytes   int64
 }

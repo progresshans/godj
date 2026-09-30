@@ -5,11 +5,14 @@ import (
 	"strings"
 )
 
-// Response is an immutable, fully buffered HTTP response.
+// Response is an immutable HTTP response description. A streaming description
+// opens a fresh owned reader only after the complete handler/middleware chain
+// succeeds. Its opaque opener must be safe for the response's intended reuse.
 type Response struct {
 	status       int
 	header       http.Header
 	body         []byte
+	stream       *streamSpec
 	valid        bool
 	routingError ErrorCode
 }
@@ -41,6 +44,11 @@ func (r Response) WithHeaders(header http.Header) (Response, error) {
 	}
 	if err := validateResponseHeaders(header); err != nil {
 		return Response{}, err
+	}
+	if r.stream != nil {
+		if err := validateStreamHeaders(header); err != nil {
+			return Response{}, err
+		}
 	}
 	r.header = header.Clone()
 	return r, nil
@@ -81,10 +89,19 @@ func (r Response) Header() http.Header {
 	return r.header.Clone()
 }
 
-// Body returns an independent body copy.
-func (r Response) Body() []byte {
-	return append([]byte(nil), r.body...)
+// Body returns an independent buffered body. Streaming content cannot be read
+// through this accessor: it would perform I/O and consume an owned resource.
+func (r Response) Body() ([]byte, error) {
+	if !r.valid {
+		return nil, &Error{Code: CodeInvalidResponse, Detail: "response is zero or invalid"}
+	}
+	if r.stream != nil {
+		return nil, &Error{Code: CodeBodyNotBuffered, Field: "body", Detail: "streaming response has no buffered body"}
+	}
+	return append([]byte(nil), r.body...), nil
 }
+
+func (r Response) Streaming() bool { return r.stream != nil }
 
 // RoutingError reports a response produced directly by the Web router before
 // an application handler ran. NewResponse cannot forge this origin marker;
