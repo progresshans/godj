@@ -99,13 +99,23 @@ if verified {
 }
 ```
 
-정적 PNG·JPEG·WebP·Windows BMP/DIB, GIF의 모든 프레임과 classic TIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
-PNG/WebP의 container와 애니메이션 표식을 검사하며 APNG·애니메이션 WebP·BigTIFF·TIFF SubIFD와 지원하지 않는 codec
+PNG/APNG·정적 JPEG·WebP·Windows BMP/DIB, GIF의 모든 프레임과 classic TIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
+PNG/WebP의 container와 애니메이션 표식을 검사하며 애니메이션 WebP·BigTIFF·TIFF SubIFD와 지원하지 않는 codec
 특성은 명시적으로 거부한다. 표준 decoder의 전역 등록 목록에 따라 허용 형식이 바뀌지 않는다. 잘린 내용·손상은 `invalid_image`,
 파일/픽셀/프레임 한도는 `image_bytes`/`image_pixels`/`image_frames` 진단이다. 내용 검증 뒤 확장자를 검사하며 허용 목록은
-`.png`, `.jpg`, `.jpeg`, `.jpe`, `.gif`, `.webp`, `.bmp`, `.dib`, `.tif`, `.tiff`(대소문자 무관)다. 검증된 PNG의
+`.png`, `.apng`, `.jpg`, `.jpeg`, `.jpe`, `.gif`, `.webp`, `.bmp`, `.dib`, `.tif`, `.tiff`(대소문자 무관)다. 검증된 PNG의
 이름이 `.jpg`인 경우처럼 허용 확장자와 실제 format이 달라도 허용하지만 `ImageInfo.ContentType()`은 실제 내용에서 얻는다.
 클라이언트가 보낸 `uploads.File.ContentType()`은 계속 신뢰하지 않은 원래 선언이다.
+
+APNG는 IEND까지의 chunk CRC·공유 sequence·선언/실제 frame 수·canvas 안의 frame 영역과 disposal/blend 값을 먼저 검사한다.
+별도 기본 이미지와 모든 animation frame의 pixels를 디코딩한다. `Width()`/`Height()`는 canvas 치수이며 `Frames()`는
+기본 이미지가 애니메이션에 포함되지 않아도 그 이미지 한 개를 합산한다. 단일 프레임 APNG도 허용한다. 고정 Django ImageField와
+같이 `FormatName()`은 `png`, `ContentType()`은 `image/png`다. `.apng` 확장자가 별도 MIME이나 추가 쓰기 권한을 만들지 않는다.
+
+각 frame은 PNG의 bit depth·color type·Adam7·palette/transparency를 상속한다. 고정 header와 데이터 chunk view만 구성하고
+원문이나 전체 canvas를 매번 복사하지 않는다. 입력에 있는 빈/분할 data chunk와 frame data 사이의 ancillary chunk도 처리한다.
+알 수 없는 critical chunk는 `unsupported_image`이며 손상된 후속 frame을 기본 이미지의 성공으로 대체하지 않는다. 검사는 표시
+시간을 기다리거나 반복 재생·화면용 합성·재인코딩을 하지 않고, 반환값에 pixels를 보관하지 않는다.
 
 BMP/DIB는 40·108·124-byte Windows header와 고정 Go decoder가 지원하는 palette/RGB/alpha 표현을 사용한다. BMP 16-bit,
 RLE·다른 header/mask 등 지원하지 않는 특성은 `unsupported_image`다. DIB는 검사 중에만 14-byte BMP header를 앞에 붙여
@@ -124,12 +134,13 @@ Strip/tile 개수와 각 데이터 범위를 확인하고 첫 8-byte header를 p
 | --- | --- | --- |
 | 입력 bytes와 TIFF 블록 참조 bytes 각각 | 16 MiB | 64 MiB |
 | 폭·높이 각각 | 16,384 | 65,535 |
-| 단일 raster/frame 픽셀 | 8,388,608 | 33,554,432 |
-| GIF frame / TIFF page 수 | 128 | 1,024 |
+| 단일 raster/frame/canvas 픽셀 | 8,388,608 | 33,554,432 |
+| GIF/APNG frame / TIFF page 수 | 128 | 1,024 |
 | 전체 frame/page 픽셀 합 | 33,554,432 | 67,108,864 |
 
-0인 항목은 기본값을 적용하고 음수/설정 상한 초과는 시작 시 거부한다. Header 크기와 GIF의 모든 frame descriptor·TIFF의
-모든 페이지를 실제 pixel 할당 전에 제한한다. TIFF의 개별/합산 픽셀 예산에는 tile padding도 포함한다. 표시 영역이 3×2여도
+0인 항목은 기본값을 적용하고 음수/설정 상한 초과는 시작 시 거부한다. Header 크기와 GIF/APNG의 모든 frame descriptor·TIFF의
+모든 페이지를 실제 pixel 할당 전에 제한한다. APNG 합계는 기본 이미지와 각 후속 frame 영역의 pixel 수다. 예를 들어
+3×2 기본 이미지와 2×1 후속 frame은 합계 8픽셀이다. TIFF의 개별/합산 픽셀 예산에는 tile padding도 포함한다. 표시 영역이 3×2여도
 16×16 tile이면 256픽셀로 센다. 한도는 검사 하나의 입력·raster 예산이며 전체 heap의 정확한 byte 한도가 아니다. 동시 요청 수와
 Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 제한한다. 취소는 읽기/단계 경계에서 전달하며 decoder의
 한 pixel 계산 도중 강제 중단하는 goroutine을 만들지 않는다. 검사 결과에는 pixels나 복사한 원문 buffer를 보관하지 않는다.
@@ -146,6 +157,8 @@ Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 
 GIF 후속 frame은 GoDj가 전체 frame을 디코딩해 거부한다. [관찰](../forms/testdata/image-django61.json)의 차이를 별도로 검증한다.
 잘린 BMP/DIB·TIFF와 손상된 후속 TIFF 페이지도 내용 오류다. Django 폼의 첫 페이지 검증 성공과 이후 페이지 열거 실패를
 [추가 codec 관찰](testdata/image-codecs-django61.json)에 구분한다.
+[APNG 관찰](testdata/apng-django61.json)은 폼 검증과 별도의 전체 frame 열기를 구분한다. 폼이 허용하는 순서/개수/CRC와
+pixel 손상도 GoDj는 거부한다. 고정 Pillow의 frame player가 일부 Adam7/ancillary 배치에서 실패하는 결과도 별도로 보존한다.
 
 모델 폼의 ExtraFields/파일 명령과 `schema.ImageField`는 같은 검사기를 사용한다. 모델 이미지의 IR·크기 참조·생성 descriptor·
 migration·typed 저장은 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)를 따른다. 일반 FileField의 입력 종류만

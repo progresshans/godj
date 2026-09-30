@@ -13,14 +13,20 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func TestBitmapAndTIFFFormAndSetExtensionAndFailureSemantics(t *testing.T) {
-	var reference struct{ Payloads map[string]string }
-	raw, err := os.ReadFile("../uploads/testdata/image-codecs-django61.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(raw, &reference); err != nil {
-		t.Fatal(err)
+func TestImageCodecFormAndSetExtensionAndFailureSemantics(t *testing.T) {
+	payloads := map[string]string{}
+	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}} {
+		var reference struct{ Payloads map[string]string }
+		raw, err := os.ReadFile("../uploads/testdata/" + source.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &reference); err != nil {
+			t.Fatal(err)
+		}
+		for name, value := range reference.Payloads {
+			payloads[source.prefix+name] = value
+		}
 	}
 	for _, test := range []struct {
 		payload, name, format, mime, code string
@@ -37,9 +43,20 @@ func TestBitmapAndTIFFFormAndSetExtensionAndFailureSemantics(t *testing.T) {
 		{"tiff_pages", "photo.tif", "", "", "image_frames", 0, 0, uploads.ImageLimits{MaxFrames: 1}},
 		{"tiff_late_truncated", "photo.txt", "", "", "invalid_image", 0, 0, uploads.ImageLimits{}},
 		{"dib_truncated", "photo.dib", "", "", "invalid_image", 0, 0, uploads.ImageLimits{}},
+		{"apng_poster", "photo.APNG", "png", "image/png", "", 3, 1, uploads.ImageLimits{}},
+		{"apng_subrect", "photo.PNG", "png", "image/png", "", 2, 1, uploads.ImageLimits{}},
+		{"apng_palette4", "photo.apng", "png", "image/png", "", 2, 1, uploads.ImageLimits{}},
+		{"apng_adam7", "photo.apng", "png", "image/png", "", 2, 1, uploads.ImageLimits{}},
+		{"apng_single", "photo.png", "png", "image/png", "", 1, 1, uploads.ImageLimits{}},
+		{"apng_rgba", "photo.txt", "png", "image/png", "invalid_extension", 2, 1, uploads.ImageLimits{}},
+		{"apng_late_pixel_error", "photo.txt", "", "", "invalid_image", 0, 0, uploads.ImageLimits{}},
+		{"apng_poster", "photo.apng", "", "", "image_frames", 0, 0, uploads.ImageLimits{MaxFrames: 2}},
+		{"apng_subrect", "photo.apng", "", "", "image_pixels", 0, 0, uploads.ImageLimits{MaxTotalPixels: 7}},
+		{"apng_rgba_static", "photo.apng", "png", "image/png", "", 1, 1, uploads.ImageLimits{}},
+		{"tiff_raw", "photo.apng", "tiff", "image/tiff", "", 1, 1, uploads.ImageLimits{}},
 	} {
 		t.Run(test.payload+"/"+test.name+"/"+test.code, func(t *testing.T) {
-			content, err := base64.StdEncoding.DecodeString(reference.Payloads[test.payload])
+			content, err := base64.StdEncoding.DecodeString(payloads[test.payload])
 			if err != nil || len(content) == 0 {
 				t.Fatal(err)
 			}

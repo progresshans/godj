@@ -9,7 +9,6 @@ import (
 	"image"
 	"image/gif"
 	"image/jpeg"
-	"image/png"
 	"io"
 	"reflect"
 
@@ -82,9 +81,9 @@ func (info ImageInfo) ContentType() string {
 func (ImageInfo) Format(state fmt.State, _ rune) { fmt.Fprint(state, "uploads.ImageInfo{redacted}") }
 
 // InspectImage opens and closes its own upload reader, leaving every other
-// reader's cursor unchanged. It decodes static PNG/JPEG/BMP/DIB/WebP, all GIF
-// frames, or every page in a classic TIFF's main directory chain. APNG,
-// animated WebP, BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
+// reader's cursor unchanged. It decodes PNG/APNG, static JPEG/BMP/DIB/WebP,
+// all GIF frames, or every page in a classic TIFF's main directory chain.
+// Animated WebP, BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
 // Content errors use invalid_image, unsupported_image, image_bytes,
 // image_pixels, or image_frames; I/O, lifetime and cancellation errors remain
 // operational errors. No decoded pixels or encoded copies escape this call.
@@ -237,7 +236,7 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 	format := ""
 	switch {
 	case bytes.HasPrefix(content, []byte("\x89PNG\r\n\x1a\n")):
-		format, config, decode = "png", png.DecodeConfig, png.Decode
+		return inspectPNGImage(ctx, content, limits)
 	case bytes.HasPrefix(content, []byte("\xff\xd8")):
 		format, config, decode = "jpeg", jpeg.DecodeConfig, jpeg.Decode
 	case bytes.HasPrefix(content, []byte("GIF87a")) || bytes.HasPrefix(content, []byte("GIF89a")):
@@ -279,11 +278,6 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 	if !limits.dimensions(metadata.Width, metadata.Height) || int64(metadata.Width)*int64(metadata.Height) > limits.MaxTotalPixels {
 		return ImageInfo{}, &Error{Code: "image_pixels"}
 	}
-	if format == "png" {
-		if err := pngContainer(ctx, content); err != nil {
-			return ImageInfo{}, err
-		}
-	}
 	info := ImageInfo{format, metadata.Width, metadata.Height, 1}
 	if format == "gif" {
 		// DecodeAll allocates every frame. Count and bound each descriptor
@@ -312,29 +306,6 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 		return ImageInfo{}, err
 	}
 	return info, nil
-}
-
-func pngContainer(ctx context.Context, content []byte) error {
-	for offset := 8; offset < len(content); {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if len(content)-offset < 12 {
-			return &Error{Code: "invalid_image"}
-		}
-		length := uint64(binary.BigEndian.Uint32(content[offset:]))
-		if length > uint64(len(content)-offset-12) {
-			return &Error{Code: "invalid_image"}
-		}
-		switch string(content[offset+4 : offset+8]) {
-		case "acTL", "fcTL", "fdAT":
-			return &Error{Code: "unsupported_image"}
-		case "IEND":
-			return nil
-		}
-		offset += int(length) + 12
-	}
-	return &Error{Code: "invalid_image"}
 }
 
 // The decoder returns after the first image chunk. Validate the outer framing

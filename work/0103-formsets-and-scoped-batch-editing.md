@@ -41,6 +41,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 모델 ImageField의 IR·폭/높이 소유권·생성/migration·Form/Admin·양 DB와 관련 race
 - [x] 저장된 이미지의 명시적 검사/typed 크기 갱신·양 DB 저장/rollback과 관련 race
 - [x] BMP/DIB·classic TIFF 전체 페이지/예산·Form/Admin·양 DB 저장/재검사와 관련 race
+- [x] APNG의 별도 기본 이미지·모든 frame/예산·Form/Admin·양 DB 저장/재검사와 관련 race
 - [ ] 나머지 codec 특성/storage backend와 남은 파일 의미
 - [x] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합: source `4793382d`
 
@@ -157,3 +158,9 @@ TEST_EVIDENCE, 장기 의미와 차이는 ADR-0082, 사용법은 모델 Form 문
 전체 내용을 디코딩한다. 같은 업로드를
 Form/Admin·생성 모델/양 DB 저장과 명시적 재검사에 연결했으며 실행 상세는 TEST_EVIDENCE에 둔다. 나머지 codec 특성·provider와
 전체 기능 카탈로그는 계속 미완료다.
+
+APNG를 같은 이미지 검사/저장 경계에 연결했다. 기본 이미지의 animation 참여 여부와 모든 frame의 순서·CRC·영역·개수 및
+합산 예산을 확인한 뒤 각 raster를 디코딩한다. 기존 PNG의 metadata와 원문을 보존하며 `.apng` 입력을 Formset/Admin·생성
+모델 저장과 명시적 재검사에 연결했다. 고정 native는 폼 결과·별도 frame player 결과를 구분한다. 영향 normal/race·양 DB/양
+backend·fuzz와 원본 선택 실행이 통과하는 부정 대조를 확인했다. Hosted full `4793382d` 이후의 별도 영향 범위이며 남은
+애니메이션 WebP·codec/provider와 전체 카탈로그의 완료를 뜻하지 않는다.

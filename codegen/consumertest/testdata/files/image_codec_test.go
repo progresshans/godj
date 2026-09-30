@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"example.com/godj-files/models"
@@ -20,9 +21,12 @@ import (
 //go:embed image-codec-reference.json
 var nativeImageCodecs []byte
 
+//go:embed apng-reference.json
+var nativeAPNG []byte
+
 func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend, label string, spec forms.Spec) {
 	t.Helper()
-	var reference struct {
+	type observation struct {
 		Django, Python, Pillow string
 		Payloads               map[string]string
 		Cases                  []struct {
@@ -35,11 +39,25 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 			}
 		}
 	}
-	if err := json.Unmarshal(nativeImageCodecs, &reference); err != nil {
-		t.Fatal(err)
-	}
-	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Pillow != "12.3.0" {
-		t.Fatal("wrong native codec version")
+	reference := observation{Payloads: map[string]string{}}
+	for _, source := range []struct {
+		data   []byte
+		prefix string
+	}{{nativeImageCodecs, ""}, {nativeAPNG, "apng_"}} {
+		var part observation
+		if err := json.Unmarshal(source.data, &part); err != nil {
+			t.Fatal(err)
+		}
+		if part.Django != "6.1" || part.Python != "3.14.3" || part.Pillow != "12.3.0" {
+			t.Fatal("wrong native codec version")
+		}
+		for name, value := range part.Payloads {
+			reference.Payloads[source.prefix+name] = value
+		}
+		for _, item := range part.Cases {
+			item.Name = source.prefix + item.Name
+			reference.Cases = append(reference.Cases, item)
+		}
 	}
 	payload := func(name string) []byte {
 		t.Helper()
@@ -49,7 +67,7 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 		}
 		return content
 	}
-	selected := map[string]bool{"bmp_palette": true, "dib_rgb": true, "tiff_pages": true, "tiff_bigendian16": true, "tiff_tile": true}
+	selected := map[string]bool{"bmp_palette": true, "dib_rgb": true, "tiff_pages": true, "tiff_bigendian16": true, "tiff_tile": true, "apng_rgba": true, "apng_poster": true, "apng_palette4": true, "apng_adam7": true}
 	for _, observed := range reference.Cases {
 		if !selected[observed.Name] {
 			continue
@@ -111,13 +129,17 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 			if readErr != nil || closeErr != nil || !bytes.Equal(got, content) {
 				t.Fatal("codec storage/refresh rewrote source bytes", readErr, closeErr)
 			}
-			broken, err := uploads.NewFile("broken.tiff", "image/tiff", payload("tiff_late_truncated"))
+			brokenPayload, brokenName := "tiff_late_truncated", "broken.tiff"
+			if strings.HasPrefix(observed.Name, "apng_") {
+				brokenPayload, brokenName = "apng_late_pixel_error", "broken.apng"
+			}
+			broken, err := uploads.NewFile(brokenName, "application/x-untrusted", payload(brokenPayload))
 			if err != nil {
 				t.Fatal(err)
 			}
 			rejected, err := formmodel.BindInstance(ctx, models.PhotographObjects, spec, forms.NewDataWithFiles(map[string][]string{"title": {title}}, map[string][]uploads.File{"photo": {broken}}), &rows[0], formmodel.PostClean{})
 			if err != nil || rejected.BoundForm().Form().Valid() {
-				t.Fatal("bad later TIFF page became a valid model", err)
+				t.Fatal("bad later image frame became a valid model", err)
 			}
 			if _, err := rejected.Prepare(); err == nil {
 				t.Fatal("bad later page reached typed publication")

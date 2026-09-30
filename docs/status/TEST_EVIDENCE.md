@@ -5,6 +5,52 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### APNG의 기본 이미지와 전체 frame 검사
+
+2026-09-30, 기반 `a3a68cd6bd6f2acade0dc09d8a1b16d0d365ff14` 이후 PNG 3/APNG의 chunk CRC·sequence·frame 개수/영역과
+default image를 같은 업로드/저장 이미지 검사에 연결했다. 최종 비Markdown code/config inventory는
+`0b9dddea298723842f2e0e3c1a2742cd7dd72583d000f99fa02ce29b08ac7997` (2,810 files)다. 아래 normal/race/fuzz의 전후
+source가 일치하며 이후에는 문서만 정리했다. 기존 완료한 Hosted full의 source와 구분한다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; uploads·storage·storage/model·forms·forms/model·admin·web 7 packages / 367 roots / 2,923 PASS / 3.407초 |
+| 실제 생성 소비자 normal | FileConsumer parent 1 PASS / 9.125초; SQLite/PostgreSQL × filesystem/memory × 9 codec 사례의 필수 36개, APNG 4개 형식의 새 16개 조합 포함 |
+| 관련 race | uploads·storage·storage/model·forms·admin 5 packages / 38 roots / 353 PASS / 4.274초 |
+| 실제 생성 소비자 race | 부모와 생성 child 모두 race, 같은 양 DB/양 backend의 필수 흐름 / parent 1 PASS / 13.256초 |
+| Fuzz | `FuzzInspectImage`, 기존 corpus와 새 APNG seed 319개 baseline, 4 workers·20초 요청 / 652,132회 / Go test 21.680초·명령 전체 24.467초 / PASS |
+| 부정 대조 | 전체 frame decode·control/data sequence·원문 CRC·합산/default pixel·frame 영역·선언 개수·reader/CRC 취소·fdAT view의 11개 overlay를 지정 runtime assertion으로 검출; 각 원본을 같은 선택자로 먼저 PASS 확인 |
+
+필수 실행의 완료와 전체 Go JSON을 확인했으며 누락·skip·잘린 출력은 없다. 각 normal/race는 별도 PostgreSQL 17.10 Debian
+container, UTF8/libc/C/C와 독립 port/database를 사용했다. 종료 뒤 schema·public table·다른 session `0|0|0`, DB/container
+제거를 확인했다. 기본 Go build cache를 유지하고 test-result cache는 끈다.
+
+기존 실제 생성 Photograph의 APNG RGBA·별도 기본 이미지·palette·Adam7 입력을 준비/게시·typed 저장·DB 재개방과 저장 이미지
+크기 재검사에 연결했다. Canvas 크기 3×2·기본 이미지 포함 frame 수·저장 이름·원문을 보존하고, 손상된 후속 frame은 typed
+준비에서 거부한다. 기존 파일/이미지·Formset·현재 권한을 확인한 Range/conditional·DB rollback 회귀도 같은 소비자로 실행했다.
+Admin은 생성/명령 × 양 backend × 기존 4형식과 APNG/별도 기본 이미지의 24개 조합에서 로그인/CSRF·multipart·입력 오류/
+재선택·후속 pixels/sequence 거부·쓰기 callback·임시 파일 정리·원문 게시를 확인했다. Formset의 확장자 대소문자와 `.apng`,
+실제 format과 허용 확장자의 불일치·내용 우선 오류·validator 횟수·default frame/합산 pixel 한도를 검증했다. 새 화면이나
+재생 기능을 추가하지 않았으며 새 브라우저 시각 검증은 실행하지 않았다.
+
+Native는 고정 Django 6.1 / CPython 3.14.3 / Pillow 12.3.0에서 [APNG observer](../../conformance/runners/django/apng_reference.py)를
+두 번 실행하고 저장 fixture와 byte 일치를 확인했다. 49개 중 폼 결과가 같은 26개(유효 22개·거부 4개), GoDj가 더 엄격히
+거부하는 23개를 구분한다. 유효 22개 중 ancillary chunk가 frame data 사이에 있는 경우와 후속 Adam7의 native frame player는
+각각 `OSError`/`TypeError`로 실패하지만 폼 metadata는 성공한다. 독립 static Adam7과 PNG 3의 허용 구조를 함께 관찰했고,
+GoDj는 이 두 입력의 pixels도 검사한다. 이 결과를 전체 Pillow 재생 동등성으로 표현하지 않는다. Fixture는 56,655 bytes,
+SHA-256 `4e3d4e4fa04abf68c37f65556ea2f1e8d5ad9142ceb6b974e981ca6313033ad7`다. 기존 32개 Form fixture의 APNG는
+이제 공통 결과이며 애니메이션 WebP와 두 GIF 손상 입력만 명시적 차이로 남긴다.
+
+초기 normal/race/fuzz 뒤 개별 native 사례의 선택 실행에서 child는 통과하지만 부모의 전체 사례 수 검사가 실패하는 문제를
+재현했다. Fixture 목록/중복 검사를 `t.Run`의 선택 실행과 분리하고 11개 원본 선택 실행의 PASS와 변형 후 지정 실패를
+각각 확인했다. 위 최종 source의 영향 검증을 다시 완료했으며 앞선 source의 실행을 최종 결과로 재사용하지 않았다.
+IR·생성기·모델 선언·Go/Python dependency와 기존 reference profile/oracle는 바꾸지 않았다. 추가 generated drift·전체/cold·
+다른 OS/CGO=0 검증은 이번 로컬 범위가 아니며 남은 animation/codec/provider와 카탈로그는 계속 미완료다.
+
+로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-apng-db-normal-4dpzbkc8`,
+`godj-apng-db-race-8faz0ebn`, `godj-apng-fuzz-to2i82ez`, `godj-apng-controls-2g0nywwg`, `godj-apng-native-cyjawtij`다.
+선택 실행의 초기 실패는 `godj-apng-selected-baseline-before-r1s09ry4`에 남긴다.
+
 ### BMP/DIB와 여러 페이지 TIFF
 
 2026-09-30, 기반 `deb24431cc3bfb79b35e11bfb3c663989de7d0d6` 이후 공통 업로드/저장 이미지 검사에 BMP/DIB와 classic TIFF를
@@ -57,6 +103,10 @@ Python lock은 바꾸지 않았다. 생성기·IR·모델 선언 변경은 없�
 로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-image-codec-db-normal-eu1360jh`,
 `godj-image-codec-db-race-vycyeirn`, `godj-image-codec-fuzz-yu24_lmr`, `godj-image-codec-controls-0lpzg_ho`,
 `godj-image-codec-native-9_i3bkma`다. 초기 실패는 `godj-image-codec-db-normal-7il7o6v5`와 `godj-image-codec-db-normal-zodb1x61`에 남긴다.
+
+위 구현 source `a3a68cd6`의 [PR feedback 36703311471](https://github.com/progresshans/godj/actions/runs/36703311471)은 success다.
+실제 merge checkout `5e08b7d18f26475bf795860409435bac02d9426a`의 tree `b574a92c94f2a4af40b3ca41bd1feed96333a798`가
+해당 head와 일치한다. 이 fast 결과는 뒤에 추가한 APNG의 실행이나 전체 플랫폼 증거가 아니다.
 
 ### 누적 파일/이미지 Hosted full 완료
 

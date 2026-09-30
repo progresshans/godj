@@ -1,0 +1,1868 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "pillow": "12.3.0",
+  "sources": {
+    "django.forms.fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "PIL.PngImagePlugin": "5911ebb3c8e58edf4fccace85ade20c3a062cc41dc55340bfb7b40f0bf1861c5"
+  },
+  "payloads": {
+    "rgba": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "single": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAABAAAAAy0kuBoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAAElFTkSuQmCC",
+    "split_chunks": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAAFJREFUeHbmhOYAAAAESURBVJxjFDRYPu+CAAAAD0lEQVT2b2CAAiYYA0QDABjYARfZJeRKAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAFZmRBVAAAAAJ4hFrtYQAAAAhmZEFUAAAAA5xjTDSFrjPQAAAAE2ZkQVQAAAAE9m9ggAImGANEAwAgqAFndEwb0AAAAABJRU5ErkJggg==",
+    "empty_chunks": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAABJREFUNa8GHgAAAAFJREFUeHbmhOYAAAAASURBVDWvBh4AAAAESURBVJxjFDRYPu+CAAAAD0lEQVT2b2CAAiYYA0QDABjYARfZJeRKAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAEZmRBVAAAAALrxs9NAAAABWZkQVQAAAADeJ1B3CAAAAAEZmRBVAAAAAQCpWp4AAAACGZkQVQAAAAFnGNMNAruxnAAAAATZmRBVAAAAAb2b2CAAiYYA0QDACCoAWfz7D6zAAAAAElFTkSuQmCC",
+    "interleaved_chunks": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAAFJREFUeHbmhOYAAAAESURBVJxjFDRYPu+CAAAAD0lEQVT2b2CAAiYYA0QDABjYARfZJeRKAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAFZmRBVAAAAAJ4hFrtYQAAAAhmZEFUAAAAA5xjTDSFrjPQAAAAIXRFWHRDb21tZW50AGJldHdlZW4gZnJhbWUgZGF0YSBjaHVua3PuZIliAAAAE2ZkQVQAAAAE9m9ggAImGANEAwAgqAFndEwb0AAAAABJRU5ErkJggg==",
+    "rgba_static": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAFElEQVR4nGMUNPZvYIACJhgDRAMAGNgBFzNMwL8AAAAASUVORK5CYII=",
+    "rgb": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjZDD2ZwADJgjFwMAAAAkRAIbNj6FWAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGP8b+zPAAZMEIqBgQEAG/4BhUhJO08AAAAASUVORK5CYII=",
+    "gray": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAAAAAC4HznGAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAAtJREFUeJxjYIAAAAAIAAG3WHOVAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAUZmRBVAAAAAJ4nGP8z8DAxMDAAAAHEQEDU0l6cwAAAABJRU5ErkJggg==",
+    "bilevel": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACAQAAAAC1D1u3AAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAAxJREFUeJxjYGBgAAAABAAB9hc4VQAAABpmY1RMAAAAAQAAAAMAAAACAAAAAAAAAAAAAAAAAACUMhrqAAAAEGZkQVQAAAACeJxjeMDEAAACqADjrP8IDgAAAABJRU5ErkJggg==",
+    "palette1": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACAQMAAACnuvRZAAAABlBMVEUA/wAB/gDk/thHAAAAAnRSTlMAgJsrThgAAAAIYWNUTAAAAAIAAAADaoTCygAAABpmY1RMAAAAAAAAAAMAAAACAAAAAAAAAAAAAAAAAAAPQfA+AAAADElEQVR4nGNwYFgAAAFkAOGROt8sAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAQZmRBVAAAAAJ4nGNYwOAAAAIkAOET3RTqAAAAAElFTkSuQmCC",
+    "palette4": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACBAMAAABvWnspAAAAMFBMVEUA/wAB/gAC/QED/AEE+wIF+gIG+QMH+AMI9wQJ9gQK9QUL9AUM8wYN8gYO8QcP8Af6gqnAAAAABHRSTlMAgP//7IBv5QAAAAhhY1RMAAAAAgAAAANqhMLKAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAOSURBVHicY2SUZxIUAAAAxQBFq5dkBwAAABpmY1RMAAAAAQAAAAMAAAACAAAAAAAAAAAAAAAAAACUMhrqAAAAEmZkQVQAAAACeJxjFJJjEhQAAAEWAFUGSS7hAAAAAElFTkSuQmCC",
+    "palette8": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAMAAACqqpYoAAADAFBMVEUA/wAB/gAC/QED/AEE+wIF+gIG+QMH+AMI9wQJ9gQK9QUL9AUM8wYN8gYO8QcP8AcQ7wgR7ggS7QkT7AkU6woV6goW6QsX6AsY5wwZ5gwa5Q0b5A0c4w4d4g4e4Q8f4A8g3xAh3hAi3REj3BEk2xIl2hIm2RMn2BMo1xQp1hQq1RUr1BUs0xYt0hYu0Rcv0BcwzxgxzhgyzRkzzBk0yxo1yho2yRs3yBs4xxw5xhw6xR07xB08wx49wh4+wR8/wB9AvyBBviBCvSFDvCFEuyJFuiJGuSNHuCNItyRJtiRKtSVLtCVMsyZNsiZOsSdPsCdQryhRrihSrSlTrClUqypVqipWqStXqCtYpyxZpixapS1bpC1coy5doi5eoS9foC9gnzBhnjBinTFjnDFkmzJlmjJmmTNnmDNolzRpljRqlTVrlDVskzZtkjZukTdvkDdwjzhxjjhyjTlzjDl0izp1ijp2iTt3iDt4hzx5hjx6hT17hD18gz59gj5+gT9/gD+Af0CBfkCCfUGDfEGEe0KFekKGeUOHeEOId0SJdkSKdUWLdEWMc0aNckaOcUePcEeQb0iRbkiSbUmTbEmUa0qVakqWaUuXaEuYZ0yZZkyaZU2bZE2cY06dYk6eYU+fYE+gX1ChXlCiXVGjXFGkW1KlWlKmWVOnWFOoV1SpVlSqVVWrVFWsU1atUlauUVevUFewT1ixTliyTVmzTFm0S1q1Slq2SVu3SFu4R1y5Rly6RV27RF28Q169Ql6+QV+/QF/AP2DBPmDCPWHDPGHEO2LFOmLGOWPHOGPIN2TJNmTKNWXLNGXMM2bNMmbOMWfPMGfQL2jRLmjSLWnTLGnUK2rVKmrWKWvXKGvYJ2zZJmzaJW3bJG3cI27dIm7eIW/fIG/gH3DhHnDiHXHjHHHkG3LlGnLmGXPnGHPoF3TpFnTqFXXrFHXsE3btEnbuEXfvEHfwD3jxDnjyDXnzDHn0C3r1Cnr2CXv3CHv4B3z5Bnz6BX37BH38A379An7+AX//AH9nW9WEAAAABHRSTlMAgP//7IBv5QAAAAhhY1RMAAAAAgAAAANqhMLKAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAQSURBVHicY2BgZGJgZGIGAAAiAAoT+AfTAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAUZmRBVAAAAAJ4nGNgZGJmYGJmAQAAOgAQU8DOiwAAAABJRU5ErkJggg==",
+    "gray16": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAAAAADoj+WFAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABZJREFUeJxjYBBkKGW4ycBoy7iQiRUAD1sCRz2DtS4AAAAaZmNUTAAAAAEAAAADAAAAAgAAAAAAAAAAAAAAAAAAlDIa6gAAABpmZEFUAAAAAnicY2BIZDjKqMnA2Mv4kSkUABOUAyiI6KtiAAAAAElFTkSuQmCC",
+    "rgb16": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAIAAABChi0OAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAC9JREFUeJxjYBBk/sn+kKGUJZbDleEmy0GOlQyMtqyqnLyMC1k7OQuZWFnfcl4FAK9jCWceE5ZXAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAzZmRBVAAAAAJ4nGNgSGTx5DBkOMqylmMqoyarIMdPBsZe1lLOWMaPrDc5DzKFstlyqQIAo+0JDV1cCXgAAAAASUVORK5CYII=",
+    "rgba16": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAYAAADN5LpZAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAADtJREFUeJxjYBBk/sn+kPskQylLLIcrjy7DTZaDHCt5JjIw2rKqcvLyfGVcyNrJWcgbycTK+pbzKu9eAEIgDUKYEm9MAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAA/ZmRBVAAAAAJ4nGNgSGTx5DDkkWQ4yrKWYypPLaMmqyDHT56HDIy9rKWcsbyujB9Zb3Ie5F3JFMpmy6XKxwsAHsULyxo7BusAAAAASUVORK5CYII=",
+    "adam7": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAYAAAG644rPAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAAD1JREFUeJxjYBBk/sn+kPskA8NNloMcK3kmMjCUssRyuPLoMjDasqpy8vJ8ZVzI2slZyBvJxMr6lvMq714AVyANQheRT8UAAAAaZmNUTAAAAAEAAAADAAAAAgAAAAAAAAAAAAAAAAAAlDIa6gAAAEFmZEFUAAAAAnicY2BIZPHkMOSRZGDUZBXk+MnzkIHhKMtajqk8tQyMvaylnLG8rowfWW9yHuRdyRTKZsulyscLAB+dC8sEFgp4AAAAAElFTkSuQmCC",
+    "adam7_static": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAYAAAG644rPAAAAPUlEQVR4nGNgEGT+yf6Q+yQDw02WgxwreSYyMJSyxHK48ugyMNqyqnLy8nxlXMjayVnIG8nEyvqW8yrvXgBXIA1CF5FPxQAAAABJRU5ErkJggg==",
+    "subrect": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAgAAAAEAAAABAAAAAQAAAAACAXBldqsAAAAVZmRBVAAAAAJ4nGMUNPZvYGBgYAAABlkBFWQqCq8AAAAASUVORK5CYII=",
+    "poster": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAUSURBVHicYxQ09m9ggAImGANEAwAY2AEXM0zAvwAAABpmY1RMAAAAAAAAAAIAAAABAAAAAQAAAAEAAAAAAQHAO8+8AAAAFWZkQVQAAAABeJxjFDT2b2BgYGAAAAZZARWOrNfNAAAAGmZjVEwAAAACAAAAAQAAAAIAAAACAAAAAAAAAAACAPw5/mUAAAAWZmRBVAAAAAN4nGNINPZvYGJgYGAAAAo+AWb0cs7RAAAAAElFTkSuQmCC",
+    "poster_single": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAABAAAAAy0kuBoAAAAUSURBVHicY0w09m9ggAImGANEAwAgqAFnriC6igAAABpmY1RMAAAAAAAAAAMAAAACAAAAAAAAAAAAAAAAAAAPQfA+AAAAGGZkQVQAAAABeJxjFDT2b2CAAiYYA0QDABjYAReV6LJKAAAAAElFTkSuQmCC",
+    "first_previous": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAIBSnCiKgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAeM1KnwAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "control_before_animation": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAIYWNUTAAAAAIAAAADaoTCygAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "zero_declared_frames": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAAAAAAAAxBEkaoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "too_many_declared_frames": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAADAAAAA1fk63oAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "too_few_declared_frames": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAABAAAAAy0kuBoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "first_sequence": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAEAAAADAAAAAgAAAAAAAAAAAAAAAAAAlDIa6gAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "later_control_sequence": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAAIAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA/4sxgAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "later_data_sequence": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAh4nGNMNPZvYIACJhgDRAMAIKgBZ7KsQpcAAAAASUVORK5CYII=",
+    "outside_canvas": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAABAAAAAAAAAAAAAFW8xSoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "zero_frame_width": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAAAAAAIAAAAAAAAAAAAAAAAAADdknEMAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "first_frame_size": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAA2KNwZgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "invalid_disposal": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAADAL8fSSkAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "invalid_blend": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAno8e8YAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "long_frame_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAG2ZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAACSSdbxAAAAGGZkQVQAAAACeJxjTDT2b2CAAiYYA0QDACCoAWdzmkqcAAAAAElFTkSuQmCC",
+    "long_animation_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACWFjVEwAAAACAAAAAwCp2UDhAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAUSURBVHicYxQ09m9ggAImGANEAwAY2AEXM0zAvwAAABpmY1RMAAAAAQAAAAMAAAACAAAAAAAAAAAAAAAAAACUMhrqAAAAGGZkQVQAAAACeJxjTDT2b2CAAiYYA0QDACCoAWdzmkqcAAAAAElFTkSuQmCC",
+    "late_pixel_error": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAbZmRBVAAAAAJicm9rZW4gY29tcHJlc3NlZCBmcmFtZUIh5msAAAAASUVORK5CYII=",
+    "default_pixel_error": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABdJREFUYnJva2VuIGNvbXByZXNzZWQgZnJhbWVlgoJbAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "empty_frame_data": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAEZmRBVAAAAALrxs9NAAAAAElFTkSuQmCC",
+    "missing_animation_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAUSURBVHicYxQ09m9ggAImGANEAwAY2AEXM0zAvwAAABpmY1RMAAAAAQAAAAMAAAACAAAAAAAAAAAAAAAAAACUMhrqAAAAGGZkQVQAAAACeJxjTDT2b2CAAiYYA0QDACCoAWdzmkqcAAAAAElFTkSuQmCC",
+    "duplicate_animation_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAIYWNUTAAAAAIAAAADaoTCygAAABpmY1RMAAAAAAAAAAMAAAACAAAAAAAAAAAAAAAAAAAPQfA+AAAAFElEQVR4nGMUNPZvYIACJhgDRAMAGNgBFzNMwL8AAAAaZmNUTAAAAAEAAAADAAAAAgAAAAAAAAAAAAAAAAAAlDIa6gAAABhmZEFUAAAAAnicY0w09m9ggAImGANEAwAgqAFnc5pKnAAAAABJRU5ErkJggg==",
+    "late_animation_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAUSURBVHicYxQ09m9ggAImGANEAwAY2AEXM0zAvwAAAAhhY1RMAAAAAgAAAANqhMLKAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK5CYII=",
+    "missing_frame_data": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAASUVORK5CYII=",
+    "missing_frame_control": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGGZkQVQAAAACeJxjTDT2b2CAAiYYA0QDACCoAWdzmkqcAAAAAElFTkSuQmCC",
+    "late_idat": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASURBVDWvBh4AAAAASUVORK5CYII=",
+    "unknown_critical": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAE0FCQ0R1bnJlY29nbml6ZWQgcGl4ZWxztP9FLQAAAAhhY1RMAAAAAgAAAANqhMLKAAAAGmZjVEwAAAAAAAAAAwAAAAIAAAAAAAAAAAAAAAAAAA9B8D4AAAAUSURBVHicYxQ09m9ggAImGANEAwAY2AEXM0zAvwAAABpmY1RMAAAAAQAAAAMAAAACAAAAAAAAAAAAAAAAAACUMhrqAAAAGGZkQVQAAAACeJxjTDT2b2CAAiYYA0QDACCoAWdzmkqcAAAAAElFTkSuQmCC",
+    "late_crc_error": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3KaSpwAAAAASUVORK5CYII=",
+    "end_crc_error": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpwAAAAASUVORK9CYII=",
+    "missing_end": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZ3OaSpw=",
+    "truncated_frame_chunk": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAACGFjVEwAAAACAAAAA2qEwsoAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAAAAAAAD0HwPgAAABRJREFUeJxjFDT2b2CAAiYYA0QDABjYARczTMC/AAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAAAAAAAAJQyGuoAAAAYZmRBVAAAAAJ4nGNMNPZvYIACJhgDRAMAIKgBZw=="
+  },
+  "cases": [
+    {
+      "name": "rgba",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "single",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "split_chunks",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "empty_chunks",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "interleaved_chunks",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "OSError",
+      "warnings": []
+    },
+    {
+      "name": "rgba_static",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "rgb",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "c839c26538fec941ea1080cf1854b9b47d6954fbfadc32746951fd150b78de6c"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "ab4a69604b56cb4fbd0c98b67719a8a83c140dee42eb40fa653e4dd50359ff41"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "gray",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "c773395b224984566fc1c2a1bc01ed83f5e89ea97e9c035b75d1a1c5ef48ff48"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "44a5f7891570e5631e8c91c85186e6633f4ab5364f644040b2a00126a07985b6"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "bilevel",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "c773395b224984566fc1c2a1bc01ed83f5e89ea97e9c035b75d1a1c5ef48ff48"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "44a5f7891570e5631e8c91c85186e6633f4ab5364f644040b2a00126a07985b6"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "palette1",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "0ff752c9e0cf8997468978b942ce4df3abe29ad932602994a82dd35a233ad065"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "e32526b4da8fccafa9daa7b3f983febc2de99735cbb1fb9f36ec00b3e5e855e6"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "palette4",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "42ee3f73e745c393a36fd521c9ec65e9c583caeac8c4815548909c172cc3dedd"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "56b9743bfb377be9374350394af55f390d489f083944f671d2025b3d0679084c"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "palette8",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "42ee3f73e745c393a36fd521c9ec65e9c583caeac8c4815548909c172cc3dedd"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "56b9743bfb377be9374350394af55f390d489f083944f671d2025b3d0679084c"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "gray16",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "460e3be7a51dc1ef796d5e483ec818095d51e3d4980f249482a7bb99cb6b9661"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "c3889721b5e42ab244fcc887e4fb4e15e851fe0f754a18201b59e9a5bf003198"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "rgb16",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "22b0009cef5ac634327d1b43eda0987292e9ebf99075f0a80db48f0a96a912f4"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "671dba0627ffd0d256c77ba44800eec5d2353d4d952b29d42453cfbe612c5a84"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "rgba16",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "e72edda6fa95b822438a7ac19f339755fca4adefd1359dee04d4bcf7bd455b94"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "c616d98e62772cc490bb907aee23811cd0e27f805318b57e5d671f466457cd37"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "adam7",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "e72edda6fa95b822438a7ac19f339755fca4adefd1359dee04d4bcf7bd455b94"
+        }
+      ],
+      "load_error": "TypeError",
+      "warnings": []
+    },
+    {
+      "name": "adam7_static",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "e72edda6fa95b822438a7ac19f339755fca4adefd1359dee04d4bcf7bd455b94"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "subrect",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "poster",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 3,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 3,
+        "default_image": true,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "78c7dd656114dd01dc6a2560f9c106739d4fdf745a2ff28a08275da1ddbd9fd9"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "poster_single",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": true,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "first_previous",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "bcfa3d2cbab2b6d635668d669e0045e0c9a7475ef31611fd693d2374e98a4a35"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "control_before_animation",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "zero_declared_frames",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": [
+        "Invalid APNG, will use default PNG image if possible",
+        "Invalid APNG, will use default PNG image if possible"
+      ]
+    },
+    {
+      "name": "too_many_declared_frames",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 3,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 3,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": "OSError",
+      "warnings": []
+    },
+    {
+      "name": "too_few_declared_frames",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "first_sequence",
+      "filename": "picture.apng",
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "calls": [],
+      "cleaned": null,
+      "loaded": [],
+      "load_error": "UnidentifiedImageError",
+      "warnings": []
+    },
+    {
+      "name": "later_control_sequence",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "SyntaxError",
+      "warnings": []
+    },
+    {
+      "name": "later_data_sequence",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "SyntaxError",
+      "warnings": []
+    },
+    {
+      "name": "outside_canvas",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "SyntaxError",
+      "warnings": []
+    },
+    {
+      "name": "zero_frame_width",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "ValueError",
+      "warnings": []
+    },
+    {
+      "name": "first_frame_size",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "caa41b3581af14310fe76414e6968491db653b49148bef46aa5742f13d542456"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "invalid_disposal",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "invalid_blend",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "long_frame_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "long_animation_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "late_pixel_error",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "OSError",
+      "warnings": []
+    },
+    {
+      "name": "default_pixel_error",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [],
+      "load_error": "OSError",
+      "warnings": []
+    },
+    {
+      "name": "empty_frame_data",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "OSError",
+      "warnings": []
+    },
+    {
+      "name": "missing_animation_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "duplicate_animation_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": [
+        "Invalid APNG, will use default PNG image if possible",
+        "Invalid APNG, will use default PNG image if possible"
+      ]
+    },
+    {
+      "name": "late_animation_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 1,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 1,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "missing_frame_data",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        }
+      ],
+      "load_error": "EOFError",
+      "warnings": []
+    },
+    {
+      "name": "missing_frame_control",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [],
+      "load_error": "SyntaxError",
+      "warnings": []
+    },
+    {
+      "name": "late_idat",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "unknown_critical",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "late_crc_error",
+      "filename": "picture.apng",
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "calls": [],
+      "cleaned": null,
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "end_crc_error",
+      "filename": "picture.apng",
+      "valid": true,
+      "errors": [],
+      "calls": [
+        {
+          "format": "png",
+          "frames": 2,
+          "content_type": "image/png"
+        }
+      ],
+      "cleaned": {
+        "format": "png",
+        "content_type": "image/png",
+        "width": 3,
+        "height": 2,
+        "frames": 2,
+        "default_image": false,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "missing_end",
+      "filename": "picture.apng",
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "calls": [],
+      "cleaned": null,
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    },
+    {
+      "name": "truncated_frame_chunk",
+      "filename": "picture.apng",
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "calls": [],
+      "cleaned": null,
+      "loaded": [
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "3e7548818364c08edc259cfb7d4097e48fd1585c6e6372ab2563b578bbb49eb5"
+        },
+        {
+          "size": [
+            3,
+            2
+          ],
+          "rgba_sha256": "1cd8fe055a128ebb9e20e5f1b7c8781ec7f708c364a8d7c1513de52b4dc4fe01"
+        }
+      ],
+      "load_error": null,
+      "warnings": []
+    }
+  ]
+}

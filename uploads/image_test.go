@@ -205,7 +205,7 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 			}
 		})
 	}
-	for _, format := range []string{"png", "jpeg", "gif", "animated_gif", "webp"} {
+	for _, format := range []string{"png", "animated_png", "jpeg", "gif", "animated_gif", "webp"} {
 		data, err := base64.StdEncoding.DecodeString(fixture.Payloads[format])
 		if err != nil {
 			t.Fatal(err)
@@ -213,7 +213,7 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 		file, _ := NewFile("any.bin", "untrusted", data)
 		info, err := InspectImage(t.Context(), file, ImageLimits{})
 		frames := 1
-		if format == "animated_gif" {
+		if format == "animated_gif" || format == "animated_png" {
 			frames = 2
 		}
 		if err != nil || info.Width() != 3 || info.Height() != 2 || info.Frames() != frames {
@@ -249,6 +249,10 @@ func FuzzInspectImage(f *testing.F) {
 	}
 	shared, _ := sharedTIFFBlocks(f, 2)
 	f.Add(shared)
+	animations := apngFixture(f)
+	for _, observed := range animations.Cases {
+		f.Add(apngPayload(f, animations, observed.Name))
+	}
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1<<20 {
 			return

@@ -76,7 +76,7 @@ func FileField(name string, options ...FieldOption) (Field, error) {
 	return newFileField(name, FieldFile, options...)
 }
 
-// ImageField verifies supported PNG/JPEG/BMP/DIB/WebP, GIF frames and TIFF
+// ImageField verifies supported PNG/APNG/JPEG/BMP/DIB/WebP, GIF frames and TIFF
 // pages before pure validators run. Bind performs cancellable upload I/O.
 func ImageField(name string, options ...FieldOption) (Field, error) {
 	return newFileField(name, FieldImage, options...)
@@ -166,7 +166,7 @@ func cleanFile(ctx context.Context, field Field, data Data, initial Value) (Valu
 		// extension need not match the detected format; MIME always comes from
 		// the verified content. Client ContentType remains untrusted metadata.
 		switch strings.ToLower(path.Ext(file.Name())) {
-		case ".png", ".jpg", ".jpeg", ".jpe", ".gif", ".webp", ".bmp", ".dib", ".tif", ".tiff":
+		case ".png", ".apng", ".jpg", ".jpeg", ".jpe", ".gif", ".webp", ".bmp", ".dib", ".tif", ".tiff":
 		default:
 			extensionErrors = validation.NewErrors(validation.New(validation.Field(field.name), "invalid_extension"))
 		}

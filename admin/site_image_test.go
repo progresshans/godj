@@ -25,17 +25,23 @@ import (
 )
 
 func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
-	var reference struct{ Payloads map[string]string }
-	raw, err := os.ReadFile("../uploads/testdata/image-codecs-django61.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(raw, &reference); err != nil {
-		t.Fatal(err)
+	payloads := map[string]string{}
+	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}} {
+		var reference struct{ Payloads map[string]string }
+		raw, err := os.ReadFile("../uploads/testdata/" + source.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &reference); err != nil {
+			t.Fatal(err)
+		}
+		for name, value := range reference.Payloads {
+			payloads[source.prefix+name] = value
+		}
 	}
 	payload := func(name string) []byte {
 		t.Helper()
-		content, err := base64.StdEncoding.DecodeString(reference.Payloads[name])
+		content, err := base64.StdEncoding.DecodeString(payloads[name])
 		if err != nil || len(content) == 0 {
 			t.Fatal("missing native image codec", name, err)
 		}
@@ -54,6 +60,8 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 		{"bmp", ".bmp", "image/bmp", 1, payload("bmp_palette")},
 		{"dib", ".dib", "image/bmp", 1, payload("dib_rgb")},
 		{"tiff", ".tiff", "image/tiff", 2, payload("tiff_pages")},
+		{"apng", ".apng", "image/png", 2, payload("apng_rgba")},
+		{"apng_poster", ".apng", "image/png", 3, payload("apng_poster")},
 	}
 	for _, command := range []bool{false, true} {
 		for _, backendName := range []string{"filesystem", "memory"} {
@@ -147,6 +155,11 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 					failures := []struct{ name, content, code string }{{"photo" + variant.extension, "text pretending to be an image", "invalid_image"}, {"photo.txt", encoded.String(), "invalid_extension"}}
 					if variant.name == "tiff" {
 						failures = append(failures, struct{ name, content, code string }{"later.tiff", string(payload("tiff_late_truncated")), "invalid_image"})
+					}
+					if strings.HasPrefix(variant.name, "apng") {
+						for _, broken := range []string{"apng_late_pixel_error", "apng_later_control_sequence"} {
+							failures = append(failures, struct{ name, content, code string }{"later.apng", string(payload(broken)), "invalid_image"})
+						}
 					}
 					for _, test := range failures {
 						response := siteUploadSubmit(t, client, target, values, siteUploadPart{"photo", test.name, test.content})

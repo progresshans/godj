@@ -189,3 +189,11 @@ BMP/DIB·TIFF는 같은 고정 Django/Pillow 환경의 [codec observer](../confo
 `e0067eb268d1257de5a1d746652938a39107a06eb5e3fe415d31ee07b7a83b0f`, `PIL.TiffImagePlugin`은
 `440b2a3a80b280d18cda3fc70d9fd206e2fa44e9897c9550f70b51395047b273`다(MIT-CMU). GoDj의 DIB prefix·TIFF 페이지/예산 검사는
 독립 작성했고 실제 pixel 디코딩에는 위 고정 Go 라이브러리를 사용한다. 미지원 특성·전체 내용 검증의 차이는 이미지 계약을 따른다.
+
+APNG의 구조·sequence·frame 범위·data 상속은
+[PNG Third Edition, W3C Recommendation 2025-06-24](https://www.w3.org/TR/2025/REC-png-3-20250624/)을 기준으로
+독립 작성했다. PNG pixel 디코딩은 Go 1.26.5 표준 라이브러리의 BSD-3-Clause 구현을 사용한다. 같은 고정 Django/Pillow의
+[observer](../conformance/runners/django/apng_reference.py)와 [49개 관찰](../uploads/testdata/apng-django61.json)에 폼 결과와
+별도 frame player 결과를 구분한다. `PIL.PngImagePlugin` SHA-256은
+`5911ebb3c8e58edf4fccace85ade20c3a062cc41dc55340bfb7b40f0bf1861c5`다(MIT-CMU). 합성 grayscale/RGB/RGBA·palette·16-bit·Adam7·
+기본 이미지/부분 frame·분할/빈 data·잘못된 control/CRC/pixels를 포함한다. 고정 player의 Adam7/ancillary 실패도 관찰값에 남긴다.
