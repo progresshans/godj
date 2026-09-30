@@ -69,12 +69,12 @@ InMemoryStorage의 공유 cursor·실패 뒤 부분 파일·재귀 directory 삭
 
 
 ImageField의 공통 입력 기반은 `Bind(ctx, ...)`가 소유한다. 업로드 capability를 독립 reader로 읽고 실제 pixel 디코딩 전에
-인코딩 bytes·폭/높이·pixel 수·GIF/APNG frame/TIFF page 수와 합계를 제한한다. 미배포 Bind API 자체에 context를 전달하며 숨은 Background
+인코딩 bytes·폭/높이·pixel 수·GIF/APNG/WebP frame/TIFF page 수와 합계를 제한한다. 미배포 Bind API 자체에 context를 전달하며 숨은 Background
 context나 별도 호환 Bind를 만들지 않는다. Form/ModelForm/Formset/Admin/인증 소비자는 같은 context 경계를 따른다.
-Codec registry는 전역 mutable image 등록 상태에 의존하지 않는다. PNG/APNG/JPEG/GIF/정적 WebP/BMP/DIB/TIFF의 검증 metadata는 immutable
+Codec registry는 전역 mutable image 등록 상태에 의존하지 않는다. PNG/APNG/JPEG/GIF/WebP/BMP/DIB/TIFF의 검증 metadata는 immutable
 FileValue에만 연결하며 client MIME을 덮어쓰거나 참조 이름을 자동으로 열지 않는다. 요청 파일의 수명도 늘리지 않는다.
 
-현재 GIF/APNG는 모든 frame, classic TIFF는 주 IFD 목록의 모든 page를 디코딩한다. 애니메이션 WebP·BigTIFF·SubIFD와
+현재 GIF/APNG/WebP는 모든 frame, classic TIFF는 주 IFD 목록의 모든 page를 디코딩한다. BigTIFF·SubIFD와
 지원하지 않는 색/압축/header 형식은 명시적 오류다. Header만 읽어
 검증 성공으로 처리하지 않는다. 잘못된 이미지와 실제 I/O/취소/정리 실패를 분리한다. Limit는 검사별 예산이며 전체 process
 heap/동시 요청 제한을 대신하지 않는다. 검증 원문은 변환/정화하지 않고 그대로 저장한다. [이미지 계약](../../uploads/README.md#이미지-내용-검증)을 따른다.
@@ -94,6 +94,14 @@ frame 개수/영역·disposal/blend를 먼저 확인하고, 모든 frame의 실�
 크기는 canvas, 합산 pixels는 기본 이미지와 후속 frame 영역, frame 수는 별도 기본 이미지를 포함한 수다. 표시용 재생·합성은
 검사의 책임이 아니다. 고정 ImageField의 PNG format/MIME과 같은 metadata를 반환하지만 폼의 CRC 검사만으로 후속 pixels나
 잘못된 control을 승인하지 않는다. Native frame player의 별도 실패도 [APNG 관찰](../../conformance/runners/django/apng_reference.py)에 남긴다.
+
+WebP는 RIFF 경계·padding·canvas·ANIM/ANMF·프레임별 alpha/pixel chunk를 먼저 검사한다. VP8X의 선언 크기만 반환하는
+DecodeConfig를 신뢰하지 않고 실제 VP8/VP8L header의 크기와 ANMF를 대조한다. 모든 frame의 크기와 합산 예산을 제한한 뒤
+원문 ALPH/pixel chunk와 고정 header의 독립 reader로 한 frame씩 디코딩한다. Canvas/파일 복사·재생·합성·재인코딩은 하지 않는다.
+Metadata는 canvas 크기와 전체 frame 수이며 요청/저장소의 기존 명시적 I/O·취소·원본 보존 경계를 유지한다.
+공개 container의 reserved/future field 무시와 실제 내용 검증을 우선하며, 고정 native의 폼/전체 frame 차이는
+[WebP 관찰](../../conformance/runners/django/webp_animation_reference.py)에 별도로 남긴다. 정적 alpha header 모순처럼 고정
+decoder가 거부하는 입력을 위한 호환 계층을 추가하지 않는다.
 
 
 모델 ImageField의 width/height 참조는 canonical IR이 소유한다. 같은 모델의 일반 정수 필드를 각각 한 이미지가 소유하고,

@@ -26,7 +26,7 @@ import (
 
 func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 	payloads := map[string]string{}
-	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}} {
+	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}, {"webp-animation-django61.json", "webp_"}} {
 		var reference struct{ Payloads map[string]string }
 		raw, err := os.ReadFile("../uploads/testdata/" + source.name)
 		if err != nil {
@@ -62,6 +62,8 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 		{"tiff", ".tiff", "image/tiff", 2, payload("tiff_pages")},
 		{"apng", ".apng", "image/png", 2, payload("apng_rgba")},
 		{"apng_poster", ".apng", "image/png", 3, payload("apng_poster")},
+		{"webp_mixed", ".webp", "image/webp", 2, payload("webp_mixed")},
+		{"webp_alpha", ".webp", "image/webp", 2, payload("webp_compressed_alpha")},
 	}
 	for _, command := range []bool{false, true} {
 		for _, backendName := range []string{"filesystem", "memory"} {
@@ -159,6 +161,11 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 					if strings.HasPrefix(variant.name, "apng") {
 						for _, broken := range []string{"apng_late_pixel_error", "apng_later_control_sequence"} {
 							failures = append(failures, struct{ name, content, code string }{"later.apng", string(payload(broken)), "invalid_image"})
+						}
+					}
+					if strings.HasPrefix(variant.name, "webp") {
+						for _, broken := range []string{"webp_late_lossless_pixels", "webp_truncated_compressed_alpha"} {
+							failures = append(failures, struct{ name, content, code string }{"later.webp", string(payload(broken)), "invalid_image"})
 						}
 					}
 					for _, test := range failures {

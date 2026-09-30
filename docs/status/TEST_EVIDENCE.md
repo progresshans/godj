@@ -5,6 +5,56 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### WebP의 실제 크기와 전체 frame 검사
+
+2026-09-30, 기반 `15b33afe9174ded7e45f749edac0b6816f85f96e` 이후 WebP의 RIFF·VP8X·ANIM/ANMF·프레임별 alpha와
+실제 bitstream 크기를 같은 업로드/저장 검사에 연결했다. 최종 비Markdown code/config inventory는
+`e828dda4b9e325b31754dc6810c8991c039f55d734074b34745207765add444b` (2,814 files)다. 아래 normal/race/fuzz의 전후
+source가 일치하며 이후에는 문서만 정리했다. 이전 source의 전체 플랫폼 성공을 전이하지 않는다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; uploads·storage·storage/model·forms·forms/model·admin·web 7 packages / 372 roots / 3,027 PASS / 2.860초 |
+| 실제 생성 소비자 normal | FileConsumer parent 1 PASS / 8.633초; SQLite/PostgreSQL × filesystem/memory × 13 codec 사례의 필수 52개, WebP 4개 형식의 새 16개 조합 포함 |
+| 관련 race | uploads·storage·storage/model·forms·admin 5 packages / 43 roots / 457 PASS / 3.595초 |
+| 실제 생성 소비자 race | 부모와 생성 child 모두 race, 같은 양 DB/양 backend의 필수 흐름 / parent 1 PASS / 20.212초 |
+| Fuzz | `FuzzInspectImage`, 기존 corpus와 새 WebP seed 392개 baseline, 4 workers·20초 요청 / 806,295회 / Go test 21.887초·명령 전체 24.049초 / PASS |
+| 부정 대조 | 전체 frame·개수/합산 pixel·영역/좌표 단위·실제 bitstream header·선언 크기 일치·raw alpha 길이·RIFF 경계/zero padding·reader 취소·프레임별 alpha flag의 12개 overlay를 지정 runtime assertion으로 검출; 각 원본을 같은 선택자로 먼저 PASS 확인 |
+
+필수 실행의 완료와 전체 Go JSON을 확인했으며 누락·skip·잘린 출력은 없다. Normal/race는 별도 PostgreSQL 17.10 Debian
+container, UTF8/libc/C/C·독립 port/database를 사용했다. 종료 뒤 schema·public table·다른 session `0|0|0`, DB/container
+제거를 확인했다. 공유 build cache를 유지하고 test-result cache는 껐다.
+
+기존 생성 Photograph의 WebP lossy/lossless·compressed alpha·mixed 입력을 모델 Form 준비/게시·typed DB 저장·재개방과
+저장 이미지 크기 재검사에 연결했다. 3×2 canvas 크기·전체 frame 수·저장 이름·원문을 보존하고 손상된 후속 frame은 typed
+준비에서 거부한다. 기존 파일/이미지·Formset·인가된 Range/conditional·rollback 회귀도 같은 소비자로 실행했다.
+Admin의 생성/명령 × 양 backend × 8 codec 변형의 32개 조합에서 로그인/CSRF·multipart·오류/재선택·후속 pixel/alpha 거부·
+쓰기 callback·임시 파일 정리·원문 게시를 확인했다. Formset은 확장자 대소문자/내용 불일치·내용 우선 오류·validator 횟수와
+frame/합산 pixel 한도를 검증했다. 새 화면/재생 API는 없으며 새 브라우저 시각 검증은 실행하지 않았다.
+
+Native는 고정 Django 6.1 / CPython 3.14.3 / Pillow 12.3.0 / libwebp 1.6.0에서
+[WebP observer](../../conformance/runners/django/webp_animation_reference.py)를 두 번 실행하고 저장 fixture와 byte 일치를
+확인했다. 61개 중 폼 결과가 같은 44개(유효 26개·거부 18개), GoDj가 더 엄격히 거부하는 14개, 공개 container가 무시하도록
+정한 VP8X reserved/future field를 GoDj가 허용하지만 native가 거부하는 3개를 구분한다. 공통 유효 중 ALPH reserved bits는
+native 폼이 허용하지만 별도 player가 첫 frame 뒤 `OSError`로 실패한다. GoDj는 모든 frame을 검사한다. 정적 lossy alpha flag와
+실제 ALPH가 모순되는 두 입력은 native가 허용하지만 고정 Go decoder는 거부하며 이 차이를 유지한다. 전체 Pillow 재생 동등성을
+주장하지 않는다. Fixture는 61,200 bytes, SHA-256 `106ff169c0ae67de44ef1adad820fd1c8add5376ee7950227e10fd6fed2d6e6c`다.
+기존 32개 Form fixture의 animated WebP도 이제 공통 결과이며 두 GIF 손상 입력만 명시적 차이로 남긴다.
+
+작은 ANMF 안의 16384×16384 VP8L header는 pixel 디코딩 전에 `image_pixels`로 거부한다. VP8X canvas만 보는 경로로 바꾼
+부정 대조는 지정 assertion에서 실패한다. 모든 frame의 영역·실제 크기·전체 예산을 먼저 확인하고 고정 30-byte header와
+원본 alpha/pixel chunk view로 각 frame을 디코딩한다. Raw/compressed alpha·네 alpha filter·부분 영역·2배 좌표 단위·
+zero/최대 duration·metadata·unknown tail·reserved fields·중복/잘린 control·후속 pixels와 context/동시 reader를 검증했다.
+
+IR·생성기·모델 선언·Go/Python dependency와 기존 reference profile/oracle는 바꾸지 않았다. 추가 generated drift·로컬 전체/
+cold·다른 OS/CGO=0은 이번 영향 범위가 아니다. 저장 이미지 검사부터 BMP/DIB/TIFF·APNG/WebP까지의 누적 변경을 다음
+Hosted full 통합 milestone으로 정했으며, 게시 source의 필수 owner·최종 aggregate·새 capture/Git source 결합이 완료 기준이다.
+남은 codec 특성/provider와 전체 기능 카탈로그는 미완료다.
+
+로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-webp-animation-db-normal-18dun817`,
+`godj-webp-animation-db-race-n31_i3hu`, `godj-webp-animation-fuzz-3dxgkhsm`, `godj-webp-animation-controls-c3vr_85s`,
+`godj-webp-animation-native-s3oc0yoy`에 남긴다.
+
 ### APNG의 기본 이미지와 전체 frame 검사
 
 2026-09-30, 기반 `a3a68cd6bd6f2acade0dc09d8a1b16d0d365ff14` 이후 PNG 3/APNG의 chunk CRC·sequence·frame 개수/영역과
@@ -50,6 +100,10 @@ IR·생성기·모델 선언·Go/Python dependency와 기존 reference profile/o
 로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-apng-db-normal-4dpzbkc8`,
 `godj-apng-db-race-8faz0ebn`, `godj-apng-fuzz-to2i82ez`, `godj-apng-controls-2g0nywwg`, `godj-apng-native-cyjawtij`다.
 선택 실행의 초기 실패는 `godj-apng-selected-baseline-before-r1s09ry4`에 남긴다.
+
+위 APNG 구현 source `15b33afe`의 [PR feedback 36707396432](https://github.com/progresshans/godj/actions/runs/36707396432)은 success다.
+실제 merge checkout `c6632a8fc272f673c3da40a6d60cb453b2e4d95b`의 tree `8042525647b99d28c97c722493bd463d6edfe6ec`가
+해당 head와 일치한다. 이 fast 결과는 이후 WebP 변경이나 전체 플랫폼 증거가 아니다.
 
 ### BMP/DIB와 여러 페이지 TIFF
 

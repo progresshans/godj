@@ -24,6 +24,9 @@ var nativeImageCodecs []byte
 //go:embed apng-reference.json
 var nativeAPNG []byte
 
+//go:embed webp-reference.json
+var nativeWebP []byte
+
 func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend, label string, spec forms.Spec) {
 	t.Helper()
 	type observation struct {
@@ -43,7 +46,7 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 	for _, source := range []struct {
 		data   []byte
 		prefix string
-	}{{nativeImageCodecs, ""}, {nativeAPNG, "apng_"}} {
+	}{{nativeImageCodecs, ""}, {nativeAPNG, "apng_"}, {nativeWebP, "webp_"}} {
 		var part observation
 		if err := json.Unmarshal(source.data, &part); err != nil {
 			t.Fatal(err)
@@ -67,7 +70,7 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 		}
 		return content
 	}
-	selected := map[string]bool{"bmp_palette": true, "dib_rgb": true, "tiff_pages": true, "tiff_bigendian16": true, "tiff_tile": true, "apng_rgba": true, "apng_poster": true, "apng_palette4": true, "apng_adam7": true}
+	selected := map[string]bool{"bmp_palette": true, "dib_rgb": true, "tiff_pages": true, "tiff_bigendian16": true, "tiff_tile": true, "apng_rgba": true, "apng_poster": true, "apng_palette4": true, "apng_adam7": true, "webp_lossy": true, "webp_lossless": true, "webp_compressed_alpha": true, "webp_mixed": true}
 	for _, observed := range reference.Cases {
 		if !selected[observed.Name] {
 			continue
@@ -132,6 +135,9 @@ func runImageCodecs(t *testing.T, database fileBackend, backend storage.Backend,
 			brokenPayload, brokenName := "tiff_late_truncated", "broken.tiff"
 			if strings.HasPrefix(observed.Name, "apng_") {
 				brokenPayload, brokenName = "apng_late_pixel_error", "broken.apng"
+			}
+			if strings.HasPrefix(observed.Name, "webp_") {
+				brokenPayload, brokenName = "webp_late_lossless_pixels", "broken.webp"
 			}
 			broken, err := uploads.NewFile(brokenName, "application/x-untrusted", payload(brokenPayload))
 			if err != nil {

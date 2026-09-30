@@ -14,7 +14,6 @@ import (
 
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/tiff"
-	"golang.org/x/image/webp"
 )
 
 // ImageLimits bounds encoded input and decoded dimensions before allocation.
@@ -81,9 +80,9 @@ func (info ImageInfo) ContentType() string {
 func (ImageInfo) Format(state fmt.State, _ rune) { fmt.Fprint(state, "uploads.ImageInfo{redacted}") }
 
 // InspectImage opens and closes its own upload reader, leaving every other
-// reader's cursor unchanged. It decodes PNG/APNG, static JPEG/BMP/DIB/WebP,
-// all GIF frames, or every page in a classic TIFF's main directory chain.
-// Animated WebP, BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
+// reader's cursor unchanged. It decodes static JPEG/BMP/DIB, every PNG/APNG,
+// GIF or WebP frame, or every page in a classic TIFF's main directory chain.
+// BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
 // Content errors use invalid_image, unsupported_image, image_bytes,
 // image_pixels, or image_frames; I/O, lifetime and cancellation errors remain
 // operational errors. No decoded pixels or encoded copies escape this call.
@@ -242,10 +241,7 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 	case bytes.HasPrefix(content, []byte("GIF87a")) || bytes.HasPrefix(content, []byte("GIF89a")):
 		format, config = "gif", gif.DecodeConfig
 	case len(content) >= 12 && string(content[:4]) == "RIFF" && string(content[8:12]) == "WEBP":
-		format, config, decode = "webp", webp.DecodeConfig, webp.Decode
-		if err := webpContainer(ctx, content); err != nil {
-			return ImageInfo{}, err
-		}
+		return inspectWebPImage(ctx, content, limits)
 	case bytes.HasPrefix(content, []byte("BM")):
 		format, config, decode = "bmp", bmp.DecodeConfig, bmp.Decode
 		if err := bitmapImageBudget(content, 14, limits); err != nil {
@@ -308,46 +304,6 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 	return info, nil
 }
 
-// The decoder returns after the first image chunk. Validate the outer framing
-// too, so an advertised but absent tail, another image, or animation cannot be
-// mistaken for a verified static file.
-func webpContainer(ctx context.Context, content []byte) error {
-	invalid := &Error{Code: "invalid_image"}
-	if uint64(binary.LittleEndian.Uint32(content[4:8]))+8 != uint64(len(content)) {
-		return invalid
-	}
-	images := 0
-	for offset := 12; offset < len(content); {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if len(content)-offset < 8 {
-			return invalid
-		}
-		size := uint64(binary.LittleEndian.Uint32(content[offset+4:]))
-		if size+(size&1) > uint64(len(content)-offset-8) {
-			return invalid
-		}
-		switch string(content[offset : offset+4]) {
-		case "VP8X":
-			if offset != 12 || size != 10 {
-				return invalid
-			}
-			if content[offset+8]&2 != 0 {
-				return &Error{Code: "unsupported_image"}
-			}
-		case "ANIM", "ANMF":
-			return &Error{Code: "unsupported_image"}
-		case "VP8 ", "VP8L":
-			images++
-		}
-		offset += 8 + int(size+(size&1))
-	}
-	if images != 1 {
-		return invalid
-	}
-	return nil
-}
 func imageDecodeError(ctx context.Context, err error) error {
 	if canceled := ctx.Err(); canceled != nil {
 		return canceled

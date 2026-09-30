@@ -99,8 +99,8 @@ if verified {
 }
 ```
 
-PNG/APNG·정적 JPEG·WebP·Windows BMP/DIB, GIF의 모든 프레임과 classic TIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
-PNG/WebP의 container와 애니메이션 표식을 검사하며 애니메이션 WebP·BigTIFF·TIFF SubIFD와 지원하지 않는 codec
+PNG/APNG·GIF·WebP의 모든 프레임, 정적 JPEG·Windows BMP/DIB와 classic TIFF의 주 IFD 목록에 있는 모든 페이지를 디코딩한다.
+PNG/WebP의 container와 애니메이션 표식을 검사하며 BigTIFF·TIFF SubIFD와 지원하지 않는 codec
 특성은 명시적으로 거부한다. 표준 decoder의 전역 등록 목록에 따라 허용 형식이 바뀌지 않는다. 잘린 내용·손상은 `invalid_image`,
 파일/픽셀/프레임 한도는 `image_bytes`/`image_pixels`/`image_frames` 진단이다. 내용 검증 뒤 확장자를 검사하며 허용 목록은
 `.png`, `.apng`, `.jpg`, `.jpeg`, `.jpe`, `.gif`, `.webp`, `.bmp`, `.dib`, `.tif`, `.tiff`(대소문자 무관)다. 검증된 PNG의
@@ -116,6 +116,12 @@ APNG는 IEND까지의 chunk CRC·공유 sequence·선언/실제 frame 수·canva
 원문이나 전체 canvas를 매번 복사하지 않는다. 입력에 있는 빈/분할 data chunk와 frame data 사이의 ancillary chunk도 처리한다.
 알 수 없는 critical chunk는 `unsupported_image`이며 손상된 후속 frame을 기본 이미지의 성공으로 대체하지 않는다. 검사는 표시
 시간을 기다리거나 반복 재생·화면용 합성·재인코딩을 하지 않고, 반환값에 pixels를 보관하지 않는다.
+
+WebP는 RIFF의 전체 길이·chunk 범위/zero padding, VP8X canvas·ANIM·모든 ANMF 영역과 프레임별 ALPH/VP8/VP8L을
+검사한다. 각 프레임의 실제 bitstream header를 별도로 읽어 선언된 크기와 대조하고 모든 크기/합산 예산을 pixel 할당 전에
+확인한다. 작은 ANMF가 큰 pixel header를 숨길 수 없다. Lossy/lossless·raw/compressed alpha·프레임별 혼합을 처리하며,
+30-byte header와 원본 chunk view를 사용한다. 프레임마다 파일이나 canvas를 복사하거나 표시용 합성을 하지 않는다.
+`Width()`/`Height()`는 canvas, `Frames()`는 ANMF 수(정적 파일은 1), format/MIME은 `webp`/`image/webp`다.
 
 BMP/DIB는 40·108·124-byte Windows header와 고정 Go decoder가 지원하는 palette/RGB/alpha 표현을 사용한다. BMP 16-bit,
 RLE·다른 header/mask 등 지원하지 않는 특성은 `unsupported_image`다. DIB는 검사 중에만 14-byte BMP header를 앞에 붙여
@@ -135,12 +141,13 @@ Strip/tile 개수와 각 데이터 범위를 확인하고 첫 8-byte header를 p
 | 입력 bytes와 TIFF 블록 참조 bytes 각각 | 16 MiB | 64 MiB |
 | 폭·높이 각각 | 16,384 | 65,535 |
 | 단일 raster/frame/canvas 픽셀 | 8,388,608 | 33,554,432 |
-| GIF/APNG frame / TIFF page 수 | 128 | 1,024 |
+| GIF/APNG/WebP frame / TIFF page 수 | 128 | 1,024 |
 | 전체 frame/page 픽셀 합 | 33,554,432 | 67,108,864 |
 
-0인 항목은 기본값을 적용하고 음수/설정 상한 초과는 시작 시 거부한다. Header 크기와 GIF/APNG의 모든 frame descriptor·TIFF의
+0인 항목은 기본값을 적용하고 음수/설정 상한 초과는 시작 시 거부한다. Header 크기와 GIF/APNG/WebP의 모든 frame descriptor·TIFF의
 모든 페이지를 실제 pixel 할당 전에 제한한다. APNG 합계는 기본 이미지와 각 후속 frame 영역의 pixel 수다. 예를 들어
-3×2 기본 이미지와 2×1 후속 frame은 합계 8픽셀이다. TIFF의 개별/합산 픽셀 예산에는 tile padding도 포함한다. 표시 영역이 3×2여도
+3×2 기본 이미지와 2×1 후속 frame은 합계 8픽셀이다. WebP는 모든 ANMF 영역을 합산하며 canvas도 개별/합산 한도 안에 있어야 한다.
+TIFF의 개별/합산 픽셀 예산에는 tile padding도 포함한다. 표시 영역이 3×2여도
 16×16 tile이면 256픽셀로 센다. 한도는 검사 하나의 입력·raster 예산이며 전체 heap의 정확한 byte 한도가 아니다. 동시 요청 수와
 Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 제한한다. 취소는 읽기/단계 경계에서 전달하며 decoder의
 한 pixel 계산 도중 강제 중단하는 goroutine을 만들지 않는다. 검사 결과에는 pixels나 복사한 원문 buffer를 보관하지 않는다.
@@ -159,6 +166,11 @@ GIF 후속 frame은 GoDj가 전체 frame을 디코딩해 거부한다. [관찰](
 [추가 codec 관찰](testdata/image-codecs-django61.json)에 구분한다.
 [APNG 관찰](testdata/apng-django61.json)은 폼 검증과 별도의 전체 frame 열기를 구분한다. 폼이 허용하는 순서/개수/CRC와
 pixel 손상도 GoDj는 거부한다. 고정 Pillow의 frame player가 일부 Adam7/ancillary 배치에서 실패하는 결과도 별도로 보존한다.
+[WebP 관찰](testdata/webp-animation-django61.json)은 libwebp 버전과 폼/전체 frame 결과를 나눈다. GoDj는 고정 폼이 허용하는
+누락/중복 control·실제 크기 불일치·후속 pixel/alpha 손상과 잘못된 padding 등을 거부한다. 반대로 공개 형식이 무시하도록
+정한 VP8X의 reserved/future field는 허용하며 native의 header 거부와 구분한다. ALPH reserved bits에서 native player만
+실패하는 경우도 기록한다. 애니메이션의 alpha는 각 frame의 실제 ALPH로 판단한다. 정적 lossy WebP의 alpha flag와 ALPH가
+모순되는 두 native 허용 입력은 고정 Go decoder가 거부한다. 전체 Pillow 재생 동등성이나 원문 정화를 뜻하지 않는다.
 
 모델 폼의 ExtraFields/파일 명령과 `schema.ImageField`는 같은 검사기를 사용한다. 모델 이미지의 IR·크기 참조·생성 descriptor·
 migration·typed 저장은 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)를 따른다. 일반 FileField의 입력 종류만

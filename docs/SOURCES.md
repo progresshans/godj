@@ -197,3 +197,12 @@ APNG의 구조·sequence·frame 범위·data 상속은
 별도 frame player 결과를 구분한다. `PIL.PngImagePlugin` SHA-256은
 `5911ebb3c8e58edf4fccace85ade20c3a062cc41dc55340bfb7b40f0bf1861c5`다(MIT-CMU). 합성 grayscale/RGB/RGBA·palette·16-bit·Adam7·
 기본 이미지/부분 frame·분할/빈 data·잘못된 control/CRC/pixels를 포함한다. 고정 player의 Adam7/ancillary 실패도 관찰값에 남긴다.
+
+
+WebP의 RIFF·VP8X·ANIM/ANMF·ALPH 구조, 크기/좌표·padding·reserved/future field 처리는
+[Google WebP Container Specification](https://developers.google.com/speed/webp/docs/riff_container)을 기준으로 독립 작성했다.
+Pixel 디코딩은 위 고정 `golang.org/x/image`의 BSD-3-Clause 구현을 사용한다. 같은 고정 Django/Pillow와 libwebp 1.6.0의
+[독립 observer](../conformance/runners/django/webp_animation_reference.py), [61개 관찰](../uploads/testdata/webp-animation-django61.json)은
+lossy/lossless·raw/compressed alpha·부분 frame·metadata·reserved field·손상 입력의 폼/별도 frame 결과를 구분한다.
+`PIL.WebPImagePlugin` SHA-256은 `634360a326abfcd29ec5e05f6b84c3be6e5a783e7c4dd6ad46bd0eba182dae23`다(MIT-CMU).
+Native의 관대한 control/alpha 처리와 일부 reserved header/player 거부를 GoDj의 검증 결과와 동일시하지 않는다.

@@ -42,6 +42,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 저장된 이미지의 명시적 검사/typed 크기 갱신·양 DB 저장/rollback과 관련 race
 - [x] BMP/DIB·classic TIFF 전체 페이지/예산·Form/Admin·양 DB 저장/재검사와 관련 race
 - [x] APNG의 별도 기본 이미지·모든 frame/예산·Form/Admin·양 DB 저장/재검사와 관련 race
+- [x] WebP의 모든 frame·실제 bitstream 크기/alpha·Form/Admin·양 DB 저장/재검사와 관련 race
+- [ ] 저장 이미지 검사와 BMP/DIB/TIFF·APNG/WebP의 누적 Hosted full 통합
 - [ ] 나머지 codec 특성/storage backend와 남은 파일 의미
 - [x] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합: source `4793382d`
 
@@ -164,3 +166,9 @@ APNG를 같은 이미지 검사/저장 경계에 연결했다. 기본 이미지�
 모델 저장과 명시적 재검사에 연결했다. 고정 native는 폼 결과·별도 frame player 결과를 구분한다. 영향 normal/race·양 DB/양
 backend·fuzz와 원본 선택 실행이 통과하는 부정 대조를 확인했다. Hosted full `4793382d` 이후의 별도 영향 범위이며 남은
 애니메이션 WebP·codec/provider와 전체 카탈로그의 완료를 뜻하지 않는다.
+
+WebP의 정적/애니메이션 파일을 같은 이미지 경계로 연결했다. RIFF·ANIM/ANMF·실제 VP8/VP8L 치수·프레임별 alpha와
+합산 예산을 먼저 검사하고 모든 frame의 pixels를 디코딩한다. 고정 native의 폼 결과·별도 재생 실패·공개 형식의 reserved
+field 규칙을 구분하며 Formset/Admin·양 DB/양 backend의 저장/재검사와 실패 경로를 검증했다. 저장 이미지 검사부터 이번
+WebP까지를 다음 Hosted full milestone의 통합 범위로 정했다. 로컬 전체를 중복하지 않고 게시한 source의 필수 owner·
+aggregate·새 capture 결합을 확인한다. 나머지 codec 특성/provider와 전체 카탈로그는 계속 미완료다.

@@ -15,7 +15,7 @@ import (
 
 func TestImageCodecFormAndSetExtensionAndFailureSemantics(t *testing.T) {
 	payloads := map[string]string{}
-	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}} {
+	for _, source := range []struct{ name, prefix string }{{"image-codecs-django61.json", ""}, {"apng-django61.json", "apng_"}, {"webp-animation-django61.json", "webp_"}} {
 		var reference struct{ Payloads map[string]string }
 		raw, err := os.ReadFile("../uploads/testdata/" + source.name)
 		if err != nil {
@@ -54,6 +54,16 @@ func TestImageCodecFormAndSetExtensionAndFailureSemantics(t *testing.T) {
 		{"apng_subrect", "photo.apng", "", "", "image_pixels", 0, 0, uploads.ImageLimits{MaxTotalPixels: 7}},
 		{"apng_rgba_static", "photo.apng", "png", "image/png", "", 1, 1, uploads.ImageLimits{}},
 		{"tiff_raw", "photo.apng", "tiff", "image/tiff", "", 1, 1, uploads.ImageLimits{}},
+		{"webp_lossy", "photo.WEBP", "webp", "image/webp", "", 2, 1, uploads.ImageLimits{}},
+		{"webp_lossless_alpha", "photo.webp", "webp", "image/webp", "", 2, 1, uploads.ImageLimits{}},
+		{"webp_compressed_alpha", "photo.webp", "webp", "image/webp", "", 2, 1, uploads.ImageLimits{}},
+		{"webp_mixed", "photo.png", "webp", "image/webp", "", 2, 1, uploads.ImageLimits{}},
+		{"webp_single", "photo.webp", "webp", "image/webp", "", 1, 1, uploads.ImageLimits{}},
+		{"webp_lossy", "photo.txt", "webp", "image/webp", "invalid_extension", 2, 1, uploads.ImageLimits{}},
+		{"webp_late_lossless_pixels", "photo.txt", "", "", "invalid_image", 0, 0, uploads.ImageLimits{}},
+		{"webp_truncated_compressed_alpha", "photo.webp", "", "", "invalid_image", 0, 0, uploads.ImageLimits{}},
+		{"webp_lossy", "photo.webp", "", "", "image_frames", 0, 0, uploads.ImageLimits{MaxFrames: 1}},
+		{"webp_subrect", "photo.webp", "", "", "image_pixels", 0, 0, uploads.ImageLimits{MaxTotalPixels: 7}},
 	} {
 		t.Run(test.payload+"/"+test.name+"/"+test.code, func(t *testing.T) {
 			content, err := base64.StdEncoding.DecodeString(payloads[test.payload])

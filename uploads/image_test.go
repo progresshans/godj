@@ -173,7 +173,7 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, kind := range []string{"riff_size", "trailing_header", "duplicate_image", "late_animation", "chunk_overflow", "odd_missing_pad"} {
+	for _, kind := range []string{"riff_size", "trailing_header", "duplicate_image", "unflagged_frame", "chunk_overflow", "odd_missing_pad"} {
 		t.Run(kind, func(t *testing.T) {
 			malformed := bytes.Clone(webp)
 			switch kind {
@@ -185,8 +185,8 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 			case "duplicate_image":
 				malformed = append(malformed, webp[12:]...)
 				binary.LittleEndian.PutUint32(malformed[4:8], uint32(len(malformed)-8))
-			case "late_animation":
-				malformed = append(malformed, []byte{'A', 'N', 'I', 'M', 0, 0, 0, 0}...)
+			case "unflagged_frame":
+				malformed = append(malformed, []byte{'A', 'N', 'M', 'F', 0, 0, 0, 0}...)
 				binary.LittleEndian.PutUint32(malformed[4:8], uint32(len(malformed)-8))
 			case "chunk_overflow":
 				binary.LittleEndian.PutUint32(malformed[16:20], ^uint32(0))
@@ -197,15 +197,12 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 			file, _ := NewFile("malformed.webp", "image/webp", malformed)
 			info, err := InspectImage(t.Context(), file, ImageLimits{})
 			want := "invalid_image"
-			if kind == "late_animation" {
-				want = "unsupported_image"
-			}
 			if info.Valid() || !errors.Is(err, &Error{Code: want}) {
 				t.Fatal("outer framing ignored", err)
 			}
 		})
 	}
-	for _, format := range []string{"png", "animated_png", "jpeg", "gif", "animated_gif", "webp"} {
+	for _, format := range []string{"png", "animated_png", "jpeg", "gif", "animated_gif", "webp", "animated_webp"} {
 		data, err := base64.StdEncoding.DecodeString(fixture.Payloads[format])
 		if err != nil {
 			t.Fatal(err)
@@ -213,7 +210,7 @@ func TestInspectImageRejectsHeaderOnlyPixelBombsAndMalformedContainers(t *testin
 		file, _ := NewFile("any.bin", "untrusted", data)
 		info, err := InspectImage(t.Context(), file, ImageLimits{})
 		frames := 1
-		if format == "animated_gif" || format == "animated_png" {
+		if format == "animated_gif" || format == "animated_png" || format == "animated_webp" {
 			frames = 2
 		}
 		if err != nil || info.Width() != 3 || info.Height() != 2 || info.Frames() != frames {
@@ -252,6 +249,10 @@ func FuzzInspectImage(f *testing.F) {
 	animations := apngFixture(f)
 	for _, observed := range animations.Cases {
 		f.Add(apngPayload(f, animations, observed.Name))
+	}
+	webpAnimations := webpFixture(f)
+	for _, observed := range webpAnimations.Cases {
+		f.Add(webpPayload(f, webpAnimations, observed.Name))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1<<20 {

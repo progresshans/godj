@@ -124,7 +124,7 @@ func TestImageFieldPinnedDjangoObservation(t *testing.T) {
 			}
 			// Animated WebP policy and full GIF decoding are explicit differences,
 			// never counted as native parity. Pillow verify() accepts these broken tails.
-			different := item.Name == "animated_webp" || item.Name == "truncated_gif" || item.Name == "corrupt_later_gif"
+			different := item.Name == "truncated_gif" || item.Name == "corrupt_later_gif"
 			if different {
 				if !item.Valid || bound.Valid() || strings.Join(codes, ",") != "invalid_image" || len(calls) != 0 {
 					t.Fatal("explicit image policy", bound.Valid(), codes, calls)
