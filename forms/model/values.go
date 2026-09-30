@@ -58,7 +58,7 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		switch {
 		case scalar.IsNull() && field.Nullable():
 			result[field.Name()] = forms.Null()
-		case scalar.Kind() == query.ValueString && field.Kind() == forms.FieldFile:
+		case scalar.Kind() == query.ValueString && field.IsFile():
 			text, _ := scalar.String()
 			value, err := forms.ExistingFile(text)
 			if err != nil {

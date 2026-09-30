@@ -188,7 +188,7 @@ func (a *Application) bindAdminReports(ctx context.Context, session db.RelationS
 	if err != nil {
 		return adminReportSet{}, false, err
 	}
-	set, err := spec.Bind(data, parent, current, formmodel.PostClean{})
+	set, err := spec.Bind(ctx, data, parent, current, formmodel.PostClean{})
 	if err != nil {
 		return adminReportSet{}, false, err
 	}

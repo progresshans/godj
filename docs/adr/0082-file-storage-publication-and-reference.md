@@ -6,7 +6,7 @@
 
 업로드 capability는 요청이 끝나면 만료된다. 이를 모델의 영구 참조로 보관하거나 파일 저장과 DB commit을 하나의 성공으로
 합치면 수명 종료·부분 실패에서 잘못된 이름과 파일이 남는다. 모델의 영구 값은 저장소 상대 이름이며 실제 I/O는 명시적인
-storage backend의 context/error 경계가 소유한다. Template/Form의 순수 검증은 I/O 권한을 얻지 않는다.
+storage backend와 업로드 검증의 context/error 경계가 소유한다. Template과 Form의 사용자 검증 callback은 I/O 권한을 얻지 않는다.
 
 저장소는 실제 저장한 이름/크기를 반환하고 이름이나 metadata의 구성 자체는 접근 권한이 아니다. 기본 로컬 backend는
 application 소유 root handle과 예약 staging namespace를 사용한다. 불완전한 파일을 공개 이름에 직접 쓰거나 충돌한
@@ -48,7 +48,7 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-외부 object-storage backend·서명 URL provider·ImageField·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+외부 object-storage backend·서명 URL provider·모델 ImageField·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
@@ -66,3 +66,15 @@ InMemoryStorage의 공유 cursor·실패 뒤 부분 파일·재귀 directory 삭
 정수/요청 한도는 HTTP 의미를 따른다. 파일 전체의 메모리 복사·별도 lookup·goroutine으로 기존 수명과 실패 경계를 우회하지 않는다.
 동일 이름 재사용과 동시 요청은 새 reader/metadata를 사용하며 원래 응답 설명을 바꾸지 않는다. 쓰기 precondition과 접근 정책은
 실제 쓰기/인가 경계가 소유하며 응답의 conditional 판단으로 대체하지 않는다.
+
+
+ImageField의 공통 입력 기반은 `Bind(ctx, ...)`가 소유한다. 업로드 capability를 독립 reader로 읽고 실제 pixel 디코딩 전에
+인코딩 bytes·폭/높이·pixel 수·GIF frame 수/합계를 제한한다. 미배포 Bind API 자체에 context를 전달하며 숨은 Background
+context나 별도 호환 Bind를 만들지 않는다. Form/ModelForm/Formset/Admin/인증 소비자는 같은 context 경계를 따른다.
+Codec registry는 전역 mutable image 등록 상태에 의존하지 않는다. PNG/JPEG/GIF/정적 WebP의 검증 metadata는 immutable
+FileValue에만 연결하며 client MIME을 덮어쓰거나 참조 이름을 자동으로 열지 않는다. 요청 파일의 수명도 늘리지 않는다.
+
+현재 GIF는 모든 frame을 디코딩하며 APNG·애니메이션 WebP·BMP·TIFF 등 추가 codec은 명시적으로 미지원이다. Header만 읽어
+검증 성공으로 처리하지 않는다. 잘못된 이미지와 실제 I/O/취소/정리 실패를 분리한다. Limit는 검사별 예산이며 전체 process
+heap/동시 요청 제한을 대신하지 않는다. 검증 원문은 변환/정화하지 않고 그대로 저장한다. 모델 ImageField의 canonical IR·
+크기 field 소유권·생성 모델·migration 연결은 이 기반 뒤의 별도 미완료 범위다. [이미지 계약](../../uploads/README.md#이미지-내용-검증)을 따른다.

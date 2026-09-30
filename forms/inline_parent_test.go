@@ -21,7 +21,7 @@ func TestInlineParentFieldKeepsServerIdentityAndNeverCountsAsChange(t *testing.T
 			if raw != nil {
 				input["parent"] = raw
 			}
-			bound, err := spec.Bind(forms.NewData(input), nil)
+			bound, err := spec.Bind(t.Context(), forms.NewData(input), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

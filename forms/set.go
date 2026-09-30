@@ -1,6 +1,7 @@
 package forms
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"sort"
@@ -213,7 +214,7 @@ func (s SetSpec) Unbound(initial []map[string]Value) (Set, error) {
 	}
 	set := Set{config: s.config, initial: len(initial), management: management, rows: make([]SetForm, 0, count)}
 	for index := 0; index < count; index++ {
-		row, err := s.makeRow(index, initial, Data{}, false)
+		row, err := s.makeRow(nil, index, initial, Data{}, false)
 		if err != nil {
 			return Set{}, err
 		}
@@ -225,25 +226,25 @@ func (s SetSpec) Unbound(initial []map[string]Value) (Set, error) {
 // Bind uses the server's initial row count. Forged INITIAL_FORMS cannot turn a
 // required current row into an unchanged, optional extra row. Counts and the
 // hard cap are checked before constructing any row or running its callbacks.
-func (s SetSpec) Bind(data Data, initial []map[string]Value) (Set, error) {
-	return s.bind(data, initial, SetProcessor{})
+func (s SetSpec) Bind(ctx context.Context, data Data, initial []map[string]Value) (Set, error) {
+	return s.bind(ctx, data, initial, SetProcessor{})
 }
 
 // BindWith evaluates fields once, then applies the supplied pure row processor.
 // Processor failures are operational/configuration errors, not deletable row
 // diagnostics. Database I/O and final write admission remain separate.
-func (s SetSpec) BindWith(data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
+func (s SetSpec) BindWith(ctx context.Context, data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
 	if processor.Form == nil && processor.Clean == nil {
 		return Set{}, &ConfigError{Path: "set.processor", Code: "nil"}
 	}
-	return s.bind(data, initial, processor)
+	return s.bind(ctx, data, initial, processor)
 }
 
-func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
+func (s SetSpec) bind(ctx context.Context, data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
 	if err := s.checkInitial(initial); err != nil {
 		return Set{}, err
 	}
-	management, err := s.management.Bind(prefixedData(data, s.config.Prefix, s.management.fields), nil)
+	management, err := s.management.Bind(ctx, prefixedData(data, s.config.Prefix, s.management.fields), nil)
 	if err != nil {
 		return Set{}, err
 	}
@@ -272,7 +273,10 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 	}
 	empty := 0
 	for index := 0; index < count; index++ {
-		row, err := s.makeRow(index, initial, data, true)
+		if err := ctx.Err(); err != nil {
+			return Set{}, err
+		}
+		row, err := s.makeRow(ctx, index, initial, data, true)
 		if err != nil {
 			return Set{}, err
 		}
@@ -307,6 +311,9 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 	case s.config.ValidateMin && count-deleted-empty < s.config.MinForms:
 		set.errors = validation.NewErrors(validation.New(validation.NonField, "too_few_forms", validation.NewParam("num", strconv.Itoa(s.config.MinForms))))
 	default:
+		if err := ctx.Err(); err != nil {
+			return Set{}, err
+		}
 		if processor.Clean != nil {
 			set.valid = management.Valid() && set.rowsValid() && set.errors.Empty()
 			processed, err := processor.Clean(set)
@@ -320,6 +327,9 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 		}
 		var failures []validation.Errors
 		for _, validator := range s.validators {
+			if err := ctx.Err(); err != nil {
+				return Set{}, err
+			}
 			errors := validator.ValidateSet(set.Forms())
 			if err := validateSetErrors(errors); err != nil {
 				return Set{}, err
@@ -338,6 +348,9 @@ func (s SetSpec) bind(data Data, initial []map[string]Value, processor SetProces
 		}
 	}
 	set.valid = management.Valid() && set.rowsValid() && set.errors.Empty()
+	if err := ctx.Err(); err != nil {
+		return Set{}, err
+	}
 	return set, nil
 }
 
@@ -351,7 +364,7 @@ func (s SetSpec) checkInitial(initial []map[string]Value) error {
 	return nil
 }
 
-func (s SetSpec) makeRow(index int, initial []map[string]Value, data Data, bound bool) (SetForm, error) {
+func (s SetSpec) makeRow(ctx context.Context, index int, initial []map[string]Value, data Data, bound bool) (SetForm, error) {
 	fields := s.row.Fields()
 	values := map[string]Value{}
 	if index >= 0 && index < len(initial) {
@@ -398,7 +411,7 @@ func (s SetSpec) makeRow(index int, initial []map[string]Value, data Data, bound
 		return SetForm{}, err
 	}
 	if readOnly {
-		row.form, err = bindReadOnlyRow(spec, submitted, resolved, fields[len(s.row.fields):])
+		row.form, err = bindReadOnlyRow(ctx, spec, submitted, resolved, fields[len(s.row.fields):])
 		return row, err
 	}
 	if row.emptyPermitted {
@@ -415,7 +428,7 @@ func (s SetSpec) makeRow(index int, initial []map[string]Value, data Data, bound
 			return row, nil
 		}
 	}
-	row.form, err = spec.Bind(submitted, values)
+	row.form, err = spec.Bind(ctx, submitted, values)
 	return row, err
 }
 
@@ -425,7 +438,7 @@ func (s SetSpec) EmptyForm() (SetForm, error) {
 	if !s.valid {
 		return SetForm{}, &ConfigError{Path: "set", Code: "uninitialized"}
 	}
-	return s.makeRow(-1, nil, Data{}, false)
+	return s.makeRow(nil, -1, nil, Data{}, false)
 }
 
 func prefixedData(data Data, prefix string, fields []Field) Data {
@@ -438,7 +451,7 @@ func prefixedData(data Data, prefix string, fields []Field) Data {
 		if raw, present := data.rawFiles(prefix + "-" + field.name); present {
 			files[field.name] = raw
 		}
-		if field.kind == FieldFile && field.widget == ClearableFileInput {
+		if field.IsFile() && field.widget == ClearableFileInput {
 			if raw, present := data.raw(prefix + "-" + field.name + "-clear"); present {
 				values[field.name+"-clear"] = raw
 			}

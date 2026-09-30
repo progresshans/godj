@@ -191,7 +191,7 @@ func runModelFormDatabase(t *testing.T, backend probeBackend) {
 				initial = map[string]forms.Value{"id": forms.Integer(existing.ID), "key": forms.String(existing.Key), "address": forms.String(existing.Address), "counter": forms.Integer(existing.Counter)}
 			}
 			modelCalls := 0
-			bound, err := formmodel.Bind(metadata, spec, forms.NewData(input), initial, formmodel.PostClean{Validators: []formmodel.Validator{formmodel.ValidatorFunc(func(candidate forms.Values) validation.Errors {
+			bound, err := formmodel.Bind(t.Context(), metadata, spec, forms.NewData(input), initial, formmodel.PostClean{Validators: []formmodel.Validator{formmodel.ValidatorFunc(func(candidate forms.Values) validation.Errors {
 				modelCalls++
 				if key, _ := candidate.String("key"); key == "reject" {
 					return validation.NewErrors(validation.New("counter", "semantic"))

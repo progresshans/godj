@@ -5,6 +5,7 @@ description = "Pinned Django reference environment for GoDj conformance tests"
 requires-python = "==3.14.3"
 dependencies = [
     "Django==6.1",
+    "pillow==12.3.0",
 ]
 
 [tool.uv]

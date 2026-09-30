@@ -33,7 +33,7 @@ func TestDecimalModelFormsAgainstPinnedDjango(t *testing.T) {
 				data[key] = []string{value}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "zero": forms.Decimal(decimal.Decimal{}), "negative_zero": forms.Decimal(decimal.Decimal{Coefficient: "-0"}), "same": forms.Decimal(decimal.Decimal{Coefficient: "15", Exponent: -1})} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"cost": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"cost": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -108,7 +108,7 @@ func TestDecimalFormPrecisionProfilesAndInitialBounds(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := spec.Bind(forms.NewData(map[string][]string{"cost": {row.Input}}), nil)
+			bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"cost": {row.Input}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -153,7 +153,7 @@ func TestDecimalFormPrecisionProfilesAndInitialBounds(t *testing.T) {
 	if value, ok := unbound.Initial().Decimal("cost"); err != nil || !ok || value != initial {
 		t.Fatal("representable initial was subjected to submitted precision", err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"cost": {"1.500"}}), map[string]forms.Value{"cost": forms.Decimal(decimal.Decimal{Coefficient: "15", Exponent: -1})})
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"cost": {"1.500"}}), map[string]forms.Value{"cost": forms.Decimal(decimal.Decimal{Coefficient: "15", Exponent: -1})})
 	if err != nil || bound.Valid() || len(bound.Changed()) != 0 {
 		t.Fatal("precision error altered numeric changed semantics")
 	}

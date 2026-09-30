@@ -1,6 +1,7 @@
 package identityaccount
 
 import (
+	"context"
 	"net/url"
 	"unicode/utf8"
 
@@ -61,14 +62,14 @@ func passwordField(name, label string) (forms.Field, error) {
 	return forms.CharField(name, forms.WithLabel(label), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false), forms.WithMaxLength(MaximumInputBytes))
 }
 
-func bind(spec forms.Spec, data url.Values) (forms.Form, error) {
+func bind(ctx context.Context, spec forms.Spec, data url.Values) (forms.Form, error) {
 	values := make(map[string][]string)
 	for _, field := range spec.Fields() {
 		if raw, ok := data[field.Name()]; ok {
 			values[field.Name()] = raw
 		}
 	}
-	return spec.Bind(forms.NewData(values), nil)
+	return spec.Bind(ctx, forms.NewData(values), nil)
 }
 
 func checkedField(form forms.Form, name string) *string {

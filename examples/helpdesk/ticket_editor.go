@@ -203,7 +203,7 @@ func (editor *TicketEditor) load(ctx context.Context, reader db.Queryer, page in
 	if submitted == nil {
 		view.set, err = inline.Unbound(parent, current, readerFn)
 	} else {
-		view.set, err = inline.Bind(*submitted, parent, current, formmodel.PostClean{}, readerFn)
+		view.set, err = inline.Bind(ctx, *submitted, parent, current, formmodel.PostClean{}, readerFn)
 	}
 	return view, err
 }

@@ -96,7 +96,7 @@ func TestBuiltInCollectionSaverOwnsModelAndFieldBindingBeforeScalarWrite(t *test
 				t.Fatal(err)
 			}
 			current := models.Ticket{CategoryID: 3}
-			form, err := formmodel.BindInstance(manager, spec, forms.NewData(map[string][]string{"subject": {"candidate"}, "labels": {"7"}}), &current, formmodel.PostClean{})
+			form, err := formmodel.BindInstance(t.Context(), manager, spec, forms.NewData(map[string][]string{"subject": {"candidate"}, "labels": {"7"}}), &current, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}

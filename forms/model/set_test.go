@@ -168,7 +168,7 @@ func TestInstanceSetsAgainstPinnedDjango(t *testing.T) {
 				for name, value := range observed.Data {
 					raw[name] = []string{value}
 				}
-				bound, err = formmodel.BindSet(article.ArticleObjects, spec, forms.NewData(raw), current, post)
+				bound, err = formmodel.BindSet(t.Context(), article.ArticleObjects, spec, forms.NewData(raw), current, post)
 			} else {
 				bound, err = formmodel.UnboundSet(article.ArticleObjects, spec, current)
 			}
@@ -286,7 +286,7 @@ func TestInstanceSetOwnsSnapshotsAndKeepsAdmissionSeparateFromDeletedDataErrors(
 	config.CanDelete = true
 	spec := articleSetSpec(t, config)
 	current := setArticles()
-	bound, err := formmodel.BindSet(article.ArticleObjects, spec, modelSetData(map[string]string{"id": "2", "title": "updated"}, map[string]string{"id": "1", "title": "one", "DELETE": "on"}, nil), current, formmodel.PostClean{})
+	bound, err := formmodel.BindSet(t.Context(), article.ArticleObjects, spec, modelSetData(map[string]string{"id": "2", "title": "updated"}, map[string]string{"id": "1", "title": "one", "DELETE": "on"}, nil), current, formmodel.PostClean{})
 	if err != nil || !bound.Valid() {
 		t.Fatal(err)
 	}
@@ -397,7 +397,7 @@ func TestInstanceSetTypedCollectionsAndConcurrentPreparation(t *testing.T) {
 		return forms.NewValues(map[string]forms.Value{"category": forms.Integer(9)}), validation.Errors{}
 	}}
 	data := forms.NewData(map[string][]string{"tickets-TOTAL_FORMS": {"2"}, "tickets-INITIAL_FORMS": {"1"}, "tickets-0-id": {"5"}, "tickets-0-subject": {"changed"}, "tickets-0-labels": {"8"}, "tickets-0-category": {"999"}, "tickets-1-subject": {"new"}, "tickets-1-labels": {"7"}})
-	bound, err := formmodel.BindSet(helpdesk.TicketObjects, spec, data, []helpdesk.Ticket{current}, post, reader)
+	bound, err := formmodel.BindSet(t.Context(), helpdesk.TicketObjects, spec, data, []helpdesk.Ticket{current}, post, reader)
 	if err != nil || !bound.Valid() {
 		t.Fatal(err)
 	}
@@ -468,7 +468,7 @@ func TestInstanceSetCleansEachEvaluatedRowOnceAndRetainsSubmission(t *testing.T)
 		modelCalls++
 		return forms.Values{}, validation.Errors{}
 	}}
-	bound, err := formmodel.BindSet(article.ArticleObjects, spec, modelSetData(map[string]string{"id": "01", "title": " changed "}, map[string]string{"id": "2", "title": "two"}, nil), setArticles(), post)
+	bound, err := formmodel.BindSet(t.Context(), article.ArticleObjects, spec, modelSetData(map[string]string{"id": "01", "title": " changed "}, map[string]string{"id": "2", "title": "two"}, nil), setArticles(), post)
 	if err != nil || !bound.Valid() {
 		t.Fatal("valid identity alias/input rejected", err)
 	}

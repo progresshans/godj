@@ -30,7 +30,7 @@ func TestNullableBooleanModelFormsAgainstPinnedDjangoWidgetObservations(t *testi
 				data[name] = []string{raw}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "false": forms.Boolean(false), "true": forms.Boolean(true)} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"flag": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"flag": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -76,12 +76,12 @@ func TestNullableBooleanDefaultsValidationAndRepeatedInput(t *testing.T) {
 		if !actual.Equal(initial) {
 			t.Fatal("initial null/false/true default changed")
 		}
-		bound, err := spec.Bind(forms.NewData(nil), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 		cleaned, _ := bound.Cleaned().Get("flag")
 		if err != nil || !bound.Valid() || !cleaned.IsNull() {
 			t.Fatal("a default replaced omitted bound input")
 		}
-		bound, err = spec.Bind(forms.NewData(map[string][]string{"flag": {"true", "false"}}), nil)
+		bound, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"flag": {"true", "false"}}), nil)
 		if err != nil || bound.Valid() || bound.Errors().Len() != 1 {
 			t.Fatal("ambiguous repeated Boolean accepted")
 		}
@@ -99,11 +99,11 @@ func TestNullableBooleanDefaultsValidationAndRepeatedInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(nil), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 	if err != nil || bound.Valid() {
 		t.Fatal("nullable cleaning bypassed application validator")
 	}
-	bound, err = spec.Bind(forms.NewData(map[string][]string{"flag": {"false"}}), nil)
+	bound, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"flag": {"false"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatal("validator treated false as unknown")
 	}

@@ -124,7 +124,7 @@ func TestIntegerProjectionPreservesNullabilityAndExactInitialDefault(t *testing.
 	if value, ok := unbound.Initial().Get("priority"); !ok || !value.IsNull() {
 		t.Fatal("nullable initial invented zero")
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"count": {"0"}, "priority": {""}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"count": {"0"}, "priority": {""}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatalf("integer form bind: %v", err)
 	}

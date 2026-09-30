@@ -250,7 +250,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (Inline, error) {
 		if submitted == nil {
 			bound, err = requestSpec.Unbound(owner, snapshot.Current, related...)
 		} else {
-			bound, err = requestSpec.Bind(*submitted, owner, snapshot.Current, postClean, related...)
+			bound, err = requestSpec.Bind(ctx, *submitted, owner, snapshot.Current, postClean, related...)
 		}
 		if err != nil {
 			return inlineBound{}, err
@@ -372,7 +372,7 @@ func inlineInputNames(definition Inline) map[string]bool {
 	names := map[string]bool{definition.primary: true}
 	for _, field := range definition.fields {
 		names[field.Name()] = true
-		if field.Kind() == forms.FieldFile && field.Widget() == forms.ClearableFileInput {
+		if field.IsFile() && field.Widget() == forms.ClearableFileInput {
 			names[field.Name()+"-clear"] = true
 		}
 	}

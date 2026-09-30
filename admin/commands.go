@@ -91,7 +91,7 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 			if err != nil {
 				return CommandResult{}, err
 			}
-			values, err := validateBoundData(data, config.Form, fields)
+			values, err := validateBoundData(ctx, data, config.Form, fields)
 			if err != nil {
 				return CommandResult{}, err
 			}

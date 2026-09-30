@@ -146,7 +146,7 @@ func TestAdminCommandStartupAndForgedFormsFailBeforeMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	forged, _ := forms.NewSpec([]forms.Field{cField(t, "username")})
-	bound, _ := forged.Bind(forms.NewData(map[string][]string{"username": {"unrelated"}}), nil)
+	bound, _ := forged.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"unrelated"}}), nil)
 	if _, err := commands[0].run(context.Background(), mustPrincipalWithPermissions(t, "accounts.change"), Mutation{ID: 1, Revision: 1}, bound); err == nil {
 		t.Fatal("unrelated valid form was accepted")
 	}

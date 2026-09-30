@@ -83,7 +83,7 @@ func (site *Site) parseModelForm(request *web.Request, model registeredModel, in
 
 func fileFieldNamed(fields []forms.Field, name string) bool {
 	for _, field := range fields {
-		if field.Name() == name && field.Kind() == forms.FieldFile {
+		if field.Name() == name && field.IsFile() {
 			return true
 		}
 	}

@@ -29,7 +29,7 @@ func TestTextProjectionUsesTextareaAndKeepsEmptyStringDistinctFromNull(t *testin
 		t.Fatal("Char presentation changed")
 	}
 	for _, raw := range []string{"", "  \r\n", "line 1\r\nline 2", strings.Repeat("長い本文 ", 600)} {
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"body": {raw}, "summary": {""}}), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"body": {raw}, "summary": {""}}), nil)
 		if err != nil || !bound.Valid() {
 			t.Fatalf("Text bind: %v", err)
 		}

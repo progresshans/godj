@@ -67,7 +67,7 @@ func TestModelChoiceSnapshotsMatchIndependentDjango(t *testing.T) {
 				if observation.Raw != nil {
 					input["ticket"] = []string{*observation.Raw}
 				}
-				form, err := spec.Bind(forms.NewData(input), initial)
+				form, err := spec.Bind(t.Context(), forms.NewData(input), initial)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -111,7 +111,7 @@ func TestModelChoiceSnapshotsAreExplicitIndependentAndFailClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	bind := func(spec forms.Spec, raw string) forms.Form {
-		form, err := spec.Bind(forms.NewData(map[string][]string{"ticket": {raw}}), nil)
+		form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"ticket": {raw}}), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -164,7 +164,7 @@ func TestModelChoiceSnapshotsAreExplicitIndependentAndFailClosed(t *testing.T) {
 	if _, err := forms.ModelChoiceField("ticket", forms.WithWidget(forms.TextInput)); err == nil {
 		t.Fatal("relation selection widget disabled")
 	}
-	repeated, err := first.Bind(forms.NewData(map[string][]string{"ticket": {"7", "7"}}), nil)
+	repeated, err := first.Bind(t.Context(), forms.NewData(map[string][]string{"ticket": {"7", "7"}}), nil)
 	if err != nil || repeated.Valid() {
 		t.Fatal("duplicate scalar input accepted", err)
 	}

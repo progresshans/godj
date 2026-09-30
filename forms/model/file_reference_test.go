@@ -86,7 +86,7 @@ func TestModelFilesAgainstPinnedDjangoObservations(t *testing.T) {
 				}
 				files["document"] = []uploads.File{file}
 			}
-			bound, err := definition.Bind(metadata, forms.NewDataWithFiles(values, files), initial)
+			bound, err := definition.Bind(t.Context(), metadata, forms.NewDataWithFiles(values, files), initial)
 			if err != nil {
 				t.Fatal(err)
 			}

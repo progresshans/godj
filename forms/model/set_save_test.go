@@ -46,7 +46,7 @@ func saveSet(t *testing.T, collection bool) formmodel.PreparedSet[models.Article
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := formmodel.BindSet(manager, spec, modelSetData(
+	bound, err := formmodel.BindSet(t.Context(), manager, spec, modelSetData(
 		map[string]string{"id": "1", "title": "changed"},
 		map[string]string{"id": "2", "title": "two", "DELETE": "on"},
 		map[string]string{"title": "new", "labels": "7"},

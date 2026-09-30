@@ -92,7 +92,7 @@ func TestChoicesFormAndSerializerAgainstIndependentDjango(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				bound, err := formSpec.Bind(forms.NewData(map[string][]string{observation.Field: {raw}}), nil)
+				bound, err := formSpec.Bind(t.Context(), forms.NewData(map[string][]string{observation.Field: {raw}}), nil)
 				if err != nil {
 					t.Fatal(err)
 				}

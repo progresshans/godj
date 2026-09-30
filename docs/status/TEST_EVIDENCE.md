@@ -5,6 +5,67 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 공통 ImageField 입력과 context 기반 바인딩
+
+2026-09-30, 기반 `1ec857477db4d641d23d566bed78eee1487ca9f0` 이후 이미지의 실제 내용 검증을 Form/Formset·모델 폼의
+비저장 입력과 Admin 생성/명령에 연결했다. Bind 계열이 context를 명시적으로 받으며 업로드를 독립 reader로 읽는다.
+클라이언트 MIME·기존 저장 참조와 검증 metadata를 구분하고, 사용자 field/cross/model validator의 pure 계약은 유지한다.
+이 checkpoint는 **공통 입력 기반**이며 모델 ImageField의 IR·폭/높이 field 참조·생성 모델/migration은 아직 구현하지 않았다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 최종 영향 normal | uploads/Form/Admin 3 packages / 171 roots / 1,576 PASS / 1.222초 |
+| 최종 이미지 관련 race | 독립 reader·내용/한도·Form/Formset·실제 Admin 생성/명령·I/O 실패 10 roots / 62 PASS / 2.334초 |
+| 최종 기존 생성 파일 소비자 양 DB/race | FileConsumer parent PASS / 20.066초; 생성 module의 필수 16개 이름을 각각 한 번의 PASS로 확인, SQLite/PostgreSQL × filesystem/memory 및 Range/conditional 포함 |
+| 최종 Helpdesk 양 DB/race | 기존 공개 HTML/Admin/API 2 roots / 필수 하위 141개 / 총 284 PASS / 145.843초 |
+| 기존 호출경로 영향 normal | 아래 첫 source에서 최종 PASS한 11 packages / 366 roots / 2,064 PASS. 같은 실행 전체는 이미지 2개 package 실패로 FAIL이며 아래 수정/재검과 구분 |
+| 생성 소비자 normal | 첫 source에서 File/Choices/Email/ForwardScalar/ManyToManyCollections/ModelClean/ModelFormDatabase/ModelFormSave 8 roots / 11 parent·subtest PASS / 41.384초; 내부 생성 module의 필수 실행 검사와 양 DB 활성화 |
+| 독립 native | Django 6.1·CPython 3.14.3·Pillow 12.3.0의 32개 관찰, 공통 26개·명시적 차이 6개; 두 번 실행한 bytes와 fixture 일치 |
+| Fuzz | `FuzzInspectImage`, 12개 seed·4 workers·20초 요청, 실제 21.477초 / 1,436,107회 실행 / PASS |
+| 부정 대조 | context 전달·전체 GIF 디코딩·단일 픽셀/프레임/합산 한도·reader close·WebP framing·운영 오류 구분·확장자/user validator 순서·검증 metadata·APNG 거부의 11개 overlay가 지정 runtime assertion에서 실패 |
+| 정적 확인 | 전체 205 packages warm compile-only PASS(167.566초, 테스트 실행 없음), 영향 go vet, `make generate-check`의 Unicode16 생성/2 Python tests·7 projects·checked-in relation product drift PASS; gofmt/diff·170 Markdown 문서의 local 링크 PASS |
+
+새 이미지 입력은 static PNG(16-bit 포함)·JPEG(CMYK/progressive 포함)·GIF 전체 frame·static WebP(lossless/alpha 포함)를
+확인했다. 인코딩 bytes·폭/높이·단일 pixel·GIF frame 수/합계를 디코딩 전에 제한한다. BMP/TIFF/APNG/animated WebP는 현재
+명시적 미지원이며, Django/Pillow가 허용하는 잘린 GIF tail와 구조가 유지된 두 번째 frame의 잘못된 LZW code도 GoDj는 거부한다.
+이 여섯 사례를 native 동등성으로 합산하지 않았다. 허용 확장자와 실제 format의 불일치는 허용하되 실제 MIME은 검증 metadata에서
+얻는다. 검증은 원문 bytes를 바꾸지 않고, 보유 reader cursor·공유 Spec·request staging 수명을 보존한다.
+
+실제 Admin HTTP는 PBKDF2 로그인·CSRF 뒤 disk-spilled multipart를 생성/명령 폼에서 검증하고 filesystem/memory에 게시한다.
+잘못된 이미지·확장자 오류는 저장 callback 0회와 200 오류 재표시·재선택 안내를 유지한다. 잘못된 CSRF도 게시를 막고, 정상
+게시 뒤 upload는 닫히지만 backend의 원문은 재개방된다. 파싱 후 staging 파일이 사라진 입력은 500이며 `invalid_image`나
+저장 성공으로 바뀌지 않는다. 별도 fault에서는 reader close 실패가 성공 metadata를 무효화하고 내용/정리 양쪽 cause를 보존한다.
+
+최종 비Markdown code/config inventory는 `c2f8854e31081cf2884f372e5e2d8e9e216c869c5eec9501e69c453f77d858ae`
+(2,774 files)다. 최종 normal/race/DB·11개 대조는 같은 source다. 첫 영향 실행 source는
+`be8d86dafcdf07bb0cd23f18832bbe33a0a55e73b2c8a8cd300e6847b1d2a573`이었다. 이 실행 전체를 PASS로 보지 않는다.
+고정 관찰에서 확장자가 잘못돼도 Django가 사용자 validator를 계속 호출함을 확인해 `forms/file.go`의 순서를 수정했다.
+또한 Admin의 기존 HTML 오류 재표시는 200이므로 새 테스트의 잘못된 400 기대값을 고쳤다. 최종 차이는 이 두 파일과
+`uploads/image.go`의 설명 주석, `uploads/image_test.go`의 close-failure 검사뿐이다. 영향 3개 package를 최종 source로 다시
+검증하고 기존 File/Helpdesk의 실제 양 DB/race를 확인했다. 나머지 호출경로·생성 source/fixture·Go 의존성은 inventory로 같은
+bytes임을 확인해 이미 통과한 broad normal을 반복하지 않았다. 선행 source의 성공을 최종 source 전체 실행으로 표현하지 않는다.
+
+Go 1.26.5 Darwin arm64·offline/readonly module·공유 cache와 기본 병렬 실행이다. 생성 자식도 `-trimpath -race`를 전달한다.
+각 DB checkpoint는 별도 PostgreSQL 17.10 Debian/C/UTF8 container와 DB를 사용했고 종료 후 schema/table/다른 connection
+`0|0|0`, DB/container 제거를 확인했다. Compiled root·필수 하위 이름·완료 JSON·누락/skip·실행 전후 source 불변을 검사했다.
+WebP는 고정 `golang.org/x/image v0.46.0`을 사용하며 이 의존성이 요구하는 x/sys v0.48.0·x/text v0.42.0·x/sync v0.23.0을
+반영했다. 생성 drift와 기존 Unicode16/인증 정규화 경로도 영향 검사에 포함했다.
+
+Native observer는 `conformance/runners/django/image_field_reference.py`, fixture는 `forms/testdata/image-django61.json`이며
+SHA256은 `a9572a8b4915c15e18fe36768390574f8c5e2a4cdb5bf4de8a1d361e6e193e87`이다. 같은 Django commit
+`fe0a859f537d4238cf49fca39073513206f83122`/BSD-3-Clause의 `django.forms.fields` SHA256은
+`2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66`, Pillow 12.3.0/MIT-CMU의 `PIL.Image`는
+`04af3f2db7ffdd61e829fa7aa8f5481d394a0a4129a8fd8aa5b13908928fcd6d`다. Source/라이선스와 지원 계약은 SOURCES·ADR-0082를 따른다.
+
+원문 receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의 `godj-image-final-normal-jyrgwwc0`,
+`godj-image-binding-db-race-z75cx3sa`, `godj-image-binding-db-normal-e7snja87`(첫 실패 포함), `godj-image-native-ox2_81pg`,
+`godj-image-controls-zb7806rl`, `godj-image-fuzz-ehoadg5f`, `godj-image-vet-vq9qit_k`, `godj-image-drift-gskpzufx`,
+`godj-image-compile-ro8g6ic0`에 있다. Source와 결과를 결합한 receipt는 `/tmp/godj-image-validation/receipt.json`이다.
+
+새 HTML은 file input의 accept와 오류 안내뿐이며 실제 HTTP HTML/전송을 확인했다. 별도 브라우저 전체 시각 검증은 실행하지 않았다.
+이번 source의 전체/cold·CGO=0·Hosted full도 실행하지 않았다. 앞선 `365ad9d4` Hosted full 성공을 전이하지 않으며,
+모델 ImageField·크기 반영·추가 codec/storage provider와 나머지 기능 카탈로그는 계속 미완료다.
+
 ### 같은 열린 파일의 conditional 조회와 byte Range
 
 2026-09-30, 기반 `798e138d64e5fadffb0f2b01edf1b22e3b7c73ff` 이후 Reader의 context 기반 seek와 immutable ContentMetadata를

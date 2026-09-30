@@ -41,7 +41,7 @@ func TestReadOnlySetInitialIgnoresEditableInputButKeepsExplicitControls(t *testi
 		if controls {
 			data["items-0-DELETE"], data["items-0-ORDER"] = []string{"on"}, []string{"3"}
 		}
-		bound, err := spec.Bind(forms.NewData(data), initial)
+		bound, err := spec.Bind(t.Context(), forms.NewData(data), initial)
 		if err != nil || !bound.Valid() || calls != 2 {
 			t.Fatal("read-only input ran field/cross validation or blocked new input", err, calls)
 		}
@@ -64,7 +64,7 @@ func TestReadOnlySetInitialIgnoresEditableInputButKeepsExplicitControls(t *testi
 		}
 		if controls {
 			data["items-0-DELETE"], data["items-0-ORDER"] = []string{"false"}, []string{"invalid"}
-			bad, err := spec.Bind(forms.NewData(data), initial)
+			bad, err := spec.Bind(t.Context(), forms.NewData(data), initial)
 			if err != nil || bad.Valid() || bad.Forms()[0].Form().Errors().ByField("ORDER").Empty() {
 				t.Fatal("read-only row bypassed control validation", err)
 			}

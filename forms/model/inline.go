@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
@@ -130,7 +131,7 @@ func (spec InlineSpec[P, C]) Unbound(parent P, current []C, related ...func(C, i
 	return result, err
 }
 
-func (spec InlineSpec[P, C]) Bind(data forms.Data, parent P, current []C, postClean PostClean, related ...func(C, ir.ManyToManyField) ([]int64, bool)) (InlineSet[P, C], error) {
+func (spec InlineSpec[P, C]) Bind(ctx context.Context, data forms.Data, parent P, current []C, postClean PostClean, related ...func(C, ir.ManyToManyField) ([]int64, bool)) (InlineSet[P, C], error) {
 	result, row, err := spec.start(parent, current)
 	if err != nil {
 		return InlineSet[P, C]{}, err
@@ -138,7 +139,7 @@ func (spec InlineSpec[P, C]) Bind(data forms.Data, parent P, current []C, postCl
 	if slices.Contains(postClean.Fields, spec.foreignKey) {
 		return InlineSet[P, C]{}, &Error{Path: "inline.post_clean", Code: "parent_is_server_owned"}
 	}
-	result.set, err = bindSet(spec.child, row, data, current, postClean, related, spec.foreignKey)
+	result.set, err = bindSet(ctx, spec.child, row, data, current, postClean, related, spec.foreignKey)
 	if err != nil {
 		return InlineSet[P, C]{}, err
 	}

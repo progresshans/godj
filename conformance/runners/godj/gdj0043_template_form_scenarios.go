@@ -325,7 +325,7 @@ func templateFormUnboundAndBoundEmpty(_ context.Context, contractID string) (pro
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("construct unbound Article form: %w", err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{}), nil)
+	bound, err := spec.Bind(context.Background(), forms.NewData(map[string][]string{}), nil)
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("bind empty Article form: %w", err)
 	}
@@ -353,7 +353,7 @@ func templateFormValidArticleClean(_ context.Context, contractID string) (protoc
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	form, err := spec.Bind(forms.NewData(map[string][]string{
+	form, err := spec.Bind(context.Background(), forms.NewData(map[string][]string{
 		"title":     {"  Clean title  "},
 		"published": {""},
 		"summary":   {""},
@@ -396,7 +396,7 @@ func templateFormFieldErrorCodes(_ context.Context, contractID string) (protocol
 	cases := make([]protocol.Value, 0, len(tests))
 	validCases := 0
 	for _, test := range tests {
-		form, err := spec.Bind(forms.NewData(map[string][]string{
+		form, err := spec.Bind(context.Background(), forms.NewData(map[string][]string{
 			"title":     {test.title},
 			"published": {""},
 			"summary":   {""},
@@ -426,7 +426,7 @@ func templateFormCrossFieldValidation(_ context.Context, contractID string) (pro
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	form, err := spec.Bind(forms.NewData(map[string][]string{
+	form, err := spec.Bind(context.Background(), forms.NewData(map[string][]string{
 		"title":     {strings.Repeat("x", 201)},
 		"published": {"on"},
 		"summary":   {""},
@@ -462,7 +462,7 @@ func templateFormModelFormWriteBoundary(ctx context.Context, contractID string) 
 		}
 		recorder := &statementRecorder{}
 
-		invalid, err := spec.Bind(forms.NewData(map[string][]string{
+		invalid, err := spec.Bind(ctx, forms.NewData(map[string][]string{
 			"title":     {""},
 			"published": {"on"},
 			"summary":   {"invalid"},
@@ -477,7 +477,7 @@ func templateFormModelFormWriteBoundary(ctx context.Context, contractID string) 
 		// Invalid forms do not cross the explicit typed persistence adapter.
 		invalidWrites := len(recorder.snapshot()) - invalidBefore
 
-		createdForm, err := spec.Bind(forms.NewData(map[string][]string{
+		createdForm, err := spec.Bind(ctx, forms.NewData(map[string][]string{
 			"title":     {"Created"},
 			"published": {"on"},
 			"summary":   {"Summary"},
@@ -503,7 +503,7 @@ func templateFormModelFormWriteBoundary(ctx context.Context, contractID string) 
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		updatedForm, err := spec.Bind(forms.NewData(map[string][]string{
+		updatedForm, err := spec.Bind(ctx, forms.NewData(map[string][]string{
 			"title":     {"Updated"},
 			"published": {""},
 			"summary":   {"Changed"},

@@ -16,7 +16,7 @@ func TestModelStringPolicyNarrowsInputWithoutChangingIR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"username": {"Ｆｒｅｄ"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"Ｆｒｅｄ"}}), nil)
 	if value, _ := bound.Cleaned().String("username"); err != nil || !bound.Valid() || value != "Fred" {
 		t.Fatal("projected policy not applied", err)
 	}

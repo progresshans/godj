@@ -73,7 +73,7 @@ func runUserChangeModelValidation(t *testing.T, open func(*testing.T) (Transitio
 				if mode == "same_row" {
 					data = map[string][]string{"username": {f.user.Username}, "email": {f.user.Email}}
 				}
-				bound, err := (formmodel.Definition{Fields: []string{"username", "email"}}).Bind(metadata, forms.NewData(data), initial)
+				bound, err := (formmodel.Definition{Fields: []string{"username", "email"}}).Bind(t.Context(), metadata, forms.NewData(data), initial)
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -31,7 +31,7 @@ func TestInstanceFormOwnsCurrentSnapshotAndPreparesTypedCleanOutputs(t *testing.
 		t.Fatal(err)
 	}
 	calls := 0
-	bound, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"candidate"}}), &current, formmodel.PostClean{Fields: []string{"summary"}, Clean: func(candidate forms.Values) (forms.Values, validation.Errors) {
+	bound, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"candidate"}}), &current, formmodel.PostClean{Fields: []string{"summary"}, Clean: func(candidate forms.Values) (forms.Values, validation.Errors) {
 		calls++
 		value, _ := candidate.String("summary")
 		key, _ := candidate.Integer("id")
@@ -91,7 +91,7 @@ func TestInstanceFormNewDefaultsAndUnrepresentableCleanNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"new"}}), nil, formmodel.PostClean{})
+	bound, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"new"}}), nil, formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestInstanceFormNewDefaultsAndUnrepresentableCleanNull(t *testing.T) {
 	if _, present := (models.ArticleDescriptor{}).PrimaryKey(value); present {
 		t.Fatal("new preparation manufactured a primary key")
 	}
-	nullBound, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"valid-input"}}), nil, formmodel.PostClean{Fields: []string{"title"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
+	nullBound, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"valid-input"}}), nil, formmodel.PostClean{Fields: []string{"title"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 		return forms.NewValues(map[string]forms.Value{"title": forms.Null()}), validation.Errors{}
 	}})
 	if err != nil || !nullBound.BoundForm().Form().Valid() {
@@ -164,7 +164,7 @@ func TestInstanceFormKeepsCollectionAndCommandPersistenceSeparate(t *testing.T) 
 			if mode == "invalid" {
 				data["labels"] = []string{"8"}
 			}
-			instance, err := formmodel.BindInstance(manager, spec, forms.NewData(data), nil, formmodel.PostClean{})
+			instance, err := formmodel.BindInstance(t.Context(), manager, spec, forms.NewData(data), nil, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -231,7 +231,7 @@ func TestInstanceFormRejectsUnsupportedTypedPreparationBeforeClean(t *testing.T)
 	var descriptor orm.WriteDescriptor[models.Article] = models.ArticleDescriptor{}
 	manager := orm.NewManager[models.Article](instanceWriteOnlyDescriptor{WriteDescriptor: descriptor})
 	calls := 0
-	_, err = formmodel.BindInstance(manager, spec, forms.NewData(map[string][]string{"title": {"candidate"}}), nil, formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
+	_, err = formmodel.BindInstance(t.Context(), manager, spec, forms.NewData(map[string][]string{"title": {"candidate"}}), nil, formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
 		calls++
 		return forms.Values{}, validation.Errors{}
 	}})
@@ -264,7 +264,7 @@ func TestPrepareInstancePreservesBoundCandidateAndTypedCurrentOwnership(t *testi
 	if !values["id"].Equal(query.Integer(0)) {
 		t.Fatal("present zero fixture lost")
 	}
-	bound, err := definition.Bind(metadata, forms.NewData(map[string][]string{"title": {"mixed"}}), initial)
+	bound, err := definition.Bind(t.Context(), metadata, forms.NewData(map[string][]string{"title": {"mixed"}}), initial)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestPrepareInstanceRejectsPolicyIdentityAndAppliedErrors(t *testing.T) {
 			bound, err := (formmodel.Definition{Fields: []string{"title"}, PostClean: formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
 				calls++
 				return forms.Values{}, validation.Errors{}
-			}}}).Bind(policy, forms.NewData(map[string][]string{"title": {"new"}}), initial)
+			}}}).Bind(t.Context(), policy, forms.NewData(map[string][]string{"title": {"new"}}), initial)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -31,7 +31,7 @@ func TestFloatModelFormsAgainstPinnedDjango(t *testing.T) {
 				data[key] = []string{value}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "zero": forms.Float(0), "negative_zero": forms.Float(math.Copysign(0, -1)), "same": forms.Float(1.5)} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"effort": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"effort": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -82,12 +82,12 @@ func TestFloatFormDefaultsAndAdmission(t *testing.T) {
 		if err != nil || !got.Equal(value) {
 			t.Fatal("default lost")
 		}
-		bound, err := spec.Bind(forms.NewData(nil), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 		got, _ = bound.Cleaned().Get("effort")
 		if err != nil || !bound.Valid() || !got.IsNull() {
 			t.Fatal("bound omission used initial default")
 		}
-		bound, err = spec.Bind(forms.NewData(map[string][]string{"effort": {"1", "2"}}), nil)
+		bound, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"effort": {"1", "2"}}), nil)
 		if err != nil || bound.Valid() {
 			t.Fatal("repeated float accepted")
 		}

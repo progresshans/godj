@@ -159,7 +159,7 @@ func TestFormSetsAgainstPinnedDjango(t *testing.T) {
 				for name, value := range observed.Data {
 					input[name] = []string{value}
 				}
-				result, err = spec.Bind(forms.NewData(input), initial)
+				result, err = spec.Bind(t.Context(), forms.NewData(input), initial)
 			} else {
 				result, err = spec.Unbound(initial)
 			}
@@ -320,7 +320,7 @@ func TestFormSetBoundsPrefixAndInvalidConfiguration(t *testing.T) {
 	if err != nil || unbound.TotalForms() != 1 || calls != 0 {
 		t.Fatal("display overflow or validation", err)
 	}
-	tooMany, err := spec.Bind(setData(math.MaxInt, 0, map[string]string{"title": "one"}, map[string]string{"title": "two"}), nil)
+	tooMany, err := spec.Bind(t.Context(), setData(math.MaxInt, 0, map[string]string{"title": "one"}, map[string]string{"title": "two"}), nil)
 	if err != nil || tooMany.Valid() || tooMany.TotalForms() != 2 || calls != 2 {
 		t.Fatal("allocation cap did not bound callbacks", err, calls)
 	}
@@ -332,13 +332,13 @@ func TestFormSetBoundsPrefixAndInvalidConfiguration(t *testing.T) {
 		{"items-TOTAL_FORMS": {"9223372036854775808"}, "items-INITIAL_FORMS": {"0"}},
 		{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"-1"}},
 	} {
-		result, err := spec.Bind(forms.NewData(raw), nil)
+		result, err := spec.Bind(t.Context(), forms.NewData(raw), nil)
 		if err != nil || result.Valid() || result.Management().Errors().Empty() {
 			t.Fatal("invalid count accepted", err)
 		}
 	}
 	other := map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}, "items-0-title": {"right"}, "elsewhere-0-title": {"wrong"}, "items-01-title": {"alias"}, "items-2-title": {"outside"}}
-	result, err := spec.Bind(forms.NewData(other), nil)
+	result, err := spec.Bind(t.Context(), forms.NewData(other), nil)
 	if err != nil || !result.Valid() {
 		t.Fatal(err)
 	}
@@ -376,7 +376,7 @@ func TestFormSetEmptyChoicesOwnershipRedactionAndConcurrentReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	empty, err := spec.Bind(setData(1, 0), nil)
+	empty, err := spec.Bind(t.Context(), setData(1, 0), nil)
 	if err != nil || !empty.Valid() || calls != 0 || empty.Changed() {
 		t.Fatal("unchanged required choice ran validation", err, calls)
 	}
@@ -392,7 +392,7 @@ func TestFormSetEmptyChoicesOwnershipRedactionAndConcurrentReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	intEmpty, err := intSpec.Bind(setData(1, 0), nil)
+	intEmpty, err := intSpec.Bind(t.Context(), setData(1, 0), nil)
 	if err != nil || !intEmpty.Valid() {
 		t.Fatal("unchanged integer choice ran validation", err)
 	}
@@ -408,7 +408,7 @@ func TestFormSetEmptyChoicesOwnershipRedactionAndConcurrentReuse(t *testing.T) {
 	}
 	initial := []map[string]forms.Value{{"title": forms.String("private")}}
 	input := map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"1"}, "items-0-title": {"edited"}, "items-0-ORDER": {"1"}}
-	result, err := spec.Bind(forms.NewData(input), initial)
+	result, err := spec.Bind(t.Context(), forms.NewData(input), initial)
 	if err != nil || !result.Valid() {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestFormSetEmptyChoicesOwnershipRedactionAndConcurrentReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := bad.Bind(setData(0, 0), nil); err == nil {
+	if _, err := bad.Bind(t.Context(), setData(0, 0), nil); err == nil {
 		t.Fatal("invalid callback diagnostic accepted")
 	}
 	var wg sync.WaitGroup
@@ -452,7 +452,7 @@ func TestFormSetEmptyChoicesOwnershipRedactionAndConcurrentReuse(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			bound, err := spec.Bind(setData(1, 0, map[string]string{"title": "parallel", "ORDER": "2"}), nil)
+			bound, err := spec.Bind(t.Context(), setData(1, 0, map[string]string{"title": "parallel", "ORDER": "2"}), nil)
 			if err != nil || !bound.Valid() {
 				failures <- fmt.Errorf("concurrent bind failed: %v", err)
 				return

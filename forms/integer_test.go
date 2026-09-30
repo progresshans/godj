@@ -41,7 +41,7 @@ func TestIntegerFormAgainstPinnedDjangoObservations(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := spec.Bind(forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
+			bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -89,7 +89,7 @@ func TestIntegerFormInitialChangedAndInvalidConfiguration(t *testing.T) {
 	if value, ok := form.Initial().Integer("value"); !ok || value != math.MaxInt64 {
 		t.Fatal("integer default was lost")
 	}
-	form, err = spec.Bind(forms.NewData(map[string][]string{"value": {"+000.00"}}), map[string]forms.Value{"value": forms.Integer(0)})
+	form, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {"+000.00"}}), map[string]forms.Value{"value": forms.Integer(0)})
 	if err != nil || !form.Valid() || len(form.Changed()) != 0 {
 		t.Fatalf("zero was not preserved: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestIntegerFormInitialChangedAndInvalidConfiguration(t *testing.T) {
 		t.Fatal("required zero was treated as missing")
 	}
 	for _, input := range [][]string{nil, {}, {""}, {"1", "2"}, {string([]byte{0xff})}} {
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"value": input}), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": input}), nil)
 		if err != nil || bound.Valid() || bound.Errors().Empty() {
 			t.Fatal("invalid or missing integer accepted")
 		}

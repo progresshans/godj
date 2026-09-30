@@ -129,7 +129,7 @@ func runSetSave(t *testing.T, b probeBackend, reset func(*testing.T), snapshot f
 					return forms.NewValues(map[string]forms.Value{"hidden": forms.String("cleaned")}), validation.Errors{}
 				}
 			}
-			set, err := formmodel.BindSet(models.ArticleObjects, setSpec, forms.NewData(data), current, post, func(models.Article, ir.ManyToManyField) ([]int64, bool) { return []int64{labels["a"].ID}, true })
+			set, err := formmodel.BindSet(t.Context(), models.ArticleObjects, setSpec, forms.NewData(data), current, post, func(models.Article, ir.ManyToManyField) ([]int64, bool) { return []int64{labels["a"].ID}, true })
 			if err != nil || !set.Valid() {
 				t.Fatal("bind native set", err)
 			}

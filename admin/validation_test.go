@@ -19,7 +19,7 @@ func TestFormWithRejectionPreservesFailuresAndChecksSelectedFields(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	form, err := spec.Bind(forms.NewData(map[string][]string{"title": {"raw"}}), nil)
+	form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"title": {"raw"}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -101,7 +101,7 @@ func TestMultipartHTTPFormsetAndRequestLifetime(t *testing.T) {
 				if mode == "panic" {
 					panic("fixture handler panic")
 				}
-				set, err := setSpec.Bind(forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil)
+				set, err := setSpec.Bind(request.Context(), forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil)
 				if err != nil {
 					return web.Response{}, err
 				}

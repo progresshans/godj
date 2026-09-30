@@ -93,7 +93,7 @@ func runFileSet(t *testing.T, backend fileBackend, root storage.Backend) {
 		for _, files := range parsed.Files() {
 			incoming = append(incoming, files...)
 		}
-		set, err := formmodel.BindSet(models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), current, formmodel.PostClean{})
+		set, err := formmodel.BindSet(request.Context(), models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), current, formmodel.PostClean{})
 		if err != nil {
 			return web.Response{}, err
 		}

@@ -35,7 +35,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 				t.Fatal("relation structure lost", field)
 			}
 			input := forms.NewData(map[string][]string{fieldName: {"7"}})
-			denied, err := spec.Bind(input, nil)
+			denied, err := spec.Bind(t.Context(), input, nil)
 			if err != nil || denied.Valid() {
 				t.Fatal("unpopulated relation accepted input", err)
 			}
@@ -43,7 +43,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := scoped.Bind(input, nil)
+			bound, err := scoped.Bind(t.Context(), input, nil)
 			if err != nil || !bound.Valid() {
 				t.Fatal("explicit member rejected", err, bound.Errors())
 			}
@@ -59,7 +59,7 @@ func TestRelationModelFormsRequireExplicitMembershipAndPreserveMetadata(t *testi
 				if err != nil {
 					t.Fatal(err)
 				}
-				empty, err := optional.Bind(forms.NewData(nil), nil)
+				empty, err := optional.Bind(t.Context(), forms.NewData(nil), nil)
 				if err != nil || !empty.Valid() {
 					t.Fatal("nullable empty rejected", err, empty.Errors())
 				}

@@ -63,7 +63,7 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 		t.Fatal(err)
 	}
 	observe := func(data map[string][]string) formObservation {
-		form, err := spec.Bind(forms.NewData(data), nil)
+		form, err := spec.Bind(t.Context(), forms.NewData(data), nil)
 		if err != nil {
 			t.Fatal(err)
 		}

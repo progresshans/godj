@@ -133,7 +133,7 @@ func compareInline[P, C any](t *testing.T, binding orm.ProjectBinding, parents o
 	}}
 	var bound formmodel.InlineSet[P, C]
 	if observed.Bound {
-		bound, err = spec.Bind(forms.NewData(observed.Data), parent, current, post)
+		bound, err = spec.Bind(t.Context(), forms.NewData(observed.Data), parent, current, post)
 	} else {
 		bound, err = spec.Unbound(parent, current)
 	}
@@ -221,7 +221,7 @@ func TestInlineSetPendingParentCompletionAndScopeAreImmutable(t *testing.T) {
 	}
 	parent := helpdesk.Category{Name: "private parent"}
 	data := forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"0"}, "items-0-name": {"private child"}})
-	bound, err := spec.Bind(data, parent, nil, formmodel.PostClean{})
+	bound, err := spec.Bind(t.Context(), data, parent, nil, formmodel.PostClean{})
 	if err != nil || !bound.Valid() {
 		t.Fatal("new parent form did not validate", err)
 	}
@@ -243,20 +243,20 @@ func TestInlineSetPendingParentCompletionAndScopeAreImmutable(t *testing.T) {
 			t.Fatal("completion mutated pending candidate")
 		}
 	}
-	if _, err := spec.Bind(data, parent, inlineLabelCurrent(), formmodel.PostClean{}); err == nil {
+	if _, err := spec.Bind(t.Context(), data, parent, inlineLabelCurrent(), formmodel.PostClean{}); err == nil {
 		t.Fatal("unsaved parent adopted existing child rows")
 	}
 	if _, err := spec.Unbound(helpdesk.NewCategoryWithID(2), inlineLabelCurrent()); err == nil {
 		t.Fatal("cross-parent current rows accepted")
 	}
-	saved, err := spec.Bind(forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}, "items-0-name": {"new"}}), helpdesk.NewCategoryWithID(1), nil, formmodel.PostClean{})
+	saved, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}, "items-0-name": {"new"}}), helpdesk.NewCategoryWithID(1), nil, formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := saved.PrepareWithParent(helpdesk.NewCategoryWithID(2)); err == nil {
 		t.Fatal("saved parent retargeted during preparation")
 	}
-	if _, err := spec.Bind(data, parent, nil, formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) { return forms.Values{}, validation.Errors{} }}); err == nil {
+	if _, err := spec.Bind(t.Context(), data, parent, nil, formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) { return forms.Values{}, validation.Errors{} }}); err == nil {
 		t.Fatal("model clean allowed to own the parent")
 	}
 	if _, err := formmodel.NewInlineSpec(binding, helpdesk.TicketObjects, helpdesk.LabelObjects, "category", row); err == nil {
@@ -305,7 +305,7 @@ func TestInlineNullableCrossAppParentCannotPrepareAnOrphan(t *testing.T) {
 		return forms.NewValues(map[string]forms.Value{"author": forms.Integer(9)}), validation.Errors{}
 	}}
 	data := forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}, "items-0-title": {"review"}})
-	bound, err := spec.Bind(data, authors.Author{Name: "pending"}, nil, post)
+	bound, err := spec.Bind(t.Context(), data, authors.Author{Name: "pending"}, nil, post)
 	if err != nil || !bound.Valid() {
 		t.Fatal("nullable cross-app inline did not validate", err)
 	}

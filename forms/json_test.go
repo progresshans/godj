@@ -48,7 +48,7 @@ func TestJSONModelFormsAgainstPinnedDjango(t *testing.T) {
 			strictInvalid := raw == `NaN` || raw == `Infinity` || raw == `-Infinity` || raw == `{"a":1,"a":2}` || raw == `"\ud800"`
 			exactDifference := raw == `9007199254740993.0` || raw == `9007199254740993.00` || raw == `1e-400` || raw == `{"v":1e400}`
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "one": forms.JSON(jsonDocument(t, `1`)), "float_one": forms.JSON(jsonDocument(t, `1.0`)), "true": forms.JSON(jsonDocument(t, `true`)), "object": forms.JSON(jsonDocument(t, `{"a":1,"b":2}`))} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"payload": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"payload": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -145,7 +145,7 @@ func TestJSONFormDefaultsOwnershipAndNullInitial(t *testing.T) {
 		}
 	}
 	for _, initial := range []forms.Value{forms.Null(), forms.JSON(jsonvalue.Null())} {
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"payload": {"null"}}), map[string]forms.Value{"payload": initial})
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"payload": {"null"}}), map[string]forms.Value{"payload": initial})
 		if err != nil || !bound.Valid() || len(bound.Changed()) != 0 {
 			t.Fatal("unchanged JSON null forced a write", err)
 		}

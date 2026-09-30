@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -92,7 +93,7 @@ func (bound BoundForm) Input() (forms.Values, error) {
 		}
 		// Pending model uploads must retain their capability, independently of
 		// the filename-only candidate used by model/uniqueness validation.
-		if field.Kind() == forms.FieldFile {
+		if field.IsFile() {
 			if cleaned, present := bound.form.Cleaned().Get(field.Name()); present && !cleaned.IsNull() {
 				value = cleaned
 			}
@@ -132,12 +133,12 @@ func (bound BoundForm) WithErrors(failures validation.Errors, rejectedFields ...
 // values enter Input only if explicitly changed by PostClean. Omitted initial
 // model values use model defaults or the unsaved empty state.
 // No relation existence, uniqueness or persistence I/O is performed here.
-func Bind(model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
+func Bind(ctx context.Context, model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
 	binding, formInitial, err := prepareModelBinding(model, spec.Fields(), initial, postClean)
 	if err != nil {
 		return BoundForm{}, err
 	}
-	form, err := spec.Bind(data, formInitial)
+	form, err := spec.Bind(ctx, data, formInitial)
 	if err != nil {
 		return BoundForm{}, err
 	}
@@ -312,12 +313,12 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 	return binding.postClean.apply(bound)
 }
 
-func (definition Definition) Bind(model ir.Model, data forms.Data, initial map[string]forms.Value) (BoundForm, error) {
+func (definition Definition) Bind(ctx context.Context, model ir.Model, data forms.Data, initial map[string]forms.Value) (BoundForm, error) {
 	spec, err := definition.Spec(model)
 	if err != nil {
 		return BoundForm{}, err
 	}
-	return Bind(model, spec, data, initial, definition.PostClean)
+	return Bind(ctx, model, spec, data, initial, definition.PostClean)
 }
 
 func nilValidator(value Validator) bool {

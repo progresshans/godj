@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/progresshans/godj/forms"
@@ -29,7 +30,7 @@ func (form InstanceForm[M]) BoundForm() BoundForm { return form.bound }
 // manager. Nil means a new model using Schema IR defaults/unsaved values; a
 // non-nil instance may itself be unsaved. Spec owns selected fields, command
 // inputs and explicitly scoped relation choices. No database I/O occurs.
-func BindInstance[M any](manager orm.Manager[M], spec forms.Spec, data forms.Data, instance *M, postClean PostClean) (InstanceForm[M], error) {
+func BindInstance[M any](ctx context.Context, manager orm.Manager[M], spec forms.Spec, data forms.Data, instance *M, postClean PostClean) (InstanceForm[M], error) {
 	metadata, err := manager.Metadata()
 	if err != nil {
 		return InstanceForm[M]{}, err
@@ -57,7 +58,7 @@ func BindInstance[M any](manager orm.Manager[M], spec forms.Spec, data forms.Dat
 			initial[name] = value
 		}
 	}
-	bound, err := Bind(metadata, spec, data, initial, postClean)
+	bound, err := Bind(ctx, metadata, spec, data, initial, postClean)
 	if err != nil {
 		return InstanceForm[M]{}, err
 	}

@@ -65,11 +65,11 @@ func TestUUIDAdminTypedSnapshotCanonicalRenderingAndRevalidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := "  {" + strings.ToUpper(sample.String()) + "}  "
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"reference": {raw}}), map[string]forms.Value{"reference": forms.UUID(sample)})
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"reference": {raw}}), map[string]forms.Value{"reference": forms.UUID(sample)})
 	if err != nil || !bound.Valid() || len(bound.Changed()) != 0 {
 		t.Fatal("UUID alias produced a changed model value", err)
 	}
-	validated, err := validateBoundForm(bound, spec, spec.Fields())
+	validated, err := validateBoundForm(t.Context(), bound, spec, spec.Fields())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,11 +86,11 @@ func TestUUIDAdminTypedSnapshotCanonicalRenderingAndRevalidation(t *testing.T) {
 	if text, _ := renderedFieldValue(field, unbound, nil); text != sample.String() {
 		t.Fatal("unbound UUID did not render canonical text")
 	}
-	null, err := spec.Bind(forms.NewData(map[string][]string{"reference": {""}}), nil)
+	null, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"reference": {""}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cleaned, err := validateBoundForm(null, spec, spec.Fields())
+	cleaned, err := validateBoundForm(t.Context(), null, spec, spec.Fields())
 	if err != nil {
 		t.Fatal(err)
 	}

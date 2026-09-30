@@ -62,7 +62,7 @@ func TestModelMultipleChoiceMatchesIndependentDjango(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				form, err := spec.Bind(forms.NewData(map[string][]string{"labels": entry.Raw}), map[string]forms.Value{"labels": forms.Integers(entry.Initial...)})
+				form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"labels": entry.Raw}), map[string]forms.Value{"labels": forms.Integers(entry.Initial...)})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -113,7 +113,7 @@ func TestModelMultipleChoiceOwnsEverySnapshotAndDoesNotPublishPartialValues(t *t
 		t.Fatal(err)
 	}
 	for i, current := range []forms.Spec{spec, next} {
-		f, err := current.Bind(forms.NewData(map[string][]string{"labels": {"7", "9"}}), nil)
+		f, err := current.Bind(t.Context(), forms.NewData(map[string][]string{"labels": {"7", "9"}}), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -126,7 +126,7 @@ func TestModelMultipleChoiceOwnsEverySnapshotAndDoesNotPublishPartialValues(t *t
 			t.Fatal("partial collection escaped", keys)
 		}
 	}
-	empty, err := spec.Bind(forms.NewData(nil), nil)
+	empty, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestModelMultipleChoiceOwnsEverySnapshotAndDoesNotPublishPartialValues(t *t
 	if !empty.Valid() || !ok || keys == nil || len(keys) != 0 {
 		t.Fatal(empty, keys)
 	}
-	bad, err := spec.Bind(forms.NewData(map[string][]string{"labels": {"7", "bad"}}), nil)
+	bad, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"labels": {"7", "bad"}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestModelMultipleChoiceConfigurationAndInt64Boundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, raw := range []string{"9223372036854775808", "-9223372036854775809"} {
-		f, err := spec.Bind(forms.NewData(map[string][]string{"labels": {raw}}), nil)
+		f, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"labels": {raw}}), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +196,7 @@ func TestModelMultipleChoiceConcurrentSpecs(t *testing.T) {
 			}
 			raw := map[string][]string{"labels": {fmt.Sprint(key)}}
 			for range 25 {
-				form, e := spec.Bind(forms.NewData(raw), nil)
+				form, e := spec.Bind(t.Context(), forms.NewData(raw), nil)
 				if e != nil {
 					failures <- e
 					return

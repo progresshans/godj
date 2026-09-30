@@ -19,7 +19,7 @@ func TestSubmittedRetainsPresenceAndRepeatedValuesWithoutAliasing(t *testing.T) 
 	}
 	source := map[string][]string{"password": {"private-one", "private-two"}, "empty": {}}
 	data := forms.NewData(source)
-	bound, err := spec.Bind(data, nil)
+	bound, err := spec.Bind(t.Context(), data, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestCrossErrorsLeaveCleanedBeforeFollowingValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"name": {"value"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"name": {"value"}}), nil)
 	if err != nil || calls != 1 || bound.Errors().Len() != 2 || len(bound.Cleaned().All()) != 0 {
 		t.Fatal("cross validation stages changed", err)
 	}

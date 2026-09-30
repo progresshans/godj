@@ -126,7 +126,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"labels": {"9", "7", "9"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"labels": {"9", "7", "9"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatal(err, bound.Errors())
 	}
@@ -153,7 +153,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 		if err := run(bound); err != nil || writes != before+1 || !slices.Equal(received, []int64{7, 9}) {
 			t.Fatal("collection was truncated or duplicated", err, received)
 		}
-		empty, _ := spec.Bind(forms.NewData(nil), nil)
+		empty, _ := spec.Bind(t.Context(), forms.NewData(nil), nil)
 		if err := run(empty); err != nil || received == nil || len(received) != 0 {
 			t.Fatal("empty replacement was omitted", err, received)
 		}

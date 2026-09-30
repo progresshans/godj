@@ -41,9 +41,15 @@ normal/race·부정 대조를 검증했다. 이 변경은 위 Hosted full source
 단일/여러 범위·HEAD·본문 없는 응답과 중간 실패를 구현하고 실제 양 DB/양 backend의 인증된 소비자·영향 normal/race로 검증했다.
 이 변경도 위 Hosted full에는 포함되지 않는다. [파일 응답 계약](../../web/streaming.md)과 별도 영향 증거를 따른다.
 
+공통 [이미지 입력](../../uploads/README.md#이미지-내용-검증)은 실제 내용 디코딩·읽기 context·자원 한도를 Form/Formset과
+Admin 생성/명령의 검증·오류 재표시·명시적 저장에 연결했다. 현재 PNG/JPEG/GIF/정적 WebP와 명시적 미지원 형식을 구분한다.
+고정 Django 관찰·영향 normal/관련 race·기존 양 DB 소비자를 확인했으며 위 Hosted full에는 포함되지 않는다.
+모델 ImageField·폭/높이 필드 반영은 아직 연결하지 않았다. 검증 범위는 TEST_EVIDENCE를 따른다.
+
 ## 다음 행동
 
-ImageField의 내용 검증·모델/폼·저장 의미를 연결한다. 추가 storage provider와 나머지 파일 의미도 의존 순서에 따라 구현한다.
+공통 이미지 검증을 모델 ImageField의 canonical IR·폭/높이 field 참조·생성 descriptor·migration·typed 저장과 연결한다.
+추가 image codec·storage provider와 나머지 파일 의미도 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 

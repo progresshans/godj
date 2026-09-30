@@ -49,7 +49,7 @@ func TestModelCleanSeparatesCandidateInputAndExcludedValidation(t *testing.T) {
 					return validation.Errors{}
 				})},
 			}}
-			bound, err := definition.Bind(metadata, forms.NewData(raw), nil)
+			bound, err := definition.Bind(t.Context(), metadata, forms.NewData(raw), nil)
 			if err != nil || calls != 1 {
 				t.Fatal("bind", err, calls)
 			}
@@ -122,7 +122,7 @@ func TestModelCleanRetainsChangesWithErrorsAndUnchangedFieldsStayPrivate(t *test
 				}
 				return forms.NewValues(map[string]forms.Value{"code": forms.String("changed"), "hidden": forms.String("hidden-change")}), validation.NewErrors(validation.New(field, "policy"))
 			}}}
-			bound, err := definition.Bind(metadata, forms.NewData(map[string][]string{"code": {"original"}}), nil)
+			bound, err := definition.Bind(t.Context(), metadata, forms.NewData(map[string][]string{"code": {"original"}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -169,7 +169,7 @@ func TestModelCleanRejectsInvalidOwnershipBeforeCallbacks(t *testing.T) {
 				hook.Validators = []formmodel.Validator{nilCheck}
 			}
 			definition := formmodel.Definition{PostClean: hook}
-			if _, err := definition.Bind(metadata, forms.NewData(nil), nil); err == nil || calls != 0 {
+			if _, err := definition.Bind(t.Context(), metadata, forms.NewData(nil), nil); err == nil || calls != 0 {
 				t.Fatal("invalid ownership reached callback", err, calls)
 			}
 		})
@@ -193,7 +193,7 @@ func TestModelCleanRejectsInvalidOwnershipBeforeCallbacks(t *testing.T) {
 			definition := formmodel.Definition{PostClean: formmodel.PostClean{Fields: []string{"code"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 				return forms.NewValues(changes), validation.Errors{}
 			}, Validators: []formmodel.Validator{formmodel.ValidatorFunc(func(forms.Values) validation.Errors { after++; return validation.Errors{} })}}}
-			bound, err := definition.Bind(metadata, forms.NewData(map[string][]string{"code": {"ok"}, "counter": {"1"}}), nil)
+			bound, err := definition.Bind(t.Context(), metadata, forms.NewData(map[string][]string{"code": {"ok"}, "counter": {"1"}}), nil)
 			if err == nil || bound.Form().Bound() || after != 0 || strings.Contains(err.Error(), "secret-value") {
 				t.Fatal("invalid clean result published partial state", err)
 			}
@@ -213,7 +213,7 @@ func TestModelCleanDefinitionClonesAndConcurrentBindsOwnChanges(t *testing.T) {
 	for _, value := range []string{"alpha", "beta", "gamma", "delta"} {
 		t.Run(value, func(t *testing.T) {
 			t.Parallel()
-			bound, err := definition.Bind(metadata, forms.NewData(map[string][]string{"code": {value}}), nil)
+			bound, err := definition.Bind(t.Context(), metadata, forms.NewData(map[string][]string{"code": {value}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -136,7 +136,7 @@ func TestHelpdeskModelValidationReadScope(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := formmodel.Bind(models.TicketLabelDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(ticket.ID, 10)}, "label": {strconv.FormatInt(label.ID, 10)}}), nil, formmodel.PostClean{})
+			bound, err := formmodel.Bind(t.Context(), models.TicketLabelDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(ticket.ID, 10)}, "label": {strconv.FormatInt(label.ID, 10)}}), nil, formmodel.PostClean{})
 			if err != nil || !bound.Form().Valid() {
 				t.Fatal("valid prior choice projection", err)
 			}
@@ -262,7 +262,7 @@ func TestHelpdeskLabelModelValidationUsesServerCategory(t *testing.T) {
 				name = ""
 			}
 			// An excluded initial value cannot replace the application's scope.
-			bound, err := (formmodel.Definition{Fields: []string{"name"}}).Bind(models.LabelDescriptor{}.Metadata(), forms.NewData(map[string][]string{"name": {name}}), map[string]forms.Value{"category": forms.Integer(f.foreign)})
+			bound, err := (formmodel.Definition{Fields: []string{"name"}}).Bind(t.Context(), models.LabelDescriptor{}.Metadata(), forms.NewData(map[string][]string{"name": {name}}), map[string]forms.Value{"category": forms.Integer(f.foreign)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -358,7 +358,7 @@ func TestHelpdeskReportModelValidationRechecksTicketBeforeUniqueness(t *testing.
 			if mode == "field_error" {
 				summary = ""
 			}
-			bound, err := formmodel.Bind(models.ServiceReportDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(selected, 10)}, "summary": {summary}}), nil, formmodel.PostClean{})
+			bound, err := formmodel.Bind(t.Context(), models.ServiceReportDescriptor{}.Metadata(), spec, forms.NewData(map[string][]string{"ticket": {strconv.FormatInt(selected, 10)}, "summary": {summary}}), nil, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}

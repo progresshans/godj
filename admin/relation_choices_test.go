@@ -126,7 +126,7 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"category": {"7"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"category": {"7"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatal(err, bound.Errors())
 	}

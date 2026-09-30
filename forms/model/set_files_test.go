@@ -31,7 +31,7 @@ func fileSaveSet(t *testing.T) formmodel.PreparedSet[models.Article] {
 		t.Fatal(err)
 	}
 	data := forms.NewDataWithFiles(map[string][]string{"items-TOTAL_FORMS": {"5"}, "items-INITIAL_FORMS": {"2"}, "items-0-id": {"1"}, "items-1-id": {"2"}, "items-1-DELETE": {"on"}, "items-4-DELETE": {"on"}}, map[string][]uploads.File{"items-0-title": {file}, "items-1-title": {file}, "items-2-title": {file}, "items-4-title": {file}})
-	bound, err := formmodel.BindSet(manager, spec, data, current, formmodel.PostClean{})
+	bound, err := formmodel.BindSet(t.Context(), manager, spec, data, current, formmodel.PostClean{})
 	if err != nil || !bound.Valid() {
 		t.Fatal("file set binding", err)
 	}
@@ -181,7 +181,7 @@ func TestSetSavePlanSkipsUnchangedRequiredExtraAndReadOnlyRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := formmodel.BindSet(manager, spec, forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}}), nil, formmodel.PostClean{})
+	bound, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"0"}}), nil, formmodel.PostClean{})
 	if err != nil || !bound.Valid() {
 		t.Fatal("required blank file row", err)
 	}
@@ -197,7 +197,7 @@ func TestSetSavePlanSkipsUnchangedRequiredExtraAndReadOnlyRows(t *testing.T) {
 		t.Fatal("unchanged required extra became a write", err)
 	}
 	// Existing unchanged rows remain in Prepare but not in the save selection.
-	unchanged, err := formmodel.BindSet(manager, spec, forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"2"}, "items-0-id": {"1"}, "items-1-id": {"2"}}), setArticles(), formmodel.PostClean{})
+	unchanged, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"2"}, "items-0-id": {"1"}, "items-1-id": {"2"}}), setArticles(), formmodel.PostClean{})
 	if err != nil || !unchanged.Valid() {
 		t.Fatal("unchanged current rows", err)
 	}
@@ -223,7 +223,7 @@ func TestSetSavePlanSkipsUnchangedRequiredExtraAndReadOnlyRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err = formmodel.BindSet(manager, spec, forms.NewDataWithFiles(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"1"}, "items-0-id": {"1"}}, map[string][]uploads.File{"items-0-title": {file}}), current, formmodel.PostClean{})
+	bound, err = formmodel.BindSet(t.Context(), manager, spec, forms.NewDataWithFiles(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"1"}, "items-0-id": {"1"}}, map[string][]uploads.File{"items-0-title": {file}}), current, formmodel.PostClean{})
 	if err != nil || !bound.Valid() {
 		t.Fatal("readonly row", err)
 	}

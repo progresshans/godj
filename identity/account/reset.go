@@ -273,7 +273,7 @@ func (a *Application) resetLinkPost(r *web.Request) (web.Response, error) {
 		}
 		return a.resetFailure(r, err)
 	}
-	form, err := bind(a.resetPassword, data)
+	form, err := bind(r.Context(), a.resetPassword, data)
 	if err != nil {
 		return web.Response{}, err
 	}

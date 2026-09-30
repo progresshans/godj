@@ -108,7 +108,7 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 			if err := model.checkObservedMutation(mutation, record.object); err != nil {
 				return operationResponse(err)
 			}
-			form, err := command.form.Bind(modelData(commandModel, input), nil)
+			form, err := command.form.Bind(request.Context(), modelData(commandModel, input), nil)
 			if err != nil {
 				return operationResponse(err)
 			}

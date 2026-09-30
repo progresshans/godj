@@ -4,6 +4,9 @@ GoDj는 Django의 모델 중심 개발 경험을 Go의 정적 타입·코드 생
 Schema에서 ORM·Migration·Form·Admin·API를 연결한다. 현재는 개발 중이며 내부 API와 생성 형식은 변경될 수 있다.
 구현 범위와 제한은 [구현 현황](docs/status/IMPLEMENTATION_MATRIX.md)에 있다.
 
+이미지 업로드는 [공통 ImageField](uploads/README.md#이미지-내용-검증)의 context 기반 내용 검증과 자원 한도를 사용한다.
+모델 ImageField·폭/높이 자동 반영과 추가 codec은 다음 구현 범위다.
+
 ## Article 실행
 
 Go 버전은 [go.mod](go.mod)를 따른다. 현재 CLI는 Linux/macOS용이다. 저장소 root에서 다음을 실행한다.

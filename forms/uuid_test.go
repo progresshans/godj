@@ -38,7 +38,7 @@ func TestUUIDModelFormsAgainstPinnedDjango(t *testing.T) {
 				data[key] = []string{value}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "zero": forms.UUID(uuid.UUID{}), "same": forms.UUID(sample)} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"reference": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"reference": initial})
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -35,7 +35,7 @@ func BenchmarkFormBindErrors(b *testing.B) {
 			data := forms.NewData(input)
 			b.ReportAllocs()
 			for b.Loop() {
-				form, err := spec.Bind(data, nil)
+				form, err := spec.Bind(b.Context(), data, nil)
 				if err != nil || form.Valid() || form.Errors().Len() != count {
 					b.Fatalf("bind: %v", err)
 				}
@@ -50,7 +50,7 @@ func BenchmarkFormResultAccess(b *testing.B) {
 	for index := range 16 {
 		input[fmt.Sprintf("field_%d", index)] = []string{"x"}
 	}
-	form, err := spec.Bind(forms.NewData(input), nil)
+	form, err := spec.Bind(b.Context(), forms.NewData(input), nil)
 	if err != nil || !form.Valid() {
 		b.Fatalf("bind: %v", err)
 	}

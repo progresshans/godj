@@ -772,7 +772,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, err
 		}
-		values, err := validateModelBoundData(model, data, currentForm, nil, createPostClean)
+		values, err := validateModelBoundData(ctx, model, data, currentForm, nil, createPostClean)
 		if err != nil {
 			return Object{}, err
 		}
@@ -825,7 +825,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
 			return Object{}, nil, err
 		}
-		values, err := validateModelBoundData(model, data, currentForm, current.candidateInitial, postClean)
+		values, err := validateModelBoundData(ctx, model, data, currentForm, current.candidateInitial, postClean)
 		if err != nil {
 			return Object{}, nil, err
 		}
@@ -1116,12 +1116,12 @@ func validatePrincipalRead(ctx context.Context, principal auth.Principal, permis
 	return err
 }
 
-func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+func validateBoundForm(ctx context.Context, submitted forms.Form, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
 	data, err := validatedSubmission(submitted, fields)
 	if err != nil {
 		return forms.Values{}, err
 	}
-	return validateBoundData(data, spec, fields)
+	return validateBoundData(ctx, data, spec, fields)
 }
 
 func validatedSubmission(submitted forms.Form, fields []forms.Field) (forms.Data, error) {
@@ -1148,8 +1148,8 @@ func validatedSubmission(submitted forms.Form, fields []forms.Field) (forms.Data
 	return submitted.Submitted(), nil
 }
 
-func validateBoundData(data forms.Data, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
-	revalidated, err := spec.Bind(data, nil)
+func validateBoundData(ctx context.Context, data forms.Data, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+	revalidated, err := spec.Bind(ctx, data, nil)
 	if err != nil || !revalidated.Valid() || !revalidated.Errors().Empty() {
 		if err == nil {
 			if rejection := relatedChoiceRejection(revalidated, fields); rejection != nil {
@@ -1256,7 +1256,7 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
-	case forms.FieldFile:
+	case forms.FieldFile, forms.FieldImage:
 		if value.IsNull() {
 			return !field.Required()
 		}

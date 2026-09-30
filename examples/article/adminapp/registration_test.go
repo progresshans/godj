@@ -69,7 +69,7 @@ func TestArticleInputAcceptsOnlyCompleteTypedCleanedValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("formmodel.NewSpec() error = %v", err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title":     {"  GoDj  "},
 		"published": {"on"},
 		"summary":   {""},
@@ -85,7 +85,7 @@ func TestArticleInputAcceptsOnlyCompleteTypedCleanedValues(t *testing.T) {
 		t.Fatalf("articleInput() = %#v", input)
 	}
 
-	invalid, err := spec.Bind(forms.NewData(map[string][]string{"published": {"on"}}), nil)
+	invalid, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"published": {"on"}}), nil)
 	if err != nil || invalid.Valid() {
 		t.Fatalf("invalid Bind() = %#v, %v", invalid, err)
 	}

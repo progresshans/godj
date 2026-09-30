@@ -54,7 +54,7 @@ func TestEmailFormsAgainstPinnedDjango(t *testing.T) {
 					if input.Value != nil {
 						data["address"] = []string{*input.Value}
 					}
-					bound, err := spec.Bind(forms.NewData(data), nil)
+					bound, err := spec.Bind(t.Context(), forms.NewData(data), nil)
 					if err != nil {
 						t.Fatal(err)
 					}

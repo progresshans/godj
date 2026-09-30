@@ -3,6 +3,7 @@
 package forms
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"slices"
@@ -73,7 +74,7 @@ func (v Value) Equal(o Value) bool {
 			return v.fileState == o.fileState
 		}
 		left, right := v.fileState, o.fileState
-		return left.name == right.name && left.clear == right.clear && (left.upload.Equal(right.upload) || !left.upload.Valid() && !right.upload.Valid())
+		return left.name == right.name && left.clear == right.clear && left.image == right.image && (left.upload.Equal(right.upload) || !left.upload.Valid() && !right.upload.Valid())
 	}
 	if v.kind == ValueJSON && o.kind == ValueJSON {
 		left, lok := v.AsJSON()
@@ -123,6 +124,7 @@ const (
 	FieldIntegerList
 	FieldEmail
 	FieldFile
+	FieldImage
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -236,6 +238,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
+	imageLimits         uploads.ImageLimits
+	hasImageLimits      bool
 	allowEmptyFile      bool
 	hasAllowEmptyFile   bool
 	normalizeString     func(string) string
@@ -261,6 +265,7 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
+	imageLimits     uploads.ImageLimits
 	allowEmptyFile  bool
 	normalizeString func(string) string
 	trimWhitespace  bool
@@ -334,7 +339,17 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
-	if config.hasAllowEmptyFile && kind != FieldFile {
+	if config.hasImageLimits && kind != FieldImage {
+		return Field{}, &ConfigError{Path: "fields." + name + ".image_limits", Code: "unsupported"}
+	}
+	if kind == FieldImage {
+		limits, err := config.imageLimits.Normalize()
+		if err != nil {
+			return Field{}, &ConfigError{Path: "fields." + name + ".image_limits", Code: "invalid"}
+		}
+		config.imageLimits = limits
+	}
+	if config.hasAllowEmptyFile && !fileFieldKind(kind) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".allow_empty_file", Code: "unsupported"}
 	}
 	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
@@ -361,7 +376,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldFile && (config.widget == FileInput || config.widget == ClearableFileInput) || kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
+	if !(fileFieldKind(kind) && (config.widget == FileInput || config.widget == ClearableFileInput) || kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && (config.widget == TextInput || config.widget == HiddenInput) || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -384,7 +399,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
-	case FieldFile:
+	case FieldFile, FieldImage:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
 		}
@@ -526,6 +541,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	}
 	return Field{
 		allowEmptyFile:  config.allowEmptyFile,
+		imageLimits:     config.imageLimits,
 		normalizeString: config.normalizeString,
 		trimWhitespace:  config.trimWhitespace,
 		name:            name,
@@ -546,7 +562,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 }
 
 func validValueForField(value Value, kind FieldKind, nullable bool) bool {
-	if kind == FieldFile {
+	if fileFieldKind(kind) {
 		return value.IsNull() || value.kind == ValueFile && value.fileState != nil && !value.fileState.clear && !value.fileState.upload.Valid()
 	}
 	if kind == FieldIntegerList {
@@ -713,7 +729,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		switch {
 		case field.hasDefault:
 			value = field.defaultValue
-		case field.kind == FieldFile:
+		case field.IsFile():
 			value = Null()
 		case field.kind == FieldIntegerList:
 			value = Integers()
@@ -790,7 +806,13 @@ func (s Spec) Unbound(initial map[string]Value) (Form, error) {
 
 // Bind cleans submitted data in field order, then runs cross-field validators
 // against only successfully cleaned fields.
-func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
+func (s Spec) Bind(ctx context.Context, data Data, initial map[string]Value) (Form, error) {
+	if nilInterface(ctx) {
+		return Form{}, &ConfigError{Path: "context", Code: "nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return Form{}, err
+	}
 	if !s.valid {
 		return Form{}, &ConfigError{Path: "spec", Code: "uninitialized"}
 	}
@@ -803,11 +825,17 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 	changed := make([]string, 0, len(s.fields))
 	var failures []validation.Errors
 	for _, field := range s.fields {
+		if err := ctx.Err(); err != nil {
+			return Form{}, err
+		}
 		var value Value
 		var fieldErrors validation.Errors
-		if field.kind == FieldFile {
+		if field.IsFile() {
 			initialValue, _ := resolvedInitial.Get(field.name)
-			value, fieldErrors = cleanFile(field, data, initialValue)
+			value, fieldErrors, err = cleanFile(ctx, field, data, initialValue)
+			if err != nil {
+				return Form{}, err
+			}
 		} else {
 			value, fieldErrors = cleanField(field, data)
 		}
@@ -825,7 +853,7 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		var sameInitial bool
 		if field.inlineParent {
 			sameInitial = true
-		} else if field.modelChoice || field.kind == FieldFile {
+		} else if field.modelChoice || field.IsFile() {
 			sameInitial = !fieldChanged(field, data, initialValue)
 		} else if field.kind == FieldJSON {
 			sameInitial = equalJSON(value, initialValue)
@@ -849,12 +877,18 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		changed:   changed,
 	}
 	for _, validator := range s.cross {
+		if err := ctx.Err(); err != nil {
+			return Form{}, err
+		}
 		if failure := validator.ValidateForm(bound.cleaned); !failure.Empty() {
 			bound, err = bound.WithErrors(failure)
 			if err != nil {
 				return Form{}, err
 			}
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Form{}, err
 	}
 	return bound, nil
 }
@@ -1120,7 +1154,7 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 }
 
 func fieldChanged(field Field, data Data, initial Value) bool {
-	if field.kind == FieldFile {
+	if field.IsFile() {
 		return fileChanged(field, data)
 	}
 	if field.inlineParent {

@@ -101,7 +101,7 @@ func modelFormRules(model registeredModel) inputRules {
 		// data so Forms can publish its stable ordered validation violations.
 		// Display projection is separately sanitized before template rendering.
 		rules[field.Name()] = -MaximumInputValues
-		if field.Kind() == forms.FieldFile && field.Widget() == forms.ClearableFileInput {
+		if field.IsFile() && field.Widget() == forms.ClearableFileInput {
 			rules[field.Name()+"-clear"] = -MaximumInputValues
 		}
 	}
@@ -120,7 +120,7 @@ func modelData(model registeredModel, input siteForm) forms.Data {
 		if submitted, ok := input.values[field.Name()]; ok {
 			data[field.Name()] = append([]string(nil), submitted...)
 		}
-		if field.Kind() == forms.FieldFile {
+		if field.IsFile() {
 			if submitted, present := input.files[field.Name()]; present {
 				files[field.Name()] = submitted
 			}

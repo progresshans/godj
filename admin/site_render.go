@@ -345,7 +345,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
 		fileName, fileInitial, clearChecked, reselect := "", false, false, false
-		if field.Kind() == forms.FieldFile {
+		if field.IsFile() {
 			if initial, present := form.Initial().File(field.Name()); present && initial.Name() != "" && !initial.Clear() {
 				fileName, fileInitial = safeDisplayText(initial.Name()), true
 			}
@@ -387,7 +387,8 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			"label":         templates.String(field.Label()),
 			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":      templates.Bool(field.Widget() == forms.PasswordInput),
-			"file":          templates.Bool(field.Kind() == forms.FieldFile),
+			"file":          templates.Bool(field.IsFile()),
+			"image":         templates.Bool(field.Kind() == forms.FieldImage),
 			"file_initial":  templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput),
 			"file_name":     templates.String(fileName),
 			"file_clear":    templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput && !field.Required() && !form.ReadOnly()),
@@ -432,7 +433,7 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	}
 	// Never put a raw password into a render context, even after a confirmed
 	// validation rejection or when a caller supplied an initial value.
-	if field.Widget() == forms.PasswordInput || field.Kind() == forms.FieldFile {
+	if field.Widget() == forms.PasswordInput || field.IsFile() {
 		return "", false
 	}
 	if field.Widget() == forms.NullBooleanSelect {
@@ -534,6 +535,18 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 	result := make([]templates.Value, len(violations))
 	for index, violation := range violations {
 		message := string(violation.Code())
+		switch violation.Code() {
+		case "invalid_image":
+			message = "Select an undamaged static PNG, JPEG or WebP image, or a GIF."
+		case "invalid_extension":
+			message = "Use a .png, .jpg, .jpeg, .jpe, .gif or .webp filename."
+		case "image_bytes":
+			message = "The image file is too large."
+		case "image_pixels":
+			message = "The image dimensions or total pixels exceed the allowed limit."
+		case "image_frames":
+			message = "The image has too many frames."
+		}
 		if violation.Code() == "password_mismatch" {
 			message = "The two passwords do not match."
 		}

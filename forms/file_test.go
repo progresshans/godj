@@ -86,7 +86,7 @@ func TestFileFieldPinnedDjangoObservation(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			bound, err := spec.Bind(forms.NewDataWithFiles(raw, files), initial)
+			bound, err := spec.Bind(t.Context(), forms.NewDataWithFiles(raw, files), initial)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -165,7 +165,7 @@ func TestFileFormsetOwnsPrefixesEmptyRowsAndReadonly(t *testing.T) {
 	files := map[string][]uploads.File{"items-0-document": {upload}, "other-0-document": {upload}}
 	data := forms.NewDataWithFiles(raw, files)
 	files["items-0-document"][0] = uploads.File{}
-	set, err := setSpec.Bind(data, nil)
+	set, err := setSpec.Bind(t.Context(), data, nil)
 	if err != nil || !set.Valid() || !setSpec.IsMultipart() {
 		t.Fatal(err, set.NonFormErrors())
 	}
@@ -195,7 +195,7 @@ func TestFileFormsetOwnsPrefixesEmptyRowsAndReadonly(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw["items-INITIAL_FORMS"] = []string{"1"}
-	set, err = setSpec.Bind(forms.NewDataWithFiles(raw, map[string][]uploads.File{"items-0-document": {upload}}), []map[string]forms.Value{{"document": old}})
+	set, err = setSpec.Bind(t.Context(), forms.NewDataWithFiles(raw, map[string][]uploads.File{"items-0-document": {upload}}), []map[string]forms.Value{{"document": old}})
 	if err != nil || !set.Valid() {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestFileFormsetOwnsPrefixesEmptyRowsAndReadonly(t *testing.T) {
 	if err := func() error {
 		bad, _ := uploads.NewFile("empty.txt", "", nil)
 		raw["items-1-DELETE"] = []string{"on"}
-		result, e := setSpec.Bind(forms.NewDataWithFiles(raw, map[string][]uploads.File{"items-1-document": {bad}}), []map[string]forms.Value{{"document": old}})
+		result, e := setSpec.Bind(t.Context(), forms.NewDataWithFiles(raw, map[string][]uploads.File{"items-1-document": {bad}}), []map[string]forms.Value{{"document": old}})
 		if e == nil && !result.Valid() {
 			return fmt.Errorf("deleted invalid upload made set invalid")
 		}
@@ -236,7 +236,7 @@ func TestFileValuesPrivacyAndConcurrentBinding(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 12 {
 		wg.Go(func() {
-			form, e := spec.Bind(data, nil)
+			form, e := spec.Bind(t.Context(), data, nil)
 			if e != nil || !form.Valid() {
 				t.Error(e)
 				return
@@ -266,7 +266,7 @@ func TestFileValuesPrivacyAndConcurrentBinding(t *testing.T) {
 	if _, err = forms.CharField("bad", forms.WithAllowEmptyFile(true)); err == nil {
 		t.Fatal("file-only option accepted by string field")
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"document-clear": {"on", "false"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"document-clear": {"on", "false"}}), nil)
 	if err != nil || bound.Valid() {
 		t.Fatal("duplicate clear accepted", err)
 	}
@@ -287,7 +287,7 @@ func TestEmptyStoredFileReferenceDoesNotSatisfyRequiredUpload(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		form, err := spec.Bind(forms.NewData(nil), map[string]forms.Value{"file": initial})
+		form, err := spec.Bind(t.Context(), forms.NewData(nil), map[string]forms.Value{"file": initial})
 		if err != nil {
 			t.Fatal(err)
 		}

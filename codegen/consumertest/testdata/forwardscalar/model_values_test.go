@@ -46,7 +46,7 @@ func checkTypedPreparation(t *testing.T, data []models.Datum, holders []models.H
 		if !again["id"].IsNull() {
 			t.Fatal("value assignment forged primary key presence")
 		}
-		instance, err := formmodel.BindInstance(models.DatumObjects, spec, forms.NewData(map[string][]string{"label": {stored.Label + "-prepared"}}), &stored, formmodel.PostClean{})
+		instance, err := formmodel.BindInstance(t.Context(), models.DatumObjects, spec, forms.NewData(map[string][]string{"label": {stored.Label + "-prepared"}}), &stored, formmodel.PostClean{})
 		if err != nil {
 			t.Fatal("typed initial scalar conversion", err)
 		}

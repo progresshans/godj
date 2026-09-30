@@ -1,7 +1,9 @@
 package forms
 
 import (
+	"context"
 	"fmt"
+	"path"
 	"strings"
 	"unicode/utf8"
 
@@ -13,6 +15,7 @@ type privateFile struct {
 	name   string
 	upload uploads.File
 	clear  bool
+	image  uploads.ImageInfo
 }
 
 // FileValue distinguishes a retained server reference, a newly received upload,
@@ -32,7 +35,16 @@ func (f FileValue) Upload() (uploads.File, bool) {
 	}
 	return f.state.upload, f.state.upload.Valid()
 }
-func (f FileValue) Clear() bool                  { return f.state != nil && f.state.clear }
+func (f FileValue) Clear() bool { return f.state != nil && f.state.clear }
+
+// Image reports verified metadata only for a newly received ImageField upload.
+// Retained storage names are not opened during binding.
+func (f FileValue) Image() (uploads.ImageInfo, bool) {
+	if f.state == nil {
+		return uploads.ImageInfo{}, false
+	}
+	return f.state.image, f.state.image.Valid()
+}
 func (FileValue) Format(state fmt.State, _ rune) { fmt.Fprint(state, "forms.FileValue{redacted}") }
 
 // ExistingFile constructs initial input from an application-owned storage name.
@@ -56,11 +68,28 @@ func (v Values) File(name string) (FileValue, bool) {
 }
 
 // WithAllowEmptyFile accepts a received zero-byte file. It does not make a
-// missing required upload valid. It applies only to FileField.
+// missing required upload valid. An ImageField must still decode as an image.
 func WithAllowEmptyFile(allow bool) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.allowEmptyFile, config.hasAllowEmptyFile = allow, true })
 }
 func FileField(name string, options ...FieldOption) (Field, error) {
+	return newFileField(name, FieldFile, options...)
+}
+
+// ImageField verifies uploaded PNG, JPEG, GIF (all frames), or static WebP
+// content before pure validators run. Bind performs cancellable upload I/O.
+func ImageField(name string, options ...FieldOption) (Field, error) {
+	return newFileField(name, FieldImage, options...)
+}
+
+func WithImageLimits(limits uploads.ImageLimits) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.imageLimits, config.hasImageLimits = limits, true })
+}
+func (f Field) ImageLimits() (uploads.ImageLimits, bool) { return f.imageLimits, f.kind == FieldImage }
+func (f Field) IsFile() bool                             { return fileFieldKind(f.kind) }
+func fileFieldKind(kind FieldKind) bool                  { return kind == FieldFile || kind == FieldImage }
+
+func newFileField(name string, kind FieldKind, options ...FieldOption) (Field, error) {
 	config := fieldConfig{label: name, required: true, nullable: true, widget: ClearableFileInput}
 	for _, option := range options {
 		if nilInterface(option) {
@@ -68,12 +97,12 @@ func FileField(name string, options ...FieldOption) (Field, error) {
 		}
 		option.apply(&config)
 	}
-	return makeField(name, FieldFile, config)
+	return makeField(name, kind, config)
 }
 func (f Field) AllowEmptyFile() bool { return f.allowEmptyFile }
 func (s Spec) IsMultipart() bool {
 	for _, field := range s.fields {
-		if field.kind == FieldFile {
+		if field.IsFile() {
 			return true
 		}
 	}
@@ -81,9 +110,9 @@ func (s Spec) IsMultipart() bool {
 }
 func (s SetSpec) IsMultipart() bool { return s.row.IsMultipart() }
 
-func cleanFile(field Field, data Data, initial Value) (Value, validation.Errors) {
-	fail := func(code validation.Code) (Value, validation.Errors) {
-		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+func cleanFile(ctx context.Context, field Field, data Data, initial Value) (Value, validation.Errors, error) {
+	fail := func(code validation.Code) (Value, validation.Errors, error) {
+		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code)), nil
 	}
 	files, _ := data.rawFiles(field.name)
 	if len(files) > 1 {
@@ -97,16 +126,16 @@ func cleanFile(field Field, data Data, initial Value) (Value, validation.Errors)
 		return fail("contradiction")
 	}
 	if clear {
-		return Value{kind: ValueFile, fileState: &privateFile{clear: true}}, validation.Errors{}
+		return Value{kind: ValueFile, fileState: &privateFile{clear: true}}, validation.Errors{}, nil
 	}
 	if len(files) == 0 {
 		if file, ok := initial.AsFile(); ok && (file.Name() != "" || !field.required) {
-			return initial, validation.Errors{}
+			return initial, validation.Errors{}, nil
 		}
 		if field.required {
 			return fail("required")
 		}
-		return Null(), validation.Errors{}
+		return Null(), validation.Errors{}, nil
 	}
 	file := files[0]
 	if !file.Valid() {
@@ -119,7 +148,34 @@ func cleanFile(field Field, data Data, initial Value) (Value, validation.Errors)
 		return fail("empty")
 	}
 	value := Value{kind: ValueFile, fileState: &privateFile{name: file.Name(), upload: file}}
-	return value, runFieldValidators(field, value)
+	var extensionErrors validation.Errors
+	if field.kind == FieldImage {
+		info, err := uploads.InspectImage(ctx, file, field.imageLimits)
+		if err != nil {
+			if failure, ok := err.(*uploads.Error); ok {
+				switch failure.Code {
+				case "invalid_image", "unsupported_image":
+					return fail("invalid_image")
+				case "image_bytes", "image_pixels", "image_frames":
+					return fail(validation.Code(failure.Code))
+				}
+			}
+			return Null(), validation.Errors{}, err
+		}
+		// As in Django, extension validation follows content verification. The
+		// extension need not match the detected format; MIME always comes from
+		// the verified content. Client ContentType remains untrusted metadata.
+		switch strings.ToLower(path.Ext(file.Name())) {
+		case ".png", ".jpg", ".jpeg", ".jpe", ".gif", ".webp":
+		default:
+			extensionErrors = validation.NewErrors(validation.New(validation.Field(field.name), "invalid_extension"))
+		}
+		value.fileState.image = info
+	}
+	// Extension validation and user validators are peers. Continue running
+	// pure validators even when an extension is rejected, preserving their
+	// ordered diagnostics and verified metadata, as Django run_validators does.
+	return value, validation.Join(extensionErrors, runFieldValidators(field, value)), nil
 }
 func runFieldValidators(field Field, value Value) validation.Errors {
 	var failures []validation.Errors

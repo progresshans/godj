@@ -128,7 +128,7 @@ func compareSetUnique[M any](t *testing.T, manager orm.Manager[M], observed uniq
 	if observed.Model == "ticket" {
 		post.Fields = []string{"external_reference"}
 	}
-	bound, err := formmodel.BindSet(manager, spec, forms.NewData(values), nil, post)
+	bound, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewData(values), nil, post)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestInstanceSetUniqueKeepsCompleteOverlappingTuplesAndOwnsErrors(t *testing
 		data[fmt.Sprintf("items-%d-name", index)] = []string{name}
 		data[fmt.Sprintf("items-%d-category", index)] = []string{strconv.Itoa(1 + index/2)}
 	}
-	bound, err := formmodel.BindSet(manager, spec, forms.NewData(data), nil, formmodel.PostClean{})
+	bound, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewData(data), nil, formmodel.PostClean{})
 	if err != nil || bound.Valid() || customCalls != 1 {
 		t.Fatal("expected overlap rejection", err)
 	}
@@ -281,7 +281,7 @@ func TestInstanceSetUniqueConcurrentBinding(t *testing.T) {
 		go func() {
 			defer workers.Done()
 			data := map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"0"}, "items-0-subject": {"one"}, "items-1-subject": {"two"}, "items-0-external_reference": {"12345678-1234-4234-8234-123456789001"}, "items-1-external_reference": {"12345678-1234-4234-8234-123456789001"}}
-			bound, err := formmodel.BindSet(helpdesk.TicketObjects, spec, forms.NewData(data), nil, formmodel.PostClean{})
+			bound, err := formmodel.BindSet(t.Context(), helpdesk.TicketObjects, spec, forms.NewData(data), nil, formmodel.PostClean{})
 			if err != nil || bound.Valid() || bound.FormSet().NonFormErrors().Len() != 1 {
 				t.Error("concurrent binding lost duplicate rejection", err)
 			}

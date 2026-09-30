@@ -61,7 +61,7 @@ func verifyInlineParentPersistence(t *testing.T, backend formSaveDatabase) {
 	}
 	for _, observed := range reference.Storage {
 		t.Run(observed.Name, func(t *testing.T) {
-			bound, err := formmodel.BindInstance(models.CategoryObjects, parentSpec, forms.NewData(map[string][]string{"name": {"inline-" + observed.Name}}), nil, formmodel.PostClean{})
+			bound, err := formmodel.BindInstance(t.Context(), models.CategoryObjects, parentSpec, forms.NewData(map[string][]string{"name": {"inline-" + observed.Name}}), nil, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,7 +81,7 @@ func verifyInlineParentPersistence(t *testing.T, backend formSaveDatabase) {
 					return forms.NewValues(map[string]forms.Value{"name": forms.String("first")}), validation.Errors{}
 				}}
 			}
-			children, err := inlineSpec.Bind(forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"0"}, "items-0-name": {"first"}, "items-1-name": {"second"}}), parent, nil, post)
+			children, err := inlineSpec.Bind(t.Context(), forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"0"}, "items-0-name": {"first"}, "items-1-name": {"second"}}), parent, nil, post)
 			if err != nil || !children.Valid() {
 				t.Fatal("pending children did not validate", err)
 			}
@@ -179,7 +179,7 @@ func verifyReadOnlyInlinePersistence(t *testing.T, backend formSaveDatabase) {
 		if err := models.LabelObjects.Save(t.Context(), session, &old); err != nil {
 			return err
 		}
-		children, err := readOnly.Bind(forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"1"}, "items-0-id": {strconv.FormatInt(old.ID, 10)}, "items-0-name": {"forged"}, "items-1-name": {"new"}}), parent, []models.Label{old}, formmodel.PostClean{})
+		children, err := readOnly.Bind(t.Context(), forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"2"}, "items-INITIAL_FORMS": {"1"}, "items-0-id": {strconv.FormatInt(old.ID, 10)}, "items-0-name": {"forged"}, "items-1-name": {"new"}}), parent, []models.Label{old}, formmodel.PostClean{})
 		if err != nil {
 			return err
 		}

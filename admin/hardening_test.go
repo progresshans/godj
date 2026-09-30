@@ -321,7 +321,7 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 	if title, ok := record.initial["title"].AsString(); !ok || title != existing {
 		t.Fatalf("initial title = %q, %v, want %q", title, ok, existing)
 	}
-	bound, err := model.form.Bind(forms.NewData(map[string][]string{
+	bound, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title": {"  new title  "}, "published": {"false"}, "summary": {""},
 	}), record.initial)
 	if err != nil || !bound.Valid() {
@@ -369,7 +369,7 @@ func buildHardeningModel(t *testing.T, config ModelConfig[registryArticle]) regi
 
 func bindHardeningForm(t *testing.T, model registeredModel, title string) forms.Form {
 	t.Helper()
-	form, err := model.form.Bind(forms.NewData(map[string][]string{
+	form, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title": {title}, "published": {"false"}, "summary": {""},
 	}), nil)
 	if err != nil || !form.Valid() {

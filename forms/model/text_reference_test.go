@@ -62,7 +62,7 @@ func TestTextFormsAgainstPinnedDjangoObservations(t *testing.T) {
 			if widget != observation.Widget {
 				t.Fatal("model widget differs from reference")
 			}
-			form, err := spec.Bind(forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
+			form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

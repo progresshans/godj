@@ -25,7 +25,7 @@ func TestSelectedScalarsDoNotExposeRelationOrNewFields(t *testing.T) {
 	if len(fields) != 2 || fields[0].Name() != "subject" || fields[1].Name() != "details" {
 		t.Fatalf("fields: %v", fields)
 	}
-	valid, err := spec.Bind(forms.NewData(map[string][]string{"subject": {"Printer"}, "details": {"Paper feed"}}), nil)
+	valid, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"subject": {"Printer"}, "details": {"Paper feed"}}), nil)
 	if err != nil || !valid.Valid() {
 		t.Fatalf("selected scalar input: %v %v", valid.Errors(), err)
 	}

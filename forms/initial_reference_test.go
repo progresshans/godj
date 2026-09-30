@@ -77,7 +77,7 @@ func TestInitialValuesAgainstPinnedDjango(t *testing.T) {
 			if observed.Submitted != nil {
 				submitted["value"] = []string{*observed.Submitted}
 			}
-			bound, err := spec.Bind(forms.NewData(submitted), initial)
+			bound, err := spec.Bind(t.Context(), forms.NewData(submitted), initial)
 			if err != nil {
 				t.Fatal("existing initial prevented binding a new submission", err)
 			}
@@ -129,7 +129,7 @@ func TestInitialValuesRetainRepresentationAndDefaultGuards(t *testing.T) {
 		if _, err := spec.Unbound(initial); err == nil {
 			t.Fatal("malformed initial representation accepted")
 		}
-		if _, err := spec.Bind(forms.NewData(nil), initial); err == nil {
+		if _, err := spec.Bind(t.Context(), forms.NewData(nil), initial); err == nil {
 			t.Fatal("malformed initial representation bound")
 		}
 	}

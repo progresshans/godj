@@ -1,0 +1,955 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "pillow": "12.3.0",
+  "sources": {
+    "django.forms.fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "PIL.Image": "04af3f2db7ffdd61e829fa7aa8f5481d394a0a4129a8fd8aa5b13908928fcd6d"
+  },
+  "payloads": {
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGMUN/ZnAAMmCMXAwAAACsYAnUTU0ucAAAAASUVORK5CYII=",
+    "jpeg": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAMDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDy2iiivROE/9k=",
+    "gif": "R0lGODdhAwACAIEAABczTwAAAAAAAAAAACwAAAAAAwACAAAIBgABCBwYEAA7",
+    "webp": "UklGRjIAAABXRUJQVlA4ICYAAACQAQCdASoDAAIAAUAmJQBOl0AAcwAA/vmo7+KAUjhzvzfY9mOAAA==",
+    "bmp": "Qk1OAAAAAAAAADYAAAAoAAAAAwAAAAIAAAABABgAAAAAABgAAADEDgAAxA4AAAAAAAAAAAAATzMXTzMXTzMXAAAATzMXTzMXTzMXAAAA",
+    "tiff": "SUkqAAgAAAAKAAABBAABAAAAAwAAAAEBBAABAAAAAgAAAAIBAwADAAAAhgAAAAMBAwABAAAAAQAAAAYBAwABAAAAAgAAABEBBAABAAAAjAAAABUBAwABAAAAAwAAABYBBAABAAAAAgAAABcBBAABAAAAEgAAABwBAwABAAAAAQAAAAAAAAAIAAgACAAXM08XM08XM08XM08XM08XM08=",
+    "png16": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACEAAAAADoj+WFAAAAC0lEQVR4nGNgQAYAAA4AAamRc7EAAAAASUVORK5CYII=",
+    "jpeg_cmyk": "/9j/7gAOQWRvYmUAZAAAAAAA/9sAQwAIBgYHBgUIBwcHCQkICgwUDQwLCwwZEhMPFB0aHx4dGhwcICQuJyAiLCMcHCg3KSwwMTQ0NB8nOT04MjwuMzQy/8AAFAgAAgADBEMRAE0RAFkRAEsRAP/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAA4EQwBNAFkASwAAPwD3+vf69/r3+v/Z",
+    "jpeg_progressive": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wgARCAACAAMDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGfg//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//aAAwDAQACAAMAAAAQA//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Qf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Qf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Qf//Z",
+    "webp_lossless": "UklGRhoAAABXRUJQVlA4TA4AAAAvAkAAAAcQEf0PRET/Aw==",
+    "webp_alpha": "UklGRkYAAABXRUJQVlA4WAoAAAAQAAAAAgAAAQAAQUxQSAcAAAAAAAAAAAAAAFZQOCAYAAAAMAEAnQEqAwACAAFAJiWkAANwAP79NmgA",
+    "animated_png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAADAAAAAgAAAAAAAAAAAAEACgAAP7ZcWAAAABRJREFUeJxjFDf2ZwADJgjFwMAAAArGAJ1E1NLnAAAAGmZjVEwAAAABAAAAAwAAAAIAAAAAAAAAAAABAAUAAK+Z8bEAAAAYZmRBVAAAAAJ4nGNMMOJhAAMmCMXAwAAAC6wAorXW3KcAAAAASUVORK5CYII=",
+    "animated_gif": "R0lGODlhAwACAIEAABczTwAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAAAwACAAAIBgABCBwYEAAh+QQBFAABACwAAAAAAwACAIFgMgwAAAAAAAAAAAAIBgABCBwYEAA7",
+    "animated_webp": "UklGRrIAAABXRUJQVlA4WAoAAAACAAAAAgAAAQAAQU5JTQYAAAAAAAAAAABBTk1GPgAAAAAAAAAAAAIAAAEAAGQAAAJWUDggJgAAADABAJ0BKgMAAgABQCYlAACMMAD++ajv/4oea3sGnv/xF094BggAQU5NRkAAAAAAAAAAAAACAAABAADIAAAAVlA4ICgAAAA0AQCdASoDAAIAAAAmJZgAA3AA/vd+L//2L9gfxLOr//O3yd+dsjAA",
+    "truncated_png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFN",
+    "truncated_jpeg": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAMDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPw==",
+    "corrupt_png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGMUN/ZnAAMmCMXAwAAACsYAnUTU0ucAAAAASUVORa5CYII=",
+    "truncated_gif": "R0lGODlhAwACAIEAABczTwAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAAAwACAAAIBgABCBwYEAAh+QQBFAABACwAAAAAAwACAIFgMgwAAAAAAAAAAAAIBgAB",
+    "corrupt_later_gif": "R0lGODlhAwACAIEAABczTwAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAAAwACAAAIBgABCBwYEAAh+QQBFAABACwAAAAAAwACAIFgMgwAAAAAAAAAAAAMBgABCBwYEAA7",
+    "text": "bm90IGFuIGltYWdl",
+    "empty": ""
+  },
+  "cases": [
+    {
+      "name": "required_missing",
+      "payload": null,
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "required"
+      ],
+      "changed": [],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "optional_missing",
+      "payload": null,
+      "filename": "picture.png",
+      "required": false,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "null"
+      },
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "existing",
+      "payload": null,
+      "filename": "picture.png",
+      "required": true,
+      "existing": true,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "retained/old.png"
+      },
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "clear",
+      "payload": null,
+      "filename": "picture.png",
+      "required": false,
+      "existing": true,
+      "clear": true,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "clear"
+      },
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "contradiction",
+      "payload": "png",
+      "filename": "picture.png",
+      "required": false,
+      "existing": true,
+      "clear": true,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "contradiction"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "png",
+      "payload": "png",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.png",
+        "content_type": "image/png",
+        "format": "png",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.png",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "jpeg",
+      "payload": "jpeg",
+      "filename": "picture.jpg",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.jpg",
+        "content_type": "image/jpeg",
+        "format": "jpeg",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.jpg",
+          "content_type": "image/jpeg",
+          "format": "JPEG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "gif",
+      "payload": "gif",
+      "filename": "picture.gif",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.gif",
+        "content_type": "image/gif",
+        "format": "gif",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.gif",
+          "content_type": "image/gif",
+          "format": "GIF",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "webp",
+      "payload": "webp",
+      "filename": "picture.webp",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.webp",
+        "content_type": "image/webp",
+        "format": "webp",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.webp",
+          "content_type": "image/webp",
+          "format": "WEBP",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "animated_gif",
+      "payload": "animated_gif",
+      "filename": "animated.gif",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "animated.gif",
+        "content_type": "image/gif",
+        "format": "gif",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "animated.gif",
+          "content_type": "image/gif",
+          "format": "GIF",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "animated_webp",
+      "payload": "animated_webp",
+      "filename": "animated.webp",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "animated.webp",
+        "content_type": "image/webp",
+        "format": "webp",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "animated.webp",
+          "content_type": "image/webp",
+          "format": "WEBP",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "bmp",
+      "payload": "bmp",
+      "filename": "picture.bmp",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.bmp",
+        "content_type": "image/bmp",
+        "format": "bmp",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.bmp",
+          "content_type": "image/bmp",
+          "format": "BMP",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "tiff",
+      "payload": "tiff",
+      "filename": "picture.tiff",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.tiff",
+        "content_type": "image/tiff",
+        "format": "tiff",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.tiff",
+          "content_type": "image/tiff",
+          "format": "TIFF",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "png16",
+      "payload": "png16",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.png",
+        "content_type": "image/png",
+        "format": "png",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.png",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "jpeg_cmyk",
+      "payload": "jpeg_cmyk",
+      "filename": "picture.jpg",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.jpg",
+        "content_type": "image/jpeg",
+        "format": "jpeg",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.jpg",
+          "content_type": "image/jpeg",
+          "format": "JPEG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "jpeg_progressive",
+      "payload": "jpeg_progressive",
+      "filename": "picture.jpg",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.jpg",
+        "content_type": "image/jpeg",
+        "format": "jpeg",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.jpg",
+          "content_type": "image/jpeg",
+          "format": "JPEG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "webp_lossless",
+      "payload": "webp_lossless",
+      "filename": "picture.webp",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.webp",
+        "content_type": "image/webp",
+        "format": "webp",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.webp",
+          "content_type": "image/webp",
+          "format": "WEBP",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "webp_alpha",
+      "payload": "webp_alpha",
+      "filename": "picture.webp",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.webp",
+        "content_type": "image/webp",
+        "format": "webp",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.webp",
+          "content_type": "image/webp",
+          "format": "WEBP",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "animated_png",
+      "payload": "animated_png",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.png",
+        "content_type": "image/png",
+        "format": "png",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.png",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "text",
+      "payload": "text",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "empty",
+      "payload": "empty",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "empty"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "truncated_png",
+      "payload": "truncated_png",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "truncated_jpeg",
+      "payload": "truncated_jpeg",
+      "filename": "picture.jpg",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "corrupt_png",
+      "payload": "corrupt_png",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "truncated_gif",
+      "payload": "truncated_gif",
+      "filename": "animated.gif",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "animated.gif",
+        "content_type": "image/gif",
+        "format": "gif",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "animated.gif",
+          "content_type": "image/gif",
+          "format": "GIF",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "corrupt_later_gif",
+      "payload": "corrupt_later_gif",
+      "filename": "animated.gif",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "animated.gif",
+        "content_type": "image/gif",
+        "format": "gif",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "animated.gif",
+          "content_type": "image/gif",
+          "format": "GIF",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "uppercase_extension",
+      "payload": "png",
+      "filename": "picture.PNG",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.PNG",
+        "content_type": "image/png",
+        "format": "png",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.PNG",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "extension_mismatch",
+      "payload": "png",
+      "filename": "picture.jpg",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "picture.jpg",
+        "content_type": "image/png",
+        "format": "png",
+        "width": 3,
+        "height": 2,
+        "cursor": 0,
+        "bytes_preserved": true
+      },
+      "calls": [
+        {
+          "name": "picture.jpg",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "invalid_extension",
+      "payload": "png",
+      "filename": "picture.txt",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_extension"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [
+        {
+          "name": "picture.txt",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "missing_extension",
+      "payload": "png",
+      "filename": "picture",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_extension"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [
+        {
+          "name": "picture",
+          "content_type": "image/png",
+          "format": "PNG",
+          "width": 3,
+          "height": 2
+        }
+      ],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "empty_allowed_still_invalid_image",
+      "payload": "empty",
+      "filename": "picture.png",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": true,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    },
+    {
+      "name": "corrupt_before_extension",
+      "payload": "text",
+      "filename": "picture.txt",
+      "required": true,
+      "existing": false,
+      "clear": false,
+      "allow_empty": false,
+      "valid": false,
+      "errors": [
+        "invalid_image"
+      ],
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "accept": "image/*",
+      "multipart": true
+    }
+  ]
+}

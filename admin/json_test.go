@@ -64,11 +64,11 @@ func TestJSONAdminSnapshotNullAndRawTextRevalidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := ` {"b": 2, "a": 1e0} `
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"payload": {raw}}), map[string]forms.Value{"payload": forms.JSON(initial)})
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"payload": {raw}}), map[string]forms.Value{"payload": forms.JSON(initial)})
 	if err != nil || !bound.Valid() || len(bound.Changed()) != 0 {
 		t.Fatal("JSON spelling caused false change", err)
 	}
-	validated, err := validateBoundForm(bound, spec, spec.Fields())
+	validated, err := validateBoundForm(t.Context(), bound, spec, spec.Fields())
 	if err != nil {
 		t.Fatal(err)
 	}

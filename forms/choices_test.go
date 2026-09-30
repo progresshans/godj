@@ -30,7 +30,7 @@ func TestChoiceOwnershipRawMembershipAndValidators(t *testing.T) {
 	for _, test := range []struct{ input, code string }{
 		{"0", ""}, {"1", "application_policy"}, {"01", "invalid_choice"}, {" 0 ", "invalid_choice"}, {"+0", "invalid_choice"}, {"0.0", "invalid_choice"}, {"", "required"},
 	} {
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"value": {test.input}}), map[string]forms.Value{"value": forms.Integer(0)})
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {test.input}}), map[string]forms.Value{"value": forms.Integer(0)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -80,7 +80,7 @@ func TestChoiceStringEmptyAndWhitespaceSemantics(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, raw := range []string{"", " spaced ", "spaced"} {
-			bound, err := spec.Bind(forms.NewData(map[string][]string{"value": {raw}}), nil)
+			bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {raw}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

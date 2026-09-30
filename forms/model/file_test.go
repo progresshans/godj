@@ -29,7 +29,7 @@ func TestFileCommandSurvivesTypedFormsetWithoutBecomingStoredScalar(t *testing.T
 		t.Fatal(err)
 	}
 	data := forms.NewDataWithFiles(map[string][]string{"articles-TOTAL_FORMS": {"1"}, "articles-INITIAL_FORMS": {"0"}, "articles-0-title": {"File command"}}, map[string][]uploads.File{"articles-0-document": {file}})
-	set, err := formmodel.BindSet(article.ArticleObjects, spec, data, nil, formmodel.PostClean{})
+	set, err := formmodel.BindSet(t.Context(), article.ArticleObjects, spec, data, nil, formmodel.PostClean{})
 	if err != nil || !set.Valid() {
 		t.Fatal("file command binding", err)
 	}

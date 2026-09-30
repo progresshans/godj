@@ -53,7 +53,7 @@ func TestGeneratedEmailInputProjection(t *testing.T) {
 	if spec.Fields()[0].Kind() != forms.FieldEmail || spec.Fields()[0].Widget() != forms.EmailInput {
 		t.Fatal("model form lost email input")
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"address": {"not-an-email"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"address": {"not-an-email"}}), nil)
 	if err != nil || bound.Valid() || bound.Errors().ByField("address").Empty() {
 		t.Fatal("generated email form accepted invalid syntax")
 	}

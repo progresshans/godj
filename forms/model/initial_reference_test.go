@@ -51,7 +51,7 @@ func TestNarrowedModelFormInitialAgainstPinnedDjango(t *testing.T) {
 			if observed.Name == "corrected" {
 				submitted = "new"
 			}
-			instance, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {submitted}}), &current, formmodel.PostClean{})
+			instance, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {submitted}}), &current, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal("stored initial prevented a narrowed form from binding", err)
 			}

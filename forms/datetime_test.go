@@ -48,7 +48,7 @@ func TestDateTimeFormsAgainstPinnedDjangoUTCObservations(t *testing.T) {
 			if observation.Widget != "DateTimeInput" || spec.Fields()[0].Widget() != forms.DateTimeInput {
 				t.Fatal("model datetime widget mismatch")
 			}
-			bound, err := spec.Bind(forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
+			bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"value": {observation.Input}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -96,11 +96,11 @@ func TestDateTimeFormInitialChangeAndInvalidConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"at": {"2026-09-19T12:34:56.123456+09:00"}}), map[string]forms.Value{"at": forms.DateTime(instant)})
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"at": {"2026-09-19T12:34:56.123456+09:00"}}), map[string]forms.Value{"at": forms.DateTime(instant)})
 	if err != nil || !bound.Valid() || len(bound.Changed()) != 0 {
 		t.Fatal("offset-only datetime change was treated as a different instant")
 	}
-	cleared, err := spec.Bind(forms.NewData(nil), map[string]forms.Value{"at": forms.DateTime(instant)})
+	cleared, err := spec.Bind(t.Context(), forms.NewData(nil), map[string]forms.Value{"at": forms.DateTime(instant)})
 	value, _ := cleared.Cleaned().Get("at")
 	if err != nil || !cleared.Valid() || !value.IsNull() || len(cleared.Changed()) != 1 {
 		t.Fatal("empty datetime did not clear a nullable value")

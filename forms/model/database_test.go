@@ -18,7 +18,7 @@ import (
 func databaseBoundForm(t *testing.T) formmodel.BoundForm {
 	t.Helper()
 	metadata := blankModel(t, schema.CharField("key", "Key", 8, schema.Unique()), schema.CharField("other", "Other", 20), schema.IntegerField("counter", "Counter"))
-	bound, err := (formmodel.Definition{}).Bind(metadata, forms.NewData(map[string][]string{"key": {"used"}, "other": {"valid"}, "counter": {"1"}}), nil)
+	bound, err := (formmodel.Definition{}).Bind(t.Context(), metadata, forms.NewData(map[string][]string{"key": {"used"}, "other": {"valid"}, "counter": {"1"}}), nil)
 	if err != nil || !bound.Form().Valid() {
 		t.Fatal("valid model form", err)
 	}

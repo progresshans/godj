@@ -209,7 +209,7 @@ func runModelClean(t *testing.T, backend probeBackend) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			instanceForm, err := formmodel.BindInstance(models.ContactObjects, spec, forms.NewData(raw), current, projection.PostClean)
+			instanceForm, err := formmodel.BindInstance(t.Context(), models.ContactObjects, spec, forms.NewData(raw), current, projection.PostClean)
 			bound := instanceForm.BoundForm()
 			if err != nil || calls != 1 {
 				t.Fatal("clean", err, calls)

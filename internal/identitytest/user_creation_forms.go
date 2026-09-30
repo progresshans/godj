@@ -386,7 +386,7 @@ func runPreparedUserBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 				if err != nil {
 					t.Fatal(err)
 				}
-				bound, err := spec.Bind(forms.NewData(data), nil)
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), nil)
 				if err != nil || !bound.Valid() {
 					t.Fatal("foreign form setup", err)
 				}

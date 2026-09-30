@@ -37,7 +37,7 @@ func TestGeneratedChoiceMetadataAndInputConsumers(t *testing.T) {
 			t.Fatal("generated choice did not select the correct widget")
 		}
 	}
-	bound, err := formSpec.Bind(forms.NewData(map[string][]string{"status": {"open"}, "reason": {" done "}, "priority": {"0"}}), nil)
+	bound, err := formSpec.Bind(t.Context(), forms.NewData(map[string][]string{"status": {"open"}, "reason": {" done "}, "priority": {"0"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatalf("generated form validation: %v %v", bound.Errors().All(), err)
 	}
@@ -47,7 +47,7 @@ func TestGeneratedChoiceMetadataAndInputConsumers(t *testing.T) {
 	if priority, ok := bound.Cleaned().Integer("priority"); !ok || priority != 0 {
 		t.Fatal("choice zero became missing")
 	}
-	blank, err := formSpec.Bind(forms.NewData(map[string][]string{"status": {"closed"}, "reason": {""}, "priority": {""}}), nil)
+	blank, err := formSpec.Bind(t.Context(), forms.NewData(map[string][]string{"status": {"closed"}, "reason": {""}, "priority": {""}}), nil)
 	if err != nil || !blank.Valid() {
 		t.Fatal("optional choices rejected empty input")
 	}

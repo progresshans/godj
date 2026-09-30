@@ -271,7 +271,7 @@ func runSave(t *testing.T, b probeBackend) {
 			if test.Name == "invalid_choice" {
 				raw["labels"] = []string{"999999999"}
 			}
-			bound, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(raw), current, formmodel.PostClean{})
+			bound, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(raw), current, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -378,7 +378,7 @@ func runSave(t *testing.T, b probeBackend) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bound, err := formmodel.BindInstance(models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"candidate"}, "labels": {strconv.FormatInt(target.ID, 10)}}), &current, formmodel.PostClean{})
+			bound, err := formmodel.BindInstance(t.Context(), models.ArticleObjects, spec, forms.NewData(map[string][]string{"title": {"candidate"}, "labels": {strconv.FormatInt(target.ID, 10)}}), &current, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)
 			}

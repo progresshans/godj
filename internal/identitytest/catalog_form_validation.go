@@ -112,7 +112,7 @@ func runCatalogModelValidation(t *testing.T, open func(*testing.T) (TransitionBa
 							data["name"] = []string{"New group"}
 							data["permissions"] = []string{strconv.FormatInt(otherPermission.ID, 10), strconv.FormatInt(currentPermission.ID, 10), strconv.FormatInt(otherPermission.ID, 10)}
 						}
-						bound, err := formmodel.Bind(metadata, spec, forms.NewData(data), initial, formmodel.PostClean{})
+						bound, err := formmodel.Bind(t.Context(), metadata, spec, forms.NewData(data), initial, formmodel.PostClean{})
 						if err != nil {
 							t.Fatal(err)
 						}

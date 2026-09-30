@@ -53,7 +53,7 @@ func TestCollectionFormSavers(t *testing.T) {
 			}
 			spec, err = spec.WithModelChoices(field, choices...)
 			check(t, err)
-			bound, err := formmodel.BindInstance(owners.OwnerObjects, spec, forms.NewData(map[string][]string{"name": {name}, field: input}), &owner, formmodel.PostClean{})
+			bound, err := formmodel.BindInstance(t.Context(), owners.OwnerObjects, spec, forms.NewData(map[string][]string{"name": {name}, field: input}), &owner, formmodel.PostClean{})
 			check(t, err)
 			prepared, err := bound.Prepare()
 			check(t, err)

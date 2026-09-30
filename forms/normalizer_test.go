@@ -18,14 +18,14 @@ func TestStringNormalizerPrecedesValidationAndChangedWithoutRewritingInitial(t *
 		t.Fatal(err)
 	}
 	initial := map[string]forms.Value{"username": forms.String("Fred")}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"username": {" Ｆｒｅｄ "}}), initial)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"username": {" Ｆｒｅｄ "}}), initial)
 	if err != nil || !bound.Valid() {
 		t.Fatal(err, bound.Errors())
 	}
 	if value, ok := bound.Cleaned().String("username"); !ok || value != "Fred" || len(bound.Changed()) != 0 {
 		t.Fatal("normalized value/change comparison diverged")
 	}
-	expanded, err := spec.Bind(forms.NewData(map[string][]string{"username": {"ﬃﬃ"}}), nil)
+	expanded, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"ﬃﬃ"}}), nil)
 	if err != nil || expanded.Valid() || expanded.Errors().ByField("username").Empty() {
 		t.Fatal("normalization bypassed maximum length", err)
 	}
@@ -42,7 +42,7 @@ func TestStringNormalizerPrecedesValidationAndChangedWithoutRewritingInitial(t *
 		if err != nil {
 			t.Fatal(err)
 		}
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"username": {"input"}}), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"input"}}), nil)
 		if err != nil || bound.Valid() {
 			t.Fatal("normalizer bypassed required/valid string checks", err)
 		}

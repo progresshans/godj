@@ -178,7 +178,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		if err != nil {
 			return web.Response{}, err
 		}
-		bound, err := formmodel.BindInstance(models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil, formmodel.PostClean{Fields: []string{"owner"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
+		bound, err := formmodel.BindInstance(request.Context(), models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil, formmodel.PostClean{Fields: []string{"owner"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 			return forms.NewValues(map[string]forms.Value{"owner": forms.String(principal.ID())}), validation.Errors{}
 		}})
 		if err != nil {

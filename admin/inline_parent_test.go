@@ -17,7 +17,7 @@ func TestHiddenInlineParentRedisplayUsesServerValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	submitted := map[string][]string{"parent": {"99<script>"}}
-	bound, err := spec.Bind(forms.NewData(submitted), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(submitted), nil)
 	if err != nil || bound.Valid() {
 		t.Fatal("wrong parent accepted", err)
 	}
@@ -49,7 +49,7 @@ func TestReadOnlyInlineRedisplayRetainsInitialAndPasswordPrivacy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	set, err := spec.Bind(forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"1"}, "items-0-name": {"forged"}, "items-0-flag": {"false"}, "items-0-password": {"submitted-private"}}), []map[string]forms.Value{{"name": forms.String("kept"), "flag": forms.Boolean(true), "password": forms.String("server-private")}})
+	set, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"items-TOTAL_FORMS": {"1"}, "items-INITIAL_FORMS": {"1"}, "items-0-name": {"forged"}, "items-0-flag": {"false"}, "items-0-password": {"submitted-private"}}), []map[string]forms.Value{{"name": forms.String("kept"), "flag": forms.Boolean(true), "password": forms.String("server-private")}})
 	if err != nil || !set.Valid() {
 		t.Fatal("read-only row failed", err)
 	}

@@ -87,7 +87,7 @@ func TestReadOnlyInlineRowsAgainstPinnedDjangoAdmin(t *testing.T) {
 			}}
 			var set formmodel.InlineSet[helpdesk.Category, helpdesk.Label]
 			if observed.Bound {
-				set, err = spec.Bind(forms.NewData(observed.Data), helpdesk.NewCategoryWithID(1), []helpdesk.Label{current}, post)
+				set, err = spec.Bind(t.Context(), forms.NewData(observed.Data), helpdesk.NewCategoryWithID(1), []helpdesk.Label{current}, post)
 			} else {
 				set, err = spec.Unbound(helpdesk.NewCategoryWithID(1), []helpdesk.Label{current})
 			}
@@ -189,7 +189,7 @@ func TestReadOnlyInlineKeepsIdentityParentAndCandidateOwnership(t *testing.T) {
 		if forged == "identity" {
 			data["items-0-id"] = []string{"99"}
 		}
-		set, err := spec.Bind(forms.NewData(data), helpdesk.NewCategoryWithID(1), []helpdesk.Label{current}, formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
+		set, err := spec.Bind(t.Context(), forms.NewData(data), helpdesk.NewCategoryWithID(1), []helpdesk.Label{current}, formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
 			t.Error("read-only model clean executed")
 			return forms.Values{}, validation.Errors{}
 		}})

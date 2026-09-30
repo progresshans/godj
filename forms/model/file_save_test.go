@@ -59,7 +59,7 @@ func prepareFiles(t *testing.T, two bool) formmodel.PreparedInstance[models.Arti
 	if two {
 		files["summary"] = []uploads.File{file}
 	}
-	form, err := formmodel.BindInstance(manager, spec, forms.NewDataWithFiles(nil, files), &current, formmodel.PostClean{})
+	form, err := formmodel.BindInstance(t.Context(), manager, spec, forms.NewDataWithFiles(nil, files), &current, formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestModelFileFormsetPreservesInitialReferencesAndPendingRows(t *testing.T) 
 		t.Fatal(err)
 	}
 	values := map[string][]string{"files-TOTAL_FORMS": {"2"}, "files-INITIAL_FORMS": {"1"}, "files-0-id": {"42"}, "files-0-summary-clear": {"on"}}
-	set, err := formmodel.BindSet(manager, spec, forms.NewDataWithFiles(values, map[string][]uploads.File{"files-1-title": {file}}), []models.Article{current}, formmodel.PostClean{})
+	set, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewDataWithFiles(values, map[string][]uploads.File{"files-1-title": {file}}), []models.Article{current}, formmodel.PostClean{})
 	if err != nil || !set.Valid() {
 		t.Fatal("file rows did not bind", err)
 	}
@@ -349,7 +349,7 @@ func TestModelFileFormsetPreservesInitialReferencesAndPendingRows(t *testing.T) 
 		t.Fatal("new row upload not assigned to model")
 	}
 	values["files-0-id"] = []string{"99"}
-	forged, err := formmodel.BindSet(manager, spec, forms.NewDataWithFiles(values, map[string][]uploads.File{"files-1-title": {file}}), []models.Article{current}, formmodel.PostClean{})
+	forged, err := formmodel.BindSet(t.Context(), manager, spec, forms.NewDataWithFiles(values, map[string][]uploads.File{"files-1-title": {file}}), []models.Article{current}, formmodel.PostClean{})
 	if err != nil || forged.Valid() {
 		t.Fatal("file row bypassed identity checks", err)
 	}
@@ -365,12 +365,12 @@ func TestModelFileInitialRejectsUploadsAndScalarNamingOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	form, err := spec.Bind(forms.NewDataWithFiles(nil, map[string][]uploads.File{"title": {file}}), nil)
+	form, err := spec.Bind(t.Context(), forms.NewDataWithFiles(nil, map[string][]uploads.File{"title": {file}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	value, _ := form.Cleaned().Get("title")
-	if _, err := formmodel.Bind(metadata, spec, forms.NewData(nil), map[string]forms.Value{"title": value}, formmodel.PostClean{}); err == nil {
+	if _, err := formmodel.Bind(t.Context(), metadata, spec, forms.NewData(nil), map[string]forms.Value{"title": value}, formmodel.PostClean{}); err == nil {
 		t.Fatal("initial reference accepted request upload")
 	}
 	if _, err := formmodel.NewSpec(metadata, formmodel.OverrideField("title", formmodel.WithStringNormalizer(strings.TrimSpace))); err == nil {
@@ -379,7 +379,7 @@ func TestModelFileInitialRejectsUploadsAndScalarNamingOverrides(t *testing.T) {
 	if _, err := formmodel.NewSpec(metadata, formmodel.OverrideField("title", formmodel.WithMaxLength(41))); err == nil {
 		t.Fatal("input length widened model storage")
 	}
-	if _, err := formmodel.Bind(metadata, spec, forms.NewData(nil), nil, formmodel.PostClean{Fields: []string{"title"}, Clean: func(forms.Values) (forms.Values, validation.Errors) { return forms.Values{}, validation.Errors{} }}); err == nil {
+	if _, err := formmodel.Bind(t.Context(), metadata, spec, forms.NewData(nil), nil, formmodel.PostClean{Fields: []string{"title"}, Clean: func(forms.Values) (forms.Values, validation.Errors) { return forms.Values{}, validation.Errors{} }}); err == nil {
 		t.Fatal("scalar clean silently replaced file intent")
 	}
 }

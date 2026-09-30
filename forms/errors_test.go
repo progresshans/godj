@@ -20,7 +20,7 @@ func TestFormWithErrorsRetainsInitialChangesAndDetachesCleanedFields(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	form, err := spec.Bind(NewData(map[string][]string{"first": {"one"}, "second": {"two"}}), map[string]Value{"first": String("before")})
+	form, err := spec.Bind(t.Context(), NewData(map[string][]string{"first": {"one"}, "second": {"two"}}), map[string]Value{"first": String("before")})
 	if err != nil || !form.Valid() {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestFormCompoundRejectionRemovesOnlyNamedCleanedValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(NewData(map[string][]string{"first": {"private-one"}, "second": {"private-two"}}), nil)
+	bound, err := spec.Bind(t.Context(), NewData(map[string][]string{"first": {"private-one"}, "second": {"private-two"}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

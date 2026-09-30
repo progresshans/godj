@@ -100,7 +100,7 @@ func TestRegisteredModelValidatesTypedOperationBoundaries(t *testing.T) {
 		t.Fatalf("get initial title = %q, %v", title, ok)
 	}
 
-	bound, err := model.form.Bind(forms.NewData(map[string][]string{
+	bound, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title":     {" Updated "},
 		"published": {"on"},
 		"summary":   {""},
@@ -329,7 +329,7 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 	}
 	registry, _ := builder.Build()
 	model := registry.models[0]
-	valid, err := model.form.Bind(forms.NewData(map[string][]string{
+	valid, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title": {"Created"}, "published": {"false"}, "summary": {""},
 	}), nil)
 	if err != nil || !valid.Valid() {
@@ -352,7 +352,7 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 		t.Fatalf("callbacks after denied operations = %d", called)
 	}
 
-	invalid, err := model.form.Bind(forms.NewData(map[string][]string{
+	invalid, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{
 		"published": {"false"}, "summary": {""},
 	}), nil)
 	if err != nil || invalid.Valid() {
@@ -416,7 +416,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("alternate formmodel.NewSpec() error = %v", err)
 	}
-	foreign, err := alternate.Bind(forms.NewData(map[string][]string{
+	foreign, err := alternate.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title": {"Blocked"}, "published": {"false"}, "summary": {""},
 	}), nil)
 	if err != nil || !foreign.Valid() {

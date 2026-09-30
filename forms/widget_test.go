@@ -15,7 +15,7 @@ func TestWidgetsAndEmptyValuesAreClosedCompatibleFieldOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(nil), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatalf("empty text bind: %v", err)
 	}

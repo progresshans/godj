@@ -394,7 +394,7 @@ func TestAdminFileWidgetRetainsInitialClearAndNeverPopulatesFileValue(t *testing
 			}
 			form, err := spec.Unbound(map[string]forms.Value{"document": initial})
 			if test.bound {
-				form, err = spec.Bind(forms.NewDataWithFiles(raw, files), map[string]forms.Value{"document": initial})
+				form, err = spec.Bind(t.Context(), forms.NewDataWithFiles(raw, files), map[string]forms.Value{"document": initial})
 			}
 			if err != nil {
 				t.Fatal(err)

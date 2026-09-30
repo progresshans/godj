@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
@@ -129,11 +130,11 @@ func UnboundSet[M any](manager orm.Manager[M], spec forms.SetSpec, current []M, 
 // existing key. Identity failures invalidate the entire set, even for DELETE.
 // PostClean is applied once to each evaluated row before set count validation;
 // ordinary field/cross-field cleaning is not repeated by the model adapter.
-func BindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related ...func(M, ir.ManyToManyField) ([]int64, bool)) (InstanceSet[M], error) {
-	return bindSet(manager, spec, data, current, postClean, related, "")
+func BindSet[M any](ctx context.Context, manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related ...func(M, ir.ManyToManyField) ([]int64, bool)) (InstanceSet[M], error) {
+	return bindSet(ctx, manager, spec, data, current, postClean, related, "")
 }
 
-func bindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related []func(M, ir.ManyToManyField) ([]int64, bool), parent string) (InstanceSet[M], error) {
+func bindSet[M any](ctx context.Context, manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related []func(M, ir.ManyToManyField) ([]int64, bool), parent string) (InstanceSet[M], error) {
 	metadata, primary, snapshots, err := setSnapshots(manager, spec, current, related)
 	if err != nil {
 		return InstanceSet[M]{}, err
@@ -165,7 +166,7 @@ func bindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		if present {
 			values[primary] = raw
 		}
-		bound, err := keySpec.Bind(forms.NewData(values), nil)
+		bound, err := keySpec.Bind(ctx, forms.NewData(values), nil)
 		if err != nil {
 			return InstanceSet[M]{}, err
 		}
@@ -182,7 +183,7 @@ func bindSet[M any](manager orm.Manager[M], spec forms.SetSpec, data forms.Data,
 		return InstanceSet[M]{}, err
 	}
 	instances := make(map[int]InstanceForm[M])
-	set, err := spec.BindWith(data, initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
+	set, err := spec.BindWith(ctx, data, initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
 		var source M
 		var values map[string]forms.Value
 		hasInstance := row.Index() < len(snapshots)
@@ -328,7 +329,7 @@ func setFormInitial[M any](manager orm.Manager[M], model ir.Model, spec forms.Sp
 		values := make(map[string]forms.Value)
 		for _, field := range spec.Fields() {
 			if value, present := snapshot.values[field.Name()]; present {
-				if field.Kind() == forms.FieldFile {
+				if field.IsFile() {
 					var err error
 					value, err = fileInitialValue(value)
 					if err != nil {

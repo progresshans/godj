@@ -242,7 +242,8 @@ Nullable Boolean은 `NullBooleanSelect`의 unknown/true/false 입력을 사용�
 Boolean으로 강제 변환하지 않는다. Helpdesk PUT은 required/default를 적용하고 PATCH는 생략된 필드에 default를 적용하지 않는다.
 두 수정 방식 모두 생략한 nullable 필드를 보존하며 명시적 null만 값을 지운다. 현재 행 조회와 변경은 같은 transaction이 소유한다.
 Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값이 있을 때만 값을 분리해 겹친다. Bind는 소유한 cleaned 값과
-오류를 불변 결과로 게시한다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
+오류를 불변 결과로 게시한다. `Bind(ctx, ...)`는 ImageField의 업로드 읽기·디코딩에 context를 전달하며
+사용자 validator와 model clean은 계속 pure다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
 복사한다. API Page도 생성 시 검증한 불변 result list를 응답 사이에 공유한다.
 ModelChoice는 명시적인 int64 관계 key/label snapshot이며 Forms 자체는 DB를 조회하지 않는다. 빈 선택지는 fail-closed다.
 Admin은 target 읽기 권한을 확인한 뒤 요청별 snapshot을 만들고 저장 전 다시 확인한다. Application의 write transaction이

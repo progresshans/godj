@@ -44,7 +44,7 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 	if err != nil || createLoads != 1 || changeLoads != 0 {
 		t.Fatal("create invoked the change loader")
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"category": {"7"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"category": {"7"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatal("create choice rejected")
 	}

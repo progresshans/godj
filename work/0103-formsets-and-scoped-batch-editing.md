@@ -37,7 +37,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 격리된 Memory storage의 원자 게시·내용/파일/동시 저장 한도와 양 DB 파일 소비자
 - [x] 같은 열린 파일의 조건부 조회·단일/여러 Range·HEAD와 양 DB/양 backend의 인가된 소비자
 - [x] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합: source `365ad9d4`
-- [ ] 추가 storage backend와 남은 파일 의미
+- [x] context 기반 이미지 내용 검증·Form/Formset·Admin 명령과 명시적 파일 게시의 공통 기반
+- [ ] 모델 ImageField·폭/높이 field 의미·추가 codec/storage backend와 남은 파일 의미
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -125,3 +126,10 @@ Memory backend·Range/conditional과 전체 플랫폼 통합은 아래에서 연
 응답은 새 reader/metadata로 판단하며 bounded framing·중간 실패 abort·정리를 보존한다. 고정 Django·HTTP/Go 공통 결과,
 양 DB/양 backend의 실제 로그인/업로드/소유권/다운로드와 관련 실패 검사를 확인했다. 기존 Hosted source에 포함되지 않은
 별도 영향 checkpoint이며, 다음 파일 의미는 ImageField의 내용 검증·모델/폼·저장 연결이다.
+
+
+공통 이미지 입력은 파일의 독립 reader로 실제 내용과 자원 한도를 검증한다. `Bind(ctx, ...)`가 Form/ModelForm/Formset/Admin과
+기존 인증 소비자까지 같은 context를 전달하며 사용자 validator/model clean은 pure다. 검증 metadata와 클라이언트 MIME을
+분리하고 기존 파일 이름은 읽지 않는다. Native 비교·Admin 실제 multipart→검증→filesystem/memory 저장·실패/정리와 기존
+양 DB 소비자의 관련 회귀를 확인했다. Source 차이와 실행 범위는 TEST_EVIDENCE에 둔다. 이 변경은 모델 ImageField·크기 field
+자동 반영·추가 codec/전체 플랫폼 완료를 뜻하지 않으며, 다음 단계는 이 기반을 canonical 모델 의미에 연결하는 것이다.

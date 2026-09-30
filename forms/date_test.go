@@ -31,7 +31,7 @@ func TestCalendarDateModelFormsAgainstPinnedDjango(t *testing.T) {
 				data[key] = []string{value}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "same": forms.Date(same)} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"day": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"day": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -79,12 +79,12 @@ func TestCalendarDateFormDefaultsAndInvalidValues(t *testing.T) {
 		if err != nil || !actual.Equal(value) {
 			t.Fatal("date initial default changed")
 		}
-		bound, err := spec.Bind(forms.NewData(nil), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 		actual, _ = bound.Cleaned().Get("day")
 		if err != nil || !bound.Valid() || !actual.IsNull() {
 			t.Fatal("date default overwrote bound omission")
 		}
-		bound, err = spec.Bind(forms.NewData(map[string][]string{"day": {"2026-09-20", "2026-09-21"}}), nil)
+		bound, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"day": {"2026-09-20", "2026-09-21"}}), nil)
 		if err != nil || bound.Valid() || bound.Errors().Len() != 1 {
 			t.Fatal("repeated date accepted")
 		}

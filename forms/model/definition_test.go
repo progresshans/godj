@@ -37,7 +37,7 @@ func TestDefinitionKeepsIRSelectionAndCommandInputsSeparate(t *testing.T) {
 	if definition.Fields[0] != "title" || definition.ExtraFields[0].Name() != "confirmation" || definition.Validators[0] == nil {
 		t.Fatal("clone aliases options")
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"title": {"Chosen"}, "confirmation": {"Different"}, "private": {"ignored"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"title": {"Chosen"}, "confirmation": {"Different"}, "private": {"ignored"}}), nil)
 	if err != nil || bound.Valid() || bound.Errors().ByField("confirmation").Len() != 1 {
 		t.Fatal("command validator omitted", err)
 	}

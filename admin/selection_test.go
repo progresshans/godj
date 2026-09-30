@@ -201,7 +201,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	if _, found, err := model.get(context.Background(), principal, 1); err != nil || !found {
 		t.Fatalf("selected initial: %v", err)
 	}
-	bound, err := model.form.Bind(forms.NewData(map[string][]string{"subject": {"New"}}), nil)
+	bound, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{"subject": {"New"}}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

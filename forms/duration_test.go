@@ -31,7 +31,7 @@ func TestDurationModelFormsAgainstPinnedDjango(t *testing.T) {
 				data[key] = []string{value}
 			}
 			for name, initial := range map[string]forms.Value{"null": forms.Null(), "zero": forms.Duration(duration.Duration{}), "same": forms.Duration(same)} {
-				bound, err := spec.Bind(forms.NewData(data), map[string]forms.Value{"elapsed": initial})
+				bound, err := spec.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"elapsed": initial})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -79,12 +79,12 @@ func TestDurationFormDefaultsAndInvalidValues(t *testing.T) {
 		if err != nil || !actual.Equal(value) {
 			t.Fatal("time initial default changed")
 		}
-		bound, err := spec.Bind(forms.NewData(nil), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(nil), nil)
 		actual, _ = bound.Cleaned().Get("elapsed")
 		if err != nil || !bound.Valid() || !actual.IsNull() {
 			t.Fatal("time default overwrote bound omission")
 		}
-		bound, err = spec.Bind(forms.NewData(map[string][]string{"elapsed": {"12:34:56.123456", "12:34:56.654321"}}), nil)
+		bound, err = spec.Bind(t.Context(), forms.NewData(map[string][]string{"elapsed": {"12:34:56.123456", "12:34:56.654321"}}), nil)
 		if err != nil || bound.Valid() || bound.Errors().Len() != 1 {
 			t.Fatal("repeated time accepted")
 		}

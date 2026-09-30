@@ -70,11 +70,11 @@ func TestDecimalAdminTypedSnapshotPrecisionAndRevalidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"cost": {"-0.0"}}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"cost": {"-0.0"}}), nil)
 	if err != nil || !bound.Valid() {
 		t.Fatal("zero decimal form rejected", err)
 	}
-	validated, err := validateBoundForm(bound, spec, spec.Fields())
+	validated, err := validateBoundForm(t.Context(), bound, spec, spec.Fields())
 	if err != nil {
 		t.Fatal("canonical revalidation lost input scale needed for zero whole digits", err)
 	}
@@ -113,7 +113,7 @@ func TestDecimalAdminInitialPreservesValuesOutsideInputPrecision(t *testing.T) {
 			continue
 		}
 		submitted := map[string][]string{"cost": {pair[0]}}
-		bound, err := spec.Bind(forms.NewData(submitted), initial)
+		bound, err := spec.Bind(t.Context(), forms.NewData(submitted), initial)
 		if err != nil || bound.Valid() || len(bound.Changed()) != 0 {
 			t.Fatal("unchanged initial bypassed precision validation", err)
 		}

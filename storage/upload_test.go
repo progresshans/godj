@@ -45,7 +45,7 @@ func TestUploadPersistsBeyondHTTPRequestAndBackendReopen(t *testing.T) {
 		if err != nil {
 			return web.Response{}, err
 		}
-		bound, err := spec.Bind(forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil)
+		bound, err := spec.Bind(request.Context(), forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil)
 		if err != nil {
 			return web.Response{}, err
 		}

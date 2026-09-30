@@ -1,10 +1,10 @@
 # 여러 Form을 한 번에 처리하기
 
-`SetSpec`은 같은 Form의 여러 행을 prefix로 구분해 바인딩한다. 기존 행의 initial은 서버가 제공한다.
+`SetSpec`은 같은 Form의 여러 행을 prefix로 구분해 바인딩한다. Bind 계열은 context를 명시적으로 받는다. 기존 행의 initial은 서버가 제공한다.
 `SetConfig`의 개수는 명시적 값이며, 기본 구성이 필요하면 `DefaultSetConfig()`에서 시작한다.
 
 ```go
-func ticketRows(data forms.Data) (forms.Set, error) {
+func ticketRows(ctx context.Context, data forms.Data) (forms.Set, error) {
     title, err := forms.CharField("title", forms.WithMaxLength(120))
     if err != nil { return forms.Set{}, err }
     row, err := forms.NewSpec([]forms.Field{title})
@@ -18,7 +18,7 @@ func ticketRows(data forms.Data) (forms.Set, error) {
     config.CanOrder = true
     spec, err := forms.NewSetSpec(row, config)
     if err != nil { return forms.Set{}, err }
-    return spec.Bind(data, nil)
+    return spec.Bind(ctx, data, nil)
 }
 ```
 
@@ -46,11 +46,11 @@ func ticketRows(data forms.Data) (forms.Set, error) {
 각 행의 오류는 `Forms()[index].Form().Errors()`, 전체 진단은 `NonFormErrors()`로 나뉜다.
 `WithErrors()`는 callback을 반복하지 않고 전체 진단을 추가한 새 결과를 반환한다.
 
-`BindWith(data, initial, SetProcessor{Form: ..., Clean: ...})`는 일반 field/cross 검증 뒤 행별 `Form` callback을 한 번 적용한다.
+`BindWith(ctx, initial, SetProcessor{Form: ..., Clean: ...})`는 일반 field/cross 검증 뒤 행별 `Form` callback을 한 번 적용한다.
 바뀌지 않은 optional 추가 행은 건너뛴다. 처리된 행의 모델 오류까지 반영한 다음 개수를 검사하고, 개수 검사가 통과하면
 `Clean` callback과 사용자 `SetValidator`를 순서대로 실행한다. `Clean`은 여러 행 모델 제약의 오류를 행과 전체에 붙일 수 있다.
 뒤의 사용자 진단이 모델 진단을 없애지는 않는다. 두 callback은 받은 Form/Set 또는 `WithErrors` 계열로 진단을 붙인 결과만
-반환할 수 있다. 새 바인딩이나 다른 행/Set은 `binding_mismatch` 오류다. Callback은 pure하며 I/O는 별도 단계에서 실행한다.
+반환할 수 있다. 새 바인딩이나 다른 행/Set은 `binding_mismatch` 오류다. Callback은 pure하며 DB/storage 쓰기는 별도 단계에서 실행한다. ImageField 내용 읽기는 callback 전에 같은 context로 실행한다.
 
 나중에 얻은 DB 데이터 진단은 `WithFormErrors(index, failures)`로 추가할 수 있다. 이 메서드는 기존 callback이나 개수
 검증을 다시 실행하지 않고 이미 invalid인 결과를 valid로 바꾸지 않는다. 삭제된 행의 데이터 오류는 무시될 수 있으므로,

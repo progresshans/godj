@@ -185,7 +185,7 @@ func verifyTypedTicketForm(t *testing.T, b formSaveDatabase) {
 				initial["id"] = forms.Integer(current.ID)
 				initial["resolution"] = forms.String("keep")
 			}
-			bound, err := formmodel.Bind(metadata, spec, forms.NewData(data), initial, definition.PostClean)
+			bound, err := formmodel.Bind(t.Context(), metadata, spec, forms.NewData(data), initial, definition.PostClean)
 			if err != nil {
 				t.Fatal(err)
 			}

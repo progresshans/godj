@@ -1,9 +1,11 @@
 package forms
 
+import "context"
+
 // bindReadOnlyRow retains the server's already-resolved display values. It
 // never evaluates editable field/cross validators against absent or forged
 // input. Explicit formset controls have their own normal cleaning lifecycle.
-func bindReadOnlyRow(spec Spec, submitted Data, initial Values, controls []Field) (Form, error) {
+func bindReadOnlyRow(ctx context.Context, spec Spec, submitted Data, initial Values, controls []Field) (Form, error) {
 	if len(controls) == 0 {
 		return Form{binding: &formBindingToken{}, submitted: submitted, bound: true,
 			readOnly: true, valid: true, initial: initial, cleaned: initial}, nil
@@ -18,7 +20,7 @@ func bindReadOnlyRow(spec Spec, submitted Data, initial Values, controls []Field
 			controlInitial[field.name] = value
 		}
 	}
-	control, err := controlSpec.Bind(submitted, controlInitial)
+	control, err := controlSpec.Bind(ctx, submitted, controlInitial)
 	if err != nil {
 		return Form{}, err
 	}

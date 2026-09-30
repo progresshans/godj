@@ -94,7 +94,7 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 				}
 				// A caller-owned initial must never supply the value retained by a
 				// omitted defaulted input; change reads the authorized current row.
-				submitted, err := model.form.Bind(forms.NewData(data), map[string]forms.Value{"title": forms.String("forged-initial")})
+				submitted, err := model.form.Bind(t.Context(), forms.NewData(data), map[string]forms.Value{"title": forms.String("forged-initial")})
 				if err != nil || !submitted.Valid() {
 					t.Fatal("bind", err, submitted.Errors())
 				}
@@ -190,7 +190,7 @@ func TestAdminChangeRechecksObservedRevisionBeforeCandidateWrite(t *testing.T) {
 		}
 	})
 	model := registry.models[0]
-	form, err := model.form.Bind(forms.NewData(map[string][]string{"username": {"Candidate"}, "active": {"on"}}), nil)
+	form, err := model.form.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"Candidate"}, "active": {"on"}}), nil)
 	if err != nil || !form.Valid() {
 		t.Fatal("valid submission", err)
 	}

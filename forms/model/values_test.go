@@ -43,7 +43,7 @@ func TestInitialValuesSelectsTypedFieldsAndDetachesNullableValue(t *testing.T) {
 	if err != nil {
 		t.Fatal("representable stored initial was treated as a new submission", err)
 	}
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"subject": {oversized}}), legacy)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"subject": {oversized}}), legacy)
 	if err != nil || bound.Valid() || bound.Errors().ByField("subject").Empty() {
 		t.Fatal("displayed initial bypassed submitted length validation", err)
 	}

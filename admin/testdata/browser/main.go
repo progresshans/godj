@@ -367,7 +367,7 @@ func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth
 	if err != nil {
 		return false, err
 	}
-	set, err := spec.Bind(data, before, current, formmodel.PostClean{})
+	set, err := spec.Bind(ctx, data, before, current, formmodel.PostClean{})
 	if err != nil {
 		return false, err
 	}

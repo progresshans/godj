@@ -158,3 +158,11 @@ portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-
 메모리 storage의 정상 저장·격리와 명시적 수명/실패 차이는 같은 고정 source의
 `django/core/files/storage/memory.py`(BSD-3-Clause)를 [독립 관찰](../conformance/runners/django/memory_storage_reference.py)한다.
 [고정 관찰](../storage/testdata/memory-django61.json)의 source SHA256과 [storage 계약](../storage/README.md)을 따른다.
+
+
+이미지 입력은 고정 Django 6.1의 `django/forms/fields.py`(BSD-3-Clause)와 Pillow 12.3.0(MIT-CMU)의 공개 Image API를
+[독립 관찰](../conformance/runners/django/image_field_reference.py)한다. Python/Pillow 버전은 pyproject/uv.lock으로 고정하고
+[관찰 fixture](../forms/testdata/image-django61.json)에 실행 source SHA256과 직접 생성한 합성 image bytes를 둔다.
+GoDj wrapper와 GIF/container 예산 검사는 독립 작성했으며 실제 디코딩은 Go 1.26.5의 `image/png`, `image/jpeg`, `image/gif`
+및 [golang.org/x/image v0.46.0의 WebP decoder](https://pkg.go.dev/golang.org/x/image@v0.46.0/webp)(BSD-3-Clause)를 사용한다.
+지원 형식·전체 GIF 검증·한도/취소의 차이는 [이미지 계약](../uploads/README.md#이미지-내용-검증)과 ADR-0082를 따른다.

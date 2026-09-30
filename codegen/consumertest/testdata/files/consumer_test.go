@@ -253,7 +253,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		form, err := formmodel.BindInstance(models.DocumentObjects, spec, forms.NewDataWithFiles(map[string][]string{"title": {title}}, map[string][]uploads.File{"file": {file}}), current, formmodel.PostClean{})
+		form, err := formmodel.BindInstance(t.Context(), models.DocumentObjects, spec, forms.NewDataWithFiles(map[string][]string{"title": {title}}, map[string][]uploads.File{"file": {file}}), current, formmodel.PostClean{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -355,7 +355,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 			t.Fatal("rollback deleted independent file", err)
 		}
 	}
-	clear, err := formmodel.BindInstance(models.DocumentObjects, spec, forms.NewData(map[string][]string{"title": {first.Title}, "file-clear": {"on"}}), &first, formmodel.PostClean{})
+	clear, err := formmodel.BindInstance(t.Context(), models.DocumentObjects, spec, forms.NewData(map[string][]string{"title": {first.Title}, "file-clear": {"on"}}), &first, formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +401,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		if err != nil {
 			return web.Response{}, err
 		}
-		form, err := formmodel.BindInstance(models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil, formmodel.PostClean{})
+		form, err := formmodel.BindInstance(request.Context(), models.DocumentObjects, spec, forms.NewDataWithFiles(parsed.Values(), parsed.Files()), nil, formmodel.PostClean{})
 		if err != nil {
 			return web.Response{}, err
 		}

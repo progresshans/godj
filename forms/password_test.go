@@ -18,7 +18,7 @@ func TestUnstrippedPasswordPreservesWhitespaceAndNeverFormatsPrivateValues(t *te
 	}
 	for _, password := range []string{"  private-λ<&>  ", " \t\n", "　秘密　"} {
 		data := forms.NewData(map[string][]string{"password": {password}})
-		bound, err := spec.Bind(data, nil)
+		bound, err := spec.Bind(t.Context(), data, nil)
 		if err != nil || !bound.Valid() {
 			t.Fatal("password rejected", err)
 		}
@@ -32,20 +32,20 @@ func TestUnstrippedPasswordPreservesWhitespaceAndNeverFormatsPrivateValues(t *te
 				}
 			}
 		}
-		unchanged, err := spec.Bind(data, map[string]forms.Value{"password": forms.String(password)})
+		unchanged, err := spec.Bind(t.Context(), data, map[string]forms.Value{"password": forms.String(password)})
 		if err != nil || len(unchanged.Changed()) != 0 {
 			t.Fatal("unstripped initial value changed")
 		}
 	}
 	for _, raw := range [][]string{nil, {""}, {"x\x00y"}, {"\xff"}, {"one", "two"}, {strings.Repeat("λ", 33)}} {
-		bound, err := spec.Bind(forms.NewData(map[string][]string{"password": raw}), nil)
+		bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"password": raw}), nil)
 		if err != nil || bound.Valid() {
 			t.Fatal("invalid password shape accepted", err)
 		}
 	}
 	plain, _ := forms.CharField("plain")
 	plainSpec, _ := forms.NewSpec([]forms.Field{plain})
-	bound, err := plainSpec.Bind(forms.NewData(map[string][]string{"plain": {"  text  "}}), nil)
+	bound, err := plainSpec.Bind(t.Context(), forms.NewData(map[string][]string{"plain": {"  text  "}}), nil)
 	text, _ := bound.Cleaned().String("plain")
 	if err != nil || !bound.Valid() || text != "text" {
 		t.Fatal("default string cleaning changed")
@@ -64,7 +64,7 @@ func TestPasswordOptionsRejectIncompatibleFieldsAndSecretDefaults(t *testing.T) 
 	}
 	field, _ := forms.CharField("password", forms.WithTrimWhitespace(false), forms.WithWidget(forms.PasswordInput), forms.WithMaxLength(1))
 	spec, _ := forms.NewSpec([]forms.Field{field})
-	bound, err := spec.Bind(forms.NewData(map[string][]string{"password": {" x "}}), map[string]forms.Value{"password": forms.String("x")})
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"password": {" x "}}), map[string]forms.Value{"password": forms.String("x")})
 	if err != nil || bound.Valid() || len(bound.Changed()) != 1 {
 		t.Fatal("failed unstripped validation lost changed state")
 	}

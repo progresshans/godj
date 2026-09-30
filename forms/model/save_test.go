@@ -84,7 +84,7 @@ func preparedCollections(t *testing.T, selected ...string) formmodel.PreparedIns
 		}
 	}
 	current := models.Article{Summary: new("original")}
-	bound, err := formmodel.BindInstance(manager, spec, forms.NewData(map[string][]string{"title": {"candidate"}, "labels": {"7"}, "reviewers": {}}), &current, formmodel.PostClean{})
+	bound, err := formmodel.BindInstance(t.Context(), manager, spec, forms.NewData(map[string][]string{"title": {"candidate"}, "labels": {"7"}, "reviewers": {}}), &current, formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}

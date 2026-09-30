@@ -56,7 +56,7 @@ func TestUnboundAndBoundEmptyAreDistinct(t *testing.T) {
 		t.Fatalf("initial summary = %#v, %v", summary, ok)
 	}
 
-	bound, err := spec.Bind(forms.NewData(map[string][]string{}), nil)
+	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestBindCleansTypedValuesAndTracksChangedInFieldOrder(t *testing.T) {
 	data := forms.NewData(source)
 	source["title"][0] = "mutated"
 	initial := map[string]forms.Value{"title": forms.String("Old")}
-	form, err := spec.Bind(data, initial)
+	form, err := spec.Bind(t.Context(), data, initial)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestFieldErrorsHaveStableOrderCodesAndParameters(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			form, err := spec.Bind(forms.NewData(map[string][]string{"title": {test.raw}}), nil)
+			form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"title": {test.raw}}), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -170,7 +170,7 @@ func TestCrossValidatorReceivesOnlySuccessfullyCleanedFields(t *testing.T) {
 		return validation.NewErrors(validation.New(validation.NonField, "title_publish_conflict"))
 	})
 	spec := articleSpec(t, cross)
-	form, err := spec.Bind(forms.NewData(map[string][]string{
+	form, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{
 		"title":     {"too-long-title"},
 		"published": {"true"},
 	}), nil)
@@ -191,7 +191,7 @@ func TestCrossValidatorReceivesOnlySuccessfullyCleanedFields(t *testing.T) {
 	retained := seen
 	entries := retained.All()
 	entries[0] = forms.Entry{}
-	if _, err := spec.Bind(forms.NewData(map[string][]string{"title": {"next"}}), nil); err != nil {
+	if _, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"title": {"next"}}), nil); err != nil {
 		t.Fatal(err)
 	}
 	if published, ok := retained.Boolean("published"); !ok || !published {
@@ -216,7 +216,7 @@ func TestSpecAndDataAreSafeForConcurrentEvaluation(t *testing.T) {
 			defer wait.Done()
 			title := fmt.Sprintf("old-%d", index)
 			initial := map[string]forms.Value{"title": forms.String(title)}
-			form, err := spec.Bind(data, initial)
+			form, err := spec.Bind(t.Context(), data, initial)
 			if err != nil || !form.Valid() {
 				t.Errorf("Bind = valid %v, err %v", form.Valid(), err)
 				return
@@ -263,7 +263,7 @@ func TestConfigurationFailuresAreFailClosed(t *testing.T) {
 	if _, err := spec.Unbound(map[string]forms.Value{"title": forms.String(string([]byte{0xff}))}); err == nil {
 		t.Fatal("invalid UTF-8 initial value accepted")
 	}
-	if _, err := (forms.Spec{}).Bind(forms.NewData(nil), nil); err == nil {
+	if _, err := (forms.Spec{}).Bind(t.Context(), forms.NewData(nil), nil); err == nil {
 		t.Fatal("zero Spec accepted")
 	}
 	var fieldValidator forms.FieldValidatorFunc

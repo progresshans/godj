@@ -23,7 +23,7 @@ definition := formmodel.Definition{
         },
     },
 }
-bound, err := definition.Bind(metadata, submitted, authorizedInitial)
+bound, err := definition.Bind(ctx, metadata, submitted, authorizedInitial)
 ```
 
 `PostClean.Fields`는 callback이 바꿀 수 있는 scalar의 명시적 목록이다. 선택 입력도 여기에 선언해야 변경할 수 있다.
@@ -61,7 +61,7 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 ## 여러 모델 행의 준비
 
 `UnboundSet(manager, setSpec, current)`는 화면용 모델/identity snapshot을 만들고,
-`BindSet(manager, setSpec, data, current, postClean)`은 [Formset](../formset.md)의 여러 행에 같은 모델 후보 검증을 연결한다.
+`BindSet(ctx, manager, setSpec, data, current, postClean)`은 [Formset](../formset.md)의 여러 행에 같은 모델 후보 검증을 연결한다.
 현재 지원하는 PK는 Auto/Integer다. `current`는 caller가 조회하고 허용한 기존 모델 집합이며 자동으로 query를 실행하지 않는다.
 저장되지 않았거나 PK가 중복된 current는 구성 오류이고, 명시적으로 존재하는 PK 0은 다른 PK와 같은 값으로 처리한다.
 
@@ -88,7 +88,7 @@ Reader는 `func(M, ir.ManyToManyField) ([]int64, bool)`이며 별도 모델/meta
 
 ```go
 boundSet, err := formmodel.BindSet(
-    models.ArticleObjects, setSpec, submitted, currentArticles, postClean,
+    ctx, models.ArticleObjects, setSpec, submitted, currentArticles, postClean,
 )
 if err != nil { return err }
 // 현재 권한과 DB 진단을 명시적으로 확인한 뒤 전체 요청이 유효할 때 준비한다.
@@ -190,11 +190,12 @@ inline, err := formmodel.NewInlineSpec(
     binding, models.CategoryObjects, models.LabelObjects, "category", setSpec,
 )
 if err != nil { return err }
-children, err := inline.Bind(submitted, parent, currentLabels, formmodel.PostClean{})
+children, err := inline.Bind(ctx, submitted, parent, currentLabels, formmodel.PostClean{})
 if err != nil { return err }
 ```
 
-`Unbound(parent, current)`와 `Bind`는 이미 인가하고 읽은 snapshot을 받으며 I/O를 하지 않는다. 기존 current 자식은 모두 같은
+`Unbound(parent, current)`와 `Bind(ctx, ...)`는 이미 인가하고 읽은 snapshot을 받으며 DB를 조회하지 않는다.
+Bind는 ImageField 명령 입력의 내용 검증에 같은 context를 전달한다. 기존 current 자식은 모두 같은
 부모에 속해야 하고, PK가 아직 없는 새 부모에는 기존 자식을 넘길 수 없다. 선택한 collection은 일반 InstanceSet과 같은 pure
 reader로 전달한다. 부모와 자식은 복사하며 입력 필드/validator·개수 정책은 기존 SetSpec에서 보존한다.
 
@@ -242,13 +243,13 @@ err = backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 사용하고 결과 값·변경하지 않은 field·PK 값과 존재를 다시 확인한다. Metadata와 nullable pointer를 공유하지 않으며
 reflection으로 모델 field를 찾거나 DB I/O를 수행하지 않는다. 이 메서드는 default나 full_clean을 암묵적으로 적용하지 않는다.
 
-`BindInstance(manager, spec, data, current, postClean)`은 직접 initial map을 복사하지 않고 typed 현재 모델을 바인딩한다.
+`BindInstance(ctx, manager, spec, data, current, postClean)`은 직접 initial map을 복사하지 않고 typed 현재 모델을 바인딩한다.
 `current == nil`이면 IR default와 unsaved 후보를 사용한다. Non-nil은 저장 여부와 별개로 명시한 instance snapshot을 사용한다.
 PK가 0이어도 생성 descriptor의 presence를 유지하며 원래 instance나 이후 caller 변경을 공유하지 않는다.
 
 ```go
 instanceForm, err := formmodel.BindInstance(
-    models.ContactObjects, scopedSpec, submitted, current, definition.PostClean,
+    ctx, models.ContactObjects, scopedSpec, submitted, current, definition.PostClean,
 )
 if err != nil { return err }
 // 현재 인가된 읽기 scope에서 instanceForm.BoundForm()의 DB 검사를 수행한다.
@@ -389,6 +390,8 @@ err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
 애플리케이션이 계속 소유한다. [storage](../../storage/README.md), [결정](../../docs/adr/0082-file-storage-publication-and-reference.md)을 따른다.
 
 Read-only JSON 투영은 `serializers.ModelField{Name: "file", ReadOnly: true}`로 저장 이름을 제공한다. Writable JSON 문자열,
-자동 URL/다운로드 인가, storage alias·다른 backend·ImageField·파일 choices는 아직 지원하지 않는다.
+자동 URL/다운로드 인가, 모델 ImageField·폭/높이 자동 반영·파일 choices는 아직 지원하지 않는다. 명시적인 alias와 인가된 serving은
+[storage](../../storage/README.md)와 [파일 응답](../../web/streaming.md)에 있다. ExtraFields의 `forms.ImageField`는
+[내용 검증](../../uploads/README.md#이미지-내용-검증)을 사용하며 저장된 일반 FileField의 IR 의미를 변경하지 않는다.
 [독립 생성 소비자](../../codegen/consumertest/testdata/files/consumer_test.go)는 실제 multipart→typed 준비→파일/DB 저장과
 DB rollback·clear·모델 삭제·재개방을 실행한다. 실행 source와 환경은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)에 둔다.
