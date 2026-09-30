@@ -165,7 +165,7 @@ portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-
 [이미지 reference 프로젝트](../conformance/reference/images/pyproject.toml)와 [lock](../conformance/reference/images/uv.lock)으로 고정하고
 [관찰 fixture](../forms/testdata/image-django61.json)에 실행 source SHA256과 직접 생성한 합성 image bytes를 둔다.
 GoDj wrapper와 GIF/container 예산 검사는 독립 작성했으며 실제 디코딩은 Go 1.26.5의 `image/png`, `image/jpeg`, `image/gif`
-및 [golang.org/x/image v0.46.0의 WebP decoder](https://pkg.go.dev/golang.org/x/image@v0.46.0/webp)(BSD-3-Clause)를 사용한다.
+및 [golang.org/x/image v0.46.0](https://pkg.go.dev/golang.org/x/image@v0.46.0)의 WebP·BMP·TIFF decoder(BSD-3-Clause)를 사용한다.
 지원 형식·전체 GIF 검증·한도/취소의 차이는 [이미지 계약](../uploads/README.md#이미지-내용-검증)과 ADR-0082를 따른다.
 
 
@@ -182,3 +182,10 @@ Django의 동작과 GoDj의 명시적인 I/O 경계는 [모델 이미지](../for
 [Observer](../conformance/runners/django/stored_image_reference.py)와 [고정 관찰](../storage/model/testdata/stored-image-django61.json)에
 9개 검사·cache 재사용/새 instance·명시적 DB 저장/rollback을 기록한다. GoDj의 새 reader와 전체 내용 검증, 원본 모델 보존은
 [명시적 검사 계약](../storage/model/README.md)을 따르며 native의 손상 내용/부분 header/cache 결과와 구분한다.
+
+BMP/DIB·TIFF는 같은 고정 Django/Pillow 환경의 [codec observer](../conformance/runners/django/image_codec_reference.py)에서
+36개 입력을 독립 실행한다. [관찰값](../uploads/testdata/image-codecs-django61.json)의 합성 palette/V4/V5/alpha·endian·압축·
+여러 페이지·tile과 손상 입력에 원본 bytes와 native 진단을 둔다. `PIL.BmpImagePlugin`의 SHA-256은
+`e0067eb268d1257de5a1d746652938a39107a06eb5e3fe415d31ee07b7a83b0f`, `PIL.TiffImagePlugin`은
+`440b2a3a80b280d18cda3fc70d9fd206e2fa44e9897c9550f70b51395047b273`다(MIT-CMU). GoDj의 DIB prefix·TIFF 페이지/예산 검사는
+독립 작성했고 실제 pixel 디코딩에는 위 고정 Go 라이브러리를 사용한다. 미지원 특성·전체 내용 검증의 차이는 이미지 계약을 따른다.

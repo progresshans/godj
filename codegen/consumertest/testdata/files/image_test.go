@@ -323,6 +323,7 @@ func runImages(t *testing.T, backend fileBackend, root storage.Backend, label st
 	}
 	t.Run("formset", func(t *testing.T) { runImageSet(t, backend, root, label, spec) })
 	t.Run("stored_inspection", func(t *testing.T) { runStoredImageInspection(t, backend, root, label) })
+	t.Run("codecs", func(t *testing.T) { runImageCodecs(t, backend, root, label, spec) })
 }
 
 func equalImageInteger(left, right *int64) bool {

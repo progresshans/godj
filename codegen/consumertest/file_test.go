@@ -57,7 +57,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go", "image_test.go", "stored_image_test.go"} {
+	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go", "image_test.go", "stored_image_test.go", "image_codec_test.go"} {
 		consumer, err := os.ReadFile("testdata/files/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -79,6 +79,11 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/stored-image-reference.json", storedImageReference)
+	imageCodecs, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "uploads/testdata/image-codecs-django61.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/image-codec-reference.json", imageCodecs)
 	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving", "TestGeneratedFileStorageAndHistory/sqlite/serving/filesystem", "TestGeneratedFileStorageAndHistory/sqlite/serving/memory"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
@@ -90,6 +95,9 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		for _, backend := range []string{"filesystem", "memory"} {
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/formset")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/stored_inspection")
+			for _, codec := range []string{"bmp_palette", "dib_rgb", "tiff_pages", "tiff_bigendian16", "tiff_tile"} {
+				required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/codecs/"+codec)
+			}
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend+"/ranges_and_conditionals")
 		}
 	}

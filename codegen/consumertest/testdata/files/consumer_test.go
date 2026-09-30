@@ -536,6 +536,12 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		if err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "images/full.png" || rows[0].Width == nil || *rows[0].Width != 7 || rows[0].Height == nil || *rows[0].Height != 5 {
 			t.Fatal("explicit image dimensions did not survive database reopen", err)
 		}
+		for _, codec := range []string{"bmp_palette", "dib_rgb", "tiff_pages", "tiff_bigendian16", "tiff_tile"} {
+			rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact(label + "-codec-" + codec)).All(ctx)
+			if err != nil || len(rows) != 1 || rows[0].Photo == nil || rows[0].Width == nil || rows[0].Height == nil || *rows[0].Width != 3 || *rows[0].Height != 2 {
+				t.Fatal("codec dimensions did not survive database reopen", err)
+			}
+		}
 	}
 	if read(received.ID).File != received.File {
 		t.Fatal("file reference lost on DB reopen")

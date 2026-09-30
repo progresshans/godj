@@ -50,6 +50,7 @@ Reference-only MIG-075..086은 제품 registry에 등록되지 않은 진단이�
 uv run --project conformance/reference/images --frozen python conformance/runners/django/image_field_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/model_image_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/stored_image_reference.py
+uv run --project conformance/reference/images --frozen python conformance/runners/django/image_codec_reference.py
 ```
 
 - Product scenario는 사용자 API, 별도 module과 실제 child/DB를 사용한다. Test-local counters만으로 process 종료·restart를 대신하지 않는다.

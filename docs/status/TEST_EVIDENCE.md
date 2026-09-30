@@ -5,6 +5,89 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### BMP/DIB와 여러 페이지 TIFF
+
+2026-09-30, 기반 `deb24431cc3bfb79b35e11bfb3c663989de7d0d6` 이후 공통 업로드/저장 이미지 검사에 BMP/DIB와 classic TIFF를
+연결했다. 최종 비Markdown code/config inventory는 `2dc2f81de55e402f8659e95eca7be49597b54ff2095818d1739e45561f0cd333`
+(2,806 files)다. 아래 최종 normal/race의 전후 source는 같으며 이후에는 문서만 정리했다. 바로 아래 완료한 Hosted source는
+이 코드와 선행 저장 이미지 검사보다 이전이며 결과를 전이하지 않는다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; uploads·storage·storage/model·forms·forms/model·admin·web 7 packages / 362 roots / 2,821 PASS / 2.080초 |
+| 실제 생성 소비자 normal | FileConsumer parent 1 PASS / 6.617초; SQLite/PostgreSQL × filesystem/memory × 5 codec 사례의 필수 20개 실행, 기존 이미지/파일/Formset/인가된 serving 회귀 |
+| 관련 race | uploads·storage·storage/model·forms·admin 5 packages / 33 roots / 251 PASS / 2.729초 |
+| 실제 생성 소비자 race | 부모와 생성 child 모두 race, 양 DB/양 backend의 같은 필수 흐름 / parent 1 PASS / 13.311초 |
+| Fuzz | `FuzzInspectImage`, 기존 corpus·codec/공유 블록 seed 224개 baseline, 4 workers·20초 요청 / 2,947,081회 / Go test 21.447초·명령 전체 22.821초 / PASS |
+| 부정 대조 | 모든 TIFF 페이지·합산 pixel·tile padding·page header view·ReadAt context·DIB MIME·IFD 순환·블록 byte 합·header pixel 참조의 9개 overlay를 지정 runtime assertion으로 검출 |
+
+최종 Go JSON에서 필수 실행·완료와 no-skip/no-truncation을 확인했다. Normal/race는 별도 PostgreSQL 17.10 Debian container,
+UTF8/libc/C/C·독립 port/database를 사용했다. 종료 뒤 schema·public table·다른 session `0|0|0`, DB/container 제거를 확인했다.
+공유 build cache는 유지하고 test-result cache는 끈다. 새 codec이 추가되는 동안에도 파일/DB rollback·원본 보존 회귀를 유지했다.
+
+실제 생성 Photograph는 palette BMP, header 없는 DIB, 여러 페이지 TIFF, big-endian 16-bit TIFF와
+padded tile TIFF를 모델 Form으로 준비·게시·DB 저장하고 재개방했다. 저장 이름·첫 페이지의 3×2 크기와 전체 원문이 보존되며,
+명시적 재검사도 같은 format/MIME/페이지 수를 반환한다. 잘못된 후속 TIFF 페이지는 typed 준비 단계에서 거부한다. 실제 Admin의
+생성/명령 × 양 backend × PNG/BMP/DIB/TIFF 16개 조합에서 로그인/CSRF·multipart·오류 재표시/재선택·임시 수명과 게시한 bytes를
+확인했다. TIFF의 늦은 손상도 쓰기 callback 없이 거부했다. Formset은 확장자 대소문자/내용 불일치·잘못된 확장자와 내용 오류의
+우선순위·검증 callback 횟수·frame 한도를 확인했다. 이 범위는 새 브라우저 시각 검증을 주장하지 않는다.
+
+Native는 고정 Django 6.1 / CPython 3.14.3 / Pillow 12.3.0에서 독립 observer를 두 번 실행했다. Windows 40/108/124 header,
+palette/alpha/top-down·little/big endian·여러 compression·page/tile의 36개 결과와 fixture bytes가 일치했다. 공통 29개와
+미지원 BMP16/TIFF CMYK/JPEG 3개, 더 엄격한 잘린 BMP/DIB/TIFF·손상된 후속 TIFF 4개를 구분한다. 기존 32개 폼 관찰의
+BMP/TIFF도 이제 실제 native metadata와 비교하며 차이 목록에서 제외한다. Fixture는 34,596 bytes, SHA-256
+`e19a2c748923839cbb6d3c39d9b116df32d99f132f1cf87a32edf9bdd5e48a7d`다.
+
+IFD 순환/겹침·범위 밖/overflow·정렬/중복 tag·다른 plane/SubIFD·늦은 compression/pixel 오류와 큰 후속 페이지를 거부한다.
+TIFF 3×2 표시 영역의 16×16 tile은 실제 256픽셀로 예산을 계산하며 overflow 곱셈 전에 제한한다. Page view는 공유 원문을
+변경하지 않고 독립 context의 ReadAt을 사용한다. 동시 검사와 원본/빌린 reader 수명을 검증했다.
+
+초기 영향 검증 뒤 코드 검토에서 작은 압축 블록의 반복 참조가 파일 크기/pixel 한도만으로 작업량을 제한하지 못하고,
+pixel offset이 page view의 수정된 header를 읽을 수 있음을 확인했다. 모든 strip/tile의 개수·span·header 참조를 검사하고
+전체 페이지의 참조 byte 합을 `MaxBytes`로 제한했다. 1/2-page PackBits의 동일 블록 반복 참조에서 실제 파일 크기와
+합계 직전 한도는 거부하고 정확한 합계에서는 허용한다. 두 방어를 각각 제거한 overlay가 지정 assertion에서 실패했으며,
+위 normal/race/fuzz 전체는 이 수정 이후 같은 inventory의 결과다. 앞선 통과 결과를 최종 source의 증거로 재사용하지 않았다.
+
+첫 생성 consumer 검증 두 번은 `InstanceForm`/`BoundForm`에 없는 `Valid` 호출로 compile 실패했다. 현행 공개 API
+`BoundForm().Form().Valid()`로 검사한 뒤 위 최종 실행을 완료했다. 첫 core 실행의 성공과 이 실패를 전체 PASS로 합치지 않는다.
+Native observer도 폼 검증은 성공하지만 이후 `n_frames`가 실패하는 입력을 만나 처음에는 중단됐다. 이를 별도 `frame_error`와
+warning으로 관찰하도록 고친 뒤 최종 재현값을 저장했으며 해당 Go 입력은 계속 거부한다. 기존 Django/DRF profile·oracle와
+Python lock은 바꾸지 않았다. 생성기·IR·모델 선언 변경은 없어 추가 generated drift/full/cold/다른 OS·CGO=0은 실행하지 않았다.
+
+로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-image-codec-db-normal-eu1360jh`,
+`godj-image-codec-db-race-vycyeirn`, `godj-image-codec-fuzz-yu24_lmr`, `godj-image-codec-controls-0lpzg_ho`,
+`godj-image-codec-native-9_i3bkma`다. 초기 실패는 `godj-image-codec-db-normal-7il7o6v5`와 `godj-image-codec-db-normal-zodb1x61`에 남긴다.
+
+### 누적 파일/이미지 Hosted full 완료
+
+Source `4793382d445a12ee9715162094674133cd147529`의
+[Hosted full 36693816049](https://github.com/progresshans/godj/actions/runs/36693816049), attempt 1이 완료됐다.
+62개 job이 모두 success이며 최종 aggregate `109838925452`에서 해당 source의 필수 8 owners와 `full_platform_verified: true`를
+확인했다. Memory storage·conditional/Range·공통/모델 ImageField·Go dependency 준비와 분리한 이미지 reference 환경까지
+포함한다. 저장 이미지 검사 `deb24431`과 위 BMP/DIB/TIFF 변경은 이 source 이후이며 별도의 영향 검증이다. 로컬 전체를 중복 실행하지 않았다.
+
+새 PostgreSQL capture는 archive digest·payload digest·repository/run/attempt·producer job과 Git checkout에 결합했다.
+Consumer job `109829007364`의 실제 checkout도 정확히 `4793382d`다. 아래 두 artifact ID를 resolve하고 각각 다운로드한 로그,
+producer attempt 1을 넣은 provenance 검사와 실제 conformance step success를 확인했다.
+
+| Capture | producer job / artifact | 실제 Git blob에서 재계산한 source binding |
+| --- | --- | --- |
+| systemstate | `109817518160` / `11088116589` | 668 files / 6,942,411 bytes / `682fc8a03d425007a2b4e76c60f68fa42076208bbf330bccdf8ead479166ec55` |
+| operator | `109817518398` / `11087921260` | 745 files / 6,795,518 bytes / `d1129b148ea27674309b2e055a5e78e3ad64824aed6758fef954975cb810766f` |
+
+Systemstate archive SHA-256은 `cfa76351eed6d60d607e69e29aa15a1ccd5bb2b07502371b809ed2fa514addd8`, payload는
+`88f46ac2dcb26e0c14828ca7b8ab280e49531f1ed9fbc68fd5ecbe8309285af4`다. Operator archive는
+`16dbcb81edbfd905e46fe1645c702d313767086ea6ecfa62796ccc0ef335da47`, payload는
+`178ab97f159396b39e2d026758dfbe7143f5875966ad8e881ccb158bca25135c`다. Source binding은 현재 작업 폴더가 아니라
+`4793382d`의 Git 객체로 계산했다. 앞서 취소된 두 실행의 부분 성공은 완료 증거에서 제외한다.
+
+같은 source의 [PR feedback 36693723767](https://github.com/progresshans/godj/actions/runs/36693723767)도 success다.
+실제 merge checkout `a18e2587c55d33615997c2ffc2807b7518dd8b62`의 tree `8df2532c737b65aef9d0dda57d3312c07a7ee188`가
+해당 head와 일치한다. 이후 저장 이미지 source `deb24431`의 [feedback 36696675795](https://github.com/progresshans/godj/actions/runs/36696675795)도
+success이며 merge `fff9432328d5936e67945f4c8d4197e9e5f56514` / tree `1cc91a38fb98db9ccc25b0fa8c39189a8e54bd09`의 source 일치를 확인했다.
+로컬 raw evidence는 위 T directory의 `godj-image-reference-integration-full-36693816049-0kfivcl4`에 둔다.
+
+
 ### 저장된 이미지 검사와 typed 크기 갱신
 
 2026-09-30, 기반 `4793382d445a12ee9715162094674133cd147529` 이후 빌린 reader의 공통 내용 검사·storage의 독립 Open/Close·

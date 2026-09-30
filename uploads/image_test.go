@@ -243,6 +243,12 @@ func FuzzInspectImage(f *testing.F) {
 	f.Add([]byte("\x89PNG\r\n\x1a\n"))
 	f.Add([]byte("RIFF\x04\x00\x00\x00WEBP"))
 	f.Add([]byte("\xff\xd8\xff\xd9"))
+	codecs := codecReference(f)
+	for _, observed := range codecs.Cases {
+		f.Add(codecPayload(f, codecs, observed.Name))
+	}
+	shared, _ := sharedTIFFBlocks(f, 2)
+	f.Add(shared)
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1<<20 {
 			return

@@ -122,9 +122,9 @@ func TestImageFieldPinnedDjangoObservation(t *testing.T) {
 			for _, e := range bound.Errors().All() {
 				codes = append(codes, string(e.Code()))
 			}
-			// The four-format policy and full GIF decoding are explicit differences,
+			// Animated PNG/WebP policy and full GIF decoding are explicit differences,
 			// never counted as native parity. Pillow verify() accepts these broken tails.
-			different := item.Name == "animated_webp" || item.Name == "animated_png" || item.Name == "bmp" || item.Name == "tiff" || item.Name == "truncated_gif" || item.Name == "corrupt_later_gif"
+			different := item.Name == "animated_webp" || item.Name == "animated_png" || item.Name == "truncated_gif" || item.Name == "corrupt_later_gif"
 			if different {
 				if !item.Valid || bound.Valid() || strings.Join(codes, ",") != "invalid_image" || len(calls) != 0 {
 					t.Fatal("explicit image policy", bound.Valid(), codes, calls)

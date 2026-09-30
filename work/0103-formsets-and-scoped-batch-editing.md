@@ -40,8 +40,9 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] context 기반 이미지 내용 검증·Form/Formset·Admin 명령과 명시적 파일 게시의 공통 기반
 - [x] 모델 ImageField의 IR·폭/높이 소유권·생성/migration·Form/Admin·양 DB와 관련 race
 - [x] 저장된 이미지의 명시적 검사/typed 크기 갱신·양 DB 저장/rollback과 관련 race
-- [ ] 추가 codec/storage backend와 남은 파일 의미
-- [ ] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합
+- [x] BMP/DIB·classic TIFF 전체 페이지/예산·Form/Admin·양 DB 저장/재검사와 관련 race
+- [ ] 나머지 codec 특성/storage backend와 남은 파일 의미
+- [x] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합: source `4793382d`
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
 management 일치를 검사하며, 행 수의 hard cap은 callback/폼 생성 전에 적용한다. 이 count 검사는 실제 모델 identity와
@@ -147,4 +148,12 @@ TEST_EVIDENCE, 장기 의미와 차이는 ADR-0082, 사용법은 모델 Form 문
 기존 저장 파일의 명시적 검사/갱신은 `storage.InspectImage`와 `storage/model`에 연결했다. 독립 handle의 내용·길이·Close를
 검사한 뒤 canonical 크기만 갱신한 모델을 반환하고 실제 DB 저장은 caller가 소유한다. 고정 native의 cache/손상/header 차이,
 양 DB/양 backend 저장·rollback·재개방과 관련 race·부정 대조를 확인했다. 추가 codec/provider와 전체 기능 카탈로그는 계속
-미완료이며, `4793382d`의 진행 중인 Hosted full에도 이 후속 코드는 포함되지 않는다.
+미완료이며, `4793382d`의 완료한 Hosted full에도 이 후속 코드는 포함되지 않는다.
+
+
+`4793382d`의 Hosted full은 Memory·Range/conditional·공통/모델 ImageField와 분리한 reference 환경까지 통합했다.
+필수 owner·최종 집계·새 capture의 실제 소비와 Git source 결합을 확인했다. 이후 저장 이미지 검사와 BMP/DIB·classic TIFF는
+별도 영향 checkpoint다. TIFF는 모든 주 페이지·tile padding·metadata/블록 범위와 반복 블록 참조의 byte 합을 검사하고
+전체 내용을 디코딩한다. 같은 업로드를
+Form/Admin·생성 모델/양 DB 저장과 명시적 재검사에 연결했으며 실행 상세는 TEST_EVIDENCE에 둔다. 나머지 codec 특성·provider와
+전체 기능 카탈로그는 계속 미완료다.

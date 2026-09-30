@@ -13,6 +13,8 @@ import (
 	"io"
 	"reflect"
 
+	"golang.org/x/image/bmp"
+	"golang.org/x/image/tiff"
 	"golang.org/x/image/webp"
 )
 
@@ -72,13 +74,17 @@ func (info ImageInfo) ContentType() string {
 	if !info.Valid() {
 		return ""
 	}
+	if info.format == "dib" {
+		return "image/bmp"
+	}
 	return "image/" + info.format
 }
 func (ImageInfo) Format(state fmt.State, _ rune) { fmt.Fprint(state, "uploads.ImageInfo{redacted}") }
 
 // InspectImage opens and closes its own upload reader, leaving every other
-// reader's cursor unchanged. It decodes static PNG/JPEG, all GIF frames, or a
-// static WebP. APNG, animated WebP and other formats are explicitly unsupported.
+// reader's cursor unchanged. It decodes static PNG/JPEG/BMP/DIB/WebP, all GIF
+// frames, or every page in a classic TIFF's main directory chain. APNG,
+// animated WebP, BigTIFF, TIFF SubIFDs and unsupported codec features are errors.
 // Content errors use invalid_image, unsupported_image, image_bytes,
 // image_pixels, or image_frames; I/O, lifetime and cancellation errors remain
 // operational errors. No decoded pixels or encoded copies escape this call.
@@ -241,10 +247,31 @@ func inspectImageBytes(ctx context.Context, content []byte, limits ImageLimits) 
 		if err := webpContainer(ctx, content); err != nil {
 			return ImageInfo{}, err
 		}
+	case bytes.HasPrefix(content, []byte("BM")):
+		format, config, decode = "bmp", bmp.DecodeConfig, bmp.Decode
+		if err := bitmapImageBudget(content, 14, limits); err != nil {
+			return ImageInfo{}, err
+		}
+	case isDIB(content):
+		format, config, decode = "dib", bmp.DecodeConfig, bmp.Decode
+		if err := bitmapImageBudget(content, 0, limits); err != nil {
+			return ImageInfo{}, err
+		}
+	case bytes.HasPrefix(content, []byte("II\x2a\x00")) || bytes.HasPrefix(content, []byte("MM\x00\x2a")):
+		return inspectTIFFImage(ctx, content, limits)
 	default:
 		return ImageInfo{}, &Error{Code: "unsupported_image"}
 	}
-	reader := func() imageReader { return imageReader{ctx, bytes.NewReader(content)} }
+	reader := func() io.Reader { return imageReader{ctx, bytes.NewReader(content)} }
+	if format == "dib" {
+		header, err := dibFileHeader(content)
+		if err != nil {
+			return ImageInfo{}, err
+		}
+		reader = func() io.Reader {
+			return io.MultiReader(imageReader{ctx, bytes.NewReader(header[:])}, imageReader{ctx, bytes.NewReader(content)})
+		}
+	}
 	metadata, err := config(reader())
 	if err != nil {
 		return ImageInfo{}, imageDecodeError(ctx, err)
@@ -353,6 +380,10 @@ func webpContainer(ctx context.Context, content []byte) error {
 func imageDecodeError(ctx context.Context, err error) error {
 	if canceled := ctx.Err(); canceled != nil {
 		return canceled
+	}
+	var unsupported tiff.UnsupportedError
+	if errors.Is(err, bmp.ErrUnsupported) || errors.As(err, &unsupported) {
+		return &Error{Code: "unsupported_image", Cause: err}
 	}
 	return &Error{Code: "invalid_image", Cause: err}
 }
