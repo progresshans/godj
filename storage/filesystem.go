@@ -143,7 +143,7 @@ func (s *filesystemState) readRandom(destination []byte) error {
 func (s *filesystemState) availableName(name string, limit int) (string, error) {
 	s.entropyMu.Lock()
 	defer s.entropyMu.Unlock()
-	return alternativeName(name, limit, s.random)
+	return alternativeName(name, limit, 0, s.random)
 }
 
 func (s *filesystemState) stage() (*os.File, string, error) {

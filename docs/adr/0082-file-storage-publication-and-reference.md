@@ -48,7 +48,7 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-외부 object-storage backend·서명 URL provider·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+추가 storage provider·multipart 저장·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
@@ -131,3 +131,17 @@ NULL로 바꾸며 nonnullable 대상은 오류다. 크기 참조가 없으면 I/
 Django의 같은 ImageFieldFile cache 재사용·손상 내용의 NULL 크기·header만의 크기 성공은 따르지 않는다. GoDj는 매번 새
 reader를 열고 전체 내용 검증 실패에서 현재 모델을 보존한다. [저장 이미지 관찰](../../conformance/runners/django/stored_image_reference.py)에
 공통 결과·명시적 차이와 크기 갱신/DB 저장·rollback의 분리를 기록한다.
+
+S3 backend도 같은 파일 게시/DB 참조 경계를 따른다. Application이 정한 bucket/prefix·credential provider를 받아
+공식 SDK의 SigV4를 사용한다. 임의 크기의 재시도 가능한 stream을 만들지 않고 bounded private buffer를 완성한 뒤
+조건부 PUT과 full SHA256으로 게시한다. 확정된 이름 충돌만 새 이름으로 이어가고 결과 유실은 후보와 Uncertain을 보존한다.
+서비스의 성공 응답에 checksum 증거가 부족해도 이미 게시한 결과를 NotPublished로 바꾸거나 삭제하지 않는다.
+
+원격 Open은 하나의 GET body와 metadata를 결합한다. Immutable version을 가진 경우만 같은 version의 Range GET으로
+seek하며, mutable/null version의 이름을 새 snapshot인 것처럼 재개방하지 않는다. Backend Close와 caller가 소유한 reader
+수명을 분리한다. 이름 삭제는 현재 참조만 지우고 과거 version/prefix의 회수 정책은 application에 남긴다.
+
+S3 서명 다운로드는 명시적으로 등록하는 유효기간 있는 bearer capability다. 발급 시 fresh principal/model admission을
+확인해도 이미 발급한 URL을 소유권 변경과 함께 취소한 것으로 판단하지 않는다. Key 이름을 가리키므로 만료 전 같은 이름의
+내용 교체도 읽을 수 있다. GET·key·안전한 response metadata에 서명을 결합하고 URL을 영구 FileField 값으로 사용하지 않는다.
+고정 MinIO 실제 서비스, 양 DB/세 backend의 생성 소비자와 wire 실패 검사를 구분하며 AWS 운영 환경의 검증을 추정하지 않는다.

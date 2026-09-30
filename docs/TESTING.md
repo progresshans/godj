@@ -196,6 +196,32 @@ ATTESTATION_DIR="$capture_root" make ci
 stderr-only failure를 구분해야 한다. 원래 test exit code와 유용한 원인을 보존하고 bounded/redacted diagnostics를 출력한다.
 검증을 리팩터링할 때는 대표적인 실제 결함·필수 실행 누락·위조 actual이 여전히 실패하는지 확인한다.
 
+## S3 실제 서비스 profile
+
+S3 wire 단위 검사는 모든 관련 portable 실행에 포함한다. 실제 서비스는 [s3_service.py](../scripts/ci/s3_service.py)가 고정
+MinIO commit과 module checksum·Go 1.26.5·dependency 파일 hash로 독립 binary를 빌드하고 `go mod verify`를 확인한다.
+실행마다 새 loopback process·data directory·합성 credential을 만들며 child의 exit code와 server 종료/회수를 기록한다.
+제품에 server 코드를 링크하지 않는다. [s3fixture](../conformance/s3fixture/fixture.go)는 공식 SDK로 새 bucket을 만들고
+테스트 종료 시 그 bucket의 version/delete marker까지 정리한다. 기존 cloud bucket이나 환경의 AWS credential을 찾지 않는다.
+
+```sh
+s3_build="$(mktemp -d)"
+python3 scripts/ci/s3_service.py build --directory "$s3_build"
+python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
+  go test -json -count=1 ./storage ./admin ./codegen/consumertest \
+  -run '^(TestS3LiveServer|TestAdminImageUploadVerifiedContentAndStorage|TestGeneratedFileConsumer)$'
+```
+
+이 명령은 실제 S3와 SQLite 소비자를 실행한다. PostgreSQL은 기존의 명시적 `GODJ_TEST_POSTGRES_URL`과
+`GODJ_REQUIRE_POSTGRES=1`을 전달해 포함한다. Wrapper는 `GODJ_REQUIRE_S3=1`을 설정하고 endpoint/credential을 child와
+생성 소비자에 전달한다. 선택적 profile이 없으면 일반 portable 검사에서는 live root가 반환하지만, required/부분 설정은 실패한다.
+필수 실행 owner는 PostgreSQL product의 core shard normal/race/cgo0이며 양 DB·S3 live 하위 사례와 Admin 저장의 실제 pass를
+`postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
+
+CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
+결과 보존·conditional no-overwrite·checksum 거부·version 고정 seek·서명 변조/만료와 actual HTTP admission을 검증한다.
+실행별 source와 결과는 TEST_EVIDENCE에 기록하며 MinIO 성공을 AWS 운영 account나 다른 S3 구현의 실행 증거로 대체하지 않는다.
+
 ## 문서와 과거 증거
 
 문서-only 변경은 local link·상태 일관성과 `git diff --check`를 검증한다. 제품 입력을 바꾸지 않은 실행 기록 추가 때문에

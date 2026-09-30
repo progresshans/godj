@@ -34,11 +34,14 @@ type imageObservation struct {
 
 func runImageBackends(t *testing.T, backend fileBackend) {
 	t.Helper()
-	for _, kind := range []string{"filesystem", "memory"} {
+	for _, kind := range fileStorageKinds(t) {
 		t.Run(kind, func(t *testing.T) {
 			var root storage.Backend
 			var close func() error
-			if kind == "memory" {
+			if kind == "s3" {
+				remote := newFileS3(t)
+				root, close = remote, remote.Close
+			} else if kind == "memory" {
 				memory, err := storage.NewMemory(storage.MemoryConfig{Random: zeroEntropy{}})
 				if err != nil {
 					t.Fatal(err)

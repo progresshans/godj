@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/conformance/s3fixture"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/storage"
@@ -65,14 +66,24 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 		{"webp_mixed", ".webp", "image/webp", 2, payload("webp_mixed")},
 		{"webp_alpha", ".webp", "image/webp", 2, payload("webp_compressed_alpha")},
 	}
+	backends := []string{"filesystem", "memory"}
+	if s3fixture.Enabled(t) {
+		backends = append(backends, "s3")
+	}
 	for _, command := range []bool{false, true} {
-		for _, backendName := range []string{"filesystem", "memory"} {
+		for _, backendName := range backends {
 			for _, variant := range variants {
 				t.Run(map[bool]string{false: "create", true: "command"}[command]+"/"+backendName+"/"+variant.name, func(t *testing.T) {
 					encoded := bytes.NewBuffer(variant.content)
 					var backend storage.Backend
 					var close func() error
-					if backendName == "memory" {
+					if backendName == "s3" {
+						remote, err := storage.NewS3(s3fixture.Config(t, true))
+						if err != nil {
+							t.Fatal(err)
+						}
+						backend, close = remote, remote.Close
+					} else if backendName == "memory" {
 						memory, err := storage.NewMemory(storage.MemoryConfig{})
 						if err != nil {
 							t.Fatal(err)

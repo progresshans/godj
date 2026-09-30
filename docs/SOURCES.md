@@ -206,3 +206,17 @@ Pixel 디코딩은 위 고정 `golang.org/x/image`의 BSD-3-Clause 구현을 사
 lossy/lossless·raw/compressed alpha·부분 frame·metadata·reserved field·손상 입력의 폼/별도 frame 결과를 구분한다.
 `PIL.WebPImagePlugin` SHA-256은 `634360a326abfcd29ec5e05f6b84c3be6e5a783e7c4dd6ad46bd0eba182dae23`다(MIT-CMU).
 Native의 관대한 control/alpha 처리와 일부 reserved header/player 거부를 GoDj의 검증 결과와 동일시하지 않는다.
+
+S3 요청·SigV4·checksum 직렬화는 [AWS SDK for Go v2 S3 v1.113.4](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3@v1.113.4),
+core v1.47.1과 Smithy Go v1.28.1(Apache-2.0)을 사용한다. 직접 구현한 wrapper의 게시 결과/reader 수명은
+[PutObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html),
+[GetObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html),
+[checksum](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/s3-checksums.html)과
+[서명 URL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)의 공개 계약을 참고한다.
+Dependency version과 module checksum은 go.mod/go.sum이 소유한다. 서비스 오류를 Python storage 내부 구조로 번역하지 않는다.
+
+독립 실제 서비스는 [MinIO commit 9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a](https://github.com/minio/minio/tree/9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a)
+(AGPL-3.0-or-later, RELEASE.2025-10-15T17-29-55Z)를 별도 프로세스로 빌드/실행한다. GoDj 제품에 링크하거나 server 소스를 복사하지 않는다.
+정확한 module/해시/빌드 profile은 [S3 service owner](../scripts/ci/s3_service.py), 독립 bucket setup/cleanup은
+[s3fixture](../conformance/s3fixture/fixture.go)가 소유한다. 고정 service의 checksum 거부 코드와 version/range/서명 동작은
+실제 요청으로 확인하며 AWS 자체의 실행 증거와 구분한다.

@@ -62,7 +62,7 @@ func nameLimit(l Limits, options SaveOptions) (int, error) {
 
 // Preserve compound suffixes like Django's PurePath.suffixes. The random
 // spelling is not a contract; it remains seven alphanumeric characters.
-func alternativeName(name string, limit int, random io.Reader) (string, error) {
+func alternativeName(name string, limit, maxBytes int, random io.Reader) (string, error) {
 	directory, base := path.Split(name)
 	root, ext := base, ""
 	offset := len(base) - len(strings.TrimLeft(base, "."))
@@ -76,6 +76,19 @@ func alternativeName(name string, limit int, random io.Reader) (string, error) {
 	}
 	if len(runes) > available {
 		root = string(runes[:available])
+	}
+	// The portable component limit and a provider's complete key byte limit
+	// both apply after the suffix is added. Never split a UTF-8 code point.
+	availableBytes := 255 - len(ext) - 8
+	if maxBytes > 0 {
+		availableBytes = min(availableBytes, maxBytes-len(directory)-len(ext)-8)
+	}
+	for len(root) > availableBytes && root != "" {
+		_, size := utf8.DecodeLastRuneInString(root)
+		root = root[:len(root)-size]
+	}
+	if root == "" {
+		return "", &Error{Code: "name_too_long", Outcome: NotPublished}
 	}
 	var entropy [5]byte
 	if _, err := io.ReadFull(random, entropy[:]); err != nil {

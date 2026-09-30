@@ -5,6 +5,85 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### S3의 게시 결과·독립 reader·서명 다운로드
+
+2026-09-30, 기반 `bcc7b76a17aacc6a90a3f360bb8f25fe080a840d` 이후 명시적 S3 backend와 서명 다운로드를 기존 파일
+경계에 연결했다. 최종 비Markdown code/config inventory는
+`e330cc705e260d9cdf1154787fc514cb5715cfe83281f2de2b390c2b977fb78f` (2,823 files)다. 최종 normal/race의 전후 source가
+일치한다. 공식 SDK dependency를 추가했으며 IR·생성기·모델 선언은 바꾸지 않았다. 생성 소비자가 새 module에서 같은
+프로젝트를 두 번 생성해 byte 일치와 실제 사용을 확인했다. 추가 generated drift·로컬 전체/cold 검증은 중복하지 않았다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; uploads·storage·storage/model·forms·forms/model·admin·web 7 packages / 390 roots / 3,135 PASS / 4.741초 |
+| 생성 소비자 normal | FileConsumer parent 1 PASS / 8.510초; SQLite/PostgreSQL × filesystem/memory/S3의 파일·이미지·Formset·인가된 HTTP 소비자 |
+| 관련 race | storage·storage/model·forms·forms/model·admin·web 6 packages / 93 roots / 504 PASS / 7.821초 |
+| 생성 소비자 race | 부모와 생성 child 모두 race, 같은 양 DB/세 backend / parent 1 PASS / 13.715초 |
+| 실제 동시 저장 반복 | 2개 독립 S3 backend·16 inputs × 50회, race; 778개 confirmed·22개 Uncertain과 실제 778개 객체를 대조, 숨은 중복/덮어쓰기/보상 삭제 없음 |
+| 부정 대조 | 조건부 PUT·전체 checksum·Uncertain·EOF 전 게시 금지·version Range·정확한 길이·service identity·UTF-8 byte 한도·서명 attachment·SDK 무재시도·시도별 cursor·Close 이후 연결 회수의 12개 overlay를 지정 runtime assertion으로 검출 |
+| 검증 도구 | CI Python 45 tests, storage/s3fixture vet, 포맷·문서 링크·diff 검사 PASS; required S3 환경 누락은 실제 Go test 실패, child exit 23도 그대로 반환하면서 실제 server 종료·data 회수 확인 |
+
+필수 실행·전체 Go JSON과 no-skip을 확인했다. Normal/race는 각각 PostgreSQL 17.10 Debian의 새 container·UTF8/libc/C/C·
+독립 port/database와 새 MinIO process를 사용했다. DB 종료 뒤 schema/public table/다른 session `0|0|0`, DB/container 제거를
+확인했다. S3 fixture는 자신의 bucket/version/delete marker만 제거하며 wrapper는 child exit 0·server alive/exit 0·reap과
+소유 data directory 제거를 기록했다. 공유 Go cache를 유지하고 test-result cache를 끄며 cloud account를 사용하지 않았다.
+
+S3 wire 검사는 source/entropy/cancellation·잘못된 Read count·context·quota·Close 대기, 조건부 충돌과 409/403/500·응답 유실·
+잘못된 2xx checksum·redirect 금지, 단일 GET metadata·누락/손상/길이·version/range 재결합 거부·막힌 Read 취소를 포함한다.
+실제 서버는 빈 파일·독립 인스턴스의 동시 게시·SHA256 거부·교체/삭제/Close 뒤 원래 version의 읽기, unversioned의 seek 미제공,
+서명 변조·PUT 전환·실제 만료·인증 거부와 게시 이후 응답 유실의 원본 보존을 확인했다. Backend Close 뒤 reader가 새 GET을
+열어도 reader Close가 그 owned idle connection을 회수하며, 각 PUT 후보는 독립 cursor/context 수명을 가진다.
+
+실제 생성 Photograph는 양 DB/세 backend × 13 codecs의 필수 78개 조합에서 준비·게시·typed 저장·원문/크기 재검사·rollback과
+DB 재개방을 확인한다. Cookie login·CSRF·모델 소유권·Range/conditional과 S3 서명 발급/실제 GET도 같은 소비자다. 소유권을
+바꾸면 새 URL 발급은 거부하지만 기존 bearer URL은 유효기간까지 사용할 수 있음을 별도로 확인했다. Admin은 생성/명령 ×
+세 backend × 8 variants의 48개 조합에서 실제 multipart·인가·검증·원문 게시·실패 재표시와 임시 자원 정리를 실행했다.
+
+독립 reference binary는 MinIO `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a` / RELEASE.2025-10-15T17-29-55Z다.
+별도 Go module의 pinned checksum·go.mod/go.sum hash와 `go mod verify`를 확인하고 Go 1.26.5·CGO=0으로 빌드했다.
+Darwin/arm64 binary SHA256은 `bfba176b4281e6f7f6198a1c11e19cfbd5af37bef473cd226f4471067ae9cca6`다.
+GoDj를 import하지 않는 공식 SDK observer도 conditional 412·full checksum·version/range·실제 서명 GET을 관찰했다.
+
+첫 묶음은 SDK가 owner query를 소문자로 서명하는 점과 고정 MinIO가 checksum 거부에 `XAmzContentChecksumMismatch`를
+쓰는 점을 테스트가 잘못 가정해 실패했다. 공개 코드와 실제 거부/미게시를 확인해 고쳤다. 후속 동시 검사에서는 idle connection
+종료가 발생했다. GoDj 없는 공식 SDK 480회도 472개 성공·EOF/closed-idle 8개를 보였으므로 자동 retry로 숨기지 않았다.
+실제 conformance는 성공한 모든 내용/receipt와 불확실한 후보를 native inventory·각 객체의 단일 version에 대조한다. Protocol
+거부 자체의 독립 probe만 fresh connection을 사용하고 제품의 동시 요청은 기본 pool을 사용한다. 별도 응답 유실 사례는 서버가
+게시한 뒤에도 결과가 Uncertain이고 데이터가 보존되는지 검사한다. 서명 만료 검사는 timestamp의 초 정밀도를 고려해 2초 TTL과
+3.1초 대기를 사용한다. 처음 종료-only overlay는 목표 cursor 공유 결함을 만들지 못했으며, 실제 cursor 공유·연결 회수 제거
+overlay로 해당 경계를 검증했다. 이 초기 실패/대조를 최종 PASS에 포함하지 않는다.
+
+CI는 기존 PostgreSQL product core owner의 normal/race/cgo0에 새 MinIO process·필수 live 하위 사례·Admin·양 DB 생성 소비자를
+연결했다. Build/lifecycle receipts도 별도 artifact로 남긴다. 게시한 새 source의 Hosted web 통합이 후속 검증 범위이며,
+선행 이미지 source의 Hosted full을 이 변경에 전이하지 않는다. AWS 운영 account·다른 S3 구현·추가 provider·multipart 저장·
+자동 version/orphan 회수와 전체 기능 카탈로그는 미완료다.
+
+로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-s3-db-normal-_nxymzlo`,
+`godj-s3-db-race-7r2i9pd2`, `godj-s3-checkpoint-0s7n2bqt`, `godj-s3-negative-8bpwdvq9`,
+`godj-s3-lifecycle-controls-ad6risuz`에 남긴다. 부정 대조의 제품/선택 테스트 source는 최종 소스와 같으며, 이후 변경은
+live 서명 만료 사례의 위 timing 보정뿐이다.
+
+### 저장 이미지·추가 codec의 Hosted 통합
+
+2026-09-30, [Hosted full 36711704536](https://github.com/progresshans/godj/actions/runs/36711704536), source
+`bcc7b76a17aacc6a90a3f360bb8f25fe080a840d`의 62개 job과 8개 필수 owner·최종 `full_platform_verified=true`를 확인했다.
+저장 이미지 검사·BMP/DIB/TIFF·APNG/WebP까지 포함하며 이후 S3 변경은 포함하지 않는다. 로컬 전체는 중복하지 않았다.
+
+Attempt 1은 Intel macOS relation race job이 runner 획득을 5회 실패해 테스트 시작 전 실패했고 aggregate도 실패했다.
+GitHub annotation과 빈 steps를 확인하고 실패 job만 같은 source로 재실행했다. Attempt 2에서 해당 실제 race와 최종 집계가
+통과했다. 성공한 선행 job을 새 실행으로 기록하지 않는다. Aggregate job은 `109929167362`다.
+
+두 실제 PostgreSQL producer의 attempt 1 artifact를 resolver가 선택했다. Producer job/run/attempt·checkout과 archive digest,
+`provenance.json`·`SHA256SUMS`·payload envelope를 검증했으며 실행 source의 Git blobs에서 각 source binding을 재계산했다.
+현재 S3 작업 사본의 파일이나 다른 run의 capture로 대체하지 않았다. Hosted conformance owner의 실제 capture 소비도 성공했다.
+
+| Capture | 실제 producer / artifact | Payload SHA256 | Git source binding |
+| --- | --- | --- | --- |
+| systemstate | `109874860795` / `11095442083` | `0fd2dda17e50d24ec900d54eb499f993aad9d01e2bfd0cfd6d87ee49e9c74b8d` | 674 files / 6,981,278 bytes / `33c974c47ef9147fefc4e4476ff388eee1c7e471fda9a0135030ea64e7532216` |
+| operator | `109874860804` / `11094239313` | `1788e9b7140b9695aa4979be6f6e2d166ad2ee09591074ce93cedd7d215e9ea7` | 751 files / 6,834,385 bytes / `6b0b9e6184f85f5f077ce06bcf1553ccb5e247e0268f77249c5b7cdbae4bee0c` |
+
+로컬 보존 기록은 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-webp-integration-full-36711704536-hr7kzquc`다.
+
 ### WebP의 실제 크기와 전체 frame 검사
 
 2026-09-30, 기반 `15b33afe9174ded7e45f749edac0b6816f85f96e` 이후 WebP의 RIFF·VP8X·ANIM/ANMF·프레임별 alpha와

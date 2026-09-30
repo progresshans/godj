@@ -113,7 +113,7 @@ func (m *Memory) lock(ctx context.Context) (*memoryState, error) {
 func (s *memoryState) nextName(name string, limit int) (string, error) {
 	s.entropyMu.Lock()
 	defer s.entropyMu.Unlock()
-	return alternativeName(name, limit, s.random)
+	return alternativeName(name, limit, 0, s.random)
 }
 
 // directory reports a virtual prefix of currently published files. Empty

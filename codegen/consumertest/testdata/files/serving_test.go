@@ -90,7 +90,19 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	aliceOwner, bobOwner := scope+"-alice", scope+"-bob"
 	titlePrefix, directory := scope+"-download-", scope+"/downloads/"
 	files := &servingStorage{Backend: root}
-	registry, err := storage.NewRegistry(storage.Registration{Alias: storage.DefaultAlias, Backend: files}, storage.Registration{Alias: "documents", Backend: files})
+	registrations := []storage.Registration{{Alias: storage.DefaultAlias, Backend: files}, {Alias: "documents", Backend: files}}
+	var signedCalls atomic.Int64
+	if remote, ok := root.(*storage.S3); ok {
+		resolver, err := remote.SignedURL(time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		registrations = append(registrations, storage.Registration{Alias: "signed-documents", Backend: files, URL: storage.URLFunc(func(ctx context.Context, name string) (string, error) {
+			signedCalls.Add(1)
+			return resolver.URL(ctx, name)
+		})})
+	}
+	registry, err := storage.NewRegistry(registrations...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,30 +227,40 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		}
 		return web.NewResponse(201, http.Header{"Location": {location}}, []byte(strconv.FormatInt(value.ID, 10)))
 	})
-	download := runtime.Require(view, func(request *web.Request, principal auth.Principal) (web.Response, error) {
-		id, ok := request.Int64Parameter("id")
-		if !ok {
-			return web.Response{}, errors.New("missing typed route key")
-		}
-		rows, err := models.DocumentObjects.Using(backend).Filter(models.DocumentFields.ID.Exact(id), models.DocumentFields.Owner.Exact(principal.ID())).All(request.Context())
-		if err != nil {
-			return web.Response{}, err
-		}
-		if len(rows) != 1 || rows[0].File == "" {
-			return web.NewResponse(404, nil, nil)
-		}
-		capability, err := request.Settings().Storages().Lookup("documents")
-		if err != nil {
-			return web.Response{}, err
-		}
-		return web.FileResponse(capability, rows[0].File, web.FileOptions{})
-	})
+	download := func(signed bool) web.Handler {
+		return runtime.Require(view, func(request *web.Request, principal auth.Principal) (web.Response, error) {
+			id, ok := request.Int64Parameter("id")
+			if !ok {
+				return web.Response{}, errors.New("missing typed route key")
+			}
+			rows, err := models.DocumentObjects.Using(backend).Filter(models.DocumentFields.ID.Exact(id), models.DocumentFields.Owner.Exact(principal.ID())).All(request.Context())
+			if err != nil {
+				return web.Response{}, err
+			}
+			if len(rows) != 1 || rows[0].File == "" {
+				return web.NewResponse(404, nil, nil)
+			}
+			if signed {
+				location, err := request.Settings().Storages().URL(request.Context(), "signed-documents", rows[0].File)
+				if err != nil {
+					return web.Response{}, err
+				}
+				return web.NewResponse(303, http.Header{"Location": {location}, "Cache-Control": {"no-store"}, "Referrer-Policy": {"no-referrer"}}, nil)
+			}
+			capability, err := request.Settings().Storages().Lookup("documents")
+			if err != nil {
+				return web.Response{}, err
+			}
+			return web.FileResponse(capability, rows[0].File, web.FileOptions{})
+		})
+	}
 	application, err := web.NewApplication(web.Config{Settings: configured, MaxResponseBytes: 256, MaxStreamBytes: 2 << 20, Routes: []web.Route{
 		{Name: "files:login", Method: "GET", Path: "/login/", Handler: loginGet},
 		{Name: "files:login_post", Method: "POST", Path: "/login/", Handler: loginPost},
 		{Name: "files:upload", Method: "POST", Path: "/upload/", Handler: upload},
-		{Name: "files:download", Method: "GET", Path: "/documents/<int64:id>/", Handler: download},
-		{Name: "files:download_head", Method: "HEAD", Path: "/documents/<int64:id>/", Handler: download},
+		{Name: "files:download", Method: "GET", Path: "/documents/<int64:id>/", Handler: download(false)},
+		{Name: "files:download_head", Method: "HEAD", Path: "/documents/<int64:id>/", Handler: download(false)},
+		{Name: "files:signed_download", Method: "GET", Path: "/signed-documents/<int64:id>/", Handler: download(true)},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -418,7 +440,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	assertDownload(alice, "HEAD", location)
 	assertDownload(alice, "GET", location+"?alias=public&name="+url.QueryEscape(bobDocument.File))
 	t.Run("ranges_and_conditionals", func(t *testing.T) {
-		if downloaded.Header.Get("Accept-Ranges") != "bytes" || downloaded.Header.Get("Last-Modified") == "" || scope == "memory" && downloaded.Header.Get("ETag") == "" {
+		if downloaded.Header.Get("Accept-Ranges") != "bytes" || downloaded.Header.Get("Last-Modified") == "" || (scope == "memory" || scope == "s3") && downloaded.Header.Get("ETag") == "" {
 			t.Fatal("opened content validators or range capability unavailable")
 		}
 		partial, body := request(t, alice, "GET", location, nil, http.Header{"Range": {"bytes=2-17"}})
@@ -476,6 +498,55 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 			}
 		}
 	})
+	if scope == "s3" {
+		t.Run("signed_download_admission", func(t *testing.T) {
+			location := "/signed-documents/" + strconv.FormatInt(document.ID, 10) + "/"
+			for _, attempt := range []struct {
+				client *http.Client
+				status int
+			}{{anonymous, 302}, {denied, 403}, {bob, 404}} {
+				response, _ := request(t, attempt.client, "GET", location, nil, nil)
+				if response.StatusCode != attempt.status || signedCalls.Load() != 0 {
+					t.Fatal("unauthorized request reached signer")
+				}
+			}
+			response, _ := request(t, alice, "GET", location+"?alias=public&name="+url.QueryEscape(bobDocument.File), nil, nil)
+			if response.StatusCode != 303 || signedCalls.Load() != 1 || response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("Referrer-Policy") != "no-referrer" {
+				t.Fatal("signed download lost admission or response policy")
+			}
+			issued := response.Header.Get("Location")
+			get := func() {
+				t.Helper()
+				req, err := http.NewRequestWithContext(ctx, "GET", issued, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				content, readErr := io.ReadAll(result.Body)
+				closeErr := result.Body.Close()
+				if readErr != nil || closeErr != nil || result.StatusCode != 200 || !bytes.Equal(content, payload) || result.Header.Get("Content-Type") != "application/octet-stream" || result.Header.Get("Content-Disposition") != "attachment" || result.Header.Get("Cache-Control") != "private, no-store" {
+					t.Fatal("signed GET changed content or download policy", readErr, closeErr)
+				}
+			}
+			get()
+			document.Owner = bobOwner
+			if err := models.DocumentObjects.Save(ctx, backend, &document, models.DocumentUpdateFields(models.DocumentFields.Owner)); err != nil {
+				t.Fatal(err)
+			}
+			revoked, _ := request(t, alice, "GET", location, nil, nil)
+			if revoked.StatusCode != 404 || signedCalls.Load() != 1 {
+				t.Fatal("stale ownership issued another signed URL")
+			}
+			get() // An already issued bearer capability lasts until its expiry.
+			document.Owner = aliceOwner
+			if err := models.DocumentObjects.Save(ctx, backend, &document, models.DocumentUpdateFields(models.DocumentFields.Owner)); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 	// Model ownership is resolved anew; an earlier successful download is not a
 	// capability to read the file after it has moved to another owner.
 	document.Owner = bobOwner

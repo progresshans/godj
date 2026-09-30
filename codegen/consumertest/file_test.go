@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/conformance/s3fixture"
 	"github.com/progresshans/godj/schema"
 )
 
@@ -98,17 +99,25 @@ func TestGeneratedFileConsumer(t *testing.T) {
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
 	}
+	backends := []string{"filesystem", "memory"}
+	if s3fixture.Enabled(t) {
+		backends = append(backends, "s3")
+	}
 	for _, database := range []string{"sqlite", "postgres"} {
 		if database == "postgres" && strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) == "" {
 			continue
 		}
-		for _, backend := range []string{"filesystem", "memory"} {
+		for _, backend := range backends {
+			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend)
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/formset")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/stored_inspection")
 			for _, codec := range []string{"bmp_palette", "dib_rgb", "tiff_pages", "tiff_bigendian16", "tiff_tile", "apng_rgba", "apng_poster", "apng_palette4", "apng_adam7", "webp_lossy", "webp_lossless", "webp_compressed_alpha", "webp_mixed"} {
 				required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/codecs/"+codec)
 			}
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend+"/ranges_and_conditionals")
+			if backend == "s3" {
+				required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/s3/signed_download_admission")
+			}
 		}
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")

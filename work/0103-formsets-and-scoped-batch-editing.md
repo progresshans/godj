@@ -43,7 +43,9 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] BMP/DIB·classic TIFF 전체 페이지/예산·Form/Admin·양 DB 저장/재검사와 관련 race
 - [x] APNG의 별도 기본 이미지·모든 frame/예산·Form/Admin·양 DB 저장/재검사와 관련 race
 - [x] WebP의 모든 frame·실제 bitstream 크기/alpha·Form/Admin·양 DB 저장/재검사와 관련 race
-- [ ] 저장 이미지 검사와 BMP/DIB/TIFF·APNG/WebP의 누적 Hosted full 통합
+- [x] S3의 조건부 게시·checksum·불확실한 결과·독립 version reader·명시적 서명 URL과 Form/Admin/양 DB 소비자
+- [x] 저장 이미지 검사와 BMP/DIB/TIFF·APNG/WebP의 누적 Hosted full 통합: source `bcc7b76a`
+- [ ] S3와 새 dependency/service profile의 Hosted web 통합
 - [ ] 나머지 codec 특성/storage backend와 남은 파일 의미
 - [x] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합: source `4793382d`
 
@@ -172,3 +174,9 @@ WebP의 정적/애니메이션 파일을 같은 이미지 경계로 연결했다
 field 규칙을 구분하며 Formset/Admin·양 DB/양 backend의 저장/재검사와 실패 경로를 검증했다. 저장 이미지 검사부터 이번
 WebP까지를 다음 Hosted full milestone의 통합 범위로 정했다. 로컬 전체를 중복하지 않고 게시한 source의 필수 owner·
 aggregate·새 capture 결합을 확인한다. 나머지 codec 특성/provider와 전체 카탈로그는 계속 미완료다.
+
+S3는 명시적 credential·bucket/prefix와 공식 SDK를 사용하는 backend로 연결했다. Bounded 입력 완성·conditional PUT·
+전체 checksum과 게시 결과를 보존하며, immutable version을 가진 reader만 같은 버전으로 seek한다. 서명 URL은 fresh
+모델 소유권 조회 뒤에 발급하고 이미 발급한 bearer capability의 유효기간을 구분한다. 같은 생성 모델/Form/Admin을
+실제 MinIO와 양 DB에 연결했다. 기존 이미지 source의 Hosted full과 새 S3 source의 Hosted web은 각각 검증하며,
+제품별 실행·실패·정리 증거는 TEST_EVIDENCE가 소유한다.

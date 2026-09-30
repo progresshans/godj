@@ -77,6 +77,54 @@ Close는 진행 중인 연산이 끝날 때까지 기다린 뒤 이름 공간을
 읽기 실패 뒤 부분 내용 게시, 디렉터리 재귀 삭제는 GoDj의 독립 reader·완성 후 게시·파일 단위 삭제 계약과 다르다.
 [독립 관찰](../conformance/runners/django/memory_storage_reference.py)과 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.
 
+## S3 객체 저장소
+
+`NewS3(S3Config{Bucket: bucket, Region: region, Credentials: provider})`는 이미 존재하는 일반 S3 bucket을 선택한다.
+`provider`는 application이 명시적으로 전달한 AWS SDK v2 `aws.CredentialsProvider`다. 생성자는 네트워크·credential 조회·
+bucket 생성/정책 변경을 하지 않으며 anonymous/빈 credential로 요청하지 않는다. Provider와 선택적 `Transport`는 빌린
+동시 사용 capability다. Application이 credential 갱신/cache와 권한을 소유한다.
+
+`Endpoint`가 비어 있으면 고정 SDK의 AWS regional endpoint를 사용한다. 명시한 endpoint는 HTTPS이며 userinfo·경로 prefix·
+query·fragment를 받지 않는다. 로컬 서비스는 `AllowLoopbackHTTP`와 literal loopback IP를 함께 지정해야 HTTP를 허용한다.
+`UsePathStyle`은 서비스가 요구할 때 선택한다. `Prefix`는 slash로 끝나지 않는 portable 상대 directory 이름이고 모든 key 앞에
+고정된다. `ExpectedBucketOwner`는 선택적 12자리 account ID로 모든 저장/읽기/삭제/서명에 결합한다. Bucket ARN/access point·
+directory bucket을 일반 bucket으로 해석하지 않는다. 이름의 공통 문자/성분 한도에 더해 prefix를 포함한 S3 key는 1,024 bytes다.
+충돌 suffix를 붙일 때 두 한도를 모두 적용하고 UTF-8 문자를 중간에서 자르지 않는다.
+
+Save는 빌린 입력을 EOF까지 한 번 읽어 bounded private buffer를 완성하고 SHA256을 계산한다. 기본 파일 한도는 32 MiB,
+전체 진행 중인 content/reservation 한도 `MaxBufferedBytes`는 64 MiB, `MaxConcurrentSaves`는 32다. 이 값은 content 예산이며
+Go allocator/SDK overhead를 포함한 RSS 상한이 아니다. 진행 중인 예약은 취소·입력/entropy 실패·panic에서도 반환한다.
+동시 Save 슬롯이 가득 차면 새 source를 읽기 전에 거부한다. 현재 단일 PUT profile의 파일 상한은 5 GiB이며 multipart 업로드는
+지원하지 않는다. `MaxBufferedBytes`도 실제 파일 크기 이상이어야 한다.
+
+게시 요청은 SigV4·`If-None-Match: *`·명시적 길이·SHA256으로 한 번 전송한다. Endpoint는 conditional PUT과 전체 객체 SHA256을
+지원해야 한다. 확인한 `412 PreconditionFailed`만 새 후보 이름으로 이어가며, 같은 source를 다시 읽지 않는다. 명시적인 인증/입력
+거부와 `409 ConditionalRequestConflict`는 `NotPublished`다. 전송 이후 응답 유실·서버 오류 등은 후보 이름/크기와 `Uncertain`을
+보존한다. SDK retry·redirect·HEAD 조정·자동 보상 삭제는 실행하지 않는다. 2xx여도 전체 객체 checksum이 없거나 다르면
+`publication_integrity_failed`와 `Published`를 반환하고 strong metadata를 만들지 않는다. DB 저장 결과는 별도로 처리한다.
+
+Open은 한 GET의 길이·수정 시각·checksum/version과 그 body를 함께 소유한다. 별도 HEAD로 metadata를 조합하지 않는다.
+전체 읽기는 정확한 길이·EOF와 제공된 full SHA256을 확인한다. Checksum이 있으면 content hash, 없지만 immutable version ID가
+있으면 service/bucket/key/version에 결합한 identity를 strong validator로 사용한다. ETag·크기·수정 시각을 content hash로
+간주하지 않는다. `Stat`은 독립 HEAD이므로 다음 Open의 snapshot을 보증하지 않는다.
+
+Immutable version ID가 있는 reader만 `SeekableReader`를 제공한다. 이후 Range GET은 원래 version과 정확한 범위/길이를
+확인하므로 같은 이름의 교체·삭제 뒤에도 그 버전을 읽는다. Version이 없거나 `null`이면 독립 GET body만 제공하고 HTTP Range는
+기존 전체 전송 규칙을 따른다. Reader는 backend Close 뒤에도 caller 소유이며, reader Close는 진행 중인 HTTP read를 먼저
+취소한 뒤 response body를 한 번 닫고 backend Close 이후 다시 생긴 owned idle connection도 회수한다.
+기본 `RequestTimeout`은 각 HTTP 요청과 그 body 읽기를 포함한 30초다.
+Delete는 현재 이름만 삭제한다. 버전 bucket에서는 delete marker를 만들며 과거 version·prefix를 열거하거나 지우지 않는다.
+
+`resolver, err := files.SignedURL(time.Minute)`를 선택적 `Registration.URL`에 명시적으로 등록할 수 있다. URL 생성 전에 현재
+principal과 모델 소유권을 확인해야 한다. SigV4 GET은 정확한 bucket/prefix/key, 1초..7일의 정수 초 만료, attachment·
+octet-stream·private/no-store 응답에 결합한다. URL 발급은 존재 확인이나 파일 snapshot이 아니다. 이미 발급한 bearer URL은
+signature/credential 만료까지 유효할 수 있고 그 사이 같은 이름에 다시 게시한 내용도 읽을 수 있다. 소유권 변경은 이후 URL
+발급의 인가에 반영하며 이미 발급한 URL의 취소와 혼동하지 않는다. URL을 로그/DB의 영구 파일 이름으로 저장하지 않는다.
+
+실제 서비스 검증은 고정 MinIO 프로세스의 새 bucket에서 수행한다. AWS 운영 account나 모든 S3 호환 provider를 실제 실행한
+것으로 간주하지 않는다. [검증 profile](../docs/TESTING.md#s3-실제-서비스-profile), [출처](../docs/SOURCES.md),
+[실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 별칭과 URL
 
 `NewRegistry(Registration{Alias: "documents", Backend: files})`는 이미 연 backend를 빌리는 application별 불변 등록이다.
@@ -137,6 +185,6 @@ GoDj는 portable 이름 제한, bounded 시도/입력, 게시 전 완성, 불확
 편의 API를 구현했다고 주장하지 않는다. root confinement을 보장하지 못하는 js/plan9는 명시적으로 거부한다.
 
 [모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는 IR/생성/ORM/Form의 참조와 명시적 `SaveFiles`를 연결한다.
-별칭과 URL, [인가된 파일 응답](../web/streaming.md)을 연결했다. 외부 object-storage backend·서명 URL provider·자동 파일 회수는 후속 범위다.
+별칭과 URL, [인가된 파일 응답](../web/streaming.md)과 S3 backend/서명 다운로드를 연결했다. 추가 provider·multipart 저장·자동 파일 회수는 후속 범위다.
 파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.

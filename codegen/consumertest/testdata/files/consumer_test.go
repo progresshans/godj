@@ -21,6 +21,7 @@ import (
 	"example.com/godj-files/project"
 	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/conformance/s3fixture"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
@@ -506,6 +507,9 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 			}()
 			runFileServing(t, backend, memory, "memory")
 		})
+		if s3fixture.Enabled(t) {
+			t.Run("s3", func(t *testing.T) { runFileServing(t, backend, newFileS3(t), "s3") })
+		}
 	})
 	dimensionState := migrate(dimensions.Name)
 	dimensionModel, ok := dimensionState.Model("file_reference", "photograph")
@@ -531,7 +535,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	if rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact("filesystem-first")).All(ctx); err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "" || rows[0].Width != nil || rows[0].Height != nil {
 		t.Fatal("image clear/dimensions lost on reopen", err)
 	}
-	for _, label := range []string{"filesystem", "memory"} {
+	for _, label := range fileStorageKinds(t) {
 		rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact(label + "-refreshed-image")).All(ctx)
 		if err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "images/full.png" || rows[0].Width == nil || *rows[0].Width != 7 || rows[0].Height == nil || *rows[0].Height != 5 {
 			t.Fatal("explicit image dimensions did not survive database reopen", err)
@@ -557,3 +561,28 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 type zeroEntropy struct{}
 
 func (zeroEntropy) Read(p []byte) (int, error) { clear(p); return len(p), nil }
+
+func fileStorageKinds(t *testing.T) []string {
+	t.Helper()
+	kinds := []string{"filesystem", "memory"}
+	if s3fixture.Enabled(t) {
+		kinds = append(kinds, "s3")
+	}
+	return kinds
+}
+
+func newFileS3(t *testing.T) *storage.S3 {
+	t.Helper()
+	config := s3fixture.Config(t, true)
+	config.Random = zeroEntropy{}
+	backend, err := storage.NewS3(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return backend
+}

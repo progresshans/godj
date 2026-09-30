@@ -999,6 +999,10 @@ jobs:
           )"
           test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"
 
+      - name: Build pinned S3 reference service for core product tests
+        if: matrix.shard == 'core'
+        run: python3 scripts/ci/s3_service.py build --directory "$RUNNER_TEMP/s3-reference"
+
       - name: Run and inventory PostgreSQL actual product tests
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
@@ -1024,6 +1028,8 @@ jobs:
             core)
               required_passes=("${core_required_passes[@]}")
               packages=(
+                ./storage
+                ./admin
                 ./conformance/internal/dbstate
                 ./cmd/godj
                 ./db/postgres
@@ -1080,7 +1086,12 @@ jobs:
           log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.json"
           stderr_log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.stderr"
           status=0
-          go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+          if [ "$shard" = "core" ]; then
+            python3 scripts/ci/s3_service.py run --directory "$RUNNER_TEMP/s3-reference" -- \
+              go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+          else
+            go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+          fi
           if [ "$status" -ne 0 ]; then
             python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
             exit "$status"
@@ -1163,6 +1174,18 @@ jobs:
         with:
           name: operator-postgres-${{ github.run_attempt }}
           path: ${{ runner.temp }}/published-capture/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish S3 service build and lifecycle receipts
+        if: always() && matrix.shard == 'core'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: s3-service-${{ matrix.mode }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/s3-reference/build.json
+            ${{ runner.temp }}/s3-reference/buildinfo.txt
+            ${{ runner.temp }}/s3-reference/run-*/run.json
           if-no-files-found: error
           retention-days: 90
 
