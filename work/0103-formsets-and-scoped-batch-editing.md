@@ -35,7 +35,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 일반 모델 여러 행의 변경/추가/삭제·지연 collection·행별 결과와 파일 게시 연결
 - [x] Storage alias·URL/인가된 유한 serving·독립 reader 수명과 양 DB 실제 다운로드
 - [x] 격리된 Memory storage의 원자 게시·내용/파일/동시 저장 한도와 양 DB 파일 소비자
-- [ ] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합
+- [x] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합: source `365ad9d4`
 - [ ] 추가 storage backend와 남은 파일 의미
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -109,8 +109,9 @@ FileResponse 소비자에서 cookie login/CSRF·multipart 게시·DB 저장·권
 같은 열린 handle의 metadata·HEAD·정리/종료 수명은 [파일 응답](../web/streaming.md)을 따르고 실제 검증은 TEST_EVIDENCE에 둔다.
 추가 backend·서명 URL provider·Range/conditional과 전체 플랫폼 통합은 계속 별도 범위다.
 
-`6d3fe97f` 이후 동적 inline UI·업로드/storage·모델 파일·일반 여러 행 저장·alias/streaming을 합친 Hosted full을 다음 통합
-milestone으로 정했다. 로컬 전체와 중복하지 않으며 같은 source의 필수 owner·최종 aggregate·새 capture 결합이 완료 근거다.
+`6d3fe97f` 이후 동적 inline UI·업로드/storage·모델 파일·일반 여러 행 저장·alias/streaming과 entropy 잠금 수정을 source
+`365ad9d4`의 Hosted full에서 통합했다. 로컬 전체를 중복하지 않았고 필수 owner·최종 aggregate·새 capture 결합을 확인했다.
+이후 Memory backend와 Range/conditional은 별도 source와 영향 검증이 소유한다.
 
 추가 메모리 backend는 프로세스 내 격리·완성 후 게시·독립 reader를 기존 Backend에 연결한다. 저장/게시/삭제 후 열린 파일을
 모두 quota에 포함하고 source/entropy 실패의 예약 정리·동시 저장을 제한한다. 같은 생성 모델과 로그인/CSRF·업로드/다운로드

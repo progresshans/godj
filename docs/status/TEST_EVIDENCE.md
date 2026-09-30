@@ -53,6 +53,9 @@ Schema/generator·모델 선언·checked-in generated Go는 바꾸지 않아 gen
 `365ad9d4`의 Hosted full에 포함되지 않으며 로컬 전체/cold·CGO=0·Hosted 전체 성공으로 확대하지 않는다. 추가 provider·서명 URL·
 Range/conditional·ImageField와 나머지 기능 카탈로그는 미완료다.
 
+반영 source `ce4cdde1dedcc01eaa15343f5778ab7d2137ca06`의 [PR feedback 36671339317](https://github.com/progresshans/godj/actions/runs/36671339317)은
+completed/success다. 이는 아래 `365ad9d4`의 Hosted full과 별도 실행이며 Memory의 전체 플랫폼 검증을 뜻하지 않는다.
+
 
 ### Storage alias와 인가된 파일 streaming
 
@@ -118,11 +121,13 @@ ImageField와 나머지 기능 카탈로그는 계속 미완료다.
 
 
 
-#### 수정 소스의 Hosted 통합 진행
+#### 수정 소스의 Hosted full 통합 완료
 
 수정 source `365ad9d4bb94f049f692ef7722b2684a6f48f379`의 [PR feedback 36666761713](https://github.com/progresshans/godj/actions/runs/36666761713)은
 completed/success다. 같은 source의 [Hosted full 36666773815](https://github.com/progresshans/godj/actions/runs/36666773815),
-attempt 1은 진행 중이며 아직 전체 성공 증거가 아니다. 아래 두 normal PostgreSQL producer는 같은 run/attempt에서 성공했다.
+attempt 1은 completed/success다. 62개 job이 모두 completed/success이며 최종 집계 job `109749121574`의 실제 로그는
+`full_platform_verified: true`와 필수 8개 owner를 기록했다. 해당 source의 `scripts/ci/scopes.py`에서 독립 계산한 기대 집계와
+정확히 일치한다. 아래 두 normal PostgreSQL producer는 같은 run/attempt에서 성공했다.
 
 | capture | artifact / producer job | payload SHA256 |
 | --- | --- | --- |
@@ -134,8 +139,11 @@ blob에서 source binding을 재계산해 systemstate 663 files / 6,889,574 byte
 `9d3e62de4ab4a9fe5db24643fe1e61cff9d000ef8be780addc3ac23b4510bea7`, operator 740 files / 6,739,207 bytes /
 `ef41858ccfaee0d8e4cddfaeddf8d2c30d09759ddf031d519976ab4acb3ee955` 일치를 확인했다.
 원문과 결합 receipt는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-streaming-integration-full-36666773815-v459a4f9`에 있다.
-Capture 검증은 완료했지만 receipt의 전체 `pass`는 false다. 남은 필수 owner·최종 aggregate와 실제 같은 실행의 capture 소비를
-확인해야 전체 milestone을 완료할 수 있다.
+Conformance 소비 job `109739093382`의 실제 로그에서 위 두 artifact ID의 resolve/download와 같은 producer attempt의 provenance
+검증·실행을 확인했다. 최종 run/jobs·aggregate 로그·소비 로그를 보존했고 결합 receipt의 전체 `pass`는 true다.
+Command/relation·portable Go·PostgreSQL·project check·Python compatibility·exact Darwin·conformance 8 owners를 통합했다.
+이 결과는 동적 inline UI·업로드/storage·FileField·일반 여러 행 저장·alias/streaming 및 entropy 잠금 수정까지의 위 source에
+한정한다. 이후 Memory backend나 작성 중인 Range/conditional 변경으로 전체 성공을 전이하지 않는다. 로컬 전체/cold는 중복하지 않았다.
 
 #### 난수 callback panic 후 후속 저장의 잠금 해제
 
