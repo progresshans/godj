@@ -17,6 +17,9 @@ import (
 // 2,060 frame bytes). No Django-owned observation changes with those decisions.
 // GDJ-0103 keeps Pillow 12.3.0 in its own locked image reference project; the
 // existing Django/DRF profile locks and oracle provenance remain unchanged.
+// GDJ-0105 updates only read/Admin/API observations for the shared Article slug.
+// Their bytes were reproduced independently under the pinned native profiles;
+// the template/form observation and dependency/profile locks remain unchanged.
 func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 	t.Parallel()
 	root := conformanceRepositoryRoot(t)
@@ -88,8 +91,8 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/fixtures/godj-template-form-deviation-expected.json":                               {1472, "0f9b10539677c07aa18c058f0e78925b3388299be853506324325c2af11d2ff3"},
 		"conformance/fixtures/godj-template-form-not-implemented.json":                                  {1863, "b1e426264c53dc4885f70aa0f6d2f2231ade201da0fa9fd980d11400960cc1f5"},
 		"conformance/fixtures/godj-write-migration-not-implemented.json":                                {-1, "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "cdc43b03b90cd94a6f5bd8f4a4a51f057f7108d366a3536a815ccb073abb173e"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json":                  {17645, "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "71f57540081e2077eef1bd783a53310507dd27d5e90727af864903c4a5770363"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json":                  {17711, "112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":                   {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json":              {12690, "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json":    {-1, "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410"},
@@ -102,7 +105,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json": {-1, "bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json":               {39478, "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json":               {25991, "b5c800ce23b238f4532b3f99b7a1466eb38e4b8884948f6a8376d0aca7bfa1a6"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                                {-1, "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                                {-1, "b0e1c178c3d8f999fa606d67eaadda178e910f62f3eb5fbf6b2cd881cafd5cd0"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json":                  {41943, "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json":                    {-1, "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json":               {87852, "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f"},
@@ -111,9 +114,9 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":                          {37972, "80b8d8629706a500b37461d4914adff746b5dd41eb1f6c497b719f3b03bed752"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json":                  {12873, "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json":                {-1, "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                      {283, "429b5f8a1c7ce554f5fa676b0e5c32fdf528cf4888128063a901f3c4d89cda8a"},
+		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                      {283, "c9f08ffb9ae59d2346a58dff5c8a0995f1175cbfb07082f01dcfc0bd05018143"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json":  {23698, "73262bd3dbc505a110c4b500920f8f1c4df61be34c29c695343323431dbacef3"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json":         {46466, "f63f06ac26a1cedac0ea3e7fe9339b163b2571cdbc2a7fea87f8debef690ab56"},
+		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json":         {47099, "91abed33c2c39b96aa31c57690bda9d62d4bc51b401385741a510f945f260467"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json":   {12663, "4aded47e2a0db9524a18625174e8d8815b69911e5310323fbe17bad34899cc53"},
 		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                      {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                           {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},

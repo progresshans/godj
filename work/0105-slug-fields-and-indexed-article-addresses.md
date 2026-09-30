@@ -27,6 +27,8 @@ GDJ-0104의 URL source Hosted full은 완료했으며 이 Slug source의 전체 
 자동 slug 생성·소문자화·Unicode 정규화를 입력 검증과 섞지 않는다. 일반 ORM은 기존 문자열을 보존한다.
 양 DB·영향 세 mode·독립 생성 client·프로젝트 명령과 실제 Admin/공개 상세 브라우저를 검증했다.
 공유 fixture 보정 source `e124dda8`의 Fast feedback을 통과했고
-[Hosted full](https://github.com/progresshans/godj/actions/runs/36782116636)의 실제 checkout/full 선택을 확인했다. 최종 집계·capture 결합은 진행 중이다.
+[Hosted full](https://github.com/progresshans/godj/actions/runs/36782116636)의 실제 checkout/full 선택을 확인했으나
+공유 Form 시나리오의 입력 필드 선택과 native 기준 파일 체크섬 회귀가 드러났다. 두 원인을 보정하고
+고정 native 네 묶음 재관찰·관련 세 mode를 통과했다. 새 source 전체 검증과 최종 capture 결합이 남아 있다.
 [ADR-0084](../docs/adr/0084-slug-fields-and-column-index-ownership.md)가 장기 의미를 소유한다.
 검증 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하며, 구현과 환경별 실행을 구분한다.

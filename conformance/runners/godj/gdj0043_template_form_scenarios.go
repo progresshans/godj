@@ -456,7 +456,7 @@ func templateFormModelFormWriteBoundary(ctx context.Context, contractID string) 
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		spec, err := formmodel.NewSpec((models.ArticleDescriptor{}).Metadata())
+		spec, err := formmodel.NewSpecForFields((models.ArticleDescriptor{}).Metadata(), []string{"title", "published", "summary"})
 		if err != nil {
 			return protocol.Observation{}, fmt.Errorf("project Article model form: %w", err)
 		}
@@ -600,7 +600,8 @@ func templateFormObservation(contractID string, phase protocol.Phase, result, me
 }
 
 func templateFormArticleValidationSpec() (forms.Spec, error) {
-	projected, err := formmodel.NewSpec((models.ArticleDescriptor{}).Metadata())
+	// Match the explicit fields of the independent Django _ArticleForm.
+	projected, err := formmodel.NewSpecForFields((models.ArticleDescriptor{}).Metadata(), []string{"title", "published", "summary"})
 	if err != nil {
 		return forms.Spec{}, fmt.Errorf("project Article validation form: %w", err)
 	}

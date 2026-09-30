@@ -214,13 +214,13 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 	}
 	for name, want := range map[string]string{
 		"migration-planning-oracle.json":      "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-		"oracle.json":                         "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
+		"oracle.json":                         "b0e1c178c3d8f999fa606d67eaadda178e910f62f3eb5fbf6b2cd881cafd5cd0",
 		"query-cache-oracle.json":             "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
 		"query-breadth-oracle.json":           "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94",
 		"query-expression-oracle.json":        "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
 		"template-form-oracle.json":           "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa",
 		"auth-session-oracle.json":            "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc",
-		"article-admin-oracle.json":           "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378",
+		"article-admin-oracle.json":           "112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf",
 		"system-state.json":                   "80b8d8629706a500b37461d4914adff746b5dd41eb1f6c497b719f3b03bed752",
 		"save-lifecycle-oracle.json":          "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
 		"write-migration-oracle.json":         "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",

@@ -125,7 +125,7 @@ late-DDL 재분류 방지, duplicate projection 거부, CSRF 검증과 과거 mi
 최종 묶음을 위 일곱 group으로 다시 실행했으며 실패한 초기 receipt도 보존했다.
 
 새 IR kind·일반 index·migration·생성과 Article의 누적 플랫폼 통합은 이 source의 **Hosted full**이 소유한다.
-현재 실행 중인 URL source의 결과는 이 변경의 Hosted 성공으로 전이하지 않는다. 로컬 전체/cold는 중복하지 않았다.
+URL source의 결과는 이 변경의 Hosted 성공으로 전이하지 않는다. 로컬 전체/cold는 중복하지 않았다.
 
 ### Hosted feedback의 공유 fixture 회귀와 보정
 
@@ -160,9 +160,38 @@ source와 tree `6ca2c545914aba53177a148c0fd95d1dd4efd171`가 같다. Log SHA256�
 
 같은 source의 [Hosted full 36782116636](https://github.com/progresshans/godj/actions/runs/36782116636), attempt 1을 새로 시작했다.
 Plan job `110114666889`의 실제 checkout과 full 선택을 확인했으며 plan log SHA256은
-`f4cf6b1da7f0c7915d2ff8f5b356b1f9bc9ed554f940e7c3469fae8aab9d33b2`다. 최종 job/owner·집계와 새 capture/Git source 결합은 진행 중이다.
+`f4cf6b1da7f0c7915d2ff8f5b356b1f9bc9ed554f940e7c3469fae8aab9d33b2`다. 아래 회귀가 확인되어 이 source는 전체 검증을 통과하지 못했다.
 실행 receipt는 `godj-slug-repaired-hosted-full-36782116636-4dun59i1`에 보존하며 아직 전체 PASS가 아니다.
 이 실행을 기록하는 문서 갱신은 별도이며 실제 검증 source는 위 commit으로 고정한다.
+
+### Hosted full의 Form 시나리오와 native 체크섬 회귀 보정
+
+`36782116636`의 project-check·portable conformance·relation 작업에서 두 원인이 확인됐다.
+Go Form 비교 시나리오는 전체 Article 필드를 투영했지만 고정 Django `_ArticleForm`과 `_ArticleModelForm`은
+명시적으로 title/published/summary 세 필드만 선언한다. Go의 공개 `NewSpecForFields`로 같은 입력 범위를 지정했다.
+FRM-002의 실제 cleaned 값/순서와 FRM-004의 실패 뒤 cleaned 값, FRM-005의 실제 쓰기/행 검사를 유지한다.
+Slug 입력과 전체 모델 투영은 위 전용 필드·생성 소비자·Article/Admin/API 범위에서 계속 검사한다.
+
+독립 native 실행으로 갱신했던 read/Admin/API 세 파일은 현재 고정 profile 재실행과 byte-identical이었지만,
+두 `SHA256SUMS`와 세 protocol 테스트의 고정 바이트 목록이 이전 값을 유지한 것을 확인했다.
+네 묶음(read/template-form/article-admin/article-api)을 실제 uv 0.10.12·고정 Python/Django/DRF로
+새 임시 출력에 다시 실행해 현재 관찰과 대조한 뒤 세 관찰을 가리키는 checksum 기록과 고정 바이트 목록을 갱신했다.
+Template-form 관찰, 의존성 lock/profile, 나머지 native 관찰과 비교 선택자는 바꾸지 않았다.
+Go actual을 native 기대값 생성에 사용하지 않았다. 재관찰 receipt는 `godj-slug-lock-verification-_7g7uqnn`이다.
+
+| Native 관찰 | 검증한 SHA256 |
+|---|---|
+| read | `b0e1c178c3d8f999fa606d67eaadda178e910f62f3eb5fbf6b2cd881cafd5cd0` |
+| article-admin | `112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf` |
+| article-api | `91abed33c2c39b96aa31c57690bda9d62d4bc51b401385741a510f945f260467` |
+
+Protocol 전체 124 roots는 normal/race/CGO=0 각각 **909 run/pass**, 관련 runner·godjcheck 일곱 roots는
+각각 **31 run/pass**로 통과했다. 각 mode의 protocol/Form wall seconds는 2.621/2.078, 14.530/5.079,
+2.554/1.974다. 필수 root/package·시작/종료·0 skip·0 누락과 source 전후 일치를 확인했다.
+이 보정은 여섯 conformance 파일에 한정되며 제품·생성기·생성물·CI 선택 범위는 그대로다.
+Receipt는 `godj-slug-full-regressions-zfv0fgx4`, 실패 로그는 `godj-slug-full-failures-36782116636`에 보존한다.
+비Markdown source는 2,891 files / `7d10e5830419965c4d8978a59894eabb4d948692e44399efda4d12a34d7320af`다.
+새 source의 Hosted full은 별도로 실행하며 이전 실패·미완료 job을 성공으로 옮기지 않는다.
 
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 
