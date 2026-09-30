@@ -56,7 +56,7 @@ func (s *servingStorage) Open(ctx context.Context, name string) (io.ReadCloser, 
 	sized, ok := reader.(storage.Reader)
 	if !ok {
 		_ = reader.Close()
-		return nil, errors.New("filesystem lost opened-handle metadata")
+		return nil, errors.New("storage lost opened-handle metadata")
 	}
 	return &servingReader{Reader: sized, storage: s}, nil
 }
@@ -80,9 +80,11 @@ func (r *servingReader) Close() error { r.storage.closes.Add(1); return r.Reader
 // A generated model, real DB, cookie login, multipart publication and real HTTP
 // response form one path. Admission uses a fresh model query for each request;
 // storage names, URLs, query parameters and alias availability grant no access.
-func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
+func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, scope string) {
 	t.Helper()
 	ctx := t.Context()
+	aliceOwner, bobOwner := scope+"-alice", scope+"-bob"
+	titlePrefix, directory := scope+"-download-", scope+"/downloads/"
 	files := &servingStorage{Backend: root}
 	registry, err := storage.NewRegistry(storage.Registration{Alias: storage.DefaultAlias, Backend: files}, storage.Registration{Alias: "documents", Backend: files})
 	if err != nil {
@@ -106,7 +108,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 		name        string
 		permissions []auth.Permission
 	}{{"alice", []auth.Permission{view, add}}, {"bob", []auth.Permission{view}}, {"denied", nil}} {
-		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: entry.name, Active: true, Permissions: entry.permissions})
+		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: scope + "-" + entry.name, Active: true, Permissions: entry.permissions})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,7 +191,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 		if err != nil {
 			return web.Response{}, err
 		}
-		stored, publications, err := prepared.SaveFiles(request.Context(), formmodel.FileSaver[models.Document]{Field: "file", Backend: capability, Name: func(_ models.Document, file uploads.File) (string, error) { return "downloads/" + file.Name(), nil }})
+		stored, publications, err := prepared.SaveFiles(request.Context(), formmodel.FileSaver[models.Document]{Field: "file", Backend: capability, Name: func(_ models.Document, file uploads.File) (string, error) { return directory + file.Name(), nil }})
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -301,7 +303,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 	payload := bytes.Repeat([]byte("<html>private uploaded document</html>\x00"), 33000)
 	var multipartBody bytes.Buffer
 	writer := multipart.NewWriter(&multipartBody)
-	for key, value := range map[string]string{"title": "download-alice", "owner": "bob"} {
+	for key, value := range map[string]string{"title": titlePrefix + "alice", "owner": bobOwner} {
 		if err := writer.WriteField(key, value); err != nil {
 			t.Fatal(err)
 		}
@@ -329,7 +331,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 	// A posted storage name cannot masquerade as an uploaded file.
 	var forgedBody bytes.Buffer
 	forgedWriter := multipart.NewWriter(&forgedBody)
-	for key, value := range map[string]string{"title": "forged", "file": "downloads/other.html"} {
+	for key, value := range map[string]string{"title": "forged", "file": directory + "other.html"} {
 		if err := forgedWriter.WriteField(key, value); err != nil {
 			t.Fatal(err)
 		}
@@ -341,7 +343,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 	if forged.StatusCode != 400 || files.saves.Load() != 0 {
 		t.Fatal("string reference accepted as upload", forged.StatusCode)
 	}
-	existing, err := root.Save(ctx, "downloads/private.html", strings.NewReader("previous publication"), storage.SaveOptions{MaxLength: 40})
+	existing, err := root.Save(ctx, directory+"private.html", strings.NewReader("previous publication"), storage.SaveOptions{MaxLength: 40})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,12 +352,12 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 		t.Fatal("authenticated multipart publication failed", response.StatusCode)
 	}
 	location := response.Header.Get("Location")
-	documents, err := models.DocumentObjects.Using(backend).Filter(models.DocumentFields.Title.Exact("download-alice")).All(ctx)
+	documents, err := models.DocumentObjects.Using(backend).Filter(models.DocumentFields.Title.Exact(titlePrefix + "alice")).All(ctx)
 	if err != nil || len(documents) != 1 {
 		t.Fatal("uploaded model missing", err)
 	}
 	document := documents[0]
-	if document.Owner != "alice" || document.File == "" || document.File == existing.Name() || location != "/documents/"+strconv.FormatInt(document.ID, 10)+"/" {
+	if document.Owner != aliceOwner || document.File == "" || document.File == existing.Name() || location != "/documents/"+strconv.FormatInt(document.ID, 10)+"/" {
 		t.Fatal("posted owner or proposal replaced server state")
 	}
 	previous, err := root.Open(ctx, existing.Name())
@@ -370,11 +372,11 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 	if _, err := registry.URL(ctx, "documents", document.File); err == nil {
 		t.Fatal("private alias became a public URL")
 	}
-	bobFile, err := root.Save(ctx, "downloads/bob.txt", strings.NewReader("bob's private bytes"), storage.SaveOptions{MaxLength: 40})
+	bobFile, err := root.Save(ctx, directory+"bob.txt", strings.NewReader("bob's private bytes"), storage.SaveOptions{MaxLength: 40})
 	if err != nil {
 		t.Fatal(err)
 	}
-	bobDocument, err := models.DocumentObjects.Create(ctx, backend, models.NewDocumentCreate("download-bob").WithFile(bobFile.Name()).WithOwner("bob"))
+	bobDocument, err := models.DocumentObjects.Create(ctx, backend, models.NewDocumentCreate(titlePrefix+"bob").WithFile(bobFile.Name()).WithOwner(bobOwner))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +384,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 		client *http.Client
 		route  string
 		status int
-	}{{anonymous, location, 302}, {denied, location, 403}, {bob, location, 404}, {alice, "/documents/" + strconv.FormatInt(bobDocument.ID, 10) + "/", 404}, {alice, "/downloads/private.html", 404}} {
+	}{{anonymous, location, 302}, {denied, location, 403}, {bob, location, 404}, {alice, "/documents/" + strconv.FormatInt(bobDocument.ID, 10) + "/", 404}, {alice, "/" + directory + "private.html", 404}} {
 		response, _ := request(attempt.client, "GET", attempt.route, nil, nil)
 		if response.StatusCode != attempt.status || files.opens.Load() != 0 {
 			t.Fatal("download admission opened file", response.StatusCode, attempt.status, files.opens.Load())
@@ -412,7 +414,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend) {
 	assertDownload(alice, "GET", location+"?alias=public&name="+url.QueryEscape(bobDocument.File))
 	// Model ownership is resolved anew; an earlier successful download is not a
 	// capability to read the file after it has moved to another owner.
-	document.Owner = "bob"
+	document.Owner = bobOwner
 	if err := models.DocumentObjects.Save(ctx, backend, &document, models.DocumentUpdateFields(models.DocumentFields.Owner)); err != nil {
 		t.Fatal(err)
 	}

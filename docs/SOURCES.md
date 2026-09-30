@@ -151,3 +151,7 @@ Storage alias/URL과 파일 응답은 같은 고정 Django 6.1의 `django/core/f
 [고정 관찰](../storage/testdata/serving-django61.json)에 source SHA256을 보존한다. 같은 alias identity와 URL escaping, 명시한
 MIME/attachment·length·stream/file close를 비교하며 GoDj의 eager backend 등록·lazy response descriptor·안전한 기본 MIME와
 portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-reference.md)에서 차이로 구분한다.
+
+메모리 storage의 정상 저장·격리와 명시적 수명/실패 차이는 같은 고정 source의
+`django/core/files/storage/memory.py`(BSD-3-Clause)를 [독립 관찰](../conformance/runners/django/memory_storage_reference.py)한다.
+[고정 관찰](../storage/testdata/memory-django61.json)의 source SHA256과 [storage 계약](../storage/README.md)을 따른다.

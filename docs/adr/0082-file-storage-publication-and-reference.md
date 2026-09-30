@@ -48,9 +48,14 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-다른 backend·서명 URL provider·ImageField·파일 choices·Range/conditional 응답과 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+외부 object-storage backend·서명 URL provider·ImageField·파일 choices·Range/conditional 응답과 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
 Alias/URL/FileResponse의 [serving observer](../../conformance/runners/django/storage_serving_reference.py)는 같은 pinned source를 사용한다.
 GoDj의 pure lazy response descriptor·안전한 기본 attachment/MIME·명시적 admission은 Django의 eager file 소유·자동 MIME/inline 기본과 다르다.
+
+메모리 backend도 독립 reader와 완성 후 원자 게시를 유지한다. 프로세스 내의 비영구 저장임을 명시하고 전체 content bytes·
+파일 객체·동시 Save를 제한한다. 삭제된 파일의 열린 reader도 quota에 남으며 마지막 reader close가 해제한다. Source/entropy
+panic에서도 예약과 잠금을 반환한다. 이름은 파일의 가상 prefix이며 빈 directory나 재귀 삭제를 제공하지 않는다. Native
+InMemoryStorage의 공유 cursor·실패 뒤 부분 파일·재귀 directory 삭제는 따라 하지 않는다. 파일 읽기 권한과 DB commit 의미는 같다.

@@ -58,9 +58,9 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
-	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving"}
+	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving", "TestGeneratedFileStorageAndHistory/sqlite/serving/filesystem", "TestGeneratedFileStorageAndHistory/sqlite/serving/memory"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
-		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving")
+		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)

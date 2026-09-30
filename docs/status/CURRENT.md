@@ -3,6 +3,7 @@
 - 갱신: 2026-09-30
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
 - 최근 완료한 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`; Admin 합성 저장까지 최종 집계·새 capture와 Git source 결합 완료
+- 진행 중인 통합: [Hosted full 36666773815](https://github.com/progresshans/godj/actions/runs/36666773815), source `365ad9d4`; 새 capture 결합 확인, 남은 owner/집계 대기
 - Source·환경·scope·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -33,6 +34,10 @@ Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 �
 위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField·일반 모델 여러 행 저장·alias/streaming을 포함하지 않는다.
 이 변경들을 묶은 새 Hosted full 통합 milestone을 진행한다. 대기 중 확인한 storage 난수 callback의 panic 후 잠금 누수를
 수정하고 후속 저장을 normal/race로 검증했다. 수정 전 full은 완료 증거로 쓰지 않는다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
+
+메모리 backend의 독립 파일/reader와 완성 후 게시·용량·동시 저장 제한을 구현했다. 삭제 후 열린 reader가 보유한 내용도
+한도에 포함하며 실패/취소/panic의 예약 정리를 확인했다. 같은 양 DB 인증·파일 소비자의 filesystem/memory 조합과 관련
+normal/race·부정 대조를 검증했다. 이 변경은 위 Hosted full source에 포함되지 않으며 영향 검증의 범위는 TEST_EVIDENCE를 따른다.
 
 ## 다음 행동
 

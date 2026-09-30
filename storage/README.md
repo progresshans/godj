@@ -37,6 +37,33 @@ caller가 소유한다. 읽기 취소는 다음 Read에서 검사하고 외부 r
 뒤에 같은 이름의 파일이 교체되거나 backend가 닫혀도 바뀌지 않는다. 임의 backend가 이 인터페이스를 구현하지 않으면 HTTP는
 길이 미상으로 전송한다. 별도 Stat 결과를 다음 Open의 metadata로 취급하지 않는다.
 
+## 메모리 저장소
+
+`NewMemory(MemoryConfig{})`는 프로세스 안에서만 유지되는 독립 저장소를 만든다. 별도 filesystem이나 전역 map을 사용하지 않는다.
+같은 facade의 값 복사는 수명과 내용을 공유하고 새 생성자는 빈 별도 저장소다. Backend 인터페이스·portable 이름·collision
+rename·SaveOptions와 URL/alias 등록은 로컬 저장소와 같다. Open은 독립 cursor와 같은 열린 내용의 불변 Info를 반환한다.
+이 backend를 영구 파일의 내구성 대체물로 취급하지 않는다. 프로세스 종료나 새 인스턴스 생성으로 이전 내용이 사라진다.
+
+기본 `Limits` 외에 `MaxBytes` 64 MiB, `MaxFiles` 4,096개, `MaxConcurrentSaves` 최대 32개의 한도를 적용한다. 0 값은 기본값이며
+작은 MaxFiles를 지정하면 기본 동시 저장 수도 그 이하가 된다. MaxBytes는 저장 중 예약한 공간·게시된 내용·삭제됐지만 열린
+reader가 보유한 내용을 포함한다. MaxFiles도 저장 중/게시됨/reader가 남은 객체를 모두 센다. 마지막 reader가 닫혀야 삭제된
+내용의 quota를 회수한다. 빈 파일도 파일 개수 한도를 소비한다. quota 초과는 `capacity_exceeded`/`NotPublished`다.
+동시 저장 한도는 새 source를 읽기 전에 검사한다. 다른 저장의 예약 때문에 순간적으로 여유 공간이 없을 수도 있다.
+
+이 한도는 프로세스 RSS 한도가 아니다. 각 active Save의 32 KiB 전송 버퍼, slice의 여유 capacity·일시적 할당, 이름·map과 caller가
+보유하는 reader handle에도 메모리가 필요하다. Source가 준 bytes를 private content로 복사하고 EOF까지 확인한 뒤 한 번의
+임계 구역에서 게시한다. Source 오류·길이/용량 초과·취소·panic은 부분 파일을 게시하지 않으며 모든 예약을 반환한다.
+0 bytes/nil을 반복하는 reader는 유한하게 거부한다. Random callback도 panic에서 직렬화 잠금을 해제한다.
+
+이름의 디렉터리는 현재 파일들의 가상 prefix다. 파일을 부모 경로로 사용하지 않고, live prefix와 같은 파일 이름은 collision
+rename하며 directory prefix의 Open/Stat/Delete는 `not_regular`다. 재귀 삭제를 하지 않고 빈 디렉터리 metadata도 보관하지 않는다.
+Close는 진행 중인 연산이 끝날 때까지 기다린 뒤 이름 공간을 지우고 새 연산을 거부한다. 이미 연 reader는 이전 bytes를 계속
+소유하며 Delete/동일 이름 재사용/Close로 내용이나 cursor가 바뀌지 않는다. 임의 source의 막힌 Read는 context에 협조해야 한다.
+
+고정 Django의 InMemoryStorage와 정상 bytes/이름/크기·인스턴스 분리를 비교한다. Native의 동일 reader 객체/cursor 공유,
+읽기 실패 뒤 부분 내용 게시, 디렉터리 재귀 삭제는 GoDj의 독립 reader·완성 후 게시·파일 단위 삭제 계약과 다르다.
+[독립 관찰](../conformance/runners/django/memory_storage_reference.py)과 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 별칭과 URL
 
 `NewRegistry(Registration{Alias: "documents", Backend: files})`는 이미 연 backend를 빌리는 application별 불변 등록이다.
@@ -83,6 +110,6 @@ GoDj는 portable 이름 제한, bounded 시도/입력, 게시 전 완성, 불확
 편의 API를 구현했다고 주장하지 않는다. root confinement을 보장하지 못하는 js/plan9는 명시적으로 거부한다.
 
 [모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는 IR/생성/ORM/Form의 참조와 명시적 `SaveFiles`를 연결한다.
-별칭과 URL, [인가된 파일 응답](../web/streaming.md)을 연결했다. 추가 backend·서명 URL provider·자동 파일 회수는 후속 범위다.
+별칭과 URL, [인가된 파일 응답](../web/streaming.md)을 연결했다. 외부 object-storage backend·서명 URL provider·자동 파일 회수는 후속 범위다.
 파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.

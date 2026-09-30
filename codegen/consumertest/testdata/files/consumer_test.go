@@ -473,7 +473,21 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		t.Fatal("stored content lost across request/backend lifetime", err, closeErr)
 	}
 	t.Run("formset", func(t *testing.T) { runFileSet(t, backend, root) })
-	t.Run("serving", func(t *testing.T) { runFileServing(t, backend, root) })
+	t.Run("serving", func(t *testing.T) {
+		t.Run("filesystem", func(t *testing.T) { runFileServing(t, backend, root, "disk") })
+		t.Run("memory", func(t *testing.T) {
+			memory, err := storage.NewMemory(storage.MemoryConfig{MaxBytes: 4 << 20, MaxFiles: 8})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := memory.Close(); err != nil {
+					t.Error(err)
+				}
+			}()
+			runFileServing(t, backend, memory, "memory")
+		})
+	})
 	if err := backend.Close(); err != nil {
 		t.Fatal(err)
 	}

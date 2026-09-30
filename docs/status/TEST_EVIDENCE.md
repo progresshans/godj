@@ -5,6 +5,54 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 격리된 Memory storage와 실제 파일 소비자
+
+2026-09-30, 기반 `365ad9d4bb94f049f692ef7722b2684a6f48f379` 이후 프로세스별 Memory backend를 같은 Storage 계약에 연결했다.
+Source는 한 번 읽고 완성한 내용만 no-overwrite 게시한다. 내용 byte·파일 수·동시 Save를 제한하며 pending·게시된 파일·삭제 뒤
+열린 reader의 내용을 모두 quota에 포함한다. 독립 cursor·변하지 않는 열린 파일 metadata·name 재사용·Close 수명을 보존하고
+실패/취소·source/entropy panic의 예약과 잠금을 정리한다. Source는 빌린 객체로서 Storage가 닫지 않는다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 영향 normal | storage/settings/Web 3 packages / 81 roots / 372 PASS / 1.892초 |
+| 관련 race | storage/Web 19 roots / 73 PASS / 2.060초 |
+| 최종 storage normal/race | 각각 26 roots / 79 PASS / 1.109·3.018초; 실패 예약 회수 검사를 강화하고 빌린 입력의 close 소유권 검사를 추가한 뒤 실행 |
+| 생성 소비자 양 DB/race | FileConsumer parent PASS / 10.207초; 별도 생성 module의 필수 12개 이름을 각각 한 번의 PASS로 확인, SQLite/PostgreSQL 각각 filesystem/memory serving 포함 |
+| 독립 native | 고정 Django 6.1/CPython 3.14.3의 bytes·Unicode·empty 3개와 인스턴스 분리, 두 번 같은 원문; 공유 cursor·실패 후 부분 파일·재귀 directory 삭제의 명시적 차이 확인 |
+| 부정 대조 | 열린 reader의 quota·실패 예약 회수·원자 게시·독립 cursor·취소·빈 파일 개수·동시 Save·입력 close 소유권을 각각 훼손한 8개 overlay가 지정 runtime assertion에서 실패 |
+| 정적 확인 | storage/생성 소비자 go vet·gofmt·diff와 local Markdown 링크 PASS |
+
+생성 소비자는 backend별 별도 owner/DB title/파일 prefix를 사용한다. 실제 PBKDF2 cookie login과 갱신 CSRF 뒤 1 MiB보다 큰
+multipart 파일을 게시하고 충돌 후 실제 저장 이름을 DB에 기록한다. 위조 owner·미인증·다른 owner·인가 실패·파일 문자열 위조의
+Storage I/O 0, GET/HEAD·query의 alias/name 위조 무시·소유권 변경 후 재인가·missing file과 upload 정리를 양 DB/양 backend에서
+확인했다. Storage reader는 한 번만 닫히고 32 KiB 이하 전송과 별도 Stat 0을 유지한다. 생성 모델/DB 재개방과 기존 formset
+파일 게시/rollback도 같은 소비자 안에서 실행한다.
+
+Go 1.26.5 Darwin arm64, offline/readonly module·기본 공유 cache·병렬 실행이다. 생성 자식도 `-trimpath -race`를 전달했다.
+Compiled roots·필수 하위 이름·완료 JSON·skip/잘린 출력·실행 전후 source 불변을 확인했다. 별도 PostgreSQL 17.10
+Debian/C/UTF8 container/DB에서 종료 후 schema/table/다른 connection `0|0|0`, DB와 해당 container 제거를 확인했다.
+
+최종 비Markdown code/config inventory는 `a28ffae4e5baab84cad0e8fa3949ff0cd04689379872d1c4e2dab47549737b38`이다.
+영향 normal·관련 race·DB 소비자는 `b7057dc428f22298b289ebaf06679101f8fafa6b51dae07faa0d0d3dcbfbefe6`에서 실행했고 이후
+바뀐 유일한 파일은 `storage/memory_test.go`다. 최종 storage normal/race와 부정 대조는 최종 source에서 실행했다.
+전체 inventory 대조로 **DB 실행의 제품 코드와 생성 소비자 테스트가 최종 소스와 동일**함을 확인했다. 결합 receipt는
+`/tmp/godj-memory-storage-validation/receipt.json`이다. 제품 수정 없는 DB/Helpdesk 전체 회귀는 반복하지 않았다.
+
+Local receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의
+`godj-memory-storage-normal-esbdm2sb`, `godj-memory-storage-race-6w0qpe3h`, `godj-memory-storage-db-race-wm4fb9d4`,
+`godj-memory-storage-normal-dvd91ceq`, `godj-memory-storage-race-9q64gl5w`, `godj-memory-storage-controls-3jtkmwx1`이다.
+Native observer는 `conformance/runners/django/memory_storage_reference.py`, golden은 `storage/testdata/memory-django61.json`이며
+SHA256은 `4a89dbd22dc653da0688c31c9024ae27c5762867cb99d26a68be009c77a4c271`이다. Django memory.py SHA256은
+`7940d107b075b9355bd5aef4cde6ac225577dd3de47c5705f5ccafcfde12e24f`, upstream은
+`fe0a859f537d4238cf49fca39073513206f83122`/BSD-3-Clause다. Native의 공유 reader/부분 게시/재귀 삭제는 기존 GoDj Backend의
+더 강한 수명·게시·명시적 삭제 계약을 대체하지 않는다. 판단과 사용법은 ADR-0082·Storage README·SOURCES를 따른다.
+
+Memory의 MaxBytes는 보관/예약한 내용 길이의 한도이며 process RSS 한도가 아니다. Slice capacity/GC·고정 transfer buffer·
+metadata·reader handle은 별도 메모리를 쓴다. 임의 source의 막힌 Read를 강제 중단하지 않으며 context 협조가 필요하다.
+Schema/generator·모델 선언·checked-in generated Go는 바꾸지 않아 generated drift를 반복하지 않았다. 이번 Memory 변경은
+`365ad9d4`의 Hosted full에 포함되지 않으며 로컬 전체/cold·CGO=0·Hosted 전체 성공으로 확대하지 않는다. 추가 provider·서명 URL·
+Range/conditional·ImageField와 나머지 기능 카탈로그는 미완료다.
+
 
 ### Storage alias와 인가된 파일 streaming
 
@@ -69,6 +117,25 @@ HTML/JS 변경이 없어 이번 slice의 브라우저를 반복하지 않았다.
 ImageField와 나머지 기능 카탈로그는 계속 미완료다.
 
 
+
+#### 수정 소스의 Hosted 통합 진행
+
+수정 source `365ad9d4bb94f049f692ef7722b2684a6f48f379`의 [PR feedback 36666761713](https://github.com/progresshans/godj/actions/runs/36666761713)은
+completed/success다. 같은 source의 [Hosted full 36666773815](https://github.com/progresshans/godj/actions/runs/36666773815),
+attempt 1은 진행 중이며 아직 전체 성공 증거가 아니다. 아래 두 normal PostgreSQL producer는 같은 run/attempt에서 성공했다.
+
+| capture | artifact / producer job | payload SHA256 |
+| --- | --- | --- |
+| systemstate-postgres-1 | 11077101996 / 109733045740 | `76f6179868a40ffdad829b9bfed157beb4a7846aa99681876d33776af76a2457` |
+| operator-postgres-1 | 11077175437 / 109733045779 | `99268433c48a4eab992c566c57fa669189eb99ddc2a7e5fbfbdc4c5ee96f34a3` |
+
+새 archive의 GitHub digest·정확한 파일 집합·SHA256SUMS·producer/provenance를 확인했다. Working tree 대신 위 Git commit의
+blob에서 source binding을 재계산해 systemstate 663 files / 6,889,574 bytes /
+`9d3e62de4ab4a9fe5db24643fe1e61cff9d000ef8be780addc3ac23b4510bea7`, operator 740 files / 6,739,207 bytes /
+`ef41858ccfaee0d8e4cddfaeddf8d2c30d09759ddf031d519976ab4acb3ee955` 일치를 확인했다.
+원문과 결합 receipt는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-streaming-integration-full-36666773815-v459a4f9`에 있다.
+Capture 검증은 완료했지만 receipt의 전체 `pass`는 false다. 남은 필수 owner·최종 aggregate와 실제 같은 실행의 capture 소비를
+확인해야 전체 milestone을 완료할 수 있다.
 
 #### 난수 callback panic 후 후속 저장의 잠금 해제
 
