@@ -88,5 +88,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 }
 
 func boundedStringKind(kind FieldKind) bool {
-	return kind == FieldChar || kind == FieldEmail || kind.IsFile()
+	return kind == FieldChar || kind == FieldEmail || kind == FieldURL || kind.IsFile()
 }

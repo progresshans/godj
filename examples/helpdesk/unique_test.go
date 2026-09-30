@@ -47,12 +47,12 @@ func verifyHistoricalExternalReferenceUniqueness(t *testing.T, ctx context.Conte
 			t.Fatal("historical plain UUID disallowed duplicates", err)
 		}
 	}
-	duplicateFirst, duplicateSecond := readUniqueTicket(t, ctx, backend, firstID), readUniqueTicket(t, ctx, backend, secondID)
+	duplicateFirst, duplicateSecond := readPreURLTicketStorage(t, ctx, backend, firstID), readPreURLTicketStorage(t, ctx, backend, secondID)
 	failedState, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
-	if err == nil || !failedState.Equal(beforeState) || !reflect.DeepEqual(duplicateFirst, readUniqueTicket(t, ctx, backend, firstID)) || !reflect.DeepEqual(duplicateSecond, readUniqueTicket(t, ctx, backend, secondID)) {
+	if err == nil || !failedState.Equal(beforeState) || !reflect.DeepEqual(duplicateFirst, readPreURLTicketStorage(t, ctx, backend, firstID)) || !reflect.DeepEqual(duplicateSecond, readPreURLTicketStorage(t, ctx, backend, secondID)) {
 		t.Fatal("unique growth altered duplicate data or published state", err)
 	}
-	if _, err := models.TicketObjects.Update(ctx, backend, duplicateSecond, models.TicketPatch{}.WithExternalReferenceNull()); err != nil {
+	if _, err := models.TicketObjects.Update(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReferenceNull()); err != nil {
 		t.Fatal(err)
 	}
 	state, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
@@ -80,7 +80,7 @@ func verifyHistoricalExternalReferenceUniqueness(t *testing.T, ctx context.Conte
 	if stored.ExternalReference == nil || *stored.ExternalReference != reference {
 		t.Fatal("unique migration lost existing reference")
 	}
-	_, err = models.TicketObjects.Update(ctx, backend, duplicateSecond, models.TicketPatch{}.WithExternalReference(reference))
+	_, err = models.TicketObjects.Update(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReference(reference))
 	if !errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniqueConstraint}) {
 		t.Fatal("historical unique migration did not enforce its declaration", err)
 	}

@@ -206,3 +206,9 @@ ServiceReport client는 별도 model component와 7개 operation을 실제 HTTP�
 생성 기본값·중복/invalid_choice 진단·self update·PUT 재할당·PATCH omission·읽기 전용 principal·DELETE CSRF/204를 검사한다.
 종료 시 보고서 행은 없고 기존 Ticket/Category 값은 그대로인지 parent process가 확인한다. Client의 고정 실패 단계만
 checked-in `fail("stage")` literal과 정확히 일치할 때 진단에 표시하며 그 외 stderr/transport/input 값은 계속 숨긴다.
+
+Helpdesk URL 입력은 정리 전 문자열을 그대로 보내고 서버에서 공백을 제거한다. 스킴 추론은 없으며 기본 저장 길이는 200자다.
+`x-godj-url`/정규화 metadata는 이 경계를 설명하고 응답은 URL grammar를 강제하지 않는다.
+Client는 생성·PUT/PATCH·생략/blank/null·IDN/대소문자·잘못된 입력의 거부와 기존 값 보존을 HTTP로 확인한다.
+별도 wire 사례는 기존 잘못된 문자열의 decode, required/null/type/길이를 검증하고 부모가 최종 DB를 직접 확인한다.
+필수 receipt는 `helpdesk_session_url_values`와 `generated_url_wire`다.

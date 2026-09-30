@@ -1,6 +1,7 @@
 {% if field.hidden %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}{% else %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
 {% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.email %}<input type="email" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.url %}<input type="url" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.password %}<input type="password" name="{{ field.name }}" autocomplete="new-password"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.file %}<input type="file" name="{{ field.name }}"{% if field.image %} accept="image/*"{% endif %}{% if field.required %} required{% endif %}>{% endif %}
 {% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>

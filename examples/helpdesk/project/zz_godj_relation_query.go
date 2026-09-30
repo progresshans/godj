@@ -392,6 +392,7 @@ type ModelsTicketRelatedFields[S any] struct {
 	ExpectedCost      orm.RelatedDecimalField[S]
 	ExternalReference orm.RelatedUUIDField[S]
 	ExternalPayload   orm.RelatedJSONField[S]
+	ExternalURL       orm.RelatedStringField[S]
 }
 
 func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, models.Ticket]) ModelsTicketRelatedFields[S] {
@@ -456,6 +457,10 @@ func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rout
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
+	_field15, _err := _route.String(models.TicketFields.ExternalURL)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
 	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
 	_result.Subject = _field1.WithConfigurationError(_result.configurationErr)
 	_result.Details = _field2.WithConfigurationError(_result.configurationErr)
@@ -471,6 +476,7 @@ func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rout
 	_result.ExpectedCost = _field12.WithConfigurationError(_result.configurationErr)
 	_result.ExternalReference = _field13.WithConfigurationError(_result.configurationErr)
 	_result.ExternalPayload = _field14.WithConfigurationError(_result.configurationErr)
+	_result.ExternalURL = _field15.WithConfigurationError(_result.configurationErr)
 	_result.route = _route.WithConfigurationError(_result.configurationErr)
 	return _result
 }
@@ -1027,4 +1033,4 @@ func BindRelations() (Relations, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8358fff902044d01249d75107acffdd2dc8f4bc5929bec9c32ffd10313b926a7
+var _ goDjProjectSnapshot_fcdd74782c372e1768ba55a803953fb896845614e5331650a1836d5bd5d924ec

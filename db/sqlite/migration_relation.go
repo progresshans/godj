@@ -2728,7 +2728,7 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "INTEGER", nil
 	case ir.FieldInteger:
 		return "BIGINT", nil
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
 	case ir.FieldJSON:
 		return "TEXT", nil

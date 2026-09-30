@@ -1050,7 +1050,7 @@ func validateFieldSelection(path string, fields []string, known map[string]ir.Fi
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
 		}
 		seen[name] = struct{}{}
-		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && !field.Kind.IsFile() && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
+		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && !field.Kind.IsFile() && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
 		}
 	}
@@ -1356,7 +1356,7 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 		}
 		_, ok := value.AsInteger()
 		return ok
-	case forms.FieldChar, forms.FieldEmail:
+	case forms.FieldChar, forms.FieldEmail, forms.FieldURL:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
 		}
@@ -1527,7 +1527,7 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		}
 		_, ok := value.AsInteger()
 		return ok
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		if value.IsNull() {
 			return field.Nullable
 		}

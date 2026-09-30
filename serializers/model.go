@@ -313,10 +313,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		var projected Field
 		var err error
 		switch field.Kind {
-		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			if field.Kind == ir.FieldEmail && field.Choices == nil {
 				projected, err = EmailField(field.Name, options...)
+			} else if field.Kind == ir.FieldURL && field.Choices == nil {
+				projected, err = URLField(field.Name, options...)
 			} else {
 				projected, err = StringField(field.Name, options...)
 			}

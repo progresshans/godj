@@ -2533,6 +2533,7 @@ type Ticket struct {
 	ExpectedCost      NilString   `json:"expected_cost"`
 	ExternalReference NilUUID     `json:"external_reference"`
 	ExternalPayload   jx.Raw      `json:"external_payload"`
+	ExternalURL       NilString   `json:"external_url"`
 	Labels            []int64     `json:"labels"`
 }
 
@@ -2614,6 +2615,11 @@ func (s *Ticket) GetExternalReference() NilUUID {
 // GetExternalPayload returns the value of ExternalPayload.
 func (s *Ticket) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
+}
+
+// GetExternalURL returns the value of ExternalURL.
+func (s *Ticket) GetExternalURL() NilString {
+	return s.ExternalURL
 }
 
 // GetLabels returns the value of Labels.
@@ -2701,6 +2707,11 @@ func (s *Ticket) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
 }
 
+// SetExternalURL sets the value of ExternalURL.
+func (s *Ticket) SetExternalURL(val NilString) {
+	s.ExternalURL = val
+}
+
 // SetLabels sets the value of Labels.
 func (s *Ticket) SetLabels(val []int64) {
 	s.Labels = val
@@ -2726,6 +2737,7 @@ type TicketCreate struct {
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
 	ExternalPayload   jx.Raw                     `json:"external_payload"`
+	ExternalURL       OptNilString               `json:"external_url"`
 	Labels            []int64                    `json:"labels"`
 }
 
@@ -2797,6 +2809,11 @@ func (s *TicketCreate) GetExternalReference() OptNilUUID {
 // GetExternalPayload returns the value of ExternalPayload.
 func (s *TicketCreate) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
+}
+
+// GetExternalURL returns the value of ExternalURL.
+func (s *TicketCreate) GetExternalURL() OptNilString {
+	return s.ExternalURL
 }
 
 // GetLabels returns the value of Labels.
@@ -2872,6 +2889,11 @@ func (s *TicketCreate) SetExternalReference(val OptNilUUID) {
 // SetExternalPayload sets the value of ExternalPayload.
 func (s *TicketCreate) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
+}
+
+// SetExternalURL sets the value of ExternalURL.
+func (s *TicketCreate) SetExternalURL(val OptNilString) {
+	s.ExternalURL = val
 }
 
 // SetLabels sets the value of Labels.
@@ -3189,6 +3211,7 @@ type TicketPatch struct {
 	ExpectedCost      OptNilString              `json:"expected_cost"`
 	ExternalReference OptNilUUID                `json:"external_reference"`
 	ExternalPayload   jx.Raw                    `json:"external_payload"`
+	ExternalURL       OptNilString              `json:"external_url"`
 	Labels            []int64                   `json:"labels"`
 }
 
@@ -3260,6 +3283,11 @@ func (s *TicketPatch) GetExternalReference() OptNilUUID {
 // GetExternalPayload returns the value of ExternalPayload.
 func (s *TicketPatch) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
+}
+
+// GetExternalURL returns the value of ExternalURL.
+func (s *TicketPatch) GetExternalURL() OptNilString {
+	return s.ExternalURL
 }
 
 // GetLabels returns the value of Labels.
@@ -3337,6 +3365,11 @@ func (s *TicketPatch) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
 }
 
+// SetExternalURL sets the value of ExternalURL.
+func (s *TicketPatch) SetExternalURL(val OptNilString) {
+	s.ExternalURL = val
+}
+
 // SetLabels sets the value of Labels.
 func (s *TicketPatch) SetLabels(val []int64) {
 	s.Labels = val
@@ -3375,6 +3408,7 @@ type TicketUpdate struct {
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
 	ExternalPayload   jx.Raw                     `json:"external_payload"`
+	ExternalURL       OptNilString               `json:"external_url"`
 	Labels            []int64                    `json:"labels"`
 }
 
@@ -3446,6 +3480,11 @@ func (s *TicketUpdate) GetExternalReference() OptNilUUID {
 // GetExternalPayload returns the value of ExternalPayload.
 func (s *TicketUpdate) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
+}
+
+// GetExternalURL returns the value of ExternalURL.
+func (s *TicketUpdate) GetExternalURL() OptNilString {
+	return s.ExternalURL
 }
 
 // GetLabels returns the value of Labels.
@@ -3521,6 +3560,11 @@ func (s *TicketUpdate) SetExternalReference(val OptNilUUID) {
 // SetExternalPayload sets the value of ExternalPayload.
 func (s *TicketUpdate) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
+}
+
+// SetExternalURL sets the value of ExternalURL.
+func (s *TicketUpdate) SetExternalURL(val OptNilString) {
+	s.ExternalURL = val
 }
 
 // SetLabels sets the value of Labels.

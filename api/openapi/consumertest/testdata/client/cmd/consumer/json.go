@@ -63,7 +63,7 @@ func checkHelpdeskJSONUpdates(ctx context.Context, client *hs.Client, transport 
 }
 
 func checkGeneratedJSONWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"labels":[],"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_url":null,"labels":[],"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
 	for _, raw := range []string{"", `null`, `false`, `0`, `1.00`, `1e400`, `1e-400`, `9007199254740993.00`, `340282366920938463463374607431768211455`, `[]`, `{}`, `""`, `"{\"a\":1}"`, `{"":{"__proto__":[null,false]}}`} {
 		calls := 0
 		responseValue := raw

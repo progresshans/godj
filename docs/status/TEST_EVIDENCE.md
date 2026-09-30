@@ -3,14 +3,138 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
+
+### 독립 native 기준
+
+2026-10-01, 기반 source `8d89ec28b10cbba4787a439142354a6c6d8bb73d` 이후 URLField를 연결한다.
+`url_field_reference.py`는 고정 Django 6.1/DRF 3.18.0/Python 3.14.3과 synthetic 82개 입력만 사용한다.
+SQLite와 PostgreSQL 각각 독립된 두 프로세스의 출력이 byte-identical이었다. DB별 Form 7 profile × 82 = 574,
+serializer 4 × 82 = 328, validator 82, Changed 6, 전체 ModelForm 5와 choices 3, default 4,
+Char→URL→Char의 저장/조회 결과를 기록했다. SQLite의 forward/reverse SQL count는 4/4, PostgreSQL은 0/0이다.
+Go의 metadata-only 구현과 SQL text가 같다는 의미가 아니다. JSON `null_path`의 4 profile은 전역 transport 거부로
+비교하며 native field 진단 순서의 parity로 세지 않는다.
+
+- SQLite fixture SHA256: `5627780b808bb43fa75d1371797de7d339aa7b9fed81451d9ec42e6b6e2fb366`
+- PostgreSQL fixture SHA256: `fecc35eac769c773e7a076f9fbbf8e70562d3d6bde4dbe3e5f5cfef10fbd450c`
+- PostgreSQL 17.10 Debian/UTF8/libc/C/C의 전용 container·DB를 사용하고 `0|0` 잔여 상태·DB 제거·container 종료를 확인했다.
+- 실행은 `uv run --project conformance/reference/drf --frozen --offline --with 'psycopg[binary]==3.3.6' python conformance/runners/django/url_field_reference.py`와 명시적 PG 환경을 사용했다. 기존 lock은 변경하지 않았다.
+- 초기 direct venv 실행은 PostgreSQL driver 부재로 실패했다. SQLite 결과만으로 양 DB 성공을 선언하지 않았고 고정 overlay로 재실행했다.
+- 로컬 receipt: `godj-url-native-22j2_ilp/receipt.json`; 초기 실패: `godj-url-native-bv21pvel`.
+
+### URLField 제품과 소비자의 영향 검증
+
+Schema IR `url`·기본 200자·생성 string/nullable descriptor·typed/dynamic/관계 lookup·양 DB migration을 연결했다.
+Char↔URL의 history wire·동일 storage metadata 변경·reverse·query·unvalidated 저장·재개방과 실제 Form→typed Save의
+rollback/commit을 별도 생성 module에서 실행했다. 자동 계획은 Char→URL→Email→URL→Char와 no-op을 확인한다.
+Helpdesk의 `0022_ticket_external_url`은 기존 데이터에 NULL을 추가하며, Admin/API 생성/수정·빈 문자열/null/생략·기존 값 출력과
+현재 인가/CSRF/Category 범위·실패/rollback·재접속을 유지한다. 오래된 migration 단계는 그 시점에 존재하는 scalar column의
+직접 storage snapshot으로 비교하며, 현재 descriptor로 아직 없는 URL column을 조회하는 테스트 오류를 제거했다.
+기존 unique 실패·수정·재시도, report/label/link의 역방향 데이터 보존 검증은 계속 실행한다.
+
+최종 비Markdown source/config inventory는 **2,856 files** /
+`96de3934bd84dbeb6737c9416df6daa8a3e8af09810c409abf89b6e97df84091`이다.
+세 mode의 실행 전후와 브라우저 종료 뒤 같은 inventory를 확인했다. Go 1.26.5/darwin/arm64,
+normal/race는 CGO=1, CGO=0은 명시적 환경을 사용했다. `TZ=Pacific/Chatham`, 공유 기본 Go cache,
+GOPROXY/GOSUMDB off와 `-mod=readonly`를 유지했다. mode마다 PostgreSQL 17.10 Debian/UTF8/libc/C/C의 별도
+container/DB를 사용하고 모든 실행에서 잔여 `0|0|0`, DB 제거·container 종료를 확인했다.
+
+| 실행 group | 실제 범위 | normal/race/CGO=0 결과 | 각 mode wall seconds |
+|---|---|---|---|
+| fields | validation/schema/IR/Form/ModelForm/serializer/ORM/migration·자동 계획 등의 `URL/Email/Char/String/Blank/ModelBind` 관련 42 roots·10 실행 packages | 각각 1,343 pass, 0 skip | 7.324 / 10.280 / 7.306 |
+| api_schema | `api/openapi` 전체 42 roots | 각각 134 pass, 0 skip | 1.273 / 1.869 / 1.059 |
+| consumers | `TestGeneratedURLConsumer`, `TestGeneratedEmailConsumer`; 자식의 실제 SQLite/PostgreSQL history/storage/typed 저장 | 각각 부모 2 pass; 필수 자식 누락/skip 없음 | 4.377 / 9.957 / 3.529 |
+| helpdesk | SQLite/PostgreSQL public consumer 두 roots, 필수 145 경로 | 각각 288 pass, 0 skip | 20.333 / 148.204 / 20.434 |
+| openapi_client | `TestGeneratedOpenAPIClientContract`; 고정 ogen의 별도 module 생성/드리프트·build·HTTP·wire·부모의 최종 SQLite 조회 | 각각 1 pass, 필수 receipt 전체 확인 | 9.518 / 18.343 / 8.544 |
+
+각 group은 compile된 test 목록과 선택된 필수 roster를 먼저 정하고 실제 `-json -count=1`의 시작/종료를 검사했다.
+Go test timeout은 15m이며 정상 종료·필수 누락/skip·잘린/비JSON 출력 부재를 확인했다. generated child는 실제 race/CGO mode와
+`-trimpath`를 이어받는다. JSON NUL 4개는 transport 거부를 별도로 assert했다. Direct validator의 비교 가능한 문자열은 81개이며
+native `None`은 Go string 함수의 입력 domain 밖이다; Form/serializer의 생략/null은 별도 사례에서 실제 실행한다.
+
+OpenAPI의 정리 전 URL 입력은 raw 길이/URI format으로 차단하지 않는다. `x-godj-url`은 네 스킴·추론 없음·2048자 grammar 한도를,
+정규화 metadata는 모델의 200자 한도를 설명한다. nullable response의 `maxLength`를 문자열 anyOf branch에 두어 고정 ogen이
+문자열 길이 검증을 생성하도록 고쳤다. Helpdesk 외에 Article Session/Bearer validator가 갱신됐으며 Identity 두 문서의 동등한
+nullable 표현도 갱신됐다. 생성 코드를 수동 수정하지 않았다. Client는 200자를 넘는 padding의 서버 정리·문법 거부/기존 값 보존·
+생략/blank/null, 잘못된 기존 URL의 출력과 응답 누락/타입/길이 초과를 검사한다. Parent는 최종 URL 문자열을 DB에서 따로 확인한다.
+
+최종 실행 위치는 `godj-url-db-normal-0j4996ta`, `godj-url-db-race-82f6m6b1`, `godj-url-db-cgo0-3r32yfc9`다.
+UI 수정 전 source inventory `195f21c9114d1ce0772b8e060f90fd43fa0cb14329a1c25d7b876f77f61b35b6`에서도 세 mode를
+완료했으나 아래 브라우저 문제가 남아 최종 두 파일 변경 후 다시 통합했다. 최종 source와 달라진 파일은
+`admin/site_templates/form.html`, `examples/helpdesk/url_test.go` 두 개뿐이다.
+
+### 브라우저 제출 경계
+
+실제 Chrome 154·격리된 loopback HTTP host에서 제품 Helpdesk/Admin과 SQLite를 실행했다. 합성 editor의 정상 로그인/CSRF를 사용했다.
+수정 전 `Example.com/Browser`는 `typeMismatch=true`, `form.noValidate=false`였고 Save를 눌러도 POST하지 않아 DB는 NULL이었다.
+고정 Django 6.1의 `admin/change_form.html`과 같이 Admin 모델 입력 form에 `novalidate`를 적용했다.
+수정 후 같은 입력은 브라우저 문법 상태와 무관하게 제출되고, 실제 redirect/목록·새 GET과 직접 SQLite 조회에서
+`https://Example.com/Browser`를 확인했다. 빈 subject+`javascript://example.com` 제출은 서버의 required/invalid 두 오류를
+원래 입력과 함께 표시하고 DB 값을 보존했다. 유효한 subject와 빈 URL 재제출은 NULL로 저장했다.
+브라우저 검증 비활성화가 서버 필수/문법 검증을 제거하지 않는 것을 실제 제출로 확인했다.
+
+Before/after 서버를 각각 정상 종료하고 전용 DB directory 제거, 전용 브라우저 종료를 확인했다.
+호스트는 실제 공개 API를 조립한 임시 main이며 제품 배포 또는 다른 브라우저의 증거가 아니다.
+Receipt/host source는 `godj-url-browser-8q0honyn`, snapshot·오류 screenshot은 ignored `output/playwright/url-field`에 보존했다.
+
+### 실패 대조·fuzz·생성물과 초기 실패
+
+고정 source inventory `195f21...`에서 다섯 Go overlay를 원본 positive 실행과 쌍으로 실행했다.
+허용 스킴에 javascript 추가, Form의 스킴 보완 제거, JSON에 스킴 추론 허용, model URL 후처리 제거,
+authority NFKC delimiter 검사 제거를 각각 실제 assertion 실패로 검출했다. Compile 실패나 skip을 성공으로 세지 않았다.
+`godj-url-controls-b6d7pg_p`의 receipt와 source hash를 보존했다. 이후 UI 두 파일 외에는 byte identity를 확인했다.
+
+같은 algorithm source에서 `go test -json -run '^$' -fuzz '^FuzzURLValidator$' -fuzztime=30s -parallel=4 ./validation`은
+81/81 baseline, **2,530,954 executions**, 92 new interesting, 31.01s로 PASS했다. 영향 package vet,
+`make generate-check`와 CI 도구 unit suite도 PASS했다. 실행 위치는 `godj-url-final-checks-6h2lwsef`다.
+이후 UI template/test만 변경했고 생성기·선언·고정 client 생성물·algorithm/controls source는 같음을 비교했다.
+
+초기 통합 `godj-url-db-normal-v0zncslh`는 None initial의 잘못된 typed 표현, 생성 테스트의 존재하지 않는 Get API,
+과거 단계의 current descriptor 조회/고정 노출 목록, nullable 길이를 놓친 generated client assertion으로 실패했다.
+`godj-url-db-normal-xkfev_34`는 typed instance PK initial 누락과 상세 응답의 옛 필드 수 때문에 실패했다.
+이 실패들을 보존하고 실제 BindInstance/First·역사 storage 비교·현재 노출 목록과 공통 schema 위치를 수정한 뒤 통합했다.
+불일치를 삭제/skip하거나 문법 검증을 완화하지 않았다.
+
+로컬 전체/cold 검증은 반복하지 않았다. 새 IR kind·migration·생성·공통 OpenAPI·Admin/소비자 연결의 누적 플랫폼 통합은
+이 source를 게시한 뒤 **Hosted full**로 실행한다. 이전 BigTIFF web 성공은 이 구현의 Hosted 증거가 아니다.
+
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
+
+### BigTIFF source의 Hosted web 완료
+
+2026-10-01, source `8d89ec28b10cbba4787a439142354a6c6d8bb73d`, attempt 1의
+[Hosted web 36751035636](https://github.com/progresshans/godj/actions/runs/36751035636)을 완료했다.
+실제 checkout을 plan job `110009410720`의 로그와 결합했다. 전체 37 jobs 중 선택된 32 success,
+비대상 5 skipped이며 `command-product-matrix`, `portable-go-matrix`, `postgresql-product` 세 필수 owner와
+최종 집계 job `110022476232`가 성공했다. Summary는 `scope=web`, `full_platform_verified=false`다.
+
+| PostgreSQL core mode | 실제 producer job | artifact | archive SHA256 |
+|---|---:|---:|---|
+| normal | 110009575620 | 11115416633 | `b64c6f0dc9bfe2d8317db9e900eb9bc918f28f43b69b43a48fe9908b4806513f` |
+| race | 110009575561 | 11115918302 | `4d98b97d32b2bdb5ba058bc151c4dcb7800aae4bc4e12dede5cbbbfd7d5f92a4` |
+| CGO=0 | 110009575408 | 11114864047 | `9acab070031f3d76bab04c7e42e27c45aecad8e8fc444101f17c7222c2ea48ae` |
+
+세 producer 모두 15 packages·4,380 run/pass·0 skip, source roster의 필수 1,915와 S3 전용 23 test를 확인했다.
+새 BigTIFF Admin create/command의 12개 경로가 포함된다. Artifact producer/attempt·capture/source·module/version/build
+정보와 lifecycle receipt를 제출 당시 Git blob에 대조했다. 현재 URL 작업본이나 그 추가 roster에서 요구를 재구성하지 않았다.
+MinIO commit `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`, Linux binary SHA256
+`c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`이며 각 mode에서 ready,
+child exit 0·종료 전 server 생존·server exit 0·두 process reap·graceful cleanup을 모두 확인했다.
+로컬 source audit는 `godj-bigtiff-hosted-web-36751035636-xn9jdm2x`에 보존했다.
+
+[PR fast feedback 36751018567](https://github.com/progresshans/godj/actions/runs/36751018567)도 성공했다.
+실제 job `110009347301`의 merge checkout `9d62b16fff7715e18c50e1e47bbdc1f3fef88814`는 해당 source를 parent로 가지며,
+Git tree `fe29405426297379439f643b950c40541fa04776`이 source tree와 같다. 로그 SHA256은
+`00e5f584d58c734622ac7b5ff422352824d0b69bb461a8f2b18c46a747250da7`이다.
+Receipt는 `godj-bigtiff-feedback-36751018567-ew7gw3wz`에 보존했다.
+이 두 결과는 이후 URLField 작업본의 검증이 아니며 최근 전체 플랫폼 source는 여전히 `bcc7b76a`다.
 
 ### BigTIFF의 전체 페이지 검사와 파일 소비자
 
 2026-10-01, 기반 `e824fdd74b72cde17452bf502e5a7a4b6c4eec09` 이후 BigTIFF의 little/big endian·64-bit IFD와 값/offset을
 기존 bounded 이미지 검사에 연결했다. 비Markdown code/config inventory는 2,833 files /
 `4c51d4cd6d4c7d1caa1a2eb8349ae967e3d3cb5ad87a4e66e515d40adcedcea7`이며 normal/race와 후속 검사의 source가 같다.
-이 변경은 아래 File/Image choices의 Hosted source 이후다. 새 소스의 Hosted web을 후속 통합 범위로 둔다.
+이 변경은 아래 File/Image choices의 Hosted source 이후다. 새 소스의 Hosted web 결과는 바로 위 source별 완료 기록을 따른다.
 
 | 실행 | 범위와 결과 |
 | --- | --- |

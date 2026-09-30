@@ -24,7 +24,7 @@ import (
 
 func verifyHistoricalServiceReportLifecycle(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticketID int64) {
 	t.Helper()
-	baseline := readUniqueTicket(t, ctx, backend, ticketID)
+	baseline := readPreURLTicketStorage(t, ctx, backend, ticketID)
 	report, err := models.ServiceReportObjects.Create(ctx, backend, models.NewServiceReportCreate(ticketID, "Historical report").WithCompleted(true))
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +46,7 @@ func verifyHistoricalServiceReportLifecycle(t *testing.T, ctx context.Context, b
 	if _, found := state.Model("helpdesk", "service_report"); found {
 		t.Fatal("reverse retained report model")
 	}
-	if !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, backend, ticketID)) {
+	if !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticketID)) {
 		t.Fatal("report reversal changed parent")
 	}
 	state, err = executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
@@ -59,7 +59,7 @@ func verifyHistoricalServiceReportLifecycle(t *testing.T, ctx context.Context, b
 	if n, err := models.ServiceReportObjects.Using(backend).Count(ctx); err != nil || n != 0 {
 		t.Fatal("reapplied report table unexpected rows", n, err)
 	}
-	if !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, backend, ticketID)) {
+	if !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticketID)) {
 		t.Fatal("report reapply changed parent")
 	}
 }

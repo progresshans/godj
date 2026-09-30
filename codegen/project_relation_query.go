@@ -227,7 +227,7 @@ func supportedProjectRelationQueryTerminal(field ir.Field) bool {
 	if field.Relation != nil {
 		return false
 	}
-	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind.IsFile() || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldBoolean
+	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind.IsFile() || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldBoolean
 }
 
 func projectRelationQueryGroupName(model *projectRelationModel) string {

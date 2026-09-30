@@ -20,10 +20,12 @@ func EmailField(name string, options ...FieldOption) (Field, error) {
 	return makeField(name, FieldEmail, config)
 }
 
-func stringFieldKind(kind FieldKind) bool { return kind == FieldChar || kind == FieldEmail }
+func stringFieldKind(kind FieldKind) bool {
+	return kind == FieldChar || kind == FieldEmail || kind == FieldURL
+}
 
 func trimStringInput(kind FieldKind, value string) string {
-	if kind == FieldEmail {
+	if kind == FieldEmail || kind == FieldURL {
 		return unicode16.TrimSpace(value)
 	}
 	return strings.TrimSpace(value)

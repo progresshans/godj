@@ -63,12 +63,13 @@ func assertTicketLabelContracts(t *testing.T, document helpdeskDocument) {
 
 func verifyHistoricalTicketLabelLifecycle(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticketID, categoryID int64) {
 	t.Helper()
+	ticket := readUniqueTicket(t, ctx, backend, ticketID)
+	baseline := readPreURLTicketStorage(t, ctx, backend, ticketID)
 	executor := migrations.Executor{Backend: backend}
 	target := migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0018_label"}))
 	if _, err := executor.Migrate(ctx, loaded, target); err != nil {
 		t.Fatal(err)
 	}
-	ticket := readUniqueTicket(t, ctx, backend, ticketID)
 	label, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Historical linked label", categoryID))
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +116,7 @@ func verifyHistoricalTicketLabelLifecycle(t *testing.T, ctx context.Context, bac
 			t.Fatal(err)
 		}
 		actual, found, err := models.LabelObjects.Using(backend).Filter(models.LabelFields.ID.Exact(label.ID)).OrderBy(models.LabelFields.ID.Asc()).First(ctx)
-		if err != nil || !found || actual != label || !reflect.DeepEqual(ticket, readUniqueTicket(t, ctx, backend, ticketID)) {
+		if err != nil || !found || actual != label || !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticketID)) {
 			t.Fatal("link lifecycle changed endpoints", err)
 		}
 	}
@@ -131,6 +132,7 @@ func verifyHistoricalTicketLabelLifecycle(t *testing.T, ctx context.Context, bac
 // of its own historical migration must retain link identity and key allocation.
 func verifyTicketLabelsDeclaration(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticket models.Ticket, label models.Label, link models.TicketLabel) {
 	t.Helper()
+	baseline := readPreURLTicketStorage(t, ctx, backend, ticket.ID)
 	executor := migrations.Executor{Backend: backend}
 	before := migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0019_ticket_label"}))
 	second, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Declaration sequence check", label.CategoryID))
@@ -158,7 +160,7 @@ func verifyTicketLabelsDeclaration(t *testing.T, ctx context.Context, backend he
 			t.Fatal("historical collection differs from current declaration")
 		}
 		stored, found, err := models.TicketLabelObjects.Using(backend).Filter(models.TicketLabelFields.ID.Exact(link.ID)).OrderBy(models.TicketLabelFields.ID.Asc()).First(ctx)
-		if err != nil || !found || stored != link || !reflect.DeepEqual(ticket, readUniqueTicket(t, ctx, backend, ticket.ID)) {
+		if err != nil || !found || stored != link || !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticket.ID)) {
 			t.Fatal("declaration migration rewrote existing rows", err)
 		}
 	}

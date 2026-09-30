@@ -204,13 +204,30 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 			annotations = append(annotations, serializers.MemberOf("x-godj-email", policy.Value()))
 		}
-		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail {
+		if field.Kind() == serializers.FieldURL && field.Choices() == nil {
+			schemes, err := serializers.NewList(serializers.String("http"), serializers.String("https"), serializers.String("ftp"), serializers.String("ftps"))
+			if err != nil {
+				return Schema{}, err
+			}
+			policy, err := serializers.NewObject(
+				serializers.MemberOf("validator", serializers.String("django-6.1")),
+				serializers.MemberOf("maximumCharacters", serializers.Integer(2048)),
+				serializers.MemberOf("afterNormalization", serializers.Boolean(true)),
+				serializers.MemberOf("inferScheme", serializers.Boolean(false)),
+				serializers.MemberOf("schemes", schemes),
+			)
+			if err != nil {
+				return Schema{}, schemaConfigError("url", "URL input policy is invalid")
+			}
+			annotations = append(annotations, serializers.MemberOf("x-godj-url", policy.Value()))
+		}
+		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL {
 			if field.TrimWhitespace() {
 				normalization := []serializers.Member{
 					serializers.MemberOf("trimWhitespace", serializers.Boolean(true)),
 					serializers.MemberOf("allowEmptyAfterTrim", serializers.Boolean(field.AllowEmpty())),
 				}
-				if field.Kind() == serializers.FieldEmail {
+				if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL {
 					normalization = append(normalization, serializers.MemberOf("whitespaceProfile", serializers.String("python-unicode-16")))
 				}
 				if field.MaxLength() > 0 {
@@ -290,8 +307,20 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 		if field.ReadOnly() {
 			annotations = append(annotations, serializers.MemberOf("readOnly", serializers.Boolean(true)))
 		}
-		if (field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail) && field.MaxLength() > 0 {
-			annotations = append(annotations, serializers.MemberOf("maxLength", serializers.Integer(int64(field.MaxLength()))))
+		if (field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL) && field.MaxLength() > 0 {
+			// Keep string assertions on the string branch. Attaching maxLength
+			// beside nullable anyOf is valid JSON Schema, but loses the bound
+			// in clients that build field validators from the selected branch.
+			projected, err = schemaAnnotate(String(), serializers.MemberOf("maxLength", serializers.Integer(int64(field.MaxLength()))))
+			if err != nil {
+				return Schema{}, err
+			}
+			if field.Nullable() {
+				projected, err = Nullable(projected)
+			}
+			if err != nil {
+				return Schema{}, err
+			}
 		}
 		if len(annotations) != 0 {
 			projected, err = schemaAnnotate(projected, annotations...)
@@ -307,7 +336,7 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 func schemaFieldType(field serializers.Field) (Schema, error) {
 	var schema Schema
 	switch field.Kind() {
-	case serializers.FieldString, serializers.FieldEmail:
+	case serializers.FieldString, serializers.FieldEmail, serializers.FieldURL:
 		schema = String()
 	case serializers.FieldJSON:
 		return jsonFieldSchema(field, false)

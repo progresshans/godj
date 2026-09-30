@@ -474,3 +474,12 @@ IR 정규화·생성 descriptor·migration wire/hash/이력에 이미지 kind와
 
 고정 [Django 관찰](../../conformance/runners/django/model_image_reference.py)과 생성 소비자·Admin의 환경별 실행 결과는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다. 지원 codec·I/O 차이와 남은 storage 범위를 전체 파일 기능 완료로 합치지 않는다.
+
+## URL 모델 입력
+
+`schema.URLField("external_url", "ExternalURL", schema.Nullable(), schema.Blank())`는 기본 200자 문자열 저장과
+URL 입력 의미를 선언한다. 일반 Form의 `forms.URLField`에는 암묵적 저장 길이가 없으며 모델 projection은 IR 길이를 쓴다.
+Form은 Unicode 공백 정리 후 bare domain에 `https`를 붙이고, `forms.WithAssumeScheme("http")`로 명시적으로 바꿀 수 있다.
+전체 ModelForm의 후보 검증은 choices나 대체 문자열 field를 거쳐도 URL 문법을 적용한다.
+JSON serializer는 스킴을 보완하지 않는다. 일반 ORM 저장·초기 표시·응답은 문자열을 고치거나 URL 문법을 다시 검증하지 않는다.
+[입력/저장 경계와 출처](../../docs/adr/0083-url-fields-and-input-normalization.md)를 따른다.

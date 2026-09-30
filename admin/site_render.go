@@ -385,7 +385,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 		item, err := templateObject(map[string]templates.Value{
 			"name":          templates.String(prefix + field.Name()),
 			"label":         templates.String(field.Label()),
-			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
+			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldURL || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":      templates.Bool(field.Widget() == forms.PasswordInput),
 			"file":          templates.Bool(field.AcceptsUpload()),
 			"image":         templates.Bool(field.Kind() == forms.FieldImage),
@@ -397,6 +397,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			"file_reselect": templates.Bool(reselect),
 			"hidden":        templates.Bool(field.Widget() == forms.HiddenInput),
 			"email":         templates.Bool(field.Widget() == forms.EmailInput),
+			"url":           templates.Bool(field.Widget() == forms.URLInput),
 			"textarea":      templates.Bool(field.Widget() == forms.Textarea),
 			"integer":       templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
 			"select":        templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),

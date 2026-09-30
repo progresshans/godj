@@ -195,7 +195,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			if !present {
 				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
 			}
-		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind.IsFile() || field.Kind == ir.FieldText) {
+		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind.IsFile() || field.Kind == ir.FieldText) {
 			value = forms.String("")
 		}
 		if field.Kind.IsFile() {
@@ -413,8 +413,8 @@ func inputKindMatches(model ir.FieldKind, input forms.FieldKind) bool {
 		return input == forms.FieldFile
 	case ir.FieldImage:
 		return input == forms.FieldImage
-	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
-		return input == forms.FieldChar || input == forms.FieldEmail
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldText:
+		return input == forms.FieldChar || input == forms.FieldEmail || input == forms.FieldURL
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 		return input == forms.FieldInteger
 	case ir.FieldBoolean:
@@ -447,7 +447,7 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 		return true
 	}
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		text, ok := value.AsString()
 		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) && (field.MaxLength == 0 || utf8.RuneCountInString(text) <= field.MaxLength)
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
@@ -544,12 +544,15 @@ func modelFieldErrors(field ir.Field, value forms.Value) validation.Errors {
 	}
 	var failures []validation.Violation
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldImage, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldFile, ir.FieldImage, ir.FieldText:
 		text, ok := value.AsString()
 		if !ok {
 			return reject("invalid")
 		}
 		if field.Kind == ir.FieldEmail && !validation.ValidEmail(text) {
+			failures = append(failures, validation.New(name, "invalid"))
+		}
+		if field.Kind == ir.FieldURL && !validation.ValidURL(text) {
 			failures = append(failures, validation.New(name, "invalid"))
 		}
 		if length := utf8.RuneCountInString(text); field.MaxLength > 0 && length > field.MaxLength {

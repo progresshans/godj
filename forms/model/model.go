@@ -261,7 +261,7 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 	if override.hasImageLimits && field.Kind != ir.FieldImage {
 		return forms.Field{}, &Error{Code: "unsupported_image_override"}
 	}
-	if (override.hasStringNormalizer || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
+	if (override.hasStringNormalizer || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldText {
 		return forms.Field{}, &Error{Code: "unsupported_string_override"}
 	}
 	if err := ir.ValidateChoices(field); err != nil {
@@ -526,9 +526,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
 		}
 		return forms.IntegerField(field.Name, options...)
-	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldText:
 		if field.PrimaryKey || field.Relation != nil ||
-			(field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail) && field.MaxLength <= 0 ||
+			(field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL) && field.MaxLength <= 0 ||
 			field.Kind == ir.FieldText && field.MaxLength != 0 {
 			return forms.Field{}, &Error{Code: "invalid_char_metadata"}
 		}
@@ -559,6 +559,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		}
 		if field.Kind == ir.FieldEmail && field.Choices == nil {
 			return forms.EmailField(field.Name, options...)
+		}
+		if field.Kind == ir.FieldURL && field.Choices == nil {
+			return forms.URLField(field.Name, options...)
 		}
 		return forms.CharField(field.Name, options...)
 	case ir.FieldBoolean:

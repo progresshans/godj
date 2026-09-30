@@ -75,3 +75,15 @@ Palette는 TIFF의 16-bit ColorMap을 그대로 비교한다. 고정 x/image의 
 과거 코드는 [기준 Git 트리](https://github.com/progresshans/godj/tree/da1bfc524c4f205075fc7fac7f00b437473a5e1f/conformance)에 있다.
 검증 위험의 현재 소유자는 활성 work에 기록한다. 경쟁 commit 뒤 durable prefix와 recorder 변조 rollback은 실제 SQLite 회귀로 이관했다.
 고유한 결정 이유는 현행 아키텍처/동시성 문서와 관련 ADR에 남긴다.
+
+URLField observer는 고정 DRF 환경에서 synthetic 입력과 native model/form/serializer/validator를 실행한다.
+PostgreSQL 관찰은 별도로 선택한 DB와 고정 psycopg 3.3.6을 사용한다. 재현 명령은 다음과 같다.
+
+```sh
+uv run --project conformance/reference/drf --frozen --offline --with 'psycopg[binary]==3.3.6' python conformance/runners/django/url_field_reference.py
+```
+
+기본 DB는 임시 SQLite다. 별도로 준비한 `godj_url_reference_<digits>` DB 이름을 `GODJ_URL_REFERENCE_DATABASE`로
+선택하고 PostgreSQL 접속은 환경의 PG 변수를 사용한다. JSON 관측은 표준 출력으로 반환한다.
+Form 스킴 보완·전체 ModelForm/choices·Char→URL→Char의
+데이터 결과를 별도로 기록하며 Go runtime 검증과 혼동하지 않는다.

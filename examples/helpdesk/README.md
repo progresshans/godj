@@ -81,7 +81,7 @@ CategorySummary는 직접 출력하는 id/name 구조를 기술한다.
 400 validation_error다. 인증·ViewTicket 권한을 먼저 확인하며 잘못된 query로 제품 데이터를 조회하지 않는다.
 Admin의 기본 검색도 subject와 전체 external_payload를 함께 검색한다. 모든 경로에서 배정한 Category 범위를 유지한다.
 목록 응답은 전체 65536개 값 예산을 사용하며 1 MiB·깊이 16·container 한도는 유지한다. 개별 입력의 예산을 목록 전체에 적용하지 않는다.
-`POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload를 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
+`POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload/external_url/labels를 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
 subject는 필수이며 생략한 closed는 false, 생략하거나 null로 지정한 details는 null이다. 빈 details 문자열은 null과 구별한다.
 priority 입력은 1(Urgent), 0(Normal), -1(Low)과 null이다. 생략/null은 null이며 0은 실제 값이다. Form/Admin은 같은 모델에서 Select와 표시명을 만든다.
 ORM 저장·조회는 signed int64 범위를 유지하고 과거 목록 밖 값도 API 응답·Admin 편집 화면에 보존한다.
@@ -289,3 +289,13 @@ View/Add/Change/Delete는 별도 권한이다. 조회 전용 행의 위조 입�
 보고서를 읽을 수 없다. 저장 당시의 부모/자식 scope가 달라진 경우 다시 검증한다. 현재 인증 모델은 요청에서 받아들인
 immutable principal과 deny overlay를 유지하며 계정의 권한 변경은 후속 세션에 적용된다. Request 중간의 별도 계정 재인증이나
 revision 없는 모델의 일반적 동시 편집 충돌 감지를 이 예제에서 보장한다고 주장하지 않는다.
+
+## 외부 참조 URL
+
+Ticket의 `external_url`은 nullable/blank `URLField`이며 기본 저장 길이는 200자다. `0022_ticket_external_url`은
+기존 행을 NULL로 유지하고 역사 migration을 보존한다. Admin은 URL 입력을 렌더링하고 `example.com/path`나
+`//example.com/path`를 `https://example.com/path`로 정리한다. Admin 입력 Form은 `novalidate`로 브라우저의 선행 문법 차단을 끄고
+서버의 required·정규화·문법 검증을 따른다. 빈 Admin 입력은 NULL로 저장한다.
+JSON 생성/수정은 공백을 정리하지만 스킴이 없는 주소를 거부한다. `""`·`null`·생략은 각각 빈 문자열·NULL·기존 값 보존이다.
+일반 ORM이 저장한 문법상 잘못된 문자열도 조회/출력하며 이를 활성 HTML 링크로 바꾸지 않는다.
+기존 Category 범위·현재 쓰기 권한·CSRF·transaction과 rollback 규칙을 동일하게 적용한다.

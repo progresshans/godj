@@ -77,6 +77,13 @@ func (a *Application) apiUpdateMode(request *web.Request, principal auth.Princip
 				identifier, _ := value.AsUUID()
 				patch = patch.WithExternalReference(identifier)
 			}
+		case "external_url":
+			if value.IsNull() {
+				patch = patch.WithExternalURLNull()
+			} else {
+				text, _ := value.AsString()
+				patch = patch.WithExternalURL(text)
+			}
 		case "external_payload":
 			if value.IsNull() {
 				patch = patch.WithExternalPayloadNull()

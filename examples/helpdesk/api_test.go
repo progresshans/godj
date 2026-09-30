@@ -54,7 +54,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "labels"}) || len(ticket.Properties) != 17 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "labels"}) || len(ticket.Properties) != 18 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if labels := ticket.Properties["labels"]; labels.Type != "array" || labels.Items == nil || labels.Items.Type != "integer" || labels.Items.Format != "int64" || !labels.ReadOnly || labels.allowsType("null") {
@@ -66,6 +66,16 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	input := decoded.Components.Schemas["TicketCreate"]
 	update := decoded.Components.Schemas["TicketUpdate"]
 	patch := decoded.Components.Schemas["TicketPatch"]
+	urlOutput := ticket.Properties["external_url"]
+	if len(urlOutput.AnyOf) != 2 || urlOutput.AnyOf[0].Type != "string" || urlOutput.AnyOf[0].MaxLength != 200 || urlOutput.AnyOf[0].Format != "" || !urlOutput.allowsType("null") {
+		t.Fatal("URL output must retain string/null and stored bound without grammar")
+	}
+	for _, request := range []helpdeskDocumentSchema{input, update, patch} {
+		field := request.Properties["external_url"]
+		if !field.allowsType("null") || len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].MaxLength != 0 || field.AnyOf[0].Format != "" || !bytes.Contains(field.Normalization, []byte(`"maxLengthAfterTrim":200`)) {
+			t.Fatal("URL request lost its nullable normalized input policy")
+		}
+	}
 	for _, field := range []helpdeskDocumentSchema{ticket.Properties["external_reference"], input.Properties["external_reference"], update.Properties["external_reference"], patch.Properties["external_reference"]} {
 		if len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].Format != "uuid" || field.AnyOf[0].MinLength != 36 || field.AnyOf[0].MaxLength != 36 || !field.allowsType("null") {
 			t.Fatal("UUID OpenAPI canonical string/nullable contract changed")
@@ -91,13 +101,13 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 			t.Fatal("nullable Boolean schema invented false or lost null")
 		}
 	}
-	if !slices.Equal(update.Required, []string{"subject"}) || string(update.Properties["closed"].Default) != "false" || len(patch.Required) != 0 || len(patch.Properties["closed"].Default) != 0 || len(patch.Properties) != 15 {
+	if !slices.Equal(update.Required, []string{"subject"}) || string(update.Properties["closed"].Default) != "false" || len(patch.Required) != 0 || len(patch.Properties["closed"].Default) != 0 || len(patch.Properties) != 16 {
 		t.Fatal("PUT/PATCH lost required/default/omission policy")
 	}
 	if len(input.Properties["priority"].AnyOf) != 2 || string(input.Properties["priority"].AnyOf[0].Enum) != "[1,0,-1]" || len(ticket.Properties["priority"].Enum) != 0 || len(ticket.Properties["priority"].AnyOf[0].Enum) != 0 {
 		t.Fatal("choices input and existing-row output domains were conflated")
 	}
-	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 15 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
+	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 16 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
 	if !input.Properties["resolution"].allowsType("null") || !ticket.Properties["resolution"].allowsType("null") || ticket.Properties["resolution"].MaxLength != 0 || input.Properties["resolution"].MaxLength != 0 {

@@ -132,13 +132,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "labels", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "labels", ReadOnly: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "labels"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "labels"}
 	overrides := []formmodel.Override{formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		if value.IsNull() {
 			return validation.NewErrors()
@@ -210,7 +210,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url")
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (a *Application) register(builder *admin.Builder) error {
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
 		FormOverrides:  overrides,
 		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
-		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
+		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
 			return a.list(ctx, request)
@@ -320,6 +320,7 @@ type ticketInput struct {
 	expectedCost      *decimal.Decimal
 	externalReference *uuid.UUID
 	externalPayload   *jsonvalue.Value
+	externalURL       *string
 }
 
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
@@ -375,6 +376,11 @@ func (a *Application) create(ctx context.Context, principal auth.Principal, inpu
 			create = create.WithExternalReferenceNull()
 		} else {
 			create = create.WithExternalReference(*input.externalReference)
+		}
+		if input.externalURL == nil {
+			create = create.WithExternalURLNull()
+		} else {
+			create = create.WithExternalURL(*input.externalURL)
 		}
 		if input.externalPayload == nil {
 			create = create.WithExternalPayloadNull()
@@ -667,6 +673,10 @@ func (a *Application) apiCreate(request *web.Request, principal auth.Principal) 
 	if reference, present := values.Get("external_reference"); present && !reference.IsNull() {
 		identifier, _ := reference.AsUUID()
 		input.externalReference = &identifier
+	}
+	if address, present := values.Get("external_url"); present && !address.IsNull() {
+		text, _ := address.AsString()
+		input.externalURL = &text
 	}
 	if payload, present := values.Get("external_payload"); present && !payload.IsNull() {
 		document, _ := payload.AsJSON()

@@ -92,6 +92,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0080](0080-model-blank-policy-and-form-post-clean.md) | Accepted design | Blank·Form 후처리·typed 준비와 저장 소유권 |
 | [0081](0081-formset-counts-and-row-ownership.md) | Accepted design | Formset의 bounded 행 수·initial·선택과 저장 권한 경계 |
 | [0082](0082-file-storage-publication-and-reference.md) | Accepted | 저장 이름과 요청 capability를 분리하고 파일 게시/불확실한 결과를 DB commit과 구분 |
+| [0083](0083-url-fields-and-input-normalization.md) | Accepted design | URLField의 입력 정규화와 저장 경계 |
 
 ## 대체된 결정
 

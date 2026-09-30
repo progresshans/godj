@@ -228,6 +228,13 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
 					t.Error("generated client changed an integer value, null, or default during persistence")
 				}
+				if stored.Subject == "Consumer ticket" {
+					if stored.ExternalURL == nil || *stored.ExternalURL != "HTTPS://例え.テスト/Path?x=%zz" {
+						t.Fatal("independent URL client final DB value differs")
+					}
+				} else if stored.ExternalURL != nil {
+					t.Fatal("omitted URL client input did not remain NULL")
+				}
 				payload, known := wantJSON[stored.Subject]
 				if !known || (payload == "") != (stored.ExternalPayload == nil) || stored.ExternalPayload != nil && stored.ExternalPayload.Text != payload {
 					t.Fatal("independent client JSON final DB differs")

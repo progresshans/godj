@@ -54,7 +54,7 @@ func assertLabelContracts(t *testing.T, document helpdeskDocument) {
 
 func verifyHistoricalLabelLifecycle(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticketID, categoryID int64) {
 	t.Helper()
-	baseline := readUniqueTicket(t, ctx, backend, ticketID)
+	baseline := readPreURLTicketStorage(t, ctx, backend, ticketID)
 	created, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Historical label", categoryID))
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func verifyHistoricalLabelLifecycle(t *testing.T, ctx context.Context, backend h
 	if _, found := state.Model("helpdesk", "label"); found {
 		t.Fatal("reverse retained Label model")
 	}
-	if !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, backend, ticketID)) {
+	if !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticketID)) {
 		t.Fatal("Label reversal changed existing ticket")
 	}
 	state, err = executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
@@ -116,7 +116,7 @@ func verifyHistoricalLabelLifecycle(t *testing.T, ctx context.Context, backend h
 	if count, err := models.LabelObjects.Using(backend).Count(ctx); err != nil || count != 0 {
 		t.Fatal("reapplied Label rows", count, err)
 	}
-	if !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, backend, ticketID)) {
+	if !reflect.DeepEqual(baseline, readPreURLTicketStorage(t, ctx, backend, ticketID)) {
 		t.Fatal("Label reapply changed existing ticket")
 	}
 }

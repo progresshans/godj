@@ -34,6 +34,7 @@ const (
 	FieldJSON
 	FieldIntegerList
 	FieldEmail
+	FieldURL
 )
 
 const (
@@ -190,13 +191,13 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		}
 	}
 	switch kind {
-	case FieldString, FieldEmail:
+	case FieldString, FieldEmail, FieldURL:
 		if config.maxLength < 0 {
 			return Field{}, invalidConfig("fields."+name+".max_length", "maximum length cannot be negative")
 		}
 		if config.hasDefault && config.defaultValue.kind == ValueString {
 			cleaned := config.defaultValue.string
-			if config.trimWhitespace && kind != FieldEmail {
+			if config.trimWhitespace && kind != FieldEmail && kind != FieldURL {
 				cleaned = strings.TrimSpace(cleaned)
 			}
 			if cleaned == "" && !config.allowEmpty {
@@ -239,7 +240,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 		_, ok := value.AsIntegers()
 		return ok
 	}
-	return (kind == FieldString || kind == FieldEmail) && value.kind == ValueString ||
+	return (kind == FieldString || kind == FieldEmail || kind == FieldURL) && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
 		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal || kind == FieldUUID && value.kind == ValueUUID || kind == FieldJSON && value.kind == ValueJSON
 }
@@ -513,6 +514,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 	}
 	if field.kind == FieldEmail {
 		return cleanEmailValue(field, value)
+	}
+	if field.kind == FieldURL {
+		return cleanURLValue(field, value)
 	}
 	if field.kind != FieldString {
 		return value, validation.NewErrors()

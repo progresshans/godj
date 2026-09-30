@@ -155,6 +155,12 @@ func EmailField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldEmail, 254, options)
 }
 
+// URLField stores a bounded string with URL input semantics. Its default
+// maximum is 200 characters; ordinary ORM writes preserve the supplied text.
+func URLField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldURL, 200, options)
+}
+
 // FileField stores a storage-relative name, never an upload or an open file.
 // The default limit is 100 Unicode characters. Storage selection and naming
 // are explicit runtime operations; model writes never perform hidden file I/O.

@@ -13,7 +13,7 @@ import (
 )
 
 func checkGeneratedCollectionWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload":null,"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"service_on":null,"service_at":null,"reviewed":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_url":null,"external_payload":null,"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"service_on":null,"service_at":null,"reviewed":null`
 	const large = int64(1152921504606846977)
 	for _, test := range []struct {
 		keys []int64

@@ -5173,6 +5173,10 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("external_url")
+		s.ExternalURL.Encode(e)
+	}
+	{
 		e.FieldStart("labels")
 		e.ArrStart()
 		for _, elem := range s.Labels {
@@ -5182,7 +5186,7 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicket = [17]string{
+var jsonFieldsNameOfTicket = [18]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -5199,7 +5203,8 @@ var jsonFieldsNameOfTicket = [17]string{
 	13: "expected_cost",
 	14: "external_reference",
 	15: "external_payload",
-	16: "labels",
+	16: "external_url",
+	17: "labels",
 }
 
 // Decode decodes Ticket from json.
@@ -5381,8 +5386,18 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_payload\"")
 			}
-		case "labels":
+		case "external_url":
 			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				if err := s.ExternalURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_url\"")
+			}
+		case "labels":
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				s.Labels = make([]int64, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5413,7 +5428,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5551,6 +5566,12 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ExternalURL.Set {
+			e.FieldStart("external_url")
+			s.ExternalURL.Encode(e)
+		}
+	}
+	{
 		if s.Labels != nil {
 			e.FieldStart("labels")
 			e.ArrStart()
@@ -5562,7 +5583,7 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketCreate = [15]string{
+var jsonFieldsNameOfTicketCreate = [16]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -5577,7 +5598,8 @@ var jsonFieldsNameOfTicketCreate = [15]string{
 	11: "expected_cost",
 	12: "external_reference",
 	13: "external_payload",
-	14: "labels",
+	14: "external_url",
+	15: "labels",
 }
 
 // Decode decodes TicketCreate from json.
@@ -5732,6 +5754,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_payload\"")
+			}
+		case "external_url":
+			if err := func() error {
+				s.ExternalURL.Reset()
+				if err := s.ExternalURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_url\"")
 			}
 		case "labels":
 			if err := func() error {
@@ -6637,6 +6669,12 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ExternalURL.Set {
+			e.FieldStart("external_url")
+			s.ExternalURL.Encode(e)
+		}
+	}
+	{
 		if s.Labels != nil {
 			e.FieldStart("labels")
 			e.ArrStart()
@@ -6648,7 +6686,7 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketPatch = [15]string{
+var jsonFieldsNameOfTicketPatch = [16]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -6663,7 +6701,8 @@ var jsonFieldsNameOfTicketPatch = [15]string{
 	11: "expected_cost",
 	12: "external_reference",
 	13: "external_payload",
-	14: "labels",
+	14: "external_url",
+	15: "labels",
 }
 
 // Decode decodes TicketPatch from json.
@@ -6814,6 +6853,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_payload\"")
+			}
+		case "external_url":
+			if err := func() error {
+				s.ExternalURL.Reset()
+				if err := s.ExternalURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_url\"")
 			}
 		case "labels":
 			if err := func() error {
@@ -6982,6 +7031,12 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ExternalURL.Set {
+			e.FieldStart("external_url")
+			s.ExternalURL.Encode(e)
+		}
+	}
+	{
 		if s.Labels != nil {
 			e.FieldStart("labels")
 			e.ArrStart()
@@ -6993,7 +7048,7 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [15]string{
+var jsonFieldsNameOfTicketUpdate = [16]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -7008,7 +7063,8 @@ var jsonFieldsNameOfTicketUpdate = [15]string{
 	11: "expected_cost",
 	12: "external_reference",
 	13: "external_payload",
-	14: "labels",
+	14: "external_url",
+	15: "labels",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -7163,6 +7219,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_payload\"")
+			}
+		case "external_url":
+			if err := func() error {
+				s.ExternalURL.Reset()
+				if err := s.ExternalURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_url\"")
 			}
 		case "labels":
 			if err := func() error {

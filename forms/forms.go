@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/internal/booleaninput"
 	"github.com/progresshans/godj/internal/emailinput"
 	"github.com/progresshans/godj/internal/jsoninput"
+	"github.com/progresshans/godj/internal/urlinput"
 	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/validation"
 )
@@ -123,6 +124,7 @@ const (
 	FieldJSON
 	FieldIntegerList
 	FieldEmail
+	FieldURL
 	FieldFile
 	FieldImage
 )
@@ -144,6 +146,7 @@ const (
 	SelectMultiple
 	PasswordInput
 	EmailInput
+	URLInput
 	HiddenInput
 	FileInput
 	ClearableFileInput
@@ -238,6 +241,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
+	assumeScheme        string
+	hasAssumeScheme     bool
 	inspectImageChoice  ImageChoiceInspector
 	hasImageInspector   bool
 	imageLimits         uploads.ImageLimits
@@ -267,6 +272,7 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
+	assumeScheme       string
 	inspectImageChoice ImageChoiceInspector
 	imageLimits        uploads.ImageLimits
 	allowEmptyFile     bool
@@ -342,6 +348,9 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasAssumeScheme && kind != FieldURL {
+		return Field{}, &ConfigError{Path: "fields." + name + ".assume_scheme", Code: "unsupported"}
+	}
 	if config.hasImageInspector && (kind != FieldImage || config.choices == nil || config.inspectImageChoice == nil) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".image_choice_inspector", Code: "unsupported"}
 	}
@@ -388,7 +397,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(fileFieldKind(kind) && (config.widget == FileInput || config.widget == ClearableFileInput) || kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput) ||
+	if !(fileFieldKind(kind) && (config.widget == FileInput || config.widget == ClearableFileInput) || kind == FieldIntegerList && config.modelChoice && config.widget == SelectMultiple || kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || stringFieldKind(kind) && (config.widget == TextInput || config.widget == Textarea || config.widget == PasswordInput || config.widget == EmailInput || config.widget == URLInput) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && (config.widget == TextInput || config.widget == HiddenInput) || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -526,7 +535,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
-	case FieldChar, FieldEmail:
+	case FieldChar, FieldEmail, FieldURL:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
 		}
@@ -552,6 +561,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
+		assumeScheme:       config.assumeScheme,
 		inspectImageChoice: config.inspectImageChoice,
 		allowEmptyFile:     config.allowEmptyFile,
 		imageLimits:        config.imageLimits,
@@ -1091,7 +1101,7 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			if value.IsNull() && field.required {
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
 			}
-		case FieldChar, FieldEmail:
+		case FieldChar, FieldEmail, FieldURL:
 			raw := ""
 			if present && len(submitted) == 1 {
 				raw = submitted[0]
@@ -1101,6 +1111,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			}
 			if field.normalizeString != nil {
 				raw = field.normalizeString(raw)
+			}
+			if field.kind == FieldURL {
+				raw = urlinput.Normalize(raw, field.assumeScheme)
 			}
 			if raw == "" {
 				switch {
@@ -1114,6 +1127,10 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			}
 			if field.kind == FieldEmail {
 				failures = append(failures, emailinput.FormErrors(field.name, raw, field.maxLength))
+				break
+			}
+			if field.kind == FieldURL {
+				failures = append(failures, urlinput.FormErrors(field.name, raw, field.maxLength))
 				break
 			}
 			if raw != "" && !utf8.ValidString(raw) {
@@ -1263,7 +1280,7 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		}
 		value, code := cleanInteger(raw)
 		return code != "" || !value.Equal(initial)
-	case FieldChar, FieldEmail:
+	case FieldChar, FieldEmail, FieldURL:
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
@@ -1273,6 +1290,9 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		}
 		if field.normalizeString != nil {
 			raw = field.normalizeString(raw)
+		}
+		if field.kind == FieldURL {
+			raw = urlinput.Normalize(raw, field.assumeScheme)
 		}
 		value := String(raw)
 		if raw == "" {

@@ -296,11 +296,11 @@ func TestModelResponseSchemaUsesCompleteExposureWithoutInputPolicies(t *testing.
 			}
 		}
 	}
-	if schemaTestInteger(t, schemaTestProperty(t, response, "title"), "maxLength") != 2 ||
-		schemaTestInteger(t, schemaTestProperty(t, response, "note"), "maxLength") != 20 {
+	noteBranches := schemaTestList(t, schemaTestProperty(t, response, "note"), "anyOf")
+	if len(noteBranches) != 2 || schemaTestInteger(t, schemaTestProperty(t, response, "title"), "maxLength") != 2 ||
+		schemaTestInteger(t, schemaTestValueObject(t, noteBranches[0]), "maxLength") != 20 {
 		t.Fatal("response string bounds do not match the encoder's character limits")
 	}
-	noteBranches := schemaTestList(t, schemaTestProperty(t, response, "note"), "anyOf")
 	if len(noteBranches) != 2 || schemaTestString(t, schemaTestValueObject(t, noteBranches[0]), "type") != "string" ||
 		schemaTestString(t, schemaTestValueObject(t, noteBranches[1]), "type") != "null" {
 		t.Fatal("nullable response length bound lost its string/null alternatives")
