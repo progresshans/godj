@@ -92,6 +92,6 @@ stale session을 정리하지 않는다. 본문을 파싱한 뒤에도 CSRF와 �
 파일은 동기 callback 안에서만 읽을 수 있다. 입력 한도/형식 오류와 취소·읽기/임시 저장/정리 오류를 구분한다.
 
 현재 구현은 입력·순수 바인딩·수명과 Admin 전송이다. [storage.SaveUpload](../storage/README.md)는 명시적으로 선택한 로컬
-저장소로 내용을 옮기며 요청 종료 뒤에도 유지한다. Schema IR의 모델 FileField와
-DB/파일 저장 결과의 조정은 후속 구현 범위다. 임의 auto-save·image 검증·공개 파일 serving을 제공한다고 주장하지 않는다.
+저장소로 내용을 옮기며 요청 종료 뒤에도 유지한다. [모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는
+Schema IR·생성 모델·ORM/Form의 저장 이름과 명시적인 SaveFiles를 연결하며 파일 게시와 DB commit 결과를 구분한다. 임의 auto-save·image 검증·공개 파일 serving을 제공한다고 주장하지 않는다.
 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 실제 HTTP 소비자는 [Web 검사](../web/multipart_test.go)와 [Admin 검사](../admin/site_uploads_test.go)에 있다.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,10 +93,40 @@ func runStrictGeneratedCommand(t *testing.T, command *exec.Cmd) []byte {
 	command.Stdout, command.Stderr = &stdout, &stderr
 	command.WaitDelay = 5 * time.Second
 	if err := command.Run(); err != nil {
-		t.Fatalf("generated consumer: %v: %s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env))
+		t.Fatalf("generated consumer: %v: %s", err, generatedFailureSummary(stdout.Bytes(), stderr.Bytes(), command.Env))
 	}
 	if stdout.Len() != len(stdout.Bytes()) || stderr.Len() != len(stderr.Bytes()) || stderr.Len() != 0 {
 		t.Fatalf("generated consumer output was incomplete: stdout %d/%d bytes, stderr %d/%d bytes", len(stdout.Bytes()), stdout.Len(), len(stderr.Bytes()), stderr.Len())
 	}
 	return stdout.Bytes()
+}
+
+// Go's JSON event envelope must not hide compiler/runtime diagnostics behind
+// quote redaction. Decode only for the failure summary; the strict event and
+// truncation checks still consume the untouched captured bytes.
+func generatedFailureSummary(stdout, stderr []byte, environment []string) string {
+	decoder := json.NewDecoder(bytes.NewReader(stdout))
+	var output bytes.Buffer
+	for {
+		var event struct{ Output string }
+		if err := decoder.Decode(&event); err != nil {
+			break
+		}
+		output.WriteString(event.Output)
+	}
+	if output.Len() > 0 {
+		stdout = output.Bytes()
+	}
+	return gobuild.Summary(stdout, stderr, environment)
+}
+
+func TestGeneratedFailureSummaryDecodesJSONOutput(t *testing.T) {
+	output := []byte("{\"Action\":\"build-output\",\"Output\":\"consumer_test.go:15: undefined: models.DocumentObjects\\n\"}\n")
+	summary := generatedFailureSummary(output, nil, nil)
+	if !strings.Contains(summary, "undefined: models.DocumentObjects") {
+		t.Fatal("compiler diagnostic hidden by event-envelope redaction", summary)
+	}
+	if got := generatedFailureSummary([]byte("consumer.go:9: undefined: missing\n"), nil, nil); !strings.Contains(got, "undefined: missing") {
+		t.Fatal("non-JSON failure diagnostic lost", got)
+	}
 }

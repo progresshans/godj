@@ -328,6 +328,13 @@ func setFormInitial[M any](manager orm.Manager[M], model ir.Model, spec forms.Sp
 		values := make(map[string]forms.Value)
 		for _, field := range spec.Fields() {
 			if value, present := snapshot.values[field.Name()]; present {
+				if field.Kind() == forms.FieldFile {
+					var err error
+					value, err = fileInitialValue(value)
+					if err != nil {
+						return nil, err
+					}
+				}
 				values[field.Name()] = value
 				continue
 			}

@@ -346,7 +346,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 		value, checked := renderedFieldValue(field, form, submitted)
 		fileName, fileInitial, clearChecked, reselect := "", false, false, false
 		if field.Kind() == forms.FieldFile {
-			if initial, present := form.Initial().File(field.Name()); present && !initial.Clear() {
+			if initial, present := form.Initial().File(field.Name()); present && initial.Name() != "" && !initial.Clear() {
 				fileName, fileInitial = safeDisplayText(initial.Name()), true
 			}
 			if form.Bound() && !form.ReadOnly() {

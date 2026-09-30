@@ -219,6 +219,9 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		if err := ir.ValidateChoices(field); err != nil {
 			return Spec{}, invalidConfig("model."+selection.Name, "invalid model choices")
 		}
+		if field.Kind == ir.FieldFile && !selection.ReadOnly {
+			return Spec{}, invalidConfig("model."+selection.Name, "file references require read-only JSON projection; uploads use explicit file input")
+		}
 		options := []FieldOption{}
 		if field.Choices != nil {
 			choices := make([]Choice, len(field.Choices))
@@ -306,7 +309,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		var projected Field
 		var err error
 		switch field.Kind {
-		case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			if field.Kind == ir.FieldEmail && field.Choices == nil {
 				projected, err = EmailField(field.Name, options...)

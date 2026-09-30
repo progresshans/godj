@@ -421,7 +421,7 @@ func validateExactPostgresMigrationModel(model ir.Model) error {
 		if err := validateIdentifier(field.Column); err != nil {
 			return postgresMigrationIntentIntegrity(fmt.Sprintf("field %q column is invalid for PostgreSQL", field.Name), err)
 		}
-		if (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail) && field.MaxLength > postgresMigrationMaxVarcharChars {
+		if (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldFile) && field.MaxLength > postgresMigrationMaxVarcharChars {
 			return postgresMigrationCapability(
 				fmt.Sprintf(
 					"field %q max_length %d exceeds the PostgreSQL VARCHAR limit %d",

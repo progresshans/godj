@@ -139,3 +139,9 @@ Credential/session 관찰은 고정 Django 6.1(BSD-3-Clause)의 `django.contrib.
 [독립 runner](../conformance/runners/django/credential_session_reference.py)는 공개 API로 새로 작성했으며 GoDj나 예상 fixture를 읽지 않는다.
 양 DB fixture의 `source_sha256`에 실행한 네 auth module의 바이트 해시를 보존한다.
 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)과 [DEV-0013](DEVIATIONS.md#dev-0013--credential-session의-go-표현과-invalid-identity-정리)이 비교 범위를 소유한다.
+
+
+모델 FileField의 기본 이름 길이·폼 생략/clear·파일 저장과 DB rollback 의미는 고정 Django 6.1의
+`django/db/models/fields/files.py`(BSD-3-Clause)를 독립 실행한다.
+[관찰 runner](../conformance/runners/django/model_file_reference.py),
+[고정 관찰](../forms/model/testdata/model-file-django61.json), [GoDj의 경계](adr/0082-file-storage-publication-and-reference.md)를 따른다.

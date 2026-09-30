@@ -1,43 +1,37 @@
 # 현재 상태
 
-- 갱신: 2026-09-29
+- 갱신: 2026-09-30
 - 현재 작업: [GDJ-0103 Formset과 범위가 정해진 여러 행 편집](../../work/0103-formsets-and-scoped-batch-editing.md)
-- 최근 완료한 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`; Admin 합성 저장까지 62 jobs·8 owners·최종 집계와 새 capture의 Git source 결합 완료
+- 최근 완료한 전체 검증: [Hosted full 36526909898](https://github.com/progresshans/godj/actions/runs/36526909898), source `6d3fe97f3e6cbb2103c72122c2dd25cceed97d9f`; Admin 합성 저장까지 최종 집계·새 capture와 Git source 결합 완료
 - Source·환경·scope·실행/수정 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
 Formset·모델 여러 행 unique·canonical InlineSpec·조회 전용 기존 행을 기반으로 [Admin inline](../../admin/inlines.md)의
-권한별 HTML 표시와 부모·자식 합성 저장 callback을 연결했다. 기존 행의 일반 입력과 PK/DELETE·추가 행을 구분하고,
-서버 부모/cohort·binding owner·optional child revision과 오류 재표시를 유지한다.
+권한별 HTML과 부모·자식 합성 저장을 연결했다. [Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은
+부모/cohort·권한·revision을 다시 확인하고 scalar/collection·삭제·audit를 같은 transaction에서 저장한다. 서버가 만든
+prototype과 동적 미저장 행 추가/제거도 입력값·오류 위치·기존 identity를 보존한다. [결정](../adr/0081-formset-counts-and-row-ownership.md)을 따른다.
 
-[Helpdesk Admin](../../examples/helpdesk/README.md#admin에서-티켓과-보고서를-함께-편집하기)은 explicit transactional audit를 받아
-새 티켓/보고서 생성과 수정·삭제·감사 기록을 하나의 transaction에서 수행한다. 실제 HTML 성공 제어의 재제출, child-only/무변경,
-readonly/Add-only/deny overlay, 위조·DB unique·늦은 scope/쓰기/audit 실패·rollback/unknown outcome을 검증한다.
-구현/실행 상세와 실패 후 수정은 [TEST_EVIDENCE](TEST_EVIDENCE.md), 설계는 [ADR-0081](../adr/0081-formset-counts-and-row-ownership.md)에 둔다.
+[파일 입력](../../uploads/README.md)은 bounded multipart·메모리/임시 파일과 요청 수명을 소유한다. Form/Formset과 Admin
+부모·inline·명령은 기존 이름 유지·교체·clear 충돌, CSRF/현재 권한과 실패 재표시·파일 재선택을 구분한다.
+[로컬 storage](../../storage/README.md)는 완성한 파일을 기존 이름을 대체하지 않고 게시하며 독립 reader와 게시/정리/불확실한 결과를 제공한다.
 
-서버가 만든 빈 행과 외부 script로 미저장 inline 행의 동적 추가/제거를 연결했다. 권한별 prototype·min/max·입력값과
-오류 위치·기존 identity를 보존하며 실제 브라우저의 두 inline·새 부모/자식 SQLite 저장과 관련 양 DB/race를 확인했다.
+[모델 FileField](../../forms/model/README.md#모델-파일의-준비와-저장)를 Schema IR·생성 모델·typed/dynamic ORM·양 DB migration과
+Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 별도다. 미저장 업로드가 남으면 typed 모델/DB 저장을 거부하며
+명시적 `SaveFiles`가 실제 저장 이름을 반영한다. 부분 게시 결과를 보존하고 DB rollback·clear·모델 삭제가 파일을 자동 삭제하지 않는다.
+고정 Django 관찰, 실제 Admin multipart, 생성 소비자의 SQLite/PostgreSQL 저장·재개방과 관련 race를 확인했다.
+[파일 결정](../adr/0082-file-storage-publication-and-reference.md)과 실행 증거를 따른다.
 
-[파일 입력](../../uploads/README.md)의 bounded multipart·공유 메모리 예산/임시 파일·요청 수명과 Form/FileField·Formset·typed
-파일 명령을 연결했다. 기존 파일 유지·교체·clear 충돌, 실제 HTTP 입력과 종료/오류/panic·취소 정리를 검증했다. 모델 FileField와
-영구 저장 결과를 의미하지 않는다. Admin의 부모·inline·명령 폼도 파일 widget/multipart·파일 전달·오류 재표시를 연결했다.
-본문 전 읽기 전용 admission과 CSRF/최종 권한 검사를 유지하고 임시 자원 정리를 확인했다. 위 Hosted full은 이후 동적 UI·파일
-입력/Admin 전송을 포함하지 않으며 영향 검증을 전체 성공으로 확대하지 않는다.
-
-[로컬 storage](../../storage/README.md)의 상대 이름·제한된 스트리밍·완성 후 no-overwrite 게시와 독립 reader를 구현했다.
-같은 이름의 별도 인스턴스/프로세스 저장, 요청 종료 후 영구 파일 재개방, 게시/정리/불확실한 결과를 구분한다.
-모델 FileField와 DB 참조 저장은 아직 연결하지 않았다. [결정](../adr/0082-file-storage-publication-and-reference.md)과 실행 증거를 따른다.
+위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField를 포함하지 않는다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
-Schema IR의 모델 FileField와 생성 모델/ORM/Form의 저장 이름을 연결하고, DB/파일 저장 결과의 연계를 구현한다. 일반 ModelFormSet
-자동화와 후속 통합도 남아 있다. 파일 입력 capability의 수명을 영구 저장이나 권한으로 해석하지 않는다.
-Credential/session의 별도 저장 의미와 일반 typed 준비의 책임을 구분하며 custom user model·인증/mail provider와
-기능 카탈로그의 남은 범위도 계속 구현한다.
+일반 ModelFormSet 저장 자동화와 파일의 storage alias·URL/인가된 serving·추가 backend를 의존 순서에 따라 연결한다.
+새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
+Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 
-생성 소비자의 `-trimpath`와 기본 공유 cache·병렬 실행을 유지한다. 성공한 영향 검사와 무관한 전체 compile을 덧붙이지 않고,
-로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다. 실행 규칙은 [검증 문서](../TESTING.md)를 따른다.
+기본 공유 Go cache·병렬 실행과 생성 소비자의 `-trimpath`를 유지한다. 편집 완료 후 영향 검사를 모으고 DB/race는 통합
+checkpoint에서 실행한다. 전체/cold/Hosted 검증은 명시한 통합 milestone이 소유한다. [검증 문서](../TESTING.md)를 따른다.
 
-장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.
-출시 일정 없이 필요한 기반과 기능을 이어가며 한 작업의 완료를 전체 프레임워크 완료로 합치지 않는다.
+장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과
+기능을 이어가며 한 작업의 완료를 전체 프레임워크 완료로 합치지 않는다.

@@ -90,6 +90,13 @@ func (bound BoundForm) Input() (forms.Values, error) {
 		if !found {
 			return forms.Values{}, &Error{Path: "form." + field.Name(), Code: "missing_value"}
 		}
+		// Pending model uploads must retain their capability, independently of
+		// the filename-only candidate used by model/uniqueness validation.
+		if field.Kind() == forms.FieldFile {
+			if cleaned, present := bound.form.Cleaned().Get(field.Name()); present && !cleaned.IsNull() {
+				value = cleaned
+			}
+		}
 		input[field.Name()] = value
 	}
 	for _, name := range bound.changed {
@@ -169,8 +176,15 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			if !present {
 				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
 			}
-		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldText) {
+		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldFile || field.Kind == ir.FieldText) {
 			value = forms.String("")
+		}
+		if field.Kind == ir.FieldFile {
+			var err error
+			value, err = fileReferenceValue(value)
+			if err != nil {
+				return modelBinding{}, nil, err
+			}
 		}
 		candidate[field.Name] = value
 	}
@@ -196,9 +210,25 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 		}
 	}
 	formInitial := make(map[string]forms.Value, len(fields))
+	for name, input := range selected {
+		if metadata, found := byName[name]; found && metadata.Kind == ir.FieldFile && input.Kind() == forms.FieldFile {
+			value, err := fileInitialValue(candidate[name])
+			if err != nil {
+				return modelBinding{}, nil, err
+			}
+			formInitial[name] = value
+		}
+	}
 	for name, value := range initial {
 		_, scalar := byName[name]
 		_, input := selected[name]
+		if scalar && byName[name].Kind == ir.FieldFile {
+			var err error
+			value, err = fileReferenceValue(value)
+			if err != nil {
+				return modelBinding{}, nil, err
+			}
+		}
 		if !scalar && !many[name] && !input {
 			return modelBinding{}, nil, &Error{Path: "initial." + name, Code: "unknown_field"}
 		}
@@ -214,6 +244,13 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			candidate[name] = value
 		}
 		if input {
+			if scalar && byName[name].Kind == ir.FieldFile {
+				var err error
+				value, err = fileInitialValue(value)
+				if err != nil {
+					return modelBinding{}, nil, err
+				}
+			}
 			formInitial[name] = value
 		}
 	}
@@ -233,6 +270,19 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 		}
 		metadata, scalar := byName[field.Name()]
 		if !scalar && !many[field.Name()] {
+			continue
+		}
+		if scalar && metadata.Kind == ir.FieldFile {
+			// Missing file input leaves the stored/default reference unchanged.
+			// Clear is a present FileValue with an empty name, including null=True.
+			if value.IsNull() {
+				continue
+			}
+			file, ok := value.AsFile()
+			if !ok {
+				return BoundForm{}, &Error{Path: "form." + field.Name(), Code: "type_mismatch"}
+			}
+			candidate[field.Name()] = forms.String(file.Name())
 			continue
 		}
 		_, submitted := data.Get(field.Name())
@@ -284,6 +334,8 @@ func nilValidator(value Validator) bool {
 
 func inputKindMatches(model ir.FieldKind, input forms.FieldKind) bool {
 	switch model {
+	case ir.FieldFile:
+		return input == forms.FieldFile
 	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
 		return input == forms.FieldChar || input == forms.FieldEmail
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
@@ -318,7 +370,7 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 		return true
 	}
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
 		text, ok := value.AsString()
 		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) && (field.MaxLength == 0 || utf8.RuneCountInString(text) <= field.MaxLength)
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
@@ -357,6 +409,9 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 }
 
 func emptyInput(value forms.Value) bool {
+	if file, ok := value.AsFile(); ok {
+		return file.Name() == ""
+	}
 	if value.IsNull() {
 		return true
 	}
@@ -412,7 +467,7 @@ func modelFieldErrors(field ir.Field, value forms.Value) validation.Errors {
 	}
 	var failures []validation.Violation
 	switch field.Kind {
-	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
 		text, ok := value.AsString()
 		if !ok {
 			return reject("invalid")

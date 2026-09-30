@@ -1024,7 +1024,7 @@ func validateFieldSelection(path string, fields []string, known map[string]ir.Fi
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
 		}
 		seen[name] = struct{}{}
-		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
+		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldFile && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
 		}
 	}
@@ -1183,6 +1183,11 @@ func validateInitialSnapshot(values forms.Values, fields []forms.Field, object O
 
 func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool {
 	switch initial.Kind() {
+	case forms.ValueFile:
+		file, ok := initial.AsFile()
+		_, pending := file.Upload()
+		name, valid := snapshot.AsString()
+		return ok && !pending && !file.Clear() && valid && snapshot.Kind() == templates.ValueString && file.Name() == name
 	case forms.ValueIntegerList:
 		keys, ok := initial.AsIntegers()
 		items, listed := snapshot.Items()
@@ -1266,7 +1271,7 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 			return (field.AllowEmptyFile() || received.Size() > 0) &&
 				(field.MaxLength() == 0 || utf8.RuneCountInString(received.Name()) <= field.MaxLength())
 		}
-		return file.Name() != ""
+		return file.Name() != "" || !field.Required()
 	case forms.FieldIntegerList:
 		keys, ok := value.AsIntegers()
 		return ok && (!field.Required() || len(keys) > 0)
@@ -1496,7 +1501,7 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		}
 		_, ok := value.AsInteger()
 		return ok
-	case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+	case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
 		if value.IsNull() {
 			return field.Nullable
 		}

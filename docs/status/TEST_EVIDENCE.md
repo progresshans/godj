@@ -6,6 +6,61 @@
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
 
+### 모델 FileField와 명시적인 파일/DB 참조 저장
+
+2026-09-30, 기반 `6efec7283c59737488422edf8b3c1d94c623102f` 이후 IR `FieldFile`과 100자 기본 이름, 생성 string/*string,
+공통 typed/dynamic 문자열 AST·관계 query, SQLite/PostgreSQL varchar·historical kind와 Char/Email 전환을 연결했다.
+Model Form은 이름 후보와 요청 upload를 구분하며 typed 준비의 pending file은 Model/Save/SaveCollections를 막는다.
+`SaveFiles`는 모든 saver/이름을 먼저 확인하고 실제 저장 이름과 필드별 게시 결과를 반환한다. Partial failure는 앞선 결과와
+실패한 연산의 Info/error/outcome을 보존하며 DB transaction·재시도·기존/새 파일 삭제를 숨기지 않는다. Empty reference와
+SQL NULL, nullable clear→빈 문자열을 구분하고 JSON은 명시적인 read-only 이름 투영만 허용한다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 영향 normal | schema/IR·codegen·ORM·Form/model·storage/uploads/Web·Admin·serializer/OpenAPI·migration/definition/autodetect 15 packages / 1,043 roots / 6,729 PASS / 7.612초 |
+| 관련 race | 파일 Form/model·Admin·storage 4 packages / 22 roots / 109 PASS / 4.580초 |
+| 양 DB 생성 소비자/race | 새 FileField의 외부 Go module과 JSON 실패 진단 2 parent roots PASS; 생성 소비자의 projection·storage root·SQLite·PostgreSQL 필수 4개 실행 PASS / 7.011초 |
+| 생성물 drift | `make generate-check` PASS / 40.152초; 기존 7개 프로젝트와 checked-in 관계 생성물 검사 |
+| 독립 native | 고정 Django 6.1/CPython 3.14.3의 모델 파일 폼 11개 관찰, 기본 100자·충돌 이름·DB rollback/clear/delete 이후 파일 보존; 두 번 같은 원문 |
+| 부정 대조 | pending guard 제거·실제 이름 대신 제안 이름 반영·부분 receipt 제거·nullable clear를 NULL로 변경·Input의 업로드 capability 제거, 5개 overlay 모두 지정 runtime assertion에서 실패 |
+
+Go 1.26.5 Darwin arm64·offline/readonly module·공유 cache/기본 병렬 실행이다. Normal/race와 양 DB checkpoint 및 부정 대조의
+비Markdown code/config inventory는 모두 `223ccebdc765441fd1dd9e98ac560dc8b99cb7002585d48562848e58c9c54186`이며 실행 전후 같았다.
+Compiled roots와 실제 run/pass를 대조했고 누락·skip·잘린 event·stderr는 없다. 생성 소비자는 기존 `-trimpath`/공유 cache를
+사용하며 child 성공/필수 실행/잘리지 않은 JSON을 부모가 확인한다. PostgreSQL은 고정 17.10/C/UTF8의 별도 container/DB다.
+종료 후 남은 schema/table/다른 connection `0|0|0`, DB 제거와 해당 container 제거를 확인했다.
+
+실제 소비자는 FileField로 직접 만든 열과 Char→File→Char 역사 전환, nullable/빈 참조·unique·typed/dynamic/관계 query를
+확인한다. Multipart→typed 준비→storage→DB 저장 뒤 request 임시 자원은 닫히며 DB와 파일 backend를 다시 열어 이름과
+바이너리 내용을 확인했다. File publication 후 DB rollback은 이전 DB 이름과 새 파일을 각각 남기고 clear·모델 삭제도 파일을
+자동 삭제하지 않는다. 이 격리 HTTP route가 production 인증을 구현했다고 주장하지 않는다. 별도 Admin 실제 로그인/CSRF
+route는 모델 파일의 생성·교체·텍스트 위조 무시·오류 재선택·clear·빈 이름 유지와 요청 종료를 검증한다.
+
+Native `django/db/models/fields/files.py` SHA256은 `fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8`,
+관찰 원문의 SHA256은 `72c54016035e3ca7f19d30aadd9f0125d9a6f46d073656d68c11f270541cda68`다. 출처는 BSD-3-Clause다.
+Pure naming callback·명시적 SaveFiles·파일 PostClean/choices 제한·read-only JSON 참조는 GoDj의 현재 경계로 문서화했다.
+
+첫 normal 실행은 Admin 검증 실패 화면을 400으로 잘못 기대한 테스트에서 실패했다. 실제 기존 규약은 오류 표시와 HTTP 200이고
+저장 callback은 호출되지 않았다. 테스트를 그 규약에 맞췄다. 첫 생성 소비자는 존재하지 않는 QuerySet.Get/Delete를 사용해
+compile 실패했다. 현행 All의 단일 결과 확인과 project relation deleter로 고쳤다. Go JSON envelope 전체를 redaction한 기존
+실패 요약이 실제 compiler 오류를 숨겨 Output만 추출해 같은 sanitizer에 전달하도록 보완하고 JSON/plain 진단 회귀를 추가했다.
+실패를 전체 PASS로 처리하지 않았으며 위 최종 checkpoint는 이 수정 뒤 source다. 첫 양 DB 실행에서 기존 Email 생성 소비자만
+PASS였던 결과는 별도 선행 회귀이며 새 File 소비자의 최종 실행을 대체하지 않는다.
+
+- normal: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-files-normal-znxz1nyw`
+- race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-files-race-e_gbgc8i`
+- DB/race: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-files-db-race-6r_fdjgi`
+- controls: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-model-files-controls-kazcf717`
+- native: `forms/model/testdata/model-file-django61.json`, `conformance/runners/django/model_file_reference.py`
+- 선행 storage source `6efec728`의 [Fast 36544917169](https://github.com/progresshans/godj/actions/runs/36544917169)는 success로 확인했다.
+
+영향 go vet, gofmt, 169개 Markdown 링크와 diff 검사를 통과했다.
+
+전체/cold/Hosted platform 검증을 반복하지 않았다. 마지막 닫힌 full은 위 파일 변경 이전 source `6d3fe97f`의
+[36526909898](https://github.com/progresshans/godj/actions/runs/36526909898)이며 새 FileField에 그 결과를 전이하지 않는다.
+다른 OS·storage alias/추가 backend·URL/인가된 serving·ImageField·자동 orphan 회수·일반 ModelFormSet 전체 자동화는 남아 있다.
+
+
 ### 로컬 파일 storage와 요청 이후 수명
 
 기반 `ec18a213528094f3994ce5e70def9ff47b282cef` 이후 `storage.Backend`와 os.Root 기반 Filesystem을 구현했다. 전체 상대

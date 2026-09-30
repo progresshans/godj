@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -123,6 +124,7 @@ type PreparedInstance[M any] struct {
 	value       M
 	input       forms.Values
 	collections forms.Values
+	files       []pendingFile
 }
 
 func (PreparedInstance[M]) Format(state fmt.State, _ rune) {
@@ -132,6 +134,10 @@ func (PreparedInstance[M]) Format(state fmt.State, _ rune) {
 // Model returns a detached model, including nullable pointees. An invalid zero
 // PreparedInstance returns an error instead of an apparently prepared zero M.
 func (prepared PreparedInstance[M]) Model() (M, error) {
+	if err := prepared.requireStoredFiles(); err != nil {
+		var zero M
+		return zero, err
+	}
 	return prepared.manager.ApplyValues(prepared.value, nil)
 }
 
@@ -149,11 +155,33 @@ func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 		return PreparedInstance[M]{}, err
 	}
 	values := make(map[string]query.Value)
+	var files []pendingFile
 	for _, field := range form.bound.model.Fields {
 		if field.PrimaryKey {
 			continue
 		}
 		value, present := input.Get(field.Name)
+		if field.Kind == ir.FieldFile && present {
+			if file, ok := value.AsFile(); ok {
+				if upload, pending := file.Upload(); pending {
+					files = append(files, pendingFile{field: field.Clone(), upload: upload})
+					if !form.hasInstance {
+						stored := query.String("")
+						if field.Nullable {
+							stored = query.Null()
+						}
+						if field.Default != nil {
+							stored = query.String(field.Default.String)
+						}
+						values[field.Name] = stored
+					}
+					continue
+				}
+				// Both explicit clear and a retained empty reference store "".
+				values[field.Name] = query.String(file.Name())
+				continue
+			}
+		}
 		if !form.hasInstance {
 			value, present = form.bound.candidate.Get(field.Name)
 		}
@@ -176,7 +204,7 @@ func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 			collections[field.Name] = value
 		}
 	}
-	return PreparedInstance[M]{manager: form.manager, value: value, input: input, collections: forms.NewValues(collections)}, nil
+	return PreparedInstance[M]{manager: form.manager, value: value, input: input, collections: forms.NewValues(collections), files: files}, nil
 }
 
 func formValue(value query.Value) (forms.Value, bool) {

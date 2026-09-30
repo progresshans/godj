@@ -47,7 +47,7 @@ func (clean PostClean) validate(model ir.Model) error {
 	seen := make(map[string]bool, len(clean.Fields))
 	for _, name := range clean.Fields {
 		field, found := byName[name]
-		if !found || field.PrimaryKey {
+		if !found || field.PrimaryKey || field.Kind == ir.FieldFile {
 			return &Error{Path: "post_clean.fields." + name, Code: "non_writable_scalar"}
 		}
 		if seen[name] {

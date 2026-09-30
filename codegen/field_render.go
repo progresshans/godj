@@ -38,6 +38,8 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldChar"}
 	case ir.FieldEmail:
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldEmail"}
+	case ir.FieldFile:
+		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldFile"}
 	case ir.FieldJSON:
 		return fieldRenderSpec{"_godjjson.Value", "JSON", "JSONField", "NullableJSONField", "orm.NullableJSONScanner", "JSON", "ir.FieldJSON"}
 	case ir.FieldUUID:

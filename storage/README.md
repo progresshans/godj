@@ -2,7 +2,7 @@
 
 `storage.Backend`는 `Save`, `Open`, `Stat`, `Delete`를 context/error와 연결한다. `Save`가 돌려주는 `Info.Name()`은 실제
 저장된 상대 이름이다. 이름 충돌과 길이 제한으로 제안한 이름과 달라질 수 있다. 이름이나 `Info.Valid()`는 읽기/삭제/서빙
-권한이 아니다. DB에는 후속 모델 FileField가 이 상대 이름을 기록하며 실제 I/O는 명시적인 backend가 소유한다.
+권한이 아니다. DB에는 모델 FileField가 이 상대 이름을 기록하며 실제 I/O는 명시적인 backend가 소유한다.
 
 ## 로컬 파일 저장소
 
@@ -58,6 +58,6 @@ name := info.Name()
 GoDj는 portable 이름 제한, bounded 시도/입력, 게시 전 완성, 불확실한 결과를 명시한다. Django의 선택적 overwrite·절대 Path/URL
 편의 API를 구현했다고 주장하지 않는다. root confinement을 보장하지 못하는 js/plan9는 명시적으로 거부한다.
 
-모델 FileField의 IR/생성/ORM/Form 저장 연결, storage alias 등록, 다른 backend·URL/인증된 serving과 DB/파일 결과 조정은 후속
-범위다. 파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
+[모델 FileField](../forms/model/README.md#모델-파일의-준비와-저장)는 IR/생성/ORM/Form의 참조와 명시적 `SaveFiles`를 연결한다.
+Storage alias 등록, 다른 backend·URL/인증된 serving과 자동 파일 회수는 후속 범위다. 파일 삭제와 DB 삭제가 자동으로 함께 수행되지 않는다. [ADR-0082](../docs/adr/0082-file-storage-publication-and-reference.md),
 [실행 증거](../docs/status/TEST_EVIDENCE.md)를 따른다.

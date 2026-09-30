@@ -166,7 +166,7 @@ func (r QueryRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStr
 	if err := r.route.validate(); err != nil {
 		return RelatedStringField[S]{}, err
 	}
-	metadata, err := relatedScalarMetadata(r.route.last().targetModel, field, true, ir.FieldChar, ir.FieldEmail, ir.FieldText)
+	metadata, err := relatedScalarMetadata(r.route.last().targetModel, field, true, ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText)
 	if err != nil {
 		return RelatedStringField[S]{}, err
 	}
@@ -178,7 +178,7 @@ func (r QueryRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStr
 }
 
 func matchingStringTerminalField(model ir.Model, reference query.FieldRef) (ir.Field, bool) {
-	for _, kind := range []ir.FieldKind{ir.FieldChar, ir.FieldEmail, ir.FieldText} {
+	for _, kind := range []ir.FieldKind{ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText} {
 		if field, found := matchingTerminalField(model, reference, kind); found {
 			return field, true
 		}

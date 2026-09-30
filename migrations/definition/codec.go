@@ -546,7 +546,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldFile) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -765,14 +765,14 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+		case ir.FieldChar, ir.FieldEmail, ir.FieldFile, ir.FieldText:
 			if defaultValid && defaultValue != nil && defaultValue.Kind != ir.ScalarString {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
-			if (kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail)) && defaultValid && defaultValue != nil && defaultValue.Kind == ir.ScalarString && maxLengthValid && int64(utf8.RuneCountInString(defaultValue.String)) > maxLength {
+			if (kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || kind.string == string(ir.FieldFile)) && defaultValid && defaultValue != nil && defaultValue.Kind == ir.ScalarString && maxLengthValid && int64(utf8.RuneCountInString(defaultValue.String)) > maxLength {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
-			if maxLengthValid && ((kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail)) && maxLength <= 0 || kind.string == string(ir.FieldText) && maxLength != 0) {
+			if maxLengthValid && ((kind.string == string(ir.FieldChar) || kind.string == string(ir.FieldEmail) || kind.string == string(ir.FieldFile)) && maxLength <= 0 || kind.string == string(ir.FieldText) && maxLength != 0) {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/max_length", app, name, operationIndex, "invalid_ir"))
 			}
 			if booleanValid["primary_key"] {

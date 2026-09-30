@@ -1,7 +1,7 @@
 ---
 id: GDJ-0103
 status: active
-updated: 2026-09-29
+updated: 2026-09-30
 baseline_commit: "cb76b165aa3379c8c40aabfa7d12354460c57bf7"
 integration_owner: "root"
 ---
@@ -31,6 +31,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 파일 multipart/임시 자원 수명·FileField와 Formset·typed 파일 명령·실제 HTTP 입력과 실패 정리
 - [x] Admin 부모/inline/명령 파일 widget·multipart·권한/CSRF·오류 재표시와 실제 브라우저 파일 전달
 - [x] 로컬 storage의 no-overwrite 게시·독립 파일 수명·명시적 HTTP 업로드 소비와 불확실/정리 실패 분리
+- [x] 모델 FileField의 IR/생성/ORM/Form·Admin 연결, 실제 저장 이름과 파일/DB 결과 구분
 - [ ] 남은 ModelFormSet/files 범위의 구현·후속 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -83,3 +84,10 @@ Admin 합성 저장 `6d3fe97f`는 Hosted full 62 jobs·8 owners·새 capture 결
 clear 의도를 순수하게 구분한다. 여러 행 prefix·readonly·삭제와 typed 준비의 파일 명령을 연결했다. Native 22개 관찰·
 실제 HTTP의 성공/입력 오류/handler 오류/panic/한도 초과·중단 정리와 관련 race/부정 대조를 확인했다. 실행 상세는
 TEST_EVIDENCE에 둔다. [사용법](../uploads/README.md)을 따르며 Admin 파일 widget/전송을 후속으로 연결했다. 모델 FileField/storage·DB 연계는 남아 있다.
+
+
+모델 FileField의 저장 이름을 IR·생성 typed 모델·DB 독립 문자열 query와 SQLite/PostgreSQL migration에 연결했다. Form은
+candidate 이름과 pending upload를 구분하며 typed 준비는 명시적 `SaveFiles` 이후에 모델/DB 쓰기를 허용한다. 파일 게시 후의
+부분 실패·DB rollback·clear·모델 삭제를 분리하고 기존 파일을 자동 제거하지 않는다. Native 비교와 실제 Admin HTTP·양 DB
+생성 소비자의 실행 범위는 TEST_EVIDENCE, 사용법은 [모델 파일](../forms/model/README.md#모델-파일의-준비와-저장)에 둔다.
+Storage alias·다른 backend·URL/serving과 일반 ModelFormSet 자동화는 남아 있다.

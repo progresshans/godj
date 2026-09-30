@@ -62,7 +62,7 @@ func dynamicMembership(field ir.Field, raw any) ([]query.Value, error) {
 		}
 		return dynamicMembershipValues(field, values)
 	case []string:
-		if field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
+		if field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldFile && field.Kind != ir.FieldText {
 			break
 		}
 		return dynamicMembershipValues(field, values)

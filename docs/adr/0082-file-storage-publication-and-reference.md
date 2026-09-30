@@ -17,6 +17,28 @@ application 소유 root handle과 예약 staging namespace를 사용한다. 불�
 이름과 Uncertain을 보존한다. DB transaction은 별도이며 확인되지 않은 결과를 자동 재시도하거나 보상 삭제하지 않는다.
 파일 Sync와 원자적 이름 게시는 directory entry의 power-loss durability 또는 DB/파일 분산 transaction의 증명이 아니다.
 
-현재 [storage 계약](../../storage/README.md)은 로컬 저장·요청 업로드 소비까지 구현한다. Schema IR의 FileField, 생성 모델과
-폼 저장의 reference 연결 및 DB 결과 조정은 후속 구현이다. 이 결정의 Accepted를 전체 파일 기능 완료로 사용하지 않는다.
-Django 6.1의 기본 이름/내용/no-overwrite 의미를 참조하며 portable 이름 제한·bounded 실행·게시 전 완성은 명시적 차이다.
+Schema IR의 `FieldFile`은 기본 100 Unicode 문자의 저장 이름을 선언한다. 생성 모델은 `string` 또는 `*string`, query는
+기존 DB 독립 문자열 AST, SQLite/PostgreSQL은 같은 길이의 varchar를 사용한다. Char/Email/File 간 kind만 바꾸면 역사와
+입력 의미는 달라지지만 같은 물리 열을 보존한다. 다른 저장 조건의 변경을 이 전환에 숨기지 않는다. ORM의 명시적인 이름
+대입은 파일을 열거나 쓰지 않으며 해당 이름의 존재/권한도 증명하지 않는다.
+
+Model Form의 `Candidate`에는 검증할 이름을, `Input`에는 유지·교체·clear와 요청 업로드 capability를 구분해 보존한다.
+`ExistingFile("")`는 빈 저장 이름이며 SQL NULL과 다르다. 새 입력 생략은 기존/default를 유지하고 clear는 nullable 필드도
+빈 문자열로 만든다. 기존 빈 이름은 required upload를 충족하지 않는다. Scalar PostClean은 파일 필드를 변경할 수 없으며
+이름 생성은 아래 명시적인 파일 단계가 소유한다. Filename-only 후보의 사전 unique 검사가 실제 저장 후의 DB 제약을 대체하지 않는다.
+
+Typed `Prepare`는 새 업로드를 별도로 보유한다. 미해결 업로드가 있으면 `Model`, `Save`, `SaveCollections`는 오류를 반환해
+파일 입력을 버린 채 DB에 쓰는 일을 막는다. `SaveFiles`가 필드별 명시적 backend와 pure 이름 callback을 먼저 모두 확인하고,
+IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비와 필드별 `FilePublication`을 돌려준다. Caller가 그 결과로 DB scope를
+실행하며 파일 게시와 DB commit의 결과를 각각 보존한다. 일부 파일만 게시되거나 게시 응답이 불확실하면 준비 결과는 무효지만
+이미 시도한 모든 파일의 Info/error/outcome은 남는다. 호출은 재시도에 대해 멱등하지 않고 업로드 수명을 늘리지 않는다.
+
+이름 callback은 다른 준비 값과 기존/default 파일 참조를 담은 분리된 모델을 받는다. Backend alias나 I/O 객체를 Schema IR에
+직렬화하지 않는다. 등록되지 않은 implicit storage, 전역 설정 조회, template에서의 숨은 파일 I/O는 없다. JSON serializer의
+FileField 투영은 명시적인 read-only 저장 이름에 한정한다. JSON 문자열을 upload로 받거나 참조를 URL/다운로드 권한으로 바꾸지 않는다.
+
+[storage 계약](../../storage/README.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다. Alias 등록,
+다른 backend·URL/인가된 serving·ImageField·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
+Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
+`django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.

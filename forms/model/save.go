@@ -74,6 +74,9 @@ func (prepared PreparedInstance[M]) SaveCollections(ctx context.Context, backend
 }
 
 func (prepared PreparedInstance[M]) collectionSaves(ctx context.Context, backend db.Session, savers []CollectionSaver[M]) ([]collectionSave[M], error) {
+	if err := prepared.requireStoredFiles(); err != nil {
+		return nil, err
+	}
 	metadata, err := prepared.manager.Metadata()
 	if err != nil {
 		return nil, err

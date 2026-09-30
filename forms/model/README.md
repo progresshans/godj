@@ -28,7 +28,7 @@ bound, err := definition.Bind(metadata, submitted, authorizedInitial)
 
 `PostClean.Fields`는 callback이 바꿀 수 있는 scalar의 명시적 목록이다. 선택 입력도 여기에 선언해야 변경할 수 있다.
 제외한 scalar를 선언하면 숨긴 입력을 클라이언트에게 허용하지 않고 서버가 파생한 값을 저장 adapter에 전달할 수 있다.
-PK·컬렉션·추가 command input·알 수 없는 field는 변경할 수 없다. 선언하지 않은 변경이나 잘못된 값 표현은
+PK·모델 파일·컬렉션·추가 command input·알 수 없는 field는 변경할 수 없다. 선언하지 않은 변경이나 잘못된 값 표현은
 부분 후보를 반환하지 않고 configuration error로 처리한다. 이 오류에는 입력값을 넣지 않는다.
 Callback은 pure하고 동시 호출에 안전해야 한다. 반환한 `forms.Values`는 **변경 집합**이며 빈 집합은 후보를 그대로 둔다.
 Python `Model.clean()`의 반환값을 무시하는 규약과 다르다. 후보를 암묵적으로 수정하는 Python 객체 구조는 구현 목표가 아니다.
@@ -54,7 +54,7 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 
 실제 생성 모델의 준비·SQLite/PostgreSQL 저장·rollback과 고정 Django 15개 사례의 비교는
 [독립 생성 소비자](../../codegen/consumertest/testdata/modelclean/consumer_test.go)가 검증한다.
-일반 `ModelForm.save()` 전체 자동 생성·전체 constraint 종류·여러 행 자동 저장/files는 이 API의 존재만으로 완료되지 않는다.
+일반 `ModelForm.save()` 전체 자동 생성·전체 constraint 종류·여러 행 자동 저장은 이 API의 존재만으로 완료되지 않는다.
 장기 의미는 [ADR-0080](../../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
@@ -293,3 +293,54 @@ Deferred 흐름은 `candidate`를 원하는 ORM 저장 경로로 저장한 뒤 `
 
 [교차 앱 생성 소비자](../../codegen/consumertest/testdata/manytomany/form_save_test.go)는 기본 adapter의 자동/명시적 through,
 nullable endpoint, 자기 참조의 대칭/방향, options 소유권과 borrowed transaction·rollback·만료를 검사한다.
+
+
+## 모델 파일의 준비와 저장
+
+`schema.FileField("file", "File", schema.Blank(), schema.Default(""))`는 이름을 저장하는 모델 필드다. 기본 max length는
+100 Unicode 문자이며 `schema.MaxLength`로 지정한다. 생성된 Go 값은 `string`, nullable이면 `*string`이다. 저장소 선택과
+업로드 이름 생성은 runtime callback이 소유하고 모델에는 request upload나 열린 reader를 넣지 않는다.
+
+같은 IR에서 multipart FileField와 clearable widget을 투영한다. `InitialValues`는 저장 이름을 `forms.ExistingFile`로
+변환한다. 빈 이름도 ExistingFile로 표현해 SQL NULL과 구분하며 required 검사를 충족시키지는 않는다. 새 업로드가 없으면
+기존/default 참조를 유지하고, 명시적 clear는 nullable 모델도 `""`를 기록한다. 일반 POST/JSON 문자열은 업로드가 아니다.
+후보와 DB unique 검사는 제안된 이름을 보지만 `Input`은 업로드 capability를 유지한다. Storage가 충돌 이름을 바꿀 수 있으므로
+최종 DB unique 제약을 항상 유지한다. Scalar `PostClean.Fields`로 파일 이름을 변경하지 않고 아래 `Name`에서 결정한다.
+
+`InstanceForm.Prepare()`와 `PreparedSetRow.Prepared()`는 파일을 읽거나 저장하지 않는다. `PendingFiles()`가 비어 있지
+않으면 `Model()`, `Save()`, `SaveCollections()`는 `upload_pending` 오류를 반환한다. 요청 수명 안에서 먼저 처리한다.
+
+```go
+resolved, publications, err := prepared.SaveFiles(ctx, formmodel.FileSaver[models.Document]{
+    Field:   "file",
+    Backend: files,
+    Name: func(instance models.Document, upload uploads.File) (string, error) {
+        return "documents/" + upload.Name(), nil
+    },
+})
+// 실패여도 publications에는 이미 시도한 파일의 Info/error/outcome이 남는다.
+// caller가 이 결과를 보존하고 조정한다. 자동 재시도/보상 삭제를 하지 않는다.
+if err != nil { return err }
+instance, err := resolved.Model()
+if err != nil { return err }
+err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
+    return resolved.Save(ctx, tx, &instance)
+})
+// 이 terminal error/outcome을 확인해야 DB 결과를 판단할 수 있다.
+// publications의 Published는 DB commit을 의미하지 않는다.
+```
+
+위 이름 callback은 pure해야 하며 다른 준비 값과 기존/default 파일 참조가 담긴 분리된 모델을 받는다. 모든 saver와
+이름을 먼저 확인한 뒤 IR 순서로 저장한다. Backend가 반환한 이름과 크기, 모델 이름 길이 제약을 검사하며 그 실제 이름으로
+모델을 준비한다. `SaveFiles`는 원래 준비나 제출을 바꾸지 않는다. 같은 준비를 다시 저장하면 별도 파일이 생길 수 있으므로
+에러 뒤 무조건 재호출하지 않는다. 파일이 만료된 요청 이후에는 그 capability로 저장할 수 없다.
+
+`FilePublication.Field()/Info()/Err()/Outcome()`으로 부분 실패를 확인한다. 새 파일 게시 후 DB rollback이 되면 DB의 이전
+참조와 새 파일이 각각 남을 수 있다. Clear·모델 삭제·교체 역시 이전 파일을 자동 삭제하지 않는다. 이름은 공유될 수 있고
+불확실한 DB 결과나 파일 소유권을 참조 문자열만으로 확정할 수 없기 때문이다. 권한·revision과 transaction admission은
+애플리케이션이 계속 소유한다. [storage](../../storage/README.md), [결정](../../docs/adr/0082-file-storage-publication-and-reference.md)을 따른다.
+
+Read-only JSON 투영은 `serializers.ModelField{Name: "file", ReadOnly: true}`로 저장 이름을 제공한다. Writable JSON 문자열,
+자동 URL/다운로드 인가, storage alias·다른 backend·ImageField·파일 choices는 아직 지원하지 않는다.
+[독립 생성 소비자](../../codegen/consumertest/testdata/files/consumer_test.go)는 실제 multipart→typed 준비→파일/DB 저장과
+DB rollback·clear·모델 삭제·재개방을 실행한다. 실행 source와 환경은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)에 둔다.

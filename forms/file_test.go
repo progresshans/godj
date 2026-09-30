@@ -271,3 +271,34 @@ func TestFileValuesPrivacyAndConcurrentBinding(t *testing.T) {
 		t.Fatal("duplicate clear accepted", err)
 	}
 }
+
+// An empty DB reference may be displayed, but is not an existing required file.
+func TestEmptyStoredFileReferenceDoesNotSatisfyRequiredUpload(t *testing.T) {
+	initial, err := forms.ExistingFile("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []bool{false, true} {
+		field, err := forms.FileField("file", forms.WithRequired(required))
+		if err != nil {
+			t.Fatal(err)
+		}
+		spec, err := forms.NewSpec([]forms.Field{field})
+		if err != nil {
+			t.Fatal(err)
+		}
+		form, err := spec.Bind(forms.NewData(nil), map[string]forms.Value{"file": initial})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if form.Valid() == required {
+			t.Fatal("empty reference changed required policy")
+		}
+		if !required {
+			file, ok := form.Cleaned().File("file")
+			if !ok || file.Name() != "" || file.Clear() {
+				t.Fatal("empty reference became NULL or clear")
+			}
+		}
+	}
+}

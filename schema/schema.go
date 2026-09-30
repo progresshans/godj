@@ -153,6 +153,13 @@ func EmailField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldEmail, 254, options)
 }
 
+// FileField stores a storage-relative name, never an upload or an open file.
+// The default limit is 100 Unicode characters. Storage selection and naming
+// are explicit runtime operations; model writes never perform hidden file I/O.
+func FileField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldFile, 100, options)
+}
+
 // MaxLength overrides a bounded string field's declared character limit.
 // Normalization rejects this option on kinds without a length declaration.
 func MaxLength(limit int) FieldOption {

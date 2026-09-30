@@ -36,9 +36,10 @@ func (f FileValue) Clear() bool                  { return f.state != nil && f.st
 func (FileValue) Format(state fmt.State, _ rune) { fmt.Fprint(state, "forms.FileValue{redacted}") }
 
 // ExistingFile constructs initial input from an application-owned storage name.
+// The empty name represents an empty stored reference, distinct from SQL NULL.
 // Bind preserves it when no new file or permitted clear request is submitted.
 func ExistingFile(name string) (Value, error) {
-	if name == "" || !utf8.ValidString(name) || strings.ContainsRune(name, 0) {
+	if !utf8.ValidString(name) || strings.ContainsRune(name, 0) {
 		return Value{}, &ConfigError{Path: "file", Code: "invalid_name"}
 	}
 	return Value{kind: ValueFile, fileState: &privateFile{name: name}}, nil
@@ -99,7 +100,7 @@ func cleanFile(field Field, data Data, initial Value) (Value, validation.Errors)
 		return Value{kind: ValueFile, fileState: &privateFile{clear: true}}, validation.Errors{}
 	}
 	if len(files) == 0 {
-		if !initial.IsNull() {
+		if file, ok := initial.AsFile(); ok && (file.Name() != "" || !field.required) {
 			return initial, validation.Errors{}
 		}
 		if field.required {

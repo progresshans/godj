@@ -233,7 +233,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
-	if (override.hasStringNormalizer || override.hasMaxLength) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
+	if (override.hasStringNormalizer || override.hasMaxLength && field.Kind != ir.FieldFile) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldText {
 		return forms.Field{}, &Error{Code: "unsupported_string_override"}
 	}
 	if err := ir.ValidateChoices(field); err != nil {
@@ -275,6 +275,29 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldFile:
+		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength <= 0 {
+			return forms.Field{}, &Error{Code: "invalid_file_metadata"}
+		}
+		maximum := field.MaxLength
+		if override.hasMaxLength {
+			if override.maxLength <= 0 || override.maxLength > maximum {
+				return forms.Field{}, &Error{Code: "invalid_input_max_length"}
+			}
+			maximum = override.maxLength
+		}
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(maximum))
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarString {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			value, err := forms.ExistingFile(field.Default.String)
+			if err != nil {
+				return forms.Field{}, err
+			}
+			options = append(options, forms.WithDefault(value))
+		}
+		return forms.FileField(field.Name, options...)
 	case ir.FieldForeignKey:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Decimal != nil || field.Relation == nil ||
 			(field.Relation.Cardinality != ir.RelationManyToOne && field.Relation.Cardinality != ir.RelationOneToOne) ||

@@ -41,6 +41,7 @@ const (
 	FieldJSON       FieldKind = "json"
 	FieldChar       FieldKind = "char"
 	FieldEmail      FieldKind = "email"
+	FieldFile       FieldKind = "file"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
 	FieldTime       FieldKind = "time"

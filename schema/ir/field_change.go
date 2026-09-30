@@ -36,7 +36,7 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	if before.Equal(after) {
 		return 0, validation("field", "unchanged", "AlterField requires a changed field")
 	}
-	if (before.Kind == FieldChar && after.Kind == FieldEmail || before.Kind == FieldEmail && after.Kind == FieldChar) && before.MaxLength > 0 {
+	if before.Kind != after.Kind && boundedStringKind(before.Kind) && boundedStringKind(after.Kind) && before.MaxLength > 0 {
 		previous := before
 		previous.Kind = after.Kind
 		if previous.Equal(after) {
@@ -80,5 +80,9 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy Decimal precision, blank policy or Char/Email input semantics changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy Decimal precision, blank policy or bounded string input semantics changes")
+}
+
+func boundedStringKind(kind FieldKind) bool {
+	return kind == FieldChar || kind == FieldEmail || kind == FieldFile
 }
