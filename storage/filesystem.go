@@ -261,7 +261,7 @@ func regularInfo(s *filesystemState, name string) (Info, error) {
 	if !info.Mode().IsRegular() {
 		return Info{}, &Error{Code: "not_regular"}
 	}
-	return Info{name: name, size: info.Size()}, nil
+	return Info{name: name, size: info.Size(), metadata: ContentMetadata{Modified: info.ModTime()}}, nil
 }
 func (f *Filesystem) Stat(ctx context.Context, name string) (Info, error) {
 	if err := validateName(name); err != nil {
@@ -295,7 +295,7 @@ func (f *Filesystem) Open(ctx context.Context, name string) (io.ReadCloser, erro
 		closeErr := file.Close()
 		return nil, &Error{Code: "not_regular", Cause: errors.Join(err, closeErr)}
 	}
-	return &fileReader{state: &fileReaderState{ctx: ctx, reader: file, info: Info{name: name, size: info.Size()}}}, nil
+	return &fileReader{state: &fileReaderState{ctx: ctx, reader: file, info: Info{name: name, size: info.Size(), metadata: ContentMetadata{Modified: info.ModTime()}}}}, nil
 }
 func (f *Filesystem) Delete(ctx context.Context, name string) error {
 	if err := validateName(name); err != nil {

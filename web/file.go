@@ -36,7 +36,9 @@ func (FileOptions) Format(s fmt.State, _ rune) { fmt.Fprint(s, "web.FileOptions{
 // Open runs after middleware succeeds. Metadata from storage.Reader belongs
 // to that same opened handle; other readers stream without Content-Length.
 // No racy Stat-before-Open or implicit MIME sniffing is performed. Register a
-// HEAD route explicitly if needed. Range/conditional requests are not inferred.
+// HEAD route explicitly if needed. GET/HEAD preconditions use the opened
+// metadata; GET byte ranges require storage.SeekableReader. Conditional
+// responses do not enable caching or act as preconditions for a handler's writes.
 // A missing file returns 404 after admission; other backend failures remain 500.
 func FileResponse(backend storage.Backend, name string, options FileOptions) (Response, error) {
 	if nilStreamValue(backend) {
@@ -71,7 +73,7 @@ func FileResponse(backend storage.Backend, name string, options FileOptions) (Re
 	header.Set("Cache-Control", "no-store")
 	header.Set("Referrer-Policy", "no-referrer")
 	header.Set("X-Content-Type-Options", "nosniff")
-	return NewStreamResponse(http.StatusOK, header, func(ctx context.Context) (stream Stream, err error) {
+	response, err := NewStreamResponse(http.StatusOK, header, func(ctx context.Context) (stream Stream, err error) {
 		stream.Reader, err = backend.Open(ctx, name)
 		if err != nil {
 			if nilStreamValue(stream.Reader) && errors.Is(err, fs.ErrNotExist) && ctx.Err() == nil {
@@ -79,21 +81,11 @@ func FileResponse(backend storage.Backend, name string, options FileOptions) (Re
 			}
 			return stream, err // Application owns any returned reader, even on error.
 		}
-		// Metadata hooks are opaque application code. Convert their panic to
-		// an error while still transferring the opened reader for cleanup.
-		defer func() {
-			if recover() != nil {
-				err = streamFailure("metadata_panic", nil)
-			}
-		}()
 		stream.Size = -1
-		if reader, sized := stream.Reader.(storage.Reader); sized && !nilStreamValue(reader) {
-			info := reader.Info()
-			if !info.Valid() || info.Name() != name {
-				return stream, streamFailure("metadata", nil)
-			}
-			stream.Size = info.Size()
-		}
 		return stream, nil
 	})
+	if err == nil {
+		response.stream.fileName = name
+	}
+	return response, err
 }

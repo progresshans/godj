@@ -49,6 +49,11 @@ func (r Response) WithHeaders(header http.Header) (Response, error) {
 		if err := validateStreamHeaders(header); err != nil {
 			return Response{}, err
 		}
+		if r.stream.fileName != "" {
+			if err := validateFileHeaders(header); err != nil {
+				return Response{}, err
+			}
+		}
 	}
 	r.header = header.Clone()
 	return r, nil

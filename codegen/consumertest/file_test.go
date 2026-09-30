@@ -62,6 +62,14 @@ func TestGeneratedFileConsumer(t *testing.T) {
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
 	}
+	for _, database := range []string{"sqlite", "postgres"} {
+		if database == "postgres" && strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) == "" {
+			continue
+		}
+		for _, backend := range []string{"filesystem", "memory"} {
+			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend+"/ranges_and_conditionals")
+		}
+	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 }

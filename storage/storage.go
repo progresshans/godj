@@ -9,6 +9,7 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/progresshans/godj/uploads"
 )
@@ -51,8 +52,25 @@ func (e Error) Format(s fmt.State, _ rune) { fmt.Fprint(s, e.Error()) }
 // it does not perform I/O or grant authority. A successful Save returns the
 // actual name, which may differ from the proposed name after a collision.
 type Info struct {
-	name string
-	size int64
+	name     string
+	size     int64
+	metadata ContentMetadata
+}
+
+// ContentMetadata describes the same content as an Info snapshot. Version is
+// an optional, public opaque token that changes whenever the representation's
+// bytes change. Backends must not infer it from a name, byte count or timestamp.
+// Modified is optional. ModifiedStrong additionally asserts that different
+// content cannot share its whole-second timestamp; ordinary filesystems do not
+// provide that guarantee. Neither metadata field grants access to the content.
+type ContentMetadata struct {
+	Version        string
+	Modified       time.Time
+	ModifiedStrong bool
+}
+
+func (ContentMetadata) Format(s fmt.State, _ rune) {
+	fmt.Fprint(s, "storage.ContentMetadata{redacted}")
 }
 
 func NewInfo(name string, size int64) (Info, error) {
@@ -68,6 +86,20 @@ func (i Info) Valid() bool              { return i.name != "" }
 func (i Info) Name() string             { return i.name }
 func (i Info) Size() int64              { return i.size }
 func (Info) Format(s fmt.State, _ rune) { fmt.Fprint(s, "storage.Info{redacted}") }
+
+// WithContentMetadata returns a new snapshot without performing I/O. Empty
+// metadata means unknown. An Open implementation must obtain this information
+// from the returned handle, not from a separate lookup of a reusable name.
+func (i Info) WithContentMetadata(metadata ContentMetadata) (Info, error) {
+	if !i.Valid() || len(metadata.Version) > 1024 || metadata.Modified.Year() < 1 || metadata.Modified.Year() > 9999 || metadata.ModifiedStrong && metadata.Modified.IsZero() {
+		return Info{}, &Error{Code: "invalid_metadata", Outcome: NotPublished}
+	}
+	metadata.Modified = metadata.Modified.Round(0).UTC()
+	i.metadata = metadata
+	return i, nil
+}
+
+func (i Info) ContentMetadata() ContentMetadata { return i.metadata }
 
 // SaveOptions.MaxLength tightens the maximum complete name length in Unicode
 // characters (for example a model FileField's limit). Zero uses backend policy.
@@ -92,6 +124,14 @@ type Backend interface {
 type Reader interface {
 	io.ReadCloser
 	Info() Info
+}
+
+// SeekableReader supports bounded partial reads from the same opened handle.
+// Seek and Read share one cursor. Implementations honor the Open context and
+// serialize cursor operations and Close; callers own the operation sequence.
+type SeekableReader interface {
+	Reader
+	io.Seeker
 }
 
 // SaveUpload opens a request capability while it is alive, consumes it through
@@ -160,9 +200,12 @@ func (r contextReader) Read(p []byte) (int, error) {
 // The facade shares a cursor and lock when copied, and never formats paths.
 type fileReader struct{ state *fileReaderState }
 type fileReaderState struct {
-	mu       sync.Mutex
-	ctx      context.Context
-	reader   io.ReadCloser
+	mu     sync.Mutex
+	ctx    context.Context
+	reader interface {
+		io.ReadCloser
+		io.Seeker
+	}
 	info     Info
 	closed   bool
 	closeErr error
@@ -189,6 +232,21 @@ func (r *fileReader) Read(p []byte) (int, error) {
 		err = &Error{Code: "read_failed", Cause: err}
 	}
 	return n, err
+}
+func (r *fileReader) Seek(offset int64, whence int) (int64, error) {
+	r.state.mu.Lock()
+	defer r.state.mu.Unlock()
+	if r.state.closed {
+		return 0, &Error{Code: "closed"}
+	}
+	if err := r.state.ctx.Err(); err != nil {
+		return 0, &Error{Code: "canceled", Cause: err}
+	}
+	position, err := r.state.reader.Seek(offset, whence)
+	if err != nil {
+		return position, &Error{Code: "seek_failed", Cause: err}
+	}
+	return position, nil
 }
 func (r *fileReader) Close() error {
 	r.state.mu.Lock()

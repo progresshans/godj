@@ -35,6 +35,7 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 일반 모델 여러 행의 변경/추가/삭제·지연 collection·행별 결과와 파일 게시 연결
 - [x] Storage alias·URL/인가된 유한 serving·독립 reader 수명과 양 DB 실제 다운로드
 - [x] 격리된 Memory storage의 원자 게시·내용/파일/동시 저장 한도와 양 DB 파일 소비자
+- [x] 같은 열린 파일의 조건부 조회·단일/여러 Range·HEAD와 양 DB/양 backend의 인가된 소비자
 - [x] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합: source `365ad9d4`
 - [ ] 추가 storage backend와 남은 파일 의미
 
@@ -107,7 +108,7 @@ Storage alias를 application 설정의 불변 capability 등록으로 연결하�
 전체 middleware 성공 뒤 독립 reader를 열며 Request/upload 수명을 연장하지 않는다. 모델 ID와 현재 principal을 조회한
 FileResponse 소비자에서 cookie login/CSRF·multipart 게시·DB 저장·권한별 다운로드를 연결했다. Header 후 오류의 전송 중단·
 같은 열린 handle의 metadata·HEAD·정리/종료 수명은 [파일 응답](../web/streaming.md)을 따르고 실제 검증은 TEST_EVIDENCE에 둔다.
-추가 backend·서명 URL provider·Range/conditional과 전체 플랫폼 통합은 계속 별도 범위다.
+Memory backend·Range/conditional과 전체 플랫폼 통합은 아래에서 연결하며 다른 provider는 계속 별도 범위다.
 
 `6d3fe97f` 이후 동적 inline UI·업로드/storage·모델 파일·일반 여러 행 저장·alias/streaming과 entropy 잠금 수정을 source
 `365ad9d4`의 Hosted full에서 통합했다. 로컬 전체를 중복하지 않았고 필수 owner·최종 aggregate·새 capture 결합을 확인했다.
@@ -118,3 +119,9 @@ FileResponse 소비자에서 cookie login/CSRF·multipart 게시·DB 저장·권
 소비자를 SQLite/PostgreSQL의 filesystem/memory 양쪽에 연결한다. Native 공유 cursor/부분 파일/재귀 directory 삭제와는
 명시적으로 구분한다. `365ad9d4` Hosted source 이후 별도 영향 normal/race·양 DB 생성 소비자와 8개 부정 대조를 검증했다.
 실행 환경과 source 차이는 TEST_EVIDENCE에 둔다. 다른 provider와 남은 파일 의미의 완료를 뜻하지 않는다.
+
+열린 reader의 context 기반 seek와 ContentMetadata를 연결했다. Memory의 content version과 filesystem의 약한 수정 시각을
+구분하고, 기존 FileResponse가 인가 뒤 조건 우선순위·HEAD·단일/여러 Range·본문 없는 상태를 처리한다. 파일 재사용과 동시
+응답은 새 reader/metadata로 판단하며 bounded framing·중간 실패 abort·정리를 보존한다. 고정 Django·HTTP/Go 공통 결과,
+양 DB/양 backend의 실제 로그인/업로드/소유권/다운로드와 관련 실패 검사를 확인했다. 기존 Hosted source에 포함되지 않은
+별도 영향 checkpoint이며, 다음 파일 의미는 ImageField의 내용 검증·모델/폼·저장 연결이다.

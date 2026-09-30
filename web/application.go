@@ -105,7 +105,7 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 		err = response.validate(a.maxResponseBytes)
 	}
 	if err == nil && response.stream != nil {
-		committed, streamErr, closeErr := writeStream(rawRequest.Context(), writer, response, rawRequest.Method == http.MethodHead, a.maxStreamBytes)
+		committed, streamErr, closeErr := writeStream(rawRequest.Context(), writer, response, rawRequest, a.maxStreamBytes)
 		if closeErr != nil {
 			a.logger.ErrorContext(logContext(rawRequest), "web stream cleanup failed", "route", request.routeName, "error", closeErr)
 		}
@@ -179,7 +179,11 @@ func copyResponseHeaders(header http.Header, source http.Header) {
 func writeResponse(writer http.ResponseWriter, response Response, head bool) {
 	header := writer.Header()
 	copyResponseHeaders(header, response.header)
-	header.Set("Content-Length", strconv.Itoa(len(response.body)))
+	if response.status == http.StatusNoContent || response.status == http.StatusNotModified {
+		header.Del("Content-Length")
+	} else {
+		header.Set("Content-Length", strconv.Itoa(len(response.body)))
+	}
 	writer.WriteHeader(response.status)
 	if !head {
 		_, _ = writer.Write(response.body)

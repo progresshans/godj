@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
 	"math"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -53,6 +56,7 @@ type memoryState struct {
 
 type memoryBlob struct {
 	data      []byte
+	info      Info
 	readers   int
 	published bool
 }
@@ -178,6 +182,7 @@ func (m *Memory) Save(ctx context.Context, name string, source io.Reader, option
 		s.mu.Unlock()
 	}()
 	var content []byte
+	digest := sha256.New()
 	buffer := make([]byte, 32<<10)
 	empty := 0
 	for {
@@ -210,6 +215,7 @@ func (m *Memory) Save(ctx context.Context, name string, source io.Reader, option
 		held -= claim - int64(n)
 		s.mu.Unlock()
 		content = append(content, buffer[:n]...)
+		_, _ = digest.Write(buffer[:n]) // hash.Hash never returns an error.
 		if readErr == io.EOF {
 			break
 		}
@@ -223,6 +229,7 @@ func (m *Memory) Save(ctx context.Context, name string, source io.Reader, option
 		}
 	}
 	candidate := name
+	version := "sha256-" + hex.EncodeToString(digest.Sum(nil))
 	for attempt := 0; attempt < s.limits.MaxAttempts; attempt++ {
 		if err := contextError(ctx); err != nil {
 			return Info{}, err
@@ -246,10 +253,11 @@ func (m *Memory) Save(ctx context.Context, name string, source io.Reader, option
 			s.mu.Unlock()
 			continue
 		}
-		s.files[candidate] = &memoryBlob{data: content, published: true}
+		info := Info{name: candidate, size: int64(len(content)), metadata: ContentMetadata{Version: version, Modified: time.Now().UTC()}}
+		s.files[candidate] = &memoryBlob{data: content, info: info, published: true}
 		published = true
 		s.mu.Unlock()
-		return Info{name: candidate, size: int64(len(content))}, nil
+		return info, nil
 	}
 	return Info{}, &Error{Code: "collision_limit", Outcome: NotPublished}
 }
@@ -271,7 +279,7 @@ func (m *Memory) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 	}
 	blob.readers++
 	reader := &memoryContentReader{reader: bytes.NewReader(blob.data), owner: s, blob: blob}
-	return &fileReader{state: &fileReaderState{ctx: ctx, reader: reader, info: Info{name: name, size: int64(len(blob.data))}}}, nil
+	return &fileReader{state: &fileReaderState{ctx: ctx, reader: reader, info: blob.info}}, nil
 }
 
 func (m *Memory) Stat(ctx context.Context, name string) (Info, error) {
@@ -286,7 +294,7 @@ func (m *Memory) Stat(ctx context.Context, name string) (Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if blob := s.files[name]; blob != nil {
-		return Info{name: name, size: int64(len(blob.data))}, nil
+		return blob.info, nil
 	}
 	return Info{}, s.missing(name)
 }
@@ -360,6 +368,9 @@ type memoryContentReader struct {
 
 func (r *memoryContentReader) Read(destination []byte) (int, error) {
 	return r.reader.Read(destination)
+}
+func (r *memoryContentReader) Seek(offset int64, whence int) (int64, error) {
+	return r.reader.Seek(offset, whence)
 }
 func (r *memoryContentReader) Close() error {
 	// The outer fileReader serializes read/close and invokes this only once.

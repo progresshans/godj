@@ -37,12 +37,25 @@ caller가 소유한다. 읽기 취소는 다음 Read에서 검사하고 외부 r
 뒤에 같은 이름의 파일이 교체되거나 backend가 닫혀도 바뀌지 않는다. 임의 backend가 이 인터페이스를 구현하지 않으면 HTTP는
 길이 미상으로 전송한다. 별도 Stat 결과를 다음 Open의 metadata로 취급하지 않는다.
 
+기본 filesystem/memory reader는 `SeekableReader`도 구현한다. Read/Seek/Close는 같은 cursor와 잠금을 공유하며 Open의 context를
+검사한다. 독립 Open끼리는 cursor를 공유하지 않는다. 여러 goroutine의 개별 연산은 직렬화되지만 Seek 다음 Read의 연속 소유권은
+caller가 관리한다. Backend Close·이름 삭제/재사용 뒤에도 이미 연 handle을 seek할 수 있고 reader 자체를 닫으면 거부한다.
+
+`Info.ContentMetadata()`는 선택적인 수정 시각과 공개 content version을 반환한다. 외부 backend는 `WithContentMetadata`로
+같은 열린 내용의 metadata를 붙일 수 있다. Version은 bytes가 달라지면 반드시 달라지는 안정적인 token이며 이름/크기/mtime에서
+추측하지 않는다. 빈 Version과 zero Modified는 미상이다. Filesystem Open/Stat는 handle/파일에서 얻은 수정 시각만 제공하고
+strong version을 발명하지 않는다. Save receipt에 metadata가 없을 수 있으며 HTTP의 기준은 실제 Open의 Info다.
+`ModifiedStrong`은 서로 다른 내용이 같은 초 단위 timestamp를 공유하지 않는다는 backend의 추가 보장이다. 기본 backend는
+이 보장을 하지 않는다. HTTP는 이 구분을 [conditional/Range](../web/streaming.md#조건부-조회와-부분-다운로드)에 사용한다.
+
 ## 메모리 저장소
 
 `NewMemory(MemoryConfig{})`는 프로세스 안에서만 유지되는 독립 저장소를 만든다. 별도 filesystem이나 전역 map을 사용하지 않는다.
 같은 facade의 값 복사는 수명과 내용을 공유하고 새 생성자는 빈 별도 저장소다. Backend 인터페이스·portable 이름·collision
 rename·SaveOptions와 URL/alias 등록은 로컬 저장소와 같다. Open은 독립 cursor와 같은 열린 내용의 불변 Info를 반환한다.
 이 backend를 영구 파일의 내구성 대체물로 취급하지 않는다. 프로세스 종료나 새 인스턴스 생성으로 이전 내용이 사라진다.
+Save가 content SHA256을 함께 계산하고 게시 시각을 기록한다. 같은 bytes는 같은 Version이며 같은 이름을 다른 bytes로 재사용하면
+Version이 바뀐다. 이미 열린 reader의 Info는 원래 내용의 Version/시각을 계속 보존한다.
 
 기본 `Limits` 외에 `MaxBytes` 64 MiB, `MaxFiles` 4,096개, `MaxConcurrentSaves` 최대 32개의 한도를 적용한다. 0 값은 기본값이며
 작은 MaxFiles를 지정하면 기본 동시 저장 수도 그 이하가 된다. MaxBytes는 저장 중 예약한 공간·게시된 내용·삭제됐지만 열린

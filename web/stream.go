@@ -25,7 +25,8 @@ type Stream struct {
 func (Stream) Format(s fmt.State, _ rune) { fmt.Fprint(s, "web.Stream{redacted}") }
 
 type streamSpec struct {
-	open func(context.Context) (Stream, error)
+	open     func(context.Context) (Stream, error)
+	fileName string
 }
 
 // NewStreamResponse describes finite streaming content without opening it.
@@ -83,7 +84,7 @@ func streamFailure(field string, cause error) error {
 // short/oversized/failed source cannot look like a complete Content-Length
 // response. Unknown lengths complete only by returning normally to net/http.
 // A close failure is reported separately: it cannot rewrite delivered content.
-func writeStream(ctx context.Context, writer http.ResponseWriter, response Response, head bool, limit int64) (committed bool, err, closeErr error) {
+func writeStream(ctx context.Context, writer http.ResponseWriter, response Response, request *http.Request, limit int64) (committed bool, err, closeErr error) {
 	var stream Stream
 	defer func() {
 		if recover() != nil {
@@ -103,6 +104,13 @@ func writeStream(ctx context.Context, writer http.ResponseWriter, response Respo
 	if nilStreamValue(stream.Reader) || stream.Size < -1 {
 		return false, streamFailure("source", nil), nil
 	}
+	bodyless := false
+	if response.stream.fileName != "" {
+		bodyless, err = prepareFileStream(ctx, request, &response, &stream, limit)
+		if err != nil {
+			return false, err, nil
+		}
+	}
 	if stream.Size > limit {
 		return false, &Error{Code: CodeResponseTooLarge, Field: "stream", Detail: "stream exceeds the configured byte limit"}, nil
 	}
@@ -117,14 +125,16 @@ func writeStream(ctx context.Context, writer http.ResponseWriter, response Respo
 		// committed bytes, so a second response would be unsafe.
 		committed = true
 		copyResponseHeaders(writer.Header(), response.header)
-		if stream.Size >= 0 {
+		if response.status == http.StatusNotModified {
+			writer.Header().Del("Content-Length")
+		} else if stream.Size >= 0 {
 			writer.Header().Set("Content-Length", strconv.FormatInt(stream.Size, 10))
 		} else {
 			writer.Header().Del("Content-Length")
 		}
 		writer.WriteHeader(response.status)
 	}
-	if head {
+	if request.Method == http.MethodHead || bodyless {
 		start()
 		return committed, nil, nil
 	}

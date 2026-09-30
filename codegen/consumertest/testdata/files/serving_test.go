@@ -36,7 +36,7 @@ import (
 
 type servingStorage struct {
 	storage.Backend
-	saves, opens, stats, reads, closes, largestRead atomic.Int64
+	saves, opens, stats, reads, seeks, closes, largestRead atomic.Int64
 }
 
 func (s *servingStorage) Save(ctx context.Context, name string, reader io.Reader, options storage.SaveOptions) (storage.Info, error) {
@@ -53,16 +53,16 @@ func (s *servingStorage) Open(ctx context.Context, name string) (io.ReadCloser, 
 	if err != nil {
 		return reader, err
 	}
-	sized, ok := reader.(storage.Reader)
+	sized, ok := reader.(storage.SeekableReader)
 	if !ok {
 		_ = reader.Close()
-		return nil, errors.New("storage lost opened-handle metadata")
+		return nil, errors.New("storage lost opened-handle metadata or seeking")
 	}
-	return &servingReader{Reader: sized, storage: s}, nil
+	return &servingReader{SeekableReader: sized, storage: s}, nil
 }
 
 type servingReader struct {
-	storage.Reader
+	storage.SeekableReader
 	storage *servingStorage
 }
 
@@ -73,9 +73,13 @@ func (r *servingReader) Read(p []byte) (int, error) {
 			break
 		}
 	}
-	return r.Reader.Read(p)
+	return r.SeekableReader.Read(p)
 }
-func (r *servingReader) Close() error { r.storage.closes.Add(1); return r.Reader.Close() }
+func (r *servingReader) Seek(offset int64, whence int) (int64, error) {
+	r.storage.seeks.Add(1)
+	return r.SeekableReader.Seek(offset, whence)
+}
+func (r *servingReader) Close() error { r.storage.closes.Add(1); return r.SeekableReader.Close() }
 
 // A generated model, real DB, cookie login, multipart publication and real HTTP
 // response form one path. Admission uses a fresh model query for each request;
@@ -254,7 +258,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		}
 		return &http.Client{Jar: jar, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	}
-	request := func(client *http.Client, method, route string, body []byte, header http.Header) (*http.Response, []byte) {
+	request := func(t *testing.T, client *http.Client, method, route string, body []byte, header http.Header) (*http.Response, []byte) {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, method, server.URL+route, bytes.NewReader(body))
 		if err != nil {
@@ -282,15 +286,15 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	login := func(name string) (*http.Client, string) {
 		t.Helper()
 		client := newClient()
-		issued, token := request(client, "GET", "/login/", nil, nil)
+		issued, token := request(t, client, "GET", "/login/", nil, nil)
 		if issued.StatusCode != 200 || len(token) == 0 {
 			t.Fatal("CSRF token issuance failed")
 		}
-		result, _ := request(client, "POST", "/login/", nil, http.Header{"X-Test-CSRF": {string(token)}, "X-Test-Username": {name}, "X-Test-Password": {"synthetic consumer password"}})
+		result, _ := request(t, client, "POST", "/login/", nil, http.Header{"X-Test-CSRF": {string(token)}, "X-Test-Username": {name}, "X-Test-Password": {"synthetic consumer password"}})
 		if result.StatusCode != 204 {
 			t.Fatal("cookie login failed", result.StatusCode)
 		}
-		refreshed, fresh := request(client, "GET", "/login/", nil, nil)
+		refreshed, fresh := request(t, client, "GET", "/login/", nil, nil)
 		if refreshed.StatusCode != 200 || bytes.Equal(fresh, token) {
 			t.Fatal("fresh login CSRF token unavailable")
 		}
@@ -323,7 +327,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		client *http.Client
 		token  string
 	}{{alice, ""}, {bob, bobCSRF}} {
-		response, _ := request(attempt.client, "POST", "/upload/", multipartBody.Bytes(), http.Header{"Content-Type": {contentType}, "X-Test-CSRF": {attempt.token}})
+		response, _ := request(t, attempt.client, "POST", "/upload/", multipartBody.Bytes(), http.Header{"Content-Type": {contentType}, "X-Test-CSRF": {attempt.token}})
 		if response.StatusCode != 403 || files.saves.Load() != 0 || files.opens.Load() != 0 {
 			t.Fatal("failed admission touched storage", response.StatusCode)
 		}
@@ -339,7 +343,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	if err := forgedWriter.Close(); err != nil {
 		t.Fatal(err)
 	}
-	forged, _ := request(alice, "POST", "/upload/", forgedBody.Bytes(), http.Header{"Content-Type": {forgedWriter.FormDataContentType()}, "X-Test-CSRF": {aliceCSRF}})
+	forged, _ := request(t, alice, "POST", "/upload/", forgedBody.Bytes(), http.Header{"Content-Type": {forgedWriter.FormDataContentType()}, "X-Test-CSRF": {aliceCSRF}})
 	if forged.StatusCode != 400 || files.saves.Load() != 0 {
 		t.Fatal("string reference accepted as upload", forged.StatusCode)
 	}
@@ -347,7 +351,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, _ := request(alice, "POST", "/upload/", multipartBody.Bytes(), http.Header{"Content-Type": {contentType}, "X-Test-CSRF": {aliceCSRF}})
+	response, _ := request(t, alice, "POST", "/upload/", multipartBody.Bytes(), http.Header{"Content-Type": {contentType}, "X-Test-CSRF": {aliceCSRF}})
 	if response.StatusCode != 201 || files.saves.Load() != 1 {
 		t.Fatal("authenticated multipart publication failed", response.StatusCode)
 	}
@@ -385,15 +389,15 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		route  string
 		status int
 	}{{anonymous, location, 302}, {denied, location, 403}, {bob, location, 404}, {alice, "/documents/" + strconv.FormatInt(bobDocument.ID, 10) + "/", 404}, {alice, "/" + directory + "private.html", 404}} {
-		response, _ := request(attempt.client, "GET", attempt.route, nil, nil)
+		response, _ := request(t, attempt.client, "GET", attempt.route, nil, http.Header{"If-None-Match": {"*"}, "Range": {"bytes=0-1"}})
 		if response.StatusCode != attempt.status || files.opens.Load() != 0 {
 			t.Fatal("download admission opened file", response.StatusCode, attempt.status, files.opens.Load())
 		}
 	}
-	assertDownload := func(client *http.Client, method, route string) {
+	assertDownload := func(client *http.Client, method, route string) *http.Response {
 		t.Helper()
 		beforeOpen, beforeClose, beforeRead := files.opens.Load(), files.closes.Load(), files.reads.Load()
-		response, body := request(client, method, route, nil, nil)
+		response, body := request(t, client, method, route, nil, nil)
 		disposition, params, err := mime.ParseMediaType(response.Header.Get("Content-Disposition"))
 		if err != nil || disposition != "attachment" || params["filename"] != path.Base(document.File) || response.StatusCode != 200 || response.ContentLength != int64(len(payload)) || response.Header.Get("Content-Type") != "application/octet-stream" || response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("X-Content-Type-Options") != "nosniff" || response.Header.Get("Referrer-Policy") != "no-referrer" {
 			t.Fatal("unsafe or incomplete file response", response.StatusCode, response.Header, err)
@@ -408,10 +412,70 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		} else if !bytes.Equal(body, payload) || files.reads.Load() == beforeRead {
 			t.Fatal("streamed upload changed bytes")
 		}
+		return response
 	}
-	assertDownload(alice, "GET", location)
+	downloaded := assertDownload(alice, "GET", location)
 	assertDownload(alice, "HEAD", location)
 	assertDownload(alice, "GET", location+"?alias=public&name="+url.QueryEscape(bobDocument.File))
+	t.Run("ranges_and_conditionals", func(t *testing.T) {
+		if downloaded.Header.Get("Accept-Ranges") != "bytes" || downloaded.Header.Get("Last-Modified") == "" || scope == "memory" && downloaded.Header.Get("ETag") == "" {
+			t.Fatal("opened content validators or range capability unavailable")
+		}
+		partial, body := request(t, alice, "GET", location, nil, http.Header{"Range": {"bytes=2-17"}})
+		if partial.StatusCode != 206 || partial.ContentLength != 16 || !bytes.Equal(body, payload[2:18]) || partial.Header.Get("Content-Range") != "bytes 2-17/"+strconv.Itoa(len(payload)) {
+			t.Fatal("authorized range selected different bytes", partial.StatusCode)
+		}
+		partial, body = request(t, alice, "GET", location, nil, http.Header{"Range": {"bytes=0-7,-8"}})
+		media, parameters, err := mime.ParseMediaType(partial.Header.Get("Content-Type"))
+		if err != nil || partial.StatusCode != 206 || media != "multipart/byteranges" || partial.ContentLength != int64(len(body)) || partial.Header.Get("Content-Range") != "" {
+			t.Fatal("authorized multipart framing", partial.StatusCode, err)
+		}
+		parts := multipart.NewReader(bytes.NewReader(body), parameters["boundary"])
+		for _, expected := range [][]byte{payload[:8], payload[len(payload)-8:]} {
+			part, err := parts.NextPart()
+			if err != nil {
+				t.Fatal(err)
+			}
+			selected, err := io.ReadAll(part)
+			if err != nil || !bytes.Equal(selected, expected) || part.Header.Get("Content-Type") != "application/octet-stream" {
+				t.Fatal("authorized multipart content", err)
+			}
+		}
+		if _, err := parts.NextPart(); err != io.EOF {
+			t.Fatal("multipart did not end exactly", err)
+		}
+		for _, attempt := range []struct {
+			method string
+			header http.Header
+			status int
+		}{
+			{"GET", http.Header{"If-None-Match": {"*"}, "Range": {"bytes=999999999999-"}}, 304},
+			{"GET", http.Header{"If-Modified-Since": {downloaded.Header.Get("Last-Modified")}}, 304},
+			{"GET", http.Header{"If-Match": {`"different-generation"`}}, 412},
+			{"GET", http.Header{"Range": {"bytes=" + strconv.Itoa(len(payload)) + "-"}}, 416},
+			{"HEAD", http.Header{"Range": {"bytes=2-17"}}, 200},
+		} {
+			beforeOpen, beforeClose, beforeRead, beforeSeek := files.opens.Load(), files.closes.Load(), files.reads.Load(), files.seeks.Load()
+			result, body := request(t, alice, attempt.method, location, nil, attempt.header)
+			if result.StatusCode != attempt.status || len(body) != 0 || files.opens.Load() != beforeOpen+1 || files.closes.Load() != beforeClose+1 || files.reads.Load() != beforeRead || files.seeks.Load() != beforeSeek || result.Header.Get("Cache-Control") != "no-store" {
+				t.Fatal("bodyless selection consumed content or lost admission", result.StatusCode)
+			}
+			if attempt.status == 304 && result.Header.Get("Content-Length") != "" || attempt.method == "HEAD" && result.ContentLength != int64(len(payload)) {
+				t.Fatal("conditional/HEAD length changed")
+			}
+		}
+		if etag := downloaded.Header.Get("ETag"); etag != "" {
+			result, body := request(t, alice, "GET", location, nil, http.Header{"If-Range": {etag}, "Range": {"bytes=2-17"}})
+			if result.StatusCode != 206 || !bytes.Equal(body, payload[2:18]) {
+				t.Fatal("strong version did not resume the authorized file")
+			}
+			before := files.reads.Load()
+			result, body = request(t, alice, "GET", location, nil, http.Header{"If-None-Match": {"W/" + etag + ", \t"}})
+			if result.StatusCode != 304 || len(body) != 0 || files.reads.Load() != before {
+				t.Fatal("weak comparison did not reuse the same byte identity")
+			}
+		}
+	})
 	// Model ownership is resolved anew; an earlier successful download is not a
 	// capability to read the file after it has moved to another owner.
 	document.Owner = bobOwner
@@ -419,7 +483,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		t.Fatal(err)
 	}
 	beforeOpen := files.opens.Load()
-	revoked, _ := request(alice, "GET", location, nil, nil)
+	revoked, _ := request(t, alice, "GET", location, nil, http.Header{"If-None-Match": {"*"}, "Range": {"bytes=0-1"}})
 	if revoked.StatusCode != 404 || files.opens.Load() != beforeOpen {
 		t.Fatal("stale model ownership authorized download")
 	}
@@ -428,7 +492,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 		t.Fatal(err)
 	}
 	beforeClose := files.closes.Load()
-	missing, missingBody := request(bob, "GET", location, nil, nil)
+	missing, missingBody := request(t, bob, "GET", location, nil, http.Header{"If-None-Match": {"*"}, "Range": {"bytes=0-1"}})
 	if missing.StatusCode != 404 || strings.Contains(string(missingBody), document.File) || files.closes.Load() != beforeClose {
 		t.Fatal("missing authorized file leaked or closed nonexistent handle")
 	}

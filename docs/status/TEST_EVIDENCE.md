@@ -5,6 +5,63 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 같은 열린 파일의 conditional 조회와 byte Range
+
+2026-09-30, 기반 `798e138d64e5fadffb0f2b01edf1b22e3b7c73ff` 이후 Reader의 context 기반 seek와 immutable ContentMetadata를
+연결했다. Memory는 content SHA256 version을, filesystem은 같은 handle의 수정 시각을 제공한다. FileResponse는 전체 인가 뒤
+현재 열린 내용으로 ETag/date의 우선순위·304/412·HEAD와 단일/여러 byte Range를 판단한다. Multipart framing까지 전송 한도에
+포함하고 파일 전체 복사·새 전송 goroutine 없이 read/seek/close를 소유한다. 요청/목록/정수 한도·없는 파일·header 후 중단을 보존한다.
+
+| 실행 | 실제 범위와 결과 |
+| --- | --- |
+| 최종 영향 normal | storage/settings/uploads/Web/sessionauth/API/OpenAPI/Admin/모델 Form 9 packages / 358 roots / 1,673 PASS / 4.289초 |
+| 최종 관련 race | storage/Web/sessionauth의 reader·파일/stream·cookie·drain 44 roots / 229 PASS / 4.830초 |
+| 최종 생성 소비자 양 DB/race | FileConsumer parent PASS / 12.344초; 별도 생성 module의 필수 16개 이름을 각각 한 번의 PASS로 확인, SQLite/PostgreSQL 각각 filesystem/memory/ranges_and_conditionals 포함 |
+| Helpdesk 양 DB/race | 기존 공개 HTTP 2 roots / 필수 하위 141개 / 총 284 PASS / 138.340초; 아래 source 차이를 구분 |
+| 독립 native/표준 | 고정 Django 6.1/CPython 3.14.3의 22개 관찰을 두 번 같은 원문으로 확인; 공통 19개와 명시적 차이 3개. Go 1.26.5 ServeContent의 공통 range 10개 결과를 별도 실행 |
+| 최종 부정 대조 | ASCII range unit·파일 version 결합·strong 비교·HEAD·선택 offset·reader close·304 framing·범위 수·조건 우선순위를 각각 훼손한 9개 overlay가 지정 runtime assertion에서 실패 |
+| 정적 확인 | storage/Web/생성 소비자 compile-only, 영향 10 packages go vet·gofmt·diff·local Markdown 링크 PASS |
+
+같은 열기에서 얻은 metadata를 사용하며 별도 Stat와 이름 재조회는 없다. 이름을 같은 길이의 다른 bytes로 재사용해도 이전 ETag가
+304나 잘못된 resume를 만들지 않고 동시 응답의 cursor/header/status를 공유하지 않는다. HEAD는 Range를 무시하며 304/412/416은
+read/seek 0과 한 번의 close를 유지한다. 여러 범위의 순서·MIME parts·전체 Content-Length·고정 read buffer, bytes/부분 응답 한도,
+약한 날짜의 If-Range fallback·미상 metadata·미래 시각 제한·정수 overflow·잘못된 문법/과도한 요청을 확인했다. Seek 실패/잘못된
+position/panic·짧은 reader·joined EOF·늦은 두 번째 seek와 metadata 실패는 같은 자원/전송 경계를 따른다. 실제 TCP client가
+304의 빈 본문/길이 없음과 206의 선언된 99,999 bytes 중 71,680 bytes 뒤 `unexpected EOF`를 관찰하며 reader 정리가 완료된다.
+
+생성 소비자는 실제 cookie login/CSRF·1 MiB 초과 multipart 게시·DB 저장 뒤 두 storage에서 같은 GET/HEAD·단일/여러 범위·조건부
+요청을 보낸다. 인증/권한 거부·다른 owner와 소유권 변경 후 요청에서 wildcard/Range도 storage open을 우회하지 못한다. 304/412/416의
+read/seek 0·reader close·기존 cache/cookie 정책, 인가된 missing 404와 upload staging 정리를 확인했다. 기존 Helpdesk의 공개 HTML/
+Admin/API·revision·audit·실패/rollback 흐름도 양 DB에서 검증했다.
+
+최종 비Markdown code/config inventory는 `a86149468b69b812e6a508a9a3c5681952a96b84326c0477e86ee427095d8211`이다.
+위 최종 normal/race·FileConsumer·9개 대조는 모두 이 소스다. Helpdesk는
+`9a44c2146d46a6b4ce2aeaf24b0de85d730f933ae3644b6269c44a1589c7abdf`에서 실행했다. 이후 달라진 것은 File 전용
+`web/file_ranges.go`의 ASCII unit 검사와 `web/file_http_test.go`, 별도 생성 fixture `codegen/consumertest/testdata/files/serving_test.go`
+두 테스트뿐이다. Helpdesk/API/Admin/Form은 FileResponse/streaming 응답을 만들지 않아 이 parser에 진입하지 않으며, 나머지 실행
+제품/Helpdesk 테스트는 전체 inventory로 일치를 확인했다. 변경한 File 소비자는 최종 source에서 다시 검증했고 Helpdesk를 반복하지
+않았다. Source 전후 불변·필수 root/이름·완료 JSON·skip/잘린 출력 검사를 결합한 receipt는 `/tmp/godj-file-http-validation/receipt.json`이다.
+
+Go 1.26.5 Darwin arm64·offline/readonly module·기본 공유 cache와 병렬 실행이다. 생성 자식도 `-trimpath -race`를 전달했다.
+DB 실행은 각각 별도 PostgreSQL 17.10 Debian/C/UTF8 container/DB를 썼고 종료 후 schema/table/다른 connection `0|0|0`, DB와
+해당 container 제거를 확인했다. Native observer는 `conformance/runners/django/file_conditional_reference.py`, golden은
+`web/testdata/file-conditional-django61.json`이며 SHA256은 `bfaf44056e3ec5ac70662b065bc067666e549342d5e9d30847e6f24921720ae3`다.
+같은 pinned commit `fe0a859f537d4238cf49fca39073513206f83122`/BSD-3-Clause의 `django/utils/cache.py` SHA256은
+`cef63ee1b300683e517241a7232d111dd627a61ab86abc3b6c273cb8ee81da4e`다. Native의 Range 미지원·잘못된 ETag 목록 일부 수용·
+ETag 없는 wildcard와의 차이를 명시했다. HTTP 의미는 RFC 9110을 기준으로 하며 source와 계약은 SOURCES·ADR-0082에 둔다.
+
+최종 receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의 `godj-file-http-normal-i8mahush`,
+`godj-file-http-race-8jj1mpji`, `godj-file-http-db-race-0rxcdpwu`, `godj-file-http-controls-_iqyc8td`다.
+Helpdesk 원문은 `godj-file-http-db-race-r190qzbe`, native 원문은 `godj-file-http-native-hf2iiqf4`에 있다.
+검토 중 ETag 목록 끝의 공백을 거부한다고 추정해 분기를 추가했으나, `godj-file-http-controls-cp7t6zy4`의 대조에서 원래 코드도
+공백 포함 입력을 통과했다. 함수 시작의 정규화가 이미 처리하고 있음을 확인해 추정을 기각하고 불필요한 제품 분기를 제거했다.
+이 대조는 실패 검출 성공에 합산하지 않았다. 강화한 테스트 입력은 유지했다. 별도로 Unicode case fold가 비ASCII `byteſ`를
+bytes unit으로 받아들이는 것을 막는 ASCII token 검사를 추가하고 최종 부정 대조로 확인했다.
+
+Schema/generator·모델 선언·checked-in generated Go는 바꾸지 않아 generated drift를 반복하지 않았다. HTML/JS 변경이 없어
+브라우저를 반복하지 않았다. 이번 source의 전체/cold·CGO=0·Hosted full은 실행하지 않았고 앞선 `365ad9d4` 전체 성공을 전이하지
+않는다. 외부 storage provider·ImageField·파일 choices·자동 회수와 나머지 기능 카탈로그는 미완료다.
+
 ### 격리된 Memory storage와 실제 파일 소비자
 
 2026-09-30, 기반 `365ad9d4bb94f049f692ef7722b2684a6f48f379` 이후 프로세스별 Memory backend를 같은 Storage 계약에 연결했다.

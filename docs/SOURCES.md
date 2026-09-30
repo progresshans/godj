@@ -26,6 +26,9 @@ Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DE
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)
 - [Go testing](https://pkg.go.dev/testing), [Go command](https://pkg.go.dev/cmd/go)
+- [RFC 9110 HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-13): conditional 우선순위·validator·Range/HEAD/206/304/412/416 기준.
+  [고정 Django conditional observer](../conformance/runners/django/file_conditional_reference.py)는 같은 6.1 `django/utils/cache.py`의
+  공통 결과와 세 명시적 차이를 관찰한다. Range의 공통 결과는 실행 Go 버전의 `net/http.ServeContent`와 별도로 대조한다.
 - [SQLite foreign keys](https://sqlite.org/foreignkeys.html), [transactions](https://sqlite.org/lang_transaction.html), [ALTER TABLE](https://sqlite.org/lang_altertable.html)
 - [modernc SQLite driver](https://pkg.go.dev/modernc.org/sqlite)
 - [pgx](https://github.com/jackc/pgx), [PostgreSQL documentation](https://www.postgresql.org/docs/17/)

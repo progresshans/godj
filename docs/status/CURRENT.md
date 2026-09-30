@@ -37,12 +37,13 @@ Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 �
 한도에 포함하며 실패/취소/panic의 예약 정리를 확인했다. 같은 양 DB 인증·파일 소비자의 filesystem/memory 조합과 관련
 normal/race·부정 대조를 검증했다. 이 변경은 위 Hosted full source에 포함되지 않으며 영향 검증의 범위는 TEST_EVIDENCE를 따른다.
 
-파일 Range·conditional 응답을 같은 열린 handle의 metadata와 seek capability에 연결하는 중이다. 아직 구현/검증을 마치지 않았다.
+파일 Range·conditional 응답을 같은 열린 handle의 metadata와 seek capability에 연결했다. 파일 버전/수정 시각·조건 우선순위·
+단일/여러 범위·HEAD·본문 없는 응답과 중간 실패를 구현하고 실제 양 DB/양 backend의 인증된 소비자·영향 normal/race로 검증했다.
+이 변경도 위 Hosted full에는 포함되지 않는다. [파일 응답 계약](../../web/streaming.md)과 별도 영향 증거를 따른다.
 
 ## 다음 행동
 
-파일 응답의 Range/conditional·실제 인가된 소비자와 실패 경로를 연결하고 영향 checkpoint에서 검증한다. 이후 추가 storage
-provider·ImageField 등 남은 파일 의미를 의존 순서에 따라 구현한다.
+ImageField의 내용 검증·모델/폼·저장 의미를 연결한다. 추가 storage provider와 나머지 파일 의미도 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며, 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.
 
