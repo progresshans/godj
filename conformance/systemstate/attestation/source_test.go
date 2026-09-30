@@ -74,6 +74,7 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"internal/urlinput/url.go",
 		"uploads/multipart.go",
 		"storage/filesystem.go",
 		"admin/site_assets/inlines.js",
@@ -223,6 +224,7 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{
 			name:     "product prefix root",
 			linkPath: "systemstate",

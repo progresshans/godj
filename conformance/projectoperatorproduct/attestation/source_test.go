@@ -34,6 +34,7 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"internal/urlinput/url.go",
 		"uploads/multipart.go",
 		"storage/filesystem.go",
 		"admin/site_assets/inlines.js",
@@ -259,6 +260,7 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{name: "product", linkPath: "systemstate", filePath: "runtime.go"},
 		{name: "producer harness", linkPath: "conformance/projectoperatorproduct", filePath: "product_unix_test.go"},
 		{name: "consumer handler", linkPath: "conformance/runners/godj", filePath: "gdj0055_operator_scenarios.go"},

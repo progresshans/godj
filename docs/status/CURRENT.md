@@ -20,7 +20,8 @@ URLField를 Schema IR·생성 모델·문자열 ORM·migration·Form/Admin·JSON
 
 ## 다음 행동
 
-URL 변경을 게시하고 새 source의 **Hosted full**을 통합한다. 새 IR kind·migration·생성·공통 OpenAPI/Admin의
+게시한 URL source의 Hosted full에서 드러난 공통 URL 코드의 attestation 소유 목록 누락을 보완했다.
+수정 source를 게시하고 새 **Hosted full**을 통합한다. 새 IR kind·migration·생성·공통 OpenAPI/Admin의
 누적 플랫폼 검증은 이 milestone이 소유하며 로컬 전체/cold를 중복하지 않는다. 이전 source의 성공은 전이하지 않는다.
 남은 codec 특성/storage provider·custom user model·인증/mail provider와 다른 카탈로그 기능은 의존 순서에 따라 이어간다.
 현재 외부 입력이 필요한 blocker는 없다.

@@ -96,7 +96,32 @@ authority NFKC delimiter 검사 제거를 각각 실제 assertion 실패로 검�
 불일치를 삭제/skip하거나 문법 검증을 완화하지 않았다.
 
 로컬 전체/cold 검증은 반복하지 않았다. 새 IR kind·migration·생성·공통 OpenAPI·Admin/소비자 연결의 누적 플랫폼 통합은
-이 source를 게시한 뒤 **Hosted full**로 실행한다. 이전 BigTIFF web 성공은 이 구현의 Hosted 증거가 아니다.
+**Hosted full**이 소유한다. 이전 BigTIFF web 성공은 이 구현의 Hosted 증거가 아니다.
+
+### Hosted 통합에서 발견한 source binding 누락
+
+URL 구현 source `a1fa31d4a790d1de5ad89cafaec09ca2b32d978c`의
+[PR feedback 36760015763](https://github.com/progresshans/godj/actions/runs/36760015763)은 PASS다.
+실제 job `110039915585`의 merge checkout `5f593fd5f03f9d87c8ed9c66b942816cf2e4b395`는 해당 source를 parent로 가지며,
+tree `c6593602ada001bf1b7a20c1156f02e50ee26dca`가 source tree와 같다. 로그 SHA256은
+`f8f3470ba915df6668506321e2558b423e7ea760b05af87a8ffe5057f2c083c3`이다.
+Receipt는 `godj-url-feedback-36760015763-a_3akhm7`에 보존했다.
+
+같은 source의 [Hosted full 36760086296](https://github.com/progresshans/godj/actions/runs/36760086296), attempt 1은
+전체 성공이 아니다. 실제 plan job `110040138151`의 checkout과 full 선택은 확인했지만 Portable Go conformance의
+normal `110040197877`·race `110040197846`·CGO=0 `110040197998`가 모두 실패했다. 두 attestation package의
+`TestSourceBindingOwnsNativeProductDependencies`가 새 `internal/urlinput/url.go`의 source binding 누락과
+`internal/urlinput` directory symlink의 은폐 가능성을 검출했다. 세 실제 job log와 run/plan 증거는
+`godj-url-hosted-full-36760086296-bus0sk8f`에 보존했다. Fast feedback 성공으로 이 실패를 덮지 않는다.
+
+두 package의 소유 prefix에 `internal/urlinput/`을 추가하고 실제 파일 변경 시 binding 변경·directory symlink 거부를
+회귀 사례로 추가했다. 독립 native dependency closure 검사는 그대로 유지한다. 수정한 두 attestation package 전체를
+`go test -json -count=1 -timeout=3m`으로 normal/race/CGO=0 각각 실행해 **267 run/pass, 0 skip·실패·필수 누락**을
+확인했다. Go 1.26.5/darwin/arm64, `TZ=Pacific/Chatham`, 공유 Go cache와 offline/readonly 설정을 사용했으며
+wall time은 각각 2.154/3.494/1.606초다. 필수 여섯 경로는 양 package의 dependency closure·URL 파일 변조·URL directory
+symlink 거부다. Receipt와 전체 JSON은 `godj-url-attestation-fix-x3l_1as2`에 보존했다.
+이 후속 변경은 attestation 네 파일뿐이며 URL 제품/생성기/소비자의 위 로컬 검증 source는 `a1fa31d4`로 유지한다.
+수정 source를 게시한 뒤 새 Hosted full과 새 capture/source 결합을 실행하며, 결과 전까지 플랫폼 통합은 미완료다.
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
