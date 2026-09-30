@@ -96,7 +96,7 @@ func TestDeleteAuditPreparationFailureRollsBackRow(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = backend.Close() })
 	for _, statement := range []string{
-		`CREATE TABLE "godj_conformance_article" ("id" INTEGER PRIMARY KEY, "title" TEXT NOT NULL, "published" INTEGER NOT NULL, "summary" TEXT NULL)`,
+		`CREATE TABLE "godj_conformance_article" ("id" INTEGER PRIMARY KEY, "title" TEXT NOT NULL, "published" INTEGER NOT NULL, "summary" TEXT NULL, "slug" VARCHAR(50) NULL UNIQUE)`,
 		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES (1, 'bad' || char(1) || 'label', 0, NULL)`,
 	} {
 		if _, err := backend.ExecContext(ctx, statement); err != nil {
@@ -115,7 +115,7 @@ func TestDeleteAuditPreparationFailureRollsBackRow(t *testing.T) {
 		t.Fatal("Delete(invalid audit label) error = nil")
 	}
 	article, found, err := service.Get(ctx, 1)
-	if err != nil || !found || article.ID != 1 {
+	if err != nil || !found || article.ID != 1 || article.Slug != nil {
 		t.Fatalf("row after rejected delete = %#v, found=%t, error=%v", article, found, err)
 	}
 	if audit.Len() != 0 {

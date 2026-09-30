@@ -23,7 +23,7 @@ func Tables(prefix string) []string {
 	return []string{
 		`CREATE TABLE ` + prefix + `authors_author(id ` + key + `, name VARCHAR(200) NOT NULL)`,
 		`CREATE TABLE ` + prefix + `blog_post(id ` + key + `, title VARCHAR(200) NOT NULL, author_id BIGINT NOT NULL REFERENCES ` + prefix + `authors_author(id), reviewer_id BIGINT NULL REFERENCES ` + prefix + `authors_author(id))`,
-		`CREATE TABLE ` + prefix + `godj_conformance_article(id ` + key + `, title VARCHAR(200) NOT NULL, published BOOLEAN NOT NULL, summary VARCHAR(200) NULL)`,
+		`CREATE TABLE ` + prefix + `godj_conformance_article(id ` + key + `, title VARCHAR(200) NOT NULL, published BOOLEAN NOT NULL, summary VARCHAR(200) NULL, slug VARCHAR(50) NULL UNIQUE)`,
 	}
 }
 
@@ -59,6 +59,15 @@ func RunQueries(t *testing.T, backend db.Session, dialect string) {
 	t.Helper()
 	input, want := load(t, dialect)
 	seed(t, backend, input)
+	articles, err := models.ArticleObjects.Using(backend).All(t.Context())
+	if err != nil || len(articles) != len(input.Rows) {
+		t.Fatal("seeded Article projection differs", len(articles), len(input.Rows), err)
+	}
+	for _, article := range articles {
+		if article.Slug != nil {
+			t.Fatal("omitted slug must decode as SQL NULL", article.ID, article.Slug)
+		}
+	}
 	relations, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)

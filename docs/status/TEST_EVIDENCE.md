@@ -193,6 +193,44 @@ Receipt는 `godj-slug-full-regressions-zfv0fgx4`, 실패 로그는 `godj-slug-fu
 비Markdown source는 2,891 files / `7d10e5830419965c4d8978a59894eabb4d948692e44399efda4d12a34d7320af`다.
 새 source의 Hosted full은 별도로 실행하며 이전 실패·미완료 job을 성공으로 옮기지 않는다.
 
+### 추가 owner의 iexact fixture와 Python 호환 digest 보정
+
+위 보정 source `d5aa14b28498f1aa70cdf2b48f9cbb97ca5756ec`의
+[Fast feedback 36784045323](https://github.com/progresshans/godj/actions/runs/36784045323)은 성공했다.
+실제 job `110121054372`의 merge checkout `7561afa10d8a2a69f28832d19710de1d2197a69a`는 source를 parent로 갖고
+tree `6ef400061b9b5e1ce3924c5ac4fa4933b5a3eac8`가 같다. Log SHA256은
+`f75ef8b50edf32db70dd65c4206ba647837d5cf959adb934f24334396632c50e`다.
+새 [full 36784073634](https://github.com/progresshans/godj/actions/runs/36784073634)의 실제 plan checkout도 확인했지만,
+이전 full의 종료 로그에서 추가 실패가 확인되어 이 실행은 취소했다. 완료된 전체 플랫폼 증거가 아니다.
+이전 `36782116636`은 20 success / 21 failure / 21 cancelled로 종료했고 모든 failure job의 실제 checkout과 로그를
+`godj-slug-full-failures-36782116636/terminal-receipt.json`에 보존했다. 새 full의 취소 상태는
+`godj-slug-integrated-hosted-full-36784073634-g1829i3n`에 보존한다.
+
+PostgreSQL core의 실제 실패는 공유 `iexacttest.Tables`에 slug column이 없어 현재 Article projection이
+SQLSTATE 42703을 반환한 것이다. 양 DB가 쓰는 임시 table에 nullable/unique slug를 더하고
+seed 뒤 전체 Article 조회에서 모든 slug가 SQL NULL인지 확인했다. 같은 형태의 다른 수동 table을 확인해
+Admin delete/audit rollback fixture 한 곳도 보정하고 거부 뒤 행과 NULL 보존을 명시했다.
+이전 네 column DDL만 주입하는 SQLite overlay는 새 NULL assertion으로 실제 실패했다.
+Receipt `godj-slug-iexact-control-_j1otcrk`는 build 오류나 skip을 실패 대조로 세지 않는다.
+
+Python 3.12.13 호환 job의 테스트 375개는 정해진 reference-profile 전용 skip 네 개를 포함해 검증됐지만,
+뒤의 311-scenario digest 검사는 Article native 결과 변화로 실패했다. 고정 Django 6.1/DRF 3.18.0/
+Python 3.14.3에서 동일한 311 시나리오를 독립 두 프로세스로 다시 실행해 전체 바이트의 일치를 확인했다.
+새 payload는 **1,082,209 bytes**, SHA256 `c07d1ed3914ba692e7b35bb38da73e9d1f3565de9ed39a7e9391590d1f0062e5`다.
+`godj-slug-compat-native-58lzhqad`에 시나리오별 원문 크기·hash와 전체 payload를 보존했다.
+CI의 길이·hash 상수 두 곳만 갱신했으며 시나리오 수·실행·환경·owner·비교는 변경하지 않았다.
+다른 Python/플랫폼의 새 source 검증은 Hosted에 남아 있다.
+
+실제 PostgreSQL 17.10/SQLite iexact 네 roots와 필수 하위 경로는 normal/race/CGO=0 각각
+**470 run/pass**, 0 skip·누락·inventory 오류로 통과했다(2.557/4.484/2.398초).
+각 mode의 독립 DB/container에서 source 전후 일치·잔여 `0|0|0`·DB/container 제거를 확인했다.
+Receipts는 `godj-slug-iexact-normal-onqjm8i8`, `godj-slug-iexact-race-nacxxseo`,
+`godj-slug-iexact-cgo0-uq1uu7bg`다. Workflow 구조 여섯 roots와 Admin audit rollback 한 root도
+각 mode **7 run/pass**로 통과했다(0.844/2.088/0.797초, `godj-slug-tail-regressions-_lxi097m`).
+최종 비Markdown source는 2,891 files / `04fc0816f6046ad2818e79f363a9a88559c7df05e8d590958da362bc240f15e1`다.
+iexact normal의 이전 inventory는 `9b378fc712ab75480781fb4a8d169795e21563be9441e399e1f32c44be9530c8`이며,
+그 후 바뀐 파일은 위 별도 세 mode로 실행한 Admin audit fixture 한 곳뿐이다. 다른 source를 동일하다고 기록하지 않는다.
+
 ## GDJ-0104 — URL 모델 필드와 Helpdesk 외부 참조
 
 ### 독립 native 기준
