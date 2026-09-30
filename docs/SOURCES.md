@@ -175,3 +175,10 @@ GoDj wrapper와 GIF/container 예산 검사는 독립 작성했으며 실제 디
 [독립 observer](../conformance/runners/django/model_image_reference.py)는 Pillow 12.3.0으로 합성 PNG만 만들며
 [관찰값](../forms/model/testdata/model-image-django61.json)에 15개 폼 결과와 실제 저장/rollback을 남긴다. 기존 파일을 다시 여는
 Django의 동작과 GoDj의 명시적인 I/O 경계는 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)에 구분한다.
+
+저장된 이미지의 명시적 크기 갱신은 같은 `django/db/models/fields/files.py`와
+`django/core/files/images.py`(BSD-3-Clause, SHA-256
+`32985b35b2436e046568049eed52caff8232271c45b3b5cc5533d0238915fc33`)를 독립 실행한다.
+[Observer](../conformance/runners/django/stored_image_reference.py)와 [고정 관찰](../storage/model/testdata/stored-image-django61.json)에
+9개 검사·cache 재사용/새 instance·명시적 DB 저장/rollback을 기록한다. GoDj의 새 reader와 전체 내용 검증, 원본 모델 보존은
+[명시적 검사 계약](../storage/model/README.md)을 따르며 native의 손상 내용/부분 header/cache 결과와 구분한다.

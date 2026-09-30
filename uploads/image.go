@@ -83,7 +83,7 @@ func (ImageInfo) Format(state fmt.State, _ rune) { fmt.Fprint(state, "uploads.Im
 // image_pixels, or image_frames; I/O, lifetime and cancellation errors remain
 // operational errors. No decoded pixels or encoded copies escape this call.
 func InspectImage(ctx context.Context, file File, limits ImageLimits) (info ImageInfo, err error) {
-	if nilImageContext(ctx) {
+	if nilImageValue(ctx) {
 		return ImageInfo{}, &Error{Code: "invalid_context"}
 	}
 	if err := ctx.Err(); err != nil {
@@ -108,30 +108,99 @@ func InspectImage(ctx context.Context, file File, limits ImageLimits) (info Imag
 			info, err = ImageInfo{}, errors.Join(err, closeErr)
 		}
 	}()
-	content := make([]byte, int(file.Size()))
-	for offset := 0; offset < len(content); {
-		n, readErr := reader.Read(content[offset:min(offset+32*1024, len(content))])
-		offset += n
-		if readErr != nil && (readErr != io.EOF || offset != len(content)) {
-			return ImageInfo{}, &Error{Code: "image_read_failed", Cause: readErr}
-		}
-		if n == 0 && readErr == nil {
-			return ImageInfo{}, &Error{Code: "image_read_failed", Cause: io.ErrNoProgress}
-		}
-	}
-	var tail [1]byte
-	n, readErr := reader.Read(tail[:])
-	if n != 0 || readErr != io.EOF {
-		return ImageInfo{}, &Error{Code: "image_read_failed", Cause: readErr}
+	content, err := readImageContent(ctx, reader, limits.MaxBytes, file.Size())
+	if err != nil {
+		return ImageInfo{}, err
 	}
 	return inspectImageBytes(ctx, content, limits)
 }
 
-func nilImageContext(ctx context.Context) bool {
-	if ctx == nil {
+// InspectImageReader consumes a borrowed reader from its current position to
+// EOF. It does not seek, close, or retain the reader. The caller owns that
+// lifetime and any metadata/length checks; InspectImage owns an upload reader.
+// Reading uses at most MaxBytes plus one overflow probe byte, and every read
+// and decoding stage observes ctx. A reader must honor cancellation while its
+// own Read is blocked; inspection does not create a detached goroutine.
+func InspectImageReader(ctx context.Context, reader io.Reader, limits ImageLimits) (ImageInfo, error) {
+	if nilImageValue(ctx) {
+		return ImageInfo{}, &Error{Code: "invalid_context"}
+	}
+	if err := ctx.Err(); err != nil {
+		return ImageInfo{}, err
+	}
+	limits, err := limits.Normalize()
+	if err != nil {
+		return ImageInfo{}, err
+	}
+	if nilImageValue(reader) {
+		return ImageInfo{}, &Error{Code: "invalid_reader"}
+	}
+	content, err := readImageContent(ctx, reader, limits.MaxBytes, -1)
+	if err != nil {
+		return ImageInfo{}, err
+	}
+	return inspectImageBytes(ctx, content, limits)
+}
+
+func readImageContent(ctx context.Context, reader io.Reader, maxBytes, exactSize int64) ([]byte, error) {
+	limit := maxBytes
+	if exactSize >= 0 {
+		limit = min(limit, exactSize)
+	}
+	content := make([]byte, 0, min(int(limit), 32*1024))
+	var buffer [32 * 1024]byte
+	emptyReads := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		remaining := limit - int64(len(content))
+		want := min(int64(len(buffer)), remaining+1)
+		n, readErr := reader.Read(buffer[:int(want)])
+		if n < 0 || n > int(want) {
+			return nil, &Error{Code: "image_read_failed", Cause: &Error{Code: "invalid_read_count", Cause: readErr}}
+		}
+		if readErr != nil && readErr != io.EOF {
+			return nil, &Error{Code: "image_read_failed", Cause: readErr}
+		}
+		if int64(n) > remaining {
+			if exactSize >= 0 {
+				return nil, &Error{Code: "image_read_failed"}
+			}
+			return nil, &Error{Code: "image_bytes"}
+		}
+		if n > cap(content)-len(content) {
+			capacity := min(int(limit), max(len(content)+n, 2*cap(content)))
+			grown := make([]byte, len(content), capacity)
+			copy(grown, content)
+			content = grown
+		}
+		content = append(content, buffer[:n]...)
+		if readErr == io.EOF {
+			if exactSize >= 0 && int64(len(content)) != exactSize {
+				return nil, &Error{Code: "image_read_failed", Cause: io.ErrUnexpectedEOF}
+			}
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return content, nil
+		}
+		if n == 0 {
+			emptyReads++
+			if emptyReads == 100 {
+				return nil, &Error{Code: "image_read_failed", Cause: io.ErrNoProgress}
+			}
+		} else {
+			emptyReads = 0
+		}
+	}
+}
+
+func nilImageValue(input any) bool {
+	if input == nil {
 		return true
 	}
-	switch value := reflect.ValueOf(ctx); value.Kind() {
+	switch value := reflect.ValueOf(input); value.Kind() {
 	case reflect.Pointer, reflect.Interface, reflect.Chan, reflect.Func, reflect.Map, reflect.Slice:
 		return value.IsNil()
 	}

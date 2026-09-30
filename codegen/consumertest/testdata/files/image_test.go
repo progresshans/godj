@@ -322,6 +322,7 @@ func runImages(t *testing.T, backend fileBackend, root storage.Backend, label st
 		t.Fatal("stored image bytes changed", err)
 	}
 	t.Run("formset", func(t *testing.T) { runImageSet(t, backend, root, label, spec) })
+	t.Run("stored_inspection", func(t *testing.T) { runStoredImageInspection(t, backend, root, label) })
 }
 
 func equalImageInteger(left, right *int64) bool {

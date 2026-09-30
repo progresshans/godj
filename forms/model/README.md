@@ -428,8 +428,9 @@ NULL을 0으로 바꾸거나 게시/DB 쓰기를 시작하지 않는다. 이미�
 DB 실패/rollback·clear·모델 삭제는 이전/새 이미지 파일을 제거하지 않는다.
 
 기존 이름 유지와 이미지가 제외된 폼은 저장소를 읽지 않고 서버 크기를 유지한다. Django 6.1은 포함된 기존 ImageField를
-다시 대입할 때 파일을 열어 stale 크기도 갱신한다. GoDj는 숨은 I/O를 하지 않으며 저장된 이미지의 명시적 재검사/크기 갱신 API는
-후속 범위다. 이미지 decoder의 원본 치수를 사용하며 EXIF 회전·변환·정화는 수행하지 않는다.
+다시 대입할 때 파일을 열어 stale 크기도 갱신한다. 기존 저장 파일은 명시적인
+[`storagemodel.RefreshImageDimensions`](../../storage/model/README.md)로 검사해 크기를 갱신한 새 모델을 얻고, 별도로 DB에 저장한다.
+현재 객체/저장소 인가·revision과 모델 검증은 caller가 소유한다. 이미지 decoder의 원본 치수를 사용하며 EXIF 회전·변환·정화는 수행하지 않는다.
 
 Admin의 `Initial`에는 선택한 이미지의 크기 값도 제공하고 `Snapshot`과 일치시킨다. `InitialValues`는 선택된 폼 값만
 투영하므로 Admin adapter가 크기를 별도로 추가한다. 이 값들은 폼 input으로 렌더링하지 않으며 revision 필드로 사용할 수 없다.

@@ -115,6 +115,20 @@ name := info.Name()
 템플릿은 저장 I/O를 실행하지 않는다. 현재 [HTTP 소비자 검사](upload_test.go)는 multipart/Form에서 받은 바이너리가 요청
 종료와 backend 재개방 후에도 남는 것을 검증한다. 운영 endpoint의 인증 정책·모델 FileField·DB/파일 원자 commit의 증거는 아니다.
 
+## 저장된 이미지 검사
+
+`InspectImage(ctx, backend, name, uploads.ImageLimits{})`는 명시적으로 인가한 저장 이름을 한 번 열고 전체 내용을 검사한 뒤
+그 reader를 닫는다. 다른 reader의 cursor와 원본 파일은 바꾸지 않는다. `ImageInspection.File()`은 같은 handle의 이름/크기와
+선택적 content metadata, `Image()`는 검증한 format·가로·세로·frame 수다. 형식과 자원 한도는 [이미지 입력](../uploads/README.md#이미지-내용-검증)과 같다.
+
+`storage.Reader`의 metadata가 있으면 요청한 이름과 일치하고 실제 읽은 길이가 정확해야 한다. 별도 `Stat`을 호출하지 않는다.
+Metadata가 없는 reader는 EOF까지 측정한 크기를 반환하며 content version/수정 시각을 발명하지 않는다. 크기를 먼저 알 수
+없어도 인코딩 입력은 `MaxBytes`와 한 개의 초과 확인 byte로 제한한다. 매 호출 독립 reader를 열고 이름별 크기를 cache하지 않는다.
+
+읽기·Close·context 취소 중 하나라도 실패하면 zero 결과를 반환하며 `errors.Is/As`로 원래 원인을 확인할 수 있다. Backend의
+callback panic은 전파하지만 이미 얻은 reader는 정리한다. 검사 결과는 권한·파일 게시·DB commit의 증명이나 이후 같은 이름의
+내용 보장이 아니다. 모델 크기 갱신과 명시적 저장은 [storage/model](model/README.md)을 사용한다.
+
 ## 비교와 범위
 
 고정 Django 6.1의 FileSystemStorage 기본 no-overwrite, 이름 충돌/compound suffix/Unicode 길이, 내용·빈 파일·없는 파일 삭제를

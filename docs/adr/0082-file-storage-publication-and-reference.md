@@ -48,7 +48,7 @@ URL 생성과 파일의 존재·접근 인가·server route를 분리한다. Por
 전송을 abort해 정상 완료로 위장하지 않는다. Request/upload/transaction의 빌린 수명은 streaming이 연장하지 않는다.
 
 [storage 계약](../../storage/README.md), [파일 응답](../../web/streaming.md)과 [모델 폼](../../forms/model/README.md#모델-파일의-준비와-저장)을 따른다.
-외부 object-storage backend·서명 URL provider·저장된 이미지의 명시적 재검사·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
+외부 object-storage backend·서명 URL provider·추가 image codec·파일 choices와 자동 orphan 회수는 미완료다. 이 결정의 Accepted를 전체 파일 기능
 완료로 사용하지 않는다. Django 6.1의 기본 이름/내용/no-overwrite와 모델 파일의 생략/clear/DB rollback 의미를 참조한다.
 Portable 이름 제한·bounded 실행·게시 전 완성·명시적 파일 단계는 GoDj의 차이다. Native 출처는 BSD-3-Clause
 `django/db/models/fields/files.py`, 독립 관찰은 [model file observer](../../conformance/runners/django/model_file_reference.py)다.
@@ -91,4 +91,18 @@ nonnullable typed 준비에서는 I/O 전에 실패한다. 크기 필드는 폼/
 
 Django 6.1은 폼이 기존 ImageField를 재대입하면 storage를 열어 stale 크기를 갱신한다. GoDj의 기존/제외 입력은 현재 서버
 snapshot을 그대로 사용하며 별도 backend 없는 binding에 저장소 접근을 넣지 않는다. 이 차이는 [모델 이미지 관찰](../../conformance/runners/django/model_image_reference.py)에
-남긴다. 저장된 참조의 명시적 검사/갱신은 다음 기반이며 새 업로드 검사와 같은 완료 범위로 취급하지 않는다.
+남긴다.
+
+저장된 참조는 명시적 `storage.InspectImage`가 한 번의 독립 Open·같은 handle metadata·bounded 전체 디코딩·Close로 검사한다.
+빌린 일반 reader는 공통 `uploads.InspectImageReader`가 현재 cursor부터 읽고 수명을 변경하지 않는다. 메타데이터가 없는
+storage reader는 실제 byte 수를 측정하며 별도 Stat이나 추측한 version을 사용하지 않는다. Open이 reader와 오류를 함께
+돌려주거나 이후 읽기/Close/취소가 실패해도 자원을 닫고 유효한 결과를 반환하지 않는다.
+
+`storage/model`의 typed 갱신은 canonical IR의 ImageField·크기 소유권과 현재 scalar snapshot을 확인하고 해당 크기만 바꾼
+분리된 모델을 반환한다. PK·다른 필드와 원본 모델/파일을 보존하고 DB 쓰기는 실행하지 않는다. 빈/NULL 참조는 소유 크기를
+NULL로 바꾸며 nonnullable 대상은 오류다. 크기 참조가 없으면 I/O 없이 복사만 한다. Caller가 fresh admission·revision·
+모델 검증과 명시적 DB 저장을 수행하며 검사 결과 자체에 장래의 파일 freshness나 DB/파일 원자성을 부여하지 않는다.
+
+Django의 같은 ImageFieldFile cache 재사용·손상 내용의 NULL 크기·header만의 크기 성공은 따르지 않는다. GoDj는 매번 새
+reader를 열고 전체 내용 검증 실패에서 현재 모델을 보존한다. [저장 이미지 관찰](../../conformance/runners/django/stored_image_reference.py)에
+공통 결과·명시적 차이와 크기 갱신/DB 저장·rollback의 분리를 기록한다.

@@ -39,7 +39,8 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] 동적 UI·업로드/storage·FileField·여러 행 저장·alias/streaming의 후속 Hosted full 통합: source `365ad9d4`
 - [x] context 기반 이미지 내용 검증·Form/Formset·Admin 명령과 명시적 파일 게시의 공통 기반
 - [x] 모델 ImageField의 IR·폭/높이 소유권·생성/migration·Form/Admin·양 DB와 관련 race
-- [ ] 저장된 이미지의 명시적 검사/크기 갱신·추가 codec/storage backend와 남은 파일 의미
+- [x] 저장된 이미지의 명시적 검사/typed 크기 갱신·양 DB 저장/rollback과 관련 race
+- [ ] 추가 codec/storage backend와 남은 파일 의미
 - [ ] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합
 
 요청의 INITIAL_FORMS를 신뢰해 저장된 행을 추가 행으로 바꾸거나 생략할 수 없게 한다. 서버 initial 수와 요청의
@@ -141,5 +142,9 @@ Memory backend·Range/conditional과 전체 플랫폼 통합은 아래에서 연
 검증한 크기는 model clean 전에 후보/typed 입력에 반영하며 크기 필드는 Form/JSON/PostClean의 독립 변경 대상에서 제외한다.
 Admin의 현재 snapshot·CSRF/인가와 파일/DB 저장 경계를 유지한다. IR/이력의 참조 소유권·변경 순서·digest/자원 한도와 SQLite의
 입력 정책 sealing을 확인했고, 고정 Django·양 DB/양 backend·생성 소비자/CLI·관련 race로 검증했다. 자세한 실행/source 차이는
-TEST_EVIDENCE, 장기 의미와 차이는 ADR-0082, 사용법은 모델 Form 문서에 둔다. 기존 저장 파일을 여는 명시적 검사/갱신과
-추가 codec/provider, 전체 기능 카탈로그는 계속 미완료이며 이전 Hosted full 결과를 현재 source에 전이하지 않는다.
+TEST_EVIDENCE, 장기 의미와 차이는 ADR-0082, 사용법은 모델 Form 문서에 둔다.
+
+기존 저장 파일의 명시적 검사/갱신은 `storage.InspectImage`와 `storage/model`에 연결했다. 독립 handle의 내용·길이·Close를
+검사한 뒤 canonical 크기만 갱신한 모델을 반환하고 실제 DB 저장은 caller가 소유한다. 고정 native의 cache/손상/header 차이,
+양 DB/양 backend 저장·rollback·재개방과 관련 race·부정 대조를 확인했다. 추가 codec/provider와 전체 기능 카탈로그는 계속
+미완료이며, `4793382d`의 진행 중인 Hosted full에도 이 후속 코드는 포함되지 않는다.

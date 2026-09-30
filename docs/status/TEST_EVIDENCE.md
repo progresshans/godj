@@ -5,6 +5,48 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### 저장된 이미지 검사와 typed 크기 갱신
+
+2026-09-30, 기반 `4793382d445a12ee9715162094674133cd147529` 이후 빌린 reader의 공통 내용 검사·storage의 독립 Open/Close·
+canonical 모델 크기 갱신을 연결했다. 최종 비Markdown code/config inventory는
+`48ed9701ee8896eb679c077da8933ee83935d6389ca3e229da40006377590684` (2,799 files)다. 아래 최종 normal/race는
+같은 source이며 전후 inventory가 일치한다. 이후 문서만 정리했고 이전 source의 Hosted 결과를 이 코드에 전이하지 않는다.
+
+| 실행 | 확인한 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1, uploads·storage·storage/model·forms·forms/model·admin·web 7 packages / 353 roots / 2,717 PASS / 1.909초 |
+| 실제 생성 소비자 normal | FileConsumer parent 1 PASS / 6.642초; SQLite/PostgreSQL × filesystem/memory의 `stored_inspection` 4개 필수 하위 실행과 기존 파일/Formset/인가된 serving 회귀 |
+| 관련 race | borrowed/owned reader·이미지 내용·typed snapshot/IR 소유권 3 packages / 20 roots / 101 PASS / 2.064초 |
+| 실제 생성 소비자 race | 부모와 생성 child 모두 race / parent 1 PASS / 20.025초; 같은 양 DB/양 backend 필수 실행 |
+| 고정 native | Django 6.1 / CPython 3.14.3 / Pillow 12.3.0, 9개 검사·cache 재사용/새 instance·SQLite 저장/rollback; 두 실행과 fixture bytes 일치 |
+| 부정 대조 | reader Close·metadata 이름 결합·전체 내용 검증·폭/높이 대입·canonical 크기 소유권·빌린 reader 수명 6개 overlay 모두 지정 runtime assertion에서 실패 |
+
+최종 Go 실행은 필수 root·하위 사례의 완료와 전체 JSON을 확인했다. 누락·skip·잘린 JSON은 없었다. PostgreSQL은 각
+normal/race의 별도 `postgres:17.10-bookworm` container (digest `sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`),
+UTF8/libc/C/C·다른 port/database로 실행했다. 종료 뒤 관리 schema·public table·다른 session은 `0|0|0`이고 DB/container를 제거했다.
+기본 GOCACHE와 cache된 dependency를 사용하고 Go 결과 cache는 끈다.
+
+실제 생성 Photograph는 저장된 7×5 PNG와 stale 19×23 DB 크기에서 시작한다. 검사 후 반환 모델만 7×5가 되고 원본/DB는
+19×23을 유지한다. 명시적 크기 저장의 바깥 transaction rollback은 DB를 19×23으로 보존하고 후속 저장/DB 재개방은 7×5다.
+늦은 Close 오류는 zero 모델/검사와 원래 원인으로 실패하며 DB나 원본 bytes를 바꾸지 않는다. 생성된 nonnullable 크기의
+빈 이미지 참조는 I/O 전에 실패한다. 크기 참조 없는 모델은 I/O 없이 복사만 한다. 이 API는 새 HTTP endpoint가 아니다.
+
+Native 9개 중 일반/한쪽 크기·참조 없음·빈/NULL·없는 파일의 7개 결과는 공통이다. 손상된 파일의 NULL 크기 성공과 PNG
+header만의 3×2 성공은 GoDj가 내용 오류로 거부하고 원본을 보존한다. 같은 native ImageFieldFile의 cache는 이름 재사용 후에도
+3×2를 유지하지만 새 instance와 GoDj의 명시적 재검사는 7×5를 읽는다. Fixture SHA-256은
+`8dfbbce94e08df4972b5306f448cc85dadafb085b1b0d0459d165b3f031718c9`다. Source와 라이선스는 SOURCES와 ADR-0082에 둔다.
+
+최초 normal은 공통 패키지가 통과했으나 생성 consumer의 nonnullable 오류 단언에서 실패했다. 두 크기 모두 NULL을 거부할 때
+ORM이 이름순으로 `height`를 먼저 진단하므로 `width` 기대값을 바로잡았다. 잘못된 Read 길이와 함께 반환된 원래 오류도 보존하도록
+보강한 뒤 위 최종 normal/race를 실행했다. 부정 대조는 compile 실패가 아니며 원본 제품 파일은 바꾸지 않았다.
+
+로컬 상세: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래
+`godj-stored-image-db-normal-lqkwphw4`, `godj-stored-image-db-race-1itquo8p`, `godj-stored-image-controls-_qg0_m6n`,
+`godj-stored-image-native-m8a_qvla`다. 첫 실패는 `godj-stored-image-db-normal-bfsnpdul`에 별도로 남긴다.
+`make generate-check`의 Unicode·7개 프로젝트·checked-in 생성물 검사, 변경 Go 포맷·171개 문서의 로컬 링크·diff도 통과했다.
+전체/cold·다른 OS/arch·CGO=0·후속 Hosted full은 이 checkpoint에서 실행하지 않았다.
+
+
 ### 누적 파일/이미지 Hosted 통합의 의존성 준비 수정
 
 수정 source `958f7facec853f2fe99cbd12dae9c626c3a26fee`의

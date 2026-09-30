@@ -119,6 +119,12 @@ pixel 할당 전에 제한한다. 한도는 검사 하나의 입력·raster 예�
 Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 제한한다. 취소는 읽기/단계 경계에서 전달하며 decoder의
 한 pixel 계산 도중 강제 중단하는 goroutine을 만들지 않는다. 검사 결과에는 pixels나 복사한 원문 buffer를 보관하지 않는다.
 
+직접 업로드를 검사할 때는 `uploads.InspectImage(ctx, file, limits)`가 독립 reader를 열고 닫는다.
+`InspectImageReader(ctx, reader, limits)`는 caller가 소유한 reader의 **현재 cursor부터 EOF까지** 읽으며 seek/Close/보관을
+하지 않는다. 읽기는 최대 32 KiB씩, 전체는 byte 한도와 한 개의 초과 확인 byte로 제한한다. Reader는 막힌 Read의 취소에
+협조해야 한다. 잘못된 읽기 길이·반복되는 무진행·원래 I/O 오류를 성공으로 바꾸지 않는다. 저장된 파일의 독립 handle·길이
+검사·정리는 [storage.InspectImage](../storage/README.md#저장된-이미지-검사)가 소유한다.
+
 `FileValue.Image()`는 **이번 바인딩에서 검증한 새 업로드**만 metadata를 반환한다. 기존 저장 이름·clear·일반 FileField는
 검증 결과를 만들지 않는다. 검증은 재인코딩·metadata 제거·저장·접근 인가를 수행하지 않으며 원본 bytes를 그대로 보존한다.
 요청 수명이 끝나기 전에 `storage.SaveUpload` 등 명시적인 저장을 완료해야 한다. 고정 Django/Pillow가 받아들이는 손상된

@@ -181,6 +181,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.LinkDescriptor{}).Metadata()},
 		migrations.CreateModel{AppLabel: "file_reference", Model: beforeImage},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.RawImageDescriptor{}).Metadata()},
+		migrations.CreateModel{AppLabel: "file_reference", Model: (models.StrictImageDescriptor{}).Metadata()},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.PhotoLinkDescriptor{}).Metadata()},
 	}}
 	change := migrations.Migration{App: "file_reference", Name: "0002_file", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{
@@ -529,6 +530,12 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	}
 	if rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact("filesystem-first")).All(ctx); err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "" || rows[0].Width != nil || rows[0].Height != nil {
 		t.Fatal("image clear/dimensions lost on reopen", err)
+	}
+	for _, label := range []string{"filesystem", "memory"} {
+		rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact(label + "-refreshed-image")).All(ctx)
+		if err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "images/full.png" || rows[0].Width == nil || *rows[0].Width != 7 || rows[0].Height == nil || *rows[0].Height != 5 {
+			t.Fatal("explicit image dimensions did not survive database reopen", err)
+		}
 	}
 	if read(received.ID).File != received.File {
 		t.Fatal("file reference lost on DB reopen")
