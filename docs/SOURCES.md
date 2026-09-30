@@ -145,3 +145,9 @@ Credential/session 관찰은 고정 Django 6.1(BSD-3-Clause)의 `django.contrib.
 `django/db/models/fields/files.py`(BSD-3-Clause)를 독립 실행한다.
 [관찰 runner](../conformance/runners/django/model_file_reference.py),
 [고정 관찰](../forms/model/testdata/model-file-django61.json), [GoDj의 경계](adr/0082-file-storage-publication-and-reference.md)를 따른다.
+
+Storage alias/URL과 파일 응답은 같은 고정 Django 6.1의 `django/core/files/storage/handler.py`, `filesystem.py`,
+`django/http/response.py`(BSD-3-Clause)를 독립 실행한다. [관찰 runner](../conformance/runners/django/storage_serving_reference.py)와
+[고정 관찰](../storage/testdata/serving-django61.json)에 source SHA256을 보존한다. 같은 alias identity와 URL escaping, 명시한
+MIME/attachment·length·stream/file close를 비교하며 GoDj의 eager backend 등록·lazy response descriptor·안전한 기본 MIME와
+portable 이름 제한은 [파일 경계](adr/0082-file-storage-publication-and-reference.md)에서 차이로 구분한다.

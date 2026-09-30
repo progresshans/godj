@@ -228,7 +228,15 @@ child가 실행 중이거나 pipe writer가 남아 있는데 성공으로 반환
 처리하고 원래 exit status와 실패 종류를 보존한다. Test fixture가 외부 process를 쓸 때도 같은 수명 규칙을 적용한다.
 
 Web request의 context를 background job의 영구 상태로 보관하지 않는다. Server shutdown은 listener를 닫고 정해진 범위에서
-in-flight request를 drain한다. Streaming이나 장시간 작업을 추가할 때는 backpressure와 취소 소유권을 별도로 정한다.
+in-flight request를 정해진 shutdown 기한까지 drain한다. 유한 HTTP stream은 전체 middleware 성공 뒤 reader를 열고 전송/close까지
+해당 요청이 소유한다. 고정 크기 read/write와 byte 상한을 사용하며 취소를 검사하고, header 이후 오류는 transport를 abort한다.
+빌린 Request/upload/DB session은 stream closure에 보관하지 않는다. 임의 reader의 context 비협조 Read는 강제로 중단하지 않는다.
+[전송 경계](../web/streaming.md)를 따른다. SSE/WebSocket·일반 장시간 작업은 별도 미완료 범위다.
+
+Storage Registry는 alias 설정을 불변으로 공유하고 backend 자원 수명은 application이 소유한다. Filesystem은 각 Save의 staging과
+no-replace 게시를 분리한다. Source reader와 Random은 빌린 callback이며, panic에서도 획득한 잠금과 staging을 정리한다.
+같은 인스턴스의 entropy 호출 직렬화는 panic 후에도 후속 요청을 막지 않는다. 반환한 파일 reader는 독립 수명/cursor를 가지며
+동일 opened handle에서 얻은 불변 metadata를 제공한다. 파일 참조·URL 구성은 인가나 DB commit을 의미하지 않는다.
 
 System-state coordination은 credential/session/audit와 application mutation의 원자성이 필요한 경계를 묶는다.
 같은 schema를 사용하는 협력 runtime은 같은 hash profile·session 한도·CSRF policy를 사용해야 한다.

@@ -20,6 +20,8 @@ Save는 source를 한 번만 읽어 비공개 staging 파일을 완성하고 Fil
 대체하지 않는다. 충돌하면 compound suffix를 보존하고 `_`와 7개 영숫자를 붙이며 필요한 경우 basename을 문자 단위로 줄인다.
 같은 source를 rewind하지 않으며 별도 인스턴스/프로세스도 파일을 덮어쓰지 않는다. 제한 초과, 입력 오류·취소·reader panic에서
 완성되지 않은 staging 파일을 정리한다. Reader는 빌린 자원이므로 Save가 닫지 않는다. 임시로 만든 빈 디렉터리는 남을 수 있다.
+사용자 제공 Random의 panic도 전파하지만 staging/충돌 이름을 위한 직렬화 잠금은 반드시 해제한다. 상위 요청 경계가 panic을
+복구한 뒤 같은 backend의 후속 저장이 멈추지 않으며, 실패한 게시의 staging과 기존 파일 보존 의미는 같다.
 
 게시 전 실패는 `Error.Outcome == NotPublished`, 성공한 게시 뒤 정리 실패는 `Published`로 구분한다. Link에서 오류가 나면
 결과를 확정할 수 없는 filesystem도 고려해 `Uncertain`과 후보 Info를 반환한다. **error가 있어도 Info가 존재할 수 있다.**

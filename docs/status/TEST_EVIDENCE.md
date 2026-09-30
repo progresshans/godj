@@ -69,6 +69,29 @@ HTML/JS 변경이 없어 이번 slice의 브라우저를 반복하지 않았다.
 ImageField와 나머지 기능 카탈로그는 계속 미완료다.
 
 
+
+#### 난수 callback panic 후 후속 저장의 잠금 해제
+
+Hosted 통합을 기다리는 동안 `27ba040e`의 Random 호출이 panic하면 entropy 직렬화 잠금을 해제하지 않는 경로를 확인했다.
+Staging 이름과 충돌 이름에서 각각 재현했고, 상위 HTTP 경계가 panic을 복구한 뒤 같은 backend의 다음 Save가 멈출 수 있었다.
+두 entropy 경계에 defer unlock을 적용하여 원래 panic을 전파하면서 잠금·staging 정리와 기존 파일 보존을 유지했다.
+
+- 이전 `27ba040ee8313a3351341e0d3072b5a15affeb8f`의 Filesystem만 overlay한 부정 대조는 stage/collision 두 runtime assertion에서
+  `entropy panic retained serialization lock`으로 실패했다. 테스트가 영구 대기하지 않도록 잠금을 먼저 확인하며, 수정 소스에서는
+  같은 backend의 실제 후속 Save/Open과 내용·이전 파일 보존·staging 0을 계속 검사한다.
+- 수정 소스의 storage 전체 normal/race는 각각 16 roots / 52 PASS, 0.935/3.020초다. Skip·잘린 JSON·미실행 root가 없고
+  실행 전후 비Markdown inventory `ba5b86ba762ec61392ce65f1581b5a335298fddee7c961127af8a48954ac99ce`가 같았다.
+- go vet·gofmt·diff 확인을 포함한다. 공개 API·schema/generator·DB 의미가 바뀌지 않아 앞선 generated drift나 로컬 DB suite를
+  반복하지 않았다. 수정한 Filesystem의 platform/소비자 조합은 다음 Hosted full이 소유한다.
+
+Receipts는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/`의 `godj-storage-entropy-normal-7tzl6509`,
+`godj-storage-entropy-race-_dazi5xe`, `godj-storage-entropy-regression-agm8q27r`다.
+진행 중이던 [full 36665945911](https://github.com/progresshans/godj/actions/runs/36665945911)은 이 재현 가능한 소스 수정 때문에
+취소했고 전체 완료 증거로 사용하지 않는다. 완료 상태는 cancelled이며 필수 owner 취소로 최종 집계도 failure다.
+관찰 timeout으로 중단을 추정하거나 같은 소스의 실행을 중복 요청한 것이 아니다.
+수정 소스의 새 full에서 필수 owner·최종 aggregate·같은 run의 새 capture와 Git source 결합을 다시 확인한다.
+
+
 ### 일반 모델 여러 행의 저장 계획과 파일 게시
 
 2026-09-30, 기반 `e613660f8033a4e461a6fc419e01cfa4c1a77f19` 이후 `PreparedSet.SavePlan`의 changed/new/deleted 선택과

@@ -130,12 +130,26 @@ func (f *Filesystem) Close() error {
 	}
 	return s.closeErr
 }
+
+// User-provided entropy is an opaque callback. Preserve its panic while
+// releasing serialization so a recovered request cannot poison later saves.
+func (s *filesystemState) readRandom(destination []byte) error {
+	s.entropyMu.Lock()
+	defer s.entropyMu.Unlock()
+	_, err := io.ReadFull(s.random, destination)
+	return err
+}
+
+func (s *filesystemState) availableName(name string, limit int) (string, error) {
+	s.entropyMu.Lock()
+	defer s.entropyMu.Unlock()
+	return alternativeName(name, limit, s.random)
+}
+
 func (s *filesystemState) stage() (*os.File, string, error) {
 	for i := 0; i < s.limits.MaxAttempts; i++ {
 		var entropy [16]byte
-		s.entropyMu.Lock()
-		_, err := io.ReadFull(s.random, entropy[:])
-		s.entropyMu.Unlock()
+		err := s.readRandom(entropy[:])
 		if err != nil {
 			return nil, "", &Error{Code: "entropy_failed", Outcome: NotPublished, Cause: err}
 		}
@@ -215,9 +229,7 @@ func (f *Filesystem) Save(ctx context.Context, name string, source io.Reader, op
 			return Info{}, err
 		}
 		if attempt != 0 || utf8.RuneCountInString(candidate) > limit {
-			s.entropyMu.Lock()
-			candidate, err = alternativeName(name, limit, s.random)
-			s.entropyMu.Unlock()
+			candidate, err = s.availableName(name, limit)
 			if err != nil {
 				return Info{}, err
 			}

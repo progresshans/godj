@@ -31,7 +31,8 @@ Form/Admin에 연결했다. 모델 값은 저장 이름이고 새 업로드는 �
 실제 로그인/CSRF·모델 소유권·양 DB 다운로드 및 기존 Helpdesk HTTP의 관련 race를 확인했다.
 
 위 Hosted full은 이후 동적 UI·파일 입력·storage·모델 FileField·일반 모델 여러 행 저장·alias/streaming을 포함하지 않는다.
-이 변경들을 묶은 새 Hosted full 통합 milestone을 진행한다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
+이 변경들을 묶은 새 Hosted full 통합 milestone을 진행한다. 대기 중 확인한 storage 난수 callback의 panic 후 잠금 누수를
+수정하고 후속 저장을 normal/race로 검증했다. 수정 전 full은 완료 증거로 쓰지 않는다. 현재 영향 검증을 전체 플랫폼 성공으로 확대하지 않는다.
 
 ## 다음 행동
 
