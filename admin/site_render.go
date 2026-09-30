@@ -345,7 +345,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
 		fileName, fileInitial, clearChecked, reselect := "", false, false, false
-		if field.IsFile() {
+		if field.AcceptsUpload() {
 			if initial, present := form.Initial().File(field.Name()); present && initial.Name() != "" && !initial.Clear() {
 				fileName, fileInitial = safeDisplayText(initial.Name()), true
 			}
@@ -387,7 +387,7 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			"label":         templates.String(field.Label()),
 			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":      templates.Bool(field.Widget() == forms.PasswordInput),
-			"file":          templates.Bool(field.IsFile()),
+			"file":          templates.Bool(field.AcceptsUpload()),
 			"image":         templates.Bool(field.Kind() == forms.FieldImage),
 			"file_initial":  templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput),
 			"file_name":     templates.String(fileName),
@@ -433,7 +433,7 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	}
 	// Never put a raw password into a render context, even after a confirmed
 	// validation rejection or when a caller supplied an initial value.
-	if field.Widget() == forms.PasswordInput || field.IsFile() {
+	if field.Widget() == forms.PasswordInput || field.AcceptsUpload() {
 		return "", false
 	}
 	if field.Widget() == forms.NullBooleanSelect {
@@ -525,6 +525,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldInteger {
 		value, _ := initial.AsInteger()
 		return strconv.FormatInt(value, 10), false
+	}
+	if field.IsFile() {
+		value, _ := initial.AsFile()
+		return safeDisplayText(value.Name()), false
 	}
 	value, _ := initial.AsString()
 	return safeDisplayText(value), false

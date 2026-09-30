@@ -1,7 +1,7 @@
 ---
 id: GDJ-0103
 status: active
-updated: 2026-09-30
+updated: 2026-10-01
 baseline_commit: "cb76b165aa3379c8c40aabfa7d12354460c57bf7"
 integration_owner: "root"
 ---
@@ -45,7 +45,9 @@ GDJ-0102의 initial source `cb76b165`는 Hosted full 62 jobs·8 owners와 새 ca
 - [x] WebP의 모든 frame·실제 bitstream 크기/alpha·Form/Admin·양 DB 저장/재검사와 관련 race
 - [x] S3의 조건부 게시·checksum·불확실한 결과·독립 version reader·명시적 서명 URL과 Form/Admin/양 DB 소비자
 - [x] 저장 이미지 검사와 BMP/DIB/TIFF·APNG/WebP의 누적 Hosted full 통합: source `bcc7b76a`
-- [ ] S3와 새 dependency/service profile의 Hosted web 통합
+- [x] S3와 새 dependency/service profile의 Hosted web 통합: source `ac4c40d5`
+- [x] File/Image choices의 명시적 저장 이름 선택·이미지 검사·생성 소비자와 영향 검증
+- [ ] File/Image choices의 후속 Hosted web 통합
 - [ ] 나머지 codec 특성/storage backend와 남은 파일 의미
 - [x] Memory·Range/conditional·이미지 입력/모델의 후속 Hosted full 통합: source `4793382d`
 
@@ -180,3 +182,8 @@ S3는 명시적 credential·bucket/prefix와 공식 SDK를 사용하는 backend�
 모델 소유권 조회 뒤에 발급하고 이미 발급한 bearer capability의 유효기간을 구분한다. 같은 생성 모델/Form/Admin을
 실제 MinIO와 양 DB에 연결했다. 기존 이미지 source의 Hosted full과 새 S3 source의 Hosted web은 각각 검증하며,
 제품별 실행·실패·정리 증거는 TEST_EVIDENCE가 소유한다.
+
+S3는 `ac4c40d5`의 Hosted web 필수 owner·집계와 세 모드의 실제 service receipt까지 통합했다. 이후 File/Image choices는
+저장 이름의 Select와 명시적 이미지 검사 capability를 연결했다. 빈 값/기본값·치수 소유권·형제 unique·현재 인가/CSRF와
+게시 없는 typed 저장을 유지하고 native 20개·양 DB/세 backend·관련 race·여덟 실패 대조로 확인했다. 이 로컬 영향 checkpoint와
+다음 source의 Hosted 통합을 구분한다. 추가 codec/provider와 전체 기능 카탈로그는 계속 미완료다.

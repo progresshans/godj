@@ -28,7 +28,8 @@ func (form InstanceForm[M]) BoundForm() BoundForm { return form.bound }
 // BindInstance obtains model metadata and initial scalar values from the typed
 // manager. Nil means a new model using Schema IR defaults/unsaved values; a
 // non-nil instance may itself be unsaved. Spec owns selected fields, command
-// inputs and explicitly scoped relation choices. No database I/O occurs.
+// inputs and explicitly scoped relation choices. Explicit image-choice
+// inspectors may read storage; no database I/O occurs.
 func BindInstance[M any](ctx context.Context, manager orm.Manager[M], spec forms.Spec, data forms.Data, instance *M, postClean PostClean) (InstanceForm[M], error) {
 	metadata, err := manager.Metadata()
 	if err != nil {

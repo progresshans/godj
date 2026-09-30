@@ -145,3 +145,14 @@ S3 서명 다운로드는 명시적으로 등록하는 유효기간 있는 beare
 확인해도 이미 발급한 URL을 소유권 변경과 함께 취소한 것으로 판단하지 않는다. Key 이름을 가리키므로 만료 전 같은 이름의
 내용 교체도 읽을 수 있다. GET·key·안전한 response metadata에 서명을 결합하고 URL을 영구 FileField 값으로 사용하지 않는다.
 고정 MinIO 실제 서비스, 양 DB/세 backend의 생성 소비자와 wire 실패 검사를 구분하며 AWS 운영 환경의 검증을 추정하지 않는다.
+
+File/ImageField의 choices는 canonical 문자열 저장 정책이며 별도 물리 열 변경 없이 이력·hash에 반영한다. Form/Admin은
+Select로 이름을 선택하고 새 파일 게시와 구분한다. Image choices는 application이 제공한 명시적 inspector capability로
+허용된 비어 있지 않은 선택만 전체 검사한다. 같은 이름도 새 reader로 검사하여 model clean 전에 크기를 파생한다. 서버 파일의
+읽기/내용/종료 실패는 binding 오류이며 사용자 검증 오류로 바꾸지 않는다. 기본 adapter는 Open만 빌리고 수명을 연장하지 않는다.
+
+Optional nonnullable의 빈 선택은 이름/크기를 지우며 nullable의 빈 선택은 현재 snapshot을 유지한다. Default 필드의 생략은
+현재/default를 보존한다. Unbound·readonly·제외·빈 nullable은 암묵적 저장소 I/O가 없으며 native의 nullable 빈 선택 재검사와
+구분한다. Changed는 원래 이름 비교이며 재검사 자체가 Formset 저장 행을 추가하지 않는다. 형제 unique는 metadata 대신 저장
+이름을 비교한다. JSON/일반 ORM에 숨은 검사나 파일 쓰기 권한을 추가하지 않는다. 목록의 declaration과 검사 결과는 principal/model
+인가·revision·DB transaction 또는 장래 내용의 불변성을 대신하지 않는다. [파일 choices 관찰](../../conformance/runners/django/file_choice_reference.py)을 따른다.

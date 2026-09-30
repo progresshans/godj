@@ -238,6 +238,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
+	inspectImageChoice  ImageChoiceInspector
+	hasImageInspector   bool
 	imageLimits         uploads.ImageLimits
 	hasImageLimits      bool
 	allowEmptyFile      bool
@@ -265,26 +267,27 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
-	imageLimits     uploads.ImageLimits
-	allowEmptyFile  bool
-	normalizeString func(string) string
-	trimWhitespace  bool
-	name            string
-	label           string
-	kind            FieldKind
-	widget          Widget
-	choices         []Choice
-	modelChoice     bool
-	inlineParent    bool
-	emptyValue      Value
-	required        bool
-	nullable        bool
-	maxLength       int
-	decimalDigits   int
-	decimalPlaces   int
-	defaultValue    Value
-	hasDefault      bool
-	validators      []FieldValidator
+	inspectImageChoice ImageChoiceInspector
+	imageLimits        uploads.ImageLimits
+	allowEmptyFile     bool
+	normalizeString    func(string) string
+	trimWhitespace     bool
+	name               string
+	label              string
+	kind               FieldKind
+	widget             Widget
+	choices            []Choice
+	modelChoice        bool
+	inlineParent       bool
+	emptyValue         Value
+	required           bool
+	nullable           bool
+	maxLength          int
+	decimalDigits      int
+	decimalPlaces      int
+	defaultValue       Value
+	hasDefault         bool
+	validators         []FieldValidator
 }
 
 // ConfigError reports a startup-time invalid form definition.
@@ -339,6 +342,12 @@ func IntegerField(name string, options ...FieldOption) (Field, error) {
 }
 
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
+	if config.hasImageInspector && (kind != FieldImage || config.choices == nil || config.inspectImageChoice == nil) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".image_choice_inspector", Code: "unsupported"}
+	}
+	if kind == FieldImage && config.choices != nil && config.inspectImageChoice == nil {
+		return Field{}, &ConfigError{Path: "fields." + name + ".image_choice_inspector", Code: "required"}
+	}
 	if config.hasImageLimits && kind != FieldImage {
 		return Field{}, &ConfigError{Path: "fields." + name + ".image_limits", Code: "unsupported"}
 	}
@@ -349,7 +358,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 		config.imageLimits = limits
 	}
-	if config.hasAllowEmptyFile && !fileFieldKind(kind) {
+	if config.hasAllowEmptyFile && (!fileFieldKind(kind) || config.choices != nil) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".allow_empty_file", Code: "unsupported"}
 	}
 	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
@@ -372,6 +381,9 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	}
 	if config.choices != nil && !config.hasWidget && kind != FieldIntegerList {
 		config.widget = Select
+	}
+	if fileFieldKind(kind) && config.choices != nil && config.widget != Select {
+		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
@@ -540,21 +552,22 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
-		allowEmptyFile:  config.allowEmptyFile,
-		imageLimits:     config.imageLimits,
-		normalizeString: config.normalizeString,
-		trimWhitespace:  config.trimWhitespace,
-		name:            name,
-		label:           config.label,
-		kind:            kind,
-		widget:          config.widget,
-		choices:         append([]Choice(nil), config.choices...),
-		modelChoice:     config.modelChoice,
-		emptyValue:      config.emptyValue,
-		required:        config.required,
-		nullable:        config.nullable,
-		maxLength:       config.maxLength,
-		decimalDigits:   config.decimalDigits, decimalPlaces: config.decimalPlaces,
+		inspectImageChoice: config.inspectImageChoice,
+		allowEmptyFile:     config.allowEmptyFile,
+		imageLimits:        config.imageLimits,
+		normalizeString:    config.normalizeString,
+		trimWhitespace:     config.trimWhitespace,
+		name:               name,
+		label:              config.label,
+		kind:               kind,
+		widget:             config.widget,
+		choices:            append([]Choice(nil), config.choices...),
+		modelChoice:        config.modelChoice,
+		emptyValue:         config.emptyValue,
+		required:           config.required,
+		nullable:           config.nullable,
+		maxLength:          config.maxLength,
+		decimalDigits:      config.decimalDigits, decimalPlaces: config.decimalPlaces,
 		defaultValue: config.defaultValue,
 		hasDefault:   config.hasDefault,
 		validators:   append([]FieldValidator(nil), config.validators...),
@@ -563,7 +576,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 
 func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 	if fileFieldKind(kind) {
-		return value.IsNull() || value.kind == ValueFile && value.fileState != nil && !value.fileState.clear && !value.fileState.upload.Valid()
+		return value.IsNull() || value.kind == ValueFile && value.fileState != nil && !value.fileState.clear && !value.fileState.upload.Valid() && !value.fileState.image.Valid()
 	}
 	if kind == FieldIntegerList {
 		_, ok := value.AsIntegers()
@@ -1155,7 +1168,7 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 
 func fieldChanged(field Field, data Data, initial Value) bool {
 	if field.IsFile() {
-		return fileChanged(field, data)
+		return fileChanged(field, data, initial)
 	}
 	if field.inlineParent {
 		return false

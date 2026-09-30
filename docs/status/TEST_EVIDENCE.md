@@ -5,6 +5,53 @@
 
 ## GDJ-0103 — Formset과 범위가 정해진 여러 행 편집
 
+### File/Image choices의 저장 이름 선택과 명시적 검사
+
+2026-10-01, 기반 `ac4c40d5061dd427543a33fd08d0dc71b0b1159a` 이후 File/Image choices를 canonical IR·Form/Admin·
+typed 준비에 연결했다. Runtime checkpoint의 비Markdown code/config inventory는 2,829 files /
+`9ffe85c86ed6a7a1635df6e5cec3c6fa8be9634a5c328889cb1a7979f84434d5`이며 normal/race의 실행 전후가 같다.
+선행 S3 Hosted web은 이 choices 변경의 검증이 아니다. 새 source의 Hosted web을 후속 통합 범위로 둔다.
+
+| 실행 | 범위와 결과 |
+| --- | --- |
+| 영향 normal | Go 1.26.5 / darwin-arm64 / CGO=1; forms·forms/model·admin·storage·storage/model·schema/ir·schema·serializers·projectwire·migrationautodetect·migration definition, 11 packages / 535 roots / 5,319 PASS / 5.064초 |
+| 생성 소비자 normal | FileConsumer parent 1 PASS / 8.774초; SQLite/PostgreSQL × filesystem/memory/S3의 저장 이름 선택·원문 검사·typed 저장/rollback/재개방과 기존 파일/이미지/서빙 회귀 |
+| 관련 race | storage·storage/model·forms·forms/model·admin의 Choice/File/Image/Set/Inline, 5 packages / 114 roots / 618 PASS / 3.666초 |
+| 생성 소비자 race | 부모·생성 child 모두 race, 같은 양 DB/세 backend / parent 1 PASS / 23.882초 |
+| Native reference | 고정 Django 6.1 `fe0a859f537d4238cf49fca39073513206f83122` / Python 3.14.3 / Pillow 12.3.0; 20개 입력과 이미지 선택 후 DB rollback을 독립 2회 실행, fixture byte 일치 |
+| 실패 대조 | 선언 목록·명시적 검사·canonical 목록 확대 금지·생략 default·치수 파생·default 준비의 I/O 분리·Admin 업로드 part 차단·서로 다른 검사 결과의 동일 이름 unique, 여덟 runtime 실패 검출 |
+| 생성 drift | `make generate-check`: Unicode 검사와 일곱 저장 프로젝트·checked-in relation consumer PASS |
+| 정적 검사 | 영향 forms/model·Admin·storage·schema·생성 소비자 vet, `make docs-check format-check`, `git diff --check` PASS |
+
+Native fixture SHA256은 `3afcd797bc6d7ccc0f062dc74fba007f04abe7bba8abbcfefa01555872b01689`다. 관찰 프로그램은 GoDj를
+사용하지 않고 Django 소스 hash/commit·라이선스를 남긴다. Select/비multipart·정확한 이름·empty/null/default·upload part 무시·
+이미지 새 선택/같은 선택/없는 파일과 실제 rollback을 비교한다. Native가 빈 nullable 선택에서 현재 이미지를 다시 읽는 부분은
+GoDj의 현재 이름/치수 보존·I/O 생략과 명시적으로 구분한다. 전체 내용 검사는 기존 저장 이미지 정책을 사용한다.
+이후 observer의 라이선스 위치 주석만 repository root로 바로잡고 두 번 다시 실행해 같은 fixture를 확인했다. Runtime 제품·
+생성기·Go test·fixture bytes는 바꾸지 않았다.
+
+생성 소비자는 두 독립 모델과 복합 unique를 추가하고 output을 두 번 생성해 byte 일치를 확인한다. File/Image choices의
+정의 wire·metadata-only migration·reverse·DB 재개방, 저장 이름의 준비와 새 게시 0회, 이미지 치수의 model clean 이전 반영,
+DB rollback 중 원래/선택 파일 보존과 DB에서 다시 얻은 선택의 실제 HTTP 응답을 확인한다. 이 새 응답 사례 자체는 별도 로그인
+통합을 주장하지 않는다. 기존 생성 serving suite가 로그인·CSRF·소유권/Range/서명을 소유하고, 새 Admin HTTP 검사가 실제
+cookie login·create/change Select·초기 선택/escaping·위조 치수·중복/미선언 선택·CSRF·조회 전용 principal·multipart part 거부·
+검사 실패의 500과 미쓰기를 검증한다. 순수 Form은 context/limits·동시 재검사·검증 순서·readonly/빈 입력의 I/O 생략을 확인한다.
+
+필수 실행·전체 부모 Go JSON·no-skip을 확인했다. 생성 부모는 child JSON 전체와 양 DB/세 backend의 reference_choices 및
+formset_unique 필수 하위 경로를 검사한다. 각 normal/race는 PostgreSQL 17.10 Debian·UTF8/libc/C/C의 새 container/database와
+새 고정 MinIO process를 사용했다. DB 종료 상태 `0|0|0`·DB/container 제거와 MinIO child/server exit 0·reap·graceful cleanup을
+확인했다. 공유 Go cache와 child `-trimpath`를 유지하고 로컬 전체/cold 검증은 반복하지 않았다.
+
+첫 실행에서 image default 준비가 폼 inspector를 요구하는 결합을 발견해 순수 참조 기본값 준비를 분리했다. Admin 중복 입력의
+기존 `multiple` 재표시를 HTTP 400으로 기대했던 테스트도 현재 오류 정책에 맞게 수정했다. 첫 core 실패를 최종 PASS로 합치지
+않는다. 모든 실패 대조는 원본이 같은 선택자로 먼저 통과하고 목표 runtime assertion으로 실패했다. 생성 child가 host overlay를
+거부하므로 unique 대조는 소유한 source 복사본에서 수행했으며 실제 작업 사본은 바꾸지 않았다.
+
+로컬 상세는 `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/` 아래 `godj-file-choices-db-normal-0520q418`,
+`godj-file-choices-db-race-1gwiygm6`, `godj-file-choices-service-normal-ltvohu8r`, `godj-file-choices-service-race-35uu9ve6`,
+`godj-file-choices-controls-no0hr63b`에 보존한다. 사용법/장기 의미는 모델 Form 문서와 ADR-0082에 둔다. 새 Hosted 통합·추가
+codec/provider·전체 파일 및 기능 카탈로그 범위는 완료로 표현하지 않는다.
+
 ### S3의 게시 결과·독립 reader·서명 다운로드
 
 2026-09-30, 기반 `bcc7b76a17aacc6a90a3f360bb8f25fe080a840d` 이후 명시적 S3 backend와 서명 다운로드를 기존 파일
@@ -114,6 +161,25 @@ race로 실행해 각각 142개 run/pass·0 skip과 필수 68개를 확인했다
 취소·후반 저장 검사가 모두 완료됐다. 비Markdown inventory `4fa05601be33b1996eb8b6ae7f4e19cadc72b2db2d51a12942da9c32804a5f68`는
 두 실행의 전후에 같았다. 로컬 상세는 `godj-helpdesk-budget-normal-gyrks930`, `godj-helpdesk-budget-race-2qc23c3g`다.
 새 source의 Hosted web으로 최종 통합을 다시 확인한다. 앞선 세 S3 component의 성공을 새 source 전체의 PASS로 사용하지 않는다.
+
+2026-10-01, 수정 source `ac4c40d5061dd427543a33fd08d0dc71b0b1159a`의
+[Hosted web 36738621534](https://github.com/progresshans/godj/actions/runs/36738621534), attempt 1이 완료됐다.
+37 jobs 중 32 success·5 비대상 skip이며 필수 command-product-matrix·portable-go-matrix·postgresql-product와
+최종 집계 job `109981630637`이 통과했다. Plan과 집계의 실제 checkout/선택 범위를 확인했고 결과는 `scope=web`,
+`full_platform_verified=false`다. 새 전체 플랫폼 성공으로 표현하지 않는다. 앞선 Helpdesk portable integration race도
+이 source에서 완료됐다. [PR feedback 36738560435](https://github.com/progresshans/godj/actions/runs/36738560435)도 통과했으며,
+실제 merge `bfe2baa6d31e6f9512cf1d6073e26c617b7f3b99`의 tree `18275ffd25d87e4f6eed14e242be0022eba36d49`가 source와 일치한다.
+
+| 새 source의 S3 mode | 실제 producer job | Artifact | Archive SHA256 |
+| --- | --- | --- | --- |
+| normal | `109966888903` | `11109444328` | `2a28fa9b6b11f32ecae0337004490a5eba99aef771cefec412c792338e9aff51` |
+| race | `109966888869` | `11111291860` | `46724507b5bbc626f76744b1bb1ca2b27fc185e4e1bfd9b82ffd17dcc1b042d0` |
+| CGO=0 | `109966888798` | `11109249377` | `b3ddb62a15fcdff055c4408378bbfa71bdba4b2d665df9690e1b2c0a752c8e68` |
+
+각 producer에서 15 packages·4,368 runs/passes·0 skip과 필수 1,915개를 새로 확인했다. Git source의 실행 목록·
+job checkout·실제 artifact 발행 ID/metadata/digest·고정 server build와 독립 process 수명을 다시 대조했다. 세 server binary는
+위 Linux SHA256과 같으며 각 receipt의 ready·child/server exit 0·reap·graceful cleanup이 성립한다. 상세는
+`godj-s3-budget-hosted-web-36738621534-rwic3c9y`에 보존한다. 이후 편집한 파일 choices는 이 Hosted 실행에 포함되지 않는다.
 
 ### 저장 이미지·추가 codec의 Hosted 통합
 

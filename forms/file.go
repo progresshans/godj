@@ -37,8 +37,8 @@ func (f FileValue) Upload() (uploads.File, bool) {
 }
 func (f FileValue) Clear() bool { return f.state != nil && f.state.clear }
 
-// Image reports verified metadata only for a newly received ImageField upload.
-// Retained storage names are not opened during binding.
+// Image reports verified metadata for a new ImageField upload or an explicitly
+// inspected image choice. An ordinary retained reference has no such metadata.
 func (f FileValue) Image() (uploads.ImageInfo, bool) {
 	if f.state == nil {
 		return uploads.ImageInfo{}, false
@@ -85,24 +85,47 @@ func ImageField(name string, options ...FieldOption) (Field, error) {
 func WithImageLimits(limits uploads.ImageLimits) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.imageLimits, config.hasImageLimits = limits, true })
 }
+
+// ImageChoiceInspector is an explicit I/O capability for server-declared image
+// names. It must inspect the authorized name completely within the given limits,
+// close any acquired reader, preserve errors and be safe for concurrent use.
+// storage.NewImageInspector supplies the standard storage-backed adapter.
+type ImageChoiceInspector func(context.Context, string, uploads.ImageLimits) (uploads.ImageInfo, error)
+
+// WithImageChoiceInspector is required for an ImageField with choices. Binding
+// inspects a valid, nonempty submitted choice before pure validators run. It
+// does not inspect excluded/readonly fields, empty input or unbound initial data.
+func WithImageChoiceInspector(inspector ImageChoiceInspector) FieldOption {
+	return fieldOption(func(config *fieldConfig) {
+		config.inspectImageChoice, config.hasImageInspector = inspector, true
+	})
+}
+
 func (f Field) ImageLimits() (uploads.ImageLimits, bool) { return f.imageLimits, f.kind == FieldImage }
 func (f Field) IsFile() bool                             { return fileFieldKind(f.kind) }
-func fileFieldKind(kind FieldKind) bool                  { return kind == FieldFile || kind == FieldImage }
+
+// AcceptsUpload distinguishes an upload control from a stored-name choice.
+// Both use FileValue, but only an upload control needs multipart transport.
+func (f Field) AcceptsUpload() bool     { return f.IsFile() && f.choices == nil }
+func fileFieldKind(kind FieldKind) bool { return kind == FieldFile || kind == FieldImage }
 
 func newFileField(name string, kind FieldKind, options ...FieldOption) (Field, error) {
-	config := fieldConfig{label: name, required: true, nullable: true, widget: ClearableFileInput}
+	config := fieldConfig{label: name, required: true, widget: ClearableFileInput}
 	for _, option := range options {
 		if nilInterface(option) {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
 		}
 		option.apply(&config)
 	}
+	if config.choices == nil {
+		config.nullable = true
+	}
 	return makeField(name, kind, config)
 }
 func (f Field) AllowEmptyFile() bool { return f.allowEmptyFile }
 func (s Spec) IsMultipart() bool {
 	for _, field := range s.fields {
-		if field.IsFile() {
+		if field.AcceptsUpload() {
 			return true
 		}
 	}
@@ -111,6 +134,9 @@ func (s Spec) IsMultipart() bool {
 func (s SetSpec) IsMultipart() bool { return s.row.IsMultipart() }
 
 func cleanFile(ctx context.Context, field Field, data Data, initial Value) (Value, validation.Errors, error) {
+	if field.choices != nil {
+		return cleanFileChoice(ctx, field, data)
+	}
 	fail := func(code validation.Code) (Value, validation.Errors, error) {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code)), nil
 	}
@@ -204,7 +230,60 @@ func fileClear(field Field, data Data) (bool, validation.Code) {
 		return false, "invalid"
 	}
 }
-func fileChanged(field Field, data Data) bool {
+func cleanFileChoice(ctx context.Context, field Field, data Data) (Value, validation.Errors, error) {
+	fail := func(code validation.Code) (Value, validation.Errors, error) {
+		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code)), nil
+	}
+	submitted, _ := data.raw(field.name)
+	if len(submitted) > 1 {
+		return fail("multiple")
+	}
+	raw := ""
+	if len(submitted) == 1 {
+		raw = submitted[0]
+	}
+	if raw == "" {
+		if field.required {
+			return fail("required")
+		}
+		if field.nullable {
+			return Null(), validation.Errors{}, nil
+		}
+		return Value{kind: ValueFile, fileState: &privateFile{clear: true}}, validation.Errors{}, nil
+	}
+	if _, code := cleanChoice(field, raw); code != "" {
+		return fail(code)
+	}
+	value := Value{kind: ValueFile, fileState: &privateFile{name: raw}}
+	if field.kind == FieldImage {
+		info, err := field.inspectImageChoice(ctx, raw, field.imageLimits)
+		if err != nil {
+			return Null(), validation.Errors{}, err
+		}
+		if err := ctx.Err(); err != nil {
+			return Null(), validation.Errors{}, err
+		}
+		if !info.Valid() {
+			return Null(), validation.Errors{}, &ConfigError{Path: "fields." + field.name + ".image_choice_inspector", Code: "invalid_result"}
+		}
+		value.fileState.image = info
+	}
+	return value, runFieldValidators(field, value), nil
+}
+
+func fileChanged(field Field, data Data, initial Value) bool {
+	if field.choices != nil {
+		submitted, _ := data.raw(field.name)
+		if len(submitted) > 1 {
+			return true
+		}
+		raw := ""
+		if len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		file, _ := initial.AsFile()
+		return raw != file.Name()
+	}
 	files, _ := data.rawFiles(field.name)
 	clear, code := fileClear(field, data)
 	return len(files) != 0 || clear || code != ""

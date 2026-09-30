@@ -120,7 +120,7 @@ func modelData(model registeredModel, input siteForm) forms.Data {
 		if submitted, ok := input.values[field.Name()]; ok {
 			data[field.Name()] = append([]string(nil), submitted...)
 		}
-		if field.IsFile() {
+		if field.AcceptsUpload() {
 			if submitted, present := input.files[field.Name()]; present {
 				files[field.Name()] = submitted
 			}

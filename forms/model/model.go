@@ -82,7 +82,17 @@ func WithImageLimits(limits uploads.ImageLimits) OverrideOption {
 	return overrideOption(func(config *overrideConfig) { config.imageLimits, config.hasImageLimits = limits, true })
 }
 
+// WithImageChoiceInspector selects the explicit read capability for an
+// ImageField whose canonical choices select existing storage names.
+func WithImageChoiceInspector(inspector forms.ImageChoiceInspector) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.inspectImageChoice, config.hasImageInspector = inspector, true
+	})
+}
+
 type overrideConfig struct {
+	inspectImageChoice  forms.ImageChoiceInspector
+	hasImageInspector   bool
 	imageLimits         uploads.ImageLimits
 	hasImageLimits      bool
 	normalizeString     func(string) string
@@ -245,6 +255,9 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
+	if override.hasImageInspector && (field.Kind != ir.FieldImage || field.Choices == nil) {
+		return forms.Field{}, &Error{Code: "unsupported_image_override"}
+	}
 	if override.hasImageLimits && field.Kind != ir.FieldImage {
 		return forms.Field{}, &Error{Code: "unsupported_image_override"}
 	}
@@ -302,17 +315,20 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			maximum = override.maxLength
 		}
 		options = append(options, forms.WithRequired(required), forms.WithMaxLength(maximum))
+		if field.Choices != nil && field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
 		if field.Default != nil {
-			if field.Default.Kind != ir.ScalarString {
-				return forms.Field{}, &Error{Code: "default_type_mismatch"}
-			}
-			value, err := forms.ExistingFile(field.Default.String)
+			value, err := fileDefaultValue(field)
 			if err != nil {
 				return forms.Field{}, err
 			}
 			options = append(options, forms.WithDefault(value))
 		}
 		if field.Kind == ir.FieldImage {
+			if override.hasImageInspector {
+				options = append(options, forms.WithImageChoiceInspector(override.inspectImageChoice))
+			}
 			if override.hasImageLimits {
 				options = append(options, forms.WithImageLimits(override.imageLimits))
 			}

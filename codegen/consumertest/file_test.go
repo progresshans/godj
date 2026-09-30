@@ -30,6 +30,15 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			schema.ImageField("photo", "Photo", schema.Blank(), schema.ImageDimensions("width", "height")),
 			schema.IntegerField("width", "Width"), schema.IntegerField("height", "Height"),
 		}},
+		{Name: "asset_reference", GoName: "AssetReference", Fields: []schema.Field{
+			schema.CharField("title", "Title", 40),
+			schema.FileField("reference", "Reference", schema.Blank(), schema.Default("files/a.txt"), schema.Choices(schema.Choice("files/a.txt", "A"), schema.Choice("files/b.txt", "B"))),
+		}, UniqueConstraints: []schema.UniqueConstraint{{Name: "asset_reference_name", Fields: []string{"title", "reference"}}}},
+		{Name: "selected_image", GoName: "SelectedImage", Fields: []schema.Field{
+			schema.CharField("title", "Title", 40),
+			schema.ImageField("photo", "Photo", schema.Nullable(), schema.Blank(), schema.ImageDimensions("width", "height"), schema.Choices(schema.Choice("images/a.png", "A"), schema.Choice("images/b.png", "B"))),
+			schema.IntegerField("width", "Width", schema.Nullable()), schema.IntegerField("height", "Height", schema.Nullable()),
+		}, UniqueConstraints: []schema.UniqueConstraint{{Name: "selected_image_name", Fields: []string{"title", "photo"}}}},
 		{Name: "photo_link", GoName: "PhotoLink", Fields: []schema.Field{schema.ForeignKey("photograph", "PhotographID", schema.Target("file_reference", "photograph"), schema.RelatedName("links"), schema.Protect)}},
 		{Name: "archive", GoName: "Archive", Fields: []schema.Field{schema.FileField("reference", "Reference")}},
 		{Name: "link", GoName: "Link", Fields: []schema.Field{schema.ForeignKey("document", "DocumentID", schema.Target("file_reference", "document"), schema.RelatedName("links"), schema.Protect)}},
@@ -58,7 +67,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
-	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go", "image_test.go", "stored_image_test.go", "image_codec_test.go"} {
+	for _, name := range []string{"consumer_test.go", "formset_test.go", "serving_test.go", "image_test.go", "stored_image_test.go", "image_codec_test.go", "file_choice_test.go"} {
 		consumer, err := os.ReadFile("testdata/files/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -95,6 +104,11 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/webp-reference.json", webpReference)
+	choiceReference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "forms/model/testdata/file-choice-django61.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/file-choice-reference.json", choiceReference)
 	required := []string{"TestGeneratedFileProjection", "TestGeneratedFileStorageAndHistory", "TestGeneratedFileStorageAndHistory/sqlite", "TestGeneratedFileStorageAndHistory/sqlite/formset", "TestGeneratedFileStorageAndHistory/sqlite/serving", "TestGeneratedFileStorageAndHistory/sqlite/serving/filesystem", "TestGeneratedFileStorageAndHistory/sqlite/serving/memory"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestGeneratedFileStorageAndHistory/postgres", "TestGeneratedFileStorageAndHistory/postgres/formset", "TestGeneratedFileStorageAndHistory/postgres/serving", "TestGeneratedFileStorageAndHistory/postgres/serving/filesystem", "TestGeneratedFileStorageAndHistory/postgres/serving/memory")
@@ -108,6 +122,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 			continue
 		}
 		for _, backend := range backends {
+			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/reference_choices", "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/reference_choices/formset_unique")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/serving/"+backend)
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/formset")
 			required = append(required, "TestGeneratedFileStorageAndHistory/"+database+"/images/"+backend+"/stored_inspection")

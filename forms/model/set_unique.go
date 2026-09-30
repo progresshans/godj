@@ -90,6 +90,13 @@ func validateSetUnique[M any](metadata ir.Model, set forms.Set, instances map[in
 				if !present || value.IsNull() || slices.Contains(row.excluded, name) {
 					break
 				}
+				if file, reference := value.AsFile(); reference {
+					if _, pending := file.Upload(); !pending {
+						// Content inspected at different times is still the same
+						// stored name for model uniqueness purposes.
+						value = forms.String(file.Name())
+					}
+				}
 				tuple = append(tuple, value)
 			}
 			if len(tuple) != len(fields) {

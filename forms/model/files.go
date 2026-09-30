@@ -21,10 +21,27 @@ func fileReferenceValue(value forms.Value) (forms.Value, error) {
 	}
 	file, ok := value.AsFile()
 	_, pending := file.Upload()
-	if !ok || pending || file.Clear() {
+	_, inspected := file.Image()
+	if !ok || pending || inspected || file.Clear() {
 		return forms.Value{}, &Error{Path: "initial.file", Code: "reference_required"}
 	}
 	return forms.String(file.Name()), nil
+}
+
+func fileDefaultValue(field ir.Field) (forms.Value, error) {
+	if !field.Kind.IsFile() || field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength <= 0 {
+		return forms.Value{}, &Error{Code: "invalid_file_metadata"}
+	}
+	if err := ir.ValidateChoices(field); err != nil {
+		return forms.Value{}, &Error{Code: "invalid_choices"}
+	}
+	if field.Default == nil || field.Default.Kind != ir.ScalarString {
+		return forms.Value{}, &Error{Code: "default_type_mismatch"}
+	}
+	if utf8.RuneCountInString(field.Default.String) > field.MaxLength {
+		return forms.Value{}, &Error{Code: "default_max_length"}
+	}
+	return forms.ExistingFile(field.Default.String)
 }
 
 func fileInitialValue(value forms.Value) (forms.Value, error) {

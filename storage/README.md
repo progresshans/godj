@@ -1,5 +1,10 @@
 # 이름이 있는 파일의 저장
 
+저장 이미지 선택 폼에는 `NewImageInspector(opener).Inspect`를 `forms.WithImageChoiceInspector` 또는
+`formmodel.WithImageChoiceInspector`로 전달할 수 있다. `Opener`는 Open만 제공하는 빌린 capability이며 Save/Delete나
+backend 종료 권한을 요구하지 않는다. 생성 시 I/O를 하지 않고 매 검사마다 `InspectImage`의 독립 reader·전체 내용 검증·Close를
+재사용한다. 선택 목록과 실제 파일 접근 권한은 application이 제공한다. [저장 이름 선택](../forms/model/README.md#저장-이름-선택)을 따른다.
+
 `storage.Backend`는 `Save`, `Open`, `Stat`, `Delete`를 context/error와 연결한다. `Save`가 돌려주는 `Info.Name()`은 실제
 저장된 상대 이름이다. 이름 충돌과 길이 제한으로 제안한 이름과 달라질 수 있다. 이름이나 `Info.Valid()`는 읽기/삭제/서빙
 권한이 아니다. DB에는 모델 FileField가 이 상대 이름을 기록하며 실제 I/O는 명시적인 backend가 소유한다.

@@ -176,6 +176,10 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	imageMetadata := (models.PhotographDescriptor{}).Metadata()
 	beforeImage := imageMetadata.Clone()
 	beforeImage.Fields[2].Kind, beforeImage.Fields[2].WidthField, beforeImage.Fields[2].HeightField = ir.FieldFile, "", ""
+	assetMetadata := (models.AssetReferenceDescriptor{}).Metadata()
+	selectedMetadata := (models.SelectedImageDescriptor{}).Metadata()
+	beforeAsset, beforeSelected := assetMetadata.Clone(), selectedMetadata.Clone()
+	beforeAsset.Fields[2].Choices, beforeSelected.Fields[2].Choices = nil, nil
 	initial := migrations.Migration{App: "file_reference", Name: "0001_initial", Operations: []migrations.Operation{
 		migrations.CreateModel{AppLabel: "file_reference", Model: before},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.ArchiveDescriptor{}).Metadata()},
@@ -184,11 +188,15 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.RawImageDescriptor{}).Metadata()},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.StrictImageDescriptor{}).Metadata()},
 		migrations.CreateModel{AppLabel: "file_reference", Model: (models.PhotoLinkDescriptor{}).Metadata()},
+		migrations.CreateModel{AppLabel: "file_reference", Model: beforeAsset},
+		migrations.CreateModel{AppLabel: "file_reference", Model: beforeSelected},
 	}}
 	change := migrations.Migration{App: "file_reference", Name: "0002_file", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{
 		migrations.AlterField{AppLabel: "file_reference", ModelName: "document", Before: before.Fields[2], After: metadata.Fields[2]},
 		migrations.AlterField{AppLabel: "file_reference", ModelName: "document", Before: before.Fields[3], After: metadata.Fields[3]},
 		migrations.AlterField{AppLabel: "file_reference", ModelName: "photograph", Before: beforeImage.Fields[2], After: imageMetadata.Fields[2]},
+		migrations.AlterField{AppLabel: "file_reference", ModelName: "asset_reference", Before: beforeAsset.Fields[2], After: assetMetadata.Fields[2]},
+		migrations.AlterField{AppLabel: "file_reference", ModelName: "selected_image", Before: beforeSelected.Fields[2], After: selectedMetadata.Fields[2]},
 	}}
 	swappedImage := imageMetadata.Fields[2]
 	swappedImage.WidthField, swappedImage.HeightField = swappedImage.HeightField, swappedImage.WidthField
@@ -237,6 +245,13 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	}
 	if state := migrate(change.Name); state.Equal(previous) {
 		t.Fatal("historical file kind lost")
+	} else {
+		for _, expected := range []ir.Model{assetMetadata, selectedMetadata} {
+			actual, ok := state.Model("file_reference", expected.Name)
+			if !ok || !actual.Equal(expected) {
+				t.Fatal("file choice migration lost canonical policy")
+			}
+		}
 	}
 	read := func(id int64) models.Document {
 		t.Helper()
@@ -536,6 +551,14 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 		t.Fatal("image clear/dimensions lost on reopen", err)
 	}
 	for _, label := range fileStorageKinds(t) {
+		selected, err := models.SelectedImageObjects.Using(backend).Filter(models.SelectedImageFields.Title.Exact(label + "-selected")).All(ctx)
+		if err != nil || len(selected) != 1 || selected[0].Photo == nil || *selected[0].Photo != "images/b.png" || selected[0].Width == nil || *selected[0].Width != 7 || selected[0].Height == nil || *selected[0].Height != 5 {
+			t.Fatal("selected image reference/dimensions lost across DB reopen", err)
+		}
+		assets, err := models.AssetReferenceObjects.Using(backend).Filter(models.AssetReferenceFields.Title.Exact(label + "-default")).All(ctx)
+		if err != nil || len(assets) != 1 || assets[0].Reference != "files/a.txt" {
+			t.Fatal("omitted choice default lost across DB reopen", err)
+		}
 		rows, err := models.PhotographObjects.Using(backend).Filter(models.PhotographFields.Title.Exact(label + "-refreshed-image")).All(ctx)
 		if err != nil || len(rows) != 1 || rows[0].Photo == nil || *rows[0].Photo != "images/full.png" || rows[0].Width == nil || *rows[0].Width != 7 || rows[0].Height == nil || *rows[0].Height != 5 {
 			t.Fatal("explicit image dimensions did not survive database reopen", err)

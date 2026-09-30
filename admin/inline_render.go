@@ -113,7 +113,7 @@ func addInlineContext(context map[string]templates.Value, submission InlineSubmi
 		for _, entry := range submission.entries {
 			if entry.access.Add || entry.access.Change {
 				for _, field := range entry.definition.fields {
-					if field.IsFile() {
+					if field.AcceptsUpload() {
 						context["multipart"] = templates.Bool(true)
 					}
 				}

@@ -158,7 +158,7 @@ Formset의 행 수·HTTP 업로드 한도는 application의 admission이 함께 
 협조해야 한다. 잘못된 읽기 길이·반복되는 무진행·원래 I/O 오류를 성공으로 바꾸지 않는다. 저장된 파일의 독립 handle·길이
 검사·정리는 [storage.InspectImage](../storage/README.md#저장된-이미지-검사)가 소유한다.
 
-`FileValue.Image()`는 **이번 바인딩에서 검증한 새 업로드**만 metadata를 반환한다. 기존 저장 이름·clear·일반 FileField는
+`FileValue.Image()`는 **이번 바인딩에서 검증한 새 업로드 또는 명시적으로 검사한 이미지 선택**의 metadata를 반환한다. 단순히 유지한 저장 이름·clear·일반 FileField는
 검증 결과를 만들지 않는다. 검증은 재인코딩·metadata 제거·저장·접근 인가를 수행하지 않으며 원본 bytes를 그대로 보존한다.
 요청 수명이 끝나기 전에 `storage.SaveUpload` 등 명시적인 저장을 완료해야 한다. 고정 Django/Pillow가 받아들이는 손상된
 GIF 후속 frame은 GoDj가 전체 frame을 디코딩해 거부한다. [관찰](../forms/testdata/image-django61.json)의 차이를 별도로 검증한다.
@@ -175,10 +175,13 @@ pixel 손상도 GoDj는 거부한다. 고정 Pillow의 frame player가 일부 Ad
 모델 폼의 ExtraFields/파일 명령과 `schema.ImageField`는 같은 검사기를 사용한다. 모델 이미지의 IR·크기 참조·생성 descriptor·
 migration·typed 저장은 [모델 이미지](../forms/model/README.md#모델-이미지와-크기-필드)를 따른다. 일반 FileField의 입력 종류만
 바꿔 이 연결을 우회할 수 없다. 기존 저장 이름의 내용과 크기를 자동으로 다시 검사하지 않는다.
+`WithChoices`를 지정한 File/ImageField는 저장 이름을 선택하는 Select다. 이미지 선택은
+`WithImageChoiceInspector`로 제공한 읽기 capability와 같은 내용 검사/한도를 사용한다.
+모델의 빈 값·default·크기 준비는 [저장 이름 선택](../forms/model/README.md#저장-이름-선택)을 따른다.
 
 ## Admin
 
-Admin의 생성·수정·명령 폼은 선언한 FileField/ImageField를 `type="file"`로 표시하고 편집 가능한 inline의 빈 prototype까지 포함해
+Admin의 생성·수정·명령 폼은 choices가 없는 FileField/ImageField를 `type="file"`로 표시하고 편집 가능한 inline의 빈 prototype까지 포함해
 multipart 전송 여부를 결정한다. `CreateForm.Definition.ExtraFields`, inline의 `Form.Definition.ExtraFields`와
 `CommandConfig.Form`으로 비저장 파일 명령을 선언할 수 있다. 기존 저장 이름은 표시 텍스트로만 다루며 URL을 만들어 링크하지
 않는다. 기존 값이 있으면 파일의 HTML required를 생략하고 optional clear 선택과 오류를 재표시한다. 업로드는 오류 화면에
@@ -186,7 +189,7 @@ multipart 전송 여부를 결정한다. `CreateForm.Definition.ExtraFields`, in
 
 `SiteConfig.Uploads`는 `uploads.Config`의 snapshot을 받으며 nil이면 위 기본값을 사용한다. Admin은 문자열 값당 4 KiB·합계
 64 KiB와 전체 입력 1,024개 상한을 추가로 적용하고 더 작은 설정을 유지한다. URL-encoded 본문은 기존 64 KiB 한도를 따른다.
-파일은 선언된 FileField/ImageField에만 전달하며 scalar·PK·management·CSRF 이름의 파일 part는 거부한다. 중복 파일은 Form의 `multiple`
+파일은 `AcceptsUpload()`인 FileField/ImageField에만 전달하며 choices·scalar·PK·management·CSRF 이름의 파일 part는 거부한다. 중복 파일은 Form의 `multiple`
 진단으로 전달한다. 생략한 파일과 clear 제어는 원래 제출에서도 생략된 상태를 유지한다.
 
 Multipart 본문을 읽기 전에 현재 principal을 조회해 staff/site/route 권한을 검사한다. 이때 session의 idle expiry를 갱신하거나

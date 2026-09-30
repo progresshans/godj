@@ -350,7 +350,7 @@ nullable endpoint, 자기 참조의 대칭/방향, options 소유권과 borrowed
 100 Unicode 문자이며 `schema.MaxLength`로 지정한다. 생성된 Go 값은 `string`, nullable이면 `*string`이다. 저장소 선택과
 업로드 이름 생성은 runtime callback이 소유하고 모델에는 request upload나 열린 reader를 넣지 않는다.
 
-같은 IR에서 multipart FileField와 clearable widget을 투영한다. `InitialValues`는 저장 이름을 `forms.ExistingFile`로
+choices가 없는 IR에서는 multipart FileField와 clearable widget을 투영한다. `InitialValues`는 저장 이름을 `forms.ExistingFile`로
 변환한다. 빈 이름도 ExistingFile로 표현해 SQL NULL과 구분하며 required 검사를 충족시키지는 않는다. 새 업로드가 없으면
 기존/default 참조를 유지하고, 명시적 clear는 nullable 모델도 `""`를 기록한다. 일반 POST/JSON 문자열은 업로드가 아니다.
 후보와 DB unique 검사는 제안된 이름을 보지만 `Input`은 업로드 capability를 유지한다. Storage가 충돌 이름을 바꿀 수 있으므로
@@ -390,11 +390,42 @@ err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
 애플리케이션이 계속 소유한다. [storage](../../storage/README.md), [결정](../../docs/adr/0082-file-storage-publication-and-reference.md)을 따른다.
 
 Read-only JSON 투영은 `serializers.ModelField{Name: "file", ReadOnly: true}`로 저장 이름을 제공한다. Writable JSON 문자열,
-자동 URL/다운로드 인가·파일 choices는 아직 지원하지 않는다. 명시적인 alias와 인가된 serving은
+자동 URL/다운로드 인가는 제공하지 않는다. 명시적인 alias와 인가된 serving은
 [storage](../../storage/README.md)와 [파일 응답](../../web/streaming.md)에 있다. ExtraFields의 `forms.ImageField`는
 [내용 검증](../../uploads/README.md#이미지-내용-검증)을 사용하며 저장된 일반 FileField의 IR 의미를 변경하지 않는다.
 [독립 생성 소비자](../../codegen/consumertest/testdata/files/consumer_test.go)는 실제 multipart→typed 준비→파일/DB 저장과
 DB rollback·clear·모델 삭제·재개방을 실행한다. 실행 source와 환경은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)에 둔다.
+
+### 저장 이름 선택
+
+File/ImageField에 `schema.Choices(schema.Choice("images/a.png", "A"), ...)`를 선언하면 저장 이름을 선택하는 Select를
+투영한다. `Field.IsFile()`은 값의 종류, `Field.AcceptsUpload()`는 multipart 업로드 입력 여부다. 선택은 새 파일을
+게시하지 않고 `FileValue.Name()`을 typed 모델에 준비하므로 `PendingFiles()`는 비어 있다. File choices는 파일을 읽지 않는다.
+Image choices는 binding 전에 명시적 검사기를 제공해야 한다.
+
+```go
+inspector, err := storage.NewImageInspector(authorizedStorage)
+if err != nil { return err }
+spec, err := formmodel.NewSpec(metadata,
+    formmodel.OverrideField("photo", formmodel.WithImageChoiceInspector(inspector.Inspect)))
+```
+
+선택 목록은 canonical IR의 이름/타입/길이 정책이다. 수동 Spec은 목록을 좁힐 수 있지만 넓히거나 업로드 입력으로 바꿀 수 없다.
+목록에 있는 비어 있지 않은 이미지 선택만 검사한다. 같은 이름을 다시 제출해도 독립 reader로 전체 내용을 검사하고 닫으며,
+그 결과의 크기를 model clean 전에 파생한다. 검사기가 없거나 유효한 결과를 제공하지 않으면 오류다. `WithImageLimits`와
+context를 전달하고 Open/내용/Close/취소 실패를 binding 오류로 보존한다. 서버가 선언한 파일의 장애를 사용자 입력 진단으로 숨기지 않는다.
+
+선택 원문은 공백까지 정확히 비교하며 중복·목록 밖 입력은 거부한다. Required의 빈 선택은 오류이고, optional nonnullable은
+빈 이름으로 지우며 소유 이미지 크기를 NULL로 만든다. Optional nullable의 빈 선택은 현재 이름/크기를 유지한다. Default가 있는
+필드의 생략은 현재/default 값을 유지하지만 명시적 빈 nonnullable 선택은 지운다. Unbound·readonly·제외·빈 nullable 입력은
+이미지를 읽지 않는다. 고정 Django의 nullable 빈 선택에서 기존 이미지를 다시 읽는 동작과 의도적으로 구분한다.
+
+`Changed()`는 저장 이름의 사용자 변경을 표시한다. 같은 선택의 재검사가 그 자체로 Formset의 변경 행을 선택하지는 않는다.
+단일 폼을 저장하거나 이미 선택된 행을 저장할 때는 `Input()`의 파생 크기를 함께 반영한다. 형제 고유성은 검사 metadata와 무관하게
+저장 이름으로 비교한다. JSON은 계속 조회 전용이고 일반 ORM 이름 대입에는 검사가 없다. 목록과 검사기의 읽기 capability는
+application이 현재 principal/객체 권한에 맞게 제공한다. 검사 성공은 이후 내용의 불변성이나 DB 저장 권한을 보장하지 않는다.
+Admin도 Select를 표시하고 선택 필드에 대한 업로드 part/clear control을 거부한다. 권한·CSRF 확인 뒤 검사와 최종 저장을 수행한다.
+고정 [관찰](../../conformance/runners/django/file_choice_reference.py)과 [생성 소비자](../../codegen/consumertest/testdata/files/file_choice_test.go)를 따른다.
 
 
 ## 모델 이미지와 크기 필드

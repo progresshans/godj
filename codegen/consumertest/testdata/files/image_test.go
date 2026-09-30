@@ -60,6 +60,7 @@ func runImageBackends(t *testing.T, backend fileBackend) {
 				}
 			})
 			runImages(t, backend, root, kind)
+			t.Run("reference_choices", func(t *testing.T) { runReferenceChoices(t, backend, root, kind) })
 		})
 	}
 }

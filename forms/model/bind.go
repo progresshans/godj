@@ -95,7 +95,11 @@ func (bound BoundForm) Input() (forms.Values, error) {
 		// the filename-only candidate used by model/uniqueness validation.
 		if field.IsFile() {
 			if cleaned, present := bound.form.Cleaned().Get(field.Name()); present && !cleaned.IsNull() {
-				value = cleaned
+				file, _ := cleaned.AsFile()
+				name, stored := value.AsString()
+				if field.AcceptsUpload() || stored && name == file.Name() {
+					value = cleaned
+				}
 			}
 		}
 		input[field.Name()] = value
@@ -133,7 +137,8 @@ func (bound BoundForm) WithErrors(failures validation.Errors, rejectedFields ...
 // values enter Input only through image dimension derivation or explicitly
 // declared PostClean changes. Omitted initial model values use model defaults
 // or the unsaved empty state.
-// No relation existence, uniqueness or persistence I/O is performed here.
+// Explicit image-choice inspectors may read storage. No relation existence,
+// uniqueness or persistence I/O is performed here.
 func Bind(ctx context.Context, model ir.Model, spec forms.Spec, data forms.Data, initial map[string]forms.Value, postClean PostClean) (BoundForm, error) {
 	binding, formInitial, err := prepareModelBinding(model, spec.Fields(), initial, postClean)
 	if err != nil {
@@ -172,7 +177,15 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 		}
 		byName[field.Name] = field
 		value := forms.Null()
-		if field.Default != nil {
+		if field.Default != nil && field.Kind.IsFile() {
+			// A model default is a stored reference, not a submitted selection.
+			// Preparing it must not require a form's image I/O capability.
+			var err error
+			value, err = fileDefaultValue(field)
+			if err != nil {
+				return modelBinding{}, nil, err
+			}
+		} else if field.Default != nil {
 			projected, err := projectField(field, overrideConfig{hasRequired: true, required: true})
 			if err != nil {
 				return modelBinding{}, nil, err
@@ -210,6 +223,11 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			}
 			if !inputKindMatches(metadata.Kind, field.Kind()) {
 				return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
+			}
+			if metadata.Kind.IsFile() {
+				if err := validateFileChoiceInput(metadata, field); err != nil {
+					return modelBinding{}, nil, err
+				}
 			}
 		} else if many[field.Name()] && field.Kind() != forms.FieldIntegerList {
 			return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "type_mismatch"}
@@ -289,6 +307,9 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 			if !ok {
 				return BoundForm{}, &Error{Path: "form." + field.Name(), Code: "type_mismatch"}
 			}
+			if _, submitted := data.Get(field.Name()); !field.AcceptsUpload() && metadata.Default != nil && !submitted && file.Name() == "" {
+				continue
+			}
 			candidate[field.Name()] = forms.String(file.Name())
 			if metadata.Kind == ir.FieldImage {
 				info, verified := file.Image()
@@ -360,6 +381,30 @@ func nilValidator(value Validator) bool {
 		return v.IsNil()
 	}
 	return false
+}
+
+// File reference selection must be declared by the canonical model. A custom
+// form may narrow its choices, but cannot read an out-of-policy image before
+// model validation or turn a choice field back into a new upload.
+func validateFileChoiceInput(metadata ir.Field, input forms.Field) error {
+	invalid := func() error { return &Error{Path: "fields." + input.Name(), Code: "invalid_file_choices"} }
+	if err := ir.ValidateChoices(metadata); err != nil || (metadata.Choices == nil) != input.AcceptsUpload() {
+		return invalid()
+	}
+	for _, choice := range input.Choices() {
+		name, ok := choice.Value.AsString()
+		if !ok {
+			return invalid()
+		}
+		found := false
+		for _, allowed := range metadata.Choices {
+			found = found || allowed.Value.Kind == ir.ScalarString && allowed.Value.String == name
+		}
+		if !found {
+			return invalid()
+		}
+	}
+	return nil
 }
 
 func inputKindMatches(model ir.FieldKind, input forms.FieldKind) bool {

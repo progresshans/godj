@@ -31,14 +31,18 @@ Form/Admin·typed 저장/재검사에 연결했다. APNG는 별도 기본 이미
 
 S3의 conditional PUT·전체 checksum·불확실한 결과 보존과 version 고정 읽기를 연결했다. 명시적 서명 URL은
 현재 모델 소유권을 확인한 뒤 발급한다. 실제 MinIO·Form/Admin·양 DB의 생성 소비자와 관련 race를 검증했다.
-새 dependency와 service profile의 Hosted web 통합은 별도로 확인한다.
-S3의 세 모드 service 실행·종료와 source 결합은 확인했고, Helpdesk 소비자의 누적 시간 한도를 보정한 새 source에서
-최종 web 집계를 확인한다.
+새 dependency와 service profile은 source `ac4c40d5`의
+[Hosted web 36738621534](https://github.com/progresshans/godj/actions/runs/36738621534)에서 필수 owner·최종 집계와
+세 모드 service 실행·종료/source 결합까지 확인했다. 전체 플랫폼 성공과는 구분한다.
+
+저장 이름을 선택하는 [File/ImageField choices](../../forms/model/README.md#저장-이름-선택)를 IR·Form·Admin과 명시적 이미지
+검사에 연결했다. Native 비교·양 DB/세 backend의 생성 소비자·관련 race와 실패 대조를 확인했다.
+이 변경은 위 Hosted source 이후의 별도 영향 검증이며 새로운 Hosted 결과를 아직 포함하지 않는다.
 
 ## 다음 행동
 
-S3는 최근 Hosted full source 이후의 별도 변경이다. 수정 source의 Hosted web 범위에서 필수 owner와 최종 집계를 확인한다.
-이어서 저장 이름을 선택하는 파일 choices와 이미지 검사의 연결, 남은 codec 특성·storage provider를 의존 순서에 따라 구현한다.
+파일 choices를 게시하고 변경 source의 Hosted web 범위를 확인한다.
+이어서 남은 codec 특성·storage provider를 의존 순서에 따라 구현한다.
 새 파일 게시와 DB commit은 별도 결과이며,
 불확실한 결과를 자동 재시도하거나 참조 문자열만으로 보상 삭제하지 않는다.
 Credential/session의 별도 저장 의미를 유지하며 custom user model·인증/mail provider와 기능 카탈로그의 남은 범위도 구현한다.

@@ -105,14 +105,20 @@ func (i Info) ContentMetadata() ContentMetadata { return i.metadata }
 // characters (for example a model FileField's limit). Zero uses backend policy.
 type SaveOptions struct{ MaxLength int }
 
+// Opener supplies an independently owned reader for an application-authorized
+// name. A caller may provide this read capability without Save/Delete access.
+type Opener interface {
+	Open(context.Context, string) (io.ReadCloser, error)
+}
+
 // Backend never owns or closes the reader passed to Save. Open returns an
 // independently owned reader which the caller must close. Delete is idempotent
 // for missing names. All operations require application authorization.
 // Save may return nonzero Info with an error after publication; inspect its
 // Error.Outcome and reconcile instead of retrying or deleting blindly.
 type Backend interface {
+	Opener
 	Save(context.Context, string, io.Reader, SaveOptions) (Info, error)
-	Open(context.Context, string) (io.ReadCloser, error)
 	Stat(context.Context, string) (Info, error)
 	Delete(context.Context, string) error
 }

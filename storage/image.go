@@ -24,6 +24,28 @@ func (ImageInspection) Format(state fmt.State, _ rune) {
 	fmt.Fprint(state, "storage.ImageInspection{redacted}")
 }
 
+// ImageInspector adapts an explicit, borrowed read capability for image-choice
+// forms. It owns no backend lifetime or cache and grants no access authority.
+type ImageInspector struct{ opener Opener }
+
+func NewImageInspector(opener Opener) (ImageInspector, error) {
+	if nilValue(opener) {
+		return ImageInspector{}, &Error{Code: "invalid_backend"}
+	}
+	return ImageInspector{opener: opener}, nil
+}
+
+// Inspect fully inspects one authorized reference with the supplied limits.
+// Every call opens and closes a new reader, including repeated selections.
+func (inspector ImageInspector) Inspect(ctx context.Context, name string, limits uploads.ImageLimits) (uploads.ImageInfo, error) {
+	result, err := InspectImage(ctx, inspector.opener, name, limits)
+	return result.Image(), err
+}
+
+func (ImageInspector) Format(state fmt.State, _ rune) {
+	fmt.Fprint(state, "storage.ImageInspector{redacted}")
+}
+
 // InspectImage opens the authorized name once, fully checks the image content,
 // and closes only that new reader. It never calls Stat, saves, deletes, or
 // rewinds another reader. Optional Reader metadata must name this exact file
@@ -34,7 +56,7 @@ func (ImageInspection) Format(state fmt.State, _ rune) {
 // causes remain discoverable with errors.Is/As. Every failure, including Close
 // or cancellation during Close, returns a zero inspection. Backend callbacks
 // retain their usual panic behavior; an acquired reader is closed on unwinding.
-func InspectImage(ctx context.Context, backend Backend, name string, limits uploads.ImageLimits) (result ImageInspection, err error) {
+func InspectImage(ctx context.Context, backend Opener, name string, limits uploads.ImageLimits) (result ImageInspection, err error) {
 	if err := contextError(ctx); err != nil {
 		return ImageInspection{}, err
 	}

@@ -40,7 +40,7 @@ func validateChoices(name string, kind FieldKind, config fieldConfig) error {
 		return nil
 	}
 	invalid := func(code string) error { return &ConfigError{Path: "fields." + name + ".choices", Code: code} }
-	if len(config.choices) == 0 && !config.modelChoice || (kind != FieldChar && kind != FieldInteger && kind != FieldIntegerList) {
+	if len(config.choices) == 0 && !config.modelChoice || (kind != FieldChar && kind != FieldInteger && kind != FieldIntegerList && !fileFieldKind(kind)) {
 		return invalid("unsupported")
 	}
 	if config.modelChoice && !(kind == FieldInteger && config.widget == Select || kind == FieldIntegerList && config.widget == SelectMultiple) {
@@ -48,14 +48,14 @@ func validateChoices(name string, kind FieldKind, config fieldConfig) error {
 	}
 	seen := make(map[string]struct{}, len(config.choices))
 	for _, choice := range config.choices {
-		if !(kind == FieldIntegerList && choice.Value.kind == ValueInteger || kind != FieldIntegerList && validValueForField(choice.Value, kind, false)) {
+		if !(kind == FieldIntegerList && choice.Value.kind == ValueInteger || fileFieldKind(kind) && choice.Value.kind == ValueString || kind != FieldIntegerList && !fileFieldKind(kind) && validValueForField(choice.Value, kind, false)) {
 			return invalid("type_mismatch")
 		}
 		if !utf8.ValidString(choice.Label) || strings.ContainsRune(choice.Label, 0) ||
-			kind == FieldChar && (!utf8.ValidString(choice.Value.text()) || strings.ContainsRune(choice.Value.text(), 0)) {
+			(kind == FieldChar || fileFieldKind(kind)) && (!utf8.ValidString(choice.Value.text()) || strings.ContainsRune(choice.Value.text(), 0)) {
 			return invalid("invalid_text")
 		}
-		if kind == FieldChar && config.maxLength > 0 && utf8.RuneCountInString(choice.Value.text()) > config.maxLength {
+		if (kind == FieldChar || fileFieldKind(kind)) && config.maxLength > 0 && utf8.RuneCountInString(choice.Value.text()) > config.maxLength {
 			return invalid("max_length")
 		}
 		if _, duplicate := seen[choice.InputValue()]; duplicate {

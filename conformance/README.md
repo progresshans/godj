@@ -49,6 +49,7 @@ Reference-only MIG-075..086은 제품 registry에 등록되지 않은 진단이�
 ```sh
 uv run --project conformance/reference/images --frozen python conformance/runners/django/image_field_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/model_image_reference.py
+uv run --project conformance/reference/images --frozen python conformance/runners/django/file_choice_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/stored_image_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/image_codec_reference.py
 uv run --project conformance/reference/images --frozen python conformance/runners/django/apng_reference.py

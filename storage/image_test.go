@@ -70,6 +70,58 @@ func (reader *inspectedReaderProbe) Info() storage.Info {
 // Exposes only the minimum Backend.Open contract, deliberately hiding Info.
 type imageReaderWithoutInfo struct{ io.ReadCloser }
 
+type imageReadCapability func(context.Context, string) (io.ReadCloser, error)
+
+func (open imageReadCapability) Open(ctx context.Context, name string) (io.ReadCloser, error) {
+	return open(ctx, name)
+}
+
+func TestImageChoiceInspectorBorrowsOnlyReadCapabilityAndPreservesFailures(t *testing.T) {
+	var nilOpen imageReadCapability
+	for _, opener := range []storage.Opener{nil, nilOpen} {
+		if _, err := storage.NewImageInspector(opener); err == nil {
+			t.Fatal("nil opener accepted")
+		}
+	}
+	closed := 0
+	failure := errors.New("synthetic close failure")
+	var closeFailure bool
+	var names []string
+	inspector, err := storage.NewImageInspector(imageReadCapability(func(ctx context.Context, name string) (io.ReadCloser, error) {
+		if ctx != t.Context() {
+			t.Fatal("lost caller context")
+		}
+		names = append(names, name)
+		return imageReaderWithoutInfo{&inspectedReaderProbe{Reader: bytes.NewReader(storedPNG(t, 3, 2)), close: func() error {
+			closed++
+			if closeFailure {
+				return failure
+			}
+			return nil
+		}}}, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 0 {
+		t.Fatal("construction performed I/O")
+	}
+	for range 2 {
+		info, err := inspector.Inspect(t.Context(), "images/a.png", uploads.ImageLimits{})
+		if err != nil || info.Width() != 3 || info.Height() != 2 {
+			t.Fatal("open-only inspection", err)
+		}
+	}
+	closeFailure = true
+	info, err := inspector.Inspect(t.Context(), "images/a.png", uploads.ImageLimits{})
+	if !errors.Is(err, failure) || info.Valid() || closed != 3 || len(names) != 3 {
+		t.Fatal("close failure/caching/lifetime", err, closed)
+	}
+	if output := fmt.Sprintf("%#v", inspector); strings.Contains(output, "images/a.png") || !strings.Contains(output, "redacted") {
+		t.Fatal("inspector leaked capability")
+	}
+}
+
 func TestStoredImageInspectionUsesOneOwnedHandleAndDoesNotCacheReusableNames(t *testing.T) {
 	for _, kind := range []string{"filesystem", "memory"} {
 		t.Run(kind, func(t *testing.T) {

@@ -48,10 +48,47 @@ func TestFileSchemaKeepsReferencesDistinctFromTextInput(t *testing.T) {
 		schema.FileField("document", "Document", schema.MaxLength(-1)),
 		schema.FileField("document", "Document", schema.Default(true)),
 		schema.FileField("document", "Document", schema.MaxLength(2), schema.Default("abc")),
-		schema.FileField("document", "Document", schema.Choices(schema.Choice("x", "X"))),
+		schema.FileField("document", "Document", schema.Choices(schema.Choice(int64(1), "X"))),
+		schema.FileField("document", "Document", schema.MaxLength(2), schema.Choices(schema.Choice("abc", "X"))),
+		schema.FileField("document", "Document", schema.Choices(schema.Choice("x", "X"), schema.Choice("x", "Again"))),
 	} {
 		if _, err := build(invalid); err == nil {
 			t.Fatal("invalid or unsupported file metadata accepted")
+		}
+	}
+}
+
+func TestFileAndImageChoicesAreStringPolicyInSchemaIdentity(t *testing.T) {
+	for _, makeField := range []func(string, string, ...schema.FieldOption) schema.Field{schema.FileField, schema.ImageField} {
+		s, err := schema.Build(schema.Definition{AppLabel: "files", Models: []schema.Model{{Name: "choice", GoName: "Choice", Fields: []schema.Field{
+			makeField("file", "File", schema.MaxLength(3), schema.Choices(schema.Choice("가나", "한글"), schema.Choice("a/b", "Path"))),
+		}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		field := s.Models[0].Fields[1]
+		if len(field.Choices) != 2 || field.Choices[0].Value.Kind != ir.ScalarString {
+			t.Fatal("lost file choices")
+		}
+		changed := s.Clone()
+		changed.Models[0].Fields[1].Choices[0].Label = "Renamed"
+		left, err := ir.Hash(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		right, err := ir.Hash(changed)
+		if err != nil || left == right {
+			t.Fatal("choices absent from schema identity", err)
+		}
+		if field.Choices[0].Label != "한글" {
+			t.Fatal("clone aliases choices")
+		}
+		for _, bad := range []string{"abcd", "nul\x00", string([]byte{0xff})} {
+			broken := s.Clone()
+			broken.Models[0].Fields[1].Choices[0].Value.String = bad
+			if err := ir.ValidateChoices(broken.Models[0].Fields[1]); err == nil {
+				t.Fatal("invalid file choice accepted")
+			}
 		}
 	}
 }

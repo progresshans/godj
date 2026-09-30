@@ -1291,7 +1291,7 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 			return false
 		}
 		if file.Clear() {
-			return !field.Required() && field.Widget() == forms.ClearableFileInput
+			return !field.Required() && (field.Widget() == forms.ClearableFileInput || field.Widget() == forms.Select)
 		}
 		if received, present := file.Upload(); present {
 			return (field.AllowEmptyFile() || received.Size() > 0) &&
