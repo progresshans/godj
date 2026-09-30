@@ -8,7 +8,7 @@
 ### S3의 게시 결과·독립 reader·서명 다운로드
 
 2026-09-30, 기반 `bcc7b76a17aacc6a90a3f360bb8f25fe080a840d` 이후 명시적 S3 backend와 서명 다운로드를 기존 파일
-경계에 연결했다. 최종 비Markdown code/config inventory는
+경계에 연결했다. 제품 구현 checkpoint의 비Markdown code/config inventory는
 `e330cc705e260d9cdf1154787fc514cb5715cfe83281f2de2b390c2b977fb78f` (2,823 files)다. 최종 normal/race의 전후 source가
 일치한다. 공식 SDK dependency를 추가했으며 IR·생성기·모델 선언은 바꾸지 않았다. 생성 소비자가 새 module에서 같은
 프로젝트를 두 번 생성해 byte 일치와 실제 사용을 확인했다. 추가 generated drift·로컬 전체/cold 검증은 중복하지 않았다.
@@ -62,6 +62,19 @@ CI는 기존 PostgreSQL product core owner의 normal/race/cgo0에 새 MinIO proc
 `godj-s3-db-race-7r2i9pd2`, `godj-s3-checkpoint-0s7n2bqt`, `godj-s3-negative-8bpwdvq9`,
 `godj-s3-lifecycle-controls-ad6risuz`에 남긴다. 부정 대조의 제품/선택 테스트 source는 최종 소스와 같으며, 이후 변경은
 live 서명 만료 사례의 위 timing 보정뿐이다.
+
+게시 source `e3cb1a0ffa833092290ea7f00ee2875632637b58`의 [PR feedback 36731197891](https://github.com/progresshans/godj/actions/runs/36731197891)은
+통과했고 실제 merge checkout `7959ee03095c718d74df7a918493db007c3b26d5`의 tree
+`4f6c278307aa2211c5ed7d9a17b8126ddd759c6f`가 source와 일치한다. 첫 [Hosted web 36731449591](https://github.com/progresshans/godj/actions/runs/36731449591)의
+새 S3 service build는 통과했지만 여러 owner가 clean-worktree gate에서 실패했다. 확인한 command/portable/operator 제품
+실행은 통과했고, `go mod download all`이 tidy에서 제거된 기존 checksum 7줄을 복구한 것이 공통 원인이었다. 이 run을
+Hosted 통합 PASS로 기록하지 않는다.
+
+`go.sum`만 전체 graph 준비 결과로 복구했다. Blob은 `cf0374450c58065e5b15cb4e5c5dd2446b885519`, SHA256은
+`7f8b2a7638acafa9b1d5a641c7091732e218d44109cc762ff3a2fdb62aab41fc`이며 실제 CI의 추가 diff와 일치한다.
+`go mod download all`을 두 번 더 실행해 byte 무변경을 확인하고 `go mod verify`도 통과했다. 제품/생성기/선택한 dependency
+version은 바꾸지 않았으며 해당 부분의 로컬 제품 검사를 반복하지 않는다. 이 checksum 수정 뒤의 Hosted web을 새 source로
+검증한다. 수정 실행의 receipt 위치는 `/tmp/godj-s3-module-graph-repair-path`가 가리키는 소유 임시 디렉터리다.
 
 ### 저장 이미지·추가 codec의 Hosted 통합
 

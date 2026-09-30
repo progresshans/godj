@@ -64,6 +64,8 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 CGO-disabled가 소유한다(`!race`). Runtime facade JSON·candidate verifier 검사는 같은 패키지의 세 mode에서 계속 실행한다.
 따라서 부모 race 실행에서 동일한 비계측 ABI child compile을 반복하지 않는다. 외부 fixture는 실행 owner가 locked
 dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=off로 컴파일한다. ABI와 생성 소비자 fixture는 저장소 checksum도 복사한다.
+의존성 변경 뒤에는 `go mod tidy`뿐 아니라 기존 `go mod download all` 준비도 실행하고 재실행 시 go.mod/go.sum이 바뀌지 않는지
+확인한다. Tidy의 package graph와 전체 module graph 준비가 요구하는 checksum 범위가 다를 수 있다.
 독립 ABI fixture는 한 임시 module의 별도 package로 묶는다. 각 package의 시작·종료와 자기 `build-fail`·진단을
 대조하며 aggregate 실패만으로 negative fixture를 통과시키지 않는다. `consumer.go`만 있는 정상 fixture의
 `[no test files]` 종료는 compile 성공을 뜻하며, runtime test의 skip은 허용하지 않는다.
