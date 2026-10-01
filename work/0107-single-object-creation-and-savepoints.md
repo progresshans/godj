@@ -1,6 +1,6 @@
 ---
 id: GDJ-0107
-status: active
+status: done
 updated: 2026-10-01
 baseline_commit: "c808c682d54c98bf67021a98da648998cd8bc0a3"
 integration_owner: "root"
@@ -31,33 +31,27 @@ integration_owner: "root"
 - [x] SQLite/PostgreSQL session의 savepoint·중첩 scope·cursor 정리·실패와 부모 commit 차단
 - [x] 생성 입력의 지연 평가·원 Manager snapshot·unique 충돌 후 한 번의 조회와 명시적 미지원 capability
 - [x] Helpdesk의 현재 권한·category 범위·Label 확보·원자 audit와 Form/Admin/API·독립 client 흐름
-- [ ] 완성된 변경 묶음의 영향 normal/race/CGO=0·양 DB·실제 경쟁·실패 대조와 필요한 생성 drift
-- [ ] transaction 기반 변경의 source를 고정한 Hosted 통합과 현행 기록
+- [x] 완성된 변경 묶음의 영향 normal/race/CGO=0·양 DB·실제 경쟁·실패 대조와 필요한 생성 drift
+- [x] transaction 기반 변경의 source를 고정한 Hosted 통합과 현행 기록
 
 기본 동작의 설계는 [ADR-0086](../docs/adr/0086-single-object-creation-and-savepoint-ownership.md)을 따른다.
 실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하며, local 전체와 Hosted 전체를 중복하지 않는다.
 편집 중에는 필요한 compile만 확인하고 완성된 제품·생성·소비자·테스트 묶음에서 영향 검증을 수행한다.
 
-## 현재 상태와 다음 행동
+## 완료 상태
 
-고정 Django 6.1/Python 3.14.3의 단건 조회 11개, 기본 생성·중첩 transaction 9개와
-두 연결의 unique 경쟁을 최종 observer/fixture로 관리한다. SQLite/PostgreSQL 각각 두 독립 프로세스의
-byte 일치와 observer source 결합을 확인했고, 별도 생성 Go module의 세 mode 대조를 완료했다.
-`db.WithSavepoint`와 양 backend의 일반·조정·관계 session, root batch의 pinned transaction에 중첩 scope를 연결했다.
-이 기반의 영향 검증과 실패 수정은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0107--단건-조회와-savepoint-기반-조회-후-생성)에 기록했다.
-`Get`·`GetOrCreate`와 일반/eager/prefetch 생성 소비자를 연결했다. 원 Manager와 BoundModel의 준비된 metadata를
-파생 query가 보존하며 입력은 실제 부재를 확인한 뒤 transaction/savepoint 안에서 평가한다.
-양 DB의 실제 unique 경쟁·부모 rollback·생성 객체의 관계 수명과 callback/unknown outcome 실패 경계를 검증했다.
-Helpdesk의 현재 권한·Label 확보·원자 audit와 Form/Admin/API·독립 client를 연결했다.
-공통 Admin 목록 command, Helpdesk 실제 양 DB, OpenAPI와 독립 client의 세 mode 영향 검증 및 실제 브라우저 확인을 완료했다.
-범위별 source와 실행은 검증 기록에서 구분한다. 제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 push하고
-[첫 Hosted full](https://github.com/progresshans/godj/actions/runs/36826788120)을 시작했으나 새 PostgreSQL 실행 목록 누락을 발견해 취소했다.
-Relation/PostgreSQL 필수 목록을 보완했고 CI 도구 45개 검사와 기존 세 mode 로그의 실제 이름 대조를 통과했다.
-보완 source `d9f2324e`의 PR feedback 성공과 checkout/tree 결합을 확인했다. 같은 source의
-[Hosted full 36828841116](https://github.com/progresshans/godj/actions/runs/36828841116)에서 기존 membership 소비자가 이전의
-SQLite 수명 오류를 요구하는 것을 발견해 취소했다. 현행 공통 scope 오류 계약으로 대조하고 `Next`/`Scan`/session 거부와
-세 owner child의 실행을 명시했으며, 해당 독립 생성 소비자의 normal/race/CGO=0을 확인했다. 제품 코드는 그대로다.
-다시 고정한 source `39fb5ed8`의 [Hosted full 36830611179](https://github.com/progresshans/godj/actions/runs/36830611179)은
-macOS Intel/race 생성 소비자의 누적 package 시간 제한으로 실패했다. 자동 소비자 분할·별도 runtime owner와
-실행 누락·중복·owner 밖 package 거부를 보완했다. 로컬 실제 race 실행과 최종 분배/CI 도구의 검증 범위는 검증 기록에서 구분한다.
-새 source의 전체 owner·집계·새 capture/source 결합을 확인하고 검증과 전달을 함께 닫는다.
+Get/GetOrCreate의 fresh 판정·원 metadata snapshot·지연 입력과 실제 unique rollback 복구를 일반/eager/prefetch
+query와 독립 생성 module에 연결했다. 양 DB savepoint의 중첩 session·cursor·scope 종료·실패/unknown outcome을
+검증하고 고정 Django의 별도 프로세스 관찰 및 생성 소비자 대조를 완료했다. Helpdesk Label 확보를 현재 권한·
+Category 범위·부모 transaction audit와 Form/Admin/API·독립 client에 연결하고 영향 세 mode·실제 브라우저를 확인했다.
+
+고정 source `8f8831ac8231a9c32049b6649e49f8638edd5117`의
+[Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270)은
+65개 job / 8개 필수 owner·최종 집계와 두 새 capture의 Git source 결합·실제 소비까지 완료했다.
+PostgreSQL core 세 mode는 각각 4,630 run/pass·0 skip과 실제 S3 서비스 수명을 확인했다.
+macOS Intel/race는 같은 소비자 전체를 세 shard로 나누고 일반 runtime을 분리해 누적 timeout을 해소했다.
+필수 목록 누락·기존 수명 대조·timeout 실패 및 source별 보정/검증은
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0107--단건-조회와-savepoint-기반-조회-후-생성)에 보존했다.
+
+후속 행 잠금·update-or-create와 카탈로그의 다른 기능은 별도 구현·검증을 이어간다.
+헌장과 전체 기능 카탈로그의 완료를 이 작업의 완료로 대신하지 않는다.

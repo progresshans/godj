@@ -17,7 +17,8 @@ GDJ-0107의 fresh 단건 Get·지연 GetOrCreate, 원 metadata snapshot과 nativ
 일반/eager/prefetch 생성 소비자를 연결했다. [단건 생성 의미](../adr/0086-single-object-creation-and-savepoint-ownership.md)를 따른다.
 최종 Django 기준 fixture와 별도 Go 소비자의 양 DB 대조를 완료했다.
 Helpdesk의 Form/Admin/API·독립 client·원자 audit와 영향 세 mode·양 DB·실제 브라우저 확인을 완료했다.
-새 source의 Hosted 전체 통합은 남아 있으며, 이전 Hosted 성공을 전이하지 않는다.
+Source `8f8831ac`의 [Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270)은
+65개 job / 8개 필수 owner·최종 집계·새 capture의 Git source 결합과 소비, PostgreSQL core 세 mode와 S3 수명까지 완료했다.
 
 ## 기능
 

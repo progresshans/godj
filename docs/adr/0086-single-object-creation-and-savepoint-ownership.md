@@ -1,8 +1,8 @@
 # ADR-0086: 단건 조회·조회 후 생성과 savepoint 소유권
 
-- 상태: Accepted — ORM/savepoint 의미 채택, 업무 흐름과 최종 통합은 진행 중
+- 상태: Accepted — ORM/savepoint·업무 흐름 구현과 고정 source의 Hosted 통합 완료
 - 날짜: 2026-10-01
-- 구현: [GDJ-0107](../../work/0107-single-object-creation-and-savepoints.md), 진행 중
+- 구현: [GDJ-0107](../../work/0107-single-object-creation-and-savepoints.md), 완료
 
 ## 채택한 의미
 
@@ -118,5 +118,5 @@ Admin도 서명된 알림으로 생성/재사용을 구분한다. 출력·audit�
 source hash를 보존하며, 새 프로세스 재생과 별도 생성 Go module의 결과 대조를 구분해 기록한다.
 SQL 문자열·원 예외 문구의 차이와 Go의 명시적 typed 입력은 [비교 범위](../SOURCES.md)에 명시한다.
 
-Helpdesk의 현재 인가·CSRF·audit·입력 표면과 독립 client를 연결했으며 영향 검증과 최종 source 통합이 진행 중이다.
+Helpdesk의 현재 인가·CSRF·audit·입력 표면과 독립 client를 연결하고 영향 검증 및 source `8f8831ac`의 Hosted 전체 통합을 완료했다.
 row locking·update-or-create·bulk의 넓은 요구는 같은 완료로 주장하지 않는다.

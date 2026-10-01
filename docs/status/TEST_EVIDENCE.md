@@ -5,6 +5,30 @@
 
 ## GDJ-0107 — 단건 조회와 savepoint 기반 조회 후 생성
 
+### 최종 Hosted 전체 통합 완료
+
+Source `8f8831ac8231a9c32049b6649e49f8638edd5117`의 [Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270), attempt 1이
+2026-10-01 14:44:27 UTC에 completed/success로 끝났다. 65개 job / 8개 필수 owner와 최종 집계가 모두 성공했다.
+모든 job의 실제 checkout·고정 workflow의 필수 단계를 대조했으며 집계 job `110424616466`의 출력은
+`full_platform_verified=true`와 정확한 8개 owner를 보고했다. Job audit SHA-256은
+`0e3a8b60425e1a1c405f3a4a9d6d7f242243c18240820f0a6653ed00a48c558f`이다. 명시적으로 다른 owner가 담당하는 조건부 단계 외의 필수 skip은 없다.
+
+관계 검증의 12개 platform/mode 모두 실제 발견한 소비자 root 78개의 누락·중복이 없었다. Discovery SHA-256은
+`0776a7c44e930818e8c3a32a8713b8a0614c0d349ab94d337c24b6a6ca4699e6`이며 각 job의 실행 owner와 root 성공을 대조했다.
+macOS Intel/race의 세 소비자 shard는 26개씩 담당하고 일반 관계 package는 별도 runtime job이 완료했다.
+이전 누적 timeout 실행의 실패는 보존하며 해당 실행의 부분 성공을 이번 전체 성공으로 대체하지 않았다.
+
+같은 run의 새 system-state/operator capture 두 개를 producer/artifact/provenance 및 Git 원본의 source 지문에 결합했다.
+Capture consumer job `110402001858`에서 두 artifact와 producer ID, source checkout, conformance·32-bit Linux
+compile/관계 실행·고정 oracle checksum·reference 비변경을 포함한 필수 10개 단계가 모두 성공했다.
+소비 log SHA-256은 `532209a680f94fb4dffed07d046a3ae89df1896f65cb95f909a7224512f37351`이다. 두 capture 및 PostgreSQL core 세 mode의 실제 S3 수명 증거는 아래와 같다.
+
+최종 receipt `godj-single-object-hosted-full-shards-9su1dxnz/receipt.json`, SHA-256
+`ec134cdbaa618c43397105341acddc649c05bee1e72f896f661fbba14f8b33dd`를 보존했다. 검증 중 비Markdown source는
+2,952 files / inventory SHA-256 `5356135720528ea177fe05a345446fbe03209b95c955924cf5315681f5be8a77`로 같았다.
+이 source 뒤의 완료 기록 변경은 Markdown뿐이다. 별도 GDJ-0108 작업 사본의 행 잠금 변경은 포함하지 않으며
+이 Hosted 성공을 그 새 source의 검증으로 사용하지 않는다. 로컬 전체는 중복 실행하지 않았다.
+
 ### Hosted 전체 통합 — 실행 목록과 소비자 계약 보완
 
 제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 `feature/get-or-create`와 기존 draft PR #1의
@@ -142,7 +166,47 @@ Workflow의 실제 Run step을 세 독립 임시 디렉터리에서 실행했고
 최종 source에서 CI 도구 52개 검사와 workflow·양 capture source 범위의 Go 3 packages / 1,180 run/pass / 0 skip을
 다시 실행했다. Go event SHA-256은 `7cc21d7f15e1adb5fba5886fc3d3fca945376434cc58aa86126d7eef81355cf0`이다.
 세 mode와 portable/runner owner 조합의 24개 계획에서 모든 필수 항목·상위 소비자·일반 package의 단일 배정을 확인했다.
-문서 링크·format·diff·workflow YAML 구문도 확인했다. 최종 source의 Hosted 전체 실행은 아직 남아 있다.
+문서 링크·format·diff·workflow YAML 구문도 확인했다. Commit `8f8831ac8231a9c32049b6649e49f8638edd5117`을 두 작업 branch와 draft PR #1에 반영했다.
+2026-10-01 13:07:54 UTC에 `feature/get-or-create`에서 `workflow_dispatch`·`suite=full`로
+[Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270), attempt 1을 시작했다. 이 고정 source의 65개 job·필수 owner·집계와
+새 두 capture의 Git source 결합·실제 소비까지 위 최종 감사에서 확인하고 통합을 완료했다.
+
+### 새 source의 Hosted capture와 S3 증거
+
+Source `8f8831ac`의 [PR feedback 36866280277](https://github.com/progresshans/godj/actions/runs/36866280277)은 성공했다.
+Job `110382468851`의 checkout `434e78e4b0baf9986cd84319c7fa6f4ba05a3261`은 이 source를 parent로 가지며,
+tree `e001c5843548dc6866ad83791e7be72adee1db4a`도 일치한다. 필수 단계와 52개 CI 도구 검사를 확인했고
+log SHA-256은 `f38a0984373216260a335dce16e6381a0e3f2be9d9938206d1d2049b1435be37`이다.
+
+Full attempt 1의 65개 job은 위 최종 감사에서 실제 checkout과 해당 owner의 모든 필수 단계를 대조했다.
+아래 두 capture는 이번 run의 새 producer·artifact·provenance를 별도로 확인했으며, 저장 payload와 고정 Git 원본으로
+source 지문을 재계산했다. 앞선 run의 capture를 이번 실행 증거로 재사용하지 않았다.
+
+| Capture | Producer job | Artifact | source files / bytes | Git source SHA-256 |
+|---|---:|---:|---:|---|
+| System-state | 110383043636 | 11166031199 | 705 / 7,230,063 | `8bf77fdbae1fd074f2e233da67861f7ddf366e62045c8289f7b5fc2ebfcb9e23` |
+| Operator | 110383043703 | 11163578195 | 783 / 7,089,044 | `ea1c55220635a0df42c62960e04cb4dce89cbfd4949726f44a82699434843e7d` |
+
+System-state archive / payload SHA-256은 각각 `1ec3102334baeab9d9fcb3c3f949e73820d3b7e2d64eb76fadb37e2cc304219d` /
+`6c9340a50b95ccf010f2621f948990afa77e10451da338761614777b60136190`, operator는
+`6653456e7501ce05bf32a53b6d6dc1ddc850736d1c2b2bd7f4ec46f4f604eb65` /
+`df3d95cf964da8fa2ab0506ccd3872b69ea6b3ce81a20b0e7ec7ff1233917c73`이다.
+두 source 지문의 scope는 각각 `godj.system-state.postgresql-two-process-source/v1`과
+`godj.project-operator.combined-external-global-source/v1`이다.
+
+PostgreSQL core normal/race/CGO=0 모두 15 packages / 4,630 run/pass / 0 skip, 필수 parent/child 2,130개와
+S3 경로 23개를 확인했다. 세 service의 고정 MinIO source·의존성·buildinfo·binary SHA-256
+`c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`, 실제 ready·child exit 0·child 이후
+service 생존·service exit 0·양 process 회수·정상 정리를 검증했다.
+
+| Mode | Producer | S3 artifact | Archive SHA-256 |
+|---|---:|---:|---|
+| normal | 110383043636 | 11165027331 | `f944caf8aa775cfa9edc2b71ac19944bf19e18cd97edcc19525417dc3d9ec403` |
+| race | 110383043681 | 11167825443 | `6a89a932177dfc3afaa472d4134571faae7a3823f36f4e5f67003a38fdd3d027` |
+| CGO=0 | 110383043589 | 11166150886 | `ef9591bec6929221f07df3186e4ba2b93796af4eead9db0dd6463aea9cdc7a85` |
+
+위 최종 감사에서 macOS의 남은 실행·capture 소비·최종 집계까지 확인했다. 이 run의 최종 receipt는
+`pass=true`, `complete=true`이며 앞선 source의 실패 receipt는 변경하지 않았다.
 
 ### Helpdesk Label 확보와 입력 표면의 영향 검증
 
@@ -335,11 +399,11 @@ Receipt는 `godj-savepoint-foundation-fnibu5lc/receipt.json`, 세부 하위 경�
 기존 검사의 `sql.ErrTxDone` 기대를 새 공통 session의 `backend_error/invalid_plan`으로 맞추고, 종료 뒤 Scan 거부도
 추가했다. 빈 결과의 SQL 미실행·취소·수명 조건은 유지했다. 위 최종 source에서 전체 선택 범위를 다시 실행했다.
 
-### 남은 검증
+### 검증 범위와 다음 작업
 
-위 checkpoint들은 각각 명시한 source와 영향 범위의 결과다. Helpdesk Label 확보와 현재 권한/CSRF/audit·
-Form/Admin/API/독립 client 및 GDJ-0107 최종 source의 Hosted 통합은 미완료다.
-단건 생성 영향 PASS나 이전 Binary의 Hosted full PASS를 해당 미완료 기능의 검증으로 사용하지 않는다.
+위 checkpoint들은 각각 명시한 source와 영향 범위의 결과다. Helpdesk Label 확보·현재 권한/CSRF/audit와
+Form/Admin/API/독립 client의 영향 검증 및 GDJ-0107 최종 source `8f8831ac`의 Hosted 통합을 완료했다.
+행 잠금·update-or-create·bulk와 카탈로그의 나머지 기능은 이 작업의 완료 범위에 포함하지 않는다.
 
 ## GDJ-0106 — Binary 모델 필드와 입력 정책
 
