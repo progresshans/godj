@@ -14,6 +14,7 @@ import (
 
 func TestScalarChoicesWireMeasurementAndClosedScan(t *testing.T) {
 	for _, scalar := range []ir.Scalar{
+		{Kind: ir.ScalarBinary}, {Kind: ir.ScalarBinary, Binary: "AP9hgA=="}, {Kind: ir.ScalarString, Binary: "<&>mixed"},
 		{Kind: ir.ScalarString}, {Kind: ir.ScalarString, String: "<&>\u2028한글"},
 		{Kind: ir.ScalarInteger}, {Kind: ir.ScalarInteger, Integer: math.MinInt64},
 		{Kind: ir.ScalarInteger, Integer: math.MaxInt64}, {Kind: ir.ScalarBoolean, Boolean: true},
@@ -32,7 +33,7 @@ func TestScalarChoicesWireMeasurementAndClosedScan(t *testing.T) {
 		{Kind: ir.ScalarString, Date: "<&>\u2028mixed", String: "payload"},
 		{Kind: ir.ScalarDateTime, DateTime: "2026-09-19T00:00:00.000000Z"},
 	} {
-		field := ir.Field{Name: "value", GoName: "Value", Column: "value", Kind: ir.FieldText, Default: &scalar, Choices: []ir.Choice{{Value: scalar, Label: "<Label> 한글"}}}
+		field := ir.Field{Name: "value", GoName: "Value", Column: "value", Kind: ir.FieldText, NonEditable: true, Default: &scalar, Choices: []ir.Choice{{Value: scalar, Label: "<Label> 한글"}}}
 		spec := Spec{Apps: []App{{Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "app", Models: []ir.Model{{Name: "entry", GoName: "Entry", DBTable: "entry", Fields: []ir.Field{field}}}}}}}
 		wire, err := json.Marshal(spec)
 		if err != nil {

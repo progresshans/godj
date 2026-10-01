@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"math"
 	"sort"
 	"strings"
@@ -568,6 +569,13 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 	for _, inline := range inlines {
 		editable[inline.prefix] = struct{}{}
+	}
+	// Trusted persistence callbacks may derive server-owned model values from
+	// stored data. Reporting their changes must not make them form inputs.
+	for _, field := range model.Fields {
+		if field.NonEditable && !field.PrimaryKey {
+			editable[field.Name] = struct{}{}
+		}
 	}
 	// Only fields consumed by this registration are required. A storage-only
 	// field must not force an otherwise unchanged Admin adapter to expose it.
@@ -1233,6 +1241,10 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 		left, leftOK := initial.AsJSON()
 		right, rightOK := snapshot.AsString()
 		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.Text == right
+	case forms.ValueBinary:
+		left, leftOK := initial.AsBinary()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.Base64() == right
 	case forms.ValueUUID:
 		left, leftOK := initial.AsUUID()
 		right, rightOK := snapshot.AsString()
@@ -1307,6 +1319,12 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 		}
 		_, ok := value.AsJSON()
 		return ok
+	case forms.FieldBinary:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		data, ok := value.AsBinary()
+		return ok && (!field.Required() || len(data.Data) > 0) && (field.MaxLength() == 0 || len(data.Data) <= field.MaxLength())
 	case forms.FieldUUID:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1443,6 +1461,16 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		}
 		identifier, err := jsonvalue.Parse([]byte(text))
 		return err == nil && identifier.Text == text
+	case ir.FieldBinary:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		data, err := binaryvalue.Parse(text)
+		return err == nil && data.Base64() == text
 	case ir.FieldUUID:
 		if value.IsNull() {
 			return field.Nullable

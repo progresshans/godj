@@ -158,6 +158,8 @@ func postgresBtreeOperatorClass(kind ir.FieldKind) string {
 		return "float8_ops"
 	case ir.FieldDecimal:
 		return "numeric_ops"
+	case ir.FieldBinary:
+		return "bytea_ops"
 	case ir.FieldUUID:
 		return "uuid_ops"
 	case ir.FieldJSON:

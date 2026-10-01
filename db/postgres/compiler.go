@@ -362,7 +362,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		return nil, invalidPlan("condition field column " + err.Error())
 	}
 	switch field.Kind() {
-	case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+	case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldBinary, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 	default:
 		return nil, invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
@@ -376,7 +376,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		if err := validateIdentifier(right.Column()); err != nil {
 			return nil, invalidPlan("condition right-hand-side field column " + err.Error())
 		}
-		if !right.ValidType() || right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && (field.Kind() != query.FieldJSON || condition.Lookup() != query.LookupExact) && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+		if !right.ValidType() || right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldBinary && (field.Kind() != query.FieldJSON || condition.Lookup() != query.LookupExact) && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 			return nil, invalidPlan("PostgreSQL field comparison requires same-kind supported scalar fields")
 		}
 		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
@@ -606,6 +606,11 @@ func appendAggregateExpressions(statement *strings.Builder, expressions []query.
 		if err != nil {
 			return "", err
 		}
+		if field.Kind() == query.FieldBinary {
+			// Hex under C collation preserves unsigned byte order, including
+			// prefixes and empty bytes. Restore bytea for the binary scanner.
+			return "decode(" + function + "(encode(" + column + ", 'hex') COLLATE \"C\"), 'hex')", nil
+		}
 		if field.Kind() == query.FieldUUID {
 			// PostgreSQL 17 has native UUID ordering but no MIN/MAX(uuid).
 			// Fixed-width canonical text under C collation has the same unsigned
@@ -633,7 +638,7 @@ func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error)
 			return nil, invalidPlan("field column " + err.Error())
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldBinary, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 		default:
 			return nil, invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

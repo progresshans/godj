@@ -68,3 +68,10 @@ func (field RelatedUUIDField[M]) WithConfigurationError(err error) RelatedUUIDFi
 	}
 	return field
 }
+
+func (field RelatedBinaryField[M]) WithConfigurationError(err error) RelatedBinaryField[M] {
+	if field.configurationErr == nil {
+		field.configurationErr = err
+	}
+	return field
+}

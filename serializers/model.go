@@ -1,6 +1,7 @@
 package serializers
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -70,6 +71,9 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 		if !found {
 			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "unknown field")
 		}
+		if metadata.NonEditable && !field.readOnly {
+			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "non-editable model field requires read-only projection")
+		}
 		if field.kind == FieldDecimal || metadata.Kind == ir.FieldDecimal {
 			if field.kind != FieldDecimal || metadata.Kind != ir.FieldDecimal || metadata.Decimal == nil || field.decimalDigits != metadata.Decimal.MaxDigits || field.decimalPlaces != metadata.Decimal.DecimalPlaces {
 				return ModelEncoder[M]{}, invalidConfig("model."+field.name, "decimal precision does not match model metadata")
@@ -133,6 +137,12 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueJSON:
 			document, _ := scalar.JSON()
 			converted = JSON(document)
+		case query.ValueBinary:
+			data, ok := scalar.Binary()
+			if !ok {
+				return Value{}, invalidValue(field.name, "invalid binary model value")
+			}
+			converted = Binary(data)
 		case query.ValueUUID:
 			identifier, _ := scalar.UUID()
 			converted = UUID(identifier)
@@ -238,7 +248,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 			}
 			options = append(options, WithChoices(choices...))
 		}
-		if selection.ReadOnly || field.PrimaryKey {
+		if selection.ReadOnly || field.PrimaryKey || field.NonEditable {
 			options = append(options, WithReadOnly())
 		}
 		if selection.Optional {
@@ -250,7 +260,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		if selection.AllowEmpty {
 			options = append(options, WithAllowEmpty())
 		}
-		if field.Default != nil && !selection.ReadOnly && !field.PrimaryKey {
+		if field.Default != nil && !selection.ReadOnly && !field.PrimaryKey && !field.NonEditable {
 			switch field.Default.Kind {
 			case ir.ScalarString:
 				options = append(options, WithDefault(String(field.Default.String)))
@@ -262,6 +272,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid JSON default")
 				}
 				options = append(options, WithDefault(JSON(document)))
+			case ir.ScalarBinary:
+				value, err := binaryvalue.Parse(field.Default.Binary)
+				if err != nil || value.Base64() != field.Default.Binary {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid binary default")
+				}
+				options = append(options, WithDefault(Binary(value)))
 			case ir.ScalarUUID:
 				identifier, err := uuid.Parse(field.Default.UUID)
 				if err != nil || identifier.String() != field.Default.UUID {
@@ -326,6 +342,9 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 			}
 		case ir.FieldJSON:
 			projected, err = JSONField(field.Name, options...)
+		case ir.FieldBinary:
+			options = append(options, WithMaxLength(field.MaxLength))
+			projected, err = BinaryField(field.Name, options...)
 		case ir.FieldUUID:
 			projected, err = UUIDField(field.Name, options...)
 		case ir.FieldDecimal:

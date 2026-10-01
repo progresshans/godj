@@ -157,7 +157,7 @@ func RenderMigrationSQL(
 			if err != nil {
 				return nil, invalidLoadedState(Migration{App: target.App, Name: target.Name}, operation.OperationIndex, "AlterField", err)
 			}
-			if kind == ir.ChangeChoices || kind == ir.ChangeStringSemantics || kind == ir.ChangeBlank || kind == ir.ChangeRelation && before.Unique == after.Unique || kind == ir.ChangeIndex && before.HasColumnIndex() == after.HasColumnIndex() {
+			if kind == ir.ChangeChoices || kind == ir.ChangeStringSemantics || kind == ir.ChangeBlank || kind == ir.ChangeEditable || kind == ir.ChangeBinaryLength || kind == ir.ChangeRelation && before.Unique == after.Unique || kind == ir.ChangeIndex && before.HasColumnIndex() == after.HasColumnIndex() {
 				rules[index] = migrationSQLMetadataOnly
 				if kind == ir.ChangeRelation && before.Relation.OnDelete != after.Relation.OnDelete {
 					rules[index] = migrationSQLBackendSpecific

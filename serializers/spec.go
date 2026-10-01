@@ -3,6 +3,7 @@ package serializers
 import (
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"slices"
 	"sort"
 	"strings"
@@ -31,6 +32,7 @@ const (
 	FieldFloat
 	FieldDecimal
 	FieldUUID
+	FieldBinary
 	FieldJSON
 	FieldIntegerList
 	FieldEmail
@@ -198,6 +200,16 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		}
 	}
 	switch kind {
+	case FieldBinary:
+		if config.maxLength < 0 || config.maxLength > binaryvalue.MaxBytes || config.allowEmpty || config.trimWhitespaceSet {
+			return Field{}, invalidConfig("fields."+name, "invalid binary length or string-only option")
+		}
+		if config.hasDefault && !config.defaultValue.IsNull() {
+			value, _ := config.defaultValue.AsBinary()
+			if config.maxLength > 0 && len(value.Data) > config.maxLength {
+				return Field{}, invalidConfig("fields."+name+".default", "default exceeds decoded byte input limit")
+			}
+		}
 	case FieldString, FieldEmail, FieldURL, FieldSlug:
 		if config.maxLength < 0 {
 			return Field{}, invalidConfig("fields."+name+".max_length", "maximum length cannot be negative")
@@ -243,6 +255,10 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	if value.kind == ValueNull {
 		return nullable
+	}
+	if kind == FieldBinary {
+		_, ok := value.AsBinary()
+		return ok
 	}
 	if kind == FieldIntegerList {
 		_, ok := value.AsIntegers()
@@ -443,6 +459,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 	}
 	if field.kind == FieldIntegerList {
 		return cleanIntegerList(field, value)
+	}
+	if field.kind == FieldBinary {
+		return cleanBinaryValue(field, value)
 	}
 	if field.kind == FieldUUID {
 		return cleanUUIDValue(field, value)

@@ -95,6 +95,14 @@ func (f RelatedUUIDField[M]) Desc() Ordering[M] {
 	return relatedOrdering[M](f.path, f.valid, f.configurationErr, query.Descending)
 }
 
+func (f RelatedBinaryField[M]) Asc() Ordering[M] {
+	return relatedOrdering[M](f.path, f.valid, f.configurationErr, query.Ascending)
+}
+
+func (f RelatedBinaryField[M]) Desc() Ordering[M] {
+	return relatedOrdering[M](f.path, f.valid, f.configurationErr, query.Descending)
+}
+
 func (f RelatedJSONField[M]) Asc() Ordering[M] {
 	return relatedOrdering[M](f.path, f.valid, f.configurationErr, query.Ascending)
 }

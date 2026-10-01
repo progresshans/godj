@@ -136,6 +136,7 @@ func parseField(decoder *json.Decoder, budget *specBudget) error {
 		"kind":          func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"primary_key":   func() error { return wirejson.Bool(decoder) },
 		"nullable":      func() error { return wirejson.Bool(decoder) },
+		"non_editable":  func() error { return wirejson.Bool(decoder) },
 		"blank":         func() error { return wirejson.Bool(decoder) },
 		"unique":        func() error { return wirejson.Bool(decoder) },
 		"db_index":      func() error { return wirejson.Bool(decoder) },
@@ -182,6 +183,7 @@ func parseScalar(decoder *json.Decoder) error {
 	return wirejson.Object(decoder, []string{"kind"}, map[string]func() error{
 		"kind":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"string":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"binary":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"uuid":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"json":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"decimal":    func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },

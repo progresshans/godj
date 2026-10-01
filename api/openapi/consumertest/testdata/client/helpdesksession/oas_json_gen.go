@@ -5173,6 +5173,10 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		e.FieldStart("external_payload_digest")
+		s.ExternalPayloadDigest.Encode(e)
+	}
+	{
 		e.FieldStart("external_url")
 		s.ExternalURL.Encode(e)
 	}
@@ -5186,7 +5190,7 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicket = [18]string{
+var jsonFieldsNameOfTicket = [19]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -5203,8 +5207,9 @@ var jsonFieldsNameOfTicket = [18]string{
 	13: "expected_cost",
 	14: "external_reference",
 	15: "external_payload",
-	16: "external_url",
-	17: "labels",
+	16: "external_payload_digest",
+	17: "external_url",
+	18: "labels",
 }
 
 // Decode decodes Ticket from json.
@@ -5386,8 +5391,18 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"external_payload\"")
 			}
-		case "external_url":
+		case "external_payload_digest":
 			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				if err := s.ExternalPayloadDigest.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_payload_digest\"")
+			}
+		case "external_url":
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.ExternalURL.Decode(d); err != nil {
 					return err
@@ -5397,7 +5412,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"external_url\"")
 			}
 		case "labels":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				s.Labels = make([]int64, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5428,7 +5443,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

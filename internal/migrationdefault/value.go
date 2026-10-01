@@ -5,6 +5,7 @@ package migrationdefault
 
 import (
 	"errors"
+	"github.com/progresshans/godj/binaryvalue"
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
@@ -22,6 +23,9 @@ import (
 // It preserves explicit zero, false, empty text and JSON null as values.
 func Value(value ir.Scalar) (query.Value, error) {
 	switch value.Kind {
+	case ir.ScalarBinary:
+		parsed, err := binaryvalue.Parse(value.Binary)
+		return query.Binary(parsed), err
 	case ir.ScalarString:
 		return query.String(value.String), nil
 	case ir.ScalarBoolean:

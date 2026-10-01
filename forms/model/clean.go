@@ -134,6 +134,9 @@ func cleanValueMatches(field ir.Field, value forms.Value) bool {
 		return value.Kind() == forms.ValueFloat
 	case ir.FieldDecimal:
 		return value.Kind() == forms.ValueDecimal
+	case ir.FieldBinary:
+		_, ok := value.AsBinary()
+		return ok
 	case ir.FieldUUID:
 		return value.Kind() == forms.ValueUUID
 	case ir.FieldJSON:

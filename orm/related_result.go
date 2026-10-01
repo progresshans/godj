@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -67,6 +68,11 @@ func (f RelatedTimeField[M]) scalarResultField(M, *clock.Time) (query.ResultExpr
 func (f RelatedDurationField[M]) scalarResultField(M, *duration.Duration) (query.ResultExpression, func() scalarCell[*duration.Duration], error) {
 	expression, err := relatedResult(f.path, f.valid, f.configurationErr)
 	return expression, nullableDurationResultCell, err
+}
+
+func (f RelatedBinaryField[M]) scalarResultField(M, *binaryvalue.Value) (query.ResultExpression, func() scalarCell[*binaryvalue.Value], error) {
+	expression, err := relatedResult(f.path, f.valid, f.configurationErr)
+	return expression, nullableBinaryResultCell, err
 }
 
 func (f RelatedUUIDField[M]) scalarResultField(M, *uuid.UUID) (query.ResultExpression, func() scalarCell[*uuid.UUID], error) {

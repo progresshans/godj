@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "a61be9ff2405747cb370e1bbc3e03abb6f0b694bf27a38e92268acf7178df4cb"
+const GoDjRelationSchemaSHA256 = "d50d2f76119f8a819174aa5bf20ab3838b072ace8e1e04903d83758cfdde721b"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -184,6 +184,15 @@ func GoDjRelationSchema() ir.Schema {
 						Nullable:  true,
 						MaxLength: 200,
 					},
+					{
+						Name:        "external_payload_digest",
+						GoName:      "ExternalPayloadDigest",
+						Column:      "external_payload_digest",
+						Kind:        ir.FieldBinary,
+						NonEditable: true,
+						Nullable:    true,
+						MaxLength:   32,
+					},
 				},
 				ManyToMany: []ir.ManyToManyField{
 					{Name: "labels", GoName: "Labels", Target: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}, Reverse: ir.ReverseRelation{Name: "tickets", Disabled: false}, Symmetry: ir.ManyToManySymmetry("directed"), Blank: true, Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"}, SourceField: "ticket", TargetField: "label"}},
@@ -310,6 +319,6 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-type GoDjAppPart1_b23dda117fc437469f4cdd98cc842ddd2de8a24d396c32923d90b9746041f1a5 struct{}
+type GoDjAppPart1_1e14959c6fba436fd61544c68b61f8fcdf199d190893eac30267d3e1f1b4656c struct{}
 
-var _ GoDjProjectSnapshot_fcdd74782c372e1768ba55a803953fb896845614e5331650a1836d5bd5d924ec
+var _ GoDjProjectSnapshot_9e0e9d865bd4e5b0bac2917b130a6e17c36e91f77d90ccbe29479337c65acda2

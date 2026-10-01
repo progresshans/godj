@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -73,6 +74,11 @@ func dynamicMembership(field ir.Field, raw any) ([]query.Value, error) {
 		return dynamicMembershipValues(field, values)
 	case []jsonvalue.Value:
 		if field.Kind != ir.FieldJSON {
+			break
+		}
+		return dynamicMembershipValues(field, values)
+	case []binaryvalue.Value:
+		if field.Kind != ir.FieldBinary {
 			break
 		}
 		return dynamicMembershipValues(field, values)

@@ -47,6 +47,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldChoices:                 true,
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
+		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
@@ -519,6 +520,7 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationBool(hash, field.PrimaryKey)
 	writeRelationBool(hash, field.Nullable)
 	writeRelationBool(hash, field.Blank)
+	writeRelationBool(hash, field.NonEditable)
 	writeRelationBool(hash, field.Unique)
 	writeRelationBool(hash, field.DBIndex)
 	writeRelationBool(hash, field.AllowUnicode)
@@ -554,6 +556,9 @@ func writeRelationScalar(hash sqliteRelationHashWriter, scalar ir.Scalar) {
 	writeRelationString(hash, scalar.DateTime)
 	if scalar.Kind == ir.ScalarJSON {
 		writeRelationString(hash, scalar.JSON)
+	}
+	if scalar.Kind == ir.ScalarBinary {
+		writeRelationString(hash, scalar.Binary)
 	}
 	if scalar.Kind == ir.ScalarUUID {
 		writeRelationString(hash, scalar.UUID)
@@ -2737,6 +2742,8 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
 	case ir.FieldJSON:
 		return "TEXT", nil
+	case ir.FieldBinary:
+		return "BLOB", nil
 	case ir.FieldUUID:
 		return "CHAR(32)", nil
 	case ir.FieldDecimal:

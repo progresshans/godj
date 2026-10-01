@@ -2124,3 +2124,5 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteColumnIndexAddDefaultReverseAnd
 github.com/progresshans/godj/db/sqlite|TestSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK/indexed_false
 github.com/progresshans/godj/db/sqlite|TestSQLiteUniqueAlterFailurePreservesRevisionRowsAndInboundFK/indexed_true
 github.com/progresshans/godj/db/sqlite|TestSQLiteColumnIndexStoredScalarProfiles
+
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedBinaryConsumer

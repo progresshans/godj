@@ -33,6 +33,7 @@ func Schema() (ir.Schema, error) {
 			schema.UUIDField("external_reference", "ExternalReference", schema.Nullable(), schema.Unique(), schema.Blank()),
 			schema.JSONField("external_payload", "ExternalPayload", schema.Nullable(), schema.Blank()),
 			schema.URLField("external_url", "ExternalURL", schema.Nullable(), schema.Blank()),
+			schema.BinaryField("external_payload_digest", "ExternalPayloadDigest", schema.Nullable(), schema.MaxLength(32)),
 		}, ManyToMany: []schema.ManyToManyField{
 			schema.ManyToMany("labels", "Labels", schema.Target("helpdesk", "label"), schema.RelatedName("tickets"), schema.Through(schema.Target("helpdesk", "ticket_label"), "ticket", "label"), schema.ManyToManyBlank()),
 		}},

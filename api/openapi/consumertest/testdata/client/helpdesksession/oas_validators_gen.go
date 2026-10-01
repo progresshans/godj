@@ -1447,6 +1447,36 @@ func (s *Ticket) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.ExternalPayloadDigest.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     1398104,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "external_payload_digest",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.ExternalURL.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{

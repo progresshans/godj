@@ -72,6 +72,9 @@ var blankPolicyMigration []byte
 //go:embed migrations/helpdesk_0022_ticket_external_url.godj.json
 var externalURLMigration []byte
 
+//go:embed migrations/helpdesk_0023_ticket_external_payload_digest.godj.json
+var externalPayloadDigestMigration []byte
+
 // MigrationSources returns detached historical definitions in declaration
 // order. Host setup loads them alongside its system-state migration. Existing
 // definitions are preserved when the current model grows.
@@ -99,5 +102,6 @@ func MigrationSources() []definition.Source {
 		{SourceID: "helpdesk/0020_ticket_labels", Document: append([]byte(nil), ticketLabelsMigration...)},
 		{SourceID: "helpdesk/0021_auto_72857bab23b6", Document: append([]byte(nil), blankPolicyMigration...)},
 		{SourceID: "helpdesk/0022_ticket_external_url", Document: append([]byte(nil), externalURLMigration...)},
+		{SourceID: "helpdesk/0023_ticket_external_payload_digest", Document: append([]byte(nil), externalPayloadDigestMigration...)},
 	}
 }

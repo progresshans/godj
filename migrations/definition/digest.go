@@ -222,6 +222,10 @@ func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 		output = append(output, `{"json":`...)
 		output, err = appendCanonicalString(output, value.JSON)
 		output = append(output, `,"kind":"json"}`...)
+	case ir.ScalarBinary:
+		output = append(output, `{"binary":`...)
+		output, err = appendCanonicalString(output, value.Binary)
+		output = append(output, `,"kind":"binary"}`...)
 	case ir.ScalarUUID:
 		output = append(output, `{"kind":"uuid","uuid":`...)
 		output, err = appendCanonicalString(output, value.UUID)
@@ -347,6 +351,9 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	output, err = appendCanonicalString(output, field.Name)
 	if err != nil {
 		return nil, err
+	}
+	if field.NonEditable {
+		output = append(output, `,"non_editable":true`...)
 	}
 	output = append(output, `,"nullable":`...)
 	output = strconv.AppendBool(output, field.Nullable)

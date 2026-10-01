@@ -4,6 +4,7 @@
 package schema
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -44,6 +45,7 @@ type Field struct {
 	Kind         ir.FieldKind
 	Nullable     bool
 	Blank        bool
+	NonEditable  bool
 	Unique       bool
 	DBIndex      bool
 	AllowUnicode bool
@@ -77,6 +79,12 @@ func Blank() FieldOption {
 	return func(field *Field) { field.Blank = true }
 }
 
+// Editable controls model-derived Form/Admin and serializer input. It does not
+// restrict server-side ORM writes. BinaryField defaults to non-editable.
+func Editable(enabled bool) FieldOption {
+	return func(field *Field) { field.NonEditable = !enabled }
+}
+
 // Unique requires table-wide uniqueness for non-NULL stored values. A primary
 // key already has this property and does not receive a second constraint.
 // Migration execution requires the backend's UniqueConstraints capability.
@@ -108,12 +116,17 @@ func Column(name string) FieldOption {
 // types keep defaults explicit while preserving zero, false and empty string
 // as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID | jsonvalue.Value
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID | jsonvalue.Value | binaryvalue.Value
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
 	return func(field *Field) {
 		switch typed := any(value).(type) {
+		case binaryvalue.Value:
+			field.Default = &ir.Scalar{Kind: ir.ScalarBinary, Binary: "!"}
+			if typed.Valid() {
+				field.Default.Binary = typed.Base64()
+			}
 		case string:
 			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
@@ -199,7 +212,8 @@ func ImageDimensions(widthField, heightField string) FieldOption {
 	return func(field *Field) { field.WidthField, field.HeightField = widthField, heightField }
 }
 
-// MaxLength overrides a bounded string field's declared character limit.
+// MaxLength overrides a bounded string's character limit or Binary's decoded
+// byte input limit. Binary permits zero for no declared input length limit.
 // Normalization rejects this option on kinds without a length declaration.
 func MaxLength(limit int) FieldOption {
 	return func(field *Field) { field.MaxLength = limit }
@@ -225,6 +239,13 @@ func DecimalField(name, goName string, maxDigits, decimalPlaces int, options ...
 // UUIDField stores one exact 128-bit UUID; the zero UUID is a present value.
 func UUIDField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldUUID, 0, options)
+}
+
+// BinaryField stores owned bytes, with an optional byte input length limit.
+// It is non-editable by default; Editable(true) enables explicit base64 input.
+func BinaryField(name, goName string, options ...FieldOption) Field {
+	defaults := append([]FieldOption{Editable(false)}, options...)
+	return newField(name, goName, ir.FieldBinary, 0, defaults)
 }
 
 // JSONField stores an independently owned JSON document. JSON null is a
@@ -364,6 +385,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				PrimaryKey:   field.Kind == ir.FieldAuto,
 				Nullable:     field.Nullable,
 				Blank:        field.Blank,
+				NonEditable:  field.NonEditable,
 				Unique:       field.Unique,
 				DBIndex:      field.DBIndex,
 				AllowUnicode: field.AllowUnicode,

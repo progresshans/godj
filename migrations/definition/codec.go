@@ -1,6 +1,7 @@
 package definition
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -546,7 +547,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldURL) && fieldKind.string != string(ir.FieldSlug) && fieldKind.string != string(ir.FieldFile) && fieldKind.string != string(ir.FieldImage) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldEmail) && fieldKind.string != string(ir.FieldURL) && fieldKind.string != string(ir.FieldSlug) && fieldKind.string != string(ir.FieldFile) && fieldKind.string != string(ir.FieldImage) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldBinary) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -674,7 +675,7 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
 	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
-		value, fields, []string{"blank", "choices", "decimal", "relation", "unique", "db_index", "allow_unicode", "width_field", "height_field"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+		value, fields, []string{"non_editable", "blank", "choices", "decimal", "relation", "unique", "db_index", "allow_unicode", "width_field", "height_field"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
 	)
 	if !objectOK {
 		return candidates
@@ -710,7 +711,7 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		}
 	}
 	booleanValid := make(map[string]bool, 3)
-	for _, field := range []string{"blank", "nullable", "primary_key", "unique", "db_index", "allow_unicode"} {
+	for _, field := range []string{"non_editable", "blank", "nullable", "primary_key", "unique", "db_index", "allow_unicode"} {
 		child, exists := object.member(field)
 		if !exists {
 			continue
@@ -795,6 +796,19 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 				if primaryKey.boolean {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
+			}
+		case ir.FieldBinary:
+			if defaultValid && defaultValue != nil {
+				decoded, err := binaryvalue.Parse(defaultValue.Binary)
+				if defaultValue.Kind != ir.ScalarBinary || err != nil || maxLengthValid && maxLength > 0 && int64(len(decoded.Data)) > maxLength {
+					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
+				}
+			}
+			if maxLengthValid && maxLength > binaryvalue.MaxBytes {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/max_length", app, name, operationIndex, "invalid_ir"))
+			}
+			if primary, exists := object.member("primary_key"); exists && primary.kind == jsonBoolean && primary.boolean {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 			}
 		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldJSON:
 			expectedDefault := ir.ScalarBoolean
@@ -991,7 +1005,7 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "date", "datetime", "decimal", "duration", "float_bits", "integer", "json", "kind", "string", "time", "uuid"}
+	commonFields := []string{"binary", "boolean", "date", "datetime", "decimal", "duration", "float_bits", "integer", "json", "kind", "string", "time", "uuid"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
@@ -1005,6 +1019,15 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 			parsed, err := jsonvalue.Parse([]byte(child.string))
 			if child.kind != jsonString || err != nil || parsed.Text != child.string {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/json", app, name, operationIndex, "invalid_ir"))
+			}
+		}
+	case string(ir.ScalarBinary):
+		object, _, faults := semanticObjectCandidates(value, []string{"kind", "binary"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+		candidates = append(candidates, faults...)
+		if child, present := object.member("binary"); present {
+			parsed, err := binaryvalue.Parse(child.string)
+			if child.kind != jsonString || err != nil || parsed.Base64() != child.string {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/binary", app, name, operationIndex, "invalid_ir"))
 			}
 		}
 	case string(ir.ScalarUUID):
@@ -1333,7 +1356,7 @@ func materializeField(value jsonValue) (ir.Field, bool) {
 	for _, flag := range []struct {
 		name   string
 		target *bool
-	}{{"db_index", &field.DBIndex}, {"allow_unicode", &field.AllowUnicode}} {
+	}{{"non_editable", &field.NonEditable}, {"db_index", &field.DBIndex}, {"allow_unicode", &field.AllowUnicode}} {
 		if child, exists := value.member(flag.name); exists {
 			if child.kind != jsonBoolean {
 				return ir.Field{}, false
@@ -1416,6 +1439,16 @@ func materializeDefault(value jsonValue) (*ir.Scalar, bool) {
 			return nil, false
 		}
 		return &ir.Scalar{Kind: ir.ScalarJSON, JSON: payload.string}, true
+	case string(ir.ScalarBinary):
+		payload, exists := value.member("binary")
+		if !exists || payload.kind != jsonString {
+			return nil, false
+		}
+		parsed, err := binaryvalue.Parse(payload.string)
+		if err != nil || parsed.Base64() != payload.string {
+			return nil, false
+		}
+		return &ir.Scalar{Kind: ir.ScalarBinary, Binary: payload.string}, true
 	case string(ir.ScalarUUID):
 		payload, exists := value.member("uuid")
 		if !exists || payload.kind != jsonString {

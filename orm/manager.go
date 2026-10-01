@@ -558,6 +558,8 @@ func fieldReference(field ir.Field) query.FieldRef {
 		kind = query.FieldInteger
 	case ir.FieldJSON:
 		return query.NewFieldRef(field.Name, field.Column, query.FieldJSON, field.Nullable)
+	case ir.FieldBinary:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldBinary, field.Nullable)
 	case ir.FieldUUID:
 		return query.NewFieldRef(field.Name, field.Column, query.FieldUUID, field.Nullable)
 	case ir.FieldDecimal:

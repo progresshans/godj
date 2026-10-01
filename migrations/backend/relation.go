@@ -12,7 +12,9 @@ type MigrationCapabilities struct {
 	AlterFieldChoices                 bool
 	AlterFieldStringSemantics         bool
 	// AlterFieldBlank covers stored and columnless model input policy changes.
-	AlterFieldBlank            bool
+	AlterFieldBlank bool
+	// AlterFieldInputPolicy covers editable and Binary input-length metadata.
+	AlterFieldInputPolicy      bool
 	AlterFieldDecimalPrecision bool
 	AlterFieldRelation         bool
 	// UniqueConstraints covers mutation and physical verification of declared

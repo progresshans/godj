@@ -107,6 +107,9 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 	if field.Blank {
 		fmt.Fprintf(output, "%sBlank: true,\n", indent)
 	}
+	if field.NonEditable {
+		fmt.Fprintf(output, "%sNonEditable: true,\n", indent)
+	}
 	if field.Nullable {
 		fmt.Fprintf(output, "%sNullable: true,\n", indent)
 	}

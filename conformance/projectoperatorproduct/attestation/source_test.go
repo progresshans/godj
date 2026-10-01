@@ -50,6 +50,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"internal/uuidinput/input.go",
 		"decimal/decimal.go",
 		"jsonvalue/value.go",
+		"binaryvalue/value.go",
 		"uuid/uuid.go",
 
 		"clock/time.go",

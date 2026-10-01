@@ -57,7 +57,7 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		if !found {
 			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "missing_value"}
 		}
-		if (field.Kind == ir.FieldFloat && scalar.Kind() != query.ValueFloat || field.Kind == ir.FieldDecimal && scalar.Kind() != query.ValueDecimal || field.Kind == ir.FieldUUID && scalar.Kind() != query.ValueUUID || field.Kind == ir.FieldJSON && scalar.Kind() != query.ValueJSON) && !scalar.IsNull() {
+		if (field.Kind == ir.FieldFloat && scalar.Kind() != query.ValueFloat || field.Kind == ir.FieldDecimal && scalar.Kind() != query.ValueDecimal || field.Kind == ir.FieldBinary && scalar.Kind() != query.ValueBinary || field.Kind == ir.FieldUUID && scalar.Kind() != query.ValueUUID || field.Kind == ir.FieldJSON && scalar.Kind() != query.ValueJSON) && !scalar.IsNull() {
 			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
 		}
 		var converted templates.Value
@@ -76,6 +76,12 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 				return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
 			}
 			converted = templates.String(document.Text)
+		case query.ValueBinary:
+			data, ok := scalar.Binary()
+			if !ok {
+				return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
+			}
+			converted = templates.String(data.Base64())
 		case query.ValueUUID:
 			identifier, _ := scalar.UUID()
 			converted = templates.String(identifier.String())

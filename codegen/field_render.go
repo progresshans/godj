@@ -48,6 +48,8 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldImage"}
 	case ir.FieldJSON:
 		return fieldRenderSpec{"_godjjson.Value", "JSON", "JSONField", "NullableJSONField", "orm.NullableJSONScanner", "JSON", "ir.FieldJSON"}
+	case ir.FieldBinary:
+		return fieldRenderSpec{"_godjbinary.Value", "Binary", "BinaryField", "NullableBinaryField", "orm.NullableBinaryScanner", "Binary", "ir.FieldBinary"}
 	case ir.FieldUUID:
 		return fieldRenderSpec{"_godjuuid.UUID", "UUID", "UUIDField", "NullableUUIDField", "orm.NullableUUIDScanner", "UUID", "ir.FieldUUID"}
 	case ir.FieldDecimal:

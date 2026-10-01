@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
@@ -175,7 +176,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		projection.ManyToMany = nil
 		for _, field := range model.Fields {
 			if selected[field.Name] {
-				if field.PrimaryKey || dimensions[field.Name] != "" {
+				if field.PrimaryKey || field.NonEditable || dimensions[field.Name] != "" {
 					return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "non_editable"}
 				}
 				projection.Fields = append(projection.Fields, field.Clone())
@@ -216,7 +217,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 		}
 		known[field.Name] = struct{}{}
 		override := overrideByName[field.Name]
-		if field.Kind == ir.FieldAuto && field.PrimaryKey || dimensions[field.Name] != "" {
+		if field.Kind == ir.FieldAuto && field.PrimaryKey || field.NonEditable || dimensions[field.Name] != "" {
 			if _, configured := overrideByName[field.Name]; configured {
 				return forms.Spec{}, &Error{Path: "overrides." + field.Name, Code: "non_editable"}
 			}
@@ -303,6 +304,22 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldBinary:
+		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength < 0 || field.MaxLength > binaryvalue.MaxBytes {
+			return forms.Field{}, &Error{Code: "invalid_binary_metadata"}
+		}
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(field.MaxLength))
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := binaryvalue.Parse(field.Default.Binary)
+			if field.Default.Kind != ir.ScalarBinary || err != nil || value.Base64() != field.Default.Binary {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Binary(value)))
+		}
+		return forms.BinaryField(field.Name, options...)
 	case ir.FieldFile, ir.FieldImage:
 		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength <= 0 {
 			return forms.Field{}, &Error{Code: "invalid_file_metadata"}

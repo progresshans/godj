@@ -66,6 +66,9 @@ func queryValue(value forms.Value) (query.Value, bool) {
 	case forms.ValueDecimal:
 		v, ok := value.AsDecimal()
 		return query.Decimal(v), ok
+	case forms.ValueBinary:
+		v, ok := value.AsBinary()
+		return query.Binary(v), ok
 	case forms.ValueUUID:
 		v, ok := value.AsUUID()
 		return query.UUID(v), ok

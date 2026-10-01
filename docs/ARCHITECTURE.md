@@ -240,6 +240,12 @@ DB commit을 하나의 결과로 합치거나 모델 삭제/clear에 파일 삭�
 아니며 생성 모델/ORM의 일반 이름 대입은 I/O를 하지 않는다. 실제 모델에서 역사적 참조를 검사하고 wire/생성 metadata/이력의
 동일성에 포함한다. 저장 이름 유지 시 자동 재검사와 전체 파일 기능의 남은 범위는 [ADR-0082](adr/0082-file-storage-publication-and-reference.md)를 따른다.
 
+BinaryField의 원래 bytes는 불변 `binaryvalue.Value`가 소유하며 base64는 Form/JSON/history의 표현이다.
+생성 모델과 공통 Query AST는 bytes를 문자열·파일 이름과 구분한다. `NonEditable`은 Schema IR의 공통 입력 정책이며
+자동 ModelForm 제외·명시적 선택/override/bind 거부·모델 serializer의 read-only 투영을 소유한다.
+저장 초기값의 표현 검사는 편집용 폼 선택을 요구하지 않는다. 일반 서버 ORM 쓰기와 명시적 trusted PostClean 출력의
+권한은 각 호출자가 소유한다. [Binary/입력 정책](adr/0085-binary-fields-and-model-input-policy.md)을 따른다.
+
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
 application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.

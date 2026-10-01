@@ -2517,24 +2517,25 @@ func (s *SessionAuth) SetRoles(val []string) {
 
 // Ref: #/components/schemas/Ticket
 type Ticket struct {
-	ID                int64       `json:"id"`
-	Subject           string      `json:"subject"`
-	Details           NilString   `json:"details"`
-	Closed            bool        `json:"closed"`
-	Category          int64       `json:"category"`
-	Priority          NilInt64    `json:"priority"`
-	Resolution        NilString   `json:"resolution"`
-	DueAt             NilDateTime `json:"due_at"`
-	Reviewed          NilBool     `json:"reviewed"`
-	ServiceOn         NilDate     `json:"service_on"`
-	ServiceAt         NilString   `json:"service_at"`
-	Elapsed           NilString   `json:"elapsed"`
-	Effort            NilFloat64  `json:"effort"`
-	ExpectedCost      NilString   `json:"expected_cost"`
-	ExternalReference NilUUID     `json:"external_reference"`
-	ExternalPayload   jx.Raw      `json:"external_payload"`
-	ExternalURL       NilString   `json:"external_url"`
-	Labels            []int64     `json:"labels"`
+	ID                    int64       `json:"id"`
+	Subject               string      `json:"subject"`
+	Details               NilString   `json:"details"`
+	Closed                bool        `json:"closed"`
+	Category              int64       `json:"category"`
+	Priority              NilInt64    `json:"priority"`
+	Resolution            NilString   `json:"resolution"`
+	DueAt                 NilDateTime `json:"due_at"`
+	Reviewed              NilBool     `json:"reviewed"`
+	ServiceOn             NilDate     `json:"service_on"`
+	ServiceAt             NilString   `json:"service_at"`
+	Elapsed               NilString   `json:"elapsed"`
+	Effort                NilFloat64  `json:"effort"`
+	ExpectedCost          NilString   `json:"expected_cost"`
+	ExternalReference     NilUUID     `json:"external_reference"`
+	ExternalPayload       jx.Raw      `json:"external_payload"`
+	ExternalPayloadDigest NilString   `json:"external_payload_digest"`
+	ExternalURL           NilString   `json:"external_url"`
+	Labels                []int64     `json:"labels"`
 }
 
 // GetID returns the value of ID.
@@ -2615,6 +2616,11 @@ func (s *Ticket) GetExternalReference() NilUUID {
 // GetExternalPayload returns the value of ExternalPayload.
 func (s *Ticket) GetExternalPayload() jx.Raw {
 	return s.ExternalPayload
+}
+
+// GetExternalPayloadDigest returns the value of ExternalPayloadDigest.
+func (s *Ticket) GetExternalPayloadDigest() NilString {
+	return s.ExternalPayloadDigest
 }
 
 // GetExternalURL returns the value of ExternalURL.
@@ -2705,6 +2711,11 @@ func (s *Ticket) SetExternalReference(val NilUUID) {
 // SetExternalPayload sets the value of ExternalPayload.
 func (s *Ticket) SetExternalPayload(val jx.Raw) {
 	s.ExternalPayload = val
+}
+
+// SetExternalPayloadDigest sets the value of ExternalPayloadDigest.
+func (s *Ticket) SetExternalPayloadDigest(val NilString) {
+	s.ExternalPayloadDigest = val
 }
 
 // SetExternalURL sets the value of ExternalURL.

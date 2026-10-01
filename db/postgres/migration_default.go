@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -73,6 +74,9 @@ func compilePostgresMigrationDefault(field ir.Field) (string, error) {
 	case query.ValueDecimal:
 		number, _ := value.Decimal()
 		text, cast = number.String(), "numeric"
+	case query.ValueBinary:
+		data, _ := value.Binary()
+		return "decode('" + hex.EncodeToString(data.Bytes()) + "', 'hex')", nil
 	case query.ValueUUID:
 		identifier, _ := value.UUID()
 		text, cast = identifier.String(), "uuid"

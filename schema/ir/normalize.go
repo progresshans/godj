@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -226,6 +227,19 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarJSON {
 			return validation(path+".default", "type_mismatch", "JSONField default must be a jsonvalue.Value")
 		}
+	case FieldBinary:
+		if field.PrimaryKey || field.MaxLength < 0 || field.MaxLength > binaryvalue.MaxBytes {
+			return validation(path, "unsupported", "BinaryField requires a supported byte input limit and cannot be a primary key")
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ScalarBinary {
+				return validation(path+".default", "type_mismatch", "BinaryField default must be a binaryvalue.Value")
+			}
+			value, err := binaryvalue.Parse(field.Default.Binary)
+			if err != nil || field.MaxLength > 0 && len(value.Data) > field.MaxLength {
+				return validation(path+".default", "max_length", "BinaryField default exceeds the byte input limit")
+			}
+		}
 	case FieldUUID:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "UUIDField cannot currently be a primary key or have a max length")
@@ -373,6 +387,9 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 }
 
 func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarBinary && value.Binary != "" {
+		return validation(path, "invalid_scalar", "non-binary scalar carries a binary payload")
+	}
 	if value.Kind != ScalarJSON && value.JSON != "" {
 		return validation(path, "invalid_scalar", "non-JSON scalar carries a JSON payload")
 	}
@@ -386,6 +403,14 @@ func validateScalar(value Scalar, path string) error {
 		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
 	}
 	switch value.Kind {
+	case ScalarBinary:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "binary scalar carries another scalar payload")
+		}
+		parsed, err := binaryvalue.Parse(value.Binary)
+		if err != nil || parsed.Base64() != value.Binary {
+			return validation(path, "invalid_binary", "binary scalar must use canonical bounded base64")
+		}
 	case ScalarJSON:
 		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "JSON scalar carries another scalar payload")

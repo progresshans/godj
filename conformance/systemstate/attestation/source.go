@@ -53,6 +53,7 @@ var productSourcePrefixes = []string{
 	"storage/",
 	"decimal/",
 	"jsonvalue/",
+	"binaryvalue/",
 	"uuid/",
 	"internal/migrationgraph/",
 	"internal/migrationdefault/",

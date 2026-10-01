@@ -12,6 +12,8 @@ const (
 	ChangeStringSemantics
 	ChangeBlank
 	ChangeIndex
+	ChangeEditable
+	ChangeBinaryLength
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
@@ -57,6 +59,18 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 		}
 	}
 	previous, next := before, after
+	previous.NonEditable, next.NonEditable = false, false
+	if previous.Equal(next) {
+		return ChangeEditable, nil
+	}
+	if before.Kind == FieldBinary && after.Kind == FieldBinary {
+		previous, next = before, after
+		previous.MaxLength, next.MaxLength = 0, 0
+		if previous.Equal(next) {
+			return ChangeBinaryLength, nil
+		}
+	}
+	previous, next = before, after
 	previous.DBIndex, next.DBIndex = false, false
 	if previous.Equal(next) {
 		return ChangeIndex, nil
@@ -98,7 +112,7 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy, Decimal precision, blank policy, column indexing or bounded string input semantics changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy, Decimal precision, blank/editable policy, Binary input length, column indexing or bounded string input semantics changes")
 }
 
 func boundedStringKind(kind FieldKind) bool {

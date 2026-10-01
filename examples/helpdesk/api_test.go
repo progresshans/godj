@@ -54,7 +54,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "labels"}) || len(ticket.Properties) != 18 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_payload_digest", "external_url", "labels"}) || len(ticket.Properties) != 19 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if labels := ticket.Properties["labels"]; labels.Type != "array" || labels.Items == nil || labels.Items.Type != "integer" || labels.Items.Format != "int64" || !labels.ReadOnly || labels.allowsType("null") {
@@ -70,7 +70,14 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	if len(urlOutput.AnyOf) != 2 || urlOutput.AnyOf[0].Type != "string" || urlOutput.AnyOf[0].MaxLength != 200 || urlOutput.AnyOf[0].Format != "" || !urlOutput.allowsType("null") {
 		t.Fatal("URL output must retain string/null and stored bound without grammar")
 	}
+	digest := ticket.Properties["external_payload_digest"]
+	if !digest.ReadOnly || len(digest.AnyOf) != 2 || digest.AnyOf[0].Type != "string" || !digest.allowsType("null") || digest.AnyOf[0].Pattern == "" {
+		t.Fatal("read-only binary response contract")
+	}
 	for _, request := range []helpdeskDocumentSchema{input, update, patch} {
+		if _, present := request.Properties["external_payload_digest"]; present {
+			t.Fatal("server digest entered OpenAPI input")
+		}
 		field := request.Properties["external_url"]
 		if !field.allowsType("null") || len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].MaxLength != 0 || field.AnyOf[0].Format != "" || !bytes.Contains(field.Normalization, []byte(`"maxLengthAfterTrim":200`)) {
 			t.Fatal("URL request lost its nullable normalized input policy")

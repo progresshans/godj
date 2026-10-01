@@ -383,39 +383,39 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			return nil, err
 		}
 		item, err := templateObject(map[string]templates.Value{
-			"name":          templates.String(prefix + field.Name()),
-			"label":         templates.String(field.Label()),
-			"char":          templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldURL || field.Kind() == forms.FieldSlug || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
-			"password":      templates.Bool(field.Widget() == forms.PasswordInput),
-			"file":          templates.Bool(field.AcceptsUpload()),
-			"image":         templates.Bool(field.Kind() == forms.FieldImage),
-			"file_initial":  templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput),
-			"file_name":     templates.String(fileName),
-			"file_clear":    templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput && !field.Required() && !form.ReadOnly()),
-			"clear_name":    templates.String(prefix + field.Name() + "-clear"),
-			"clear_checked": templates.Bool(clearChecked),
-			"file_reselect": templates.Bool(reselect),
-			"hidden":        templates.Bool(field.Widget() == forms.HiddenInput),
-			"email":         templates.Bool(field.Widget() == forms.EmailInput),
-			"url":           templates.Bool(field.Widget() == forms.URLInput),
-			"textarea":      templates.Bool(field.Widget() == forms.Textarea),
-			"integer":       templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
-			"select":        templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
-			"options":       templates.List(options...),
-			"multiple":      templates.Bool(field.Widget() == forms.SelectMultiple),
-			"datetime":      templates.Bool(field.Kind() == forms.FieldDateTime),
-			"time":          templates.Bool(field.Kind() == forms.FieldTime),
-			"duration":      templates.Bool(field.Kind() == forms.FieldDuration),
-			"number":        templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.NumberInput),
-			"number_step":   templates.String(field.NumberStep()),
-			"number_text":   templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
-			"date":          templates.Bool(field.Kind() == forms.FieldDate),
-			"boolean":       templates.Bool(field.Widget() == forms.Checkbox),
-			"required":      templates.Bool(require && field.Required() && field.Widget() != forms.NullBooleanSelect && !fileInitial),
-			"max_length":    templates.Integer(int64(field.MaxLength())),
-			"value":         templates.String(value),
-			"checked":       templates.Bool(checked),
-			"errors":        templates.List(errors...),
+			"name":              templates.String(prefix + field.Name()),
+			"label":             templates.String(field.Label()),
+			"char":              templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldURL || field.Kind() == forms.FieldSlug || field.Kind() == forms.FieldBinary || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
+			"password":          templates.Bool(field.Widget() == forms.PasswordInput),
+			"file":              templates.Bool(field.AcceptsUpload()),
+			"image":             templates.Bool(field.Kind() == forms.FieldImage),
+			"file_initial":      templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput),
+			"file_name":         templates.String(fileName),
+			"file_clear":        templates.Bool(fileInitial && field.Widget() == forms.ClearableFileInput && !field.Required() && !form.ReadOnly()),
+			"clear_name":        templates.String(prefix + field.Name() + "-clear"),
+			"clear_checked":     templates.Bool(clearChecked),
+			"file_reselect":     templates.Bool(reselect),
+			"hidden":            templates.Bool(field.Widget() == forms.HiddenInput),
+			"email":             templates.Bool(field.Widget() == forms.EmailInput),
+			"url":               templates.Bool(field.Widget() == forms.URLInput),
+			"textarea":          templates.Bool(field.Widget() == forms.Textarea),
+			"integer":           templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select && field.Widget() != forms.HiddenInput),
+			"select":            templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
+			"options":           templates.List(options...),
+			"multiple":          templates.Bool(field.Widget() == forms.SelectMultiple),
+			"datetime":          templates.Bool(field.Kind() == forms.FieldDateTime),
+			"time":              templates.Bool(field.Kind() == forms.FieldTime),
+			"duration":          templates.Bool(field.Kind() == forms.FieldDuration),
+			"number":            templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.NumberInput),
+			"number_step":       templates.String(field.NumberStep()),
+			"number_text":       templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
+			"date":              templates.Bool(field.Kind() == forms.FieldDate),
+			"boolean":           templates.Bool(field.Widget() == forms.Checkbox),
+			"required":          templates.Bool(require && field.Required() && field.Widget() != forms.NullBooleanSelect && !fileInitial),
+			"binary_max_length": templates.Integer(int64(renderedBinaryMaxLength(field))),
+			"value":             templates.String(value),
+			"checked":           templates.Bool(checked),
+			"errors":            templates.List(errors...),
 		})
 		if err != nil {
 			return nil, err
@@ -486,6 +486,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldJSON {
 		value, _ := initial.AsJSON()
 		return value.Text, false
+	}
+	if field.Kind() == forms.FieldBinary {
+		value, _ := initial.AsBinary()
+		return value.Base64(), false
 	}
 	if field.Kind() == forms.FieldUUID {
 		value, _ := initial.AsUUID()
@@ -677,4 +681,12 @@ func safeDisplayText(value string) string {
 		}
 		return character
 	}, value)
+}
+
+// HTML maxlength counts base64 characters; the server checks decoded bytes.
+func renderedBinaryMaxLength(field forms.Field) int {
+	if field.Kind() == forms.FieldBinary && field.MaxLength() > 0 {
+		return (field.MaxLength() + 2) / 3 * 4
+	}
+	return 0
 }

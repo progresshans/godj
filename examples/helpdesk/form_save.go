@@ -204,7 +204,10 @@ func (a *Application) saveTicketFormInSession(ctx context.Context, session db.Re
 		if err != nil {
 			return writeRejection(err)
 		}
-		saved, err = a.publishableTicket(ctx, session, candidate.ID)
+		saved, err = a.publishableTicket(ctx, session, candidate.ID, scalarWrite)
+		if err == nil {
+			changed = payloadDigestChanges(changed, current, saved.Ticket)
+		}
 		return err
 	}()
 	if err != nil {

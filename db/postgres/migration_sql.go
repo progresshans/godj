@@ -265,6 +265,14 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 		if field.Nullable {
 			declaration = "JSONB NULL"
 		}
+	case ir.FieldBinary:
+		if field.PrimaryKey || field.MaxLength < 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarBinary {
+			return "", errors.New("BinaryField has an invalid migration shape")
+		}
+		declaration = "BYTEA NOT NULL"
+		if field.Nullable {
+			declaration = "BYTEA NULL"
+		}
 	case ir.FieldUUID:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarUUID {
 			return "", errors.New("UUIDField has an invalid migration shape")

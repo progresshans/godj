@@ -3,6 +3,7 @@ package consumertest_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"net/http/httptest"
 	"os"
@@ -243,6 +244,16 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (payload == "") != (stored.ExternalPayload == nil) || stored.ExternalPayload != nil && stored.ExternalPayload.Text != payload {
 					t.Fatal("independent client JSON final DB differs")
 				}
+				if stored.ExternalPayload == nil {
+					if stored.ExternalPayloadDigest != nil {
+						t.Fatal("independent client retained digest for SQL NULL")
+					}
+				} else {
+					sum := sha256.Sum256([]byte(stored.ExternalPayload.Text))
+					if stored.ExternalPayloadDigest == nil || stored.ExternalPayloadDigest.Data != string(sum[:]) {
+						t.Fatal("independent client final stored binary digest differs")
+					}
+				}
 				delete(wantJSON, stored.Subject)
 				cost, known := wantCost[stored.Subject]
 				if !known || (stored.ExpectedCost == nil) != (cost == nil) || (stored.ExpectedCost != nil && cost != nil && *stored.ExpectedCost != *cost) {
@@ -465,6 +476,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 }
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
+	if (left.ExternalPayloadDigest == nil) != (right.ExternalPayloadDigest == nil) || (left.ExternalPayloadDigest != nil && *left.ExternalPayloadDigest != *right.ExternalPayloadDigest) {
+		return false
+	}
 	if (left.ExternalPayload == nil) != (right.ExternalPayload == nil) || (left.ExternalPayload != nil && *left.ExternalPayload != *right.ExternalPayload) {
 		return false
 	}

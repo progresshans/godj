@@ -29,13 +29,24 @@ func checkHelpdeskJSONUpdates(ctx context.Context, client *hs.Client, transport 
 	patch := func(raw jx.Raw) error {
 		response, err := client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{ExternalPayload: raw}, params)
 		row, ok := response.(*hs.Ticket)
-		if err != nil || !ok || transport.lastStatus() != http.StatusOK || !sameHelpdeskTicket(*row, expected) {
+		if err != nil || !ok || transport.lastStatus() != http.StatusOK {
+			return fail("JSON PATCH status/decode")
+		}
+		if row.ExternalPayloadDigest != expected.ExternalPayloadDigest {
+			return fail("JSON PATCH stored payload digest")
+		}
+		if !sameHelpdeskTicket(*row, expected) {
 			return fail("JSON PATCH exact value/null/omission")
 		}
 		return nil
 	}
 	for _, raw := range []string{`null`, `false`, `0`, `1.00`, `1e400`, `1e-400`, `9007199254740993.00`, `[]`, `{}`, `""`, `"{\"a\":1}"`, `{"":{"__proto__":{"constructor":false}},"a":[null,9007199254740993]}`, `{"":340282366920938463463374607431768211455,"nested":[null,false,"<script>data</script>"]}`} {
 		expected.ExternalPayload = jx.Raw(raw)
+		digest, err := expectedPayloadDigest(expected.ExternalPayload)
+		if err != nil {
+			return hs.Ticket{}, err
+		}
+		expected.ExternalPayloadDigest = digest
 		if err := patch(jx.Raw(raw)); err != nil {
 			return hs.Ticket{}, err
 		}
@@ -63,7 +74,7 @@ func checkHelpdeskJSONUpdates(ctx context.Context, client *hs.Client, transport 
 }
 
 func checkGeneratedJSONWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_url":null,"labels":[],"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload_digest":null,"external_url":null,"labels":[],"external_reference":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
 	for _, raw := range []string{"", `null`, `false`, `0`, `1.00`, `1e400`, `1e-400`, `9007199254740993.00`, `340282366920938463463374607431768211455`, `[]`, `{}`, `""`, `"{\"a\":1}"`, `{"":{"__proto__":[null,false]}}`} {
 		calls := 0
 		responseValue := raw

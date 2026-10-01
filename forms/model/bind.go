@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"reflect"
 	"strconv"
 	"strings"
@@ -195,6 +196,8 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			if !present {
 				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
 			}
+		} else if !field.Nullable && field.Kind == ir.FieldBinary {
+			value = forms.Binary(binaryvalue.Value{})
 		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText) {
 			value = forms.String("")
 		}
@@ -218,7 +221,7 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	for _, field := range fields {
 		selected[field.Name()] = field
 		if metadata, stored := byName[field.Name()]; stored {
-			if metadata.PrimaryKey || dimensions[field.Name()] != "" {
+			if metadata.PrimaryKey || metadata.NonEditable || dimensions[field.Name()] != "" {
 				return modelBinding{}, nil, &Error{Path: "fields." + field.Name(), Code: "non_editable"}
 			}
 			if !inputKindMatches(metadata.Kind, field.Kind()) {
@@ -431,6 +434,8 @@ func inputKindMatches(model ir.FieldKind, input forms.FieldKind) bool {
 		return input == forms.FieldFloat
 	case ir.FieldDecimal:
 		return input == forms.FieldDecimal
+	case ir.FieldBinary:
+		return input == forms.FieldBinary
 	case ir.FieldUUID:
 		return input == forms.FieldUUID
 	case ir.FieldJSON:
@@ -474,6 +479,9 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 	case ir.FieldDecimal:
 		number, ok := value.AsDecimal()
 		return ok && field.Decimal != nil && number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+	case ir.FieldBinary:
+		_, ok := value.AsBinary()
+		return ok
 	case ir.FieldUUID:
 		_, ok := value.AsUUID()
 		return ok
@@ -486,6 +494,9 @@ func initialModelValueMatches(field ir.Field, value forms.Value) bool {
 }
 
 func emptyInput(value forms.Value) bool {
+	if data, ok := value.AsBinary(); ok {
+		return len(data.Data) == 0
+	}
 	if file, ok := value.AsFile(); ok {
 		return file.Name() == ""
 	}
@@ -593,6 +604,14 @@ func modelFieldErrors(field ir.Field, value forms.Value) validation.Errors {
 		number, ok := value.AsDecimal()
 		if !ok || field.Decimal == nil || !number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
 			return reject("invalid")
+		}
+	case ir.FieldBinary:
+		data, ok := value.AsBinary()
+		if !ok {
+			return reject("invalid")
+		}
+		if field.MaxLength > 0 && len(data.Data) > field.MaxLength {
+			return reject("max_length")
 		}
 	case ir.FieldUUID:
 		if _, ok := value.AsUUID(); !ok {

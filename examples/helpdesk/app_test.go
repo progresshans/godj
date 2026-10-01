@@ -173,6 +173,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	verifyHistoricalExternalReferenceGrowth(t, ctx, backend, open, loaded, seedID)
 	verifyHistoricalJSONGrowth(t, ctx, backend, open, loaded, seedID)
 	t.Run("historical_url", func(t *testing.T) { verifyHistoricalURLGrowth(t, ctx, backend, open, loaded, seedID) })
+	t.Run("historical_binary", func(t *testing.T) { verifyHistoricalBinaryGrowth(t, ctx, backend, open, loaded, seedID) })
 	t.Run("historical_unique_reference", func(t *testing.T) {
 		verifyHistoricalExternalReferenceUniqueness(t, ctx, backend, open, loaded, seedID, outsideID)
 	})
@@ -322,7 +323,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+2 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 18 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["ticket"]["external_payload"]) != "null" || string(detail["ticket"]["external_url"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 19 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["ticket"]["external_payload"]) != "null" || string(detail["ticket"]["external_url"]) != "null" || string(detail["ticket"]["external_payload_digest"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -491,6 +492,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("url", func(t *testing.T) {
 		verifyHelpdeskURL(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	})
+	t.Run("binary_digest", func(t *testing.T) { verifyHelpdeskBinaryDigest(t, ctx, runtime, open, client, category.ID, outside.ID) })
 	// Ordinary ORM writes keep the complete int64 storage range. Both API and
 	// Admin display those old/out-of-choice values without substituting labels.
 	for _, value := range []int64{math.MinInt64, math.MaxInt64} {

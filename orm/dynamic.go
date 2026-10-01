@@ -2,6 +2,7 @@ package orm
 
 import (
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -128,11 +129,11 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	case query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 		return lookup, field.Kind == ir.FieldJSON
 	case query.LookupIn:
-		return lookup, field.Kind == ir.FieldJSON || field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID)
+		return lookup, field.Kind == ir.FieldJSON || field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldBinary)
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldJSON || field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID) || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldJSON || field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldBinary) || field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIExact:
@@ -184,6 +185,12 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 			return invalid("valid jsonvalue.Value")
 		}
 		return query.JSON(value), nil
+	case ir.FieldBinary:
+		value, ok := raw.(binaryvalue.Value)
+		if !ok || !value.Valid() {
+			return invalid("valid binaryvalue.Value")
+		}
+		return query.Binary(value), nil
 	case ir.FieldUUID:
 		value, ok := raw.(uuid.UUID)
 		if !ok {

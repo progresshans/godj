@@ -299,3 +299,14 @@ Ticket의 `external_url`은 nullable/blank `URLField`이며 기본 저장 길이
 JSON 생성/수정은 공백을 정리하지만 스킴이 없는 주소를 거부한다. `""`·`null`·생략은 각각 빈 문자열·NULL·기존 값 보존이다.
 일반 ORM이 저장한 문법상 잘못된 문자열도 조회/출력하며 이를 활성 HTML 링크로 바꾸지 않는다.
 기존 Category 범위·현재 쓰기 권한·CSRF·transaction과 rollback 규칙을 동일하게 적용한다.
+
+
+### 외부 payload 지문
+
+`external_payload_digest`는 기본 비편집 BinaryField다. 응답과 Admin 조회에는 padded base64로 표시하고,
+API의 직접 제출은 `read_only`, Admin의 입력 allowlist 우회는 요청 오류로 거부한다. 서버의 일반 ORM 할당은 가능하다.
+새 `0023_ticket_external_payload_digest`는 기존 행에 NULL을 추가하며 이미 있는 JSON의 지문을 임의로 채우지 않는다.
+이후 앱이 실제 Ticket scalar를 저장하면, 같은 transaction의 행 잠금 아래 DB에 저장된 JSON을 다시 읽고 SHA-256을 계산한다.
+PostgreSQL JSONB의 숫자 정규화가 반영된 값을 사용하며 JSON null과 SQL NULL을 구분한다. SQL NULL에는 지문이 없다.
+읽기·동일 값 제출·관계만의 변경은 숨은 Ticket 쓰기를 만들지 않는다. 지문 실패·출력 검증·취소는 앞선 payload/관계 저장과 함께 rollback한다.
+이 값은 관찰용 지문이며 인증 서명이 아니다. 앱 밖의 서버 ORM 쓰기는 자신의 파생값 갱신을 소유한다.

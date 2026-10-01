@@ -38,6 +38,7 @@ const (
 	FieldFloat      FieldKind = "float"
 	FieldDecimal    FieldKind = "decimal"
 	FieldUUID       FieldKind = "uuid"
+	FieldBinary     FieldKind = "binary"
 	FieldJSON       FieldKind = "json"
 	FieldChar       FieldKind = "char"
 	FieldEmail      FieldKind = "email"
@@ -112,6 +113,7 @@ const (
 	ScalarFloat    ScalarKind = "float"
 	ScalarDecimal  ScalarKind = "decimal"
 	ScalarUUID     ScalarKind = "uuid"
+	ScalarBinary   ScalarKind = "binary"
 	ScalarJSON     ScalarKind = "json"
 	ScalarDuration ScalarKind = "duration"
 	ScalarTime     ScalarKind = "time"
@@ -131,6 +133,7 @@ type Scalar struct {
 	FloatBits string     `json:"float_bits,omitempty"`
 	Decimal   string     `json:"decimal,omitempty"`
 	UUID      string     `json:"uuid,omitempty"`
+	Binary    string     `json:"binary,omitempty"`
 	JSON      string     `json:"json,omitempty"`
 }
 
@@ -162,6 +165,7 @@ type Field struct {
 	PrimaryKey   bool                `json:"primary_key"`
 	Nullable     bool                `json:"nullable"`
 	Blank        bool                `json:"blank,omitempty"`
+	NonEditable  bool                `json:"non_editable,omitempty"`
 	Unique       bool                `json:"unique,omitempty"`
 	DBIndex      bool                `json:"db_index,omitempty"`
 	AllowUnicode bool                `json:"allow_unicode,omitempty"`
@@ -236,7 +240,7 @@ func (f Field) HasColumnIndex() bool { return f.DBIndex && !f.PrimaryKey && !f.U
 // treating independently owned default/relation pointers as different fields.
 func (f Field) Equal(other Field) bool {
 	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
-		f.Kind == other.Kind && f.WidthField == other.WidthField && f.HeightField == other.HeightField && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.Unique == other.Unique && f.DBIndex == other.DBIndex && f.AllowUnicode == other.AllowUnicode && f.MaxLength == other.MaxLength &&
+		f.Kind == other.Kind && f.WidthField == other.WidthField && f.HeightField == other.HeightField && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Blank == other.Blank && f.NonEditable == other.NonEditable && f.Unique == other.Unique && f.DBIndex == other.DBIndex && f.AllowUnicode == other.AllowUnicode && f.MaxLength == other.MaxLength &&
 		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
 		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
 }

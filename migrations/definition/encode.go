@@ -277,6 +277,7 @@ type fieldDocument struct {
 	PrimaryKey   bool              `json:"primary_key"`
 	Nullable     bool              `json:"nullable"`
 	Blank        bool              `json:"blank,omitempty"`
+	NonEditable  bool              `json:"non_editable,omitempty"`
 	Unique       bool              `json:"unique,omitempty"`
 	DBIndex      bool              `json:"db_index,omitempty"`
 	AllowUnicode bool              `json:"allow_unicode,omitempty"`
@@ -297,6 +298,11 @@ type choiceDocument struct {
 type jsonDefaultDocument struct {
 	Kind ir.ScalarKind `json:"kind"`
 	JSON string        `json:"json"`
+}
+
+type binaryDefaultDocument struct {
+	Kind   ir.ScalarKind `json:"kind"`
+	Binary string        `json:"binary"`
 }
 
 type uuidDefaultDocument struct {
@@ -390,6 +396,7 @@ func encodeField(field ir.Field) fieldDocument {
 		PrimaryKey:   field.PrimaryKey,
 		Nullable:     field.Nullable,
 		Blank:        field.Blank,
+		NonEditable:  field.NonEditable,
 		Unique:       field.Unique,
 		DBIndex:      field.DBIndex,
 		AllowUnicode: field.AllowUnicode,
@@ -432,6 +439,8 @@ func encodeDefault(value *ir.Scalar) any {
 	switch value.Kind {
 	case ir.ScalarJSON:
 		return jsonDefaultDocument{Kind: value.Kind, JSON: value.JSON}
+	case ir.ScalarBinary:
+		return binaryDefaultDocument{Kind: value.Kind, Binary: value.Binary}
 	case ir.ScalarUUID:
 		return uuidDefaultDocument{Kind: value.Kind, UUID: value.UUID}
 	case ir.ScalarDecimal:

@@ -41,7 +41,7 @@ TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경
 Default 없는 required 추가는 빈 테이블을 요구한다. Legacy SQLite DirectExecutor는 기존 empty-table 제한을 유지한다.
 PK·FK 기본값, callable default와 임의 data migration은 별도 범위다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Email, URL, Slug, File, Image, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Email, URL, Slug, File, Image, Text, Date, DateTime, Time, Duration, Float, Decimal, Binary, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
@@ -104,6 +104,13 @@ Char/Text의 literal `IExact`는 공통 AST에서 root와 관계 경로에 적�
 PostgreSQL은 양쪽 UPPER와 column::text 변환을 사용한다. Go에서 Unicode를 casefold하지 않으며 현재 PostgreSQL의
 UTF8/libc/C profile을 유지한다. NULL/F/JSON RHS의 지원으로 넓히지 않는다.
 [비교·사용자 생성 정책](adr/0076-credential-snapshots-and-session-binding.md#문자열-iexact와-사용자-생성-중복-정책)을 따른다.
+
+Binary는 immutable 원래 bytes를 SQLite BLOB와 PostgreSQL bytea로 저장하며 빈 바이트와 SQL NULL을 구분한다.
+양 DB의 typed/dynamic 비교·IN/F·정렬·투영·Min/Max·관계 경로와 상수 default 추가·index/unique lifecycle을 연결했다.
+PostgreSQL bytea Min/Max는 hex의 C collation 집계 후 bytes로 복원하는 명시적 확장이다.
+SQLite의 외부 TEXT/숫자 저장을 bytes로 암묵 변환하지 않는다. `MaxLength`는 디코딩된 입력 길이이며 일반 ORM/기존 출력에
+소급하지 않는다. `AlterFieldInputPolicy`는 다른 속성이 같은 편집 가능 여부 또는 Binary 길이 변경을 DDL 없이 적용하고,
+catalog 검증·recorder/revision·역방향 의미를 유지한다. [Binary/입력 정책](adr/0085-binary-fields-and-model-input-policy.md)을 따른다.
 
 JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL NULL)와 JSON null을 구분한다.
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.

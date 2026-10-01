@@ -132,13 +132,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_payload_digest"}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", ReadOnly: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true}, serializers.ModelField{Name: "external_payload_digest"}, serializers.ModelField{Name: "external_url", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "labels", ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "external_payload_digest")
 	if err != nil {
 		return err
 	}
@@ -221,9 +221,15 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err := admin.RegisterModel(builder, admin.ModelConfig[ticketRecord]{
 		Inlines:  inlines,
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		FormOverrides:  overrides,
+		FormOverrides: overrides,
+		ReadOnlyFields: []admin.ReadOnlyField[ticketRecord]{{Name: "external_payload_digest", Label: "Payload SHA-256 (base64)", Value: func(value ticketRecord) (string, error) {
+			if value.ExternalPayloadDigest == nil {
+				return "No digest", nil
+			}
+			return value.ExternalPayloadDigest.Base64(), nil
+		}}},
 		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
-		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url"}, SearchFields: []string{"subject", "external_payload"},
+		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "external_payload_digest"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
 			return a.list(ctx, request)
@@ -421,7 +427,7 @@ func (a *Application) create(ctx context.Context, principal auth.Principal, inpu
 		if _, err := a.setTicketLabelKeys(ctx, session, raw, keys); err != nil {
 			return err
 		}
-		created, err = a.publishableTicket(ctx, session, raw.ID)
+		created, err = a.publishableTicket(ctx, session, raw.ID, true)
 		return err
 	})
 	if err != nil {
@@ -471,7 +477,10 @@ func (a *Application) updatePatch(ctx context.Context, principal auth.Principal,
 				changed = append(changed, "labels")
 			}
 		}
-		updated, err = a.publishableTicket(ctx, session, raw.ID)
+		updated, err = a.publishableTicket(ctx, session, raw.ID, len(scalarChanged) != 0)
+		if err == nil {
+			changed = payloadDigestChanges(changed, current, updated.Ticket)
+		}
 		return err
 	})
 	if err != nil {
@@ -530,7 +539,7 @@ func updateTicketScalars(ctx context.Context, session db.Session, current models
 // Native storage can normalize a JSON numeric token into a longer spelling.
 // Re-read and validate the real response inside the transaction, including the
 // detail/list wrapper, so a successful write cannot precede a renderer failure.
-func (a *Application) publishableTicket(ctx context.Context, session db.Session, id int64) (ticketRecord, error) {
+func (a *Application) publishableTicket(ctx context.Context, session db.Session, id int64, scalarWritten bool) (ticketRecord, error) {
 	objects, err := project.UsingSession(session)
 	if err != nil {
 		return ticketRecord{}, err
@@ -541,6 +550,12 @@ func (a *Application) publishableTicket(ctx context.Context, session db.Session,
 	}
 	if !found {
 		return ticketRecord{}, admin.ErrObjectNotFound
+	}
+	if scalarWritten {
+		stored.Ticket, err = synchronizePayloadDigest(ctx, session, stored.Ticket)
+		if err != nil {
+			return ticketRecord{}, err
+		}
 	}
 	value, err := a.encoder.Encode(stored)
 	if err != nil {

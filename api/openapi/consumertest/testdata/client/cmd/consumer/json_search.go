@@ -14,6 +14,11 @@ func checkHelpdeskJSONSearch(ctx context.Context, client *hs.Client, transport *
 	patch := func(raw jx.Raw) error {
 		expected := original
 		expected.ExternalPayload = raw
+		digest, err := expectedPayloadDigest(expected.ExternalPayload)
+		if err != nil {
+			return err
+		}
+		expected.ExternalPayloadDigest = digest
 		response, err := client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{ExternalPayload: raw}, hs.HelpdeskTicketPatchParams{ID: original.ID})
 		actual, ok := response.(*hs.Ticket)
 		if err != nil {

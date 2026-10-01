@@ -88,7 +88,6 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 	}
 	known := make(map[string]bool, len(model.Fields)+len(model.ManyToMany))
 	extra := make(map[string]forms.Value)
-	var extraNames []string
 	for _, field := range model.Fields {
 		known[field.Name] = true
 		value, found := provided[field.Name]
@@ -125,7 +124,6 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 			}
 			if !inputs[field.Name] {
 				extra[field.Name] = value
-				extraNames = append(extraNames, field.Name)
 			}
 		}
 	}
@@ -135,7 +133,6 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 			candidate[field.Name] = value
 			if !inputs[field.Name] {
 				extra[field.Name] = value
-				extraNames = append(extraNames, field.Name)
 			}
 		}
 	}
@@ -144,14 +141,8 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 			return nil, nil, &ConfigError{Path: "get.result.initial." + name, Code: "unknown_field"}
 		}
 	}
-	if len(extraNames) > 0 {
-		extraSpec, err := formmodel.NewSpecForFields(model, extraNames)
-		if err != nil {
-			return nil, nil, &ConfigError{Path: "get.result.initial", Code: "invalid_model", Cause: err}
-		}
-		if _, err := extraSpec.Unbound(extra); err != nil {
-			return nil, nil, &ConfigError{Path: "get.result.initial", Code: "invalid_model_value", Cause: err}
-		}
+	if err := formmodel.ValidateInitialValues(model, extra); err != nil {
+		return nil, nil, &ConfigError{Path: "get.result.initial", Code: "invalid_model_value", Cause: err}
 	}
 	return selected, candidate, nil
 }

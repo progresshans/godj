@@ -138,6 +138,9 @@ func measureField(sizer *wirejson.Sizer, field ir.Field) bool {
 	if field.HeightField != "" && (!sizer.Literal(`,"height_field":`) || !sizer.String(field.HeightField)) {
 		return false
 	}
+	if field.NonEditable && !sizer.Literal(`,"non_editable":true`) {
+		return false
+	}
 	if field.Blank && !sizer.Literal(`,"blank":true`) {
 		return false
 	}
@@ -183,6 +186,9 @@ func measureDefault(sizer *wirejson.Sizer, value ir.Scalar) bool {
 		return false
 	}
 	if value.String != "" && (!sizer.Literal(`,"string":`) || !sizer.String(value.String)) {
+		return false
+	}
+	if value.Binary != "" && (!sizer.Literal(`,"binary":`) || !sizer.String(value.Binary)) {
 		return false
 	}
 	if value.UUID != "" && (!sizer.Literal(`,"uuid":`) || !sizer.String(value.UUID)) {

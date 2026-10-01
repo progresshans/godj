@@ -6,6 +6,66 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+// ValidateInitialValues checks the representation of supplied model values,
+// including fields excluded from input. It does not run input validators or
+// grant permission to select, bind or persist any field. Current input length,
+// choices and editability do not prevent displaying an existing stored value.
+func ValidateInitialValues(model ir.Model, values map[string]forms.Value) error {
+	known := make(map[string]bool, len(model.Fields)+len(model.ManyToMany))
+	fields := make([]forms.Field, 0, len(values))
+	for _, field := range model.Fields {
+		if known[field.Name] {
+			return &Error{Path: "initial." + field.Name, Code: "duplicate"}
+		}
+		known[field.Name] = true
+		if _, found := values[field.Name]; !found {
+			continue
+		}
+		// Only a provided stored value is being checked. A default belongs to
+		// preparing new input and must not be applied or revalidated here.
+		field.Default = nil
+		var projected forms.Field
+		var err error
+		if field.Kind == ir.FieldAuto {
+			projected, err = forms.IntegerField(field.Name)
+		} else {
+			projected, err = projectField(field, overrideConfig{})
+		}
+		if err != nil {
+			return err
+		}
+		fields = append(fields, projected)
+	}
+	for _, field := range model.ManyToMany {
+		if known[field.Name] {
+			return &Error{Path: "initial." + field.Name, Code: "duplicate"}
+		}
+		known[field.Name] = true
+		if _, found := values[field.Name]; !found {
+			continue
+		}
+		projected, err := projectManyToMany(field, overrideConfig{})
+		if err != nil {
+			return err
+		}
+		fields = append(fields, projected)
+	}
+	for name := range values {
+		if !known[name] {
+			return &Error{Path: "initial." + name, Code: "unknown_field"}
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	spec, err := forms.NewSpec(fields)
+	if err != nil {
+		return err
+	}
+	_, err = spec.Unbound(values)
+	return err
+}
+
 // InitialValues projects only the form's selected fields from a typed model
 // reader. The model and its nullable pointers are never retained by the result.
 // A selected ManyToMany requires one explicit, pure collection reader. Load
@@ -68,6 +128,9 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		case scalar.Kind() == query.ValueJSON && field.Kind() == forms.FieldJSON:
 			document, _ := scalar.JSON()
 			result[field.Name()] = forms.JSON(document)
+		case scalar.Kind() == query.ValueBinary && field.Kind() == forms.FieldBinary:
+			value, _ := scalar.Binary()
+			result[field.Name()] = forms.Binary(value)
 		case scalar.Kind() == query.ValueUUID && field.Kind() == forms.FieldUUID:
 			identifier, _ := scalar.UUID()
 			result[field.Name()] = forms.UUID(identifier)

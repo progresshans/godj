@@ -1,6 +1,7 @@
 package query
 
 import (
+	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
@@ -21,6 +22,7 @@ const (
 	ValueFloat    ValueKind = "float"
 	ValueDecimal  ValueKind = "decimal"
 	ValueUUID     ValueKind = "uuid"
+	ValueBinary   ValueKind = "binary"
 	ValueJSON     ValueKind = "json"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
@@ -50,6 +52,20 @@ func Integer(value int64) Value {
 
 // UUID snapshots the canonical value without retaining caller-owned bytes.
 func UUID(value uuid.UUID) Value { return Value{kind: ValueUUID, text: value.String()} }
+
+// Binary retains only immutable owned bytes. Invalid literals stay invalid
+// instead of becoming empty bytes or SQL NULL.
+func Binary(value binaryvalue.Value) Value {
+	if !value.Valid() {
+		return Value{}
+	}
+	return Value{kind: ValueBinary, text: value.Data}
+}
+
+func (v Value) Binary() (binaryvalue.Value, bool) {
+	value := binaryvalue.Value{Data: v.text}
+	return value, v.kind == ValueBinary && value.Valid()
+}
 
 // JSON snapshots a validated document. It does not convert SQL NULL into JSON
 // null, or a JSON document into a string-typed query value.
@@ -199,6 +215,12 @@ func (v Value) Equal(other Value) bool {
 
 func (v Value) DatabaseValue() (any, error) {
 	switch v.kind {
+	case ValueBinary:
+		value, ok := v.Binary()
+		if !ok {
+			return nil, &Error{Category: CategoryField, Code: CodeInvalidValue, Detail: "invalid binary value"}
+		}
+		return value.Bytes(), nil
 	case ValueNull:
 		return nil, nil
 	case ValueDuration:

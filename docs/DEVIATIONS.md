@@ -44,6 +44,29 @@
 
 ## 원장
 
+## DEV-0020 — Binary의 닫힌 입력과 명시적 집계
+
+- 상태: accepted design, 구현 중; Go 제품 실행 검증 전
+- 날짜: 2026-10-01
+- 기준: Django 6.1/DRF 3.18.0/Python 3.14.3의 [관찰](../conformance/runners/django/binary_field_reference.py), 실제 SQLite/PostgreSQL 17.10
+- 범위: [ADR-0085](adr/0085-binary-fields-and-model-input-policy.md), [GDJ-0106](../work/0106-binary-fields-and-model-input-policy.md). 등록 conformance 완료 수를 변경하지 않는다.
+
+DRF의 BinaryField는 비문자열 Python 입력 일부를 그대로 통과시키거나 TypeError를 발생시킨다.
+GoDj의 JSON 경계는 표준 padded base64 문자열과 nullable null만 받고 다른 JSON 타입에 일반 invalid 오류를 반환한다.
+기존 전역 JSON NUL 거부도 유지한다. 비편집 모델 필드를 제출하면 DRF는 무시하지만 GoDj는 기존 read_only 진단을 유지한다.
+외부 버퍼의 변이로 query나 생성 모델이 바뀌지 않도록 raw bytes는 immutable `binaryvalue.Value`로 소유한다.
+Python mutable bytes-like 객체 구조의 재현이나 바이트와 텍스트 사이의 암묵 변환은 대안으로 채택하지 않는다.
+
+실제 PostgreSQL에서 Django의 bytea Min/Max는 ProgrammingError다. GoDj는 바이트 순서로 정의한 공통 Query AST의
+Min/Max를 hex/C collation 집계 후 bytea 복원으로 제공한다. SQLite의 관찰 결과와 NULL/빈 값·전체 octet 순서를 유지한다.
+이 확장은 Django PostgreSQL 오류와 같은 결과로 계산하지 않는다. 저장 type은 BLOB/bytea 그대로이며
+일반 index/unique의 backend 크기 오류나 transaction 오류를 숨기지 않는다. 기존 데이터 변환은 없다.
+
+비교 테스트는 Python 전용 입력/예외·read-only 차이·PostgreSQL aggregate 확장을 독립 분기로 확인한다.
+상한·소유권·실제 SQL·typed/dynamic/관계·rollback·소비자의 상태는 TEST_EVIDENCE가 소유하며,
+미실행 상태를 parity나 전체 플랫폼 완료로 표기하지 않는다. 향후 upstream이 같은 집계를 제공하거나
+닫힌 Go 입력 의미를 바꾸는 명시적 제품 결정이 있으면 고정 관찰과 실제 DB 근거로 이 항목을 재검토한다.
+
 ## DEV-0019 — 메일 소유권과 명시적 SMTP 접수 결과
 
 - 상태: accepted design; 로컬 영향 검증 완료, 전체 환경·제품 소비자는 [Evidence](status/TEST_EVIDENCE.md) 참조

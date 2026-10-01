@@ -361,7 +361,7 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 			return nil, invalidPlan("SQLite field comparison is missing its right-hand-side binding")
 		}
 		if field.Kind() != right.Kind() ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && (field.Kind() != query.FieldJSON || condition.Lookup() != query.LookupExact) && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldBinary && (field.Kind() != query.FieldJSON || condition.Lookup() != query.LookupExact) && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 			return nil, invalidPlan("SQLite field comparison requires same-kind supported scalar fields")
 		}
 		operator, ok := comparisonOperator(condition.Lookup())
@@ -536,7 +536,7 @@ func validateReadSourceFields(fields []query.FieldRef) error {
 			return invalidPlan(fmt.Sprintf("field column %q is empty or contains NUL", field.Column()))
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldBinary, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 		default:
 			return invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

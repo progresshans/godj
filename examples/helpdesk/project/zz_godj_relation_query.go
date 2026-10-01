@@ -374,25 +374,26 @@ func (_fields ModelsServiceReportRelatedFields[S]) Ticket() ModelsTicketRelatedF
 }
 
 type ModelsTicketRelatedFields[S any] struct {
-	bindings          *relationQueryBindings
-	route             orm.QueryRelation[S, models.Ticket]
-	configurationErr  error
-	ID                orm.RelatedIntegerField[S]
-	Subject           orm.RelatedStringField[S]
-	Details           orm.RelatedStringField[S]
-	Closed            orm.RelatedBooleanField[S]
-	Priority          orm.RelatedIntegerField[S]
-	Resolution        orm.RelatedStringField[S]
-	DueAt             orm.RelatedDateTimeField[S]
-	Reviewed          orm.RelatedBooleanField[S]
-	ServiceOn         orm.RelatedDateField[S]
-	ServiceAt         orm.RelatedTimeField[S]
-	Elapsed           orm.RelatedDurationField[S]
-	Effort            orm.RelatedFloatField[S]
-	ExpectedCost      orm.RelatedDecimalField[S]
-	ExternalReference orm.RelatedUUIDField[S]
-	ExternalPayload   orm.RelatedJSONField[S]
-	ExternalURL       orm.RelatedStringField[S]
+	bindings              *relationQueryBindings
+	route                 orm.QueryRelation[S, models.Ticket]
+	configurationErr      error
+	ID                    orm.RelatedIntegerField[S]
+	Subject               orm.RelatedStringField[S]
+	Details               orm.RelatedStringField[S]
+	Closed                orm.RelatedBooleanField[S]
+	Priority              orm.RelatedIntegerField[S]
+	Resolution            orm.RelatedStringField[S]
+	DueAt                 orm.RelatedDateTimeField[S]
+	Reviewed              orm.RelatedBooleanField[S]
+	ServiceOn             orm.RelatedDateField[S]
+	ServiceAt             orm.RelatedTimeField[S]
+	Elapsed               orm.RelatedDurationField[S]
+	Effort                orm.RelatedFloatField[S]
+	ExpectedCost          orm.RelatedDecimalField[S]
+	ExternalReference     orm.RelatedUUIDField[S]
+	ExternalPayload       orm.RelatedJSONField[S]
+	ExternalURL           orm.RelatedStringField[S]
+	ExternalPayloadDigest orm.RelatedBinaryField[S]
 }
 
 func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, models.Ticket]) ModelsTicketRelatedFields[S] {
@@ -461,6 +462,10 @@ func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rout
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
+	_field16, _err := _route.Binary(models.TicketFields.ExternalPayloadDigest)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
 	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
 	_result.Subject = _field1.WithConfigurationError(_result.configurationErr)
 	_result.Details = _field2.WithConfigurationError(_result.configurationErr)
@@ -477,6 +482,7 @@ func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rout
 	_result.ExternalReference = _field13.WithConfigurationError(_result.configurationErr)
 	_result.ExternalPayload = _field14.WithConfigurationError(_result.configurationErr)
 	_result.ExternalURL = _field15.WithConfigurationError(_result.configurationErr)
+	_result.ExternalPayloadDigest = _field16.WithConfigurationError(_result.configurationErr)
 	_result.route = _route.WithConfigurationError(_result.configurationErr)
 	return _result
 }
@@ -1033,4 +1039,4 @@ func BindRelations() (Relations, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_fcdd74782c372e1768ba55a803953fb896845614e5331650a1836d5bd5d924ec
+var _ goDjProjectSnapshot_9e0e9d865bd4e5b0bac2917b130a6e17c36e91f77d90ccbe29479337c65acda2

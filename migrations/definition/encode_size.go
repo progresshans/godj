@@ -283,7 +283,7 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 	for _, flag := range []struct {
 		name  string
 		value bool
-	}{{"db_index", field.DBIndex}, {"allow_unicode", field.AllowUnicode}} {
+	}{{"non_editable", field.NonEditable}, {"db_index", field.DBIndex}, {"allow_unicode", field.AllowUnicode}} {
 		if flag.value {
 			if err := scanner.addStructural(path+"."+flag.name, uint64(len(`,"`+flag.name+`":true`))); err != nil {
 				return err
@@ -359,6 +359,9 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
+	if err := scanner.addString(path+".binary", value.Binary); err != nil {
+		return err
+	}
 	if err := scanner.addString(path+".json", value.JSON); err != nil {
 		return err
 	}
@@ -387,6 +390,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) er
 	switch value.Kind {
 	case ir.ScalarJSON:
 		structural = uint64(len(`{"kind":"","json":""}`))
+	case ir.ScalarBinary:
+		structural = uint64(len(`{"kind":"","binary":""}`))
 	case ir.ScalarUUID:
 		structural = uint64(len(`{"kind":"","uuid":""}`))
 	case ir.ScalarDecimal:

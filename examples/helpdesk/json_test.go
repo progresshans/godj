@@ -288,7 +288,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	backend.rollback = true
 	response = client.request("PATCH", path, `{"external_payload":0}`, true)
 	backend.rollback = false
-	if response.Code != http.StatusInternalServerError || backend.updates != before+1 || !reflect.DeepEqual(baseline, read()) {
+	if response.Code != http.StatusInternalServerError || backend.updates != before+2 || !reflect.DeepEqual(baseline, read()) {
 		t.Fatal("failed JSON transaction published state")
 	}
 	second, err := open(ctx)

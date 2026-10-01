@@ -344,6 +344,7 @@ const (
 	loadedRequiresExplicitManyToMany
 	loadedRequiresAutomaticManyToMany
 	loadedRequiresColumnIndexes
+	loadedRequiresAlterFieldInputPolicy
 )
 
 const (
@@ -1605,6 +1606,8 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				(alteration.Before.Kind != alteration.After.Kind || alteration.Before.AllowUnicode != alteration.After.AllowUnicode ||
 					alteration.Before.WidthField != alteration.After.WidthField || alteration.Before.HeightField != alteration.After.HeightField) {
 				requirements |= loadedRequiresAlterFieldStringSemantics
+			} else if change == ir.ChangeEditable || change == ir.ChangeBinaryLength {
+				requirements |= loadedRequiresAlterFieldInputPolicy
 			} else if change == ir.ChangeBlank {
 				requirements |= loadedRequiresAlterFieldBlank
 			} else if change == ir.ChangeChoices {

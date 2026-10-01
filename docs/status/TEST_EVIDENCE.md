@@ -3,6 +3,100 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0106 — Binary 모델 필드와 입력 정책
+
+### 현재 검증과 독립 기준
+
+2026-10-01, 구현과 아래 영향 검증을 완료했다. 새 source의 Hosted full은 아직 수행하지 않았다.
+기준 parent는 `9d1804b2e14eaa9d6f46b5d4a6ed343f02aa3454`이며 아래 결과는 Binary 변경을 포함한 작업 사본의 결과다.
+Slug source의 Hosted full 성공을 이 변경의 성공으로 옮기지 않는다.
+
+고정 Python 3.14.3/Django 6.1/DRF 3.18.0의 `binary_field_reference.py`를 SQLite와
+PostgreSQL 17.10 Debian/UTF8/libc/C/C에서 각각 독립 두 프로세스로 재실행했다. 각 결과는 byte-identical이며
+체크인한 fixture와도 일치했다. 7 profiles·39 합성 입력, 실제 저장 7행·10 조회·6 lifecycle 관찰을 포함한다.
+ModelForm의 문자열 domain 224개와 JSON 273개를 Go 입력에 대조한다. Python 객체/TypeError,
+read-only 제출 거부와 기존 JSON NUL 경계는 [DEV-0020](../DEVIATIONS.md#dev-0020--binary의-닫힌-입력과-명시적-집계)의 명시적 차이다.
+PostgreSQL의 native bytea Min/Max 오류와 GoDj의 명시적 집계 확장을 구분한다.
+
+- SQLite fixture: `28f0bb41ba3f8031ebcc04dd64a7b214e035183be48eab0414b59fa2d67dcdd2`, 222,510 bytes.
+- PostgreSQL fixture: `76cf9722a9aac71d33a764a4c4e32411af220184f090ed779cb609bc69b71ae0`, 222,404 bytes.
+- Corpus: `d89cb51b632f3d9d63ecc883b61b9eb70d1e35e3e28c73cc117621daf8f44f2e`.
+- Observer: `15d09226c1470224de55d793feb14e8c83674ffde9375c740a0ace2678e0ea0d`.
+- Native receipt: `godj-binary-native-replay-mzfadoi9/receipt.json`; 잔여 `0|0`, DB 제거·container 종료 확인.
+
+### 제품과 소비자의 영향 검증
+
+Go 1.26.5/darwin/arm64, `TZ=Pacific/Chatham`, 공유 Go cache와 offline module·readonly 설정을 사용했다.
+각 DB checkpoint는 별도 PostgreSQL 17.10 Debian/UTF8/libc/C/C container/DB를 소유하며 SQLite도 실제 실행했다.
+실행 전 compile된 root 목록과 현재 필수 하위 경로를 고정하고 `go test -json -count=1 -timeout=15m`의
+모든 시작/종료·필수 실행·skip·build failure·출력 완결성을 검사했다. 자식 소비자는 부모의 race/CGO mode와 `-trimpath`를 사용한다.
+
+| group | 범위 | race / CGO=0 | wall seconds |
+|---|---|---|---|
+| fields | 18 packages / 1,177 roots: 값·IR·query·폼·serializer·Admin·history·wire·생성기 | 각 9,625 pass, 0 skip | 16.639 / 6.569 |
+| db | 양 DB Binary·column index/unique·default backfill·capability·seal의 48 roots | 각 445 pass, 0 skip | 12.717 / 12.803 |
+| consumers | Binary/Slug/JSON/ModelFormSave/ModelClean의 5 생성 소비자와 실제 양 DB 자식 | 각 16 pass, 0 skip | 86.424 / 21.939 |
+| helpdesk | 9 roots와 필수 203 경로: 실제 양 DB API/Admin·migration·저장·인가·rollback | 각 364 pass, 0 skip | 196.723 / 34.509 |
+| openapi_client | 고정 ogen 재생성/drift·별도 module/HTTP·wire·부모 DB 검증 | 각 1 pass, 0 skip | 19.162 / 5.241 |
+| source_and_candidate | 3 packages / 28 roots: source 결합·whole-candidate·외부 앱/namespace·실패 보존 | 각 190 pass, 0 skip | 9.854 / 6.510 |
+
+Race와 CGO=0은 각각 10,641 run/pass다. Receipt는 `godj-binary-checkpoint-race-dftsnu_e`와
+`godj-binary-checkpoint-cgo0-oq3cbl1u`에 있다. 전체 local platform/cold suite를 실행했다는 의미는 아니다.
+두 mode와 마지막 normal 보완 실행의 비Markdown source는 2,922 files /
+`4cc79c557690a65981c273b5d2cb4409865d6e09475bff36968bf23448a1bb2a`다.
+모든 DB checkpoint는 잔여 `0|0|0`·DB 제거·container 종료를 확인했다.
+
+Normal 첫 실행은 history의 binary default 판별 누락, 생성 소비자 호출 오류, Admin 저장 초기값의 입력 정책 혼동,
+독립 client의 저장 JSON/HTTP escaping 구분과 HTTP fixture CSRF 문제를 발견해 실패했다.
+수정 후 `godj-binary-checkpoint-normal-flbxqgwa`에서 DB 445·생성 소비자 16·독립 client 1·source/candidate 190 pass를 확인했다.
+Fields는 9,624 pass와 Admin HTML 검사 1 fail, Helpdesk는 read-only 표시를 입력으로 오인한 검사에서 실패했다.
+이 실행 전체를 PASS로 계산하지 않는다. 이때 source는 `8aa73237b525c8757fb3772bdb25f63a74c148875c38b31ecfe20bf918019a73`다.
+
+이후 달라진 소스는 Admin render/template/test, Helpdesk Binary test, ModelForm initial helper/test의 여섯 파일뿐이다.
+`godj-binary-checkpoint-normal-hsg121a7`에서 Admin 98 roots/302 pass, ModelForm 83 roots/2,098 pass,
+Helpdesk 9 roots/364 pass와 독립 client 1 pass를 다시 확인했다. 모두 0 skip·누락이며 다른 파일의 바이트는 보존됐다.
+수정 후 race/CGO=0은 위 여섯 group을 동일 source로 모두 실행했다.
+
+Race runtime은 모든 group이 성공했지만 실행 중 생성한 Playwright 로그/스냅샷 여섯 개가 비Markdown inventory에 추가돼
+원 receipt의 `source_unchanged`와 `pass`는 false다. 원 기록을 보존하고 `artifact-reconciliation.json`에서
+기존 2,922개 제품/테스트 파일의 바이트가 그대로이며 추가분이 그 브라우저 산출물뿐임을 확인했다.
+검증 산출물을 ignored output으로 이동한 뒤 현재 inventory가 원 실행 전 inventory와 정확히 같음을 확인했다.
+이 보완 audit과 runtime 성공을 함께 사용하며 원 receipt가 처음부터 성공했다고 표시하지 않는다.
+
+로컬에서 S3 환경이 없는 `TestAdminImageUploadVerifiedContentAndStorage` 전체 root는 실행 계획에서 제외했다.
+첫 실행의 S3 하위 경로 누락은 성공으로 인정하지 않았다. 이미지 codec/S3 matrix의 23 필수 경로는
+기존 Hosted PostgreSQL core owner가 소유하며 CI의 roster·no-skip 규칙은 유지했다.
+
+생성 Binary 소비자는 기본값/빈 bytes/NULL/비 UTF-8·가변 버퍼/nullable cache 소유권, typed/dynamic/관계 query·F/IN·
+DTO/정렬/집계, 상수 backfill·입력 정책/index/unique 정·역방향, 중복 DDL 실패의 history/행 보존·수정 후 재시도,
+stale revision 거부·SQL projection의 DDL 없음과 typed deferred Form save·rollback·취소를 실제 양 DB에서 검사했다.
+잘못된 string·mutable slice·F 타입의 별도 외부 compile도 의도한 정적 경계에서 실패했다.
+
+Helpdesk는 실제 저장 JSON의 지문 계산과 SQL NULL/JSON null/빈 bytes·기존 길이 초과 출력, read-only POST/PUT/PATCH,
+Admin·CSRF·현재 권한/Category scope, 지문 쓰기 전/후 오류·취소·응답 검증 실패의 원자 rollback을 검사했다.
+PostgreSQL 동시 쓰기는 `pg_blocking_pids`로 실제 행 잠금 대기를 관찰한 뒤 writer를 재개해 최종 저장 JSON과 지문 일치를 확인했다.
+읽기·no-op·관계만의 변경이 숨은 지문 쓰기를 만들지 않는 것도 검사했다.
+
+### 생성 drift·실패 대조·브라우저
+
+`make generate-check`는 Unicode 생성/두 Python 검사, 실제 일곱 프로젝트와 체크인된 relation 생성물 검사를 완료했다.
+Helpdesk의 12개 생성 파일 snapshot은 `9e0e9d865bd4e5b0bac2917b130a6e17c36e91f77d90ccbe29479337c65acda2`다.
+Receipt: `godj-binary-generated-drift-q0oyap32`. 영향 패키지 vet는 `godj-binary-vet-6cnqs8oh`, 전체 현재 Go 파일의 gofmt와
+`git diff --check`도 통과했다. 고정 ogen을 실제 실행해 Helpdesk schema/client를 재생성했으며 나머지 다섯 schema와 module lock은 그대로다.
+
+원본 파일을 바꾸지 않은 overlay 대조 다섯 개는 각 baseline PASS 뒤 의도한 runtime assertion으로 실패했다.
+가변 입력 버퍼 공유·SQLite 외부 TEXT 수용·수동 ModelForm의 비편집 필드 binding 허용·JSON의 자동 read-only 제거·
+history digest의 NonEditable 누락을 각각 잡았다. Build 실패나 skip을 대조 성공으로 계산하지 않았다.
+Receipt: `godj-binary-controls-dbmgjs34`. `FuzzBinaryRoundTrip`은 30초/4 workers, 8,843,742 executions로 통과했다.
+Receipt: `godj-binary-fuzz-2yh50h0m`; 값·base64 경계의 fuzz이며 전체 DB/platform 검증이 아니다.
+
+실제 Chromium Admin에서 합성 계정으로 로그인해 legacy NULL 표시→JSON 저장→정확한 base64 SHA-256 표시를 확인했다.
+HTML escaping과 `1e0` token을 포함한 저장 bytes의 기대 지문을 Python SHA-256으로 별도 계산했다.
+잘못된 JSON은 field 오류와 원문을 재표시하고 저장 지문을 보존했다. DOM에는 지문 입력이 없으며 위조 hidden input 제출은
+HTTP 400으로 거부됐다. 새 GET과 서버 종료 전 독립 DB read에서 원래 payload/지문을 확인했다.
+브라우저/fixture를 종료하고 소유한 임시 DB를 제거했다. Receipt: `godj-binary-browser-f3rnavgn`; 화면·snapshot은
+ignored `output/playwright/binary-field`에 있다. 실제 운영 인증·배포·다른 browser/platform의 증거는 아니다.
+
 ## GDJ-0105 — Slug 모델 필드와 Article 주소
 
 ### 독립 native 기준과 현재 범위

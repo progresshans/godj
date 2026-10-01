@@ -51,6 +51,13 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.DueAt.Null || !created.DueAt.Value.Equal(dueAt.UTC().Truncate(time.Microsecond)) || !created.Reviewed.Null || created.ServiceOn.Null || created.ServiceOn.Value.Format("2006-01-02") != "2026-09-20" || created.ServiceAt.Null || created.ServiceAt.Value != "00:00:00" || !created.Elapsed.Null || created.Effort.Null || created.Effort.Value != 0.1 || created.ExpectedCost.Null || created.ExpectedCost.Value != "0.10" || created.Closed || created.Category != target.CategoryID {
 		return fail("helpdesk create projection and defaults")
 	}
+	digest, err := expectedPayloadDigest(created.ExternalPayload)
+	if err != nil {
+		return err
+	}
+	if created.ExternalPayloadDigest != digest {
+		return fail("binary digest create")
+	}
 	if created.ExternalURL.Null || created.ExternalURL.Value != "HTTPS://Example.COM/Created" {
 		return fail("URL create normalization")
 	}
@@ -177,6 +184,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	}
 	updated, err = checkHelpdeskJSONUpdates(ctx, client, transport, updated)
 	if err != nil {
+		return err
+	}
+	if err := checkHelpdeskBinaryDigest(ctx, client, transport, updated); err != nil {
 		return err
 	}
 	expected[1] = updated

@@ -74,6 +74,7 @@ func TestHelpdeskTypedFormPersistence(t *testing.T) {
 			t.Fatal("open typed form PostgreSQL")
 		}
 		verifyTypedTicketForm(t, b)
+		t.Run("binary_concurrency", func(t *testing.T) { verifyPayloadDigestPostgresConcurrency(t, b, connection, name) })
 	})
 }
 

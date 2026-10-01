@@ -264,6 +264,9 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if value, ok := defaultValue.AsBinary(); ok {
+			defaultValue = serializers.String(value.Base64())
+		}
 		if identifier, ok := defaultValue.AsUUID(); ok {
 			defaultValue = serializers.String(identifier.String())
 		}
@@ -356,6 +359,8 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 		schema = String()
 	case serializers.FieldJSON:
 		return jsonFieldSchema(field, false)
+	case serializers.FieldBinary:
+		return binaryFieldSchema(field, false)
 	case serializers.FieldUUID:
 		policy, err := serializers.NewObject(
 			serializers.MemberOf("bits", serializers.Integer(128)),

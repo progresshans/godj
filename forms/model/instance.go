@@ -239,6 +239,9 @@ func formValue(value query.Value) (forms.Value, bool) {
 	case query.ValueDecimal:
 		v, ok := value.Decimal()
 		return forms.Decimal(v), ok
+	case query.ValueBinary:
+		v, ok := value.Binary()
+		return forms.Binary(v), ok
 	case query.ValueUUID:
 		v, ok := value.UUID()
 		return forms.UUID(v), ok

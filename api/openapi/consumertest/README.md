@@ -202,6 +202,13 @@ Duplicate key·NUL·surrogate·깊이 초과에 대한 서버 거부와 required
 Raw 값은 서버 validation의 대체가 아니다. 모델의 HTML escape 정규화와 HTTP JSON의 문자열 escaping 차이는 구분한다.
 새 JSON 필드 때문에 생성 Ticket이 Go-comparable이 아니므로 client는 JSON bytes를 포함한 모든 필드를 비교한다.
 
+BinaryField 출력은 `contentEncoding: base64`의 문자열과 nullable branch를 사용한다. Pattern·문자 수 한도는
+base64로 인코딩된 JSON 문자열을 검사한다. 디코딩된 byte 한도와 pad-bit 정책은 `x-godj-binary`에 명시하며 서버가 검사한다.
+`format: byte`로 디코딩된 slice에 문자열 제약을 잘못 적용하지 않는다. Helpdesk의 서버 소유 payload 지문은 응답에만 존재한다.
+독립 client는 생성 요청 타입의 입력 제외, NULL/빈 바이트/비 UTF-8/기존 길이 초과 출력과 누락·잘못된 base64 거부를 확인한다.
+실제 HTTP 생성·수정 후 저장 JSON의 숫자 token·정렬·HTML escaping을 표준 라이브러리로 재구성해 SHA-256을 대조한다.
+부모는 최종 DB의 저장 JSON과 지문을 별도로 읽는다. 필수 receipt는 `helpdesk_session_binary_digest`와 `generated_binary_wire`다.
+
 ServiceReport client는 별도 model component와 7개 operation을 실제 HTTP로 소비한다. 200/null reverse 부재와 404 Category scope,
 생성 기본값·중복/invalid_choice 진단·self update·PUT 재할당·PATCH omission·읽기 전용 principal·DELETE CSRF/204를 검사한다.
 종료 시 보고서 행은 없고 기존 Ticket/Category 값은 그대로인지 parent process가 확인한다. Client의 고정 실패 단계만

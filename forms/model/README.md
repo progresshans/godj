@@ -493,3 +493,17 @@ Form은 공백을 trim하지만 slugify·lowercase·Unicode 정규화를 수행�
 모델의 `AllowUnicode`와 길이는 projection과 서버 post-clean이 함께 적용하며 대체 CharField/choices도 이를 우회하지 않는다.
 Nullable blank Form의 빈 값은 NULL이며, JSON의 blank/null/생략과 일반 ORM/출력 보존은 별도 정책이다.
 [Slug/인덱스 결정](../../docs/adr/0084-slug-fields-and-column-index-ownership.md)을 따른다.
+
+## 편집 가능 여부와 Binary 입력
+
+`schema.Editable(false)`는 자동 모델 입력에서 필드를 제외한다. 명시적 선택·override·사용자 정의 binding으로
+다시 노출할 수 없다. `BinaryField`는 기본 비편집이며 입력이 필요하면 `schema.Editable(true)`를 선언한다.
+이는 DB 쓰기 권한이나 불변 constraint가 아니므로 일반 서버 ORM 할당과 명시적 trusted PostClean 출력은 가능하다.
+Admin의 저장 callback은 실제로 변경한 비편집 모델 필드를 감사 기록에 보고할 수 있지만 입력 allowlist는 그대로다.
+`ValidateInitialValues`는 선택하지 않은 서버 필드를 포함해 초기값의 표현만 검사한다. 입력 validator·현재 입력 길이를
+적용하거나 편집 권한을 만들지 않으며, Admin은 별도로 PK/revision·nullability·Snapshot 일치를 검사한다.
+
+Binary Form은 base64 문자열을 정리·검증한 뒤 `forms.Binary(binaryvalue.Value)`를 제공한다.
+길이는 디코딩된 bytes로 검사하며 optional 빈 입력은 빈 바이트다. 이 값은 nullable 포인터의 SQL NULL과 다르다.
+초기값과 표시 출력은 현재 입력 길이를 넘는 기존 값을 보존한다. JSON 입력은 Form의 공백 제거를 적용하지 않는다.
+[Binary 의미](../../docs/adr/0085-binary-fields-and-model-input-policy.md)를 따른다.

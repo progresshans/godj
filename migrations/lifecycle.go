@@ -398,6 +398,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldChoices, capabilities.AlterFieldChoices, "AlterFieldChoices"},
 		{loadedRequiresAlterFieldStringSemantics, capabilities.AlterFieldStringSemantics, "AlterFieldStringSemantics"},
 		{loadedRequiresAlterFieldBlank, capabilities.AlterFieldBlank, "AlterFieldBlank"},
+		{loadedRequiresAlterFieldInputPolicy, capabilities.AlterFieldInputPolicy, "AlterFieldInputPolicy"},
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},

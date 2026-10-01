@@ -143,7 +143,10 @@ type Invoker interface {
 	// The application assigns the selected category and checks its existence within the create
 	// transaction. Authentication, CSRF when required, and permission checks precede body parsing.
 	// Structural input validation precedes the category lookup; uniqueness checks follow it in the same
-	// transaction.
+	// transaction. External_payload_digest is a server-owned SHA-256 of the stored JSON, returned as
+	// padded base64 or null and rejected in requests. Existing rows retain null until a real ticket scalar
+	// write refreshes the digest; read and no-op requests preserve it. SQL null payload has no digest,
+	// while a stored JSON null has its own digest.
 	//
 	// POST /api/tickets/
 	HelpdeskTicketCreate(ctx context.Context, request *TicketCreate) (HelpdeskTicketCreateRes, error)
@@ -1688,7 +1691,10 @@ func (c *Client) sendHelpdeskServiceReportUpdate(ctx context.Context, request *S
 // The application assigns the selected category and checks its existence within the create
 // transaction. Authentication, CSRF when required, and permission checks precede body parsing.
 // Structural input validation precedes the category lookup; uniqueness checks follow it in the same
-// transaction.
+// transaction. External_payload_digest is a server-owned SHA-256 of the stored JSON, returned as
+// padded base64 or null and rejected in requests. Existing rows retain null until a real ticket scalar
+// write refreshes the digest; read and no-op requests preserve it. SQL null payload has no digest,
+// while a stored JSON null has its own digest.
 //
 // POST /api/tickets/
 func (c *Client) HelpdeskTicketCreate(ctx context.Context, request *TicketCreate) (HelpdeskTicketCreateRes, error) {

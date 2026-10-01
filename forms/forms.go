@@ -5,6 +5,7 @@ package forms
 import (
 	"context"
 	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
 	"reflect"
 	"slices"
 	"strconv"
@@ -35,6 +36,7 @@ const (
 	ValueDecimal
 	ValueTime
 	ValueUUID
+	ValueBinary
 	ValueJSON
 	ValueIntegerList
 	ValueFile
@@ -121,6 +123,7 @@ const (
 	FieldDecimal
 	FieldTime
 	FieldUUID
+	FieldBinary
 	FieldJSON
 	FieldIntegerList
 	FieldEmail
@@ -408,7 +411,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && (config.widget == TextInput || config.widget == HiddenInput) || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
-		(kind == FieldDuration || kind == FieldUUID) && config.widget == TextInput ||
+		(kind == FieldDuration || kind == FieldUUID || kind == FieldBinary) && config.widget == TextInput ||
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
 		(config.modelChoice || config.choices != nil) && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
@@ -427,6 +430,18 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldBinary:
+		if config.maxLength < 0 || config.maxLength > binaryvalue.MaxBytes {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
+		}
+		if config.hasDefault {
+			if !validValueForField(config.defaultValue, kind, config.nullable) {
+				return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+			}
+			if value, ok := config.defaultValue.AsBinary(); ok && config.maxLength > 0 && len(value.Data) > config.maxLength {
+				return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "max_length"}
+			}
+		}
 	case FieldFile, FieldImage:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
@@ -603,6 +618,10 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 	if value.kind == ValueNull {
 		return nullable
 	}
+	if kind == FieldBinary {
+		_, ok := value.AsBinary()
+		return ok
+	}
 	if kind == FieldJSON {
 		_, ok := value.AsJSON()
 		return ok
@@ -764,6 +783,8 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = Null()
 		case field.kind == FieldIntegerList:
 			value = Integers()
+		case field.kind == FieldBinary && !field.nullable:
+			value = Binary(binaryvalue.Value{})
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
 		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID || field.kind == FieldJSON:
@@ -989,6 +1010,23 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		}
 	} else {
 		switch field.kind {
+		case FieldBinary:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanBinary(raw)
+			decoded, _ := value.AsBinary()
+			if code == "" && len(decoded.Data) == 0 && field.required {
+				code = "required"
+			}
+			if code == "" && field.maxLength > 0 && len(decoded.Data) > field.maxLength {
+				code = "max_length"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
 		case FieldDecimal:
 			raw := ""
 			if present && len(submitted) == 1 {
@@ -1231,6 +1269,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		return code != "" || !value.Equal(initial)
 	}
 	switch field.kind {
+	case FieldBinary:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanBinary(raw)
+		return code != "" || !value.Equal(initial)
 	case FieldDecimal:
 		raw := ""
 		if present && len(submitted) == 1 {

@@ -233,3 +233,14 @@ Unicode 문자표는 기존 고정 Unicode 16 구현을 재사용한다. 공개 
 [Django Form SlugField](https://docs.djangoproject.com/en/6.1/ref/forms/fields/#slugfield),
 [DRF SlugField](https://www.django-rest-framework.org/api-guide/fields/#slugfield)를 참고하며
 마지막 LF와 PostgreSQL pattern-opclass 차이는 [ADR-0084](adr/0084-slug-fields-and-column-index-ownership.md)에 구분한다.
+
+
+BinaryField와 공통 editable 입력 정책은 고정 Django 6.1의 `django/db/models/fields/__init__.py`,
+`django/forms/models.py`, `django/forms/fields.py`와 DRF 3.18.0의 `rest_framework/fields.py`,
+`rest_framework/serializers.py`(각 BSD-3-Clause)를 독립 실행하여 관찰한다.
+[Observer](../conformance/runners/django/binary_field_reference.py)와 합성 [입력](../internal/binarytest/testdata/inputs.json),
+[SQLite](../internal/binarytest/testdata/django61-sqlite.json)·[PostgreSQL](../internal/binarytest/testdata/django61-postgres.json)
+관찰에 실행 환경과 모듈 source SHA256을 보존한다. Python 원문을 Go로 번역한 구현이 아니며
+39개 입력·7개 profile과 실제 저장/조회·schema 변경/역방향·deferred save·rollback의 외부 결과를 비교한다.
+임의 Python 객체 입력, read-only 제출과 PostgreSQL Min/Max 차이는
+[Binary 결정](adr/0085-binary-fields-and-model-input-policy.md)과 [DEV-0020](DEVIATIONS.md#dev-0020--binary의-닫힌-입력과-명시적-집계)에 구분한다.

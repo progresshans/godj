@@ -287,7 +287,7 @@ func validReverseTerminal(field FieldRef, cardinality ir.RelationCardinality) bo
 	if !field.ValidType() || !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() && field.Kind() != FieldInteger {
 		return false
 	}
-	return field.Kind() == FieldDate || (field.Kind() == FieldTime || field.Kind() == FieldDuration) || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldFloat || field.Kind() == FieldDecimal || field.Kind() == FieldUUID || field.Kind() == FieldJSON || field.Kind() == FieldString
+	return field.Kind() == FieldDate || (field.Kind() == FieldTime || field.Kind() == FieldDuration) || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldFloat || field.Kind() == FieldDecimal || field.Kind() == FieldBinary || field.Kind() == FieldUUID || field.Kind() == FieldJSON || field.Kind() == FieldString
 }
 
 func validFieldRef(field FieldRef) bool {
@@ -295,7 +295,7 @@ func validFieldRef(field FieldRef) bool {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldFloat, FieldDecimal, FieldUUID, FieldJSON, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldDecimal, FieldUUID, FieldBinary, FieldJSON, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 		return true
 	default:
 		return false

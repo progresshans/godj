@@ -286,6 +286,9 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 	case ir.FieldJSON:
 		_, ok := value.JSON()
 		return ok
+	case ir.FieldBinary:
+		_, ok := value.Binary()
+		return ok
 	case ir.FieldUUID:
 		_, ok := value.UUID()
 		return ok

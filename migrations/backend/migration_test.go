@@ -18,6 +18,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AlterFieldChoices",
 		"AlterFieldStringSemantics",
 		"AlterFieldBlank",
+		"AlterFieldInputPolicy",
 		"AlterFieldDecimalPrecision",
 		"AlterFieldRelation",
 		"UniqueConstraints",

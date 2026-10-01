@@ -93,6 +93,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"internal/uuidinput/input.go",
 		"decimal/decimal.go",
 		"jsonvalue/value.go",
+		"binaryvalue/value.go",
 		"uuid/uuid.go",
 
 		"clock/time.go",

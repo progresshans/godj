@@ -82,6 +82,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldChoices:                 true,
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
+		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,

@@ -375,6 +375,12 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 		// The opaque JSON value and its decoded root occupy the same value slot.
 		s.values--
 		return s.appendValue(node, depth)
+	case ValueBinary:
+		if (len(value.string)+2)/3*4 > s.limits.MaxStringBytes {
+			return resourceLimit("value.binary", "base64 exceeds the configured string byte limit")
+		}
+		decoded, _ := value.AsBinary()
+		return s.appendString(decoded.Base64(), "value.binary")
 	case ValueUUID:
 		return s.appendString(value.string, "value.uuid")
 	case ValueDecimal:

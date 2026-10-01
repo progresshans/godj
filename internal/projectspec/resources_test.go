@@ -200,6 +200,24 @@ func TestUUIDPayloadResourceCapsApplyBeforeSemantics(t *testing.T) {
 	}
 }
 
+func TestBinaryPayloadResourceCapsApplyBeforeSemantics(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarBinary, ir.ScalarString} {
+		for _, choice := range []bool{false, true} {
+			for _, bad := range []struct{ value, code string }{{strings.Repeat("x", MaxSchemaStringBytes+1), "schema_string_bytes"}, {string([]byte{0xff}), "schema_string_utf8"}} {
+				scalar := ir.Scalar{Kind: kind, Binary: bad.value}
+				field := ir.Field{}
+				if choice {
+					field.Choices = []ir.Choice{{Value: scalar}}
+				} else {
+					field.Default = &scalar
+				}
+				definition := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{field}}}}
+				assertResourceLimit(t, ValidateSchemas([]ir.Schema{definition}), bad.code)
+			}
+		}
+	}
+}
+
 func TestImageDimensionResourceCapsPrecedeSemanticValidation(t *testing.T) {
 	for _, kind := range []ir.FieldKind{ir.FieldImage, ir.FieldFile} {
 		for _, height := range []bool{false, true} {

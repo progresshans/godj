@@ -28,6 +28,9 @@ func choiceAnnotations(field serializers.Field) ([]serializers.Member, error) {
 }
 
 func choiceInputSchema(field serializers.Field) (Schema, error) {
+	if field.Kind() == serializers.FieldBinary {
+		return binaryFieldSchema(field, true)
+	}
 	if field.Kind() == serializers.FieldJSON {
 		return jsonFieldSchema(field, true)
 	}
