@@ -5,6 +5,24 @@
 
 ## GDJ-0107 — 단건 조회와 savepoint 기반 조회 후 생성
 
+### Hosted 전체 통합 — 필수 실행 목록 보완
+
+제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 `feature/get-or-create`와 기존 draft PR #1의
+`codex/revision-fenced-migration-lifecycle`에 동일하게 push했다. [PR feedback 36826668420](https://github.com/progresshans/godj/actions/runs/36826668420)은 성공했다.
+실제 checkout `5c4b2bbe6baedb60153b263f123a59e4961741ba`의 parent에 이 source가 포함되며 tree도 같다.
+Job `110253764000`의 필수 단계와 log SHA-256 `349d47d96eb83e42839d0d55ce9384b36a351e692833ab6a7884c24682219960`을 확인했다.
+
+2026-10-01 06:48:47 UTC의 [Hosted full 36826788120](https://github.com/progresshans/godj/actions/runs/36826788120), attempt 1은
+`workflow_dispatch`·`suite=full`로 시작했으나 필수 실행 목록 누락을 발견해 취소했다. PostgreSQL core는 목록에서 root test
+선택식을 만들므로 새 savepoint·생성 소비자가 빠져 있으면 실제 PostgreSQL 경로가 실행되지 않는다. 이 실행은 completed/cancelled이며
+전체 성공으로 사용하지 않는다. 취소된 owner 때문에 최종 집계도 성공하지 않았다.
+
+Relation 목록에 107개, PostgreSQL core 목록에 168개의 새 필수 parent/child를 추가했다. 기존 목록은 그대로 보존했다.
+새 native savepoint·Get/GetOrCreate·생성 소비자와 양 DB Helpdesk 확보 경로를 기존 영향 로그의 실제 이름과 대조했다.
+45개 CI 도구 검사에서 목록의 중복/공백·실행 owner·shell 전달·child에서 parent 선택을 확인했다.
+제품/테스트 구현을 바꾸지 않고 이 실행 계약을 보완한 새 source로 Hosted full을 다시 수행한다.
+최종 필수 owner/집계·새 capture/Git source 결합·소비 및 기본 작업 사본 전달은 미완료다.
+
 ### Helpdesk Label 확보와 입력 표면의 영향 검증
 
 2026-10-01, Label의 명시적 확보를 Admin 목록 Form과 API에 연결했다. 새 행과 add event를 같은 부모 transaction에

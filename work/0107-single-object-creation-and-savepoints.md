@@ -50,5 +50,7 @@ byte 일치와 observer source 결합을 확인했고, 별도 생성 Go module�
 양 DB의 실제 unique 경쟁·부모 rollback·생성 객체의 관계 수명과 callback/unknown outcome 실패 경계를 검증했다.
 Helpdesk의 현재 권한·Label 확보·원자 audit와 Form/Admin/API·독립 client를 연결했다.
 공통 Admin 목록 command, Helpdesk 실제 양 DB, OpenAPI와 독립 client의 세 mode 영향 검증 및 실제 브라우저 확인을 완료했다.
-범위별 source와 실행은 검증 기록에서 구분한다. 다음은 최종 source 고정과 Hosted 전체 통합이며,
-이 통합이 끝날 때 전체 변경 묶음의 검증과 전달을 함께 닫는다.
+범위별 source와 실행은 검증 기록에서 구분한다. 제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 push하고
+[첫 Hosted full](https://github.com/progresshans/godj/actions/runs/36826788120)을 시작했으나 새 PostgreSQL 실행 목록 누락을 발견해 취소했다.
+Relation/PostgreSQL 필수 목록을 보완했고 CI 도구 45개 검사를 통과했다. 새 source의 전체 통합에서 필수 owner·집계·새 capture와
+source 결합을 확인한 뒤 전체 변경 묶음의 검증과 전달을 함께 닫는다.
