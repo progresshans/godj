@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import json
 import os
 import subprocess
@@ -14,44 +15,13 @@ from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.operations.fields import AddField
 from django.db.migrations.recorder import MigrationRecorder
 
+from conformance.runners.django.tests.values import denormalize, observed
 from conformance.runners.django import migration_execution_scenarios as scenarios
 from conformance.runners.django.normalizer import canonical_json
 
 
 ROOT = Path(__file__).resolve().parents[4]
 MANIFEST = ROOT / "conformance/contracts/migration-execution-manifest.json"
-
-
-def denormalize(value):
-    value_type = value["type"]
-    if value_type == "null":
-        return None
-    if value_type in {"bool", "string"}:
-        return value["value"]
-    if value_type == "int":
-        return int(value["value"])
-    if value_type == "list":
-        return [denormalize(item) for item in value["items"]]
-    if value_type == "object":
-        return {
-            field["name"]: denormalize(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unexpected normalized value type: {value_type!r}")
-
-
-def observed(scenario, contract_id):
-    observation = scenario(contract_id)
-    return {
-        "raw": observation,
-        "result": (
-            denormalize(observation["result"])
-            if observation["result"] is not None
-            else None
-        ),
-        "db": denormalize(observation["db_state"]),
-        "metrics": denormalize(observation["metrics"]),
-    }
 
 
 def records(snapshot):

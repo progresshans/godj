@@ -1,0 +1,1883 @@
+{
+  "backend": "postgresql",
+  "choices": [
+    [
+      0,
+      "Zero"
+    ],
+    [
+      7,
+      "<script>visible & quoted</script>"
+    ]
+  ],
+  "database_version": "170005",
+  "django": "6.1",
+  "django_model_choice_source_sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+  "observations": [
+    {
+      "changed": false,
+      "errors": [
+        "required"
+      ],
+      "initial": null,
+      "raw": null,
+      "required": true
+    },
+    {
+      "changed": false,
+      "errors": [
+        "required"
+      ],
+      "initial": null,
+      "raw": "",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "-0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "+7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "007",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": " 7 ",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "\uff17",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "\u0667",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "0_7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7_0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7.0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7.",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7e0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "12",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "999",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "-2",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "True",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "bad",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": null,
+      "raw": "\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": null,
+      "raw": "7\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "\u001c7",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7\u001f",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7 0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "9223372036854775808",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "-9223372036854775809",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 0,
+      "raw": null,
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 0,
+      "raw": "",
+      "required": true
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": 0,
+      "raw": "0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "-0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "+7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "007",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": " 7 ",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "\uff17",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "\u0667",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "0_7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7_0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7.0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7.",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7e0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "12",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "999",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "-2",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "True",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "bad",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 0,
+      "raw": "\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 0,
+      "raw": "7\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "\u001c7",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7\u001f",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7 0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "9223372036854775808",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "-9223372036854775809",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 7,
+      "raw": null,
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 7,
+      "raw": "",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "-0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": 7,
+      "raw": "7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "+7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "007",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": " 7 ",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "\uff17",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "\u0667",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "0_7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7_0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7.0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7.",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7e0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "12",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "999",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "-2",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "True",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "bad",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 7,
+      "raw": "\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 7,
+      "raw": "7\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "\u001c7",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7\u001f",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7 0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "9223372036854775808",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "-9223372036854775809",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 12,
+      "raw": null,
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "required"
+      ],
+      "initial": 12,
+      "raw": "",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "-0",
+      "required": true,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "+7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "007",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": " 7 ",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "\uff17",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "\u0667",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "0_7",
+      "required": true,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7_0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7.0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7.",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7e0",
+      "required": true
+    },
+    {
+      "changed": false,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "12",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "999",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "-2",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "True",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "bad",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 12,
+      "raw": "\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 12,
+      "raw": "7\u0000",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "\u001c7",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7\u001f",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7 0",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "9223372036854775808",
+      "required": true
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "-9223372036854775809",
+      "required": true
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": null,
+      "raw": null,
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": null,
+      "raw": "",
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "-0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "+7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "007",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": " 7 ",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "\uff17",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "\u0667",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": null,
+      "raw": "0_7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7_0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7.0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7.",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7e0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "12",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "999",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "-2",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "True",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "bad",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": null,
+      "raw": "\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": null,
+      "raw": "7\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "\u001c7",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7\u001f",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "7 0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "9223372036854775808",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": null,
+      "raw": "-9223372036854775809",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": null,
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "",
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": 0,
+      "raw": "0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "-0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "+7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "007",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": " 7 ",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "\uff17",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "\u0667",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 0,
+      "raw": "0_7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7_0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7.0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7.",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7e0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "12",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "999",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "-2",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "True",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "bad",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 0,
+      "raw": "\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 0,
+      "raw": "7\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "\u001c7",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7\u001f",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "7 0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "9223372036854775808",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 0,
+      "raw": "-9223372036854775809",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": null,
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "",
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "-0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": false,
+      "errors": [],
+      "initial": 7,
+      "raw": "7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "+7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "007",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": " 7 ",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "\uff17",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "\u0667",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 7,
+      "raw": "0_7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7_0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7.0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7.",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7e0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "12",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "999",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "-2",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "True",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "bad",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 7,
+      "raw": "\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 7,
+      "raw": "7\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "\u001c7",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7\u001f",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "7 0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "9223372036854775808",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 7,
+      "raw": "-9223372036854775809",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": null,
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "",
+      "required": false,
+      "value": null
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "-0",
+      "required": false,
+      "value": 0
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "+7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "007",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": " 7 ",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "\uff17",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "\u0667",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [],
+      "initial": 12,
+      "raw": "0_7",
+      "required": false,
+      "value": 7
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7_0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7.0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7.",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7e0",
+      "required": false
+    },
+    {
+      "changed": false,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "12",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "999",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "-2",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "True",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "bad",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 12,
+      "raw": "\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "null_characters_not_allowed"
+      ],
+      "initial": 12,
+      "raw": "7\u0000",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "\u001c7",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7\u001f",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "7 0",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "9223372036854775808",
+      "required": false
+    },
+    {
+      "changed": true,
+      "errors": [
+        "invalid_choice"
+      ],
+      "initial": 12,
+      "raw": "-9223372036854775809",
+      "required": false
+    }
+  ],
+  "python": "3.14.3"
+}

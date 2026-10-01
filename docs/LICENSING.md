@@ -1,76 +1,36 @@
-# 라이선스와 upstream provenance 정책
+# 라이선스와 provenance
 
-- 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-08
+## 현재 저장소
 
-## 현재 저장소 라이선스
+GoDj 자체의 배포 라이선스는 아직 선택되지 않았다. 루트 LICENSE가 없는 상태를 외부 사용·배포 라이선스가 부여된 것으로
+해석하지 않는다. 프로젝트 소유자의 라이선스 결정과 전체 binary dependency의 고지 검토는 외부 배포 전에 필요하다.
 
-GoDj 자체의 배포 라이선스는 아직 선택되지 않았습니다. 루트 `LICENSE`가 없는 현재
-상태를 open-source license가 부여된 것으로 해석하지 않습니다. 공개 배포나 외부
-기여 수용 전에 프로젝트 소유자가 별도 결정을 내려야 합니다.
+`LICENSE.django`는 Django 고지이며 GoDj 자체에 그 라이선스를 적용하지 않는다.
+SQLite와 PostgreSQL dependency의 기존 `LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`, `LICENSE.pgx`와
+[NOTICE](../NOTICE.md)를 보존한다. 이 파일들은 모든 transitive dependency의 검토를 대신하지 않는다.
 
-`LICENSE.django`는 Django의 라이선스 사본이며 GoDj 자체에 BSD 3-Clause를
-적용한다는 뜻이 아닙니다.
+## 독립 시나리오와 파생물
 
-M1/M2 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked dependency
-`modernc.org/libc v1.74.4`의 BSD 3-Clause 전문은 각각
-`LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`에 보존합니다. 이 두 고지는 향후
-binary에 들어가는 모든 transitive dependency의 배포 검토를 대신하지 않습니다.
+| 분류 | 기록할 것 |
+|---|---|
+| 공개 동작을 보고 독립 작성한 scenario | `derived=false`, 동작 기준 version/commit/source/test와 GoDj 고유 fixture |
+| GoDj 자체의 wire·안전성 정책 | decision/proposal provenance와 해당 ADR/작업; Django 동작으로 표현하지 않음 |
+| upstream 코드·fixture·주석·assertion을 복사/번역/변형 | `derived=true`, license, exact source/symbol과 변경 내용, 필요한 원본 고지 |
 
-## Conformance artifact 분류
+기준 경로를 참조했다는 이유만으로 코드가 파생물이라고 하거나, 실제 표현을 복사하고도 독립 시나리오라고 표시하지 않는다.
+Manifest의 provenance와 파일 가까이의 copyright/license/modification notice가 source authority다.
 
-각 contract provenance는 다음 두 경우를 구분합니다.
+현재 conformance의 독립 작성 분류는 각 manifest에 기록되어 있다. 역사적 proposal이 나중에 accepted되었다고 당시 artifact의
+provenance를 소급 변경하지 않는다. Current-only 형식 reset으로 새로 만든 reference는 자신의 새 decision provenance를 가지며
+old artifact는 Git 이력에 남는다. Oracle 디렉터리 이름은 provenance 분류를 대체하지 않는다.
 
-### 독립 동작 시나리오
+Raw token/password·credential-bearing URL·verifier cause는 source/provenance/observation/audit에 남기지 않는다.
+Codegen이나 platform 실행 증거가 어떤 코드의 저작권·라이선스 분류를 바꾸는 것도 아니다.
 
-- 공개 문서나 실행 결과로 동작을 파악합니다.
-- GoDj 고유 모델명, fixture, 설명, 코드 구조로 새로 작성합니다.
-- manifest의 `derived`를 `false`로 기록합니다.
-- Django version/commit과 참조 문서 또는 테스트 경로를 기록합니다.
-- 경로를 참조했다는 이유만으로 upstream 코드를 복사했다고 표현하지 않습니다.
+## 배포
 
-### 복사·번역·변형한 upstream material
-
-- manifest의 `derived`를 `true`로 기록하고 `license`를 필수로 둡니다.
-- upstream commit, 파일 경로, class/function/test 이름과 변경 내용을 파일 가까이에
-  남깁니다.
-- 원본 저작권 고지, 조건, disclaimer와 파일별 추가 라이선스를 보존합니다.
-- 파생물 전용 검토 없이 독립 시나리오 디렉터리에 섞지 않습니다.
-
-M0/M1 query 시나리오, GDJ-0003 write/migration 시나리오·static migration fixture,
-GDJ-0005 Save lifecycle, GDJ-0007 QuerySet evaluation/cache, GDJ-0009 migration
-planning과 GDJ-0011 migration plan execution 시나리오는 모두 첫 번째
-분류입니다. GDJ-0013 recorder-backed restart planning 시나리오도 같은 독립 작성
-분류입니다. Upstream test code나 fixture를 복사하지 않고 GoDj 고유 app/table/value로
-작성했으며 manifest reference는 동작 근거 추적용입니다. QuerySet cache와 migration
-planning/execution/restart provenance entry도 모두 `derived=false`이고 pinned source/doc/test
-symbol은 의미와 버전 추적만 합니다. Migration planning graph/module/fixture와 execution
-failure sentinel/assertion과 recorder/restart fixture 구조도 upstream에서 복사·번역하지 않고 최소 GoDj 고유 정의로
-작성했습니다.
-GDJ-0014는 이 locked recorder/restart 시나리오에 GoDj 제품 adapter를 연결하고 manifest
-status만 전환했으므로 기존 독립 작성 분류를 바꾸지 않습니다. GDJ-0015의 MIG-037..046
-historical-state scenario도 GoDj 고유 app/model/table/value와 assertion으로 독립 작성했고,
-모든 provenance entry는 `derived=false`입니다. Pinned Django source/test symbol과
-`BSD-3-Clause` 표시는 동작 근거와 upstream license를 추적하기 위한 것이며 Django source,
-fixture, comment 또는 assertion 구조를 복사·번역했다는 뜻이 아닙니다.
-GDJ-0017의 MIG-047..056 lifecycle scenario도 GoDj 고유 app/table/operation/failure sentinel과
-assertion으로 독립 작성했고 provenance entry는 모두 `derived=false`입니다. Test-only
-revision-fence harness는 GoDj concurrency design evidence이며 upstream Django 구현을 복사하거나
-번역하지 않았습니다.
-
-Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
-포함합니다.
-
-## 배포와 CI
-
-- CI에서 PyPI dependency로 Django를 설치하는 것과 Django source를 GoDj 산출물에
-  재배포하는 것을 구분합니다.
-- Django wheel, source, container layer를 배포 artifact에 포함하면 별도 third-party
-  license 검사를 수행합니다.
-- Go binary를 배포하기 전 `go.mod` 전체 dependency graph의 license와 notice 의무를
-  다시 수집하고, root project license 결정과 함께 release gate로 검토합니다.
-- 공식 재단의 보증으로 오해될 표현이나 Django/contributor 이름을 홍보에 사용하지
-  않습니다.
-
-관련 third-party 고지는 [`NOTICE.md`](../NOTICE.md), Django 전문은
-[`LICENSE.django`](../LICENSE.django)에 있습니다.
+개발 CI에서 Django dependency를 설치하는 것과 source/wheel/container layer를 제품으로 재배포하는 것을 구분한다.
+외부 binary에 포함되는 dependency graph와 필요한 고지를 다시 확인하고 source·license를 함께 보존한다.
+기존 자세한 scenario별 provenance 판단은
+[고정 Git 기록](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/LICENSING.md)에 있다.
+이번 정리는 그 고지나 분류를 변경하지 않는다.

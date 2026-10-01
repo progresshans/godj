@@ -1,0 +1,1005 @@
+{
+  "django": "6.1",
+  "cases": [
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "",
+      "value": "",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": " ",
+      "value": "",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "\r\n",
+      "value": "",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "\u00a0\u2003",
+      "value": "",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": false,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": " ",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "\r\n",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "\u00a0\u2003",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": false,
+      "required": true,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "",
+      "value": null,
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": " ",
+      "value": null,
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "\r\n",
+      "value": null,
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "\u00a0\u2003",
+      "value": null,
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": false,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": " ",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "\r\n",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "\u00a0\u2003",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": null,
+      "codes": [
+        "max_length"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "char",
+      "nullable": true,
+      "required": true,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "TextInput"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": " ",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "\r\n",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "\u00a0\u2003",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": false,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": " ",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "\r\n",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "\u00a0\u2003",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": false,
+      "required": true,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": " ",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "\r\n",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "\u00a0\u2003",
+      "value": "",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": false,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": " ",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "\r\n",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "\u00a0\u2003",
+      "value": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "one line",
+      "value": "one line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "  first line\nsecond line  ",
+      "value": "first line\nsecond line",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "\n\nleading lines\n",
+      "value": "leading lines",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "windows\r\nline",
+      "value": "windows\r\nline",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "</textarea><script>x</script> & \"quoted\"",
+      "value": "</textarea><script>x</script> & \"quoted\"",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "100%_literal",
+      "value": "100%_literal",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "value": "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+      "value": "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph",
+      "codes": [],
+      "widget": "Textarea"
+    },
+    {
+      "kind": "text",
+      "nullable": true,
+      "required": true,
+      "input": "null\u0000character",
+      "value": null,
+      "codes": [
+        "null_characters_not_allowed"
+      ],
+      "widget": "Textarea"
+    }
+  ]
+}

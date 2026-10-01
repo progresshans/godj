@@ -1,0 +1,165 @@
+{
+  "default_max_length": 100,
+  "django": "6.1",
+  "forms": [
+    {
+      "case": {
+        "name": "default"
+      },
+      "changed": [],
+      "document": "defaults/seed.txt",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "initial": "old/original.txt",
+        "name": "retain"
+      },
+      "changed": [],
+      "document": "old/original.txt",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "initial": "",
+        "name": "empty"
+      },
+      "changed": [],
+      "document": "",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "clear": true,
+        "initial": "old/original.txt",
+        "name": "clear"
+      },
+      "changed": [
+        "document"
+      ],
+      "document": "",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "initial": "old/original.txt",
+        "name": "upload",
+        "upload": "new.txt"
+      },
+      "changed": [
+        "document"
+      ],
+      "document": "new.txt",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "clear": true,
+        "initial": "old/original.txt",
+        "name": "upload_and_clear",
+        "upload": "new.txt"
+      },
+      "changed": [
+        "document"
+      ],
+      "document": "old/original.txt",
+      "errors": {
+        "document": [
+          "contradiction"
+        ]
+      },
+      "optional": null,
+      "valid": false
+    },
+    {
+      "case": {
+        "initial": "old/original.txt",
+        "name": "forged_text",
+        "text": "other/private.txt"
+      },
+      "changed": [],
+      "document": "old/original.txt",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "name": "long_name",
+        "upload": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "changed": [
+        "document"
+      ],
+      "document": "defaults/seed.txt",
+      "errors": {
+        "document": [
+          "max_length"
+        ]
+      },
+      "optional": null,
+      "valid": false
+    },
+    {
+      "case": {
+        "name": "optional_null",
+        "optional": null
+      },
+      "changed": [],
+      "document": "defaults/seed.txt",
+      "errors": {},
+      "optional": null,
+      "valid": true
+    },
+    {
+      "case": {
+        "name": "optional_empty",
+        "optional": ""
+      },
+      "changed": [],
+      "document": "defaults/seed.txt",
+      "errors": {},
+      "optional": "",
+      "valid": true
+    },
+    {
+      "case": {
+        "name": "optional_clear",
+        "optional": "old/optional.txt",
+        "optional_clear": true
+      },
+      "changed": [
+        "optional"
+      ],
+      "document": "defaults/seed.txt",
+      "errors": {},
+      "optional": "",
+      "valid": true
+    }
+  ],
+  "python": "3.14.3",
+  "source_sha256": "fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8",
+  "storage": {
+    "cleared_reference": "",
+    "collision": [
+      "documents/same.txt",
+      "documents/same_AAAAAAA.txt"
+    ],
+    "db_after_rollback": "documents/same.txt",
+    "file_survives_model_delete": true,
+    "old_survives_clear": true,
+    "old_survives_replace": true,
+    "published_after_rollback": "documents/rollback.txt",
+    "published_survives_rollback": true
+  }
+}

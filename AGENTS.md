@@ -1,77 +1,35 @@
-# GoDj Repository Instructions
+# GoDj 작업 안내
 
-## 프로젝트 정의
+GoDj는 Django의 모델 중심 개발 경험과 외부 동작을 Go에 맞게 구현하는 풀스택 프레임워크다.
+Python 내부 객체 구조와 소스 호환은 목표가 아니다. 현재 미배포 단계의 내부 API·생성 ABI는 필요하면 변경한다.
 
-GoDj는 Django의 Python 구현을 포팅하는 프로젝트가 아니다. Django의 모델 중심 풀스택 개발 경험과 외부 동작을 Go에 맞게 재설계한다.
+## 시작
 
-Python 소스, Python 서드파티 앱, Django 내부 객체 구조의 호환은 목표가 아니다. 장기 제품 범위에 Admin, API, Realtime, GIS, 다중 DB가 포함되더라도 현재 지원을 뜻하지 않는다.
+1. `docs/status/CURRENT.md`에서 현재 작업과 검증 범위를 확인한다.
+2. 활성 `work`만 읽고 변경할 코드·관련 현행 명세를 확인한다.
+3. 과거 작업·증거·대체된 결정은 필요할 때 Git 이력으로 찾는다. 기본 입력으로 전체 역사를 읽지 않는다.
 
-## 작업 시작 시 읽기 순서
+## 구현
 
-모든 문서를 무조건 읽지 않는다. 다음 순서로 필요한 범위만 읽는다.
+- 모델 의미의 정규화 원본은 Schema IR이다. 타입별 생성 코드, 공통 generic runtime, 동적 metadata의 책임을 구분한다.
+- typed/dynamic query는 같은 DB 독립 Query AST를 사용한다. DB 차이는 capability/compiler/schema editor가 소유한다.
+- 실제 I/O는 context와 error를 전달한다. 미지원 동작은 명시적인 오류로 처리한다.
+- query와 설정의 공유·복사·cache 소유권을 명시한다. 일반 오류에 panic을 사용하지 않는다.
+- 생성물은 결정적이고 실패 시 기존 정상 결과를 보존한다. 생성된 Go 파일은 소스와 함께 관리한다.
+- Django는 고정된 버전의 외부 결과·오류·transaction 의미를 참조한다. 출처와 라이선스를 남긴다.
+- 기존 내부 모양·테스트 이름·파일 개수·문서 문구를 유지하기 위한 호환 계층을 추가하지 않는다.
+- 사용자 변경과 다른 작업의 파일을 보존한다. 단순성을 위해 검증 범위나 보안·무결성 조건을 숨기지 않는다.
 
-1. 이 파일
-2. `docs/status/CURRENT.md`
-3. CURRENT가 가리키는 활성 `work/*.md`
-4. 그 작업이 링크한 명세, 호환 계약, ADR
+## 검증과 기록
 
-문서의 역할과 정본 위치는 `docs/README.md`를 따른다.
+- 한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 편집 중에는 필요한 compile 확인만 한다.
+- 변경 묶음이 완성되면 gofmt, affected test와 필요한 generated drift를 모아 실행한다.
+- 관련 DB·race·process 회귀는 통합 checkpoint에서 실행한다. 전체 platform/cold-build 검증은 명시한 통합 milestone이 소유한다.
+- 로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다. 검증 범위와 필요한 환경을 먼저 정한다.
+- 테스트 삭제·통합 시 어떤 위험을 어디에서 계속 검증하는지 확인한다. 필수 실행 누락·skip·잘린 증거는 성공이 아니다.
+- 설계 채택, 코드 구현, 환경별 검증을 구분한다. 실행하지 않았거나 다른 소스의 결과를 현재 PASS로 쓰지 않는다.
+- CURRENT에는 현재/다음/막힌 일과 근거 링크만 둔다. 실행 상세는 TEST_EVIDENCE 한 곳, 장기 이유는 관련 ADR에 둔다.
+- 작은 수정마다 새 ADR·work·전체 완료 의식을 만들지 않는다. 문서-only 변경에는 링크·상태·diff 검사를 적용한다.
+- 병렬 작업은 파일과 의미의 소유자를 나눈다. 전역 상태는 통합 담당 한 명이 갱신한다.
 
-## 상태와 범위
-
-- `Proposed`, `Accepted`, `Implemented`, `Verified`를 구분한다.
-- 문서나 예제에 존재한다는 이유로 구현됐다고 표현하지 않는다.
-- 활성 작업 문서의 목표·비목표·수정 허용 경로를 지킨다.
-- 공개 API, Schema IR, Query AST, Migration State, 패키지 의존 방향을 바꾸기 전에는 작업 문서와 ADR 상태를 확인한다.
-- 장래 사용을 이유로 빈 패키지나 추상화를 대량 생성하지 않는다.
-- 기존 사용자 변경과 작업 범위 밖 파일을 보존한다.
-
-## 아키텍처 불변 조건
-
-GoDj의 기본 파이프라인은 다음과 같다.
-
-`Schema DSL → Schema IR → Codegen → Generic Core → Runtime Metadata → Query AST → Backend Compiler`
-
-- Schema IR은 모델 의미의 정규화된 단일 원본이다.
-- Codegen은 모델별 정적 타입, FieldSet, Descriptor, Codec 연결을 만든다.
-- Generics는 모델 공통 동작과 타입 정보를 유지한다.
-- Runtime Metadata는 문자열 lookup, Admin, Historical Model 등 런타임 동적 기능을 처리한다.
-- 타입 안전 API와 동적 API는 동일한 Query AST 의미로 수렴한다.
-- DB별 차이는 backend capability와 compiler/schema editor 경계에서 처리한다.
-- 지원하지 않는 기능은 조용히 무시하지 않고 구조화된 오류를 반환한다.
-- 기존 ORM을 핵심 실행 엔진으로 감싼 구현은 채택하지 않는다.
-
-API 예시는 검증 전 가설일 수 있다. 특히 codegen bootstrap, 앱 간 관계, nullable 표현, QuerySet 캐시, migration 형식은 `docs/OPEN_QUESTIONS.md`를 확인한다.
-
-## Go 규칙
-
-- 모든 실제 I/O는 `context.Context`와 `error`를 전달한다.
-- 일반 오류 경로에 `panic`을 사용하지 않는다.
-- generic type에는 메서드를 정의할 수 있지만, 메서드가 receiver에 없는 새 type parameter를 선언할 수 없음을 지킨다. 추가 type parameter가 필요하면 최상위 generic function 또는 별도 generic type을 검토한다.
-- Query plan은 불변 값으로 다룬다. goroutine 안전성이나 결과 cache 공유는 명시적 계약 없이는 가정하지 않는다.
-- hot path의 reflection 사용은 측정과 근거 없이 도입하지 않는다.
-- 생성 결과는 결정적이어야 하며 `gofmt`, schema hash, generator version, 실패 시 기존 산출물 보존을 검증한다.
-- 사용자 프로젝트의 생성 Go source는 Git에 커밋하는 방향이며, 생성기가 구현되면 CI에서 `godj generate --check`로 drift를 검증한다.
-
-## 호환성과 테스트
-
-- 기준 프로필과 contract ID는 `docs/COMPATIBILITY.md`와 `docs/status/IMPLEMENTATION_MATRIX.md`에서 확인한다.
-- Django 결과를 oracle로 쓰기 전에 버전, DB, timezone, locale을 고정한다.
-- 비교 우선순위는 결과·부작용, 오류 의미, transaction 의미, 공개 동작, SQL 의미 순이다. SQL 문자열 동일성은 기본 목표가 아니다.
-- Django 테스트를 번역할 때 출처와 라이선스 정보를 남기고 Python 내부 구조를 복제하지 않는다.
-- 테스트를 실행하지 않았으면 통과했다고 쓰지 않는다. 테스트 증거에는 명령, 날짜, checkout 식별자, 결과를 남긴다.
-- false green을 금지한다. 미구현 계약은 명시적으로 미구현 상태여야 한다.
-
-## 작업 종료와 인수인계
-
-작업이 끝나거나 중단될 때 다음을 함께 갱신한다.
-
-- 활성 `work/*.md`: 체크리스트, 변경 파일, 결정, 테스트 증거, 다음 정확한 작업
-- `docs/status/CURRENT.md`: 현재 단계, 활성 작업, blocker, 다음 작업
-- `docs/status/IMPLEMENTATION_MATRIX.md`: 설계/구현/검증 상태가 바뀐 기능만
-- `docs/status/TEST_EVIDENCE.md`: 실제 실행한 검증만
-- 관련 ADR 또는 `docs/DEVIATIONS.md`: 장기 결정이나 의도적 차이가 생긴 경우
-
-완료 보고에는 변경 파일, 구현 동작, 결정, 실행한 테스트, 실행하지 못한 테스트, 알려진 제한, 다음 작업을 포함한다.
-
-멀티 에이전트 작업에서는 동일한 공개 API, 안정 명세, CURRENT 파일을 여러 에이전트가 동시에 수정하지 않는다. 통합 담당 한 명이 최종 상태를 반영한다.
+현재 사용자의 명시적 지시가 과거 work·ADR의 개발 절차보다 우선한다. 변경한 장기 의미는 현행 문서에 반영한다.

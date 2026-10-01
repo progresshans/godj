@@ -1,0 +1,227 @@
+//go:build darwin || linux
+
+package projectcheck
+
+import (
+	"encoding/json"
+
+	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
+)
+
+// RunMigrate executes one explicit project-linked latest/targeted migrate or
+// read-only plan. It owns selection, build, child lifetime, private response
+// validation, cleanup, and public publication; it never retries a build or
+// migration runner.
+func RunMigrate(input MigrateInvocation) MigrateReport {
+	input.Args = append([]string(nil), input.Args...)
+	arguments, primary := parseMigrateArguments(input.Args)
+	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
+
+	report := MigrateReport{}
+	if terminal := migrateBarrier(input, primary); terminal != nil {
+		chooseMigrateFailure(&report, *terminal)
+		publishMigrate(input, &report)
+		return report
+	}
+
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[MigrateFailure]{
+			selection: mapMigrateOuterFailure, workspace: mapMigrateOuterFailure,
+			process: migrateProcessFailure, cleanup: combineMigrateCleanup,
+			barrier: func(primary *MigrateFailure) *MigrateFailure { return migrateBarrier(input, primary) },
+		}, commandHooks{})
+	finish := func() MigrateReport {
+		if command.close() && (!report.HasMigrateFailure || migrateCanceledOrInterrupted(report.MigrateFailure)) {
+			clearMigrateSuccess(&report)
+			report.HasMigrateFailure = true
+			report.MigrateFailure = migrateCleanupFailure()
+		}
+		publishMigrate(input, &report)
+		return report
+	}
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseMigrateFailure(&report, *primary)
+		return finish()
+	}
+	if primary = command.buildRunner(); primary != nil {
+		chooseMigrateFailure(&report, *primary)
+		return finish()
+	}
+
+	runner := command.run(MigrateRunnerStage, migrateprotocol.PrivateArgument, arguments.requestDocument)
+	report.RunnerStdoutRetainedBytes = runner.StdoutScalar.RetainedBytes
+	report.RunnerStdoutTruncated = runner.StdoutScalar.Truncated
+	response, primary := parseCommandResponse(&runner, command.completed(MigrateRunnerStage, runner),
+		migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse), migrateprotocol.ParseResponse)
+	if primary == nil && response.OK && response.Result.Mode != arguments.request.Mode {
+		candidate := migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse)
+		primary = &candidate
+	}
+	if primary != nil {
+		chooseMigrateFailure(&report, *primary)
+		return finish()
+	}
+	// A completed, strictly parsed child response is the terminal observation.
+	// A later outer cancellation must not erase commit-unknown or another
+	// durable migration outcome; the process owner observes cancellation until
+	// direct exit and both response drains complete.
+	if response.OK {
+		switch response.Result.Mode {
+		case migrateprotocol.ModeExecute:
+			chooseMigrateResult(&report, response.Result.Execute)
+		case migrateprotocol.ModePlan:
+			chooseMigratePlan(&report, response.Result.Plan)
+		default:
+			chooseMigrateFailure(&report, migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse))
+		}
+		return finish()
+	}
+	if response.Failure.CleanupFailed {
+		report.CleanupFailed = 1
+	}
+	chooseMigrateFailure(&report, response.Failure)
+	return finish()
+}
+
+func mapMigrateOuterFailure(input Failure) MigrateFailure {
+	return migrateFailure(input.Category, input.Code)
+}
+
+func migrateProcessFailure(stage ProcessStage, process ProcessResult) *MigrateFailure {
+	return migrationCommandProcessFailure(stage, process, migrateprotocol.CodeRunnerFailed, migrateFailure)
+}
+
+func migrateBarrier(input MigrateInvocation, primary *MigrateFailure) *MigrateFailure {
+	if primary != nil && primary.Category == migrateprotocol.CategoryProcess && primary.Code == migrateprotocol.CodeProjectCleanupFailed {
+		return primary
+	}
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := MigrateFailure{Category: migrateprotocol.CategoryProcess, Code: code}
+		return &candidate
+	}
+	return primary
+}
+
+func combineMigrateCleanup(primary *MigrateFailure, failed bool) *MigrateFailure {
+	if !failed {
+		return primary
+	}
+	if primary == nil || migrateCanceledOrInterrupted(*primary) {
+		candidate := migrateCleanupFailure()
+		return &candidate
+	}
+	return primary
+}
+
+func migrateCanceledOrInterrupted(input MigrateFailure) bool {
+	return input.Category == migrateprotocol.CategoryProcess && (input.Code == migrateprotocol.CodeProjectCanceled || input.Code == migrateprotocol.CodeProjectInterrupted)
+}
+
+func migrateCleanupFailure() MigrateFailure {
+	return migrateFailure(migrateprotocol.CategoryProcess, migrateprotocol.CodeProjectCleanupFailed)
+}
+
+func migrateInternalFailure() MigrateFailure {
+	return MigrateFailure{Category: migrateprotocol.CategoryInternal, Code: migrateprotocol.CodeProjectInternalError}
+}
+
+func migrateFailure(category, code string) MigrateFailure {
+	candidate := MigrateFailure{Category: category, Code: code}
+	if _, ok := migrateprotocol.ExitCode(candidate); !ok {
+		return migrateInternalFailure()
+	}
+	return candidate
+}
+
+func chooseMigrateFailure(report *MigrateReport, primary MigrateFailure) {
+	if report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan {
+		return
+	}
+	if _, ok := migrateprotocol.ExitCode(primary); !ok {
+		primary = migrateInternalFailure()
+	}
+	report.HasMigrateFailure = true
+	report.MigrateFailure = primary
+}
+
+func chooseMigrateResult(report *MigrateReport, result MigrateResult) {
+	if report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan {
+		return
+	}
+	report.HasMigrateResult = true
+	report.MigrateResult = result
+}
+
+func chooseMigratePlan(report *MigrateReport, plan []MigratePlanRow) {
+	if report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan || plan == nil {
+		return
+	}
+	report.HasMigratePlan = true
+	report.MigratePlan = append([]MigratePlanRow(nil), plan...)
+	if len(plan) == 0 {
+		report.MigratePlan = make([]MigratePlanRow, 0)
+	}
+}
+
+func clearMigrateSuccess(report *MigrateReport) {
+	report.HasMigrateResult = false
+	report.MigrateResult = MigrateResult{}
+	report.HasMigratePlan = false
+	report.MigratePlan = nil
+}
+
+func publishMigrate(input MigrateInvocation, report *MigrateReport) {
+	if !report.HasMigrateFailure && !report.HasMigrateResult && !report.HasMigratePlan {
+		chooseMigrateFailure(report, migrateInternalFailure())
+	}
+	if report.HasMigrateFailure {
+		exit, ok := migrateprotocol.ExitCode(report.MigrateFailure)
+		if !ok {
+			report.MigrateFailure = migrateInternalFailure()
+			exit = 3
+		}
+		report.ExitCode = exit
+		report.UserStderrWrites++
+		if input.Stderr != nil {
+			_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.MigrateFailure.Category, report.MigrateFailure.Code))
+		}
+		return
+	}
+
+	var payload []byte
+	var err error
+	if report.HasMigratePlan {
+		payload, err = migrateprotocol.EncodePublicPlan(report.MigratePlan)
+	} else {
+		payload, err = json.Marshal(struct {
+			SourceCount         int    `json:"source_count"`
+			DefinitionCount     int    `json:"definition_count"`
+			DefinitionSetDigest string `json:"definition_set_digest"`
+		}{
+			SourceCount:         report.MigrateResult.SourceCount,
+			DefinitionCount:     report.MigrateResult.DefinitionCount,
+			DefinitionSetDigest: report.MigrateResult.DefinitionSetDigest,
+		})
+		payload = append(payload, '\n')
+	}
+	if err != nil {
+		clearMigrateSuccess(report)
+		report.HasMigrateFailure = true
+		report.MigrateFailure = migrateInternalFailure()
+		publishMigrate(input, report)
+		return
+	}
+	report.UserStdoutWrites++
+	written, writeErr := writeOnce(input.Stdout, payload)
+	if written > 0 && written < len(payload) {
+		report.PartialStdoutWrites++
+	}
+	if writeErr == nil {
+		report.ExitCode = 0
+		return
+	}
+	clearMigrateSuccess(report)
+	report.HasMigrateFailure = true
+	report.MigrateFailure = migrateInternalFailure()
+	report.ExitCode = 3
+}

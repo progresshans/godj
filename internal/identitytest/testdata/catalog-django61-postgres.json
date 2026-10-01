@@ -1,0 +1,138 @@
+{
+  "backend": "postgresql",
+  "database_version": "170010",
+  "django": "6.1",
+  "observations": {
+    "admission": {
+      "group": {
+        "add": {
+          "change": false,
+          "create": true,
+          "delete": false,
+          "view": false
+        },
+        "change": {
+          "change": true,
+          "create": false,
+          "delete": false,
+          "view": true
+        },
+        "delete": {
+          "change": false,
+          "create": false,
+          "delete": true,
+          "view": false
+        },
+        "none": {
+          "change": false,
+          "create": false,
+          "delete": false,
+          "view": false
+        },
+        "view": {
+          "change": false,
+          "create": false,
+          "delete": false,
+          "view": true
+        }
+      },
+      "permission": {
+        "add": {
+          "change": false,
+          "create": true,
+          "delete": false,
+          "view": false
+        },
+        "change": {
+          "change": true,
+          "create": false,
+          "delete": false,
+          "view": true
+        },
+        "delete": {
+          "change": false,
+          "create": false,
+          "delete": true,
+          "view": false
+        },
+        "none": {
+          "change": false,
+          "create": false,
+          "delete": false,
+          "view": false
+        },
+        "view": {
+          "change": false,
+          "create": false,
+          "delete": false,
+          "view": true
+        }
+      }
+    },
+    "group_created": {
+      "effective": [
+        "change",
+        "view"
+      ],
+      "members": 1,
+      "name": "Editors",
+      "permissions": [
+        "change",
+        "view"
+      ]
+    },
+    "group_deleted": {
+      "effective": [],
+      "memberships": 0,
+      "permission_exists": true,
+      "user_exists": true
+    },
+    "group_edited": {
+      "effective": [
+        "change"
+      ],
+      "held_effective": [
+        "change",
+        "view"
+      ],
+      "name": "Operators",
+      "permissions": [
+        "change"
+      ],
+      "same_password": true
+    },
+    "permission_deleted": {
+      "direct_permissions": 0,
+      "effective": [],
+      "group_exists": true,
+      "group_permissions": 0,
+      "user_exists": true
+    },
+    "permission_renamed": {
+      "code": "manage",
+      "direct": [
+        "manage"
+      ],
+      "effective": [
+        "manage"
+      ],
+      "group": [
+        "manage"
+      ],
+      "name": "Manage ticket"
+    },
+    "rollback": {
+      "effective": [
+        "manage"
+      ],
+      "group_name": "Operators",
+      "permission_name": "Manage ticket"
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "admin_options": "7526be63d08ff1338acc3e78e56171683bcdc697d32ce4af1de17aff8f328a48",
+    "auth_admin": "6500e817a9aaae8322d43ec8cc1712fc6eedb053af7d47bed92875f811fc01a4",
+    "auth_models": "fb5cc235be494dcb49c52bbcb716e5d8e741729162ca54cdd31846d90f107fb9"
+  }
+}

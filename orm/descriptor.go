@@ -11,7 +11,8 @@ import (
 // ModelDescriptor is owned by the generic consumer. Generated zero-state
 // concrete descriptor types satisfy it without runtime registration or a
 // mutable freeze phase. Scan's M return keeps descriptor instantiations model
-// specific at compile time.
+// specific at compile time. NewManager reads Metadata at construction; its
+// immutable snapshot is independent of future Metadata results.
 type ModelDescriptor[M any] interface {
 	Metadata() ir.Model
 	Scan(db.Row) (M, error)
@@ -19,6 +20,32 @@ type ModelDescriptor[M any] interface {
 	// aliases from the input. Generated descriptors deep-clone nullable pointer
 	// fields so QuerySet's canonical evaluation cache is never exposed.
 	CloneModel(M) M
+}
+
+// RelationObjectDescriptor is the additive immutable capability required by
+// project-bound relation object loaders. Implementations return a generated
+// named, non-pointer, zero-size snapshot so BoundModel never retains mutable
+// caller-owned descriptor state.
+type RelationObjectDescriptor[M any] interface {
+	ModelDescriptor[M]
+	SnapshotRelationObjectDescriptor() RelationObjectDescriptor[M]
+	BindRelationStorage(ir.Field) (RelationStorage[M], bool)
+}
+
+// PrimaryKeyObjectDescriptor is the sealed, presence-aware capability used by
+// reverse object accessors. BindReverseObject asserts it only from the
+// immutable RelationObjectDescriptor snapshot retained by BoundModel.
+type PrimaryKeyObjectDescriptor[M any] interface {
+	RelationObjectDescriptor[M]
+	PrimaryKey(M) (query.Value, bool)
+}
+
+// RelationStorage extracts one structurally bound ForeignKey value. Generated
+// implementations use direct field access; reflection is restricted to cold
+// binder validation of the storage value's immutable shape.
+type RelationStorage[M any] interface {
+	Field() ir.Field
+	Value(M) (query.Value, bool)
 }
 
 // WriteDescriptor is an optional generated capability layered on the M1 read
@@ -31,6 +58,16 @@ type WriteDescriptor[M any] interface {
 	ClearPrimaryKey(*M)
 	CloneWriteModel(M) M
 	WriteFieldValue(M, ir.Field) (query.Value, bool)
+}
+
+// ValueAssignmentDescriptor supplies the type-specific half of pure model
+// preparation. The manager validates field ownership, representation and the
+// resulting snapshot; generated code performs direct Go field assignments.
+// SetFieldValue must not retain value or field and must leave value unchanged
+// when returning false. Primary-key assignment is owned by WriteDescriptor.
+type ValueAssignmentDescriptor[M any] interface {
+	WriteDescriptor[M]
+	SetFieldValue(value *M, field ir.Field, input query.Value) bool
 }
 
 // descriptorIsNil handles both a nil interface and an interface containing a
@@ -51,4 +88,12 @@ func interfaceIsNil(value any) bool {
 	default:
 		return false
 	}
+}
+
+func immutableZeroStateValue(value any) bool {
+	if interfaceIsNil(value) {
+		return false
+	}
+	valueType := reflect.TypeOf(value)
+	return valueType.Kind() == reflect.Struct && valueType.Name() != "" && valueType.Size() == 0
 }

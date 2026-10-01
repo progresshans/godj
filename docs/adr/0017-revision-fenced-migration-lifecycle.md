@@ -1,5 +1,9 @@
 # ADR-0017: Migration lifecycle은 각 migration transaction에서 recorder revision을 검증한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0017-revision-fenced-migration-lifecycle.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0017, MIG-047..MIG-056, Q-012
@@ -28,7 +32,8 @@ Recorder snapshot을 읽은 뒤 다른 process가 migration을 commit하면 첫 
 
 GDJ-0017은 MIG-047..056으로 Django의 fresh/prefix/target/reverse/failure/restart lifecycle
 의미를 exact contract로 잠그고, GoDj-specific revision fence는 제품 source와 분리된
-`conformance/lifecyclefence/**` feasibility spike로 검증했습니다. 현재 제품 경계를 실제
+[당시 lifecyclefence 실험](https://github.com/progresshans/godj/tree/da1bfc524c4f205075fc7fac7f00b437473a5e1f/conformance/lifecyclefence)으로 최초 검증했습니다.
+GDJ-0057에서 별도 모형은 실제 SQLite·Executor 회귀로 대체했습니다. 현재 제품 경계를 실제
 제품 package로 조립한 characterization은 first step 전과 step 사이의 stale plan이 실행되는
 gap을 재현했습니다. 반면 test-only SQLite 후보는 migration별 commit을 보존하면서 아래
 안전성 조건을 만족했습니다. 이 결과로 revision-fenced lifecycle 방향은 채택하지만,
@@ -179,32 +184,3 @@ Spike의 table/column/token과 candidate coordinator는 test-only이며 제품 �
 - Replacement/squash/merge/fake/fake-initial, optimizer와 migration conflict resolution
 - PostgreSQL advisory lock, MySQL/MariaDB/Oracle와 multi-DB router
 - Relations/`real_apps`와 historical relation rendering
-
-## 검증
-
-GDJ-0017은 제품 source를 바꾸지 않고 다음을 확인했습니다.
-
-- MIG-047..056 exact oracle: fresh/prefix/no-op/named/zero/unknown/history/failure/restart
-- Phase 047..053/056 `commit`, 054 `evaluation`, 055 `rollback`
-- MIG-054는 public command orchestration의 explicit
-  `loader.check_consistent_history(connection) → target/plan → migrate`이며
-  `plan_invoked=false`, transaction/DDL/write 0; `migrate()` 자체의 암묵적 check로 표현하지 않음
-- MIG-056은 temporary file database close/reopen과 fresh connection/loader/executor를 사용해
-  in-memory state/cache 재사용을 restart로 오인하지 않음
-- MIG-051/052 reverse는 abstract step outcome과 final schema/recorder만 잠그고 physical
-  transaction topology는 DEV-0001/ADR-0014에 남겨 새 deviation을 만들지 않음
-- Ninth set 10 `oracle_locked`, product runner exit 2/no actual와 기존 8-set product 회귀
-- Stale initial token에서 transaction은 first DDL/recorder write 전에 실패하고 mutation 0
-- Migration step 사이 competing commit에서 prior own step만 durable, current/tail mutation 0
-- 같은 revision의 simultaneous contender 중 최대 하나가 step을 commit하고 duplicate 없음
-- Successful step과 successor token 사이에 stale-acceptance window가 없음
-- Unsupported capability의 structured fail-closed와 auto retry 0
-- Cancellation/error/rollback 뒤 connection/transaction release와 fresh success
-- 두 connection/process, repeated/race run과 fault injection
-- Existing migration별 execution/recorder/reconstructor/planner tests와 external fake compile 회귀
-
-상세 completion gate와 수정 허용 경로는
-[GDJ-0017](../../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)에
-기록합니다. 실제 명령과 checkout은
-[EVID-20260808-016](../status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
-기록합니다.

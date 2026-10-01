@@ -1,5 +1,9 @@
 # ADR-0002: Codegen, Generics, Runtime Metadata의 역할 분리
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0002-codegen-generics-runtime-metadata.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 질문: Q-001, Q-005, Q-006
@@ -23,7 +27,3 @@ Go generics만으로 schema의 문자열 이름에서 새 struct와 field select
 ## 의도적으로 결정하지 않은 것
 
 Descriptor가 interface인지 concrete type인지, generated file 수와 이름, nullable representation, bootstrap mechanism은 정하지 않았습니다.
-
-## 검증
-
-M1에서 서로 다른 model predicate를 섞는 코드가 compile되지 않고, typed/dynamic path가 같은 AST를 만들며, generated code가 external package에서 compile됨을 검증합니다.

@@ -75,6 +75,9 @@ func WriteFile(ctx context.Context, path string, source []byte, options WriteOpt
 	if err := options.Verify(ctx, candidatePath); err != nil {
 		return fmt.Errorf("verify generated candidate: %w", err)
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.Rename(candidatePath, path); err != nil {
 		return fmt.Errorf("replace generated source: %w", err)
 	}

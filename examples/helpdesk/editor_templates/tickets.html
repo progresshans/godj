@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Edit tickets</title></head>
+<body><main><h1>Edit tickets</h1><p>Page {{ page }}. Review all changes before saving.</p>
+<p><a href="/admin/tickets/">Ticket details</a></p>
+<form method="post" action="{{ action }}">{% csrf_token %}
+<input type="hidden" name="tickets-TOTAL_FORMS" value="{{ total }}">
+<input type="hidden" name="tickets-INITIAL_FORMS" value="{{ initial }}">
+{% for error in errors %}<p role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
+{% for row in rows %}<fieldset data-row="{{ row.prefix }}"><legend>Ticket {{ row.number }}</legend>
+<input type="hidden" name="{{ row.prefix }}-id" value="{{ row.identity }}">
+<input type="hidden" name="{{ row.prefix }}-category" value="{{ row.parent }}">
+<p><label>Subject <input name="{{ row.prefix }}-subject" value="{{ row.subject }}" maxlength="120"></label></p>
+<p><label><input type="checkbox" name="{{ row.prefix }}-closed" value="on"{% if row.closed %} checked{% endif %}> Closed</label></p>
+<p><label>External reference <input name="{{ row.prefix }}-external_reference" value="{{ row.reference }}"></label></p>
+<p><label>Labels <select name="{{ row.prefix }}-labels" multiple>{% for option in row.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label></p>
+{% if can_delete %}<p><label><input type="checkbox" name="{{ row.prefix }}-DELETE" value="on"{% if row.deleted %} checked{% endif %}> Delete this ticket</label></p>{% endif %}
+{% for error in row.errors %}<p role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
+</fieldset>{% endfor %}
+{% if can_add %}<p>Use the blank rows to add tickets. Leave unused rows empty.</p>{% endif %}
+<p>Save changes on this page together. Check any errors before submitting again.</p>
+<button type="submit">Save all changes</button></form>
+<nav aria-label="Ticket pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+</main></body></html>
