@@ -11,7 +11,6 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 )
@@ -20,6 +19,10 @@ func (a *Application) initReports() error {
 	metadata := (models.ServiceReportDescriptor{}).Metadata()
 	var err error
 	a.reportInput, err = serializers.FromModel(metadata, serializers.ModelField{Name: "ticket"}, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
+	if err != nil {
+		return err
+	}
+	a.reportSaveInput, err = serializers.FromModel(metadata, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
 	if err != nil {
 		return err
 	}
@@ -48,7 +51,8 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		AppLabel: "helpdesk", Slug: "service-reports", Model: metadata, FormFields: fields, FormOverrides: overrides,
 		RelatedChoices: []admin.RelatedChoices{{Field: "ticket", Permission: ViewTicket, Load: a.reportTicketChoices}},
 		ListFields:     []string{"id", "ticket", "summary", "completed"}, SearchFields: []string{"summary"},
-		Permissions: admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
+		Permissions:        admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
+		CollectionCommands: a.reportSaveCommands(form),
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
 			return a.listReports(ctx, request)
 		},
@@ -215,10 +219,6 @@ func (a *Application) updateReport(ctx context.Context, id int64, patch models.S
 		}
 		mutation := patch.BuildPatch(current)
 		if err := mutation.Err(); err != nil {
-			if errors.Is(err, &query.Error{Code: query.CodeEmptyPatch}) {
-				updated = current
-				return nil
-			}
 			return err
 		}
 		descriptor := models.ServiceReportDescriptor{}

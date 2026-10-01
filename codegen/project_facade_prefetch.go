@@ -37,6 +37,7 @@ func (_selector relationFacadeManyPrefetch[S,T,L,W]) relationFacadePrefetchValue
 func (_selector relationFacadeManyPrefetch[S,T,L,W]) Filter(_values ...orm.Predicate[T])relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
 func (_selector relationFacadeManyPrefetch[S,T,L,W]) OrderBy(_values ...orm.Ordering[T])relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
 func (_selector relationFacadeManyPrefetch[S,T,L,W]) Distinct()relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L,W]) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[T])relationFacadeManyPrefetch[S,T,L,W]{_selector.selection=_selector.selection.SelectForUpdate(_options,_targets...);return _selector}
 func (_selector relationFacadeManyPrefetch[S,T,L,W]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeManyPrefetch[S,T,L,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
@@ -56,6 +57,7 @@ func (_selector relationFacadeReversePrefetch[S,T,W]) relationFacadePrefetchValu
 func (_selector relationFacadeReversePrefetch[S,T,W]) Filter(_values ...orm.Predicate[T])relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
 func (_selector relationFacadeReversePrefetch[S,T,W]) OrderBy(_values ...orm.Ordering[T])relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
 func (_selector relationFacadeReversePrefetch[S,T,W]) Distinct()relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeReversePrefetch[S,T,W]) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[T])relationFacadeReversePrefetch[S,T,W]{_selector.selection=_selector.selection.SelectForUpdate(_options,_targets...);return _selector}
 func (_selector relationFacadeReversePrefetch[S,T,W]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeReversePrefetch[S,T,W]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
@@ -74,6 +76,7 @@ func (_selector relationFacadeSinglePrefetch[S,T]) relationFacadePrefetchValue()
 func (_selector relationFacadeSinglePrefetch[S,T]) Filter(_values ...orm.Predicate[T])relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
 func (_selector relationFacadeSinglePrefetch[S,T]) OrderBy(_values ...orm.Ordering[T])relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
 func (_selector relationFacadeSinglePrefetch[S,T]) Distinct()relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeSinglePrefetch[S,T]) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[T])relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.SelectForUpdate(_options,_targets...);return _selector}
 func (_selector relationFacadeSinglePrefetch[S,T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeSinglePrefetch[S,T]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
@@ -144,6 +147,15 @@ type %[1]sPrefetchSelectors struct {
  state *relationFacadeState
  prefetch orm.PrefetchQuery[%[2]s]
 }
+func (_query %[1]sPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[%[2]s]) %[1]sPrefetchQuery {
+ _query.prefetch=_query.prefetch.SelectForUpdate(_options,_targets...);return _query
+}
+func (_query %[1]sPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...string)(%[1]sPrefetchQuery,error){
+ if _err:=_query.state.validate();_err!=nil{return %[1]sPrefetchQuery{},_err}
+ if _err:=_query.prefetch.ConfigurationError();_err!=nil{return %[1]sPrefetchQuery{},_err}
+ _targets,_err:=orm.ParseRowLockTargets(_query.state.models.%[1]s,_paths...);if _err!=nil{return %[1]sPrefetchQuery{},_err}
+ _result:=_query.SelectForUpdate(_options,_targets...);if _err:=_result.prefetch.ConfigurationError();_err!=nil{return %[1]sPrefetchQuery{},_err};return _result,nil
+}
 func (_query %[1]sQuery) PrefetchRelated(_selectors ...%[1]sPrefetchSelector) %[1]sPrefetchQuery {
  _result:=%[1]sPrefetchQuery{state:_query.state}
  if _err:=_query.validate();_err!=nil{_result.prefetch=_result.prefetch.WithConfigurationError(_err);return _result}
@@ -210,6 +222,12 @@ func (_query %[1]sPrefetchQuery) GetOrCreate(_ctx context.Context,_input orm.Cre
  if _created{_ctx=context.WithoutCancel(_ctx)}
  _result,_err:=_query.state.materialize%[1]s(_ctx,_value);if _err!=nil{return nil,_created,_err}
  if _err:=relationFacadeContext(_ctx);_err!=nil{return nil,_created,_err};if _err:=_query.state.validate();_err!=nil{return nil,_created,_err};return _result,_created,nil
+}
+func (_query %[1]sPrefetchQuery) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[2]s],_patch orm.PatchInput[%[2]s])(*%[1]s,bool,error){
+ if _err:=_query.validate(_ctx);_err!=nil{return nil,false,_err}
+ _value,_created,_err:=_query.prefetch.UpdateOrCreate(_ctx,_create,_patch);if _err!=nil{return nil,false,_err}
+ _result,_err:=_query.state.materialize%[1]s(context.WithoutCancel(_ctx),_value);if _err!=nil{return nil,_created,_err}
+ if _err:=_query.state.validate();_err!=nil{return nil,_created,_err};return _result,_created,nil
 }
 func (_query %[1]sPrefetchQuery) First(_ctx context.Context)(*%[1]s,bool,error){
  if _err:=_query.validate(_ctx);_err!=nil{return nil,false,_err}

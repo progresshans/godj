@@ -23,6 +23,7 @@ type preparedPrefetch[S any] interface {
 }
 type cachedPrefetch interface {
 	clone() (cachedPrefetch, error)
+	cloneForWrite(db.Queryer) (cachedPrefetch, error)
 }
 
 // ManyPrefetch describes an immutable collection loading tree. Children are

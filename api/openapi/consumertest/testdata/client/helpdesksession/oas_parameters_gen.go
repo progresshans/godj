@@ -126,6 +126,12 @@ type HelpdeskTicketServiceReportParams struct {
 	ID int64
 }
 
+// HelpdeskTicketServiceReportSaveParams is parameters of helpdesk:ticket-service-report-save operation.
+type HelpdeskTicketServiceReportSaveParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
 // HelpdeskTicketUpdateParams is parameters of helpdesk:ticket-update operation.
 type HelpdeskTicketUpdateParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

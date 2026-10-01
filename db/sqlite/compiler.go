@@ -10,6 +10,12 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	if err := plan.ValidateRowLock(); err != nil {
+		return "", nil, err
+	}
+	if _, present := plan.RowLock(); present {
+		return "", nil, unsupportedResult("SQLite does not provide row-level locking")
+	}
 	if err := plan.ValidatePrefetch(); err != nil {
 		return "", nil, err
 	}

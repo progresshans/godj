@@ -11,6 +11,14 @@ func (s *ServiceReportCreate) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *ServiceReportSave) setDefaults() {
+	{
+		val := bool(false)
+		s.Completed.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *ServiceReportUpdate) setDefaults() {
 	{
 		val := bool(false)

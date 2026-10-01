@@ -3,13 +3,14 @@ package admin
 import (
 	"context"
 	"fmt"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 )
 
-// CollectionCommandConfig resolves or creates an object from its own inputs,
+// CollectionCommandConfig resolves, creates or changes an object from its inputs,
 // without requiring an existing selected object. Run owns the transaction,
 // current scope checks and any audit writes. It must return only after commit.
 // Ordinary object commands retain their separate identity/revision contract.
@@ -19,14 +20,19 @@ type CollectionCommandConfig struct {
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
 	Form                  forms.Spec
+	RelatedChoices        []RelatedChoices
 	Run                   func(context.Context, auth.Principal, forms.Values) (CollectionCommandResult, error)
 }
 
 // CollectionCommandResult identifies the confirmed object. Created is false
-// when the command reused an existing object. No result is published on error.
+// when the command reused an existing object. Changed reports a saved change
+// to that existing object; it cannot be combined with Created. When both are
+// false, the existing object was returned without a change.
+// No result is published on error.
 type CollectionCommandResult struct {
 	ID      int64
 	Created bool
+	Changed bool
 }
 
 type CollectionCommandDescriptor struct {
@@ -40,6 +46,7 @@ type registeredCollectionCommand struct {
 	name, label string
 	permissions []auth.Permission
 	form        forms.Spec
+	formFor     func(context.Context, auth.Principal) (forms.Spec, error)
 	run         func(context.Context, auth.Principal, forms.Form) (CollectionCommandResult, error)
 }
 
@@ -76,11 +83,24 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 			return nil, &ConfigError{Path: path + ".form", Code: "limit_exceeded"}
 		}
 		for _, field := range fields {
-			if field.Name() == "csrfmiddlewaretoken" || field.Name() == "expected_revision" || field.ModelChoice() {
+			if field.Name() == "csrfmiddlewaretoken" || field.Name() == "expected_revision" {
 				return nil, &ConfigError{Path: path + ".form", Code: "unsupported_field"}
 			}
 		}
-		command := registeredCollectionCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form}
+		formFor, choicePermissions, err := prepareRelatedChoices(config.Form, config.RelatedChoices)
+		if err != nil {
+			return nil, &ConfigError{Path: path + ".related_choices", Code: "invalid", Cause: err}
+		}
+		for _, permission := range choicePermissions {
+			if !slices.Contains(permissions, permission) {
+				permissions = append(permissions, permission)
+			}
+		}
+		permissions, err = additionalPermissions(permissions[0], permissions[1:])
+		if err != nil {
+			return nil, err
+		}
+		command := registeredCollectionCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form, formFor: formFor}
 		command.run = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (CollectionCommandResult, error) {
 			if err := validatePrincipalRead(ctx, principal, model.permissions); err != nil {
 				return CollectionCommandResult{}, err
@@ -94,7 +114,11 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 			if err != nil {
 				return CollectionCommandResult{}, err
 			}
-			values, err := validateBoundData(ctx, data, config.Form, fields)
+			currentForm, err := formFor(ctx, principal)
+			if err != nil {
+				return CollectionCommandResult{}, err
+			}
+			values, err := validateBoundData(ctx, data, currentForm, fields)
 			if err != nil {
 				return CollectionCommandResult{}, err
 			}
@@ -104,6 +128,9 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 			}
 			if outcome.ID <= 0 {
 				return CollectionCommandResult{}, reconciliationError("collection command "+config.Name, &ConfigError{Path: "collection_command.result", Code: "invalid_identity"})
+			}
+			if outcome.Created && outcome.Changed {
+				return CollectionCommandResult{}, reconciliationError("collection command "+config.Name, &ConfigError{Path: "collection_command.result", Code: "conflicting_outcome"})
 			}
 			return outcome, nil
 		}

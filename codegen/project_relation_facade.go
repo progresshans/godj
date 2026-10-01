@@ -441,6 +441,22 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
 	}
+	fmt.Fprintf(output, `func (_query %[1]s) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[%[2]s]) %[1]s {
+ _query.query=_query.query.SelectForUpdate(_options,_targets...);return _query
+}
+func (_query %[1]s) LockTarget() orm.RowLockTarget[%[2]s] {return _query.query.LockTarget()}
+func (_query %[1]s) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...string)(%[1]s,error){
+ if _err:=_query.validate();_err!=nil{return %[1]s{},_err}
+ _targets,_err:=orm.ParseRowLockTargets(_query.state.models.%[3]s,_paths...);if _err!=nil{return %[1]s{},_err}
+ _result:=_query.SelectForUpdate(_options,_targets...);if _err:=_result.query.ConfigurationError();_err!=nil{return %[1]s{},_err};return _result,nil
+}
+`, model.queryType, rawType, model.surface)
+	fmt.Fprintf(output, `func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[2]s],_patch orm.PatchInput[%[2]s])(*%[3]s,bool,error){
+ if _err:=_query.validate();_err!=nil{return nil,false,_err}
+ _value,_created,_err:=orm.MaterializeUpdateOrCreate(_ctx,_query.query,_query.state.models.%[3]s,_create,_patch);if _err!=nil{return nil,false,_err}
+ _wrapped,_err:=_query.state.materialize%[3]s(context.WithoutCancel(_ctx),_value);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
+}
+`, model.queryType, rawType, model.surface)
 	fmt.Fprintf(output, "func (_query %s) Limit(_limit int) (%s, error) {\n", model.queryType, model.queryType)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", model.queryType)
@@ -1331,6 +1347,15 @@ func (_query %[1]s) validate()error{
  if len(_query.selections)==0||relationFacadeNil(_query.projection){return relationFacadeQueryInvalid("generated eager query is zero or corrupt")}
  return nil
 }
+func (_query %[1]s) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[%[2]s]) %[1]s {
+ if _err:=_query.validate();_err!=nil{_query.configurationErr=_err;return _query}
+ return _query.state.new%[4]sEagerQuery(_query.source.SelectForUpdate(_options,_targets...),_query.selections)
+}
+func (_query %[1]s) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...string)(%[1]s,error){
+ if _err:=_query.validate();_err!=nil{return %[1]s{},_err}
+ _targets,_err:=orm.ParseRowLockTargets(_query.state.models.%[4]s,_paths...);if _err!=nil{return %[1]s{},_err}
+ _result:=_query.SelectForUpdate(_options,_targets...);if _err:=_result.validate();_err!=nil{return %[1]s{},_err};return _result,nil
+}
 `, eagerType, rawType, model.source.objectType, model.surface)
 	for _, method := range []string{"Filter", "OrderBy"} {
 		paramType := "orm.Predicate[" + rawType + "]"
@@ -1373,6 +1398,11 @@ func (_query %[1]s) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[4]
  _object,_created,_err:=_query.projection.GetOrCreate(_ctx,_input);if _err!=nil{return nil,_created,_err}
  if _created{_ctx=context.WithoutCancel(_ctx)}
  _wrapped,_err:=_query.state.wrapSelected%[2]sObject(_ctx,_object);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
+}
+func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[4]s],_patch orm.PatchInput[%[4]s])(*%[2]s,bool,error){
+ if _err:=_query.validate();_err!=nil{return nil,false,_err}
+ _object,_created,_err:=_query.projection.UpdateOrCreate(_ctx,_create,_patch);if _err!=nil{return nil,false,_err}
+ _wrapped,_err:=_query.state.wrapSelected%[2]sObject(context.WithoutCancel(_ctx),_object);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
 }
 func (_query %[1]s) First(_ctx context.Context)(*%[2]s,bool,error){
  if _err:=_query.validate();_err!=nil{return nil,false,_err}

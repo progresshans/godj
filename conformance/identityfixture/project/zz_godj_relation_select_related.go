@@ -29,6 +29,7 @@ type relationSelectQuery[M, O any] interface {
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
+	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -49,6 +50,10 @@ func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) WithSelections(_sel
 	}
 	_owned := append([]orm.RelatedSelection[accounts.GroupPermissionsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory AccountsGroupPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[accounts.Group]) orm.RelatedSelect[accounts.GroupPermissionsLink, accounts.Group] {
@@ -191,6 +196,17 @@ func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 	}
 	return _object, _created, nil
 }
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.GroupPermissionsLink], _patch orm.PatchInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsGroupPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -260,6 +276,10 @@ func (_query AccountsUserGroupsLinkSelectRelatedQuery) WithSelections(_selection
 	}
 	_owned := append([]orm.RelatedSelection[accounts.UserGroupsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserGroupsLink]) AccountsUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory AccountsUserGroupsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[accounts.User]) orm.RelatedSelect[accounts.UserGroupsLink, accounts.User] {
@@ -402,6 +422,17 @@ func (_query AccountsUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserGroupsLink], _patch orm.PatchInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query AccountsUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsUserGroupsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -471,6 +502,10 @@ func (_query AccountsUserPermissionsLinkSelectRelatedQuery) WithSelections(_sele
 	}
 	_owned := append([]orm.RelatedSelection[accounts.UserPermissionsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory AccountsUserPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[accounts.User]) orm.RelatedSelect[accounts.UserPermissionsLink, accounts.User] {
@@ -613,6 +648,17 @@ func (_query AccountsUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 	}
 	return _object, _created, nil
 }
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserPermissionsLink], _patch orm.PatchInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query AccountsUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsUserPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -682,6 +728,10 @@ func (_query WorkAccessGuardSelectRelatedQuery) WithSelections(_selections ...or
 	}
 	_owned := append([]orm.RelatedSelection[work.AccessGuard](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query WorkAccessGuardSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessGuard]) WorkAccessGuardSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory WorkAccessGuardObjectFactory) SelectGroup(_children ...orm.RelatedSelection[accounts.Group]) orm.RelatedSelect[work.AccessGuard, accounts.Group] {
@@ -824,6 +874,17 @@ func (_query WorkAccessGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessGuardSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessGuard], _patch orm.PatchInput[work.AccessGuard]) (*WorkAccessGuardObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkAccessGuardSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessGuardObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -893,6 +954,10 @@ func (_query WorkAccessNoteSelectRelatedQuery) WithSelections(_selections ...orm
 	}
 	_owned := append([]orm.RelatedSelection[work.AccessNote](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query WorkAccessNoteSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessNote]) WorkAccessNoteSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory WorkAccessNoteObjectFactory) SelectGroup(_children ...orm.RelatedSelection[accounts.Group]) orm.RelatedSelect[work.AccessNote, accounts.Group] {
@@ -1035,6 +1100,17 @@ func (_query WorkAccessNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessNoteSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessNote], _patch orm.PatchInput[work.AccessNote]) (*WorkAccessNoteObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkAccessNoteSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessNoteObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1104,6 +1180,10 @@ func (_query WorkGuardSelectRelatedQuery) WithSelections(_selections ...orm.Rela
 	}
 	_owned := append([]orm.RelatedSelection[work.Guard](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query WorkGuardSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Guard]) WorkGuardSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory WorkGuardObjectFactory) SelectOwner(_children ...orm.RelatedSelection[accounts.User]) orm.RelatedSelect[work.Guard, accounts.User] {
@@ -1234,6 +1314,17 @@ func (_query WorkGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _object, _created, nil
 }
+func (_query WorkGuardSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Guard], _patch orm.PatchInput[work.Guard]) (*WorkGuardObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkGuardSelectRelatedQuery) First(_ctx context.Context) (*WorkGuardObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1294,6 +1385,10 @@ func (_query WorkNoteSelectRelatedQuery) WithSelections(_selections ...orm.Relat
 	}
 	_owned := append([]orm.RelatedSelection[work.Note](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query WorkNoteSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Note]) WorkNoteSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory WorkNoteObjectFactory) SelectOwner(_children ...orm.RelatedSelection[accounts.User]) orm.RelatedSelect[work.Note, accounts.User] {
@@ -1415,6 +1510,17 @@ func (_query WorkNoteSelectRelatedQuery) Get(_ctx context.Context) (*WorkNoteObj
 }
 func (_query WorkNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[work.Note]) (*WorkNoteObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
+func (_query WorkNoteSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Note], _patch orm.PatchInput[work.Note]) (*WorkNoteObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
 		return nil, false, _err
 	}

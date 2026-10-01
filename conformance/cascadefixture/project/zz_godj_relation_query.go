@@ -53,6 +53,9 @@ func newDetailsChildRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields DetailsChildRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields DetailsChildRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields DetailsChildRelatedFields[S]) Grandchildren() DetailsGrandchildRelatedFields[S] {
 	var _next orm.QueryRelation[details.Child, details.Grandchild]
 	if _fields.bindings != nil {
@@ -88,6 +91,9 @@ func newDetailsDetailRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields DetailsDetailRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields DetailsDetailRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields DetailsDetailRelatedFields[S]) Root() ParentsRootRelatedFields[S] {
 	var _next orm.QueryRelation[details.Detail, parents.Root]
 	if _fields.bindings != nil {
@@ -115,6 +121,9 @@ func newDetailsGrandchildRelatedFields[S any](_bindings *relationQueryBindings, 
 }
 func (_fields DetailsGrandchildRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields DetailsGrandchildRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields DetailsGrandchildRelatedFields[S]) Child() DetailsChildRelatedFields[S] {
 	var _next orm.QueryRelation[details.Grandchild, details.Child]
@@ -144,6 +153,9 @@ func newDetailsRequiredRightRelatedFields[S any](_bindings *relationQueryBinding
 func (_fields DetailsRequiredRightRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields DetailsRequiredRightRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields DetailsRequiredRightRelatedFields[S]) Left() ParentsRequiredLeftRelatedFields[S] {
 	var _next orm.QueryRelation[details.RequiredRight, parents.RequiredLeft]
 	if _fields.bindings != nil {
@@ -171,6 +183,9 @@ func newDetailsRightRelatedFields[S any](_bindings *relationQueryBindings, _rout
 }
 func (_fields DetailsRightRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields DetailsRightRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields DetailsRightRelatedFields[S]) Left() ParentsLeftRelatedFields[S] {
 	var _next orm.QueryRelation[details.Right, parents.Left]
@@ -206,6 +221,9 @@ func newParentsLabelRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields ParentsLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ParentsLabelRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 
 type ParentsLeftRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -226,6 +244,9 @@ func newParentsLeftRelatedFields[S any](_bindings *relationQueryBindings, _route
 }
 func (_fields ParentsLeftRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ParentsLeftRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ParentsLeftRelatedFields[S]) Right() DetailsRightRelatedFields[S] {
 	var _next orm.QueryRelation[parents.Left, details.Right]
@@ -255,6 +276,9 @@ func newParentsNodeRelatedFields[S any](_bindings *relationQueryBindings, _route
 func (_fields ParentsNodeRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ParentsNodeRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ParentsNodeRelatedFields[S]) Parent() ParentsNodeRelatedFields[S] {
 	var _next orm.QueryRelation[parents.Node, parents.Node]
 	if _fields.bindings != nil {
@@ -282,6 +306,9 @@ func newParentsRequiredLeftRelatedFields[S any](_bindings *relationQueryBindings
 }
 func (_fields ParentsRequiredLeftRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ParentsRequiredLeftRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ParentsRequiredLeftRelatedFields[S]) Right() DetailsRequiredRightRelatedFields[S] {
 	var _next orm.QueryRelation[parents.RequiredLeft, details.RequiredRight]
@@ -316,6 +343,9 @@ func newParentsRootRelatedFields[S any](_bindings *relationQueryBindings, _route
 }
 func (_fields ParentsRootRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ParentsRootRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ParentsRootRelatedFields[S]) Children() DetailsChildRelatedFields[S] {
 	var _next orm.QueryRelation[parents.Root, details.Child]

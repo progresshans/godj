@@ -77,6 +77,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 		fmt.Fprintln(&output, "\tCount(context.Context) (int64, error)")
 		fmt.Fprintln(&output, "\tGet(context.Context) (*O, error)")
 		fmt.Fprintln(&output, "\tGetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)")
+		fmt.Fprintln(&output, "\tUpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)")
 		fmt.Fprintln(&output, "\tFirst(context.Context) (*O, bool, error)")
 		fmt.Fprintln(&output, "}")
 		fmt.Fprintln(&output)
@@ -158,6 +159,9 @@ func (_query %[1]s) WithSelections(_selections ...orm.RelatedSelection[%[3]s]) %
  _owned:=append([]orm.RelatedSelection[%[3]s](nil),_query.selections...)
  _query.selections=append(_owned,_selections...)
  return _query.rebuild()
+}
+func (_query %[1]s) SelectForUpdate(_options orm.RowLockOptions,_targets ...orm.RowLockTarget[%[3]s]) %[1]s {
+ _query.source=_query.source.SelectForUpdate(_options,_targets...);return _query.rebuild()
 }
 `, queryType, source.factoryType, sourceType)
 	for _, relation := range source.selections {
@@ -241,6 +245,11 @@ func (_query %[1]s) rebuild() %[1]s{
 `, queryType, source.objectType)
 	fmt.Fprintf(output, `func (_query %[1]s) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[3]s])(*%[2]s,bool,error){
  _selected,_created,_err:=_query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx,_input);if _err!=nil{return nil,false,_err}
+ _object,_err:=_query.wrap(_selected);if _err!=nil{return nil,_created,_err};return _object,_created,nil
+}
+`, queryType, source.objectType, sourceType)
+	fmt.Fprintf(output, `func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[3]s],_patch orm.PatchInput[%[3]s])(*%[2]s,bool,error){
+ _selected,_created,_err:=_query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx,_create,_patch);if _err!=nil{return nil,false,_err}
  _object,_err:=_query.wrap(_selected);if _err!=nil{return nil,_created,_err};return _object,_created,nil
 }
 `, queryType, source.objectType, sourceType)

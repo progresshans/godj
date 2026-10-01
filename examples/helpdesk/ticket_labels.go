@@ -11,7 +11,6 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 )
@@ -225,7 +224,7 @@ func (a *Application) updateTicketLabel(ctx context.Context, id int64, patch mod
 			return admin.ErrObjectNotFound
 		}
 		mutation := patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil && !errors.Is(err, &query.Error{Code: query.CodeEmptyPatch}) {
+		if err := mutation.Err(); err != nil {
 			return err
 		}
 		ticketID, labelID := current.TicketID, current.LabelID

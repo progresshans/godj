@@ -512,6 +512,12 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	t.Run("service_reports", func(t *testing.T) { verifyHelpdeskReports(t, ctx, runtime, open, client, category.ID, outside.ID) })
+	t.Run("report_save", func(t *testing.T) {
+		verifyHelpdeskReportSave(t, ctx, runtime, client)
+		t.Run("concurrent_requests", func(t *testing.T) {
+			verifyHelpdeskReportSaveConcurrentRequests(t, ctx, runtime, open, after.PasswordHasher, client)
+		})
+	})
 	t.Run("category_labels", func(t *testing.T) { verifyHelpdeskLabels(t, ctx, runtime, open, client, category.ID, other.ID, seedID) })
 	t.Run("ticket_labels", func(t *testing.T) { verifyHelpdeskTicketLabels(t, ctx, runtime, open, client, category.ID, other.ID) })
 	t.Run("ticket_collections", func(t *testing.T) {

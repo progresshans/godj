@@ -370,6 +370,7 @@ type Plan struct {
 	result                ResultShape
 	relationProjections   []RelationProjection
 	prefetchWindow        *PrefetchWindow
+	rowLock               *RowLock
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -679,6 +680,9 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	}
 	clone := p
 	clone.result = result
+	if result.Kind() == ResultAggregate {
+		clone.rowLock = nil
+	}
 	if err := clone.ValidatePrefetch(); err != nil {
 		return Plan{}, err
 	}
@@ -700,6 +704,11 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 }
 
 func (p Plan) Equal(other Plan) bool {
+	leftLock, leftLocked := p.RowLock()
+	rightLock, rightLocked := other.RowLock()
+	if leftLocked != rightLocked || leftLocked && !leftLock.Equal(rightLock) {
+		return false
+	}
 	if p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
 		p.distinct != other.distinct || !p.result.Equal(other.result) || p.collectionFilters != other.collectionFilters || p.reuseCollectionFilter != other.reuseCollectionFilter {
 		return false

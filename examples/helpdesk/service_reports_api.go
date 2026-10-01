@@ -16,7 +16,7 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-func (a *Application) reportOperations(protect func(openapi.Operation, api.AuthenticatedHandler) (openapi.Operation, error)) ([]openapi.Operation, []openapi.NamedSchema, error) {
+func (a *Application) reportOperations(protect func(openapi.Operation, api.AuthenticatedHandler) (openapi.Operation, error), appendAudit appendReportAudit) ([]openapi.Operation, []openapi.NamedSchema, error) {
 	output, err := openapi.ModelResponseSchema(a.reportOutput)
 	if err != nil {
 		return nil, nil, err
@@ -29,7 +29,23 @@ func (a *Application) reportOperations(protect func(openapi.Operation, api.Authe
 	if err != nil {
 		return nil, nil, err
 	}
+	saveInput, err := openapi.RequestSchema(a.reportSaveInput, serializers.ModeFull)
+	if err != nil {
+		return nil, nil, err
+	}
 	reportRef, err := openapi.Ref("ServiceReport")
+	if err != nil {
+		return nil, nil, err
+	}
+	saveResult, err := openapi.Object(openapi.Property{Name: "report", Schema: reportRef, Required: true}, openapi.Property{Name: "created", Schema: openapi.Boolean(), Required: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	saveRef, err := openapi.Ref("ServiceReportSaveResult")
+	if err != nil {
+		return nil, nil, err
+	}
+	saveInputRef, err := openapi.Ref("ServiceReportSave")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,6 +94,7 @@ func (a *Application) reportOperations(protect func(openapi.Operation, api.Authe
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:service-report-patch", Method: http.MethodPatch, Path: "/api/service-reports/<int64:id>/"}, Summary: "Partially update a service report", Permission: ChangeServiceReport, Description: writeDescription, RequestBody: &openapi.RequestBody{Schema: patchRef, Required: true}, Responses: writeResponses(http.StatusOK)}, a.apiReportPatch},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:service-report-delete", Method: http.MethodDelete, Path: "/api/service-reports/<int64:id>/"}, Summary: "Delete a service report", Permission: DeleteServiceReport, Description: "Delete the scoped report in one transaction, retaining its ticket. Authentication, CSRF and permission checks precede the object query.", Responses: []openapi.Response{{Status: http.StatusNoContent, Description: "The report was deleted."}, notFound}}, a.apiReportDelete},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-service-report", Method: http.MethodGet, Path: "/api/tickets/<int64:id>/service-report/"}, Summary: "Read a ticket's service report", Permission: ViewServiceReport, Description: "An existing scoped ticket with no report returns JSON null. A missing or out-of-category ticket returns 404. Report view permission covers this relation key and absence; the ticket subject is not exposed.", Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The report, or null when absent.", optional), notFound}}, a.apiTicketReport},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-service-report-save", Method: http.MethodPut, Path: "/api/tickets/<int64:id>/service-report/"}, Summary: "Save a ticket's service report", Permission: ChangeServiceReport, AdditionalPermissions: []auth.Permission{AddServiceReport, ViewServiceReport}, Description: "Authentication, add/change/view report permissions and CSRF precede parsing. The path addresses a positive-ID ticket in the selected category; id, ticket and category cannot be supplied in the body. Query parameters are rejected. Summary is required trimmed multiline text; completed defaults to false. Ticket scope is protected in the write transaction and the unique report is created or updated with native UpdateOrCreate. Creation returns 201 with created=true; update or unchanged input returns 200 with created=false. A changed report and its audit event commit together; unchanged input performs no UPDATE and appends no audit. The report identity and ticket are preserved on update. Output, audit, cancellation, native conflicts and uncertain outcomes never publish provisional results or trigger automatic retries. Ordinary report creation continues to reject duplicates. Report view permission covers the relation key without exposing the ticket subject; the Admin ticket chooser additionally requires ViewTicket.", RequestBody: &openapi.RequestBody{Schema: saveInputRef, Required: true, Description: "One JSON object; 4096-byte limit. Unknown fields, duplicate members and trailing data are rejected."}, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The committed existing report; created is false.", saveRef), helpdeskJSONResponse(http.StatusCreated, "The newly committed report; created is true.", saveRef), badInput, notFound, helpdeskJSONResponse(http.StatusRequestEntityTooLarge, "The JSON body exceeds 4096 bytes.", errorRef), helpdeskJSONResponse(http.StatusUnsupportedMediaType, "The body is not application/json.", errorRef)}}, a.apiReportSave(appendAudit)},
 	}
 	operations := make([]openapi.Operation, 0, len(definitions))
 	for _, definition := range definitions {
@@ -87,7 +104,7 @@ func (a *Application) reportOperations(protect func(openapi.Operation, api.Authe
 		}
 		operations = append(operations, operation)
 	}
-	return operations, []openapi.NamedSchema{{Name: "ServiceReport", Schema: output}, {Name: "ServiceReportCreate", Schema: input}, {Name: "ServiceReportUpdate", Schema: input}, {Name: "ServiceReportPatch", Schema: partial}}, nil
+	return operations, []openapi.NamedSchema{{Name: "ServiceReport", Schema: output}, {Name: "ServiceReportCreate", Schema: input}, {Name: "ServiceReportUpdate", Schema: input}, {Name: "ServiceReportPatch", Schema: partial}, {Name: "ServiceReportSave", Schema: saveInput}, {Name: "ServiceReportSaveResult", Schema: saveResult}}, nil
 }
 
 func (a *Application) reportResponse(status int, value models.ServiceReport) (web.Response, error) {

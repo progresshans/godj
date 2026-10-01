@@ -497,18 +497,24 @@ func (q RelatedSelectQuery[S]) cloneSelection(value relatedSelectedValue[S]) (*R
 	return cloneRelatedSelection(q.backend, q.binding, q.sourceDescriptor, value)
 }
 func cloneRelatedSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ModelDescriptor[S], value relatedSelectedValue[S]) (*RelatedSelected[S], error) {
-	selected := &RelatedSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedRelatedCache, len(value.targets)), collections: make(map[string]cachedPrefetch, len(value.collections))}
-	for _, target := range value.targets {
-		projection := target.projection()
-		selected.targets[projection.TerminalHop().Accessor()] = selectedRelatedCache{projection: projection, related: target.relatedObject(backend)}
-	}
+	collections := make(map[string]cachedPrefetch, len(value.collections))
 	for name, collection := range value.collections {
 		cloned, err := collection.clone()
 		if err != nil {
 			return nil, err
 		}
-		selected.collections[name] = cloned
+		collections[name] = cloned
+	}
+	value.source, value.collections = descriptor.CloneModel(value.source), collections
+	return selectionFromOwnedValue(backend, binding, descriptor, value), nil
+}
+
+func selectionFromOwnedValue[S any](backend db.Queryer, binding BoundModel[S], descriptor ModelDescriptor[S], value relatedSelectedValue[S]) *RelatedSelected[S] {
+	selected := &RelatedSelected[S]{source: value.source, backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedRelatedCache, len(value.targets)), collections: value.collections}
+	for _, target := range value.targets {
+		projection := target.projection()
+		selected.targets[projection.TerminalHop().Accessor()] = selectedRelatedCache{projection: projection, related: target.relatedObject(backend)}
 	}
 	selected._self = selected
-	return selected, nil
+	return selected
 }

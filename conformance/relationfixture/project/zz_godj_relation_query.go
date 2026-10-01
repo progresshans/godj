@@ -43,6 +43,9 @@ func newAuthorsAuthorRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields AuthorsAuthorRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields AuthorsAuthorRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields AuthorsAuthorRelatedFields[S]) Posts() BlogPostRelatedFields[S] {
 	var _next orm.QueryRelation[authors.Author, blog.Post]
 	if _fields.bindings != nil {
@@ -83,6 +86,9 @@ func newBlogPostRelatedFields[S any](_bindings *relationQueryBindings, _route or
 }
 func (_fields BlogPostRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields BlogPostRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields BlogPostRelatedFields[S]) Author() AuthorsAuthorRelatedFields[S] {
 	var _next orm.QueryRelation[blog.Post, authors.Author]

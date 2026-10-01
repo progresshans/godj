@@ -280,6 +280,7 @@ func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRel
 		}
 		fmt.Fprintln(output, "\t_result.route=_route.WithConfigurationError(_result.configurationErr)\n\treturn _result\n}")
 		fmt.Fprintf(output, "func (_fields %s[S]) IsNull(_value bool) orm.Predicate[S] {return _fields.route.IsNull(_value)}\n", group)
+		fmt.Fprintf(output, "func (_fields %s[S]) LockTarget() orm.RowLockTarget[S] {return _fields.route.LockTarget()}\n", group)
 		for _, relation := range bySource[model] {
 			next := projectRelationQueryGroupName(relation.target)
 			fmt.Fprintf(output, "func (_fields %s[S]) %s() %s[S] {\n", group, relation.selector, next)

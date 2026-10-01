@@ -173,6 +173,25 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 	}
+	if err := plan.ValidateRowLock(); err != nil {
+		return Joins{}, err
+	}
+	if lock, present := plan.RowLock(); present {
+		for _, target := range lock.Targets() {
+			if path, related := target.RelationPath(); related {
+				if err := addPath(path, false, false); err != nil {
+					return Joins{}, err
+				}
+			}
+			hops := target.Hops()
+			for index, hop := range hops {
+				edge, found := edges[KeyForPath(hops[:index+1])]
+				if !found || !edge.hop.Equal(hop) {
+					return Joins{}, invalidPlan("row lock target is not the canonical materialized relation occurrence")
+				}
+			}
+		}
+	}
 	keys := make([]RelationKey, 0, len(edges))
 	for key := range edges {
 		keys = append(keys, key)

@@ -3201,6 +3201,272 @@ func (s *HelpdeskTicketPatchUnsupportedMediaType) UnmarshalJSON(data []byte) err
 	return s.Decode(d)
 }
 
+// Encode encodes HelpdeskTicketServiceReportSaveBadRequest as json.
+func (s *HelpdeskTicketServiceReportSaveBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveBadRequest from json.
+func (s *HelpdeskTicketServiceReportSaveBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveCreated as json.
+func (s *HelpdeskTicketServiceReportSaveCreated) Encode(e *jx.Encoder) {
+	unwrapped := (*ServiceReportSaveResult)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveCreated from json.
+func (s *HelpdeskTicketServiceReportSaveCreated) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveCreated to nil")
+	}
+	var unwrapped ServiceReportSaveResult
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveCreated(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveCreated) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveCreated) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveForbidden as json.
+func (s *HelpdeskTicketServiceReportSaveForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveForbidden from json.
+func (s *HelpdeskTicketServiceReportSaveForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveNotFound as json.
+func (s *HelpdeskTicketServiceReportSaveNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveNotFound from json.
+func (s *HelpdeskTicketServiceReportSaveNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveOK as json.
+func (s *HelpdeskTicketServiceReportSaveOK) Encode(e *jx.Encoder) {
+	unwrapped := (*ServiceReportSaveResult)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveOK from json.
+func (s *HelpdeskTicketServiceReportSaveOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveOK to nil")
+	}
+	var unwrapped ServiceReportSaveResult
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveOK(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveRequestEntityTooLarge as json.
+func (s *HelpdeskTicketServiceReportSaveRequestEntityTooLarge) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveRequestEntityTooLarge from json.
+func (s *HelpdeskTicketServiceReportSaveRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveRequestEntityTooLarge to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveRequestEntityTooLarge(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketServiceReportSaveUnsupportedMediaType as json.
+func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketServiceReportSaveUnsupportedMediaType from json.
+func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketServiceReportSaveUnsupportedMediaType to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketServiceReportSaveUnsupportedMediaType(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HelpdeskTicketUpdateBadRequest as json.
 func (s *HelpdeskTicketUpdateBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
@@ -5339,6 +5605,231 @@ func (s *ServiceReportPatch) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ServiceReportPatch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ServiceReportSave) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ServiceReportSave) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("summary")
+		e.Str(s.Summary)
+	}
+	{
+		if s.Completed.Set {
+			e.FieldStart("completed")
+			s.Completed.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfServiceReportSave = [2]string{
+	0: "summary",
+	1: "completed",
+}
+
+// Decode decodes ServiceReportSave from json.
+func (s *ServiceReportSave) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ServiceReportSave to nil")
+	}
+	var requiredBitSet [1]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "summary":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Summary = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"summary\"")
+			}
+		case "completed":
+			if err := func() error {
+				s.Completed.Reset()
+				if err := s.Completed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"completed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ServiceReportSave")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfServiceReportSave) {
+					name = jsonFieldsNameOfServiceReportSave[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ServiceReportSave) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ServiceReportSave) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ServiceReportSaveResult) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ServiceReportSaveResult) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("report")
+		s.Report.Encode(e)
+	}
+	{
+		e.FieldStart("created")
+		e.Bool(s.Created)
+	}
+}
+
+var jsonFieldsNameOfServiceReportSaveResult = [2]string{
+	0: "report",
+	1: "created",
+}
+
+// Decode decodes ServiceReportSaveResult from json.
+func (s *ServiceReportSaveResult) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ServiceReportSaveResult to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "report":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Report.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"report\"")
+			}
+		case "created":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Created = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ServiceReportSaveResult")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfServiceReportSaveResult) {
+					name = jsonFieldsNameOfServiceReportSaveResult[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ServiceReportSaveResult) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ServiceReportSaveResult) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

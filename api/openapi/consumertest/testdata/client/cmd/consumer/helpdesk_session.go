@@ -235,6 +235,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 			expected[index].Labels = []int64{retainedLabel}
 		}
 	}
+	if err := checkHelpdeskReportSave(ctx, client, readOnly, transport, state, seed.ID, target.OtherTicketID); err != nil {
+		return err
+	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

@@ -22,6 +22,7 @@ var _ db.Savepointer = (*transactionSession)(nil)
 type transactionSession struct {
 	transaction transactionHandle
 	backend     *Backend
+	readOnly    bool
 	scope       *txscope.Scope
 }
 
@@ -143,6 +144,9 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 		if err != nil {
 			return nil, err
 		}
+		if err := validateRowLockTransaction(plan, true, session.readOnly); err != nil {
+			return nil, err
+		}
 		if plan.EmptyResult() {
 			return queryplan.EmptyRows(ctx, plan.ResultShape())
 		}
@@ -205,6 +209,6 @@ func (session *transactionSession) Savepoint(ctx context.Context, callback func(
 		return session.scope.Savepoint(ctx, nil)
 	}
 	return session.scope.Savepoint(ctx, func(child *txscope.Scope) error {
-		return callback(&transactionSession{transaction: session.transaction, backend: session.backend, scope: child})
+		return callback(&transactionSession{transaction: session.transaction, backend: session.backend, readOnly: session.readOnly, scope: child})
 	})
 }

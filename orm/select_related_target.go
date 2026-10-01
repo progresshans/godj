@@ -23,6 +23,7 @@ type preparedRelatedSelection[S any] interface {
 	projections([]query.RelationHop) ([]query.RelationProjection, error)
 	columnCount() int
 	newScan() relatedTargetScan[S]
+	prefetch() preparedPrefetch[S]
 }
 type relatedTargetScan[S any] interface {
 	destinations() []any
@@ -35,6 +36,7 @@ type projectedRelatedTarget[S any] interface {
 type cachedRelatedTarget interface {
 	projection() query.RelationProjection
 	relatedObject(db.Queryer) any
+	cloneForWrite(db.Queryer) (cachedRelatedTarget, error)
 }
 
 type preparedRelatedTarget[S, T any] struct {
@@ -175,6 +177,22 @@ func (selection RelatedSelect[S, T]) prepareRelatedSelection(depth int, remainin
 	return preparedRelatedTarget[S, T]{state: selection.state, base: base, children: children}, nil
 }
 func (target preparedRelatedTarget[S, T]) path() relatedSelectPathState[S] { return target.state.path }
+
+// prefetch keeps a selected graph when its parent must be refreshed to acquire
+// a lock. Descendants are read separately, so preserving that graph cannot add
+// tables to the parent's locking SELECT. An existing child keeps its new value
+// while any missing descendants are filled from the same bound selection.
+func (target preparedRelatedTarget[S, T]) prefetch() preparedPrefetch[S] {
+	children := make([]preparedPrefetch[T], len(target.children))
+	nodes := 0
+	for i, child := range target.children {
+		children[i] = child.prefetch()
+		nodes += children[i].nodeBudget()
+	}
+	plan := target.state.target.objectPlan.WithOrderings(query.NewOrdering(fieldReference(target.state.targetKey), query.Ascending))
+	return preparedSinglePrefetch[S, T]{state: target.state, plan: plan, targets: target.children, eagerNodes: nodes, cachedChildren: children, nodes: nodes + 1}
+}
+
 func (target preparedRelatedTarget[S, T]) validate() error {
 	if err := validateRelatedSelectState(target.state); err != nil {
 		return err
@@ -329,7 +347,7 @@ func (row typedProjectedRelatedTarget[S, T]) validate(source S, seen selectedCar
 	if row.presence == ProjectionAbsent && !row.key.IsNull() {
 		return nil, relationInvalidPlan("absent target projection did not return a NULL key")
 	}
-	result := typedCachedRelatedTarget[T]{selected: state.path.projection, descriptor: state.targetDescriptor, binding: state.target}
+	result := typedCachedRelatedTarget[T]{selected: state.path.projection, descriptor: state.targetDescriptor, binding: state.target, eager: row.target.children}
 	route := prefix + strconv.Itoa(len(state.path.path)) + ":" + state.path.path
 	if err := row.validateMembership(source, seen, route); err != nil {
 		return nil, err
@@ -455,6 +473,7 @@ type typedCachedRelatedTarget[T any] struct {
 	allowMissing bool
 	plan         query.Plan
 	binding      BoundModel[T]
+	eager        []preparedRelatedSelection[T]
 	children     []cachedRelatedTarget
 	collections  map[string]cachedPrefetch
 }

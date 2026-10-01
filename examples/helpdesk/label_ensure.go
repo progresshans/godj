@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"sync"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
@@ -35,42 +34,9 @@ func (a *Application) ensureLabel(ctx context.Context, actor auth.Principal, nam
 	if err := labelEnsurePermission(ctx, actor); err != nil {
 		return ensuredLabel{}, err
 	}
-	workContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var mu sync.Mutex
-	var result ensuredLabel
-	var callbackErr error
-	entries, completed, sealed := 0, false, false
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		mu.Lock()
-		if sealed {
-			mu.Unlock()
-			return errors.New("helpdesk: label transaction callback outlived its owner")
-		}
-		entries++
-		if entries != 1 {
-			mu.Unlock()
-			return errors.New("helpdesk: repeated label transaction callback")
-		}
-		mu.Unlock()
-		value, err := a.ensureLabelInSession(workContext, session, actor, name, appendAudit)
-		mu.Lock()
-		result, callbackErr, completed = value, err, true
-		mu.Unlock()
-		return err
+	return runApplicationAtomic(ctx, a.backend, "label", func(workContext context.Context, session db.Session) (ensuredLabel, error) {
+		return a.ensureLabelInSession(workContext, session, actor, name, appendAudit)
 	})
-	mu.Lock()
-	sealed = true
-	valid := entries <= 1 && (entries == 0 && err != nil || completed)
-	value, failure := result, callbackErr
-	mu.Unlock()
-	if !valid || failure != nil && (err == nil || !errors.Is(err, failure)) {
-		return ensuredLabel{}, errors.Join(errors.New("helpdesk: invalid label transaction ownership"), err, failure)
-	}
-	if err != nil {
-		return ensuredLabel{}, operationError(ctx, err)
-	}
-	return value, nil
 }
 
 func labelEnsurePermission(ctx context.Context, actor auth.Principal) error {

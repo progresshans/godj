@@ -423,13 +423,13 @@ func verifyHelpdeskLabelEnsure(t *testing.T, ctx context.Context, runtime *syste
 	}
 }
 
-type ensurePeerBackend struct {
+type coordinatedPeerBackend struct {
 	helpdeskBackend
 	entered chan struct{}
 	once    sync.Once
 }
 
-func (b *ensurePeerBackend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
+func (b *coordinatedPeerBackend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
 	if b.entered != nil {
 		b.once.Do(func() { close(b.entered) })
 	}
@@ -459,7 +459,7 @@ func verifyHelpdeskLabelEnsureConcurrentRequests(t *testing.T, rootContext conte
 		t.Fatal(err)
 	}
 	defer observer.Close()
-	peer := &ensurePeerBackend{helpdeskBackend: peerBackend}
+	peer := &coordinatedPeerBackend{helpdeskBackend: peerBackend}
 	peerRuntime, err := systemstate.OpenIdentity(ctx, peer, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
 	if err != nil {
 		t.Fatal(err)

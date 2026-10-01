@@ -214,9 +214,13 @@ func collidingRelationQuerySurfaces() []codegen.RelationQueryPackage {
 }
 
 func TestRelationQueryGenericGroupRejectsMethodFieldCollision(t *testing.T) {
-	authors, blog := testschema.QueryRelation()
-	authors.Models[0].Fields[1].GoName = "IsNull"
-	if bytes, err := codegen.GenerateProjectRelationQuery("project", testfixture.QueryPackages(authors, blog)); err == nil || bytes != nil {
-		t.Fatal("generic group field shadows IsNull method")
+	for _, method := range []string{"IsNull", "LockTarget"} {
+		t.Run(method, func(t *testing.T) {
+			authors, blog := testschema.QueryRelation()
+			authors.Models[0].Fields[1].GoName = method
+			if bytes, err := codegen.GenerateProjectRelationQuery("project", testfixture.QueryPackages(authors, blog)); err == nil || bytes != nil {
+				t.Fatalf("generic group field shadows %s method", method)
+			}
+		})
 	}
 }

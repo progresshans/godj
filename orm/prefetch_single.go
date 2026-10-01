@@ -10,7 +10,8 @@ import (
 )
 
 // SinglePrefetch loads one forward or reverse OneToOne edge and its target's
-// descendants. Existing eager targets are reused without re-reading them.
+// descendants. Existing eager targets are reused unless the target query
+// explicitly requests a lock.
 type SinglePrefetch[S, T any] struct {
 	selection        RelatedSelect[S, T]
 	children         []PrefetchSelection[T]
@@ -207,9 +208,11 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 	descriptor := p.state.target.objectDescriptor.(PrimaryKeyObjectDescriptor[T])
 	keys := make([]query.Value, len(values))
 	positions := make([]int, len(values))
+	refresh := make([]bool, len(values))
 	cached := make([]typedCachedRelatedTarget[T], len(values))
 	requested := make(map[int64]struct{})
-	needsFetch := false
+	var preserved []preparedRelatedSelection[T]
+	_, locking := p.plan.RowLock()
 	for i, value := range values {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -245,15 +248,28 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 				}
 			}
 			positions[i], cached[i] = index, typed
+			if locking {
+				preserved = append(preserved, typed.eager...)
+			}
 			break
 		}
-		if positions[i] < 0 {
-			needsFetch = true
+		if positions[i] < 0 || locking {
+			refresh[i] = true
 			if !key.IsNull() {
 				id, _ := key.Integer()
 				requested[id] = struct{}{}
 			}
 		}
+	}
+	// The source selection already owns the depth/node budget. Merge duplicate
+	// owners before preparing the separate descendant reads.
+	preserved, err := mergeSelectionSet(preserved)
+	if err != nil {
+		return err
+	}
+	reload := make([]preparedPrefetch[T], len(preserved))
+	for i, target := range preserved {
+		reload[i] = target.prefetch()
 	}
 	ordered := make([]int64, 0, len(requested))
 	for key := range requested {
@@ -266,7 +282,10 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 		field = fieldReference(p.state.path.sourceKey)
 	}
 	base := newQuerySet(backend, p.state.targetDescriptor, p.plan, p.state.target.prepared)
-	for start := 0; start < len(ordered); start += manyPrefetchBatchSize {
+	// An explicit lock still validates its backend capability when every
+	// present owner has a null FK. PostgreSQL can elide the empty SELECT;
+	// unsupported backends must not mistake an eager absence cache for a lock.
+	for start := 0; start < len(ordered) || locking && len(values) > 0 && start == 0; start += manyPrefetchBatchSize {
 		batch := ordered[start:min(start+manyPrefetchBatchSize, len(ordered))]
 		arguments := make([]query.Value, len(batch))
 		for i, id := range batch {
@@ -322,12 +341,17 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			groups[owner] = row
 		}
 	}
-	children := make([]relatedSelectedValue[T], 0, len(values))
+	freshChildren := make([]relatedSelectedValue[T], 0, len(values))
+	reusedChildren := make([]relatedSelectedValue[T], 0, len(values))
 	childPositions := make([]int, len(values))
 	for i := range values {
 		childPositions[i] = -1
-		if positions[i] < 0 {
-			cache := typedCachedRelatedTarget[T]{selected: p.state.path.projection, descriptor: p.state.targetDescriptor, binding: p.state.target}
+		if refresh[i] {
+			eager, err := mergeSelectionSet(append(append([]preparedRelatedSelection[T](nil), cached[i].eager...), p.targets...))
+			if err != nil {
+				return err
+			}
+			cache := typedCachedRelatedTarget[T]{selected: p.state.path.projection, descriptor: p.state.targetDescriptor, binding: p.state.target, eager: eager}
 			if !keys[i].IsNull() {
 				key, _ := keys[i].Integer()
 				target, present := groups[key]
@@ -348,28 +372,40 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			}
 			cached[i] = cache
 		}
-		if cached[i].present && (!needsFetch || positions[i] < 0) {
-			childPositions[i] = len(children)
+		if cached[i].present {
 			// Descendant loading may replace entries. Keep an eager graph's
 			// immutable maps and slices private to this new evaluation.
 			collections := make(map[string]cachedPrefetch, len(cached[i].collections))
 			for name, cache := range cached[i].collections {
 				collections[name] = cache
 			}
-			children = append(children, relatedSelectedValue[T]{source: p.state.targetDescriptor.CloneModel(cached[i].value), targets: append([]cachedRelatedTarget(nil), cached[i].children...), collections: collections})
+			child := relatedSelectedValue[T]{source: p.state.targetDescriptor.CloneModel(cached[i].value), targets: append([]cachedRelatedTarget(nil), cached[i].children...), collections: collections}
+			if refresh[i] {
+				childPositions[i] = len(freshChildren)
+				freshChildren = append(freshChildren, child)
+			} else {
+				childPositions[i] = len(reusedChildren)
+				reusedChildren = append(reusedChildren, child)
+			}
 		}
 	}
-	selections := p.children
-	if !needsFetch {
-		// An already loaded parent bypasses the custom target query,
-		// including that query's children. Explicit descendant paths remain.
-		selections = p.cachedChildren
+	if err := loadPrefetchValues(ctx, backend, freshChildren, reload); err != nil {
+		return err
 	}
-	if err := loadPrefetchValues(ctx, backend, children, selections); err != nil {
+	if err := loadPrefetchValues(ctx, backend, freshChildren, p.children); err != nil {
+		return err
+	}
+	// Cached owners bypass the custom target query and its children, but retain
+	// explicit descendant paths even when another owner needed a target read.
+	if err := loadPrefetchValues(ctx, backend, reusedChildren, p.cachedChildren); err != nil {
 		return err
 	}
 	for i := range values {
 		if index := childPositions[i]; index >= 0 {
+			children := reusedChildren
+			if refresh[i] {
+				children = freshChildren
+			}
 			cached[i].children = children[index].targets
 			cached[i].collections = children[index].collections
 		}
@@ -379,6 +415,6 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			values[i].targets = append(values[i].targets, cached[i])
 		}
 	}
-	_, err := sessionReadResult(ctx, backend, struct{}{}, ctx.Err())
+	_, err = sessionReadResult(ctx, backend, struct{}{}, ctx.Err())
 	return err
 }

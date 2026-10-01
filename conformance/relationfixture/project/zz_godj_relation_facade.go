@@ -244,6 +244,10 @@ func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -285,6 +289,10 @@ func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -323,6 +331,10 @@ func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Order
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
 	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
 	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
@@ -448,6 +460,41 @@ func (_query AuthorsAuthorQuery) Fresh() AuthorsAuthorQuery {
 	return _query
 }
 
+func (_query AuthorsAuthorQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[authors.Author]) AuthorsAuthorQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AuthorsAuthorQuery) LockTarget() orm.RowLockTarget[authors.Author] {
+	return _query.query.LockTarget()
+}
+func (_query AuthorsAuthorQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AuthorsAuthorQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AuthorsAuthor, _paths...)
+	if _err != nil {
+		return AuthorsAuthorQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AuthorsAuthorQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AuthorsAuthorQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[authors.Author], _patch orm.PatchInput[authors.Author]) (*AuthorsAuthor, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AuthorsAuthor, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAuthorsAuthor(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AuthorsAuthorQuery) Limit(_limit int) (AuthorsAuthorQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AuthorsAuthorQuery{}, _err
@@ -867,6 +914,27 @@ type AuthorsAuthorPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[authors.Author]
 }
 
+func (_query AuthorsAuthorPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[authors.Author]) AuthorsAuthorPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AuthorsAuthorPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AuthorsAuthorPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AuthorsAuthor, _paths...)
+	if _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AuthorsAuthorPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AuthorsAuthorQuery) PrefetchRelated(_selectors ...AuthorsAuthorPrefetchSelector) AuthorsAuthorPrefetchQuery {
 	_result := AuthorsAuthorPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -1017,6 +1085,23 @@ func (_query AuthorsAuthorPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[authors.Author], _patch orm.PatchInput[authors.Author]) (*AuthorsAuthor, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAuthorsAuthor(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -1208,6 +1293,41 @@ func (_query BlogPostQuery) Fresh() BlogPostQuery {
 	return _query
 }
 
+func (_query BlogPostQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[blog.Post]) BlogPostQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query BlogPostQuery) LockTarget() orm.RowLockTarget[blog.Post] {
+	return _query.query.LockTarget()
+}
+func (_query BlogPostQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (BlogPostQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.BlogPost, _paths...)
+	if _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query BlogPostQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.BlogPost, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeBlogPost(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query BlogPostQuery) Limit(_limit int) (BlogPostQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostQuery{}, _err
@@ -1980,6 +2100,27 @@ type BlogPostPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[blog.Post]
 }
 
+func (_query BlogPostPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[blog.Post]) BlogPostPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query BlogPostPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (BlogPostPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.BlogPost, _paths...)
+	if _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return BlogPostPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query BlogPostQuery) PrefetchRelated(_selectors ...BlogPostPrefetchSelector) BlogPostPrefetchQuery {
 	_result := BlogPostPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -2130,6 +2271,23 @@ func (_query BlogPostPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query BlogPostPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeBlogPost(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -2341,6 +2499,27 @@ func (_query BlogPostEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query BlogPostEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[blog.Post]) BlogPostEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newBlogPostEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query BlogPostEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (BlogPostEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.BlogPost, _paths...)
+	if _err != nil {
+		return BlogPostEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return BlogPostEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query BlogPostEagerQuery) Filter(_values ...orm.Predicate[blog.Post]) BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -2469,6 +2648,20 @@ func (_query BlogPostEagerQuery) GetOrCreate(_ctx context.Context, _input orm.Cr
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedBlogPostObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query BlogPostEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedBlogPostObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}

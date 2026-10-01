@@ -21,6 +21,7 @@ type relationSelectQuery[M, O any] interface {
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
+	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -41,6 +42,10 @@ func (_query BlogPostSelectRelatedQuery) WithSelections(_selections ...orm.Relat
 	}
 	_owned := append([]orm.RelatedSelection[blog.Post](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query BlogPostSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[blog.Post]) BlogPostSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory BlogPostObjectFactory) SelectAuthor(_children ...orm.RelatedSelection[authors.Author]) orm.RelatedSelect[blog.Post, authors.Author] {
@@ -174,6 +179,17 @@ func (_query BlogPostSelectRelatedQuery) Get(_ctx context.Context) (*BlogPostObj
 }
 func (_query BlogPostSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[blog.Post]) (*BlogPostObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
+func (_query BlogPostSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPostObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
 		return nil, false, _err
 	}

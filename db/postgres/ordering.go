@@ -139,5 +139,8 @@ func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.R
 		}
 	}
 	appendPagination(&statement, &arguments, plan)
+	if err := appendRowLock(&statement, plan, alias, joins); err != nil {
+		return "", nil, err
+	}
 	return statement.String(), arguments, nil
 }

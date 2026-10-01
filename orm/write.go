@@ -52,13 +52,21 @@ func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, i
 	if err != nil {
 		return zero, err
 	}
+	if err := requirePatchAssignments(write.mutation.assignments); err != nil {
+		return zero, err
+	}
+	return executePreparedUpdate(ctx, backend, write)
+}
+
+func executePreparedUpdate[M any](ctx context.Context, backend db.Mutator, write preparedWrite[M]) (M, error) {
+	var zero M
 	plan := query.NewUpdatePlan(
 		write.model.metadata.DBTable,
 		write.mutation.assignments,
 		fieldReference(write.model.primaryKey),
 		write.key,
 	)
-	backend, err = executionBackend(ctx, backend)
+	backend, err := executionBackend(ctx, backend)
 	if err != nil {
 		return zero, err
 	}
@@ -213,9 +221,6 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, prepar
 	if mutation.table != metadata.DBTable {
 		return invalidWritePlan("generated mutation table does not match descriptor metadata")
 	}
-	if expected == MutationPatch && len(mutation.assignments) == 0 {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeEmptyPatch, Detail: "patch has no explicit field changes"}
-	}
 	seen := make(map[string]struct{}, len(mutation.assignments))
 	for _, assignment := range mutation.assignments {
 		field, ok := prepared.mutationField(assignment.Field())
@@ -262,15 +267,22 @@ func validateMutation[M any](mutation Mutation[M], expected MutationKind, prepar
 			}
 			before, beforeOK := descriptor.WriteFieldValue(*current, field.Clone())
 			after, afterOK := descriptor.WriteFieldValue(mutation.value, field.Clone())
-			if !beforeOK || !afterOK || !before.Equal(after) {
+			if !beforeOK || !afterOK || !mutationValueMatches(field, before) || !mutationValueMatches(field, after) || !before.Equal(after) {
 				return &query.Error{
 					Category: query.CategoryField,
 					Code:     query.CodeInvalidValue,
 					Field:    field.Name,
-					Detail:   "patch result changed a field without an assignment",
+					Detail:   "patch has an invalid or changed field without an assignment",
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func requirePatchAssignments(assignments []query.Assignment) error {
+	if len(assignments) == 0 {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeEmptyPatch, Detail: "patch has no explicit field changes"}
 	}
 	return nil
 }

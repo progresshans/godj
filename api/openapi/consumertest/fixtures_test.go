@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -320,8 +321,18 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 || len(wantEffort) != 0 || len(wantCost) != 0 || len(wantUUID) != 0 || len(wantJSON) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
-		if count, err := helpdeskmodels.ServiceReportObjects.Using(helpdeskBackend).Count(t.Context()); err != nil || count != 0 {
-			t.Errorf("generated report lifecycle left rows: %d %v", count, err)
+		reports, err := helpdeskmodels.ServiceReportObjects.Using(helpdeskBackend).All(t.Context())
+		if err != nil || len(reports) != 1 || reports[0].TicketID != ticket.ID || reports[0].Summary != "Client retained report" || reports[0].Completed {
+			t.Fatal("generated report save final storage differs", err)
+		}
+		reportHistory, err := helpdeskRuntime.AuditHistory(t.Context(), "helpdesk.service_report", reports[0].ID, 100)
+		if err != nil || len(reportHistory) != 2 || reportHistory[1].Action != admin.ActionChange || reportHistory[0].Action != admin.ActionAdd || !slices.Equal(reportHistory[1].ChangedFields, []string{"summary", "completed"}) || len(reportHistory[0].ChangedFields) != 0 {
+			t.Fatal("generated report save did not retain exactly its add/change audits", err)
+		}
+		for _, event := range reportHistory {
+			if event.ActorID != helpdeskAll.ID() {
+				t.Fatal("generated report audit lost its admitted actor")
+			}
 		}
 		labels, err := helpdeskmodels.LabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.LabelFields.ID.Asc()).All(t.Context())
 		if err != nil || len(labels) != 2 || labels[0].ID != otherLabel.ID || labels[0].Name != otherLabel.Name || labels[0].CategoryID != otherCategory.ID || labels[1].ID <= otherLabel.ID || labels[1].Name != "Client retained label" || labels[1].CategoryID != category.ID {

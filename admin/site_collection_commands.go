@@ -16,12 +16,12 @@ func (site *Site) collectionCommandPath(model registeredModel, command registere
 }
 
 func collectionCommandModel(model registeredModel, command registeredCollectionCommand) registeredModel {
-	model.form, model.revisionField = command.form, ""
+	model.form, model.formFor, model.revisionField = command.form, command.formFor, ""
 	return model
 }
 
 func (site *Site) collectionCommandContext(model registeredModel, command registeredCollectionCommand, form forms.Form, raw url.Values) (map[string]templates.Value, error) {
-	return site.formContext(collectionCommandModel(model, command), command.label, site.collectionCommandPath(model, command), command.label, form, raw)
+	return site.formContext(model, command.label, site.collectionCommandPath(model, command), command.label, form, raw)
 }
 
 func (site *Site) collectionCommandAllowed(ctx context.Context, principal auth.Principal, model registeredModel, command registeredCollectionCommand) (bool, error) {
@@ -41,11 +41,17 @@ func (site *Site) collectionCommandGet(model registeredModel, command registered
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
 		}
-		form, err := command.form.Unbound(nil)
+		requestModel := collectionCommandModel(model, command)
+		var err error
+		requestModel.form, err = command.formFor(request.Context(), principal)
 		if err != nil {
 			return operationResponse(err)
 		}
-		values, err := site.collectionCommandContext(model, command, form, nil)
+		form, err := requestModel.form.Unbound(nil)
+		if err != nil {
+			return operationResponse(err)
+		}
+		values, err := site.collectionCommandContext(requestModel, command, form, nil)
 		if err != nil {
 			return operationResponse(err)
 		}
@@ -75,7 +81,12 @@ func (site *Site) collectionCommandPost(model registeredModel, command registere
 			} else if !allowed {
 				return siteForbidden()
 			}
-			form, err := command.form.Bind(request.Context(), modelData(commandModel, input), nil)
+			requestModel := commandModel
+			requestModel.form, err = command.formFor(request.Context(), principal)
+			if err != nil {
+				return operationResponse(err)
+			}
+			form, err := requestModel.form.Bind(request.Context(), modelData(commandModel, input), nil)
 			if err != nil {
 				return operationResponse(err)
 			}
@@ -85,6 +96,8 @@ func (site *Site) collectionCommandPost(model registeredModel, command registere
 					notice := "existing"
 					if result.Created {
 						notice = "added"
+					} else if result.Changed {
+						notice = "changed"
 					}
 					return siteRedirect(site.signedNoticeLocation(model, notice, ""))
 				}
@@ -93,7 +106,7 @@ func (site *Site) collectionCommandPost(model registeredModel, command registere
 					return operationResponse(err)
 				}
 			}
-			values, err := site.collectionCommandContext(model, command, form, input.values)
+			values, err := site.collectionCommandContext(requestModel, command, form, input.values)
 			if err != nil {
 				return operationResponse(err)
 			}

@@ -13,6 +13,9 @@ import (
 const postgresIdentifierMaxBytes = 63
 
 func compilePlan(schema string, plan query.Plan) (string, []any, error) {
+	if err := validateRowLockPlan(plan); err != nil {
+		return "", nil, err
+	}
 	if err := plan.ValidatePrefetch(); err != nil {
 		return "", nil, err
 	}

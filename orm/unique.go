@@ -39,6 +39,9 @@ func (m Manager[M]) ValidateUniqueUpdate(ctx context.Context, backend db.Queryer
 	if err != nil {
 		return validation.Errors{}, err
 	}
+	if err := requirePatchAssignments(write.mutation.assignments); err != nil {
+		return validation.Errors{}, err
+	}
 	return validateUniqueMutation(ctx, backend, write)
 }
 

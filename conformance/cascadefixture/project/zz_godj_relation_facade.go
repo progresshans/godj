@@ -258,6 +258,10 @@ func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -299,6 +303,10 @@ func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -337,6 +345,10 @@ func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Order
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
 	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
 	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
@@ -469,6 +481,41 @@ func (_query DetailsChildQuery) Fresh() DetailsChildQuery {
 	return _query
 }
 
+func (_query DetailsChildQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Child]) DetailsChildQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsChildQuery) LockTarget() orm.RowLockTarget[details.Child] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsChildQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsChildQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsChildQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsChild, _paths...)
+	if _err != nil {
+		return DetailsChildQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsChildQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsChildQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChild, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsChild, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsChild(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsChildQuery) Limit(_limit int) (DetailsChildQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsChildQuery{}, _err
@@ -1089,6 +1136,27 @@ type DetailsChildPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Child]
 }
 
+func (_query DetailsChildPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Child]) DetailsChildPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsChildPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsChildPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsChildPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsChildPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsChild, _paths...)
+	if _err != nil {
+		return DetailsChildPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsChildPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsChildQuery) PrefetchRelated(_selectors ...DetailsChildPrefetchSelector) DetailsChildPrefetchQuery {
 	_result := DetailsChildPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -1239,6 +1307,23 @@ func (_query DetailsChildPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsChildPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChild, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsChild(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -1449,6 +1534,27 @@ func (_query DetailsChildEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsChildEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Child]) DetailsChildEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsChildEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsChildEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsChildEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsChildEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsChild, _paths...)
+	if _err != nil {
+		return DetailsChildEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsChildEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsChildEagerQuery) Filter(_values ...orm.Predicate[details.Child]) DetailsChildEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -1577,6 +1683,20 @@ func (_query DetailsChildEagerQuery) GetOrCreate(_ctx context.Context, _input or
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsChildObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsChildEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChild, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsChildObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -1730,6 +1850,41 @@ func (_query DetailsDetailQuery) Fresh() DetailsDetailQuery {
 	return _query
 }
 
+func (_query DetailsDetailQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Detail]) DetailsDetailQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsDetailQuery) LockTarget() orm.RowLockTarget[details.Detail] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsDetailQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsDetailQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsDetailQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsDetail, _paths...)
+	if _err != nil {
+		return DetailsDetailQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsDetailQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsDetailQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetail, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsDetail, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsDetail(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsDetailQuery) Limit(_limit int) (DetailsDetailQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsDetailQuery{}, _err
@@ -2291,6 +2446,27 @@ type DetailsDetailPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Detail]
 }
 
+func (_query DetailsDetailPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Detail]) DetailsDetailPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsDetailPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsDetailPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsDetailPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsDetailPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsDetail, _paths...)
+	if _err != nil {
+		return DetailsDetailPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsDetailPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsDetailQuery) PrefetchRelated(_selectors ...DetailsDetailPrefetchSelector) DetailsDetailPrefetchQuery {
 	_result := DetailsDetailPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -2441,6 +2617,23 @@ func (_query DetailsDetailPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsDetailPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetail, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsDetail(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -2651,6 +2844,27 @@ func (_query DetailsDetailEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsDetailEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Detail]) DetailsDetailEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsDetailEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsDetailEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsDetailEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsDetailEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsDetail, _paths...)
+	if _err != nil {
+		return DetailsDetailEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsDetailEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsDetailEagerQuery) Filter(_values ...orm.Predicate[details.Detail]) DetailsDetailEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -2779,6 +2993,20 @@ func (_query DetailsDetailEagerQuery) GetOrCreate(_ctx context.Context, _input o
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsDetailObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsDetailEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetail, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsDetailObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -2914,6 +3142,41 @@ func (_query DetailsGrandchildQuery) Fresh() DetailsGrandchildQuery {
 	return _query
 }
 
+func (_query DetailsGrandchildQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Grandchild]) DetailsGrandchildQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsGrandchildQuery) LockTarget() orm.RowLockTarget[details.Grandchild] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsGrandchildQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsGrandchildQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsGrandchildQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsGrandchild, _paths...)
+	if _err != nil {
+		return DetailsGrandchildQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsGrandchildQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsGrandchildQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchild, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsGrandchild, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsGrandchild(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsGrandchildQuery) Limit(_limit int) (DetailsGrandchildQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsGrandchildQuery{}, _err
@@ -3454,6 +3717,27 @@ type DetailsGrandchildPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Grandchild]
 }
 
+func (_query DetailsGrandchildPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Grandchild]) DetailsGrandchildPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsGrandchildPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsGrandchildPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsGrandchildPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsGrandchildPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsGrandchild, _paths...)
+	if _err != nil {
+		return DetailsGrandchildPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsGrandchildPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsGrandchildQuery) PrefetchRelated(_selectors ...DetailsGrandchildPrefetchSelector) DetailsGrandchildPrefetchQuery {
 	_result := DetailsGrandchildPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -3604,6 +3888,23 @@ func (_query DetailsGrandchildPrefetchQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsGrandchildPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchild, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsGrandchild(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -3814,6 +4115,27 @@ func (_query DetailsGrandchildEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsGrandchildEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Grandchild]) DetailsGrandchildEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsGrandchildEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsGrandchildEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsGrandchildEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsGrandchildEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsGrandchild, _paths...)
+	if _err != nil {
+		return DetailsGrandchildEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsGrandchildEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsGrandchildEagerQuery) Filter(_values ...orm.Predicate[details.Grandchild]) DetailsGrandchildEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -3942,6 +4264,20 @@ func (_query DetailsGrandchildEagerQuery) GetOrCreate(_ctx context.Context, _inp
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsGrandchildObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsGrandchildEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchild, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsGrandchildObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -4077,6 +4413,41 @@ func (_query DetailsHiddenQuery) Fresh() DetailsHiddenQuery {
 	return _query
 }
 
+func (_query DetailsHiddenQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Hidden]) DetailsHiddenQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsHiddenQuery) LockTarget() orm.RowLockTarget[details.Hidden] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsHiddenQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsHiddenQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsHiddenQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsHidden, _paths...)
+	if _err != nil {
+		return DetailsHiddenQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsHiddenQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsHiddenQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHidden, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsHidden, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsHidden(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsHiddenQuery) Limit(_limit int) (DetailsHiddenQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsHiddenQuery{}, _err
@@ -4617,6 +4988,27 @@ type DetailsHiddenPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Hidden]
 }
 
+func (_query DetailsHiddenPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Hidden]) DetailsHiddenPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsHiddenPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsHiddenPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsHiddenPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsHiddenPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsHidden, _paths...)
+	if _err != nil {
+		return DetailsHiddenPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsHiddenPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsHiddenQuery) PrefetchRelated(_selectors ...DetailsHiddenPrefetchSelector) DetailsHiddenPrefetchQuery {
 	_result := DetailsHiddenPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -4767,6 +5159,23 @@ func (_query DetailsHiddenPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsHiddenPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHidden, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsHidden(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -4977,6 +5386,27 @@ func (_query DetailsHiddenEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsHiddenEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Hidden]) DetailsHiddenEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsHiddenEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsHiddenEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsHiddenEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsHiddenEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsHidden, _paths...)
+	if _err != nil {
+		return DetailsHiddenEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsHiddenEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsHiddenEagerQuery) Filter(_values ...orm.Predicate[details.Hidden]) DetailsHiddenEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -5105,6 +5535,20 @@ func (_query DetailsHiddenEagerQuery) GetOrCreate(_ctx context.Context, _input o
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsHiddenObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsHiddenEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHidden, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsHiddenObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -5243,6 +5687,41 @@ func (_query DetailsOverlapQuery) Fresh() DetailsOverlapQuery {
 	return _query
 }
 
+func (_query DetailsOverlapQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Overlap]) DetailsOverlapQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsOverlapQuery) LockTarget() orm.RowLockTarget[details.Overlap] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsOverlapQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsOverlapQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsOverlapQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsOverlap, _paths...)
+	if _err != nil {
+		return DetailsOverlapQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsOverlapQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsOverlapQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlap, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsOverlap, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsOverlap(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsOverlapQuery) Limit(_limit int) (DetailsOverlapQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsOverlapQuery{}, _err
@@ -5982,6 +6461,27 @@ type DetailsOverlapPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Overlap]
 }
 
+func (_query DetailsOverlapPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Overlap]) DetailsOverlapPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsOverlapPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsOverlapPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsOverlapPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsOverlapPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsOverlap, _paths...)
+	if _err != nil {
+		return DetailsOverlapPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsOverlapPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsOverlapQuery) PrefetchRelated(_selectors ...DetailsOverlapPrefetchSelector) DetailsOverlapPrefetchQuery {
 	_result := DetailsOverlapPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -6132,6 +6632,23 @@ func (_query DetailsOverlapPrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsOverlapPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlap, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsOverlap(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -6343,6 +6860,27 @@ func (_query DetailsOverlapEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsOverlapEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Overlap]) DetailsOverlapEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsOverlapEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsOverlapEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsOverlapEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsOverlapEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsOverlap, _paths...)
+	if _err != nil {
+		return DetailsOverlapEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsOverlapEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsOverlapEagerQuery) Filter(_values ...orm.Predicate[details.Overlap]) DetailsOverlapEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -6471,6 +7009,20 @@ func (_query DetailsOverlapEagerQuery) GetOrCreate(_ctx context.Context, _input 
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsOverlapObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsOverlapEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlap, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsOverlapObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -6632,6 +7184,41 @@ func (_query DetailsProtectedQuery) Fresh() DetailsProtectedQuery {
 	return _query
 }
 
+func (_query DetailsProtectedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Protected]) DetailsProtectedQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsProtectedQuery) LockTarget() orm.RowLockTarget[details.Protected] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsProtectedQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsProtectedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsProtectedQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsProtected, _paths...)
+	if _err != nil {
+		return DetailsProtectedQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsProtectedQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsProtectedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtected, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsProtected, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsProtected(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsProtectedQuery) Limit(_limit int) (DetailsProtectedQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsProtectedQuery{}, _err
@@ -7172,6 +7759,27 @@ type DetailsProtectedPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Protected]
 }
 
+func (_query DetailsProtectedPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Protected]) DetailsProtectedPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsProtectedPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsProtectedPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsProtectedPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsProtectedPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsProtected, _paths...)
+	if _err != nil {
+		return DetailsProtectedPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsProtectedPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsProtectedQuery) PrefetchRelated(_selectors ...DetailsProtectedPrefetchSelector) DetailsProtectedPrefetchQuery {
 	_result := DetailsProtectedPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -7322,6 +7930,23 @@ func (_query DetailsProtectedPrefetchQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsProtectedPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtected, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsProtected(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -7532,6 +8157,27 @@ func (_query DetailsProtectedEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsProtectedEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Protected]) DetailsProtectedEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsProtectedEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsProtectedEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsProtectedEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsProtectedEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsProtected, _paths...)
+	if _err != nil {
+		return DetailsProtectedEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsProtectedEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsProtectedEagerQuery) Filter(_values ...orm.Predicate[details.Protected]) DetailsProtectedEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -7660,6 +8306,20 @@ func (_query DetailsProtectedEagerQuery) GetOrCreate(_ctx context.Context, _inpu
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsProtectedObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsProtectedEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtected, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsProtectedObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -7795,6 +8455,41 @@ func (_query DetailsRequiredRightQuery) Fresh() DetailsRequiredRightQuery {
 	return _query
 }
 
+func (_query DetailsRequiredRightQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.RequiredRight]) DetailsRequiredRightQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsRequiredRightQuery) LockTarget() orm.RowLockTarget[details.RequiredRight] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsRequiredRightQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRequiredRightQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsRequiredRightQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRequiredRight, _paths...)
+	if _err != nil {
+		return DetailsRequiredRightQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsRequiredRightQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsRequiredRightQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRight, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsRequiredRight, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsRequiredRight(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsRequiredRightQuery) Limit(_limit int) (DetailsRequiredRightQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsRequiredRightQuery{}, _err
@@ -8335,6 +9030,27 @@ type DetailsRequiredRightPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.RequiredRight]
 }
 
+func (_query DetailsRequiredRightPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.RequiredRight]) DetailsRequiredRightPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsRequiredRightPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRequiredRightPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsRequiredRightPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsRequiredRightPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRequiredRight, _paths...)
+	if _err != nil {
+		return DetailsRequiredRightPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsRequiredRightPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsRequiredRightQuery) PrefetchRelated(_selectors ...DetailsRequiredRightPrefetchSelector) DetailsRequiredRightPrefetchQuery {
 	_result := DetailsRequiredRightPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -8485,6 +9201,23 @@ func (_query DetailsRequiredRightPrefetchQuery) GetOrCreate(_ctx context.Context
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsRequiredRightPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRight, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsRequiredRight(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -8695,6 +9428,27 @@ func (_query DetailsRequiredRightEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsRequiredRightEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.RequiredRight]) DetailsRequiredRightEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsRequiredRightEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsRequiredRightEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRequiredRightEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsRequiredRightEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRequiredRight, _paths...)
+	if _err != nil {
+		return DetailsRequiredRightEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsRequiredRightEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsRequiredRightEagerQuery) Filter(_values ...orm.Predicate[details.RequiredRight]) DetailsRequiredRightEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -8823,6 +9577,20 @@ func (_query DetailsRequiredRightEagerQuery) GetOrCreate(_ctx context.Context, _
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsRequiredRightObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsRequiredRightEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRight, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsRequiredRightObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -8958,6 +9726,41 @@ func (_query DetailsRightQuery) Fresh() DetailsRightQuery {
 	return _query
 }
 
+func (_query DetailsRightQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Right]) DetailsRightQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsRightQuery) LockTarget() orm.RowLockTarget[details.Right] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsRightQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRightQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsRightQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRight, _paths...)
+	if _err != nil {
+		return DetailsRightQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsRightQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsRightQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRight, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsRight, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsRight(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsRightQuery) Limit(_limit int) (DetailsRightQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsRightQuery{}, _err
@@ -9498,6 +10301,27 @@ type DetailsRightPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Right]
 }
 
+func (_query DetailsRightPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Right]) DetailsRightPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsRightPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRightPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsRightPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsRightPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRight, _paths...)
+	if _err != nil {
+		return DetailsRightPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsRightPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsRightQuery) PrefetchRelated(_selectors ...DetailsRightPrefetchSelector) DetailsRightPrefetchQuery {
 	_result := DetailsRightPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -9648,6 +10472,23 @@ func (_query DetailsRightPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsRightPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRight, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsRight(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -9858,6 +10699,27 @@ func (_query DetailsRightEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsRightEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Right]) DetailsRightEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsRightEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsRightEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsRightEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsRightEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsRight, _paths...)
+	if _err != nil {
+		return DetailsRightEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsRightEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsRightEagerQuery) Filter(_values ...orm.Predicate[details.Right]) DetailsRightEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -9986,6 +10848,20 @@ func (_query DetailsRightEagerQuery) GetOrCreate(_ctx context.Context, _input or
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsRightObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsRightEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRight, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsRightObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -10124,6 +11000,41 @@ func (_query DetailsTwinQuery) Fresh() DetailsTwinQuery {
 	return _query
 }
 
+func (_query DetailsTwinQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Twin]) DetailsTwinQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsTwinQuery) LockTarget() orm.RowLockTarget[details.Twin] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsTwinQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsTwinQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsTwinQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsTwin, _paths...)
+	if _err != nil {
+		return DetailsTwinQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsTwinQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsTwinQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwin, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsTwin, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsTwin(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsTwinQuery) Limit(_limit int) (DetailsTwinQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsTwinQuery{}, _err
@@ -10863,6 +11774,27 @@ type DetailsTwinPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Twin]
 }
 
+func (_query DetailsTwinPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Twin]) DetailsTwinPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsTwinPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsTwinPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsTwinPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsTwinPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsTwin, _paths...)
+	if _err != nil {
+		return DetailsTwinPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsTwinPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsTwinQuery) PrefetchRelated(_selectors ...DetailsTwinPrefetchSelector) DetailsTwinPrefetchQuery {
 	_result := DetailsTwinPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -11013,6 +11945,23 @@ func (_query DetailsTwinPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsTwinPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwin, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsTwin(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -11224,6 +12173,27 @@ func (_query DetailsTwinEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsTwinEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Twin]) DetailsTwinEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsTwinEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsTwinEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsTwinEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsTwinEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsTwin, _paths...)
+	if _err != nil {
+		return DetailsTwinEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsTwinEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsTwinEagerQuery) Filter(_values ...orm.Predicate[details.Twin]) DetailsTwinEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -11352,6 +12322,20 @@ func (_query DetailsTwinEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedDetailsTwinObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query DetailsTwinEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwin, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsTwinObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -11513,6 +12497,41 @@ func (_query DetailsWatcherQuery) Fresh() DetailsWatcherQuery {
 	return _query
 }
 
+func (_query DetailsWatcherQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Watcher]) DetailsWatcherQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsWatcherQuery) LockTarget() orm.RowLockTarget[details.Watcher] {
+	return _query.query.LockTarget()
+}
+func (_query DetailsWatcherQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsWatcherQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsWatcherQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsWatcher, _paths...)
+	if _err != nil {
+		return DetailsWatcherQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return DetailsWatcherQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query DetailsWatcherQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcher, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.DetailsWatcher, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeDetailsWatcher(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsWatcherQuery) Limit(_limit int) (DetailsWatcherQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return DetailsWatcherQuery{}, _err
@@ -12086,6 +13105,27 @@ type DetailsWatcherPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[details.Watcher]
 }
 
+func (_query DetailsWatcherPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Watcher]) DetailsWatcherPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query DetailsWatcherPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsWatcherPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return DetailsWatcherPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return DetailsWatcherPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsWatcher, _paths...)
+	if _err != nil {
+		return DetailsWatcherPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return DetailsWatcherPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsWatcherQuery) PrefetchRelated(_selectors ...DetailsWatcherPrefetchSelector) DetailsWatcherPrefetchQuery {
 	_result := DetailsWatcherPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -12236,6 +13276,23 @@ func (_query DetailsWatcherPrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query DetailsWatcherPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcher, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeDetailsWatcher(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -12446,6 +13503,27 @@ func (_query DetailsWatcherEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query DetailsWatcherEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Watcher]) DetailsWatcherEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newDetailsWatcherEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query DetailsWatcherEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (DetailsWatcherEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return DetailsWatcherEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.DetailsWatcher, _paths...)
+	if _err != nil {
+		return DetailsWatcherEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return DetailsWatcherEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query DetailsWatcherEagerQuery) Filter(_values ...orm.Predicate[details.Watcher]) DetailsWatcherEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -12579,6 +13657,20 @@ func (_query DetailsWatcherEagerQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsWatcherEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcher, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedDetailsWatcherObject(context.WithoutCancel(_ctx), _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query DetailsWatcherEagerQuery) First(_ctx context.Context) (*DetailsWatcher, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -12690,6 +13782,41 @@ func (_query ParentsLabelQuery) Fresh() ParentsLabelQuery {
 	return _query
 }
 
+func (_query ParentsLabelQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Label]) ParentsLabelQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsLabelQuery) LockTarget() orm.RowLockTarget[parents.Label] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsLabelQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsLabelQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsLabelQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsLabel, _paths...)
+	if _err != nil {
+		return ParentsLabelQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsLabelQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsLabelQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Label], _patch orm.PatchInput[parents.Label]) (*ParentsLabel, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsLabel, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsLabel(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsLabelQuery) Limit(_limit int) (ParentsLabelQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsLabelQuery{}, _err
@@ -13021,6 +14148,41 @@ func (_query ParentsLeftQuery) Fresh() ParentsLeftQuery {
 	return _query
 }
 
+func (_query ParentsLeftQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Left]) ParentsLeftQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsLeftQuery) LockTarget() orm.RowLockTarget[parents.Left] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsLeftQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsLeftQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsLeftQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsLeft, _paths...)
+	if _err != nil {
+		return ParentsLeftQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsLeftQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsLeftQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeft, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsLeft, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsLeft(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsLeftQuery) Limit(_limit int) (ParentsLeftQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsLeftQuery{}, _err
@@ -13594,6 +14756,27 @@ type ParentsLeftPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[parents.Left]
 }
 
+func (_query ParentsLeftPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Left]) ParentsLeftPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsLeftPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsLeftPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ParentsLeftPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ParentsLeftPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsLeft, _paths...)
+	if _err != nil {
+		return ParentsLeftPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ParentsLeftPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsLeftQuery) PrefetchRelated(_selectors ...ParentsLeftPrefetchSelector) ParentsLeftPrefetchQuery {
 	_result := ParentsLeftPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -13744,6 +14927,23 @@ func (_query ParentsLeftPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ParentsLeftPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeft, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeParentsLeft(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -13954,6 +15154,27 @@ func (_query ParentsLeftEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ParentsLeftEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Left]) ParentsLeftEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newParentsLeftEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ParentsLeftEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsLeftEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsLeftEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsLeft, _paths...)
+	if _err != nil {
+		return ParentsLeftEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ParentsLeftEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsLeftEagerQuery) Filter(_values ...orm.Predicate[parents.Left]) ParentsLeftEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -14087,6 +15308,20 @@ func (_query ParentsLeftEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsLeftEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeft, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedParentsLeftObject(context.WithoutCancel(_ctx), _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsLeftEagerQuery) First(_ctx context.Context) (*ParentsLeft, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -14209,6 +15444,41 @@ func (_query ParentsNodeQuery) Fresh() ParentsNodeQuery {
 	return _query
 }
 
+func (_query ParentsNodeQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Node]) ParentsNodeQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsNodeQuery) LockTarget() orm.RowLockTarget[parents.Node] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsNodeQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsNodeQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsNodeQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsNode, _paths...)
+	if _err != nil {
+		return ParentsNodeQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsNodeQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsNodeQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNode, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsNode, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsNode(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsNodeQuery) Limit(_limit int) (ParentsNodeQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsNodeQuery{}, _err
@@ -14782,6 +16052,27 @@ type ParentsNodePrefetchQuery struct {
 	prefetch orm.PrefetchQuery[parents.Node]
 }
 
+func (_query ParentsNodePrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Node]) ParentsNodePrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsNodePrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsNodePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ParentsNodePrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ParentsNodePrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsNode, _paths...)
+	if _err != nil {
+		return ParentsNodePrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ParentsNodePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsNodeQuery) PrefetchRelated(_selectors ...ParentsNodePrefetchSelector) ParentsNodePrefetchQuery {
 	_result := ParentsNodePrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -14932,6 +16223,23 @@ func (_query ParentsNodePrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ParentsNodePrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNode, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeParentsNode(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -15142,6 +16450,27 @@ func (_query ParentsNodeEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ParentsNodeEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Node]) ParentsNodeEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newParentsNodeEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ParentsNodeEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsNodeEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsNodeEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsNode, _paths...)
+	if _err != nil {
+		return ParentsNodeEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ParentsNodeEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsNodeEagerQuery) Filter(_values ...orm.Predicate[parents.Node]) ParentsNodeEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -15275,6 +16604,20 @@ func (_query ParentsNodeEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsNodeEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNode, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedParentsNodeObject(context.WithoutCancel(_ctx), _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsNodeEagerQuery) First(_ctx context.Context) (*ParentsNode, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -15397,6 +16740,41 @@ func (_query ParentsRequiredLeftQuery) Fresh() ParentsRequiredLeftQuery {
 	return _query
 }
 
+func (_query ParentsRequiredLeftQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RequiredLeft]) ParentsRequiredLeftQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRequiredLeftQuery) LockTarget() orm.RowLockTarget[parents.RequiredLeft] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsRequiredLeftQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRequiredLeftQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRequiredLeftQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRequiredLeft, _paths...)
+	if _err != nil {
+		return ParentsRequiredLeftQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsRequiredLeftQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsRequiredLeftQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeft, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsRequiredLeft, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsRequiredLeft(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsRequiredLeftQuery) Limit(_limit int) (ParentsRequiredLeftQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsRequiredLeftQuery{}, _err
@@ -15937,6 +17315,27 @@ type ParentsRequiredLeftPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[parents.RequiredLeft]
 }
 
+func (_query ParentsRequiredLeftPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RequiredLeft]) ParentsRequiredLeftPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRequiredLeftPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRequiredLeftPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ParentsRequiredLeftPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRequiredLeftPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRequiredLeft, _paths...)
+	if _err != nil {
+		return ParentsRequiredLeftPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRequiredLeftPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRequiredLeftQuery) PrefetchRelated(_selectors ...ParentsRequiredLeftPrefetchSelector) ParentsRequiredLeftPrefetchQuery {
 	_result := ParentsRequiredLeftPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -16087,6 +17486,23 @@ func (_query ParentsRequiredLeftPrefetchQuery) GetOrCreate(_ctx context.Context,
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ParentsRequiredLeftPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeft, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeParentsRequiredLeft(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -16297,6 +17713,27 @@ func (_query ParentsRequiredLeftEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ParentsRequiredLeftEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RequiredLeft]) ParentsRequiredLeftEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newParentsRequiredLeftEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ParentsRequiredLeftEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRequiredLeftEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRequiredLeftEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRequiredLeft, _paths...)
+	if _err != nil {
+		return ParentsRequiredLeftEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ParentsRequiredLeftEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRequiredLeftEagerQuery) Filter(_values ...orm.Predicate[parents.RequiredLeft]) ParentsRequiredLeftEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -16425,6 +17862,20 @@ func (_query ParentsRequiredLeftEagerQuery) GetOrCreate(_ctx context.Context, _i
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedParentsRequiredLeftObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ParentsRequiredLeftEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeft, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedParentsRequiredLeftObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -16561,6 +18012,41 @@ func (_query ParentsRootQuery) Fresh() ParentsRootQuery {
 	return _query
 }
 
+func (_query ParentsRootQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Root]) ParentsRootQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRootQuery) LockTarget() orm.RowLockTarget[parents.Root] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsRootQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRootQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRoot, _paths...)
+	if _err != nil {
+		return ParentsRootQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsRootQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsRootQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRoot, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsRoot, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsRoot(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsRootQuery) Limit(_limit int) (ParentsRootQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsRootQuery{}, _err
@@ -17091,6 +18577,27 @@ type ParentsRootPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[parents.Root]
 }
 
+func (_query ParentsRootPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Root]) ParentsRootPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRootPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ParentsRootPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRootPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRoot, _paths...)
+	if _err != nil {
+		return ParentsRootPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRootPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRootQuery) PrefetchRelated(_selectors ...ParentsRootPrefetchSelector) ParentsRootPrefetchQuery {
 	_result := ParentsRootPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -17241,6 +18748,23 @@ func (_query ParentsRootPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ParentsRootPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRoot, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeParentsRoot(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -17451,6 +18975,27 @@ func (_query ParentsRootEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ParentsRootEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Root]) ParentsRootEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newParentsRootEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ParentsRootEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRootEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRoot, _paths...)
+	if _err != nil {
+		return ParentsRootEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ParentsRootEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRootEagerQuery) Filter(_values ...orm.Predicate[parents.Root]) ParentsRootEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -17579,6 +19124,20 @@ func (_query ParentsRootEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedParentsRootObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ParentsRootEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRoot, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedParentsRootObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -17727,6 +19286,41 @@ func (_query ParentsRootLabelsQuery) Fresh() ParentsRootLabelsQuery {
 	return _query
 }
 
+func (_query ParentsRootLabelsQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RootLabels]) ParentsRootLabelsQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRootLabelsQuery) LockTarget() orm.RowLockTarget[parents.RootLabels] {
+	return _query.query.LockTarget()
+}
+func (_query ParentsRootLabelsQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootLabelsQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRootLabelsQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRootLabels, _paths...)
+	if _err != nil {
+		return ParentsRootLabelsQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ParentsRootLabelsQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ParentsRootLabelsQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabels, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ParentsRootLabels, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeParentsRootLabels(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ParentsRootLabelsQuery) Limit(_limit int) (ParentsRootLabelsQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ParentsRootLabelsQuery{}, _err
@@ -18466,6 +20060,27 @@ type ParentsRootLabelsPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[parents.RootLabels]
 }
 
+func (_query ParentsRootLabelsPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RootLabels]) ParentsRootLabelsPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ParentsRootLabelsPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootLabelsPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ParentsRootLabelsPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRootLabelsPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRootLabels, _paths...)
+	if _err != nil {
+		return ParentsRootLabelsPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ParentsRootLabelsPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRootLabelsQuery) PrefetchRelated(_selectors ...ParentsRootLabelsPrefetchSelector) ParentsRootLabelsPrefetchQuery {
 	_result := ParentsRootLabelsPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -18616,6 +20231,23 @@ func (_query ParentsRootLabelsPrefetchQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ParentsRootLabelsPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabels, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeParentsRootLabels(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -18827,6 +20459,27 @@ func (_query ParentsRootLabelsEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ParentsRootLabelsEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RootLabels]) ParentsRootLabelsEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newParentsRootLabelsEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ParentsRootLabelsEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ParentsRootLabelsEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ParentsRootLabelsEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ParentsRootLabels, _paths...)
+	if _err != nil {
+		return ParentsRootLabelsEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ParentsRootLabelsEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ParentsRootLabelsEagerQuery) Filter(_values ...orm.Predicate[parents.RootLabels]) ParentsRootLabelsEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -18955,6 +20608,20 @@ func (_query ParentsRootLabelsEagerQuery) GetOrCreate(_ctx context.Context, _inp
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedParentsRootLabelsObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ParentsRootLabelsEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabels, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedParentsRootLabelsObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}

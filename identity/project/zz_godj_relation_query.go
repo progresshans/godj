@@ -56,6 +56,9 @@ func newIdentityGroupRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields IdentityGroupRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields IdentityGroupRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields IdentityGroupRelatedFields[S]) Permissions() IdentityPermissionRelatedFields[S] {
 	var _next orm.QueryRelation[identity.Group, identity.Permission]
 	if _fields.bindings != nil {
@@ -108,6 +111,9 @@ func newIdentityPermissionRelatedFields[S any](_bindings *relationQueryBindings,
 }
 func (_fields IdentityPermissionRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityPermissionRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields IdentityPermissionRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
 	var _next orm.QueryRelation[identity.Permission, identity.Group]
@@ -215,6 +221,9 @@ func newIdentityUserRelatedFields[S any](_bindings *relationQueryBindings, _rout
 }
 func (_fields IdentityUserRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityUserRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields IdentityUserRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
 	var _next orm.QueryRelation[identity.User, identity.Group]

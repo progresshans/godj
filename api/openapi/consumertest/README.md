@@ -234,3 +234,9 @@ PUT/PATCH 생략, 명시적 null/빈 문자열을 서버에서 확인한다. 세
 부모는 남겨 둔 Article의 정확한 slug와 다른 필드를 독립 DB 조회로 확인한다.
 Wire 검사는 nullable 출력의 누락/잘못된 타입/초과 길이를 거부하고 기존 잘못된 문법의 출력은 보존한다.
 입력은 원문을 전달하며 `x-godj-slug`·정리 metadata를 client 쪽 재작성으로 바꾸지 않는다.
+
+
+티켓 경로의 ServiceReport PUT은 독립 생성 client로 201 생성·200 갱신/무변경·기본 completed=false·동일 ID와
+관계 유지·범위/권한/CSRF/필수 입력 거부를 확인한다. 부모는 남은 보고서 한 개와 정확한 add/change audit 두 개를
+직접 조회한다. 별도 wire 검사는 두 success type, 2^53 밖 ID와 path, 필수 report/created 및 nested 필드 오류,
+500의 단일 전송을 확인한다. 필수 receipt는 `helpdesk_report_save`와 `generated_report_save_wire`다.

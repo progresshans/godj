@@ -776,6 +776,62 @@ func (s *HelpdeskTicketPatchUnsupportedMediaType) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskTicketServiceReportSaveBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveCreated) Validate() error {
+	alias := (*ServiceReportSaveResult)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveForbidden) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveOK) Validate() error {
+	alias := (*ServiceReportSaveResult)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskTicketUpdateBadRequest) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
@@ -1236,6 +1292,29 @@ func (s *ServiceReportPatch) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ticket",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ServiceReportSaveResult) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Report.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "report",
 			Error: err,
 		})
 	}

@@ -33,6 +33,9 @@ func (session *transactionSession) QueryBatches(ctx context.Context, plan query.
 	if err != nil {
 		return err
 	}
+	if err := validateRowLockTransaction(plan, true, session.readOnly); err != nil {
+		return err
+	}
 	if plan.EmptyResult() {
 		rows, err := session.Query(ctx, plan)
 		if err != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 func TestAdminCollectionCommandWithoutExistingObject(t *testing.T) {
-	for _, mode := range []string{"created", "existing", "empty", "duplicate", "unknown_field", "revision", "query", "csrf", "duplicate_csrf", "denied_add", "denied_view", "authorizer_error", "rejected", "rollback_failure", "unknown_outcome", "invalid_result"} {
+	for _, mode := range []string{"created", "existing", "changed", "conflicting_result", "empty", "duplicate", "unknown_field", "revision", "query", "csrf", "duplicate_csrf", "denied_add", "denied_view", "authorizer_error", "rejected", "rollback_failure", "unknown_outcome", "invalid_result"} {
 		t.Run(mode, func(t *testing.T) {
 			field, err := forms.CharField("name", forms.WithMaxLength(64))
 			if err != nil {
@@ -62,7 +62,7 @@ func TestAdminCollectionCommandWithoutExistingObject(t *testing.T) {
 						case "invalid_result":
 							return CollectionCommandResult{}, nil
 						}
-						return CollectionCommandResult{ID: 45, Created: mode == "created"}, nil
+						return CollectionCommandResult{ID: 45, Created: mode == "created" || mode == "conflicting_result", Changed: mode == "changed" || mode == "conflicting_result"}, nil
 					},
 				}}
 			})
@@ -124,7 +124,7 @@ func TestAdminCollectionCommandWithoutExistingObject(t *testing.T) {
 				}
 			case "rejected":
 				want = 200
-			case "rollback_failure", "invalid_result":
+			case "rollback_failure", "invalid_result", "conflicting_result":
 				want = 500
 			case "unknown_outcome":
 				want = 503
@@ -140,6 +140,8 @@ func TestAdminCollectionCommandWithoutExistingObject(t *testing.T) {
 				notice := "existing"
 				if mode == "created" {
 					notice = "added"
+				} else if mode == "changed" {
+					notice = "changed"
 				}
 				if !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/accounts/", notice, "") {
 					t.Fatal("collection result notice was not signed")

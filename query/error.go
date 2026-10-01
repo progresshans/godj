@@ -49,6 +49,7 @@ const (
 	CodeCommitOutcomeUnknown         = "commit_outcome_unknown"
 	CodeTransactionOutcomeUnknown    = "transaction_outcome_unknown"
 	CodeTransactionRollbackRequired  = "transaction_rollback_required"
+	CodeTransactionRequired          = "transaction_required"
 	CodeBackendRecoveryRequired      = "backend_recovery_required"
 )
 

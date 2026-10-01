@@ -38,6 +38,7 @@ func (b *Backend) ReadSnapshot(ctx context.Context, callback func(db.Queryer) er
 	}
 	transaction := &pinnedTransaction{Lease: lease, scope: scope, ctx: ctx, readOnly: true}
 	session := newTransactionSession(ctx, transaction, b)
+	session.readOnly = true
 	return readscope.Run(ctx, session, callback, session.scope.Finish,
 		func() error { return errors.Join(lease.CloseRows(), transaction.Rollback()) })
 }

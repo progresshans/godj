@@ -979,6 +979,50 @@ func (s HelpdeskTicketServiceReportInternalServerError) Read(p []byte) (n int, e
 
 func (*HelpdeskTicketServiceReportInternalServerError) helpdeskTicketServiceReportRes() {}
 
+type HelpdeskTicketServiceReportSaveBadRequest GoDjAPIError
+
+func (*HelpdeskTicketServiceReportSaveBadRequest) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveCreated ServiceReportSaveResult
+
+func (*HelpdeskTicketServiceReportSaveCreated) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveForbidden GoDjAPIError
+
+func (*HelpdeskTicketServiceReportSaveForbidden) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketServiceReportSaveInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketServiceReportSaveInternalServerError) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveNotFound GoDjAPIError
+
+func (*HelpdeskTicketServiceReportSaveNotFound) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveOK ServiceReportSaveResult
+
+func (*HelpdeskTicketServiceReportSaveOK) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketServiceReportSaveRequestEntityTooLarge) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketServiceReportSaveUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketServiceReportSaveUnsupportedMediaType) helpdeskTicketServiceReportSaveRes() {}
+
 type HelpdeskTicketUpdateBadRequest GoDjAPIError
 
 func (*HelpdeskTicketUpdateBadRequest) helpdeskTicketUpdateRes() {}
@@ -2521,6 +2565,58 @@ func (s *ServiceReportPatch) SetSummary(val OptString) {
 // SetCompleted sets the value of Completed.
 func (s *ServiceReportPatch) SetCompleted(val OptBool) {
 	s.Completed = val
+}
+
+// Ref: #/components/schemas/ServiceReportSave
+type ServiceReportSave struct {
+	Summary   string  `json:"summary"`
+	Completed OptBool `json:"completed"`
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReportSave) GetSummary() string {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReportSave) GetCompleted() OptBool {
+	return s.Completed
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReportSave) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReportSave) SetCompleted(val OptBool) {
+	s.Completed = val
+}
+
+// Ref: #/components/schemas/ServiceReportSaveResult
+type ServiceReportSaveResult struct {
+	Report  ServiceReport `json:"report"`
+	Created bool          `json:"created"`
+}
+
+// GetReport returns the value of Report.
+func (s *ServiceReportSaveResult) GetReport() ServiceReport {
+	return s.Report
+}
+
+// GetCreated returns the value of Created.
+func (s *ServiceReportSaveResult) GetCreated() bool {
+	return s.Created
+}
+
+// SetReport sets the value of Report.
+func (s *ServiceReportSaveResult) SetReport(val ServiceReport) {
+	s.Report = val
+}
+
+// SetCreated sets the value of Created.
+func (s *ServiceReportSaveResult) SetCreated(val bool) {
+	s.Created = val
 }
 
 // Ref: #/components/schemas/ServiceReportUpdate

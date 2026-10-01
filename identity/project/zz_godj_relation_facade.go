@@ -247,6 +247,10 @@ func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -288,6 +292,10 @@ func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -326,6 +334,10 @@ func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Order
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
 	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
 	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
@@ -451,6 +463,41 @@ func (_query IdentityGroupQuery) Fresh() IdentityGroupQuery {
 	return _query
 }
 
+func (_query IdentityGroupQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.Group]) IdentityGroupQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityGroupQuery) LockTarget() orm.RowLockTarget[identity.Group] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityGroupQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityGroupQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityGroupQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityGroup, _paths...)
+	if _err != nil {
+		return IdentityGroupQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityGroupQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityGroupQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Group], _patch orm.PatchInput[identity.Group]) (*IdentityGroup, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityGroup, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityGroup(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityGroupQuery) Limit(_limit int) (IdentityGroupQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityGroupQuery{}, _err
@@ -1014,6 +1061,27 @@ type IdentityGroupPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.Group]
 }
 
+func (_query IdentityGroupPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.Group]) IdentityGroupPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityGroupPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityGroupPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityGroupPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityGroupPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityGroup, _paths...)
+	if _err != nil {
+		return IdentityGroupPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityGroupPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityGroupQuery) PrefetchRelated(_selectors ...IdentityGroupPrefetchSelector) IdentityGroupPrefetchQuery {
 	_result := IdentityGroupPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -1164,6 +1232,23 @@ func (_query IdentityGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityGroupPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Group], _patch orm.PatchInput[identity.Group]) (*IdentityGroup, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityGroup(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -1357,6 +1442,41 @@ func (_query IdentityGroupPermissionsLinkQuery) Fresh() IdentityGroupPermissions
 	return _query
 }
 
+func (_query IdentityGroupPermissionsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityGroupPermissionsLinkQuery) LockTarget() orm.RowLockTarget[identity.GroupPermissionsLink] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityGroupPermissionsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityGroupPermissionsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityGroupPermissionsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityGroupPermissionsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityGroupPermissionsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityGroupPermissionsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityGroupPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityGroupPermissionsLinkQuery) Limit(_limit int) (IdentityGroupPermissionsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityGroupPermissionsLinkQuery{}, _err
@@ -2096,6 +2216,27 @@ type IdentityGroupPermissionsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.GroupPermissionsLink]
 }
 
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityGroupPermissionsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityGroupPermissionsLinkQuery) PrefetchRelated(_selectors ...IdentityGroupPermissionsLinkPrefetchSelector) IdentityGroupPermissionsLinkPrefetchQuery {
 	_result := IdentityGroupPermissionsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -2246,6 +2387,23 @@ func (_query IdentityGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityGroupPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -2457,6 +2615,27 @@ func (_query IdentityGroupPermissionsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query IdentityGroupPermissionsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newIdentityGroupPermissionsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query IdentityGroupPermissionsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityGroupPermissionsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityGroupPermissionsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return IdentityGroupPermissionsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityGroupPermissionsLinkEagerQuery) Filter(_values ...orm.Predicate[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -2585,6 +2764,20 @@ func (_query IdentityGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Co
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedIdentityGroupPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query IdentityGroupPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityGroupPermissionsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -2740,6 +2933,41 @@ func (_query IdentityPermissionQuery) Fresh() IdentityPermissionQuery {
 	return _query
 }
 
+func (_query IdentityPermissionQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.Permission]) IdentityPermissionQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityPermissionQuery) LockTarget() orm.RowLockTarget[identity.Permission] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityPermissionQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityPermissionQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityPermissionQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityPermission, _paths...)
+	if _err != nil {
+		return IdentityPermissionQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityPermissionQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityPermissionQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Permission], _patch orm.PatchInput[identity.Permission]) (*IdentityPermission, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityPermission, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityPermission(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityPermissionQuery) Limit(_limit int) (IdentityPermissionQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityPermissionQuery{}, _err
@@ -3303,6 +3531,27 @@ type IdentityPermissionPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.Permission]
 }
 
+func (_query IdentityPermissionPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.Permission]) IdentityPermissionPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityPermissionPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityPermissionPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityPermissionPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityPermissionPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityPermission, _paths...)
+	if _err != nil {
+		return IdentityPermissionPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityPermissionPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityPermissionQuery) PrefetchRelated(_selectors ...IdentityPermissionPrefetchSelector) IdentityPermissionPrefetchQuery {
 	_result := IdentityPermissionPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -3453,6 +3702,23 @@ func (_query IdentityPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityPermissionPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Permission], _patch orm.PatchInput[identity.Permission]) (*IdentityPermission, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityPermission(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -3639,6 +3905,41 @@ func (_query IdentityUserQuery) Fresh() IdentityUserQuery {
 	return _query
 }
 
+func (_query IdentityUserQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.User]) IdentityUserQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserQuery) LockTarget() orm.RowLockTarget[identity.User] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityUserQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityUserQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUser, _paths...)
+	if _err != nil {
+		return IdentityUserQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityUserQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.User], _patch orm.PatchInput[identity.User]) (*IdentityUser, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityUser, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityUser(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserQuery) Limit(_limit int) (IdentityUserQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityUserQuery{}, _err
@@ -4202,6 +4503,27 @@ type IdentityUserPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.User]
 }
 
+func (_query IdentityUserPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.User]) IdentityUserPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityUserPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUser, _paths...)
+	if _err != nil {
+		return IdentityUserPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityUserQuery) PrefetchRelated(_selectors ...IdentityUserPrefetchSelector) IdentityUserPrefetchQuery {
 	_result := IdentityUserPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -4352,6 +4674,23 @@ func (_query IdentityUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityUserPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.User], _patch orm.PatchInput[identity.User]) (*IdentityUser, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityUser(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -4545,6 +4884,41 @@ func (_query IdentityUserGroupsLinkQuery) Fresh() IdentityUserGroupsLinkQuery {
 	return _query
 }
 
+func (_query IdentityUserGroupsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserGroupsLink]) IdentityUserGroupsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserGroupsLinkQuery) LockTarget() orm.RowLockTarget[identity.UserGroupsLink] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityUserGroupsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserGroupsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityUserGroupsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserGroupsLink, _paths...)
+	if _err != nil {
+		return IdentityUserGroupsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityUserGroupsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserGroupsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityUserGroupsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityUserGroupsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserGroupsLinkQuery) Limit(_limit int) (IdentityUserGroupsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityUserGroupsLinkQuery{}, _err
@@ -5284,6 +5658,27 @@ type IdentityUserGroupsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.UserGroupsLink]
 }
 
+func (_query IdentityUserGroupsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserGroupsLink]) IdentityUserGroupsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserGroupsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserGroupsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityUserGroupsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserGroupsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserGroupsLink, _paths...)
+	if _err != nil {
+		return IdentityUserGroupsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserGroupsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityUserGroupsLinkQuery) PrefetchRelated(_selectors ...IdentityUserGroupsLinkPrefetchSelector) IdentityUserGroupsLinkPrefetchQuery {
 	_result := IdentityUserGroupsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -5434,6 +5829,23 @@ func (_query IdentityUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Conte
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityUserGroupsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityUserGroupsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -5645,6 +6057,27 @@ func (_query IdentityUserGroupsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query IdentityUserGroupsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserGroupsLink]) IdentityUserGroupsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newIdentityUserGroupsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query IdentityUserGroupsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserGroupsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityUserGroupsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserGroupsLink, _paths...)
+	if _err != nil {
+		return IdentityUserGroupsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return IdentityUserGroupsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityUserGroupsLinkEagerQuery) Filter(_values ...orm.Predicate[identity.UserGroupsLink]) IdentityUserGroupsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -5773,6 +6206,20 @@ func (_query IdentityUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context,
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedIdentityUserGroupsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query IdentityUserGroupsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityUserGroupsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -5937,6 +6384,41 @@ func (_query IdentityUserPermissionsLinkQuery) Fresh() IdentityUserPermissionsLi
 	return _query
 }
 
+func (_query IdentityUserPermissionsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserPermissionsLink]) IdentityUserPermissionsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserPermissionsLinkQuery) LockTarget() orm.RowLockTarget[identity.UserPermissionsLink] {
+	return _query.query.LockTarget()
+}
+func (_query IdentityUserPermissionsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserPermissionsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityUserPermissionsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityUserPermissionsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return IdentityUserPermissionsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserPermissionsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.IdentityUserPermissionsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeIdentityUserPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserPermissionsLinkQuery) Limit(_limit int) (IdentityUserPermissionsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return IdentityUserPermissionsLinkQuery{}, _err
@@ -6676,6 +7158,27 @@ type IdentityUserPermissionsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[identity.UserPermissionsLink]
 }
 
+func (_query IdentityUserPermissionsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserPermissionsLink]) IdentityUserPermissionsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query IdentityUserPermissionsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserPermissionsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return IdentityUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return IdentityUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityUserPermissionsLinkQuery) PrefetchRelated(_selectors ...IdentityUserPermissionsLinkPrefetchSelector) IdentityUserPermissionsLinkPrefetchQuery {
 	_result := IdentityUserPermissionsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -6826,6 +7329,23 @@ func (_query IdentityUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query IdentityUserPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeIdentityUserPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -7037,6 +7557,27 @@ func (_query IdentityUserPermissionsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query IdentityUserPermissionsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserPermissionsLink]) IdentityUserPermissionsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newIdentityUserPermissionsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query IdentityUserPermissionsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (IdentityUserPermissionsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return IdentityUserPermissionsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.IdentityUserPermissionsLink, _paths...)
+	if _err != nil {
+		return IdentityUserPermissionsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return IdentityUserPermissionsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query IdentityUserPermissionsLinkEagerQuery) Filter(_values ...orm.Predicate[identity.UserPermissionsLink]) IdentityUserPermissionsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -7165,6 +7706,20 @@ func (_query IdentityUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Con
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedIdentityUserPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query IdentityUserPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityUserPermissionsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}

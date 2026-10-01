@@ -30,6 +30,7 @@ type relationSelectQuery[M, O any] interface {
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
+	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -50,6 +51,10 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) WithSelections(_sel
 	}
 	_owned := append([]orm.RelatedSelection[identity.GroupPermissionsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory IdentityGroupPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.Group]) orm.RelatedSelect[identity.GroupPermissionsLink, identity.Group] {
@@ -192,6 +197,17 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 	}
 	return _object, _created, nil
 }
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -261,6 +277,10 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) WithSelections(_selection
 	}
 	_owned := append([]orm.RelatedSelection[identity.UserGroupsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserGroupsLink]) IdentityUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory IdentityUserGroupsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.User]) orm.RelatedSelect[identity.UserGroupsLink, identity.User] {
@@ -403,6 +423,17 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserGroupsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -472,6 +503,10 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) WithSelections(_sele
 	}
 	_owned := append([]orm.RelatedSelection[identity.UserPermissionsLink](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[identity.UserPermissionsLink]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory IdentityUserPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.User]) orm.RelatedSelect[identity.UserPermissionsLink, identity.User] {
@@ -614,6 +649,17 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -683,6 +729,10 @@ func (_query ModelsLabelSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[models.Label](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ModelsLabelSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[models.Label]) ModelsLabelSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ModelsLabelObjectFactory) SelectCategory(_children ...orm.RelatedSelection[models.Category]) orm.RelatedSelect[models.Label, models.Category] {
@@ -813,6 +863,17 @@ func (_query ModelsLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ModelsLabelSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Label], _patch orm.PatchInput[models.Label]) (*ModelsLabelObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ModelsLabelSelectRelatedQuery) First(_ctx context.Context) (*ModelsLabelObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -873,6 +934,10 @@ func (_query ModelsServiceReportSelectRelatedQuery) WithSelections(_selections .
 	}
 	_owned := append([]orm.RelatedSelection[models.ServiceReport](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ModelsServiceReportSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[models.ServiceReport]) ModelsServiceReportSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ModelsServiceReportObjectFactory) SelectTicket(_children ...orm.RelatedSelection[models.Ticket]) orm.RelatedSelect[models.ServiceReport, models.Ticket] {
@@ -1010,6 +1075,17 @@ func (_query ModelsServiceReportSelectRelatedQuery) GetOrCreate(_ctx context.Con
 	}
 	return _object, _created, nil
 }
+func (_query ModelsServiceReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.ServiceReport], _patch orm.PatchInput[models.ServiceReport]) (*ModelsServiceReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ModelsServiceReportSelectRelatedQuery) First(_ctx context.Context) (*ModelsServiceReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1094,6 +1170,10 @@ func (_query ModelsTicketSelectRelatedQuery) WithSelections(_selections ...orm.R
 	}
 	_owned := append([]orm.RelatedSelection[models.Ticket](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ModelsTicketSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[models.Ticket]) ModelsTicketSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ModelsTicketObjectFactory) SelectCategory(_children ...orm.RelatedSelection[models.Category]) orm.RelatedSelect[models.Ticket, models.Category] {
@@ -1243,6 +1323,17 @@ func (_query ModelsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _object, _created, nil
 }
+func (_query ModelsTicketSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Ticket], _patch orm.PatchInput[models.Ticket]) (*ModelsTicketObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ModelsTicketSelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1336,6 +1427,10 @@ func (_query ModelsTicketLabelSelectRelatedQuery) WithSelections(_selections ...
 	}
 	_owned := append([]orm.RelatedSelection[models.TicketLabel](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[models.TicketLabel]) ModelsTicketLabelSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ModelsTicketLabelObjectFactory) SelectLabel(_children ...orm.RelatedSelection[models.Label]) orm.RelatedSelect[models.TicketLabel, models.Label] {
@@ -1483,6 +1578,17 @@ func (_query ModelsTicketLabelSelectRelatedQuery) Get(_ctx context.Context) (*Mo
 }
 func (_query ModelsTicketLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.TicketLabel]) (*ModelsTicketLabelObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.TicketLabel], _patch orm.PatchInput[models.TicketLabel]) (*ModelsTicketLabelObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
 		return nil, false, _err
 	}

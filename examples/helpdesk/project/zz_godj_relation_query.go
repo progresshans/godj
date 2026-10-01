@@ -69,6 +69,9 @@ func newIdentityGroupRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields IdentityGroupRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields IdentityGroupRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields IdentityGroupRelatedFields[S]) Permissions() IdentityPermissionRelatedFields[S] {
 	var _next orm.QueryRelation[identity.Group, identity.Permission]
 	if _fields.bindings != nil {
@@ -121,6 +124,9 @@ func newIdentityPermissionRelatedFields[S any](_bindings *relationQueryBindings,
 }
 func (_fields IdentityPermissionRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityPermissionRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields IdentityPermissionRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
 	var _next orm.QueryRelation[identity.Permission, identity.Group]
@@ -229,6 +235,9 @@ func newIdentityUserRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields IdentityUserRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields IdentityUserRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields IdentityUserRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
 	var _next orm.QueryRelation[identity.User, identity.Group]
 	if _fields.bindings != nil {
@@ -270,6 +279,9 @@ func newModelsCategoryRelatedFields[S any](_bindings *relationQueryBindings, _ro
 func (_fields ModelsCategoryRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ModelsCategoryRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ModelsCategoryRelatedFields[S]) Labels() ModelsLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.Category, models.Label]
 	if _fields.bindings != nil {
@@ -310,6 +322,9 @@ func newModelsLabelRelatedFields[S any](_bindings *relationQueryBindings, _route
 }
 func (_fields ModelsLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ModelsLabelRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ModelsLabelRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
 	var _next orm.QueryRelation[models.Label, models.Category]
@@ -364,6 +379,9 @@ func newModelsServiceReportRelatedFields[S any](_bindings *relationQueryBindings
 }
 func (_fields ModelsServiceReportRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ModelsServiceReportRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ModelsServiceReportRelatedFields[S]) Ticket() ModelsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[models.ServiceReport, models.Ticket]
@@ -489,6 +507,9 @@ func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields ModelsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ModelsTicketRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ModelsTicketRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
 	var _next orm.QueryRelation[models.Ticket, models.Category]
 	if _fields.bindings != nil {
@@ -537,6 +558,9 @@ func newModelsTicketLabelRelatedFields[S any](_bindings *relationQueryBindings, 
 }
 func (_fields ModelsTicketLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ModelsTicketLabelRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ModelsTicketLabelRelatedFields[S]) Label() ModelsLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.TicketLabel, models.Label]

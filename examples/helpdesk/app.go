@@ -60,27 +60,28 @@ type Backend interface {
 }
 
 type Application struct {
-	adminAudit    func(context.Context, db.Session, admin.PreparedEvent) error
-	backend       Backend
-	categoryID    int64
-	registry      admin.Registry
-	input         serializers.Spec
-	output        serializers.Spec
-	encoder       serializers.ModelEncoder[ticketRecord]
-	parser        api.Parser
-	relations     project.Relations
-	collections   project.Collections
-	objects       project.Models
-	deleters      project.RelationDeleters
-	reportInput   serializers.Spec
-	reportOutput  serializers.Spec
-	reportEncoder serializers.ModelEncoder[models.ServiceReport]
-	labelInput    serializers.Spec
-	labelOutput   serializers.Spec
-	labelEncoder  serializers.ModelEncoder[models.Label]
-	linkInput     serializers.Spec
-	linkOutput    serializers.Spec
-	linkEncoder   serializers.ModelEncoder[models.TicketLabel]
+	adminAudit      func(context.Context, db.Session, admin.PreparedEvent) error
+	backend         Backend
+	categoryID      int64
+	registry        admin.Registry
+	input           serializers.Spec
+	output          serializers.Spec
+	encoder         serializers.ModelEncoder[ticketRecord]
+	parser          api.Parser
+	relations       project.Relations
+	collections     project.Collections
+	objects         project.Models
+	deleters        project.RelationDeleters
+	reportInput     serializers.Spec
+	reportSaveInput serializers.Spec
+	reportOutput    serializers.Spec
+	reportEncoder   serializers.ModelEncoder[models.ServiceReport]
+	labelInput      serializers.Spec
+	labelOutput     serializers.Spec
+	labelEncoder    serializers.ModelEncoder[models.Label]
+	linkInput       serializers.Spec
+	linkOutput      serializers.Spec
+	linkEncoder     serializers.ModelEncoder[models.TicketLabel]
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
@@ -496,10 +497,6 @@ func updateTicketScalars(ctx context.Context, session db.Session, current models
 	var changed []string
 	mutation := patch.BuildPatch(current)
 	if err := mutation.Err(); err != nil {
-		var queryError *query.Error
-		if errors.As(err, &queryError) && queryError.Code == query.CodeEmptyPatch {
-			return current, nil, nil
-		}
 		return models.Ticket{}, nil, err
 	}
 

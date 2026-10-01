@@ -365,6 +365,9 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := validateRowLockTransaction(plan, false, false); err != nil {
+		return nil, err
+	}
 	if plan.EmptyResult() {
 		return queryplan.EmptyRows(ctx, plan.ResultShape())
 	}

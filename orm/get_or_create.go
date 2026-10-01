@@ -68,7 +68,7 @@ func getOrCreate[M, R any](
 	if _, _, err := manager.writeConfiguration(ctx, effective); err != nil {
 		return zero, false, err
 	}
-	run, borrowed, err := creationScope(effective)
+	run, borrowed, err := modelWriteScope(effective, "GetOrCreate")
 	if err != nil {
 		return zero, false, err
 	}
@@ -142,12 +142,12 @@ func getOrCreate[M, R any](
 	return value, false, nil
 }
 
-func creationScope(source db.Queryer) (func(context.Context, func(db.Session) error) error, bool, error) {
+func modelWriteScope(source db.Queryer, operation string) (func(context.Context, func(db.Session) error) error, bool, error) {
 	if _, borrowed := source.(db.SessionValidator); borrowed {
 		session, writable := source.(db.Session)
 		savepoint, supported := source.(db.Savepointer)
 		if !writable || interfaceIsNil(session) || !supported || interfaceIsNil(savepoint) {
-			return nil, true, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "GetOrCreate requires a writable borrowed session with savepoints"}
+			return nil, true, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: operation + " requires a writable borrowed session with savepoints"}
 		}
 		return func(ctx context.Context, callback func(db.Session) error) error {
 			return db.WithSavepoint(ctx, session, callback)
@@ -155,7 +155,7 @@ func creationScope(source db.Queryer) (func(context.Context, func(db.Session) er
 	}
 	owner, supported := source.(db.Atomic)
 	if !supported || interfaceIsNil(owner) {
-		return nil, false, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "GetOrCreate requires an atomic backend"}
+		return nil, false, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: operation + " requires an atomic backend"}
 	}
 	return owner.Atomic, false, nil
 }

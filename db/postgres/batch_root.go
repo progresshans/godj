@@ -32,6 +32,9 @@ func (b *Backend) QueryBatches(ctx context.Context, plan query.Plan, size int, s
 	if err != nil {
 		return err
 	}
+	if err := validateRowLockTransaction(plan, false, false); err != nil {
+		return err
+	}
 	if plan.EmptyResult() {
 		rows, err := queryplan.EmptyRows(ctx, plan.ResultShape())
 		if err != nil {
@@ -72,6 +75,9 @@ func (scope *rootBatchScope) Query(ctx context.Context, plan query.Plan) (db.Row
 	}
 	statement, arguments, err := compilePlan(scope.backend.schema, plan)
 	if err != nil {
+		return nil, errors.Join(err, lease.Close())
+	}
+	if err := validateRowLockTransaction(plan, false, false); err != nil {
 		return nil, errors.Join(err, lease.Close())
 	}
 	if plan.EmptyResult() {
@@ -245,6 +251,9 @@ func (scope *rootBatchScope) QueryBatches(ctx context.Context, plan query.Plan, 
 	}
 	statement, arguments, err := compilePlan(scope.backend.schema, plan)
 	if err != nil {
+		return err
+	}
+	if err := validateRowLockTransaction(plan, false, false); err != nil {
 		return err
 	}
 	return scope.queryBatches(ctx, plan, statement, arguments, size, scan, yield)

@@ -22,6 +22,15 @@ Django 테스트는 관찰할 의미와 failure case를 찾는 자료다. 실제
 Python 클래스·private traversal·SQL/DOM 문자열 전체를 그대로 따라야 한다는 뜻은 아니다.
 Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)에 기록한다.
 
+[Update-or-create observer](../conformance/runners/django/update_or_create_reference.py)와
+[행 잠금 observer](../conformance/runners/django/row_lock_reference.py)는 고정 Django 6.1의
+[QuerySet](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query.py),
+[Atomic](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/transaction.py),
+[SQLCompiler](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/compiler.py)를
+실행한다(BSD-3-Clause). 직접 작성한 입력·관찰 코드와 두 DB 출력은
+[생성 소비자 fixture](../codegen/consumertest/testdata/updateorcreate/)로 보존한다. 명시적 Go 차이는
+[ADR-0087](adr/0087-row-locking-and-update-or-create.md), source·환경·실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
+
 ## Go와 DB
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)
@@ -32,6 +41,8 @@ Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DE
 - [SQLite foreign keys](https://sqlite.org/foreignkeys.html), [transactions](https://sqlite.org/lang_transaction.html), [ALTER TABLE](https://sqlite.org/lang_altertable.html)
 - [modernc SQLite driver](https://pkg.go.dev/modernc.org/sqlite)
 - [pgx](https://github.com/jackc/pgx), [PostgreSQL documentation](https://www.postgresql.org/docs/17/)
+- [PostgreSQL 17 SELECT locking clause](https://www.postgresql.org/docs/17/sql-select.html#SQL-FOR-UPDATE-SHARE),
+  [DECLARE와 cursor 수명](https://www.postgresql.org/docs/17/sql-declare.html): [행 잠금 결정](adr/0087-row-locking-and-update-or-create.md)의 SQL capability와 실제 transaction 경계.
 
 빌드와 runtime의 dependency version은 [go.mod](../go.mod)/[go.sum](../go.sum), Python environment는
 [pyproject.toml](../pyproject.toml)/[uv.lock](../uv.lock), Hosted service profile은 [workflow](../.github/workflows/)에서 확인한다.

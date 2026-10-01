@@ -29,7 +29,7 @@ type API struct {
 }
 
 // APIConfig supplies request admission and the transactional audit required by
-// label ensure. AppendAudit must use the supplied session, propagate errors and
+// label ensure and ticket report saving. AppendAudit must use the supplied session, propagate errors and
 // never open or commit a separate transaction. Other API writes retain their
 // existing audit policies; this callback does not add generic write auditing.
 type APIConfig struct {
@@ -184,7 +184,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	reportOperations, reportSchemas, err := a.reportOperations(protect)
+	reportOperations, reportSchemas, err := a.reportOperations(protect, config.AppendAudit)
 	if err != nil {
 		return nil, err
 	}

@@ -35,6 +35,7 @@ type relationSelectQuery[M, O any] interface {
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
+	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -55,6 +56,10 @@ func (_query DetailsChildSelectRelatedQuery) WithSelections(_selections ...orm.R
 	}
 	_owned := append([]orm.RelatedSelection[details.Child](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsChildSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Child]) DetailsChildSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsChildObjectFactory) SelectRoot(_children ...orm.RelatedSelection[parents.Root]) orm.RelatedSelect[details.Child, parents.Root] {
@@ -192,6 +197,17 @@ func (_query DetailsChildSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _object, _created, nil
 }
+func (_query DetailsChildSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChildObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsChildSelectRelatedQuery) First(_ctx context.Context) (*DetailsChildObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -276,6 +292,10 @@ func (_query DetailsDetailSelectRelatedQuery) WithSelections(_selections ...orm.
 	}
 	_owned := append([]orm.RelatedSelection[details.Detail](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsDetailSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Detail]) DetailsDetailSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsDetailObjectFactory) SelectRoot(_children ...orm.RelatedSelection[parents.Root]) orm.RelatedSelect[details.Detail, parents.Root] {
@@ -413,6 +433,17 @@ func (_query DetailsDetailSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query DetailsDetailSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetailObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsDetailSelectRelatedQuery) First(_ctx context.Context) (*DetailsDetailObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -497,6 +528,10 @@ func (_query DetailsGrandchildSelectRelatedQuery) WithSelections(_selections ...
 	}
 	_owned := append([]orm.RelatedSelection[details.Grandchild](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsGrandchildSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Grandchild]) DetailsGrandchildSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsGrandchildObjectFactory) SelectChild(_children ...orm.RelatedSelection[details.Child]) orm.RelatedSelect[details.Grandchild, details.Child] {
@@ -634,6 +669,17 @@ func (_query DetailsGrandchildSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query DetailsGrandchildSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchildObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsGrandchildSelectRelatedQuery) First(_ctx context.Context) (*DetailsGrandchildObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -718,6 +764,10 @@ func (_query DetailsHiddenSelectRelatedQuery) WithSelections(_selections ...orm.
 	}
 	_owned := append([]orm.RelatedSelection[details.Hidden](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsHiddenSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Hidden]) DetailsHiddenSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsHiddenObjectFactory) SelectRoot(_children ...orm.RelatedSelection[parents.Root]) orm.RelatedSelect[details.Hidden, parents.Root] {
@@ -855,6 +905,17 @@ func (_query DetailsHiddenSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query DetailsHiddenSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHiddenObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsHiddenSelectRelatedQuery) First(_ctx context.Context) (*DetailsHiddenObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -939,6 +1000,10 @@ func (_query DetailsOverlapSelectRelatedQuery) WithSelections(_selections ...orm
 	}
 	_owned := append([]orm.RelatedSelection[details.Overlap](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsOverlapSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Overlap]) DetailsOverlapSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsOverlapObjectFactory) SelectCascadeRoot(_children ...orm.RelatedSelection[parents.Root]) orm.RelatedSelect[details.Overlap, parents.Root] {
@@ -1095,6 +1160,17 @@ func (_query DetailsOverlapSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query DetailsOverlapSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlapObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsOverlapSelectRelatedQuery) First(_ctx context.Context) (*DetailsOverlapObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1212,6 +1288,10 @@ func (_query DetailsProtectedSelectRelatedQuery) WithSelections(_selections ...o
 	}
 	_owned := append([]orm.RelatedSelection[details.Protected](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsProtectedSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Protected]) DetailsProtectedSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsProtectedObjectFactory) SelectGrandchild(_children ...orm.RelatedSelection[details.Grandchild]) orm.RelatedSelect[details.Protected, details.Grandchild] {
@@ -1349,6 +1429,17 @@ func (_query DetailsProtectedSelectRelatedQuery) GetOrCreate(_ctx context.Contex
 	}
 	return _object, _created, nil
 }
+func (_query DetailsProtectedSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtectedObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsProtectedSelectRelatedQuery) First(_ctx context.Context) (*DetailsProtectedObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1433,6 +1524,10 @@ func (_query DetailsRequiredRightSelectRelatedQuery) WithSelections(_selections 
 	}
 	_owned := append([]orm.RelatedSelection[details.RequiredRight](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsRequiredRightSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.RequiredRight]) DetailsRequiredRightSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsRequiredRightObjectFactory) SelectLeft(_children ...orm.RelatedSelection[parents.RequiredLeft]) orm.RelatedSelect[details.RequiredRight, parents.RequiredLeft] {
@@ -1570,6 +1665,17 @@ func (_query DetailsRequiredRightSelectRelatedQuery) GetOrCreate(_ctx context.Co
 	}
 	return _object, _created, nil
 }
+func (_query DetailsRequiredRightSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRightObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsRequiredRightSelectRelatedQuery) First(_ctx context.Context) (*DetailsRequiredRightObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1654,6 +1760,10 @@ func (_query DetailsRightSelectRelatedQuery) WithSelections(_selections ...orm.R
 	}
 	_owned := append([]orm.RelatedSelection[details.Right](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsRightSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Right]) DetailsRightSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsRightObjectFactory) SelectLeft(_children ...orm.RelatedSelection[parents.Left]) orm.RelatedSelect[details.Right, parents.Left] {
@@ -1791,6 +1901,17 @@ func (_query DetailsRightSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _object, _created, nil
 }
+func (_query DetailsRightSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRightObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsRightSelectRelatedQuery) First(_ctx context.Context) (*DetailsRightObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1875,6 +1996,10 @@ func (_query DetailsTwinSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[details.Twin](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsTwinSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Twin]) DetailsTwinSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsTwinObjectFactory) SelectFirst(_children ...orm.RelatedSelection[parents.Root]) orm.RelatedSelect[details.Twin, parents.Root] {
@@ -2031,6 +2156,17 @@ func (_query DetailsTwinSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query DetailsTwinSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwinObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsTwinSelectRelatedQuery) First(_ctx context.Context) (*DetailsTwinObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2148,6 +2284,10 @@ func (_query DetailsWatcherSelectRelatedQuery) WithSelections(_selections ...orm
 	}
 	_owned := append([]orm.RelatedSelection[details.Watcher](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query DetailsWatcherSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[details.Watcher]) DetailsWatcherSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory DetailsWatcherObjectFactory) SelectChild(_children ...orm.RelatedSelection[details.Child]) orm.RelatedSelect[details.Watcher, details.Child] {
@@ -2285,6 +2425,17 @@ func (_query DetailsWatcherSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query DetailsWatcherSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcherObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsWatcherSelectRelatedQuery) First(_ctx context.Context) (*DetailsWatcherObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2369,6 +2520,10 @@ func (_query ParentsLeftSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[parents.Left](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ParentsLeftSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Left]) ParentsLeftSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ParentsLeftObjectFactory) SelectRight(_children ...orm.RelatedSelection[details.Right]) orm.RelatedSelect[parents.Left, details.Right] {
@@ -2506,6 +2661,17 @@ func (_query ParentsLeftSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ParentsLeftSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeftObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsLeftSelectRelatedQuery) First(_ctx context.Context) (*ParentsLeftObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2590,6 +2756,10 @@ func (_query ParentsNodeSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[parents.Node](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ParentsNodeSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Node]) ParentsNodeSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ParentsNodeObjectFactory) SelectParent(_children ...orm.RelatedSelection[parents.Node]) orm.RelatedSelect[parents.Node, parents.Node] {
@@ -2727,6 +2897,17 @@ func (_query ParentsNodeSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ParentsNodeSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNodeObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsNodeSelectRelatedQuery) First(_ctx context.Context) (*ParentsNodeObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2811,6 +2992,10 @@ func (_query ParentsRequiredLeftSelectRelatedQuery) WithSelections(_selections .
 	}
 	_owned := append([]orm.RelatedSelection[parents.RequiredLeft](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ParentsRequiredLeftSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RequiredLeft]) ParentsRequiredLeftSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ParentsRequiredLeftObjectFactory) SelectRight(_children ...orm.RelatedSelection[details.RequiredRight]) orm.RelatedSelect[parents.RequiredLeft, details.RequiredRight] {
@@ -2948,6 +3133,17 @@ func (_query ParentsRequiredLeftSelectRelatedQuery) GetOrCreate(_ctx context.Con
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRequiredLeftSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeftObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsRequiredLeftSelectRelatedQuery) First(_ctx context.Context) (*ParentsRequiredLeftObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -3032,6 +3228,10 @@ func (_query ParentsRootSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[parents.Root](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ParentsRootSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.Root]) ParentsRootSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ParentsRootObjectFactory) SelectDetail(_children ...orm.RelatedSelection[details.Detail]) orm.RelatedSelect[parents.Root, details.Detail] {
@@ -3169,6 +3369,17 @@ func (_query ParentsRootSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRootSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRootObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsRootSelectRelatedQuery) First(_ctx context.Context) (*ParentsRootObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -3253,6 +3464,10 @@ func (_query ParentsRootLabelsSelectRelatedQuery) WithSelections(_selections ...
 	}
 	_owned := append([]orm.RelatedSelection[parents.RootLabels](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ParentsRootLabelsSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[parents.RootLabels]) ParentsRootLabelsSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ParentsRootLabelsObjectFactory) SelectLabel(_children ...orm.RelatedSelection[parents.Label]) orm.RelatedSelect[parents.RootLabels, parents.Label] {
@@ -3393,6 +3608,17 @@ func (_query ParentsRootLabelsSelectRelatedQuery) Get(_ctx context.Context) (*Pa
 }
 func (_query ParentsRootLabelsSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.RootLabels]) (*ParentsRootLabelsObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
+func (_query ParentsRootLabelsSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabelsObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
 		return nil, false, _err
 	}

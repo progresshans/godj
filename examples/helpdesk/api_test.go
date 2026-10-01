@@ -36,21 +36,17 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.AddLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket}) {
-		t.Fatalf("authentication composition = %v", recording.permissions)
+	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete"}
+	if len(recording.permissions) != len(authenticationOrder) || len(recording.additional) != len(authenticationOrder) {
+		t.Fatal("incomplete authentication composition")
 	}
-	for index, extra := range recording.additional {
-		expected := []auth.Permission(nil)
-		if index == 2 || index == 3 || index == 4 || index == 18 {
-			expected = []auth.Permission{helpdesk.ViewLabel}
-		}
-		if index == 20 || index == 22 || index == 23 {
-			expected = []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewLabel}
-		}
-		if !slices.Equal(extra, expected) {
-			t.Fatalf("additional permission binding %d: %v", index, extra)
+	for index, name := range authenticationOrder {
+		permission, additional := helpdeskExpectedAuthorization(t, "helpdesk:"+name)
+		if recording.permissions[index] != permission || !slices.Equal(recording.additional[index], additional) {
+			t.Fatalf("authentication binding %s differs", name)
 		}
 	}
+
 	if _, found := decoded.Components.Schemas[openapi.ErrorSchemaName]; !found {
 		t.Fatal("the shared API error component is absent")
 	}
@@ -160,7 +156,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	encoded := document.Bytes()
 	encoded[0] = '!'
 	again, err := adapter.OpenAPI()
-	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 26 {
+	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != len(authenticationOrder) {
 		t.Fatalf("reading or mutating snapshots changed the API or repeated authentication: %v", err)
 	}
 }
@@ -179,7 +175,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 26; index++ {
+	for index := 1; index <= 27; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -187,7 +183,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
-	if err != nil || len(adapter.Routes()) != 26 {
+	if err != nil || len(adapter.Routes()) != 27 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -201,16 +197,69 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	}
 }
 
+func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, []auth.Permission) {
+	t.Helper()
+	switch name {
+	case "helpdesk:ticket-list", "helpdesk:ticket-detail":
+		return helpdesk.ViewTicket, nil
+	case "helpdesk:ticket-create":
+		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
+	case "helpdesk:ticket-update", "helpdesk:ticket-patch":
+		return helpdesk.ChangeTicket, []auth.Permission{helpdesk.ViewLabel}
+	case "helpdesk:ticket-delete":
+		return helpdesk.DeleteTicket, nil
+	case "helpdesk:service-report-list", "helpdesk:service-report-detail", "helpdesk:ticket-service-report":
+		return helpdesk.ViewServiceReport, nil
+	case "helpdesk:service-report-create":
+		return helpdesk.AddServiceReport, nil
+	case "helpdesk:service-report-update", "helpdesk:service-report-patch":
+		return helpdesk.ChangeServiceReport, nil
+	case "helpdesk:service-report-delete":
+		return helpdesk.DeleteServiceReport, nil
+	case "helpdesk:ticket-service-report-save":
+		return helpdesk.ChangeServiceReport, []auth.Permission{helpdesk.AddServiceReport, helpdesk.ViewServiceReport}
+	case "helpdesk:label-list", "helpdesk:label-detail":
+		return helpdesk.ViewLabel, nil
+	case "helpdesk:label-create":
+		return helpdesk.AddLabel, nil
+	case "helpdesk:label-update", "helpdesk:label-patch":
+		return helpdesk.ChangeLabel, nil
+	case "helpdesk:label-delete":
+		return helpdesk.DeleteLabel, nil
+	case "helpdesk:label-ensure":
+		return helpdesk.AddLabel, []auth.Permission{helpdesk.ViewLabel}
+	case "helpdesk:ticket-label-list", "helpdesk:ticket-label-detail":
+		return helpdesk.ViewTicketLabel, nil
+	case "helpdesk:ticket-label-create":
+		return helpdesk.AddTicketLabel, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewLabel}
+	case "helpdesk:ticket-label-update", "helpdesk:ticket-label-patch":
+		return helpdesk.ChangeTicketLabel, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewLabel}
+	case "helpdesk:ticket-label-delete":
+		return helpdesk.DeleteTicketLabel, nil
+	default:
+		t.Fatal("unexpected Helpdesk route", name)
+		return "", nil
+	}
+}
+func permissionStrings(values []auth.Permission) []string {
+	result := make([]string, len(values))
+	for index, value := range values {
+		result[index] = string(value)
+	}
+	return result
+}
+
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 10 || len(routes) != 26 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 1 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
-		t.Fatal("Helpdesk document changed the twenty-six-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 10 || len(routes) != 27 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+		t.Fatal("Helpdesk document changed the twenty-seven-operation surface")
 	}
-	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.AddLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket} {
-		route := routes[index]
+	for _, route := range routes {
+		permission, additional := helpdeskExpectedAuthorization(t, route.Name)
+
 		path := strings.ReplaceAll(route.Path, "<int64:id>", "{id}")
 		operation := document.Paths[path][strings.ToLower(route.Method)]
-		if operation.OperationID != route.Name || operation.Permission != string(permission) || route.Handler == nil || len(operation.Security) != 1 {
+		if operation.OperationID != route.Name || operation.Permission != string(permission) || !slices.Equal(operation.AdditionalPermissions, permissionStrings(additional)) || route.Handler == nil || len(operation.Security) != 1 {
 			t.Fatalf("route %s %s differs from its documented operation", route.Method, path)
 		}
 		securityCount := 1
@@ -456,6 +505,28 @@ func assertServiceReportContracts(t *testing.T, document helpdeskDocument) {
 			}
 		} else if !slices.Equal(schema.Required, []string{"ticket", "summary"}) || string(schema.Properties["completed"].Default) != "false" {
 			t.Fatal("full report input lost required/default semantics", name)
+		}
+	}
+	save := document.Components.Schemas["ServiceReportSave"]
+	result := document.Components.Schemas["ServiceReportSaveResult"]
+	if len(save.Properties) != 2 || !slices.Equal(save.Required, []string{"summary"}) || save.Properties["summary"].Type != "string" || string(save.Properties["completed"].Default) != "false" || save.AdditionalProperties {
+		t.Fatal("report save input acquired identity or lost full-input defaults")
+	}
+	if len(result.Properties) != 2 || !slices.Equal(result.Required, []string{"report", "created"}) || result.Properties["report"].Ref != "#/components/schemas/ServiceReport" || result.Properties["created"].Type != "boolean" || result.AdditionalProperties {
+		t.Fatal("report save result lost required presence")
+	}
+	operation := document.Paths["/api/tickets/{id}/service-report/"]["put"]
+	if operation.Permission != string(helpdesk.ChangeServiceReport) || !slices.Equal(operation.AdditionalPermissions, []string{string(helpdesk.AddServiceReport), string(helpdesk.ViewServiceReport)}) || operation.RequestBody == nil || !operation.RequestBody.Required || operation.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/ServiceReportSave" || len(operation.Parameters) != 1 || operation.Parameters[0].In != "path" || operation.Parameters[0].Name != "id" {
+		t.Fatal("report save route, input or admission contract")
+	}
+	for _, status := range []string{"200", "201"} {
+		if operation.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/ServiceReportSaveResult" {
+			t.Fatal("report save outcome lost its explicit branch")
+		}
+	}
+	for _, status := range []string{"400", "403", "404", "413", "415"} {
+		if operation.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
+			t.Fatal("report save failure missing", status)
 		}
 	}
 	list := document.Paths["/api/service-reports/"]["get"]

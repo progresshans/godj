@@ -248,6 +248,10 @@ func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -289,6 +293,10 @@ func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -327,6 +335,10 @@ func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Order
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
 	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
 	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
@@ -458,6 +470,41 @@ func (_query ReportsCertificateQuery) Fresh() ReportsCertificateQuery {
 	return _query
 }
 
+func (_query ReportsCertificateQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Certificate]) ReportsCertificateQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsCertificateQuery) LockTarget() orm.RowLockTarget[reports.Certificate] {
+	return _query.query.LockTarget()
+}
+func (_query ReportsCertificateQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsCertificateQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsCertificate, _paths...)
+	if _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsCertificateQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Certificate], _patch orm.PatchInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ReportsCertificate, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeReportsCertificate(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsCertificateQuery) Limit(_limit int) (ReportsCertificateQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ReportsCertificateQuery{}, _err
@@ -1019,6 +1066,27 @@ type ReportsCertificatePrefetchQuery struct {
 	prefetch orm.PrefetchQuery[reports.Certificate]
 }
 
+func (_query ReportsCertificatePrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Certificate]) ReportsCertificatePrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsCertificatePrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsCertificatePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsCertificate, _paths...)
+	if _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsCertificatePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsCertificateQuery) PrefetchRelated(_selectors ...ReportsCertificatePrefetchSelector) ReportsCertificatePrefetchQuery {
 	_result := ReportsCertificatePrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -1169,6 +1237,23 @@ func (_query ReportsCertificatePrefetchQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ReportsCertificatePrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Certificate], _patch orm.PatchInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsCertificate(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -1379,6 +1464,27 @@ func (_query ReportsCertificateEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ReportsCertificateEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Certificate]) ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ReportsCertificateEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsCertificateEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsCertificate, _paths...)
+	if _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsCertificateEagerQuery) Filter(_values ...orm.Predicate[reports.Certificate]) ReportsCertificateEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -1507,6 +1613,20 @@ func (_query ReportsCertificateEagerQuery) GetOrCreate(_ctx context.Context, _in
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ReportsCertificateEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Certificate], _patch orm.PatchInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsCertificateObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -1642,6 +1762,41 @@ func (_query ReportsLinkQuery) Fresh() ReportsLinkQuery {
 	return _query
 }
 
+func (_query ReportsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Link]) ReportsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsLinkQuery) LockTarget() orm.RowLockTarget[reports.Link] {
+	return _query.query.LockTarget()
+}
+func (_query ReportsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsLink, _paths...)
+	if _err != nil {
+		return ReportsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ReportsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Link], _patch orm.PatchInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ReportsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeReportsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsLinkQuery) Limit(_limit int) (ReportsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ReportsLinkQuery{}, _err
@@ -2182,6 +2337,27 @@ type ReportsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[reports.Link]
 }
 
+func (_query ReportsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Link]) ReportsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsLink, _paths...)
+	if _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsLinkQuery) PrefetchRelated(_selectors ...ReportsLinkPrefetchSelector) ReportsLinkPrefetchQuery {
 	_result := ReportsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -2332,6 +2508,23 @@ func (_query ReportsLinkPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ReportsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Link], _patch orm.PatchInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -2542,6 +2735,27 @@ func (_query ReportsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ReportsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Link]) ReportsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ReportsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsLink, _paths...)
+	if _err != nil {
+		return ReportsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ReportsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsLinkEagerQuery) Filter(_values ...orm.Predicate[reports.Link]) ReportsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -2670,6 +2884,20 @@ func (_query ReportsLinkEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedReportsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ReportsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Link], _patch orm.PatchInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -2805,6 +3033,41 @@ func (_query ReportsOptionalReportQuery) Fresh() ReportsOptionalReportQuery {
 	return _query
 }
 
+func (_query ReportsOptionalReportQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.OptionalReport]) ReportsOptionalReportQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsOptionalReportQuery) LockTarget() orm.RowLockTarget[reports.OptionalReport] {
+	return _query.query.LockTarget()
+}
+func (_query ReportsOptionalReportQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsOptionalReportQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsOptionalReport, _paths...)
+	if _err != nil {
+		return ReportsOptionalReportQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsOptionalReportQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.OptionalReport], _patch orm.PatchInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ReportsOptionalReport, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeReportsOptionalReport(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsOptionalReportQuery) Limit(_limit int) (ReportsOptionalReportQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ReportsOptionalReportQuery{}, _err
@@ -3378,6 +3641,27 @@ type ReportsOptionalReportPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[reports.OptionalReport]
 }
 
+func (_query ReportsOptionalReportPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.OptionalReport]) ReportsOptionalReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsOptionalReportPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsOptionalReportPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsOptionalReport, _paths...)
+	if _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsOptionalReportPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsOptionalReportQuery) PrefetchRelated(_selectors ...ReportsOptionalReportPrefetchSelector) ReportsOptionalReportPrefetchQuery {
 	_result := ReportsOptionalReportPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -3528,6 +3812,23 @@ func (_query ReportsOptionalReportPrefetchQuery) GetOrCreate(_ctx context.Contex
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.OptionalReport], _patch orm.PatchInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsOptionalReport(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -3738,6 +4039,27 @@ func (_query ReportsOptionalReportEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ReportsOptionalReportEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.OptionalReport]) ReportsOptionalReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsOptionalReportEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ReportsOptionalReportEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsOptionalReportEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsOptionalReport, _paths...)
+	if _err != nil {
+		return ReportsOptionalReportEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ReportsOptionalReportEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsOptionalReportEagerQuery) Filter(_values ...orm.Predicate[reports.OptionalReport]) ReportsOptionalReportEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -3871,6 +4193,20 @@ func (_query ReportsOptionalReportEagerQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _wrapped, _created, nil
 }
+func (_query ReportsOptionalReportEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.OptionalReport], _patch orm.PatchInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsOptionalReportObject(context.WithoutCancel(_ctx), _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsOptionalReportEagerQuery) First(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -3996,6 +4332,41 @@ func (_query ReportsReportQuery) Fresh() ReportsReportQuery {
 	return _query
 }
 
+func (_query ReportsReportQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Report]) ReportsReportQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsReportQuery) LockTarget() orm.RowLockTarget[reports.Report] {
+	return _query.query.LockTarget()
+}
+func (_query ReportsReportQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReportQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReport, _paths...)
+	if _err != nil {
+		return ReportsReportQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ReportsReportQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReportQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Report], _patch orm.PatchInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ReportsReport, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeReportsReport(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsReportQuery) Limit(_limit int) (ReportsReportQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ReportsReportQuery{}, _err
@@ -4696,6 +5067,27 @@ type ReportsReportPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[reports.Report]
 }
 
+func (_query ReportsReportPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Report]) ReportsReportPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsReportPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReportPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReport, _paths...)
+	if _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReportPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsReportQuery) PrefetchRelated(_selectors ...ReportsReportPrefetchSelector) ReportsReportPrefetchQuery {
 	_result := ReportsReportPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -4846,6 +5238,23 @@ func (_query ReportsReportPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ReportsReportPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Report], _patch orm.PatchInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsReport(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -5057,6 +5466,27 @@ func (_query ReportsReportEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ReportsReportEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Report]) ReportsReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsReportEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ReportsReportEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReportEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReport, _paths...)
+	if _err != nil {
+		return ReportsReportEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ReportsReportEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsReportEagerQuery) Filter(_values ...orm.Predicate[reports.Report]) ReportsReportEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -5185,6 +5615,20 @@ func (_query ReportsReportEagerQuery) GetOrCreate(_ctx context.Context, _input o
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedReportsReportObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ReportsReportEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Report], _patch orm.PatchInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsReportObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -5338,6 +5782,41 @@ func (_query ReportsReviewQuery) Fresh() ReportsReviewQuery {
 	return _query
 }
 
+func (_query ReportsReviewQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Review]) ReportsReviewQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsReviewQuery) LockTarget() orm.RowLockTarget[reports.Review] {
+	return _query.query.LockTarget()
+}
+func (_query ReportsReviewQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReviewQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReview, _paths...)
+	if _err != nil {
+		return ReportsReviewQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return ReportsReviewQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReviewQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Review], _patch orm.PatchInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.ReportsReview, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeReportsReview(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsReviewQuery) Limit(_limit int) (ReportsReviewQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ReportsReviewQuery{}, _err
@@ -5899,6 +6378,27 @@ type ReportsReviewPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[reports.Review]
 }
 
+func (_query ReportsReviewPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Review]) ReportsReviewPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query ReportsReviewPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReviewPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReview, _paths...)
+	if _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return ReportsReviewPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsReviewQuery) PrefetchRelated(_selectors ...ReportsReviewPrefetchSelector) ReportsReviewPrefetchQuery {
 	_result := ReportsReviewPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -6049,6 +6549,23 @@ func (_query ReportsReviewPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query ReportsReviewPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Review], _patch orm.PatchInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeReportsReview(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -6259,6 +6776,27 @@ func (_query ReportsReviewEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query ReportsReviewEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Review]) ReportsReviewEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsReviewEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query ReportsReviewEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (ReportsReviewEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.ReportsReview, _paths...)
+	if _err != nil {
+		return ReportsReviewEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return ReportsReviewEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query ReportsReviewEagerQuery) Filter(_values ...orm.Predicate[reports.Review]) ReportsReviewEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -6387,6 +6925,20 @@ func (_query ReportsReviewEagerQuery) GetOrCreate(_ctx context.Context, _input o
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedReportsReviewObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query ReportsReviewEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Review], _patch orm.PatchInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsReviewObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -6529,6 +7081,41 @@ func (_query TicketsTicketQuery) Fresh() TicketsTicketQuery {
 	return _query
 }
 
+func (_query TicketsTicketQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[tickets.Ticket]) TicketsTicketQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query TicketsTicketQuery) LockTarget() orm.RowLockTarget[tickets.Ticket] {
+	return _query.query.LockTarget()
+}
+func (_query TicketsTicketQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (TicketsTicketQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.TicketsTicket, _paths...)
+	if _err != nil {
+		return TicketsTicketQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return TicketsTicketQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query TicketsTicketQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[tickets.Ticket], _patch orm.PatchInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.TicketsTicket, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeTicketsTicket(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query TicketsTicketQuery) Limit(_limit int) (TicketsTicketQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return TicketsTicketQuery{}, _err
@@ -7319,6 +7906,27 @@ type TicketsTicketPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[tickets.Ticket]
 }
 
+func (_query TicketsTicketPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[tickets.Ticket]) TicketsTicketPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query TicketsTicketPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (TicketsTicketPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.TicketsTicket, _paths...)
+	if _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return TicketsTicketPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query TicketsTicketQuery) PrefetchRelated(_selectors ...TicketsTicketPrefetchSelector) TicketsTicketPrefetchQuery {
 	_result := TicketsTicketPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -7469,6 +8077,23 @@ func (_query TicketsTicketPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query TicketsTicketPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[tickets.Ticket], _patch orm.PatchInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeTicketsTicket(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -7681,6 +8306,27 @@ func (_query TicketsTicketEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query TicketsTicketEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[tickets.Ticket]) TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query TicketsTicketEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (TicketsTicketEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.TicketsTicket, _paths...)
+	if _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query TicketsTicketEagerQuery) Filter(_values ...orm.Predicate[tickets.Ticket]) TicketsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -7809,6 +8455,20 @@ func (_query TicketsTicketEagerQuery) GetOrCreate(_ctx context.Context, _input o
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query TicketsTicketEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[tickets.Ticket], _patch orm.PatchInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedTicketsTicketObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}

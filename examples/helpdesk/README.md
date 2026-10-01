@@ -66,7 +66,7 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 ## JSON API
 
 `application.API(helpdesk.APIConfig{Authentication: authentication, AppendAudit: runtime.AppendAudit})`로 API를 한 번 조합한 뒤
-`api.Routes()`를 Web 설정에 연결한다. Label 확보 동작에는 transaction 안의 감사 기록이 필수다.
+`api.Routes()`를 Web 설정에 연결한다. Label 확보와 티켓별 Report 저장에는 transaction 안의 감사 기록이 필수다.
 `runtime`을 Application의 backend로 전달하고, `AppendAudit`는 제공된 session만 사용한다.
 이 설정이 기존 모든 CRUD 쓰기에 공통 감사를 추가하는 것은 아니다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
@@ -151,8 +151,9 @@ Backend는 Queryer/Mutator/Atomic과 RelationAtomic을 제공한다. Runtime을 
 | PUT/PATCH `/api/service-reports/<id>/` | 전체/부분 수정과 ticket 재할당 | ChangeServiceReport |
 | DELETE `/api/service-reports/<id>/` | 티켓을 보존하고 보고서 삭제, body 없는 204 | DeleteServiceReport |
 | GET `/api/tickets/<id>/service-report/` | 보고서 또는 정상 부재 `null` | ViewServiceReport |
+| PUT `/api/tickets/<id>/service-report/` | 티켓 보고서 생성/갱신/무변경, `{report, created}` 201/200 | AddServiceReport + ChangeServiceReport + ViewServiceReport |
 
-쓰기에는 CSRF가 필요하고 body는 4096 byte까지다. PUT은 ticket/summary가 필수이고 생략한 completed는 false다.
+쓰기에는 CSRF가 필요하고 body는 4096 byte까지다. 보고서 ID 경로의 PUT은 ticket/summary가 필수이고 생략한 completed는 false다.
 PATCH는 제공한 필드만 바꾼다. `id`는 입력할 수 없고 summary는 앞뒤 공백을 제거한다.
 모든 보고서 경로는 티켓을 통해 배정한 Category 범위를 검사한다. 없는/다른 Category의 객체 조회는 404,
 선택할 수 없는 ticket 입력은 `ticket/invalid_choice`다. 기존 scoped 티켓에 보고서가 없으면 200/null이다.
@@ -162,7 +163,17 @@ Admin은 `/admin/service-reports/`에서 같은 CRUD를 제공한다. 티켓 선
 보고서 쓰기 권한에 ViewTicket이 추가로 필요하다. 요청마다 권한을 확인한 선택지를 만들며 전역 Form Spec에 결과를 저장하지 않는다.
 저장 전 선택지를 다시 읽고 transaction 안에서도 현재 membership·고유성을 확인한다.
 API는 scoped ticket key를 직접 받으며 티켓 subject를 열거하지 않는다. 보고서 view 권한에는 그 관계 key와 부재 조회가 포함된다.
-명시적 component `ServiceReport`, `ServiceReportCreate`, `ServiceReportUpdate`, `ServiceReportPatch`와 독립 ogen client가 같은 계약을 소비한다.
+티켓 경로의 PUT은 summary와 completed만 받으며 completed 생략은 false다. 기존 보고서의 ID와 ticket을
+보존하고, 같은 입력을 반복하면 UPDATE와 audit를 추가하지 않는다. 현재 티켓의 Category 범위·저장·출력 준비·
+add/change audit는 같은 transaction에서 완료한다. PostgreSQL에서는 Ticket의 NO KEY UPDATE와 Report의
+행 잠금을 사용하며, SQLite의 native 충돌은 재시도하지 않고 반환한다. 일반 POST는 계속 중복 보고서를 거부한다.
+
+GET/POST `/admin/service-reports/collection/save/`는 기존 보고서 선택 없이 티켓별 보고서를 저장한다.
+같은 Category의 티켓 선택지는 ViewTicket을 추가로 요구하고 저장 직전에 다시 검증한다. 생성·변경·무변경
+메시지는 확인된 commit 결과를 따른다. API는 Ticket subject를 공개하지 않는 명시적 key 입력이다.
+
+명시적 component `ServiceReport`, `ServiceReportCreate`, `ServiceReportUpdate`, `ServiceReportPatch`,
+`ServiceReportSave`, `ServiceReportSaveResult`와 독립 ogen client가 같은 계약을 소비한다.
 
 Label은 Category별 이름 사전이다. `0018_label`은 기존 행을 보존하면서 name(Char 64)·category(FK PROTECT)와
 이름 있는 `(category, name)` 고유 제약을 추가한다. 같은 Category 안에서만 이름을 고유하게 저장하고 다른 Category의 같은 이름은 허용한다.

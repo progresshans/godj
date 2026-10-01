@@ -253,6 +253,10 @@ func (_selector relationFacadeManyPrefetch[S, T, L, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeManyPrefetch[S, T, L, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeManyPrefetch[S, T, L, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeManyPrefetch[S, T, L, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeManyPrefetch[S, T, L, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -294,6 +298,10 @@ func (_selector relationFacadeReversePrefetch[S, T, W]) Distinct() relationFacad
 	_selector.selection = _selector.selection.Distinct()
 	return _selector
 }
+func (_selector relationFacadeReversePrefetch[S, T, W]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeReversePrefetch[S, T, W] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
+	return _selector
+}
 func (_selector relationFacadeReversePrefetch[S, T, W]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeReversePrefetch[S, T, W] {
 	if _err := _selector.state.validate(); _err != nil {
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
@@ -332,6 +340,10 @@ func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Order
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
 	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.SelectForUpdate(_options, _targets...)
 	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
@@ -459,6 +471,41 @@ func (_query AccountsGroupQuery) Fresh() AccountsGroupQuery {
 	return _query
 }
 
+func (_query AccountsGroupQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.Group]) AccountsGroupQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsGroupQuery) LockTarget() orm.RowLockTarget[accounts.Group] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsGroupQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsGroupQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsGroup, _paths...)
+	if _err != nil {
+		return AccountsGroupQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsGroupQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsGroupQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.Group], _patch orm.PatchInput[accounts.Group]) (*AccountsGroup, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsGroup, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsGroup(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsGroupQuery) Limit(_limit int) (AccountsGroupQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsGroupQuery{}, _err
@@ -1180,6 +1227,27 @@ type AccountsGroupPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.Group]
 }
 
+func (_query AccountsGroupPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.Group]) AccountsGroupPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsGroupPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsGroupPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsGroupPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsGroupPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsGroup, _paths...)
+	if _err != nil {
+		return AccountsGroupPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsGroupPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsGroupQuery) PrefetchRelated(_selectors ...AccountsGroupPrefetchSelector) AccountsGroupPrefetchQuery {
 	_result := AccountsGroupPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -1330,6 +1398,23 @@ func (_query AccountsGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsGroupPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.Group], _patch orm.PatchInput[accounts.Group]) (*AccountsGroup, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsGroup(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -1559,6 +1644,41 @@ func (_query AccountsGroupPermissionsLinkQuery) Fresh() AccountsGroupPermissions
 	return _query
 }
 
+func (_query AccountsGroupPermissionsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkQuery) LockTarget() orm.RowLockTarget[accounts.GroupPermissionsLink] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsGroupPermissionsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsGroupPermissionsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsGroupPermissionsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsGroupPermissionsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.GroupPermissionsLink], _patch orm.PatchInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsGroupPermissionsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsGroupPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsGroupPermissionsLinkQuery) Limit(_limit int) (AccountsGroupPermissionsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsGroupPermissionsLinkQuery{}, _err
@@ -2298,6 +2418,27 @@ type AccountsGroupPermissionsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.GroupPermissionsLink]
 }
 
+func (_query AccountsGroupPermissionsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsGroupPermissionsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsGroupPermissionsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsGroupPermissionsLinkQuery) PrefetchRelated(_selectors ...AccountsGroupPermissionsLinkPrefetchSelector) AccountsGroupPermissionsLinkPrefetchQuery {
 	_result := AccountsGroupPermissionsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -2448,6 +2589,23 @@ func (_query AccountsGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsGroupPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.GroupPermissionsLink], _patch orm.PatchInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsGroupPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -2659,6 +2817,27 @@ func (_query AccountsGroupPermissionsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query AccountsGroupPermissionsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountsGroupPermissionsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query AccountsGroupPermissionsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsGroupPermissionsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsGroupPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsGroupPermissionsLinkEagerQuery) Filter(_values ...orm.Predicate[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -2787,6 +2966,20 @@ func (_query AccountsGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Co
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedAccountsGroupPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountsGroupPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.GroupPermissionsLink], _patch orm.PatchInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountsGroupPermissionsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -2944,6 +3137,41 @@ func (_query AccountsPermissionQuery) Fresh() AccountsPermissionQuery {
 	return _query
 }
 
+func (_query AccountsPermissionQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.Permission]) AccountsPermissionQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsPermissionQuery) LockTarget() orm.RowLockTarget[accounts.Permission] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsPermissionQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsPermissionQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsPermissionQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsPermission, _paths...)
+	if _err != nil {
+		return AccountsPermissionQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsPermissionQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsPermissionQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.Permission], _patch orm.PatchInput[accounts.Permission]) (*AccountsPermission, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsPermission, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsPermission(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsPermissionQuery) Limit(_limit int) (AccountsPermissionQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsPermissionQuery{}, _err
@@ -3665,6 +3893,27 @@ type AccountsPermissionPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.Permission]
 }
 
+func (_query AccountsPermissionPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.Permission]) AccountsPermissionPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsPermissionPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsPermissionPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsPermissionPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsPermissionPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsPermission, _paths...)
+	if _err != nil {
+		return AccountsPermissionPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsPermissionPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsPermissionQuery) PrefetchRelated(_selectors ...AccountsPermissionPrefetchSelector) AccountsPermissionPrefetchQuery {
 	_result := AccountsPermissionPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -3815,6 +4064,23 @@ func (_query AccountsPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsPermissionPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.Permission], _patch orm.PatchInput[accounts.Permission]) (*AccountsPermission, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsPermission(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -4039,6 +4305,41 @@ func (_query AccountsUserQuery) Fresh() AccountsUserQuery {
 	return _query
 }
 
+func (_query AccountsUserQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.User]) AccountsUserQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserQuery) LockTarget() orm.RowLockTarget[accounts.User] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsUserQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUser, _paths...)
+	if _err != nil {
+		return AccountsUserQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsUserQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsUserQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.User], _patch orm.PatchInput[accounts.User]) (*AccountsUser, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsUser, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsUser(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsUserQuery) Limit(_limit int) (AccountsUserQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsUserQuery{}, _err
@@ -4760,6 +5061,27 @@ type AccountsUserPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.User]
 }
 
+func (_query AccountsUserPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.User]) AccountsUserPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsUserPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUser, _paths...)
+	if _err != nil {
+		return AccountsUserPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsUserQuery) PrefetchRelated(_selectors ...AccountsUserPrefetchSelector) AccountsUserPrefetchQuery {
 	_result := AccountsUserPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -4910,6 +5232,23 @@ func (_query AccountsUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsUserPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.User], _patch orm.PatchInput[accounts.User]) (*AccountsUser, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsUser(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -5139,6 +5478,41 @@ func (_query AccountsUserGroupsLinkQuery) Fresh() AccountsUserGroupsLinkQuery {
 	return _query
 }
 
+func (_query AccountsUserGroupsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserGroupsLink]) AccountsUserGroupsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserGroupsLinkQuery) LockTarget() orm.RowLockTarget[accounts.UserGroupsLink] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsUserGroupsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserGroupsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserGroupsLink, _paths...)
+	if _err != nil {
+		return AccountsUserGroupsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsUserGroupsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsUserGroupsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserGroupsLink], _patch orm.PatchInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsUserGroupsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsUserGroupsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsUserGroupsLinkQuery) Limit(_limit int) (AccountsUserGroupsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsUserGroupsLinkQuery{}, _err
@@ -5878,6 +6252,27 @@ type AccountsUserGroupsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.UserGroupsLink]
 }
 
+func (_query AccountsUserGroupsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserGroupsLink]) AccountsUserGroupsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserGroupsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserGroupsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsUserGroupsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserGroupsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserGroupsLink, _paths...)
+	if _err != nil {
+		return AccountsUserGroupsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserGroupsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsUserGroupsLinkQuery) PrefetchRelated(_selectors ...AccountsUserGroupsLinkPrefetchSelector) AccountsUserGroupsLinkPrefetchQuery {
 	_result := AccountsUserGroupsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -6028,6 +6423,23 @@ func (_query AccountsUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Conte
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsUserGroupsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserGroupsLink], _patch orm.PatchInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsUserGroupsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -6239,6 +6651,27 @@ func (_query AccountsUserGroupsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query AccountsUserGroupsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserGroupsLink]) AccountsUserGroupsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountsUserGroupsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query AccountsUserGroupsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserGroupsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserGroupsLink, _paths...)
+	if _err != nil {
+		return AccountsUserGroupsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return AccountsUserGroupsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsUserGroupsLinkEagerQuery) Filter(_values ...orm.Predicate[accounts.UserGroupsLink]) AccountsUserGroupsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -6367,6 +6800,20 @@ func (_query AccountsUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context,
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedAccountsUserGroupsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountsUserGroupsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserGroupsLink], _patch orm.PatchInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountsUserGroupsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -6531,6 +6978,41 @@ func (_query AccountsUserPermissionsLinkQuery) Fresh() AccountsUserPermissionsLi
 	return _query
 }
 
+func (_query AccountsUserPermissionsLinkQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserPermissionsLinkQuery) LockTarget() orm.RowLockTarget[accounts.UserPermissionsLink] {
+	return _query.query.LockTarget()
+}
+func (_query AccountsUserPermissionsLinkQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserPermissionsLinkQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountsUserPermissionsLinkQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountsUserPermissionsLinkQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserPermissionsLink], _patch orm.PatchInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountsUserPermissionsLink, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountsUserPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AccountsUserPermissionsLinkQuery) Limit(_limit int) (AccountsUserPermissionsLinkQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AccountsUserPermissionsLinkQuery{}, _err
@@ -7270,6 +7752,27 @@ type AccountsUserPermissionsLinkPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[accounts.UserPermissionsLink]
 }
 
+func (_query AccountsUserPermissionsLinkPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountsUserPermissionsLinkPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserPermissionsLinkPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountsUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountsUserPermissionsLinkPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsUserPermissionsLinkQuery) PrefetchRelated(_selectors ...AccountsUserPermissionsLinkPrefetchSelector) AccountsUserPermissionsLinkPrefetchQuery {
 	_result := AccountsUserPermissionsLinkPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -7420,6 +7923,23 @@ func (_query AccountsUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountsUserPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserPermissionsLink], _patch orm.PatchInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountsUserPermissionsLink(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -7631,6 +8151,27 @@ func (_query AccountsUserPermissionsLinkEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query AccountsUserPermissionsLinkEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountsUserPermissionsLinkEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query AccountsUserPermissionsLinkEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountsUserPermissionsLinkEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountsUserPermissionsLink, _paths...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return AccountsUserPermissionsLinkEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query AccountsUserPermissionsLinkEagerQuery) Filter(_values ...orm.Predicate[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -7759,6 +8300,20 @@ func (_query AccountsUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Con
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedAccountsUserPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountsUserPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserPermissionsLink], _patch orm.PatchInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountsUserPermissionsLinkObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -7923,6 +8478,41 @@ func (_query WorkAccessGuardQuery) Fresh() WorkAccessGuardQuery {
 	return _query
 }
 
+func (_query WorkAccessGuardQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessGuard]) WorkAccessGuardQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkAccessGuardQuery) LockTarget() orm.RowLockTarget[work.AccessGuard] {
+	return _query.query.LockTarget()
+}
+func (_query WorkAccessGuardQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessGuardQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessGuard, _paths...)
+	if _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessGuard], _patch orm.PatchInput[work.AccessGuard]) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.WorkAccessGuard, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkAccessGuard(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query WorkAccessGuardQuery) Limit(_limit int) (WorkAccessGuardQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return WorkAccessGuardQuery{}, _err
@@ -8728,6 +9318,27 @@ type WorkAccessGuardPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[work.AccessGuard]
 }
 
+func (_query WorkAccessGuardPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessGuard]) WorkAccessGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessGuardPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessGuard, _paths...)
+	if _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkAccessGuardQuery) PrefetchRelated(_selectors ...WorkAccessGuardPrefetchSelector) WorkAccessGuardPrefetchQuery {
 	_result := WorkAccessGuardPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -8878,6 +9489,23 @@ func (_query WorkAccessGuardPrefetchQuery) GetOrCreate(_ctx context.Context, _in
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessGuard], _patch orm.PatchInput[work.AccessGuard]) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkAccessGuard(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -9089,6 +9717,27 @@ func (_query WorkAccessGuardEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query WorkAccessGuardEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessGuard]) WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query WorkAccessGuardEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessGuardEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessGuard, _paths...)
+	if _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkAccessGuardEagerQuery) Filter(_values ...orm.Predicate[work.AccessGuard]) WorkAccessGuardEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -9217,6 +9866,20 @@ func (_query WorkAccessGuardEagerQuery) GetOrCreate(_ctx context.Context, _input
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedWorkAccessGuardObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query WorkAccessGuardEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessGuard], _patch orm.PatchInput[work.AccessGuard]) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkAccessGuardObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -9365,6 +10028,41 @@ func (_query WorkAccessNoteQuery) Fresh() WorkAccessNoteQuery {
 	return _query
 }
 
+func (_query WorkAccessNoteQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessNote]) WorkAccessNoteQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkAccessNoteQuery) LockTarget() orm.RowLockTarget[work.AccessNote] {
+	return _query.query.LockTarget()
+}
+func (_query WorkAccessNoteQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessNoteQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessNote, _paths...)
+	if _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessNoteQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessNote], _patch orm.PatchInput[work.AccessNote]) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.WorkAccessNote, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkAccessNote(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query WorkAccessNoteQuery) Limit(_limit int) (WorkAccessNoteQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return WorkAccessNoteQuery{}, _err
@@ -10137,6 +10835,27 @@ type WorkAccessNotePrefetchQuery struct {
 	prefetch orm.PrefetchQuery[work.AccessNote]
 }
 
+func (_query WorkAccessNotePrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessNote]) WorkAccessNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessNotePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessNote, _paths...)
+	if _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkAccessNoteQuery) PrefetchRelated(_selectors ...WorkAccessNotePrefetchSelector) WorkAccessNotePrefetchQuery {
 	_result := WorkAccessNotePrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -10287,6 +11006,23 @@ func (_query WorkAccessNotePrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query WorkAccessNotePrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessNote], _patch orm.PatchInput[work.AccessNote]) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkAccessNote(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -10498,6 +11234,27 @@ func (_query WorkAccessNoteEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query WorkAccessNoteEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.AccessNote]) WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query WorkAccessNoteEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkAccessNoteEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkAccessNote, _paths...)
+	if _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkAccessNoteEagerQuery) Filter(_values ...orm.Predicate[work.AccessNote]) WorkAccessNoteEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -10626,6 +11383,20 @@ func (_query WorkAccessNoteEagerQuery) GetOrCreate(_ctx context.Context, _input 
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedWorkAccessNoteObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query WorkAccessNoteEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessNote], _patch orm.PatchInput[work.AccessNote]) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkAccessNoteObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -10779,6 +11550,41 @@ func (_query WorkGuardQuery) Fresh() WorkGuardQuery {
 	return _query
 }
 
+func (_query WorkGuardQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Guard]) WorkGuardQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkGuardQuery) LockTarget() orm.RowLockTarget[work.Guard] {
+	return _query.query.LockTarget()
+}
+func (_query WorkGuardQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkGuardQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkGuard, _paths...)
+	if _err != nil {
+		return WorkGuardQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return WorkGuardQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkGuardQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Guard], _patch orm.PatchInput[work.Guard]) (*WorkGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.WorkGuard, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkGuard(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query WorkGuardQuery) Limit(_limit int) (WorkGuardQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return WorkGuardQuery{}, _err
@@ -11319,6 +12125,27 @@ type WorkGuardPrefetchQuery struct {
 	prefetch orm.PrefetchQuery[work.Guard]
 }
 
+func (_query WorkGuardPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Guard]) WorkGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkGuardPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkGuardPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkGuardPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkGuardPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkGuard, _paths...)
+	if _err != nil {
+		return WorkGuardPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkGuardPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkGuardQuery) PrefetchRelated(_selectors ...WorkGuardPrefetchSelector) WorkGuardPrefetchQuery {
 	_result := WorkGuardPrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -11469,6 +12296,23 @@ func (_query WorkGuardPrefetchQuery) GetOrCreate(_ctx context.Context, _input or
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query WorkGuardPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Guard], _patch orm.PatchInput[work.Guard]) (*WorkGuard, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkGuard(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -11679,6 +12523,27 @@ func (_query WorkGuardEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query WorkGuardEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Guard]) WorkGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkGuardEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query WorkGuardEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkGuardEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkGuard, _paths...)
+	if _err != nil {
+		return WorkGuardEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return WorkGuardEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkGuardEagerQuery) Filter(_values ...orm.Predicate[work.Guard]) WorkGuardEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -11807,6 +12672,20 @@ func (_query WorkGuardEagerQuery) GetOrCreate(_ctx context.Context, _input orm.C
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedWorkGuardObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query WorkGuardEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Guard], _patch orm.PatchInput[work.Guard]) (*WorkGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkGuardObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}
@@ -11942,6 +12821,41 @@ func (_query WorkNoteQuery) Fresh() WorkNoteQuery {
 	return _query
 }
 
+func (_query WorkNoteQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Note]) WorkNoteQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkNoteQuery) LockTarget() orm.RowLockTarget[work.Note] {
+	return _query.query.LockTarget()
+}
+func (_query WorkNoteQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkNoteQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkNote, _paths...)
+	if _err != nil {
+		return WorkNoteQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return WorkNoteQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkNoteQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Note], _patch orm.PatchInput[work.Note]) (*WorkNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.WorkNote, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkNote(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query WorkNoteQuery) Limit(_limit int) (WorkNoteQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return WorkNoteQuery{}, _err
@@ -12482,6 +13396,27 @@ type WorkNotePrefetchQuery struct {
 	prefetch orm.PrefetchQuery[work.Note]
 }
 
+func (_query WorkNotePrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Note]) WorkNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query WorkNotePrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkNotePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkNotePrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkNotePrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkNote, _paths...)
+	if _err != nil {
+		return WorkNotePrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkNotePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkNoteQuery) PrefetchRelated(_selectors ...WorkNotePrefetchSelector) WorkNotePrefetchQuery {
 	_result := WorkNotePrefetchQuery{state: _query.state}
 	if _err := _query.validate(); _err != nil {
@@ -12632,6 +13567,23 @@ func (_query WorkNotePrefetchQuery) GetOrCreate(_ctx context.Context, _input orm
 		return nil, _created, _err
 	}
 	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query WorkNotePrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Note], _patch orm.PatchInput[work.Note]) (*WorkNote, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkNote(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
 		return nil, _created, _err
 	}
 	if _err := _query.state.validate(); _err != nil {
@@ -12842,6 +13794,27 @@ func (_query WorkNoteEagerQuery) validate() error {
 	}
 	return nil
 }
+func (_query WorkNoteEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[work.Note]) WorkNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkNoteEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query WorkNoteEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (WorkNoteEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.WorkNote, _paths...)
+	if _err != nil {
+		return WorkNoteEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return WorkNoteEagerQuery{}, _err
+	}
+	return _result, nil
+}
 func (_query WorkNoteEagerQuery) Filter(_values ...orm.Predicate[work.Note]) WorkNoteEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
@@ -12970,6 +13943,20 @@ func (_query WorkNoteEagerQuery) GetOrCreate(_ctx context.Context, _input orm.Cr
 		_ctx = context.WithoutCancel(_ctx)
 	}
 	_wrapped, _err := _query.state.wrapSelectedWorkNoteObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query WorkNoteEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Note], _patch orm.PatchInput[work.Note]) (*WorkNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkNoteObject(context.WithoutCancel(_ctx), _object)
 	if _err != nil {
 		return nil, _created, _err
 	}

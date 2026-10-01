@@ -3,6 +3,380 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0108 — 행 잠금과 조회 후 생성 또는 갱신
+
+### Helpdesk 저장·Admin 선택 입력·독립 client의 영향 통합
+
+2026-10-02 KST, parent `f04bb77d806c6e5337aa3f08fcc37b71b2c1a4f8`, 비Markdown 2986 files /
+inventory SHA-256 `c781fcaf70005d92cea1ec5a567b6b2992a5a5b06d9e94bdf44ec3190626ad27`에서 업무 흐름을 검증했다. Go 1.26.5/darwin/arm64,
+실제 SQLite와 PostgreSQL 17.10 Debian/UTF8/libc/C/C, 공유 cache·독립 client의 실제 race 전파를 사용했다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / admin-api | 2 | 521 | 0 | 1.975s | `9087d2ea1587fe4eae974cb86b01656050c71a59e1388a82d0a7fa8054dd3a17` |
+| normal / helpdesk | 1 | 650 | 0 | 45.668s | `8ddcec10d900fe097781a1af8e3ff4a72d3392b4141606159f0c62251e0d5b08` |
+| normal / independent-client | 1 | 10 | 0 | 6.185s | `1c8cb0d95b5ca9f3cc69595ebb0350e3e94d0678017d6d22fa48ba5bd8cd5831` |
+| race / admin-api | 2 | 521 | 0 | 20.638s | `585db05fbbbc09b420e0aee5ca749d33f24e282af7c4f76a7230a9fedf623c9e` |
+| race / helpdesk | 1 | 650 | 0 | 264.261s | `855d6350044eac9c7b2bae64458bde23440ba2b172897b03676767111a8dc3ab` |
+| race / independent-client | 1 | 10 | 0 | 53.941s | `108976145724dfb7555c72528ef5063091ee57a314bd8604a2462ca34832970e` |
+| cgo0 / admin-api | 2 | 521 | 0 | 2.367s | `2d9213b1c95e5e5d2b8c93878fbd92c198dca6dff76f944b25be8542c9db43de` |
+| cgo0 / helpdesk | 1 | 650 | 0 | 45.483s | `1f81717f7b3a8e7cc5eb0db7dd3d9a67fa62984e76959bc00e3cc259aef00e2b` |
+| cgo0 / independent-client | 1 | 10 | 0 | 8.073s | `2c83b019df02df8d8191a4dba28e8ad228e4da02ee7f927fde057bee82f0f912` |
+
+Admin/API는 2개 package 전체와 새 선택 입력·현재 목록 재검증·권한·CSRF·변경 결과의 필수 24 paths를 확인했다.
+Helpdesk는 전체 650 paths와 필수 474 paths를 확인했다. 양 DB의 API/Admin 분기·권한·Category/Ticket 범위·
+행의 늦은 이동·native unique·입출력/감사 오류·취소·불확실한 결과·잘못된 callback owner와 정책을 포함한다.
+실제 두 Runtime의 동시 HTTP 요청에서 한 행의 생성/갱신·commit 전 비가시성·add/change 두 audit를 확인했다.
+PostgreSQL은 보유한 Ticket 잠금을 별도 연결의 NOWAIT/55P03으로 확인했다. 기존 Label 확보 회귀도 전부 포함한다.
+독립 client는 실제 HTTP 201/200·변경/무변경·생략 false·foreign 404·blank 400·권한/CSRF 403과 ordinary POST
+중복 거부, 최종 DB/audit를 확인했다. 생성 wire의 두 성공 union·필수 nested 응답·정확한 큰 정수·500 무재시도도 포함한다.
+
+통합 receipt `godj-report-save-impact-rsngcckm/receipt.json`, SHA-256 `a05f5fa0f56b934ce692b0a628ab6814f0572efa53716bad127ff982d833d0bd`.
+첫 실행 `godj-report-save-impact-qxrvm5oz`은 normal/race의 6 sections가 모두 통과한 뒤, 새 Playwright 로그 두 개가 inventory에
+추가되어 source guard가 중단했다. 원 2986개 source의 변경·삭제는 없었고 두 산출물만 `output/playwright`로 옮겼다.
+그 실행의 receipt는 계속 실패로 보존한다(SHA-256 `a1eec01a3596b25ccfef31a6097e9e2d3399a636ad3a8594fefb88b10420654a`). 동일 source·원 log hash를 대조하여 완료한
+6 sections를 위 receipt에 출처와 함께 보존하고, 미실행 CGO0의 3 sections만 새 소유 DB에서 실행했다.
+각 필수 start/terminal·정확한 package·no-skip·잘림 검사를 유지했다. 두 container 제거와 최종 source 동일·
+schema/session `0|0`·별도 DB 제거를 확인했다. 다른 source의 결과를 이 통합에 가져오지 않았다.
+
+외부 client는 실제 exporter의 Helpdesk OpenAPI(SHA-256 `e083ecb2064acaad9743c2501b4426e24e696d091a02922beede74ddf609d91c`)를
+고정 ogen으로 재생성했다. 다른 다섯 문서와 dependency lock은 byte 동일하다. 생성 receipt
+`godj-report-save-client-_feg0zwn/receipt.json`, SHA-256 `1887eb378d4cf029662c27d8aa8939b9d245d51880fa1e7c1afd750e19a24ca4`.
+기존 UUID validator 경고 4건을 새 기능의 실패로 해석하지 않았고 실제 별도 module build와 HTTP/wire 실행으로 확인했다.
+
+### 실제 브라우저·부정 대조·마지막 정적 검사
+
+별도 synthetic SQLite DB와 공개 Helpdesk AdminRegistry/SystemState Runtime으로 실제 서버를 실행했다.
+Headed Playwright에서 로그인·빈 목록의 command·현재 Category 티켓만 표시되는 선택 입력·trim/HTML escaping·
+생성/변경/무변경 안내와 같은 ID 유지·공백 summary 오류를 확인하고 저장 목록/오류 Form screenshot을 직접 검사했다.
+서버 종료 직전 DB는 Report 1행, 원 Ticket 1, 수정 summary와 completed=true였으며 audit는 add/change 두 건뿐이었다.
+Browser와 서버를 종료하고 임시 DB 제거·원 source 동일을 확인했다. Receipt `godj-report-save-browser-m_o5z1ql/receipt.json`,
+SHA-256 `96d80d7ac460693e5f87bbf2e85da91dbc97f27c9a480400669fd0f863118723`. 초기 favicon 404 외 기능 요청 오류는 없었고 최종 화면 console error/warning은 0이었다.
+
+별도 전체 source 사본에서 다음 다섯 훼손이 의도한 검사 실패를 내는지 확인했다. 실제 원 source는 변경하지 않았다.
+
+| 훼손 | 검출 근거 |
+|---|---|
+| PostgreSQL의 명시적 OF target 제거 | root/관계/projection compiler의 `lock compile` 실패 |
+| 불확실한 rollback/cleanup의 생성 복구 허용 | ORM의 `unrecoverable result` 실패 |
+| 독립 Django fixture의 created 결과 반전 | 양 DB 생성 소비자의 `native result differs` 실패 |
+| 기준 case 한 개 삭제 | 필수 observer/inventory 결합 거부 |
+| observer SHA-256 손상 | 원 observer 결합 거부 |
+
+전후 정상 compiler/ORM 검사와 복원한 양 DB 전체 UpdateOrCreate 생성 소비자는 PASS, skip 0이었다.
+원 source 동일·사본 완전 복원·schema/session `0|0`·소유 DB/container 제거를 확인했다. Receipt
+`godj-upsert-negative-qdm1w7rm/receipt.json`, SHA-256 `b9af668259383d757dbc656660608281405327473c0d4e9ff415b495b1350a11`. 개별 실행 log hash는 receipt에 보존했다.
+
+`go vet ./query/... ./db/... ./orm/... ./codegen/... ./admin/... ./api/openapi/... ./examples/helpdesk/...` PASS.
+`make generate-check`는 Unicode 2 tests·7개 실제 project의 check·checked-in relation product까지 PASS.
+CI package/필수 sentinel ownership 검사는 unittest discovery로 13 tests PASS였다. 처음 module import 경로 오류와
+직접 script 호출의 0 tests는 검증 성공에서 제외하고 discovery로 고쳤다. Receipt `godj-upsert-final-checks-hrj50skd/receipt.json`,
+SHA-256 `f4ed4a070af5610be5ce1db23b7caebc5d3f60535a40bfa160d440142d14e9e2`. 이 기록은 영향 검증이며 새 source의 Hosted/full-platform 성공이 아니다.
+
+### 독립 client의 초기 실패 보정
+
+이전 후보 `godj-report-save-impact-g356ivvd`(inventory `e6e39f1c0b481c5bd132ac9b421b2fe5032fbbc944252309b34fb4c61f9719e8`)는
+normal Admin/API 521·Helpdesk 650 paths 통과 뒤, 독립 client가 빈 문자열의 오류를 `required`로 잘못 기대하여
+10 run / 9 pass로 실패했다. 실제 serializer의 `blank` 계약으로 기대를 보정했다. Race/CGO0은 미실행,
+container 제거 확인, receipt SHA-256 `717efe2ce701879813ba59e3855993144efc3e92060130e6045c8d8b53322065`다.
+수정 뒤 독립 client의 targeted normal은 10 run/pass·skip 0·6.983s였고 log SHA-256
+`9308eff7006b88cfb8d6110b22f88ba2a72c01d229754e304027bf9d17438f1e`다. 위 통합은 이 보정 후 별도로 수행했다.
+
+### Helpdesk 저장 흐름의 초기 영향 실행과 보정
+
+아래 실행은 실패이며 부분 성공을 새 기능 완료로 표시하지 않는다. 모두 normal에서 중단되어 independent client와
+race/CGO=0은 미실행이다. 네 후보 모두 Go 1.26.5/darwin/arm64·같은 PostgreSQL 17.10 profile을 사용했고
+소유한 container의 종료·제거를 확인했다. 이후 source의 검증은 별도 완료 기록을 따른다.
+
+- `godj-report-save-impact-6yt3b9dn`: 새 Admin 테스트가 정수 0을 잘못된 선택 값으로 가정하고 메시지 본문을 잘못 기대했다. 자료형이 틀린 선택 결과와 실제 invalid_choice field/code를 검사하도록 보정.
+  Source 2986 files / inventory `b6beb208aee6d4176e35c4ed04006a98711ba5ef258f4b780812e2dabeed9084`, receipt SHA-256 `7aae0a648b29d86c43b5d65bff05abd3a47460c5e745cc2f6c4710e31f21f104`.
+  admin-api: 521 run / 517 pass / 0 skip, 2.611s, log `ebe8b2c5402f4ff10d36dca87b23e88ef9bebaba6be43a6241f23474f9ae8b01`.
+- `godj-report-save-impact-2sh08noc`: 새 27번째 API operation에 대해 기존 26개 표면과 인증 구성 수를 유지하던 검사 실패. 새 요청/응답 schema와 27개 admission을 명시.
+  Source 2986 files / inventory `cc2b849fc00897c1075adad98be2bd308aa4f1a1c6ffb412f8ab58d5e844ff28`, receipt SHA-256 `c04e6f4c80b7383e657e4c6050f0f47a16b4015e6bf924fa9157e7a3b83739f2`.
+  admin-api: 521 run / 521 pass / 0 skip, 3.178s, log `e7f00f6e9d685119b49b2f4acbe18637e4d52691f8a71632f6de296f58310a7a`.
+  helpdesk: 78 run / 74 pass / 0 skip, 9.522s, log `1071c2e248baf3d4297d38780f30e319ac5fc19a8d4664f873a068c155f4eec1`.
+- `godj-report-save-impact-98z9rtnh`: 기존 route별 permission 순서 목록에 새 경로가 누락된 검사 실패. 명시적인 route 이름별 primary/additional permission 계약으로 정리.
+  Source 2986 files / inventory `79ab2243c69c7d668485ed6862375e9927749796e3e2db660b27db232999bc0b`, receipt SHA-256 `da01c48e2373cd9dc099e75e09dcc104800aa4b092dd95b69a36baa353a62368`.
+  admin-api: 521 run / 521 pass / 0 skip, 2.218s, log `11b378150cab2f43b17b3589e7e8593515db394583a31cdb8cf8ccdeb52844c6`.
+  helpdesk: 78 run / 75 pass / 0 skip, 13.515s, log `ebbf1541f739bb0ad21dddaac5c5856d46d233a03846ba55e07dfbd90874b418`.
+- `godj-report-save-impact-lmw7_upo`: 업무 개별 case는 실행됐으나 새 동시 요청 검사가 AuditHistory의 오름차순을 반대로 해석했고, snapshot 검사 한 곳에 26개 인증 수가 남았다. 실제 audit reader/test의 계약과 일치하도록 보정.
+  Source 2986 files / inventory `ebfba173b218faeb647f04806886ab12c72e3ee589a4624c6a432f7e7757def6`, receipt SHA-256 `0a01765d9e2bf9d853045f6107bf24b8564b9b9b632787fffbf9355147c36818`.
+  admin-api: 521 run / 521 pass / 0 skip, 2.262s, log `9f6e707d1b157dbf803c31f6c0168b406d8761b3498cd047c710f80b5a41955b`.
+  helpdesk: 650 run / 643 pass / 0 skip, 48.123s, log `a3f06ac5cbd661ca0e6ca39c3b684bfdabb7255aa55e2b6d046a227311b42a89`.
+
+### 정식 기준의 Go 생성 소비자 직접 대조
+
+2026-10-02 KST, parent `f04bb77d806c6e5337aa3f08fcc37b71b2c1a4f8`, 비Markdown 2980 files / inventory SHA-256
+`1fa3f5a99b9f36026eb7872372fa8356b84fa6490375494daf007a7f07fe28e9`에서 위 정식 fixture를 생성 Go module의
+실제 SQLite/PostgreSQL 동작과 대조했다. Go 1.26.5/darwin/arm64, 공유 cache·trimpath와 같은 pinned DB profile이다.
+기존 UpdateOrCreate·선택 graph·borrowed scope·수명 소비자와 함께 실행했다.
+
+| Mode | 필수 parent run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---|
+| normal | 1 | 0 | 9.034s | `a169a5a4b43aba88aa0d88dbc68dcc7052c3c8d6eaf822fe3e5761ca8c813ef6` |
+| race | 1 | 0 | 59.652s | `bc7b9e4a3f8933a5f731f207a61ea20c159e1880c124e061c1ac01f26ad7f97d` |
+| cgo0 | 1 | 0 | 4.867s | `9fcb4cac7679954f2874f3993c8ecd7645a88351b94a70378aa4aa842411f953` |
+
+Parent `TestGeneratedUpdateOrCreate`는 child의 모든 event를 잘림·skip·실패 없이 검사하고, 새 upsert reference의
+backend별 14 cases+최종 행, 행 잠금의 backend별 10 terminals+8 targets+최종 행과 PostgreSQL contention
+8 cases를 각각 필수로 검사한다. 기존 행·동시 생성 경쟁은 같은 숫자 counter와 입력 횟수·조회한 기존 값·
+created 결과·잠금 조회 횟수·scope 횟수·native busy·commit 전 가시성·최종 행을 원 관찰과 대조한다.
+PostgreSQL의 실제 차단과 NOWAIT/SKIP LOCKED, 별도 연결의 root/관계/중첩 대상 및 FK INSERT를 포함한다.
+명시적인 Go 차이는 native fixture의 원 값을 보존하고 Go 대안만 별도로 assert한다.
+
+실행 전후 source 동일, schema/다른 session `0|0`, 별도 DB 및 container 삭제를 확인했다.
+Receipt `godj-upsert-reference-consumer-9tezrxdw/receipt.json`, SHA-256 `2d361c48b42168f48fb0b593845247f6dcec540fe3bb49d743edb7d5cd8792e7`.
+`uv run --frozen --project conformance/reference/drf python -m unittest conformance.runners.django.tests.test_update_or_create_reference -v`
+또한 2 tests PASS/skip 0이었다. 두 observer의 SQLite 새 프로세스를 hashseed 0/813에서 비교하고 원 fixture와
+observer/upstream source 결합을 확인했다. PostgreSQL의 Python 재실행은 위 별도 native capture가 소유한다.
+이 checkpoint는 변경한 기준 소비자 범위이며 기존 Helpdesk 전체와 Hosted 통합을 재실행한 결과가 아니다.
+
+첫 후보의 normal parent는 새 fixture의 `unknown_relation` 오류 분류, PostgreSQL 빈 SELECT의 기존 계약에 대한
+잘못된 기대, 이미 취소된 test context를 사용한 SQL 설정 cleanup으로 실패했다. 제품 코드 대신 fixture를 보정했다.
+동일 source의 두 번째 실행은 수정 스크립트의 assertion 때문에 편집이 적용되지 않은 재실행이었다. 두 실행 모두
+race/CGO=0은 미실행, container 제거를 확인했으며 성공에 포함하지 않는다.
+
+- 실패 `godj-upsert-reference-consumer-jp6t6wfk`, source inventory `b9636a2f977af6929ee5e8c304eef0c19d7447eada27010c24bd6fb9ea8da08e`, receipt SHA-256 `f98b8e3a322795dfc0bde8f337f2504609ffac865b7bb410f3a52ba844ec5b72`, log `ea584f62cc15d8f86b84e964212cb9456ca95adf002c58fd659536425ccebfb9`.
+
+- 실패 `godj-upsert-reference-consumer-cb91b_7g`, source inventory `b9636a2f977af6929ee5e8c304eef0c19d7447eada27010c24bd6fb9ea8da08e`, receipt SHA-256 `fcd5bc7d821542248285d014fe42899ed22132cab8adad7e283c3689de458062`, log `c52333bbe5572a875c1db317a1a55a6e8b6df7acf77dbfb4bebeb93a53b79f50`.
+
+위 생성 소비자 대조를 마친 source에서 `make generate-check`도 통과했다. 7개 모델 project의 실제 generator check와
+Unicode 검사 2개, checked-in relation product drift를 확인했다. 이후 시작한 Helpdesk ServiceReport 업무 변경의
+실행 성공을 뜻하지 않는다. 새 Admin/Helpdesk/API parent 및 독립 client compile은 통과했고 runtime 영향 검증은 진행 중이다.
+
+### 정식 Django observer와 독립 양 DB fixture
+
+2026-10-02 KST, 작성한 synthetic 입력만 읽는 두 observer를 repository에 보존했다. Go source/output이나
+expected fixture를 기준 입력으로 사용하지 않는다. 각각 SQLite·PostgreSQL의 두 새 프로세스에서 실행했고
+backend별 결과가 byte 일치했다. Python 3.14.3·Django 6.1·psycopg 3.3.6, PostgreSQL 17.10
+Debian/UTF8/libc/C/C의 고정 환경이다. Python 버전은 관찰 metadata이며 이후 compatibility replay에서
+같은 Django의 동작을 대조할 수 있도록 실행 진입을 특정 Python patch 버전에 제한하지 않는다.
+
+Upsert는 14개 분기/오류/명시적 옵션과 기존 행·동시 생성의 실제 경쟁 2개를 관찰했다. 행 잠금은 10개 terminal과
+8개 target, PostgreSQL의 별도 연결 target/FK 경쟁 8개를 관찰했다. 두 observer 모두 QuerySet·Atomic·SQLCompiler의
+source hash와 자신의 SHA-256을 출력한다. 저장 fixture는 각 독립 출력의 원 byte다.
+
+| Observer | Observer SHA-256 | SQLite output SHA-256 | PostgreSQL output SHA-256 |
+|---|---|---|---|
+| `update_or_create_reference.py` | `f5814eb8daa2f00468c373218095a20b9a81104fcb378a290f680e08ec8e836f` | `2a2df343930bc9716a846945ecf3387f74e2d5c3333d6fadf5fdcff50cfab66f` | `457d238e25eb288a547d3d4cbf4e9dcbc19a005dbe60ed3c623d6e8b07f272f2` |
+| `row_lock_reference.py` | `629748323ce836c0b872480db827b720d6a938b29fe7d00c1e3ec6c0fd3a2707` | `1b2b8c4c54250802761eaebd6de1d6e9e8358212c7912279e44c949a3a44fdf4` | `8decddd36ee6f4e51ccdf00062995d4e0d41837d83c16b0ef39902bd1c2fadfb` |
+
+- Receipt `godj-upsert-reference-l94eovi2/receipt.json`, SHA-256 `45afb0e11a29c5a062fbb781104f9852a800c1aca8def0e9ebf498b2417ef4f9`.
+- Receipt `godj-row-lock-reference-ux0i2om4/receipt.json`, SHA-256 `a0bf0ed32fdc8345ce247e1bb921256f06daca1dc1c74b54c209665c25e4d90d`.
+
+두 실행 모두 observer byte 보존·schema/session `0|0`·DB 및 소유 container 삭제를 확인했다.
+이 기록은 native 기준 검증이며 이후 Go 소비자 대조의 PASS를 뜻하지 않는다. 단건 기준과 마찬가지로 명시한
+Go API 차이를 원 관찰과 구분한다. SQLite의 명시적 잠금 오류, filter/value JOIN의 명시적 target 지원, projection의 OF 대상 보존, upsert의 설정한 잠금 옵션 유지가 해당한다.
+
+### UpdateOrCreate API와 기존 소비자의 영향 checkpoint
+
+2026-10-02 KST, parent `f04bb77d`, 비Markdown 2971 files / inventory SHA-256
+`5becfce56c855fbee8dc3fe77a8555988aca243ced022a0e55f259133e39821d`에서 원자 upsert·지연 생성/갱신 입력·빈 patch 검증과
+반환 graph의 caller 수명을 확인했다. Go 1.26.5/darwin/arm64, PostgreSQL 17.10 Debian/UTF8/libc/C/C,
+실제 file-backed SQLite와 공유 cache·독립 module의 trimpath/race 전파를 사용했다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / runtime | 2 | 1142 | 0 | 2.118s | `aff050c3e2a86a642e6ccac6f9e72b4b1336d5be272530c67050600e1aa597a5` |
+| normal / consumers | 1 | 6 | 0 | 13.536s | `6d1d517dcfabff2cadd95fc57a95c1b22af2a966a46f5c50a0ecb735f8b3a6df` |
+| normal / native-policy | 2 | 6 | 0 | 5.130s | `4c430e70a09b536881d6f7cf3b1f054bf02b4ca186a6e3a93f8cc8695c03e4aa` |
+| normal / helpdesk | 1 | 488 | 0 | 35.409s | `f6c9dd89a81cd25ad171186a44d7a6b7fa26e675930e0180effd3c381ec2d748` |
+| race / runtime | 2 | 1142 | 0 | 38.671s | `0df00b465a075328d61a91b5a62dab8d8861f981f5591ac5c6dac26924b9b95c` |
+| race / consumers | 1 | 6 | 0 | 141.850s | `fc918d29c0a8ad585f3cef3b50e8713b140c5ed2494b80856484fee03aefe14a` |
+| race / native-policy | 2 | 6 | 0 | 46.599s | `992ba63cfc8c99513dfbf7e8af631ba1ec0d292f3fde6c7967d89c8228326bc5` |
+| race / helpdesk | 1 | 488 | 0 | 255.569s | `e2e1d3df858dd4ed7254922cb6d0de958ed418787cb0a418a75f92db8b2d26df` |
+| cgo0 / runtime | 2 | 1142 | 0 | 3.191s | `abaa93b6d53917d495a34045abb07904f385be7987549b99d3c1b7c828a64c0d` |
+| cgo0 / consumers | 1 | 6 | 0 | 14.322s | `1719be6079c2464ff0804a9d80322c42c95a3c234164859b47788550f1acc8fb` |
+| cgo0 / native-policy | 2 | 6 | 0 | 6.185s | `980afff79a3fecb16c088139ceda290c378db74c0fab31bbe0a2705617ebab23` |
+| cgo0 / helpdesk | 1 | 488 | 0 | 43.703s | `bcad4a63e43dc3a47091b5c0e85e0da381a4fb89206a3e86627e48be643eef3c` |
+
+Runtime은 ORM/codegen 전체와 새 필수 59 paths다. 생성 소비자는 custom single/filtered prefetch, 행 잠금,
+GetOrCreate, 고정 단건 기준 및 새 UpdateOrCreate의 6 parents다. 새 소비자의 양 DB 9 cases와 4종 borrowed
+owner의 commit/rollback, 실제 기존 행·동시 생성 경쟁 2 cases를 필수로 확인했다. PostgreSQL에서는
+`pg_blocking_pids`의 실제 대기와 unique rollback 후 새 잠금 조회를, SQLite에서는 native busy와 무재시도를
+확인했다. Native policy의 6 paths는 writable owner·savepoint·만료와 SQLite의 명시적 잠금 거부를 포함한다.
+기존 Helpdesk 전체 488 paths와 필수 312 paths를 함께 실행했다. 새 ServiceReport upsert 업무 흐름과
+정식 기준 fixture의 Go 대조는 이 checkpoint에 포함하지 않는다.
+
+실행 전후 source 동일, schema/다른 session `0|0`, 별도 DB와 소유 container 삭제를 확인했다.
+Receipt `godj-update-or-create-api-ik1vzjvv/receipt.json`, SHA-256 `affc5070e18d79179b5fa292b2535eac28351abc9d35b1d6cd7eb665181a59f0`.
+이 영향 결과는 Hosted/full-platform 성공이 아니다.
+
+첫 후보 `b3d83ab1c3066e6fe9d99e36fc7e0f6ab6a2c74348d37519832b86a84c13cbb3`는 runtime 1142 paths 통과 뒤
+새 graph 실패 주입이 실제 역방향 SELECT의 table을 대상으로 하지 않아 생성 소비자가 실패했다(6 run / 5 pass).
+실제 RankedLink table로 주입을 옮기고 cleanup에서 hook을 반드시 해제하도록 고쳤다. 실패 receipt
+`godj-update-or-create-api-4qlc5s53/receipt.json` SHA-256
+`b31b1ff86dd160a0399e06e8ff35e6664ce15a76ee3e0b36e62b136c05aa9bc8`, 소비자 log
+`1fcd5f56b7c19e12f18dc984e5f8d0a6afaeee887a838d67dd6df5a008aca914`다. 나머지 section은 미실행이다.
+
+둘째 후보 `e507a5fe357a4553ed78db2b8afbb3bf862df523236ebd164539e38132904cd0`는 normal runtime 1142,
+소비자 6, native policy 6 paths 통과 후 빈 patch 처리 변경에 따른 Helpdesk 3개 파일의 사용하지 않는 import로
+build 실패했다(0 tests). Import를 제거하고 compile을 확인한 뒤 위 최종 source로 세 mode를 모두 실행했다.
+실패 receipt `godj-update-or-create-api-th8s4pqa/receipt.json` SHA-256
+`72eab32b9e94a2f18f9f6039578dd7c47492b08282e851b82134e4ba821c9446`, Helpdesk log
+`656cd162b74db12a9ac207fa4305c4d7d4ec586d2e2b66eac4482876a4b633d4`다. Race/CGO=0은 미실행이며
+두 실패 실행의 container 제거도 확인했다.
+
+### 고정 Django의 잠금 대상과 실제 FK 경쟁 관찰
+
+2026-10-01, Go 구현이나 기존 expected output을 읽지 않는 별도 observer로 선택 대상 8개 경우를 SQLite/PostgreSQL에서
+각각 두 독립 프로세스로 관찰했다. Python 3.14.3/Django 6.1, PostgreSQL 17.10 Debian/UTF8/libc/C/C와 psycopg 3.3.6을 사용했다.
+PostgreSQL에서는 서로 다른 서버 연결의 NOWAIT와 실제 FK INSERT/commit으로 추가 8개 경쟁 경우도 관찰했다.
+이는 native 기준 조사이며 Go 제품의 구현·PASS를 뜻하지 않는다.
+
+`OF`의 root/선택된 관계/두 단계 관계는 실제 해당 모델만 잠갔다. 조회 조건의 JOIN만 존재하는 관계와 알 수 없는 대상,
+관련 값만 projection한 OF 관계는 PostgreSQL에서 SELECT 전에 FieldError였다. SQLite는 잠금 구문 없이 보통 조회를 수행했다.
+특히 root 열을 제외한 values의 `of=self`는 PostgreSQL에서 OF 없는 FOR UPDATE가 되었고 실제 root와 관계 행을 함께 잠갔다.
+root 열을 포함하면 OF root만 남고 관계 행은 다른 연결에서 잠글 수 있었다. 이 관찰 결과와 Go의 명시적 대상 보존 의미는
+[ADR-0087](../adr/0087-row-locking-and-update-or-create.md)에서 구분한다.
+
+FOR UPDATE로 잠근 부모를 참조하는 별도 연결의 FK INSERT는 commit에서 lock timeout/SQLSTATE 55P03으로 실패하고
+행이 남지 않았다. FOR NO KEY UPDATE에서는 같은 참조 INSERT가 commit됐고 실제 행을 확인했다. 관찰 뒤 추가 행을 지웠다.
+최종 seed 행은 두 개뿐이며 schema/session 0/0, 별도 DB 삭제와 소유한 container 종료·제거, observer byte 보존을 확인했다.
+
+Observer SHA-256은 `11649693d58ef36a1177fbf8a4b2def804ed8f58db58fc5afad2c666ab46789a`다.
+SQLite의 두 출력은 각각 1,769 bytes / SHA-256 `561af9e919fccd986318fded719202155e6099d5d7b5a4c86eddac7d4a4d5da1`,
+PostgreSQL의 두 출력은 각각 4,411 bytes / SHA-256 `2c401dbffc1aa8a6f5142faae25b350a2a84aa5f7213637247579099c24c1c1f`로 byte 일치했다.
+기준 자료는 `godj-lock-target-exploration-sql7_g7h/receipt.json`과 backend별 raw observation에 보존했다.
+정식 기준 fixture·Go 구현·환경별 검증과 업무 흐름은 아직 남아 있다.
+
+### 잠금 갱신 뒤 중첩 eager graph 보존 checkpoint
+
+2026-10-02 KST, parent `f04bb77d`, 비Markdown 2962 files / inventory SHA-256
+`86adf6448f591b8592b696b22ca8c0b4093932baedabe7f40c28c244ca7f36d6`에서 중첩 graph 보존을 추가 검증했다.
+아래 ORM/생성 checkpoint와 같은 Go·양 DB profile, 공유 cache와 독립 module의 trimpath/race 전파를 사용했다.
+
+| Mode | ORM/codegen run/pass | 생성 소비자 parent run/pass | skip | runtime / consumer 시간 |
+|---|---:|---:|---:|---|
+| normal | 1090 | 4 | 0 | 2.299s / 11.783s |
+| race | 1090 | 4 | 0 | 34.790s / 90.691s |
+| cgo0 | 1090 | 4 | 0 | 2.317s / 9.406s |
+
+행 잠금 소비자의 backend별 필수 case는 7개다. 기존 6개에 `locked_refresh_preserves_current_descendants`를
+추가했다. 실제 다른 PostgreSQL 연결에서 최초 eager SELECT와 잠금 SELECT 사이에 FK를 갱신했고, 반환된
+관계와 그 하위 Badge는 새 FK를 따랐다. 앞서 반환한 graph는 기존 값을 유지하며 접근 때 추가 SQL이 없었다.
+parent 잠금 SELECT에는 원래 없던 하위 JOIN을 추가하지 않았고, 별도 관계 SELECT에는 잠금이 없었다.
+다른 연결의 하위 Badge NOWAIT도 성공했다. 하위 조회의 주입 실패 뒤 전체 조회를 재시도하고 성공한 cache만
+게시하는 것도 확인했다. 기존 custom single/filtered/GetOrCreate 소비자와 ORM 전체를 함께 실행했다.
+
+실행 전후 source 동일, schema/다른 session `0|0`, DB 및 container 삭제를 확인했다.
+Receipt `godj-row-lock-graph-7emlom09/receipt.json`, SHA-256
+`d826da41e8138b51081473b08ea0600cbc7f95c4cb7fa7546312d35e799586d4`.
+
+| Mode / 범위 | Log SHA-256 |
+|---|---|
+| normal / runtime | `dc55342f450c2a780703168bb8c2252426f4558b5f517226d5a4f9a07afe0267` |
+| normal / consumers | `9dcf4a131d3d9629bf25d402cda1642ae9262f64c2d4cc41f2bdf394052d6549` |
+| race / runtime | `810e2169f2d502dd237f3511355c05da63c76e83003a0a2e8eb0309dafb6ab6d` |
+| race / consumers | `b45dc7c3071a5a08a2fe0d03a695018df606bc7bebe3bc5acdaf82d44842d42f` |
+| cgo0 / runtime | `5a01abae40318ce9344c3b819a554a96f2f52fec3c80918d16ced8bdd91be174` |
+| cgo0 / consumers | `632ed974e44376e452a55f266317e53c1c1630a87e3ec10cc927a855ed33b0f9` |
+
+새 query/ORM/SQLite 실행 sentinel 16개와 PostgreSQL/생성 소비자 sentinel 30개를 각 CI owner 명세에 추가했다.
+`scripts/ci/test_packages.py`의 13 tests가 통과했다. 이 source의 Hosted 실행은 아직 없으며 앞선 backend 기반
+checkpoint의 native 실행을 이 source의 재실행으로 표시하지 않는다.
+
+앞선 graph checkpoint의 source `5e7364c983df1877a752444466a7f025da5059a53ad9bcffc14bf0ea6ab96f74`에서는
+normal runtime 1090개가 성공했으나 새 소비자가 멈췄다. 첫 주입 실패가 발생한 부모 transaction을 계속 사용한
+상태에서 다른 연결의 UPDATE를 기다렸기 때문이다. `pg_stat_activity`와 `pg_blocking_pids`에서 기존 transaction의
+행 잠금에 UPDATE가 대기함을 확인하고 소유한 child process를 종료했다. 해당 소비자는 실패, 다른 3개 parent는
+성공했으며 race/CGO=0은 미실행이다. 실패 receipt `godj-row-lock-graph-w0c0iogi/receipt.json`의 `pass=false`,
+SHA-256 `e2d567d24c4aa8bb57031826be9b2db1bb7183ffffff64ed2a7276aacaad7c58`, consumer log
+`28e4b67ea9368caa156e82c8582f21905146d4c0b31b4234092aa883dcf27e89`와 container 정리를 보존했다.
+정상 잠금 수명을 변경하지 않고 fixture에서 외부 FK 갱신을 먼저 관찰한 뒤 조회 실패/재시도를 확인하도록 고쳤다.
+
+### 행 잠금 ORM와 독립 생성 소비자의 영향 checkpoint
+
+비Markdown 2962 files / inventory SHA-256 `c644a74aca0ba099be279019c505f4a7ed69a5577fb04a17e1bf647118955440`에서
+typed/dynamic lock target, 일반/eager/prefetch 파생과 명시적 target 잠금을 연결하고 normal/race/CGO=0을 확인했다.
+Parent는 `8f8831ac`이며 이후 `f04bb77d`의 Markdown 완료 기록을 합친 뒤에도 비Markdown source가 같았다.
+
+Go 1.26.5/darwin/arm64·공유 cache·offline/readonly·`-count=1`, 독립 생성 module의 `-trimpath` 및 부모와 같은
+race/CGO mode를 사용했다. 새 전용 PostgreSQL 17.10/UTF8/libc C/C와 실제 SQLite에서 생성 소비자를 실행했다.
+
+| Mode | ORM/codegen run/pass | 생성 소비자 parent run/pass | skip | runtime / consumer 시간 |
+|---|---:|---:|---:|---|
+| normal | 1090 | 4 | 0 | 2.726s / 13.435s |
+| race | 1090 | 4 | 0 | 43.763s / 100.989s |
+| cgo0 | 1090 | 4 | 0 | 2.668s / 9.553s |
+
+새 행 잠금 소비자는 양 DB 각각 cache/Count/거부·typed/dynamic 대상·terminal/scope 종료·기본 prefetch와
+custom many/reverse 잠금·eager cache를 통과한 실제 잠금 query·생성 facade의 실제 대상별 NOWAIT 경쟁을 필수로 요구했다.
+다른 모델의 잠금 대상 전달은 독립 module의 실제 compile 실패로 확인했다. 기존 custom single prefetch·filtered
+composition·GetOrCreate 소비자도 함께 실행했다. 자식 내부 실행 수는 위 parent 수와 합산하지 않는다.
+ORM은 일반 query cache의 비변경·잠금 query의 새 평가·옵션 오류/취소 우선순위·typed/dynamic AST 동일성·
+eager 값/부재 cache의 재평가와 null FK의 capability 검증을 포함했다. 이 checkpoint는 UpdateOrCreate나
+Helpdesk ServiceReport 흐름·GDJ-0108 Hosted 전체 완료의 증거가 아니다.
+
+실행 전후 source가 같았고 남은 schema/다른 session `0|0`, 전용 DB/container 삭제를 확인했다.
+Receipt `godj-row-lock-api-l8g6i54e/receipt.json`, SHA-256 `7682c5d895db75a5d03a9bc5bcbb4d39a7c814b98a3702b1651f86dc3583f6bd`.
+
+| Mode / 범위 | Log SHA-256 |
+|---|---|
+| normal / runtime | `72b3b26b82eef5b9eaf45db769c7e88518a526771979c80c940ada649926fc08` |
+| normal / consumers | `ab8e4cbcfe844e70daa0a75844169bc5b33b897324301d6855ec7cad13c0a644` |
+| race / runtime | `7c6f34cb26b36dee13d3d1a418c27ffeb61c5d0117603243f77dd2a3fe6e1a7f` |
+| race / consumers | `3fff380d369cb542960c1a616cb8f47728982955b9550d36ae2ec5f7160d5cb0` |
+| cgo0 / runtime | `3b23c567ecc9f39268cb1fe1185d16421a4b874a4efff0cc7dd3487ab2305a7d` |
+| cgo0 / consumers | `8d8d15e03007b8e9c5c4192806e0325faf6822bb2aade93855e28ec1743bff46` |
+
+같은 비Markdown source의 `make generate-check`는 Unicode 생성/2 Python tests·7개 project·checked-in relation
+fixture를 통과했다. Query/queryplan·양 DB·ORM·codegen/소비자의 `go vet`, 181개 Markdown 문서 링크와 diff도 확인했다.
+생성 facade 7개 project와 query/select-related/facade golden 3개는 실제 생성기로 갱신했다.
+
+### 행 잠금 ORM/생성 표면의 첫 checkpoint와 보정
+
+첫 source의 비Markdown 2962 files / inventory SHA-256 `3f06c4f98254fe71f612d0b86594349b09a941dc65ecf630291a384f0d5c0177`에서
+normal runtime은 1,090 run / 1,086 pass / 0 skip, 19.336s로 실패했다. ORM은 전부 성공했지만 codegen의
+query·select-related·facade golden 3개를 갱신하지 않았고, 부모 실행까지 `-trimpath`를 적용하여 기존 Article
+검사의 `runtime.Caller` 기반 workspace 경로를 바꿨다. 생성 소비자와 나머지 mode는 실행하지 않았다.
+Golden은 실제 생성기로 갱신하고 부모 Go test는 repository의 기존 경로 조건을 사용한다. 독립 생성 module의
+`-trimpath`·공유 cache는 유지한다. 실패 log SHA-256은 `96878cc8ec4de7a6d12a3048711d6bd81920cbe21fc2beb3571f54d249e48dd6`이며,
+receipt `godj-row-lock-api-px7_tdus/receipt.json`의 `pass=false`와 전용 container 정리를 보존한다.
+
+보정 source의 normal runtime은 1,090 run/pass / 0 skip으로 성공했다. 이어진 생성 소비자 checkpoint는 기존
+custom single·filtered composition·단건 생성 세 parent가 성공하고 새 행 잠금 parent가 실패했다. 새 fixture에서
+borrowed session을 root 생성자 `project.Using`에 전달했기 때문이다. 현행 `UsingSession` 경계를 그대로 사용하도록
+fixture를 수정하며 이 실패를 제품의 capability 완화로 처리하지 않는다. source inventory SHA-256은
+`24c850ecf27921d3b6da086ec4b677fd66d447453d28bbf65d4e89a894d04cc0`, 실패 log는 `a3be3d9e4eeefb58ff18346ef66599bf2d0d8a8dded84134eff4ff25a80d875b`이다.
+Receipt `godj-row-lock-api-ak3xkp4m/receipt.json`은 `pass=false`; race/CGO=0은 미실행이며 전용 container는 정리했다.
+
+### 행 잠금 AST와 native backend 기반 checkpoint
+
+2026-10-01, parent `8f8831ac8231a9c32049b6649e49f8638edd5117`, 비Markdown 2958 files, inventory SHA-256
+`272c2b1258ac30f90ccc2cddaef4a21a640b534d8e81f68a8eb7367d9b289716`에서 Query AST·compiler·native session/cursor 경계를 검증했다.
+이 checkpoint는 typed/dynamic ORM·생성 facade·update-or-create 구현 완료를 뜻하지 않는다.
+
+Go 1.26.5/darwin/arm64, 공유 cache·offline/readonly·`-trimpath`·`-count=1`을 사용했다.
+PostgreSQL 17.10 Debian의 UTF8/libc C/C profile은 새 전용 local container에서 확인했다.
+
+| Mode | AST/queryplan run/pass | backend run/pass | skip | AST / backend 시간 |
+|---|---:|---:|---:|---|
+| normal | 248 | 312 | 0 | 2.258s / 26.207s |
+| race | 248 | 312 | 0 | 4.32s / 39.577s |
+| cgo0 | 248 | 312 | 0 | 1.391s / 4.744s |
+
+각 mode의 네 package는 누락·중복·실패·skip·잘린 출력을 거부했고 새 및 scope 회귀 25개 필수 root를 확인했다.
+명시 대상/원본 소유권·projection 보존·Count 잠금 제거·잘못된 route·nullable/distinct/window 제한, root/snapshot의
+SQL 이전 거부를 검증했다. 실제 두 PostgreSQL 연결에서 OF 대상별 NOWAIT, SKIP LOCKED, `pg_blocking_pids`로
+확인한 대기와 commit 뒤 진행, 취소 후 연결 재사용, 네 transaction owner의 savepoint/cursor 수명, rollback 뒤 잠금
+해제, pinned writable scope와 read-only 경계, NO KEY UPDATE에서의 deferred FK 참조 commit을 대조했다.
+SQLite는 root·transaction·savepoint·snapshot과 빈 source의 모든 명시 옵션을 unsupported로 거부했다.
+쿼리·일반 savepoint·cursor·실패 소유권 회귀도 같은 실행에 포함했다.
+
+실행 전후 source가 같았으며 남은 schema/다른 DB session `0|0`, 전용 DB와 container 삭제를 확인했다.
+Receipt `godj-row-lock-foundation-7afeqktp/receipt.json`, SHA-256 `c64c843960df713f0c12cf177d6fd0ab6fa679bdc0740fde3b2fa6f09a7660d1`.
+각 원본 JSON log의 SHA-256은 다음과 같다.
+
+| Mode / 범위 | Log SHA-256 |
+|---|---|
+| normal / ast | `3fe67102475e8a6dd5849294f5e32ad0000dcba089a98098cd72328d5edfd46c` |
+| normal / backends | `5977a9153f5b7dd0f029d4a5fbc199fd6529db70e4f5c1f4a539c06a08c3e4b7` |
+| race / ast | `ddd14ebca8c540f45435d5d2af8661dbf5cb4afb3e5d7675197abac606981690` |
+| race / backends | `10be15a0d9d563a7bee4c8681854eeb3ca4ba7993d20a283f24640cf5ac66e72` |
+| cgo0 / ast | `dbfcc272d26f00e42122429ad2a1833ba0c30e6257d0aac8560c9a43bca0529a` |
+| cgo0 / backends | `2746fe0b245f80d12d14afc9d258fc8a75cf54f9dadb710d591a99737ce4b388` |
+
 ## GDJ-0107 — 단건 조회와 savepoint 기반 조회 후 생성
 
 ### 최종 Hosted 전체 통합 완료

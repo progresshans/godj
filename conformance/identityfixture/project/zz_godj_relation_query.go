@@ -69,6 +69,9 @@ func newAccountsGroupRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields AccountsGroupRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields AccountsGroupRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields AccountsGroupRelatedFields[S]) Guards() WorkAccessGuardRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Group, work.AccessGuard]
 	if _fields.bindings != nil {
@@ -135,6 +138,9 @@ func newAccountsPermissionRelatedFields[S any](_bindings *relationQueryBindings,
 }
 func (_fields AccountsPermissionRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields AccountsPermissionRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields AccountsPermissionRelatedFields[S]) Groups() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Permission, accounts.Group]
@@ -257,6 +263,9 @@ func newAccountsUserRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields AccountsUserRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields AccountsUserRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields AccountsUserRelatedFields[S]) Groups() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.User, accounts.Group]
 	if _fields.bindings != nil {
@@ -306,6 +315,9 @@ func newWorkAccessGuardRelatedFields[S any](_bindings *relationQueryBindings, _r
 func (_fields WorkAccessGuardRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields WorkAccessGuardRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields WorkAccessGuardRelatedFields[S]) Group() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[work.AccessGuard, accounts.Group]
 	if _fields.bindings != nil {
@@ -347,6 +359,9 @@ func newWorkAccessNoteRelatedFields[S any](_bindings *relationQueryBindings, _ro
 func (_fields WorkAccessNoteRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields WorkAccessNoteRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields WorkAccessNoteRelatedFields[S]) Group() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[work.AccessNote, accounts.Group]
 	if _fields.bindings != nil {
@@ -382,6 +397,9 @@ func newWorkGuardRelatedFields[S any](_bindings *relationQueryBindings, _route o
 func (_fields WorkGuardRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields WorkGuardRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields WorkGuardRelatedFields[S]) Owner() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[work.Guard, accounts.User]
 	if _fields.bindings != nil {
@@ -415,6 +433,9 @@ func newWorkNoteRelatedFields[S any](_bindings *relationQueryBindings, _route or
 }
 func (_fields WorkNoteRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields WorkNoteRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields WorkNoteRelatedFields[S]) Owner() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[work.Note, accounts.User]

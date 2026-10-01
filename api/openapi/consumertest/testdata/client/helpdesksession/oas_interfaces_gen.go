@@ -101,6 +101,10 @@ type HelpdeskTicketServiceReportRes interface {
 	helpdeskTicketServiceReportRes()
 }
 
+type HelpdeskTicketServiceReportSaveRes interface {
+	helpdeskTicketServiceReportSaveRes()
+}
+
 type HelpdeskTicketUpdateRes interface {
 	helpdeskTicketUpdateRes()
 }

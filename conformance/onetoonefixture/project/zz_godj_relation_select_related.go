@@ -25,6 +25,7 @@ type relationSelectQuery[M, O any] interface {
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
+	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -45,6 +46,10 @@ func (_query ReportsCertificateSelectRelatedQuery) WithSelections(_selections ..
 	}
 	_owned := append([]orm.RelatedSelection[reports.Certificate](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ReportsCertificateSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Certificate]) ReportsCertificateSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ReportsCertificateObjectFactory) SelectReport(_children ...orm.RelatedSelection[reports.Report]) orm.RelatedSelect[reports.Certificate, reports.Report] {
@@ -182,6 +187,17 @@ func (_query ReportsCertificateSelectRelatedQuery) GetOrCreate(_ctx context.Cont
 	}
 	return _object, _created, nil
 }
+func (_query ReportsCertificateSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Certificate], _patch orm.PatchInput[reports.Certificate]) (*ReportsCertificateObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsCertificateSelectRelatedQuery) First(_ctx context.Context) (*ReportsCertificateObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -266,6 +282,10 @@ func (_query ReportsLinkSelectRelatedQuery) WithSelections(_selections ...orm.Re
 	}
 	_owned := append([]orm.RelatedSelection[reports.Link](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ReportsLinkSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Link]) ReportsLinkSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ReportsLinkObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Link, tickets.Ticket] {
@@ -403,6 +423,17 @@ func (_query ReportsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ReportsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Link], _patch orm.PatchInput[reports.Link]) (*ReportsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsLinkSelectRelatedQuery) First(_ctx context.Context) (*ReportsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -487,6 +518,10 @@ func (_query ReportsOptionalReportSelectRelatedQuery) WithSelections(_selections
 	}
 	_owned := append([]orm.RelatedSelection[reports.OptionalReport](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ReportsOptionalReportSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.OptionalReport]) ReportsOptionalReportSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ReportsOptionalReportObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.OptionalReport, tickets.Ticket] {
@@ -624,6 +659,17 @@ func (_query ReportsOptionalReportSelectRelatedQuery) GetOrCreate(_ctx context.C
 	}
 	return _object, _created, nil
 }
+func (_query ReportsOptionalReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.OptionalReport], _patch orm.PatchInput[reports.OptionalReport]) (*ReportsOptionalReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsOptionalReportSelectRelatedQuery) First(_ctx context.Context) (*ReportsOptionalReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -708,6 +754,10 @@ func (_query ReportsReportSelectRelatedQuery) WithSelections(_selections ...orm.
 	}
 	_owned := append([]orm.RelatedSelection[reports.Report](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ReportsReportSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Report]) ReportsReportSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ReportsReportObjectFactory) SelectCertificate(_children ...orm.RelatedSelection[reports.Certificate]) orm.RelatedSelect[reports.Report, reports.Certificate] {
@@ -864,6 +914,17 @@ func (_query ReportsReportSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query ReportsReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Report], _patch orm.PatchInput[reports.Report]) (*ReportsReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsReportSelectRelatedQuery) First(_ctx context.Context) (*ReportsReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -981,6 +1042,10 @@ func (_query ReportsReviewSelectRelatedQuery) WithSelections(_selections ...orm.
 	}
 	_owned := append([]orm.RelatedSelection[reports.Review](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query ReportsReviewSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[reports.Review]) ReportsReviewSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory ReportsReviewObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Review, tickets.Ticket] {
@@ -1118,6 +1183,17 @@ func (_query ReportsReviewSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query ReportsReviewSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Review], _patch orm.PatchInput[reports.Review]) (*ReportsReviewObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsReviewSelectRelatedQuery) First(_ctx context.Context) (*ReportsReviewObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1202,6 +1278,10 @@ func (_query TicketsTicketSelectRelatedQuery) WithSelections(_selections ...orm.
 	}
 	_owned := append([]orm.RelatedSelection[tickets.Ticket](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_query TicketsTicketSelectRelatedQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[tickets.Ticket]) TicketsTicketSelectRelatedQuery {
+	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
 func (_factory TicketsTicketObjectFactory) SelectOptionalReport(_children ...orm.RelatedSelection[reports.OptionalReport]) orm.RelatedSelect[tickets.Ticket, reports.OptionalReport] {
@@ -1368,6 +1448,17 @@ func (_query TicketsTicketSelectRelatedQuery) Get(_ctx context.Context) (*Ticket
 }
 func (_query TicketsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[tickets.Ticket]) (*TicketsTicketObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
+func (_query TicketsTicketSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[tickets.Ticket], _patch orm.PatchInput[tickets.Ticket]) (*TicketsTicketObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
 		return nil, false, _err
 	}

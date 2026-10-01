@@ -49,6 +49,9 @@ func newReportsCertificateRelatedFields[S any](_bindings *relationQueryBindings,
 func (_fields ReportsCertificateRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ReportsCertificateRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ReportsCertificateRelatedFields[S]) Report() ReportsReportRelatedFields[S] {
 	var _next orm.QueryRelation[reports.Certificate, reports.Report]
 	if _fields.bindings != nil {
@@ -82,6 +85,9 @@ func newReportsLinkRelatedFields[S any](_bindings *relationQueryBindings, _route
 }
 func (_fields ReportsLinkRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsLinkRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ReportsLinkRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[reports.Link, tickets.Ticket]
@@ -117,6 +123,9 @@ func newReportsOptionalReportRelatedFields[S any](_bindings *relationQueryBindin
 func (_fields ReportsOptionalReportRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ReportsOptionalReportRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ReportsOptionalReportRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[reports.OptionalReport, tickets.Ticket]
 	if _fields.bindings != nil {
@@ -150,6 +159,9 @@ func newReportsReportRelatedFields[S any](_bindings *relationQueryBindings, _rou
 }
 func (_fields ReportsReportRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsReportRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields ReportsReportRelatedFields[S]) Certificate() ReportsCertificateRelatedFields[S] {
 	var _next orm.QueryRelation[reports.Report, reports.Certificate]
@@ -258,6 +270,9 @@ func newReportsReviewRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields ReportsReviewRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ReportsReviewRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
 func (_fields ReportsReviewRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[reports.Review, tickets.Ticket]
 	if _fields.bindings != nil {
@@ -291,6 +306,9 @@ func newTicketsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rou
 }
 func (_fields TicketsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields TicketsTicketRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
 }
 func (_fields TicketsTicketRelatedFields[S]) Links() ReportsLinkRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, reports.Link]
