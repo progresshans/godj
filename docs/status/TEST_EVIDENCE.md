@@ -150,6 +150,54 @@ IntegrityError로 가정한 comparator 때문에 실패했다. 제품의 보수�
 
 ## GDJ-0108 — 행 잠금과 조회 후 생성 또는 갱신
 
+### 고정 source의 Hosted 전체 통합 완료
+
+2026-10-02 KST, 제품·생성기·기준·소비자·업무 흐름을 commit `f6e95bb81f80605491bbf04feab49017f79f49e4`로
+고정하고 작업 branch와 기존 draft PR head에 push했다. [PR feedback 36899659510](https://github.com/progresshans/godj/actions/runs/36899659510)은
+필수 whitespace·Fast Go feedback·scope 보고까지 PASS다. 실제 checkout `08a6af2c8825cbf0e844ccc4e3ae2c5f92ba1007`은
+대상 source를 parent로 가지며 tree `061c6b1a3e80346c2532f1059300815f31c1757d`가 일치한다. Job `110495357815`,
+log SHA-256 `e6878cbf47deccb654eafde29b7a3d48a9cceb13dbc323a42bdfa902e61d486a`, receipt `godj-upsert-feedback-2528x0u5/receipt.json`이다.
+
+같은 source의 [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942), attempt 1을
+수동 full scope로 실행했다. 2026-10-01 17:35:34–19:16:53 UTC, 65개 job 전부 success로 끝났다.
+고정 commit의 workflow와 package/matrix 선언에서 도출한 65개 job 목록·8개 필수 owner와 모든 실제 checkout을
+대조했다. 각 named step과 조건별 제외 단계가 선언에 맞는지도 확인했다. 로컬 전체 `make ci`는 중복 실행하지 않았다.
+Job 실행 audit SHA-256 `e7e807f1a2b497a37fd725b920587838237a4b9a81f65196f907c4b670883a9b`.
+
+Linux amd64/arm64와 macOS amd64/arm64의 relation product·project check·command product를 normal/race/CGO=0으로
+확인했다. Relation product의 12개 platform/mode 조합은 실제 발견한 80개 consumer roots를 누락·중복 없이 실행했다.
+Intel macOS race의 3개 consumer shard와 별도 runtime owner도 합쳐 대조했다. 공통 discovery SHA-256
+`ee44a12f5833f584e8eb860eb0ee13b19f082ca8188589a4a2ca47f1e9e42c02`. Portable Go·정확한 darwin/arm64·
+conformance와 Python 3.12.13/3.13.15/3.14.3/3.14.7 compatibility owner도 완료했다.
+
+PostgreSQL core는 각 mode에서 15 packages / 4823 run/pass / skip 0, 필수 2323 paths를 확인했다.
+각 mode의 S3 23개 필수 경로와 실제 reference service 준비·child/server 정상 종료·reap/정리도 확인했다.
+S3 archive SHA-256은 normal `7f2804935b2aab5bd174aac29fc66e367fccacd056aa9d1f5e5e3d5b7493b0ee`,
+race `cf52973966e9a2f250e8f9fcc0839dbe1e264bc7e8affa1aa0c435c331357902`, CGO0
+`305bb3b0f6f262001da1c30e78e280e6d08333688a070a83451c5f65b572008c`다.
+별도 operator-target PostgreSQL 세 mode도 필수 owner에 포함된다.
+
+| 새 capture | producer job / artifact | archive SHA-256 | payload SHA-256 |
+|---|---|---|---|
+| systemstate-postgres-1 | 110498289549 / 11182986094 | `1843ae1fe0f514b5957e91865f42e552dc505670a14509c9b5d1c9836145f7fc` | `2add41e5cb3ac54525d83a579a6cc9a34f63b2ebac7fad5eaa88a5cd4f75d0a3` |
+| operator-postgres-1 | 110498289728 / 11181696861 | `2c9e037e3dec3ac5de0ccac465897ca5592280c640b0e94897b757835ed8cab4` | `fdab8ad8d3c627d556f432b4a9dc1b39ae6078c1a752b76e8f9d896f78dda4c2` |
+
+두 producer 모두 같은 run/attempt의 성공과 고정 source checkout을 확인했다. Artifact digest·안전한 ZIP의 정확한 파일
+구성·payload provenance를 검증하고 source binding을 working tree 대신 `f6e95bb8`의 Git 객체에서 다시 계산했다.
+System-state는 713 files / 7335446 bytes / `06527a77b2cadee1d086c9d423189320be471ec5e221b475323420dfceb0ff11`,
+operator는 791 files / 7200003 bytes / `0154ae91b5dbfadb9ecf9ab4584903c585183783cf55a26c3bf7f438526e995f`로 일치했다.
+행 잠금·read/modify/write·update-or-create의 새 source도 선언된 결합 범위에 들어감을 확인했다.
+
+Consumer job `110518754119`의 10개 필수 단계를 모두 확인했다. 같은 run의 새 capture 해석/다운로드/검증과 실제
+conformance 소비, 32-bit Linux migration/project-check/runserver compile·relation product 실행, 저장된 oracle와 DRF
+checksum·artifact 비변경 검사를 포함한다. Log SHA-256 `987116f68f329bc0877aa492a90fdc1327a74caad5f164c33a171047f5636e4e`.
+최종 집계 job `110540306723`은 `full_platform_verified=true`와 8개 owner 전부를 보고했다. Log SHA-256
+`1fdc51437ec497cefda9dfb591fe31b264d35f5ca209d180c5294d34fe389641`.
+
+최종 receipt `godj-upsert-hosted-full-7x5let25/receipt.json`, SHA-256 `4c95d0d0965b6b91a35bb22231de2545d0b24976c99da33246789f4a8619f3ff`.
+Dispatch 당시 queued는 `dispatch_status`, 현재 상태는 completed/success로 구분했다.
+이 source 뒤의 완료 기록 변경은 Markdown뿐이다. 별도 bulk 작업의 새 제품 source는 이 Hosted 검증에 포함하지 않는다.
+
 ### Helpdesk 저장·Admin 선택 입력·독립 client의 영향 통합
 
 2026-10-02 KST, parent `f04bb77d806c6e5337aa3f08fcc37b71b2c1a4f8`, 비Markdown 2986 files /

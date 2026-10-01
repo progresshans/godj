@@ -2,8 +2,8 @@
 
 - 갱신: 2026-10-02
 - 현재 구현: [GDJ-0109 Native bulk 생성과 여러 티켓 생성](../../work/0109-bulk-creation-and-ticket-import.md)
-- 최근 완료: [GDJ-0107 단건 조회와 savepoint 기반 조회 후 생성](../../work/0107-single-object-creation-and-savepoints.md)
-- 최근 전체 검증: [Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270), source `8f8831ac8231a9c32049b6649e49f8638edd5117`; 필수 owner·집계·새 capture/Git source 결합과 소비 완료
+- 최근 완료: [GDJ-0108 행 잠금과 조회 후 생성 또는 갱신](../../work/0108-row-locking-and-update-or-create.md)
+- 최근 전체 검증: [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942), source `f6e95bb81f80605491bbf04feab49017f79f49e4`; 필수 owner·집계·새 capture/Git source 결합과 소비 완료
 - Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -14,7 +14,7 @@ generic ORM·typed 생성 root facade의 영향 세 mode를 확인했다. 정식
 세 mode에서 확인했으며 Helpdesk 업무 소비는 남아 있다.
 
 기반 source `f6e95bb8`의 [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942)는
-별도 작업 사본에서 진행 중이다. 필수 owner·집계·새 capture와 source 결합을 확인하며 이 작업의 새 source와 구분한다.
+65개 job·필수 owner·집계·새 capture의 Git source 결합과 소비를 완료했다. 이 작업의 새 source는 포함하지 않는다.
 
 ## 다음 행동
 

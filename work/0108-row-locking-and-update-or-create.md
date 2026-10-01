@@ -1,6 +1,6 @@
 ---
 id: GDJ-0108
-status: active
+status: complete
 updated: 2026-10-02
 baseline_commit: "8f8831ac8231a9c32049b6649e49f8638edd5117"
 integration_owner: "root"
@@ -29,7 +29,7 @@ integration_owner: "root"
 - [x] 생성 facade와 별도 Go module에서 양 DB의 성공·거부·경쟁·수명 동작을 소비
 - [x] Helpdesk ServiceReport의 현재 권한·Category/Ticket 범위·원자 audit와 Form/Admin/API·독립 client
 - [x] 완성한 변경 묶음의 영향 normal/race/CGO=0·양 DB·실제 경쟁·실패 대조와 생성 drift
-- [ ] 고정 source의 Hosted 통합 및 현재 구현·검증·남은 범위의 전달
+- [x] 고정 source의 Hosted 통합 및 현재 구현·검증·남은 범위의 전달
 
 동작 의미는 [ADR-0087](../docs/adr/0087-row-locking-and-update-or-create.md)을 따른다.
 구체적인 Go API 서명은 생성된 소비자와 업무 흐름의 수직 구현에서 검증했다.
@@ -47,5 +47,6 @@ AST·compiler·native session/cursor, typed/dynamic ORM·일반/eager/prefetch �
 검증했고 정식 기준 fixture와 생성 Go module의 직접 대조를 완료했다. 실제 외부 FK 갱신·하위 조회 실패/재시도·
 잠금 범위 비확대와 기존 snapshot 보존을 생성 소비자로 확인했다. Helpdesk 저장 흐름의 실제 양 DB·동시 요청·
 Admin/API·독립 client를 세 mode에서 확인했고, 브라우저·훼손 대조·생성 drift와 영향 vet도 완료했다.
-이제 새 고정 source의 Hosted 전체 통합을 수행한다. GDJ-0107의 통합과 이 작업의 구현·검증 결과를
-같은 source의 성공으로 합치지 않는다.
+새 고정 source `f6e95bb8`의 [Hosted 전체 통합](https://github.com/progresshans/godj/actions/runs/36900514942)을 완료했다.
+65개 job·모든 필수 owner/단계·최종 집계와 새 capture의 Git source 결합·실제 소비를 확인했다.
+다음 bulk 작업은 별도 source에서 이어가며 이 Hosted 성공으로 그 새 source를 인증하지 않는다.

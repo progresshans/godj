@@ -1,8 +1,8 @@
 # ADR-0087: 행 잠금과 조회 후 생성 또는 갱신
 
-- 상태: Accepted — 구현과 영향 검증 완료, Hosted 통합 진행 예정
+- 상태: Accepted — 구현·업무 소비·영향 검증과 고정 source의 Hosted 통합 완료
 - 날짜: 2026-10-01
-- 구현: [GDJ-0108](../../work/0108-row-locking-and-update-or-create.md), 진행 중
+- 구현: [GDJ-0108](../../work/0108-row-locking-and-update-or-create.md), 완료
 
 ## 책임과 원자성
 

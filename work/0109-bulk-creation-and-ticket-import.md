@@ -15,7 +15,8 @@ Schema IR의 타입·default·nullable·고유성·관계 의미와 생성 ID·�
 기존의 단건 저장 API와 각각의 save/clean/감사 정책을 bulk가 암묵적으로 호출하는 것으로 해석하지 않는다.
 Helpdesk에서 같은 Category에 여러 티켓을 만드는 흐름으로 Form/Admin/API와 독립 client까지 소비한다.
 
-행 잠금과 update-or-create의 기반 source `f6e95bb8`는 별도 Hosted full 36900514942가 검증 중이다.
+행 잠금과 update-or-create의 기반 source `f6e95bb8`는 Hosted full 36900514942의 65개 job·필수 owner·
+새 capture 결합과 소비·최종 집계까지 완료했다. Markdown 완료 기록 `b96f9833`을 합쳤다.
 그 실행 결과를 이 작업의 새 source 검증으로 사용하지 않는다. 구현 사본을 분리했고 root가 통합 문서와 검증을 소유한다.
 Bulk update·query update expression과 나머지 query 범위는 다음 기반으로 이어가며 전체 기능 카탈로그에서 제거하지 않는다.
 이 작업은 bulk 전체나 장기 목표의 완료 선언이 아니다.
