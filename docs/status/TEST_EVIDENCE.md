@@ -103,13 +103,38 @@ ignored `output/playwright/binary-field`에 있다. 실제 운영 인증·배포
 필수 목록에 추가된 빈 줄 두 개 때문에 CI 도구 검사 세 곳에서 실패했다. 실패 job `110182383682`의 원 로그 SHA256은
 `3ffa56e83fe75b249273d7dd508aa5acb6a22de8f46fb16443fc534aaea0eca0`다.
 같은 소스의 [full 36803443485](https://github.com/progresshans/godj/actions/runs/36803443485)은 형식 보완 후 재실행하기 위해
-취소를 요청했으며 완료 증거로 사용하지 않는다.
+취소하여 `cancelled` 종료를 확인했으며 완료 증거로 사용하지 않는다.
 
 두 필수 목록에서 빈 줄만 제거했다. PostgreSQL 1,962개·relation 2,127개의 모든 항목과 순서를 그대로 유지했고,
 기존 race/CGO=0 plan의 실제 필수 하위 경로 집합도 새 목록과 동일함을 재검사했다.
 `python3 -m unittest discover -s scripts/ci -p 'test_*.py'`의 45개 검사가 수정 뒤 통과했다.
 Receipt는 `godj-binary-roster-repair-2e5vjs3e`이며 비Markdown 차이는 두 목록 파일뿐이다.
 제품·생성기·생성물·Go 테스트·native fixture는 위 영향 검증과 byte-identical이다. 새 source의 Hosted 검증은 별도로 완료해야 한다.
+
+### 저장된 File/Image 초기값 보완
+
+비편집 ImageField에 choices가 있을 때 `ValidateInitialValues`가 입력용 이미지 검사 기능을 요구하는 결함을
+추가 회귀로 재현했다. 저장 초기값은 pending upload/clear 명령을 거부한 뒤 저장 이름의 타입·UTF-8/NUL·nullability만
+검사한다. 현재 choices·입력 길이·업로드/이미지 I/O를 요구하지 않는다. 검사하는 map을 복사해 호출자 초기값을 보존한다.
+기존 선택 목록 밖 이미지 이름·nullable File NULL·ExistingFile·잘못된 타입/NUL/비nullable NULL과 입력 정책 불변을 검사했다.
+실제 Admin HTTP에도 비편집 이미지 선택 필드를 연결해 표시·수정 때 이름 보존과 위조 제출 거부를 확인했다.
+
+이 보완의 기준 parent는 `c39656b370a1774762681a6a9d13d315f0bc3a8d`다. 앞선 제품 코드에 대한 변경은
+`forms/model/values.go`, 그 새 회귀 파일, `admin/site_binary_test.go`의 세 파일이다.
+현재 비Markdown source는 2,923 files / `76f3933c5ca524591657bef4b95becd2d3f7666e95643ebbb537f9131091c4dd`다.
+
+| 보완 group | 실제 실행 | normal / race / CGO=0 pass | wall seconds |
+|---|---|---|---|
+| admin | Admin 98 roots (앞서 명시한 S3 image root 제외) | 각각 302 | 1.395 / 3.779 / 0.984 |
+| forms_initial | ModelForm 84 roots | 각각 2,099 | 1.255 / 2.864 / 0.909 |
+| helpdesk | SQLite/PG public 소비자 2 roots·필수 151 경로 | 각각 300 | 24.776 / 159.320 / 33.674 |
+| openapi_client | 고정 client 전체 계약 1 root | 각각 1 | 5.786 / 21.615 / 6.061 |
+
+각 mode 2,702 run/pass·0 skip/누락·실행 전후 동일 source, 독립 DB 잔여 `0|0|0`와 DB/container 제거를 확인했다.
+Receipt는 `godj-binary-initial-checkpoint-normal-gyp6gkuh`, `godj-binary-initial-checkpoint-race-jmlc_pl3`,
+`godj-binary-initial-checkpoint-cgo0-l_hjsh0d`다. 영향 vet와 현재 Go formatting/diff 검사도 통과했다.
+앞선 10,641개 실행이나 브라우저 결과를 이 새 source에서 다시 실행한 것으로 표기하지 않는다.
+새 source의 전체 통합과 현재 capture 결합은 Hosted full이 소유한다.
 
 ## GDJ-0105 — Slug 모델 필드와 Article 주소
 

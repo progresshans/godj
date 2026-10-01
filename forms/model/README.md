@@ -502,6 +502,7 @@ Nullable blank Form의 빈 값은 NULL이며, JSON의 blank/null/생략과 일�
 Admin의 저장 callback은 실제로 변경한 비편집 모델 필드를 감사 기록에 보고할 수 있지만 입력 allowlist는 그대로다.
 `ValidateInitialValues`는 선택하지 않은 서버 필드를 포함해 초기값의 표현만 검사한다. 입력 validator·현재 입력 길이를
 적용하거나 편집 권한을 만들지 않으며, Admin은 별도로 PK/revision·nullability·Snapshot 일치를 검사한다.
+저장 File/Image 이름은 업로드·clear 명령과 구분하며 현재 선택 목록이나 이미지 I/O 검사 기능을 요구하지 않는다.
 
 Binary Form은 base64 문자열을 정리·검증한 뒤 `forms.Binary(binaryvalue.Value)`를 제공한다.
 길이는 디코딩된 bytes로 검사하며 optional 빈 입력은 빈 바이트다. 이 값은 nullable 포인터의 SQL NULL과 다르다.

@@ -21,6 +21,7 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 	definition, err := schema.Build(schema.Definition{AppLabel: "godj_conformance", Models: []schema.Model{{Name: "article", GoName: "Article", Fields: []schema.Field{
 		schema.CharField("title", "Title", 40), schema.BinaryField("payload", "Payload", schema.Editable(true), schema.MaxLength(4), schema.Blank()),
 		schema.BinaryField("fingerprint", "Fingerprint"), schema.CharField("internal_note", "InternalNote", 30, schema.Editable(false)),
+		schema.ImageField("cover", "Cover", schema.Editable(false), schema.Choices(schema.Choice("current.png", "Current"))),
 	}}}})
 	if err != nil {
 		t.Fatal(err)
@@ -30,9 +31,9 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 		id                   int64
 		title                string
 		payload, fingerprint binaryvalue.Value
-		note                 string
+		note, cover          string
 	}
-	current := packet{1, "Bytes", binaryvalue.Value{Data: "\x00\xff"}, binaryvalue.Value{Data: "private"}, "server"}
+	current := packet{1, "Bytes", binaryvalue.Value{Data: "\x00\xff"}, binaryvalue.Value{Data: "private"}, "server", "legacy.png"}
 	reader := func(value packet, field ir.Field) (query.Value, bool) {
 		switch field.Name {
 		case "id":
@@ -45,10 +46,12 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 			return query.Binary(value.fingerprint), true
 		case "internal_note":
 			return query.String(value.note), true
+		case "cover":
+			return query.String(value.cover), true
 		}
 		return query.Value{}, false
 	}
-	projector, err := NewModelProjector(model, reader, "id", "title", "payload", "fingerprint", "internal_note")
+	projector, err := NewModelProjector(model, reader, "id", "title", "payload", "fingerprint", "internal_note", "cover")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,6 +66,9 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 		}
 		if _, exists := input.Get("internal_note"); exists {
 			return packet{}, errors.New("non-editable text entered persistent input")
+		}
+		if _, exists := input.Get("cover"); exists {
+			return packet{}, errors.New("non-editable image entered persistent input")
 		}
 		title, ok := input.String("title")
 		if !ok {
@@ -91,7 +97,7 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 		},
 		Snapshot: func(value packet) (Object, error) { return projector.Project(value, value.id, value.title) },
 		Initial: func(value packet) (map[string]forms.Value, error) {
-			return map[string]forms.Value{"title": forms.String(value.title), "payload": forms.Binary(value.payload), "fingerprint": forms.Binary(value.fingerprint), "internal_note": forms.String(value.note)}, nil
+			return map[string]forms.Value{"title": forms.String(value.title), "payload": forms.Binary(value.payload), "fingerprint": forms.Binary(value.fingerprint), "internal_note": forms.String(value.note), "cover": forms.String(value.cover)}, nil
 		},
 		Create: func(_ context.Context, _ auth.Principal, b formmodel.BoundForm, _ InlineSubmission) (packet, error) {
 			return apply(b)
@@ -100,8 +106,11 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 			value, err := apply(b)
 			return value, []string{"payload", "fingerprint"}, err
 		},
-		Delete:         func(context.Context, auth.Principal, Mutation) (packet, error) { return current, nil },
-		ReadOnlyFields: []ReadOnlyField[packet]{{Name: "fingerprint", Label: "Fingerprint", Value: func(value packet) (string, error) { return value.fingerprint.Base64(), nil }}},
+		Delete: func(context.Context, auth.Principal, Mutation) (packet, error) { return current, nil },
+		ReadOnlyFields: []ReadOnlyField[packet]{
+			{Name: "fingerprint", Label: "Fingerprint", Value: func(value packet) (string, error) { return value.fingerprint.Base64(), nil }},
+			{Name: "cover", Label: "Cover", Value: func(value packet) (string, error) { return value.cover, nil }},
+		},
 	}
 	client, _, _ := uploadTestSite(t, config, uploadTestPolicy(t), auth.PrincipalAuthorizer{})
 	client.login(t, "admin", "secret", "/admin/")
@@ -110,8 +119,11 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), ` name="payload"`) || !strings.Contains(page.Body.String(), `value="AP8="`) || !strings.Contains(page.Body.String(), `maxlength="8"`) || strings.Contains(page.Body.String(), ` name="fingerprint"`) || strings.Contains(page.Body.String(), ` name="internal_note"`) || !strings.Contains(page.Body.String(), current.fingerprint.Base64()) {
 		t.Fatal("binary initial/widget/server field display", page.Code, page.Body.String())
 	}
+	if strings.Contains(page.Body.String(), ` name="cover"`) || !strings.Contains(page.Body.String(), "legacy.png") {
+		t.Fatal("stored non-editable image was treated as a choice input")
+	}
 	data := url.Values{"title": {"Bytes"}, "payload": {"AP8="}, "csrfmiddlewaretoken": {siteCSRFToken(t, page.Body.String())}}
-	for _, name := range []string{"fingerprint", "internal_note"} {
+	for _, name := range []string{"fingerprint", "internal_note", "cover"} {
 		data.Set(name, "attacker")
 		response := client.do(http.MethodPost, target, data)
 		data.Del(name)
@@ -130,7 +142,7 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 		data.Set("payload", test.input)
 		before := writes
 		response := client.do(http.MethodPost, target, data)
-		if response.Code != http.StatusFound || writes != before+1 || current.payload.Data != test.data || current.note != "server" {
+		if response.Code != http.StatusFound || writes != before+1 || current.payload.Data != test.data || current.note != "server" || current.cover != "legacy.png" {
 			t.Fatal("binary form persistence or derived audit field", response.Code, response.Body.String())
 		}
 	}

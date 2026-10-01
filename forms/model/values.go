@@ -13,6 +13,10 @@ import (
 func ValidateInitialValues(model ir.Model, values map[string]forms.Value) error {
 	known := make(map[string]bool, len(model.Fields)+len(model.ManyToMany))
 	fields := make([]forms.Field, 0, len(values))
+	initial := make(map[string]forms.Value, len(values))
+	for name, value := range values {
+		initial[name] = value
+	}
 	for _, field := range model.Fields {
 		if known[field.Name] {
 			return &Error{Path: "initial." + field.Name, Code: "duplicate"}
@@ -28,6 +32,19 @@ func ValidateInitialValues(model ir.Model, values map[string]forms.Value) error 
 		var err error
 		if field.Kind == ir.FieldAuto {
 			projected, err = forms.IntegerField(field.Name)
+		} else if field.Kind.IsFile() {
+			// Stored references need neither an upload nor an image-choice I/O
+			// capability. Reject pending uploads/clear commands, then validate
+			// the name's representation without today's input choices or length.
+			initial[field.Name], err = fileReferenceValue(initial[field.Name])
+			if err != nil {
+				return err
+			}
+			options := []forms.FieldOption{}
+			if field.Nullable {
+				options = append(options, forms.WithNullable())
+			}
+			projected, err = forms.CharField(field.Name, options...)
 		} else {
 			projected, err = projectField(field, overrideConfig{})
 		}
@@ -62,7 +79,7 @@ func ValidateInitialValues(model ir.Model, values map[string]forms.Value) error 
 	if err != nil {
 		return err
 	}
-	_, err = spec.Unbound(values)
+	_, err = spec.Unbound(initial)
 	return err
 }
 
