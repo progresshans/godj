@@ -107,7 +107,7 @@ class RelationShardTest(unittest.TestCase):
             with self.subTest(shard=shard, packages=packages), self.assertRaises(ValueError):
                 verify(self.write('misowned.json', values), self.roots, shard, 3, packages)
 
-    def test_scope_plan_preserves_all_coordinates_and_only_partitions_intel_race(self):
+    def test_scope_plan_preserves_all_coordinates_and_partitions_macos_race(self):
         output = self.directory / 'outputs'
         environment = dict(os.environ, VALIDATION_SUITE='full', GITHUB_OUTPUT=str(output))
         result = subprocess.run([sys.executable, str(Path(__file__).with_name('scopes.py')), 'plan'], env=environment,
@@ -119,8 +119,9 @@ class RelationShardTest(unittest.TestCase):
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])
             seen.setdefault(coordinate, []).append(row['shard'])
-            self.assertEqual(row['shards'], 3 if coordinate == ('macos-15-intel', 'darwin', 'amd64', 'race') else 1)
-        expected = {(runner, goos, arch, mode): ([0, 1, 2, 3] if runner == 'macos-15-intel' and mode == 'race' else [1])
+            self.assertEqual(row['shards'], 3 if coordinate[1] == 'darwin' and coordinate[3] == 'race' else 1)
+        partitioned = {('macos-15-intel', 'race'), ('macos-26', 'race')}
+        expected = {(runner, goos, arch, mode): ([0, 1, 2, 3] if (runner, mode) in partitioned else [1])
                     for runner, goos, arch in [('ubuntu-24.04', 'linux', 'amd64'), ('ubuntu-24.04-arm', 'linux', 'arm64'),
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
                     for mode in ('normal', 'race', 'cgo0')}

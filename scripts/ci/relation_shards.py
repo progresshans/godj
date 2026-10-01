@@ -28,7 +28,7 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            count = 3 if (runner, mode) == ('macos-15-intel', 'race') else 1
+            count = 3 if goos == 'darwin' and mode == 'race' else 1
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
             for shard in (range(count + 1) if count > 1 else (1,)):
