@@ -11,7 +11,7 @@ GDJ-0105의 SlugField·일반 DBIndex·Article 주소는 영향 검증과 source
 
 GDJ-0106의 BinaryField·공통 Editable 입력 정책·Helpdesk payload 지문을 구현했다.
 [Binary 의미](../adr/0085-binary-fields-and-model-input-policy.md)에 따라 영향 normal·CGO=0 검증을 확인했다.
-Race·브라우저·실패 대조와 생성 drift도 확인했으며 새 source의 Hosted 통합은 아직 수행하지 않았다.
+Race·브라우저·실패 대조와 생성 drift도 확인했으며 새 source의 Hosted 통합은 아직 완료하지 않았다.
 
 ## 기능
 

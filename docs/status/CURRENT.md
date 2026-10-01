@@ -10,7 +10,7 @@
 
 BinaryField와 공통 편집 가능 여부의 입력 정책을 DB/history·생성·입력/출력 및 Helpdesk payload 지문에 연결했다.
 [Binary 결정](../adr/0085-binary-fields-and-model-input-policy.md)에 따라 독립 native 기준과 영향 normal·CGO=0 검증을
-확인했다. Race·브라우저·실패 대조와 생성 drift까지 마쳤으며 새 source의 Hosted 통합은 아직 수행하지 않았다.
+확인했다. Race·브라우저·실패 대조와 생성 drift까지 마쳤으며 새 source의 Hosted 통합은 아직 완료하지 않았다.
 
 SlugField와 일반 DBIndex를 선언·history·양 DB 물리 소유권·생성·Form/JSON/OpenAPI에 연결했다.
 Article의 Admin/API 편집과 게시 글의 Unicode 주소·ID fallback까지 영향 검증과 Hosted full 통합을 마쳤다.
@@ -19,7 +19,7 @@ Article의 Admin/API 편집과 게시 글의 Unicode 주소·ID fallback까지 �
 ## 다음 행동
 
 Binary 구현과 영향 검증 근거를 제출하고 새 source의 Hosted full을 통합한다.
-별도 작업 사본의 구현은 제출 전이며 위 Slug source의 성공에 포함하지 않는다.
+Binary 구현과 영향 검증 근거는 제출했으며 위 Slug source의 성공에 포함하지 않는다.
 환경별 검증과 남은 통합 범위는 [검증 문서](../TESTING.md)와 TEST_EVIDENCE를 따른다.
 남은 codec 특성/storage provider·custom user model·인증/mail provider와 다른 카탈로그 기능은 의존 순서에 따라 이어간다.
 현재 외부 입력이 필요한 blocker는 없다.

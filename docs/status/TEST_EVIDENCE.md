@@ -7,7 +7,7 @@
 
 ### 현재 검증과 독립 기준
 
-2026-10-01, 구현과 아래 영향 검증을 완료했다. 새 source의 Hosted full은 아직 수행하지 않았다.
+2026-10-01, 구현과 아래 영향 검증을 완료했다. 새 source의 Hosted full은 아직 완료하지 않았다.
 기준 parent는 `9d1804b2e14eaa9d6f46b5d4a6ed343f02aa3454`이며 아래 결과는 Binary 변경을 포함한 작업 사본의 결과다.
 Slug source의 Hosted full 성공을 이 변경의 성공으로 옮기지 않는다.
 
@@ -96,6 +96,20 @@ HTML escaping과 `1e0` token을 포함한 저장 bytes의 기대 지문을 Pytho
 HTTP 400으로 거부됐다. 새 GET과 서버 종료 전 독립 DB read에서 원래 payload/지문을 확인했다.
 브라우저/fixture를 종료하고 소유한 임시 DB를 제거했다. Receipt: `godj-binary-browser-f3rnavgn`; 화면·snapshot은
 ignored `output/playwright/binary-field`에 있다. 실제 운영 인증·배포·다른 browser/platform의 증거는 아니다.
+
+### Hosted 진행과 필수 목록 형식 보완
+
+구현 source `94312b9d5884c6fd49eeea21c54fd288a59b66c2`의 [PR feedback 36803368763](https://github.com/progresshans/godj/actions/runs/36803368763)은
+필수 목록에 추가된 빈 줄 두 개 때문에 CI 도구 검사 세 곳에서 실패했다. 실패 job `110182383682`의 원 로그 SHA256은
+`3ffa56e83fe75b249273d7dd508aa5acb6a22de8f46fb16443fc534aaea0eca0`다.
+같은 소스의 [full 36803443485](https://github.com/progresshans/godj/actions/runs/36803443485)은 형식 보완 후 재실행하기 위해
+취소를 요청했으며 완료 증거로 사용하지 않는다.
+
+두 필수 목록에서 빈 줄만 제거했다. PostgreSQL 1,962개·relation 2,127개의 모든 항목과 순서를 그대로 유지했고,
+기존 race/CGO=0 plan의 실제 필수 하위 경로 집합도 새 목록과 동일함을 재검사했다.
+`python3 -m unittest discover -s scripts/ci -p 'test_*.py'`의 45개 검사가 수정 뒤 통과했다.
+Receipt는 `godj-binary-roster-repair-2e5vjs3e`이며 비Markdown 차이는 두 목록 파일뿐이다.
+제품·생성기·생성물·Go 테스트·native fixture는 위 영향 검증과 byte-identical이다. 새 source의 Hosted 검증은 별도로 완료해야 한다.
 
 ## GDJ-0105 — Slug 모델 필드와 Article 주소
 
