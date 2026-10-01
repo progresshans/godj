@@ -7,7 +7,7 @@
 
 ### 현재 검증과 독립 기준
 
-2026-10-01, 구현과 아래 영향 검증을 완료했다. 새 source의 Hosted full은 아직 완료하지 않았다.
+2026-10-01, 구현·아래 영향 검증과 최종 source `8e5c2b3e`의 Hosted full 통합을 완료했다.
 기준 parent는 `9d1804b2e14eaa9d6f46b5d4a6ed343f02aa3454`이며 아래 결과는 Binary 변경을 포함한 작업 사본의 결과다.
 Slug source의 Hosted full 성공을 이 변경의 성공으로 옮기지 않는다.
 
@@ -109,7 +109,7 @@ ignored `output/playwright/binary-field`에 있다. 실제 운영 인증·배포
 기존 race/CGO=0 plan의 실제 필수 하위 경로 집합도 새 목록과 동일함을 재검사했다.
 `python3 -m unittest discover -s scripts/ci -p 'test_*.py'`의 45개 검사가 수정 뒤 통과했다.
 Receipt는 `godj-binary-roster-repair-2e5vjs3e`이며 비Markdown 차이는 두 목록 파일뿐이다.
-제품·생성기·생성물·Go 테스트·native fixture는 위 영향 검증과 byte-identical이다. 새 source의 Hosted 검증은 별도로 완료해야 한다.
+제품·생성기·생성물·Go 테스트·native fixture는 위 영향 검증과 byte-identical이다. 이 형식 보완과 최종 source의 Hosted 결과를 구분한다.
 
 ### 저장된 File/Image 초기값 보완
 
@@ -145,9 +145,44 @@ Receipt는 `godj-binary-initial-checkpoint-normal-gyp6gkuh`, `godj-binary-initia
 원 로그 SHA256은 `571be8fdb3031a1b33e3a26765da748735251f4f3313d43e1f3e38eb9ed8728f`이며
 receipt는 `godj-binary-feedback-zcihg31m`이다.
 
-같은 source로 [Hosted full 36805466011](https://github.com/progresshans/godj/actions/runs/36805466011), attempt 1을 새로 요청했다.
-현재 전체 결과와 새 capture의 소비/source 결합은 확인 중이다. 이 실행을 아직 PASS로 기록하지 않는다.
-이전 `94312b9d`의 취소된 실행과 구분하며, 새 receipt는 `godj-binary-final-hosted-full-adp71x2p`가 소유한다.
+같은 source의 [Hosted full 36805466011](https://github.com/progresshans/godj/actions/runs/36805466011), attempt 1이 성공했다.
+고정 source의 workflow에서 계산한 62개 job 이름과 실제 62개 고유 job ID가 일치하고 모두 성공했다.
+집계 job `110205358003`에서 필수 owner 8개와 `full_platform_verified: true`를 확인했다.
+모든 job의 source/run 결합·실제 checkout commit과 고정 workflow의 필수 명명 단계를 대조했다.
+다른 owner가 맡는 Darwin 중복 실행, 지정 좌표의 cold build와 mode/shard별 S3·capture 단계의
+조건부 생략도 해당 workflow 조건과 일치했다. 필수 실행 단계의 생략을 성공으로 계산하지 않았다.
+Job 실행 audit SHA256: `322d3fe18457c56166f0eafbe87847bceb9cbb982acdae8f2f8b7a1c90a50b48` (`job-execution-audit.json`).
+이전 `94312b9d`의 취소된 실행과 구분한다. Receipt: `godj-binary-final-hosted-full-adp71x2p/receipt.json`.
+
+| PostgreSQL core | producer job | 실제 run/pass | skip | S3 receipt artifact |
+|---|---|---|---|---|
+| normal | `110188743849` | 4,462 | 0 | `11137807921` |
+| race | `110188743700` | 4,462 | 0 | `11138635883` |
+| cgo0 | `110188743780` | 4,462 | 0 | `11138151628` |
+
+각 mode는 필수 1,962개 경로와 S3 관련 23개 경로를 누락 없이 실행했다. 고정 MinIO module/version/commit·
+module checksum·Go 1.26.5/linux/amd64·CGO=0 build information·바이너리 digest를 검증하고, 실제 service ready·
+제품 child exit 0·child 뒤 service 생존·graceful 종료·child/server reaped를 세 receipt에서 확인했다.
+GitHub artifact의 archive SHA256, 원 producer의 artifact ID·attempt, buildinfo checksum을 함께 대조했다.
+
+| capture | producer job / artifact | payload SHA256 |
+|---|---|---|
+| systemstate-postgres-1 | `110188743849` / `11137797995` | `fe5c52deb562b50e35ea0bba19a092a42b13b975898ed2467a6cac85fe9a47b3` |
+| operator-postgres-1 | `110188743765` / `11137247179` | `9cd8fec02ef832e50624d6929d824bcf29d0cdd59da4277364d1d03bc3d59813` |
+
+두 capture의 provenance·checksum·producer checkout을 확인한 뒤, 현재 작업 파일이 아닌 위 commit의 Git blob에서
+각 source closure를 다시 계산했다. `binaryvalue/value.go`와 `internal/urlinput/url.go`가 두 closure에 포함된다.
+
+| source closure | files | payload bytes | SHA256 |
+|---|---|---|---|
+| systemstate | 696 | 7,115,356 | `ebf4ece0dab58ae381956cd34632149da550abed29a1b94255e649cfdb947533` |
+| operator | 774 | 6,970,658 | `79124ecfe286929a2cf471f66234b1d296622abc65b1f36e20cb459c361ff56d` |
+
+Consumer job `110198569116`가 같은 실행의 두 producer/artifact를 받아 conformance를 실행했다.
+provenance 검사·32-bit Linux migration/project-check·runserver·relation·Django/DRF oracle checksum·
+reference 보존을 포함한 필수 10개 step의 성공도 확인했다.
+Consumer log SHA256: `7a048574988494d662c2abfc4071efe5c79755f3a960ed7a05ea3bc1ef378aa4`.
+최종 상태 기록은 Markdown만 바꾸며, 검증된 제품 source의 결과를 이후 제품 코드 변경으로 전이하지 않는다.
 
 ## GDJ-0105 — Slug 모델 필드와 Article 주소
 

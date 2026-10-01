@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-10-01
-- 구현: [GDJ-0106](../../work/0106-binary-fields-and-model-input-policy.md), 진행 중
+- 구현: [GDJ-0106](../../work/0106-binary-fields-and-model-input-policy.md), 완료
 
 ## 결정
 
