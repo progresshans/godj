@@ -136,6 +136,19 @@ Receipt는 `godj-binary-initial-checkpoint-normal-gyp6gkuh`, `godj-binary-initia
 앞선 10,641개 실행이나 브라우저 결과를 이 새 source에서 다시 실행한 것으로 표기하지 않는다.
 새 source의 전체 통합과 현재 capture 결합은 Hosted full이 소유한다.
 
+### 현재 source의 PR feedback과 Hosted full
+
+`8e5c2b3e817e5b1090dce9d095ca85055e4af0b4`의 [PR feedback 36804890610](https://github.com/progresshans/godj/actions/runs/36804890610)이
+성공했다. Job `110186915761`의 Whitespace·Fast Go feedback·scope 보고가 성공했고, 실제 merge checkout
+`5c391c7ecc1b46fcaddaad89f3b2390a55c54833`의 parent에 해당 source가 포함되며 tree가
+`1e0307c7b0f7d4b03ab33fa356201362491d67b4`로 동일함을 Git 객체와 대조했다.
+원 로그 SHA256은 `571be8fdb3031a1b33e3a26765da748735251f4f3313d43e1f3e38eb9ed8728f`이며
+receipt는 `godj-binary-feedback-zcihg31m`이다.
+
+같은 source로 [Hosted full 36805466011](https://github.com/progresshans/godj/actions/runs/36805466011), attempt 1을 새로 요청했다.
+현재 전체 결과와 새 capture의 소비/source 결합은 확인 중이다. 이 실행을 아직 PASS로 기록하지 않는다.
+이전 `94312b9d`의 취소된 실행과 구분하며, 새 receipt는 `godj-binary-final-hosted-full-adp71x2p`가 소유한다.
+
 ## GDJ-0105 — Slug 모델 필드와 Article 주소
 
 ### 독립 native 기준과 현재 범위
