@@ -10,15 +10,15 @@
 
 GDJ-0108의 행 잠금·UpdateOrCreate·Helpdesk 보고서 저장과 영향 검증을 기반으로 native bulk 생성을 구현한다.
 고정 Django의 bulk 입력·batch·key·충돌/실패 의미를 양 DB에서 독립 관찰했다. 다중 행 AST·native backend 기반과
-generic ORM·typed 생성 root facade의 영향 세 mode를 확인했다. 정식 기준 대조·업무 소비는 남아 있다.
+generic ORM·typed 생성 root facade의 영향 세 mode를 확인했다. 정식 bulk-create 23개 사례의 양 DB 직접 대조도
+세 mode에서 확인했으며 Helpdesk 업무 소비는 남아 있다.
 
 기반 source `f6e95bb8`의 [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942)는
 별도 작업 사본에서 진행 중이다. 필수 owner·집계·새 capture와 source 결합을 확인하며 이 작업의 새 source와 구분한다.
 
 ## 다음 행동
 
-정식 Django fixture와 생성 Go module의 직접 비교를 연결한다. 이어서 Helpdesk의 현재 권한·Category 범위·
-원자 audit와 Form/Admin/API·독립 client에서 여러 티켓 생성을 소비한다.
+Helpdesk의 현재 권한·Category 범위·원자 audit와 Form/Admin/API·독립 client에서 여러 티켓 생성을 소비한다.
 Bulk update·확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다. [검증 문서](../TESTING.md)를 따른다.
 

@@ -22,7 +22,7 @@ Bulk update·query update expression과 나머지 query 범위는 다음 기반�
 
 ## 구현과 검증
 
-- [ ] 고정 Django의 다중 생성·배치·반환 key·default/관계·충돌 정책·부모/실패 의미를 정식 독립 fixture와 Go 비교로 연결
+- [x] 고정 Django의 다중 생성·배치·반환 key·default/관계·충돌 정책·부모/실패 의미를 정식 독립 fixture와 Go 비교로 연결
 - [x] 불변 다중 행 INSERT AST와 타입/입력/출력/자원 한도의 DB 독립 계약
 - [x] SQLite/PostgreSQL native multi-row·returning·충돌 처리·parameter 예산과 native session/cursor 수명
 - [x] generic ORM·생성 입력 및 root facade·caller cache/metadata 소유권과 전체 실패의 원자성
@@ -40,6 +40,7 @@ PostgreSQL의 같은 statement 내 중복 upsert key 거부를 구분한다. 이
 여러 행의 입력·결과를 표현하는 AST와 native backend 경계, generic ORM의 전체 입력·metadata·batch/transaction과
 typed 생성 root facade를 구현하고 각 변경 묶음의 normal/race/CGO=0 checkpoint를 완료했다.
 실제 두 연결의 충돌 경쟁·모든 native session의 부모 commit/rollback·뒤쪽 배치 실패·scalar 왕복 저장을 확인했다.
-다음으로 정식 Django fixture와 Go 비교, Helpdesk Form/Admin/API·독립 client의 업무 흐름을 연결한다.
+정식 bulk-create 23개 사례를 각 DB의 두 새 native 프로세스로 관찰하고 원 출력과 Go 소비자의 직접 대조를
+세 mode에서 완료했다. 다음으로 Helpdesk Form/Admin/API·독립 client의 업무 흐름을 연결한다.
 검증한 public API와 지원 정책의 장기 의미를 ADR에 반영하며 기존 정상 source와 모델 생성물을 보존한다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.

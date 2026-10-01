@@ -77,3 +77,23 @@ Django 6.1의 독립 새 프로세스 관찰을 기준으로 입력 순서·defa
 고정 upstream 출처와 명시적 차이를 보존한다. Native 기준 조사는 Go 구현이나 환경별 성공의 증거가 아니다.
 제품 AST/backend·실제 양 DB·generic ORM/생성 module·업무 소비와 실패 경계를 함께 검증하고 실행 범위는
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에만 기록한다. Bulk update와 writable expression은 후속 기반이며 이 작업의 완료로 간주하지 않는다.
+
+[정식 observer](../../conformance/runners/django/bulk_create_reference.py)는 Go 코드·Go 출력·기대 fixture를 읽지 않는다.
+직접 작성한 23개 사례마다 table/sequence를 새로 만들며 upstream module hash와 자신의 hash를 출력한다.
+[양 DB fixture](../../codegen/consumertest/testdata/bulkcreate/)의 native 결과를 수정하지 않고 다음 Go 차이를 별도로 확인한다.
+
+- Django는 성공 시 입력 객체에 key/state를 설정하고 부모 rollback 뒤에도 그 값을 남긴다. Go는 호출자 입력을 수정하지
+  않고 독립 결과만 반환한다. 부모 scope의 성공 결과는 두 API 모두 최종 부모 commit 전까지 provisional이다.
+- Django는 빈 입력에서 conflict 설정 검사를 건너뛸 수 있다. Go는 빈 입력의 설정·context·capability도 검증한다.
+  Python의 non-null 문자열 자리에 `None`을 넣는 경우 Go의 typed 모델로 표현할 수 없으며, 조작한 동적 mutation은
+  DB I/O 전에 거부한다. SQLite의 넓은 ignore와 Go의 uniqueness-only ignore 차이는 위 정책을 따른다.
+- 고정 Django 6.1의 한 statement bulk는 명시적 BEGIN 없이 실행할 수 있고, 혼합 key나 여러 batch에는
+  `atomic(savepoint=False)`를 사용한다. Go는 한 batch도 반환 행·key·결과 준비를 확인한 뒤 commit하도록 명시적 scope를 소유한다.
+- Django bulk의 부모 transaction에서 무결성 오류를 잡아도 부모가 rollback-only가 될 수 있다. Go는 borrowed savepoint를
+  사용하므로 확인된 child rollback/release 뒤 부모를 다시 사용할 수 있다. 정리 실패는 기존 unknown/rollback-required 계약을 따른다.
+- 명시 transaction의 지연 FK가 literal COMMIT에서 거부되면 Go는 기존 `commit_outcome_unknown`과 원인을 보존한다.
+  사후 조회에서 빈 DB를 확인했더라도 runtime이 그 오류를 성공이나 자동 재시도 가능한 오류로 다시 분류하지 않는다.
+  정식 대조는 native CHECK/SQLSTATE 원인, 이 결과 불확실성 marker, 최종 DB 행을 각각 확인한다.
+
+관찰용 CHECK/deferred-FK DDL은 저장소 경계를 검증하기 위한 authored fixture다. 이 검증으로 별도의 Schema IR
+CHECK 선언 기능이나 bulk update가 구현됐다고 해석하지 않는다. Python 내부 `_state` 구조는 Go 모델 API의 호환 목표가 아니다.

@@ -104,6 +104,50 @@ Receipt `godj-bulk-orm-y0l9zf4p/receipt.json`, SHA-256 `7f409ab4fc80fa80955cb47e
 | `godj-bulk-orm-92nn2a11` | `3b70788549390e735bb8c76a984a643f2439d7eda49765ccacc69006e744fbd3` | `a4040558af0ab4b9f1d80ca3525f229fdebb9031f6f344dac0b4ff81f26c9a8f` |
 | `godj-bulk-orm-zmdfvj9q` | `a7fd6a381da791213518c4c3b84fc180977d8b4accf44757577a157fcc486ee1` | `9b305d4830d5667e95c99245e6ff44d6b73cbeff12047a0874db9fc262dcaff0` |
 
+### 정식 Django bulk-create fixture와 Go 직접 비교
+
+Go source/output/expected fixture를 읽지 않는 `conformance/runners/django/bulk_create_reference.py`의 authored 23개
+사례를 각 DB에서 두 새 프로세스로 실행했다. Python 3.14.3·Django 6.1·psycopg 3.3.6,
+SQLite 3.50.4와 PostgreSQL 17.10 Debian/UTF8/libc/C/C다. 사례마다 table/sequence를 다시 만들었고
+Django QuerySet·Atomic·SQLInsertCompiler의 전체 module hash와 observer hash를 fixture에 기록했다.
+두 실행씩의 byte 일치를 확인한 원 출력만 `codegen/consumertest/testdata/bulkcreate/`에 복사했다.
+Observer SHA-256 `f31b5c6caa8341f14105791d8854e790045c8c609df6685ba2b8b32067e0b7f8`.
+SQLite 출력 13155 bytes / `e1c9b4e5177f36364c292f9be0d121d3707e8d32f4defe2fcbdeac01e2b4c793`,
+PostgreSQL 출력 12433 bytes / `1c4224ef97c40c28fbe6a094c56b965d67065f1b4ff1e9c973af81974497d44f`.
+Native receipt `godj-bulk-create-reference-f806thfs/receipt.json`, SHA-256 `e615491f67023d7a2ea83e85141cf00e50815a1708bfa86036da88c3ce3290cd`.
+Observer 유지·최종 table/session `0|0`·소유 DB/container 제거를 확인했다. 이 native 실행 자체는 Go PASS가 아니다.
+
+이후 parent `64bdce4e41da5545419aca5a941aa5dbff18931b`, 비Markdown 3009 files /
+inventory SHA-256 `4b0f57258aec2bcf3b3673918986d90a9347eb2ada9cce7cdb122b195e198544`에서 생성 Go module로 직접 비교했다.
+Observer/upstream hash·23개 case 이름/순서·모든 필수 경로를 확인하고, int64 pointer로 native key를 읽어
+2^53 초과 값을 float64로 손실시키지 않았다. 반환 객체 순서/값·실제 batch 수·원 입력 보존·native 원인 및 SQLSTATE·
+최종 Item/Group 행과 원자성·명시한 Go scope 차이를 대조했다. 기존 native bulk 소비자 57 paths와 네 compile
+거부도 같은 source에서 함께 실행했다. 정식 대조는 양 DB를 포함한 필수 47 paths를 매 mode에서 확인했다.
+
+| Mode / 생성 소비자 및 기준 대조 | packages | outer run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal | 1 | 6 | 0 | 8.63s | `d84b97fefbf217f01225ec63f0cd3a310a0ecc3d88899bda58250d42bad927b1` |
+| race | 1 | 6 | 0 | 40.067s | `705fac94f2721c1c89be31da490e623069d68b725e71f2e3aa9cc637e090ce2a` |
+| cgo0 | 1 | 6 | 0 | 6.188s | `7552805d6423adc77351c1b74e6e77317db959399d8ae302c20d864bc73b2e17` |
+
+비교한 generated module log SHA-256은 normal `33ce7521fe2f99dd4f9a2c2585820b442c11e9c506bc862e4c381fc44c38e051`,
+race `2b42df4c969dff1a35dc6d74bb4b522879b803cb5d7455cee3832dbfd86ba57e`, CGO0
+`bbbde21d031a59cea7c6cd5a10fac6954513e1fb462237c15eee7d6b0c91603e`다. Source 동일·schema/session `0|0`·
+DB/container 제거와 실행 누락/skip/잘림 없음을 확인했다. Receipt `godj-bulk-create-comparison-7as90xr3/receipt.json`,
+SHA-256 `ba8aeb9d194d0712931e4fc8745ce149214c678ec1e0d822db4945998040d31f`.
+
+[ADR-0088](../adr/0088-bulk-creation-and-native-batch-ownership.md)의 Go 차이는 native fixture를 고치지 않고 별도 조건으로
+검증했다. SQLite ignore의 CHECK 생략, typed non-null에 대한 NULL 거부, 빈 입력의 invalid policy 거부,
+항상 소유하는 write scope와 borrowed savepoint·부모의 재사용·호출자 모델 보존을 포함한다.
+Literal COMMIT의 지연 FK 오류는 기존 `commit_outcome_unknown`을 유지하며 native SQLite 787/PostgreSQL 23503 원인과
+최종 빈 DB를 별도로 확인한다. CHECK는 authored DDL로 검증했으며 Schema IR CHECK 선언 기능의 완료 주장이 아니다.
+
+첫 비교 실행 `godj-bulk-create-comparison-_l1cwu5q`는 CHECK native 오류를 아직 분류하지 않았고 literal COMMIT을 일반
+IntegrityError로 가정한 comparator 때문에 실패했다. 제품의 보수적 outcome 정책을 변경하지 않고 native CHECK
+원인과 `commit_outcome_unknown`을 구별하는 비교를 추가했다. 해당 receipt SHA-256
+`b7becfb72617d6977aeaeb5a483720028a7a2fbbf315fcc3d0cb25d940296885`는 실패로 보존하며 소유 container 제거를 확인했다.
+이 단계는 Helpdesk의 bulk Form/Admin/API/client와 새 source의 Hosted 전체 검증을 포함하지 않는다.
+
 ## GDJ-0108 — 행 잠금과 조회 후 생성 또는 갱신
 
 ### Helpdesk 저장·Admin 선택 입력·독립 client의 영향 통합

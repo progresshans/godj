@@ -16,7 +16,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestGeneratedBulkCreate(t *testing.T) {
+func bulkCreateProjectSpec(t *testing.T) codegen.ProjectSpec {
+	t.Helper()
 	spec := customSinglePrefetchSpec()
 	spec.Apps[1].Schema.Models[0].Fields[0].Unique = true
 	spec.Apps[0].Schema.Models = append(spec.Apps[0].Schema.Models, ir.Model{Name: "bulk_only", GoName: "BulkOnly"})
@@ -32,6 +33,11 @@ func TestGeneratedBulkCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	spec.Apps[0].Schema.Models = append(spec.Apps[0].Schema.Models, scalar.Models...)
+	return spec
+}
+
+func TestGeneratedBulkCreate(t *testing.T) {
+	spec := bulkCreateProjectSpec(t)
 	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
 		t.Fatal(err)

@@ -31,6 +31,11 @@ Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DE
 [생성 소비자 fixture](../codegen/consumertest/testdata/updateorcreate/)로 보존한다. 명시적 Go 차이는
 [ADR-0087](adr/0087-row-locking-and-update-or-create.md), source·환경·실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
+[Bulk-create observer](../conformance/runners/django/bulk_create_reference.py)는 같은 고정 Django 6.1의
+QuerySet·Atomic·SQLInsertCompiler를 실행한다(BSD-3-Clause). 직접 작성한 입력과 각 사례의 새 table/sequence로
+[양 DB의 원 출력](../codegen/consumertest/testdata/bulkcreate/)을 보존한다. 입력 객체·빈 입력·ignore·부모 savepoint와
+literal commit 오류의 Go 차이는 [ADR-0088](adr/0088-bulk-creation-and-native-batch-ownership.md)이 설명한다.
+
 ## Go와 DB
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)
