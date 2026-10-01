@@ -2,6 +2,7 @@
 
 - 갱신: 2026-10-02
 - 현재 구현: [GDJ-0109 Native bulk 생성과 여러 티켓 생성](../../work/0109-bulk-creation-and-ticket-import.md)
+- 진행 중인 전체 검증: [Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501), source `d2d8518275eae9e7f46a836d0797f1f9802561c9`
 - 최근 완료: [GDJ-0108 행 잠금과 조회 후 생성 또는 갱신](../../work/0108-row-locking-and-update-or-create.md)
 - 최근 전체 검증: [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942), source `f6e95bb81f80605491bbf04feab49017f79f49e4`; 필수 owner·집계·새 capture/Git source 결합과 소비 완료
 - Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -17,7 +18,7 @@ Native bulk 생성의 AST·backend·generic ORM·typed root facade와 Helpdesk F
 
 ## 다음 행동
 
-최종 문서·생성 drift·실행 선택 목록을 확인하고 GDJ-0109의 고정 source로 Hosted full 통합을 실행한다.
+GDJ-0109의 Hosted full에서 필수 owner·실제 실행·새 capture/source 결합·최종 집계를 확인한다.
 Bulk update·확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다. [검증 문서](../TESTING.md)를 따른다.
 

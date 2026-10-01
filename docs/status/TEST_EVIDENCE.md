@@ -5,6 +5,16 @@
 
 ## GDJ-0109 — native bulk 생성과 여러 티켓 생성
 
+### 고정 source의 Hosted 전체 통합 진행 중
+
+제품/검증 source `d2d8518275eae9e7f46a836d0797f1f9802561c9`를 push하고
+[Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501), attempt 1을
+`workflow_dispatch/suite=full`로 시작했다. 실제 remote head·event·branch를 확인했으며 실행은 진행 중이다.
+필수 owner·실제 step/test·새 capture와 Git source의 결합/소비·최종 `full_platform_verified` 확인 전에는
+전체 플랫폼 검증 완료로 표시하지 않는다. 아래 로컬 영향 검증과 별개다.
+
+### 고정 Django의 최초 기준 조사
+
 2026-10-02 KST, Go source/output과 expected fixture를 읽지 않는 authored observer로 고정 Django 6.1의 bulk
 사례 32개를 SQLite/PostgreSQL에서 각각 두 새 프로세스로 실행했다. Python 3.14.3·psycopg 3.3.6,
 PostgreSQL 17.10 Debian/UTF8/libc/C/C다. Observer는 QuerySet·Atomic·SQLInsertCompiler·SQLUpdateCompiler의

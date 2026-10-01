@@ -49,6 +49,8 @@ Admin의 typed 생성 formset과 배열 API·독립 생성 client를 연결했�
 실제 브라우저에서 동적 행/오류 재표시와 기존 행 변경·새 행 생성의 저장을 확인했다.
 
 현재 public API·지원/오류 정책을 ADR와 소비자 문서에 반영한다. PostgreSQL CI의 명시적 root 선택과 relation 필수
-목록에 새 bulk 경로를 연결한다. 최종 정적/생성 검사 후 이 source의 Hosted full이 전체 플랫폼·cold/process·
-기능 간 조합과 새 capture source 결합을 소유한다. 로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
+목록에 새 bulk 경로를 연결했다. 최종 정적/생성 검사를 통과한 source `d2d85182`로
+[Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501)을 시작했다.
+전체 플랫폼·cold/process·기능 간 조합과 새 capture source 결합은 이 실행이 소유하며 아직 완료가 아니다.
+로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.
