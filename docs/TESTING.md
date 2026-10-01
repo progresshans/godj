@@ -100,10 +100,16 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 실행하며, 마지막 outcome 검사가 선택된 step의 실패·skip·누락을 거부한다. `web`은 operator, `orm`은 targeted migrate,
 `cli`와 `full`은 둘 다 실행한다. PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix의 모든 mode·OS/arch는 job 45분·각 Go test package 35분을 사용한다.
-여러 독립 generated module의 빌드가 부모 consumer test 안에서 진행되므로 해당 합산 시간을 포함한다.
-Job 종료 전에 Go의 timeout 진단과 필수 실행 검사가 끝날 여유를 두며, package/필수 test 목록·race 전달·no-skip 조건은 유지한다.
-Normal/race/CGO=0의 범위는 유지한다. 시간 제한 변경만으로 성공을 인정하지 않고 실제 해당 좌표의 완료를 확인한다.
+관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. macOS Intel/race는 독립 generated module의
+합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
+각 job은 기존 90분·package 70분 한도를 유지한다.
+`scripts/ci/relation_shards.py`가 동일 OS/arch/mode의 실제 Go binary에서 `-list .`로 발견한 Test/Example/Fuzz root를
+결정적으로 분배한다. 필수 child는 부모를 따라가며 분할 좌표의 일반 관계 package와 추가 checker/runner는
+별도 runtime job(번호 0)만 맡는다. 다른 좌표는 한 job이 전체를 실행한다.
+각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
+실제 package 집합의 정확한 일치를 요구한다. 실행용 필수 목록은 파일로 보존하고 로그에는 목록의 개수와 상위 테스트 지문을 남긴다.
+모든 shard의 성공은 기존 관계 owner와 최종 집계가 요구한다. 누락·중복·실패·skip·잘린 로그는 성공이 아니다.
+다른 좌표의 전체 package 실행, normal/race/CGO=0 범위·자식 race 전달·필수 child·no-skip 검사는 유지한다.
 
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.

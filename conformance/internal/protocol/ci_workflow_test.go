@@ -164,8 +164,8 @@ func ciMakeTarget(t *testing.T, text, target string) string {
 	return text[start[0] : start[1]+end[0]]
 }
 
-func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
-	jobs := ciJobs(t)
+func ciPlan(t *testing.T) map[string]string {
+	t.Helper()
 	outputPath := filepath.Join(t.TempDir(), "plan.txt")
 	command := exec.CommandContext(t.Context(), "python3", "scripts/ci/scopes.py", "plan")
 	command.Dir = conformanceRepositoryRoot(t)
@@ -177,13 +177,44 @@ func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var owners []string
+	values := make(map[string]string)
 	for _, line := range strings.Split(string(output), "\n") {
-		if strings.HasPrefix(line, "jobs=") {
-			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "jobs=")), &owners); err != nil {
-				t.Fatal(err)
-			}
+		if key, value, ok := strings.Cut(line, "="); ok {
+			values[key] = value
 		}
+	}
+	return values
+}
+
+func ciRelationMatrix(t *testing.T, job string) []map[string]string {
+	t.Helper()
+	ciRequire(t, "relation matrix", job, "matrix: ${{ fromJSON(needs.validation-plan.outputs.relation_matrix) }}")
+	ciRequire(t, "relation matrix output", ciJob(t, ciJobs(t), "validation-plan"), "relation_matrix: ${{ steps.plan.outputs.relation_matrix }}")
+	var matrix struct {
+		Include []struct {
+			Platform map[string]string `json:"platform"`
+			Mode     string            `json:"mode"`
+		} `json:"include"`
+	}
+	if err := json.Unmarshal([]byte(ciPlan(t)["relation_matrix"]), &matrix); err != nil {
+		t.Fatal(err)
+	}
+	if len(matrix.Include) == 0 {
+		t.Fatal("relation matrix has no execution coordinates")
+	}
+	var rows []map[string]string
+	for _, entry := range matrix.Include {
+		entry.Platform["mode"] = entry.Mode
+		rows = append(rows, entry.Platform)
+	}
+	return rows
+}
+
+func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
+	jobs := ciJobs(t)
+	var owners []string
+	if err := json.Unmarshal([]byte(ciPlan(t)["jobs"]), &owners); err != nil {
+		t.Fatal(err)
 	}
 	if len(owners) == 0 {
 		t.Fatal("full validation plan has no owners")
@@ -224,7 +255,22 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	coordinates := []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
 	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "command-product-matrix"} {
 		job := ciJob(t, jobs, name)
-		rows := ciMatrix(t, job, "platform")
+		var rows []map[string]string
+		var modes []string
+		if name == "relation-product-matrix" {
+			rows = ciRelationMatrix(t, job)
+			for _, row := range rows {
+				modes = append(modes, row["mode"])
+			}
+			ciRequire(t, name, job, "matrix.shard", "matrix.shards", "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log")
+		} else {
+			rows = ciMatrix(t, job, "platform")
+			modeAxis := regexp.MustCompile(`(?m)^        mode: \[([^\]]+)\]$`).FindStringSubmatch(job)
+			if len(modeAxis) != 2 {
+				t.Fatalf("%s lacks a mode axis", name)
+			}
+			modes = strings.FieldsFunc(modeAxis[1], func(r rune) bool { return r == ',' || r == ' ' || r == '\'' || r == '"' })
+		}
 		seen := make(map[string]bool)
 		for _, row := range rows {
 			seen[row["expected_goos"]+"/"+row["expected_goarch"]] = true
@@ -234,11 +280,6 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 				t.Fatalf("%s misses %s", name, coordinate)
 			}
 		}
-		modeAxis := regexp.MustCompile(`(?m)^        mode: \[([^\]]+)\]$`).FindStringSubmatch(job)
-		if len(modeAxis) != 2 {
-			t.Fatalf("%s lacks a mode axis", name)
-		}
-		modes := strings.FieldsFunc(modeAxis[1], func(r rune) bool { return r == ',' || r == ' ' || r == '\'' || r == '"' })
 		for _, mode := range []string{"normal", "race", "cgo0"} {
 			if !containsString(modes, mode) {
 				t.Fatalf("%s misses mode %s", name, mode)
@@ -441,7 +482,13 @@ func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.
 	ciRequire(t, "portable package ownership", portable, "GODJ_CI_OWNERS: ${{ needs.validation-plan.outputs.jobs }}")
 	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix"} {
 		job := ciJob(t, jobs, name)
-		for _, row := range ciMatrix(t, job, "platform") {
+		var rows []map[string]string
+		if name == "relation-product-matrix" {
+			rows = ciRelationMatrix(t, job)
+		} else {
+			rows = ciMatrix(t, job, "platform")
+		}
+		for _, row := range rows {
 			if row["expected_goos"] == "linux" && row["expected_goarch"] == "amd64" && row["runs_on"] != image[1] {
 				t.Fatalf("%s cannot replace a portable execution on a different OS image", name)
 			}

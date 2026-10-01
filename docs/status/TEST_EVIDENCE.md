@@ -62,7 +62,87 @@ normal 3.494s / race 7.155s / CGO=0 1.642s에 실행했다. 각 mode 부모 1 ru
 독립 module의 기존 4 root 및 세 수명 child의 정확히 한 번 성공을 요구했고 failure/skip/truncated output은 없었다.
 실행 전후 source도 같다. Receipt는 `godj-membership-lifetime-checkpoint-nj141ma7/receipt.json`, SHA-256
 `572c9c8162ca678040ee25b0af4e3bfbc09a3bf4e3774eedf3d59d4f34393ad6`이다.
-보완 source의 Hosted 전체 owner/집계·새 capture/source 결합·소비 및 기본 작업 사본 전달은 남아 있다.
+보완 commit `39fb5ed831eacd75219fa909aad868e7b40ce3d0`을 두 원격 작업 branch와 draft PR #1에 반영했다.
+2026-10-01 07:29:23 UTC에 같은 source의 [Hosted full 36830611179](https://github.com/progresshans/godj/actions/runs/36830611179),
+attempt 1을 `workflow_dispatch`·`suite=full`로 시작했다. 같은 source의
+[PR feedback 36830514555](https://github.com/progresshans/godj/actions/runs/36830514555)은 성공했다.
+Job `110265806245`의 필수 단계와 실제 checkout `7755e69104660ff4c96dde858b193aaf635c4ef7`을 확인했다.
+Checkout의 parent에 source가 포함되며 tree `33d306ee3a695d3adc7cc1d2024589b9a32f9af7`도 같다.
+Log SHA-256은 `710b1970dacdbaf778772946d33755516f00abcf6b6066c6093549af27edd1f4`다.
+진행 중간에 완료된 47개 job의 실제 checkout과 필수 단계를 확인했다. 앞선 실행에서 실패한 Linux amd64/arm64 Relation normal도
+같은 source에서 성공했다. 이번 run의 operator producer `110266156098`가 새 artifact `11147450007`을 게시했으며,
+archive SHA-256 `5e8f61b22699294ae0ed69d3e15936c0214d298eff7a7f4dcbf593ed6bcfbbf2`와 같은 run/source provenance를 검증했다.
+Payload SHA-256은 `6241a8381fde94cdbb91a4480f5fe1525158677cfe3d45ecfc9d7958f5d9bfe4`다. 고정 source `39fb5ed8`의
+Git objects로 다시 계산한 operator source 범위는 782 files / 7,079,619 bytes,
+SHA-256 `1a7a67f7b0cecbf3598ee7902efb2f935a40eb9623db6c57865ef549b4536fbe`로 capture와 일치했다.
+앞선 payload와 byte가 같아도 이번 run의 새 producer/artifact/provenance를 별도로 요구했다.
+System-state producer `110266156172`의 새 artifact `11148361111`도 같은 run/source provenance와 함께 검증했다.
+Archive SHA-256은 `42a2e5d9c782cbb99fe6df14edb213099fcb152f437333e885a36553abe40f45`, payload SHA-256은
+`9a8ab65377a024030b4ba7b637f4b2c0fec5c3e826a4d4f28cd98c21c9fcc592`다. Git 원본으로 재계산한
+`godj.system-state.postgresql-two-process-source/v1`은 704 files / 7,220,628 bytes,
+SHA-256 `53a5368ab1e4bfb091dd1f1467684ec3c651d5c8a341ba11df6989d210881ed0`로 일치했다. 두 source 범위에
+새 savepoint·ORM·Admin 파일이 포함되며 두 capture의 source 결합을 모두 확인했다.
+
+PostgreSQL core normal/race/CGO=0은 각각 15 packages / 4,630 run/pass / 0 skip, 필수 parent/child 2,130개와
+S3 경로 23개를 확인했다. Normal S3 artifact `11148391016`의 archive SHA-256은
+`4eef506bfa90dbbf891c0c5c421146f49daa95cdc6a36c7a3a5d3ed4b49da90d`, CGO=0 artifact `11147317532`는
+`e0b4ff831fccfff738a96f3301d6543607c189277fd1c74840f9bafb12407feb`다. Race producer `110266156106`의 artifact
+`11147489065`도 확인했으며 archive SHA-256은 `cb5a96d3cef82e1ee12b8cecb6b5ce953a5677a22c90fbc81dbbbf22a5772f09`다.
+세 service build는 고정 MinIO module/commit, 의존성·buildinfo와 binary SHA-256 `c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`를 검증했다.
+실제 ready·test child exit 0·child 이후 service 생존·service exit 0·양 process 회수·정상 정리도 확인했다.
+Capture consumer job `110274982625`는 같은 source에서 두 새 producer/artifact를 받아 검증했고 conformance·32-bit 경계·
+reference 비변경을 포함한 필수 10개 단계를 완료했다. Log SHA-256은
+`d05f4f8f8c321c78c1fac9837dce9b5bfeaadf10c658a2f8e3343a8e145a0dfe`다.
+
+이 실행은 2026-10-01 09:15:55 UTC에 completed/failure로 끝났다. 62 jobs 중 60 success, 2 failure다.
+실제 실패 owner는 `Relation product (macos-15-intel, race)` job `110266156645`이며 다른 실패는 최종 집계다.
+`codegen/consumertest`가 누적 70분(4200.116s)을 넘었다. Timeout 당시 상위 테스트는 시작 후 5초였고,
+그 전 상위 PASS의 합산 시간은 4194.73s였다. 개별 assertion·build·race 실패는 기록되지 않았으나
+단건 조회/생성을 포함한 뒤쪽 테스트가 실행되지 않아 해당 좌표와 전체 통합은 미완료다.
+실패 log SHA-256은 `b90f378f01f740f06a8b9f94a843e06e2f4c3bdf71eeeb3b8023cbd5221d868b`다.
+실제 Go discovery의 상위 테스트 78개를 보존하고 이 좌표의 소비자를 세 job으로 분할한다.
+일반 관계 검증은 별도 runtime job에서 실행하여 두 비용이 한 job에 누적되지 않도록 보완한다.
+새 source의 전체 통합과 기본 작업 사본 전달은 남아 있다.
+
+### CI 실행 분할과 전체 실행 보존
+
+2026-10-01, macOS Intel/race의 누적 package timeout을 해결하기 위해 실제 Go binary의 discovery로 생성 소비자를
+자동 분배하도록 CI를 보완했다. 상위 Test/Example/Fuzz와 모든 필수 child를 보존하며 Benchmark는 일반 `go test`의
+실행 대상이 아니다. 필수 root의 discovery 누락, 잘못된 shard, 상위 테스트의 미실행·중복·실패·skip, 미완료 package와
+선언한 실행 owner 밖의 package를 거부한다. 두 capture의 source 지문 범위에도 새 CI helper를 포함했다.
+
+초기 분할의 실제 로컬 실행은 parent `39fb5ed8`, 비Markdown 2,952 files, inventory SHA-256
+`12ec16f7327d9a39c100bf6f8c3b51ab5137157b534f9d212d72a0cfbbfa6d01`에서 수행했다.
+Go 1.26.5/darwin/arm64, CI 도구 Python 3.13.3, 공유 cache·offline/readonly module·`-count=1`·race와 자식 `-trimpath`를 사용했다.
+Workflow의 실제 Run step을 세 독립 임시 디렉터리에서 실행했고 당시 첫 분할은 일반 관계 package도 이어서 실행했다.
+2026-10-01 12:29:53–12:54:21 UTC에 세 step이 모두 exit 0으로 끝났으며 실행 전후 소스가 같았다.
+
+| 초기 실행 | package 수 | run/pass | test skip | step 시간 |
+|---|---:|---:|---:|---:|
+| 소비자 1 + 일반 관계 | 50 | 8,028 | 0 | 1467.099s |
+| 소비자 2 | 1 | 55 | 0 | 388.820s |
+| 소비자 3 | 1 | 40 | 0 | 613.535s |
+
+각 분할은 상위 소비자 26개를 정확히 한 번 실행·성공했고 전체 78개의 누락·중복이 없다. 소비자 package의 세 별도
+실행을 합친 고유 package는 50개, 전체 test event는 8,123 run/pass다. Receipt는
+`godj-relation-shard-checkpoint-ur1hi2l3/receipt.json`, SHA-256
+`b641ba02544aa0da97869e208351cc568a123ac34f2b3ebcc5e9f2ee18b9cadb`다.
+
+일반 관계 검증의 시간도 따로 확인되어 최종 CI는 macOS Intel/race의 일반 관계를 runtime job에 배정하고 소비자 세 job과
+독립적으로 실행한다. 다른 11개 좌표는 전체 package를 한 번 실행한다. 관계 matrix는 15 jobs, 전체는 65 jobs다.
+기존 시간 제한을 유지하며 전체 필수 실행 목록은 파일에 남기고 로그에는 개수·상위 테스트·지문을 출력한다.
+
+최종 비Markdown inventory SHA-256은 `5356135720528ea177fe05a345446fbe03209b95c955924cf5315681f5be8a77`이다.
+위 실제 실행 이후 바뀐 비Markdown 파일은 workflow와 CI helper·그 테스트 세 개뿐이며 Go 소스는 같다.
+완료된 raw Go event를 최종 owner로 나누어 현재 CLI로 재검사했다. Runtime은 49 packages / 7,979 run/pass /
+필수 2,202개이며, 세 소비자는 각각 26개 root / 49·55·40 run/pass다. 모든 test skip은 0이고 각 package 집합도 정확히 일치했다.
+이는 완료 로그의 배정 검증이며 새 Go 실행으로 세지 않는다. 재검사 receipt SHA-256은
+`1226b9674b264583d7dc4dad8277e3c3603af4b81b384d255d963987a8f953b0`이다.
+
+최종 source에서 CI 도구 52개 검사와 workflow·양 capture source 범위의 Go 3 packages / 1,180 run/pass / 0 skip을
+다시 실행했다. Go event SHA-256은 `7cc21d7f15e1adb5fba5886fc3d3fca945376434cc58aa86126d7eef81355cf0`이다.
+세 mode와 portable/runner owner 조합의 24개 계획에서 모든 필수 항목·상위 소비자·일반 package의 단일 배정을 확인했다.
+문서 링크·format·diff·workflow YAML 구문도 확인했다. 최종 source의 Hosted 전체 실행은 아직 남아 있다.
 
 ### Helpdesk Label 확보와 입력 표면의 영향 검증
 

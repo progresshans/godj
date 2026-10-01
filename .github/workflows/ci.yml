@@ -37,6 +37,7 @@ jobs:
       suite: ${{ steps.plan.outputs.suite }}
       jobs: ${{ steps.plan.outputs.jobs }}
       command_products: ${{ steps.plan.outputs.command_products }}
+      relation_matrix: ${{ steps.plan.outputs.relation_matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -375,33 +376,15 @@ jobs:
   relation-product-matrix:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'relation-product-matrix')
-    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }}${{ matrix.shards > 1 && (matrix.shard == 0 && ', runtime' || format(', shard {0}/{1}', matrix.shard, matrix.shards)) || '' }})
     runs-on: ${{ matrix.platform.runs_on }}
-    timeout-minutes: ${{ matrix.platform.timeout_minutes[matrix.mode] }}
+    timeout-minutes: ${{ matrix.job_timeout }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
-      matrix:
-        platform:
-          - runs_on: "ubuntu-24.04"
-            expected_goos: "linux"
-            expected_goarch: "amd64"
-            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
-          - runs_on: "ubuntu-24.04-arm"
-            expected_goos: "linux"
-            expected_goarch: "arm64"
-            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
-          - runs_on: "macos-15-intel"
-            expected_goos: "darwin"
-            expected_goarch: "amd64"
-            timeout_minutes: {normal: 45, race: 90, cgo0: 45}
-          - runs_on: "macos-26"
-            expected_goos: "darwin"
-            expected_goarch: "arm64"
-            timeout_minutes: {normal: 45, race: 45, cgo0: 45}
-        mode: [normal, race, cgo0]
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.relation_matrix) }}
 
     steps:
       - name: Checkout
@@ -430,15 +413,15 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
+          shard="${{ matrix.shard }}"
+          shards="${{ matrix.shards }}"
+          consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          # Isolated generated modules compile inside one consumer test
-          # process. Allow their combined build/runtime budget in every mode and
-          # runner, with time left for diagnostics before the outer job limit.
-          # Package/test inventory, race propagation and no-skip checks stay fixed.
-          # Intel race reached the aggregate package limit with the active
-          # generated consumer only two minutes into its own run.
-          test_timeout="${{ matrix.platform.runs_on == 'macos-15-intel' && matrix.mode == 'race' && '70m' || '35m' }}"
+          # Intel race partitions the generated consumers across jobs. Shard
+          # 0 owns all other relation packages on that coordinate.
+          # Every job discovers the binary's roots and checks exact execution.
+          test_timeout="${{ matrix.test_timeout }}"
           test_flags=(-timeout="$test_timeout" -json -count=1)
           case "$mode" in
             normal) ;;
@@ -465,13 +448,32 @@ jobs:
           if [ "$mode" != race ]; then
             cat scripts/ci/compile-required.txt >> "$required"
           fi
+          discovery="$RUNNER_TEMP/relation-consumer-discovery.json"
+          go test "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
+          shard_dir="$RUNNER_TEMP/relation-shard"
+          python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --shard "$shard" --shards "$shards" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir"
+          required="$shard_dir/required.txt"
+          expected_packages="$shard_dir/packages.txt"
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
-          go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
-          if [ "$status" -eq 0 ] && [ "$RUNNER_COVERED" != true ]; then
+          if [ "$shards" -eq 1 ]; then
+            go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+          elif [ "$shard" -eq 0 ]; then
+            runtime_packages=()
+            for package in "${packages[@]}"; do
+              if [ "$package" != "$consumer_package" ]; then runtime_packages+=("$package"); fi
+            done
+            test "${#runtime_packages[@]}" -gt 0
+            go test "${test_flags[@]}" "${runtime_packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+          else
+            go test "${test_flags[@]}" -run "$(cat "$shard_dir/run.txt")" "$consumer_package" > "$log" 2> "$stderr_log" || status=$?
+          fi
+          runtime_owner=false
+          if [ "$shards" -eq 1 ] || [ "$shard" -eq 0 ]; then runtime_owner=true; fi
+          if [ "$status" -eq 0 ] && [ "$runtime_owner" = true ] && [ "$RUNNER_COVERED" != true ]; then
             go test "${test_flags[@]}" -p=1 -run "$relation_godj_runner" ./conformance/runners/godj >> "$log" 2>> "$stderr_log" || status=$?
           fi
-          if [ "$status" -eq 0 ] && [ "$PORTABLE_COVERED" != true ]; then
+          if [ "$status" -eq 0 ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
             go test "${test_flags[@]}" -p=1 -run "$relation_godjcheck" ./conformance/cmd/godjcheck >> "$log" 2>> "$stderr_log" || status=$?
           fi
           if [ "$status" -ne 0 ]; then
@@ -479,7 +481,8 @@ jobs:
             exit "$status"
           fi
           python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
-          if [ "$mode" = normal ] && [ "$PORTABLE_COVERED" != true ]; then
+          python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --shard "$shard" --shards "$shards" --packages "$expected_packages" --log "$log"
+          if [ "$mode" = normal ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
             go vet ./migrations ./db/sqlite
           fi
 

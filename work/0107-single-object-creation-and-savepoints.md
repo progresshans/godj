@@ -57,4 +57,7 @@ Relation/PostgreSQL 필수 목록을 보완했고 CI 도구 45개 검사와 기�
 [Hosted full 36828841116](https://github.com/progresshans/godj/actions/runs/36828841116)에서 기존 membership 소비자가 이전의
 SQLite 수명 오류를 요구하는 것을 발견해 취소했다. 현행 공통 scope 오류 계약으로 대조하고 `Next`/`Scan`/session 거부와
 세 owner child의 실행을 명시했으며, 해당 독립 생성 소비자의 normal/race/CGO=0을 확인했다. 제품 코드는 그대로다.
-다시 고정한 source의 전체 owner·집계·새 capture/source 결합을 확인한 뒤 검증과 전달을 함께 닫는다.
+다시 고정한 source `39fb5ed8`의 [Hosted full 36830611179](https://github.com/progresshans/godj/actions/runs/36830611179)은
+macOS Intel/race 생성 소비자의 누적 package 시간 제한으로 실패했다. 자동 소비자 분할·별도 runtime owner와
+실행 누락·중복·owner 밖 package 거부를 보완했다. 로컬 실제 race 실행과 최종 분배/CI 도구의 검증 범위는 검증 기록에서 구분한다.
+새 source의 전체 owner·집계·새 capture/source 결합을 확인하고 검증과 전달을 함께 닫는다.

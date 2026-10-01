@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 
+from relation_shards import matrix as relation_matrix
+
 
 SCOPES = {'full', 'orm', 'cli', 'web', 'reference'}
 COMMAND_PRODUCTS = {
@@ -66,6 +68,7 @@ def main():
                 print('suite=' + suite, file=output)
                 print('jobs=' + json.dumps(jobs), file=output)
                 print('command_products=' + json.dumps(command_products(suite)), file=output)
+                print('relation_matrix=' + json.dumps(relation_matrix()), file=output)
         elif args.action == 'verify-command-products':
             report = verify_command_products(suite, json.loads(os.environ['COMMAND_PRODUCTS_RESULTS_JSON']))
             print(json.dumps(report, sort_keys=True))

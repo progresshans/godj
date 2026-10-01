@@ -26,6 +26,7 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/go_test_events.py":                                         {},
 	"scripts/ci/packages.py":                                               {},
 	"scripts/ci/scopes.py":                                                 {},
+	"scripts/ci/relation_shards.py":                                        {},
 	"scripts/ci/python_tests.py":                                           {},
 	"scripts/ci/relation-required.txt":                                     {},
 	"scripts/ci/compile-required.txt":                                      {},

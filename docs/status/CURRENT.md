@@ -23,8 +23,10 @@ Helpdesk의 Form/Admin/API·독립 client와 원자 audit를 연결하고 영향
 
 ## 다음 행동
 
-CI 필수 목록과 생성 membership 소비자의 수명 오류 계약 대조를 보완한 source로 Hosted 전체 통합을 다시 수행한다.
-기존 실행의 실패·취소와 수정 후 세 mode 확인은 검증 기록에 남겼다. 필수 owner·집계·새 capture/Git source 결합 뒤 전달을 완성한다.
+CI 필수 목록과 생성 membership 소비자의 수명 대조를 보완한 source `39fb5ed8`의
+[Hosted 전체 통합](https://github.com/progresshans/godj/actions/runs/36830611179)은 macOS Intel/race 생성 소비자 package의
+누적 시간 제한으로 실패했다. 해당 좌표의 소비자 세 분할·별도 runtime job과 누락·중복·실행 owner 검사를 보완했다.
+영향 검증을 기록했고 새 source를 고정해 Hosted 전체를 실행한다. 필수 owner·집계·새 capture/Git source 결합 뒤 전달을 완성한다.
 남은 codec 특성/storage provider·custom user model·인증/mail provider와 다른 카탈로그 기능도 의존 순서에 따라 이어간다.
 현재 외부 입력이 필요한 blocker는 없다. 새 변경의 환경별 검증은 [검증 문서](../TESTING.md)를 따른다.
 

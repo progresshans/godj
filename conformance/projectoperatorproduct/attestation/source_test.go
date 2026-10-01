@@ -63,6 +63,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"internal/temporal/datetime.go",
 		"internal/booleaninput/select.go",
 		"scripts/ci/python_tests.py",
+		"scripts/ci/relation_shards.py",
 		"scripts/ci/relation-required.txt",
 		"scripts/ci/compile-required.txt",
 		".github/workflows/ci.yml",
