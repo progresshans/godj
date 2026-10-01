@@ -9,6 +9,8 @@
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Read snapshot | pinned BEGIN의 첫 읽기 snapshot, 읽기 전용 callback·기존 retention/quarantine | REPEATABLE READ READ ONLY, 읽기 전용 callback·실패 연결 discard |
 | Conflict insert | nullable column의 non-NULL 값을 포함한 명시적 unique tuple의 native no-op·0/1행 결과, ordinary/relation/coordinated session | 같은 AST·결과·session 계약, schema-qualified target |
+| 행 잠금 | 명시적 SelectForUpdate는 빈 query에서도 unsupported | writable transaction의 UPDATE/NO KEY UPDATE·NOWAIT/SKIP LOCKED·명시적 root/관계 OF; nullable outer target·DISTINCT/window 제한 |
+| 조회 후 생성/갱신 | owned transaction 또는 borrowed savepoint, native 읽기/쓰기 충돌 전파 | 같은 scope 계약과 기존 root 행 잠금; SKIP LOCKED·root를 제외한 명시적 target 거부 |
 | ManyToMany root manager | 같은 AST의 collection 조회/Distinct, add/remove/clear/set·nullable/nonunique through·retained ID/payload·self symmetry·AtomicRelation·cache 소유권 | 같은 runtime/AST·native conflict·incoming 정책, root transaction ownership |
 | Borrowed session / model facade | UsingSession/InSession·기존 fence 참여, ordinary/relation/coordinated session lifetime과 warm/empty/eager query 검사 | 같은 공통 facade/runtime·native session 검사, outer transaction 소유권 |
 | Borrowed session batch execution | 같은 pinned/transaction 연결의 source rowset·명시적 배치 크기·scan/yield 분리 | WITHOUT HOLD cursor·bounded FETCH·rowset close 뒤 같은 session의 yield; outer commit 소유권 유지 |

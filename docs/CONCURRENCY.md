@@ -55,6 +55,16 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 
 ## 관계 객체
 
+`SelectForUpdate` 파생 query는 원래 warm cache와 분리하며, 이미 선택한 eager/prefetch 대상도 명시적 잠금 query로
+다시 평가한다. 기본 prefetch는 root의 잠금을 상속하지 않는다. 명시적인 대상은 projection이 바뀌어도 확대하거나
+버리지 않는다. Count/aggregate에는 잠금을 전파하지 않는다. 잠금 수명과 미지원 조합은 backend가 확인한다.
+
+`UpdateOrCreate`는 하나의 owned transaction 또는 borrowed savepoint에서 조회·선택한 입력·저장·반환 graph 준비를
+마친다. PostgreSQL은 기존 root를 잠그고 SQLite는 native 읽기/쓰기 충돌을 전파한다. 실제 unique INSERT의 rollback이
+확인된 경우에만 한 번 재조회하며 다른 실패를 자동 재시도하지 않는다. 원 query cache는 보존하고 반환 graph의 cache와
+lazy backend는 호출자 수명에 결합한다. 확인된 commit 후 취소를 재시도 신호로 바꾸지 않으며 borrowed 결과는 부모 commit
+전까지 provisional이다. [행 잠금과 upsert 의미](adr/0087-row-locking-and-update-or-create.md)를 따른다.
+
 - 같은 relation owner의 cache와 새 materialization/Fresh의 cache를 구분한다. 전역 identity map을 가정하지 않는다.
 - Lazy required 관계의 missing/cardinality와 nullable absent는 서로 다른 결과다.
 - OneToOne의 reverse는 자식이 없을 수 있으므로 `RelatedObject.Get`의 present=false를 성공 cache로 보존한다.
