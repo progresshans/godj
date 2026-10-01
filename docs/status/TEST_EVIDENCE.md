@@ -5,7 +5,7 @@
 
 ## GDJ-0107 — 단건 조회와 savepoint 기반 조회 후 생성
 
-### Hosted 전체 통합 — 필수 실행 목록 보완
+### Hosted 전체 통합 — 실행 목록과 소비자 계약 보완
 
 제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 `feature/get-or-create`와 기존 draft PR #1의
 `codex/revision-fenced-migration-lifecycle`에 동일하게 push했다. [PR feedback 36826668420](https://github.com/progresshans/godj/actions/runs/36826668420)은 성공했다.
@@ -20,8 +20,49 @@ Job `110253764000`의 필수 단계와 log SHA-256 `349d47d96eb83e42839d0d55ce93
 Relation 목록에 107개, PostgreSQL core 목록에 168개의 새 필수 parent/child를 추가했다. 기존 목록은 그대로 보존했다.
 새 native savepoint·Get/GetOrCreate·생성 소비자와 양 DB Helpdesk 확보 경로를 기존 영향 로그의 실제 이름과 대조했다.
 45개 CI 도구 검사에서 목록의 중복/공백·실행 owner·shell 전달·child에서 parent 선택을 확인했다.
-제품/테스트 구현을 바꾸지 않고 이 실행 계약을 보완한 새 source로 Hosted full을 다시 수행한다.
-최종 필수 owner/집계·새 capture/Git source 결합·소비 및 기본 작업 사본 전달은 미완료다.
+모든 추가 항목을 기존 세 mode 로그의 실제 run/pass와 대조했다. Roster audit는
+`godj-single-object-roster-audit.json`에 보존했다. 보완 commit은 `d9f2324e7c53670b46b870c4d41e145051952e95`이며,
+비Markdown 2,950 files의 inventory SHA-256은 `fe679c6aa06f6cf635543019728189dba3545eb7a638d0b20ce7fd05ca52d725`다.
+최종 Helpdesk checkpoint와 다른 비Markdown 파일은 두 필수 목록뿐이며 제품/테스트 내용은 같다.
+
+[보완 source의 PR feedback 36828265833](https://github.com/progresshans/godj/actions/runs/36828265833)은 성공했다.
+Job `110258751170`의 checkout `12b10f8ae4f3f37926dab4d14f419e12a4fbf530`은 위 source를 parent로 가지며,
+tree `19167c6de4cd9bb796dbe16b24d1f7909286782a`도 일치한다. 필수 단계와 log SHA-256
+`425787d0f8b72515ef864d465488af4cfb338cf804907bbdd8dfdffabdd2765c`을 확인했다.
+
+2026-10-01 07:10:47 UTC에 같은 source의 [Hosted full 36828841116](https://github.com/progresshans/godj/actions/runs/36828841116),
+attempt 1을 `workflow_dispatch`·`suite=full`로 시작했다. 아래 생성 소비자 대조 실패 후 취소했으며, 전체 성공으로 사용하지 않는다.
+
+중간 확인에서는 완료된 21개 job의 실제 checkout과 해당 owner의 필수 단계가 성공했음을 대조했다.
+이번 실행의 operator capture는 producer job `110260590717`, artifact `11146014567`이며, archive SHA-256
+`939e6f4cb5a2f29a934917e262f7e622bea09297c7d88a279df171f2952b3497`, payload SHA-256
+`6241a8381fde94cdbb91a4480f5fe1525158677cfe3d45ecfc9d7958f5d9bfe4`를 확인했다.
+고정 source의 Git objects로 재계산한 `godj.project-operator.combined-external-global-source/v1` 지문은
+782 files / 7,079,619 bytes / SHA-256 `1a7a67f7b0cecbf3598ee7902efb2f935a40eb9623db6c57865ef549b4536fbe`로
+capture와 같았다. 새 savepoint·ORM·Admin 파일이 이 source 범위에 포함된다.
+이 operator 증거는 해당 실행의 부분 검증이며 이후 source의 전체 성공으로 전이하지 않는다.
+
+Linux amd64/arm64의 Relation normal job `110260591202`/`110260591153`에서
+`TestGeneratedScalarMembershipConsumer`의 synthetic aggregate 수명 대조가 실패했다. 두 job의 실제 checkout이
+`d9f2324e`임을 확인했다. Log SHA-256은 각각 `be03dd594776abbaa85b063b8274250242f1abfd49a0849d737edf08577b6859`와
+`c0a830b77557b1ac2f5faf92736816cbf60f07770448685241ee60c81d00dbe5`다. 종료 후 cursor는 닫혀 있고
+현행 [ADR-0086](../adr/0086-single-object-creation-and-savepoint-ownership.md)의 `backend_error/invalid_plan`을 반환하지만,
+기존 소비자는 이전의 SQLite `sql.ErrTxDone`을 요구했다. 실패한 실행을 취소했고 최종 상태는 completed/cancelled다.
+29개 job success, 30개 cancelled, 두 Relation과 최종 집계 3개 failure이며 이를 전체 PASS로 기록하지 않는다.
+
+제품 코드는 바꾸지 않고 기존 소비자의 오류 대조를 공통 scope 계약에 맞췄다. 종료 후 `Next=false`와 `Err`의 정확한
+category/code를 확인하고, `Scan`과 session의 빈 query도 같은 오류로 거부되는지 검사한다. Atomic/coordinated/relation
+세 child를 부모의 필수 성공 목록에 추가했다. 기존 취소 전파·empty aggregate·SQL 없음 검사는 유지한다.
+
+수정한 source는 parent `d9f2324e`, 비Markdown 2,950 files, inventory SHA-256
+`958d2c6358cee632ee2b9c81fce0614327cf62342006b79664cfb50013074a4f`다. 변경된 비Markdown 파일은
+`codegen/consumertest/membership_test.go`와 그 `testdata/membership/consumer_test.go` 두 테스트뿐이다.
+Go 1.26.5/darwin/arm64, 공유 cache·offline/readonly·독립 생성 module의 `-trimpath`·`-count=1`로 해당 부모를
+normal 3.494s / race 7.155s / CGO=0 1.642s에 실행했다. 각 mode 부모 1 run/pass와 package 성공,
+독립 module의 기존 4 root 및 세 수명 child의 정확히 한 번 성공을 요구했고 failure/skip/truncated output은 없었다.
+실행 전후 source도 같다. Receipt는 `godj-membership-lifetime-checkpoint-nj141ma7/receipt.json`, SHA-256
+`572c9c8162ca678040ee25b0af4e3bfbc09a3bf4e3774eedf3d59d4f34393ad6`이다.
+보완 source의 Hosted 전체 owner/집계·새 capture/source 결합·소비 및 기본 작업 사본 전달은 남아 있다.
 
 ### Helpdesk Label 확보와 입력 표면의 영향 검증
 

@@ -2,7 +2,6 @@ package consumer_test
 
 import (
 	"context"
-	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -369,14 +368,21 @@ func TestGeneratedMembershipSessionLifetime(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			if retained.Next() || !errors.Is(retained.Err(), sql.ErrTxDone) {
-				t.Fatal("synthetic aggregate outlived its transaction")
+			// Actual and synthetic cursors share the borrowed scope's public
+			// lifetime error, independently of a database/sql transport.
+			expired := &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}
+			if next, err := retained.Next(), retained.Err(); next || !errors.Is(err, expired) {
+				t.Fatalf("expired synthetic aggregate: next=%v, error=%v", next, err)
+			}
+			var retainedCount int64
+			if err := retained.Scan(&retainedCount); !errors.Is(err, expired) {
+				t.Fatalf("expired synthetic aggregate scan: %v", err)
 			}
 			if err := retained.Close(); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := retainedSession.Query(t.Context(), plan); err == nil {
-				t.Fatal("expired transaction accepted empty query")
+			if _, err := retainedSession.Query(t.Context(), plan); !errors.Is(err, expired) {
+				t.Fatalf("expired transaction empty query: %v", err)
 			}
 			transactionContext, cancel := context.WithCancel(t.Context())
 			defer cancel()

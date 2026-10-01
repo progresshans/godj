@@ -52,5 +52,9 @@ Helpdesk의 현재 권한·Label 확보·원자 audit와 Form/Admin/API·독립 
 공통 Admin 목록 command, Helpdesk 실제 양 DB, OpenAPI와 독립 client의 세 mode 영향 검증 및 실제 브라우저 확인을 완료했다.
 범위별 source와 실행은 검증 기록에서 구분한다. 제품 source `98aa179fc4077bdefdec9deaedbb9a7865c6e3b8`를 push하고
 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/36826788120)을 시작했으나 새 PostgreSQL 실행 목록 누락을 발견해 취소했다.
-Relation/PostgreSQL 필수 목록을 보완했고 CI 도구 45개 검사를 통과했다. 새 source의 전체 통합에서 필수 owner·집계·새 capture와
-source 결합을 확인한 뒤 전체 변경 묶음의 검증과 전달을 함께 닫는다.
+Relation/PostgreSQL 필수 목록을 보완했고 CI 도구 45개 검사와 기존 세 mode 로그의 실제 이름 대조를 통과했다.
+보완 source `d9f2324e`의 PR feedback 성공과 checkout/tree 결합을 확인했다. 같은 source의
+[Hosted full 36828841116](https://github.com/progresshans/godj/actions/runs/36828841116)에서 기존 membership 소비자가 이전의
+SQLite 수명 오류를 요구하는 것을 발견해 취소했다. 현행 공통 scope 오류 계약으로 대조하고 `Next`/`Scan`/session 거부와
+세 owner child의 실행을 명시했으며, 해당 독립 생성 소비자의 normal/race/CGO=0을 확인했다. 제품 코드는 그대로다.
+다시 고정한 source의 전체 owner·집계·새 capture/source 결합을 확인한 뒤 검증과 전달을 함께 닫는다.

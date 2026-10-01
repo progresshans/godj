@@ -33,5 +33,6 @@ func TestGeneratedScalarMembershipConsumer(t *testing.T) {
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command),
-		"TestGeneratedMembershipMatchesReference", "TestGeneratedMembershipEvaluationAndOwnership", "TestGeneratedMembershipRejectsInvalidInputs", "TestGeneratedMembershipSessionLifetime")
+		"TestGeneratedMembershipMatchesReference", "TestGeneratedMembershipEvaluationAndOwnership", "TestGeneratedMembershipRejectsInvalidInputs", "TestGeneratedMembershipSessionLifetime",
+		"TestGeneratedMembershipSessionLifetime/atomic", "TestGeneratedMembershipSessionLifetime/coordinated", "TestGeneratedMembershipSessionLifetime/relation")
 }
