@@ -1573,4 +1573,4 @@ func (_factory WorkNoteObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_663a1416e0a7b58b2bb8e760b727e57310c572b5c4e99dd10912fa7ba011fce1
+var _ goDjProjectSnapshot_3db596fea2aa93eaee3b2ee030419c94906e303d3e7c21f3bb07fd104a167b6d

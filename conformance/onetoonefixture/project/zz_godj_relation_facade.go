@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
-const GoDjProjectRelationFacadeInputSHA256 = "87d5d5789339e84bcdc9da8509bb36e7e5e23ed99424f69fe42260ba01d91275"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
+const GoDjProjectRelationFacadeInputSHA256 = "21fe17ccfd19f821b16772892d8c376bc3fa8d6aa0dfc54f9c0d7d52004e267b"
 
 type Backend interface {
 	db.Queryer
@@ -443,6 +443,47 @@ func (_query ReportsCertificateQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsCertificateQuery) BulkCreate(_ctx context.Context, _inputs []reports.Certificate, _options ...orm.BulkCreateOption[reports.Certificate]) (orm.BulkCreateResult[*ReportsCertificate], error) {
+	var _zero orm.BulkCreateResult[*ReportsCertificate]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.ReportsCertificate, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsCertificate]{Objects: make([]*ReportsCertificate, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsCertificate(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsCertificateQuery) BulkCreateInputs(_ctx context.Context, _inputs []reports.CertificateCreate, _options ...orm.BulkCreateOption[reports.Certificate]) (orm.BulkCreateResult[*ReportsCertificate], error) {
+	var _zero orm.BulkCreateResult[*ReportsCertificate]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.ReportsCertificate, orm.CreateInputs[reports.Certificate](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsCertificate]{Objects: make([]*ReportsCertificate, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsCertificate(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query ReportsCertificateQuery) New(_value reports.Certificate) (*ReportsCertificate, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -1735,6 +1776,47 @@ func (_query ReportsLinkQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsLinkQuery) BulkCreate(_ctx context.Context, _inputs []reports.Link, _options ...orm.BulkCreateOption[reports.Link]) (orm.BulkCreateResult[*ReportsLink], error) {
+	var _zero orm.BulkCreateResult[*ReportsLink]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.ReportsLink, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsLink]{Objects: make([]*ReportsLink, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsLink(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsLinkQuery) BulkCreateInputs(_ctx context.Context, _inputs []reports.LinkCreate, _options ...orm.BulkCreateOption[reports.Link]) (orm.BulkCreateResult[*ReportsLink], error) {
+	var _zero orm.BulkCreateResult[*ReportsLink]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.ReportsLink, orm.CreateInputs[reports.Link](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsLink]{Objects: make([]*ReportsLink, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsLink(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query ReportsLinkQuery) New(_value reports.Link) (*ReportsLink, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -3006,6 +3088,47 @@ func (_query ReportsOptionalReportQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsOptionalReportQuery) BulkCreate(_ctx context.Context, _inputs []reports.OptionalReport, _options ...orm.BulkCreateOption[reports.OptionalReport]) (orm.BulkCreateResult[*ReportsOptionalReport], error) {
+	var _zero orm.BulkCreateResult[*ReportsOptionalReport]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.ReportsOptionalReport, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsOptionalReport]{Objects: make([]*ReportsOptionalReport, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsOptionalReport(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsOptionalReportQuery) BulkCreateInputs(_ctx context.Context, _inputs []reports.OptionalReportCreate, _options ...orm.BulkCreateOption[reports.OptionalReport]) (orm.BulkCreateResult[*ReportsOptionalReport], error) {
+	var _zero orm.BulkCreateResult[*ReportsOptionalReport]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.ReportsOptionalReport, orm.CreateInputs[reports.OptionalReport](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsOptionalReport]{Objects: make([]*ReportsOptionalReport, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsOptionalReport(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query ReportsOptionalReportQuery) New(_value reports.OptionalReport) (*ReportsOptionalReport, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -4305,6 +4428,47 @@ func (_query ReportsReportQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsReportQuery) BulkCreate(_ctx context.Context, _inputs []reports.Report, _options ...orm.BulkCreateOption[reports.Report]) (orm.BulkCreateResult[*ReportsReport], error) {
+	var _zero orm.BulkCreateResult[*ReportsReport]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.ReportsReport, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsReport]{Objects: make([]*ReportsReport, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsReport(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsReportQuery) BulkCreateInputs(_ctx context.Context, _inputs []reports.ReportCreate, _options ...orm.BulkCreateOption[reports.Report]) (orm.BulkCreateResult[*ReportsReport], error) {
+	var _zero orm.BulkCreateResult[*ReportsReport]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.ReportsReport, orm.CreateInputs[reports.Report](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsReport]{Objects: make([]*ReportsReport, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsReport(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query ReportsReportQuery) New(_value reports.Report) (*ReportsReport, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -5755,6 +5919,47 @@ func (_query ReportsReviewQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsReviewQuery) BulkCreate(_ctx context.Context, _inputs []reports.Review, _options ...orm.BulkCreateOption[reports.Review]) (orm.BulkCreateResult[*ReportsReview], error) {
+	var _zero orm.BulkCreateResult[*ReportsReview]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.ReportsReview, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsReview]{Objects: make([]*ReportsReview, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsReview(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query ReportsReviewQuery) BulkCreateInputs(_ctx context.Context, _inputs []reports.ReviewCreate, _options ...orm.BulkCreateOption[reports.Review]) (orm.BulkCreateResult[*ReportsReview], error) {
+	var _zero orm.BulkCreateResult[*ReportsReview]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.ReportsReview, orm.CreateInputs[reports.Review](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*ReportsReview]{Objects: make([]*ReportsReview, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeReportsReview(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query ReportsReviewQuery) New(_value reports.Review) (*ReportsReview, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -7054,6 +7259,47 @@ func (_query TicketsTicketQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query TicketsTicketQuery) BulkCreate(_ctx context.Context, _inputs []tickets.Ticket, _options ...orm.BulkCreateOption[tickets.Ticket]) (orm.BulkCreateResult[*TicketsTicket], error) {
+	var _zero orm.BulkCreateResult[*TicketsTicket]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.TicketsTicket, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*TicketsTicket]{Objects: make([]*TicketsTicket, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeTicketsTicket(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query TicketsTicketQuery) BulkCreateInputs(_ctx context.Context, _inputs []tickets.TicketCreate, _options ...orm.BulkCreateOption[tickets.Ticket]) (orm.BulkCreateResult[*TicketsTicket], error) {
+	var _zero orm.BulkCreateResult[*TicketsTicket]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.TicketsTicket, orm.CreateInputs[tickets.Ticket](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*TicketsTicket]{Objects: make([]*TicketsTicket, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeTicketsTicket(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query TicketsTicketQuery) New(_value tickets.Ticket) (*TicketsTicket, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -8703,4 +8949,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_c3d1e1a5fde115683a99888ded47425e5db1793198739009e497af7c5eba36a5
+var _ goDjProjectSnapshot_42a639519df299826f4864a6748c8726f5ab769f06d7c0fe7b37ba59fa952001

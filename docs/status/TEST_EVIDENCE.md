@@ -3,6 +3,107 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0109 — native bulk 생성의 기준 조사
+
+2026-10-02 KST, Go source/output과 expected fixture를 읽지 않는 authored observer로 고정 Django 6.1의 bulk
+사례 32개를 SQLite/PostgreSQL에서 각각 두 새 프로세스로 실행했다. Python 3.14.3·psycopg 3.3.6,
+PostgreSQL 17.10 Debian/UTF8/libc/C/C다. Observer는 QuerySet·Atomic·SQLInsertCompiler·SQLUpdateCompiler의
+source hash와 자신의 SHA-256을 보고한다. 아직 임시 observer의 탐색 결과이며 정식 fixture·Go 비교가 아니다.
+
+Observer `/tmp/godj-bulk-reference-exploration.py`, SHA-256 `c700fd2ac9a3704fc79e537cdab5286ce75450cbe55c76ef58636727e9be9cbe`.
+SQLite의 두 출력은 11071 bytes / `c3c77b46e8c8a001e3894f52a4ceaec3b662f47f52814b47266abdad03b62969`,
+PostgreSQL의 두 출력은 10936 bytes / `6f80e16742a65ca63bcf2b0b36c33228b87eb350d15cc0616cafc602049c8349`로 일치했다.
+Receipt `godj-bulk-reference-bzs_tv6l/receipt.json`, SHA-256 `c179fb2fc4572e108668ae9618a9a33955f0886bc16fb132ae228af6104b0829`.
+Observer byte 유지·table/session `0|0`·소유 DB/container 제거를 확인했다.
+
+기본 생성은 입력 순서에 대응하는 생성 key를 반환하고, 여러 statement의 뒤쪽 실패는 앞선 batch도 rollback했다.
+SQLite ignore는 unique 외 CHECK/NOT NULL 행도 생략했지만 PostgreSQL은 23514/23502로 실패했다.
+같은 statement의 동일 key upsert는 SQLite가 두 입력에 같은 key를 반환하고 PostgreSQL이 21000으로 거부했다.
+Bulk update의 중복 key는 한 batch에서는 첫 입력과 count 1, 두 batch에서는 마지막 입력과 count 2였다.
+부모 rollback은 DB 행을 없애지만 Django의 caller object PK/state를 되돌리지 않았다.
+이 차이는 Go의 지원 정책을 정할 근거이며 구현·환경별 PASS나 기존 기반의 Hosted 완료를 뜻하지 않는다.
+
+### 다중 행 AST와 native backend 기반 checkpoint
+
+2026-10-02 KST, parent `f6e95bb81f80605491bbf04feab49017f79f49e4`, 비Markdown 2997 files /
+inventory SHA-256 `187ba82c1dae85279fdaa2365c258750155a71e415368102bc613af73694e26e`. Go 1.26.5/darwin/arm64와 공유 cache·trimpath,
+실제 SQLite와 PostgreSQL 17.10 Debian/UTF8/libc/C/C에서 native 기반의 세 mode를 검증했다.
+이 checkpoint는 generic ORM·생성 facade·Helpdesk/API 소비자를 포함하지 않는다. 후속 ORM checkpoint와 분리한다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / ast | 2 | 32 | 0 | 2.292s | `c51259f7d2601d27f3cf44bf82268f29cacd8edfb79be3cac507349d75cfb292` |
+| normal / backends | 2 | 82 | 0 | 28.747s | `2d6228ca15c9a14a48fdc06cedfac0794f94a31933f8f84175b6881f90660ca1` |
+| race / ast | 2 | 32 | 0 | 4.182s | `bafd093380382b1314dd76417cc975d85d6626223dfeed4979102e002f946f43` |
+| race / backends | 2 | 82 | 0 | 43.352s | `c3a5cbc459e6b8d24ae8bae6fa1a851bbd9876fd5dc9cbef5a5191cd227c737c` |
+| cgo0 / ast | 2 | 32 | 0 | 1.311s | `0e2f415ff1eaad037e254a18af1e8a4eaeb761a72f16883c75479f9842c5933b` |
+| cgo0 / backends | 2 | 82 | 0 | 3.691s | `e3da2304ac8b54e5ab2d5f54dc266a1cf5a100ed0fd4343736b8a1666668936a` |
+
+AST/transport의 필수 4 roots와 backend의 필수 4 roots를 각 mode에서 실행했다. 모든 시작/종료·package·no-skip·
+잘림을 대조했다. 다중 입력과 반환 slice 소유권·행/값/field provenance 한도·잘못된 scalar·늦은 행 실패,
+정확한 큰/0/음수 key·auto-only·실제 4400 parameter INSERT·ignore/update conflict·nullable/FK/unique/Check,
+trigger가 반환 행을 생략한 경우의 전체 rollback·ordinary/coordinated/relation 및 savepoint·root cursor를 포함한다.
+Native SQL row transport의 scan/next/close/취소/extra/short/nil·오류와 함께 반환한 rows 정리·ignore의 actual count도 검사했다.
+
+실행 전후 source 동일, schema/session `0|0`, 별도 DB 및 소유 container 제거를 확인했다.
+Receipt `godj-bulk-foundation-jbskuawq/receipt.json`, SHA-256 `47d298732799dbc96524d2507e47812de247005416e486067282eedfefb323e0`.
+당시 남은 ORM metadata·batch/transaction·생성 drift는 아래 후속 checkpoint에 기록한다. 정식 Django Go 대조·
+업무 소비와 통합은 계속 미완료다. 현재 진행 중인 GDJ-0108 Hosted 검증과 이 새 source의 결과를 합치지 않는다.
+
+### Generic ORM와 생성 facade checkpoint
+
+2026-10-02 KST, parent `f6e95bb81f80605491bbf04feab49017f79f49e4`, 비Markdown 3004 files /
+inventory SHA-256 `9cc0c8832caee27ef9b344d6017531792385b7a519338d0b32906b629725f183`에서 실행했다.
+Go 1.26.5/darwin/arm64, 실제 SQLite와 PostgreSQL 17.10 Debian/UTF8/libc/C/C, 공유 Go cache와
+별도 생성 module의 `-trimpath` 및 race 전파를 사용했다. Generic ORM·생성기 두 package 전체의 357 roots,
+별도 module의 양 DB 소비자와 잘못된 입력/field의 compile 거부 4건을 각 mode에서 실행했다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / orm-generator | 2 | 1176 | 0 | 2.435s | `6c198462e840effe1c7b8e28808470bc336ee48f31de92f43ece9d31ec936741` |
+| normal / native-consumer | 1 | 5 | 0 | 3.978s | `40095f3a615b1e75c3cd8bd1b8362a825404145953364ce3684e559b4e8f03da` |
+| race / orm-generator | 2 | 1176 | 0 | 38.228s | `f43644e603057ba1568830b286d4eab0ad7a0ef52fa2188ed38415eb1ea5f627` |
+| race / native-consumer | 1 | 5 | 0 | 34.265s | `79aa0fe4b8147f519706c8bb6da236bae5e3e3b17e957860fbad5a841c9106f8` |
+| cgo0 / orm-generator | 2 | 1176 | 0 | 2.36s | `0030d1476d3423a34a94277f348a278df3f9da118e587196cef4cae4699a9894` |
+| cgo0 / native-consumer | 1 | 5 | 0 | 3.778s | `c4eaa819dfbcc0c781f2b40147cfd88f17ceec107bc171447dbb3738642d8dc7` |
+
+생성 module은 각 mode에서 57개 test/subtest를 시작·성공 각 한 번씩 확인했고 필수 47 paths와 skip 0을 대조했다.
+외부 root의 5개는 생성 소비자 owner와 다른 모델 입력·다른 모델 conflict target·primary key update·관계 경로를
+root conflict target으로 쓰는 네 컴파일 거부 사례다. ORM 입력 준비·nullable 소유권·metadata/cache snapshot,
+명시 ID/자동 ID 혼합·원 입력 순서·한 transaction의 여러 batch·parameter 한도·빈 입력의 context/capability,
+부정한 callback owner·뒤쪽 배치 오류·commit/rollback/cleanup 불확실성·취소 후 결과 차단을 포함한다.
+
+실제 DB에서는 auto-only, 큰/0/음수 key, default/SQL NULL, integer/boolean/float/decimal/duration/time/date/datetime/
+UUID/binary/JSON의 batch 왕복 저장, conflict-ignore의 실제 count와 FK 오류, 단일/복합 고유 target·update mask,
+동일 key의 native batch별 차이를 검증했다. 두 연결의 normal/ignore/update 경쟁과 loser의 앞선 batch rollback,
+ordinary/coordinated/relation/coordinated-relation 부모의 commit/rollback·실패 child 뒤 부모 재사용,
+root cursor connection affinity·read-only 거부·부모 종료 뒤 query와 캐시된 관계 사용 거부도 포함한다.
+
+Receipt `godj-bulk-orm-y0l9zf4p/receipt.json`, SHA-256 `7f409ab4fc80fa80955cb47e5cd1e6668f337f3be97bfb5f4513f59694589d0c`.
+전후 source 동일·schema/session `0|0`·소유 DB/container 제거를 확인했다. 별도 module log SHA-256은 normal
+`43f31582e173758ba46e91b4583790c91c3a8581658079349c3e7a9145654748`, race
+`08422bafd3522344f9ed409f440f3a5f757732269802ccfd2faa975f9c006e12`, CGO0
+`9cc2ec29c4eff83007fc56101cbb4468015090c844fb84a033278e903fc3dbd6`이다.
+
+같은 source에서 format·docs 검사, 7개 project와 Unicode의 generated drift, ORM/생성기/새 AST·backend의 affected vet를
+확인했다. Generated drift 17.238s, vet 28.318s; static receipt `godj-bulk-orm-static-5e9y1pa8/receipt.json`, SHA-256
+`895cead661fd0807009075fd9ccf09ac60c1b959b5fdb17b4105ec188ec6bb63`. 두 실행의 source inventory는 같다.
+이는 Helpdesk bulk 업무 흐름, 정식 Django fixture의 직접 비교나 Hosted 전체 검증은 아니다.
+
+앞선 네 실행은 실패로 유지한다. 첫 실행은 생성기 golden 미갱신과 outer `-trimpath`의 runtime.Caller 경로 문제,
+둘째는 nullable Owner의 세 반환값을 두 값으로 받는 소비자 작성 오류, 셋째는 borrowed session에서 root용
+`Using`을 호출한 소비자 작성 오류, 넷째는 의도대로 거부된 primary-key update의 Go inference 오류 문구를
+잘못 판정한 검사였다. Golden/생성기 version을 갱신하고 outer 명령만 바로잡았으며 생성 module의 `-trimpath`는
+유지했다. Nullable presence와 `UsingSession`을 명시하고 두 종류의 정확한 타입 거부 진단을 허용했다.
+실패를 성공으로 바꾸거나 이전 결과를 최종 실행에 합치지 않았으며 각 소유 container의 제거를 확인했다.
+
+| 실패 receipt | 해당 source inventory SHA-256 | Receipt SHA-256 |
+|---|---|---|
+| `godj-bulk-orm-7nx2q60u` | `2428618400707042039af664634297eff5b57a21a0fb6df5f95e3bcf4d983416` | `9da6d70875e02f6d86716c8673a8ce8fbc09a9b715c881c0065fd3a4d11f41a6` |
+| `godj-bulk-orm-ku6p7gzg` | `0354ba379d0a2ccba2402e9342f2aa42f241a0b58a959e7f90743de38d00e44d` | `13bf0adc689df81e66e0c1f30ee47ee2d0a45ce7f5257be3ffec1a98b9da6af0` |
+| `godj-bulk-orm-92nn2a11` | `3b70788549390e735bb8c76a984a643f2439d7eda49765ccacc69006e744fbd3` | `a4040558af0ab4b9f1d80ca3525f229fdebb9031f6f344dac0b4ff81f26c9a8f` |
+| `godj-bulk-orm-zmdfvj9q` | `a7fd6a381da791213518c4c3b84fc180977d8b4accf44757577a157fcc486ee1` | `9b305d4830d5667e95c99245e6ff44d6b73cbeff12047a0874db9fc262dcaff0` |
+
 ## GDJ-0108 — 행 잠금과 조회 후 생성 또는 갱신
 
 ### Helpdesk 저장·Admin 선택 입력·독립 client의 영향 통합

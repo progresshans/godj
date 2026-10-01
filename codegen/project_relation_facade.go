@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -417,6 +417,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn _query.state.validate()")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	renderProjectFacadeBulk(output, model)
 	fmt.Fprintf(output, "func (_query %s) New(_value %s) (*%s, error) {\n", model.queryType, rawType, model.surface)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")

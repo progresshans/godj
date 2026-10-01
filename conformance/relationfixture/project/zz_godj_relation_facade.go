@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
-const GoDjProjectRelationFacadeInputSHA256 = "7736eb3fba88d3f1a503907d389677c1fbf9d48e17cb523925e9963eb2b339a6"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
+const GoDjProjectRelationFacadeInputSHA256 = "dd8dbdf34d681c704063bc98fc3072739ebe191894573cbf6d4f5cbb0268dcb3"
 
 type Backend interface {
 	db.Queryer
@@ -433,6 +433,47 @@ func (_query AuthorsAuthorQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query AuthorsAuthorQuery) BulkCreate(_ctx context.Context, _inputs []authors.Author, _options ...orm.BulkCreateOption[authors.Author]) (orm.BulkCreateResult[*AuthorsAuthor], error) {
+	var _zero orm.BulkCreateResult[*AuthorsAuthor]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.AuthorsAuthor, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*AuthorsAuthor]{Objects: make([]*AuthorsAuthor, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeAuthorsAuthor(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query AuthorsAuthorQuery) BulkCreateInputs(_ctx context.Context, _inputs []authors.AuthorCreate, _options ...orm.BulkCreateOption[authors.Author]) (orm.BulkCreateResult[*AuthorsAuthor], error) {
+	var _zero orm.BulkCreateResult[*AuthorsAuthor]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.AuthorsAuthor, orm.CreateInputs[authors.Author](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*AuthorsAuthor]{Objects: make([]*AuthorsAuthor, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeAuthorsAuthor(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query AuthorsAuthorQuery) New(_value authors.Author) (*AuthorsAuthor, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -1266,6 +1307,47 @@ func (_query BlogPostQuery) validate() error {
 	return _query.state.validate()
 }
 
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query BlogPostQuery) BulkCreate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkCreateOption[blog.Post]) (orm.BulkCreateResult[*BlogPost], error) {
+	var _zero orm.BulkCreateResult[*BlogPost]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.BlogPost, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*BlogPost]{Objects: make([]*BlogPost, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeBlogPost(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query BlogPostQuery) BulkCreateInputs(_ctx context.Context, _inputs []blog.PostCreate, _options ...orm.BulkCreateOption[blog.Post]) (orm.BulkCreateResult[*BlogPost], error) {
+	var _zero orm.BulkCreateResult[*BlogPost]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.BlogPost, orm.CreateInputs[blog.Post](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*BlogPost]{Objects: make([]*BlogPost, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeBlogPost(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
 func (_query BlogPostQuery) New(_value blog.Post) (*BlogPost, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -2824,4 +2906,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8b06702cdba254acbaa3690ce64116a9d5f419910e71d4baf206c9b90a00f344
+var _ goDjProjectSnapshot_8bb87b7a7236f0ae472e138cebbbe9c5e316771c6941d1425ed9fc0a41275815
