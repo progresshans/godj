@@ -238,6 +238,11 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err := checkHelpdeskReportSave(ctx, client, readOnly, transport, state, seed.ID, target.OtherTicketID); err != nil {
 		return err
 	}
+	bulk, err := checkHelpdeskBulkTickets(ctx, client, readOnly, transport, state, target.CategoryID, retainedLabel, target.OtherLabelID, updated.ExternalReference.Value)
+	if err != nil {
+		return err
+	}
+	expected = append(expected, bulk...)
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

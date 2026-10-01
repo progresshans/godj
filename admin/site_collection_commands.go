@@ -116,7 +116,7 @@ func (site *Site) collectionCommandPost(model registeredModel, command registere
 }
 
 func (site *Site) collectionCommandLinks(ctx context.Context, principal auth.Principal, model registeredModel) (templates.Value, error) {
-	links := make([]templates.Value, 0, len(model.collectionCommands))
+	links := make([]templates.Value, 0, len(model.collectionCommands)+len(model.collectionFormSets))
 	for _, command := range model.collectionCommands {
 		allowed, err := site.collectionCommandAllowed(ctx, principal, model, command)
 		if err != nil {
@@ -126,6 +126,20 @@ func (site *Site) collectionCommandLinks(ctx context.Context, principal auth.Pri
 			continue
 		}
 		link, err := templates.Object(map[string]templates.Value{"label": templates.String(command.label), "path": templates.String(site.collectionCommandPath(model, command))})
+		if err != nil {
+			return templates.Value{}, err
+		}
+		links = append(links, link)
+	}
+	for _, definition := range model.collectionFormSets {
+		allowed, err := site.collectionFormSetAllowed(ctx, principal, model, definition)
+		if err != nil {
+			return templates.Value{}, err
+		}
+		if !allowed {
+			continue
+		}
+		link, err := templates.Object(map[string]templates.Value{"label": templates.String(definition.label), "path": templates.String(site.collectionFormSetPath(model, definition))})
 		if err != nil {
 			return templates.Value{}, err
 		}

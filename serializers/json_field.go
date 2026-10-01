@@ -47,13 +47,17 @@ func (spec Spec) DecodeObject(document []byte, limits Limits) (Object, error) {
 	if !spec.valid {
 		return Object{}, invalidConfig("spec", "serializer spec is zero or invalid")
 	}
+	return decodeDeclaredObject(document, limits, spec.jsonFieldNames())
+}
+
+func (spec Spec) jsonFieldNames() map[string]bool {
 	fields := make(map[string]bool)
 	for _, field := range spec.fields {
 		if field.kind == FieldJSON {
 			fields[field.name] = true
 		}
 	}
-	return decodeDeclaredObject(document, limits, fields)
+	return fields
 }
 
 func jsonFieldLimits() Limits {

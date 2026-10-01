@@ -151,6 +151,20 @@ type Invoker interface {
 	//
 	// PUT /api/service-reports/{id}/
 	HelpdeskServiceReportUpdate(ctx context.Context, request *ServiceReportUpdate, params HelpdeskServiceReportUpdateParams) (HelpdeskServiceReportUpdateRes, error)
+	// HelpdeskTicketBulkCreate invokes helpdesk:ticket-bulk-create operation.
+	//
+	// Creates every ticket, its selected label links and one add audit per ticket in one transaction.
+	// Authentication, required CSRF and add/label-view admission precede parsing. Category and labels are
+	// rechecked in the write transaction; all candidate uniqueness checks precede the native bulk INSERTs.
+	// A rejection or failed audit rolls back the entire request. Results retain input order and contain
+	// stored JSON with its server-owned digest. There is no conflict-ignore, partial success or automatic
+	// retry. An uncertain commit remains an execution error. Query parameters are rejected. Field
+	// diagnostics carry a zero-based index parameter; a concurrent storage conflict uses all/unique
+	// without guessing a row. If diagnostics exceed the bounded response budget, all/too_many_errors
+	// rejects the complete request without listing partial diagnostics.
+	//
+	// POST /api/tickets/bulk/
+	HelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (HelpdeskTicketBulkCreateRes, error)
 	// HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
 	//
 	// The application assigns the selected category and checks its existence within the create
@@ -1816,6 +1830,115 @@ func (c *Client) sendHelpdeskServiceReportUpdate(ctx context.Context, request *S
 	}()
 
 	result, err := decodeHelpdeskServiceReportUpdateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketBulkCreate invokes helpdesk:ticket-bulk-create operation.
+//
+// Creates every ticket, its selected label links and one add audit per ticket in one transaction.
+// Authentication, required CSRF and add/label-view admission precede parsing. Category and labels are
+// rechecked in the write transaction; all candidate uniqueness checks precede the native bulk INSERTs.
+// A rejection or failed audit rolls back the entire request. Results retain input order and contain
+// stored JSON with its server-owned digest. There is no conflict-ignore, partial success or automatic
+// retry. An uncertain commit remains an execution error. Query parameters are rejected. Field
+// diagnostics carry a zero-based index parameter; a concurrent storage conflict uses all/unique
+// without guessing a row. If diagnostics exceed the bounded response budget, all/too_many_errors
+// rejects the complete request without listing partial diagnostics.
+//
+// POST /api/tickets/bulk/
+func (c *Client) HelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (HelpdeskTicketBulkCreateRes, error) {
+	res, err := c.sendHelpdeskTicketBulkCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (res HelpdeskTicketBulkCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/bulk/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketBulkCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketBulkCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketBulkCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketBulkCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketBulkCreateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -1,4 +1,30 @@
-# Admin inline 편집
+# Admin의 여러 행 폼
+
+## 기존 객체 없이 여러 건 생성하기
+
+`NewCollectionFormSet[M]`는 typed manager와 공통 `FormConfig`, bounded `forms.SetConfig`를 결합한다.
+결과를 같은 모델의 `ModelConfig.CollectionFormSets`에 등록하면 목록 링크와
+`/<model>/collection-set/<name>/`의 GET/POST 폼을 제공한다. [Helpdesk의 여러 티켓 생성](../examples/helpdesk/ticket_bulk_admin.go)이
+실제 소비자다. 기존 객체 선택이나 부모 inline이 없는 생성 전용 표면이다.
+
+Site는 active staff, 모델 조회 권한, 선언한 실행 권한과 추가/choice 권한을 데이터 조회·입력 파싱 전에 확인한다.
+POST는 CSRF 검증 후 현재 선택지를 읽어 한 번 바인딩한다. `Run`은 검증된 `InstanceSet[M]`을 받아 `Prepare`로
+typed 후보를 얻으며 Form clean을 반복하지 않는다. Form에서 제외한 서버 소유 필드는 `Definition.PostClean`으로
+typed 준비 전에 설정한다. Callback은 저장 transaction에서 현재 scope·고유성·관계를 다시 확인하고 모든 저장과
+감사 기록을 수행한다. 범용 bulk 저장이나 audit callback을 Admin이 자동으로 추측하지 않는다.
+
+`Run`은 commit이 확인된 뒤 활성 입력 순서의 서로 다른 양수 ID를 반환해야 한다. 개수·ID가 잘못되면
+`ErrReconciliationRequired`이며 성공 redirect를 하지 않는다. 확인된 입력 오류는 `RejectCollectionFormSet`의
+원래 0-based 행 index 또는 전체 집합 진단으로 재표시한다. Wrapped/joined 오류, 취소, DB/rollback/commit 불확실성은
+실행 오류를 유지한다. 재표시는 원래 입력과 clean 결과를 보존하며 자동 재시도하지 않는다.
+
+MinForms는 1 이상이며 min/max 검사가 필수다. AbsoluteMax는 최대 100, 전체 기본 입력 개수는 최대 1,024다.
+파일·기존 행·정렬·삭제·ReadOnlyInitial은 지원하지 않으며 잘못된 설정을 시작 시 거부한다. URL-encoded 요청은
+64 KiB·총 1,024개 값·값당 4 KiB다. 아래의 동적 추가/제거 UI와 서버 count/field allowlist 검사를 함께 사용한다.
+`SiteConfig.RenderLimits`는 template의 전체 loop/output 예산을 명시하며 0은 기존 기본값이다. 큰 선택 목록을
+여러 행에 표시하는 소비자는 `web.Config.MaxResponseBytes`도 같은 출력 정책에 맞춰 설정해야 한다.
+
+## 부모와 자식의 inline 편집
 
 `NewInline[P, C]`로 canonical project FK, 양 typed manager, 부모 생성자, 자식 Form과 bounded SetConfig를 선언한다.
 그 결과를 부모의 `ModelConfig.Inlines`에 넣는다. 부모의 등록 타입은 별도 조회 record여도 된다. 저장 모델의 metadata와

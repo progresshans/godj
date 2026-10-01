@@ -140,6 +140,21 @@ func Array(items Schema) (Schema, error) {
 	)
 }
 
+// ArrayRange adds inclusive cardinality bounds to an array schema. Runtime
+// parsing and application validation must enforce the same limits.
+func ArrayRange(items Schema, minimum, maximum int) (Schema, error) {
+	if minimum < 0 || maximum < minimum {
+		return Schema{}, schemaConfigError("array", "item count bounds are invalid")
+	}
+	array, err := Array(items)
+	if err != nil {
+		return Schema{}, err
+	}
+	return schemaAnnotate(array,
+		serializers.MemberOf("minItems", serializers.Integer(int64(minimum))),
+		serializers.MemberOf("maxItems", serializers.Integer(int64(maximum))))
+}
+
 // EnumStrings describes a nonempty set of distinct JSON strings.
 func EnumStrings(values ...string) (Schema, error) {
 	if len(values) == 0 {

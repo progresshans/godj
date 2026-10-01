@@ -41,6 +41,9 @@ type SiteConfig struct {
 	Registry  Registry
 	Auth      *sessionauth.Runtime
 	PageSize  int
+	// RenderLimits bounds the complete HTML page. Zero uses template defaults.
+	// The enclosing web.Application must allow the same output-byte budget.
+	RenderLimits templates.Limits
 	// Uploads snapshots a multipart policy. nil uses uploads.DefaultConfig.
 	// Admin's text and input-count ceilings also apply; this policy may tighten
 	// them. File capabilities expire when the synchronous request returns.
@@ -121,7 +124,7 @@ func NewSite(config SiteConfig) (*Site, error) {
 	if err != nil {
 		return nil, &ConfigError{Path: "site.templates", Code: "invalid", Cause: err}
 	}
-	engine, err := templates.New(templateFS, templates.Config{})
+	engine, err := templates.New(templateFS, templates.Config{Limits: config.RenderLimits})
 	if err != nil {
 		return nil, &ConfigError{Path: "site.templates", Code: "invalid", Cause: err}
 	}
@@ -240,6 +243,13 @@ func (site *Site) buildRoutes() error {
 				web.Route{Name: modelName("collection-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionCommandPost(model, command)},
 			)
 		}
+		for _, definition := range model.collectionFormSets {
+			path := site.collectionFormSetPath(model, definition)
+			routes = append(routes,
+				web.Route{Name: modelName("collection-set-" + definition.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(definition.permissions[0], site.collectionFormSetGet(model, definition))},
+				web.Route{Name: modelName("collection-set-" + definition.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionFormSetPost(model, definition)},
+			)
+		}
 	}
 	site.routes = append([]web.Route(nil), routes...)
 	return nil
@@ -282,6 +292,9 @@ func SiteAllowedNextPaths(registry Registry, basePath string) ([]string, error) 
 			}
 			for _, command := range model.collectionCommands {
 				paths = append(paths, prefix+"/collection/"+command.name+"/")
+			}
+			for _, definition := range model.collectionFormSets {
+				paths = append(paths, prefix+"/collection-set/"+definition.name+"/")
 			}
 		}
 		if model.hasHistory {

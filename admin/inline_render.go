@@ -44,6 +44,10 @@ func inlineContext(submission InlineSubmission) (templates.Value, error) {
 }
 
 func inlineRowContext(entry inlineBound, row forms.SetForm, identityValue forms.Value, revisionValue int64) (templates.Value, error) {
+	return formSetRowContext(row, entry.definition.primary, identityValue, entry.definition.revision != "", revisionValue, entry.access.Add && (row.Index() < 0 || row.Index() >= entry.set.InitialForms()))
+}
+
+func formSetRowContext(row forms.SetForm, primary string, identityValue forms.Value, hasRevision bool, revisionValue int64, canRemove bool) (templates.Value, error) {
 	index, number := "__prefix__", "__prefix__"
 	if row.Index() >= 0 {
 		index = strconv.Itoa(row.Index())
@@ -92,12 +96,16 @@ func inlineRowContext(entry inlineBound, row forms.SetForm, identityValue forms.
 	if err != nil {
 		return templates.Value{}, err
 	}
+	identityName := ""
+	if primary != "" {
+		identityName = row.Prefix() + "-" + primary
+	}
 	value, err := templateObject(map[string]templates.Value{
 		"index": templates.String(index), "number": templates.String(number), "prefix": templates.String(row.Prefix()),
-		"identity_name": templates.String(row.Prefix() + "-" + entry.definition.primary), "identity": templates.String(identity),
-		"has_revision": templates.Bool(entry.definition.revision != ""), "revision": templates.String(revision),
+		"identity_name": templates.String(identityName), "identity": templates.String(identity),
+		"has_revision": templates.Bool(hasRevision), "revision": templates.String(revision),
 		"readonly": templates.Bool(row.Form().ReadOnly()), "fields": templates.List(values...), "errors": templates.List(errors...),
-		"can_remove": templates.Bool(entry.access.Add && (row.Index() < 0 || row.Index() >= entry.set.InitialForms())),
+		"can_remove": templates.Bool(canRemove),
 		"can_order":  templates.Bool(canOrder), "order": templates.String(order), "can_delete": templates.Bool(canDelete), "deleted": templates.Bool(row.DeletionRequested()),
 	})
 	if err != nil {

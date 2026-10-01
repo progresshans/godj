@@ -629,6 +629,46 @@ type HelpdeskServiceReportUpdateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskServiceReportUpdateUnsupportedMediaType) helpdeskServiceReportUpdateRes() {}
 
+type HelpdeskTicketBulkCreateBadRequest GoDjAPIError
+
+func (*HelpdeskTicketBulkCreateBadRequest) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateCreatedApplicationJSON []Ticket
+
+func (*HelpdeskTicketBulkCreateCreatedApplicationJSON) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateForbidden GoDjAPIError
+
+func (*HelpdeskTicketBulkCreateForbidden) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketBulkCreateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketBulkCreateInternalServerError) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateNotFound GoDjAPIError
+
+func (*HelpdeskTicketBulkCreateNotFound) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketBulkCreateRequestEntityTooLarge) helpdeskTicketBulkCreateRes() {}
+
+type HelpdeskTicketBulkCreateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketBulkCreateUnsupportedMediaType) helpdeskTicketBulkCreateRes() {}
+
 type HelpdeskTicketCreateBadRequest GoDjAPIError
 
 func (*HelpdeskTicketCreateBadRequest) helpdeskTicketCreateRes() {}

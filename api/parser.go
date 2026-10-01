@@ -23,7 +23,7 @@ type ParserConfig struct {
 }
 
 // Parser consumes exactly one borrowed request body into a closed ordered
-// JSON object. Its zero value is invalid.
+// JSON object or array of objects. Its zero value is invalid.
 type Parser struct {
 	maxBodyBytes int64
 	jsonLimits   serializers.Limits
@@ -53,7 +53,7 @@ func NewParser(config ParserConfig) (Parser, error) {
 // ParseObject accepts only application/json with no parameter other than an
 // optional UTF-8 charset. It bounds bytes before serializer allocation.
 func (p Parser) ParseObject(request *web.Request) (serializers.Object, error) {
-	return p.parseObject(request, serializers.DecodeObject)
+	return parseJSONBody(p, request, "object", serializers.DecodeObject)
 }
 
 // ParseObjectFor admits arbitrary JSON member names only inside explicitly
@@ -62,36 +62,46 @@ func (p Parser) ParseObjectFor(request *web.Request, spec serializers.Spec) (ser
 	if len(spec.Fields()) == 0 {
 		return serializers.Object{}, &Error{Code: FailureInvalidConfig, Field: "serializer_spec", Detail: "serializer spec is zero or invalid"}
 	}
-	return p.parseObject(request, spec.DecodeObject)
+	return parseJSONBody(p, request, "object", spec.DecodeObject)
 }
 
-func (p Parser) parseObject(request *web.Request, decode func([]byte, serializers.Limits) (serializers.Object, error)) (serializers.Object, error) {
+// ParseListFor decodes an array of input objects with one shared request
+// budget. The caller owns item count policy and binding/validation of all rows.
+func (p Parser) ParseListFor(request *web.Request, spec serializers.Spec) ([]serializers.Object, error) {
+	if len(spec.Fields()) == 0 {
+		return nil, &Error{Code: FailureInvalidConfig, Field: "serializer_spec", Detail: "serializer spec is zero or invalid"}
+	}
+	return parseJSONBody(p, request, "array of objects", spec.DecodeList)
+}
+
+func parseJSONBody[T any](p Parser, request *web.Request, kind string, decode func([]byte, serializers.Limits) (T, error)) (T, error) {
+	var zero T
 	if !p.valid {
-		return serializers.Object{}, &Error{Code: FailureInvalidConfig, Field: "parser", Detail: "parser is zero or invalid"}
+		return zero, &Error{Code: FailureInvalidConfig, Field: "parser", Detail: "parser is zero or invalid"}
 	}
 	if request == nil || request.HTTP() == nil {
-		return serializers.Object{}, &Error{Code: FailureInvalidRequest, Field: "request", Detail: "request is nil or outside its borrowed lifetime"}
+		return zero, &Error{Code: FailureInvalidRequest, Field: "request", Detail: "request is nil or outside its borrowed lifetime"}
 	}
 	raw := request.HTTP()
 	if raw.Body == nil {
-		return serializers.Object{}, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is unavailable"}
+		return zero, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is unavailable"}
 	}
 	if err := validateJSONContentType(raw.Header.Values("Content-Type")); err != nil {
-		return serializers.Object{}, err
+		return zero, err
 	}
 	if raw.ContentLength > p.maxBodyBytes {
-		return serializers.Object{}, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
+		return zero, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
 	}
 	document, err := io.ReadAll(io.LimitReader(raw.Body, p.maxBodyBytes+1))
 	if err != nil {
-		return serializers.Object{}, &Error{Code: FailureBodyRead, Field: "body", Detail: "request body could not be read", Cause: err}
+		return zero, &Error{Code: FailureBodyRead, Field: "body", Detail: "request body could not be read", Cause: err}
 	}
 	if int64(len(document)) > p.maxBodyBytes {
-		return serializers.Object{}, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
+		return zero, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
 	}
 	object, err := decode(document, p.jsonLimits)
 	if err != nil {
-		return serializers.Object{}, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is not an accepted JSON object", Cause: err}
+		return zero, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is not an accepted JSON " + kind, Cause: err}
 	}
 	return object, nil
 }

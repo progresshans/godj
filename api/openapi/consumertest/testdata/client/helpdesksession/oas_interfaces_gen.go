@@ -53,6 +53,10 @@ type HelpdeskServiceReportUpdateRes interface {
 	helpdeskServiceReportUpdateRes()
 }
 
+type HelpdeskTicketBulkCreateRes interface {
+	helpdeskTicketBulkCreateRes()
+}
+
 type HelpdeskTicketCreateRes interface {
 	helpdeskTicketCreateRes()
 }

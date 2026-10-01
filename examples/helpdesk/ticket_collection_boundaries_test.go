@@ -78,6 +78,40 @@ type collectionFaultSession struct {
 func (s *collectionFaultSession) ValidateSession(ctx context.Context) error {
 	return s.validator.ValidateSession(ctx)
 }
+
+func (s *collectionFaultSession) Savepoint(ctx context.Context, run func(db.Session) error) error {
+	return db.WithSavepoint(ctx, s.RelationSession, func(child db.Session) error {
+		relation, ok := child.(db.RelationSession)
+		validator, valid := child.(db.SessionValidator)
+		inserter, capable := child.(db.ConflictInserter)
+		if !ok || !valid || !capable {
+			return errors.New("collection test child lost native capabilities")
+		}
+		wrapped := &collectionFaultSession{RelationSession: relation, validator: validator, inserter: inserter, owner: s.owner}
+		err := run(wrapped)
+		s.written = s.written || wrapped.written
+		return err
+	})
+}
+
+func (s *collectionFaultSession) BulkInsertLimits(ctx context.Context) (db.BulkInsertLimits, error) {
+	backend, ok := s.RelationSession.(db.BulkInserter)
+	if !ok {
+		return db.BulkInsertLimits{}, errors.New("collection test lacks native bulk capability")
+	}
+	return backend.BulkInsertLimits(ctx)
+}
+
+func (s *collectionFaultSession) BulkInsert(ctx context.Context, plan query.BulkInsertPlan) (db.BulkInsertResult, error) {
+	backend, ok := s.RelationSession.(db.BulkInserter)
+	if !ok {
+		return db.BulkInsertResult{}, errors.New("collection test lacks native bulk capability")
+	}
+	s.owner.writes++
+	result, err := backend.BulkInsert(ctx, plan)
+	s.written = s.written || err == nil
+	return result, err
+}
 func (s *collectionFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	s.owner.reads++
 	if s.owner.mode == "candidate_error" && plan.Table() == "helpdesk_label" {

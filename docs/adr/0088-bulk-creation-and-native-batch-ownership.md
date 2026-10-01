@@ -1,6 +1,6 @@
 # ADR-0088: bulk 생성과 native batch 소유권
 
-- 상태: Accepted — 다중 행 AST/backend·ORM/생성 API 의미 채택, 환경별 검증·기준 대조·업무 소비 진행 중
+- 상태: Accepted — 다중 행 AST/backend·ORM/생성 API와 Helpdesk 업무 소비 구현; 환경별 증거는 TEST_EVIDENCE에서 관리
 - 날짜: 2026-10-02
 - 구현: [GDJ-0109](../../work/0109-bulk-creation-and-ticket-import.md)
 
@@ -68,8 +68,22 @@ bulk 쓰기를 제공하지 않는다. 종료된 scope·child 실행 중 parent�
 Native RETURNING rowset은 scope가 끝나기 전에 항상 닫으며, root cursor에서는 같은 대여 연결을 사용한다.
 
 Bulk는 일반 model save/clean callback과 감사 이벤트를 암묵적으로 반복 실행하는 API가 아니다. Application은
-현재 권한·Category/관계 범위와 audit·publishable output의 정책을 명시한다. Helpdesk 여러 티켓 생성에서 그 정책과
-같은 transaction을 공유하는 소비자를 완성한다. Public Go API는 typed 생성 소비자와 이 흐름에서 확정한다.
+현재 권한·Category/관계 범위와 audit·publishable output의 정책을 명시한다. Helpdesk는 최대 40개의 typed 후보를
+먼저 검증하고 생성 facade의 20행 batch를 같은 relation transaction 안에서 실행한다. 모든 Ticket의 Category와
+현재 label membership, nullable UUID의 입력 집합/DB 고유성을 확인한다. 저장 결과를 다시 읽어 native JSON의
+표현과 digest·라벨을 검증하고 전체 응답을 인코딩한 뒤 행마다 add audit를 기록한다. 어느 단계든 실패하면
+모든 티켓·라벨 연결·audit를 함께 rollback하며 key·부분 응답을 게시하거나 자동 재시도하지 않는다.
+
+Admin의 `CollectionFormSet`은 기존 객체가 없는 생성 전용 typed `InstanceSet`을 callback에 전달한다. Form clean을
+반복하지 않고 현재 관계/고유성·transaction·audit는 application이 소유한다. Callback은 commit을 확인한 뒤
+활성 입력 순서대로 서로 다른 양수 ID를 반환한다. 잘못된 개수·ID는 결과 불확실성 오류이며 성공 redirect로 바꾸지 않는다.
+파일·기존 객체·정렬·삭제의 정책을 이 API에 암묵적으로 확장하지 않는다. 기존 여러 티켓 편집기는 기존 행의
+수정/삭제와 새 행의 bulk 생성·audit를 하나의 부모 transaction에서 수행한다.
+
+API 배열은 하나의 공유 JSON byte/depth/value 예산을 사용하며 항목마다 기존 TicketCreate 정책도 적용한다.
+권한/CSRF는 입력 바인딩 전에 확인한다. 원래 입력 index를 가진 진단과 전체 집합 진단을 구별한다. 확인된
+제약 오류는 직접 전달하고 실제 취소·rollback/cleanup 오류가 함께 있으면 보존한다. 감싼 불확실한 오류를
+단순 입력 거부로 축소하지 않는다. Admin HTML과 JSON 응답은 각각의 전체 출력 예산을 명시적으로 적용한다.
 
 ## 기준과 검증
 

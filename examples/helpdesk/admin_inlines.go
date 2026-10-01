@@ -19,7 +19,7 @@ import (
 const reportInlinePrefix = "reports"
 
 // AdminConfig enables the Ticket / ServiceReport inline editor and Label
-// collection command. AppendAudit
+// collection command, report saving and multiple ticket creation. AppendAudit
 // must use the supplied session and propagate every error to the caller.
 // The immutable principal and Site deny-overlay admission are retained; the
 // writer re-reads the current category, parent and children in its transaction.
@@ -27,7 +27,7 @@ type AdminConfig struct {
 	AppendAudit func(context.Context, db.Session, admin.PreparedEvent) error
 }
 
-// AdminRegistry builds an independent registration with atomic inline editing and label ensure.
+// AdminRegistry builds an independent registration with the audited workflows.
 // It does no I/O and does not change the application's standalone registry.
 func (a *Application) AdminRegistry(config AdminConfig) (admin.Registry, error) {
 	if a == nil || nilFormReader(a.backend) || config.AppendAudit == nil {

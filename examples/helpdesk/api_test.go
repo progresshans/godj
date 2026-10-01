@@ -36,7 +36,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete"}
+	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create"}
 	if len(recording.permissions) != len(authenticationOrder) || len(recording.additional) != len(authenticationOrder) {
 		t.Fatal("incomplete authentication composition")
 	}
@@ -175,7 +175,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 27; index++ {
+	for index := 1; index <= 28; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -183,7 +183,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
-	if err != nil || len(adapter.Routes()) != 27 {
+	if err != nil || len(adapter.Routes()) != 28 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -202,7 +202,7 @@ func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, 
 	switch name {
 	case "helpdesk:ticket-list", "helpdesk:ticket-detail":
 		return helpdesk.ViewTicket, nil
-	case "helpdesk:ticket-create":
+	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
 	case "helpdesk:ticket-update", "helpdesk:ticket-patch":
 		return helpdesk.ChangeTicket, []auth.Permission{helpdesk.ViewLabel}
@@ -251,8 +251,8 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 10 || len(routes) != 27 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
-		t.Fatal("Helpdesk document changed the twenty-seven-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 11 || len(routes) != 28 || len(document.Paths["/api/tickets/bulk/"]) != 1 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+		t.Fatal("Helpdesk document changed the twenty-eight-operation surface")
 	}
 	for _, route := range routes {
 		permission, additional := helpdeskExpectedAuthorization(t, route.Name)
@@ -279,6 +279,23 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
+	bulk := document.Paths["/api/tickets/bulk/"]["post"]
+	if bulk.RequestBody == nil || !bulk.RequestBody.Required {
+		t.Fatal("bulk body absent")
+	}
+	for _, entry := range []struct {
+		schema helpdeskDocumentSchema
+		ref    string
+	}{{bulk.RequestBody.Content[api.JSONContentType].Schema, "TicketCreate"}, {bulk.Responses["201"].Content[api.JSONContentType].Schema, "Ticket"}} {
+		if entry.schema.Type != "array" || entry.schema.MinItems != 1 || entry.schema.MaxItems != 40 || entry.schema.Items == nil || entry.schema.Items.Ref != "#/components/schemas/"+entry.ref {
+			t.Fatal("bulk count or model schema lost")
+		}
+	}
+	for _, status := range []string{"400", "403", "404", "413", "415"} {
+		if bulk.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
+			t.Fatal("bulk error contract", status)
+		}
+	}
 	list := document.Paths["/api/tickets/"]["get"]
 	create := document.Paths["/api/tickets/"]["post"]
 	detail := document.Paths["/api/tickets/{id}/"]["get"]
@@ -387,6 +404,7 @@ type helpdeskDocumentSchema struct {
 	Format               string
 	Pattern              string
 	Minimum, Maximum     json.RawMessage
+	MinItems, MaxItems   int
 	MinLength            int
 	Properties           map[string]helpdeskDocumentSchema
 	Items                *helpdeskDocumentSchema

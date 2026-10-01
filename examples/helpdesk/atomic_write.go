@@ -9,6 +9,23 @@ import (
 	"github.com/progresshans/godj/db"
 )
 
+type applicationRelationOwner struct{ db.RelationAtomic }
+
+func (owner applicationRelationOwner) Atomic(ctx context.Context, run func(db.Session) error) error {
+	return owner.AtomicRelation(ctx, func(session db.RelationSession) error { return run(session) })
+}
+
+func runApplicationRelationAtomic[T any](ctx context.Context, backend db.RelationAtomic, operation string, run func(context.Context, db.RelationSession) (T, error)) (T, error) {
+	return runApplicationAtomic(ctx, applicationRelationOwner{backend}, operation, func(ctx context.Context, session db.Session) (T, error) {
+		relation, valid := session.(db.RelationSession)
+		if !valid || nilFormReader(relation) {
+			var zero T
+			return zero, fmt.Errorf("helpdesk: %s transaction lost its relation session", operation)
+		}
+		return run(ctx, relation)
+	})
+}
+
 // runApplicationAtomic publishes only one joined callback's confirmed result.
 // A broken adapter cannot return success after skipping, repeating, swallowing
 // or retaining application work. Cancellation after confirmed commit does not

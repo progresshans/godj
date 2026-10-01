@@ -28,7 +28,7 @@ Bulk update·query update expression과 나머지 query 범위는 다음 기반�
 - [x] SQLite/PostgreSQL native multi-row·returning·충돌 처리·parameter 예산과 native session/cursor 수명
 - [x] generic ORM·생성 입력 및 root facade·caller cache/metadata 소유권과 전체 실패의 원자성
 - [x] 양 DB의 독립 생성 소비자·잘못된 model/field compile 거부·실제 오류/취소/경쟁
-- [ ] 현재 권한·Category 범위·원자 audit를 유지하는 Helpdesk 여러 티켓 생성과 실제 Form/Admin/API/client
+- [x] 현재 권한·Category 범위·원자 audit를 유지하는 Helpdesk 여러 티켓 생성과 실제 Form/Admin/API/client
 - [ ] 완성된 변경 묶음의 영향 검증·정식 기준 대조·생성 drift·필요한 통합 범위 기록
 
 ## 현재 상태와 다음 행동
@@ -42,6 +42,13 @@ PostgreSQL의 같은 statement 내 중복 upsert key 거부를 구분한다. 이
 typed 생성 root facade를 구현하고 각 변경 묶음의 normal/race/CGO=0 checkpoint를 완료했다.
 실제 두 연결의 충돌 경쟁·모든 native session의 부모 commit/rollback·뒤쪽 배치 실패·scalar 왕복 저장을 확인했다.
 정식 bulk-create 23개 사례를 각 DB의 두 새 native 프로세스로 관찰하고 원 출력과 Go 소비자의 직접 대조를
-세 mode에서 완료했다. 다음으로 Helpdesk Form/Admin/API·독립 client의 업무 흐름을 연결한다.
-검증한 public API와 지원 정책의 장기 의미를 ADR에 반영하며 기존 정상 source와 모델 생성물을 보존한다.
+세 mode에서 완료했다. Helpdesk는 현재 Category·라벨·고유성을 검사한 여러 후보를 generated BulkCreate로 저장하며,
+모든 티켓·라벨 연결·저장된 JSON/digest·완성된 출력·행마다의 audit를 같은 transaction에 포함한다.
+Admin의 typed 생성 formset과 배열 API·독립 생성 client를 연결했고 기존 티켓 편집기의 새 행도 같은 writer를 사용한다.
+완성된 업무 묶음과 공통 parser/serializer/Admin·ORM을 실제 양 DB의 normal/race/CGO=0에서 확인했다.
+실제 브라우저에서 동적 행/오류 재표시와 기존 행 변경·새 행 생성의 저장을 확인했다.
+
+현재 public API·지원/오류 정책을 ADR와 소비자 문서에 반영한다. PostgreSQL CI의 명시적 root 선택과 relation 필수
+목록에 새 bulk 경로를 연결한다. 최종 정적/생성 검사 후 이 source의 Hosted full이 전체 플랫폼·cold/process·
+기능 간 조합과 새 capture source 결합을 소유한다. 로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.

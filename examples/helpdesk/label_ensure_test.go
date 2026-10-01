@@ -436,6 +436,17 @@ func (b *coordinatedPeerBackend) CoordinatedAtomic(ctx context.Context, callback
 	return b.helpdeskBackend.CoordinatedAtomic(ctx, callback)
 }
 
+func (b *coordinatedPeerBackend) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	if b.entered != nil {
+		b.once.Do(func() { close(b.entered) })
+	}
+	backend, capable := b.helpdeskBackend.(db.CoordinatedRelationAtomic)
+	if !capable {
+		return errors.New("peer backend lacks coordinated relation transactions")
+	}
+	return backend.CoordinatedAtomicRelation(ctx, callback)
+}
+
 // Two independent runtimes share the database coordination domain. Hold the
 // leader after its actual audit INSERT, admit a peer HTTP request into that
 // domain, and observe the uncommitted label through the other connection.

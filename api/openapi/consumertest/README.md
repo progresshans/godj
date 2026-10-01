@@ -45,6 +45,13 @@ Label 확보는 `POST /api/labels/ensure/`를 사용한다. 실제 서버에서 
 두 성공 응답형·필수 label/created·null/누락/잘못된 bool 거부 및 고정 500 응답의 단일 전송을 검사한다.
 Synthetic 500은 실제 DB의 실패 증거가 아니며, 부모/자식 transaction·audit rollback과 unknown outcome은 Helpdesk 양 DB 검사가 소유한다.
 
+여러 티켓 생성은 `POST /api/tickets/bulk/`의 typed 배열 입력/출력을 사용한다. Min/max·뒤쪽 항목의 index 진단,
+scalar 기본값과 exact JSON/digest·고유성·외부 Category 라벨·read-only 권한·CSRF 거부를 실제 HTTP로 확인한다.
+부모는 두 새 티켓의 scalar·라벨 연결·서로 다른 ID와 한 번씩의 durable add audit를 DB에서 독립적으로 검사한다.
+`helpdesk_bulk_tickets`와 `generated_bulk_tickets_wire` receipt가 필수다. Wire 검사는 큰 int64 ID/라벨, 배열·필수
+필드의 shape, 잘못된 null/타입, 명시적 request/response Validate의 cardinality와 500의 단일 전송을 구별한다.
+생성 encoder/decoder가 모든 schema Validate를 암묵적으로 실행한다고 가정하지 않는다.
+
 TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
 ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
 부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.

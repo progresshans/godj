@@ -3,7 +3,7 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0109 — native bulk 생성의 기준 조사
+## GDJ-0109 — native bulk 생성과 여러 티켓 생성
 
 2026-10-02 KST, Go source/output과 expected fixture를 읽지 않는 authored observer로 고정 Django 6.1의 bulk
 사례 32개를 SQLite/PostgreSQL에서 각각 두 새 프로세스로 실행했다. Python 3.14.3·psycopg 3.3.6,
@@ -147,6 +147,81 @@ IntegrityError로 가정한 comparator 때문에 실패했다. 제품의 보수�
 원인과 `commit_outcome_unknown`을 구별하는 비교를 추가했다. 해당 receipt SHA-256
 `b7becfb72617d6977aeaeb5a483720028a7a2fbbf315fcc3d0cb25d940296885`는 실패로 보존하며 소유 container 제거를 확인했다.
 이 단계는 Helpdesk의 bulk Form/Admin/API/client와 새 source의 Hosted 전체 검증을 포함하지 않는다.
+
+### Helpdesk 여러 티켓과 공통 입력 표면의 영향 통합
+
+2026-10-02 KST, parent `0afc838b98b20160272bd9d30802ebc30ce520c5`, 비Markdown 3025 files /
+inventory SHA-256 `01b5330f57e62e501051f656a2f8a252e093a51910f3e51882bd3026e77ce80a`에서 실행했다.
+Go 1.26.5/darwin/arm64와 공유 cache, 실제 SQLite·PostgreSQL 17.10 Debian/UTF8/libc/C/C를 사용했다.
+`orm`, `admin`, `api`, `api/openapi`, `serializers`, `examples/helpdesk`, `api/openapi/consumertest` 전체와
+`codegen/consumertest`의 `TestGeneratedBulkCreate`·`TestGeneratedBulkCreateReference`를 각 mode에서 실행했다.
+생성 자식의 race·trimpath·offline profile을 유지했고 실제 DB가 필수인 경로의 skip은 허용하지 않았다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / affected | 7 | 5896 | 0 | 93.212s | `fffca74adc28e0a68a8fd8f0ce60e4c93fef3fb19fdd5b78202c422d7d9492d3` |
+| normal / native-consumer | 1 | 6 | 0 | 26.144s | `88821003b7b11109caea423a0fd742a3bb072005e85af58a921d0c81ae9f23bd` |
+| race / affected | 7 | 5896 | 0 | 388.44s | `6af6ae4c30acf99525465067599d82b29dc465b91a276d583c7c516f5978733a` |
+| race / native-consumer | 1 | 6 | 0 | 67.662s | `9725b67920a4a747737ce4eee078dc579c06f1b0a8395075db326ab98f3f08d1` |
+| cgo0 / affected | 7 | 5896 | 0 | 60.277s | `f86d923aed7b91691f46df921311a255f0dc2150343727266f0400b67d7acb7e` |
+| cgo0 / native-consumer | 1 | 6 | 0 | 6.004s | `848329758355a75c3408d7cb9f1835420e26f85a66e18ce883b2de1c0d3ad31b` |
+
+영향 묶음의 필수 692 paths와 모든 실제 run/pass·package 종료를 정확히 대조했다. 새 Helpdesk 경로는 양 DB에서
+API 44개·Admin 43개 사례와 큰 choice HTML·두 연결의 leader commit/rollback을 포함한다. 전체 40행을 실제 두
+native batch로 저장하며 scalar/default·라벨·JSON/digest·행마다의 audit, 입력 index와 escaped 원문을 확인했다.
+현재 권한·CSRF·Category·라벨 범위, 위조된 서버 필드·management·중복 UUID, body/item/전체 출력 예산, 많은 진단과
+진단 예산 초과의 전체 거부를 검사했다. 두 번째 batch·반환 key·링크·저장 후 scope·reload·audit·취소 실패는 전체
+rollback이다. 잘못된 callback owner·반복/동시/보관/오류 삼킴과 rollback/commit unknown·commit 후 취소를 구분했다.
+두 연결 검사는 별도 read snapshot에서 미commit Ticket/audit가 보이지 않음을 확인한 뒤 follower 결과를 대조한다.
+
+독립 ogen client는 실제 문서와 재생성 byte drift, 1..40 cardinality·indexed 오류·권한/CSRF·scalar/JSON/digest·
+두 새 티켓 저장을 확인했다. 부모가 최종 DB와 audit를 별도로 읽는다. Wire 검사는 큰 int64 key/label·필수 shape·
+누락/null/타입 오류와 명시적 Validate·500의 한 번 전송을 확인한다. ORM의 직접 제약 오류와 실제 cleanup/cancel
+오류 소유권을 추가로 검사했고 정식 Django 양 DB 대조와 기존 native bulk 소비자·네 compile 거부도 새 source로 재실행했다.
+
+Receipt `godj-bulk-helpdesk-dnkocv4z/receipt.json`, SHA-256 `9249d205aa0de6253da4bf4c466c9c1f3bf31fdd971c816044efcae9620892a7`.
+6개 구간 모두 PASS이며 실행 전후 source 동일·schema/session `0|0`·소유 DB와 container 제거를 확인했다.
+다른 source의 앞선 부분 성공을 이 실행에 합치지 않았다.
+
+첫 실행 `godj-bulk-helpdesk-aa8nb1bu`는 6 packages, 5064 run / 5023 pass / skip 0으로 실패했다. Admin이 서버
+Category를 typed 준비 뒤에 설정하던 순서를 `PostClean`으로 바로잡았다. ORM은 취소가 없을 때에도 `errors.Join`으로
+직접 제약 오류를 감싸던 문제를 수정하고 실제 cleanup/cancel 오류는 계속 보존한다. 동시성 검사의 observer는
+coordinated write를 다시 열던 audit 조회를 같은 read snapshot의 조회로 수정했다. 실패 receipt SHA-256
+`805c96d7b2ad748394cde75657c9e11fb079b49ddbc48baa6512f0fe0a94db53`, source inventory
+`5b995a8f021487cc914d1876283a7dac4e890ba5e117699f9e2332b77177c183`; 소유 container는 제거했다.
+그 이전 preflight는 각 package에 임의 개수 이상의 roots가 있어야 한다는 harness 가정으로 DB/test 시작 전에 실패했다.
+실제 필수 root를 확인하도록 바꾸었으며 이 실패를 제품 실행이나 PASS로 계산하지 않았다.
+
+### 실제 브라우저와 최종 정적 범위
+
+[Helpdesk 브라우저 fixture](../../examples/helpdesk/testdata/browser/README.md)는 새 임시 SQLite의 실제 identity·session·
+audit Runtime에 Admin·API·기존 편집기를 연결한다. Playwright CLI 0.1.22의 새 실제 브라우저에서 Admin 22개,
+편집기 9개 검사를 통과했다. 최소/40행 최대와 programmatic click 경계, 행 재번호·원문/선택 보존, 오류 재표시와
+수정 후 bulk 생성, 기존 행 변경과 새 행 두 개의 전체 거부/commit을 확인했다. Screenshot을 직접 확인했다.
+종료 뒤 별도 DB 조회에서 티켓 5개·정확한 링크 4개, `browser-operator`의 change 1개·add 4개를 대조했다.
+브라우저/서버 종료와 fixture DB 디렉터리 0개를 확인했다. 최종 화면의 console error/warning은 0이며 첫 로그인의
+favicon 404는 제품 경로 오류와 구분했다. 이 브라우저 증거는 SQLite이며 실제 양 DB 실패/동시성은 위 checkpoint가 소유한다.
+
+브라우저 receipt `output/playwright/bulk-create/receipt.json`, SHA-256
+`07f0b8ea9ae38a240ab37152ca68f8944ecaaf5a2b86b0e38c5379ee49d8dc59`.
+Admin log `fd37f4d10ea6f160da53c5f3cd54e6c79c6d696beb586efbf881534d84670ee4`, editor log
+`5e41178cfc7f1521365d32433d05cf11a5ebc4e0eca80099d282aacd481b94fb`, 종료 후 DB/audit log
+`0d9f289301e5c36cd3677b98685a720c055b2471ac88bd3744d25b653a51b12c`.
+첫 browser probe는 숨긴 최소행 remove 버튼을 role locator로 찾다가 실패했다. 제품 코드를 바꾸지 않고 실제
+data selector로 hidden 제어를 확인하도록 probe를 수정했으며 새 서버/DB·새 브라우저에서 전체를 다시 실행했다.
+
+영향 checkpoint 뒤 비Markdown 변경은 재현용 browser 파일 3개 추가와 CI 필수 목록 2개뿐임을 직접 비교했다.
+실제로 브라우저에 사용한 fixture/probe와 체크인 파일의 hash가 같다. PostgreSQL CI는 명시 root regex를 사용하므로
+새 native bulk·생성 소비자·Helpdesk bulk 경로 98개를 추가했다. Relation 필수 경로도 15개 추가했다. 추가한 경로는
+기존 native 기반/위 영향 checkpoint의 각 mode에서 run/pass 한 번씩 존재함을 대조했으며 native 기반의 query/db
+source가 변하지 않았음을 확인했다. 이 대조는 Hosted 실행을 대신하지 않는다.
+
+최종 비Markdown 3028 files / inventory SHA-256 `de3d4b6595318c3566e323e88159cb076bd7461bbb01f2c7865f33563a804eb9`에서
+`make format-check docs-check`, `make generate-check`(7개 project·Unicode), 관련 9 packages의 `go vet`,
+CI 도구 52개 검사와 `git diff --check`를 통과했다. Generated drift 24.162s, vet 0.793s.
+Static receipt `godj-bulk-final-static-4itr1abj/receipt.json`, SHA-256 `0bca6f29b35034a5f4935386681c1a036b30b02bd9f3efb8d88d6145dc123ce0`.
+실행 전후 source 동일이며 전체 platform/cold/process·새 capture 검증은 이 작업의 Hosted full milestone이 소유한다.
+GDJ-0108 source의 Hosted 결과를 새 bulk source의 완료 증거로 사용하지 않는다.
 
 ## GDJ-0108 — 행 잠금과 조회 후 생성 또는 갱신
 

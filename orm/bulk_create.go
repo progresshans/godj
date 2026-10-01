@@ -220,7 +220,10 @@ func bulkCreateAndMap[M, R any](ctx context.Context, m Manager[M], backend db.Qu
 		return nil
 	})
 	if err != nil {
-		return zero, errors.Join(err, ctx.Err())
+		if contextErr := ctx.Err(); contextErr != nil {
+			return zero, errors.Join(err, contextErr)
+		}
+		return zero, err
 	}
 	if borrowed {
 		if err := validateQuerySession(context.WithoutCancel(ctx), backend); err != nil {

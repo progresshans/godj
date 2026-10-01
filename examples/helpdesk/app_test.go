@@ -535,6 +535,12 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("ticket_editor", func(t *testing.T) {
 		verifyHelpdeskTicketEditor(t, ctx, runtime, open, client, after)
 	})
+	t.Run("bulk_tickets", func(t *testing.T) {
+		verifyHelpdeskBulkTickets(t, ctx, runtime, client)
+		t.Run("concurrent_requests", func(t *testing.T) {
+			verifyHelpdeskBulkConcurrentRequests(t, ctx, runtime, open, after.PasswordHasher, client)
+		})
+	})
 }
 
 // Seed through the historical column set before the new generated model can be
@@ -692,7 +698,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		t.Fatal(err)
 	}

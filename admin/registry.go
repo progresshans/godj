@@ -234,6 +234,7 @@ type ModelConfig[M any] struct {
 	Actions            []ActionConfig
 	Commands           []CommandConfig
 	CollectionCommands []CollectionCommandConfig
+	CollectionFormSets []CollectionFormSet
 	// AdditionalAuditFields declares semantic event names that are not stored
 	// fields, such as "password". They never enter snapshots or editable input.
 	AdditionalAuditFields []string
@@ -337,6 +338,7 @@ type ModelDescriptor struct {
 	RevisionField      string
 	Commands           []CommandDescriptor
 	CollectionCommands []CollectionCommandDescriptor
+	CollectionFormSets []CollectionFormSetDescriptor
 	ReadOnlyFields     []ReadOnlyFieldDescriptor
 }
 
@@ -387,6 +389,7 @@ type registeredModel struct {
 	actions                 []registeredAction
 	commands                []registeredCommand
 	collectionCommands      []registeredCollectionCommand
+	collectionFormSets      []CollectionFormSet
 	readOnlyFields          []ReadOnlyFieldDescriptor
 
 	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
@@ -451,7 +454,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 || len(config.CollectionCommands) != 0 {
+	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 || len(config.CollectionCommands) != 0 || len(config.CollectionFormSets) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -682,6 +685,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	registered.collectionCommands, err = prepareCollectionCommands(config.CollectionCommands, registered)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	registered.collectionFormSets, err = prepareCollectionFormSets(config.CollectionFormSets, registered.model)
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -1051,6 +1058,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 		RevisionField:      model.revisionField,
 		Commands:           commands,
 		CollectionCommands: collectionCommands,
+		CollectionFormSets: collectionFormSetDescriptors(model.collectionFormSets),
 		ReadOnlyFields:     append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
 	}
 }

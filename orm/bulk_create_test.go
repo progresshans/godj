@@ -3,6 +3,7 @@ package orm_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"testing"
@@ -338,6 +339,43 @@ func TestBulkCreateRejectsIncompleteResultsAndScopeFailures(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBulkCreatePreservesConfirmedErrorAndCleanupOwnership(t *testing.T) {
+	for _, borrowed := range []bool{false, true} {
+		for _, mode := range []string{"native", "cleanup", "canceled"} {
+			t.Run(fmt.Sprintf("borrowed_%t/%s", borrowed, mode), func(t *testing.T) {
+				backend := newBulkBackend()
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				failure := &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniqueConstraint}
+				cleanup := errors.New("rollback failed")
+				backend.insert = func(int, query.BulkInsertPlan) (db.BulkInsertResult, error) {
+					if mode == "canceled" {
+						cancel()
+					}
+					return db.BulkInsertResult{}, failure
+				}
+				if mode == "cleanup" {
+					finish := func(err error) error { return errors.Join(err, cleanup) }
+					if borrowed {
+						backend.finishInner = finish
+					} else {
+						backend.finish = finish
+					}
+				}
+				var source db.Queryer = backend
+				if borrowed {
+					source = backend.session()
+				}
+				result, err := models.ArticleObjects.BulkCreate(ctx, source, []models.Article{{Title: "rejected"}})
+				requireZeroBulk(t, result, err)
+				if !errors.Is(err, failure) || mode == "native" && err != failure || mode == "cleanup" && !errors.Is(err, cleanup) || mode == "canceled" && !errors.Is(err, context.Canceled) {
+					t.Fatal("lost direct failure or additional error owner", err)
+				}
+			})
+		}
 	}
 }
 

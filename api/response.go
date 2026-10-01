@@ -45,6 +45,13 @@ func NoContent() (web.Response, error) {
 // ErrorResponse renders only stable codes, ordered field names, ordered
 // diagnostic codes, and presentation-independent parameters.
 func ErrorResponse(status int, code ResponseCode, diagnostics validation.Errors) (web.Response, error) {
+	return ErrorResponseWithLimits(status, code, diagnostics, serializers.Limits{})
+}
+
+// ErrorResponseWithLimits preserves the standard diagnostic envelope while
+// allowing a bounded multi-object request to report indexed field errors.
+// Limits apply to the complete response, including all diagnostic parameters.
+func ErrorResponseWithLimits(status int, code ResponseCode, diagnostics validation.Errors, limits serializers.Limits) (web.Response, error) {
 	if status < 400 || status > 499 || !validResponseCode(code) {
 		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "error", Detail: "error response status or code is invalid"}
 	}
@@ -68,7 +75,7 @@ func ErrorResponse(status int, code ResponseCode, diagnostics validation.Errors)
 	if err != nil {
 		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "error", Detail: "error envelope is invalid", Cause: err}
 	}
-	return JSON(status, object.Value())
+	return JSONWithLimits(status, object.Value(), limits)
 }
 
 func diagnosticValue(item validation.Violation) (serializers.Value, error) {

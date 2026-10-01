@@ -345,7 +345,17 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 					return err
 				}
 			}
+			var creates []ticketBulkCandidate
 			for _, row := range prepared.Rows() {
+				if !row.Existing() {
+					value, err := row.Model()
+					if err != nil {
+						return err
+					}
+					keys, _ := row.Prepared().Collections().Integers("labels")
+					creates = append(creates, ticketBulkCandidate{index: row.Index(), value: value, labels: keys})
+					continue
+				}
 				instance, found := view.set.Instance(row.Index())
 				if !found {
 					return errors.New("helpdesk: missing prepared editor row")
@@ -380,6 +390,25 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 					return err
 				}
 				if err = editor.appendAudit(ctx, session, event); err != nil {
+					return err
+				}
+			}
+			if len(creates) != 0 {
+				if _, err := editor.app.createTicketsInSession(ctx, session, actor, creates, editor.appendAudit); err != nil {
+					if failures, rejected := validation.Rejected(err); rejected {
+						for _, failure := range failures.All() {
+							index, present := bulkFailureIndex(failure)
+							var attachErr error
+							if present {
+								view.set, attachErr = view.set.WithRowErrors(index, validation.NewErrors(failure))
+							} else {
+								view.set, attachErr = view.set.WithErrors(validation.NewErrors(failure))
+							}
+							if attachErr != nil {
+								return attachErr
+							}
+						}
+					}
 					return err
 				}
 			}

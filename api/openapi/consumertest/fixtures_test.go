@@ -193,9 +193,22 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if err != nil {
 			t.Fatal("read Helpdesk effects:", err)
 		}
-		if len(tickets) != 7 {
-			t.Fatalf("Helpdesk generated client left %d tickets, want two original and five created", len(tickets))
+		if len(tickets) != 9 {
+			t.Fatalf("Helpdesk generated client left %d tickets, want two original, five single creates and two bulk creates", len(tickets))
 		}
+		bulkTickets := make(map[string]helpdeskmodels.Ticket)
+		var singleTickets []helpdeskmodels.Ticket
+		for _, stored := range tickets {
+			if strings.HasPrefix(stored.Subject, "Client bulk ") {
+				if _, duplicate := bulkTickets[stored.Subject]; duplicate {
+					t.Fatal("duplicate generated bulk subject")
+				}
+				bulkTickets[stored.Subject] = stored
+			} else {
+				singleTickets = append(singleTickets, stored)
+			}
+		}
+		bulkIDs := verifyGeneratedBulkTicketEffects(t, helpdeskRuntime, category.ID, helpdeskAll.ID(), bulkTickets)
 		selectedCount, createdCount := 0, 0
 		var collectionOwnerID int64
 		wantJSON := map[string]string{"Consumer ticket": `{"":340282366920938463463374607431768211455,"nested":[null,false,"\u003cscript\u003edata\u003c/script\u003e"]}`, "Urgent priority": "", "Low priority": "", "Zero priority": "", "Null priority": ""}
@@ -223,7 +236,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Urgent priority": new(time.Time{}), "Low priority": new(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)),
 			"Zero priority": nil, "Null priority": nil,
 		}
-		for _, stored := range tickets {
+		for _, stored := range singleTickets {
 			if stored.Subject == "Consumer ticket" && stored.CategoryID == category.ID {
 				collectionOwnerID = stored.ID
 			}
@@ -345,7 +358,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			}
 		}
 		links, err := helpdeskmodels.TicketLabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketLabelFields.ID.Asc()).All(t.Context())
-		if err != nil || len(links) != 3 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID {
+		if err != nil || len(links) != 5 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID || links[3].TicketID != bulkIDs[0] || links[4].TicketID != bulkIDs[1] || links[3].LabelID != labels[1].ID || links[4].LabelID != labels[1].ID {
 			t.Fatalf("generated link lifecycle/cascade final state differs: %v", err)
 		}
 

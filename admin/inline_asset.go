@@ -14,7 +14,7 @@ var inlineScriptBytes []byte
 
 func (site *Site) hasInlines() bool {
 	for _, model := range site.registry.models {
-		if len(model.inlines) > 0 {
+		if len(model.inlines) > 0 || len(model.collectionFormSets) > 0 {
 			return true
 		}
 	}

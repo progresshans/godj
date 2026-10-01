@@ -75,6 +75,10 @@ func decodeDeclaredObject(document []byte, limits Limits, jsonFields map[string]
 }
 
 func decodeDocument(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool) (Value, error) {
+	return decodeDocumentAt(document, limits, jsonFields, arbitraryNames, 1)
+}
+
+func decodeDocumentAt(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool, fieldDepth int) (Value, error) {
 	resolved, err := resolveLimits(limits)
 	if err != nil {
 		return Value{}, err
@@ -93,7 +97,7 @@ func decodeDocument(document []byte, limits Limits, jsonFields map[string]bool, 
 	}
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	decoder.UseNumber()
-	budget := decodeBudget{limits: resolved, jsonFields: jsonFields}
+	budget := decodeBudget{limits: resolved, jsonFields: jsonFields, fieldDepth: fieldDepth}
 	value, err := decodeJSONValue(decoder, &budget, 1, arbitraryNames)
 	if err != nil {
 		return Value{}, err
@@ -174,6 +178,7 @@ func jsonHexValue(value byte) (byte, bool) {
 
 type decodeBudget struct {
 	jsonFields map[string]bool
+	fieldDepth int
 	limits     Limits
 	values     int
 }
@@ -253,7 +258,7 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, ar
 			return Value{}, invalidDocument("document.object."+name, "JSON object member is duplicated", nil)
 		}
 		byName[name] = len(members)
-		jsonField := depth == 1 && budget.jsonFields[name]
+		jsonField := depth == budget.fieldDepth && budget.jsonFields[name]
 		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames || jsonField)
 		if err != nil {
 			return Value{}, err
