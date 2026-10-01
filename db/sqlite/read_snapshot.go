@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -50,12 +49,8 @@ func (b *Backend) ReadSnapshot(ctx context.Context, callback func(db.Queryer) er
 		}
 		return errors.Join(fmt.Errorf("begin SQLite read snapshot: %w", err), cleanupErr)
 	}
-	lifetime, finish := context.WithCancelCause(ctx)
-	session := &relationSession{connection: lease, queryCount: &b.queryCount, lifetime: lifetime, active: true}
-	return readscope.Run(ctx, session, callback, func() {
-		session.deactivate()
-		finish(sql.ErrTxDone)
-	}, func() error {
+	session := newRelationSession(ctx, lease, &b.queryCount)
+	return readscope.Run(ctx, session, callback, session.scope.Finish, func() error {
 		rowsErr := lease.CloseRows()
 		_, cleanupErr := rollbackRelationConnection(ctx, lease, admission)
 		return errors.Join(rowsErr, cleanupErr)

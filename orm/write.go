@@ -17,9 +17,18 @@ func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input Create
 	if err != nil {
 		return zero, err
 	}
-	backend, err = executionBackend(ctx, backend)
+	value, _, err := executePreparedCreate(ctx, backend, write)
+	return value, err
+}
+
+// The attempted flag distinguishes an actual Insert call from input or session
+// validation. A caller may recover only a native unique error, never a forged
+// integrity error returned by an input builder before insertion was attempted.
+func executePreparedCreate[M any](ctx context.Context, backend db.Mutator, write preparedWrite[M]) (M, bool, error) {
+	var zero M
+	backend, err := executionBackend(ctx, backend)
 	if err != nil {
-		return zero, err
+		return zero, false, err
 	}
 	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlanReturningKey(
 		write.model.metadata.DBTable,
@@ -27,11 +36,11 @@ func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input Create
 		fieldReference(write.model.primaryKey),
 	))
 	if err != nil {
-		return zero, err
+		return zero, true, err
 	}
 	value := write.mutation.value
 	write.descriptor.SetPrimaryKey(&value, lastInsertID)
-	return value, nil
+	return value, true, nil
 }
 
 // Update applies only fields explicitly present in the generated patch. The

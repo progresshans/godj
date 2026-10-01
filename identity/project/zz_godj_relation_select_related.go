@@ -10,7 +10,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
@@ -19,9 +19,11 @@ var _ orm.ProjectionDescriptor[identity.User] = identity.UserDescriptor{}
 var _ orm.ProjectionDescriptor[identity.UserGroupsLink] = identity.UserGroupsLinkDescriptor{}
 var _ orm.ProjectionDescriptor[identity.UserPermissionsLink] = identity.UserPermissionsLinkDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -165,6 +167,24 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) All(_ctx context.Co
 		}
 	}
 	return _results, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -359,6 +379,24 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) All(_ctx context.Context)
 	}
 	return _results, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityUserGroupsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserGroupsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -552,6 +590,24 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) All(_ctx context.Con
 	}
 	return _results, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -604,4 +660,4 @@ func (_factory IdentityUserPermissionsLinkObjectFactory) FromSelected(_selected 
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_eb3c0b60d8d1cbb1bec02c66f1646e3318639a34576b69c61744f5c10935f880
+var _ goDjProjectSnapshot_69bd8ab187122aeae997d70da35e151cfba29a09917394c37443a95a2615210d

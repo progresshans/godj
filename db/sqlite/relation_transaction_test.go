@@ -1014,21 +1014,21 @@ func TestRelationSessionMarksMutationPossibleImmediatelyBeforeExecution(t *testi
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			session := &relationSession{active: true, lifetime: t.Context()}
 			connection := &relationFaultConnection{}
+			session := newRelationSession(t.Context(), connection, nil)
+			t.Cleanup(func() { _ = session.scope.Finish() })
 			connection.exec = func(context.Context, string, []any) (sql.Result, error) {
-				if !session.mutationPossible {
+				if !session.state.mutationPossible.Load() {
 					t.Error("executor observed mutationPossible=false")
 				}
 				return relationFaultResult(1), nil
 			}
-			session.connection = connection
 			rows, err := test.invoke(session)
 			if err != nil || rows != 1 {
 				t.Fatalf("mutation = (%d, %v), want (1, nil)", rows, err)
 			}
-			if !session.mutationPossible || len(connection.statementSnapshot()) != 1 {
-				t.Fatalf("mutationPossible/statements = %v/%v", session.mutationPossible, connection.statementSnapshot())
+			if !session.state.mutationPossible.Load() || len(connection.statementSnapshot()) != 1 {
+				t.Fatalf("mutationPossible/statements = %v/%v", session.state.mutationPossible.Load(), connection.statementSnapshot())
 			}
 		})
 	}
@@ -1058,13 +1058,14 @@ func TestRelationSessionValidationFailureDoesNotMarkMutationPossible(t *testing.
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			connection := &relationFaultConnection{}
-			session := &relationSession{connection: connection, active: true, lifetime: t.Context()}
+			session := newRelationSession(t.Context(), connection, nil)
+			t.Cleanup(func() { _ = session.scope.Finish() })
 			rows, err := test.invoke(session)
 			if rows != 0 || !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 				t.Fatalf("invalid mutation = (%d, %v), want invalid_plan", rows, err)
 			}
-			if session.mutationPossible || len(connection.statementSnapshot()) != 0 {
-				t.Fatalf("invalid mutationPossible/statements = %v/%v", session.mutationPossible, connection.statementSnapshot())
+			if session.state.mutationPossible.Load() || len(connection.statementSnapshot()) != 0 {
+				t.Fatalf("invalid mutationPossible/statements = %v/%v", session.state.mutationPossible.Load(), connection.statementSnapshot())
 			}
 		})
 	}

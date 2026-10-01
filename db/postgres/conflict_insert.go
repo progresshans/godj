@@ -6,6 +6,7 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
 
@@ -54,5 +55,7 @@ func (session *transactionSession) InsertOnConflict(ctx context.Context, plan qu
 	if err := session.validate(ctx); err != nil {
 		return false, err
 	}
-	return executeConflictInsert(ctx, session.transaction, session.backend.schema, plan)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (bool, error) {
+		return executeConflictInsert(ctx, session.transaction, session.backend.schema, plan)
+	})
 }

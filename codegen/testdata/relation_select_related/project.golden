@@ -11,14 +11,16 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -162,6 +164,24 @@ func (_query BlogPostSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostO
 		}
 	}
 	return _results, nil
+}
+func (_query BlogPostSelectRelatedQuery) Get(_ctx context.Context) (*BlogPostObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query BlogPostSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[blog.Post]) (*BlogPostObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query BlogPostSelectRelatedQuery) First(_ctx context.Context) (*BlogPostObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)

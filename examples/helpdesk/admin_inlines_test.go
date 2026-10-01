@@ -24,7 +24,7 @@ import (
 
 // Consume the actual browser-successful controls, including disabled ancestor
 // fieldsets, default single-select options, escaped text and hidden identities.
-func adminInlineSubmission(t *testing.T, response *httptest.ResponseRecorder) (url.Values, string) {
+func adminFormSubmission(t *testing.T, response *httptest.ResponseRecorder, expectedAction string) (url.Values, string) {
 	t.Helper()
 	if response.Code != http.StatusOK {
 		t.Fatalf("Admin GET: %d %s", response.Code, response.Body.String())
@@ -97,7 +97,7 @@ func adminInlineSubmission(t *testing.T, response *httptest.ResponseRecorder) (u
 	find = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "form" {
 			a, _ := attr(n, "action")
-			if strings.HasPrefix(a, "/admin/tickets/") {
+			if a == expectedAction {
 				action = a
 				controls(n, false)
 				return
@@ -236,7 +236,7 @@ func verifyHelpdeskAdminInlines(t *testing.T, ctx context.Context, runtime *syst
 				assertAdminInlineReadOnly(t, response)
 				return
 			}
-			values, action := adminInlineSubmission(t, response)
+			values, action := adminFormSubmission(t, response, path)
 			if mode == "invisible" || mode == "denied_forged" {
 				if strings.Contains(response.Body.String(), "Before &lt;report&gt;") {
 					t.Fatal("unauthorized child rendered")

@@ -46,7 +46,8 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Label]{
 		AppLabel: "helpdesk", Slug: "labels", Model: metadata, FormFields: fields,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"},
-		Permissions: admin.Permissions{View: ViewLabel, Add: AddLabel, Change: ChangeLabel, Delete: DeleteLabel},
+		Permissions:        admin.Permissions{View: ViewLabel, Add: AddLabel, Change: ChangeLabel, Delete: DeleteLabel},
+		CollectionCommands: a.labelEnsureCommands(form),
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Label], error) {
 			return a.listLabels(ctx, request)
 		},

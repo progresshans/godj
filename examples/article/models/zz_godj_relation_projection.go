@@ -72,4 +72,4 @@ func (_scan *articleProjectionScan) Decode() (Article, query.Value, orm.Projecti
 
 type GoDjAppPart3_8e1ee4fcb8b1d2cd7cda05aca0dacf291838324d8f3f6fb4bee54a4860fd3074 struct{}
 
-var _ GoDjProjectSnapshot_4a723e4838932fc48bb7ee0549b9bbbfaa6d87dd20d4909375c2b1faedf40742
+var _ GoDjProjectSnapshot_dfcbf4b25efad0e54888f8683f9575859b67525a825f170de2bff2b7b0f1c140

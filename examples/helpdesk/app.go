@@ -60,7 +60,7 @@ type Backend interface {
 }
 
 type Application struct {
-	inlineAudit   func(context.Context, db.Session, admin.PreparedEvent) error
+	adminAudit    func(context.Context, db.Session, admin.PreparedEvent) error
 	backend       Backend
 	categoryID    int64
 	registry      admin.Registry

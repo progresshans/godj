@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[reports.Certificate] = reports.CertificateDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Link] = reports.LinkDescriptor{}
@@ -20,9 +20,11 @@ var _ orm.ProjectionDescriptor[reports.Report] = reports.ReportDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Review] = reports.ReviewDescriptor{}
 var _ orm.ProjectionDescriptor[tickets.Ticket] = tickets.TicketDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -161,6 +163,24 @@ func (_query ReportsCertificateSelectRelatedQuery) All(_ctx context.Context) ([]
 		}
 	}
 	return _results, nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) Get(_ctx context.Context) (*ReportsCertificateObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ReportsCertificateSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Certificate]) (*ReportsCertificateObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ReportsCertificateSelectRelatedQuery) First(_ctx context.Context) (*ReportsCertificateObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -365,6 +385,24 @@ func (_query ReportsLinkSelectRelatedQuery) All(_ctx context.Context) ([]*Report
 	}
 	return _results, nil
 }
+func (_query ReportsLinkSelectRelatedQuery) Get(_ctx context.Context) (*ReportsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ReportsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Link]) (*ReportsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ReportsLinkSelectRelatedQuery) First(_ctx context.Context) (*ReportsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -567,6 +605,24 @@ func (_query ReportsOptionalReportSelectRelatedQuery) All(_ctx context.Context) 
 		}
 	}
 	return _results, nil
+}
+func (_query ReportsOptionalReportSelectRelatedQuery) Get(_ctx context.Context) (*ReportsOptionalReportObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ReportsOptionalReportSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.OptionalReport]) (*ReportsOptionalReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ReportsOptionalReportSelectRelatedQuery) First(_ctx context.Context) (*ReportsOptionalReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -789,6 +845,24 @@ func (_query ReportsReportSelectRelatedQuery) All(_ctx context.Context) ([]*Repo
 		}
 	}
 	return _results, nil
+}
+func (_query ReportsReportSelectRelatedQuery) Get(_ctx context.Context) (*ReportsReportObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ReportsReportSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Report]) (*ReportsReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ReportsReportSelectRelatedQuery) First(_ctx context.Context) (*ReportsReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1025,6 +1099,24 @@ func (_query ReportsReviewSelectRelatedQuery) All(_ctx context.Context) ([]*Repo
 		}
 	}
 	return _results, nil
+}
+func (_query ReportsReviewSelectRelatedQuery) Get(_ctx context.Context) (*ReportsReviewObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ReportsReviewSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Review]) (*ReportsReviewObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ReportsReviewSelectRelatedQuery) First(_ctx context.Context) (*ReportsReviewObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1267,6 +1359,24 @@ func (_query TicketsTicketSelectRelatedQuery) All(_ctx context.Context) ([]*Tick
 	}
 	return _results, nil
 }
+func (_query TicketsTicketSelectRelatedQuery) Get(_ctx context.Context) (*TicketsTicketObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query TicketsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[tickets.Ticket]) (*TicketsTicketObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query TicketsTicketSelectRelatedQuery) First(_ctx context.Context) (*TicketsTicketObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1400,4 +1510,4 @@ func (_object *TicketsTicketObject) ReviewObject(_ctx context.Context) (*Reports
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_83924e45126d75ecbaff0978153607f3265aa125bd7a23f3f4248205ba3c5ba4
+var _ goDjProjectSnapshot_c3d1e1a5fde115683a99888ded47425e5db1793198739009e497af7c5eba36a5

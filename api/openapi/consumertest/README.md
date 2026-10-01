@@ -37,6 +37,14 @@ Category별 Label의 생성·상세·PUT/PATCH·삭제와 검색·limit/offset �
 부모는 유지된 라벨의 최종 이름·Category와 외부 라벨 보존을 실제 DB에서 별도로 확인한다. 이 client fixture는 SQLite를 사용한다.
 Helpdesk 자체의 실제 SQLite/PostgreSQL HTTP·migration·실패 검사는 `examples/helpdesk`가 소유한다.
 
+Label 확보는 `POST /api/labels/ensure/`를 사용한다. 실제 서버에서 새 이름의 201/created=true와 반복 호출의
+200/false·같은 ID를 확인하고, 일반 생성의 중복 거부·조회 전용 역할·CSRF 거부를 별도로 확인한다.
+부모 fixture는 Helpdesk에 실제 systemstate Runtime과 borrowed audit callback을 연결하고, 최종 DB의 Label과
+최초 add event 하나를 직접 조회한다. 원래 생성 이름은 이후 일반 이름 수정 뒤에도 감사 이력에 보존된다.
+`helpdesk_label_ensure` receipt는 이 흐름의 완료를 뜻한다. `generated_label_ensure_wire`는 큰 int64 ID와
+두 성공 응답형·필수 label/created·null/누락/잘못된 bool 거부 및 고정 500 응답의 단일 전송을 검사한다.
+Synthetic 500은 실제 DB의 실패 증거가 아니며, 부모/자식 transaction·audit rollback과 unknown outcome은 Helpdesk 양 DB 검사가 소유한다.
+
 TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
 ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
 부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.

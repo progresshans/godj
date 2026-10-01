@@ -174,33 +174,38 @@ func (site *Site) listContext(
 		nextURL = listPageURL(site.modelPath(model), search, pageNumber+1)
 	}
 	notice := noticeText(query.Get("notice"), query.Get("count"))
+	collectionCommands, err := site.collectionCommandLinks(ctx, principal, model)
+	if err != nil {
+		return nil, err
+	}
 	affected := int64(0)
 	if query.Get("notice") == "published" {
 		affected, _ = strconv.ParseInt(query.Get("count"), 10, 64)
 	}
 	return map[string]templates.Value{
-		"model_name":   templates.String(model.model.GoName),
-		"list_path":    templates.String(site.modelPath(model)),
-		"add_path":     templates.String(site.modelPath(model) + "add/"),
-		"can_add":      templates.Bool(canAdd),
-		"search":       templates.String(safeDisplayText(search)),
-		"has_search":   templates.Bool(len(model.searchFields) != 0),
-		"fields":       templates.List(fields...),
-		"objects":      templates.List(objects...),
-		"actions":      templates.List(actions...),
-		"has_actions":  templates.Bool(len(actions) > 0),
-		"page":         templates.Integer(int64(pageNumber)),
-		"page_count":   templates.Integer(pageCount),
-		"total":        templates.Integer(page.total),
-		"previous_url": templates.String(previousURL),
-		"has_previous": templates.Bool(previousURL != ""),
-		"next_url":     templates.String(nextURL),
-		"has_next":     templates.Bool(nextURL != ""),
-		"notice":       templates.String(notice),
-		"notice_tag":   templates.String(query.Get("notice")),
-		"has_notice":   templates.Bool(notice != ""),
-		"affected":     templates.Integer(affected),
-		"invalid_page": templates.Bool(invalidPage),
+		"model_name":          templates.String(model.model.GoName),
+		"list_path":           templates.String(site.modelPath(model)),
+		"add_path":            templates.String(site.modelPath(model) + "add/"),
+		"can_add":             templates.Bool(canAdd),
+		"search":              templates.String(safeDisplayText(search)),
+		"has_search":          templates.Bool(len(model.searchFields) != 0),
+		"fields":              templates.List(fields...),
+		"objects":             templates.List(objects...),
+		"actions":             templates.List(actions...),
+		"has_actions":         templates.Bool(len(actions) > 0),
+		"collection_commands": collectionCommands,
+		"page":                templates.Integer(int64(pageNumber)),
+		"page_count":          templates.Integer(pageCount),
+		"total":               templates.Integer(page.total),
+		"previous_url":        templates.String(previousURL),
+		"has_previous":        templates.Bool(previousURL != ""),
+		"next_url":            templates.String(nextURL),
+		"has_next":            templates.Bool(nextURL != ""),
+		"notice":              templates.String(notice),
+		"notice_tag":          templates.String(query.Get("notice")),
+		"has_notice":          templates.Bool(notice != ""),
+		"affected":            templates.Integer(affected),
+		"invalid_page":        templates.Bool(invalidPage),
 	}, nil
 }
 
@@ -238,7 +243,7 @@ func (site *Site) validateNotice(model registeredModel, values url.Values) error
 			return &ConfigError{Path: "request.values.count", Code: "unexpected"}
 		}
 		return nil
-	case "added", "changed", "deleted":
+	case "added", "changed", "deleted", "existing":
 		if count != "" {
 			return &ConfigError{Path: "request.values.count", Code: "unexpected"}
 		}
@@ -284,6 +289,8 @@ func noticeText(notice, count string) string {
 	switch notice {
 	case "added":
 		return "Object added."
+	case "existing":
+		return "Existing object reused."
 	case "changed":
 		return "Object changed."
 	case "deleted":

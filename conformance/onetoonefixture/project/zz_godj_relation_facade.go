@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "0344f026b9d0d43ef6b194da097bcef16843f32e1858131214c83afc2f489d71"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
+const GoDjProjectRelationFacadeInputSHA256 = "87d5d5789339e84bcdc9da8509bb36e7e5e23ed99424f69fe42260ba01d91275"
 
 type Backend interface {
 	db.Queryer
@@ -504,6 +504,34 @@ func AggregateReportsCertificateInto[R any](_ctx context.Context, _source Report
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ReportsCertificateQuery) Get(_ctx context.Context) (*ReportsCertificate, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ReportsCertificate)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeReportsCertificate(_ctx, _value)
+}
+
+func (_query ReportsCertificateQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ReportsCertificate, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsCertificateQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -1105,6 +1133,49 @@ func (_query ReportsCertificatePrefetchQuery) All(_ctx context.Context) ([]*Repo
 	}
 	return _result, nil
 }
+func (_query ReportsCertificatePrefetchQuery) Get(_ctx context.Context) (*ReportsCertificate, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsCertificatePrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query ReportsCertificatePrefetchQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1276,7 +1347,7 @@ type ReportsCertificateEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Certificate]
 	selections       []orm.RelatedSelection[reports.Certificate]
-	projection       relationSelectQuery[ReportsCertificateObject]
+	projection       relationSelectQuery[reports.Certificate, ReportsCertificateObject]
 	configurationErr error
 }
 
@@ -1413,6 +1484,33 @@ func (_query ReportsCertificateEagerQuery) All(_ctx context.Context) ([]*Reports
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query ReportsCertificateEagerQuery) Get(_ctx context.Context) (*ReportsCertificate, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+}
+func (_query ReportsCertificateEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Certificate]) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query ReportsCertificateEagerQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -1590,6 +1688,34 @@ func AggregateReportsLinkInto[R any](_ctx context.Context, _source ReportsLinkQu
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ReportsLinkQuery) Get(_ctx context.Context) (*ReportsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ReportsLink)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeReportsLink(_ctx, _value)
+}
+
+func (_query ReportsLinkQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ReportsLink, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeReportsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsLinkQuery) First(_ctx context.Context) (*ReportsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -2170,6 +2296,49 @@ func (_query ReportsLinkPrefetchQuery) All(_ctx context.Context) ([]*ReportsLink
 	}
 	return _result, nil
 }
+func (_query ReportsLinkPrefetchQuery) Get(_ctx context.Context) (*ReportsLink, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeReportsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsLinkPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeReportsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query ReportsLinkPrefetchQuery) First(_ctx context.Context) (*ReportsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -2341,7 +2510,7 @@ type ReportsLinkEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Link]
 	selections       []orm.RelatedSelection[reports.Link]
-	projection       relationSelectQuery[ReportsLinkObject]
+	projection       relationSelectQuery[reports.Link, ReportsLinkObject]
 	configurationErr error
 }
 
@@ -2478,6 +2647,33 @@ func (_query ReportsLinkEagerQuery) All(_ctx context.Context) ([]*ReportsLink, e
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query ReportsLinkEagerQuery) Get(_ctx context.Context) (*ReportsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedReportsLinkObject(_ctx, _object)
+}
+func (_query ReportsLinkEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Link]) (*ReportsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query ReportsLinkEagerQuery) First(_ctx context.Context) (*ReportsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -2655,6 +2851,34 @@ func AggregateReportsOptionalReportInto[R any](_ctx context.Context, _source Rep
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ReportsOptionalReportQuery) Get(_ctx context.Context) (*ReportsOptionalReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ReportsOptionalReport)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeReportsOptionalReport(_ctx, _value)
+}
+
+func (_query ReportsOptionalReportQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ReportsOptionalReport, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsOptionalReportQuery) First(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -3268,6 +3492,49 @@ func (_query ReportsOptionalReportPrefetchQuery) All(_ctx context.Context) ([]*R
 	}
 	return _result, nil
 }
+func (_query ReportsOptionalReportPrefetchQuery) Get(_ctx context.Context) (*ReportsOptionalReport, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsOptionalReportPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query ReportsOptionalReportPrefetchQuery) First(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -3439,7 +3706,7 @@ type ReportsOptionalReportEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.OptionalReport]
 	selections       []orm.RelatedSelection[reports.OptionalReport]
-	projection       relationSelectQuery[ReportsOptionalReportObject]
+	projection       relationSelectQuery[reports.OptionalReport, ReportsOptionalReportObject]
 	configurationErr error
 }
 
@@ -3576,6 +3843,33 @@ func (_query ReportsOptionalReportEagerQuery) All(_ctx context.Context) ([]*Repo
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query ReportsOptionalReportEagerQuery) Get(_ctx context.Context) (*ReportsOptionalReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
+}
+func (_query ReportsOptionalReportEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.OptionalReport]) (*ReportsOptionalReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query ReportsOptionalReportEagerQuery) First(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -3748,6 +4042,34 @@ func AggregateReportsReportInto[R any](_ctx context.Context, _source ReportsRepo
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ReportsReportQuery) Get(_ctx context.Context) (*ReportsReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ReportsReport)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeReportsReport(_ctx, _value)
+}
+
+func (_query ReportsReportQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ReportsReport, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeReportsReport(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsReportQuery) First(_ctx context.Context) (*ReportsReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -4488,6 +4810,49 @@ func (_query ReportsReportPrefetchQuery) All(_ctx context.Context) ([]*ReportsRe
 	}
 	return _result, nil
 }
+func (_query ReportsReportPrefetchQuery) Get(_ctx context.Context) (*ReportsReport, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeReportsReport(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReportPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeReportsReport(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query ReportsReportPrefetchQuery) First(_ctx context.Context) (*ReportsReport, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -4660,7 +5025,7 @@ type ReportsReportEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Report]
 	selections       []orm.RelatedSelection[reports.Report]
-	projection       relationSelectQuery[ReportsReportObject]
+	projection       relationSelectQuery[reports.Report, ReportsReportObject]
 	configurationErr error
 }
 
@@ -4797,6 +5162,33 @@ func (_query ReportsReportEagerQuery) All(_ctx context.Context) ([]*ReportsRepor
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query ReportsReportEagerQuery) Get(_ctx context.Context) (*ReportsReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedReportsReportObject(_ctx, _object)
+}
+func (_query ReportsReportEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Report]) (*ReportsReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsReportObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query ReportsReportEagerQuery) First(_ctx context.Context) (*ReportsReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -4992,6 +5384,34 @@ func AggregateReportsReviewInto[R any](_ctx context.Context, _source ReportsRevi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ReportsReviewQuery) Get(_ctx context.Context) (*ReportsReview, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ReportsReview)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeReportsReview(_ctx, _value)
+}
+
+func (_query ReportsReviewQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ReportsReview, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeReportsReview(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ReportsReviewQuery) First(_ctx context.Context) (*ReportsReview, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -5593,6 +6013,49 @@ func (_query ReportsReviewPrefetchQuery) All(_ctx context.Context) ([]*ReportsRe
 	}
 	return _result, nil
 }
+func (_query ReportsReviewPrefetchQuery) Get(_ctx context.Context) (*ReportsReview, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeReportsReview(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query ReportsReviewPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeReportsReview(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query ReportsReviewPrefetchQuery) First(_ctx context.Context) (*ReportsReview, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -5764,7 +6227,7 @@ type ReportsReviewEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Review]
 	selections       []orm.RelatedSelection[reports.Review]
-	projection       relationSelectQuery[ReportsReviewObject]
+	projection       relationSelectQuery[reports.Review, ReportsReviewObject]
 	configurationErr error
 }
 
@@ -5901,6 +6364,33 @@ func (_query ReportsReviewEagerQuery) All(_ctx context.Context) ([]*ReportsRevie
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query ReportsReviewEagerQuery) Get(_ctx context.Context) (*ReportsReview, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedReportsReviewObject(_ctx, _object)
+}
+func (_query ReportsReviewEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[reports.Review]) (*ReportsReview, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsReviewObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query ReportsReviewEagerQuery) First(_ctx context.Context) (*ReportsReview, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -6085,6 +6575,34 @@ func AggregateTicketsTicketInto[R any](_ctx context.Context, _source TicketsTick
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query TicketsTicketQuery) Get(_ctx context.Context) (*TicketsTicket, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.TicketsTicket)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeTicketsTicket(_ctx, _value)
+}
+
+func (_query TicketsTicketQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.TicketsTicket, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query TicketsTicketQuery) First(_ctx context.Context) (*TicketsTicket, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -6915,6 +7433,49 @@ func (_query TicketsTicketPrefetchQuery) All(_ctx context.Context) ([]*TicketsTi
 	}
 	return _result, nil
 }
+func (_query TicketsTicketPrefetchQuery) Get(_ctx context.Context) (*TicketsTicket, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query TicketsTicketPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query TicketsTicketPrefetchQuery) First(_ctx context.Context) (*TicketsTicket, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -7088,7 +7649,7 @@ type TicketsTicketEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[tickets.Ticket]
 	selections       []orm.RelatedSelection[tickets.Ticket]
-	projection       relationSelectQuery[TicketsTicketObject]
+	projection       relationSelectQuery[tickets.Ticket, TicketsTicketObject]
 	configurationErr error
 }
 
@@ -7225,6 +7786,33 @@ func (_query TicketsTicketEagerQuery) All(_ctx context.Context) ([]*TicketsTicke
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query TicketsTicketEagerQuery) Get(_ctx context.Context) (*TicketsTicket, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+}
+func (_query TicketsTicketEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[tickets.Ticket]) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query TicketsTicketEagerQuery) First(_ctx context.Context) (*TicketsTicket, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -7455,4 +8043,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_83924e45126d75ecbaff0978153607f3265aa125bd7a23f3f4248205ba3c5ba4
+var _ goDjProjectSnapshot_c3d1e1a5fde115683a99888ded47425e5db1793198739009e497af7c5eba36a5

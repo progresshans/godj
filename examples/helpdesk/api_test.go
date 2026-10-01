@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
@@ -25,7 +26,7 @@ import (
 func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	application := helpdeskConstructionApplication(t)
 	recording := &helpdeskRecordingAuthentication{}
-	adapter, err := application.API(helpdeskDescribedAuthentication{recording})
+	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,15 +36,15 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket}) {
+	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.AddLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket}) {
 		t.Fatalf("authentication composition = %v", recording.permissions)
 	}
 	for index, extra := range recording.additional {
 		expected := []auth.Permission(nil)
-		if index == 2 || index == 3 || index == 4 {
+		if index == 2 || index == 3 || index == 4 || index == 18 {
 			expected = []auth.Permission{helpdesk.ViewLabel}
 		}
-		if index == 19 || index == 21 || index == 22 {
+		if index == 20 || index == 22 || index == 23 {
 			expected = []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewLabel}
 		}
 		if !slices.Equal(extra, expected) {
@@ -159,31 +160,34 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	encoded := document.Bytes()
 	encoded[0] = '!'
 	again, err := adapter.OpenAPI()
-	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 25 {
+	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 26 {
 		t.Fatalf("reading or mutating snapshots changed the API or repeated authentication: %v", err)
 	}
 }
 
 func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	application := helpdeskConstructionApplication(t)
+	if result, err := application.API(helpdesk.APIConfig{Authentication: &helpdeskRecordingAuthentication{}}); result != nil || err == nil {
+		t.Fatal("accepted missing transactional audit")
+	}
 	var typedNil *helpdeskRecordingAuthentication
 	for _, authentication := range []api.Authentication{nil, typedNil} {
-		if result, err := application.API(authentication); result != nil || err == nil {
+		if result, err := application.API(helpdeskAPIConfig(authentication)); result != nil || err == nil {
 			t.Fatal("accepted nil authentication")
 		}
 	}
-	if result, err := (*helpdesk.Application)(nil).API(&helpdeskRecordingAuthentication{}); result != nil || err == nil {
+	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 25; index++ {
+	for index := 1; index <= 26; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
-			if result, err := application.API(recording); result != nil || err == nil || len(recording.permissions) != index {
+			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
 			}
 		}
 	}
-	adapter, err := application.API(&helpdeskRecordingAuthentication{})
-	if err != nil || len(adapter.Routes()) != 25 {
+	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
+	if err != nil || len(adapter.Routes()) != 26 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -199,10 +203,10 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 9 || len(routes) != 25 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 1 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
-		t.Fatal("Helpdesk document changed the twenty-five-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 10 || len(routes) != 26 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 1 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+		t.Fatal("Helpdesk document changed the twenty-six-operation surface")
 	}
-	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket} {
+	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ViewLabel, helpdesk.ChangeLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.AddLabel, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ViewTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel, helpdesk.DeleteTicket} {
 		route := routes[index]
 		path := strings.ReplaceAll(route.Path, "<int64:id>", "{id}")
 		operation := document.Paths[path][strings.ToLower(route.Method)]
@@ -478,4 +482,11 @@ func assertServiceReportContracts(t *testing.T, document helpdeskDocument) {
 	if !found || len(response.Content) != 0 || removal.RequestBody != nil {
 		t.Fatal("report deletion not represented as no content")
 	}
+}
+
+// Construction tests must never turn missing persistence into successful audit.
+func helpdeskAPIConfig(authentication api.Authentication) helpdesk.APIConfig {
+	return helpdesk.APIConfig{Authentication: authentication, AppendAudit: func(context.Context, db.Session, admin.PreparedEvent) error {
+		return errors.New("construction-only audit callback invoked")
+	}}
 }

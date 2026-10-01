@@ -62,8 +62,11 @@ func TestSQLiteCommitUnknownPreservesCommitAndRollbackErrors(t *testing.T) {
 }
 
 type atomicCommitFaultState struct {
-	commitErr   error
-	commitCalls atomic.Int32
+	commitErr     error
+	commitCalls   atomic.Int32
+	rollbackErr   error
+	rollbackCalls atomic.Int32
+	exec          func(context.Context, string) error
 }
 
 type atomicCommitFaultConnector struct {
@@ -96,6 +99,15 @@ func (*atomicCommitFaultConnection) Prepare(string) (driver.Stmt, error) {
 
 func (*atomicCommitFaultConnection) Close() error { return nil }
 
+func (connection *atomicCommitFaultConnection) ExecContext(ctx context.Context, statement string, _ []driver.NamedValue) (driver.Result, error) {
+	if connection.state.exec != nil {
+		if err := connection.state.exec(ctx, statement); err != nil {
+			return nil, err
+		}
+	}
+	return driver.RowsAffected(1), nil
+}
+
 func (connection *atomicCommitFaultConnection) Begin() (driver.Tx, error) {
 	return &atomicCommitFaultTransaction{state: connection.state}, nil
 }
@@ -109,4 +121,7 @@ func (transaction *atomicCommitFaultTransaction) Commit() error {
 	return transaction.state.commitErr
 }
 
-func (*atomicCommitFaultTransaction) Rollback() error { return nil }
+func (transaction *atomicCommitFaultTransaction) Rollback() error {
+	transaction.state.rollbackCalls.Add(1)
+	return transaction.state.rollbackErr
+}

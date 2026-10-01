@@ -203,7 +203,7 @@ func (state forwardObjectState[S, T]) from(backend db.Queryer, source S) (*Relat
 	}
 
 	primaryKey := NewAutoField[T](state.targetKey)
-	querySet := newQuerySet(backend, state.target.objectDescriptor, state.target.objectPlan).
+	querySet := newQuerySet(backend, state.target.objectDescriptor, state.target.objectPlan, state.target.prepared).
 		Filter(primaryKey.Exact(identifier))
 	limited, err := querySet.Limit(2)
 	if err != nil {

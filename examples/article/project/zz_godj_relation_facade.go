@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "60bd3bb0a973943e6707500a727ebee6d06f97018743b37e4450c64aa9de08de"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
+const GoDjProjectRelationFacadeInputSHA256 = "037649b5be7fbe564560beb751a6e8eec04833348e50eedb0f28f431bd1c5097"
 
 type Backend interface {
 	db.Queryer
@@ -494,6 +494,34 @@ func AggregateModelsArticleInto[R any](_ctx context.Context, _source ModelsArtic
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query ModelsArticleQuery) Get(_ctx context.Context) (*ModelsArticle, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.ModelsArticle)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeModelsArticle(_ctx, _value)
+}
+
+func (_query ModelsArticleQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.Article]) (*ModelsArticle, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.ModelsArticle, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeModelsArticle(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query ModelsArticleQuery) First(_ctx context.Context) (*ModelsArticle, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -791,6 +819,34 @@ func AggregateIdentityGroupInto[R any](_ctx context.Context, _source IdentityGro
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityGroupQuery) Get(_ctx context.Context) (*IdentityGroup, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityGroup)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityGroup(_ctx, _value)
+}
+
+func (_query IdentityGroupQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.Group]) (*IdentityGroup, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityGroup, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityGroup(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityGroupQuery) First(_ctx context.Context) (*IdentityGroup, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -1394,6 +1450,49 @@ func (_query IdentityGroupPrefetchQuery) All(_ctx context.Context) ([]*IdentityG
 	}
 	return _result, nil
 }
+func (_query IdentityGroupPrefetchQuery) Get(_ctx context.Context) (*IdentityGroup, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityGroup(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.Group]) (*IdentityGroup, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityGroup(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityGroupPrefetchQuery) First(_ctx context.Context) (*IdentityGroup, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1626,6 +1725,34 @@ func AggregateIdentityGroupPermissionsLinkInto[R any](_ctx context.Context, _sou
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityGroupPermissionsLinkQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityGroupPermissionsLink)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityGroupPermissionsLink(_ctx, _value)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityGroupPermissionsLink, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityGroupPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityGroupPermissionsLinkQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -2405,6 +2532,49 @@ func (_query IdentityGroupPermissionsLinkPrefetchQuery) All(_ctx context.Context
 	}
 	return _result, nil
 }
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLink, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityGroupPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityGroupPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityGroupPermissionsLinkPrefetchQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -2577,7 +2747,7 @@ type IdentityGroupPermissionsLinkEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[identity.GroupPermissionsLink]
 	selections       []orm.RelatedSelection[identity.GroupPermissionsLink]
-	projection       relationSelectQuery[IdentityGroupPermissionsLinkObject]
+	projection       relationSelectQuery[identity.GroupPermissionsLink, IdentityGroupPermissionsLinkObject]
 	configurationErr error
 }
 
@@ -2714,6 +2884,33 @@ func (_query IdentityGroupPermissionsLinkEagerQuery) All(_ctx context.Context) (
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query IdentityGroupPermissionsLinkEagerQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedIdentityGroupPermissionsLinkObject(_ctx, _object)
+}
+func (_query IdentityGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityGroupPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query IdentityGroupPermissionsLinkEagerQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -2911,6 +3108,34 @@ func AggregateIdentityPermissionInto[R any](_ctx context.Context, _source Identi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityPermissionQuery) Get(_ctx context.Context) (*IdentityPermission, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityPermission)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityPermission(_ctx, _value)
+}
+
+func (_query IdentityPermissionQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.Permission]) (*IdentityPermission, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityPermission, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityPermission(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityPermissionQuery) First(_ctx context.Context) (*IdentityPermission, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -3514,6 +3739,49 @@ func (_query IdentityPermissionPrefetchQuery) All(_ctx context.Context) ([]*Iden
 	}
 	return _result, nil
 }
+func (_query IdentityPermissionPrefetchQuery) Get(_ctx context.Context) (*IdentityPermission, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityPermission(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.Permission]) (*IdentityPermission, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityPermission(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityPermissionPrefetchQuery) First(_ctx context.Context) (*IdentityPermission, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -3739,6 +4007,34 @@ func AggregateIdentityUserInto[R any](_ctx context.Context, _source IdentityUser
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityUserQuery) Get(_ctx context.Context) (*IdentityUser, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityUser)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityUser(_ctx, _value)
+}
+
+func (_query IdentityUserQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.User]) (*IdentityUser, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityUser, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityUser(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserQuery) First(_ctx context.Context) (*IdentityUser, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -4342,6 +4638,49 @@ func (_query IdentityUserPrefetchQuery) All(_ctx context.Context) ([]*IdentityUs
 	}
 	return _result, nil
 }
+func (_query IdentityUserPrefetchQuery) Get(_ctx context.Context) (*IdentityUser, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityUser(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.User]) (*IdentityUser, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityUser(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityUserPrefetchQuery) First(_ctx context.Context) (*IdentityUser, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -4574,6 +4913,34 @@ func AggregateIdentityUserGroupsLinkInto[R any](_ctx context.Context, _source Id
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityUserGroupsLinkQuery) Get(_ctx context.Context) (*IdentityUserGroupsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityUserGroupsLink)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityUserGroupsLink(_ctx, _value)
+}
+
+func (_query IdentityUserGroupsLinkQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityUserGroupsLink, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityUserGroupsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserGroupsLinkQuery) First(_ctx context.Context) (*IdentityUserGroupsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -5353,6 +5720,49 @@ func (_query IdentityUserGroupsLinkPrefetchQuery) All(_ctx context.Context) ([]*
 	}
 	return _result, nil
 }
+func (_query IdentityUserGroupsLinkPrefetchQuery) Get(_ctx context.Context) (*IdentityUserGroupsLink, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityUserGroupsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityUserGroupsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityUserGroupsLinkPrefetchQuery) First(_ctx context.Context) (*IdentityUserGroupsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -5525,7 +5935,7 @@ type IdentityUserGroupsLinkEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[identity.UserGroupsLink]
 	selections       []orm.RelatedSelection[identity.UserGroupsLink]
-	projection       relationSelectQuery[IdentityUserGroupsLinkObject]
+	projection       relationSelectQuery[identity.UserGroupsLink, IdentityUserGroupsLinkObject]
 	configurationErr error
 }
 
@@ -5662,6 +6072,33 @@ func (_query IdentityUserGroupsLinkEagerQuery) All(_ctx context.Context) ([]*Ide
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query IdentityUserGroupsLinkEagerQuery) Get(_ctx context.Context) (*IdentityUserGroupsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedIdentityUserGroupsLinkObject(_ctx, _object)
+}
+func (_query IdentityUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityUserGroupsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query IdentityUserGroupsLinkEagerQuery) First(_ctx context.Context) (*IdentityUserGroupsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -5868,6 +6305,34 @@ func AggregateIdentityUserPermissionsLinkInto[R any](_ctx context.Context, _sour
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query IdentityUserPermissionsLinkQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.IdentityUserPermissionsLink)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeIdentityUserPermissionsLink(_ctx, _value)
+}
+
+func (_query IdentityUserPermissionsLinkQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.IdentityUserPermissionsLink, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeIdentityUserPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query IdentityUserPermissionsLinkQuery) First(_ctx context.Context) (*IdentityUserPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -6647,6 +7112,49 @@ func (_query IdentityUserPermissionsLinkPrefetchQuery) All(_ctx context.Context)
 	}
 	return _result, nil
 }
+func (_query IdentityUserPermissionsLinkPrefetchQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLink, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeIdentityUserPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query IdentityUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeIdentityUserPermissionsLink(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query IdentityUserPermissionsLinkPrefetchQuery) First(_ctx context.Context) (*IdentityUserPermissionsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -6819,7 +7327,7 @@ type IdentityUserPermissionsLinkEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[identity.UserPermissionsLink]
 	selections       []orm.RelatedSelection[identity.UserPermissionsLink]
-	projection       relationSelectQuery[IdentityUserPermissionsLinkObject]
+	projection       relationSelectQuery[identity.UserPermissionsLink, IdentityUserPermissionsLinkObject]
 	configurationErr error
 }
 
@@ -6956,6 +7464,33 @@ func (_query IdentityUserPermissionsLinkEagerQuery) All(_ctx context.Context) ([
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query IdentityUserPermissionsLinkEagerQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLink, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedIdentityUserPermissionsLinkObject(_ctx, _object)
+}
+func (_query IdentityUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedIdentityUserPermissionsLinkObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query IdentityUserPermissionsLinkEagerQuery) First(_ctx context.Context) (*IdentityUserPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -7177,4 +7712,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_4a723e4838932fc48bb7ee0549b9bbbfaa6d87dd20d4909375c2b1faedf40742
+var _ goDjProjectSnapshot_dfcbf4b25efad0e54888f8683f9575859b67525a825f170de2bff2b7b0f1c140

@@ -47,6 +47,19 @@ type Invoker interface {
 	//
 	// GET /api/labels/{id}/
 	HelpdeskLabelDetail(ctx context.Context, params HelpdeskLabelDetailParams) (HelpdeskLabelDetailRes, error)
+	// HelpdeskLabelEnsure invokes helpdesk:label-ensure operation.
+	//
+	// Authentication, both add and view permissions, and CSRF precede parsing. Accepts the same normalized
+	// name as ordinary creation; category and id remain server-owned. Query parameters are rejected. The
+	// current assigned category is checked in the parent transaction. An exact (category, name) match
+	// returns 200 with created=false; a new label returns 201 with created=true only after the row and its
+	// single add audit event commit together. Reuse does not append an audit event. A concurrent native
+	// unique conflict is rolled back to a savepoint before one fresh lookup. Output, audit, cancellation
+	// and uncertain transaction failures do not publish a result or trigger automatic retries. Ordinary
+	// creation continues to reject duplicates.
+	//
+	// POST /api/labels/ensure/
+	HelpdeskLabelEnsure(ctx context.Context, request *LabelCreate) (HelpdeskLabelEnsureRes, error)
 	// HelpdeskLabelList invokes helpdesk:label-list operation.
 	//
 	// Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset
@@ -643,6 +656,114 @@ func (c *Client) sendHelpdeskLabelDetail(ctx context.Context, params HelpdeskLab
 	}()
 
 	result, err := decodeHelpdeskLabelDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelEnsure invokes helpdesk:label-ensure operation.
+//
+// Authentication, both add and view permissions, and CSRF precede parsing. Accepts the same normalized
+// name as ordinary creation; category and id remain server-owned. Query parameters are rejected. The
+// current assigned category is checked in the parent transaction. An exact (category, name) match
+// returns 200 with created=false; a new label returns 201 with created=true only after the row and its
+// single add audit event commit together. Reuse does not append an audit event. A concurrent native
+// unique conflict is rolled back to a savepoint before one fresh lookup. Output, audit, cancellation
+// and uncertain transaction failures do not publish a result or trigger automatic retries. Ordinary
+// creation continues to reject duplicates.
+//
+// POST /api/labels/ensure/
+func (c *Client) HelpdeskLabelEnsure(ctx context.Context, request *LabelCreate) (HelpdeskLabelEnsureRes, error) {
+	res, err := c.sendHelpdeskLabelEnsure(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelEnsure(ctx context.Context, request *LabelCreate) (res HelpdeskLabelEnsureRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/labels/ensure/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskLabelEnsureRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskLabelEnsureOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskLabelEnsureOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelEnsureOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelEnsureResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

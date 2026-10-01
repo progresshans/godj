@@ -18,7 +18,8 @@ import (
 
 const reportInlinePrefix = "reports"
 
-// AdminConfig enables the Ticket / ServiceReport inline editor. AppendAudit
+// AdminConfig enables the Ticket / ServiceReport inline editor and Label
+// collection command. AppendAudit
 // must use the supplied session and propagate every error to the caller.
 // The immutable principal and Site deny-overlay admission are retained; the
 // writer re-reads the current category, parent and children in its transaction.
@@ -26,18 +27,18 @@ type AdminConfig struct {
 	AppendAudit func(context.Context, db.Session, admin.PreparedEvent) error
 }
 
-// AdminRegistry builds an independent registration with atomic inline editing.
+// AdminRegistry builds an independent registration with atomic inline editing and label ensure.
 // It does no I/O and does not change the application's standalone registry.
 func (a *Application) AdminRegistry(config AdminConfig) (admin.Registry, error) {
 	if a == nil || nilFormReader(a.backend) || config.AppendAudit == nil {
-		return admin.Registry{}, errors.New("helpdesk: inline Admin requires application and transactional audit")
+		return admin.Registry{}, errors.New("helpdesk: Admin workflows require application and transactional audit")
 	}
 	installed, err := apps.New(InstalledApps())
 	if err != nil {
 		return admin.Registry{}, err
 	}
 	scoped := *a
-	scoped.inlineAudit = config.AppendAudit
+	scoped.adminAudit = config.AppendAudit
 	builder := admin.NewBuilder(installed)
 	if err := scoped.register(builder); err != nil {
 		return admin.Registry{}, err
@@ -53,7 +54,7 @@ func reportInlineConfig() forms.SetConfig {
 }
 
 func (a *Application) ticketAdminInlines() ([]admin.Inline, error) {
-	if a.inlineAudit == nil {
+	if a.adminAudit == nil {
 		return nil, nil
 	}
 	binding, err := project.Bind()
@@ -140,7 +141,7 @@ func (a *Application) bindAdminReports(ctx context.Context, session db.RelationS
 	if !present {
 		return adminReportSet{}, false, nil
 	}
-	if a.inlineAudit == nil {
+	if a.adminAudit == nil {
 		return adminReportSet{}, false, errors.New("helpdesk: inline audit is missing")
 	}
 	for _, right := range []struct {
@@ -234,7 +235,7 @@ func (a *Application) saveAdminReports(ctx context.Context, session db.RelationS
 			if err != nil {
 				return err
 			}
-			if err := a.inlineAudit(ctx, session, event); err != nil {
+			if err := a.adminAudit(ctx, session, event); err != nil {
 				return err
 			}
 			return nil
@@ -290,7 +291,7 @@ func (a *Application) saveAdminReports(ctx context.Context, session db.RelationS
 			if err != nil {
 				return err
 			}
-			if err = a.inlineAudit(ctx, session, event); err != nil {
+			if err = a.adminAudit(ctx, session, event); err != nil {
 				return err
 			}
 			return nil

@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/progresshans/godj/db"
@@ -38,11 +37,7 @@ func (b *Backend) ReadSnapshot(ctx context.Context, callback func(db.Queryer) er
 		return errors.Join(classifyDatabaseError(ctx, "begin read snapshot", b.schema, "", err), scope.discard(lease, err))
 	}
 	transaction := &pinnedTransaction{Lease: lease, scope: scope, ctx: ctx, readOnly: true}
-	lifetime, finish := context.WithCancelCause(ctx)
-	session := &transactionSession{transaction: transaction, backend: b, lifetime: lifetime}
-	session.active.Store(true)
-	return readscope.Run(ctx, session, callback, func() {
-		session.active.Store(false)
-		finish(sql.ErrTxDone)
-	}, func() error { return errors.Join(lease.CloseRows(), transaction.Rollback()) })
+	session := newTransactionSession(ctx, transaction, b)
+	return readscope.Run(ctx, session, callback, session.scope.Finish,
+		func() error { return errors.Join(lease.CloseRows(), transaction.Rollback()) })
 }

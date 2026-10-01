@@ -65,7 +65,10 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 
 ## JSON API
 
-`application.API(authentication)`으로 API를 한 번 조합한 뒤 `api.Routes()`를 Web 설정에 연결한다.
+`application.API(helpdesk.APIConfig{Authentication: authentication, AppendAudit: runtime.AppendAudit})`로 API를 한 번 조합한 뒤
+`api.Routes()`를 Web 설정에 연결한다. Label 확보 동작에는 transaction 안의 감사 기록이 필수다.
+`runtime`을 Application의 backend로 전달하고, `AppendAudit`는 제공된 session만 사용한다.
+이 설정이 기존 모든 CRUD 쓰기에 공통 감사를 추가하는 것은 아니다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
 문서화 profile이 없는 custom authentication도 Routes에 사용할 수 있지만 OpenAPI 구성은 명시적으로 실패한다.
 
@@ -169,6 +172,7 @@ Label은 Category별 이름 사전이다. `0018_label`은 기존 행을 보존�
 | --- | --- | --- |
 | GET `/api/labels/` | 선택 Category의 라벨 검색·페이지 조회 | ViewLabel |
 | POST `/api/labels/` | name 생성, 201 | AddLabel |
+| POST `/api/labels/ensure/` | 같은 이름을 재사용하거나 생성, 200/201 | AddLabel + ViewLabel |
 | GET `/api/labels/<id>/` | 라벨 상세 | ViewLabel |
 | PUT/PATCH `/api/labels/<id>/` | 전체/부분 이름 수정 | ChangeLabel |
 | DELETE `/api/labels/<id>/` | 라벨 삭제, body 없는 204 | DeleteLabel |
@@ -187,6 +191,26 @@ Query/driver/취소·reload 오류는 rollback하고, rollback/commit 결과가 
 Admin `/admin/labels/`는 같은 저장 경로와 개별 권한을 사용한다. Form의 name 외 입력은 거부하며 중복 시 안전하게 escape한 제출 원문을 유지한다.
 모든 unsafe 요청에는 CSRF가 필요하다. Label view 권한은 선택한 Category의 식별자를 포함하며 별도 Category Admin의 ViewCategory를 대신하지 않는다.
 OpenAPI의 `Label`, `LabelCreate`, `LabelUpdate`, `LabelPatch`, `LabelList`와 고정 ogen의 독립 client가 이 경로·페이지 범위·진단을 소비한다.
+
+Label 확보는 일반 생성과 별개의 명시적 동작이다. `/api/labels/ensure/`는 같은 name 입력을 받아
+`{"label": {"id": ..., "name": ..., "category": ...}, "created": true|false}`를 반환한다.
+새 Label과 add 감사 기록이 함께 commit된 경우에만 201/true를 반환한다. 선택 Category에 이미 같은 이름이 있으면
+그 ID와 기존 값을 200/false로 반환하고 감사 기록을 추가하지 않는다. Query parameter와 id/category 입력은 거부한다.
+다른 Category의 같은 이름은 재사용하지 않는다. 일반 `POST /api/labels/`의 중복 거부는 유지한다.
+
+`AdminRegistry`에 감사 callback을 제공하면 Label 목록에 **Find or create label** 링크가 나타난다.
+GET/POST `/admin/labels/collection/ensure/`는 모델에서 파생한 name Form을 사용하며 빈 목록에서도 실행할 수 있다.
+기존 객체의 ID나 revision을 요구하지 않는다. AddLabel·ViewLabel, Admin의 staff/site 접근과 deny overlay를 확인하며
+POST는 CSRF 검증 뒤에만 업무 transaction으로 들어간다. 일반 `Registry()`에는 이 감사 의존 동작을 등록하지 않는다.
+성공은 서명된 목록 알림으로 redirect하고 생성과 기존 객체 재사용을 구분한다. 입력 오류는 같은 Form에 안전하게 표시한다.
+
+두 표면은 같은 업무 함수를 호출한다. 요청에서 승인한 불변 principal의 두 권한과 현재 Category를 부모 transaction에서
+다시 확인하고, `(category, name)` 조회와 명시적인 생성 입력을 결합한다. `GetOrCreate`는 부모의 savepoint를 사용하며
+실제 INSERT unique 충돌을 확실히 rollback한 경우에만 한 번 다시 조회한다. Label 출력 준비와 새 객체의 감사 기록도
+부모 transaction 안에서 끝낸다. 출력·감사·취소·scope 변경의 실패는 전체를 rollback하며, 불확실한 commit/rollback은
+결과 객체나 성공 redirect를 게시하지 않는 서버 오류다. 자동 재시도하지 않는다. 확정된 commit 뒤 도착한 취소로 성공을 번복하지 않는다.
+같은 Runtime/DB coordination 규약을 따르는 요청의 직렬화와 이를 우회하는 직접 SQL은 구분한다.
+`LabelEnsureResult` schema와 독립 client는 두 성공 상태·필수 bool·기존 ID 재사용을 소비한다.
 
 TicketLabel은 `0019_ticket_label`이 추가하는 명시적 연결 모델이다. ticket/label FK는 CASCADE이고 `(ticket, label)`은
 이름 있는 고유 제약이다. Category를 복사해 저장하지 않고, 양쪽 endpoint에 서버가 배정한 Category가 모두 선택 범위인지 확인한다.

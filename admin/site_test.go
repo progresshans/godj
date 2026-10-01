@@ -380,7 +380,7 @@ func TestSiteMutationBoundaryFormsActionsAndHistoryAfterDeletion(t *testing.T) {
 	response = client.do(http.MethodPost, "/admin/articles/action/publish/", url.Values{
 		"csrfmiddlewaretoken": {token}, "selected": {"3", "1", "3"},
 	})
-	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "published", "2") {
+	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/articles/", "published", "2") {
 		t.Fatalf("action response = %d location %q body %q", response.Code, response.Header().Get("Location"), response.Body.String())
 	}
 	if got := harness.state.lastActionSelection(); !reflect.DeepEqual(got, []int64{1, 3}) {
@@ -390,7 +390,7 @@ func TestSiteMutationBoundaryFormsActionsAndHistoryAfterDeletion(t *testing.T) {
 	response = client.do(http.MethodPost, "/admin/articles/delete/?id=1", url.Values{
 		"csrfmiddlewaretoken": {token}, "confirm": {"yes"},
 	})
-	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "deleted", "") {
+	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/articles/", "deleted", "") {
 		t.Fatalf("delete response = %d location %q body %q", response.Code, response.Header().Get("Location"), response.Body.String())
 	}
 	response = client.do(http.MethodGet, "/admin/articles/change/?id=1", nil)
@@ -1044,9 +1044,9 @@ func siteCSRFToken(t *testing.T, body string) string {
 	return remaining[:end]
 }
 
-func siteSignedNoticeLocation(location, notice, count string) bool {
+func siteSignedNoticeLocation(location, path, notice, count string) bool {
 	parsed, err := url.Parse(location)
-	if err != nil || parsed.Path != "/admin/articles/" {
+	if err != nil || parsed.Path != path {
 		return false
 	}
 	query := parsed.Query()

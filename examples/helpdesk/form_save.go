@@ -47,7 +47,7 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 					changed = append(changed, reportInlinePrefix)
 				}
 			}
-			if a.inlineAudit != nil && (id == 0 || len(changed) > 0) {
+			if a.adminAudit != nil && (id == 0 || len(changed) > 0) {
 				action := admin.ActionChange
 				if id == 0 {
 					action = admin.ActionAdd
@@ -56,7 +56,7 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 				if err != nil {
 					return err
 				}
-				return a.inlineAudit(ctx, session, event)
+				return a.adminAudit(ctx, session, event)
 			}
 			return nil
 		}()

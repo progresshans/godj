@@ -520,6 +520,12 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("admin_inlines", func(t *testing.T) {
 		verifyHelpdeskAdminInlines(t, ctx, runtime, client)
 	})
+	t.Run("label_ensure", func(t *testing.T) {
+		verifyHelpdeskLabelEnsure(t, ctx, runtime, client)
+		t.Run("concurrent_requests", func(t *testing.T) {
+			verifyHelpdeskLabelEnsureConcurrentRequests(t, ctx, runtime, open, after.PasswordHasher, client)
+		})
+	})
 	t.Run("ticket_editor", func(t *testing.T) {
 		verifyHelpdeskTicketEditor(t, ctx, runtime, open, client, after)
 	})
@@ -688,20 +694,20 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	adapter, err := application.API(apiAuth)
-	if err != nil {
-		t.Fatal(err)
-	}
-	document, err := adapter.OpenAPI()
-	if err != nil {
-		t.Fatal(err)
-	}
 	appendAudit := runtime.AppendAudit
 	if len(editorAudit) > 1 {
 		t.Fatal("multiple editor audit callbacks")
 	}
 	if len(editorAudit) == 1 {
 		appendAudit = editorAudit[0]
+	}
+	adapter, err := application.API(helpdesk.APIConfig{Authentication: apiAuth, AppendAudit: appendAudit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := adapter.OpenAPI()
+	if err != nil {
+		t.Fatal(err)
 	}
 	editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{Auth: webAuth, AppendAudit: appendAudit})
 	if err != nil {

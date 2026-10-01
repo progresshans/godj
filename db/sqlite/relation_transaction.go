@@ -12,6 +12,7 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
 
@@ -301,26 +302,19 @@ func executeAdmittedAtomicRelation(
 		return errors.Join(primary, discardErr)
 	}
 
-	lifetime, finishLifetime := context.WithCancelCause(ctx)
-	defer finishLifetime(sql.ErrTxDone)
-	session := &relationSession{
-		connection: connection,
-		queryCount: queryCount,
-		lifetime:   lifetime,
-		active:     true,
-	}
+	session := newRelationSession(ctx, connection, queryCount)
 	deferredCleanup := true
 	defer func() {
 		// Both panic and runtime.Goexit run defers. Neither may leave the
 		// raw transaction or its pinned connection behind.
 		if deferredCleanup {
-			session.deactivate()
+			_ = session.scope.Finish()
 			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
 	}()
 
-	callbackErr := callback(session)
-	mutationPossible := session.deactivate()
+	callbackErr := session.scope.FinishCallback(callback(session))
+	mutationPossible := session.state.mutationPossible.Load()
 	if callbackErr != nil {
 		deferredCleanup = false
 		return finishRelationPreCommitFailure(ctx, connection, admission, callbackErr, mutationPossible)
@@ -432,186 +426,177 @@ func closeUnusedRelationConnection(connection *sql.Conn) error {
 	return nil
 }
 
-type relationSession struct {
-	mu               sync.Mutex
+// relationTransactionState is shared by every nested handle. A child mutation
+// remains relevant to uncertain root termination, even after its own rollback.
+type relationTransactionState struct {
 	connection       relationPinnedConnection
 	queryCount       *atomic.Uint64
-	lifetime         context.Context
-	active           bool
-	mutationPossible bool
+	mutationPossible atomic.Bool
+}
+
+type relationSession struct {
+	state *relationTransactionState
+	scope *txscope.Scope
 }
 
 var _ db.SessionValidator = (*relationSession)(nil)
+var _ db.Savepointer = (*relationSession)(nil)
+
+func newRelationSession(ctx context.Context, connection relationPinnedConnection, queryCount *atomic.Uint64) *relationSession {
+	return &relationSession{
+		state: &relationTransactionState{connection: connection, queryCount: queryCount},
+		scope: txscope.New(ctx, func(ctx context.Context, statement string) error {
+			_, err := connection.ExecContext(ctx, statement)
+			if err != nil {
+				return fmt.Errorf("execute SQLite savepoint control: %w", err)
+			}
+			return nil
+		}),
+	}
+}
 
 func (session *relationSession) ValidateSession(ctx context.Context) error {
-	if session == nil {
-		return inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	return session.validateLocked(ctx)
+	return session.validate(ctx)
 }
 
 func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	if session == nil {
-		return nil, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return nil, err
 	}
-	statement, arguments, err := Compile(plan)
-	if err != nil {
-		return nil, err
-	}
-	if plan.EmptyResult() {
-		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
-	}
-	if session.queryCount != nil {
-		session.queryCount.Add(1)
-	}
-	rows, err := session.connection.QueryContext(ctx, statement, arguments...)
-	if err != nil {
-		return nil, fmt.Errorf("execute SQLite relation transaction query: %w", err)
-	}
-	if rows == nil {
-		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite relation query returned nil rows without an error"}
-	}
-	if owner, ok := session.connection.(interface {
-		WrapRows(db.Rows, *sql.Rows) db.Rows
-	}); ok {
-		return owner.WrapRows(rows, rows), nil
-	}
-	return rows, nil
+	return txscope.Query(session.scope, ctx, func(ctx context.Context) (db.Rows, error) {
+		statement, arguments, err := Compile(plan)
+		if err != nil {
+			return nil, err
+		}
+		if plan.EmptyResult() {
+			return queryplan.EmptyRows(ctx, plan.ResultShape())
+		}
+		if session.state.queryCount != nil {
+			session.state.queryCount.Add(1)
+		}
+		rows, err := session.state.connection.QueryContext(ctx, statement, arguments...)
+		if err != nil {
+			return nil, fmt.Errorf("execute SQLite relation transaction query: %w", err)
+		}
+		if rows == nil {
+			return nil, inactiveRelationSessionError()
+		}
+		if owner, ok := session.state.connection.(interface {
+			WrapRows(db.Rows, *sql.Rows) db.Rows
+		}); ok {
+			return owner.WrapRows(rows, rows), nil
+		}
+		return rows, nil
+	})
 }
 
 func (session *relationSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
-	if session == nil {
-		return 0, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	statement, arguments, err := CompileInsert(plan)
-	if err != nil {
-		return 0, err
-	}
-	session.mutationPossible = true
-	result, err := session.connection.ExecContext(ctx, statement, arguments...)
-	if err != nil {
-		return 0, classifySQLiteWriteError(ctx, "insert", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("read SQLite relation insert rows affected: %w", err)
-	}
-	if rowsAffected != 1 {
-		return 0, &query.Error{
-			Category: query.CategoryBackend,
-			Code:     query.CodeUnexpectedRows,
-			Detail:   fmt.Sprintf("insert affected %d rows, want 1", rowsAffected),
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		statement, arguments, err := CompileInsert(plan)
+		if err != nil {
+			return 0, err
 		}
-	}
-	lastInsertID, err := result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("read SQLite relation insert last insert id: %w", err)
-	}
-	return lastInsertID, nil
+		session.state.mutationPossible.Store(true)
+		result, err := session.state.connection.ExecContext(ctx, statement, arguments...)
+		if err != nil {
+			return 0, classifySQLiteWriteError(ctx, "insert", err)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("read SQLite relation insert rows affected: %w", err)
+		}
+		if rowsAffected != 1 {
+			return 0, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnexpectedRows,
+				Detail: fmt.Sprintf("insert affected %d rows, want 1", rowsAffected)}
+		}
+		lastInsertID, err := result.LastInsertId()
+		if err != nil {
+			return 0, fmt.Errorf("read SQLite relation insert last insert id: %w", err)
+		}
+		return lastInsertID, nil
+	})
 }
 
 func (session *relationSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
-	if session == nil {
-		return 0, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	statement, arguments, err := CompileUpdate(plan)
-	if err != nil {
-		return 0, err
-	}
-	session.mutationPossible = true
-	result, err := session.connection.ExecContext(ctx, statement, arguments...)
-	if err != nil {
-		return 0, classifySQLiteWriteError(ctx, "update", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("read SQLite relation update rows affected: %w", err)
-	}
-	return rowsAffected, nil
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		statement, arguments, err := CompileUpdate(plan)
+		if err != nil {
+			return 0, err
+		}
+		session.state.mutationPossible.Store(true)
+		result, err := session.state.connection.ExecContext(ctx, statement, arguments...)
+		if err != nil {
+			return 0, classifySQLiteWriteError(ctx, "update", err)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("read SQLite relation update rows affected: %w", err)
+		}
+		return rowsAffected, nil
+	})
 }
 
 func (session *relationSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
-	if session == nil {
-		return 0, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	statement, arguments, err := CompileDelete(plan)
-	if err != nil {
-		return 0, err
-	}
-	session.mutationPossible = true
-	result, err := session.connection.ExecContext(ctx, statement, arguments...)
-	if err != nil {
-		return 0, fmt.Errorf("execute SQLite relation transaction delete: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("read SQLite relation delete rows affected: %w", err)
-	}
-	return rowsAffected, nil
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		statement, arguments, err := CompileDelete(plan)
+		if err != nil {
+			return 0, err
+		}
+		session.state.mutationPossible.Store(true)
+		result, err := session.state.connection.ExecContext(ctx, statement, arguments...)
+		if err != nil {
+			return 0, fmt.Errorf("execute SQLite relation transaction delete: %w", err)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("read SQLite relation delete rows affected: %w", err)
+		}
+		return rowsAffected, nil
+	})
 }
 
 func (session *relationSession) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64, error) {
-	if session == nil {
-		return 0, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	statement, arguments, err := compileRelationSetNull(plan)
-	if err != nil {
-		return 0, err
-	}
-	session.mutationPossible = true
-	return executeCompiledRelationSetNull(ctx, session.connection, statement, arguments)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		statement, arguments, err := compileRelationSetNull(plan)
+		if err != nil {
+			return 0, err
+		}
+		session.state.mutationPossible.Store(true)
+		return executeCompiledRelationSetNull(ctx, session.state.connection, statement, arguments)
+	})
 }
 
-func (session *relationSession) validateLocked(ctx context.Context) error {
-	if session == nil || session.connection == nil || session.lifetime == nil || !session.active {
+func (session *relationSession) validate(ctx context.Context) error {
+	if session == nil || session.state == nil || session.state.connection == nil || session.scope == nil {
 		return inactiveRelationSessionError()
 	}
-	if ctx == nil {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return context.Cause(session.lifetime)
+	return session.scope.Validate(ctx)
 }
 
 func inactiveRelationSessionError() error {
 	return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite relation transaction session is nil or no longer active"}
 }
 
-func (session *relationSession) deactivate() bool {
-	if session == nil {
-		return false
+func (session *relationSession) Savepoint(ctx context.Context, callback func(db.Session) error) error {
+	if err := session.validate(ctx); err != nil {
+		return err
 	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	session.active = false
-	return session.mutationPossible
+	if callback == nil {
+		return session.scope.Savepoint(ctx, nil)
+	}
+	return session.scope.Savepoint(ctx, func(child *txscope.Scope) error {
+		return callback(&relationSession{state: session.state, scope: child})
+	})
 }

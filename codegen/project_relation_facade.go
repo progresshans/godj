@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -487,6 +487,20 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn orm.AggregateInto(_ctx, _source.query, _aggregate)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Get(_ctx context.Context) (*%s, error) {\n", model.queryType, model.surface)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil { return nil, _err }")
+	fmt.Fprintf(output, "\t_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.%s)\n", model.surface)
+	fmt.Fprintln(output, "\tif _err != nil { return nil, _err }")
+	fmt.Fprintf(output, "\treturn _query.state.materialize%s(_ctx, _value)\n", model.surface)
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, `func (_query %[1]s) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[2]s])(*%[3]s,bool,error){
+ if _err:=_query.validate();_err!=nil{return nil,false,_err}
+ _value,_created,_err:=orm.MaterializeGetOrCreate(_ctx,_query.query,_query.state.models.%[3]s,_input);if _err!=nil{return nil,false,_err}
+ if _created{_ctx=context.WithoutCancel(_ctx)}
+ _wrapped,_err:=_query.state.materialize%[3]s(_ctx,_value);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
+}
+`, model.queryType, rawType, model.surface)
 	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", model.queryType, model.surface)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, false, _err")
@@ -1300,7 +1314,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
  state *relationFacadeState
  source orm.QuerySet[%[2]s]
  selections []orm.RelatedSelection[%[2]s]
- projection relationSelectQuery[%[3]s]
+ projection relationSelectQuery[%[2]s,%[3]s]
  configurationErr error
 }
 func (_state *relationFacadeState) new%[4]sEagerQuery(_source orm.QuerySet[%[2]s],_selections []orm.RelatedSelection[%[2]s])%[1]s{
@@ -1350,6 +1364,16 @@ func (_query %[1]s) validate()error{
  _objects,_err:=_query.projection.All(_ctx);if _err!=nil{return nil,_err}
  _results:=make([]*%[2]s,len(_objects));for _index,_object:=range _objects{_results[_index],_err=_query.state.wrapSelected%[2]sObject(_ctx,_object);if _err!=nil{return nil,_err}};if _err:=_ctx.Err();_err!=nil{return nil,_err};return _results,nil
 }
+func (_query %[1]s) Get(_ctx context.Context)(*%[2]s,error){
+ if _err:=_query.validate();_err!=nil{return nil,_err}
+ _object,_err:=_query.projection.Get(_ctx);if _err!=nil{return nil,_err};return _query.state.wrapSelected%[2]sObject(_ctx,_object)
+}
+func (_query %[1]s) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[4]s])(*%[2]s,bool,error){
+ if _err:=_query.validate();_err!=nil{return nil,false,_err}
+ _object,_created,_err:=_query.projection.GetOrCreate(_ctx,_input);if _err!=nil{return nil,_created,_err}
+ if _created{_ctx=context.WithoutCancel(_ctx)}
+ _wrapped,_err:=_query.state.wrapSelected%[2]sObject(_ctx,_object);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
+}
 func (_query %[1]s) First(_ctx context.Context)(*%[2]s,bool,error){
  if _err:=_query.validate();_err!=nil{return nil,false,_err}
  _object,_found,_err:=_query.projection.First(_ctx);if _err!=nil||!_found{return nil,false,_err};_wrapped,_err:=_query.state.wrapSelected%[2]sObject(_ctx,_object);return _wrapped,_err==nil,_err
@@ -1361,7 +1385,7 @@ func (_query %[1]s) Count(_ctx context.Context)(int64,error){
 func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,_object *%[3]s)(*%[2]s,error){
  _wrapped,_err:=_state.wrap%[2]sObject(_object);if _err!=nil{return nil,_err}
  if _object._selectedGraph==nil{return nil,relationFacadeQueryInvalid("selected object has no graph")}
-`, eagerType, model.surface, model.source.objectType)
+`, eagerType, model.surface, model.source.objectType, rawType)
 	renderProjectFacadePrefetchedCollections(output, model, "_object._selectedGraph")
 	for _, relation := range model.source.selections {
 		fmt.Fprintf(output, "if _has,_err:=_object._selectedGraph.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.path))

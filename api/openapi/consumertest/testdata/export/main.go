@@ -10,10 +10,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/bearerauth"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/helpdesk"
@@ -102,7 +104,9 @@ func documents(ctx context.Context) (files []schemaFile, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("construct Helpdesk application: %w", err)
 	}
-	adapter, err := application.API(session)
+	adapter, err := application.API(helpdesk.APIConfig{Authentication: session, AppendAudit: func(context.Context, db.Session, admin.PreparedEvent) error {
+		return errors.New("schema export cannot append audit")
+	}})
 	if err != nil {
 		return nil, fmt.Errorf("construct Helpdesk API: %w", err)
 	}

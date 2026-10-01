@@ -13,13 +13,17 @@ BinaryField와 공통 편집 가능 여부의 입력 정책을 DB/history·생�
 source의 Hosted full 통합까지 완료했다. SlugField·일반 DBIndex·Article 주소는
 [GDJ-0105](../../work/0105-slug-fields-and-indexed-article-addresses.md)에서 완료했다.
 
-단건 조회·savepoint·조회 후 생성과 Helpdesk Label 확보 흐름은 별도 작업 사본에서 구현 중이다.
-[검토 중인 설계](../adr/0086-single-object-creation-and-savepoint-ownership.md)와 독립 Django 관찰을 기준으로 한다.
+단건 조회·조회 후 생성과 Helpdesk Label 확보 흐름을 별도 작업 사본에 구현했다.
+Savepoint의 양 DB 구현과 중첩 session·cursor·실패 경계의 영향 검증을 완료했다.
+`Get`·`GetOrCreate`의 metadata snapshot·지연 입력·unique 복구와 일반/eager/prefetch 생성 소비자를 연결했다.
+고정 Django 기준 fixture와 별도 생성 Go module의 실제 양 DB 대조도 완료했다.
+Helpdesk의 Form/Admin/API·독립 client와 원자 audit를 연결하고 영향 세 mode·양 DB 및 실제 브라우저를 확인했다.
+[채택한 의미](../adr/0086-single-object-creation-and-savepoint-ownership.md)를 따른다.
 위 Binary 검증 source에는 이 새 제품 변경을 포함하지 않는다.
 
 ## 다음 행동
 
-단건 조회의 cache·cardinality와 중첩 session의 자원·실패 경계를 구현하고, 현재 권한과 Label 확보·audit를 연결한다.
+GDJ-0107의 최종 source를 고정하고 transaction 기반 변경의 Hosted 전체 통합과 전달 기록을 완성한다.
 남은 codec 특성/storage provider·custom user model·인증/mail provider와 다른 카탈로그 기능도 의존 순서에 따라 이어간다.
 현재 외부 입력이 필요한 blocker는 없다. 새 변경의 환경별 검증은 [검증 문서](../TESTING.md)를 따른다.
 

@@ -45,7 +45,7 @@ func TestForwardSelectCountPreservesSourceAndOnlyReusesCompleteEagerCache(t *tes
 		t.Fatalf("warm Count = %d, %v; queries=%d", got, err, backend.callCount())
 	}
 	// An independently evaluated ordinary source is not this eager snapshot.
-	source := newQuerySet[relationObjectTestPost](backend, eager.sourceDescriptor, before.WithoutRelationProjections())
+	source := newQuerySet[relationObjectTestPost](backend, eager.sourceDescriptor, before.WithoutRelationProjections(), eager.prepared)
 	if _, err := source.evaluation.evaluate(ctx, func(context.Context) ([]relationObjectTestPost, error) {
 		return []relationObjectTestPost{{ID: 1}}, nil
 	}); err != nil {

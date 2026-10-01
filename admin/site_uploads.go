@@ -27,7 +27,7 @@ func multipartRequest(request *web.Request) bool {
 // Before allocating upload resources, inspect admission without touching idle
 // expiry or cleaning up a stale session. CSRF and final authorization still run
 // after parsing; this early check is not authority to save anything.
-func (site *Site) admitMultipart(request *web.Request, permission auth.Permission) (web.Response, bool, error) {
+func (site *Site) admitMultipart(request *web.Request, permission auth.Permission, additional ...auth.Permission) (web.Response, bool, error) {
 	if !multipartRequest(request) {
 		return web.Response{}, false, nil
 	}
@@ -37,6 +37,15 @@ func (site *Site) admitMultipart(request *web.Request, permission auth.Permissio
 	}
 	admitted := false
 	response, err := site.authorizePrincipal(request, principal, permission, func() (web.Response, error) {
+		for _, required := range additional {
+			allowed, err := site.permissionGranted(request, principal, required)
+			if err != nil {
+				return operationResponse(err)
+			}
+			if !allowed {
+				return siteForbidden()
+			}
+		}
 		admitted = true
 		return web.Response{}, nil
 	})

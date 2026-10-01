@@ -160,7 +160,7 @@ func (state reverseObjectState[Owner, Source]) from(backend db.Queryer, owner Ow
 		query.Integer(identifier),
 	), nil)
 	ordering := NewAutoField[Source](state.sourcePrimaryKey).Asc()
-	querySet := newQuerySet(backend, state.sourceDescriptor, state.sourcePlan).
+	querySet := newQuerySet(backend, state.sourceDescriptor, state.sourcePlan, state.source.prepared).
 		Filter(predicate).
 		OrderBy(ordering)
 	if querySet.configurationErr != nil {
@@ -224,7 +224,7 @@ func (s *RelatedSet[M]) Fresh() (*RelatedSet[M], error) {
 	if err != nil {
 		return nil, err
 	}
-	return newRelatedSet(newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan)), nil
+	return newRelatedSet(newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan, snapshot.prepared)), nil
 }
 
 // Query holds the current immutable query configuration and cache snapshot.
@@ -252,7 +252,7 @@ func (s *RelatedSet[M]) Invalidate() error {
 		return err
 	}
 	s.mu.Lock()
-	s.querySet = newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan)
+	s.querySet = newQuerySet(snapshot.backend, snapshot.descriptor, s.basePlan, snapshot.prepared)
 	s.mu.Unlock()
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
 
@@ -58,28 +59,27 @@ func (session *transactionSession) InsertOnConflict(ctx context.Context, plan qu
 	if err := session.validate(ctx); err != nil {
 		return false, err
 	}
-	statement, arguments, err := CompileConflictInsert(plan)
-	if err != nil {
-		return false, err
-	}
-	return executeConflictInsert(ctx, session.transaction, statement, arguments)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (bool, error) {
+		statement, arguments, err := CompileConflictInsert(plan)
+		if err != nil {
+			return false, err
+		}
+		return executeConflictInsert(ctx, session.transaction, statement, arguments)
+	})
 }
 
 func (session *relationSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
-	if session == nil {
-		return false, inactiveRelationSessionError()
-	}
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if err := session.validateLocked(ctx); err != nil {
+	if err := session.validate(ctx); err != nil {
 		return false, err
 	}
-	statement, arguments, err := CompileConflictInsert(plan)
-	if err != nil {
-		return false, err
-	}
-	session.mutationPossible = true
-	return executeConflictInsert(ctx, session.connection, statement, arguments)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (bool, error) {
+		statement, arguments, err := CompileConflictInsert(plan)
+		if err != nil {
+			return false, err
+		}
+		session.state.mutationPossible.Store(true)
+		return executeConflictInsert(ctx, session.state.connection, statement, arguments)
+	})
 }
 
 func (session *writeSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {

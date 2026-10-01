@@ -198,6 +198,19 @@ func (_query %[1]sPrefetchQuery) validate(_ctx context.Context) error {
  for _index,_value:=range _values{_result[_index],_err=_query.state.materialize%[1]s(_ctx,_value);if _err!=nil{return nil,_err}}
  if _err:=relationFacadeContext(_ctx);_err!=nil{return nil,_err};if _err:=_query.state.validate();_err!=nil{return nil,_err};return _result,nil
 }
+func (_query %[1]sPrefetchQuery) Get(_ctx context.Context)(*%[1]s,error){
+ if _err:=_query.validate(_ctx);_err!=nil{return nil,_err}
+ _value,_err:=_query.prefetch.Get(_ctx);if _err!=nil{return nil,_err}
+ _result,_err:=_query.state.materialize%[1]s(_ctx,_value);if _err!=nil{return nil,_err}
+ if _err:=relationFacadeContext(_ctx);_err!=nil{return nil,_err};if _err:=_query.state.validate();_err!=nil{return nil,_err};return _result,nil
+}
+func (_query %[1]sPrefetchQuery) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[2]s])(*%[1]s,bool,error){
+ if _err:=_query.validate(_ctx);_err!=nil{return nil,false,_err}
+ _value,_created,_err:=_query.prefetch.GetOrCreate(_ctx,_input);if _err!=nil{return nil,false,_err}
+ if _created{_ctx=context.WithoutCancel(_ctx)}
+ _result,_err:=_query.state.materialize%[1]s(_ctx,_value);if _err!=nil{return nil,_created,_err}
+ if _err:=relationFacadeContext(_ctx);_err!=nil{return nil,_created,_err};if _err:=_query.state.validate();_err!=nil{return nil,_created,_err};return _result,_created,nil
+}
 func (_query %[1]sPrefetchQuery) First(_ctx context.Context)(*%[1]s,bool,error){
  if _err:=_query.validate(_ctx);_err!=nil{return nil,false,_err}
  _value,_present,_err:=_query.prefetch.First(_ctx);if _err!=nil||!_present{return nil,false,_err}
@@ -207,7 +220,7 @@ func (_query %[1]sPrefetchQuery) First(_ctx context.Context)(*%[1]s,bool,error){
 func (_query %[1]sPrefetchQuery) Count(_ctx context.Context)(int64,error){
  if _err:=_query.validate(_ctx);_err!=nil{return 0,_err};return _query.prefetch.Count(_ctx)
 }
-`, surface)
+`, surface, raw)
 	renderProjectFacadeStream(output, model, surface+"PrefetchQuery", "_query.prefetch.IterateBatches(_ctx, _size, _yield)", "_query.validate(_ctx)")
 
 	if model.source != nil {

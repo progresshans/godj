@@ -50,6 +50,14 @@ func assertLabelContracts(t *testing.T, document helpdeskDocument) {
 			t.Fatal("Label operation does not own its request/response schema", entry)
 		}
 	}
+	ensure := document.Paths["/api/labels/ensure/"]["post"]
+	if ensure.Permission != string(helpdesk.AddLabel) || !slices.Equal(ensure.AdditionalPermissions, []string{string(helpdesk.ViewLabel)}) || ensure.RequestBody == nil || !ensure.RequestBody.Required || ensure.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelCreate" || ensure.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelEnsureResult" || ensure.Responses["201"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelEnsureResult" {
+		t.Fatal("label ensure lost required permissions or distinct creation/reuse responses")
+	}
+	result := document.Components.Schemas["LabelEnsureResult"]
+	if !slices.Equal(result.Required, []string{"label", "created"}) || len(result.Properties) != 2 || result.AdditionalProperties || result.Properties["label"].Ref != "#/components/schemas/Label" || result.Properties["created"].Type != "boolean" {
+		t.Fatal("label ensure result lost its required object or creation discriminator")
+	}
 }
 
 func verifyHistoricalLabelLifecycle(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, ticketID, categoryID int64) {

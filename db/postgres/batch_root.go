@@ -271,5 +271,5 @@ func (scope *rootBatchScope) queryBatches(ctx context.Context, plan query.Plan, 
 		}
 		return batchread.Stream(ctx, scope, rows, size, scan, consume, scope.validateStream)
 	}
-	return queryCursorBatches(ctx, lease, scope.backend.schema, scope, scope.validateStream, plan, statement, arguments, size, scan, consume, true, func(err error) error { return scope.discard(lease, err) })
+	return queryCursorBatches(ctx, lease, scope.backend.schema, scope, scope.validateStream, plan, statement, arguments, size, scan, consume, true, func(err error) error { return scope.discard(lease, err) }, nil)
 }

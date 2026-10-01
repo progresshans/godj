@@ -3,6 +3,205 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0107 — 단건 조회와 savepoint 기반 조회 후 생성
+
+### Helpdesk Label 확보와 입력 표면의 영향 검증
+
+2026-10-01, Label의 명시적 확보를 Admin 목록 Form과 API에 연결했다. 새 행과 add event를 같은 부모 transaction에
+저장하고, 기존 행 재사용에는 event를 추가하지 않는다. 실제 unique 실패는 child savepoint의 rollback 뒤 한 번의
+fresh 조회로 복구한다. 일반 create의 중복 거부는 유지한다. API와 감사 의존 Admin registry는 필수 audit callback을
+명시적으로 받는다. [입력/출력 계약](../../examples/helpdesk/README.md)과 [ADR-0086](../adr/0086-single-object-creation-and-savepoint-ownership.md)을 따른다.
+
+검증 source는 parent `521e43ecf3845a761a2e5e04b16b8550938a29da` 기준 비Markdown 2,950 files,
+inventory SHA-256 `d9fd88504a02e2e9423236e146e4e5da2a68d6d3dfd5f1b472ec6aa8e348e341`이다.
+Go 1.26.5/darwin/arm64, 실제 SQLite와 임시 PostgreSQL 17.10 Debian/UTF8/libc/C/C에서 실행했다.
+공유 build cache·offline/readonly module·`-count=1`을 유지했으며 아래 네 package 전체를 각 mode로 실행했다.
+
+| mode | Admin | Helpdesk 양 DB | OpenAPI | 독립 client 부모 | skip | checkpoint 시간 |
+|---|---:|---:|---:|---:|---:|---:|
+| normal | 361 | 488 | 138 | 10 | 0 | 40.116s |
+| race | 361 | 488 | 138 | 10 | 0 | 244.173s |
+| CGO=0 | 361 | 488 | 138 | 10 | 0 | 46.737s |
+
+숫자는 중첩 test를 포함한 run/pass 일대일 대응이다. 각 mode는 총 997개이며, 자식 process 내부 수를 부모 수에 합산하지 않는다.
+새 업무 흐름은 두 DB 각각 API/Admin의 29개 대조와 독립 Runtime의 동시 요청을 필수 경로로 요구했다.
+생성·재사용·외부 Category의 같은 이름, 실제 native unique 오류/rollback/재조회, 현재 Category 제거와 Label scope 변경,
+query/INSERT/reload/출력/audit 실패·취소, commit/rollback unknown, 부모 callback 누락/반복/동시 진입/늦은 호출/오류 은폐,
+개별 권한·CSRF·중복/위조/길이/빈 입력과 일반 create의 중복 거부를 확인했다. Unknown outcome의 앱 대조는 fault adapter가
+native owner의 실제 성공/rollback 뒤 오류를 반환하는 검사다. Native 제어문 실패 자체의 증거는 아래 savepoint checkpoint가 소유한다.
+
+동시 HTTP 요청은 서로 다른 Runtime과 DB 연결을 사용했다. 선행 요청을 실제 audit INSERT 후 commit 전에 유지하고,
+후행 요청의 DB coordination 진입을 관찰했다. 별도 연결에서 uncommitted Label이 보이지 않는지 확인한 뒤 해제했다.
+두 결과의 ID, created=true/false, 최종 한 행과 한 audit가 같았다. 이 검사는 업무/인가 coordination 경계이며,
+두 INSERT가 직접 경쟁하는 native lock 관찰은 아래 별도 ORM 기준 소비자의 증거와 구분한다.
+
+고정 ogen으로 현재 Helpdesk 문서와 generated client를 갱신했다. 다른 다섯 문서와 dependency lock은 그대로다.
+`HelpdeskLabelEnsureCreated`/`HelpdeskLabelEnsureOK`, 필수 label/created, 큰 int64, 누락/null/잘못된 bool과 고정 500의
+단일 전송을 독립 module에서 검사했다. 실제 HTTP는 생성·반복·일반 중복·권한·CSRF를 호출하고, 부모가 DB의 Label과 최초
+add event 하나를 별도로 조회한다. Generated drift와 필수 receipt·출력 잘림 거부도 세 mode에서 실행했다.
+Helpdesk schema SHA-256은 `d7672cc8768584db545a74e2f0fad0d07982b2ab11d7bdb14230118f38ee556a`다.
+
+Receipt는 `godj-label-ensure-checkpoint-0afy2v6i/receipt.json`, SHA-256
+`e33517eb92713519740f6f955e4bb33fecfdaa8589ec90a64cf0d85d02665c60`이다. 같은 디렉터리의 `final-audit.json`
+(`a34c93620d7d7a5e6d0945e262ac2c01a0435266c2cb8cf54f01c15d53a367f4`)이 세 log hash와 모든 시작/종료,
+실행 전후 source 일치, 영향 vet·gofmt·diff를 확인한다. 임시 PostgreSQL container 제거와 부재도 확인했다.
+첫 `z8h8ck7b` 실행은 다른 인증 인스턴스의 CSRF token을 재사용한 새 테스트와 특정 경로에 고정된 Form/notice 도우미가
+실패했다. 각 Site의 실제 safe 응답에서 token을 얻고 기대 action/list 경로를 명시하도록 고쳤다. 제품의 CSRF/권한 검사는 완화하지 않았다.
+
+같은 제품 source를 import하는 별도 임시 public consumer를 실제 Codex in-app browser에서 확인했다.
+로그인·빈 목록의 command 링크·name/CSRF만 있는 Form·공백 정리 생성·같은 ID 재사용·HTML 문자 표시·일반 create 중복 오류·
+빈 입력 재표시를 관찰했다. 종료 후 실제 SQLite에서 Label 하나와 최초 add event 하나를 읽고 서버/DB/탭을 정리했다.
+Browser receipt는 `godj-label-ensure-browser-n5j406x9/receipt.json`, SHA-256
+`e2f5bbb788e46e1bb1532e2f72f4b8f5f0c3452c871446452bb210103dc0c440`이다. 이는 한 브라우저의 기능/렌더링 확인이며
+브라우저/platform 전체 검증이 아니다. 이 checkpoint는 위 네 package의 현재 영향 범위이며 최종 source의 Hosted 전체 통합은 남아 있다.
+
+### 최종 Django 기준과 Go의 양 DB 대조
+
+2026-10-01, [독립 observer](../../conformance/runners/django/single_object_reference.py)를 고정 Python 3.14.3/
+Django 6.1, PostgreSQL에서는 psycopg 3.3.6으로 실행했다. SQLite와 PostgreSQL 17.10 Debian/UTF8/libc/C/C
+각각 새 프로세스 두 번의 결과가 byte-identical이었다. Observer는 Go 결과나 예상 fixture를 읽지 않으며
+queryset/transaction 모듈과 자신의 source hash를 출력에 포함한다.
+
+- Observer SHA-256: `ff7785c3a378e27fb4df460ac75ee1b8396cffa1afadf161b3b0fe51915e6112`.
+- SQLite fixture: `8fcb29699552f809761ee8e31cbe8a5ee2a2d22db47788afbd87f0cd30e3ec02`, 6,308 bytes.
+- PostgreSQL fixture: `d3a0887b4dcbc15fd38b611bf65ab91322be3fd1164a74bc499fa8998cdd524f`, 6,312 bytes.
+- Native receipt: `godj-single-object-reference-pzr1saou/receipt.json`, SHA-256
+  `b769fe8dd147452125e14e829405dd4ee963a4934b7478c9008468d9bd54da31`.
+  DB 잔여 table/다른 session `0|0`, DB 제거와 container 부재를 확인했다.
+
+관찰은 Get 11개·생성/중첩 transaction 9개와 실제 unique 경쟁 하나다.
+fixture를 읽는 별도 생성 Go module은 각각의 결과·cache·factory·오류 범주·transaction 효과와 최종 저장 행을 비교한다.
+Python 문구/SQL 자체의 호환으로 확대하지 않으며, native 진단과 Go의 DB port 기록의 차이는 [SOURCES](../SOURCES.md)에 명시했다.
+관계/eager/cache 소비자의 경쟁 검사를 이 기준 소비자로 옮겨 중복 실행을 줄였다. 두 연결의 실제 초기 부재,
+factory/INSERT 각 한 번, precommit 비가시성, PostgreSQL에서 두 connection의 실제 lock 대기,
+native unique 실패·확인된 rollback·한 번의 조회·동일 PK·최종 한 행의 대조는 그대로 유지했다.
+반환 순서를 성공 bool로 재정렬하지 않고 실제 leader/follower 역할별 결과를 비교한다.
+
+Go checkpoint source는 parent `521e43ecf3845a761a2e5e04b16b8550938a29da` 기준 비Markdown 2,944 files,
+inventory `bcb2d777d2b462c4bbc29ac411099ab36fd6e60fd0d2d51df1e36081c9c7e543`이다.
+이번 변경은 observer/fixture/생성 소비자이며 제품 ORM/backend/renderer의 재실행을 같은 source의 전체 PASS로 표시하지 않는다.
+`TestGeneratedSingleObjectReference`와 수정한 `TestGeneratedSingleObjectCreation`을 normal/race/CGO=0 각각 실행했다.
+각 mode의 parent 2 run/pass, skip 0이며 실제 양 DB 자식의 필수 44개/35개 경로와 출력 완결성을 확인했다.
+Normal 7.374s, race 22.400s, CGO=0 3.882s다. 부모 Go는 source 경로를 보존하고 자식 module만 `-trimpath`와
+부모 race/CGO 설정, offline/shared cache·`-count=1`을 사용했다.
+
+Receipt는 `godj-single-object-reference-checkpoint-h667o8i6/receipt.json`, SHA-256
+`8622d543bdc695b39f3aa06fdbe735d7d9ab3aee3abf6f5f1f5a5cabe8644b14`다.
+`final-audit.json`은 시작/종료의 일대일 대응·log hash·source 동일성과 gofmt·영향 vet를 확인한다.
+임시 PostgreSQL container의 제거·부재를 확인했다. 최초 `i9pyfpu9`는 새 fixture가 `CategoryID` 대신 `Category`를
+Go FK 이름으로 선언하여 생성 단계에서 거부된 실패다. 선언을 고쳤으며 생성기의 검사를 약화하지 않았다.
+
+### 단건 조회·생성과 생성 소비자의 영향 검증
+
+2026-10-01, `Get`·`GetOrCreate`를 generic QuerySet, eager/prefetch query와 생성된 model facade에 연결했다.
+원 Manager/BoundModel의 metadata snapshot, 독립 fresh 평가, 지연 입력과 transaction/savepoint 소유권을 함께 구현했다.
+검증 source는 parent `521e43ecf3845a761a2e5e04b16b8550938a29da` 기준 작업 사본의 비Markdown 2,939 files이며,
+inventory SHA-256은 `1a38ab7cc0c8cf9b14cb46a7567901ec126d191d58d333fe82c1e47a6f21d90a`다.
+실행 전후 동일한 파일 집합과 bytes, 종료 뒤 log hash와 모든 시작/종료의 일대일 대응을 확인했다.
+
+Go 1.26.5/darwin/arm64, 실제 SQLite와 임시 PostgreSQL 17.10 Debian/UTF8/libc/C/C, `LC_ALL=C`·`TZ=UTC`를 사용했다.
+공유 Go cache·offline module·readonly와 부모 source 경로를 유지하고, 별도 generated module의 자식 Go에는
+`-trimpath`와 부모 race/CGO mode를 적용했다. `go test -json -count=1 -timeout=12m`으로 실행했다.
+
+| mode | orm/query/codegen 전체 unit | 선택한 생성 소비자 parent | skip |
+|---|---|---|---|
+| normal | 1,291 run/pass | 3 run/pass | 0 |
+| race | 1,291 run/pass | 3 run/pass | 0 |
+| CGO=0 | 1,291 run/pass | 3 run/pass | 0 |
+
+생성 소비자는 `TestGeneratedSingleObjectCreation`, `TestGeneratedCustomSinglePrefetch`,
+`TestGeneratedMaterializedStream`을 실행했다. Parent의 세 PASS를 자식 test 수로 부풀리지 않는다.
+자식 출력의 실패·skip·잘림을 거부하고, 새 단건 생성 소비자의 38개 필수 경로와 기존 두 소비자의 필수 경로를
+각각 한 번씩 성공했는지 검사한다. 모두 실제 양 DB를 사용하며 PostgreSQL 생략을 허용하지 않았다.
+
+새 소비자는 typed/dynamic Get의 같은 AST, 0/1/여러 행·21행 한도·명시한 정렬/슬라이스·빈 조건,
+warm cache 보존·nullable 값과 graph 복사, 일반/eager/prefetch·조합 조회의 기존 객체와 새 객체를 검사했다.
+Borrowed session은 일반/조정/관계/조정 관계의 네 owner 각각에서 commit과 rollback을 실행했다.
+관련 없는 unique 오류 뒤 부모의 전후 쓰기가 보존되는지, child RELEASE 뒤 parent rollback이 생성도 취소하는지,
+생성 객체의 조회/저장/관계 접근이 부모에 연결되고 종료 뒤 warm cache도 만료되는지 확인했다.
+Root batch의 callback context가 같은 pinned connection의 생성으로 이어지는 경계도 검사했다.
+
+실제 두 연결이 모두 첫 조회에서 부재를 보고 factory를 각각 한 번 호출하도록 동기화했다.
+선행 INSERT를 commit 전에 유지하고 독립 reader의 비가시성을 확인한 뒤 경쟁 INSERT를 진행했다.
+PostgreSQL은 `pg_blocking_pids`로 해당 두 connection의 실제 lock 대기까지 확인했다.
+SQLite는 생성 시도의 겹침과 실제 native unique 오류를 확인했으며 lock 대기를 직접 관찰했다는 주장은 아니다.
+한 호출은 created=true, 다른 호출은 확인된 rollback 뒤 한 번의 fresh Get으로 created=false를 반환했고,
+두 결과의 PK와 최종 단일 행이 같았다. 추가 INSERT·factory 재평가는 없었다.
+
+단위 실패 대조는 하위 조회의 가짜 부재 오류·Close 실패·다중 결과, 입력이 만든 unique 오류,
+비unique 오류·취소·rollback-required·unknown commit/rollback·quarantine·추가 cleanup 오류의 복구 거부를 포함한다.
+0회/복수/늦은 callback과 삼킨 오류를 거부하며, join하지 않은 늦은 builder 뒤 Insert가 없는지 race로 검사했다.
+확인된 root commit 직후 호출 context가 취소되는 raw 단위 대조와 양 DB의 세 생성 facade에서,
+생성 성공을 취소 오류로 바꾸지 않았다.
+
+최종 receipt는 `godj-single-object-checkpoint-xgtva_by/receipt.json`, SHA-256은
+`c5839eaa40857de6a018590728ff38230b239ba8d96c79370653fa4dc64ba758`이다.
+같은 디렉터리의 `final-audit.json`에 여섯 log의 hash·package 완료·source inventory를 대조했다.
+임시 container의 제거와 부재를 확인했다. 생성 source·golden과 일곱 project bundle을 갱신했으며,
+최종 gofmt·generated drift·영향 vet 결과는 `godj-single-object-static-dtevw3bd/receipt.json`에 기록한다.
+
+중간 실패도 보존했다. `19r3bldj`는 부모 test에 잘못 적용한 `-trimpath`로 source 경로를 찾지 못했고,
+`m166s_do`는 새 fixture의 AddKeys 인자를 slice로 고쳤으며, `bksre4i2`는 borrowed facade의 생성자를
+`UsingSession`으로 고쳤다. 생성자의 수명 검사를 약화하지 않았다. `k2_ng0ew`의 세 mode 성공 뒤 최종 gofmt를 적용하고
+위 최종 source에서 전체 선택 범위를 다시 실행했다. 그 재실행 준비 중 `1w44b6qw`는 PostgreSQL 임시 초기화 server를
+ready로 잘못 판단해 test에 진입하지 못했다. 최종 TCP listener를 확인하도록 준비 절차를 고쳐 최종 실행을 완료했다.
+이 환경/fixture 실패와 이전 source의 결과를 최종 PASS에 합산하지 않았다.
+
+### Savepoint 기반의 구현과 영향 검증
+
+2026-10-01, [활성 작업](../../work/0107-single-object-creation-and-savepoints.md)의 savepoint 기반을 구현했다.
+`db.WithSavepoint`·공통 borrowed scope와 양 native backend의 일반/조정/관계 transaction, root batch의 pinned
+transaction 및 read snapshot의 수명 경계를 연결했다. [ADR-0086](../adr/0086-single-object-creation-and-savepoint-ownership.md)의
+savepoint 기반을 검증한 중간 source이며, 그 결과를 후속 ORM/생성 source의 검증으로 전이하지 않는다.
+
+검증 source는 parent `521e43ecf3845a761a2e5e04b16b8550938a29da` 기준의 별도 작업 사본이다.
+비Markdown 2,933 files의 inventory SHA-256은
+`a02554d5ed7e16aeaf2071cd8a2af4d8e63d71562fa8d65f2a2a394db4c2ac88`이며 실행 전후 byte가 같음을 확인했다.
+Go 1.26.5/darwin/arm64, 공유 Go cache·offline module·`-mod=readonly -trimpath`, `LC_ALL=C`·`TZ=UTC`를 사용했다.
+실제 SQLite와 임시 PostgreSQL 17.10 Debian/C/C를 실행했다. PostgreSQL image는 기존 CI의 고정 digest를 사용했고
+초기화 후 server version과 database collation을 직접 확인했다.
+
+| mode | 공통 helper·scope·readscope·batch/stream unit | 양 DB 영향 검사 | skip |
+|---|---|---|---|
+| normal | 40 run/pass | 1,089 run/pass | 0 |
+| race | 40 run/pass | 1,089 run/pass | 0 |
+| CGO=0 | 40 run/pass | 1,089 run/pass | 0 |
+
+각 mode는 `go test -json -count=1 -timeout=12m`으로 unit 5 packages를 실행한 뒤 `db/sqlite`·`db/postgres`의
+`^Test.*(Savepoint|Atomic|Session|Batch|Snapshot|Conflict|Cascade|Transaction|Empty|Commit)` 범위를 실행했다.
+모든 시작/종료·package 완료·필수 root·skip·잘린 출력을 대조하고, 새 native savepoint의 60개 필수 하위 경로도
+세 mode에서 각각 PASS임을 확인했다. 선택 범위에는 기존 인증/session·cascade·conflict·빈 결과와 batch 회귀가 포함된다.
+DB suite 전체나 전체 platform을 실행했다는 주장은 아니다.
+
+실제 unique 오류 뒤 부모 쓰기를 계속하고 commit하는 경우, child RELEASE 뒤 parent rollback, 중첩 child만의 rollback,
+child 취소·panic·Goexit의 저장 결과, parent handle 사용 거부·retained session/rowset의 만료를 검사했다.
+열린 parent cursor와 batch의 savepoint 진입 거부, child batch 안의 추가 조회, 관계 SET_NULL rollback과
+root stream의 같은 pinned connection에서 수행하는 savepoint도 실제 양 DB에서 검증했다.
+제어문 생성/rollback/release 실패를 무시해도 root COMMIT이 실행되지 않는 fault 대조와 root rollback 실패의
+unknown 분류·SQLite quarantine을 검증했다. 읽기 전용 snapshot은 write/savepoint capability를 노출하지 않는다.
+
+Receipt는 `godj-savepoint-foundation-fnibu5lc/receipt.json`, 세부 하위 경로와 log hash audit는 같은 디렉터리의
+`final-audit.json`이다. Receipt SHA-256은 `eba8a069e3f702d873e01447f0dcd72353c5ff519dc0ff6483a9982e8a6da97a`다.
+실행 container 제거와 부재를 확인했고, 영향 `go vet ./db/... ./internal/savepointtest` 및 해당 변경의 gofmt·diff 검사도 통과했다.
+
+### Savepoint 기반 검증에서 수정한 경계
+
+첫 실행 `godj-savepoint-foundation-jphpca1o`는 PostgreSQL의 잘못된 초기 collation으로 DB 검증에 진입하지 못했다.
+또한 개별 query 취소를 scope 정리 실패로 기록해 기존 SQLite batch의 회복 후 parent commit을 막는 회귀를 발견했다.
+이 실행은 실패로 보존했다. `Rows.Err`의 조회 오류·취소와 실제 cursor `Close` 실패를 분리하고,
+처리한 query 취소가 parent를 실패시키지 않는 직접 회귀 검사를 추가했다. 실제 Close 실패는 root 종료 오류로 계속 보존한다.
+
+두 번째 `godj-savepoint-foundation-3j97c1sz`는 각 mode에서 unit 40 pass, DB 1,073 run 중 1,070 pass였다.
+새 native savepoint는 모두 통과했지만 기존 빈 cursor 수명 검사 두 경로와 그 parent가 실패했다.
+기존 검사의 `sql.ErrTxDone` 기대를 새 공통 session의 `backend_error/invalid_plan`으로 맞추고, 종료 뒤 Scan 거부도
+추가했다. 빈 결과의 SQL 미실행·취소·수명 조건은 유지했다. 위 최종 source에서 전체 선택 범위를 다시 실행했다.
+
+### 남은 검증
+
+위 checkpoint들은 각각 명시한 source와 영향 범위의 결과다. Helpdesk Label 확보와 현재 권한/CSRF/audit·
+Form/Admin/API/독립 client 및 GDJ-0107 최종 source의 Hosted 통합은 미완료다.
+단건 생성 영향 PASS나 이전 Binary의 Hosted full PASS를 해당 미완료 기능의 검증으로 사용하지 않는다.
+
 ## GDJ-0106 — Binary 모델 필드와 입력 정책
 
 ### 현재 검증과 독립 기준

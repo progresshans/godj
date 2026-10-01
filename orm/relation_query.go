@@ -16,6 +16,7 @@ type BoundModel[M any] struct {
 	model            ir.Model
 	objectDescriptor RelationObjectDescriptor[M]
 	objectPlan       query.Plan
+	prepared         *preparedModel
 	marker           [0]func(M)
 }
 
@@ -43,6 +44,7 @@ func BindModel[M any](
 	}
 	var objectDescriptor RelationObjectDescriptor[M]
 	var objectPlan query.Plan
+	var prepared *preparedModel
 	if capable, ok := descriptor.(RelationObjectDescriptor[M]); ok {
 		snapshot := capable.SnapshotRelationObjectDescriptor()
 		if interfaceIsNil(snapshot) {
@@ -55,7 +57,9 @@ func BindModel[M any](
 			return BoundModel[M]{}, relationInvalidPlan("relation object descriptor snapshot metadata does not match project model")
 		}
 		objectDescriptor = snapshot
-		objectPlan = query.NewPlan(model.DBTable, modelFieldReferences(model))
+		_, writable := snapshot.(WriteDescriptor[M])
+		prepared = prepareModel(model, writable)
+		objectPlan = prepared.plan
 	}
 	return BoundModel[M]{
 		snapshot:         binding.snapshot,
@@ -63,6 +67,7 @@ func BindModel[M any](
 		model:            model.Clone(),
 		objectDescriptor: objectDescriptor,
 		objectPlan:       objectPlan,
+		prepared:         prepared,
 	}, nil
 }
 

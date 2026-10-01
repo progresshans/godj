@@ -25,6 +25,7 @@ type SecuritySource interface {
 var operationRolesCsrfCookie = map[string][]string{
 	HelpdeskLabelCreateOperation:         []string{},
 	HelpdeskLabelDeleteOperation:         []string{},
+	HelpdeskLabelEnsureOperation:         []string{},
 	HelpdeskLabelPatchOperation:          []string{},
 	HelpdeskLabelUpdateOperation:         []string{},
 	HelpdeskServiceReportCreateOperation: []string{},
@@ -66,6 +67,7 @@ func GetRolesForCsrfCookie(operation string) []string {
 var operationRolesCsrfHeader = map[string][]string{
 	HelpdeskLabelCreateOperation:         []string{},
 	HelpdeskLabelDeleteOperation:         []string{},
+	HelpdeskLabelEnsureOperation:         []string{},
 	HelpdeskLabelPatchOperation:          []string{},
 	HelpdeskLabelUpdateOperation:         []string{},
 	HelpdeskServiceReportCreateOperation: []string{},
@@ -108,6 +110,7 @@ var operationRolesSessionAuth = map[string][]string{
 	HelpdeskLabelCreateOperation:         []string{},
 	HelpdeskLabelDeleteOperation:         []string{},
 	HelpdeskLabelDetailOperation:         []string{},
+	HelpdeskLabelEnsureOperation:         []string{},
 	HelpdeskLabelListOperation:           []string{},
 	HelpdeskLabelPatchOperation:          []string{},
 	HelpdeskLabelUpdateOperation:         []string{},

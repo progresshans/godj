@@ -244,3 +244,21 @@ BinaryField와 공통 editable 입력 정책은 고정 Django 6.1의 `django/db/
 39개 입력·7개 profile과 실제 저장/조회·schema 변경/역방향·deferred save·rollback의 외부 결과를 비교한다.
 임의 Python 객체 입력, read-only 제출과 PostgreSQL Min/Max 차이는
 [Binary 결정](adr/0085-binary-fields-and-model-input-policy.md)과 [DEV-0020](DEVIATIONS.md#dev-0020--binary의-닫힌-입력과-명시적-집계)에 구분한다.
+
+단건 `Get`·`GetOrCreate`와 nested transaction은 고정 Django 6.1의
+[`django/db/models/query.py`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query.py)와
+[`django/db/transaction.py`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/transaction.py)
+(BSD-3-Clause)의 공개 동작을 독립 실행하여 관찰한다.
+[Observer](../conformance/runners/django/single_object_reference.py)는 Go source·Go output·예상 fixture를 읽지 않는다.
+[SQLite](../codegen/consumertest/testdata/singleobject/django61-sqlite.json)·
+[PostgreSQL](../codegen/consumertest/testdata/singleobject/django61-postgres.json) 관찰에 Python/Django version,
+실행한 두 Django 모듈과 observer 자신의 SHA-256을 보존한다. 조회 11개, 생성/중첩 scope 9개와 두 연결의
+실제 unique 경쟁을 포함한다. 각 DB에서 독립 두 프로세스의 byte 일치를 확인했다.
+
+별도 생성 Go module은 객체 값·cache 독립성·입력 지연 평가·안정된 오류 범주와 실제 저장/rollback·경쟁 결과를 비교한다.
+Python 예외명은 명시한 Go 오류 code에 대응하며 원문 문구는 ABI가 아니다. `Get`의 SQL 개수/정렬 여부는 native 진단으로
+보존하고 Go SQL 문자열/개수와 동일하다고 주장하지 않는다. Go의 정렬/빈 SQL 경계는 별도 ORM/backend 검사에서 검증한다.
+생성 비교의 transaction 기록은 실제 native owner의 진입·성공/rollback 후 반환에 대응하는 DB port 경계를 기록한다.
+Native SQL의 savepoint 이름이나 물리 제어문 문자열을 비교하는 recorder가 아니며, 제어문/실패 정리는 양 backend 검사가 소유한다.
+Python keyword/default 입력을 소스 호환으로 구현하지 않는다. Go는 명시적인 typed CreateInput과 원 Manager snapshot을 사용하고
+잘못된 생성 필드는 mutation 검증에서 거부한다. 관련 계약은 [ADR-0086](adr/0086-single-object-creation-and-savepoint-ownership.md)을 따른다.

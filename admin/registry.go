@@ -230,9 +230,10 @@ type ModelConfig[M any] struct {
 	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (M, []string, error)
 	Delete func(context.Context, auth.Principal, Mutation) (M, error)
 	// History is optional. Its absence removes history routes and links.
-	History  func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)
-	Actions  []ActionConfig
-	Commands []CommandConfig
+	History            func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)
+	Actions            []ActionConfig
+	Commands           []CommandConfig
+	CollectionCommands []CollectionCommandConfig
 	// AdditionalAuditFields declares semantic event names that are not stored
 	// fields, such as "password". They never enter snapshots or editable input.
 	AdditionalAuditFields []string
@@ -321,21 +322,22 @@ func (builder *Builder) Build() (Registry, error) {
 // ModelDescriptor is a detached public registration description. It contains
 // no persistence or authorization callback.
 type ModelDescriptor struct {
-	Inlines          []InlineDescriptor
-	ReadOnly         bool
-	AppLabel         string
-	Slug             string
-	Model            ir.Model
-	ListFields       []string
-	SearchFields     []string
-	Permissions      Permissions
-	Actions          []ActionDescriptor
-	FormFields       []forms.Field
-	CreateFormFields []forms.Field
-	AddPermissions   []auth.Permission
-	RevisionField    string
-	Commands         []CommandDescriptor
-	ReadOnlyFields   []ReadOnlyFieldDescriptor
+	Inlines            []InlineDescriptor
+	ReadOnly           bool
+	AppLabel           string
+	Slug               string
+	Model              ir.Model
+	ListFields         []string
+	SearchFields       []string
+	Permissions        Permissions
+	Actions            []ActionDescriptor
+	FormFields         []forms.Field
+	CreateFormFields   []forms.Field
+	AddPermissions     []auth.Permission
+	RevisionField      string
+	Commands           []CommandDescriptor
+	CollectionCommands []CollectionCommandDescriptor
+	ReadOnlyFields     []ReadOnlyFieldDescriptor
 }
 
 type ActionDescriptor struct {
@@ -384,6 +386,7 @@ type registeredModel struct {
 	permissions             Permissions
 	actions                 []registeredAction
 	commands                []registeredCommand
+	collectionCommands      []registeredCollectionCommand
 	readOnlyFields          []ReadOnlyFieldDescriptor
 
 	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
@@ -448,7 +451,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			}
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 {
+	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 || len(config.CollectionCommands) != 0 {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -675,6 +678,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		actions:                 actions,
 	}
 	registered.commands, err = prepareCommands(config.Commands, registered)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	registered.collectionCommands, err = prepareCollectionCommands(config.CollectionCommands, registered)
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -1017,6 +1024,10 @@ func reconciliationError(operation string, cause error) error {
 }
 
 func (model registeredModel) descriptor() ModelDescriptor {
+	collectionCommands := make([]CollectionCommandDescriptor, len(model.collectionCommands))
+	for index, command := range model.collectionCommands {
+		collectionCommands[index] = CollectionCommandDescriptor{Name: command.name, Label: command.label, Permissions: append([]auth.Permission(nil), command.permissions...), FormFields: command.form.Fields()}
+	}
 	commands := make([]CommandDescriptor, len(model.commands))
 	for index, command := range model.commands {
 		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permission: command.permission, FormFields: command.form.Fields()}
@@ -1026,20 +1037,21 @@ func (model registeredModel) descriptor() ModelDescriptor {
 		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permission: action.permission}
 	}
 	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
-		ReadOnly:         model.readOnly,
-		AppLabel:         model.appLabel,
-		Slug:             model.slug,
-		Model:            model.model.Clone(),
-		ListFields:       append([]string(nil), model.listFields...),
-		SearchFields:     append([]string(nil), model.searchFields...),
-		Permissions:      model.permissions,
-		Actions:          actions,
-		FormFields:       model.form.Fields(),
-		CreateFormFields: model.createForm.Fields(),
-		AddPermissions:   append([]auth.Permission(nil), model.addPermissions...),
-		RevisionField:    model.revisionField,
-		Commands:         commands,
-		ReadOnlyFields:   append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
+		ReadOnly:           model.readOnly,
+		AppLabel:           model.appLabel,
+		Slug:               model.slug,
+		Model:              model.model.Clone(),
+		ListFields:         append([]string(nil), model.listFields...),
+		SearchFields:       append([]string(nil), model.searchFields...),
+		Permissions:        model.permissions,
+		Actions:            actions,
+		FormFields:         model.form.Fields(),
+		CreateFormFields:   model.createForm.Fields(),
+		AddPermissions:     append([]auth.Permission(nil), model.addPermissions...),
+		RevisionField:      model.revisionField,
+		Commands:           commands,
+		CollectionCommands: collectionCommands,
+		ReadOnlyFields:     append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
 	}
 }
 

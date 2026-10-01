@@ -56,7 +56,7 @@ func (p ManyPrefetch[O, T, L]) targetQuery() QuerySet[T] {
 	if p.custom {
 		plan = p.targetPlan
 	}
-	q := newQuerySet[T](nil, p.relation.target, plan)
+	q := newQuerySet[T](nil, p.relation.target, plan, p.relation.prefetchTarget.prepared)
 	q.configurationErr = p.configurationErr
 	return q
 }
@@ -372,7 +372,7 @@ func PrefetchRelated[S any](source QuerySet[S], selections ...PrefetchSelection[
 		related.materialization = nil // This prefetch owns the merged child batches.
 		q.related = &related
 	}
-	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(q.binding.objectDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), q.binding.model) || source.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(q.binding.model)) || len(source.plan.RelationProjections()) != 0 {
+	if source.evaluation == nil || source.prepared == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(q.binding.objectDescriptor) || !reflect.DeepEqual(source.prepared.metadata, q.binding.model) || source.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(q.binding.model)) || len(source.plan.RelationProjections()) != 0 {
 		return q.WithConfigurationError(relationInvalidPlan("prefetch source does not match its owner binding"))
 	}
 	return q
@@ -392,7 +392,7 @@ func (q PrefetchQuery[S]) SelectRelated(selections ...RelatedSelection[S]) Prefe
 	if q.configurationErr != nil {
 		return q
 	}
-	source := newQuerySet(q.source.backend, q.source.descriptor, q.source.plan)
+	source := newQuerySet(q.source.backend, q.source.descriptor, q.source.plan, q.source.prepared)
 	source.configurationErr = q.source.configurationErr
 	source.materialization = &queryMaterialization[S]{binding: q.binding, selections: q.selections}
 	if q.related != nil {
@@ -412,7 +412,7 @@ func (q PrefetchQuery[S]) SelectRelated(selections ...RelatedSelection[S]) Prefe
 // PrefetchRelated preserves this eager query's prepared graph while loading
 // selected descendants. An eager parent is reused by a single prefetch node.
 func (q RelatedSelectQuery[S]) PrefetchRelated(selections ...PrefetchSelection[S]) PrefetchQuery[S] {
-	source := newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections())
+	source := newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections(), q.prepared)
 	source.configurationErr = q.configurationErr
 	source.materialization = q.materialization
 	result := PrefetchRelated(source, selections...)
@@ -517,7 +517,7 @@ func (q PrefetchQuery[S]) load(ctx context.Context, plan query.Plan, maximum int
 			return nil, err
 		}
 	} else {
-		source := newQuerySet(q.source.backend, q.source.descriptor, plan)
+		source := newQuerySet(q.source.backend, q.source.descriptor, plan, q.source.prepared)
 		var owners []S
 		if maximum == 1 {
 			owner, present, err := source.First(ctx)
@@ -632,5 +632,5 @@ func (q PrefetchQuery[S]) Count(ctx context.Context) (int64, error) {
 		}
 		return sessionReadResult(ctx, q.source.backend, int64(len(values)), nil)
 	}
-	return newQuerySet(q.source.backend, q.source.descriptor, q.source.plan).Count(ctx)
+	return newQuerySet(q.source.backend, q.source.descriptor, q.source.plan, q.source.prepared).Count(ctx)
 }

@@ -2,12 +2,12 @@ package sqlite
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
 
@@ -15,6 +15,7 @@ var _ db.CoordinatedAtomic = (*Backend)(nil)
 var _ db.CoordinatedRelationAtomic = (*Backend)(nil)
 var _ db.Session = (*writeSession)(nil)
 var _ db.SessionValidator = (*writeSession)(nil)
+var _ db.Savepointer = (*writeSession)(nil)
 
 // writeSession exposes ordinary writes and the conflict-insert
 // capability. The wrapped raw session's bulk relation mutations belong to the
@@ -160,27 +161,19 @@ func executeAdmittedWriteAtomic(
 		return errors.Join(primary, discardErr)
 	}
 
-	lifetime, finishLifetime := context.WithCancelCause(ctx)
-	defer finishLifetime(sql.ErrTxDone)
-	inner := &relationSession{
-		connection: connection,
-		queryCount: queryCount,
-		lifetime:   lifetime,
-		active:     true,
-	}
+	inner := newRelationSession(ctx, connection, queryCount)
 	session := &writeSession{session: inner}
 	deferredCleanup := true
 	defer func() {
 		// Both panic and runtime.Goexit run defers. Neither may leave the
 		// raw transaction or its pinned connection behind.
 		if deferredCleanup {
-			inner.deactivate()
+			_ = inner.scope.Finish()
 			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
 	}()
 
-	callbackErr := callback(session)
-	inner.deactivate()
+	callbackErr := inner.scope.FinishCallback(callback(session))
 	if callbackErr != nil {
 		deferredCleanup = false
 		return finishWritePreCommitFailure(ctx, connection, admission, callbackErr)
@@ -231,4 +224,17 @@ func finishWritePreCommitFailure(
 		}
 	}
 	return cause
+}
+
+// Savepoint preserves the ordinary-write capability boundary of this wrapper.
+func (session *writeSession) Savepoint(ctx context.Context, callback func(db.Session) error) error {
+	if err := session.ValidateSession(ctx); err != nil {
+		return err
+	}
+	if callback == nil {
+		return session.session.scope.Savepoint(ctx, nil)
+	}
+	return session.session.scope.Savepoint(ctx, func(child *txscope.Scope) error {
+		return callback(&writeSession{session: &relationSession{state: session.session.state, scope: child}})
+	})
 }

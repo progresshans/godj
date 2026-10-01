@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[details.Child] = details.ChildDescriptor{}
 var _ orm.ProjectionDescriptor[details.Detail] = details.DetailDescriptor{}
@@ -30,9 +30,11 @@ var _ orm.ProjectionDescriptor[parents.RequiredLeft] = parents.RequiredLeftDescr
 var _ orm.ProjectionDescriptor[parents.Root] = parents.RootDescriptor{}
 var _ orm.ProjectionDescriptor[parents.RootLabels] = parents.RootLabelsDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -171,6 +173,24 @@ func (_query DetailsChildSelectRelatedQuery) All(_ctx context.Context) ([]*Detai
 		}
 	}
 	return _results, nil
+}
+func (_query DetailsChildSelectRelatedQuery) Get(_ctx context.Context) (*DetailsChildObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsChildSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Child]) (*DetailsChildObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query DetailsChildSelectRelatedQuery) First(_ctx context.Context) (*DetailsChildObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -375,6 +395,24 @@ func (_query DetailsDetailSelectRelatedQuery) All(_ctx context.Context) ([]*Deta
 	}
 	return _results, nil
 }
+func (_query DetailsDetailSelectRelatedQuery) Get(_ctx context.Context) (*DetailsDetailObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsDetailSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Detail]) (*DetailsDetailObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsDetailSelectRelatedQuery) First(_ctx context.Context) (*DetailsDetailObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -578,6 +616,24 @@ func (_query DetailsGrandchildSelectRelatedQuery) All(_ctx context.Context) ([]*
 	}
 	return _results, nil
 }
+func (_query DetailsGrandchildSelectRelatedQuery) Get(_ctx context.Context) (*DetailsGrandchildObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsGrandchildSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Grandchild]) (*DetailsGrandchildObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsGrandchildSelectRelatedQuery) First(_ctx context.Context) (*DetailsGrandchildObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -780,6 +836,24 @@ func (_query DetailsHiddenSelectRelatedQuery) All(_ctx context.Context) ([]*Deta
 		}
 	}
 	return _results, nil
+}
+func (_query DetailsHiddenSelectRelatedQuery) Get(_ctx context.Context) (*DetailsHiddenObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsHiddenSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Hidden]) (*DetailsHiddenObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query DetailsHiddenSelectRelatedQuery) First(_ctx context.Context) (*DetailsHiddenObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1002,6 +1076,24 @@ func (_query DetailsOverlapSelectRelatedQuery) All(_ctx context.Context) ([]*Det
 		}
 	}
 	return _results, nil
+}
+func (_query DetailsOverlapSelectRelatedQuery) Get(_ctx context.Context) (*DetailsOverlapObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsOverlapSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Overlap]) (*DetailsOverlapObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query DetailsOverlapSelectRelatedQuery) First(_ctx context.Context) (*DetailsOverlapObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1239,6 +1331,24 @@ func (_query DetailsProtectedSelectRelatedQuery) All(_ctx context.Context) ([]*D
 	}
 	return _results, nil
 }
+func (_query DetailsProtectedSelectRelatedQuery) Get(_ctx context.Context) (*DetailsProtectedObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsProtectedSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Protected]) (*DetailsProtectedObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsProtectedSelectRelatedQuery) First(_ctx context.Context) (*DetailsProtectedObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1442,6 +1552,24 @@ func (_query DetailsRequiredRightSelectRelatedQuery) All(_ctx context.Context) (
 	}
 	return _results, nil
 }
+func (_query DetailsRequiredRightSelectRelatedQuery) Get(_ctx context.Context) (*DetailsRequiredRightObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsRequiredRightSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.RequiredRight]) (*DetailsRequiredRightObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsRequiredRightSelectRelatedQuery) First(_ctx context.Context) (*DetailsRequiredRightObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1644,6 +1772,24 @@ func (_query DetailsRightSelectRelatedQuery) All(_ctx context.Context) ([]*Detai
 		}
 	}
 	return _results, nil
+}
+func (_query DetailsRightSelectRelatedQuery) Get(_ctx context.Context) (*DetailsRightObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsRightSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Right]) (*DetailsRightObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query DetailsRightSelectRelatedQuery) First(_ctx context.Context) (*DetailsRightObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1866,6 +2012,24 @@ func (_query DetailsTwinSelectRelatedQuery) All(_ctx context.Context) ([]*Detail
 		}
 	}
 	return _results, nil
+}
+func (_query DetailsTwinSelectRelatedQuery) Get(_ctx context.Context) (*DetailsTwinObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsTwinSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Twin]) (*DetailsTwinObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query DetailsTwinSelectRelatedQuery) First(_ctx context.Context) (*DetailsTwinObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -2103,6 +2267,24 @@ func (_query DetailsWatcherSelectRelatedQuery) All(_ctx context.Context) ([]*Det
 	}
 	return _results, nil
 }
+func (_query DetailsWatcherSelectRelatedQuery) Get(_ctx context.Context) (*DetailsWatcherObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query DetailsWatcherSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[details.Watcher]) (*DetailsWatcherObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query DetailsWatcherSelectRelatedQuery) First(_ctx context.Context) (*DetailsWatcherObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2305,6 +2487,24 @@ func (_query ParentsLeftSelectRelatedQuery) All(_ctx context.Context) ([]*Parent
 		}
 	}
 	return _results, nil
+}
+func (_query ParentsLeftSelectRelatedQuery) Get(_ctx context.Context) (*ParentsLeftObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ParentsLeftSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.Left]) (*ParentsLeftObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ParentsLeftSelectRelatedQuery) First(_ctx context.Context) (*ParentsLeftObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -2509,6 +2709,24 @@ func (_query ParentsNodeSelectRelatedQuery) All(_ctx context.Context) ([]*Parent
 	}
 	return _results, nil
 }
+func (_query ParentsNodeSelectRelatedQuery) Get(_ctx context.Context) (*ParentsNodeObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ParentsNodeSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.Node]) (*ParentsNodeObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsNodeSelectRelatedQuery) First(_ctx context.Context) (*ParentsNodeObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2712,6 +2930,24 @@ func (_query ParentsRequiredLeftSelectRelatedQuery) All(_ctx context.Context) ([
 	}
 	return _results, nil
 }
+func (_query ParentsRequiredLeftSelectRelatedQuery) Get(_ctx context.Context) (*ParentsRequiredLeftObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ParentsRequiredLeftSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.RequiredLeft]) (*ParentsRequiredLeftObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsRequiredLeftSelectRelatedQuery) First(_ctx context.Context) (*ParentsRequiredLeftObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -2914,6 +3150,24 @@ func (_query ParentsRootSelectRelatedQuery) All(_ctx context.Context) ([]*Parent
 		}
 	}
 	return _results, nil
+}
+func (_query ParentsRootSelectRelatedQuery) Get(_ctx context.Context) (*ParentsRootObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ParentsRootSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.Root]) (*ParentsRootObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ParentsRootSelectRelatedQuery) First(_ctx context.Context) (*ParentsRootObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -3130,6 +3384,24 @@ func (_query ParentsRootLabelsSelectRelatedQuery) All(_ctx context.Context) ([]*
 	}
 	return _results, nil
 }
+func (_query ParentsRootLabelsSelectRelatedQuery) Get(_ctx context.Context) (*ParentsRootLabelsObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ParentsRootLabelsSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[parents.RootLabels]) (*ParentsRootLabelsObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ParentsRootLabelsSelectRelatedQuery) First(_ctx context.Context) (*ParentsRootLabelsObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -3206,4 +3478,4 @@ func (_object *ParentsRootLabelsObject) RootObject(_ctx context.Context) (*Paren
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_0a1bc549e29d329ec1b399d73ecd4616e4986b653b72425d881c19f8220fffda
+var _ goDjProjectSnapshot_acff36fbcd067c17d8ae98851497d1587aec1c65093fb4953839cf039ccf626e

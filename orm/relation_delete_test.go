@@ -1173,7 +1173,7 @@ func TestRelationDeleterSuccessfulAtomicReturnRemainsAuthoritativeAfterContextTr
 func TestRelationDeleteCallbackGuardRejectsFirstPostSealEntry(t *testing.T) {
 	t.Parallel()
 
-	guard := &relationDeleteCallbackGuard{}
+	guard := &transactionCallbackGuard{}
 	snapshot := guard.seal()
 	mutations := 0
 	err := guard.invoke(func() error {

@@ -55,7 +55,7 @@ func (m *queryMaterialization[M]) relatedQuery(source QuerySet[M]) (RelatedSelec
 		}
 	}
 	children := &queryMaterialization[M]{binding: m.binding, selections: m.selections}
-	return RelatedSelectQuery[M]{backend: source.backend, plan: plan, binding: m.binding, sourceDescriptor: descriptor, targets: m.targets, nodes: m.eagerNodes, materialization: children, evaluation: newEvaluationState[relatedSelectedValue[M]]()}, nil
+	return RelatedSelectQuery[M]{backend: source.backend, plan: plan, prepared: source.prepared, binding: m.binding, sourceDescriptor: descriptor, targets: m.targets, nodes: m.eagerNodes, materialization: children, evaluation: newEvaluationState[relatedSelectedValue[M]]()}, nil
 }
 
 func (source QuerySet[M]) eagerMaterializedAt(ctx context.Context, index int) ([]relatedSelectedValue[M], error) {
@@ -118,8 +118,8 @@ func validateMaterializationSource[M any](source QuerySet[M], binding BoundModel
 	if err := validateObjectBoundModel(binding); err != nil {
 		return err
 	}
-	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(binding.objectDescriptor) ||
-		!reflect.DeepEqual(source.descriptor.Metadata(), binding.model) || source.plan.Table() != binding.model.DBTable ||
+	if source.evaluation == nil || source.prepared == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(binding.objectDescriptor) ||
+		!reflect.DeepEqual(source.prepared.metadata, binding.model) || source.plan.Table() != binding.model.DBTable ||
 		!reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(binding.model)) || source.plan.ResultShape().Kind() != query.ResultModel || len(source.plan.RelationProjections()) != 0 {
 		return relationInvalidPlan("materialization source does not match its model binding")
 	}

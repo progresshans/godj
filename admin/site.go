@@ -233,6 +233,13 @@ func (site *Site) buildRoutes() error {
 				web.Route{Name: modelName("command-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.modelCommandPost(model, command)},
 			)
 		}
+		for _, command := range model.collectionCommands {
+			path := site.collectionCommandPath(model, command)
+			routes = append(routes,
+				web.Route{Name: modelName("collection-" + command.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(command.permissions[0], site.collectionCommandGet(model, command))},
+				web.Route{Name: modelName("collection-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionCommandPost(model, command)},
+			)
+		}
 	}
 	site.routes = append([]web.Route(nil), routes...)
 	return nil
@@ -272,6 +279,9 @@ func SiteAllowedNextPaths(registry Registry, basePath string) ([]string, error) 
 			paths = append(paths, prefix+"/add/", prefix+"/change/", prefix+"/delete/")
 			for _, command := range model.commands {
 				paths = append(paths, prefix+"/command/"+command.name+"/")
+			}
+			for _, command := range model.collectionCommands {
+				paths = append(paths, prefix+"/collection/"+command.name+"/")
 			}
 		}
 		if model.hasHistory {

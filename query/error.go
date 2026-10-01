@@ -22,6 +22,8 @@ const (
 	CodeInvalidLimit                 = "invalid_limit"
 	CodeInvalidOffset                = "invalid_offset"
 	CodeInvalidIndex                 = "invalid_index"
+	CodeDoesNotExist                 = "does_not_exist"
+	CodeMultipleObjectsReturned      = "multiple_objects_returned"
 	CodeUnorderedQuery               = "unordered_query"
 	CodeInvalidPlan                  = "invalid_plan"
 	CodeMissingTable                 = "missing_table"
@@ -46,6 +48,7 @@ const (
 	CodeProtectedForeignKey          = "protected_foreign_key"
 	CodeCommitOutcomeUnknown         = "commit_outcome_unknown"
 	CodeTransactionOutcomeUnknown    = "transaction_outcome_unknown"
+	CodeTransactionRollbackRequired  = "transaction_rollback_required"
 	CodeBackendRecoveryRequired      = "backend_recovery_required"
 )
 

@@ -206,7 +206,7 @@ func (r ManyToMany[O, T, L]) from(backend db.Queryer, owner O) (*ManyCollection[
 	if err != nil {
 		return nil, err
 	}
-	collection := &ManyCollection[T, L]{querySet: newQuerySet(backend, r.target, plan), basePlan: plan, target: r.target, through: r.through, state: r.state, backend: backend, ownerKey: key}
+	collection := &ManyCollection[T, L]{querySet: newQuerySet(backend, r.target, plan, r.prefetchTarget.prepared), basePlan: plan, target: r.target, through: r.through, state: r.state, backend: backend, ownerKey: key}
 	collection._self = collection
 	return collection, nil
 }
@@ -259,7 +259,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 	if err != nil {
 		return nil, err
 	}
-	set = newQuerySet[T](c.backend, c.target, c.basePlan)
+	set = newQuerySet[T](c.backend, c.target, c.basePlan, set.prepared)
 	result := &ManyCollection[T, L]{querySet: set, basePlan: c.basePlan, target: c.target, through: c.through, state: c.state, backend: c.backend, ownerKey: c.ownerKey}
 	result._self = result
 	return result, nil
@@ -268,7 +268,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 func (c *ManyCollection[T, L]) invalidate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.querySet = newQuerySet[T](c.backend, c.target, c.basePlan)
+	c.querySet = newQuerySet[T](c.backend, c.target, c.basePlan, c.querySet.prepared)
 }
 
 // Invalidate discards only this handle's evaluation cache. It performs no I/O;

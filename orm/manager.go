@@ -34,31 +34,37 @@ type preparedModel struct {
 func NewManager[M any](descriptor ModelDescriptor[M]) Manager[M] {
 	manager := Manager[M]{descriptor: descriptor}
 	if !descriptorIsNil(descriptor) {
-		metadata := descriptor.Metadata().Clone()
-		references := modelFieldReferences(metadata)
-		manager.prepared = &preparedModel{
-			metadata: metadata,
-			plan:     query.NewPlan(metadata.DBTable, references),
-		}
-		if _, writable := descriptor.(WriteDescriptor[M]); writable {
-			prepared := manager.prepared
-			prepared.primaryKey, prepared.writeValid = autoPrimaryKey(metadata)
-			prepared.byReference = make(map[query.FieldRef]int, len(references))
-			prepared.byName = make(map[string]int, len(references))
-			for index, reference := range references {
-				// Preserve first-match behavior even for custom metadata with
-				// duplicate names or references. Full reference identity is kept.
-				if _, exists := prepared.byReference[reference]; !exists {
-					prepared.byReference[reference] = index
-				}
-				if _, exists := prepared.byName[reference.Name()]; !exists {
-					prepared.byName[reference.Name()] = index
-				}
-			}
-			prepared.unique, prepared.uniqueErr = prepareUniqueConstraints(metadata, prepared.byName)
-		}
+		_, writable := descriptor.(WriteDescriptor[M])
+		manager.prepared = prepareModel(descriptor.Metadata(), writable)
 	}
 	return manager
+}
+
+// prepareModel owns one metadata snapshot independently of its descriptor and
+// is shared by Manager and project-bound query construction. Terminals never
+// rebuild this state from a mutable descriptor's later Metadata result.
+func prepareModel(metadata ir.Model, writable bool) *preparedModel {
+	metadata = metadata.Clone()
+	references := modelFieldReferences(metadata)
+	prepared := &preparedModel{metadata: metadata, plan: query.NewPlan(metadata.DBTable, references)}
+	if !writable {
+		return prepared
+	}
+	prepared.primaryKey, prepared.writeValid = autoPrimaryKey(metadata)
+	prepared.byReference = make(map[query.FieldRef]int, len(references))
+	prepared.byName = make(map[string]int, len(references))
+	for index, reference := range references {
+		// Custom metadata keeps its first matching name/reference. Field
+		// identity, including nullability and representation, remains exact.
+		if _, exists := prepared.byReference[reference]; !exists {
+			prepared.byReference[reference] = index
+		}
+		if _, exists := prepared.byName[reference.Name()]; !exists {
+			prepared.byName[reference.Name()] = index
+		}
+	}
+	prepared.unique, prepared.uniqueErr = prepareUniqueConstraints(metadata, prepared.byName)
+	return prepared
 }
 
 // Using binds a backend to a new QuerySet. It performs no I/O.
@@ -75,14 +81,15 @@ func (m Manager[M]) Using(backend db.Queryer) QuerySet[M] {
 			},
 		}
 	}
-	return newQuerySet(backend, m.descriptor, m.prepared.plan)
+	return newQuerySet(backend, m.descriptor, m.prepared.plan, m.prepared)
 }
 
-func newQuerySet[M any](backend db.Queryer, descriptor ModelDescriptor[M], plan query.Plan) QuerySet[M] {
+func newQuerySet[M any](backend db.Queryer, descriptor ModelDescriptor[M], plan query.Plan, prepared *preparedModel) QuerySet[M] {
 	return QuerySet[M]{
 		backend:    backend,
 		descriptor: descriptor,
 		plan:       plan,
+		prepared:   prepared,
 		evaluation: newEvaluationState[M](),
 	}
 }
@@ -99,6 +106,7 @@ type QuerySet[M any] struct {
 	backend          db.Queryer
 	descriptor       ModelDescriptor[M]
 	plan             query.Plan
+	prepared         *preparedModel
 	evaluation       *evaluationState[M]
 	materialization  *queryMaterialization[M]
 	configurationErr error

@@ -26,21 +26,29 @@ integration_owner: "root"
 
 ## 구현과 검증
 
-- [ ] 고정 Django의 단건 조회·cache·기본값·savepoint·실제 경쟁을 양 DB에서 독립 관찰하고 기준 fixture로 관리
-- [ ] 정확한 단건 판정과 fresh 평가·원 query cache 보존·typed/dynamic 및 관계 소비자
-- [ ] SQLite/PostgreSQL session의 savepoint·중첩 scope·cursor 정리·실패와 부모 commit 차단
-- [ ] 생성 입력의 지연 평가·원 Manager snapshot·unique 충돌 후 한 번의 조회와 명시적 미지원 capability
-- [ ] Helpdesk의 현재 권한·category 범위·Label 확보·원자 audit와 Form/Admin/API·독립 client 흐름
+- [x] 고정 Django의 단건 조회·cache·기본값·savepoint·실제 경쟁을 양 DB에서 독립 관찰하고 기준 fixture로 관리
+- [x] 정확한 단건 판정과 fresh 평가·원 query cache 보존·typed/dynamic 및 관계 소비자
+- [x] SQLite/PostgreSQL session의 savepoint·중첩 scope·cursor 정리·실패와 부모 commit 차단
+- [x] 생성 입력의 지연 평가·원 Manager snapshot·unique 충돌 후 한 번의 조회와 명시적 미지원 capability
+- [x] Helpdesk의 현재 권한·category 범위·Label 확보·원자 audit와 Form/Admin/API·독립 client 흐름
 - [ ] 완성된 변경 묶음의 영향 normal/race/CGO=0·양 DB·실제 경쟁·실패 대조와 필요한 생성 drift
 - [ ] transaction 기반 변경의 source를 고정한 Hosted 통합과 현행 기록
 
-기본 동작의 설계는 [ADR-0086](../docs/adr/0086-single-object-creation-and-savepoint-ownership.md)에서 검토한다.
+기본 동작의 설계는 [ADR-0086](../docs/adr/0086-single-object-creation-and-savepoint-ownership.md)을 따른다.
 실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하며, local 전체와 Hosted 전체를 중복하지 않는다.
 편집 중에는 필요한 compile만 확인하고 완성된 제품·생성·소비자·테스트 묶음에서 영향 검증을 수행한다.
 
 ## 현재 상태와 다음 행동
 
-독립 탐색에서 Django 6.1/Python 3.14.3의 단건 조회 11개, 기본 생성·중첩 transaction 9개,
-두 연결의 unique 경쟁을 SQLite/PostgreSQL에서 각각 두 프로세스로 재현했다. 이는 설계 근거이며
-Go 구현 성공이나 최종 기준 fixture의 완료 주장이 아니다.
-`orm/manager.go`·`orm/materialize.go`의 query 평가와 양 backend의 transaction session을 확장한다.
+고정 Django 6.1/Python 3.14.3의 단건 조회 11개, 기본 생성·중첩 transaction 9개와
+두 연결의 unique 경쟁을 최종 observer/fixture로 관리한다. SQLite/PostgreSQL 각각 두 독립 프로세스의
+byte 일치와 observer source 결합을 확인했고, 별도 생성 Go module의 세 mode 대조를 완료했다.
+`db.WithSavepoint`와 양 backend의 일반·조정·관계 session, root batch의 pinned transaction에 중첩 scope를 연결했다.
+이 기반의 영향 검증과 실패 수정은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0107--단건-조회와-savepoint-기반-조회-후-생성)에 기록했다.
+`Get`·`GetOrCreate`와 일반/eager/prefetch 생성 소비자를 연결했다. 원 Manager와 BoundModel의 준비된 metadata를
+파생 query가 보존하며 입력은 실제 부재를 확인한 뒤 transaction/savepoint 안에서 평가한다.
+양 DB의 실제 unique 경쟁·부모 rollback·생성 객체의 관계 수명과 callback/unknown outcome 실패 경계를 검증했다.
+Helpdesk의 현재 권한·Label 확보·원자 audit와 Form/Admin/API·독립 client를 연결했다.
+공통 Admin 목록 command, Helpdesk 실제 양 DB, OpenAPI와 독립 client의 세 mode 영향 검증 및 실제 브라우저 확인을 완료했다.
+범위별 source와 실행은 검증 기록에서 구분한다. 다음은 최종 source 고정과 Hosted 전체 통합이며,
+이 통합이 끝날 때 전체 변경 묶음의 검증과 전달을 함께 닫는다.

@@ -1,13 +1,16 @@
 package helpdesk
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"reflect"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
@@ -25,12 +28,22 @@ type API struct {
 	schemas        []openapi.NamedSchema
 }
 
+// APIConfig supplies request admission and the transactional audit required by
+// label ensure. AppendAudit must use the supplied session, propagate errors and
+// never open or commit a separate transaction. Other API writes retain their
+// existing audit policies; this callback does not add generic write auditing.
+type APIConfig struct {
+	Authentication api.Authentication
+	AppendAudit    func(context.Context, db.Session, admin.PreparedEvent) error
+}
+
 // API binds authentication once for each collection and detail operation.
 // Category policy and typed mutation paths remain shared with Admin. Callers
 // choose the listener, middleware, and whether to publish the OpenAPI document.
-func (a *Application) API(authentication api.Authentication) (*API, error) {
-	if a == nil || nilAuthentication(authentication) {
-		return nil, fmt.Errorf("helpdesk API: application or authentication is nil")
+func (a *Application) API(config APIConfig) (*API, error) {
+	authentication := config.Authentication
+	if a == nil || nilAuthentication(authentication) || config.AppendAudit == nil {
+		return nil, fmt.Errorf("helpdesk API: application, authentication and transactional audit are required")
 	}
 	ticket, err := openapi.ModelResponseSchema(a.output)
 	if err != nil {
@@ -175,7 +188,7 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelOperations, labelSchemas, err := a.labelOperations(protect)
+	labelOperations, labelSchemas, err := a.labelOperations(protect, config.AppendAudit)
 	if err != nil {
 		return nil, err
 	}

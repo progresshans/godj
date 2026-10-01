@@ -307,8 +307,9 @@ func TestPostgreSQLScalarMembershipMatchesReferenceAndSkipsEmptyIO(t *testing.T)
 			}); err != nil {
 				t.Fatal(err)
 			}
-			if retainedRows.Next() || !errors.Is(retainedRows.Err(), sql.ErrTxDone) {
-				t.Fatal("synthetic PostgreSQL cursor outlived transaction")
+			expired := &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}
+			if retainedRows.Next() || !errors.Is(retainedRows.Err(), expired) || !errors.Is(retainedRows.Scan(&count, &minimum, &maximum), expired) {
+				t.Fatalf("synthetic PostgreSQL cursor outlived transaction: %v", retainedRows.Err())
 			}
 			if err := retainedRows.Close(); err != nil {
 				t.Fatal(err)

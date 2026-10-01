@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[accounts.Group] = accounts.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[accounts.GroupPermissionsLink] = accounts.GroupPermissionsLinkDescriptor{}
@@ -24,9 +24,11 @@ var _ orm.ProjectionDescriptor[work.AccessNote] = work.AccessNoteDescriptor{}
 var _ orm.ProjectionDescriptor[work.Guard] = work.GuardDescriptor{}
 var _ orm.ProjectionDescriptor[work.Note] = work.NoteDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -170,6 +172,24 @@ func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) All(_ctx context.Co
 		}
 	}
 	return _results, nil
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*AccountsGroupPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsGroupPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -364,6 +384,24 @@ func (_query AccountsUserGroupsLinkSelectRelatedQuery) All(_ctx context.Context)
 	}
 	return _results, nil
 }
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) Get(_ctx context.Context) (*AccountsUserGroupsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query AccountsUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsUserGroupsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -556,6 +594,24 @@ func (_query AccountsUserPermissionsLinkSelectRelatedQuery) All(_ctx context.Con
 		}
 	}
 	return _results, nil
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*AccountsUserPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query AccountsUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*AccountsUserPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -750,6 +806,24 @@ func (_query WorkAccessGuardSelectRelatedQuery) All(_ctx context.Context) ([]*Wo
 	}
 	return _results, nil
 }
+func (_query WorkAccessGuardSelectRelatedQuery) Get(_ctx context.Context) (*WorkAccessGuardObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query WorkAccessGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[work.AccessGuard]) (*WorkAccessGuardObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkAccessGuardSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessGuardObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -943,6 +1017,24 @@ func (_query WorkAccessNoteSelectRelatedQuery) All(_ctx context.Context) ([]*Wor
 	}
 	return _results, nil
 }
+func (_query WorkAccessNoteSelectRelatedQuery) Get(_ctx context.Context) (*WorkAccessNoteObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query WorkAccessNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[work.AccessNote]) (*WorkAccessNoteObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkAccessNoteSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessNoteObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1124,6 +1216,24 @@ func (_query WorkGuardSelectRelatedQuery) All(_ctx context.Context) ([]*WorkGuar
 	}
 	return _results, nil
 }
+func (_query WorkGuardSelectRelatedQuery) Get(_ctx context.Context) (*WorkGuardObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query WorkGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[work.Guard]) (*WorkGuardObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkGuardSelectRelatedQuery) First(_ctx context.Context) (*WorkGuardObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1296,6 +1406,24 @@ func (_query WorkNoteSelectRelatedQuery) All(_ctx context.Context) ([]*WorkNoteO
 	}
 	return _results, nil
 }
+func (_query WorkNoteSelectRelatedQuery) Get(_ctx context.Context) (*WorkNoteObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query WorkNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[work.Note]) (*WorkNoteObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query WorkNoteSelectRelatedQuery) First(_ctx context.Context) (*WorkNoteObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1339,4 +1467,4 @@ func (_factory WorkNoteObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_30df4d896ced9500ee70c010c091ffac5b09d1c7002d7b4f3f74a09e58486da1
+var _ goDjProjectSnapshot_663a1416e0a7b58b2bb8e760b727e57310c572b5c4e99dd10912fa7ba011fce1

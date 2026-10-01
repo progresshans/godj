@@ -24,7 +24,7 @@ func (r ReverseObject[O, T]) WithChildren(children ...PrefetchSelection[T]) Reve
 	state, err := bindReversePrefetchState(r.state)
 	p := ReverseCollectionPrefetch[O, T]{state: state, configurationErr: err}
 	if err == nil {
-		q := newQuerySet[T](nil, state.reverse.sourceDescriptor, state.reverse.sourcePlan).OrderBy(NewAutoField[T](state.reverse.sourcePrimaryKey).Asc())
+		q := newQuerySet[T](nil, state.reverse.sourceDescriptor, state.reverse.sourcePlan, state.reverse.source.prepared).OrderBy(NewAutoField[T](state.reverse.sourcePrimaryKey).Asc())
 		p.plan, p.configurationErr = q.plan, q.configurationErr
 	}
 	return p.WithChildren(children...)
@@ -43,7 +43,7 @@ func (p ReverseCollectionPrefetch[O, T]) WithConfigurationError(err error) Rever
 	return p
 }
 func (p ReverseCollectionPrefetch[O, T]) targetQuery() QuerySet[T] {
-	q := newQuerySet[T](nil, p.state.reverse.sourceDescriptor, p.plan)
+	q := newQuerySet[T](nil, p.state.reverse.sourceDescriptor, p.plan, p.state.reverse.source.prepared)
 	q.configurationErr = p.configurationErr
 	return q
 }
@@ -188,7 +188,7 @@ func (p preparedReverseCollection[O, T]) apply(ctx context.Context, backend db.Q
 		if err != nil {
 			return err
 		}
-		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, plan)
+		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, plan, p.state.reverse.source.prepared)
 		q.materialization = &queryMaterialization[T]{binding: p.state.reverse.source, targets: p.configuration.targets, eagerNodes: p.configuration.eagerNodes}
 		if err := q.validateTerminal(ctx); err != nil {
 			return err
@@ -232,7 +232,7 @@ func (p preparedReverseCollection[O, T]) apply(ctx context.Context, backend db.Q
 			return err
 		}
 		condition := query.NewCondition(fieldReference(p.state.reverse.sourceForeignKey), query.LookupExact, query.Integer(keys[i]))
-		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.plan).Filter(predicateFromCondition[T](condition, nil))
+		q := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.plan, p.state.reverse.source.prepared).Filter(predicateFromCondition[T](condition, nil))
 		if q.configurationErr != nil {
 			return q.configurationErr
 		}

@@ -9,6 +9,7 @@ const (
 	HelpdeskLabelCreateOperation         OperationName = "HelpdeskLabelCreate"
 	HelpdeskLabelDeleteOperation         OperationName = "HelpdeskLabelDelete"
 	HelpdeskLabelDetailOperation         OperationName = "HelpdeskLabelDetail"
+	HelpdeskLabelEnsureOperation         OperationName = "HelpdeskLabelEnsure"
 	HelpdeskLabelListOperation           OperationName = "HelpdeskLabelList"
 	HelpdeskLabelPatchOperation          OperationName = "HelpdeskLabelPatch"
 	HelpdeskLabelUpdateOperation         OperationName = "HelpdeskLabelUpdate"

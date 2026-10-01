@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
 
@@ -17,12 +17,12 @@ var _ db.RelationAtomic = (*Backend)(nil)
 var _ db.Session = (*transactionSession)(nil)
 var _ db.RelationSession = (*transactionSession)(nil)
 var _ db.SessionValidator = (*transactionSession)(nil)
+var _ db.Savepointer = (*transactionSession)(nil)
 
 type transactionSession struct {
 	transaction transactionHandle
 	backend     *Backend
-	lifetime    context.Context
-	active      atomic.Bool
+	scope       *txscope.Scope
 }
 
 func (session *transactionSession) ValidateSession(ctx context.Context) error {
@@ -80,20 +80,16 @@ func (b *Backend) atomic(ctx context.Context, begin func(context.Context) (trans
 	if err != nil {
 		return classifyDatabaseError(ctx, "begin transaction", b.schema, "", err)
 	}
-	lifetime, finishLifetime := context.WithCancelCause(ctx)
-	defer finishLifetime(sql.ErrTxDone)
-	session := &transactionSession{transaction: transaction, backend: b, lifetime: lifetime}
-	session.active.Store(true)
+	session := newTransactionSession(ctx, transaction, b)
 	finished := false
 	defer func() {
-		session.active.Store(false)
 		if !finished {
+			_ = session.scope.Finish()
 			_ = transaction.Rollback()
 		}
 	}()
 
-	if callbackErr := callback(session); callbackErr != nil {
-		session.active.Store(false)
+	if callbackErr := session.scope.FinishCallback(callback(session)); callbackErr != nil {
 		rollbackErr := normalizeRollbackError(transaction.Rollback())
 		finished = true
 		if rollbackErr != nil {
@@ -105,7 +101,6 @@ func (b *Backend) atomic(ctx context.Context, begin func(context.Context) (trans
 		return callbackErr
 	}
 
-	session.active.Store(false)
 	if contextErr := ctx.Err(); contextErr != nil {
 		rollbackErr := normalizeRollbackError(transaction.Rollback())
 		finished = true
@@ -132,63 +127,84 @@ func normalizeRollbackError(err error) error {
 	return fmt.Errorf("rollback PostgreSQL transaction: %w", err)
 }
 
+func newTransactionSession(ctx context.Context, transaction transactionHandle, backend *Backend) *transactionSession {
+	return &transactionSession{transaction: transaction, backend: backend, scope: txscope.New(ctx, func(ctx context.Context, statement string) error {
+		_, err := transaction.ExecContext(ctx, statement)
+		return classifyDatabaseError(ctx, "savepoint control", backend.schema, "", err)
+	})}
+}
+
 func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err := session.validate(ctx); err != nil {
 		return nil, err
 	}
-	statement, arguments, err := compilePlan(session.backend.schema, plan)
-	if err != nil {
-		return nil, err
-	}
-	if plan.EmptyResult() {
-		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
-	}
-	rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
-	if err != nil {
-		return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
-	}
-	adapted, err := adaptScalarRows(rows, plan)
-	if err != nil {
-		return nil, err
-	}
-	if owner, ok := session.transaction.(interface {
-		WrapRows(db.Rows, *sql.Rows) db.Rows
-	}); ok {
-		return owner.WrapRows(adapted, rows), nil
-	}
-	return adapted, nil
+	return txscope.Query(session.scope, ctx, func(ctx context.Context) (db.Rows, error) {
+		statement, arguments, err := compilePlan(session.backend.schema, plan)
+		if err != nil {
+			return nil, err
+		}
+		if plan.EmptyResult() {
+			return queryplan.EmptyRows(ctx, plan.ResultShape())
+		}
+		rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
+		if err != nil {
+			return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
+		}
+		adapted, err := adaptScalarRows(rows, plan)
+		if err != nil {
+			return nil, err
+		}
+		if owner, ok := session.transaction.(interface {
+			WrapRows(db.Rows, *sql.Rows) db.Rows
+		}); ok {
+			return owner.WrapRows(adapted, rows), nil
+		}
+		return adapted, nil
+	})
 }
 
 func (session *transactionSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	return executeInsert(ctx, session.transaction, session.backend.schema, plan)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		return executeInsert(ctx, session.transaction, session.backend.schema, plan)
+	})
 }
 
 func (session *transactionSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
 	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	return executeUpdate(ctx, session.transaction, session.backend.schema, plan)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		return executeUpdate(ctx, session.transaction, session.backend.schema, plan)
+	})
 }
 
 func (session *transactionSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
 	if err := session.validate(ctx); err != nil {
 		return 0, err
 	}
-	return executeDelete(ctx, session.transaction, session.backend.schema, plan)
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (int64, error) {
+		return executeDelete(ctx, session.transaction, session.backend.schema, plan)
+	})
 }
 
 func (session *transactionSession) validate(ctx context.Context) error {
-	if session == nil || session.transaction == nil || session.backend == nil || session.lifetime == nil || !session.active.Load() {
+	if session == nil || session.transaction == nil || session.backend == nil || session.scope == nil {
 		return backendInvalid("PostgreSQL transaction session is nil or no longer active")
 	}
-	if ctx == nil {
-		return backendInvalid("context is nil")
-	}
-	if err := ctx.Err(); err != nil {
+	return session.scope.Validate(ctx)
+}
+
+func (session *transactionSession) Savepoint(ctx context.Context, callback func(db.Session) error) error {
+	if err := session.validate(ctx); err != nil {
 		return err
 	}
-	return context.Cause(session.lifetime)
+	if callback == nil {
+		return session.scope.Savepoint(ctx, nil)
+	}
+	return session.scope.Savepoint(ctx, func(child *txscope.Scope) error {
+		return callback(&transactionSession{transaction: session.transaction, backend: session.backend, scope: child})
+	})
 }

@@ -165,6 +165,7 @@ type transactionTestState struct {
 	commitErr   error
 	rollbackErr error
 	lastOptions driver.TxOptions
+	execHook    func(context.Context, string) error
 }
 
 func (state *transactionTestState) snapshot() transactionTestSnapshot {
@@ -227,7 +228,7 @@ func (connection *transactionTestConnection) BeginTx(_ context.Context, options 
 }
 func (connection *transactionTestConnection) ExecContext(
 	ctx context.Context,
-	_ string,
+	statement string,
 	_ []driver.NamedValue,
 ) (driver.Result, error) {
 	if err := ctx.Err(); err != nil {
@@ -235,7 +236,13 @@ func (connection *transactionTestConnection) ExecContext(
 	}
 	connection.state.mu.Lock()
 	connection.state.execs++
+	hook := connection.state.execHook
 	connection.state.mu.Unlock()
+	if hook != nil {
+		if err := hook(ctx, statement); err != nil {
+			return nil, err
+		}
+	}
 	return driver.RowsAffected(1), nil
 }
 func (connection *transactionTestConnection) QueryContext(

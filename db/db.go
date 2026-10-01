@@ -38,7 +38,10 @@ type Mutator interface {
 }
 
 // Session is bound to one transaction for the duration of an Atomic callback.
-// It is invalid once that callback returns.
+// It is invalid once that callback returns. Calls on a borrowed handle are
+// serialized by the caller, and work using it must be joined before returning.
+// Native sessions close outstanding rowsets on scope exit. A nested savepoint
+// temporarily makes its parent handle unavailable; use the supplied child.
 type Session interface {
 	Queryer
 	Mutator

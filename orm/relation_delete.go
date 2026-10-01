@@ -7,7 +7,6 @@ import (
 	"errors"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -226,7 +225,7 @@ func (state relationDeleteState[M]) preflight(target M) (int64, error) {
 }
 
 func runRelationAtomic(ctx context.Context, atomic func(context.Context, func(db.RelationSession) error) error, callback func(db.RelationSession) error) error {
-	guard := &relationDeleteCallbackGuard{}
+	guard := &transactionCallbackGuard{}
 	atomicErr := atomic(ctx, func(session db.RelationSession) error {
 		return guard.invoke(func() error { return callback(session) })
 	})
@@ -241,52 +240,6 @@ func runRelationAtomic(ctx context.Context, atomic func(context.Context, func(db
 		return errors.Join(relationBackendInvalidPlan("relation atomic backend did not preserve its callback error"), atomicErr, snapshot.result)
 	}
 	return atomicErr
-}
-
-type relationDeleteCallbackGuard struct {
-	mu        sync.Mutex
-	sealed    bool
-	entries   int
-	completed int
-	result    error
-}
-
-type relationDeleteCallbackSnapshot struct {
-	entries   int
-	completed int
-	result    error
-}
-
-func (guard *relationDeleteCallbackGuard) invoke(callback func() error) error {
-	guard.mu.Lock()
-	if guard.sealed {
-		guard.mu.Unlock()
-		return relationBackendInvalidPlan("relation atomic callback was invoked after its outer call returned")
-	}
-	guard.entries++
-	if guard.entries != 1 {
-		guard.mu.Unlock()
-		return relationBackendInvalidPlan("relation atomic callback was invoked more than once")
-	}
-	guard.mu.Unlock()
-
-	result := callback()
-	guard.mu.Lock()
-	guard.completed++
-	guard.result = result
-	guard.mu.Unlock()
-	return result
-}
-
-func (guard *relationDeleteCallbackGuard) seal() relationDeleteCallbackSnapshot {
-	guard.mu.Lock()
-	defer guard.mu.Unlock()
-	guard.sealed = true
-	return relationDeleteCallbackSnapshot{
-		entries:   guard.entries,
-		completed: guard.completed,
-		result:    guard.result,
-	}
 }
 
 func relationDeleteTargetKey(model ir.Model) (ir.Field, bool) {

@@ -300,6 +300,50 @@ func (s HelpdeskLabelDetailInternalServerError) Read(p []byte) (n int, err error
 
 func (*HelpdeskLabelDetailInternalServerError) helpdeskLabelDetailRes() {}
 
+type HelpdeskLabelEnsureBadRequest GoDjAPIError
+
+func (*HelpdeskLabelEnsureBadRequest) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureCreated LabelEnsureResult
+
+func (*HelpdeskLabelEnsureCreated) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureForbidden GoDjAPIError
+
+func (*HelpdeskLabelEnsureForbidden) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelEnsureInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelEnsureInternalServerError) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureNotFound GoDjAPIError
+
+func (*HelpdeskLabelEnsureNotFound) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureOK LabelEnsureResult
+
+func (*HelpdeskLabelEnsureOK) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskLabelEnsureRequestEntityTooLarge) helpdeskLabelEnsureRes() {}
+
+type HelpdeskLabelEnsureUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskLabelEnsureUnsupportedMediaType) helpdeskLabelEnsureRes() {}
+
 type HelpdeskLabelListInternalServerError struct {
 	Data io.Reader
 }
@@ -1025,6 +1069,32 @@ func (s *LabelCreate) GetName() string {
 // SetName sets the value of Name.
 func (s *LabelCreate) SetName(val string) {
 	s.Name = val
+}
+
+// Ref: #/components/schemas/LabelEnsureResult
+type LabelEnsureResult struct {
+	Label   Label `json:"label"`
+	Created bool  `json:"created"`
+}
+
+// GetLabel returns the value of Label.
+func (s *LabelEnsureResult) GetLabel() Label {
+	return s.Label
+}
+
+// GetCreated returns the value of Created.
+func (s *LabelEnsureResult) GetCreated() bool {
+	return s.Created
+}
+
+// SetLabel sets the value of Label.
+func (s *LabelEnsureResult) SetLabel(val Label) {
+	s.Label = val
+}
+
+// SetCreated sets the value of Created.
+func (s *LabelEnsureResult) SetCreated(val bool) {
+	s.Created = val
 }
 
 // LabelHeaders wraps Label with response headers.

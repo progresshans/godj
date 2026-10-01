@@ -37,7 +37,7 @@ func (r ManyToMany[O, T, L]) prefetch(ctx context.Context, backend db.Queryer, o
 
 	groups := make(map[int64][]T, len(keys))
 	seenLinks := make(map[int64]struct{})
-	base := newQuerySet(backend, r.through, r.prefetchSource.objectPlan)
+	base := newQuerySet(backend, r.through, r.prefetchSource.objectPlan, r.prefetchSource.prepared)
 	for start := 0; start < len(keys); start += manyPrefetchBatchSize {
 		if err := ctx.Err(); err != nil {
 			return nil, err

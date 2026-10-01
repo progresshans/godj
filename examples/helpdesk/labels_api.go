@@ -18,7 +18,7 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-func (a *Application) labelOperations(protect func(openapi.Operation, api.AuthenticatedHandler) (openapi.Operation, error)) ([]openapi.Operation, []openapi.NamedSchema, error) {
+func (a *Application) labelOperations(protect func(openapi.Operation, api.AuthenticatedHandler) (openapi.Operation, error), appendAudit appendLabelAudit) ([]openapi.Operation, []openapi.NamedSchema, error) {
 	output, err := openapi.ModelResponseSchema(a.labelOutput)
 	if err != nil {
 		return nil, nil, err
@@ -32,6 +32,14 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		return nil, nil, err
 	}
 	labelRef, err := openapi.Ref("Label")
+	if err != nil {
+		return nil, nil, err
+	}
+	ensureResult, err := openapi.Object(openapi.Property{Name: "label", Schema: labelRef, Required: true}, openapi.Property{Name: "created", Schema: openapi.Boolean(), Required: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	ensureRef, err := openapi.Ref("LabelEnsureResult")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,6 +101,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-update", Method: http.MethodPut, Path: "/api/labels/<int64:id>/"}, Summary: "Update a category label", Permission: ChangeLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiLabelUpdate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-patch", Method: http.MethodPatch, Path: "/api/labels/<int64:id>/"}, Summary: "Partially update a category label", Permission: ChangeLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: patchRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiLabelPatch},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-delete", Method: http.MethodDelete, Path: "/api/labels/<int64:id>/"}, Summary: "Delete a category label", Permission: DeleteLabel, Description: "Deletes the scoped label and its ticket links in one coordinated transaction. Its category, tickets and links to other labels remain. Authentication, CSRF and permission precede lookup.", Responses: []openapi.Response{{Status: http.StatusNoContent, Description: "The label and its ticket links were deleted."}, notFound}}, a.apiLabelDelete},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-ensure", Method: http.MethodPost, Path: "/api/labels/ensure/"}, Summary: "Find or create a category label", Permission: AddLabel, AdditionalPermissions: []auth.Permission{ViewLabel}, Description: "Authentication, both add and view permissions, and CSRF precede parsing. Accepts the same normalized name as ordinary creation; category and id remain server-owned. Query parameters are rejected. The current assigned category is checked in the parent transaction. An exact (category, name) match returns 200 with created=false; a new label returns 201 with created=true only after the row and its single add audit event commit together. Reuse does not append an audit event. A concurrent native unique conflict is rolled back to a savepoint before one fresh lookup. Output, audit, cancellation and uncertain transaction failures do not publish a result or trigger automatic retries. Ordinary creation continues to reject duplicates.", RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true}, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The existing scoped label; created is false.", ensureRef), helpdeskJSONResponse(http.StatusCreated, "The newly committed scoped label; created is true.", ensureRef), helpdeskJSONResponse(http.StatusBadRequest, "Invalid name, body or query parameters. A native unique conflict with no matching visible label uses __all__/unique after confirmed rollback.", errorRef), notFound, helpdeskJSONResponse(http.StatusRequestEntityTooLarge, "The JSON body exceeds 4096 bytes.", errorRef), helpdeskJSONResponse(http.StatusUnsupportedMediaType, "The body is not application/json.", errorRef)}}, a.apiLabelEnsure(appendAudit)},
 	}
 	operations := make([]openapi.Operation, 0, len(definitions))
 	for _, definition := range definitions {
@@ -102,7 +111,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		}
 		operations = append(operations, operation)
 	}
-	return operations, []openapi.NamedSchema{{Name: "Label", Schema: output}, {Name: "LabelCreate", Schema: input}, {Name: "LabelUpdate", Schema: input}, {Name: "LabelPatch", Schema: partial}, {Name: "LabelList", Schema: list}}, nil
+	return operations, []openapi.NamedSchema{{Name: "Label", Schema: output}, {Name: "LabelCreate", Schema: input}, {Name: "LabelUpdate", Schema: input}, {Name: "LabelPatch", Schema: partial}, {Name: "LabelList", Schema: list}, {Name: "LabelEnsureResult", Schema: ensureResult}}, nil
 }
 
 func pagedListRequest(raw string, allowSearch bool) (admin.ListRequest, bool) {

@@ -16,6 +16,7 @@ import (
 type RelatedSelectQuery[S any] struct {
 	backend          db.Queryer
 	plan             query.Plan
+	prepared         *preparedModel
 	binding          BoundModel[S]
 	sourceDescriptor ProjectionDescriptor[S]
 	targets          []preparedRelatedSelection[S]
@@ -34,7 +35,7 @@ type relatedSelectedValue[S any] struct {
 // SelectRelated prepares one or more targets without evaluating the source.
 // Errors stay on the query so terminals can apply context precedence.
 func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S]) RelatedSelectQuery[S] {
-	result := RelatedSelectQuery[S]{backend: source.backend, plan: source.plan, evaluation: newEvaluationState[relatedSelectedValue[S]](), materialization: source.materialization}
+	result := RelatedSelectQuery[S]{backend: source.backend, plan: source.plan, prepared: source.prepared, evaluation: newEvaluationState[relatedSelectedValue[S]](), materialization: source.materialization}
 	if source.configurationErr != nil {
 		return result.WithConfigurationError(source.configurationErr)
 	}
@@ -76,7 +77,7 @@ func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S])
 	if source.materialization != nil && (source.materialization.binding.snapshot != result.binding.snapshot || source.materialization.binding.identity != result.binding.identity) {
 		return result.WithConfigurationError(relationInvalidPlan("eager query prefetch configuration belongs to another source binding"))
 	}
-	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(result.sourceDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), result.binding.model) || source.plan.Table() != result.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(result.binding.model)) {
+	if source.evaluation == nil || source.prepared == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(result.sourceDescriptor) || !reflect.DeepEqual(source.prepared.metadata, result.binding.model) || source.plan.Table() != result.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(result.binding.model)) {
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet does not match the selected source binding"))
 	}
 	var projections []query.RelationProjection
@@ -338,7 +339,7 @@ func (q RelatedSelectQuery[S]) Count(ctx context.Context) (int64, error) {
 		}
 		return sessionReadResult(ctx, q.backend, int64(len(values)), nil)
 	}
-	return newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections()).Count(ctx)
+	return newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections(), q.prepared).Count(ctx)
 }
 
 type projectedRelatedRow[S any] struct {

@@ -13,6 +13,10 @@ type HelpdeskLabelDetailRes interface {
 	helpdeskLabelDetailRes()
 }
 
+type HelpdeskLabelEnsureRes interface {
+	helpdeskLabelEnsureRes()
+}
+
 type HelpdeskLabelListRes interface {
 	helpdeskLabelListRes()
 }

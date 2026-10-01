@@ -31,7 +31,7 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 	}
 	groups := make(map[int64][]relatedSelectedValue[T], len(keys))
 	configuration := &queryMaterialization[T]{binding: r.prefetchTarget, selections: p.queryChildren, targets: p.targets, eagerNodes: p.eagerNodes}
-	base := newQuerySet(backend, r.target, p.targetPlan)
+	base := newQuerySet(backend, r.target, p.targetPlan, r.prefetchTarget.prepared)
 	related, err := configuration.relatedQuery(base)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (p preparedManyPrefetch[S, T, L]) loadCustom(ctx context.Context, backend d
 		if err != nil {
 			return nil, err
 		}
-		set := newQuerySet(backend, r.target, plan)
+		set := newQuerySet(backend, r.target, plan, r.prefetchTarget.prepared)
 		if len(p.queryChildren) > 0 || len(p.targets) > 0 {
 			set.materialization = configuration
 		}

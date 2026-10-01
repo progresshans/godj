@@ -24,6 +24,7 @@ func (value *sourceStub) ValidateSession(ctx context.Context) error {
 func (*sourceStub) Insert(context.Context, query.InsertPlan) (int64, error) { return 0, nil }
 func (*sourceStub) Update(context.Context, query.UpdatePlan) (int64, error) { return 0, nil }
 func (*sourceStub) Delete(context.Context, query.DeletePlan) (int64, error) { return 0, nil }
+func (*sourceStub) Savepoint(context.Context, func(db.Session) error) error { return nil }
 
 func TestReadScopeRemovesMutationCapabilityAndExpiresOnCleanupFailure(t *testing.T) {
 	source := &sourceStub{live: true}
@@ -36,8 +37,11 @@ func TestReadScopeRemovesMutationCapabilityAndExpiresOnCleanupFailure(t *testing
 		if _, writable := reader.(db.Mutator); writable {
 			t.Fatal("snapshot exposed mutation capability")
 		}
+		if _, nested := reader.(db.Savepointer); nested {
+			t.Fatal("snapshot exposed savepoint capability")
+		}
 		return callbackFailure
-	}, func() { source.live = false }, func() error {
+	}, func() error { source.live = false; return nil }, func() error {
 		ends++
 		if source.live {
 			t.Fatal("cleanup began before borrowed handle expired")
@@ -75,7 +79,7 @@ func TestReadScopeCancellationPanicAndGoexitEndExactlyOnce(t *testing.T) {
 						runtime.Goexit()
 					}
 					return nil
-				}, func() { source.live = false }, func() error { ends++; return nil })
+				}, func() error { source.live = false; return nil }, func() error { ends++; return nil })
 			}()
 			<-done
 			if source.live || ends != 1 {

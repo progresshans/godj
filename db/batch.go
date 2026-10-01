@@ -33,6 +33,8 @@ import (
 // Calls are synchronous. All owned rows/cursors close on return or panic, and
 // the original panic propagates. Borrowed sessions keep their existing lifetime
 // and transaction owner: this operation does not commit or roll them back.
+// Finish a borrowed session's batch stream before entering a savepoint on it;
+// live cursor state must not cross a child rollback boundary.
 type BatchQueryer interface {
 	QueryBatches(ctx context.Context, plan query.Plan, size int, scan func(Row) error, yield func(Queryer) (bool, error)) error
 }

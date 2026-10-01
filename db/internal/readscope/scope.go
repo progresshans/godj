@@ -30,20 +30,20 @@ func (value *reader) ValidateSession(ctx context.Context) error {
 
 // Run owns an already-open read transaction. Even panic and Goexit expire its
 // borrowed handle and end it. Ordinary cleanup failures remain observable.
-func Run(ctx context.Context, source Session, callback func(db.Queryer) error, expire func(), rollback func() error) error {
+func Run(ctx context.Context, source Session, callback func(db.Queryer) error, expire func() error, rollback func() error) error {
 	ended := false
 	defer func() {
 		if !ended {
-			expire()
+			_ = expire()
 			_ = rollback()
 		}
 	}()
 	callbackErr := callback(&reader{source: source})
-	expire()
+	expireErr := expire()
 	ended = true
 	cleanupErr := rollback()
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("end database read snapshot: %w", cleanupErr)
 	}
-	return errors.Join(callbackErr, ctx.Err(), cleanupErr)
+	return errors.Join(callbackErr, ctx.Err(), expireErr, cleanupErr)
 }

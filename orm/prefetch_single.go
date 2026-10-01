@@ -41,7 +41,7 @@ func (p SinglePrefetch[S, T]) WithConfigurationError(err error) SinglePrefetch[S
 }
 
 func (p SinglePrefetch[S, T]) targetQuery() QuerySet[T] {
-	q := newQuerySet[T](nil, p.selection.state.targetDescriptor, p.selection.state.target.objectPlan)
+	q := newQuerySet[T](nil, p.selection.state.targetDescriptor, p.selection.state.target.objectPlan, p.selection.state.target.prepared)
 	q.configurationErr = p.selection.configurationErr
 	q = q.OrderBy(NewAutoField[T](p.selection.state.targetKey).Asc())
 	if p.custom {
@@ -265,7 +265,7 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 	if p.reverse() {
 		field = fieldReference(p.state.path.sourceKey)
 	}
-	base := newQuerySet(backend, p.state.targetDescriptor, p.plan)
+	base := newQuerySet(backend, p.state.targetDescriptor, p.plan, p.state.target.prepared)
 	for start := 0; start < len(ordered); start += manyPrefetchBatchSize {
 		batch := ordered[start:min(start+manyPrefetchBatchSize, len(ordered))]
 		arguments := make([]query.Value, len(batch))

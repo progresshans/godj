@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
 
 var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
@@ -25,9 +25,11 @@ var _ orm.ProjectionDescriptor[models.ServiceReport] = models.ServiceReportDescr
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
 var _ orm.ProjectionDescriptor[models.TicketLabel] = models.TicketLabelDescriptor{}
 
-type relationSelectQuery[O any] interface {
+type relationSelectQuery[M, O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
+	Get(context.Context) (*O, error)
+	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -171,6 +173,24 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) All(_ctx context.Co
 		}
 	}
 	return _results, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -365,6 +385,24 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) All(_ctx context.Context)
 	}
 	return _results, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityUserGroupsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserGroupsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -558,6 +596,24 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) All(_ctx context.Con
 	}
 	return _results, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserPermissionsLinkObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -739,6 +795,24 @@ func (_query ModelsLabelSelectRelatedQuery) All(_ctx context.Context) ([]*Models
 	}
 	return _results, nil
 }
+func (_query ModelsLabelSelectRelatedQuery) Get(_ctx context.Context) (*ModelsLabelObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ModelsLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.Label]) (*ModelsLabelObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ModelsLabelSelectRelatedQuery) First(_ctx context.Context) (*ModelsLabelObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -917,6 +991,24 @@ func (_query ModelsServiceReportSelectRelatedQuery) All(_ctx context.Context) ([
 		}
 	}
 	return _results, nil
+}
+func (_query ModelsServiceReportSelectRelatedQuery) Get(_ctx context.Context) (*ModelsServiceReportObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ModelsServiceReportSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.ServiceReport]) (*ModelsServiceReportObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ModelsServiceReportSelectRelatedQuery) First(_ctx context.Context) (*ModelsServiceReportObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1132,6 +1224,24 @@ func (_query ModelsTicketSelectRelatedQuery) All(_ctx context.Context) ([]*Model
 		}
 	}
 	return _results, nil
+}
+func (_query ModelsTicketSelectRelatedQuery) Get(_ctx context.Context) (*ModelsTicketObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ModelsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.Ticket]) (*ModelsTicketObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
 }
 func (_query ModelsTicketSelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
@@ -1364,6 +1474,24 @@ func (_query ModelsTicketLabelSelectRelatedQuery) All(_ctx context.Context) ([]*
 	}
 	return _results, nil
 }
+func (_query ModelsTicketLabelSelectRelatedQuery) Get(_ctx context.Context) (*ModelsTicketLabelObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrap(_selected)
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[models.TicketLabel]) (*ModelsTicketLabelObject, bool, error) {
+	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _object, _created, nil
+}
 func (_query ModelsTicketLabelSelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketLabelObject, bool, error) {
 	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
 	if _err != nil || !_found {
@@ -1464,4 +1592,4 @@ func (_object *ModelsTicketLabelObject) TicketObject(_ctx context.Context) (*Mod
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_9e0e9d865bd4e5b0bac2917b130a6e17c36e91f77d90ccbe29479337c65acda2
+var _ goDjProjectSnapshot_4bea930fe389d8f066fd5efb38ba4ed1a2481e0d4f7c78f8a266601bd8793288

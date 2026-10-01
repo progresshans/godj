@@ -171,7 +171,7 @@ func (state reversePrefetchState[Owner, Source]) load(ctx context.Context, backe
 		return nil, err
 	}
 	ordering := NewAutoField[Source](state.reverse.sourcePrimaryKey).Asc()
-	base := newQuerySet(backend, state.reverse.sourceDescriptor, state.reverse.sourcePlan)
+	base := newQuerySet(backend, state.reverse.sourceDescriptor, state.reverse.sourcePlan, state.reverse.source.prepared)
 	batch := base.
 		Filter(predicateFromCondition[Source](inCondition, nil)).
 		OrderBy(ordering)

@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "c1ecab5491fa26d48009031e430f764c8162de9d608423d5e046c1f07dd3a73e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v20"
+const GoDjProjectRelationFacadeInputSHA256 = "7736eb3fba88d3f1a503907d389677c1fbf9d48e17cb523925e9963eb2b339a6"
 
 type Backend interface {
 	db.Queryer
@@ -494,6 +494,34 @@ func AggregateAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuth
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query AuthorsAuthorQuery) Get(_ctx context.Context) (*AuthorsAuthor, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.AuthorsAuthor)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeAuthorsAuthor(_ctx, _value)
+}
+
+func (_query AuthorsAuthorQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[authors.Author]) (*AuthorsAuthor, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.AuthorsAuthor, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeAuthorsAuthor(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query AuthorsAuthorQuery) First(_ctx context.Context) (*AuthorsAuthor, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -953,6 +981,49 @@ func (_query AuthorsAuthorPrefetchQuery) All(_ctx context.Context) ([]*AuthorsAu
 	}
 	return _result, nil
 }
+func (_query AuthorsAuthorPrefetchQuery) Get(_ctx context.Context) (*AuthorsAuthor, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeAuthorsAuthor(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query AuthorsAuthorPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[authors.Author]) (*AuthorsAuthor, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeAuthorsAuthor(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query AuthorsAuthorPrefetchQuery) First(_ctx context.Context) (*AuthorsAuthor, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1183,6 +1254,34 @@ func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func (_query BlogPostQuery) Get(_ctx context.Context) (*BlogPost, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.BlogPost)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeBlogPost(_ctx, _value)
+}
+
+func (_query BlogPostQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.BlogPost, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeBlogPost(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
 func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -1995,6 +2094,49 @@ func (_query BlogPostPrefetchQuery) All(_ctx context.Context) ([]*BlogPost, erro
 	}
 	return _result, nil
 }
+func (_query BlogPostPrefetchQuery) Get(_ctx context.Context) (*BlogPost, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeBlogPost(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query BlogPostPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeBlogPost(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
 func (_query BlogPostPrefetchQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -2167,7 +2309,7 @@ type BlogPostEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[blog.Post]
 	selections       []orm.RelatedSelection[blog.Post]
-	projection       relationSelectQuery[BlogPostObject]
+	projection       relationSelectQuery[blog.Post, BlogPostObject]
 	configurationErr error
 }
 
@@ -2304,6 +2446,33 @@ func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) 
 		return nil, _err
 	}
 	return _results, nil
+}
+func (_query BlogPostEagerQuery) Get(_ctx context.Context) (*BlogPost, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedBlogPostObject(_ctx, _object)
+}
+func (_query BlogPostEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[blog.Post]) (*BlogPost, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedBlogPostObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
 }
 func (_query BlogPostEagerQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
 	if _err := _query.validate(); _err != nil {
@@ -2462,4 +2631,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_3946901a5e3c6d40896c546b06b2c16b158a14b526960923075b53ad271fa7ac
+var _ goDjProjectSnapshot_8b06702cdba254acbaa3690ce64116a9d5f419910e71d4baf206c9b90a00f344

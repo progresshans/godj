@@ -7,16 +7,21 @@ import (
 )
 
 func checkHelpdeskLabels(ctx context.Context, client, readOnly *hs.Client, transport, readOnlyTransport *observedTransport, state, readOnlyState *sessionState, category, outside int64) error {
-	created, err := client.HelpdeskLabelCreate(ctx, &hs.LabelCreate{Name: "  Client shared label  "})
-	first, ok := created.(*hs.Label)
-	if err != nil || !ok || transport.lastStatus() != 201 || first.ID <= 0 || first.Category != category || first.Name != "Client shared label" {
-		return fail("generated Label create/trim and same name in another category")
+	ensured, err := client.HelpdeskLabelEnsure(ctx, &hs.LabelCreate{Name: "  Client shared label  "})
+	newLabel, ok := ensured.(*hs.HelpdeskLabelEnsureCreated)
+	if err != nil || !ok || transport.lastStatus() != 201 || !newLabel.Created || newLabel.Label.ID <= 0 || newLabel.Label.Category != category || newLabel.Label.Name != "Client shared label" {
+		return fail("generated Label ensure create/trim and same name in another category")
+	}
+	first := &newLabel.Label
+	ensured, err = client.HelpdeskLabelEnsure(ctx, &hs.LabelCreate{Name: first.Name})
+	if value, ok := ensured.(*hs.HelpdeskLabelEnsureOK); err != nil || !ok || transport.lastStatus() != 200 || value.Created || value.Label != *first {
+		return fail("generated Label ensure reuses identity without creation")
 	}
 	duplicate, err := client.HelpdeskLabelCreate(ctx, &hs.LabelCreate{Name: first.Name})
 	if value, ok := duplicate.(*hs.HelpdeskLabelCreateBadRequest); err != nil || !ok || value.Code != "validation_error" || len(value.Errors) != 1 || value.Errors[0].Field != "__all__" || value.Errors[0].Code != "unique_together" {
 		return fail("generated Label tuple diagnostic")
 	}
-	created, err = client.HelpdeskLabelCreate(ctx, &hs.LabelCreate{Name: "Client second label"})
+	created, err := client.HelpdeskLabelCreate(ctx, &hs.LabelCreate{Name: "Client second label"})
 	second, ok := created.(*hs.Label)
 	if err != nil || !ok || second.ID <= first.ID || second.Category != category {
 		return fail("generated second Label create")
@@ -40,6 +45,16 @@ func checkHelpdeskLabels(ctx context.Context, client, readOnly *hs.Client, trans
 	deniedCreate, err := readOnly.HelpdeskLabelCreate(ctx, &hs.LabelCreate{})
 	if value, ok := deniedCreate.(*hs.HelpdeskLabelCreateForbidden); err != nil || !ok || value.Code != "permission_denied" {
 		return fail("generated Label create permission before validation")
+	}
+	deniedEnsure, err := readOnly.HelpdeskLabelEnsure(ctx, &hs.LabelCreate{})
+	if value, ok := deniedEnsure.(*hs.HelpdeskLabelEnsureForbidden); err != nil || !ok || value.Code != "permission_denied" {
+		return fail("generated Label ensure requires add and view before validation")
+	}
+	state.setInvalid(true)
+	csrfEnsure, err := client.HelpdeskLabelEnsure(ctx, &hs.LabelCreate{Name: first.Name})
+	state.setInvalid(false)
+	if value, ok := csrfEnsure.(*hs.HelpdeskLabelEnsureForbidden); err != nil || !ok || value.Code != "csrf_rejected" {
+		return fail("generated Label ensure requires CSRF even for an existing label")
 	}
 	deniedUpdate, err := readOnly.HelpdeskLabelUpdate(ctx, &hs.LabelUpdate{}, hs.HelpdeskLabelUpdateParams{ID: first.ID})
 	if value, ok := deniedUpdate.(*hs.HelpdeskLabelUpdateForbidden); err != nil || !ok || value.Code != "permission_denied" {
