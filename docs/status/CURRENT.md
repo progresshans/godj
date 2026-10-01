@@ -2,12 +2,14 @@
 
 - 갱신: 2026-10-02
 - 현재 구현: [GDJ-0109 Native bulk 생성과 여러 티켓 생성](../../work/0109-bulk-creation-and-ticket-import.md)
-- 진행 중인 전체 검증: [Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501), source `d2d8518275eae9e7f46a836d0797f1f9802561c9`
+- 진행 중인 전체 검증: [Hosted full 36932376723](https://github.com/progresshans/godj/actions/runs/36932376723), source `1819908303e90bf400e2e993286625685a33665d`
 - 최근 완료: [GDJ-0108 행 잠금과 조회 후 생성 또는 갱신](../../work/0108-row-locking-and-update-or-create.md)
 - 최근 전체 검증: [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942), source `f6e95bb81f80605491bbf04feab49017f79f49e4`; 필수 owner·집계·새 capture/Git source 결합과 소비 완료
 - Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
+
+첫 Hosted full은 macOS ARM/race package timeout으로 실패했다. 모든 테스트를 유지하는 분할을 적용하고 수정 source로 전체 재검증을 요청했다.
 
 Native bulk 생성의 AST·backend·generic ORM·typed root facade와 Helpdesk Form/Admin/API·독립 client를 구현했다.
 정식 Django bulk-create 23개 사례의 양 DB 직접 대조와 업무 소비·현재 권한/관계·전체 rollback/audit를 영향 세 mode에서

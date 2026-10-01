@@ -5,13 +5,27 @@
 
 ## GDJ-0109 — native bulk 생성과 여러 티켓 생성
 
-### 고정 source의 Hosted 전체 통합 진행 중
+### Hosted 전체 통합의 macOS race 분할 수정과 재검증
 
-제품/검증 source `d2d8518275eae9e7f46a836d0797f1f9802561c9`를 push하고
-[Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501), attempt 1을
-`workflow_dispatch/suite=full`로 시작했다. 실제 remote head·event·branch를 확인했으며 실행은 진행 중이다.
-필수 owner·실제 step/test·새 capture와 Git source의 결합/소비·최종 `full_platform_verified` 확인 전에는
-전체 플랫폼 검증 완료로 표시하지 않는다. 아래 로컬 영향 검증과 별개다.
+첫 [Hosted full 36923002501](https://github.com/progresshans/godj/actions/runs/36923002501), attempt 1의 source는
+`d2d8518275eae9e7f46a836d0797f1f9802561c9`다. `Relation product (macos-26, race)` job `110573459531`가
+생성 소비자 package의 35분 timeout으로 종료했다. 종료 시 `TestGeneratedRowLocking`은 29초째 실행 중이었고,
+로그에는 개별 assertion 실패 없이 package failure·panic이 기록됐다. 남은 필수 실행을 입증하지 못했으므로 전체 PASS가 아니다.
+원 실패 로그 833 lines / SHA-256 `a3f4ef0f1e0caa1617e9ac66f25053bd4ad886f3d485021c5b79d53c6046c003`를 보존했다.
+수정 실행으로 전환하며 첫 run의 최종 상태는 `cancelled`였다. 65 jobs 중 success 57·failure 2(ARM/race와 최종 집계)·cancelled 6이다.
+취소된 필수 실행이나 첫 run의 부분 성공을 수정 source의 PASS로 전이하지 않는다.
+
+CI source `1819908303e90bf400e2e993286625685a33665d`에서 macOS ARM/race에도 기존 Intel/race와 같은
+세 consumer shard와 별도 runtime owner를 적용했다. 각 shard의 기존 90분 job/70분 package 한도, 실제 binary root
+발견·필수 child·정확히 한 번 실행·no-skip 검사와 모든 platform/mode를 유지한다. 관계 matrix는 18 jobs/12 좌표다.
+CI tools 52 tests(3.224s), 184개 문서의 local link와 diff 검사를 통과했다. 첫 실패 job의 실제 발견 root 82개,
+discovery `749b92d76fc9a5c02deea915bd035f42b40c70554d1117dd6a85324612fb0cd3`를 새 matrix에 대입해 모든 좌표의
+배정 합집합과 중복 부재를 확인했다. 이는 새 source의 Hosted 실행 완료를 뜻하지 않는다.
+
+수정 source로 [Hosted full 36932376723](https://github.com/progresshans/godj/actions/runs/36932376723), attempt 1을
+`workflow_dispatch/suite=full`로 요청했다. 실제 remote head·event·branch를 확인했다. 모든 필수 owner·실제 step/test,
+새 capture와 Git source의 결합/소비·최종 `full_platform_verified`가 확인될 때까지 전체 통합은 미완료다.
+제품 Go source는 첫 full과 같고 이후 변경은 CI 분할 및 Markdown 기록뿐이다. 아래 로컬 영향 검증과 구분한다.
 
 ### 고정 Django의 최초 기준 조사
 
