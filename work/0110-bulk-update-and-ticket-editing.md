@@ -28,7 +28,9 @@ Source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`를 게시하고
 Article의 발행 알림까지 공통 문구로 바꾼 회귀와 Helpdesk 누적 race 실행의 시간 한도 부족을 발견했다.
 앱이 액션별 성공 문구를 선언하고 model/action/count를 서명하도록 수정했고 영향 세 mode·브라우저를 통과했다.
 Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의 소비자를 분할하고 실행 소유권을 검증했다.
-고정 Django expected/observer를 바꾸지 않는다. 수정 source의 새 Hosted 통합이 필요하다.
+고정 Django expected/observer는 바꾸지 않았다. 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
+[Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)을 요청했다.
+이전 실패 실행의 부분 성공을 재사용하지 않고 새 source의 최종 통합을 확인한다.
 
 ## 구현과 검증
 

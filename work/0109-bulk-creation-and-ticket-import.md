@@ -55,7 +55,9 @@ Admin의 typed 생성 formset과 배열 API·독립 생성 client를 연결했�
 68개 job·선언한 8개 owner·cold/process와 새 capture의 Git source 결합/소비는 통과했다. 사후 검사에서 기존
 PostgreSQL system-state product sentinel의 실행 담당 누락을 발견했다. 이 경로를 GDJ-0110의 다음 full milestone에
 포함했다. 로컬 실제 양 DB의 세 mode에서 통과했고 source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`의
-[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)에서 최종 통합을 확인한다.
+[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했으나 Article 알림 회귀와 누적 race 한도에 실패했다.
+관련 수정·영향 검증을 마치고 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
+[새 Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)에서 최종 통합을 확인한다.
 기존 성공 scope와 새 실행을 구분하며 아직 최종 완료가 아니다.
 로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.
