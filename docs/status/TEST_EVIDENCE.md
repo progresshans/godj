@@ -328,6 +328,10 @@ package 소유권, unknown/sibling/duplicate 입력 거부, CLI의 실제 파일
 Receipt `postgres-race-partitions/receipt.json` / `0d43c9b08f866b2daf28fa2b28693f07c20ba5a4874b7aeeb22ebb1f65c8afce`.
 이는 CI 분할·구문 검증이며 제품을 새로 실행한 PASS가 아니다. 새 고정 source의 full 76 jobs와 capture 소비/최종 집계가 남아 있다.
 
+CI source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의 두 원격 ref 게시를 확인한 뒤 2026-10-05T17:05:31Z에
+[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096), attempt 1/workflow_dispatch를 요청했다.
+이 실행의 제품 source는 선행 bulk 보정본과 같으며 별도 사본의 GDJ-0111 구현을 포함하지 않는다. 이 요청 기록은 Markdown-only다.
+
 ### 브라우저와 독립 저장 결과
 
 2026-10-02 KST의 실제 Playwright CLI 0.1.22·격리 SQLite/identity/session/Admin/API에서 생성 22개, 편집 9개,

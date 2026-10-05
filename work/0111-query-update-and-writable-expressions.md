@@ -22,6 +22,8 @@ Low를 Normal로, Normal을 Urgent로 바꾸며 Urgent는 그대로 둔다. 미�
 GDJ-0109/0110의 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`는
 [Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)에서 PostgreSQL race/core 시간 제한으로
 통합을 완료하지 못했다. 필수 검사를 유지한 CI 분할 source로 다시 확인한다.
+새 통합은 source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의
+[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)이 맡는다.
 그 실행은 선행 source를 검증하며 이 작업의 새 구현을 검증한 것으로 사용하지 않는다. 별도 작업 사본에서 구현한다.
 
 ## 구현과 검증

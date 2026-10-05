@@ -58,7 +58,8 @@ PostgreSQL system-state product sentinel의 실행 담당 누락을 발견했다
 [Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했으나 Article 알림 회귀와 누적 race 한도에 실패했다.
 관련 수정·영향 검증을 마치고 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
 [새 Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)은 PostgreSQL race/core의 누적 job 제한으로 취소가 발생했다.
-필수 실행을 유지하는 race 분할과 원 로그 보관을 적용했으며 그 CI source의 새 full 통합이 필요하다.
+필수 실행을 유지하는 race 분할과 원 로그 보관을 적용하고 source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의
+[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)에서 새 통합을 확인한다.
 기존 성공 scope와 새 실행을 구분하며 아직 최종 완료가 아니다.
 로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.
