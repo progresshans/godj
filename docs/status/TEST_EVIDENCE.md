@@ -155,8 +155,17 @@ no-skip을 확인했다. 새로운 PostgreSQL 필수 경로 99개가 세 mode에
 Format 0.491s, 영향 vet 5.871s, CI 도구 57개 3.999s가 PASS했다. Source 유지·schema/session `0|0`·
 소유 DB/container 제거를 확인했다. Receipt `priority-business-20261006-033051/receipt.json` /
 `064069f8d5b805c4f10d8f8f1b7997bef5cf974789fdd6a687e19aca62cba59c`.
-GDJ-0111과 fixture 보완을 합친 source의 Hosted 전체는 아직 남아 있다. 선행 Hosted 결과나 전체 기능 카탈로그의
-완료로 전이하지 않는다.
+
+통합 source `e2aeb4317864b9e58fe279bbdb4649f31e55a842`는 QuerySet 기반·업무 변경과 operator fixture 보완을
+함께 포함한다. 업무 checkpoint 대비 비Markdown 차이가 이미 검증한 fixture helper 한 파일뿐임을 확인했다.
+3100 files의 최종 inventory는 `909dec09b4ac0d305049d8e19722ce0d015c0cebbc3f8b72768800933c857890`이다.
+새 generated ABI/명령을 실제로 함께 사용하는 external SQLite operator 제품을 normal mode로 다시 실행해
+11 run/pass·0 skip, 117.716s를 확인했다. Log `b7e21826b8328be989d1899b590de691c4b285da432c853be4ec8bdd2dfaa512`.
+Format·188개 문서 링크·diff·실행 전후 clean source도 통과했다. 통합 receipt
+`priority-integration-20261006-034859/receipt.json` /
+`027dd3bccdd24a7a34dbeafb50ec62a6ccd03b0231421ccc93875b96266b3dd3`가 앞 업무/fixture receipts를 결합한다.
+후속 증거 기록은 Markdown만 바꾼다. 이 source의 Hosted 전체는 아직 남아 있으며 선행 Hosted 결과나
+전체 기능 카탈로그의 완료로 전이하지 않는다.
 
 ## GDJ-0110 — native bulk update의 기준과 기반
 

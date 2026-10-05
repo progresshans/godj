@@ -16,7 +16,7 @@ Helpdesk 우선순위 명령·Admin/API/독립 client를 연결했고 양 DB·�
 
 ## 다음 행동
 
-완성한 업무 변경과 fixture 준비 시간·진단 보완을 통합하고 변경 source의 Hosted 검증을 실행한다.
+업무 변경과 fixture 준비 시간·진단 보완을 통합했다. 통합 source의 Hosted 검증을 요청한다.
 필수 owner·실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다.
 확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
