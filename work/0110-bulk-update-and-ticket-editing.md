@@ -32,7 +32,9 @@ Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의
 [Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)을 요청했다.
 이 실행도 PostgreSQL race/core의 누적 job 제한으로 취소가 발생했다. 개별 검사를 유지하는 race 분할과 원 로그 보관을
 적용했다. Source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의
-[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)을 요청하고 실제 전체 실행을 확인한다.
+[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)에서 필수 목록 회귀 검사가 옛 CI 배열 이름을 참조하는 실패를 확인했다.
+검사를 현재 분할기/원본 목록에 연결하고 source `faa5a3396ad3a7e9e2807e2fcab26ec0fe037484`의
+[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499)에서 새 전체 통합을 확인한다.
 이전 실패 실행의 부분 성공을 재사용하지 않고 새 source의 최종 통합을 확인한다.
 
 ## 구현과 검증

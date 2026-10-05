@@ -353,6 +353,11 @@ Parent `3d1a59192a88bbd7915241df972a4033049304e6`, 비Markdown inventory
 정상 실행은 workflow와 같은 부모 command이며 생성/외부 consumer의 trimpath 정책과 구별한다.
 수정 source의 새 full과 실제 artifact/capture 검증은 아직 남아 있다.
 
+수정 source `faa5a3396ad3a7e9e2807e2fcab26ec0fe037484`를 두 원격 ref에서 확인하고 2026-10-05T17:25:53Z에
+[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499), attempt 1/workflow_dispatch를 요청했다.
+76 jobs의 필수 owner·raw PostgreSQL 실행·4개 S3 lifecycle·새 capture의 source 결합/소비와 최종 집계가 모두 확인될 때까지
+GDJ-0109/0110의 통합 완료가 아니다. 별도 사본의 GDJ-0111 새 구현은 이 source에 포함하지 않는다.
+
 ### 브라우저와 독립 저장 결과
 
 2026-10-02 KST의 실제 Playwright CLI 0.1.22·격리 SQLite/identity/session/Admin/API에서 생성 22개, 편집 9개,
