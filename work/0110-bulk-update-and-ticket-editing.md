@@ -1,7 +1,7 @@
 ---
 id: GDJ-0110
 status: active
-updated: 2026-10-05
+updated: 2026-10-06
 baseline_commit: "d2d8518275eae9e7f46a836d0797f1f9802561c9"
 integration_owner: "root"
 ---
@@ -21,6 +21,10 @@ GDJ-0109는 고정 source의 Hosted 선언 범위를 통과했으며 사후 발�
 실제 SQLite/PostgreSQL의 영향 세 mode를 통과했다. Generic ORM·생성 root/eager/prefetch facade와 실제 소비자도
 영향 세 mode를 통과했다. 정식 40개 기준과 일곱 잠금 대기 대조도 세 mode를 통과했다. 업무 표면과 독립 client도
 양 DB 영향 세 mode·실제 브라우저를 통과했으며 새 source의 Hosted 통합이 남았다.
+
+Source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`를 게시하고
+[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했다.
+이 실행이 GDJ-0109의 추가 회귀와 새 제품 source의 전체 통합을 소유한다. 완료 전까지 마지막 항목은 열린 상태다.
 
 ## 구현과 검증
 

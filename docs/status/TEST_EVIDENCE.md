@@ -217,6 +217,12 @@ product를 확인했다. CI tools 52개 검사, 186개 문서 local link와 diff
 `godj-verification/bulk-update-final-review/receipt.json`, SHA-256
 `3ad9b808363d465b0d4e9ab2c420aa8ca3139647ab1e012f6d06f1f4715ebaf4`.
 
+2026-10-06 KST, 위 source를 commit `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`로 게시했다.
+`feature/bulk-update`와 draft PR의 원격 ref를 같은 commit으로 확인했고, source `99491ff3`의
+[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105), attempt 1을
+`workflow_dispatch/suite=full`로 시작했다. 새 source의 전체 플랫폼·cold/process·새 capture/Git source 결합과 소비·
+최종 집계는 이 실행이 소유한다. GDJ-0109 사후 발견 회귀도 포함한다. 현재 결과는 진행 중이며 로컬 영향 PASS와 구분한다.
+
 ### 브라우저와 독립 저장 결과
 
 2026-10-02 KST의 실제 Playwright CLI 0.1.22·격리 SQLite/identity/session/Admin/API에서 생성 22개, 편집 9개,
