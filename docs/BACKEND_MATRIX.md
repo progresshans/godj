@@ -137,13 +137,18 @@ transient table과 파생 제약 이름까지 초기/최종 검증한다. 소유
 모든 Django Field, relation-as-PK, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
-슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다. 일반 관계 집계는 미지원이다.
+슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다.
+별도 그룹 결과는 scalar/finite forward 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
+조건부 집계·선택 결과에 대한 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
+filter의 JOIN multiplicity·부정 EXISTS를 유지한다. Group Count는 현재 group slice를 세며 Page의 전체 그룹 수와
+행은 한 statement snapshot에서 읽는다. 일반 collection/reverse 집계·related MIN/MAX의 public API·JSON 그룹 키는
+미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은 [그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다.
 유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
 Typed/dynamic 대상은 Integer·Float·Decimal·UUID·Char/Text·Date·DateTime·Time·Duration의 nullable/non-null과 Boolean이다.
 Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typed DTO로 선택하며, 관련 값은 항상 nullable pointer로 반환한다. 같은 forward scalar에 ASC/DESC를 제공하고 정렬에만 등장하는 optional 경로도 행을 보존한다.
-원본 field metadata는 유지하고 target 부재·SQL NULL을 표현한다. Reverse value 선택·관계 ordering/F/MIN/MAX는 미지원이다.
+원본 field metadata는 유지하고 target 부재·SQL NULL을 표현한다. Reverse value 선택/정렬·관계를 넘는 F와 related MIN/MAX는 미지원이다.
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
@@ -170,7 +175,7 @@ Raw QuerySet.Iterate의 graph 없는 callback은 configured prefetch를 계속 �
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.
 필터로 제외된 required target은 해당 관계 접근에서 missing 오류를 반환하며 부모 목록 조회는 성공한다. Nullable/reverse 부재는 bool로 구분한다.
-관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
+관계를 넘는 F와 collection value projection/ordering·일반 collection/reverse 집계는 미지원이다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.

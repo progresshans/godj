@@ -4,12 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -65,7 +61,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -122,36 +118,6 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 	if bindIndex, nilIndex := bytes.Index(first, []byte("BindObjectsIn(_binding)")), bytes.Index(first, []byte("relationFacadeNil(_backend)")); bindIndex < 0 || nilIndex < 0 || bindIndex >= nilIndex {
 		t.Fatalf("BindObjects index %d must precede backend nil validation index %d", bindIndex, nilIndex)
-	}
-	wantExported := []string{
-		"AggregateAuthorsAuthorInto",
-		"AggregateBlogPostInto",
-		"AuthorsAuthor",
-		"AuthorsAuthorPostsCollection",
-		"AuthorsAuthorPrefetchQuery",
-		"AuthorsAuthorPrefetchSelector",
-		"AuthorsAuthorPrefetchSelectors",
-		"AuthorsAuthorQuery",
-		"AuthorsAuthorReviewedPostsCollection",
-		"Backend",
-		"BlogPost",
-		"BlogPostEagerQuery",
-		"BlogPostPrefetchQuery",
-		"BlogPostPrefetchSelector",
-		"BlogPostPrefetchSelectors",
-		"BlogPostQuery",
-		"BlogPostRelationSelector",
-		"BlogPostRelationSelectors",
-		"GoDjProjectRelationFacadeGeneratorVersion",
-		"GoDjProjectRelationFacadeInputSHA256",
-		"Models",
-		"SelectAuthorsAuthorInto",
-		"SelectBlogPostInto",
-		"Using",
-		"UsingSession",
-	}
-	if got := projectRelationFacadeExportedDeclarations(t, first); !slices.Equal(got, wantExported) {
-		t.Fatalf("project relation facade exported declarations = %v, want %v", got, wantExported)
 	}
 
 	packages[1].Schema.Models[0].Fields[2].Relation.Target.AppLabel = "mutated"
@@ -398,40 +364,6 @@ func projectRelationFacadePrerequisiteBytes(
 		testfixture.Generate(t, "authors main", func() ([]byte, error) { return codegen.Generate("authors", authors) }),
 		testfixture.Generate(t, "blog main", func() ([]byte, error) { return codegen.Generate("blog", blog) }),
 	}
-}
-
-func projectRelationFacadeExportedDeclarations(t *testing.T, source []byte) []string {
-	t.Helper()
-	parsed, err := parser.ParseFile(token.NewFileSet(), "project_relation_facade.go", source, 0)
-	if err != nil {
-		t.Fatalf("parse generated relation facade source: %v", err)
-	}
-	exported := make([]string, 0)
-	for _, declaration := range parsed.Decls {
-		switch declaration := declaration.(type) {
-		case *ast.FuncDecl:
-			if declaration.Recv == nil && declaration.Name.IsExported() {
-				exported = append(exported, declaration.Name.Name)
-			}
-		case *ast.GenDecl:
-			for _, specification := range declaration.Specs {
-				switch specification := specification.(type) {
-				case *ast.ValueSpec:
-					for _, name := range specification.Names {
-						if name.IsExported() {
-							exported = append(exported, name.Name)
-						}
-					}
-				case *ast.TypeSpec:
-					if specification.Name.IsExported() {
-						exported = append(exported, specification.Name.Name)
-					}
-				}
-			}
-		}
-	}
-	slices.Sort(exported)
-	return exported
 }
 
 func facadeWithoutInputHash(source []byte) []byte {

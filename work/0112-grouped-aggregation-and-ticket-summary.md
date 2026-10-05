@@ -19,15 +19,15 @@ Typed와 dynamic 입력은 같은 불변 Query AST와 metadata 검사를 사용�
 밖의 값도 실제 그룹으로 유지하며, 현재 ViewTicket 권한과 Category 범위를 입력 해석·조회에 적용한다.
 조회는 저장·audit를 발생시키지 않는다. 요약 값과 페이지 건수의 관찰 범위·일관성을 명시한다.
 
-GDJ-0109/0110/0111의 통합 보정 source는 별도 [Hosted full 37363189671](https://github.com/progresshans/godj/actions/runs/37363189671)에서
+GDJ-0109/0110/0111의 통합 보정 source는 별도 [Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)에서
 검증 중이다. 이 작업은 그 source에 없는 후속 구현이며 선행 실행의 성공을 이 기능의 증거로 사용하지 않는다.
 
 ## 구현과 검증
 
-- [ ] 고정 Django의 NULL·복합/관계 키·조건부/중복 제거 집계·HAVING·정렬·slice/cache를 독립 관찰
-- [ ] 그룹 결과·집계 참조·HAVING·정렬의 공통 AST, metadata/type 소유권·자원 한도·명시적 미지원 오류
-- [ ] SQLite/PostgreSQL native 실행, 실제 그룹 수·NULL·관계 cardinality와 context/session 수명
-- [ ] Generic ORM·typed 생성 facade·dynamic 입력과 독립 생성 소비자, 잘못된 연결의 사전 거부
+- [x] 고정 Django의 NULL·복합/관계 키·조건부/중복 제거 집계·HAVING·정렬·slice/cache를 독립 관찰
+- [x] 그룹 결과·집계 참조·HAVING·정렬의 공통 AST, metadata/type 소유권·자원 한도·명시적 미지원 오류
+- [x] SQLite/PostgreSQL native 실행, 실제 그룹 수·NULL·관계 cardinality와 context/session 수명
+- [x] Generic ORM·typed 생성 facade·dynamic 입력과 독립 생성 소비자, 잘못된 연결의 사전 거부
 - [ ] Helpdesk의 현재 권한·범위를 보존하는 HTML/API/독립 client 업무 요약
 - [ ] 완성된 묶음의 기준 대조·영향 검사·generated drift·필요한 통합과 현행 의미/증거 기록
 
@@ -49,4 +49,7 @@ Query 복사, 입력과 출력의 가변 값, cache 공유·취소·rows/transac
 
 [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md),
 [검증 전략](../docs/TESTING.md)을 따른다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.
+공통 AST·두 compiler·typed/dynamic ORM·생성 facade와 독립 생성 소비자를 구현하고 양 DB·세 mode의 영향 검사,
+발행/생성 drift·전체 compile을 확인했다. 설계 경계는 [ADR-0091](../docs/adr/0091-grouped-results-and-having.md)에
+기록한다. Helpdesk 업무 요약의 HTML/API/client 연결과 그 검증을 다음으로 진행한다.
 현재 외부 입력이 필요한 blocker는 없다.

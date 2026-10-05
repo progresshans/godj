@@ -664,6 +664,30 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := result.validate(); err != nil {
 		return Plan{}, err
 	}
+	if p.result.kind == ResultGrouped && result.kind != ResultGrouped {
+		return Plan{}, invalidPlanError("group result cannot be replaced with a row result")
+	}
+	if result.kind == ResultGrouped && p.result.kind != ResultGrouped {
+		if p.limit != nil || p.offset != nil || p.rowLock != nil || p.prefetchWindow != nil {
+			return Plan{}, groupUnsupported("grouping requires an unsliced source without row locks or windows")
+		}
+		group := *result.group
+		for _, order := range p.orderings {
+			if err := order.validate(); err != nil {
+				return Plan{}, err
+			}
+			if !slices.ContainsFunc(result.GroupKeys(), order.expression.Equal) {
+				return Plan{}, groupUnsupported("source ordering must select a group key; clear it explicitly before grouping")
+			}
+			groupOrder, err := NewGroupOrdering(order.expression, order.direction, NullsNative)
+			if err != nil {
+				return Plan{}, err
+			}
+			group.order = append(group.order, groupOrder)
+		}
+		result.group = &group
+		p.orderings = nil
+	}
 	if len(p.relationProjections) != 0 && result.Kind() != ResultModel && result.Kind() != ResultPrefetch {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
@@ -686,10 +710,18 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := clone.ValidatePrefetch(); err != nil {
 		return Plan{}, err
 	}
+	if err := clone.ValidateGrouping(); err != nil {
+		return Plan{}, err
+	}
 	return clone, nil
 }
 
 func (p Plan) validateResultSource(expression ResultExpression) error {
+	if filter, present := expression.Filter(); present {
+		if err := p.validateWhereNode(filter.node, true); err != nil {
+			return err
+		}
+	}
 	if path, related := expression.RelationPath(); related {
 		root := path.hops[0]
 		if root.SourceTable() != p.table || !slices.Contains(p.sourceFields, NewFieldRef(root.Field(), root.SourceColumn(), FieldInteger, root.Nullable())) {

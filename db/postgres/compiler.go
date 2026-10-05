@@ -13,6 +13,9 @@ import (
 const postgresIdentifierMaxBytes = 63
 
 func compilePlan(schema string, plan query.Plan) (string, []any, error) {
+	if err := plan.ValidateGrouping(); err != nil {
+		return "", nil, err
+	}
 	if err := validateRowLockPlan(plan); err != nil {
 		return "", nil, err
 	}
@@ -31,6 +34,9 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	sourceFields, err := validateReadSourceFields(plan.SourceFields())
 	if err != nil {
 		return "", nil, err
+	}
+	if queryplan.NeedsAggregateCompiler(plan) {
+		return compileGrouped(schema, plan)
 	}
 	where, err := analyzeWhere(plan, sourceFields)
 	if err != nil {

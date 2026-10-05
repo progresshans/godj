@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
-const GoDjProjectRelationFacadeInputSHA256 = "495b71837d86d1bde36068b3e8398b14ba0fc7f5213c763da6a5e795b7f8dae9"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
+const GoDjProjectRelationFacadeInputSHA256 = "f1c3e93545175e9e3d5f28f7b992f482c3630cac3b12f6ff808eb43ca8380326"
 
 type Backend interface {
 	db.Queryer
@@ -605,6 +605,20 @@ func AggregateModelsArticleInto[R any](_ctx context.Context, _source ModelsArtic
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func GroupModelsArticleBy[K, A, R any](_source ModelsArticleQuery, _keys orm.Projection[models.Article, K], _aggregate orm.Aggregate[models.Article, A], _build func(K, A) R) (orm.GroupedQuery[models.Article, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[models.Article, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ModelsArticleQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[models.Article, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[models.Article, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ModelsArticle, _keys, _aggregates)
+}
+
 func (_query ModelsArticleQuery) Get(_ctx context.Context) (*ModelsArticle, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -1027,6 +1041,20 @@ func AggregateIdentityGroupInto[R any](_ctx context.Context, _source IdentityGro
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupIdentityGroupBy[K, A, R any](_source IdentityGroupQuery, _keys orm.Projection[identity.Group, K], _aggregate orm.Aggregate[identity.Group, A], _build func(K, A) R) (orm.GroupedQuery[identity.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.Group, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityGroupQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.Group, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.Group, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityGroup, _keys, _aggregates)
 }
 
 func (_query IdentityGroupQuery) Get(_ctx context.Context) (*IdentityGroup, error) {
@@ -2088,6 +2116,20 @@ func AggregateIdentityGroupPermissionsLinkInto[R any](_ctx context.Context, _sou
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupIdentityGroupPermissionsLinkBy[K, A, R any](_source IdentityGroupPermissionsLinkQuery, _keys orm.Projection[identity.GroupPermissionsLink, K], _aggregate orm.Aggregate[identity.GroupPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.GroupPermissionsLink, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.GroupPermissionsLink, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityGroupPermissionsLink, _keys, _aggregates)
 }
 
 func (_query IdentityGroupPermissionsLinkQuery) Get(_ctx context.Context) (*IdentityGroupPermissionsLink, error) {
@@ -3681,6 +3723,20 @@ func AggregateIdentityPermissionInto[R any](_ctx context.Context, _source Identi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func GroupIdentityPermissionBy[K, A, R any](_source IdentityPermissionQuery, _keys orm.Projection[identity.Permission, K], _aggregate orm.Aggregate[identity.Permission, A], _build func(K, A) R) (orm.GroupedQuery[identity.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.Permission, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityPermissionQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.Permission, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.Permission, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityPermission, _keys, _aggregates)
+}
+
 func (_query IdentityPermissionQuery) Get(_ctx context.Context) (*IdentityPermission, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -4733,6 +4789,20 @@ func AggregateIdentityUserInto[R any](_ctx context.Context, _source IdentityUser
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupIdentityUserBy[K, A, R any](_source IdentityUserQuery, _keys orm.Projection[identity.User, K], _aggregate orm.Aggregate[identity.User, A], _build func(K, A) R) (orm.GroupedQuery[identity.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.User, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.User, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.User, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityUser, _keys, _aggregates)
 }
 
 func (_query IdentityUserQuery) Get(_ctx context.Context) (*IdentityUser, error) {
@@ -5794,6 +5864,20 @@ func AggregateIdentityUserGroupsLinkInto[R any](_ctx context.Context, _source Id
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupIdentityUserGroupsLinkBy[K, A, R any](_source IdentityUserGroupsLinkQuery, _keys orm.Projection[identity.UserGroupsLink, K], _aggregate orm.Aggregate[identity.UserGroupsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.UserGroupsLink, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserGroupsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.UserGroupsLink, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.UserGroupsLink, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityUserGroupsLink, _keys, _aggregates)
 }
 
 func (_query IdentityUserGroupsLinkQuery) Get(_ctx context.Context) (*IdentityUserGroupsLink, error) {
@@ -7396,6 +7480,20 @@ func AggregateIdentityUserPermissionsLinkInto[R any](_ctx context.Context, _sour
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func GroupIdentityUserPermissionsLinkBy[K, A, R any](_source IdentityUserPermissionsLinkQuery, _keys orm.Projection[identity.UserPermissionsLink, K], _aggregate orm.Aggregate[identity.UserPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[identity.UserPermissionsLink, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserPermissionsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.UserPermissionsLink, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[identity.UserPermissionsLink, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.IdentityUserPermissionsLink, _keys, _aggregates)
+}
+
 func (_query IdentityUserPermissionsLinkQuery) Get(_ctx context.Context) (*IdentityUserPermissionsLink, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -8912,4 +9010,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_bb63e63998587f7da12615c397b7c94f464e1c64e2eb9a9b3f2fd2edd51f2d70
+var _ goDjProjectSnapshot_b946ee618af7b9064c8f065f9dbf5ebd99c443a7417df79f747198afabb070e7

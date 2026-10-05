@@ -896,4 +896,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_dfdd0d4dfe634dfe1e6030b11e6614587f5dd614e583b861d0f6c462d80de92c
+var _ goDjProjectSnapshot_7e94a47fe1b8fce5e3ac237601d04c607f18fa3365d9557553b770ba762c920e

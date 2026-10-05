@@ -185,7 +185,7 @@ func TestAggregateResultLimitsTypesAccessorsAndEquality(t *testing.T) {
 		t.Fatalf("FieldResult Field() = (%#v, %v)", field, ok)
 	}
 
-	for countExpressions := 1; countExpressions <= 4; countExpressions++ {
+	for _, countExpressions := range []int{1, 4, query.MaxAggregateExpressions} {
 		expressions := make([]query.ResultExpression, countExpressions)
 		for index := range expressions {
 			expressions[index] = count
@@ -222,7 +222,7 @@ func TestAggregateResultLimitsTypesAccessorsAndEquality(t *testing.T) {
 		expressions []query.ResultExpression
 	}{
 		{name: "empty"},
-		{name: "five expressions", expressions: []query.ResultExpression{count, count, count, count, count}},
+		{name: "aggregate resource bound", expressions: make([]query.ResultExpression, query.MaxAggregateExpressions+1)},
 		{name: "zero expression", expressions: []query.ResultExpression{{}}},
 		{name: "field projection expression", expressions: []query.ResultExpression{query.FieldResult(id)}},
 		{name: "MAX zero field", expressions: []query.ResultExpression{query.MaxResult(query.FieldRef{})}},

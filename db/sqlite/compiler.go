@@ -10,6 +10,9 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	if err := plan.ValidateGrouping(); err != nil {
+		return "", nil, err
+	}
 	if err := plan.ValidateRowLock(); err != nil {
 		return "", nil, err
 	}
@@ -21,6 +24,9 @@ func Compile(plan query.Plan) (string, []any, error) {
 	}
 	if err := validateOrderings(plan); err != nil {
 		return "", nil, err
+	}
+	if queryplan.NeedsAggregateCompiler(plan) {
+		return compileGrouped(plan)
 	}
 	where, err := analyzeWhere(plan)
 	if err != nil {

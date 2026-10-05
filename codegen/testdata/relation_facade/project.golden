@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
-const GoDjProjectRelationFacadeInputSHA256 = "2db430ed513311787e64226ed8b0a8f02945a96071af089ebbf8ea1fcf82fcd8"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
+const GoDjProjectRelationFacadeInputSHA256 = "eb58bfacaafadc17d2265f739ba2c8d10023dafb2c32a4097dfcfff27e2c0932"
 
 type Backend interface {
 	db.Queryer
@@ -603,6 +603,20 @@ func AggregateAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuth
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupAuthorsAuthorBy[K, A, R any](_source AuthorsAuthorQuery, _keys orm.Projection[authors.Author, K], _aggregate orm.Aggregate[authors.Author, A], _build func(K, A) R) (orm.GroupedQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[authors.Author, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query AuthorsAuthorQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[authors.Author, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[authors.Author, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.AuthorsAuthor, _keys, _aggregates)
 }
 
 func (_query AuthorsAuthorQuery) Get(_ctx context.Context) (*AuthorsAuthor, error) {
@@ -1518,6 +1532,20 @@ func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupBlogPostBy[K, A, R any](_source BlogPostQuery, _keys orm.Projection[blog.Post, K], _aggregate orm.Aggregate[blog.Post, A], _build func(K, A) R) (orm.GroupedQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[blog.Post, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query BlogPostQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[blog.Post, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[blog.Post, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.BlogPost, _keys, _aggregates)
 }
 
 func (_query BlogPostQuery) Get(_ctx context.Context) (*BlogPost, error) {

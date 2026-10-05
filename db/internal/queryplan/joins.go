@@ -165,6 +165,30 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 				return Joins{}, err
 			}
 		}
+		if filter, present := expression.Filter(); present {
+			var visit func(query.Expression) error
+			visit = func(value query.Expression) error {
+				if condition, leaf := value.Condition(); leaf {
+					if path, related := condition.RelationPath(); related {
+						if err := RelationCondition(plan, condition, path, backendName); err != nil {
+							return err
+						}
+						// A conditional aggregate must retain rows that do not meet
+						// the condition. Its optional routes never require a join.
+						return addPath(path, false, true)
+					}
+				}
+				for _, child := range value.Children() {
+					if err := visit(child); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			if err := visit(filter); err != nil {
+				return Joins{}, err
+			}
+		}
 	}
 	for _, ordering := range plan.Orderings() {
 		if path, related := ordering.Expression().RelationPath(); related {

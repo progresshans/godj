@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
-const GoDjProjectRelationFacadeInputSHA256 = "84055ab7ed2242397da4919d970bd1f1dadc23e13c717f9e564a375360e78e53"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
+const GoDjProjectRelationFacadeInputSHA256 = "631fc921b658923a3d6d3c86ed3231b21634152d17c7f2c886bd5fe12f6d3270"
 
 type Backend interface {
 	db.Queryer
@@ -613,6 +613,20 @@ func AggregateReportsCertificateInto[R any](_ctx context.Context, _source Report
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupReportsCertificateBy[K, A, R any](_source ReportsCertificateQuery, _keys orm.Projection[reports.Certificate, K], _aggregate orm.Aggregate[reports.Certificate, A], _build func(K, A) R) (orm.GroupedQuery[reports.Certificate, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Certificate, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ReportsCertificateQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[reports.Certificate, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Certificate, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ReportsCertificate, _keys, _aggregates)
 }
 
 func (_query ReportsCertificateQuery) Get(_ctx context.Context) (*ReportsCertificate, error) {
@@ -2007,6 +2021,20 @@ func AggregateReportsLinkInto[R any](_ctx context.Context, _source ReportsLinkQu
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func GroupReportsLinkBy[K, A, R any](_source ReportsLinkQuery, _keys orm.Projection[reports.Link, K], _aggregate orm.Aggregate[reports.Link, A], _build func(K, A) R) (orm.GroupedQuery[reports.Link, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Link, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ReportsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[reports.Link, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Link, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ReportsLink, _keys, _aggregates)
+}
+
 func (_query ReportsLinkQuery) Get(_ctx context.Context) (*ReportsLink, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -3376,6 +3404,20 @@ func AggregateReportsOptionalReportInto[R any](_ctx context.Context, _source Rep
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupReportsOptionalReportBy[K, A, R any](_source ReportsOptionalReportQuery, _keys orm.Projection[reports.OptionalReport, K], _aggregate orm.Aggregate[reports.OptionalReport, A], _build func(K, A) R) (orm.GroupedQuery[reports.OptionalReport, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[reports.OptionalReport, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ReportsOptionalReportQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[reports.OptionalReport, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[reports.OptionalReport, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ReportsOptionalReport, _keys, _aggregates)
 }
 
 func (_query ReportsOptionalReportQuery) Get(_ctx context.Context) (*ReportsOptionalReport, error) {
@@ -4775,6 +4817,20 @@ func AggregateReportsReportInto[R any](_ctx context.Context, _source ReportsRepo
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupReportsReportBy[K, A, R any](_source ReportsReportQuery, _keys orm.Projection[reports.Report, K], _aggregate orm.Aggregate[reports.Report, A], _build func(K, A) R) (orm.GroupedQuery[reports.Report, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Report, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ReportsReportQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[reports.Report, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Report, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ReportsReport, _keys, _aggregates)
 }
 
 func (_query ReportsReportQuery) Get(_ctx context.Context) (*ReportsReport, error) {
@@ -6327,6 +6383,20 @@ func AggregateReportsReviewInto[R any](_ctx context.Context, _source ReportsRevi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func GroupReportsReviewBy[K, A, R any](_source ReportsReviewQuery, _keys orm.Projection[reports.Review, K], _aggregate orm.Aggregate[reports.Review, A], _build func(K, A) R) (orm.GroupedQuery[reports.Review, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Review, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query ReportsReviewQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[reports.Review, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[reports.Review, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.ReportsReview, _keys, _aggregates)
+}
+
 func (_query ReportsReviewQuery) Get(_ctx context.Context) (*ReportsReview, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -7724,6 +7794,20 @@ func AggregateTicketsTicketInto[R any](_ctx context.Context, _source TicketsTick
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func GroupTicketsTicketBy[K, A, R any](_source TicketsTicketQuery, _keys orm.Projection[tickets.Ticket, K], _aggregate orm.Aggregate[tickets.Ticket, A], _build func(K, A) R) (orm.GroupedQuery[tickets.Ticket, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[tickets.Ticket, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query TicketsTicketQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[tickets.Ticket, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[tickets.Ticket, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.TicketsTicket, _keys, _aggregates)
 }
 
 func (_query TicketsTicketQuery) Get(_ctx context.Context) (*TicketsTicket, error) {
@@ -9303,4 +9387,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8c1b34c0aae59f93301acefb341e2a80a453387479637b3a53f6e841ac7a686f
+var _ goDjProjectSnapshot_6a755905945ee160471a41824c307c2558f458eb33c382d3250907b50120ab78

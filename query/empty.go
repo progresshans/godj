@@ -5,7 +5,7 @@ package query
 // skipping I/O; this is not a metadata or capability validation shortcut.
 // An aggregate over this source still returns its COUNT 0 / MIN or MAX NULL row.
 func (plan Plan) EmptyResult() bool {
-	if limit, set := plan.Limit(); set && limit == 0 {
+	if limit, set := plan.Limit(); set && limit == 0 && plan.result.GroupMode() != GroupPage {
 		return true
 	}
 	return predicateTruth(plan.where, false) == truthFalse

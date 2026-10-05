@@ -40,12 +40,17 @@ func emptyRows(ctx, lifetime context.Context, shape query.ResultShape) (db.Rows,
 		return nil, err
 	}
 	switch shape.Kind() {
+	case query.ResultGrouped:
+		if shape.GroupMode() == query.GroupCount {
+			rows.values = []any{int64(0)}
+		}
+		return rows, nil
 	case query.ResultModel, query.ResultProjection, query.ResultPrefetch:
 		return rows, nil
 	case query.ResultAggregate:
 		for _, expression := range shape.Expressions() {
 			switch expression.Kind() {
-			case query.ResultCountAll:
+			case query.ResultCountAll, query.ResultCount:
 				rows.values = append(rows.values, int64(0))
 			case query.ResultMin, query.ResultMax:
 				rows.values = append(rows.values, nil)

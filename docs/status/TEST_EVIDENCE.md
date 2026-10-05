@@ -3,6 +3,122 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0112 — 그룹 집계의 독립 기준 관찰
+
+2026-10-06 KST, 고정 Python 3.14.3·Django 6.1·SQLite 3.50.4·psycopg 3.3.6·PostgreSQL 17.10
+Debian/UTF8/libc/C/C에서 `grouped_aggregation_reference.py`의 66개 사례를 backend별 새 프로세스 두 번씩
+실행했다. Go source/output/expected fixture를 읽지 않고 synthetic 모델·새 tables를 매 사례 소유했다.
+Observer SHA-256 `5d0977299b9c39ec9a95e3042cf4372eac76a1263e368dc0f838d1ae20047c88`, SQLite 원 출력
+22450 bytes / `e970d9164274aefe3ef6c4848e1f4f4e1afacc74f9ea1bf0e5334c4dd81abb93`, PostgreSQL
+21870 bytes / `8f3ce3ab2ac05760a9490dd939f69443300dbba1b48431107acafffd0bf99256`로 각 반복이 일치했다.
+실제 QuerySet·Query·SQLCompiler·Aggregate module hash도 원 byte에 보존했다.
+
+NULL·복합/forward/collection 키, 조건부/중복 제거 Count와 Min/Max, WHERE/HAVING/NOT, native/명시적
+NULL 순서, slice·group count·빈 결과·cache, 10개 추가 codec 키와 오류를 관찰했다. Native로 가능한
+collection-key/reverse-count/JSON-key 등도 원 결과를 보존하고 Go 미지원 경계와 대조한다. 원 fixture는
+`codegen/consumertest/testdata/grouped/`로 byte 그대로 복사했다. 아직 Go parity 실행의 PASS가 아니다.
+
+원 실행 receipt `grouped-reference-20261005-193557/receipt.json` /
+`fa177009c37d1d763bd0fd56ed3c2c2a320d75dacb12bdfc04ad947a6037b053`는 네 실행·source 유지·schema/session
+`0|0`·DB 제거·container stop을 통과했지만 Docker `--rm`의 즉시 후속 inspect 때 제거가 진행 중이어서 false를
+보존했다. 후속 확인에서 Docker engine 정상 응답과 해당 exact container의 no-such-object를 확인하고 원
+receipt·출력·observer hash와 66개 case inventory를 다시 검증했다. 원 결과를 덮어쓰거나 재실행한 것으로 쓰지 않는다.
+완료 receipt `grouped-reference-retirement-20261006-043729/receipt.json` /
+`3ddcdc6da3b11cc395bd8dff049d46485fd7141f670ef4e5fcbb5572c8d4d0a6`.
+초기 wrapper는 kind 이름의 오기로 1회 실행 뒤 거부했으며 후속 원 실행에서 바로잡았다. 그 실패 receipt
+`grouped-reference-20261005-190802/receipt.json`도 보존했다. 중간 58/62개 관찰은 최종 66개 fixture의 근거로 혼용하지 않는다.
+
+### 공통 기반과 실제 생성 소비자
+
+Scalar/finite forward 키·COUNT(*)/COUNT(field/distinct)·조건부 Count/Min/Max·HAVING·그룹 Count/Page를
+공통 AST·양 compiler·generic ORM·typed/dynamic 생성 facade에 연결했다. Generated facade v24와 companion/
+manifest/golden을 실제 생성기로 갱신했다. Dynamic 관계 입력은 `GroupValuesIn`의 명시적 BoundModel과
+원본 descriptor/metadata를 검사하며 eager materialization을 이름 해석 권한으로 사용하지 않는다.
+내부 scalar cell cache와 매 publication의 nullable/DTO 소유권, concurrent singleflight와 실패 후 재조회,
+context·rows/scan/close·borrowed/expired/suspended/read-only session을 검증했다.
+
+고정 Django 66개 사례/각 DB는 48개 값 대조·5개 잘못된 field/refinement의 실제 Go 오류·9개 명시적
+미지원 경계·4개 API 형태의 실제 compile 거부로 구분했다. 전체를 parity 성공으로 세지 않는다.
+그룹 미지원 경계는 비키 inherited ordering, 두 source slice, 필드 없는 filtered count, collection key,
+reverse count, root/atomic row lock, JSON key다. Post-group row Filter·distinct fields·사용자 alias·eager source는
+생성 소비자의 compile 거부에 연결했다. 원 native 값·오류를 fixture에 그대로 보존한다.
+
+별도 생성 모듈은 양 DB의 reference 62개와 runtime 7개씩, backend/root를 합친 144 child run/pass·0 skip을
+각 mode에서 정확히 확인했다. 추가 9개 typed/model/selector 오류 compile 거부까지 parent 10개 run/pass다.
+원본 저장 행·native NULL 순서와 명시적 NULL 순서, nullable aggregate NOT와 key NOT, optional forward 조건,
+collection JOIN 중복과 부정 EXISTS, 필터/페이지/cached count를 확인했다. Binary/UUID/Decimal/temporal/float의
+실제 그룹 결과·MIN/MAX·typed Optional Page도 포함한다. 페이지 첫 row를 읽은 뒤 별도 연결로 새 그룹을 만드는
+변경을 commit하고 원래 total/행의 같은 snapshot·다음 fresh Page·기존 warm cache를 양 DB에서 대조했다.
+
+Parent `720c9be6211f00a146a39d00957a81ce69ed294f`, 비Markdown 3119 files / inventory
+`55df430ca5abb1fc0bf03476ef40b07955452a579bd0b6e4bdfd4b40a1c833c8`에서 Go 1.26.5/darwin/arm64,
+공유 Go cache·독립 생성 child trimpath·실제 SQLite와 PostgreSQL 17.10 Debian/UTF8/libc/C/C를 사용했다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / framework | 4 | 1651 | 0 | 14.969s | `c2e20a80c95693cbb0d39095298a65846f27cc27a41ddca87f3487d3f4ba4510` |
+| normal / native | 2 | 284 | 0 | 25.835s | `49d92322bc1ae4070de87b0fdef5e4e2a159cef8ab38d145b3ebe662ee228059` |
+| normal / consumer | 1 | 10 | 0 | 7.622s | `59cf3a84752fdfda08a9bf39058ebb28f233c68aaab9b85bbc6b361031ea5f7c` |
+| race / framework | 4 | 1651 | 0 | 41.098s | `190ab334e6524383584e463ae6c075d9ff5dc6bf3ce4377a6108a0a4270668e0` |
+| race / native | 2 | 284 | 0 | 42.236s | `5ef832302c5663608f5a7d3bd9f53b188a5d90e286cc3bfcea1b2507f64f6a11` |
+| race / consumer | 1 | 10 | 0 | 18.262s | `551de7b16a2dffbf3157a06ac25e077ea7b03e80f40efeffa553aee2fc27b08c` |
+| cgo0 / framework | 4 | 1651 | 0 | 2.596s | `513a67fd6356ea570354ec5aca100484822da696e099ecbef97bfcf691df99ba` |
+| cgo0 / native | 2 | 284 | 0 | 4.976s | `0f508c20edbcd032c4b2992f319b28abe178a81322be448cb35a76b5bbba5242` |
+| cgo0 / consumer | 1 | 10 | 0 | 3.125s | `a604d3367fee3f9f419047b6ec3263a426f0c23d3c8b25e5a32546117b57a6b3` |
+| normal / publication | 2 | 185 | 0 | 61.189s | `6aaf9675c5dfd7a6cb6f64ab7a4d957d815b3519cb077ee8dcee2c776e5af963` |
+
+Framework는 query/queryplan/ORM/codegen 전체이며 native는 양 backend의 compiler와 새 그룹 native 검사다.
+Publication은 normal의 internal/projectgenerate·relationproduct이며 crash helper 자체의 standalone 실행은
+제외하고 부모의 실제 crash/recovery 검사를 유지했다. 새 PostgreSQL 필수 경로 12개·relation 24개를 기존 목록에
+추가했고 세 mode의 실제 pass에서 모두 확인했다.
+
+정상 foundation receipt `grouped-foundation-20261006-050807/receipt.json` /
+`69d6deb6bb7a1ed97fa5d27c61392c381107158dd08ecb7b53f250b70e4e7c27`는 source 유지·schema/session `0|0`·
+소유 DB/container 제거까지 확인했다. Race/CGO=0의 기능 검사는 모두 통과했으나 이후 발행 검사에 harness가
+부모 `-trimpath`를 추가하여 runtime.Caller 기반 fixture 경로와 go.mod replace가 잘못되었다.
+실패 receipt `grouped-core-20261006-051120/receipt.json` /
+`bdf9e6490cd18e74e9ce4afda387ce9a46b02e617687aedd26bc717ffb714003`를 false로 보존한다.
+이 실행의 생성 소비자 cleanup assertion과 owned container 제거는 확인했지만 발행 실패로 최종 schema/session
+수치는 별도 수집하지 못했다. 그 수치를 normal 실행의 값으로 대체하지 않는다.
+
+후속 검증은 부모 발행 검사에만 `-trimpath`를 제거하고 생성 child의 trimpath와 cache 정책은 유지했다.
+비Markdown source 전체와 앞 receipt/log hash·필수 실행의 일치를 검사해 통과한 normal/race/CGO=0 기능 검사를
+재사용하고 발행 검사를 실제 재실행했다. Format/generated drift 18.293s, 영향 vet 32.088s,
+전체 패키지 compile-only 128.596s, CI tools 57개 검사 8.122s가 통과했다. 전체 compile은 전체 runtime PASS가 아니다.
+최종 결합 receipt `grouped-core-completion-20261006-051702/receipt.json` /
+`3b0b795373467c8bdc123311b59d2e450c9d98bd435d878c0f1ee4766649fe1f`가 각 원 결과·동일 source와
+새 필수 실행 목록을 결합한다. Helpdesk 업무 요약·그 HTML/API/client·새 source Hosted는 아직 미완료다.
+
+초기 실패도 보존했다. PostgreSQL schema 이름 허용 범위에 대한 새 테스트의 잘못된 가정
+(`grouped-foundation-20261006-045856`), 소비자의 Optional 비교 인자 오기 (`050036`), 실제 dynamic project
+binding 전달 누락과 소비자의 잘못된 root/borrowed 생성자·쓰기 capability 선언 (`050141`)을 수정한 뒤
+위 실행을 완료했다. 마지막 실제 연결 결함은 generator와 generic ORM을 함께 수정하고 원본 binding의
+descriptor/table 불일치·zero binding을 조회 전에 거부하는 negative control로 확인했다.
+
+이 기능은 source `720c9be6211f00a146a39d00957a81ce69ed294f`의 선행 Hosted full에 포함하지 않는다.
+
+### 선행 Hosted runner 배정 실패와 재시도
+
+`37363189671` / source `a143ad3ac44a499ce852a815b2f11a86b1e4bb24`의 validation-plan job
+`111943090249`는 runner_id 0·steps 0인 상태에서 "The job was not acquired by Runner of type hosted
+even after multiple attempts"로 취소됐다. 제품 테스트 실패나 실행 성공이 아니다. 후속 queued 집계를 취소하고
+그 실행의 실패 기록을 보존했다. 최종 10 jobs는 1 cancelled·8 skipped·1 aggregate failure다.
+Receipt `hosted-query-update-runner-failure-37363189671/receipt.json` /
+`be7fc9ab23d7808c54fb188483dcd6e6c4dcdb9ba0e7027d8f87c6c4ca8fcd5c`.
+
+제품 source 차이가 없고 Markdown만 다른 `720c9be6211f00a146a39d00957a81ce69ed294f`를
+[37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), workflow_dispatch/attempt 1,
+2026-10-05 19:43:53 UTC에 full로 dispatch했다. 새 실행은 validation-plan을 통과하고 실제 jobs에 진입했다.
+예상 76개 owner와 fresh capture의 source 결합·소비·최종 aggregate 확인은 진행 중이다.
+
+새 실행에서도 2026-10-05 20:13:39 UTC 기준 13개 job이 runner_id 0·steps 0의 같은 배정 오류로 취소됐다.
+해당 API 원 기록은 `hosted-query-update-runner-failure-37365281161/failures-20261005-201339.json` /
+`ce227be79055916c2a0d19246503555e7eab600c3ffe028e285ac72e95ee6f79`로 보존했다.
+별도 job `111951940754` (ubuntu-24.04-arm/race/runtime)는 실행 도중 runner shutdown signal과 exit 143으로
+중단됐다. 원 log 31155 bytes / SHA-256 `163ad0ddb1de8c5cc3db5064b03f2700796a7363bf5087b5da5c9fe2ee17e70c`.
+이 중단은 필수 테스트의 완료가 아니며 코드 assertion 실패와도 구분한다. 다른 실행의 완료를 기다려 실패 job만
+같은 source로 재실행할 예정이며, 진행 중인 job을 성공으로 계산하지 않는다.
+
 ## GDJ-0111 — QuerySet 갱신과 scalar 표현식 기반
 
 2026-10-06 KST, 고정 Python 3.14.3·Django 6.1·SQLite 3.50.4·psycopg 3.3.6·PostgreSQL 17.10
@@ -210,6 +326,11 @@ YAML parse·diff 검사가 통과했다. Actionlint는 로컬에 없어 실행�
 요청했다. 76 jobs의 필수 owner·새 capture와 같은 source의 소비·최종 집계는 아직 확인 중이다. 실패한 이전
 실행은 이 요청 뒤 남은 작업의 취소를 요청했으며 부분 성공을 새 source의 결과로 이월하지 않는다.
 별도 사본의 GDJ-0112 observer·AST/compiler 초안은 이 source에 없으며 그 사본의 미완성 변경도 보존했다.
+
+취소한 `37359348832`의 terminal 결과는 76 jobs 중 success 50, failure 6, cancelled 20이다.
+실제 실패 5개와 최종 집계 실패, 원 raw logs를 receipt
+`hosted-bulk-update-37359348832/failure-receipt.json` /
+`4131b1c6f71f032b8c7a803b0c9aabfa85a368000c5a2a948e0fb81970d0fe6a`에 보존했다.
 
 ## GDJ-0110 — native bulk update의 기준과 기반
 

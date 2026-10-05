@@ -16,6 +16,7 @@ const (
 	ResultPrefetch   ResultKind = "prefetch"
 	ResultProjection ResultKind = "projection"
 	ResultAggregate  ResultKind = "aggregate"
+	ResultGrouped    ResultKind = "grouped"
 )
 
 // ResultExpressionKind identifies one ordered projection or aggregate cell.
@@ -25,6 +26,7 @@ const (
 	ResultField    ResultExpressionKind = "field"
 	ResultJSONPath ResultExpressionKind = "json_path"
 	ResultCountAll ResultExpressionKind = "count_all"
+	ResultCount    ResultExpressionKind = "count"
 	ResultMax      ResultExpressionKind = "max"
 	ResultMin      ResultExpressionKind = "min"
 )
@@ -38,6 +40,8 @@ type ResultExpression struct {
 	field    FieldRef
 	path     JSONPath
 	relation *RelationPath
+	distinct bool
+	filter   Expression
 }
 
 func FieldResult(field FieldRef) ResultExpression {
@@ -108,7 +112,7 @@ func (e ResultExpression) Kind() ResultExpressionKind { return e.kind }
 
 func (e ResultExpression) Field() (FieldRef, bool) {
 	switch e.kind {
-	case ResultField, ResultJSONPath, ResultMax, ResultMin:
+	case ResultField, ResultJSONPath, ResultCount, ResultMax, ResultMin:
 		return e.field, true
 	default:
 		return FieldRef{}, false
@@ -116,7 +120,7 @@ func (e ResultExpression) Field() (FieldRef, bool) {
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {
-	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) {
+	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) || e.distinct != other.distinct || !e.filter.Equal(other.filter) {
 		return false
 	}
 	return e.relation == nil || e.relation.Equal(*other.relation)
@@ -127,6 +131,7 @@ func (e ResultExpression) Equal(other ResultExpression) bool {
 type ResultShape struct {
 	kind        ResultKind
 	expressions []ResultExpression
+	group       *groupResult
 }
 
 // MaxProjectionExpressions bounds the selected cells independently of the
@@ -161,13 +166,13 @@ func (s ResultShape) Kind() ResultKind { return s.kind }
 
 // IsCountAll reports the single COUNT(*) aggregate supported over relation filters.
 func (s ResultShape) IsCountAll() bool {
-	return s.kind == ResultAggregate && len(s.expressions) == 1 && s.expressions[0].kind == ResultCountAll
+	return s.kind == ResultAggregate && len(s.expressions) == 1 && s.expressions[0].kind == ResultCountAll && s.expressions[0].filter.node == nil
 }
 
 // HasRelations reports selection routes independently of predicate routes.
 func (s ResultShape) HasRelations() bool {
 	for _, expression := range s.expressions {
-		if expression.relation != nil {
+		if expression.relation != nil || expression.filter.HasRelations() {
 			return true
 		}
 	}
@@ -179,11 +184,13 @@ func (s ResultShape) Expressions() []ResultExpression {
 }
 
 func (s ResultShape) Equal(other ResultShape) bool {
-	return s.kind == other.kind && slices.EqualFunc(s.expressions, other.expressions, ResultExpression.Equal)
+	return s.kind == other.kind && slices.EqualFunc(s.expressions, other.expressions, ResultExpression.Equal) && equalGroupResult(s.group, other.group)
 }
 
 func (s ResultShape) validate() error {
 	switch s.kind {
+	case ResultGrouped:
+		return s.validateGrouped()
 	case ResultPrefetch:
 		return s.validatePrefetch()
 	case ResultModel:
@@ -202,6 +209,9 @@ func (s ResultShape) validate() error {
 		}
 		seen := make(map[selectionKey]struct{}, len(s.expressions))
 		for _, expression := range s.expressions {
+			if expression.distinct || expression.filter.node != nil {
+				return invalidPlanError("projection cannot contain aggregate modifiers")
+			}
 			field, ok := expression.Field()
 			if !ok || !validResultField(field) {
 				return invalidPlanError("projection result contains an invalid field expression")
@@ -246,25 +256,12 @@ func (s ResultShape) validate() error {
 		}
 		return nil
 	case ResultAggregate:
-		if len(s.expressions) == 0 || len(s.expressions) > 4 {
-			return invalidPlanError("aggregate result requires between one and four expressions")
+		if len(s.expressions) == 0 || len(s.expressions) > MaxAggregateExpressions {
+			return invalidPlanError("aggregate result requires between one and 64 expressions")
 		}
 		for _, expression := range s.expressions {
-			if expression.path.Valid() || expression.relation != nil {
-				return invalidPlanError("aggregate result cannot contain a JSON path or related value")
-			}
-			switch expression.Kind() {
-			case ResultCountAll:
-				if _, hasField := expression.Field(); hasField {
-					return invalidPlanError("COUNT(*) result cannot contain a field")
-				}
-			case ResultMax, ResultMin:
-				field, ok := expression.Field()
-				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldFloat && field.Kind() != FieldDecimal && field.Kind() != FieldUUID && field.Kind() != FieldBinary && field.Kind() != FieldString && field.Kind() != FieldDateTime && field.Kind() != FieldDate && (field.Kind() != FieldTime && field.Kind() != FieldDuration)) {
-					return invalidPlanError("MIN/MAX result requires an ordered scalar field")
-				}
-			default:
-				return invalidPlanError("aggregate result contains an unsupported expression")
+			if err := expression.validateAggregate(); err != nil {
+				return err
 			}
 		}
 		return nil

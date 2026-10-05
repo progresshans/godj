@@ -921,6 +921,8 @@ func (rows *resultTestRows) Close() error {
 
 func assignResultTestDestination(destination, source any) error {
 	switch target := destination.(type) {
+	case *any:
+		*target = source
 	case *int64:
 		value, ok := source.(int64)
 		if !ok {
@@ -982,6 +984,9 @@ func assignResultTestDestination(destination, source any) error {
 		}
 		*target = sql.NullString{String: value, Valid: true}
 	default:
+		if scanner, ok := destination.(sql.Scanner); ok {
+			return scanner.Scan(source)
+		}
 		return fmt.Errorf("unsupported destination type %T", destination)
 	}
 	return nil
