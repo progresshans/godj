@@ -303,6 +303,31 @@ Failure에는 앞서 기록한 회귀와 누적 timeout, 이를 거부한 최종
 `hosted-bulk-update-37329368105/failure-receipt.json` / `3cf765fe832f523624e925723972b9e0e5a6cb64a298cba46ce70bde8b1ea3ea`.
 부분 성공이나 취소를 새 source의 전체 검증으로 사용하지 않는다.
 
+### PostgreSQL race/core 누적 한도와 실행 owner 분할
+
+2026-10-06 KST, source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의 같은 full에서 PostgreSQL race/core
+job `111849550270`이 60분 job 제한으로 cancelled가 됐다. 검사 step은 2026-10-05T15:49:36Z부터
+16:47:26Z까지 실행됐고, 정리 시 `projectshowmigrationsproduct.test`·그 child가 아직 살아 있었다.
+원 Go JSON은 runner 파일로 redirect됐지만 기존 workflow가 이를 artifact로 보관하지 않아 이전 package들의
+종료·성공이나 미완료 test를 복원할 수 없다. DB의 의도적인 음성 제약/잠금 로그를 test 실패나 PASS로 대신 읽지 않는다.
+후속 reference job도 skipped이며 이 실행은 전체 PASS가 아니다. Job log 242272 bytes /
+`780692c349bfd5b5727167534eb236ed0d4114e19f30e410ed21ea1daa5472b7`을 보존했다.
+
+Parent `c00bcecf5dad57d3ef21c96923cb1449d5d02ff5`에서 workflow와 CI 도구 네 파일만 변경했다. 제품 Go source는
+위 `19dd8178`과 같다. Race core를 framework 7 packages, generated consumer 1 package, process product
+7 package patterns로 나누고 기존 package별 18분 한도·strict required/no-skip 검사를 유지했다.
+필수 sentinel은 각각 2597/31/10개로 총 2638개이며, normal/cgo0의 2638개 단일 core 소유도 유지한다.
+Normal core의 capture 생산과 service restart, operator-target의 capture 생산은 같은 owner다.
+S3 실제 서비스는 필요한 race core와 core-consumers에 각각 제공한다. 성공·실패·취소 모두 원 Go JSON/stderr와
+필수 목록/partition 계획을 artifact로 남기며, 이 보관이 불완전한 검사를 성공으로 바꾸지는 않는다.
+
+CI 도구 unittest 57개가 3.696초에 PASS했다. 실제 전체 manifest의 mode별 정확히 한 번 배정, 새 child sentinel의
+package 소유권, unknown/sibling/duplicate 입력 거부, CLI의 실제 파일 출력, 기존 child-only root 선택을 확인했다.
+고정 actionlint v1.7.7과 `git diff --check`도 PASS했다. Source 비Markdown 3065 files / inventory
+`73bdaae326f96d44092fa82e75bcbb0d040f6149a75ed8422c208dca17b6268a`가 일치한다.
+Receipt `postgres-race-partitions/receipt.json` / `0d43c9b08f866b2daf28fa2b28693f07c20ba5a4874b7aeeb22ebb1f65c8afce`.
+이는 CI 분할·구문 검증이며 제품을 새로 실행한 PASS가 아니다. 새 고정 source의 full 76 jobs와 capture 소비/최종 집계가 남아 있다.
+
 ### 브라우저와 독립 저장 결과
 
 2026-10-02 KST의 실제 Playwright CLI 0.1.22·격리 SQLite/identity/session/Admin/API에서 생성 22개, 편집 9개,

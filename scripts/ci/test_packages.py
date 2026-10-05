@@ -192,14 +192,17 @@ class ExecutionOwnerTests(unittest.TestCase):
             package, name = line.split('|')
             self.assertTrue(package.startswith(MODULE))
             self.assertTrue(name.startswith('Test'))
-        workflow = (root / '.github/workflows/ci.yml').read_text()
-        start = workflow.index('          core_required_passes=()')
-        end = workflow.index('          operator_target_required_passes=(', start)
-        script = workflow[start:end] + "\nprintf '%s\\n' \"${core_required_passes[@]}\"\n"
-        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
-                                capture_output=True, text=True, timeout=10)
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(expected, result.stdout)
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, 'scripts/ci/postgres_shards.py', '--mode', 'normal',
+                                     '--shard', 'core', '--required', 'scripts/ci/postgres-core-required.txt',
+                                     '--output-dir', directory], cwd=root, capture_output=True, text=True, timeout=10)
+            self.assertEqual(0, result.returncode, result.stderr)
+            script = 'required_passes=()\nwhile IFS= read -r sentinel; do required_passes+=("$sentinel"); done\nprintf "%s\\n" "${required_passes[@]}"\n'
+            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
+                                    input=(Path(directory) / 'required.txt').read_text(), capture_output=True, text=True, timeout=10)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(expected, result.stdout)
 
     def test_required_relation_inventory_has_an_execution_owner(self):
         from packages import relation_owned

@@ -223,10 +223,18 @@ python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
 이 명령은 실제 S3와 SQLite 소비자를 실행한다. PostgreSQL은 기존의 명시적 `GODJ_TEST_POSTGRES_URL`과
 `GODJ_REQUIRE_POSTGRES=1`을 전달해 포함한다. Wrapper는 `GODJ_REQUIRE_S3=1`을 설정하고 endpoint/credential을 child와
 생성 소비자에 전달한다. 선택적 profile이 없으면 일반 portable 검사에서는 live root가 반환하지만, required/부분 설정은 실패한다.
-필수 실행 owner는 PostgreSQL product의 core shard normal/race/cgo0이며 양 DB·S3 live 하위 사례와 Admin 저장의 실제 pass를
+필수 실행 owner는 PostgreSQL product의 normal/cgo0 core와 race core/core-consumers이며 양 DB·S3 live 하위 사례와 Admin 저장의 실제 pass를
 `postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
 
-CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
+PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, generated consumer,
+process product를 core/core-consumers/core-processes로 나눈다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
+필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속해야 하며, 새 child sentinel도 같은 package의 owner가 맡는다.
+누락·중복·모호한 package와 빈 partition은 실패다. Package별 18분 timeout과 no-skip 검사는 유지한다.
+Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.
+원 Go JSON/stderr·필수 목록·partition 계획은 성공 여부와 관계없이 `postgres-product-<mode>-<shard>-<attempt>`에 보존한다.
+취소 실행의 불완전한 로그는 진단 자료이며 package 완료나 필수 실행 PASS를 대신하지 않는다.
+
+CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<shard>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
 결과 보존·conditional no-overwrite·checksum 거부·version 고정 seek·서명 변조/만료와 actual HTTP admission을 검증한다.
 실행별 source와 결과는 TEST_EVIDENCE에 기록하며 MinIO 성공을 AWS 운영 account나 다른 S3 구현의 실행 증거로 대체하지 않는다.
 

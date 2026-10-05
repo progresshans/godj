@@ -30,6 +30,8 @@ Article의 발행 알림까지 공통 문구로 바꾼 회귀와 Helpdesk 누적
 Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의 소비자를 분할하고 실행 소유권을 검증했다.
 고정 Django expected/observer는 바꾸지 않았다. 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
 [Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)을 요청했다.
+이 실행도 PostgreSQL race/core의 누적 job 제한으로 취소가 발생했다. 개별 검사를 유지하는 race 분할과 원 로그 보관을
+적용했으며 해당 CI source로 전체 검증을 다시 수행해야 한다.
 이전 실패 실행의 부분 성공을 재사용하지 않고 새 source의 최종 통합을 확인한다.
 
 ## 구현과 검증
