@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Edit tickets</title></head>
 <body><main><h1>Edit tickets</h1><p>Page {{ page }}. Review all changes before saving.</p>
-<p><a href="/admin/tickets/">Ticket details</a></p>
+<p><a href="/admin/tickets/">Ticket details</a> · <a href="/tickets/summary/">Ticket summary</a></p>
 <form method="post" action="{{ action }}">{% csrf_token %}
 <input type="hidden" name="tickets-TOTAL_FORMS" value="{{ total }}">
 <input type="hidden" name="tickets-INITIAL_FORMS" value="{{ initial }}">

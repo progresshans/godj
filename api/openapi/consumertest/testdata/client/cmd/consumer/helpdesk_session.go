@@ -252,6 +252,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return err
 	}
 	expected = append(expected, priorityRows...)
+	if err := checkHelpdeskSummary(ctx, client, readOnly, transport, state, target.CategoryID, expected); err != nil {
+		return err
+	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

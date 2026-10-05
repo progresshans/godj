@@ -262,3 +262,8 @@ Wire 검사는 nullable 출력의 누락/잘못된 타입/초과 길이를 거�
 관계 유지·범위/권한/CSRF/필수 입력 거부를 확인한다. 부모는 남은 보고서 한 개와 정확한 add/change audit 두 개를
 직접 조회한다. 별도 wire 검사는 두 success type, 2^53 밖 ID와 path, 필수 report/created 및 nested 필드 오류,
 500의 단일 전송을 확인한다. 필수 receipt는 `helpdesk_report_save`와 `generated_report_save_wire`다.
+
+우선순위 업무 요약의 독립 client는 실제 저장 결과로 예상 그룹을 별도 계산해 nullable/기존 정수 값·조건부 건수·HAVING·
+빈 페이지의 총수·ViewTicket 조회를 확인한다. 실제 schema를 고정 ogen으로 생성하며 `TicketSummary.priority`를 쓰기용
+선택지 enum으로 좁히지 않는다. 별도 wire 사례는 필수 nullable 키, exact int64 양 끝값, 숫자/배열/페이지 경계와
+storage 오류의 단일 요청 처리를 검증한다. 합성 wire 응답은 native DB 검증으로 계산하지 않는다.

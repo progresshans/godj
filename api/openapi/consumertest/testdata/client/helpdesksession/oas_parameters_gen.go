@@ -132,6 +132,14 @@ type HelpdeskTicketServiceReportSaveParams struct {
 	ID int64
 }
 
+// HelpdeskTicketSummaryParams is parameters of helpdesk:ticket-summary operation.
+type HelpdeskTicketSummaryParams struct {
+	// Page number, default 1; canonical positive decimal integer, at most 50001.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Minimum open tickets in each returned group, default 0; canonical nonnegative int64 decimal integer.
+	MinOpen OptInt64 `json:",omitempty,omitzero"`
+}
+
 // HelpdeskTicketUpdateParams is parameters of helpdesk:ticket-update operation.
 type HelpdeskTicketUpdateParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

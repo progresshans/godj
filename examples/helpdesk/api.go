@@ -225,9 +225,14 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		return nil, err
 	}
 	operations = append(operations, priorityRaise)
+	summary, summarySchema, err := a.ticketSummaryOperation(protect, categoryRef, errorSchema)
+	if err != nil {
+		return nil, err
+	}
+	operations = append(operations, summary)
 	schemas := append(reportSchemas, labelSchemas...)
 	schemas = append(schemas, linkSchemas...)
-	schemas = append(schemas, bulkUpdateSchema, prioritySchema)
+	schemas = append(schemas, bulkUpdateSchema, prioritySchema, summarySchema)
 	return &API{
 		authentication: authentication,
 		operations:     operations,

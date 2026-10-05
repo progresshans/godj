@@ -121,6 +121,7 @@ func (*GoDjAPIError) helpdeskTicketLabelDetailRes()   {}
 func (*GoDjAPIError) helpdeskTicketLabelListRes()     {}
 func (*GoDjAPIError) helpdeskTicketListRes()          {}
 func (*GoDjAPIError) helpdeskTicketServiceReportRes() {}
+func (*GoDjAPIError) helpdeskTicketSummaryRes()       {}
 
 type GoDjAPIErrorErrorsItem struct {
 	Field  string                             `json:"field"`
@@ -1142,6 +1143,30 @@ func (*HelpdeskTicketServiceReportSaveRequestEntityTooLarge) helpdeskTicketServi
 type HelpdeskTicketServiceReportSaveUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketServiceReportSaveUnsupportedMediaType) helpdeskTicketServiceReportSaveRes() {}
+
+type HelpdeskTicketSummaryBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskTicketSummaryBadRequest) helpdeskTicketSummaryRes() {}
+
+type HelpdeskTicketSummaryInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketSummaryInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketSummaryInternalServerError) helpdeskTicketSummaryRes() {}
+
+type HelpdeskTicketSummaryNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskTicketSummaryNotFound) helpdeskTicketSummaryRes() {}
 
 type HelpdeskTicketUpdateBadRequest GoDjAPIError
 
@@ -3978,6 +4003,151 @@ func (s *TicketPriorityRaise) GetIds() []int64 {
 // SetIds sets the value of Ids.
 func (s *TicketPriorityRaise) SetIds(val []int64) {
 	s.Ids = val
+}
+
+// Ref: #/components/schemas/TicketSummary
+type TicketSummary struct {
+	Category    CategorySummary            `json:"category"`
+	Page        int64                      `json:"page"`
+	PageSize    int64                      `json:"page_size"`
+	MinOpen     int64                      `json:"min_open"`
+	TotalGroups int64                      `json:"total_groups"`
+	Results     []TicketSummaryResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *TicketSummary) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *TicketSummary) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *TicketSummary) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetMinOpen returns the value of MinOpen.
+func (s *TicketSummary) GetMinOpen() int64 {
+	return s.MinOpen
+}
+
+// GetTotalGroups returns the value of TotalGroups.
+func (s *TicketSummary) GetTotalGroups() int64 {
+	return s.TotalGroups
+}
+
+// GetResults returns the value of Results.
+func (s *TicketSummary) GetResults() []TicketSummaryResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *TicketSummary) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *TicketSummary) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *TicketSummary) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetMinOpen sets the value of MinOpen.
+func (s *TicketSummary) SetMinOpen(val int64) {
+	s.MinOpen = val
+}
+
+// SetTotalGroups sets the value of TotalGroups.
+func (s *TicketSummary) SetTotalGroups(val int64) {
+	s.TotalGroups = val
+}
+
+// SetResults sets the value of Results.
+func (s *TicketSummary) SetResults(val []TicketSummaryResultsItem) {
+	s.Results = val
+}
+
+// TicketSummaryHeaders wraps TicketSummary with response headers.
+type TicketSummaryHeaders struct {
+	XGodjCsrftoken OptString
+	Response       TicketSummary
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *TicketSummaryHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *TicketSummaryHeaders) GetResponse() TicketSummary {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *TicketSummaryHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *TicketSummaryHeaders) SetResponse(val TicketSummary) {
+	s.Response = val
+}
+
+func (*TicketSummaryHeaders) helpdeskTicketSummaryRes() {}
+
+type TicketSummaryResultsItem struct {
+	Priority      NilInt64 `json:"priority"`
+	PriorityLabel string   `json:"priority_label"`
+	Total         int64    `json:"total"`
+	Open          int64    `json:"open"`
+}
+
+// GetPriority returns the value of Priority.
+func (s *TicketSummaryResultsItem) GetPriority() NilInt64 {
+	return s.Priority
+}
+
+// GetPriorityLabel returns the value of PriorityLabel.
+func (s *TicketSummaryResultsItem) GetPriorityLabel() string {
+	return s.PriorityLabel
+}
+
+// GetTotal returns the value of Total.
+func (s *TicketSummaryResultsItem) GetTotal() int64 {
+	return s.Total
+}
+
+// GetOpen returns the value of Open.
+func (s *TicketSummaryResultsItem) GetOpen() int64 {
+	return s.Open
+}
+
+// SetPriority sets the value of Priority.
+func (s *TicketSummaryResultsItem) SetPriority(val NilInt64) {
+	s.Priority = val
+}
+
+// SetPriorityLabel sets the value of PriorityLabel.
+func (s *TicketSummaryResultsItem) SetPriorityLabel(val string) {
+	s.PriorityLabel = val
+}
+
+// SetTotal sets the value of Total.
+func (s *TicketSummaryResultsItem) SetTotal(val int64) {
+	s.Total = val
+}
+
+// SetOpen sets the value of Open.
+func (s *TicketSummaryResultsItem) SetOpen(val int64) {
+	s.Open = val
 }
 
 // Ref: #/components/schemas/TicketUpdate

@@ -73,3 +73,16 @@ PostgreSQL은 transaction 안에서도 grouped FOR UPDATE를 거부하고 SQLite
 HAVING의 aggregate 비교·NOT는 SQL의 3값 논리를 유지한다. NULL aggregate를 비교한 NOT는 NULL 그룹을
 자동 포함하지 않는다. Nullable key의 부정은 기존 field predicate와 같은 NULL 보호를 사용한다.
 전체 catalog의 annotation/group/having 영역이나 Django의 모든 aggregate 조합을 이 수직 단면으로 완료 처리하지 않는다.
+
+## Helpdesk 업무 요약
+
+`TicketSummary`의 HTML과 API는 ViewTicket 인가 뒤 하나의 읽기 service를 사용한다. 현재 Category는 application이
+소유하며 query로 입력받지 않는다. Category의 존재/이름과 우선순위 그룹을 같은 `ReadSnapshot` handle로 읽고
+행·건수는 `GroupedQuery.Page` 한 statement에서 가져온다. callback의 누락·반복·동시 호출·오류 누락과 cleanup/취소
+실패에는 결과를 게시하지 않는다. 별도의 페이지 요청 사이에 snapshot을 유지한다고 주장하지 않는다.
+
+Priority의 NULL·기존 int64 값도 그룹이다. IR choices는 label만 제공하고 결과를 enum으로 좁히거나 데이터를 수정하지
+않는다. 전체 건수는 COUNT(*), 열린 건수는 closed=false인 ID의 조건부 COUNT다. 최소 열린 건수 HAVING 뒤 열린 건수
+내림차순·priority 내림차순(NULL 마지막)으로 20개씩 조회한다. 끝을 지난 페이지도 필터 뒤 전체 그룹 수를 유지한다.
+Query 한도/정규 decimal 입력과 API schema는 실제 handler와 독립 generated client로 대조한다. 조회는 ticket 본문·
+라벨·digest를 로드하거나 고치지 않고 audit를 기록하지 않는다. HTML은 별도의 쓰기/audit 구성을 요구하지 않는다.

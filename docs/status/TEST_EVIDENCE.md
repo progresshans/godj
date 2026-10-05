@@ -87,7 +87,7 @@ Publication은 normal의 internal/projectgenerate·relationproduct이며 crash h
 전체 패키지 compile-only 128.596s, CI tools 57개 검사 8.122s가 통과했다. 전체 compile은 전체 runtime PASS가 아니다.
 최종 결합 receipt `grouped-core-completion-20261006-051702/receipt.json` /
 `3b0b795373467c8bdc123311b59d2e450c9d98bd435d878c0f1ee4766649fe1f`가 각 원 결과·동일 source와
-새 필수 실행 목록을 결합한다. Helpdesk 업무 요약·그 HTML/API/client·새 source Hosted는 아직 미완료다.
+새 필수 실행 목록을 결합한다. 업무 소비자의 구현/검증은 아래 별도 checkpoint가 소유하며 새 source Hosted는 미완료다.
 
 초기 실패도 보존했다. PostgreSQL schema 이름 허용 범위에 대한 새 테스트의 잘못된 가정
 (`grouped-foundation-20261006-045856`), 소비자의 Optional 비교 인자 오기 (`050036`), 실제 dynamic project
@@ -96,6 +96,50 @@ binding 전달 누락과 소비자의 잘못된 root/borrowed 생성자·쓰기 
 descriptor/table 불일치·zero binding을 조회 전에 거부하는 negative control로 확인했다.
 
 이 기능은 source `720c9be6211f00a146a39d00957a81ce69ed294f`의 선행 Hosted full에 포함하지 않는다.
+
+### Helpdesk 업무 요약 — 구현과 영향 검사 완료
+
+`/tickets/summary/` HTML과 `/api/tickets/summary/` GET을 공통 읽기 service에 연결했다. ViewTicket 인가가
+query parsing·현재 Category 조회보다 먼저 적용된다. 독립 읽기 snapshot에서 Category와 우선순위 그룹·실제 총수를
+확인하고 20개씩 페이지를 반환한다. NULL과 기존 int64 값, 최소 열린 건수 HAVING, 현재 IR choice label, 빈/끝 이후
+페이지, 외부 Category 차단, 쓰기·digest repair·audit 부재를 검증한다. 동일 service의 callback/rows/scan/close/취소
+실패는 정상 응답으로 게시하지 않는다. 실제 OpenAPI를 export하고 고정 ogen client를 재생성했다.
+재생성 receipt `grouped-client-20261006-053537/receipt.json` /
+`a5c7ca9659b2b3f4ae2e8a2a05fa77b61c15ad6e4c8929dfa78a31793245b28e`는 tool/dependency/config lock 유지와
+실제 schema SHA-256 `07296d77a156dd656fcf46de579512582134c3b8f3410ddd4fc1a21e681d54d1`을 기록한다.
+
+첫 normal 실행 `grouped-business-20261006-053922/receipt.json` /
+`4a73411e728fe6e1d26c9bc8494b9b625ec3aa26de6728b823d404f67372fd5b`는 1432 run / 1424 pass / 0 skip으로
+실패했다. 새 operation을 포함하지 않은 기존 30개 개수 assertion, 실제 302인 HTML 로그인 redirect를 303으로 적은
+새 fixture, JSON decode 오류와 schema bounds의 `validate.Error`를 혼동한 독립 client assertion이 원인이었다.
+제품 source는 유지하고 이 세 테스트 기대값을 보정했다. 실패와 owned container 제거 기록을 보존했다.
+
+후속 source parent `4fa1f54492f31917e74786bd327b692df60108ab`, 비Markdown 3127 files / inventory
+`0d5787da235bb586503f8291b96c99b5959c2b1855fde074fa29cc07f75cce4b`에서 `examples/helpdesk`,
+`api/openapi/consumertest`, `api/openapi`를 묶어 검증했다. Go 1.26.5/darwin/arm64·공유 cache/child trimpath와
+PostgreSQL 17.10 Debian/UTF8/libc/C/C를 사용했다. 각 mode는 실제 SQLite/PostgreSQL Helpdesk 회귀와
+독립 HTTP client·실제 OpenAPI 및 여섯 profile의 재생성 drift를 포함한다.
+
+| Mode | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal | 3 | 1432 | 0 | 121.962s | `9a2db90af81bf83ee6afc0958f26a903bb84d8eac1702d137629a087ff611647` |
+| race | 3 | 1432 | 0 | 843.894s | `a0f35516732bdeefd4cf8ba2f36cf7b5ecd1f3ac3bcb10c43e5c9cdb7c82b306` |
+| cgo0 | 3 | 1432 | 0 | 117.827s | `70cedd8bbe566e6bb7381df27c3db2eab0474332bc52bb1fa648cb86c213ce28` |
+
+새 PostgreSQL 필수 경로 17개와 부모 root 포함 필요한 99개 실행을 세 mode의 실제 pass에서 확인했다.
+Format 0.412s, 영향 vet 7.180s, CI tools 57개 검사 8.054s가 통과했다. 최종 schema/session `0|0`, 소유 DB와
+container 제거, source 유지까지 완료했다. 최종 receipt `grouped-business-20261006-054218/receipt.json` /
+`02cbce51061de03efaea77f4e0f31cb435e82a1b37811b81f9f7a493bf9e1d6b`.
+전체 platform·새 source Hosted를 실행한 결과는 아니며 현재 선행 Hosted와 구분한다.
+
+격리 SQLite 실제 브라우저는 로그인과 editor→summary 탐색, NULL·큰 legacy 정수의 표시, 첫 20개/다음 7개,
+필터 변경·초기 페이지 복귀·끝 이후 총수·필터 유지 링크·잘못된 query·exact int64 JSON/no-store의 18개 검사를
+통과했다. Screenshot을 확인했고 최종 page console 오류는 0개였다. 초기 자동 favicon 요청의 404는 별도다.
+정상 shutdown의 완전한 stdout에서 티켓 30개·원 priority·연결 0개·audit 0개와 exit 0, 해당 process 종료를 확인했다.
+Browser receipt `grouped-browser-20261006/receipt.json` /
+`1c53d61352425e854a14ede748dcd85dc87f0227ce2adf18f555e92751fea1dc`는 binary/source·18개 실제 결과·screenshot을
+결합한다. Binary를 만든 뒤 달라진 비Markdown 파일은 위 세 테스트뿐임을 전 파일 hash로 확인했다. PostgreSQL
+브라우저나 Hosted full 결과로 계산하지 않는다.
 
 ### 선행 Hosted runner 배정 실패와 재시도
 
@@ -116,8 +160,17 @@ Receipt `hosted-query-update-runner-failure-37363189671/receipt.json` /
 `ce227be79055916c2a0d19246503555e7eab600c3ffe028e285ac72e95ee6f79`로 보존했다.
 별도 job `111951940754` (ubuntu-24.04-arm/race/runtime)는 실행 도중 runner shutdown signal과 exit 143으로
 중단됐다. 원 log 31155 bytes / SHA-256 `163ad0ddb1de8c5cc3db5064b03f2700796a7363bf5087b5da5c9fe2ee17e70c`.
+14번째 취소인 exact darwin/arm64 owner `111951939502`도 runner_id 0·steps 0과 같은 배정 실패였으며
+GitHub가 macOS arm64 capacity constraint를 추가로 기록했다. Receipt `hosted-query-update-runner-failure-37365281161/exact-profile-runner-failure.json` /
+`a638aa98b5d65fe8a6f0f887ca7710a802a7b958750ee4e2aaeea64545fc0fbb`.
 이 중단은 필수 테스트의 완료가 아니며 코드 assertion 실패와도 구분한다. 다른 실행의 완료를 기다려 실패 job만
 같은 source로 재실행할 예정이며, 진행 중인 job을 성공으로 계산하지 않는다.
+macos-15-intel/cgo0 Command products job `111951940314`도 runner와 server의 통신 상실로 종료됐다.
+Runner id `1000014164`, test step은 in_progress로 남았고 후속 필수 step은 시작되지 않았다. GitHub annotation은
+runner 종료·CPU/메모리 부족·네트워크 차단을 가능한 원인으로 열거하지만 현재 자료로 어느 원인인지 단정하지 않는다.
+Job log 요청은 404였으며 원 API/annotation을 `hosted-query-update-37365281161/job-111951940314-failure.json` /
+`e1706c409580c63f7e14f57fd7027804d380c2e931014df9fbf47f9b1c937030`에 보존했다. 실제 test assertion 실패나
+검증 성공으로 계산하지 않는다.
 
 ## GDJ-0111 — QuerySet 갱신과 scalar 표현식 기반
 

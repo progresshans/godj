@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ticket summary</title></head>
+<body><main><h1>Ticket summary</h1><p>Category: {{ category }}</p>
+<p><a href="/tickets/edit/">Edit tickets</a> · <a href="/admin/tickets/">Ticket details</a></p>
+<form method="get" action="/tickets/summary/"><label>Minimum open tickets <input type="number" name="min_open" min="0" step="1" value="{{ min_open }}"></label> <button type="submit">Apply filter</button> <a href="/tickets/summary/">Clear filter</a></form>
+<p>{{ total_groups }} priority groups. Page {{ page }}.</p>
+<table><caption>Tickets by priority, ordered by open count then priority</caption><thead><tr><th scope="col">Priority</th><th scope="col">Total tickets</th><th scope="col">Open tickets</th></tr></thead><tbody>
+{% for row in rows %}<tr><th scope="row">{{ row.priority }}</th><td>{{ row.total }}</td><td>{{ row.open }}</td></tr>{% empty %}<tr><td colspan="3">No priority groups on this page.</td></tr>{% endfor %}
+</tbody></table>
+<nav aria-label="Summary pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+<p>Counts and category details share one read snapshot for this request. Reloading or changing pages reads the current state.</p>
+</main></body></html>

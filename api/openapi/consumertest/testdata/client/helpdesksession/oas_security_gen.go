@@ -144,6 +144,7 @@ var operationRolesSessionAuth = map[string][]string{
 	HelpdeskTicketRaisePriorityOperation:     []string{},
 	HelpdeskTicketServiceReportOperation:     []string{},
 	HelpdeskTicketServiceReportSaveOperation: []string{},
+	HelpdeskTicketSummaryOperation:           []string{},
 	HelpdeskTicketUpdateOperation:            []string{},
 }
 

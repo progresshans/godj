@@ -28,7 +28,7 @@ GDJ-0109/0110/0111의 통합 보정 source는 별도 [Hosted full 37365281161](h
 - [x] 그룹 결과·집계 참조·HAVING·정렬의 공통 AST, metadata/type 소유권·자원 한도·명시적 미지원 오류
 - [x] SQLite/PostgreSQL native 실행, 실제 그룹 수·NULL·관계 cardinality와 context/session 수명
 - [x] Generic ORM·typed 생성 facade·dynamic 입력과 독립 생성 소비자, 잘못된 연결의 사전 거부
-- [ ] Helpdesk의 현재 권한·범위를 보존하는 HTML/API/독립 client 업무 요약
+- [x] Helpdesk의 현재 권한·범위를 보존하는 HTML/API/독립 client 업무 요약
 - [ ] 완성된 묶음의 기준 대조·영향 검사·generated drift·필요한 통합과 현행 의미/증거 기록
 
 ## 설계와 검증 경계
@@ -51,5 +51,7 @@ Query 복사, 입력과 출력의 가변 값, cache 공유·취소·rows/transac
 [검증 전략](../docs/TESTING.md)을 따른다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.
 공통 AST·두 compiler·typed/dynamic ORM·생성 facade와 독립 생성 소비자를 구현하고 양 DB·세 mode의 영향 검사,
 발행/생성 drift·전체 compile을 확인했다. 설계 경계는 [ADR-0091](../docs/adr/0091-grouped-results-and-having.md)에
-기록한다. Helpdesk 업무 요약의 HTML/API/client 연결과 그 검증을 다음으로 진행한다.
+기록한다. Helpdesk 업무 요약의 HTML/API/client와 실제 브라우저 흐름을 연결했고 영향 세 mode·정적 검사·
+필수 실행·DB 정리를 완료했다. 후속 source의 전체 platform 통합은 명시한 다음 Hosted milestone에서 확인하며,
+현재 진행 중인 선행 source 결과로 대체하지 않는다.
 현재 외부 입력이 필요한 blocker는 없다.

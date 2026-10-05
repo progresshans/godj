@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -97,6 +98,26 @@ func run() error {
 	if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Existing browser ticket", category.ID)); err != nil {
 		return err
 	}
+	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
+		for _, closed := range []bool{false, true} {
+			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Unset summary", category.ID).WithClosed(closed)); err != nil {
+				return err
+			}
+		}
+		for _, priority := range []int64{-1, 0, 1, math.MinInt64, math.MaxInt64} {
+			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Summary priority", category.ID).WithPriority(priority).WithClosed(priority == 0)); err != nil {
+				return err
+			}
+		}
+		if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Closed low", category.ID).WithPriority(-1).WithClosed(true)); err != nil {
+			return err
+		}
+		for priority := int64(10); priority <= 30; priority++ {
+			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Legacy summary", category.ID).WithPriority(priority)); err != nil {
+				return err
+			}
+		}
+	}
 	application, err := helpdesk.New(runtime, category.ID)
 	if err != nil {
 		return err
@@ -117,7 +138,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath)
 	persistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return err
@@ -126,7 +147,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		return err
 	}
@@ -144,6 +165,11 @@ func run() error {
 	}
 	routes := append(site.Routes(), api.Routes()...)
 	routes = append(routes, editor.Routes()...)
+	summary, err := application.TicketSummary(authentication)
+	if err != nil {
+		return err
+	}
+	routes = append(routes, summary.Routes()...)
 	app, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
 		return err

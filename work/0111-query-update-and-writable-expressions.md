@@ -32,7 +32,11 @@ macOS Intel의 명령 fixture 준비 실패가 확인됐다. 별도 준비 예�
 fixture 두 가정과 PostgreSQL race 생성 소비자 package의 18분 제한이 확인됐다. 현재 API의 positive/negative
 fixture와 해당 coordinate 예산을 보정하고 영향 검증했다. 전체 owner·source/capture·최종 집계는 새 source에서 확인한다.
 보정 source `a143ad3ac44a499ce852a815b2f11a86b1e4bb24`의
-[Hosted full 37363189671](https://github.com/progresshans/godj/actions/runs/37363189671)이 진행 중이다.
+[Hosted full 37363189671](https://github.com/progresshans/godj/actions/runs/37363189671)은 runner를 배정받지 못했다.
+제품 차이 없이 문서만 갱신한 `720c9be6211f00a146a39d00957a81ce69ed294f`의
+[Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)을 진행 중이다.
+Runner 배정/종료 문제와 실제 assertion을 구분하며, 필요한 job의 완료와 source/capture 결합은
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다. 후속 GDJ-0112는 이 source에 포함되지 않는다.
 
 ## 구현과 검증
 

@@ -345,6 +345,21 @@ type Invoker interface {
 	//
 	// PUT /api/tickets/{id}/service-report/
 	HelpdeskTicketServiceReportSave(ctx context.Context, request *ServiceReportSave, params HelpdeskTicketServiceReportSaveParams) (HelpdeskTicketServiceReportSaveRes, error)
+	// HelpdeskTicketSummary invokes helpdesk:ticket-summary operation.
+	//
+	// Groups tickets in the application's fixed category by their stored priority, retaining null and
+	// every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false.
+	// min_open filters groups, then results are ordered by open count descending and priority descending
+	// with null last. Pages contain at most 20 groups; total_groups is the count after filtering and
+	// before pagination, including on empty or past-end pages. Category identity/name, rows and total
+	// share one read snapshot per request. Separate page requests observe current state independently.
+	// This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the
+	// only business permission, checked before parsing and lookup. Query strings are limited to 128 bytes;
+	// unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers
+	// are rejected.
+	//
+	// GET /api/tickets/summary/
+	HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error)
 	// HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
 	//
 	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
@@ -3693,6 +3708,128 @@ func (c *Client) sendHelpdeskTicketServiceReportSave(ctx context.Context, reques
 	}()
 
 	result, err := decodeHelpdeskTicketServiceReportSaveResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketSummary invokes helpdesk:ticket-summary operation.
+//
+// Groups tickets in the application's fixed category by their stored priority, retaining null and
+// every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false.
+// min_open filters groups, then results are ordered by open count descending and priority descending
+// with null last. Pages contain at most 20 groups; total_groups is the count after filtering and
+// before pagination, including on empty or past-end pages. Category identity/name, rows and total
+// share one read snapshot per request. Separate page requests observe current state independently.
+// This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the
+// only business permission, checked before parsing and lookup. Query strings are limited to 128 bytes;
+// unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers
+// are rejected.
+//
+// GET /api/tickets/summary/
+func (c *Client) HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error) {
+	res, err := c.sendHelpdeskTicketSummary(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (res HelpdeskTicketSummaryRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/summary/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "min_open" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "min_open",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinOpen.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketSummaryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketSummaryResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

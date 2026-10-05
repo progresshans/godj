@@ -552,6 +552,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			verifyHelpdeskBulkUpdateConcurrency(t, ctx, runtime, open, after.PasswordHasher, client)
 		})
 	})
+	t.Run("ticket_summary", func(t *testing.T) { verifyHelpdeskTicketSummary(t, ctx, runtime, client) })
 	t.Run("ticket_priority_raise", func(t *testing.T) {
 		verifyHelpdeskPriorityRaise(t, ctx, runtime, client)
 		t.Run("concurrent", func(t *testing.T) {
@@ -706,7 +707,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath)
 	loginPersistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		t.Fatal(err)
@@ -715,7 +716,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,6 +745,11 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	}
 	routes := append(site.Routes(), adapter.Routes()...)
 	routes = append(routes, editor.Routes()...)
+	summary, err := application.TicketSummary(webAuth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes = append(routes, summary.Routes()...)
 	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
 		t.Fatal(err)

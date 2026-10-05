@@ -117,6 +117,10 @@ type HelpdeskTicketServiceReportSaveRes interface {
 	helpdeskTicketServiceReportSaveRes()
 }
 
+type HelpdeskTicketSummaryRes interface {
+	helpdeskTicketSummaryRes()
+}
+
 type HelpdeskTicketUpdateRes interface {
 	helpdeskTicketUpdateRes()
 }

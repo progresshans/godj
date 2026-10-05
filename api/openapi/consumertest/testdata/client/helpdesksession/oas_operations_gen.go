@@ -35,5 +35,6 @@ const (
 	HelpdeskTicketRaisePriorityOperation     OperationName = "HelpdeskTicketRaisePriority"
 	HelpdeskTicketServiceReportOperation     OperationName = "HelpdeskTicketServiceReport"
 	HelpdeskTicketServiceReportSaveOperation OperationName = "HelpdeskTicketServiceReportSave"
+	HelpdeskTicketSummaryOperation           OperationName = "HelpdeskTicketSummary"
 	HelpdeskTicketUpdateOperation            OperationName = "HelpdeskTicketUpdate"
 )

@@ -10,6 +10,27 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 
+## 우선순위별 업무 요약
+
+`application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET
+`/api/tickets/summary/`가 포함된다. 두 표면은 현재 Category의 티켓을 우선순위로 묶어 전체/열린 건수를 계산한다.
+`ViewTicket`만 필요하며 인증·인가를 query 해석과 조회 전에 확인한다. Category·Label 조회 권한이나 쓰기 권한은
+추가로 요구하지 않는다. Category는 application 구성이 고정하며 사용자 입력으로 바꿀 수 없다.
+
+선택지의 현재 표시는 Schema IR에서 가져온다. NULL은 `Not set`, 기존 선택지 밖 정수는 `Other (값)`으로 남기며
+API는 nullable int64 자체와 `priority_label`을 반환한다. JSON 응답의 큰 정수를 JavaScript number로 반올림하지 않도록
+소비자가 exact-int64 decoder를 사용해야 한다. 입력용 priority enum으로 저장된 응답 값을 제한하지 않는다.
+
+`min_open`은 0 이상의 int64 최소 열린 건수이며 기본값은 0이다. `p`는 1..50001의 페이지, 기본값은 1이다.
+20개 그룹씩 열린 건수 내림차순·우선순위 내림차순(NULL 마지막)으로 반환한다. `total_groups`는 HAVING 적용 뒤,
+페이지 적용 전의 총 그룹 수이므로 마지막 이후 페이지도 실제 총수를 유지한다. 응답은 `category`, `page`, `page_size`,
+`min_open`, `total_groups`, `results`의 닫힌 객체이며 각 결과는 `priority`, `priority_label`, `total`, `open`을 포함한다.
+
+Query는 128 byte 이하이며 알 수 없는 이름·중복·빈 값·잘못된 encoding과 정규 decimal 표기가 아닌 값은 400이다.
+Category가 사라졌으면 404다. Category 정보와 집계 행/총수는 요청별 하나의 읽기 스냅샷에 속한다. 다른 페이지 요청은
+다시 현재 상태를 읽는다. 조회는 ticket 본문·라벨·digest를 불러오거나 고치지 않고 audit도 쓰지 않는다. DB·취소·정리 오류는
+부분 응답으로 바뀌지 않는다. HTML과 성공 JSON 응답은 `Cache-Control: no-store`를 사용한다.
+
 ## 여러 티켓 생성하기
 
 `AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`로 만든 Ticket 목록은 **Create multiple tickets**
@@ -101,11 +122,14 @@ editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{
 })
 if err != nil { return err }
 routes = append(routes, editor.Routes()...)
+summary, err := application.TicketSummary(webAuth)
+if err != nil { return err }
+routes = append(routes, summary.Routes()...)
 // web.Config에서 MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes를 사용한다.
 ```
 
-같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`를 추가하고,
-`admin.SiteConfig.AdditionalNextPaths`에도 같은 경로를 선언한다. Session/CSRF cookie 경로는 두 화면을 모두 포함해야 한다.
+같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`와 `helpdesk.TicketSummaryPath`를 추가하고,
+`admin.SiteConfig.AdditionalNextPaths`에도 같은 경로를 선언한다. Session/CSRF cookie 경로는 모든 화면을 포함해야 한다.
 편집기는 cookie 범위나 로그인 복귀 경로가 맞지 않으면 시작 시 거부한다. `AppendAudit`는 필수이며 제공된 session에 기록해야
 한다. 별도 transaction을 열거나 commit하지 않는다. 위 Runtime의 callback은 scalar·관계·삭제와 같은 transaction에 기록한다.
 

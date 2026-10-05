@@ -12,12 +12,12 @@
 QuerySet native 갱신·쓰기 표현식과 Helpdesk 우선순위 명령의 Hosted에서 남은 외부 compile fixture와
 생성 소비자의 package 시간 제한을 확인했다. 보정을 영향 검증했고 runner 배정에 실패한 실행의 재시도를 진행한다.
 그룹 집계의 고정 Django 기준·공통 AST·양 backend·typed/dynamic 생성 소비자와 영향 세 mode를 확인했다.
-현재 Category의 우선순위별 업무 요약을 HTML/API와 독립 client로 연결한다.
+현재 Category의 우선순위별 업무 요약을 HTML/API와 독립 client로 연결하고 영향 세 mode·브라우저·정적 검사·DB 정리를 완료했다.
 후속 구현은 진행 중인 Hosted source와 분리하며 그 실행을 새 기능의 검증으로 계산하지 않는다.
 
 ## 다음 행동
 
-업무 요약의 ViewTicket 인가·Category 범위·NULL/기존 값·필터/페이지를 구현·검증하고, 선행 full의 runner 실패를
+업무 요약을 기록·발행하고 typed API 응답의 출력 검증·OpenAPI 중복 선언을 줄이는 다음 기반으로 확장한다. 선행 full의 runner 실패를
 분리하며 필수 owner·실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다. Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 
