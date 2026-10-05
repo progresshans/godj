@@ -608,7 +608,7 @@ func (site *Site) modelAction(model registeredModel, action registeredAction) we
 				}
 				return operationResponse(err)
 			}
-			location := site.signedNoticeLocation(model, "action", strconv.Itoa(result.Matched()))
+			location := site.signedNoticeLocation(model, actionNoticePrefix+action.name, strconv.Itoa(result.Matched()))
 			return siteRedirect(location)
 		})
 	}

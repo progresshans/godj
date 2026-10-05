@@ -221,7 +221,76 @@ product를 확인했다. CI tools 52개 검사, 186개 문서 local link와 diff
 `feature/bulk-update`와 draft PR의 원격 ref를 같은 commit으로 확인했고, source `99491ff3`의
 [Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105), attempt 1을
 `workflow_dispatch/suite=full`로 시작했다. 새 source의 전체 플랫폼·cold/process·새 capture/Git source 결합과 소비·
-최종 집계는 이 실행이 소유한다. GDJ-0109 사후 발견 회귀도 포함한다. 현재 결과는 진행 중이며 로컬 영향 PASS와 구분한다.
+최종 집계는 이 실행이 소유한다. GDJ-0109 사후 발견 회귀도 포함한다. 아래 실패를 발견했으므로 이 실행은 전체 PASS가 아니다.
+
+### Hosted의 Article 알림 회귀와 Helpdesk 누적 race 한도 수정
+
+Source `99491ff3`의 공통 Admin은 모든 선택 작업을 `action`/generic 문구로 바꾸어 Article의 발행 알림을 잃었다.
+Portable integration `111828306874`와 PostgreSQL core `111828307148`/`111828306732`의 실제 Article HTTP가 이를
+검출했다. Portable conformance `111828306947`와 project-check `111828307508`도 ADM-010의 공개 tag/text/count를
+정규화할 수 없어 실패했다. 뒤의 mode/좌표에서도 같은 회귀를 확인했다. 고정 Django oracle·observer를 수정하지 않고,
+`ActionConfig.SuccessNotice`로 앱의 정적 성공 문구를 선언하고 model/등록 action/count를 함께 서명하도록 고쳤다.
+Article은 published, Helpdesk는 closed/reopened 의미를 각각 렌더링한다. 잘못된 선언은 시작 시, 바뀐 action/count/signature는
+요청에서 거부한다. 기본 문구·HTML escape·실제 0건·실패/불확실한 결과의 성공 알림 부재도 검증한다.
+
+Portable race integration `111828306885`에서는 Helpdesk의 누적 SQLite consumer가 300.01s에 부모 deadline을 넘었다.
+`bulk_ticket_updates/api/update_native_later_conflict`의 fixture 준비 중부터 `context deadline exceeded`가 전파됐다.
+모든 시나리오를 유지하고 양 DB의 누적 부모 budget을 공통 10분으로 조정했다. 개별 10/15/20초의 잠금·취소 대기와
+실행 성공/skip/잘림 검사는 유지한다. Portable package 25분·PostgreSQL package 18분의 별도 한도도 유지한다.
+
+원 job logs는 `godj-verification/hosted-bulk-update-37329368105/job-<id>.log`에 보존했다. 대표 SHA-256:
+SQLite integration `9c138e6bdbe5392cde28195b9bc769da294db60366b1ca702feeab3d91c7c767`,
+PostgreSQL normal `2b34a8638c327f967aa394ec5998d56eca26e2d5dd3838cf41605ac3a808786a`,
+conformance `fd2bfda35d6aecab19ea9f66de43188849a8643d309b247b0bd8c488deeb6038`,
+race integration `543a474868adb2cc9f6f8b79a040345852711347c1cbaf27009430e6fcef130a`.
+수정 묶음의 새 영향 검사와 이후 Hosted 전체 통합은 이 실패 실행과 별도로 기록한다.
+
+같은 Hosted의 Linux amd64 relation/race job `111828307266`은 생성 소비자 package의 누적 35분 한도로 실패했다.
+당시 `TestGeneratedTextFieldConsumer`는 시작 후 4초였고 앞선 테스트들은 순서대로 완료했다. Log SHA-256
+`05c7c982dae3e92a3f3a823828cfdc986774d99af565e366dd701e4cc3574e95`.
+기존 macOS 분할을 모든 race 좌표에 적용했다. Linux의 job/package 한도 45/35분은 유지하고 생성 소비자 세 shard와
+일반 relation runtime owner를 분리했다. 전체 scope의 관계 job은 24개다. Binary에서 실제 발견한 84 roots가 실패 Hosted의
+발견 목록과 같으며, 12개 OS/arch/mode 좌표마다 모든 root와 required child가 정확히 한 번 배정됨을 확인했다.
+누락·중복·skip·실패·잘린 실행 거부를 포함한 CI tools 52개가 PASS(3.247s)다. 실행 범위를 줄이지 않았고
+새 분할의 실제 플랫폼 실행은 다음 Hosted에서 확인한다.
+
+### 알림 수정의 양 DB 영향 검사와 브라우저 재검증
+
+2026-10-06 KST, parent `b7a23685bd9ecd4709ffcb5a1da0ec39232a5257`, 비Markdown 3063 files /
+inventory `6b1fa537aeb4df98880a7f6d46d07f8d03d6dee071641cd145efd9d6a54f2e35`.
+Go 1.26.5/darwin/arm64·공유 cache·trimpath·offline dependency와 실제 PostgreSQL 17.10 Debian/UTF8/libc/C/C,
+SQLite에서 다음 범위를 실행했다. 각 칸은 run/pass/skip, 실행 시간이다.
+
+| 범위 | normal | race | CGO=0 |
+|---|---|---|---|
+| Admin 전체·Article Admin adapter, 2 packages | 428/428/0, 5.747s | 428/428/0, 12.650s | 428/428/0, 2.581s |
+| Article의 SQLite/PostgreSQL 실제 Admin HTTP | 2/2/0, 7.178s | 2/2/0, 17.983s | 2/2/0, 1.810s |
+| Article Admin actual/고정 기준 대조·checker, 2 packages | 20/20/0, 14.722s | 20/20/0, 29.724s | 20/20/0, 3.219s |
+| Helpdesk의 양 DB 전체 업무 회귀 | 1040/1040/0, 74.784s | 1040/1040/0, 547.907s | 1040/1040/0, 74.371s |
+
+모든 test 시작/종료의 정확한 일치, 필수 경로·package 완료·no-skip와 원 source 유지를 확인했다.
+새 알림 세 root는 PostgreSQL required 목록에도 연결하고 세 mode의 실제 pass와 대조했다.
+`make format-check`(0.391s), 영향 7 packages의 `go vet`(9.968s) PASS. Generator/IR/생성 코드는 바뀌지 않았다.
+Schema/session `0|0`·DB/container 제거를 확인했다. Receipt
+`godj-verification/action-notice-20261006-002228/receipt.json`, SHA-256
+`3660777c561ba527427c4b5c896ce16773e2eb3f0941e72fc364ee2615d60ab1`에 명령과 각 raw log hash를 보존했다.
+
+첫 다섯 실행 뒤 Playwright가 root에 만든 두 untracked 진단 파일을 source inventory가 감지하여 스크립트가 중단됐다.
+실제 3063개 source byte는 모두 같았다. 소유 진단 파일만 browser output으로 옮기고 원 source·완료 로그·필수 실행을
+다시 대조한 뒤 남은 일곱 실행을 이어갔다. 실패 receipt와 판단은 `interrupted-receipt.json`/`interrupted-inventory.json`에
+보존했다. 이후 바뀐 비Markdown은 CI workflow 주석과 분할/분할 테스트 세 파일뿐이다.
+최종 inventory `77ed288fff267897189b0944313348079b05679f2e2fe924d3ba6831c9bbd636`, CI 보완 receipt
+`action-notice-20261006-002228/ci-supplement.json` / `9d2b33d195000c259aeb701af51e5d535bf5eb58cf19c78ba595df81e7ab5707`.
+
+같은 제품 source의 새 SQLite/identity/session fixture에서 Playwright CLI 0.1.22의 세 probe를 모두 실행했다(22/9/9).
+닫기는 실제 1건, 반복 닫기는 0건, 재열기는 2건으로 각각 closed/reopened 문구를 표시했다. 기존 행 두 개의 bulk 편집과
+미선택 행/필드·라벨 보존도 확인했다. 종료한 서버가 별도로 읽은 결과는 티켓 5개·라벨 연결 4개·audit 10개였고,
+sequence 1..10의 actor/object/action/changed-fields를 정확히 대조했다. 브라우저와 서버를 종료했고 소유 runtime 디렉터리는
+비었다. 두 screenshot을 직접 확인했다. Console은 기존 favicon 404 한 건이다. Optional CLI `network` 명령은 이 pinned
+버전에서 미지원이었으며 기능 probe의 결과와 구별한다. Receipt `output/playwright/action-notice/receipt.json` /
+`c049b22e77722ef291ee90aff95bdcf3b87a1e81ac6037c19d7a86b89d96602c`.
+
+이는 수정의 영향 검증이다. 새로운 source의 전체 플랫폼·cold·capture/Git source 결합과 소비·최종 집계는 아직 남았다.
 
 ### 브라우저와 독립 저장 결과
 

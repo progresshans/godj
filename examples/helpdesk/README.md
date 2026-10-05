@@ -64,7 +64,8 @@ audit를 같은 transaction에 둔다. 뒤쪽 batch나 audit가 실패해도 부
 `AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`의 Ticket 목록은 **Close selected tickets**와
 **Reopen selected tickets**를 제공한다. ViewTicket·ChangeTicket·ViewLabel, active staff·CSRF와 Authorizer의 허용을
 모두 요구한다. 최대 40개를 선택할 수 있고 다른 필드와 라벨은 보존한다. 성공 알림은 실제 변경한 수이며 같은 작업을
-반복하면 0이다. 기본 Admin의 선택 상한과 별개로 이 업무의 40개 한도를 저장 전에 적용한다.
+반복하면 0이다. 닫기와 재열기는 각각 `N ticket(s) closed.`와 `N ticket(s) reopened.`를 표시한다.
+기본 Admin의 선택 상한과 별개로 이 업무의 40개 한도를 저장 전에 적용한다.
 
 모든 티켓 쓰기의 결과 확인은 필터 없는 실제 라벨 연결과 공개 가능한 라벨 집합을 대조한다. 라벨을 생략하거나
 값이 바뀌지 않아도 이미 저장된 외부 범주 연결을 조용히 숨기고 성공 처리하지 않는다. 일반 읽기는 범위 안 라벨만

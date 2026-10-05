@@ -18,14 +18,15 @@ func (a *Application) ticketBulkActions() []admin.ActionConfig {
 	}
 	result := make([]admin.ActionConfig, 0, 2)
 	for _, action := range []struct {
-		name, label string
-		closed      bool
+		name, label, result string
+		closed              bool
 	}{
-		{"close", "Close selected tickets", true}, {"reopen", "Reopen selected tickets", false},
+		{"close", "Close selected tickets", "closed", true}, {"reopen", "Reopen selected tickets", "reopened", false},
 	} {
 		result = append(result, admin.ActionConfig{
 			Name: action.name, Label: action.label, Permission: ChangeTicket,
 			AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel},
+			SuccessNotice:         admin.ActionNotice{Tag: action.result, Text: "{count} ticket(s) " + action.result + "."},
 			Run: func(ctx context.Context, actor auth.Principal, ids []int64) (admin.ActionResult, error) {
 				changes := make([]ticketBulkChange, len(ids))
 				for index, id := range ids {

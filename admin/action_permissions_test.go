@@ -146,7 +146,7 @@ func TestActionPermissionOverlayAppliesToVisibilityAndExecution(t *testing.T) {
 			if response.Code != status || writes != wantWrites || strings.Contains(response.Body.String(), "private action") {
 				t.Fatal("action admission or error secrecy", response.Code, writes)
 			}
-			if mode == "allowed" && !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/accounts/", "action", "1") {
+			if mode == "allowed" && !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/accounts/", "action:close", "1") {
 				t.Fatal("action result did not produce its signed generic notice")
 			}
 		})

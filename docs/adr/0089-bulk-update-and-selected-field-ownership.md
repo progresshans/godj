@@ -74,6 +74,11 @@ Admin의 선택 작업은 주 permission과 `AdditionalPermissions`를 모두 �
 principal admission, Site의 표시와 실행, Authorizer overlay에서 같은 조건으로 검사한다. 입력 오류는 직접 확인된
 validation rejection에 한해서만 400으로 표시하며 감싼 결과 불확실성이나 정리 오류를 입력 오류로 축소하지 않는다.
 서명된 성공 알림의 count는 실제 변경한 ID 수이며 반복 close/reopen은 0일 수 있다.
+성공 문구는 `ActionConfig.SuccessNotice`의 `ActionNotice{Tag, Text}`로 앱이 선언한다. Text의 단일 `{count}`에
+확인된 matched count를 넣고 나머지는 literal text로 HTML escape한다. 영값은 공통 성공 문구를 선택하며,
+잘못된 tag·placeholder·control·UTF-8·길이는 시작 시 거부한다. 서명은 model과 `action:<등록 이름>`·count를
+함께 결합한다. 같은 공개 tag를 쓰는 다른 action으로 URL을 바꾸어도 허용하지 않는다. Article은 발행 알림을,
+Helpdesk는 closed/reopened 알림을 각각 선언한다. Callback/요청에서 임의 HTML이나 성공 문구를 받아들이지 않는다.
 
 API는 인증·ChangeTicket/ViewLabel·필수 CSRF를 파싱 전에 검사한다. 1..40개의 `TicketBulkPatch` 항목마다 정확한
 양수 int64 ID가 필수이고 나머지는 기존 partial field 정책을 사용한다. `ExtendObject`는 닫힌 inline 객체 schema에

@@ -299,6 +299,25 @@ func verifyHelpdeskBulkUpdates(t *testing.T, ctx context.Context, runtime *syste
 					if strings.Contains(response.Body.String(), "private") {
 						t.Fatal("bulk update disclosed private data")
 					}
+					if surface == "admin" {
+						if want == 302 {
+							changed := count
+							if mode == "unchanged" {
+								changed = 0
+							}
+							tag := "closed"
+							if mode == "reopen" || mode == "unchanged" {
+								tag = "reopened"
+							}
+							notice := client.requestContext(ctx, "GET", response.Header().Get("Location"), "", false)
+							if notice.Code != 200 || !strings.Contains(notice.Body.String(), fmt.Sprintf(`data-admin-message="%s" data-affected="%d"`, tag, changed)) ||
+								!strings.Contains(notice.Body.String(), fmt.Sprintf("%d ticket(s) %s.", changed, tag)) {
+								t.Fatal("bulk action notice lost its operation or actual changed count", mode, notice.Code)
+							}
+						} else if response.Header().Get("Location") != "" {
+							t.Fatal("failed or uncertain action published a success notice", mode)
+						}
+					}
 					stored, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.In(keys...)).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
 					if err != nil || len(stored) != len(originals) {
 						t.Fatal("bulk update lost an original row", len(stored), err)

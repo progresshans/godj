@@ -39,11 +39,16 @@ import (
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
+// The cumulative real-database consumer includes migration growth, identity,
+// HTTP, relations, formsets and both bulk operations. Its aggregate race budget
+// is separate from the short per-scenario cancellation and lock-wait bounds.
+const helpdeskConsumerTimeout = 10 * time.Minute
+
 func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFields(t *testing.T) {
 	// Schema growth, identity, HTTP, collections and Admin formsets share this
 	// database. Allow their cumulative race cost when other packages also run;
 	// individual cancellation/concurrency scenarios keep their own deadlines.
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), helpdeskConsumerTimeout)
 	defer cancel()
 	dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "helpdesk.sqlite3")) + "?mode=rwc&_busy_timeout=5000"
 	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) }, insertLargeCollectionLabel)

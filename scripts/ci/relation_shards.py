@@ -28,15 +28,15 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            count = 3 if goos == 'darwin' and mode == 'race' else 1
+            count = 3 if mode == 'race' else 1
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
             for shard in (range(count + 1) if count > 1 else (1,)):
                 rows.append({
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,
-                    'job_timeout': 90 if count > 1 else 45,
-                    'test_timeout': '70m' if count > 1 else '35m',
+                    'job_timeout': 90 if goos == 'darwin' and count > 1 else 45,
+                    'test_timeout': '70m' if goos == 'darwin' and count > 1 else '35m',
                 })
     return {'include': rows}
 

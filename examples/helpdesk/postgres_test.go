@@ -25,7 +25,7 @@ func TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance(t *testing.T) {
 	}
 	// This runs the same cumulative HTTP/identity/collection/bulk scenarios as
 	// SQLite. Keep their race budget aligned; individual waits remain bounded.
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), helpdeskConsumerTimeout)
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {

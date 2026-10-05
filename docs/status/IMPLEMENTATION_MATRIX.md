@@ -38,7 +38,9 @@ Source `18199083`의 Hosted 선언 범위는 통과했다. 사후 발견한 Post
 GDJ-0110의 selected-field bulk update AST/native backend·generic ORM·typed root/eager/prefetch facade를 구현했다.
 고정 Django 40개 사례와 PostgreSQL 잠금 대기 7개를 보존하며 실제 양 DB 영향 세 mode에서 직접 대조했다.
 Helpdesk의 여러 행 편집·Admin close/reopen·partial 배열 API와 독립 client도 연결했고 업무 묶음의 양 DB 영향 세 mode와
-실제 브라우저를 확인했다. 새 source의 Hosted 통합은 아직 완료하지 않았다. [선택 필드와 bulk update 의미](../adr/0089-bulk-update-and-selected-field-ownership.md)를 따른다.
+실제 브라우저를 확인했다. Hosted에서 발견한 Article 알림 회귀를 수정해 영향 세 mode·브라우저를 통과했고,
+누적 race 시간 한도와 생성 소비자 분할도 보완했다.
+새 source의 Hosted 통합은 아직 완료하지 않았다. [선택 필드와 bulk update 의미](../adr/0089-bulk-update-and-selected-field-ownership.md)를 따른다.
 
 ## 기능
 

@@ -118,9 +118,10 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			return service.HistoryLimited(ctx, id, request.Limit)
 		},
 		Actions: []admin.ActionConfig{{
-			Name:       "publish",
-			Label:      "Publish selected articles",
-			Permission: ArticleChangePermission,
+			Name:          "publish",
+			Label:         "Publish selected articles",
+			Permission:    ArticleChangePermission,
+			SuccessNotice: admin.ActionNotice{Tag: "published", Text: "{count} object(s) published."},
 			Run: func(ctx context.Context, principal auth.Principal, ids []int64) (admin.ActionResult, error) {
 				result, err := service.Publish(ctx, principal.ID(), ids)
 				if err != nil {

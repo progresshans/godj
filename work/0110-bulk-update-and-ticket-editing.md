@@ -25,6 +25,10 @@ GDJ-0109는 고정 source의 Hosted 선언 범위를 통과했으며 사후 발�
 Source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`를 게시하고
 [Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했다.
 이 실행이 GDJ-0109의 추가 회귀와 새 제품 source의 전체 통합을 소유한다. 완료 전까지 마지막 항목은 열린 상태다.
+Article의 발행 알림까지 공통 문구로 바꾼 회귀와 Helpdesk 누적 race 실행의 시간 한도 부족을 발견했다.
+앱이 액션별 성공 문구를 선언하고 model/action/count를 서명하도록 수정했고 영향 세 mode·브라우저를 통과했다.
+Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의 소비자를 분할하고 실행 소유권을 검증했다.
+고정 Django expected/observer를 바꾸지 않는다. 수정 source의 새 Hosted 통합이 필요하다.
 
 ## 구현과 검증
 

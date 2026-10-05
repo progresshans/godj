@@ -173,13 +173,18 @@ func (site *Site) listContext(
 	if pageNumber < int(^uint(0)>>1) && int64(page.offset)+int64(len(page.objects)) < page.total {
 		nextURL = listPageURL(site.modelPath(model), search, pageNumber+1)
 	}
-	notice := noticeText(query.Get("notice"), query.Get("count"))
+	notice := noticeText(query.Get("notice"))
+	noticeTag := query.Get("notice")
+	if action, ok := model.actionNotice(noticeTag); ok {
+		notice = strings.Replace(action.Text, "{count}", query.Get("count"), 1)
+		noticeTag = action.Tag
+	}
 	collectionCommands, err := site.collectionCommandLinks(ctx, principal, model)
 	if err != nil {
 		return nil, err
 	}
 	affected := int64(0)
-	if query.Get("notice") == "action" {
+	if query.Get("count") != "" {
 		affected, _ = strconv.ParseInt(query.Get("count"), 10, 64)
 	}
 	return map[string]templates.Value{
@@ -202,7 +207,7 @@ func (site *Site) listContext(
 		"next_url":            templates.String(nextURL),
 		"has_next":            templates.Bool(nextURL != ""),
 		"notice":              templates.String(notice),
-		"notice_tag":          templates.String(query.Get("notice")),
+		"notice_tag":          templates.String(noticeTag),
 		"has_notice":          templates.Bool(notice != ""),
 		"affected":            templates.Integer(affected),
 		"invalid_page":        templates.Bool(invalidPage),
@@ -247,13 +252,14 @@ func (site *Site) validateNotice(model registeredModel, values url.Values) error
 		if count != "" {
 			return &ConfigError{Path: "request.values.count", Code: "unexpected"}
 		}
-	case "action":
+	default:
+		if _, ok := model.actionNotice(notice); !ok {
+			return &ConfigError{Path: "request.values.notice", Code: "invalid"}
+		}
 		parsed, err := strconv.Atoi(count)
 		if err != nil || parsed < 0 || strconv.Itoa(parsed) != count || parsed > MaximumSelectedIDs {
 			return &ConfigError{Path: "request.values.count", Code: "invalid"}
 		}
-	default:
-		return &ConfigError{Path: "request.values.notice", Code: "invalid"}
 	}
 	decoded, err := base64.RawURLEncoding.Strict().DecodeString(signature)
 	if err != nil || len(decoded) != sha256.Size || base64.RawURLEncoding.EncodeToString(decoded) != signature ||
@@ -285,7 +291,7 @@ func (site *Site) noticeSignature(model registeredModel, notice, count string) [
 	return mac.Sum(nil)
 }
 
-func noticeText(notice, count string) string {
+func noticeText(notice string) string {
 	switch notice {
 	case "added":
 		return "Object added."
@@ -295,8 +301,6 @@ func noticeText(notice, count string) string {
 		return "Object changed."
 	case "deleted":
 		return "Object deleted."
-	case "action":
-		return count + " object(s) changed by the action."
 	default:
 		return ""
 	}

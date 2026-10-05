@@ -231,7 +231,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		"csrfmiddlewaretoken": {history.csrfToken(t)},
 		"selected":            {"2"},
 	})
-	actionResult.requireNoticeRedirect(t, "published", "1")
+	actionResult.requireNoticeRedirect(t, "action:publish", "1")
 	publishedNotice := fixture.request(t, http.MethodGet, actionResult.header.Get("Location"), nil)
 	publishedNotice.requireStatus(t, http.StatusOK)
 	publishedNotice.requireMarkers(t, `data-admin-message="published" data-affected="1"`, `1 object(s) published.`)

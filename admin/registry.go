@@ -155,6 +155,7 @@ type ActionConfig struct {
 	Label                 string
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
+	SuccessNotice         ActionNotice
 	Run                   func(context.Context, auth.Principal, []int64) (ActionResult, error)
 }
 
@@ -345,9 +346,10 @@ type ModelDescriptor struct {
 }
 
 type ActionDescriptor struct {
-	Name        string
-	Label       string
-	Permissions []auth.Permission
+	Name          string
+	Label         string
+	Permissions   []auth.Permission
+	SuccessNotice ActionNotice
 }
 
 func (registry Registry) All() []ModelDescriptor {
@@ -418,10 +420,11 @@ type registeredRecord struct {
 }
 
 type registeredAction struct {
-	name        string
-	label       string
-	permissions []auth.Permission
-	run         func(context.Context, auth.Principal, []int64) (ActionResult, error)
+	name          string
+	label         string
+	permissions   []auth.Permission
+	successNotice ActionNotice
+	run           func(context.Context, auth.Principal, []int64) (ActionResult, error)
 }
 
 func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) (registeredModel, error) {
@@ -998,15 +1001,20 @@ func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
 		if action.Run == nil {
 			return nil, &ConfigError{Path: path + ".run", Code: "missing"}
 		}
+		notice, err := prepareActionNotice(path+".success_notice", action.SuccessNotice)
+		if err != nil {
+			return nil, err
+		}
 		run := action.Run
 		permissions, err := additionalPermissions(action.Permission, action.AdditionalPermissions)
 		if err != nil {
 			return nil, err
 		}
 		result[index] = registeredAction{
-			name:        action.Name,
-			label:       action.Label,
-			permissions: permissions,
+			name:          action.Name,
+			label:         action.Label,
+			permissions:   permissions,
+			successNotice: notice,
 			run: func(ctx context.Context, principal auth.Principal, selected []int64) (ActionResult, error) {
 				for _, permission := range permissions {
 					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
@@ -1048,7 +1056,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 	}
 	actions := make([]ActionDescriptor, len(model.actions))
 	for index, action := range model.actions {
-		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permissions: slices.Clone(action.permissions)}
+		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permissions: slices.Clone(action.permissions), SuccessNotice: action.successNotice}
 	}
 	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
 		ReadOnly:           model.readOnly,
