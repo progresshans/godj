@@ -5,6 +5,7 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
@@ -29,7 +30,7 @@ func WriteArticle(ctx context.Context, backend db.Mutator) error {
 	if err != nil {
 		return err
 	}
-	updated, err := models.ArticleObjects.Update(
+	updated, err := models.ArticleObjects.Patch(
 		ctx,
 		backend,
 		created,
@@ -40,6 +41,13 @@ func WriteArticle(ctx context.Context, backend db.Mutator) error {
 	}
 	_, err = models.ArticleObjects.Delete(ctx, backend, &updated)
 	return err
+}
+
+// A Boolean reference is valid as a same-kind assignment operand. Arithmetic
+// remains a separate numeric capability checked by the negative fixture.
+func UpdatePublished(ctx context.Context, backend db.Queryer) (int64, error) {
+	return models.ArticleObjects.Using(backend).Update(ctx,
+		orm.AssignExpression(models.ArticleFields.Published, orm.F(models.ArticleFields.Published)))
 }
 
 func WriteArticleAtomically(ctx context.Context, backend interface {

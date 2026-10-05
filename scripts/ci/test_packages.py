@@ -225,22 +225,29 @@ class ExecutionOwnerTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / '.github/workflows/ci.yml').read_text()
         start = workflow.index('          required_tests=()')
-        end = workflow.index('          test_flags=', start)
+        end = workflow.index('          case "$mode" in', start)
         selection = workflow[start:end]
         entries = (root / 'scripts/ci/postgres-core-required.txt').read_text().splitlines()
         # Reproduce the failure: the new SQLite editor had child requirements
         # but no separate top-level sentinel. Never rely on that duplication.
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
-        for required in [entries, child_only]:
-            with self.subTest(child_only=required is child_only):
+        coordinates = [('normal', 'core', '18m'), ('normal', 'operator-target', '18m'),
+                       ('race', 'core', '18m'), ('race', 'core-consumers', '30m'),
+                       ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
+                       ('cgo0', 'core', '18m'), ('cgo0', 'operator-target', '18m')]
+        for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
+            with self.subTest(child_only=required is child_only, mode=mode, shard=shard):
                 script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'
-                script += selection + '\nprintf "%s\\n" "$required_regex"\n'
+                script += f'mode={mode}\nshard={shard}\n'
+                script += selection + '\nprintf "%s\\n" "${test_flags[@]}"\n'
                 result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
                                         input='\n'.join(required) + '\n', cwd=root,
                                         capture_output=True, text=True, timeout=10)
                 self.assertEqual(0, result.returncode, result.stderr)
-                pattern = result.stdout.strip()
+                flags = result.stdout.splitlines()
+                self.assertEqual(['-p=1', '-timeout=' + timeout, '-json', '-count=1', '-run'], flags[:-1])
+                pattern = flags[-1]
                 self.assertNotIn('/', pattern)
                 expected = {entry.split('|')[1].split('/')[0] for entry in required}
                 for name in expected:

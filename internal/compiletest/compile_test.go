@@ -572,12 +572,10 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			},
 		},
 		{
-			name:    "Boolean field reference is unsupported",
-			fixture: "field_reference_boolean_unsupported.go.txt",
+			name:    "Boolean field arithmetic is unsupported",
+			fixture: "field_reference_boolean_arithmetic.go.txt",
 			wantFragments: []string{
-				"models.ArticleFields.Published",
-				"does not match orm.ReferenceField",
-				"cannot infer M and V",
+				"bool does not satisfy orm.ArithmeticNumber",
 			},
 		},
 		{

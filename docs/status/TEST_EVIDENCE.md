@@ -174,6 +174,37 @@ Format·188개 문서 링크·diff·실행 전후 clean source도 통과했다. 
 capture 생성/선택/소비·최종 집계가 확인되기 전에는 전체 PASS가 아니다. 이미 실패한 선행 실행은 새 실행 요청 뒤 취소해
 미완료 경로를 PASS로 이월하지 않는다.
 
+### Hosted에서 드러난 외부 compile fixture와 생성 소비자 전체 예산
+
+`37359348832`의 Linux 양 architecture·normal/CGO=0 relation owner 4개가
+`internal/compiletest`의 두 오래된 가정으로 실패했다. 외부 쓰기 소비자가 모델 한 건의 `Update` 이름을
+계속 호출했고, Boolean F 참조를 무조건 compile-negative로 두었다. 모델 한 건의 호출을 `Patch`로 맞추고,
+같은 kind의 Boolean F assignment는 실제 positive consumer에 포함했다. Boolean 산술은 별도 negative
+fixture로 계속 거부한다. 타입/모델 불일치 등 기존 negative coverage는 유지한다.
+대표 raw log `hosted-query-update-37359348832/job-111930587680.log` /
+`42784d1830621fa28a8bbf836d5cf36712e9f6382368cc90efb9bd9db42e9a5e`와 다른 실패 job 3개 원 로그를 보존했다.
+앞선 로컬 `-run '^$'`는 package compile만 확인했으므로 이 외부 fixture 실행의 성공 증거가 아니었다.
+
+PostgreSQL race/core-consumers `111930586402`는 순차 실행하는 `codegen/consumertest` package 전체의
+18분 alarm에 도달했다. 그때 `TestGeneratedUpdateOrCreate`는 76초째 실행 중이었으며 앞선 새 QueryUpdate
+두 owner와 기존 bulk owner는 통과했다. 미완료 owner나 package를 PASS로 계산하지 않는다. Raw log
+`hosted-query-update-37359348832/job-111930586402.log` /
+`f5bacbefdce8b626924a64a7a1469f0730bad832acc1d90d8b373c7f538ae88d`.
+이 한 coordinate의 package 예산을 30분·job 예산을 40분으로 분리했다. 개별 consumer의 deadline,
+필수 목록·package·root/child 선택·no-skip·실행 후 inventory 검사는 바꾸지 않았다. 다른 coordinate는 18분을 유지한다.
+
+Go 1.26.5/darwin/arm64에서 `internal/compiletest` 전체를 normal·CGO=0으로 각각 실행해
+68 run/pass·0 skip, 9.082/4.918s를 확인했다. `!race`로 소유하는 suite이며 race 실행으로 계산하지 않는다.
+두 log SHA-256은 `e4fb701dbc38c979a15648fa6367ce38b5ababff796f0ac3bf4b141203013e9b`,
+`aaac222afd7f886f18a26e22769ba40413fa9afa8d413e14ef18f0c43893b7cb`다.
+첫 CI 도구 검사는 추출한 shell 조각에 mode/shard가 없어 실패했다. 실제 8 coordinates와 child-only 목록을
+명시해 현재 shell을 실행하고 전체 Go flags·시간 예산·부모 선택을 검증하도록 수정했다. 이 도구 변경만의
+source 차이와 원 로그 hash를 확인해 앞 compile 결과를 결합했다. 최종 CI tools 57개·format·189개 문서 링크·
+YAML parse·diff 검사가 통과했다. Actionlint는 로컬에 없어 실행하지 않았으며 YAML parse와 구별한다.
+최종 receipt `query-update-hosted-repair-20261006-042243/receipt.json` /
+`3812ed26ab3d58d2ba69d2a7009b00a5c3d479fff9edbf12fd5be3285713a716`가 실패 receipt와 source 차이·재사용한 원 결과를 결합한다.
+이 로컬 검증은 Hosted 전체 성공이 아니다. GDJ-0112의 새 구현을 섞지 않은 보정 source로 새 통합을 요청한다.
+
 ## GDJ-0110 — native bulk update의 기준과 기반
 
 2026-10-02 KST, Go source/output/expected fixture를 읽지 않는 `conformance/runners/django/bulk_update_reference.py`로

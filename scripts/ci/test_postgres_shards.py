@@ -72,7 +72,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             body = workflow[workflow.index('- name: ' + step):].split('\n      - name:', 1)[0]
             self.assertIn('if: always()', body)
         self.assertIn("matrix.shard == 'core' || matrix.shard == 'core-consumers'", workflow)
-        self.assertIn('test_flags=(-p=1 -timeout=18m', workflow)
+        self.assertIn('test_flags=(-p=1 -timeout="$test_timeout"', workflow)
         self.assertTrue(FRAMEWORK and CONSUMERS and PROCESSES)
 
 

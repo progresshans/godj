@@ -28,8 +28,9 @@ macOS Intel의 명령 fixture 준비 실패가 확인됐다. 별도 준비 예�
 그 실행은 선행 source를 검증하며 이 작업의 새 구현을 검증한 것으로 사용하지 않는다. 별도 작업 사본에서 구현한다.
 
 공통 기반과 업무 소비자·fixture 보완을 통합한 source `0f9cdb8386c9b9e4ec4599c698cfd311c80dd4a6`의
-[Hosted full 37359348832](https://github.com/progresshans/godj/actions/runs/37359348832)을 요청했다. 영향 검사와
-브라우저/외부 명령을 완료했고 현재는 이 묶음의 전체 owner·source/capture·최종 집계를 확인한다.
+[Hosted full 37359348832](https://github.com/progresshans/godj/actions/runs/37359348832)에서 오래된 외부 compile
+fixture 두 가정과 PostgreSQL race 생성 소비자 package의 18분 제한이 확인됐다. 현재 API의 positive/negative
+fixture와 해당 coordinate 예산을 보정하고 영향 검증했다. 전체 owner·source/capture·최종 집계는 새 source에서 확인한다.
 
 ## 구현과 검증
 

@@ -5,4 +5,4 @@ import (
 	"github.com/progresshans/godj/orm"
 )
 
-var _ = orm.F(models.ArticleFields.Published)
+var _ = orm.Add(orm.F(models.ArticleFields.Published), true)
