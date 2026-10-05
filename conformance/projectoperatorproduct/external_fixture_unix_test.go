@@ -4,7 +4,6 @@ package projectoperatorproduct_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -28,6 +27,9 @@ import (
 )
 
 const (
+	// Setup includes compiler work for the global command and generated project.
+	// Keep that budget separate from the product command/interactive deadlines.
+	operatorSetupTimeout         = 10 * time.Minute
 	operatorCommandTimeout       = 4 * time.Minute
 	operatorCleanupTimeout       = 20 * time.Second
 	operatorMaximumOutput        = 1 << 20
@@ -457,27 +459,45 @@ func operatorRunCommand(t *testing.T, binary, directory string, environment []st
 
 func operatorRunSetup(t *testing.T, directory string, environment []string, binary string, arguments ...string) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), operatorCommandTimeout)
-	defer cancel()
-	command := exec.CommandContext(ctx, binary, arguments...)
+	phase := filepath.Base(binary)
+	if len(arguments) != 0 {
+		phase += " " + arguments[0]
+	}
+	started := time.Now()
+	t.Logf("fixture setup %s started; limit=%s", phase, operatorSetupTimeout)
+	command := exec.Command(binary, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.WaitDelay = 2 * time.Second
 	output := testprocess.NewBuffer(operatorMaximumOutput)
 	command.Stdout = output
 	command.Stderr = output
-	if err := command.Run(); err != nil {
+	if err := command.Start(); err != nil {
+		t.Fatalf("start fixture setup %s: %v", phase, err)
+	}
+	waited := make(chan error, 1)
+	go func() { waited <- command.Wait() }()
+	err, timedOut := operatorBoundedWait(waited, operatorSetupTimeout)
+	if timedOut {
+		cleanupErr := operatorTerminateProcessTree(command.Process.Pid, waited)
+		t.Fatalf("fixture setup %s timed out after %s; cleanup-error=%t output-bytes=%d truncated=%t", phase, time.Since(started).Round(time.Millisecond), cleanupErr != nil, len(output.String()), output.Truncated())
+	}
+	operatorRequireProcessAbsent(t, command.Process.Pid)
+	if err != nil {
 		document := output.String()
 		buildFailure := filepath.Base(binary) == "go" ||
 			strings.HasPrefix(document, "project_generation_build_error/project_build_failed\n") ||
 			strings.HasPrefix(document, "project_generation_error/project_generate_candidate_verification_failed\n")
 		if buildFailure {
-			t.Fatalf("fixture setup %s failed: %v; output-bytes=%d truncated=%t\n%s", filepath.Base(binary), err, len(document), output.Truncated(), gobuild.Summary(nil, []byte(document), command.Env))
+			t.Fatalf("fixture setup %s failed after %s: %v; output-bytes=%d truncated=%t\n%s", phase, time.Since(started).Round(time.Millisecond), err, len(document), output.Truncated(), gobuild.Summary(nil, []byte(document), command.Env))
 		}
-		t.Fatalf("fixture setup %s failed: %v; output-bytes=%d truncated=%t", filepath.Base(binary), err, len(output.String()), output.Truncated())
+		t.Fatalf("fixture setup %s failed after %s: %v; output-bytes=%d truncated=%t", phase, time.Since(started).Round(time.Millisecond), err, len(output.String()), output.Truncated())
 	}
-	if ctx.Err() != nil || output.Truncated() {
+	if output.Truncated() {
 		t.Fatalf("fixture setup %s exceeded a resource bound", filepath.Base(binary))
 	}
+	t.Logf("fixture setup %s completed in %s", phase, time.Since(started).Round(time.Millisecond))
 }
 
 func operatorAssertCommandSuccess(t *testing.T, result operatorCommandResult, sensitive []byte) {
