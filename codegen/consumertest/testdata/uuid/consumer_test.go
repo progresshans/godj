@@ -416,7 +416,7 @@ func runStorage(t *testing.T, open func(context.Context) (uuidBackend, error)) {
 	}
 	rollback := errors.New("UUID transaction rollback")
 	err = backend.Atomic(ctx, func(session db.Session) error {
-		if _, err := models.RecordObjects.Update(ctx, session, again[3], models.RecordPatch{}.WithReference(maximum)); err != nil {
+		if _, err := models.RecordObjects.Patch(ctx, session, again[3], models.RecordPatch{}.WithReference(maximum)); err != nil {
 			return err
 		}
 		stored, found, err := models.RecordObjects.Using(session).Filter(models.RecordFields.ID.Exact(again[3].ID)).OrderBy(models.RecordFields.ID.Asc()).First(ctx)
@@ -428,7 +428,7 @@ func runStorage(t *testing.T, open func(context.Context) (uuidBackend, error)) {
 	if !errors.Is(err, rollback) || !reflect.DeepEqual(observe(), referenceRows(t, reference.Database.AfterRollback)) {
 		t.Fatal("UUID rollback changed stored values", err)
 	}
-	changed, err := models.RecordObjects.Update(ctx, backend, again[3], models.RecordPatch{}.WithReferenceNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[3], models.RecordPatch{}.WithReferenceNull())
 	if err != nil || changed.Reference != nil || again[3].Reference == nil || *again[3].Reference != sample {
 		t.Fatal("UUID null patch mutated caller", err)
 	}

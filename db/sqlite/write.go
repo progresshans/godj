@@ -146,7 +146,7 @@ func classifySQLiteWriteError(ctx context.Context, operation string, err error) 
 	var sqliteError *modernsqlite.Error
 	if errors.As(err, &sqliteError) {
 		code := ""
-		if operation == "insert" && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+		if (operation == "insert" || operation == "update") && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
 			code = query.CodeUniquePrimaryKey
 		} else if (operation == "insert" || operation == "update") && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE {
 			code = query.CodeUniqueConstraint
@@ -154,7 +154,7 @@ func classifySQLiteWriteError(ctx context.Context, operation string, err error) 
 		if code != "" {
 			detail := "SQLite unique constraint rejected the " + operation
 			if code == query.CodeUniquePrimaryKey {
-				detail = "SQLite primary-key constraint rejected the insert"
+				detail = "SQLite primary-key constraint rejected the " + operation
 			}
 			return &query.Error{
 				Category: query.CategoryIntegrity,

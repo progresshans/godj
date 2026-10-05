@@ -40,7 +40,7 @@ func RunCreationUsernamePolicy(t *testing.T, open func(*testing.T) (TransitionBa
 			// The independent observer records the existing manager-normalized
 			// username. This seed isolates the new candidate policy.
 			var err error
-			f.user, err = models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithUsername(want.Stored))
+			f.user, err = models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithUsername(want.Stored))
 			if err != nil {
 				t.Fatal(err)
 			}

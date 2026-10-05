@@ -306,7 +306,7 @@ func RunPasswordChangeConcurrency(t *testing.T, open func(*testing.T) (Transitio
 						patch = patch.WithActive(false)
 					}
 					var e error
-					edited, e = models.UserObjects.Update(ctx, session, f.user, patch)
+					edited, e = models.UserObjects.Patch(ctx, session, f.user, patch)
 					return e
 				})
 			}

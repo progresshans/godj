@@ -10,7 +10,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
@@ -20,6 +20,8 @@ var _ orm.ProjectionDescriptor[identity.UserGroupsLink] = identity.UserGroupsLin
 var _ orm.ProjectionDescriptor[identity.UserPermissionsLink] = identity.UserPermissionsLinkDescriptor{}
 
 type relationSelectQuery[M, O any] interface {
+	Update(context.Context, ...orm.UpdateAssignment[M]) (int64, error)
+	UpdateDynamic(context.Context, ...orm.DynamicUpdateInput) (int64, error)
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
@@ -191,6 +193,12 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.GroupPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -421,6 +429,12 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserGroupsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -650,6 +664,12 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -716,4 +736,4 @@ func (_factory IdentityUserPermissionsLinkObjectFactory) FromSelected(_selected 
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_02f4dd2f1336e37a064cacdf729fea0ddc59063138531aaf27bc65a5994d70a6
+var _ goDjProjectSnapshot_c535d5191c5a8dea5a466c1aa5840a8b602ac33e4a720f3d6ae65654375ce72b

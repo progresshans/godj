@@ -312,6 +312,6 @@ func (_scan *reviewProjectionScan) Decode() (Review, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_872b95720f356321adcc98691414069f9f65625e3e9dae0fae094956f738aa3a struct{}
+type GoDjAppPart3_a4c53adb16934b25c97ccf795708445120c8f8071103a96da1669d19eef9079a struct{}
 
-var _ GoDjProjectSnapshot_866753febe66486fa2bbe0f28f8140f533796af59f1f67f96853515cdf82ae92
+var _ GoDjProjectSnapshot_8c1b34c0aae59f93301acefb341e2a80a453387479637b3a53f6e841ac7a686f

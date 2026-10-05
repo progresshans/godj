@@ -24,7 +24,7 @@ import (
 func TestGeneratorVersionTracksAppSnapshotABI(t *testing.T) {
 	t.Parallel()
 
-	const want = "godj-codegen-current-v2"
+	const want = "godj-codegen-current-v3"
 	if codegen.GeneratorVersion != want {
 		t.Fatalf("GeneratorVersion = %q, want %q", codegen.GeneratorVersion, want)
 	}
@@ -47,7 +47,7 @@ func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjGeneratorVersion = "godj-codegen-current-v2"`),
+		[]byte(`const GoDjGeneratorVersion = "godj-codegen-current-v3"`),
 		[]byte("const GoDjSchemaSHA256 ="),
 		[]byte("type Post struct"),
 		[]byte("ID                    int64"),

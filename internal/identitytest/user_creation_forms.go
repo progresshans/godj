@@ -59,7 +59,7 @@ func RunUserCreationForms(t *testing.T, open func(*testing.T) (TransitionBackend
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 0)
 			// A reusable form has manager authority but no Site staff requirement.
-			if _, err := models.UserObjects.Update(t.Context(), backend, f.root, models.UserPatch{}.WithStaff(false).WithRevision(2)); err != nil {
+			if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithStaff(false).WithRevision(2)); err != nil {
 				t.Fatal(err)
 			}
 			credential, err := f.runtime.Authenticator().Resolve(t.Context(), f.actor.ID())
@@ -435,7 +435,7 @@ func runPreparedUserBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 			case "foreign_manager":
 				manager = f.manager(t, f.runtime)
 			case "wrong_actor":
-				if _, err := models.UserObjects.Update(ctx, second, f.user, models.UserPatch{}.WithSuperuser(true).WithRevision(2)); err != nil {
+				if _, err := models.UserObjects.Patch(ctx, second, f.user, models.UserPatch{}.WithSuperuser(true).WithRevision(2)); err != nil {
 					t.Fatal(err)
 				}
 				credential, err := f.runtime.Authenticator().Resolve(ctx, f.user.PrincipalID)
@@ -448,7 +448,7 @@ func runPreparedUserBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 			case "canceled":
 				cancel()
 			case "revoked":
-				_, err = models.UserObjects.Update(ctx, second, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+				_, err = models.UserObjects.Patch(ctx, second, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 			case "duplicate":
 				_, err = models.UserObjects.Create(ctx, second, models.NewUserCreate("competing-principal", "PREPAREDCANDIDATE", f.user.EncodedPassword, f.user.DateJoined))
 			case "deleted_group":

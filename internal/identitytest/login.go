@@ -52,7 +52,7 @@ func requireLoginTime(t *testing.T, value *time.Time, want time.Time) {
 func RunLoginLifecycle(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	backend, other := open(t)
 	f := newManagementFixture(t, backend, 0)
-	if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
+	if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
 		t.Fatal(err)
 	}
 	var elapsed atomic.Int64

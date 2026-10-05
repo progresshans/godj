@@ -18,6 +18,11 @@ type AutoField[M any] struct{ integerField[M] }
 type IntegerField[M any] struct{ integerField[M] }
 type NullableIntegerField[M any] struct{ integerField[M] }
 
+// Foreign-key fields address the concrete key column on this model. They do
+// not follow a relationship or accept a related model as their scalar value.
+type ForeignKeyField[M any] struct{ integerField[M] }
+type NullableForeignKeyField[M any] struct{ integerField[M] }
+
 // Integer comparisons share a value type even when reads are nullable.
 type integerField[M any] struct{ field[M] }
 type StringField[M any] struct{ field[M] }
@@ -55,6 +60,14 @@ func NewIntegerField[M any](metadata ir.Field) IntegerField[M] {
 
 func NewNullableIntegerField[M any](metadata ir.Field) NullableIntegerField[M] {
 	return NullableIntegerField[M]{integerField[M]{newField[M](metadata, query.FieldInteger, ir.FieldInteger, true)}}
+}
+
+func NewForeignKeyField[M any](metadata ir.Field) ForeignKeyField[M] {
+	return ForeignKeyField[M]{integerField[M]{newField[M](metadata, query.FieldInteger, ir.FieldForeignKey, false)}}
+}
+
+func NewNullableForeignKeyField[M any](metadata ir.Field) NullableForeignKeyField[M] {
+	return NullableForeignKeyField[M]{integerField[M]{newField[M](metadata, query.FieldInteger, ir.FieldForeignKey, true)}}
 }
 
 func NewStringField[M any](metadata ir.Field) StringField[M] {
@@ -198,6 +211,14 @@ func (f IntegerField[M]) writableField(M) (query.FieldRef, error) {
 }
 
 func (f NullableIntegerField[M]) writableField(M) (query.FieldRef, error) {
+	return f.reference, f.err
+}
+
+func (f ForeignKeyField[M]) writableField(M) (query.FieldRef, error) {
+	return f.reference, f.err
+}
+
+func (f NullableForeignKeyField[M]) writableField(M) (query.FieldRef, error) {
 	return f.reference, f.err
 }
 

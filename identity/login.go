@@ -65,7 +65,7 @@ func (recorder *LoginRecorder) RecordIn(ctx context.Context, session db.Session,
 	if err != nil {
 		return auth.Credential{}, &auth.Error{Code: auth.CodeInvalidInput, Field: "login", Detail: "login timestamp is outside the supported range"}
 	}
-	if _, err := models.UserObjects.Update(ctx, session, row, models.UserPatch{}.WithLastLogin(instant)); err != nil {
+	if _, err := models.UserObjects.Patch(ctx, session, row, models.UserPatch{}.WithLastLogin(instant)); err != nil {
 		return auth.Credential{}, identityReadFailure(err)
 	}
 	return current, nil

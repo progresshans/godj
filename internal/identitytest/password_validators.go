@@ -243,7 +243,7 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 			// Deliberate out-of-band profile edit without a revision increment:
 			// the final policy must observe the current row even in this case.
 			f.hasher.hook = func(ctx context.Context) error {
-				_, err := models.UserObjects.Update(ctx, other, f.user, models.UserPatch{}.WithFirstName(password))
+				_, err := models.UserObjects.Patch(ctx, other, f.user, models.UserPatch{}.WithFirstName(password))
 				return err
 			}
 			beforeSessions, beforeAudit := snapshotIdentitySystemRows(t, backend)

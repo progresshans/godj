@@ -28,14 +28,14 @@ GDJ-0109/0110의 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`는
 
 ## 구현과 검증
 
-- [ ] 고정 Django의 query update·field expression·NULL/수치·실패·cache·부모/동시성 의미를 독립 관찰
-- [ ] 불변 scalar/assignment AST와 원 query 범위, field/타입 소유권·자원 한도·명시적인 미지원 오류
-- [ ] SQLite/PostgreSQL native UPDATE·조건 재평가·원래 행의 값과 atomic/savepoint·취소/불확실한 결과
-- [ ] generic ORM·typed 생성 facade·동적 입력, 잘못된 model/field/타입 거부와 독립 생성 소비자
+- [x] 고정 Django의 query update·field expression·NULL/수치·실패·cache·부모/동시성 의미를 독립 관찰
+- [x] 불변 scalar/assignment AST와 원 query 범위, field/타입 소유권·자원 한도·명시적인 미지원 오류
+- [x] SQLite/PostgreSQL native UPDATE·조건 재평가·원래 행의 값과 atomic/savepoint·취소/불확실한 결과
+- [x] generic ORM·typed 생성 facade·동적 입력, 잘못된 model/field/타입 거부와 독립 생성 소비자
 - [ ] Helpdesk 우선순위 명령의 현재 권한·범위·무변경·원자 audit·Admin/API/독립 client
 - [ ] 완성한 변경 묶음의 영향 검사·정식 기준 대조·생성 drift·필요한 통합과 현행 의미/증거 기록
 
-## 먼저 확정할 경계
+## 현재 경계와 다음 구현
 
 고정 Django의 외부 결과와 실제 DB 관찰을 사용해 assignment 간 원래 값 참조, nullable 연산, 수치 범위,
 빈/무변경 결과·필터·관계/collection scope, slicing·ordering·eager/lock/cache의 쓰기 의미를 확인한다.
@@ -52,7 +52,9 @@ SQL affected count와 업무의 실제 변경 건수를 구별한다. ORM의 nat
 
 일반 annotation/group/having·window/subquery/function, 모델 Save/BulkUpdate에 expression을 넣는 추가 표면과
 나머지 기능 카탈로그는 이 작업의 성공으로 완료 처리하지 않는다. 공통 scalar AST가 후속 표현식을 확장할 기반이 된다.
-공개 Go API는 실제 수직 소비자와 타입 거부를 확인하면서 결정한다. 현재는 기준 조사 단계이며 Go 구현 PASS가 아니다.
+공통 scalar/assignment·native UPDATE·typed/dynamic 및 생성 facade의 영향 검증과 독립 대조를 완료했다.
+의미는 [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md)에 둔다. 다음은 실제 Helpdesk 우선순위
+명령의 연결과 업무 검증이며, 기준/기반 완료를 수직 소비자나 전체 플랫폼 완료로 계산하지 않는다.
 
 [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md),
 [검증 전략](../docs/TESTING.md)을 따른다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.

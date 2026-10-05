@@ -20,6 +20,6 @@ func (AuthorDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage
 	return nil, false
 }
 
-type GoDjAppPart2_07a0310cdc64db21ce0e2f1a0889d94a917f41ffd8711b33ca413ddeb88d81c9 struct{}
+type GoDjAppPart2_4203e017d5b0f7610fbb5b3010a4abe1295a934558d640e88f81297e8c2d38b1 struct{}
 
-var _ GoDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9
+var _ GoDjProjectSnapshot_2b9e1d637f1607a754c7ca52ee86bfab32a616e834db1f1d546be8c90b6aab57

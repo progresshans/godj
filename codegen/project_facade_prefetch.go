@@ -223,6 +223,14 @@ func (_query %[1]sPrefetchQuery) GetOrCreate(_ctx context.Context,_input orm.Cre
  _result,_err:=_query.state.materialize%[1]s(_ctx,_value);if _err!=nil{return nil,_created,_err}
  if _err:=relationFacadeContext(_ctx);_err!=nil{return nil,_created,_err};if _err:=_query.state.validate();_err!=nil{return nil,_created,_err};return _result,_created,nil
 }
+func (_query %[1]sPrefetchQuery) Update(_ctx context.Context,_assignments ...orm.UpdateAssignment[%[2]s])(int64,error){
+ if _err:=_query.validate(_ctx);_err!=nil{return 0,_err}
+ return _query.prefetch.Update(_ctx,_assignments...)
+}
+func (_query %[1]sPrefetchQuery) UpdateDynamic(_ctx context.Context,_inputs ...orm.DynamicUpdateInput)(int64,error){
+ if _err:=_query.validate(_ctx);_err!=nil{return 0,_err}
+ return _query.prefetch.UpdateDynamic(_ctx,_inputs...)
+}
 func (_query %[1]sPrefetchQuery) BulkUpdate(_ctx context.Context,_inputs []%[2]s,_options ...orm.BulkUpdateOption[%[2]s])(int64,error){
  if _err:=_query.validate(_ctx);_err!=nil{return 0,_err}
  return _query.prefetch.BulkUpdate(_ctx,_inputs,_options...)

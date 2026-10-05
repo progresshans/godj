@@ -9,14 +9,15 @@
 
 ## 현재
 
-QuerySet의 native 갱신과 scalar expression은 고정 Django/실제 DB의 기준을 확인하고 별도 작업 사본에서 기반을 구현 중이다.
+QuerySet의 native 갱신과 scalar expression 기반을 구현하고 실제 양 DB·세 mode·독립 생성 소비자에서 검증했다.
+FK typed field와 이전 in-flight 읽기의 값/오류가 새 cache generation에 섞이지 않는 경계도 반영했다.
 선행 bulk 변경은 영향 세 mode·브라우저를 통과했지만 Hosted PostgreSQL race/core가 누적 시간 제한으로 취소됐다.
 Race 실행 분할·원 로그 보관과 필수 목록 회귀 검사의 분할기 연결을 적용해 새 고정 source로 통합 검증을 요청했다.
 
 ## 다음 행동
 
 분할한 CI source의 필수 owner·실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다.
-표현식 기반의 영향 검증·정식 기준 대조와 Helpdesk 우선순위 명령의 연결도 계속한다.
+Helpdesk 우선순위 명령의 현재 범위·권한·audit와 Admin/API/독립 client·브라우저 연결을 구현한다.
 확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

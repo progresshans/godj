@@ -52,6 +52,6 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_1c78b39b7807df204d08f060ff604fdc3e7659e6f6ff228c6a5777a88c714ac8 struct{}
+type GoDjAppPart3_dca907b807c13d6e2b50fc5f4fd0856d1098e449726e5fccf74fe29cfad422b7 struct{}
 
-var _ GoDjProjectSnapshot_866753febe66486fa2bbe0f28f8140f533796af59f1f67f96853515cdf82ae92
+var _ GoDjProjectSnapshot_8c1b34c0aae59f93301acefb341e2a80a453387479637b3a53f6e841ac7a686f

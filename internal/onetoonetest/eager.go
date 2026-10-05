@@ -279,7 +279,7 @@ func RunReverseEager(t *testing.T, backend ProductBackend, dialect string, compi
 			t.Fatal("missing reverse Fresh did not reload by owner", value, present, err)
 		}
 		third, _ := loaded[2].Source()
-		if _, err := reports.ReportObjects.Update(ctx, backend, original, (reports.ReportPatch{}).WithTicketID(third.ID)); err != nil {
+		if _, err := reports.ReportObjects.Patch(ctx, backend, original, (reports.ReportPatch{}).WithTicketID(third.ID)); err != nil {
 			t.Fatal(err)
 		}
 		replacement, err := reports.ReportObjects.Create(ctx, backend, reports.NewReportCreate(original.TicketID, "replacement"))

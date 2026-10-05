@@ -15,15 +15,30 @@ type evaluationState[M any] struct {
 	values     []M
 	attachment any
 	flight     *evaluationFlight
+	generation uint64
 }
 
 type evaluationFlight struct {
-	done chan struct{}
-	err  error
+	done       chan struct{}
+	err        error
+	generation uint64
 }
 
 func newEvaluationState[M any]() *evaluationState[M] {
 	return &evaluationState[M]{}
+}
+
+// Invalidation separates old in-flight reads from subsequent cache ownership.
+// An old caller may receive its own snapshot, but cannot republish it after a
+// successful update. Copies share this state; derived queries own other states.
+func (state *evaluationState[M]) invalidate() {
+	if state == nil {
+		return
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.generation++
+	state.ready, state.values, state.attachment = false, nil, nil
 }
 
 // cachedValues returns canonical values only after a successful full
@@ -73,15 +88,18 @@ func (state *evaluationState[M]) evaluateAttached(ctx context.Context, load func
 				return nil, nil, ctx.Err()
 			case <-flight.done:
 			}
-			if flight.err == nil || errors.Is(flight.err, context.Canceled) || errors.Is(flight.err, context.DeadlineExceeded) {
+			state.mu.Lock()
+			invalidated := flight.generation != state.generation
+			state.mu.Unlock()
+			if invalidated || flight.err == nil || errors.Is(flight.err, context.Canceled) || errors.Is(flight.err, context.DeadlineExceeded) {
 				continue
 			}
-			// Every existing waiter observes the same non-context failure. A
-			// later independent evaluation may retry; failures are never cached.
+			// Waiters in the same generation observe its non-context failure.
+			// Invalidated reads cannot poison a subsequent evaluation.
 			return nil, nil, flight.err
 		}
 
-		flight := &evaluationFlight{done: make(chan struct{})}
+		flight := &evaluationFlight{done: make(chan struct{}), generation: state.generation}
 		state.flight = flight
 		state.mu.Unlock()
 		return state.evaluateFlight(ctx, flight, load)
@@ -98,7 +116,7 @@ func (state *evaluationState[M]) evaluateFlight(
 		state.mu.Lock()
 		// A panicking loader still releases its flight, but only a normal,
 		// successful return can publish canonical values. Waiters may retry.
-		if completed && err == nil {
+		if completed && err == nil && flight.generation == state.generation {
 			state.values = values
 			state.attachment = attachment
 			state.ready = true

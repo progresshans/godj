@@ -11,12 +11,14 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
 
 type relationSelectQuery[M, O any] interface {
+	Update(context.Context, ...orm.UpdateAssignment[M]) (int64, error)
+	UpdateDynamic(context.Context, ...orm.DynamicUpdateInput) (int64, error)
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
@@ -189,6 +191,12 @@ func (_query BlogPostSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _object, _created, nil
 }
+func (_query BlogPostSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[blog.Post]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query BlogPostSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query BlogPostSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -255,4 +263,4 @@ func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9
+var _ goDjProjectSnapshot_2b9e1d637f1607a754c7ca52ee86bfab32a616e834db1f1d546be8c90b6aab57

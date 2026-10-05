@@ -18,7 +18,7 @@ rollback 의미를 12개 계약으로 고정했습니다. 이 의미를 Go에 �
 
 현재 GoDj에는 generated model별 hidden auto-key presence, `WriteDescriptor[M]`, immutable
 `InsertPlan`/`UpdatePlan`, exact affected-row를 반환하는 `db.Mutator`와 caller-owned
-`Atomic` session이 있습니다. 반면 기존 `Manager.Update`는 0행을 모두 오류로 처리하고,
+`Atomic` session이 있습니다. 반면 기존 `Manager.Patch`는 0행을 모두 오류로 처리하고,
 generated `MutationPatch`는 empty patch를 거부하므로 Save의 no-op과 UPDATE→INSERT
 fallback을 그대로 표현할 수 없습니다.
 

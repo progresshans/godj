@@ -481,7 +481,7 @@ func RunPasswordResetSessionRaces(t *testing.T, open func(*testing.T) (Transitio
 					}
 					patch = patch.WithEncodedPassword(encoded)
 				}
-				_, err := models.UserObjects.Update(ctx, other, f.user, patch)
+				_, err := models.UserObjects.Patch(ctx, other, f.user, patch)
 				return err
 			}
 			result, err := p.ResetPassword(t.Context(), proof.ID(), f.user.PrincipalID, selfPassword)
@@ -599,7 +599,7 @@ func RunPasswordResetSessionEntry(t *testing.T, open func(*testing.T) (Transitio
 				entropy.before = func() error {
 					boundary.armed = true
 					if mode == "email_changed" {
-						_, err := models.UserObjects.Update(ctx, other, f.user, models.UserPatch{}.WithEmail("changed@example.test"))
+						_, err := models.UserObjects.Patch(ctx, other, f.user, models.UserPatch{}.WithEmail("changed@example.test"))
 						return err
 					}
 					return nil

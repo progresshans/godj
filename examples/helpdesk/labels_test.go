@@ -167,7 +167,7 @@ func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) erro
 			if !found {
 				return errors.New("staged ticket missing")
 			}
-			if _, err := models.TicketObjects.Update(ctx, session, row, models.TicketPatch{}.WithSubject("label write must roll back")); err != nil {
+			if _, err := models.TicketObjects.Patch(ctx, session, row, models.TicketPatch{}.WithSubject("label write must roll back")); err != nil {
 				return err
 			}
 		}
@@ -179,7 +179,7 @@ func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) erro
 			if !found {
 				return errors.New("staged label missing")
 			}
-			if _, err := models.LabelObjects.Update(ctx, session, row, models.LabelPatch{}.WithCategoryID(b.moveCategory)); err != nil {
+			if _, err := models.LabelObjects.Patch(ctx, session, row, models.LabelPatch{}.WithCategoryID(b.moveCategory)); err != nil {
 				return err
 			}
 		}

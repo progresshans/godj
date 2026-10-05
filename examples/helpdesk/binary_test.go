@@ -41,7 +41,7 @@ func verifyHistoricalBinaryGrowth(t *testing.T, ctx context.Context, backend hel
 		t.Fatal("binary addition invented a digest")
 	}
 	sample := binaryvalue.Value{Data: "\x00\xffa\x80"}
-	if _, err := models.TicketObjects.Update(ctx, backend, before, models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `{"legacy":1}`)).WithExternalPayloadDigest(sample)); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, before, models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `{"legacy":1}`)).WithExternalPayloadDigest(sample)); err != nil {
 		t.Fatal(err)
 	}
 	second, err := open(ctx)
@@ -78,7 +78,7 @@ func verifyHistoricalBinaryGrowth(t *testing.T, ctx context.Context, backend hel
 		t.Fatal("binary re-add computed existing rows or changed unrelated data")
 	}
 	// Restore the independent public consumer's original fixture explicitly.
-	if _, err := models.TicketObjects.Update(ctx, backend, after, models.TicketPatch{}.WithExternalPayloadNull()); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, after, models.TicketPatch{}.WithExternalPayloadNull()); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(read(backend), before) {
@@ -217,7 +217,7 @@ func verifyHelpdeskBinaryDigest(t *testing.T, ctx context.Context, runtime *syst
 	t.Run("empty_legacy_and_no_hidden_read_write", func(t *testing.T) {
 		row := read(runtime)
 		for _, value := range []binaryvalue.Value{{}, {Data: "\x00\xff\x80"}, {Data: strings.Repeat("x", 33)}} {
-			if _, err := models.TicketObjects.Update(ctx, runtime, row, models.TicketPatch{}.WithExternalPayloadDigest(value)); err != nil {
+			if _, err := models.TicketObjects.Patch(ctx, runtime, row, models.TicketPatch{}.WithExternalPayloadDigest(value)); err != nil {
 				t.Fatal(err)
 			}
 			row = read(runtime)
@@ -239,7 +239,7 @@ func verifyHelpdeskBinaryDigest(t *testing.T, ctx context.Context, runtime *syst
 			t.Fatal(response.Code)
 		}
 		assertStoredPayloadDigest(t, read(runtime))
-		if _, err := models.TicketObjects.Update(ctx, runtime, read(runtime), models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `null`))); err != nil {
+		if _, err := models.TicketObjects.Patch(ctx, runtime, read(runtime), models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `null`))); err != nil {
 			t.Fatal(err)
 		}
 		response = client.request("PATCH", path, `{"subject":"Binary JSON null"}`, true)

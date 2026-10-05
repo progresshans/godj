@@ -152,7 +152,7 @@ func TestIntegerStorageAndQuery(t *testing.T) {
 	if value, ok := aggregate.Maximum.Get(); !ok || value != math.MaxInt64 {
 		t.Fatal("nullable maximum was rounded")
 	}
-	maximum, err = models.NumberObjects.Update(ctx, backend, maximum, models.NumberPatch{}.WithAmount(0).WithOptionalNull())
+	maximum, err = models.NumberObjects.Patch(ctx, backend, maximum, models.NumberPatch{}.WithAmount(0).WithOptionalNull())
 	if err != nil || maximum.Amount != 0 || maximum.Optional != nil {
 		t.Fatalf("integer patch failed: %v", err)
 	}

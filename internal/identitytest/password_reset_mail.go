@@ -392,7 +392,7 @@ func RunPasswordResetMailSnapshotBinding(t *testing.T, open func(*testing.T) (Tr
 				case "profile":
 					patch = patch.WithFirstName("Latest")
 				}
-				_, err := models.UserObjects.Update(t.Context(), other, before, patch)
+				_, err := models.UserObjects.Patch(t.Context(), other, before, patch)
 				return err
 			}
 			now := loginInstant

@@ -388,11 +388,11 @@ func runStorage(t *testing.T, open func(context.Context) (decimalBackend, error)
 		t.Fatalf("decimal ordered F comparison: %d %v", count, err)
 	}
 	verifyRelations(t, backend, again, reference.Database.Relations)
-	changed, err := models.RecordObjects.Update(ctx, backend, again[5], models.RecordPatch{}.WithCostNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[5], models.RecordPatch{}.WithCostNull())
 	if err != nil || changed.Cost != nil || again[5].Cost == nil || *again[5].Cost != fraction {
 		t.Fatal("null patch mutated caller")
 	}
-	changed, err = models.RecordObjects.Update(ctx, backend, again[7], models.RecordPatch{}.WithCost(number(t, "0.1")))
+	changed, err = models.RecordObjects.Patch(ctx, backend, again[7], models.RecordPatch{}.WithCost(number(t, "0.1")))
 	if err != nil || changed.Cost == nil || *changed.Cost != number(t, "0.1") {
 		t.Fatal("decimal patch lost value")
 	}
@@ -426,7 +426,7 @@ func runStorage(t *testing.T, open func(context.Context) (decimalBackend, error)
 	beforeRollback := observe()
 	rollback := errors.New("decimal rollback probe")
 	err = backend.(db.Atomic).Atomic(ctx, func(session db.Session) error {
-		if _, err := models.RecordObjects.Update(ctx, session, again[1], models.RecordPatch{}.WithCost(fraction)); err != nil {
+		if _, err := models.RecordObjects.Patch(ctx, session, again[1], models.RecordPatch{}.WithCost(fraction)); err != nil {
 			return err
 		}
 		if _, err := models.RecordObjects.Create(ctx, session, models.NewRecordCreate("rollback", fraction)); err != nil {
@@ -594,7 +594,7 @@ func verifyPrecision(t *testing.T, backend decimalBackend) {
 		t.Fatalf("exact comparison between adjacent storage values: %d %v", count, err)
 	}
 	row := rows[4]
-	if _, err := models.PreciseObjects.Update(ctx, backend, row, models.PrecisePatch{}.WithMirror(literal)); err != nil {
+	if _, err := models.PreciseObjects.Patch(ctx, backend, row, models.PrecisePatch{}.WithMirror(literal)); err != nil {
 		t.Fatal(err)
 	}
 	if count, err := queryset.Filter(models.PreciseFields.Value.LessThanField(orm.F[models.Precise, decimal.Decimal](models.PreciseFields.Mirror))).Count(ctx); err != nil || count != 1 {

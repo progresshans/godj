@@ -211,7 +211,7 @@ func TestUpdateOrCreateEmptyPatchStillValidatesTheCompleteMutation(t *testing.T)
 				if err != nil || value.ID != 7 || value.Summary == &summary {
 					t.Fatalf("valid no-op=%#v/%v", value, err)
 				}
-				if _, err := models.ArticleObjects.Update(t.Context(), backend, value, models.ArticlePatch{}); !errors.Is(err, &query.Error{Code: query.CodeEmptyPatch}) {
+				if _, err := models.ArticleObjects.Patch(t.Context(), backend, value, models.ArticlePatch{}); !errors.Is(err, &query.Error{Code: query.CodeEmptyPatch}) {
 					t.Fatal("ordinary Update lost its empty-patch policy", err)
 				}
 				if _, err := models.ArticleObjects.ValidateUniqueUpdate(t.Context(), backend, value, models.ArticlePatch{}); !errors.Is(err, &query.Error{Code: query.CodeEmptyPatch}) {

@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
@@ -26,6 +26,8 @@ var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
 var _ orm.ProjectionDescriptor[models.TicketLabel] = models.TicketLabelDescriptor{}
 
 type relationSelectQuery[M, O any] interface {
+	Update(context.Context, ...orm.UpdateAssignment[M]) (int64, error)
+	UpdateDynamic(context.Context, ...orm.DynamicUpdateInput) (int64, error)
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
@@ -197,6 +199,12 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.GroupPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -427,6 +435,12 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserGroupsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -656,6 +670,12 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -873,6 +893,12 @@ func (_query ModelsLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ModelsLabelSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[models.Label]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ModelsLabelSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query ModelsLabelSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.Label, _options ...orm.BulkUpdateOption[models.Label]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1087,6 +1113,12 @@ func (_query ModelsServiceReportSelectRelatedQuery) GetOrCreate(_ctx context.Con
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ModelsServiceReportSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[models.ServiceReport]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ModelsServiceReportSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query ModelsServiceReportSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.ServiceReport, _options ...orm.BulkUpdateOption[models.ServiceReport]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -1338,6 +1370,12 @@ func (_query ModelsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ModelsTicketSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[models.Ticket]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ModelsTicketSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query ModelsTicketSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.Ticket, _options ...orm.BulkUpdateOption[models.Ticket]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -1606,6 +1644,12 @@ func (_query ModelsTicketLabelSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query ModelsTicketLabelSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[models.TicketLabel]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query ModelsTicketLabelSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.TicketLabel, _options ...orm.BulkUpdateOption[models.TicketLabel]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1720,4 +1764,4 @@ func (_object *ModelsTicketLabelObject) TicketObject(_ctx context.Context) (*Mod
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_b2369703f3378ee9e84d40448224d9067dfbfa483eb3d7d198d7eb330ac159a7
+var _ goDjProjectSnapshot_9107f1180582573cb1e05f8785bcc7b3e7401578474eedb6952968d109aa7b59

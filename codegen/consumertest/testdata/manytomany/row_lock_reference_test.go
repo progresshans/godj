@@ -137,7 +137,7 @@ func TestRowLockReference(t *testing.T) {
 							if len(warm) != 1 {
 								return errors.New("warm source missing")
 							}
-							_, err = owners.UpsertItemObjects.Update(ctx, session, first, owners.UpsertItemPatch{}.WithRevision(9))
+							_, err = owners.UpsertItemObjects.Patch(ctx, session, first, owners.UpsertItemPatch{}.WithRevision(9))
 							if err != nil {
 								return err
 							}

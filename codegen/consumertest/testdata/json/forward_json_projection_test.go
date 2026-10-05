@@ -311,7 +311,7 @@ func verifyForwardJSONResultLifetime(t *testing.T, backend jsonBackend, native b
 	var escaped db.Session
 	err = backend.Atomic(t.Context(), func(session db.Session) error {
 		escaped = session
-		if _, err := models.DocumentObjects.Update(t.Context(), session, documents[0], models.DocumentPatch{}.WithPayload(document(t, `{"a":777}`))); err != nil {
+		if _, err := models.DocumentObjects.Patch(t.Context(), session, documents[0], models.DocumentPatch{}.WithPayload(document(t, `{"a":777}`))); err != nil {
 			return err
 		}
 		rows, err := orm.SelectInto(t.Context(), models.EntryObjects.Using(session).OrderBy(models.EntryFields.ID.Asc()), projection)

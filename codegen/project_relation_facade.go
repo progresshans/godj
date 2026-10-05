@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -1399,6 +1399,14 @@ func (_query %[1]s) GetOrCreate(_ctx context.Context,_input orm.CreateInput[%[4]
  _object,_created,_err:=_query.projection.GetOrCreate(_ctx,_input);if _err!=nil{return nil,_created,_err}
  if _created{_ctx=context.WithoutCancel(_ctx)}
  _wrapped,_err:=_query.state.wrapSelected%[2]sObject(_ctx,_object);if _err!=nil{return nil,_created,_err};return _wrapped,_created,nil
+}
+func (_query %[1]s) Update(_ctx context.Context,_assignments ...orm.UpdateAssignment[%[4]s])(int64,error){
+ if _err:=_query.validate();_err!=nil{return 0,_err}
+ return _query.projection.Update(_ctx,_assignments...)
+}
+func (_query %[1]s) UpdateDynamic(_ctx context.Context,_inputs ...orm.DynamicUpdateInput)(int64,error){
+ if _err:=_query.validate();_err!=nil{return 0,_err}
+ return _query.projection.UpdateDynamic(_ctx,_inputs...)
 }
 func (_query %[1]s) BulkUpdate(_ctx context.Context,_inputs []%[4]s,_options ...orm.BulkUpdateOption[%[4]s])(int64,error){
  if _err:=_query.validate();_err!=nil{return 0,_err}

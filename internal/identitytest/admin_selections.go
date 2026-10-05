@@ -74,10 +74,10 @@ func runAdminSelectionBoundaries(t *testing.T, open func(*testing.T) (Transition
 		boundary := &adminSelectionBoundary{Runtime: f.runtime, before: func(ctx context.Context) error {
 			calls++
 			return second.CoordinatedAtomic(ctx, func(session db.Session) error {
-				if _, err := models.GroupObjects.Update(ctx, session, group, models.GroupPatch{}.WithName("Concurrent choice").WithRevision(2)); err != nil {
+				if _, err := models.GroupObjects.Patch(ctx, session, group, models.GroupPatch{}.WithName("Concurrent choice").WithRevision(2)); err != nil {
 					return err
 				}
-				_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+				_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 				return err
 			})
 		}}

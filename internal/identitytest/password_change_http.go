@@ -28,7 +28,7 @@ func RunPasswordChangeHTTP(t *testing.T, open func(*testing.T) (TransitionBacken
 		t.Run(mode, func(t *testing.T) {
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 0)
-			if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
+			if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
 				t.Fatal(err)
 			}
 			boundary := &passwordChangeBoundary{TransitionBackend: backend, mode: "after_password"}

@@ -80,7 +80,7 @@ borrowed savepoint의 해제는 부모 commit을 뜻하지 않는다. 생성 여
 API는 `UpdateOrCreate(ctx, CreateInput[M], PatchInput[M]) (result, created, error)`다.
 Go에서는 생성과 갱신 입력을 명시적으로 구분하며 사용하지 않는 분기의 nil 입력을 평가하지 않는다.
 `BuildPatch`는 잠금을 얻은 현재 모델의 소유된 복사본을 받는다. Mutation IR은 빈 patch의 모델·table도 보존해
-omitted field·표현·기본 키를 검증하고, 일반 `Manager.Update`와 그 unique 검증은 여전히 empty-patch 오류를 낸다.
+omitted field·표현·기본 키를 검증하고, 일반 `Manager.Patch`와 그 unique 검증은 여전히 empty-patch 오류를 낸다.
 임의 builder가 돌려준 empty-patch 오류를 성공으로 변환하지 않는다.
 
 Native session의 선택적 `ReadModifyWriteSession`이 행 잠금 또는 transaction의 읽기/쓰기 충돌 정책을 선언한다.

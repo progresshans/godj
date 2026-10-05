@@ -204,7 +204,7 @@ func (changer *PasswordChanger) ApplyIn(ctx context.Context, session db.Session,
 	if err != nil {
 		return auth.Credential{}, err
 	}
-	if _, err := models.UserObjects.Update(ctx, session, row, models.UserPatch{}.WithEncodedPassword(prepared.encoded).WithRevision(row.Revision+1)); err != nil {
+	if _, err := models.UserObjects.Patch(ctx, session, row, models.UserPatch{}.WithEncodedPassword(prepared.encoded).WithRevision(row.Revision+1)); err != nil {
 		return auth.Credential{}, err
 	}
 	event, err := admin.PrepareEvent(row.PrincipalID, "godj_identity.user", row.ID, admin.ActionChange, []string{"password"}, "")

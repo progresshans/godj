@@ -519,7 +519,7 @@ func templateFormModelFormWriteBoundary(ctx context.Context, contractID string) 
 			return protocol.Observation{}, err
 		}
 		updateBefore := len(recorder.snapshot())
-		updated, err := models.ArticleObjects.Update(ctx, observedMutator(backend, recorder), current, patch)
+		updated, err := models.ArticleObjects.Patch(ctx, observedMutator(backend, recorder), current, patch)
 		if err != nil {
 			return protocol.Observation{}, fmt.Errorf("persist update Article model form: %w", err)
 		}

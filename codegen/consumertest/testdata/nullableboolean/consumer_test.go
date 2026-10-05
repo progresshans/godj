@@ -298,11 +298,11 @@ func runNullableBooleanStorage(t *testing.T, open func(context.Context) (nullabl
 		t.Fatal("projection aliases a model Boolean")
 	}
 	verifyNullableBooleanRelations(t, backend, again, reference.Database.Relations)
-	falseRow, err := models.RecordObjects.Update(ctx, backend, again[1], models.RecordPatch{}.WithFlagNull())
+	falseRow, err := models.RecordObjects.Patch(ctx, backend, again[1], models.RecordPatch{}.WithFlagNull())
 	if err != nil || falseRow.Flag != nil || again[1].Flag == nil || *again[1].Flag {
 		t.Fatal("patch mutated caller or lost null")
 	}
-	nullRow, err := models.RecordObjects.Update(ctx, backend, again[3], models.RecordPatch{}.WithFlag(false))
+	nullRow, err := models.RecordObjects.Patch(ctx, backend, again[3], models.RecordPatch{}.WithFlag(false))
 	if err != nil || nullRow.Flag == nil || *nullRow.Flag {
 		t.Fatal("false patch became null")
 	}

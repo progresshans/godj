@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 // GenerateProjectRelationSelectRelated renders the current project-only
 // select-related companion. It attaches a composable builder to the existing
@@ -73,6 +73,8 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 	}
 	if len(sources) > 0 {
 		fmt.Fprintln(&output, "type relationSelectQuery[M, O any] interface {")
+		fmt.Fprintln(&output, "Update(context.Context,...orm.UpdateAssignment[M])(int64,error)")
+		fmt.Fprintln(&output, "UpdateDynamic(context.Context,...orm.DynamicUpdateInput)(int64,error)")
 		fmt.Fprintln(&output, "\tAll(context.Context) ([]*O, error)")
 		fmt.Fprintln(&output, "\tCount(context.Context) (int64, error)")
 		fmt.Fprintln(&output, "\tGet(context.Context) (*O, error)")
@@ -249,7 +251,13 @@ func (_query %[1]s) rebuild() %[1]s{
  _object,_err:=_query.wrap(_selected);if _err!=nil{return nil,_created,_err};return _object,_created,nil
 }
 `, queryType, source.objectType, sourceType)
-	fmt.Fprintf(output, `func (_query %[1]s) BulkUpdate(_ctx context.Context,_inputs []%[3]s,_options ...orm.BulkUpdateOption[%[3]s])(int64,error){
+	fmt.Fprintf(output, `func (_query %[1]s) Update(_ctx context.Context,_assignments ...orm.UpdateAssignment[%[3]s])(int64,error){
+ return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx,_assignments...)
+}
+func (_query %[1]s) UpdateDynamic(_ctx context.Context,_inputs ...orm.DynamicUpdateInput)(int64,error){
+ return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx,_inputs...)
+}
+func (_query %[1]s) BulkUpdate(_ctx context.Context,_inputs []%[3]s,_options ...orm.BulkUpdateOption[%[3]s])(int64,error){
  return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx,_inputs,_options...)
 }
 func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[3]s],_patch orm.PatchInput[%[3]s])(*%[2]s,bool,error){

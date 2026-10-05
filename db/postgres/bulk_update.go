@@ -19,14 +19,14 @@ var (
 
 func prepareBulkUpdate(schema string, spec query.BulkUpdateSpec) (queryplan.BulkUpdateParts, error) {
 	return queryplan.PrepareBulkUpdate(spec, postgresBulkParameters,
-		func(plan query.Plan) (queryplan.BulkUpdateSource, error) {
-			return compileBulkUpdateSource(schema, plan)
+		func(plan query.Plan) (queryplan.UpdateSource, error) {
+			return compileUpdateSource(schema, plan)
 		},
 		func(table string) (string, error) { return quoteTable(schema, table) }, quoteIdentifier, nil)
 }
 
-func compileBulkUpdateSource(schema string, plan query.Plan) (queryplan.BulkUpdateSource, error) {
-	var zero queryplan.BulkUpdateSource
+func compileUpdateSource(schema string, plan query.Plan) (queryplan.UpdateSource, error) {
+	var zero queryplan.UpdateSource
 	fields, err := validateReadSourceFields(plan.SourceFields())
 	if err != nil {
 		return zero, err
@@ -41,7 +41,7 @@ func compileBulkUpdateSource(schema string, plan query.Plan) (queryplan.BulkUpda
 	}
 	if len(prepared.Keys) != 0 {
 		statement, arguments, err := compileRelation(schema, plan, fields, where)
-		return queryplan.BulkUpdateSource{Selection: statement, Arguments: arguments}, err
+		return queryplan.UpdateSource{Selection: statement, Arguments: arguments}, err
 	}
 	// Keep single-table predicates directly on UPDATE. Materializing those
 	// keys first would update rows that no longer match after a lock wait.
@@ -68,7 +68,7 @@ func compileBulkUpdateSource(schema string, plan query.Plan) (queryplan.BulkUpda
 	}
 	var statement strings.Builder
 	arguments, err := appendWhere(&statement, where, resolve, resolveRHS, nil)
-	return queryplan.BulkUpdateSource{Direct: true, Where: statement.String(), Alias: alias, Arguments: arguments}, err
+	return queryplan.UpdateSource{Direct: true, Where: statement.String(), Alias: alias, Arguments: arguments}, err
 }
 
 func compileBulkUpdate(schema string, plan query.BulkUpdatePlan) (string, []any, error) {

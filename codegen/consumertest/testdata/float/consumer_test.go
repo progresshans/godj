@@ -369,11 +369,11 @@ func runStorage(t *testing.T, open func(context.Context) (floatBackend, error)) 
 		t.Fatalf("float ordered F comparison: %d %v", count, err)
 	}
 	verifyRelations(t, backend, again, reference.Database.Relations)
-	changed, err := models.RecordObjects.Update(ctx, backend, again[5], models.RecordPatch{}.WithEffortNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[5], models.RecordPatch{}.WithEffortNull())
 	if err != nil || changed.Effort != nil || again[5].Effort == nil || *again[5].Effort != fraction {
 		t.Fatal("null patch mutated caller")
 	}
-	changed, err = models.RecordObjects.Update(ctx, backend, again[7], models.RecordPatch{}.WithEffort(0.1))
+	changed, err = models.RecordObjects.Patch(ctx, backend, again[7], models.RecordPatch{}.WithEffort(0.1))
 	if err != nil || changed.Effort == nil || *changed.Effort != 0.1 {
 		t.Fatal("float patch lost value")
 	}

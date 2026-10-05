@@ -192,7 +192,7 @@ func runCreationReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 	t.Run("current_authority_precedes_diagnostics", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 0)
-		if _, err := models.UserObjects.Update(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
+		if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
 			t.Fatal(err)
 		}
 		calls := 0
@@ -253,7 +253,7 @@ func runCreationReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 			f.hasher.hook = func(ctx context.Context) error {
 				return second.CoordinatedAtomic(ctx, func(session db.Session) error {
 					if mode == "revoked_authority" {
-						_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+						_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 						return err
 					}
 					_, err := models.UserObjects.Create(ctx, session, models.NewUserCreate("competing-user", "CANDIDATE", f.user.EncodedPassword, f.user.DateJoined))

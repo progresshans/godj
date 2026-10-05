@@ -231,16 +231,16 @@ func RunUnusablePasswords(t *testing.T, open func(*testing.T) (TransitionBackend
 				return writer.CoordinatedAtomic(ctx, func(session db.Session) error {
 					switch mode {
 					case "actor_deactivated":
-						_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithActive(false).WithRevision(3))
+						_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithActive(false).WithRevision(3))
 						return err
 					case "group_grant_removed":
 						_, err := models.GroupPermissionsLinkObjects.Delete(ctx, session, &link)
 						return err
 					case "target_revision":
-						_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithRevision(2))
+						_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithRevision(2))
 						return err
 					default:
-						_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithEncodedPassword("!independent"))
+						_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithEncodedPassword("!independent"))
 						return err
 					}
 				})

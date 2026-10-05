@@ -113,6 +113,6 @@ func (input PostCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey
 	return input.BuildCreate()
 }
 
-type GoDjAppPart2_e6ad14fb06c5eb2872ac6adc62686795275d70ecee3a1c7bb254c89dc32bbfa7 struct{}
+type GoDjAppPart2_8e50798cf955fe01d4f405e6ed4cf2beb207b880211f654aee2607f9451a076a struct{}
 
-var _ GoDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9
+var _ GoDjProjectSnapshot_2b9e1d637f1607a754c7ca52ee86bfab32a616e834db1f1d546be8c90b6aab57

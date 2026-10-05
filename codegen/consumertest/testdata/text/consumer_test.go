@@ -91,7 +91,7 @@ func TestTextStorageAndQuery(t *testing.T) {
 	if count, err := typed.Count(ctx); err != nil || count != 1 {
 		t.Fatalf("Text predicate: %v", err)
 	}
-	second, err = models.NoteObjects.Update(ctx, backend, second, models.NotePatch{}.WithBody("matched").WithAbstract("matched"))
+	second, err = models.NoteObjects.Patch(ctx, backend, second, models.NotePatch{}.WithBody("matched").WithAbstract("matched"))
 	if err != nil {
 		t.Fatal(err)
 	}

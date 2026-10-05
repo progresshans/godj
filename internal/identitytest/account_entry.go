@@ -35,11 +35,11 @@ func RunAccountEntryRefusals(t *testing.T, open func(*testing.T) (TransitionBack
 	for _, test := range cases {
 		t.Run("login/"+test.name, func(t *testing.T) {
 			if test.name == "inactive" {
-				if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false)); err != nil {
+				if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false)); err != nil {
 					t.Fatal(err)
 				}
 				defer func() {
-					if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithActive(true)); err != nil {
+					if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithActive(true)); err != nil {
 						t.Fatal(err)
 					}
 				}()

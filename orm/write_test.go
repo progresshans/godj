@@ -89,7 +89,7 @@ func TestGeneratedWriteValidationPerformsNoBackendCall(t *testing.T) {
 		{
 			name: "empty patch",
 			run: func(backend *writeSpy) error {
-				_, err := models.ArticleObjects.Update(context.Background(), backend, loaded, models.ArticlePatch{})
+				_, err := models.ArticleObjects.Patch(context.Background(), backend, loaded, models.ArticlePatch{})
 				return err
 			},
 			code: query.CodeEmptyPatch,
@@ -189,7 +189,7 @@ func TestManagerRejectsInjectedPatchPrimaryKeyMismatchBeforeBackend(t *testing.T
 		[]query.Assignment{orm.NewAssignment(metadata.Fields[1], query.String("After"))},
 	)}
 	backend := &writeSpy{updateRows: 1}
-	_, err := models.ArticleObjects.Update(context.Background(), backend, current, input)
+	_, err := models.ArticleObjects.Patch(context.Background(), backend, current, input)
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("Update() error = %v, want invalid_plan", err)
 	}
@@ -217,7 +217,7 @@ func TestManagerRejectsInjectedPatchOmittedFieldMutationBeforeBackend(t *testing
 		[]query.Assignment{orm.NewAssignment(metadata.Fields[1], query.String("After"))},
 	)}
 	backend := &writeSpy{updateRows: 1}
-	_, err := models.ArticleObjects.Update(context.Background(), backend, current, input)
+	_, err := models.ArticleObjects.Patch(context.Background(), backend, current, input)
 	if !errors.Is(err, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue}) {
 		t.Fatalf("Update() error = %v, want invalid_value", err)
 	}
@@ -235,7 +235,7 @@ func TestManagerIsolatesPatchInputFromNullableCallerAliases(t *testing.T) {
 	descriptor.SetPrimaryKey(&current, 7)
 	backend := &writeSpy{updateRows: 1}
 
-	_, err := models.ArticleObjects.Update(context.Background(), backend, current, aliasingArticlePatch{})
+	_, err := models.ArticleObjects.Patch(context.Background(), backend, current, aliasingArticlePatch{})
 	if !errors.Is(err, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue}) {
 		t.Fatalf("Update() error = %v, want invalid_value", err)
 	}
@@ -254,7 +254,7 @@ func TestUpdateAndDeleteRequireExactlyOneAffectedRow(t *testing.T) {
 	article := models.Article{Title: "Before"}
 	descriptor.SetPrimaryKey(&article, 9)
 	backend := &writeSpy{updateRows: 0, deleteRows: 0}
-	_, err := models.ArticleObjects.Update(
+	_, err := models.ArticleObjects.Patch(
 		context.Background(),
 		backend,
 		article,

@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
-const GoDjProjectRelationFacadeInputSHA256 = "61d2d4765c1bf81d31620195dbe085de52715feb30afa5c981ace56f53dbdc8e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
+const GoDjProjectRelationFacadeInputSHA256 = "b322463da22e2e1fdc6e8446fcf0b27c9b0d269d6a27a2a7c0c1d78fcd819844"
 
 type Backend interface {
 	db.Queryer
@@ -431,6 +431,20 @@ func newAuthorsAuthorQuery(_state *relationFacadeState, _query orm.QuerySet[auth
 
 func (_query AuthorsAuthorQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AuthorsAuthorQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[authors.Author]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AuthorsAuthorQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -1142,6 +1156,18 @@ func (_query AuthorsAuthorPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query AuthorsAuthorPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[authors.Author]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AuthorsAuthorPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AuthorsAuthorPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []authors.Author, _options ...orm.BulkUpdateOption[authors.Author]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -1320,6 +1346,20 @@ func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post
 
 func (_query BlogPostQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query BlogPostQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[blog.Post]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query BlogPostQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -2384,6 +2424,18 @@ func (_query BlogPostPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _result, _created, nil
 }
+func (_query BlogPostPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[blog.Post]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query BlogPostPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query BlogPostPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -2765,6 +2817,18 @@ func (_query BlogPostEagerQuery) GetOrCreate(_ctx context.Context, _input orm.Cr
 	}
 	return _wrapped, _created, nil
 }
+func (_query BlogPostEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[blog.Post]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query BlogPostEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query BlogPostEagerQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -2942,4 +3006,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9
+var _ goDjProjectSnapshot_2b9e1d637f1607a754c7ca52ee86bfab32a616e834db1f1d546be8c90b6aab57

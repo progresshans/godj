@@ -45,7 +45,7 @@ func adminPermissions(t *testing.T, f *managementFixture, staff bool, permission
 				return err
 			}
 		}
-		_, err := models.UserObjects.Update(t.Context(), session, f.root, models.UserPatch{}.WithSuperuser(false).WithStaff(staff).WithRevision(2))
+		_, err := models.UserObjects.Patch(t.Context(), session, f.root, models.UserPatch{}.WithSuperuser(false).WithStaff(staff).WithRevision(2))
 		return err
 	}); err != nil {
 		t.Fatal(err)

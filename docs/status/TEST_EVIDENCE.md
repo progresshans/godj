@@ -3,6 +3,102 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0111 — QuerySet 갱신과 scalar 표현식 기반
+
+2026-10-06 KST, 고정 Python 3.14.3·Django 6.1·SQLite 3.50.4·psycopg 3.3.6·PostgreSQL 17.10
+Debian/UTF8/libc/C/C에서 `query_update_reference.py`의 81개 사례를 backend별 새 프로세스 두 번씩 관찰했다.
+Go source/output·expected fixture를 읽지 않는 observer가 각 사례의 새 table을 소유했다. Observer SHA-256
+`a61ce4048904d6678fc9e8db4ded3f8ead04ba921a196096598543831aeb18f3`와 실제 QuerySet·Atomic·SQLUpdateCompiler·
+UpdateQuery·CombinedExpression module hash를 원 출력에 보존했다. SQLite 두 출력은 68774 bytes /
+`2b53a7fe688a97ec0150cb2c4f00ec99f201060c0230a401aa1f91a3e2e21130`, PostgreSQL은 72973 bytes /
+`9dc25a0e3eba658fd4906715423124c54b0d570bd5e1109ae7eaf8a141e3f76c`로 각각 같았다.
+Receipt `query-update-reference-20261005-160748/receipt.json` /
+`fc15cc1ac741fb9a63f4e1966bb73fc32639044eb533fede3dcd6fb9040c65e6`.
+
+별도 PostgreSQL `query_update_concurrency_reference.py`는 서버 `pg_blocking_pids`로 실제 lock wait를 확인했다.
+Root 값/FK 변경·삭제·조건 유지·다른 열 변경, 실제 join, trimmed FK와 부정 collection의 9개 사례를 두 번 실행했다.
+원 출력은 3439 bytes / `fdd126a817dc644d3d6e1759fbb77b70b151329799162e445a79b3dd246a8c55`로 일치했다.
+Observer `c737a4a4fead18e3c2a9a49d729db04137c4c466954d3b143f3478e38594c108`, receipt
+`query-update-concurrency-20261005-164003/receipt.json` /
+`3fa65bd23dd86751d4a63610d08bdb38d6bb19b05f5edf390b9f84202198b7e7`.
+두 기준 실행 모두 source 유지·schema/session `0|0`·소유 DB/container 제거를 확인하고 원 byte만 fixture로 복사했다.
+
+### 공통 기반과 독립 생성 소비자
+
+불변 scalar/assignment AST, native QueryUpdate compiler/backend, generic ORM과 typed/dynamic root/eager/prefetch
+facade를 구현했다. 상수·현재 행의 같은 kind 복사·int64/float64 산술과 NULL을 연결했다. 전체 입력/parameter 한도,
+원 필터/collection scope, SQL count와 cache·transaction 소유권을 검증했다. SQLite의 모든 integer intermediate가
+정확한 int64인지 native statement 안에서 확인하며 primary-key UPDATE 충돌의 구조화된 오류도 보존한다.
+기존 Manager의 한 모델/PatchInput 갱신은 `Patch`로 이름을 분리했다. FK key typed field를 생성하고
+main ABI v3·facade v23·select-related v9와 관련 manifest/companion/golden을 실제 생성기로 갱신했다.
+
+Parent `7faccfb304a999345261dd775347e102986d8fcf`, 비Markdown 3092 files / inventory
+`1cb97828c60823eff18930877395399a7c4b6bfde493cf459825b05fac8692d7`에서 Go 1.26.5/darwin/arm64,
+공유 Go cache·생성 child trimpath와 실제 SQLite/PostgreSQL 17.10 Debian/UTF8/libc/C/C를 사용했다.
+
+| Mode / 범위 | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal / framework | 4 | 1582 | 0 | 4.403s | `c15ff91324904fb9dc141a5a5c09ee38eb5adcf824958da8f149f1ed0b918779` |
+| normal / native | 2 | 311 | 0 | 6.317s | `654a372a6b318242ecaa936f09ab780047740b7aaa96a4abfb64e1b86515124a` |
+| normal / consumer | 1 | 22 | 0 | 16.126s | `4d055f297139f0ce6b7f5c4903199dacf762a66445f0d552d0b289e260a94905` |
+| race / framework | 4 | 1582 | 0 | 46.097s | `baf85db55c7db9eb9105f017b8ed93876a67b75bb3e415860dcc2bc88a0471dd` |
+| race / native | 2 | 311 | 0 | 44.351s | `c7f42f9537ab6897bab1b572db2e7ae674e0823b82e78e0103722b9519802e61` |
+| race / consumer | 1 | 22 | 0 | 143.615s | `211fcb1f8d10dec36ba48d38552eba2c3d2a53172d53b6be42f729d8d2903978` |
+| cgo0 / framework | 4 | 1582 | 0 | 2.59s | `a7f985ae897dda6da82cfec31814ad29c8fba2da9b47c5381bdafcbe4d8871c8` |
+| cgo0 / native | 2 | 311 | 0 | 5.243s | `feda158a3cb44e0833147f9c05da88292d14cebef1738a492a4fef0fd3c1ef05` |
+| cgo0 / consumer | 1 | 22 | 0 | 17.22s | `ec02f1de7cbcb4960af013a2f4e1a6ec93b729c8a0b7f66168e55408802070fa` |
+| normal / publication | 2 | 185 | 0 | 60.256s | `6e8de535c47c1c236c542709315c0c47f7e7642e921c203a3cd4ef300b031b7d` |
+
+Framework는 query/ORM/compiler/codegen 전체, native는 QueryUpdate와 기존 bulk insert/update·구조화된 SQLite 오류
+21 roots, consumer는 새 QueryUpdate/QueryUpdateReference와 기존 BulkUpdate/BulkUpdateReference 4 roots다.
+Publication은 normal mode의 internal/projectgenerate·relationproduct 84 roots다. Subprocess crash helper는 부모의
+실제 crash/recovery 테스트가 실행하며 standalone skip을 필수 실행으로 계산하지 않았다.
+각 실행의 필수 root·새 child·package 종료·중복·no-skip·원 JSON 무결성과 실행 전후 source 유지를 확인했다.
+
+새 생성 소비자는 양 DB의 13개 public API 경로와 9개 typed compile 거부를 검사한다. 독립 native 대조는
+backend별 78개 실행 사례와 각 backend/root를 합친 159개 child run/pass·0 skip을 확인한다. 세 미지원
+union/distinct-fields/projection update는 원 native 결과를 별도로 확인하고 실제 Go compile 거부로 연결한다.
+Decimal 연산·암묵 수치 변환의 미지원/거부, SQLite integer 손실 거부, literal NULL preflight, borrowed savepoint와
+COMMIT unknown은 별도 assertion이며 이를 Django parity 성공으로 세지 않는다. Native count·원래 행의 RHS·
+저장 값·오류/SQLSTATE·SQL/transaction 횟수·cache/held/sibling·부모 commit/rollback을 비교한다.
+PostgreSQL 9개 lock-wait 결과와 취소는 실제 서버 barrier에서 실행했다. Typed/dynamic 같은 AST·13 scalar codec,
+빈/잘못된 입력·큰 정확한 key·read-only/expired/suspended scope·hostile callback과 실패 후 DB 보존도 포함한다.
+
+Format와 7개 project/별도 relation fixture의 generated drift 16.575s, 영향 vet 1.156s,
+전체 패키지 `go test -run '^$' ./...` compile 104.933s, CI tools 57개 검사 3.801s가 PASS했다.
+Compile은 제품 실행 PASS가 아니다. 새 PostgreSQL 필수 경로 28개와 relation 24개가 세 mode의 실제 pass에 모두
+존재하며 기존 목록을 제거하지 않았다. Source 유지·schema/session `0|0`·DB/container 제거를 확인했다.
+Receipt `query-update-core-20261006-024210/receipt.json` /
+`6ba46512c0fd695b52b4b26a60f4dfb577f210c80d6939e301a2939c4e34d811`.
+
+### 갱신 전 읽기 오류와 새 cache generation
+
+뒤이은 코드 검토에서 invalidation 전 in-flight 읽기의 오류를 새 generation의 waiter에도 반환하는 경계를 확인했다.
+값/graph의 오래된 cache 게시뿐 아니라 이전 오류도 새 읽기로 전파하지 않도록 generation을 검사한다. 채널과
+Done 진입 barrier로 갱신 후 waiter가 실제 옛 flight에 합류한 것을 고정하고, 옛 읽기의 성공/실패 두 경우 모두
+새 읽기의 값·graph·한 번의 loader·cache 게시를 확인한다. 타이머 sleep에 실행 순서를 맡기지 않았다.
+앞 checkpoint와 비Markdown 차이는 `orm/evaluation.go`, 해당 테스트, relation 필수 child 두 개의 목록뿐이다.
+
+최종 inventory `259418be724c6a2b1fe693a9cb743a02325d6580fff015a0c4da19f5625b6d15`에서 ORM 전체와
+필수 두 child를 normal/race/CGO=0 각각 921 run·pass/0 skip으로 확인했다. 시간은 1.284/34.555/1.497s,
+log SHA-256은 각각 `97121d540e8d822efe65dc643286769ce8f1323254e791e74446386a9817388b`,
+`dedff7252f434fdd895a0c1486e34f7b77184da2e5ae8538a8f6a238aba1e427`,
+`700343b7e851c51c22a43295d071bd4221d8be3331ef3eb1844a9441a715f86d`다. Receipt
+`query-update-cache-guard-20261006-025241/receipt.json` /
+`98b2f5985cf99316ae79113dace3ecf43b56629bb1066312811d53180bb0c686`가 앞 receipt hash와 실제 source 차이를 함께 결합한다.
+
+앞선 실패도 보존했다. 첫 생성 consumer는 기존 typed field 목록에 FK key가 없어서 컴파일에 실패했다.
+FK concrete key의 nullable/model metadata를 보존하는 typed field를 구현하고 main ABI/관련 생성물을 갱신했다.
+Receipt `query-update-foundation-20261006-021342/receipt.json` /
+`b80dda613d143b68ccdd2237207280043296b906ae5f28834e11e8bf3570f9df`.
+다음 실행은 잘못된 타입을 실제로 거부했지만 compiler diagnostic 문자열 assertion 3개가 틀렸다.
+원인의 타입 거부를 유지하며 실제 진단으로 수정했다. 실패 receipt `query-update-foundation-20261006-022102/receipt.json` /
+`09955243dcd33f3ef437bc524f05df8c24e6d4b85c80dc3e09b0ee47fd82c2dc`와 후속 consumer-only PASS
+`da24e8949e7fb859315059a69a7d5b560563fe8c3398540efdb5ab739d62c98c`를 보존했다. 모든 소유 container를 제거했다.
+
+Helpdesk 우선순위 명령·Admin/API/client/브라우저 연결과 해당 업무 묶음의 검증, GDJ-0111 source의 Hosted 전체는 남아 있다.
+이 기반 결과를 GDJ-0109/0110의 진행 중인 Hosted source나 전체 기능 카탈로그의 완료로 전이하지 않는다.
+
 ## GDJ-0110 — native bulk update의 기준과 기반
 
 2026-10-02 KST, Go source/output/expected fixture를 읽지 않는 `conformance/runners/django/bulk_update_reference.py`로
@@ -357,6 +453,10 @@ Parent `3d1a59192a88bbd7915241df972a4033049304e6`, 비Markdown inventory
 [Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499), attempt 1/workflow_dispatch를 요청했다.
 76 jobs의 필수 owner·raw PostgreSQL 실행·4개 S3 lifecycle·새 capture의 source 결합/소비와 최종 집계가 모두 확인될 때까지
 GDJ-0109/0110의 통합 완료가 아니다. 별도 사본의 GDJ-0111 새 구현은 이 source에 포함하지 않는다.
+이전 `37345812096`은 수리된 source의 새 dispatch 뒤 명시적으로 취소했다. 두 run의 branch가 달라 자동 취소되지 않았다.
+최종 76 jobs는 success 48/failure 7/cancelled 21이며, 여섯 relation 실패의 원 log 모두 같은 옛 배열 참조를 확인했다.
+일곱 번째는 필수 owner 실패를 거부한 aggregate다. Terminal receipt `hosted-bulk-update-37345812096/failure-receipt.json` /
+`df525f922a55c5b580f27abce2f38aa30d4a34b1009500c6842331a9d25b46a7`을 보존했다.
 
 ### 브라우저와 독립 저장 결과
 

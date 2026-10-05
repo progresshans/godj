@@ -67,7 +67,7 @@ func verifyHelpdeskJSONSearch(t *testing.T, ctx context.Context, runtime *system
 		t.Fatal("outside search fixture absent", err)
 	}
 	original := outside.ExternalPayload
-	if _, err := models.TicketObjects.Update(ctx, runtime, outside, models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `{"source":"VENDOR%_A","note":"only-json"}`))); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, runtime, outside, models.TicketPatch{}.WithExternalPayload(helpdeskJSON(t, `{"source":"VENDOR%_A","note":"only-json"}`))); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
@@ -75,7 +75,7 @@ func verifyHelpdeskJSONSearch(t *testing.T, ctx context.Context, runtime *system
 		if original != nil {
 			patch = patch.WithExternalPayload(*original)
 		}
-		if _, err := models.TicketObjects.Update(ctx, runtime, outside, patch); err != nil {
+		if _, err := models.TicketObjects.Patch(ctx, runtime, outside, patch); err != nil {
 			t.Error(err)
 		}
 	}()

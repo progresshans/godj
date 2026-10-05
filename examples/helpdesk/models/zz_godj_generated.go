@@ -18,7 +18,7 @@ import (
 	_godjtime "time"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "d50d2f76119f8a819174aa5bf20ab3838b072ace8e1e04903d83758cfdde721b"
 
 type Category struct {
@@ -672,6 +672,7 @@ type TicketFieldSet struct {
 	Subject               orm.StringField[Ticket]
 	Details               orm.NullableStringField[Ticket]
 	Closed                orm.BooleanField[Ticket]
+	CategoryID            orm.ForeignKeyField[Ticket]
 	Priority              orm.NullableIntegerField[Ticket]
 	Resolution            orm.NullableStringField[Ticket]
 	DueAt                 orm.NullableDateTimeField[Ticket]
@@ -694,6 +695,7 @@ var TicketFields = func() TicketFieldSet {
 		Subject:               orm.NewStringField[Ticket](metadata.Fields[1]),
 		Details:               orm.NewNullableStringField[Ticket](metadata.Fields[2]),
 		Closed:                orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		CategoryID:            orm.NewForeignKeyField[Ticket](metadata.Fields[4]),
 		Priority:              orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
 		Resolution:            orm.NewNullableStringField[Ticket](metadata.Fields[6]),
 		DueAt:                 orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
@@ -1977,6 +1979,7 @@ func (ServiceReportDescriptor) SetFieldValue(value *ServiceReport, field ir.Fiel
 
 type ServiceReportFieldSet struct {
 	ID        orm.AutoField[ServiceReport]
+	TicketID  orm.ForeignKeyField[ServiceReport]
 	Summary   orm.StringField[ServiceReport]
 	Completed orm.BooleanField[ServiceReport]
 }
@@ -1985,6 +1988,7 @@ var ServiceReportFields = func() ServiceReportFieldSet {
 	metadata := serviceReportMetadata()
 	return ServiceReportFieldSet{
 		ID:        orm.NewAutoField[ServiceReport](metadata.Fields[0]),
+		TicketID:  orm.NewForeignKeyField[ServiceReport](metadata.Fields[1]),
 		Summary:   orm.NewStringField[ServiceReport](metadata.Fields[2]),
 		Completed: orm.NewBooleanField[ServiceReport](metadata.Fields[3]),
 	}
@@ -2243,15 +2247,17 @@ func (LabelDescriptor) SetFieldValue(value *Label, field ir.Field, input query.V
 }
 
 type LabelFieldSet struct {
-	ID   orm.AutoField[Label]
-	Name orm.StringField[Label]
+	ID         orm.AutoField[Label]
+	Name       orm.StringField[Label]
+	CategoryID orm.ForeignKeyField[Label]
 }
 
 var LabelFields = func() LabelFieldSet {
 	metadata := labelMetadata()
 	return LabelFieldSet{
-		ID:   orm.NewAutoField[Label](metadata.Fields[0]),
-		Name: orm.NewStringField[Label](metadata.Fields[1]),
+		ID:         orm.NewAutoField[Label](metadata.Fields[0]),
+		Name:       orm.NewStringField[Label](metadata.Fields[1]),
+		CategoryID: orm.NewForeignKeyField[Label](metadata.Fields[2]),
 	}
 }()
 
@@ -2482,13 +2488,17 @@ func (TicketLabelDescriptor) SetFieldValue(value *TicketLabel, field ir.Field, i
 }
 
 type TicketLabelFieldSet struct {
-	ID orm.AutoField[TicketLabel]
+	ID       orm.AutoField[TicketLabel]
+	TicketID orm.ForeignKeyField[TicketLabel]
+	LabelID  orm.ForeignKeyField[TicketLabel]
 }
 
 var TicketLabelFields = func() TicketLabelFieldSet {
 	metadata := ticketLabelMetadata()
 	return TicketLabelFieldSet{
-		ID: orm.NewAutoField[TicketLabel](metadata.Fields[0]),
+		ID:       orm.NewAutoField[TicketLabel](metadata.Fields[0]),
+		TicketID: orm.NewForeignKeyField[TicketLabel](metadata.Fields[1]),
+		LabelID:  orm.NewForeignKeyField[TicketLabel](metadata.Fields[2]),
 	}
 }()
 
@@ -2637,6 +2647,6 @@ func ticketLabelMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_1e14959c6fba436fd61544c68b61f8fcdf199d190893eac30267d3e1f1b4656c struct{}
+type GoDjAppPart0_d35b57a5f1435ea4895a880397d097f2d861be97b4953c4bd97d97b1f95a0637 struct{}
 
-type GoDjProjectSnapshot_b2369703f3378ee9e84d40448224d9067dfbfa483eb3d7d198d7eb330ac159a7 struct{}
+type GoDjProjectSnapshot_9107f1180582573cb1e05f8785bcc7b3e7401578474eedb6952968d109aa7b59 struct{}

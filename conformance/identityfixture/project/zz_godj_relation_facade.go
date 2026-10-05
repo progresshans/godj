@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
-const GoDjProjectRelationFacadeInputSHA256 = "22cb07f60d1110522faa0f73970f73d817e6973a04372ebe4347423e19ca3d51"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
+const GoDjProjectRelationFacadeInputSHA256 = "5c1103ebb0425f6d75aa1fa8f3acdba31bf254d692e2f354a2d474f79986c12a"
 
 type Backend interface {
 	db.Queryer
@@ -442,6 +442,20 @@ func newAccountsGroupQuery(_state *relationFacadeState, _query orm.QuerySet[acco
 
 func (_query AccountsGroupQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsGroupQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.Group]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -1455,6 +1469,18 @@ func (_query AccountsGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query AccountsGroupPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.Group]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsGroupPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.Group, _options ...orm.BulkUpdateOption[accounts.Group]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -1671,6 +1697,20 @@ func newAccountsGroupPermissionsLinkQuery(_state *relationFacadeState, _query or
 
 func (_query AccountsGroupPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsGroupPermissionsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupPermissionsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -2702,6 +2742,18 @@ func (_query AccountsGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context
 	}
 	return _result, _created, nil
 }
+func (_query AccountsGroupPermissionsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupPermissionsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsGroupPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.GroupPermissionsLink, _options ...orm.BulkUpdateOption[accounts.GroupPermissionsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -3083,6 +3135,18 @@ func (_query AccountsGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Co
 	}
 	return _wrapped, _created, nil
 }
+func (_query AccountsGroupPermissionsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupPermissionsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsGroupPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.GroupPermissionsLink, _options ...orm.BulkUpdateOption[accounts.GroupPermissionsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -3226,6 +3290,20 @@ func newAccountsPermissionQuery(_state *relationFacadeState, _query orm.QuerySet
 
 func (_query AccountsPermissionQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsPermissionQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.Permission]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsPermissionQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -4239,6 +4317,18 @@ func (_query AccountsPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _result, _created, nil
 }
+func (_query AccountsPermissionPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.Permission]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsPermissionPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsPermissionPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.Permission, _options ...orm.BulkUpdateOption[accounts.Permission]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -4450,6 +4540,20 @@ func newAccountsUserQuery(_state *relationFacadeState, _query orm.QuerySet[accou
 
 func (_query AccountsUserQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsUserQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.User]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -5463,6 +5567,18 @@ func (_query AccountsUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query AccountsUserPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.User]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.User, _options ...orm.BulkUpdateOption[accounts.User]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -5679,6 +5795,20 @@ func newAccountsUserGroupsLinkQuery(_state *relationFacadeState, _query orm.Quer
 
 func (_query AccountsUserGroupsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsUserGroupsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserGroupsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -6710,6 +6840,18 @@ func (_query AccountsUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _result, _created, nil
 }
+func (_query AccountsUserGroupsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserGroupsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserGroupsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserGroupsLink, _options ...orm.BulkUpdateOption[accounts.UserGroupsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -7091,6 +7233,18 @@ func (_query AccountsUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _wrapped, _created, nil
 }
+func (_query AccountsUserGroupsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserGroupsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserGroupsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserGroupsLink, _options ...orm.BulkUpdateOption[accounts.UserGroupsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -7241,6 +7395,20 @@ func newAccountsUserPermissionsLinkQuery(_state *relationFacadeState, _query orm
 
 func (_query AccountsUserPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountsUserPermissionsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserPermissionsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -8272,6 +8440,18 @@ func (_query AccountsUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.
 	}
 	return _result, _created, nil
 }
+func (_query AccountsUserPermissionsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserPermissionsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserPermissionsLink, _options ...orm.BulkUpdateOption[accounts.UserPermissionsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -8653,6 +8833,18 @@ func (_query AccountsUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Con
 	}
 	return _wrapped, _created, nil
 }
+func (_query AccountsUserPermissionsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query AccountsUserPermissionsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserPermissionsLink, _options ...orm.BulkUpdateOption[accounts.UserPermissionsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -8803,6 +8995,20 @@ func newWorkAccessGuardQuery(_state *relationFacadeState, _query orm.QuerySet[wo
 
 func (_query WorkAccessGuardQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query WorkAccessGuardQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessGuard]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessGuardQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -9900,6 +10106,18 @@ func (_query WorkAccessGuardPrefetchQuery) GetOrCreate(_ctx context.Context, _in
 	}
 	return _result, _created, nil
 }
+func (_query WorkAccessGuardPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessGuard]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessGuardPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessGuardPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessGuard, _options ...orm.BulkUpdateOption[work.AccessGuard]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -10281,6 +10499,18 @@ func (_query WorkAccessGuardEagerQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _wrapped, _created, nil
 }
+func (_query WorkAccessGuardEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessGuard]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessGuardEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessGuardEagerQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessGuard, _options ...orm.BulkUpdateOption[work.AccessGuard]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -10415,6 +10645,20 @@ func newWorkAccessNoteQuery(_state *relationFacadeState, _query orm.QuerySet[wor
 
 func (_query WorkAccessNoteQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query WorkAccessNoteQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessNote]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessNoteQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -11479,6 +11723,18 @@ func (_query WorkAccessNotePrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _result, _created, nil
 }
+func (_query WorkAccessNotePrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessNote]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessNotePrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessNotePrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessNote, _options ...orm.BulkUpdateOption[work.AccessNote]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -11860,6 +12116,18 @@ func (_query WorkAccessNoteEagerQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _wrapped, _created, nil
 }
+func (_query WorkAccessNoteEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessNote]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query WorkAccessNoteEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessNoteEagerQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessNote, _options ...orm.BulkUpdateOption[work.AccessNote]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -11999,6 +12267,20 @@ func newWorkGuardQuery(_state *relationFacadeState, _query orm.QuerySet[work.Gua
 
 func (_query WorkGuardQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query WorkGuardQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Guard]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query WorkGuardQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -12831,6 +13113,18 @@ func (_query WorkGuardPrefetchQuery) GetOrCreate(_ctx context.Context, _input or
 	}
 	return _result, _created, nil
 }
+func (_query WorkGuardPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Guard]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query WorkGuardPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkGuardPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []work.Guard, _options ...orm.BulkUpdateOption[work.Guard]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -13211,6 +13505,18 @@ func (_query WorkGuardEagerQuery) GetOrCreate(_ctx context.Context, _input orm.C
 	}
 	return _wrapped, _created, nil
 }
+func (_query WorkGuardEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Guard]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query WorkGuardEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkGuardEagerQuery) BulkUpdate(_ctx context.Context, _inputs []work.Guard, _options ...orm.BulkUpdateOption[work.Guard]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -13332,6 +13638,20 @@ func newWorkNoteQuery(_state *relationFacadeState, _query orm.QuerySet[work.Note
 
 func (_query WorkNoteQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query WorkNoteQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Note]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query WorkNoteQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -14164,6 +14484,18 @@ func (_query WorkNotePrefetchQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _result, _created, nil
 }
+func (_query WorkNotePrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Note]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query WorkNotePrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkNotePrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []work.Note, _options ...orm.BulkUpdateOption[work.Note]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -14544,6 +14876,18 @@ func (_query WorkNoteEagerQuery) GetOrCreate(_ctx context.Context, _input orm.Cr
 	}
 	return _wrapped, _created, nil
 }
+func (_query WorkNoteEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Note]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query WorkNoteEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkNoteEagerQuery) BulkUpdate(_ctx context.Context, _inputs []work.Note, _options ...orm.BulkUpdateOption[work.Note]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -14796,4 +15140,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_53dae1367ff4cfb59a815a1e621aa8fc15187758975737eed0a6b8eef5f2494f
+var _ goDjProjectSnapshot_dfdd0d4dfe634dfe1e6030b11e6614587f5dd614e583b861d0f6c462d80de92c

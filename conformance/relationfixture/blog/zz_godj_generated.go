@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "62dd8ea4742bd730f5627e3c68081e83a00df4e39015c141f12c4d9bc0f2fb14"
 
 type Post struct {
@@ -126,15 +126,19 @@ func (PostDescriptor) SetFieldValue(value *Post, field ir.Field, input query.Val
 }
 
 type PostFieldSet struct {
-	ID    orm.AutoField[Post]
-	Title orm.StringField[Post]
+	ID         orm.AutoField[Post]
+	Title      orm.StringField[Post]
+	AuthorID   orm.ForeignKeyField[Post]
+	ReviewerID orm.NullableForeignKeyField[Post]
 }
 
 var PostFields = func() PostFieldSet {
 	metadata := postMetadata()
 	return PostFieldSet{
-		ID:    orm.NewAutoField[Post](metadata.Fields[0]),
-		Title: orm.NewStringField[Post](metadata.Fields[1]),
+		ID:         orm.NewAutoField[Post](metadata.Fields[0]),
+		Title:      orm.NewStringField[Post](metadata.Fields[1]),
+		AuthorID:   orm.NewForeignKeyField[Post](metadata.Fields[2]),
+		ReviewerID: orm.NewNullableForeignKeyField[Post](metadata.Fields[3]),
 	}
 }()
 
@@ -348,6 +352,6 @@ func postMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_e6ad14fb06c5eb2872ac6adc62686795275d70ecee3a1c7bb254c89dc32bbfa7 struct{}
+type GoDjAppPart0_8e50798cf955fe01d4f405e6ed4cf2beb207b880211f654aee2607f9451a076a struct{}
 
-type GoDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9 struct{}
+type GoDjProjectSnapshot_2b9e1d637f1607a754c7ca52ee86bfab32a616e834db1f1d546be8c90b6aab57 struct{}

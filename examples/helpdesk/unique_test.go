@@ -43,7 +43,7 @@ func verifyHistoricalExternalReferenceUniqueness(t *testing.T, ctx context.Conte
 	}
 	reference := uuid.UUID{0: 0x63, 15: 0x95}
 	for _, row := range []models.Ticket{beforeFirst, beforeSecond} {
-		if _, err := models.TicketObjects.Update(ctx, backend, row, models.TicketPatch{}.WithExternalReference(reference)); err != nil {
+		if _, err := models.TicketObjects.Patch(ctx, backend, row, models.TicketPatch{}.WithExternalReference(reference)); err != nil {
 			t.Fatal("historical plain UUID disallowed duplicates", err)
 		}
 	}
@@ -52,7 +52,7 @@ func verifyHistoricalExternalReferenceUniqueness(t *testing.T, ctx context.Conte
 	if err == nil || !failedState.Equal(beforeState) || !reflect.DeepEqual(duplicateFirst, readPreURLTicketStorage(t, ctx, backend, firstID)) || !reflect.DeepEqual(duplicateSecond, readPreURLTicketStorage(t, ctx, backend, secondID)) {
 		t.Fatal("unique growth altered duplicate data or published state", err)
 	}
-	if _, err := models.TicketObjects.Update(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReferenceNull()); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReferenceNull()); err != nil {
 		t.Fatal(err)
 	}
 	state, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
@@ -80,7 +80,7 @@ func verifyHistoricalExternalReferenceUniqueness(t *testing.T, ctx context.Conte
 	if stored.ExternalReference == nil || *stored.ExternalReference != reference {
 		t.Fatal("unique migration lost existing reference")
 	}
-	_, err = models.TicketObjects.Update(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReference(reference))
+	_, err = models.TicketObjects.Patch(ctx, backend, beforeSecond, models.TicketPatch{}.WithExternalReference(reference))
 	if !errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniqueConstraint}) {
 		t.Fatal("historical unique migration did not enforce its declaration", err)
 	}

@@ -311,7 +311,7 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 				t.Fatal(err)
 			}
 			b.before = func() error {
-				_, err := models.LabelObjects.Update(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(otherCategoryID))
+				_, err := models.LabelObjects.Patch(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(otherCategoryID))
 				return err
 			}
 			var response *httptest.ResponseRecorder
@@ -330,7 +330,7 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 			}
 			checkOriginal("Collection boundary", before)
 			label.CategoryID = otherCategoryID
-			if _, err := models.LabelObjects.Update(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(categoryID)); err != nil {
+			if _, err := models.LabelObjects.Patch(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(categoryID)); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -338,7 +338,7 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 		before := collectionLinks(t, ctx, runtime, owner.ID)
 		stored := readUniqueTicket(t, ctx, runtime, owner.ID)
 		b.before = func() error {
-			_, err := models.TicketObjects.Update(ctx, runtime, stored, models.TicketPatch{}.WithCategoryID(otherCategoryID))
+			_, err := models.TicketObjects.Patch(ctx, runtime, stored, models.TicketPatch{}.WithCategoryID(otherCategoryID))
 			return err
 		}
 		if response := client.request("PATCH", path, collectionBody("Must not update moved owner", []int64{keys[11]}), true); response.Code != 404 {
@@ -346,7 +346,7 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 		}
 		checkOriginal("Collection boundary", before)
 		stored.CategoryID = otherCategoryID
-		if _, err := models.TicketObjects.Update(ctx, runtime, stored, models.TicketPatch{}.WithCategoryID(categoryID)); err != nil {
+		if _, err := models.TicketObjects.Patch(ctx, runtime, stored, models.TicketPatch{}.WithCategoryID(categoryID)); err != nil {
 			t.Fatal(err)
 		}
 	})

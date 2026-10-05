@@ -41,7 +41,7 @@ func BenchmarkWideModelWrite(b *testing.B) {
 						case "Create":
 							_, err = manager.Create(context.Background(), wideWriteBackend{}, input)
 						case "Update":
-							_, err = manager.Update(context.Background(), wideWriteBackend{}, value, input)
+							_, err = manager.Patch(context.Background(), wideWriteBackend{}, value, input)
 						case "Save":
 							current := value
 							err = manager.Save(context.Background(), wideWriteBackend{}, &current)

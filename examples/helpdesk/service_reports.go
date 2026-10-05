@@ -258,7 +258,7 @@ func (a *Application) updateReport(ctx context.Context, id int64, patch models.S
 		if !violations.Empty() {
 			return validation.Reject(violations, nil)
 		}
-		updated, err = models.ServiceReportObjects.Update(ctx, session, current, patch)
+		updated, err = models.ServiceReportObjects.Patch(ctx, session, current, patch)
 		if err != nil {
 			return writeRejection(err)
 		}

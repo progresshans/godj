@@ -160,7 +160,7 @@ func (manager *Manager) UpdatePermission(ctx context.Context, actor auth.Princip
 		if !violations.Empty() {
 			return PermissionProfile{}, validation.Reject(violations, nil)
 		}
-		updated, err := models.PermissionObjects.Update(ctx, session, row, patch)
+		updated, err := models.PermissionObjects.Patch(ctx, session, row, patch)
 		if err != nil {
 			return PermissionProfile{}, err
 		}

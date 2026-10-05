@@ -189,7 +189,7 @@ func TestArticleManagerWriteVerticalSlice(t *testing.T) {
 		t.Fatalf("created Article = %#v", created)
 	}
 
-	updated, err := models.ArticleObjects.Update(
+	updated, err := models.ArticleObjects.Patch(
 		ctx,
 		backend,
 		created,
@@ -202,7 +202,7 @@ func TestArticleManagerWriteVerticalSlice(t *testing.T) {
 		t.Fatalf("updated Article = %#v", updated)
 	}
 
-	nulled, err := models.ArticleObjects.Update(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull().WithSlugNull())
+	nulled, err := models.ArticleObjects.Patch(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull().WithSlugNull())
 	if err != nil {
 		t.Fatalf("explicit NULL Update() error = %v", err)
 	}

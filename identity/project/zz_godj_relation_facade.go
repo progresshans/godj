@@ -13,8 +13,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
-const GoDjProjectRelationFacadeInputSHA256 = "21dc26e32070a6f268c4b446a768d9b095010f1bc5ea96f80373743ebf92ea5d"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v23"
+const GoDjProjectRelationFacadeInputSHA256 = "f76b04e3997d679f3796b1dd804e7f2018ef8c3cc7872a091701895f8ac4d905"
 
 type Backend interface {
 	db.Queryer
@@ -434,6 +434,20 @@ func newIdentityGroupQuery(_state *relationFacadeState, _query orm.QuerySet[iden
 
 func (_query IdentityGroupQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityGroupQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.Group]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -1289,6 +1303,18 @@ func (_query IdentityGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query IdentityGroupPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.Group]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityGroupPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Group, _options ...orm.BulkUpdateOption[identity.Group]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -1469,6 +1495,20 @@ func newIdentityGroupPermissionsLinkQuery(_state *relationFacadeState, _query or
 
 func (_query IdentityGroupPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityGroupPermissionsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPermissionsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -2500,6 +2540,18 @@ func (_query IdentityGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context
 	}
 	return _result, _created, nil
 }
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityGroupPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -2881,6 +2933,18 @@ func (_query IdentityGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Co
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityGroupPermissionsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query IdentityGroupPermissionsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityGroupPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -3022,6 +3086,20 @@ func newIdentityPermissionQuery(_state *relationFacadeState, _query orm.QuerySet
 
 func (_query IdentityPermissionQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityPermissionQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.Permission]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityPermissionQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -3877,6 +3955,18 @@ func (_query IdentityPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _result, _created, nil
 }
+func (_query IdentityPermissionPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.Permission]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityPermissionPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityPermissionPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Permission, _options ...orm.BulkUpdateOption[identity.Permission]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -4050,6 +4140,20 @@ func newIdentityUserQuery(_state *relationFacadeState, _query orm.QuerySet[ident
 
 func (_query IdentityUserQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityUserQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.User]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -4905,6 +5009,18 @@ func (_query IdentityUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.User]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.User, _options ...orm.BulkUpdateOption[identity.User]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -5085,6 +5201,20 @@ func newIdentityUserGroupsLinkQuery(_state *relationFacadeState, _query orm.Quer
 
 func (_query IdentityUserGroupsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityUserGroupsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserGroupsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -6116,6 +6246,18 @@ func (_query IdentityUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserGroupsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserGroupsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserGroupsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -6497,6 +6639,18 @@ func (_query IdentityUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityUserGroupsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserGroupsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserGroupsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -6647,6 +6801,20 @@ func newIdentityUserPermissionsLinkQuery(_state *relationFacadeState, _query orm
 
 func (_query IdentityUserPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query IdentityUserPermissionsLinkQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPermissionsLinkQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
 }
 
 // BulkUpdate writes selected fields while retaining the query predicate.
@@ -7678,6 +7846,18 @@ func (_query IdentityUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserPermissionsLinkPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPermissionsLinkPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return 0, _err
@@ -8059,6 +8239,18 @@ func (_query IdentityUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Con
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityUserPermissionsLinkEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query IdentityUserPermissionsLinkEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
 func (_query IdentityUserPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
 	if _err := _query.validate(); _err != nil {
 		return 0, _err
@@ -8288,4 +8480,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_02f4dd2f1336e37a064cacdf729fea0ddc59063138531aaf27bc65a5994d70a6
+var _ goDjProjectSnapshot_c535d5191c5a8dea5a466c1aa5840a8b602ac33e4a720f3d6ae65654375ce72b

@@ -170,7 +170,7 @@ func (manager *Manager) replacePassword(ctx context.Context, actor auth.Principa
 			if err := password.validate(ctx, manager, current.Profile()); err != nil {
 				return err
 			}
-			updated, err := models.UserObjects.Update(ctx, session, row, (models.UserPatch{}).WithEncodedPassword(encoded).WithRevision(expectedRevision+1))
+			updated, err := models.UserObjects.Patch(ctx, session, row, (models.UserPatch{}).WithEncodedPassword(encoded).WithRevision(expectedRevision+1))
 			if err != nil {
 				return err
 			}

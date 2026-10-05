@@ -42,7 +42,7 @@ func runIdentityMetadataMigration(t *testing.T, backend TransitionBackend, previ
 	}
 	// Legacy values remain representable in storage and responses. Changing
 	// field input semantics must neither normalize nor discard these bytes.
-	if _, err := models.UserObjects.Update(t.Context(), backend, f.stored(t), models.UserPatch{}.WithEmail("  legacy-address  ")); err != nil {
+	if _, err := models.UserObjects.Patch(t.Context(), backend, f.stored(t), models.UserPatch{}.WithEmail("  legacy-address  ")); err != nil {
 		t.Fatal(err)
 	}
 	user := f.stored(t)

@@ -34,8 +34,8 @@ func Open(ctx context.Context, dataSourceName string) (*Backend, error) {
 	if ctx == nil {
 		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
 	}
-	if err := errors.Join(jsonPathRegistrationError, jsonKeysRegistrationError, jsonComparisonRegistrationError, jsonSortRegistrationError, jsonTextRegistrationError); err != nil {
-		return nil, fmt.Errorf("register SQLite JSON functions: %w", err)
+	if err := errors.Join(jsonPathRegistrationError, jsonKeysRegistrationError, jsonComparisonRegistrationError, jsonSortRegistrationError, jsonTextRegistrationError, scalarExpressionRegistrationError); err != nil {
+		return nil, fmt.Errorf("register SQLite scalar functions: %w", err)
 	}
 	connector, err := modernsqlite.NewConnector(dataSourceName)
 	if err != nil {

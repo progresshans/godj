@@ -115,7 +115,7 @@ func (session *bulkTicketSession) Savepoint(ctx context.Context, run func(db.Ses
 		if err != nil {
 			return err
 		}
-		_, err = models.TicketObjects.Update(ctx, session.RelationSession, value, models.TicketPatch{}.WithCategoryID(backend.outside))
+		_, err = models.TicketObjects.Patch(ctx, session.RelationSession, value, models.TicketPatch{}.WithCategoryID(backend.outside))
 		return err
 	}
 	if backend.mode == "late_label_scope" {
@@ -123,7 +123,7 @@ func (session *bulkTicketSession) Savepoint(ctx context.Context, run func(db.Ses
 		if err != nil {
 			return err
 		}
-		_, err = models.LabelObjects.Update(ctx, session.RelationSession, value, models.LabelPatch{}.WithCategoryID(backend.outside))
+		_, err = models.LabelObjects.Patch(ctx, session.RelationSession, value, models.LabelPatch{}.WithCategoryID(backend.outside))
 		return err
 	}
 	return nil
@@ -174,7 +174,7 @@ func (session *bulkTicketSession) BulkUpdate(ctx context.Context, plan query.Bul
 			return 0, err
 		}
 		if backend.mode == "update_late_scope" {
-			_, err = models.TicketObjects.Update(ctx, session.RelationSession, value, models.TicketPatch{}.WithCategoryID(backend.outside))
+			_, err = models.TicketObjects.Patch(ctx, session.RelationSession, value, models.TicketPatch{}.WithCategoryID(backend.outside))
 		} else {
 			_, err = models.TicketObjects.Delete(ctx, session.RelationSession, &value)
 		}

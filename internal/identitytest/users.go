@@ -293,7 +293,7 @@ func RunUserManagement(t *testing.T, open func(*testing.T) (TransitionBackend, T
 				backend, _ := open(t)
 				f := newManagementFixture(t, backend, 0)
 				policy := managementHost(t, backend)
-				if _, err := models.UserObjects.Update(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
+				if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
 					t.Fatal(err)
 				}
 				granted := map[string]bool{}
@@ -391,7 +391,7 @@ func RunUserManagement(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			return backend.CoordinatedAtomic(ctx, func(session db.Session) error {
-				_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+				_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 				return err
 			})
 		}

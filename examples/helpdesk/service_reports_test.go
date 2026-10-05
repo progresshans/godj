@@ -110,7 +110,7 @@ func (b *reportFaultBackend) Atomic(ctx context.Context, fn func(db.Session) err
 			if b.moveCategory != 0 {
 				patch = patch.WithCategoryID(b.moveCategory)
 			}
-			if _, err = models.TicketObjects.Update(ctx, session, row, patch); err != nil {
+			if _, err = models.TicketObjects.Patch(ctx, session, row, patch); err != nil {
 				return err
 			}
 		}

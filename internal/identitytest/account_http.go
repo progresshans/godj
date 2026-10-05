@@ -175,7 +175,7 @@ func accountForm(old, next, confirm, token string) url.Values {
 }
 func ordinaryAccount(t *testing.T, f *managementFixture) {
 	t.Helper()
-	if _, err := models.UserObjects.Update(t.Context(), f.backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
+	if _, err := models.UserObjects.Patch(t.Context(), f.backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
 		t.Fatal(err)
 	}
 }

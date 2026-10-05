@@ -111,7 +111,7 @@ func runAdminPasswordCreation(t *testing.T, open func(*testing.T) (TransitionBac
 		f := newManagementFixture(t, backend, 0)
 		boundary := &adminMutationBoundary{Runtime: f.runtime, before: func(ctx context.Context) error {
 			return f.backend.CoordinatedAtomic(ctx, func(session db.Session) error {
-				_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+				_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 				return err
 			})
 		}}

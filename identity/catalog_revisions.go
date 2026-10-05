@@ -53,7 +53,7 @@ func (manager *Manager) advanceUserOwners(ctx context.Context, session db.Relati
 		if user.Revision == math.MaxInt64 {
 			return managementError(CodePersistence, "user", nil)
 		}
-		_, err := models.UserObjects.Update(ctx, session, user, models.UserPatch{}.WithRevision(user.Revision+1))
+		_, err := models.UserObjects.Patch(ctx, session, user, models.UserPatch{}.WithRevision(user.Revision+1))
 		return err
 	})
 }
@@ -90,7 +90,7 @@ func (manager *Manager) advancePermissionOwners(ctx context.Context, session db.
 			if group.Revision == math.MaxInt64 || started && group.ID <= lastID {
 				return managementError(CodePersistence, "group", nil)
 			}
-			if _, err := models.GroupObjects.Update(ctx, session, group, models.GroupPatch{}.WithRevision(group.Revision+1)); err != nil {
+			if _, err := models.GroupObjects.Patch(ctx, session, group, models.GroupPatch{}.WithRevision(group.Revision+1)); err != nil {
 				return err
 			}
 			lastID, started = group.ID, true

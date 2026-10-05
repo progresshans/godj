@@ -272,7 +272,7 @@ func (resetter *PasswordResetter) ApplyIn(ctx context.Context, session db.Sessio
 	if err := validatePassword(ctx, state.validators, change.state.password, current.Profile()); err != nil {
 		return err
 	}
-	if _, err := models.UserObjects.Update(ctx, session, row, models.UserPatch{}.WithEncodedPassword(change.state.encoded).WithRevision(row.Revision+1)); err != nil {
+	if _, err := models.UserObjects.Patch(ctx, session, row, models.UserPatch{}.WithEncodedPassword(change.state.encoded).WithRevision(row.Revision+1)); err != nil {
 		return err
 	}
 	if _, err := state.backend.RevokePrincipalSessions(ctx, session, change.state.principalID); err != nil {

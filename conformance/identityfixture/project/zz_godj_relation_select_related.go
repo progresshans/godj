@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 var _ orm.ProjectionDescriptor[accounts.Group] = accounts.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[accounts.GroupPermissionsLink] = accounts.GroupPermissionsLinkDescriptor{}
@@ -25,6 +25,8 @@ var _ orm.ProjectionDescriptor[work.Guard] = work.GuardDescriptor{}
 var _ orm.ProjectionDescriptor[work.Note] = work.NoteDescriptor{}
 
 type relationSelectQuery[M, O any] interface {
+	Update(context.Context, ...orm.UpdateAssignment[M]) (int64, error)
+	UpdateDynamic(context.Context, ...orm.DynamicUpdateInput) (int64, error)
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
@@ -196,6 +198,12 @@ func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.GroupPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.GroupPermissionsLink, _options ...orm.BulkUpdateOption[accounts.GroupPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -426,6 +434,12 @@ func (_query AccountsUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserGroupsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query AccountsUserGroupsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserGroupsLink, _options ...orm.BulkUpdateOption[accounts.UserGroupsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -654,6 +668,12 @@ func (_query AccountsUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accounts.UserPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query AccountsUserPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserPermissionsLink, _options ...orm.BulkUpdateOption[accounts.UserPermissionsLink]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -884,6 +904,12 @@ func (_query WorkAccessGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessGuardSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessGuard]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query WorkAccessGuardSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessGuardSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessGuard, _options ...orm.BulkUpdateOption[work.AccessGuard]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1113,6 +1139,12 @@ func (_query WorkAccessNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessNoteSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.AccessNote]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query WorkAccessNoteSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkAccessNoteSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessNote, _options ...orm.BulkUpdateOption[work.AccessNote]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1330,6 +1362,12 @@ func (_query WorkGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _object, _created, nil
 }
+func (_query WorkGuardSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Guard]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query WorkGuardSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkGuardSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.Guard, _options ...orm.BulkUpdateOption[work.Guard]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1538,6 +1576,12 @@ func (_query WorkNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _object, _created, nil
 }
+func (_query WorkNoteSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[work.Note]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query WorkNoteSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query WorkNoteSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.Note, _options ...orm.BulkUpdateOption[work.Note]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1595,4 +1639,4 @@ func (_factory WorkNoteObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_53dae1367ff4cfb59a815a1e621aa8fc15187758975737eed0a6b8eef5f2494f
+var _ goDjProjectSnapshot_dfdd0d4dfe634dfe1e6030b11e6614587f5dd614e583b861d0f6c462d80de92c

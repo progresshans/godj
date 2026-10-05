@@ -139,7 +139,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 			case "expired":
 				now = now.Add(time.Hour + time.Second)
 			}
-			if _, err := models.UserObjects.Update(t.Context(), other, f.user, patch); err != nil {
+			if _, err := models.UserObjects.Patch(t.Context(), other, f.user, patch); err != nil {
 				t.Fatal(err)
 			}
 			before := f.stored(t)
@@ -201,7 +201,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 		if owner.reads != 0 || f.hasher.calls.Load() != 0 || !reflect.DeepEqual(rows, afterRows) || !reflect.DeepEqual(audit, afterAudit) || !reflect.DeepEqual(before, f.stored(t)) {
 			t.Fatal("borrowed check nested a read, hashed or changed state")
 		}
-		if _, err := models.UserObjects.Update(t.Context(), other, f.user, models.UserPatch{}.WithEmail("later@example.test")); err != nil {
+		if _, err := models.UserObjects.Patch(t.Context(), other, f.user, models.UserPatch{}.WithEmail("later@example.test")); err != nil {
 			t.Fatal(err)
 		}
 		if err := f.runtime.CoordinatedAtomic(t.Context(), func(session db.Session) error {

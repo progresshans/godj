@@ -14,14 +14,10 @@ type BulkUpdateSpec struct {
 }
 
 func NewBulkUpdateSpec(source Plan, fields []FieldRef, key FieldRef) (BulkUpdateSpec, error) {
-	if source.limit != nil || source.offset != nil && *source.offset != 0 || source.prefetchWindow != nil {
-		return BulkUpdateSpec{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "bulk update cannot use a sliced or windowed source"}
+	selection, err := updateSelection(source, key)
+	if err != nil {
+		return BulkUpdateSpec{}, err
 	}
-	selection := source
-	selection.offset = nil
-	selection.orderings, selection.relationProjections, selection.rowLock = nil, nil, nil
-	selection.distinct, selection.reuseCollectionFilter = false, false
-	selection.result = ResultShape{kind: ResultProjection, expressions: []ResultExpression{FieldResult(key)}}
 	spec := BulkUpdateSpec{selection: selection, fields: fields, key: key}
 	if err := spec.Validate(); err != nil {
 		return BulkUpdateSpec{}, err

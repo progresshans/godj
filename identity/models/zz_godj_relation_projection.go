@@ -359,6 +359,6 @@ func (_scan *userPermissionsLinkProjectionScan) Decode() (UserPermissionsLink, q
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_6f7db3055d02f9876abe3643e4d2ae973fc198051acff11353218653353146e4 struct{}
+type GoDjAppPart3_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94 struct{}
 
-var _ GoDjProjectSnapshot_02f4dd2f1336e37a064cacdf729fea0ddc59063138531aaf27bc65a5994d70a6
+var _ GoDjProjectSnapshot_c535d5191c5a8dea5a466c1aa5840a8b602ac33e4a720f3d6ae65654375ce72b

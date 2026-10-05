@@ -135,10 +135,10 @@ func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 			boundary.before = func(ctx context.Context) error {
 				return second.CoordinatedAtomic(ctx, func(session db.Session) error {
 					if kind == "revision" {
-						_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithFirstName("Competing winner").WithRevision(2))
+						_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithFirstName("Competing winner").WithRevision(2))
 						return err
 					}
-					_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+					_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 					return err
 				})
 			}
@@ -194,10 +194,10 @@ func runAdminReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBacke
 		boundary := &adminHistoryBoundary{Runtime: f.runtime}
 		boundary.hook = func(ctx context.Context) error {
 			return second.CoordinatedAtomic(ctx, func(session db.Session) error {
-				if _, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithFirstName("Concurrent").WithRevision(2)); err != nil {
+				if _, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithFirstName("Concurrent").WithRevision(2)); err != nil {
 					return err
 				}
-				if _, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
+				if _, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
 					return err
 				}
 				event, err := admin.PrepareEvent(f.actor.ID(), "godj_identity.user", f.user.ID, admin.ActionChange, []string{"first_name"}, "")

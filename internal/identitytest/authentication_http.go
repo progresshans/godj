@@ -276,7 +276,7 @@ func runAuthenticationHTTP(t *testing.T, backend DirectoryBackend, directory *id
 	h.expect(t, h.client, "/view/", 200, encoded)
 	update := func(patch models.UserPatch) {
 		t.Helper()
-		if _, err := models.UserObjects.Update(ctx, backend, user, patch); err != nil {
+		if _, err := models.UserObjects.Patch(ctx, backend, user, patch); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -44,6 +44,36 @@
 
 ## 원장
 
+
+## DEV-0021 — Query update의 정확한 정수와 명시적 변환
+
+- 상태: accepted design, 공통 기반 구현; 환경별 실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md) 참조
+- 날짜: 2026-10-06
+- 기준: [Django 6.1 독립 관찰](../conformance/runners/django/query_update_reference.py), Python 3.14.3·실제 SQLite/PostgreSQL 17.10
+- 범위: [GDJ-0111](../work/0111-query-update-and-writable-expressions.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md). 기존 등록 conformance 완료 수를 변경하지 않는다.
+
+Django SQLite의 bigint 산술 overflow는 REAL로 승격해 갱신에 성공하며 affinity가 일부 값을 다시 INTEGER로
+반올림하기도 한다. GoDj는 정규화된 int64 모델 범위를 유지하기 위해 각 integer operand/result의 storage class를
+native statement 내부에서 검사한다. `overflow_add/subtract/multiply/negate/divide`는 `invalid_value`로 전체를
+되돌린다. PostgreSQL의 같은 사례는 native SQLSTATE 22003과 rollback을 보존한다. 기존의 정확한 signed integer
+모델을 float로 넓히거나 결과만 int64로 cast하는 대안은 중간값 손실을 숨기므로 채택하지 않는다.
+
+Django의 float→integer/mixed numeric assignment는 backend마다 저장·반올림이 다르다. GoDj는 assignment와
+operand의 kind를 같게 요구하고 암묵 변환을 `invalid_plan`으로 거부한다. 명시적 conversion AST는 후속 범위다.
+확정된 NULL literal의 non-null target도 I/O 전에 거부한다. Nullable field의 실제 NULL이나 DB의 native zero-division
+결과는 literal 검증과 구별하며, DB 제약/전체 rollback을 확인한다. 모델 저장 형식을 바꾸거나 기존 행을 migration하지 않는다.
+
+Borrowed UPDATE는 기존 GoDj의 savepoint 소유권을 유지하므로 Django의 rollback-only 부모 대신 계속 사용할 수
+있는 부모를 남긴다. Literal COMMIT 오류는 원 native cause와 unknown 결과를 보존한다. 이는
+[기존 bulk/transaction 결정](adr/0089-bulk-update-and-selected-field-ownership.md)을 QuerySet 갱신에도 적용한 것이다.
+부모 commit 이전 결과의 provisional 성격·실패 시 부분 count 부재·현재 session 소유권을 완화하지 않는다.
+
+생성 소비자는 native fixture의 오류/count와 실제 Go 거부·DB 불변성·부모 후속 쓰기를 따로 검증한다.
+Decimal arithmetic·union·distinct-fields·projection update는 이 deviation으로 승인한 완료 기능이 아니라 명시적
+미지원 표면이며, 정확한 연산/precision 계약과 제품 검증이 남는다. 향후 explicit conversion이나 Decimal 연산을
+추가할 때는 native 관찰·중간값/최종값 범위와 양 backend의 실패 의미를 다시 검증한다.
+
+
 ## DEV-0020 — Binary의 닫힌 입력과 명시적 집계
 
 - 상태: accepted design, 구현 중; Go 제품 실행 검증 전

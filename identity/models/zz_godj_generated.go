@@ -10,7 +10,7 @@ import (
 	_godjtime "time"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "93c0fbb6f91de0f58cba0bb7586fb8cce934ea664726f0ad648dcf3a222ce9a2"
 
 type Permission struct {
@@ -1349,13 +1349,17 @@ func (GroupPermissionsLinkDescriptor) SetFieldValue(value *GroupPermissionsLink,
 }
 
 type GroupPermissionsLinkFieldSet struct {
-	ID orm.AutoField[GroupPermissionsLink]
+	ID       orm.AutoField[GroupPermissionsLink]
+	SourceID orm.ForeignKeyField[GroupPermissionsLink]
+	TargetID orm.ForeignKeyField[GroupPermissionsLink]
 }
 
 var GroupPermissionsLinkFields = func() GroupPermissionsLinkFieldSet {
 	metadata := groupPermissionsLinkMetadata()
 	return GroupPermissionsLinkFieldSet{
-		ID: orm.NewAutoField[GroupPermissionsLink](metadata.Fields[0]),
+		ID:       orm.NewAutoField[GroupPermissionsLink](metadata.Fields[0]),
+		SourceID: orm.NewForeignKeyField[GroupPermissionsLink](metadata.Fields[1]),
+		TargetID: orm.NewForeignKeyField[GroupPermissionsLink](metadata.Fields[2]),
 	}
 }()
 
@@ -1591,13 +1595,17 @@ func (UserGroupsLinkDescriptor) SetFieldValue(value *UserGroupsLink, field ir.Fi
 }
 
 type UserGroupsLinkFieldSet struct {
-	ID orm.AutoField[UserGroupsLink]
+	ID       orm.AutoField[UserGroupsLink]
+	SourceID orm.ForeignKeyField[UserGroupsLink]
+	TargetID orm.ForeignKeyField[UserGroupsLink]
 }
 
 var UserGroupsLinkFields = func() UserGroupsLinkFieldSet {
 	metadata := userGroupsLinkMetadata()
 	return UserGroupsLinkFieldSet{
-		ID: orm.NewAutoField[UserGroupsLink](metadata.Fields[0]),
+		ID:       orm.NewAutoField[UserGroupsLink](metadata.Fields[0]),
+		SourceID: orm.NewForeignKeyField[UserGroupsLink](metadata.Fields[1]),
+		TargetID: orm.NewForeignKeyField[UserGroupsLink](metadata.Fields[2]),
 	}
 }()
 
@@ -1833,13 +1841,17 @@ func (UserPermissionsLinkDescriptor) SetFieldValue(value *UserPermissionsLink, f
 }
 
 type UserPermissionsLinkFieldSet struct {
-	ID orm.AutoField[UserPermissionsLink]
+	ID       orm.AutoField[UserPermissionsLink]
+	SourceID orm.ForeignKeyField[UserPermissionsLink]
+	TargetID orm.ForeignKeyField[UserPermissionsLink]
 }
 
 var UserPermissionsLinkFields = func() UserPermissionsLinkFieldSet {
 	metadata := userPermissionsLinkMetadata()
 	return UserPermissionsLinkFieldSet{
-		ID: orm.NewAutoField[UserPermissionsLink](metadata.Fields[0]),
+		ID:       orm.NewAutoField[UserPermissionsLink](metadata.Fields[0]),
+		SourceID: orm.NewForeignKeyField[UserPermissionsLink](metadata.Fields[1]),
+		TargetID: orm.NewForeignKeyField[UserPermissionsLink](metadata.Fields[2]),
 	}
 }()
 
@@ -1988,6 +2000,6 @@ func userPermissionsLinkMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_6f7db3055d02f9876abe3643e4d2ae973fc198051acff11353218653353146e4 struct{}
+type GoDjAppPart0_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94 struct{}
 
-type GoDjProjectSnapshot_02f4dd2f1336e37a064cacdf729fea0ddc59063138531aaf27bc65a5994d70a6 struct{}
+type GoDjProjectSnapshot_c535d5191c5a8dea5a466c1aa5840a8b602ac33e4a720f3d6ae65654375ce72b struct{}

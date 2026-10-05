@@ -44,8 +44,8 @@ func TestBulkUpdateReservesPredicateBudgetAndBindsCompiledSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	quote := func(value string) (string, error) { return `"` + value + `"`, nil }
-	selection := func(query.Plan) (queryplan.BulkUpdateSource, error) {
-		return queryplan.BulkUpdateSource{Selection: `SELECT "id" FROM "items" WHERE "amount" IN (?,?,?,?)`, Arguments: []any{1, 2, 3, 4}}, nil
+	selection := func(query.Plan) (queryplan.UpdateSource, error) {
+		return queryplan.UpdateSource{Selection: `SELECT "id" FROM "items" WHERE "amount" IN (?,?,?,?)`, Arguments: []any{1, 2, 3, 4}}, nil
 	}
 	parts, err := queryplan.PrepareBulkUpdate(spec, 10, selection, quote, quote, nil)
 	if err != nil || parts.BatchSize != 3 {
@@ -87,8 +87,8 @@ func TestBulkUpdateReservesPredicateBudgetAndBindsCompiledSource(t *testing.T) {
 	if err != nil || parts.BatchSize != query.MaximumBulkValues/2 {
 		t.Fatal("native budget escaped portable input bound", parts.BatchSize, err)
 	}
-	if _, err = queryplan.PrepareBulkUpdate(spec, 10, func(query.Plan) (queryplan.BulkUpdateSource, error) {
-		return queryplan.BulkUpdateSource{}, errors.New("uncompilable predicate")
+	if _, err = queryplan.PrepareBulkUpdate(spec, 10, func(query.Plan) (queryplan.UpdateSource, error) {
+		return queryplan.UpdateSource{}, errors.New("uncompilable predicate")
 	}, quote, quote, nil); err == nil {
 		t.Fatal("invalid source got a batch limit")
 	}

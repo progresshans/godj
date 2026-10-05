@@ -61,7 +61,7 @@ M2 product는 generated read model과 별개의 immutable create/patch builder�
 - generated input의 `BuildCreate`/`BuildPatch` 반환 타입은 `Mutation[M]`으로 model type을
   generic Manager에 결속합니다. Manager method는 receiver에 없는 새 type parameter를
   선언하지 않습니다.
-- 첫 public 단면은 `Manager.Create`, `Manager.Update`, `Manager.Delete`와 generated
+- 첫 public 단면은 `Manager.Create`, `Manager.Patch`, `Manager.Delete`와 generated
   input을 사용합니다. Mutable instance dirty map과 `Save()`는 채택하지 않습니다.
 - validation/coercion 오류는 DB I/O 전에 구조화된 error로 반환합니다.
 - Schema IR v2는 typed scalar default의 존재를 보존합니다. 현재 `Article.published`의
@@ -82,7 +82,7 @@ created, err := models.ArticleObjects.Create(
         WithSummary("Written"),
 )
 
-updated, err := models.ArticleObjects.Update(
+updated, err := models.ArticleObjects.Patch(
     ctx,
     backend,
     created,

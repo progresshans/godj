@@ -87,10 +87,10 @@ func runUserChangeModelValidation(t *testing.T, open func(*testing.T) (Transitio
 					boundary.before = func(ctx context.Context) error {
 						return second.CoordinatedAtomic(ctx, func(session db.Session) error {
 							if mode == "authority_changed" {
-								_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+								_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 								return err
 							}
-							_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithFirstName("Concurrent").WithRevision(2))
+							_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithFirstName("Concurrent").WithRevision(2))
 							return err
 						})
 					}

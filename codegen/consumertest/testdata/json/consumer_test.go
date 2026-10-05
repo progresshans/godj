@@ -364,7 +364,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 	verifyRelations(t, backend, again, sample, changedValue)
 	rollback := errors.New("JSON rollback")
 	err = backend.Atomic(ctx, func(session db.Session) error {
-		if _, err := models.RecordObjects.Update(ctx, session, again[2], models.RecordPatch{}.WithPayload(changedValue)); err != nil {
+		if _, err := models.RecordObjects.Patch(ctx, session, again[2], models.RecordPatch{}.WithPayload(changedValue)); err != nil {
 			return err
 		}
 		stored, found, err := models.RecordObjects.Using(session).Filter(models.RecordFields.ID.Exact(again[2].ID)).OrderBy(models.RecordFields.ID.Asc()).First(ctx)
@@ -376,7 +376,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 	if !errors.Is(err, rollback) || !slices.Equal(observe(), wantRows) {
 		t.Fatal("JSON rollback lost data", err)
 	}
-	changed, err := models.RecordObjects.Update(ctx, backend, again[2], models.RecordPatch{}.WithPayloadNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[2], models.RecordPatch{}.WithPayloadNull())
 	if err != nil || changed.Payload != nil || again[2].Payload == nil || *again[2].Payload != jsonvalue.Null() {
 		t.Fatal("JSON null patch mutated input", err)
 	}

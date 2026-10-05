@@ -69,7 +69,7 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 	case ir.FieldBoolean:
 		return fieldRenderSpec{"bool", "Boolean", "BooleanField", "NullableBooleanField", "sql.NullBool", "Bool", "ir.FieldBoolean"}
 	case ir.FieldForeignKey:
-		return fieldRenderSpec{"int64", "Integer", "", "", "sql.NullInt64", "Int64", "ir.FieldForeignKey"}
+		return fieldRenderSpec{"int64", "Integer", "ForeignKeyField", "NullableForeignKeyField", "sql.NullInt64", "Int64", "ir.FieldForeignKey"}
 	default:
 		// Public generators reject unsupported kinds through ir.Normalize before
 		// rendering. Keep this fallback invalid rather than guessing a type.

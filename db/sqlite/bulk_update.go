@@ -20,9 +20,9 @@ var (
 )
 
 func prepareBulkUpdate(spec query.BulkUpdateSpec) (queryplan.BulkUpdateParts, error) {
-	return queryplan.PrepareBulkUpdate(spec, sqliteBulkParameters, func(plan query.Plan) (queryplan.BulkUpdateSource, error) {
+	return queryplan.PrepareBulkUpdate(spec, sqliteBulkParameters, func(plan query.Plan) (queryplan.UpdateSource, error) {
 		statement, arguments, err := Compile(plan)
-		return queryplan.BulkUpdateSource{Selection: statement, Arguments: arguments}, err
+		return queryplan.UpdateSource{Selection: statement, Arguments: arguments}, err
 	}, quoteIdentifier, quoteIdentifier, sqliteIdentifierKey)
 }
 

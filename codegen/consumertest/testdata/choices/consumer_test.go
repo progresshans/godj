@@ -99,7 +99,7 @@ func TestGeneratedChoicesDoNotConstrainStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err = models.EntryObjects.Update(ctx, backend, row, models.EntryPatch{}.WithPriority(math.MaxInt64))
+	row, err = models.EntryObjects.Patch(ctx, backend, row, models.EntryPatch{}.WithPriority(math.MaxInt64))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -110,7 +110,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		backend, other := open(t)
 		f := newManagementFixture(t, backend, 260)
 		now := loginInstant
-		user, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithLastLogin(now))
+		user, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithLastLogin(now))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,7 +186,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 0)
 			now := loginInstant
-			row, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithLastLogin(now))
+			row, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithLastLogin(now))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -227,7 +227,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 				patch = patch.WithEncodedPassword(value)
 			}
 			if mode != "unchanged" {
-				if _, err := models.UserObjects.Update(t.Context(), backend, f.user, patch); err != nil {
+				if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, patch); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -512,7 +512,7 @@ func RunPasswordResetConcurrency(t *testing.T, open func(*testing.T) (Transition
 							patch = patch.WithEncodedPassword(encoded)
 						}
 						var err error
-						edited, err = models.UserObjects.Update(ctx, session, f.user, patch)
+						edited, err = models.UserObjects.Patch(ctx, session, f.user, patch)
 						return err
 					})
 					if err != nil {

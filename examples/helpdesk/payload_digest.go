@@ -27,7 +27,7 @@ func synchronizePayloadDigest(ctx context.Context, session db.Session, stored mo
 	if digest != nil {
 		patch = models.TicketPatch{}.WithExternalPayloadDigest(*digest)
 	}
-	return models.TicketObjects.Update(ctx, session, stored, patch)
+	return models.TicketObjects.Patch(ctx, session, stored, patch)
 }
 
 func samePayloadDigest(left, right *binaryvalue.Value) bool {

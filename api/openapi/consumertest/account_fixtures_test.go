@@ -56,7 +56,7 @@ func newAccountConsumerFixture(t *testing.T) (accountServerInput, []byte, func(*
 	if err != nil || !found {
 		t.Fatal("reset fixture account absent", err)
 	}
-	if _, err = models.UserObjects.Update(ctx, backend, row, models.UserPatch{}.WithEmail(input.Email)); err != nil {
+	if _, err = models.UserObjects.Patch(ctx, backend, row, models.UserPatch{}.WithEmail(input.Email)); err != nil {
 		t.Fatal(err)
 	}
 	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher, MaxSessions: 32})

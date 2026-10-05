@@ -263,7 +263,7 @@ func (a *Application) updateTicketLabel(ctx context.Context, id int64, patch mod
 		if !violations.Empty() {
 			return validation.Reject(violations, nil)
 		}
-		updated, err = models.TicketLabelObjects.Update(ctx, session, current, patch)
+		updated, err = models.TicketLabelObjects.Patch(ctx, session, current, patch)
 		if err != nil {
 			return writeRejection(err)
 		}

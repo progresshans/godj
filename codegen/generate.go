@@ -21,7 +21,7 @@ import (
 	"github.com/progresshans/godj/uuid"
 )
 
-const GeneratorVersion = "godj-codegen-current-v2"
+const GeneratorVersion = "godj-codegen-current-v3"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
@@ -325,9 +325,6 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 
 	fmt.Fprintf(output, "type %s struct {\n", fieldSetName)
 	for _, field := range model.Fields {
-		if field.Kind == ir.FieldForeignKey {
-			continue
-		}
 		fmt.Fprintf(output, "\t%s %s\n", field.GoName, ormFieldType(model.GoName, field))
 	}
 	fmt.Fprintln(output, "}")
@@ -336,9 +333,6 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "\tmetadata := %s()\n", metadataFunction)
 	fmt.Fprintf(output, "\treturn %s{\n", fieldSetName)
 	for index, field := range model.Fields {
-		if field.Kind == ir.FieldForeignKey {
-			continue
-		}
 		fmt.Fprintf(output, "\t\t%s: %s(metadata.Fields[%d]),\n", field.GoName, ormFieldConstructor(model.GoName, field), index)
 	}
 	fmt.Fprintln(output, "\t}")

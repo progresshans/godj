@@ -68,7 +68,7 @@ func RunAuthentication(t *testing.T, backend DirectoryBackend) {
 			for _, superuser := range []bool{false, true} {
 				key := fmt.Sprintf("%d%d%d", boolNumber(active), boolNumber(staff), boolNumber(superuser))
 				t.Run("roles_"+key, func(t *testing.T) {
-					if _, err := models.UserObjects.Update(ctx, backend, user, models.UserPatch{}.WithActive(active).WithStaff(staff).WithSuperuser(superuser)); err != nil {
+					if _, err := models.UserObjects.Patch(ctx, backend, user, models.UserPatch{}.WithActive(active).WithStaff(staff).WithSuperuser(superuser)); err != nil {
 						t.Fatal(err)
 					}
 					credential, err := authenticator.Authenticate(ctx, "member", "original password")
@@ -82,7 +82,7 @@ func RunAuthentication(t *testing.T, backend DirectoryBackend) {
 			}
 		}
 	}
-	if _, err := models.UserObjects.Update(ctx, backend, user, models.UserPatch{}.WithActive(true).WithStaff(false).WithSuperuser(false)); err != nil {
+	if _, err := models.UserObjects.Patch(ctx, backend, user, models.UserPatch{}.WithActive(true).WithStaff(false).WithSuperuser(false)); err != nil {
 		t.Fatal(err)
 	}
 	for _, mode := range []string{"password", "rehash", "username", "inactive", "deleted", "authorization"} {
@@ -126,7 +126,7 @@ func RunAuthentication(t *testing.T, backend DirectoryBackend) {
 					case "authorization":
 						patch = patch.WithStaff(true).WithSuperuser(true)
 					}
-					_, err := models.UserObjects.Update(ctx, session, target, patch)
+					_, err := models.UserObjects.Patch(ctx, session, target, patch)
 					return err
 				})
 			}}

@@ -331,7 +331,7 @@ func TestBulkUpdateReference(t *testing.T) {
 						// A surrounding write must survive the failed child's savepoint.
 						group := owners.NewBulkReferenceGroupWithID(1)
 						group.Name = "parent survives"
-						if _, err := owners.BulkReferenceGroupObjects.Update(ctx, session, group, owners.BulkReferenceGroupPatch{}.WithName(group.Name)); err != nil {
+						if _, err := owners.BulkReferenceGroupObjects.Patch(ctx, session, group, owners.BulkReferenceGroupPatch{}.WithName(group.Name)); err != nil {
 							return err
 						}
 						count, callErr = manager.BulkUpdate(ctx, session, values, options...)

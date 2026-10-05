@@ -351,7 +351,7 @@ func runGeneratedPrecisionEvolution(t *testing.T, open func(context.Context) (de
 		t.Fatal("new generated scanner lost existing cost", err)
 	}
 	large := number(t, "999999999999.99")
-	row, err = nextmodels.RecordObjects.Update(ctx, backend, row, nextmodels.RecordPatch{}.WithCost(large))
+	row, err = nextmodels.RecordObjects.Patch(ctx, backend, row, nextmodels.RecordPatch{}.WithCost(large))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +373,7 @@ func runGeneratedPrecisionEvolution(t *testing.T, open func(context.Context) (de
 	if err := second.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := nextmodels.RecordObjects.Update(ctx, backend, stored, nextmodels.RecordPatch{}.WithCost(fraction)); err != nil {
+	if _, err := nextmodels.RecordObjects.Patch(ctx, backend, stored, nextmodels.RecordPatch{}.WithCost(fraction)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := executor.Migrate(ctx, loaded, initial); err != nil {

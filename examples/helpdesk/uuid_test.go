@@ -34,7 +34,7 @@ func verifyHistoricalExternalReferenceGrowth(t *testing.T, ctx context.Context, 
 		t.Fatal("nullable UUID addition invented a value")
 	}
 	sample := uuid.UUID{0: 0x80, 15: 1}
-	if _, err := models.TicketObjects.Update(ctx, backend, before, models.TicketPatch{}.WithExternalReference(sample)); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, before, models.TicketPatch{}.WithExternalReference(sample)); err != nil {
 		t.Fatal(err)
 	}
 	second, err := open(ctx)

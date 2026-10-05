@@ -43,10 +43,10 @@ func executePreparedCreate[M any](ctx context.Context, backend db.Mutator, write
 	return value, true, nil
 }
 
-// Update applies only fields explicitly present in the generated patch. The
+// Patch applies only fields explicitly present in the generated patch. The
 // model's hidden primary-key presence flag, not ID's numeric zero value,
 // determines whether an instance is eligible for an update.
-func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, input PatchInput[M]) (M, error) {
+func (m Manager[M]) Patch(ctx context.Context, backend db.Mutator, current M, input PatchInput[M]) (M, error) {
 	var zero M
 	write, err := m.prepareUpdate(ctx, backend, current, input)
 	if err != nil {

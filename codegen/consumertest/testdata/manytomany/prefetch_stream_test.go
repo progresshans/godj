@@ -350,7 +350,7 @@ func runMaterializedStream(t *testing.T, b collectionBackend, _ func() (collecti
 			check(t, view.Set(callCtx, targets))
 			made, e := owners.OwnerObjects.Create(callCtx, probe, owners.NewOwnerCreate("temporary"))
 			check(t, e)
-			made, e = owners.OwnerObjects.Update(callCtx, probe, made, owners.OwnerPatch{}.WithName("temporary-updated"))
+			made, e = owners.OwnerObjects.Patch(callCtx, probe, made, owners.OwnerPatch{}.WithName("temporary-updated"))
 			check(t, e)
 			_, e = owners.OwnerObjects.Delete(callCtx, probe, &made)
 			check(t, e)

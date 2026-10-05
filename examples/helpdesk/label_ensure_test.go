@@ -104,7 +104,7 @@ func (s *ensureLabelSession) Savepoint(ctx context.Context, callback func(db.Ses
 		if err != nil {
 			return err
 		}
-		_, err = models.LabelObjects.Update(ctx, s.Session, value, models.LabelPatch{}.WithCategoryID(s.owner.outside))
+		_, err = models.LabelObjects.Patch(ctx, s.Session, value, models.LabelPatch{}.WithCategoryID(s.owner.outside))
 		return err
 	}
 	return err

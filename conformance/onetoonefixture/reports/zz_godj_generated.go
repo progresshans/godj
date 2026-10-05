@@ -17,7 +17,7 @@ import (
 	_godjtime "time"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 type Report struct {
@@ -107,15 +107,17 @@ func (ReportDescriptor) SetFieldValue(value *Report, field ir.Field, input query
 }
 
 type ReportFieldSet struct {
-	ID   orm.AutoField[Report]
-	Note orm.StringField[Report]
+	ID       orm.AutoField[Report]
+	TicketID orm.ForeignKeyField[Report]
+	Note     orm.StringField[Report]
 }
 
 var ReportFields = func() ReportFieldSet {
 	metadata := reportMetadata()
 	return ReportFieldSet{
-		ID:   orm.NewAutoField[Report](metadata.Fields[0]),
-		Note: orm.NewStringField[Report](metadata.Fields[2]),
+		ID:       orm.NewAutoField[Report](metadata.Fields[0]),
+		TicketID: orm.NewForeignKeyField[Report](metadata.Fields[1]),
+		Note:     orm.NewStringField[Report](metadata.Fields[2]),
 	}
 }()
 
@@ -360,15 +362,17 @@ func (OptionalReportDescriptor) SetFieldValue(value *OptionalReport, field ir.Fi
 }
 
 type OptionalReportFieldSet struct {
-	ID   orm.AutoField[OptionalReport]
-	Note orm.StringField[OptionalReport]
+	ID       orm.AutoField[OptionalReport]
+	TicketID orm.NullableForeignKeyField[OptionalReport]
+	Note     orm.StringField[OptionalReport]
 }
 
 var OptionalReportFields = func() OptionalReportFieldSet {
 	metadata := optionalReportMetadata()
 	return OptionalReportFieldSet{
-		ID:   orm.NewAutoField[OptionalReport](metadata.Fields[0]),
-		Note: orm.NewStringField[OptionalReport](metadata.Fields[2]),
+		ID:       orm.NewAutoField[OptionalReport](metadata.Fields[0]),
+		TicketID: orm.NewNullableForeignKeyField[OptionalReport](metadata.Fields[1]),
+		Note:     orm.NewStringField[OptionalReport](metadata.Fields[2]),
 	}
 }()
 
@@ -630,15 +634,17 @@ func (LinkDescriptor) SetFieldValue(value *Link, field ir.Field, input query.Val
 }
 
 type LinkFieldSet struct {
-	ID    orm.AutoField[Link]
-	Label orm.StringField[Link]
+	ID       orm.AutoField[Link]
+	TicketID orm.ForeignKeyField[Link]
+	Label    orm.StringField[Link]
 }
 
 var LinkFields = func() LinkFieldSet {
 	metadata := linkMetadata()
 	return LinkFieldSet{
-		ID:    orm.NewAutoField[Link](metadata.Fields[0]),
-		Label: orm.NewStringField[Link](metadata.Fields[2]),
+		ID:       orm.NewAutoField[Link](metadata.Fields[0]),
+		TicketID: orm.NewForeignKeyField[Link](metadata.Fields[1]),
+		Label:    orm.NewStringField[Link](metadata.Fields[2]),
 	}
 }()
 
@@ -867,15 +873,17 @@ func (CertificateDescriptor) SetFieldValue(value *Certificate, field ir.Field, i
 }
 
 type CertificateFieldSet struct {
-	ID   orm.AutoField[Certificate]
-	Seal orm.StringField[Certificate]
+	ID       orm.AutoField[Certificate]
+	ReportID orm.ForeignKeyField[Certificate]
+	Seal     orm.StringField[Certificate]
 }
 
 var CertificateFields = func() CertificateFieldSet {
 	metadata := certificateMetadata()
 	return CertificateFieldSet{
-		ID:   orm.NewAutoField[Certificate](metadata.Fields[0]),
-		Seal: orm.NewStringField[Certificate](metadata.Fields[2]),
+		ID:       orm.NewAutoField[Certificate](metadata.Fields[0]),
+		ReportID: orm.NewForeignKeyField[Certificate](metadata.Fields[1]),
+		Seal:     orm.NewStringField[Certificate](metadata.Fields[2]),
 	}
 }()
 
@@ -1407,6 +1415,7 @@ func (ReviewDescriptor) SetFieldValue(value *Review, field ir.Field, input query
 
 type ReviewFieldSet struct {
 	ID       orm.AutoField[Review]
+	TicketID orm.ForeignKeyField[Review]
 	Score    orm.NullableIntegerField[Review]
 	Title    orm.NullableStringField[Review]
 	Body     orm.NullableStringField[Review]
@@ -1425,6 +1434,7 @@ var ReviewFields = func() ReviewFieldSet {
 	metadata := reviewMetadata()
 	return ReviewFieldSet{
 		ID:       orm.NewAutoField[Review](metadata.Fields[0]),
+		TicketID: orm.NewForeignKeyField[Review](metadata.Fields[1]),
 		Score:    orm.NewNullableIntegerField[Review](metadata.Fields[2]),
 		Title:    orm.NewNullableStringField[Review](metadata.Fields[3]),
 		Body:     orm.NewNullableStringField[Review](metadata.Fields[4]),
@@ -2387,6 +2397,6 @@ func reviewMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_872b95720f356321adcc98691414069f9f65625e3e9dae0fae094956f738aa3a struct{}
+type GoDjAppPart0_a4c53adb16934b25c97ccf795708445120c8f8071103a96da1669d19eef9079a struct{}
 
-type GoDjProjectSnapshot_866753febe66486fa2bbe0f28f8140f533796af59f1f67f96853515cdf82ae92 struct{}
+type GoDjProjectSnapshot_8c1b34c0aae59f93301acefb341e2a80a453387479637b3a53f6e841ac7a686f struct{}

@@ -321,7 +321,7 @@ func RunPasswordResetConsumerAcknowledgement(t *testing.T, open func(*testing.T)
 				f := newManagementFixture(t, backend, 3)
 				switch mode {
 				case "inactive":
-					if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false)); err != nil {
+					if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false)); err != nil {
 						t.Fatal(err)
 					}
 				case "unusable":
@@ -329,7 +329,7 @@ func RunPasswordResetConsumerAcknowledgement(t *testing.T, open func(*testing.T)
 					if err != nil {
 						t.Fatal(err)
 					}
-					if _, err = models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithEncodedPassword(unusable)); err != nil {
+					if _, err = models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithEncodedPassword(unusable)); err != nil {
 						t.Fatal(err)
 					}
 				}

@@ -256,7 +256,7 @@ func (b *ticketLabelFaultBackend) Atomic(ctx context.Context, fn func(db.Session
 			if b.moveTicket != 0 {
 				patch = patch.WithCategoryID(b.moveCategory)
 			}
-			if _, err := models.TicketObjects.Update(ctx, session, row, patch); err != nil {
+			if _, err := models.TicketObjects.Patch(ctx, session, row, patch); err != nil {
 				return err
 			}
 		}
@@ -268,7 +268,7 @@ func (b *ticketLabelFaultBackend) Atomic(ctx context.Context, fn func(db.Session
 			if !found {
 				return errors.New("staged label absent")
 			}
-			if _, err := models.LabelObjects.Update(ctx, session, row, models.LabelPatch{}.WithCategoryID(b.moveCategory)); err != nil {
+			if _, err := models.LabelObjects.Patch(ctx, session, row, models.LabelPatch{}.WithCategoryID(b.moveCategory)); err != nil {
 				return err
 			}
 		}

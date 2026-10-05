@@ -117,13 +117,13 @@ func CheckCompositeValidation(t *testing.T, backend interface {
 	self := CompositeInput{Model: model, Value: sample, PatchValue: true}
 	diagnostics, err = manager.ValidateUniqueUpdate(ctx, backend, current, self)
 	check(t, diagnostics, err, false)
-	if _, err := manager.Update(ctx, backend, current, self); err != nil {
+	if _, err := manager.Patch(ctx, backend, current, self); err != nil {
 		t.Fatal("self update", err)
 	}
 	conflict := CompositeInput{Model: model, Bucket: query.Integer(1), PatchBucket: true}
 	diagnostics, err = manager.ValidateUniqueUpdate(ctx, backend, current, conflict)
 	check(t, diagnostics, err, true)
-	if _, err := manager.Update(ctx, backend, current, conflict); !errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniqueConstraint}) {
+	if _, err := manager.Patch(ctx, backend, current, conflict); !errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniqueConstraint}) {
 		t.Fatal("partial update ignored retained value", err)
 	}
 	for _, pair := range [][2]query.Value{{query.Null(), sample}, {query.Integer(1), query.Null()}, {query.Null(), query.Null()}} {

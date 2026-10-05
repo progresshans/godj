@@ -170,7 +170,7 @@ func (manager *Manager) UpdateGroup(ctx context.Context, actor auth.Principal, i
 		if !violations.Empty() {
 			return GroupDetails{}, validation.Reject(violations, nil)
 		}
-		updated, err := models.GroupObjects.Update(ctx, session, row, patch)
+		updated, err := models.GroupObjects.Patch(ctx, session, row, patch)
 		if err != nil {
 			return GroupDetails{}, err
 		}

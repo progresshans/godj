@@ -11,10 +11,10 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-// BulkUpdateSource is compiled by the dialect. A direct predicate preserves
+// UpdateSource is compiled by the dialect. A direct predicate preserves
 // native UPDATE rechecks after a PostgreSQL lock wait; a joined selection keeps
 // statement-snapshot membership. Where includes its leading WHERE, if present.
-type BulkUpdateSource struct {
+type UpdateSource struct {
 	Selection, Where, Alias string
 	Arguments               []any
 	Direct                  bool
@@ -32,7 +32,7 @@ type BulkUpdateParts struct {
 	BatchSize                    int
 }
 
-func PrepareBulkUpdate(spec query.BulkUpdateSpec, parameterLimit int, compileSource func(query.Plan) (BulkUpdateSource, error), quoteTable, quoteIdentifier func(string) (string, error), columnKey func(string) string) (BulkUpdateParts, error) {
+func PrepareBulkUpdate(spec query.BulkUpdateSpec, parameterLimit int, compileSource func(query.Plan) (UpdateSource, error), quoteTable, quoteIdentifier func(string) (string, error), columnKey func(string) string) (BulkUpdateParts, error) {
 	var zero BulkUpdateParts
 	if err := spec.Validate(); err != nil {
 		return zero, err

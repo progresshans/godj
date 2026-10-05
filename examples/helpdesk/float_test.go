@@ -130,7 +130,7 @@ func verifyHelpdeskFloat(t *testing.T, ctx context.Context, runtime *systemstate
 	// JSON and Admin projections must fail explicitly instead of emitting NULL
 	// or invalid JSON. A failed read must leave the stored value intact.
 	for _, number := range []float64{math.Inf(1), math.Inf(-1)} {
-		outside, err := models.TicketObjects.Update(ctx, runtime, baseline, models.TicketPatch{}.WithEffort(number))
+		outside, err := models.TicketObjects.Patch(ctx, runtime, baseline, models.TicketPatch{}.WithEffort(number))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,7 +141,7 @@ func verifyHelpdeskFloat(t *testing.T, ctx context.Context, runtime *systemstate
 				t.Fatalf("nonfinite model output did not fail without mutation: %s status=%d", target, response.Code)
 			}
 		}
-		if _, err := models.TicketObjects.Update(ctx, runtime, outside, models.TicketPatch{}.WithEffort(*baseline.Effort)); err != nil {
+		if _, err := models.TicketObjects.Patch(ctx, runtime, outside, models.TicketPatch{}.WithEffort(*baseline.Effort)); err != nil {
 			t.Fatal(err)
 		}
 	}

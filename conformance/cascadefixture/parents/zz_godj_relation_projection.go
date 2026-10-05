@@ -263,6 +263,6 @@ func (_scan *rootLabelsProjectionScan) Decode() (RootLabels, query.Value, orm.Pr
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_2f75e5e49a10bf0f66c91691387e5bce9d25117950a03a499f17f18f030d7e70 struct{}
+type GoDjAppPart3_1d0e13b4483d01ac5d344fa821ef7880f63a228b0682d6f2a1c3a446c2e0ae0d struct{}
 
-var _ GoDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c
+var _ GoDjProjectSnapshot_c42ca33e024f651b7cef8778643bb4200b7bf0e6aed0ec5f1d9e9e44ba916c16

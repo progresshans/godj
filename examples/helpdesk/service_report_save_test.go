@@ -54,7 +54,7 @@ func (b *reportSaveBackend) Atomic(ctx context.Context, callback func(db.Session
 			if err != nil {
 				return err
 			}
-			_, err = models.TicketObjects.Update(ctx, session, value, models.TicketPatch{}.WithCategoryID(b.outsideCategory))
+			_, err = models.TicketObjects.Patch(ctx, session, value, models.TicketPatch{}.WithCategoryID(b.outsideCategory))
 			if err != nil {
 				return err
 			}
@@ -116,7 +116,7 @@ func (s reportSaveSession) Savepoint(ctx context.Context, callback func(db.Sessi
 		if err != nil {
 			return err
 		}
-		_, err = models.ServiceReportObjects.Update(ctx, s.Session, value, models.ServiceReportPatch{}.WithTicketID(s.owner.outsideTicket))
+		_, err = models.ServiceReportObjects.Patch(ctx, s.Session, value, models.ServiceReportPatch{}.WithTicketID(s.owner.outsideTicket))
 		return err
 	}
 	return err

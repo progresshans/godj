@@ -145,7 +145,7 @@ func TestDateTimeStorageAndQuery(t *testing.T) {
 	if _, err := orm.ParseDynamic(models.EventDescriptor{}, nil, []orm.LookupInput{{Key: "time", Value: "2026-09-19T03:34:56Z"}}); err == nil {
 		t.Fatal("dynamic query implicitly parsed a string as time")
 	}
-	changed, err := models.EventObjects.Update(ctx, backend, created[1], models.EventPatch{}.WithOptional(offset))
+	changed, err := models.EventObjects.Patch(ctx, backend, created[1], models.EventPatch{}.WithOptional(offset))
 	if err != nil || changed.Optional == nil || *changed.Optional != scheduled() {
 		t.Fatalf("nullable datetime patch: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestDateTimeStorageAndQuery(t *testing.T) {
 	}
 	before := backend.writes
 	invalid := time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := models.EventObjects.Update(ctx, backend, stored, models.EventPatch{}.WithTime(invalid)); err == nil || backend.writes != before {
+	if _, err := models.EventObjects.Patch(ctx, backend, stored, models.EventPatch{}.WithTime(invalid)); err == nil || backend.writes != before {
 		t.Fatal("invalid datetime update reached I/O")
 	}
 	canceled, cancel := context.WithCancel(ctx)
@@ -190,7 +190,7 @@ func TestDateTimeStorageAndQuery(t *testing.T) {
 	if _, err := models.EventObjects.Create(canceled, backend, models.NewEventCreate(minimum)); !errors.Is(err, context.Canceled) || backend.writes != before {
 		t.Fatal("canceled datetime Create reached storage")
 	}
-	cleared, err := models.EventObjects.Update(ctx, backend, stored, models.EventPatch{}.WithOptionalNull())
+	cleared, err := models.EventObjects.Patch(ctx, backend, stored, models.EventPatch{}.WithOptionalNull())
 	if err != nil || cleared.Optional != nil {
 		t.Fatal("datetime null patch failed")
 	}

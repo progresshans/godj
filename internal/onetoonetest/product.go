@@ -330,7 +330,7 @@ func RunProduct(t *testing.T, backend ProductBackend) {
 	}
 
 	duplicate := backend.Atomic(ctx, func(session db.Session) error {
-		if _, err := tickets.TicketObjects.Update(ctx, session, second, (tickets.TicketPatch{}).WithSubject("must rollback")); err != nil {
+		if _, err := tickets.TicketObjects.Patch(ctx, session, second, (tickets.TicketPatch{}).WithSubject("must rollback")); err != nil {
 			return err
 		}
 		_, err := reports.ReportObjects.Create(ctx, session, reports.NewReportCreate(first.ID, "duplicate"))

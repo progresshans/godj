@@ -532,7 +532,7 @@ func updateTicketScalars(ctx context.Context, session db.Session, current models
 	if !violations.Empty() {
 		return models.Ticket{}, nil, validation.Reject(violations, nil)
 	}
-	updated, err := models.TicketObjects.Update(ctx, session, current, patch)
+	updated, err := models.TicketObjects.Patch(ctx, session, current, patch)
 	if err != nil {
 		return models.Ticket{}, nil, writeRejection(err)
 	}

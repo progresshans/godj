@@ -103,7 +103,7 @@ func verifyHelpdeskBulkUpdates(t *testing.T, ctx context.Context, runtime *syste
 						oldLinks[keys[index]] = collectionLinks(t, ctx, runtime, keys[index])
 					}
 					if mode == "stored_foreign_labels" || mode == "unchanged_foreign_labels" {
-						if _, err := models.LabelObjects.Update(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(outside.ID)); err != nil {
+						if _, err := models.LabelObjects.Patch(ctx, runtime, label, models.LabelPatch{}.WithCategoryID(outside.ID)); err != nil {
 							t.Fatal(err)
 						}
 					}

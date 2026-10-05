@@ -45,7 +45,7 @@ func verifyHistoricalJSONGrowth(t *testing.T, ctx context.Context, backend helpd
 		t.Fatal("nullable JSON migration invented a value")
 	}
 	sample := helpdeskJSON(t, `{"": [340282366920938463463374607431768211455,null,false]}`)
-	if _, err := models.TicketObjects.Update(ctx, backend, before, models.TicketPatch{}.WithExternalPayload(sample)); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, before, models.TicketPatch{}.WithExternalPayload(sample)); err != nil {
 		t.Fatal(err)
 	}
 	second, err := open(ctx)
@@ -195,7 +195,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	}
 	// SQL NULL and stored JSON null have the same form display, but the
 	// existing model tag must survive an unchanged form and sibling update.
-	if _, err := models.TicketObjects.Update(ctx, runtime, read(), models.TicketPatch{}.WithExternalPayload(jsonvalue.Null())); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, runtime, read(), models.TicketPatch{}.WithExternalPayload(jsonvalue.Null())); err != nil {
 		t.Fatal(err)
 	}
 	form.Set("external_payload", "null")

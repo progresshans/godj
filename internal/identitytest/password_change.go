@@ -167,7 +167,7 @@ func RunPasswordChange(t *testing.T, open func(*testing.T) (TransitionBackend, T
 	t.Run("ordinary_user_preserves_current_revokes_others_and_reopens", func(t *testing.T) {
 		backend, other := open(t)
 		f := newManagementFixture(t, backend, 260)
-		if _, err := models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false).WithLastLogin(loginInstant)); err != nil {
+		if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithStaff(false).WithLastLogin(loginInstant)); err != nil {
 			t.Fatal(err)
 		}
 		runtime, _, provider, previous := passwordChangeBinding(t, f, backend)
@@ -286,9 +286,9 @@ func RunPasswordChange(t *testing.T, open func(*testing.T) (TransitionBackend, T
 					t.Fatal(err)
 				}
 			case "inactive":
-				_, err = models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false))
+				_, err = models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false))
 			case "unusable":
-				_, err = models.UserObjects.Update(t.Context(), backend, f.user, models.UserPatch{}.WithEncodedPassword("!disabled"))
+				_, err = models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithEncodedPassword("!disabled"))
 			case "canceled":
 				cancel()
 			case "nil_context":

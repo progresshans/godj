@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
 var _ orm.ProjectionDescriptor[details.Child] = details.ChildDescriptor{}
 var _ orm.ProjectionDescriptor[details.Detail] = details.DetailDescriptor{}
@@ -31,6 +31,8 @@ var _ orm.ProjectionDescriptor[parents.Root] = parents.RootDescriptor{}
 var _ orm.ProjectionDescriptor[parents.RootLabels] = parents.RootLabelsDescriptor{}
 
 type relationSelectQuery[M, O any] interface {
+	Update(context.Context, ...orm.UpdateAssignment[M]) (int64, error)
+	UpdateDynamic(context.Context, ...orm.DynamicUpdateInput) (int64, error)
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	Get(context.Context) (*O, error)
@@ -197,6 +199,12 @@ func (_query DetailsChildSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsChildSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Child]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsChildSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query DetailsChildSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Child, _options ...orm.BulkUpdateOption[details.Child]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -437,6 +445,12 @@ func (_query DetailsDetailSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query DetailsDetailSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Detail]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsDetailSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query DetailsDetailSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Detail, _options ...orm.BulkUpdateOption[details.Detail]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -676,6 +690,12 @@ func (_query DetailsGrandchildSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query DetailsGrandchildSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Grandchild]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsGrandchildSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query DetailsGrandchildSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Grandchild, _options ...orm.BulkUpdateOption[details.Grandchild]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -914,6 +934,12 @@ func (_query DetailsHiddenSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsHiddenSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Hidden]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsHiddenSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query DetailsHiddenSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Hidden, _options ...orm.BulkUpdateOption[details.Hidden]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -1172,6 +1198,12 @@ func (_query DetailsOverlapSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsOverlapSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Overlap]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsOverlapSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query DetailsOverlapSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Overlap, _options ...orm.BulkUpdateOption[details.Overlap]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -1445,6 +1477,12 @@ func (_query DetailsProtectedSelectRelatedQuery) GetOrCreate(_ctx context.Contex
 	}
 	return _object, _created, nil
 }
+func (_query DetailsProtectedSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Protected]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsProtectedSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query DetailsProtectedSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Protected, _options ...orm.BulkUpdateOption[details.Protected]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1684,6 +1722,12 @@ func (_query DetailsRequiredRightSelectRelatedQuery) GetOrCreate(_ctx context.Co
 	}
 	return _object, _created, nil
 }
+func (_query DetailsRequiredRightSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.RequiredRight]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsRequiredRightSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query DetailsRequiredRightSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.RequiredRight, _options ...orm.BulkUpdateOption[details.RequiredRight]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -1922,6 +1966,12 @@ func (_query DetailsRightSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsRightSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Right]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsRightSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query DetailsRightSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Right, _options ...orm.BulkUpdateOption[details.Right]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -2180,6 +2230,12 @@ func (_query DetailsTwinSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsTwinSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Twin]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsTwinSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query DetailsTwinSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Twin, _options ...orm.BulkUpdateOption[details.Twin]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -2453,6 +2509,12 @@ func (_query DetailsWatcherSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query DetailsWatcherSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[details.Watcher]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query DetailsWatcherSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query DetailsWatcherSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Watcher, _options ...orm.BulkUpdateOption[details.Watcher]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -2691,6 +2753,12 @@ func (_query ParentsLeftSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ParentsLeftSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[parents.Left]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ParentsLeftSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query ParentsLeftSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Left, _options ...orm.BulkUpdateOption[parents.Left]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -2931,6 +2999,12 @@ func (_query ParentsNodeSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ParentsNodeSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[parents.Node]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ParentsNodeSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query ParentsNodeSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Node, _options ...orm.BulkUpdateOption[parents.Node]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -3170,6 +3244,12 @@ func (_query ParentsRequiredLeftSelectRelatedQuery) GetOrCreate(_ctx context.Con
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRequiredLeftSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[parents.RequiredLeft]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ParentsRequiredLeftSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query ParentsRequiredLeftSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RequiredLeft, _options ...orm.BulkUpdateOption[parents.RequiredLeft]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -3408,6 +3488,12 @@ func (_query ParentsRootSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ParentsRootSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[parents.Root]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ParentsRootSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
 }
 func (_query ParentsRootSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Root, _options ...orm.BulkUpdateOption[parents.Root]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
@@ -3660,6 +3746,12 @@ func (_query ParentsRootLabelsSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRootLabelsSelectRelatedQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[parents.RootLabels]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Update(_ctx, _assignments...)
+}
+func (_query ParentsRootLabelsSelectRelatedQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).UpdateDynamic(_ctx, _inputs...)
+}
 func (_query ParentsRootLabelsSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RootLabels, _options ...orm.BulkUpdateOption[parents.RootLabels]) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
@@ -3750,4 +3842,4 @@ func (_object *ParentsRootLabelsObject) RootObject(_ctx context.Context) (*Paren
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c
+var _ goDjProjectSnapshot_c42ca33e024f651b7cef8778643bb4200b7bf0e6aed0ec5f1d9e9e44ba916c16

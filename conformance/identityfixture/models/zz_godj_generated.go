@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "4586501d40de0ee78b7baca7b389a255b40c94847d5b63799f3320f502171875"
 
 type Note struct {
@@ -100,15 +100,17 @@ func (NoteDescriptor) SetFieldValue(value *Note, field ir.Field, input query.Val
 }
 
 type NoteFieldSet struct {
-	ID   orm.AutoField[Note]
-	Text orm.StringField[Note]
+	ID      orm.AutoField[Note]
+	Text    orm.StringField[Note]
+	OwnerID orm.ForeignKeyField[Note]
 }
 
 var NoteFields = func() NoteFieldSet {
 	metadata := noteMetadata()
 	return NoteFieldSet{
-		ID:   orm.NewAutoField[Note](metadata.Fields[0]),
-		Text: orm.NewStringField[Note](metadata.Fields[1]),
+		ID:      orm.NewAutoField[Note](metadata.Fields[0]),
+		Text:    orm.NewStringField[Note](metadata.Fields[1]),
+		OwnerID: orm.NewForeignKeyField[Note](metadata.Fields[2]),
 	}
 }()
 
@@ -326,13 +328,15 @@ func (GuardDescriptor) SetFieldValue(value *Guard, field ir.Field, input query.V
 }
 
 type GuardFieldSet struct {
-	ID orm.AutoField[Guard]
+	ID      orm.AutoField[Guard]
+	OwnerID orm.ForeignKeyField[Guard]
 }
 
 var GuardFields = func() GuardFieldSet {
 	metadata := guardMetadata()
 	return GuardFieldSet{
-		ID: orm.NewAutoField[Guard](metadata.Fields[0]),
+		ID:      orm.NewAutoField[Guard](metadata.Fields[0]),
+		OwnerID: orm.NewForeignKeyField[Guard](metadata.Fields[1]),
 	}
 }()
 
@@ -551,15 +555,19 @@ func (AccessNoteDescriptor) SetFieldValue(value *AccessNote, field ir.Field, inp
 }
 
 type AccessNoteFieldSet struct {
-	ID   orm.AutoField[AccessNote]
-	Text orm.StringField[AccessNote]
+	ID           orm.AutoField[AccessNote]
+	Text         orm.StringField[AccessNote]
+	GroupID      orm.NullableForeignKeyField[AccessNote]
+	PermissionID orm.ForeignKeyField[AccessNote]
 }
 
 var AccessNoteFields = func() AccessNoteFieldSet {
 	metadata := accessNoteMetadata()
 	return AccessNoteFieldSet{
-		ID:   orm.NewAutoField[AccessNote](metadata.Fields[0]),
-		Text: orm.NewStringField[AccessNote](metadata.Fields[1]),
+		ID:           orm.NewAutoField[AccessNote](metadata.Fields[0]),
+		Text:         orm.NewStringField[AccessNote](metadata.Fields[1]),
+		GroupID:      orm.NewNullableForeignKeyField[AccessNote](metadata.Fields[2]),
+		PermissionID: orm.NewForeignKeyField[AccessNote](metadata.Fields[3]),
 	}
 }()
 
@@ -892,13 +900,17 @@ func (AccessGuardDescriptor) SetFieldValue(value *AccessGuard, field ir.Field, i
 }
 
 type AccessGuardFieldSet struct {
-	ID orm.AutoField[AccessGuard]
+	ID           orm.AutoField[AccessGuard]
+	GroupID      orm.NullableForeignKeyField[AccessGuard]
+	PermissionID orm.NullableForeignKeyField[AccessGuard]
 }
 
 var AccessGuardFields = func() AccessGuardFieldSet {
 	metadata := accessGuardMetadata()
 	return AccessGuardFieldSet{
-		ID: orm.NewAutoField[AccessGuard](metadata.Fields[0]),
+		ID:           orm.NewAutoField[AccessGuard](metadata.Fields[0]),
+		GroupID:      orm.NewNullableForeignKeyField[AccessGuard](metadata.Fields[1]),
+		PermissionID: orm.NewNullableForeignKeyField[AccessGuard](metadata.Fields[2]),
 	}
 }()
 
@@ -1109,6 +1121,6 @@ func accessGuardMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_09c241e0159bd3d214980a40009239978320b2b1b56a91166fc23b71a93e94a8 struct{}
+type GoDjAppPart0_13d3106f2d075c336dabe7dcab19ca4b5630a7ef037186119e522784b53532ec struct{}
 
-type GoDjProjectSnapshot_53dae1367ff4cfb59a815a1e621aa8fc15187758975737eed0a6b8eef5f2494f struct{}
+type GoDjProjectSnapshot_dfdd0d4dfe634dfe1e6030b11e6614587f5dd614e583b861d0f6c462d80de92c struct{}

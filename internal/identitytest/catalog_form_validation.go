@@ -136,7 +136,7 @@ func runCatalogModelValidation(t *testing.T, open func(*testing.T) (TransitionBa
 								err := second.CoordinatedAtomic(ctx, func(session db.Session) error {
 									switch mode {
 									case "authority_changed":
-										_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+										_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 										return err
 									case "stale_permissions":
 										_, err := models.PermissionObjects.Delete(ctx, session, &otherPermission)
@@ -150,10 +150,10 @@ func runCatalogModelValidation(t *testing.T, open func(*testing.T) (TransitionBa
 										return err
 									default:
 										if group {
-											_, err := models.GroupObjects.Update(ctx, session, currentGroup, models.GroupPatch{}.WithRevision(2))
+											_, err := models.GroupObjects.Patch(ctx, session, currentGroup, models.GroupPatch{}.WithRevision(2))
 											return err
 										}
-										_, err := models.PermissionObjects.Update(ctx, session, currentPermission, models.PermissionPatch{}.WithRevision(2))
+										_, err := models.PermissionObjects.Patch(ctx, session, currentPermission, models.PermissionPatch{}.WithRevision(2))
 										return err
 									}
 								})

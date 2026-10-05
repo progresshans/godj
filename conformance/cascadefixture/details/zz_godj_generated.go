@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "c9877bab1bd0fa2f1eeb260816c6660ba29cc178c40bdeb6b0743dbef06dccaf"
 
 type Child struct {
@@ -90,13 +90,15 @@ func (ChildDescriptor) SetFieldValue(value *Child, field ir.Field, input query.V
 }
 
 type ChildFieldSet struct {
-	ID orm.AutoField[Child]
+	ID     orm.AutoField[Child]
+	RootID orm.ForeignKeyField[Child]
 }
 
 var ChildFields = func() ChildFieldSet {
 	metadata := childMetadata()
 	return ChildFieldSet{
-		ID: orm.NewAutoField[Child](metadata.Fields[0]),
+		ID:     orm.NewAutoField[Child](metadata.Fields[0]),
+		RootID: orm.NewForeignKeyField[Child](metadata.Fields[1]),
 	}
 }()
 
@@ -279,13 +281,15 @@ func (GrandchildDescriptor) SetFieldValue(value *Grandchild, field ir.Field, inp
 }
 
 type GrandchildFieldSet struct {
-	ID orm.AutoField[Grandchild]
+	ID      orm.AutoField[Grandchild]
+	ChildID orm.ForeignKeyField[Grandchild]
 }
 
 var GrandchildFields = func() GrandchildFieldSet {
 	metadata := grandchildMetadata()
 	return GrandchildFieldSet{
-		ID: orm.NewAutoField[Grandchild](metadata.Fields[0]),
+		ID:      orm.NewAutoField[Grandchild](metadata.Fields[0]),
+		ChildID: orm.NewForeignKeyField[Grandchild](metadata.Fields[1]),
 	}
 }()
 
@@ -484,13 +488,15 @@ func (WatcherDescriptor) SetFieldValue(value *Watcher, field ir.Field, input que
 }
 
 type WatcherFieldSet struct {
-	ID orm.AutoField[Watcher]
+	ID      orm.AutoField[Watcher]
+	ChildID orm.NullableForeignKeyField[Watcher]
 }
 
 var WatcherFields = func() WatcherFieldSet {
 	metadata := watcherMetadata()
 	return WatcherFieldSet{
-		ID: orm.NewAutoField[Watcher](metadata.Fields[0]),
+		ID:      orm.NewAutoField[Watcher](metadata.Fields[0]),
+		ChildID: orm.NewNullableForeignKeyField[Watcher](metadata.Fields[1]),
 	}
 }()
 
@@ -705,13 +711,15 @@ func (ProtectedDescriptor) SetFieldValue(value *Protected, field ir.Field, input
 }
 
 type ProtectedFieldSet struct {
-	ID orm.AutoField[Protected]
+	ID           orm.AutoField[Protected]
+	GrandchildID orm.ForeignKeyField[Protected]
 }
 
 var ProtectedFields = func() ProtectedFieldSet {
 	metadata := protectedMetadata()
 	return ProtectedFieldSet{
-		ID: orm.NewAutoField[Protected](metadata.Fields[0]),
+		ID:           orm.NewAutoField[Protected](metadata.Fields[0]),
+		GrandchildID: orm.NewForeignKeyField[Protected](metadata.Fields[1]),
 	}
 }()
 
@@ -904,13 +912,17 @@ func (TwinDescriptor) SetFieldValue(value *Twin, field ir.Field, input query.Val
 }
 
 type TwinFieldSet struct {
-	ID orm.AutoField[Twin]
+	ID       orm.AutoField[Twin]
+	FirstID  orm.ForeignKeyField[Twin]
+	SecondID orm.ForeignKeyField[Twin]
 }
 
 var TwinFields = func() TwinFieldSet {
 	metadata := twinMetadata()
 	return TwinFieldSet{
-		ID: orm.NewAutoField[Twin](metadata.Fields[0]),
+		ID:       orm.NewAutoField[Twin](metadata.Fields[0]),
+		FirstID:  orm.NewForeignKeyField[Twin](metadata.Fields[1]),
+		SecondID: orm.NewForeignKeyField[Twin](metadata.Fields[2]),
 	}
 }()
 
@@ -1133,13 +1145,15 @@ func (HiddenDescriptor) SetFieldValue(value *Hidden, field ir.Field, input query
 }
 
 type HiddenFieldSet struct {
-	ID orm.AutoField[Hidden]
+	ID     orm.AutoField[Hidden]
+	RootID orm.ForeignKeyField[Hidden]
 }
 
 var HiddenFields = func() HiddenFieldSet {
 	metadata := hiddenMetadata()
 	return HiddenFieldSet{
-		ID: orm.NewAutoField[Hidden](metadata.Fields[0]),
+		ID:     orm.NewAutoField[Hidden](metadata.Fields[0]),
+		RootID: orm.NewForeignKeyField[Hidden](metadata.Fields[1]),
 	}
 }()
 
@@ -1322,13 +1336,15 @@ func (DetailDescriptor) SetFieldValue(value *Detail, field ir.Field, input query
 }
 
 type DetailFieldSet struct {
-	ID orm.AutoField[Detail]
+	ID     orm.AutoField[Detail]
+	RootID orm.ForeignKeyField[Detail]
 }
 
 var DetailFields = func() DetailFieldSet {
 	metadata := detailMetadata()
 	return DetailFieldSet{
-		ID: orm.NewAutoField[Detail](metadata.Fields[0]),
+		ID:     orm.NewAutoField[Detail](metadata.Fields[0]),
+		RootID: orm.NewForeignKeyField[Detail](metadata.Fields[1]),
 	}
 }()
 
@@ -1522,13 +1538,17 @@ func (OverlapDescriptor) SetFieldValue(value *Overlap, field ir.Field, input que
 }
 
 type OverlapFieldSet struct {
-	ID orm.AutoField[Overlap]
+	ID              orm.AutoField[Overlap]
+	CascadeRootID   orm.ForeignKeyField[Overlap]
+	ProtectedRootID orm.ForeignKeyField[Overlap]
 }
 
 var OverlapFields = func() OverlapFieldSet {
 	metadata := overlapMetadata()
 	return OverlapFieldSet{
-		ID: orm.NewAutoField[Overlap](metadata.Fields[0]),
+		ID:              orm.NewAutoField[Overlap](metadata.Fields[0]),
+		CascadeRootID:   orm.NewForeignKeyField[Overlap](metadata.Fields[1]),
+		ProtectedRootID: orm.NewForeignKeyField[Overlap](metadata.Fields[2]),
 	}
 }()
 
@@ -1751,13 +1771,15 @@ func (RightDescriptor) SetFieldValue(value *Right, field ir.Field, input query.V
 }
 
 type RightFieldSet struct {
-	ID orm.AutoField[Right]
+	ID     orm.AutoField[Right]
+	LeftID orm.ForeignKeyField[Right]
 }
 
 var RightFields = func() RightFieldSet {
 	metadata := rightMetadata()
 	return RightFieldSet{
-		ID: orm.NewAutoField[Right](metadata.Fields[0]),
+		ID:     orm.NewAutoField[Right](metadata.Fields[0]),
+		LeftID: orm.NewForeignKeyField[Right](metadata.Fields[1]),
 	}
 }()
 
@@ -1940,13 +1962,15 @@ func (RequiredRightDescriptor) SetFieldValue(value *RequiredRight, field ir.Fiel
 }
 
 type RequiredRightFieldSet struct {
-	ID orm.AutoField[RequiredRight]
+	ID     orm.AutoField[RequiredRight]
+	LeftID orm.ForeignKeyField[RequiredRight]
 }
 
 var RequiredRightFields = func() RequiredRightFieldSet {
 	metadata := requiredRightMetadata()
 	return RequiredRightFieldSet{
-		ID: orm.NewAutoField[RequiredRight](metadata.Fields[0]),
+		ID:     orm.NewAutoField[RequiredRight](metadata.Fields[0]),
+		LeftID: orm.NewForeignKeyField[RequiredRight](metadata.Fields[1]),
 	}
 }()
 
@@ -2052,6 +2076,6 @@ func requiredRightMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_5a546a1f60e86e4f8358f5d45604950f5fb85d02456483cf60a95c60f81d53d0 struct{}
+type GoDjAppPart0_07dcde33b77432776d044990af45181ed070b100595e72be631c0399edc9a8ad struct{}
 
-type GoDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c struct{}
+type GoDjProjectSnapshot_c42ca33e024f651b7cef8778643bb4200b7bf0e6aed0ec5f1d9e9e44ba916c16 struct{}

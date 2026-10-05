@@ -269,7 +269,7 @@ func runCatalogAdmission(t *testing.T, open func(*testing.T) (TransitionBackend,
 				f := newManagementFixture(t, backend, 0)
 				policy := managementHost(t, backend)
 				group, _, permission := managementUserSelections(t, f)
-				if _, err := models.UserObjects.Update(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
+				if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
 					t.Fatal(err)
 				}
 				if action != "none" {

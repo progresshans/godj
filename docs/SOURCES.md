@@ -36,6 +36,14 @@ QuerySet·Atomic·SQLInsertCompiler를 실행한다(BSD-3-Clause). 직접 작성
 [양 DB의 원 출력](../codegen/consumertest/testdata/bulkcreate/)을 보존한다. 입력 객체·빈 입력·ignore·부모 savepoint와
 literal commit 오류의 Go 차이는 [ADR-0088](adr/0088-bulk-creation-and-native-batch-ownership.md)이 설명한다.
 
+[Query-update observer](../conformance/runners/django/query_update_reference.py)와
+[동시 갱신 observer](../conformance/runners/django/query_update_concurrency_reference.py)는 같은 고정 Django 6.1의
+QuerySet·Atomic·SQLUpdateCompiler·UpdateQuery·CombinedExpression을 실행한다(BSD-3-Clause).
+직접 작성한 입력으로 각 사례의 새 table과 PostgreSQL 서버가 확인한 실제 lock wait를 관찰한다.
+Go source/output·expected fixture를 읽지 않으며 [양 DB 원 출력](../codegen/consumertest/testdata/queryupdate/)을 보존한다.
+수치/NULL·cache·transaction 의미와 명시적 미지원은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md),
+환경·source hash·실행 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
+
 ## Go와 DB
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)

@@ -322,11 +322,11 @@ func runStorage(t *testing.T, open func(context.Context) (dateBackend, error)) {
 		t.Fatalf("time ordered F comparison: %d %v", count, err)
 	}
 	verifyRelations(t, backend, again, reference.Database.Relations)
-	changed, err := models.RecordObjects.Update(ctx, backend, again[2], models.RecordPatch{}.WithAtNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[2], models.RecordPatch{}.WithAtNull())
 	if err != nil || changed.At != nil || again[2].At == nil || *again[2].At != fraction {
 		t.Fatal("null patch mutated caller")
 	}
-	changed, err = models.RecordObjects.Update(ctx, backend, again[4], models.RecordPatch{}.WithAt(fraction))
+	changed, err = models.RecordObjects.Patch(ctx, backend, again[4], models.RecordPatch{}.WithAt(fraction))
 	if err != nil || changed.At == nil || *changed.At != fraction {
 		t.Fatal("time patch lost value")
 	}
@@ -352,7 +352,7 @@ func runStorage(t *testing.T, open func(context.Context) (dateBackend, error)) {
 		t.Fatal("Save mask erased unselected day")
 	}
 	writes := mutator.writes
-	if _, err := models.RecordObjects.Update(ctx, mutator, stored, models.RecordPatch{}.WithAt(clock.Time{Hour: 24})); err == nil || mutator.writes != writes {
+	if _, err := models.RecordObjects.Patch(ctx, mutator, stored, models.RecordPatch{}.WithAt(clock.Time{Hour: 24})); err == nil || mutator.writes != writes {
 		t.Fatal("invalid time update reached I/O")
 	}
 	canceled, cancel := context.WithCancel(ctx)

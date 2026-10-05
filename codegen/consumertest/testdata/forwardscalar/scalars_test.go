@@ -457,7 +457,7 @@ func verifyResultBoundaries(t *testing.T, backend resultBackend, native bool, so
 	var expired db.Session
 	err = backend.Atomic(ctx, func(session db.Session) error {
 		expired = session
-		if _, err := models.DatumObjects.Update(ctx, session, data[0], models.DatumPatch{}.WithVDecimal(wide)); err != nil {
+		if _, err := models.DatumObjects.Patch(ctx, session, data[0], models.DatumPatch{}.WithVDecimal(wide)); err != nil {
 			return err
 		}
 		result, err := orm.SelectInto(ctx, models.EntryObjects.Using(session).OrderBy(models.EntryFields.ID.Asc()), nativeProjection)

@@ -484,7 +484,7 @@ func (r Repository) update(ctx context.Context, id int64, patch Patch, operation
 		if !violations.Empty() {
 			return MutationResult{}, validation.Reject(violations, nil)
 		}
-		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, modelPatch)
+		value, err := articlemodels.ArticleObjects.Patch(ctx, session, current, modelPatch)
 		if err != nil {
 			return MutationResult{}, writeRejection(err)
 		}
@@ -551,7 +551,7 @@ func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, er
 				continue
 			}
 			patch := (articlemodels.ArticlePatch{}).WithPublished(true)
-			updated, err := articlemodels.ArticleObjects.Update(ctx, session, current, patch)
+			updated, err := articlemodels.ArticleObjects.Patch(ctx, session, current, patch)
 			if err != nil {
 				return MutationResult{}, err
 			}

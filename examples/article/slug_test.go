@@ -304,7 +304,7 @@ func runArticleSlugUserFlow(t *testing.T, open func(context.Context) (articleSlu
 		if err != nil || !found {
 			t.Fatal(err)
 		}
-		if _, err := articlemodels.ArticleObjects.Update(ctx, backend, stored, (articlemodels.ArticlePatch{}).WithSlug("<script>/legacy?")); err != nil {
+		if _, err := articlemodels.ArticleObjects.Patch(ctx, backend, stored, (articlemodels.ArticlePatch{}).WithSlug("<script>/legacy?")); err != nil {
 			t.Fatal("ordinary ORM revalidated slug grammar", err)
 		}
 		created = decode(fixture.request(t, fixture.client, http.MethodGet, detail, "", "", ""), http.StatusOK)

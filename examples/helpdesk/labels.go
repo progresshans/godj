@@ -191,7 +191,7 @@ func (a *Application) updateLabel(ctx context.Context, id int64, patch models.La
 		if !violations.Empty() {
 			return validation.Reject(violations, nil)
 		}
-		updated, err = models.LabelObjects.Update(ctx, session, current, patch)
+		updated, err = models.LabelObjects.Patch(ctx, session, current, patch)
 		if err != nil {
 			return writeRejection(err)
 		}

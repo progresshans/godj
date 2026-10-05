@@ -262,16 +262,16 @@ func RunPasswordManagement(t *testing.T, open func(*testing.T) (TransitionBacken
 				return owner.CoordinatedAtomic(ctx, func(session db.Session) error {
 					switch change {
 					case "actor_deactivated":
-						_, err := models.UserObjects.Update(ctx, session, f.root, models.UserPatch{}.WithActive(false).WithRevision(3))
+						_, err := models.UserObjects.Patch(ctx, session, f.root, models.UserPatch{}.WithActive(false).WithRevision(3))
 						return err
 					case "group_grant_removed":
 						_, err := models.GroupPermissionsLinkObjects.Delete(ctx, session, &link)
 						return err
 					case "target_revision":
-						_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithRevision(2))
+						_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithRevision(2))
 						return err
 					default:
-						_, err := models.UserObjects.Update(ctx, session, f.user, models.UserPatch{}.WithEncodedPassword("independently-replaced"))
+						_, err := models.UserObjects.Patch(ctx, session, f.user, models.UserPatch{}.WithEncodedPassword("independently-replaced"))
 						return err
 					}
 				})
@@ -494,7 +494,7 @@ func managementGroupActor(t *testing.T, f *managementFixture) (models.Group, mod
 	if _, err := models.UserGroupsLinkObjects.Create(ctx, f.backend, models.NewUserGroupsLinkCreate(f.root.ID, group.ID)); err != nil {
 		t.Fatal(err)
 	}
-	f.root, err = models.UserObjects.Update(ctx, f.backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
+	f.root, err = models.UserObjects.Patch(ctx, f.backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -64,7 +64,7 @@ func runSingleObjectCreation(t *testing.T, backend collectionBackend, open func(
 		base := api.LabelsLabel.Filter(labels.LabelFields.ID.Exact(label.ID))
 		warm, err := base.All(ctx)
 		check(t, err)
-		_, err = labels.LabelObjects.Update(ctx, backend, label, labels.LabelPatch{}.WithNote("updated"))
+		_, err = labels.LabelObjects.Patch(ctx, backend, label, labels.LabelPatch{}.WithNote("updated"))
 		check(t, err)
 		current, err := base.Get(ctx)
 		check(t, err)

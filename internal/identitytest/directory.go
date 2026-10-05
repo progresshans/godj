@@ -70,10 +70,10 @@ func RunDirectory(t *testing.T, backend DirectoryBackend, writer db.Atomic) {
 	interleaved := &afterUserRead{backend: backend, after: func() error {
 		updates++
 		return writer.Atomic(ctx, func(session db.Session) error {
-			if _, err := models.UserObjects.Update(ctx, session, user, models.UserPatch{}.WithActive(false).WithStaff(true).WithSuperuser(true).WithUsername("renamed").WithRevision(2)); err != nil {
+			if _, err := models.UserObjects.Patch(ctx, session, user, models.UserPatch{}.WithActive(false).WithStaff(true).WithSuperuser(true).WithUsername("renamed").WithRevision(2)); err != nil {
 				return err
 			}
-			_, err := models.PermissionObjects.Update(ctx, session, change, models.PermissionPatch{}.WithCode("helpdesk.ticket.export"))
+			_, err := models.PermissionObjects.Patch(ctx, session, change, models.PermissionPatch{}.WithCode("helpdesk.ticket.export"))
 			return err
 		})
 	}}

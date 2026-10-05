@@ -171,7 +171,7 @@ func (manager *Manager) UpdateUser(ctx context.Context, actor auth.Principal, id
 		if !violations.Empty() {
 			return UserDetails{}, validation.Reject(violations, nil)
 		}
-		updated, err := models.UserObjects.Update(ctx, session, row, patch)
+		updated, err := models.UserObjects.Patch(ctx, session, row, patch)
 		if err != nil {
 			return UserDetails{}, err
 		}

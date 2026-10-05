@@ -253,7 +253,7 @@ func compareReferenceGet(t *testing.T, backend referenceBackend, fixture nativeR
 	warm := base.Filter(models.LabelFields.Name.Exact("single"))
 	cached, err := warm.All(ctx)
 	check(t, err)
-	_, err = models.LabelObjects.Update(ctx, backend, single, models.LabelPatch{}.WithDetail("updated"))
+	_, err = models.LabelObjects.Patch(ctx, backend, single, models.LabelPatch{}.WithDetail("updated"))
 	check(t, err)
 	t.Run("warm_get_refresh", func(t *testing.T) {
 		refreshed, err := warm.Get(ctx)

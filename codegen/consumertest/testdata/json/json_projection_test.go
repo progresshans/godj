@@ -223,7 +223,7 @@ func verifyJSONProjectionExecution(t *testing.T, backend jsonBackend, native boo
 	if cached, err := warm.All(t.Context()); err != nil || len(cached) != 1 {
 		t.Fatal(err)
 	}
-	if _, err := models.RecordObjects.Update(t.Context(), backend, warmRecord, models.RecordPatch{}.WithPayload(document(t, `{"a":7}`))); err != nil {
+	if _, err := models.RecordObjects.Patch(t.Context(), backend, warmRecord, models.RecordPatch{}.WithPayload(document(t, `{"a":7}`))); err != nil {
 		t.Fatal(err)
 	}
 	got, err := orm.SelectInto(t.Context(), warm, projection)

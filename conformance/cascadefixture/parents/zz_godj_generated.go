@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-current-v2"
+const GoDjGeneratorVersion = "godj-codegen-current-v3"
 const GoDjSchemaSHA256 = "bdc690c19ffaf2819741211cb2c985a3d347399b767962789fade6f32d07ae42"
 
 type Label struct {
@@ -478,13 +478,15 @@ func (NodeDescriptor) SetFieldValue(value *Node, field ir.Field, input query.Val
 }
 
 type NodeFieldSet struct {
-	ID orm.AutoField[Node]
+	ID       orm.AutoField[Node]
+	ParentID orm.NullableForeignKeyField[Node]
 }
 
 var NodeFields = func() NodeFieldSet {
 	metadata := nodeMetadata()
 	return NodeFieldSet{
-		ID: orm.NewAutoField[Node](metadata.Fields[0]),
+		ID:       orm.NewAutoField[Node](metadata.Fields[0]),
+		ParentID: orm.NewNullableForeignKeyField[Node](metadata.Fields[1]),
 	}
 }()
 
@@ -715,13 +717,15 @@ func (LeftDescriptor) SetFieldValue(value *Left, field ir.Field, input query.Val
 }
 
 type LeftFieldSet struct {
-	ID orm.AutoField[Left]
+	ID      orm.AutoField[Left]
+	RightID orm.NullableForeignKeyField[Left]
 }
 
 var LeftFields = func() LeftFieldSet {
 	metadata := leftMetadata()
 	return LeftFieldSet{
-		ID: orm.NewAutoField[Left](metadata.Fields[0]),
+		ID:      orm.NewAutoField[Left](metadata.Fields[0]),
+		RightID: orm.NewNullableForeignKeyField[Left](metadata.Fields[1]),
 	}
 }()
 
@@ -936,13 +940,15 @@ func (RequiredLeftDescriptor) SetFieldValue(value *RequiredLeft, field ir.Field,
 }
 
 type RequiredLeftFieldSet struct {
-	ID orm.AutoField[RequiredLeft]
+	ID      orm.AutoField[RequiredLeft]
+	RightID orm.ForeignKeyField[RequiredLeft]
 }
 
 var RequiredLeftFields = func() RequiredLeftFieldSet {
 	metadata := requiredLeftMetadata()
 	return RequiredLeftFieldSet{
-		ID: orm.NewAutoField[RequiredLeft](metadata.Fields[0]),
+		ID:      orm.NewAutoField[RequiredLeft](metadata.Fields[0]),
+		RightID: orm.NewForeignKeyField[RequiredLeft](metadata.Fields[1]),
 	}
 }()
 
@@ -1135,13 +1141,17 @@ func (RootLabelsDescriptor) SetFieldValue(value *RootLabels, field ir.Field, inp
 }
 
 type RootLabelsFieldSet struct {
-	ID orm.AutoField[RootLabels]
+	ID      orm.AutoField[RootLabels]
+	RootID  orm.ForeignKeyField[RootLabels]
+	LabelID orm.ForeignKeyField[RootLabels]
 }
 
 var RootLabelsFields = func() RootLabelsFieldSet {
 	metadata := rootLabelsMetadata()
 	return RootLabelsFieldSet{
-		ID: orm.NewAutoField[RootLabels](metadata.Fields[0]),
+		ID:      orm.NewAutoField[RootLabels](metadata.Fields[0]),
+		RootID:  orm.NewForeignKeyField[RootLabels](metadata.Fields[1]),
+		LabelID: orm.NewForeignKeyField[RootLabels](metadata.Fields[2]),
 	}
 }()
 
@@ -1290,6 +1300,6 @@ func rootLabelsMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_2f75e5e49a10bf0f66c91691387e5bce9d25117950a03a499f17f18f030d7e70 struct{}
+type GoDjAppPart0_1d0e13b4483d01ac5d344fa821ef7880f63a228b0682d6f2a1c3a446c2e0ae0d struct{}
 
-type GoDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c struct{}
+type GoDjProjectSnapshot_c42ca33e024f651b7cef8778643bb4200b7bf0e6aed0ec5f1d9e9e44ba916c16 struct{}

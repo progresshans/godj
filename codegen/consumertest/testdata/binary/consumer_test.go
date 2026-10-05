@@ -507,7 +507,7 @@ func runStorage(t *testing.T, name string, open func(context.Context) (binaryBac
 	verifyRelations(t, backend, again, sample, native.Storage.Queries["order"])
 	rollback := errors.New("binary rollback")
 	err = backend.Atomic(ctx, func(session db.Session) error {
-		if _, err := models.RecordObjects.Update(ctx, session, again[2], models.RecordPatch{}.WithReference(ordinary)); err != nil {
+		if _, err := models.RecordObjects.Patch(ctx, session, again[2], models.RecordPatch{}.WithReference(ordinary)); err != nil {
 			return err
 		}
 		stored, found, err := models.RecordObjects.Using(session).Filter(models.RecordFields.ID.Exact(again[2].ID)).OrderBy(models.RecordFields.ID.Asc()).First(ctx)
@@ -701,7 +701,7 @@ func verifyWrites(t *testing.T, backend binaryBackend, row models.Record, sample
 	if err != nil || !found || stored.Reference == nil || *stored.Reference != other || row.Reference == nil || *row.Reference != sample {
 		t.Fatal("Save mask or caller ownership changed", err)
 	}
-	if _, err := models.RecordObjects.Update(ctx, backend, stored, models.RecordPatch{}.WithReferenceNull()); err != nil {
+	if _, err := models.RecordObjects.Patch(ctx, backend, stored, models.RecordPatch{}.WithReferenceNull()); err != nil {
 		t.Fatal(err)
 	}
 	canceled, cancel := context.WithCancel(ctx)
@@ -774,7 +774,7 @@ func verifyBinaryDeferredForm(t *testing.T, backend binaryBackend, current model
 	if !reflect.DeepEqual(stored, candidate) {
 		t.Fatal("explicit deferred binary Save changed bytes")
 	}
-	if _, err := models.RecordObjects.Update(ctx, backend, stored, models.RecordPatch{}.WithLabel(current.Label).WithReference(*current.Reference)); err != nil {
+	if _, err := models.RecordObjects.Patch(ctx, backend, stored, models.RecordPatch{}.WithLabel(current.Label).WithReference(*current.Reference)); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(read(), current) {

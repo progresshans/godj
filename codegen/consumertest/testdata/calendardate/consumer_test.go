@@ -317,11 +317,11 @@ func runStorage(t *testing.T, open func(context.Context) (dateBackend, error)) {
 		t.Fatalf("date ordered F comparison: %d %v", count, err)
 	}
 	verifyRelations(t, backend, again, reference.Database.Relations)
-	changed, err := models.RecordObjects.Update(ctx, backend, again[2], models.RecordPatch{}.WithDayNull())
+	changed, err := models.RecordObjects.Patch(ctx, backend, again[2], models.RecordPatch{}.WithDayNull())
 	if err != nil || changed.Day != nil || again[2].Day == nil || *again[2].Day != leap {
 		t.Fatal("null patch mutated caller")
 	}
-	changed, err = models.RecordObjects.Update(ctx, backend, again[4], models.RecordPatch{}.WithDay(leap))
+	changed, err = models.RecordObjects.Patch(ctx, backend, again[4], models.RecordPatch{}.WithDay(leap))
 	if err != nil || changed.Day == nil || *changed.Day != leap {
 		t.Fatal("date patch lost value")
 	}
@@ -347,7 +347,7 @@ func runStorage(t *testing.T, open func(context.Context) (dateBackend, error)) {
 		t.Fatal("Save mask erased unselected day")
 	}
 	writes := mutator.writes
-	if _, err := models.RecordObjects.Update(ctx, mutator, stored, models.RecordPatch{}.WithDay(calendar.Date{})); err == nil || mutator.writes != writes {
+	if _, err := models.RecordObjects.Patch(ctx, mutator, stored, models.RecordPatch{}.WithDay(calendar.Date{})); err == nil || mutator.writes != writes {
 		t.Fatal("invalid date update reached I/O")
 	}
 	canceled, cancel := context.WithCancel(ctx)

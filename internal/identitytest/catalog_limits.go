@@ -72,14 +72,14 @@ func runCatalogLimits(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := models.GroupObjects.Update(t.Context(), backend, lastGroup, models.GroupPatch{}.WithRevision(math.MaxInt64)); err != nil {
+		if _, err := models.GroupObjects.Patch(t.Context(), backend, lastGroup, models.GroupPatch{}.WithRevision(math.MaxInt64)); err != nil {
 			t.Fatal(err)
 		}
 		before := catalogSnapshot(t, f)
 		if result, err := manager.DeletePermission(t.Context(), f.actor, permission.ID, 1, policy.AccountsPermission); !errors.Is(err, &identity.Error{Code: identity.CodePersistence}) || result.ID != 0 || !reflect.DeepEqual(before, catalogSnapshot(t, f)) {
 			t.Fatal("late owner overflow left earlier revisions or deletes committed", err)
 		}
-		if _, err := models.GroupObjects.Update(t.Context(), backend, lastGroup, models.GroupPatch{}.WithRevision(1)); err != nil {
+		if _, err := models.GroupObjects.Patch(t.Context(), backend, lastGroup, models.GroupPatch{}.WithRevision(1)); err != nil {
 			t.Fatal(err)
 		}
 		users := catalogRows(t, models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()))
@@ -212,7 +212,7 @@ func runCatalogLimits(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		if _, err := models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(f.root.ID, group.ID)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := models.UserObjects.Update(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
+		if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
 			t.Fatal(err)
 		}
 		actor, err := auth.NewPrincipal(auth.PrincipalConfig{ID: f.actor.ID(), Active: true})

@@ -34,7 +34,7 @@ func verifyHistoricalURLGrowth(t *testing.T, ctx context.Context, backend helpde
 		t.Fatal("nullable URL addition invented a value")
 	}
 	const legacy = "  legacy://UNCHANGED  "
-	if _, err := models.TicketObjects.Update(ctx, backend, before, models.TicketPatch{}.WithExternalURL(legacy)); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, backend, before, models.TicketPatch{}.WithExternalURL(legacy)); err != nil {
 		t.Fatal(err)
 	}
 	second, err := open(ctx)
@@ -211,7 +211,7 @@ func verifyHelpdeskURL(t *testing.T, ctx context.Context, runtime *systemstate.R
 	}
 	// Existing ORM values remain readable. Rendering them does not grant href authority.
 	const legacy = `javascript:alert("legacy")`
-	if _, err := models.TicketObjects.Update(ctx, runtime, stored, models.TicketPatch{}.WithExternalURL(legacy)); err != nil {
+	if _, err := models.TicketObjects.Patch(ctx, runtime, stored, models.TicketPatch{}.WithExternalURL(legacy)); err != nil {
 		t.Fatal(err)
 	}
 	response = client.request("GET", path, "", true)

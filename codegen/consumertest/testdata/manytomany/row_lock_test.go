@@ -289,7 +289,7 @@ func runGeneratedRowLocks(t *testing.T, backend collectionBackend, open func() (
 					changed = true
 					bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 					defer cancel()
-					_, err := owners.RankedLinkObjects.Update(bounded, other, link, owners.RankedLinkPatch{}.WithOwnerID(second.ID))
+					_, err := owners.RankedLinkObjects.Patch(bounded, other, link, owners.RankedLinkPatch{}.WithOwnerID(second.ID))
 					return err
 				}
 				if len(reader.plans) == 3 && failNext {

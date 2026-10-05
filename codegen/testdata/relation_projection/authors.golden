@@ -52,4 +52,4 @@ func (_scan *authorProjectionScan) Decode() (Author, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_c321fff1f3efeaea58c79952392a37b086597db0594e413939c1d42deec20248 struct{}
+type GoDjAppPart3_b542a99c171e491cc7640c50671ea10dfbcf12a3fce23a0e5295dc2a5ff96f20 struct{}
