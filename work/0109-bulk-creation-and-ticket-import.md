@@ -1,6 +1,6 @@
 ---
 id: GDJ-0109
-status: active
+status: complete
 updated: 2026-10-06
 baseline_commit: "f6e95bb81f80605491bbf04feab49017f79f49e4"
 integration_owner: "root"
@@ -29,7 +29,7 @@ Bulk update·query update expression과 나머지 query 범위는 다음 기반�
 - [x] generic ORM·생성 입력 및 root facade·caller cache/metadata 소유권과 전체 실패의 원자성
 - [x] 양 DB의 독립 생성 소비자·잘못된 model/field compile 거부·실제 오류/취소/경쟁
 - [x] 현재 권한·Category 범위·원자 audit를 유지하는 Helpdesk 여러 티켓 생성과 실제 Form/Admin/API/client
-- [ ] 완성된 변경 묶음의 영향 검증·정식 기준 대조·생성 drift·필요한 통합 범위 기록
+- [x] 완성된 변경 묶음의 영향 검증·정식 기준 대조·생성 drift·필요한 통합 범위 기록
 
 ## 현재 상태와 다음 행동
 
@@ -48,20 +48,10 @@ Admin의 typed 생성 formset과 배열 API·독립 생성 client를 연결했�
 완성된 업무 묶음과 공통 parser/serializer/Admin·ORM을 실제 양 DB의 normal/race/CGO=0에서 확인했다.
 실제 브라우저에서 동적 행/오류 재표시와 기존 행 변경·새 행 생성의 저장을 확인했다.
 
-현재 public API·지원/오류 정책을 ADR와 소비자 문서에 반영한다. PostgreSQL CI의 명시적 root 선택과 relation 필수
-목록에 새 bulk 경로를 연결했다. 첫 full source `d2d85182`는 macOS ARM/race package timeout으로 실패했다.
-모든 테스트를 유지하는 분할을 적용한 source `18199083`으로
-[Hosted full 36932376723](https://github.com/progresshans/godj/actions/runs/36932376723)을 요청했다.
-68개 job·선언한 8개 owner·cold/process와 새 capture의 Git source 결합/소비는 통과했다. 사후 검사에서 기존
-PostgreSQL system-state product sentinel의 실행 담당 누락을 발견했다. 이 경로를 GDJ-0110의 다음 full milestone에
-포함했다. 로컬 실제 양 DB의 세 mode에서 통과했고 source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`의
-[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했으나 Article 알림 회귀와 누적 race 한도에 실패했다.
-관련 수정·영향 검증을 마치고 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
-[새 Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)은 PostgreSQL race/core의 누적 job 제한으로 취소가 발생했다.
-필수 실행을 유지하는 race 분할과 원 로그 보관을 적용하고 source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의
-[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)에서 필수 목록 회귀 검사가 옛 CI 배열 이름을 참조하는 실패를 확인했다.
-검사를 현재 분할기/원본 목록에 연결하고 source `faa5a3396ad3a7e9e2807e2fcab26ec0fe037484`의
-[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499)에서 새 전체 통합을 확인한다.
-기존 성공 scope와 새 실행을 구분하며 아직 최종 완료가 아니다.
-로컬 전체 검증을 중복하지 않으며 GDJ-0108 결과를 전이하지 않는다.
+Public API·지원/오류 정책을 ADR와 소비자 문서에 반영했고 PostgreSQL CI·relation 필수 실행에 연결했다.
+누락됐던 PostgreSQL system-state sentinel의 담당도 보완했다. Source `720c9be6211f00a146a39d00957a81ce69ed294f`의
+[Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)에서 GDJ-0110/0111과 함께
+전체 통합을 완료했다. 원 로그·필수 경로·capture/source 결합과 실제 소비·최종 집계를 확인했다.
+앞선 실패와 수집 상세는 TEST_EVIDENCE에 보존하며 GDJ-0112 이후 source의 검증으로 전이하지 않는다.
+로컬 전체 검증은 중복하지 않았다.
 장기 의미는 [ADR-0088](../docs/adr/0088-bulk-creation-and-native-batch-ownership.md), 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.

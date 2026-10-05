@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0109/0110/0111 — 같은 source의 Hosted 전체 통합 완료
+
+2026-10-06 KST, [Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)의
+source `720c9be6211f00a146a39d00957a81ce69ed294f`가 attempt 2에서 completed/success로 종료됐다.
+최종 76개 job과 선언된 8개 owner의 필수 step·실제 실행 목록·최종 `full_platform_verified: true`를 대조했다.
+GDJ-0109의 추가 PostgreSQL system-state sentinel과 GDJ-0110/0111의 제품·생성·업무 구현을 포함한다.
+이 source 뒤에 구현한 GDJ-0112/0113/0114와 진행 중인 JSON body 입력의 전체 검증 결과로 전이하지 않는다.
+
+실행 자료는 `hosted-full-attempts-37365281161/`에 보존했다. Source archive의 3289개 파일은 해당 commit의
+Git blob와 mode에 대조했다. Archive SHA-256 `a7cda72d2e0d1bd3b6a4dff69e931f5d5689ce063fba98277ab3dcaae1b3c78a`,
+76개 최종 원 job log ZIP `ed08ec296aacc6911404277e3e0421d019ae4750d8d4167939e12ce0129222d2`,
+14개 artifact 전부의 수집 목록 `collection.json` / `2d972816db2e607b41d57f4cacc9e6dc3c2d8aab6f54b7a20e66e48b7d70d591`,
+감사 receipt `audit.json` / `1f610f4b3490c5566593bd77f28329b2d0f6b2fbe8e680f944eba0fa481da73b`.
+
+GitHub의 failed-only 재실행은 기존 57개 성공 결과도 새 job ID/attempt 2인 API 행으로 돌려주었다.
+처음 수집기는 이 행을 새 실행으로 간주해 존재하지 않는 attempt 2 artifact를 요구하며 중단됐다. 이는 CI 실패가
+아닌 수집기의 계보 가정 오류다. 두 attempt의 152개 API 행을 이름·source·시각·runner·step으로 대조하고,
+재사용한 57개 각각의 원래 job log와 새 API 행의 log가 byte 단위로 같은지 확인했다. 실제 재실행 성공은 19개다.
+`job-lineage.json` / `f1b8f3b13fa9ce604e660bd4c802eb67c76958e83b9aad262c3af8fa6d837dc9`가 원 producer를 기록한다.
+Attempt 1의 runner 배정 실패·shutdown/통신 상실과 그 원 자료는 아래 실패 기록에 그대로 남긴다.
+
+Relation 12개 OS/arch/mode 좌표의 24개 job에서 각 86개 생성 consumer root의 정확히 한 번 실행을 확인했다.
+81개 Go 실행 inventory, portable package 분할, command/check/cold build, 32-bit 실제 선택, Python 고정 기준과
+exact Darwin profile, 26개 product conformance suite의 실제 비교를 확인했다. Portable conformance는 mode마다
+26 packages / 508 run / 6 optional PostgreSQL skip을 기록했으며, 그 skip을 native DB의 실행 성공으로 계산하지
+않는다. Native PostgreSQL 담당은 별도 원 JSON log에서 아래 모든 실행의 run/pass 일치와 skip 0을 확인했다.
+
+| PostgreSQL mode / shard | packages | run/pass | 필수 경로 |
+|---|---:|---:|---:|
+| normal / core | 16 | 5618 | 2765 |
+| normal / operator-target | 2 | 12 | 3 |
+| race / core | 7 | 5526 | 2710 |
+| race / core-consumers | 1 | 71 | 45 |
+| race / core-processes | 8 | 21 | 10 |
+| race / operator-target | 2 | 12 | 3 |
+| CGO=0 / core | 16 | 5618 | 2765 |
+| CGO=0 / operator-target | 2 | 12 | 3 |
+
+각 mode의 core 분할 합집합은 source의 필수 2765개와 일치하고 누락·중복·skip이 없다. 8개 JSON log 각각의
+SHA-256과 package/필수 경로 결과는 위 audit에 기록했다. 같은 run의 실제 capture consumer attempt 2는
+system-state producer attempt 1 (`111951940022`, artifact `11369176271`)과 operator producer attempt 2
+(`112004221046`, artifact `11375820644`)를 선택했다. 원 consumer log의 선택 결과와 archive 내부 provenance,
+checksum 및 Git source binding을 모두 대조했다.
+
+| Capture | payload SHA-256 | Git source binding |
+|---|---|---|
+| system-state | `59f3d940c740fca303c91f7451aa0d5f28b5b2e3e435bc522d72e83ebb1127cb` | 741 files / 7558878 bytes / `0919eec9e68e4be9020d965770c2ce944a3356346ebeb188079fd1c8c71a285f` |
+| operator | `d09d51cc30df7533fa7cad1b41efa4b27d8b59daf5473413804493a08085c267` | 820 files / 7429207 bytes / `253a49bc0299b42824848f639bec3e37db8f7c398bd299baa9670e1267e7e05f` |
+
+S3 service의 normal/core·race/core·race/core-consumers·CGO=0/core 네 실제 owner는 고정 module/commit과
+build 정보를 확인했고 child/server exit 0·reap·graceful cleanup을 마쳤다. Binary SHA-256
+`c47d14d5b232424962e46715ab6c1656217e298f64058141199b39e7b565fe59`, lifecycle receipt SHA-256
+`7da923d654f587092925eab8c6096fb9e0e414ba5894b5399708a196726be7a7`이며 각 artifact ID/ZIP hash는 수집 목록에 있다.
+로컬 전체 검증을 중복하지 않았다. 이 기록은 위 고정 source의 선언된 전체 통합 완료이며 이후 source나
+GoDj 기능 카탈로그 전체의 완성 선언이 아니다.
+
 ## GDJ-0114 — Typed query 입력과 같은 parameter 선언
 
 `api/parameters`의 닫힌 scalar codec·required/default/optional·typed DTO setter와 같은 OpenAPI parameter를
@@ -293,7 +349,7 @@ Failure 4개 중 하나는 미완료 owner를 거부한 최종 aggregate이며 �
 전체 job/annotation과 원 API는 `hosted-query-update-37365281161/attempt-1-terminal.json` /
 `744938c7c3a012472ac5aad839d91a7371b68df4e57cbaec22b1c0ae506dec85`에 보존했다.
 같은 SHA의 실패 작업만 `gh run rerun --failed`로 요청하고 attempt 2의 실제 실행 진입을 확인했다.
-기존 성공 owner를 보존하며 76개 필수 owner와 attempt별 fresh capture의 source 결합·소비·최종 aggregate를 확인한다.
+기존 성공 결과를 보존한 최종 76개 job·8개 owner와 capture의 source 결합·소비·최종 aggregate를 위 완료 기록에서 확인했다.
 
 새 실행에서도 2026-10-05 20:13:39 UTC 기준 13개 job이 runner_id 0·steps 0의 같은 배정 오류로 취소됐다.
 해당 API 원 기록은 `hosted-query-update-runner-failure-37365281161/failures-20261005-201339.json` /

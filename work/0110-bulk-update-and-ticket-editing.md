@@ -1,6 +1,6 @@
 ---
 id: GDJ-0110
-status: active
+status: complete
 updated: 2026-10-06
 baseline_commit: "d2d8518275eae9e7f46a836d0797f1f9802561c9"
 integration_owner: "root"
@@ -15,27 +15,15 @@ integration_owner: "root"
 단건 Save를 반복하는 구현이나 실제 수정 대상을 읽기 조건보다 넓히는 변환을 bulk update로 제공하지 않는다.
 Helpdesk의 여러 티켓 편집, Admin 선택 작업과 API의 일괄 수정에서 현재 권한·Category·라벨·고유성·audit를 연결한다.
 
-GDJ-0109는 고정 source의 Hosted 선언 범위를 통과했으며 사후 발견한 PostgreSQL 회귀의 실행 담당을 보완한다.
-이 작업의 새 source와 선행 결과를 섞지 않으며 다음 full milestone이 두 작업의 통합을 소유한다.
-고정 Django의 40개 결과와 PostgreSQL 잠금 대기 7개를 독립 관찰했다. AST/compiler·native write scope 기반은
-실제 SQLite/PostgreSQL의 영향 세 mode를 통과했다. Generic ORM·생성 root/eager/prefetch facade와 실제 소비자도
-영향 세 mode를 통과했다. 정식 40개 기준과 일곱 잠금 대기 대조도 세 mode를 통과했다. 업무 표면과 독립 client도
-양 DB 영향 세 mode·실제 브라우저를 통과했으며 새 source의 Hosted 통합이 남았다.
+고정 Django의 40개 결과와 PostgreSQL 잠금 대기 7개를 독립 관찰하고 AST/compiler·native write scope,
+generic ORM·생성 facade와 실제 소비자를 양 DB 영향 세 mode에서 대조했다. 업무 표면과 독립 client,
+실제 브라우저를 확인했다. Hosted에서 발견한 Article 알림 회귀와 누적 race 실행/fixture 준비 한도를 보완했고
+기존 기준과 필수 실행을 유지했다.
 
-Source `99491ff36c0eceeed6d1cec6eb74e7c5b2f49afc`를 게시하고
-[Hosted full 37329368105](https://github.com/progresshans/godj/actions/runs/37329368105)을 시작했다.
-이 실행이 GDJ-0109의 추가 회귀와 새 제품 source의 전체 통합을 소유한다. 완료 전까지 마지막 항목은 열린 상태다.
-Article의 발행 알림까지 공통 문구로 바꾼 회귀와 Helpdesk 누적 race 실행의 시간 한도 부족을 발견했다.
-앱이 액션별 성공 문구를 선언하고 model/action/count를 서명하도록 수정했고 영향 세 mode·브라우저를 통과했다.
-Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의 소비자를 분할하고 실행 소유권을 검증했다.
-고정 Django expected/observer는 바꾸지 않았다. 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`의
-[Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)을 요청했다.
-이 실행도 PostgreSQL race/core의 누적 job 제한으로 취소가 발생했다. 개별 검사를 유지하는 race 분할과 원 로그 보관을
-적용했다. Source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의
-[Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096)에서 필수 목록 회귀 검사가 옛 CI 배열 이름을 참조하는 실패를 확인했다.
-검사를 현재 분할기/원본 목록에 연결하고 source `faa5a3396ad3a7e9e2807e2fcab26ec0fe037484`의
-[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499)에서 새 전체 통합을 확인한다.
-이전 실패 실행의 부분 성공을 재사용하지 않고 새 source의 최종 통합을 확인한다.
+Source `720c9be6211f00a146a39d00957a81ce69ed294f`의
+[Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)에서 GDJ-0109의 추가
+PostgreSQL 회귀와 GDJ-0111을 포함해 전체 통합을 완료했다. 원 로그·필수 owner와 경로·capture/source 결합·
+실제 소비·최종 집계를 확인했다. 앞선 실패와 상세 실행은 TEST_EVIDENCE에 남기며 후속 source로 전이하지 않는다.
 
 ## 구현과 검증
 
@@ -44,7 +32,7 @@ Linux 생성 소비자의 누적 race timeout도 확인해 모든 race 좌표의
 - [x] shared ORM의 전체 입력 검증·scope/실패/결과 소유권과 typed 생성 root facade
 - [x] 생성 소비자의 여러 모델/scalar·동적 field 선택·관계/필터·잘못된 타입·실제 DB/취소/경쟁과 기준 대조
 - [x] Helpdesk 여러 티켓 편집·Admin 선택 작업·API/독립 client의 같은 transaction과 보안/무결성/실패 경계
-- [ ] 완성된 변경 묶음의 영향 검사·생성 drift·필요한 통합 범위와 현행 문서 기록
+- [x] 완성된 변경 묶음의 영향 검사·생성 drift·필요한 통합 범위와 현행 문서 기록
 
 ## 판단할 의미
 
