@@ -19,7 +19,7 @@ Typed와 dynamic 입력은 같은 불변 Query AST와 metadata 검사를 사용�
 밖의 값도 실제 그룹으로 유지하며, 현재 ViewTicket 권한과 Category 범위를 입력 해석·조회에 적용한다.
 조회는 저장·audit를 발생시키지 않는다. 요약 값과 페이지 건수의 관찰 범위·일관성을 명시한다.
 
-GDJ-0109/0110/0111의 통합 source는 별도 [Hosted full 37359348832](https://github.com/progresshans/godj/actions/runs/37359348832)에서
+GDJ-0109/0110/0111의 통합 보정 source는 별도 [Hosted full 37363189671](https://github.com/progresshans/godj/actions/runs/37363189671)에서
 검증 중이다. 이 작업은 그 source에 없는 후속 구현이며 선행 실행의 성공을 이 기능의 증거로 사용하지 않는다.
 
 ## 구현과 검증

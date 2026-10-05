@@ -205,6 +205,12 @@ YAML parse·diff 검사가 통과했다. Actionlint는 로컬에 없어 실행�
 `3812ed26ab3d58d2ba69d2a7009b00a5c3d479fff9edbf12fd5be3285713a716`가 실패 receipt와 source 차이·재사용한 원 결과를 결합한다.
 이 로컬 검증은 Hosted 전체 성공이 아니다. GDJ-0112의 새 구현을 섞지 않은 보정 source로 새 통합을 요청한다.
 
+2026-10-05T19:24:37Z, 원격 PR branch의 source `a143ad3ac44a499ce852a815b2f11a86b1e4bb24`를 확인하고
+[Hosted full 37363189671](https://github.com/progresshans/godj/actions/runs/37363189671), attempt 1/workflow_dispatch를
+요청했다. 76 jobs의 필수 owner·새 capture와 같은 source의 소비·최종 집계는 아직 확인 중이다. 실패한 이전
+실행은 이 요청 뒤 남은 작업의 취소를 요청했으며 부분 성공을 새 source의 결과로 이월하지 않는다.
+별도 사본의 GDJ-0112 observer·AST/compiler 초안은 이 source에 없으며 그 사본의 미완성 변경도 보존했다.
+
 ## GDJ-0110 — native bulk update의 기준과 기반
 
 2026-10-02 KST, Go source/output/expected fixture를 읽지 않는 `conformance/runners/django/bulk_update_reference.py`로
