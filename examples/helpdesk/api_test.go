@@ -36,7 +36,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create"}
+	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create", "ticket-bulk-update"}
 	if len(recording.permissions) != len(authenticationOrder) || len(recording.additional) != len(authenticationOrder) {
 		t.Fatal("incomplete authentication composition")
 	}
@@ -175,7 +175,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 28; index++ {
+	for index := 1; index <= 29; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -183,7 +183,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
-	if err != nil || len(adapter.Routes()) != 28 {
+	if err != nil || len(adapter.Routes()) != 29 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -204,7 +204,7 @@ func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, 
 		return helpdesk.ViewTicket, nil
 	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
-	case "helpdesk:ticket-update", "helpdesk:ticket-patch":
+	case "helpdesk:ticket-update", "helpdesk:ticket-patch", "helpdesk:ticket-bulk-update":
 		return helpdesk.ChangeTicket, []auth.Permission{helpdesk.ViewLabel}
 	case "helpdesk:ticket-delete":
 		return helpdesk.DeleteTicket, nil
@@ -251,8 +251,8 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 11 || len(routes) != 28 || len(document.Paths["/api/tickets/bulk/"]) != 1 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
-		t.Fatal("Helpdesk document changed the twenty-eight-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 11 || len(routes) != 29 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+		t.Fatal("Helpdesk document changed the twenty-nine-operation surface")
 	}
 	for _, route := range routes {
 		permission, additional := helpdeskExpectedAuthorization(t, route.Name)
@@ -295,6 +295,36 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 		if bulk.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
 			t.Fatal("bulk error contract", status)
 		}
+	}
+	bulkUpdate := document.Paths["/api/tickets/bulk/"]["patch"]
+	if bulkUpdate.RequestBody == nil || !bulkUpdate.RequestBody.Required {
+		t.Fatal("bulk update body absent")
+	}
+	for _, entry := range []struct {
+		schema helpdeskDocumentSchema
+		ref    string
+	}{
+		{bulkUpdate.RequestBody.Content[api.JSONContentType].Schema, "TicketBulkPatch"},
+		{bulkUpdate.Responses["200"].Content[api.JSONContentType].Schema, "Ticket"},
+	} {
+		if entry.schema.Type != "array" || entry.schema.MinItems != 1 || entry.schema.MaxItems != 40 || entry.schema.Items == nil || entry.schema.Items.Ref != "#/components/schemas/"+entry.ref {
+			t.Fatal("bulk update array contract")
+		}
+	}
+	for _, status := range []string{"400", "403", "404", "413", "415"} {
+		if bulkUpdate.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
+			t.Fatal("bulk update error contract", status)
+		}
+	}
+	bulkPatch := document.Components.Schemas["TicketBulkPatch"]
+	if !slices.Equal(bulkPatch.Required, []string{"id"}) || len(bulkPatch.Properties) != 17 || bulkPatch.AdditionalProperties || string(bulkPatch.Properties["id"].Minimum) != "1" || string(bulkPatch.Properties["id"].Maximum) != "9223372036854775807" || bulkPatch.Properties["id"].Format != "int64" || len(bulkPatch.Properties["closed"].Default) != 0 {
+		t.Fatal("bulk patch lost exact identity or omission policy")
+	}
+	if _, present := bulkPatch.Properties["external_payload_digest"]; present {
+		t.Fatal("bulk patch admitted server digest")
+	}
+	if _, present := bulkPatch.Properties["category"]; present {
+		t.Fatal("bulk patch admitted server category")
 	}
 	list := document.Paths["/api/tickets/"]["get"]
 	create := document.Paths["/api/tickets/"]["post"]

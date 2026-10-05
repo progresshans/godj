@@ -380,7 +380,7 @@ func TestSiteMutationBoundaryFormsActionsAndHistoryAfterDeletion(t *testing.T) {
 	response = client.do(http.MethodPost, "/admin/articles/action/publish/", url.Values{
 		"csrfmiddlewaretoken": {token}, "selected": {"3", "1", "3"},
 	})
-	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/articles/", "published", "2") {
+	if response.Code != http.StatusFound || !siteSignedNoticeLocation(response.Header().Get("Location"), "/admin/articles/", "action", "2") {
 		t.Fatalf("action response = %d location %q body %q", response.Code, response.Header().Get("Location"), response.Body.String())
 	}
 	if got := harness.state.lastActionSelection(); !reflect.DeepEqual(got, []int64{1, 3}) {

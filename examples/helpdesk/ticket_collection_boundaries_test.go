@@ -112,6 +112,28 @@ func (s *collectionFaultSession) BulkInsert(ctx context.Context, plan query.Bulk
 	s.written = s.written || err == nil
 	return result, err
 }
+func (s *collectionFaultSession) BulkUpdateBatchSize(ctx context.Context, spec query.BulkUpdateSpec) (int, error) {
+	backend, ok := s.RelationSession.(db.BulkUpdater)
+	if !ok {
+		return 0, errors.New("collection test lacks native bulk update capability")
+	}
+	return backend.BulkUpdateBatchSize(ctx, spec)
+}
+func (s *collectionFaultSession) BulkUpdate(ctx context.Context, plan query.BulkUpdatePlan) (int64, error) {
+	backend, ok := s.RelationSession.(db.BulkUpdater)
+	if !ok {
+		return 0, errors.New("collection test lacks native bulk update capability")
+	}
+	s.owner.writes++
+	count, err := backend.BulkUpdate(ctx, plan)
+	if err == nil {
+		s.written = true
+		if s.owner.afterScalar != nil && plan.Spec().Selection().Table() == "helpdesk_ticket" {
+			s.owner.afterScalar()
+		}
+	}
+	return count, err
+}
 func (s *collectionFaultSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	s.owner.reads++
 	if s.owner.mode == "candidate_error" && plan.Table() == "helpdesk_label" {

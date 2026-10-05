@@ -6,7 +6,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"testing"
 )
@@ -15,11 +14,7 @@ import (
 // checked-in consumer. Unknown errors, extra output and runtime data remain
 // redacted by the command runner. Never expose transport errors or input URLs.
 func consumerFailureStage(stderr []byte) string {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		return ""
-	}
-	paths, err := filepath.Glob(filepath.Join(filepath.Dir(source), "testdata", "client", "cmd", "consumer", "*.go"))
+	paths, err := filepath.Glob(filepath.Join("testdata", "client", "cmd", "consumer", "*.go"))
 	if err != nil {
 		return ""
 	}

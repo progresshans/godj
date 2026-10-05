@@ -517,4 +517,4 @@ func (requiredRightLeftIDRelationStorage) Value(value RequiredRight) (query.Valu
 
 type GoDjAppPart2_5a546a1f60e86e4f8358f5d45604950f5fb85d02456483cf60a95c60f81d53d0 struct{}
 
-var _ GoDjProjectSnapshot_efc89ccc70cedb32ec9c6e73f9ef4226ad8415a90589f84d0e7f99edee17d442
+var _ GoDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c

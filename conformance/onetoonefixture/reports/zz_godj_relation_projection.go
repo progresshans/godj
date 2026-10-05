@@ -314,4 +314,4 @@ func (_scan *reviewProjectionScan) Decode() (Review, query.Value, orm.Projection
 
 type GoDjAppPart3_872b95720f356321adcc98691414069f9f65625e3e9dae0fae094956f738aa3a struct{}
 
-var _ GoDjProjectSnapshot_42a639519df299826f4864a6748c8726f5ab769f06d7c0fe7b37ba59fa952001
+var _ GoDjProjectSnapshot_866753febe66486fa2bbe0f28f8140f533796af59f1f67f96853515cdf82ae92

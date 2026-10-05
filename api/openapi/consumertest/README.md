@@ -52,6 +52,14 @@ scalar 기본값과 exact JSON/digest·고유성·외부 Category 라벨·read-o
 필드의 shape, 잘못된 null/타입, 명시적 request/response Validate의 cardinality와 500의 단일 전송을 구별한다.
 생성 encoder/decoder가 모든 schema Validate를 암묵적으로 실행한다고 가정하지 않는다.
 
+여러 티켓 수정은 `PATCH /api/tickets/bulk/`의 typed `TicketBulkPatch` 배열을 사용한다. 역순으로 제출한 두 행의
+서로 다른 partial mask·생략/null/빈 라벨·id-only 무변경, 잘못된 두 번째 항목·중복 ID·누락/외부 티켓·라벨·UUID
+고유성·조회 전용 권한·CSRF를 실제 HTTP로 검사한다. 부모는 생성과 수정의 최종 scalar·JSON/digest·라벨과 정확한
+add/change audit를 독립적으로 읽어 확인한다. `helpdesk_bulk_ticket_updates`와 `generated_bulk_ticket_updates_wire`
+receipt가 모두 필수다. Wire 검사는 2^53 밖과 MaxInt64 ID·명시적 false/빈 값 대 생략·빈 라벨 배열·잘못된 성공
+응답과 request Validate의 ID/cardinality, 고정 500 응답의 단일 전송을 구별한다. Synthetic 응답은 실제 DB의
+rollback 증거가 아니며 양 DB의 실패/경쟁은 Helpdesk 검사가 소유한다.
+
 TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
 ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
 부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.

@@ -90,6 +90,36 @@ func (a *Application) readTicketRecord(ctx context.Context, objects project.Mode
 	return value, err == nil, err
 }
 
+// Public reads intentionally show only authorized labels. A write cannot use
+// that filtered view as proof that all stored links are still in scope: even
+// omitted membership must remain valid before a successful write is published.
+func (a *Application) validateStoredTicketLabels(ctx context.Context, session db.Session, stored ticketRecord) error {
+	links, err := models.TicketLabelObjects.Using(session).
+		Filter(a.relations.ModelsTicketLabel.Ticket.ID.Exact(stored.ID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	keys := make([]int64, len(links))
+	for index, link := range links {
+		keys[index] = link.LabelID
+	}
+	slices.Sort(keys)
+	if !slices.Equal(keys, stored.labels) {
+		return errors.New("helpdesk: stored ticket membership is outside the publishable scope")
+	}
+	validated, err := a.validateTicketLabelKeys(ctx, session, keys)
+	if _, rejected := validation.Rejected(err); rejected {
+		return errors.New("helpdesk: stored ticket membership changed category during its write")
+	}
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(validated, keys) {
+		return errors.New("helpdesk: stored ticket membership is not a unique scoped set")
+	}
+	return nil
+}
+
 // Admission uses the immutable principal accepted by authentication. A policy
 // update revokes future sessions; it does not retroactively cancel admitted
 // work. The same requirements are rechecked before any transaction reads.

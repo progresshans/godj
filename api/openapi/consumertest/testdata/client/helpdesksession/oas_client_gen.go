@@ -165,6 +165,25 @@ type Invoker interface {
 	//
 	// POST /api/tickets/bulk/
 	HelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (HelpdeskTicketBulkCreateRes, error)
+	// HelpdeskTicketBulkUpdate invokes helpdesk:ticket-bulk-update operation.
+	//
+	// Updates every selected ticket, its supplied label membership and each actual change audit in one
+	// transaction. Authentication, required CSRF and change/label-view admission precede parsing. IDs must
+	// be unique and positive; every selected ticket must exist in the current category or the complete
+	// request returns 404 without identifying a missing or foreign row. Each row supplies its own partial
+	// field selection; omission preserves stored values, explicit null clears nullable fields and an empty
+	// labels array clears membership. An id-only row returns the existing ticket without an UPDATE or
+	// audit. Complete candidate and uniqueness validation precedes native bulk UPDATE groups. Each group
+	// retains the category predicate and must match all of its rows. A failure in any later batch, label
+	// write, stored output or audit rolls back the entire request. Results retain input order and use
+	// stored JSON and its server-owned digest. No partial success, conflict-ignore or automatic retry is
+	// supported; uncertain commits remain execution errors. Query parameters and client-supplied
+	// category/digest are rejected. Indexed diagnostics use a zero-based index parameter; concurrent
+	// storage conflicts use all/unique without guessing a row. The input does not provide a revision
+	// precondition: supplied fields replace their values at the transaction's current state.
+	//
+	// PATCH /api/tickets/bulk/
+	HelpdeskTicketBulkUpdate(ctx context.Context, request []TicketBulkPatch) (HelpdeskTicketBulkUpdateRes, error)
 	// HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
 	//
 	// The application assigns the selected category and checks its existence within the create
@@ -1939,6 +1958,120 @@ func (c *Client) sendHelpdeskTicketBulkCreate(ctx context.Context, request []Tic
 	}()
 
 	result, err := decodeHelpdeskTicketBulkCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketBulkUpdate invokes helpdesk:ticket-bulk-update operation.
+//
+// Updates every selected ticket, its supplied label membership and each actual change audit in one
+// transaction. Authentication, required CSRF and change/label-view admission precede parsing. IDs must
+// be unique and positive; every selected ticket must exist in the current category or the complete
+// request returns 404 without identifying a missing or foreign row. Each row supplies its own partial
+// field selection; omission preserves stored values, explicit null clears nullable fields and an empty
+// labels array clears membership. An id-only row returns the existing ticket without an UPDATE or
+// audit. Complete candidate and uniqueness validation precedes native bulk UPDATE groups. Each group
+// retains the category predicate and must match all of its rows. A failure in any later batch, label
+// write, stored output or audit rolls back the entire request. Results retain input order and use
+// stored JSON and its server-owned digest. No partial success, conflict-ignore or automatic retry is
+// supported; uncertain commits remain execution errors. Query parameters and client-supplied
+// category/digest are rejected. Indexed diagnostics use a zero-based index parameter; concurrent
+// storage conflicts use all/unique without guessing a row. The input does not provide a revision
+// precondition: supplied fields replace their values at the transaction's current state.
+//
+// PATCH /api/tickets/bulk/
+func (c *Client) HelpdeskTicketBulkUpdate(ctx context.Context, request []TicketBulkPatch) (HelpdeskTicketBulkUpdateRes, error) {
+	res, err := c.sendHelpdeskTicketBulkUpdate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketBulkUpdate(ctx context.Context, request []TicketBulkPatch) (res HelpdeskTicketBulkUpdateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/bulk/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketBulkUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketBulkUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketBulkUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketBulkUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketBulkUpdateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

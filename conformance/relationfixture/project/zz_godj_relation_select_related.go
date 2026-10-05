@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
@@ -22,6 +22,7 @@ type relationSelectQuery[M, O any] interface {
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
+	BulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -188,6 +189,9 @@ func (_query BlogPostSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _object, _created, nil
 }
+func (_query BlogPostSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query BlogPostSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPostObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -251,4 +255,4 @@ func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_8bb87b7a7236f0ae472e138cebbbe9c5e316771c6941d1425ed9fc0a41275815
+var _ goDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9

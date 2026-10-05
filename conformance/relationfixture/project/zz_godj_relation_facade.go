@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
-const GoDjProjectRelationFacadeInputSHA256 = "dd8dbdf34d681c704063bc98fc3072739ebe191894573cbf6d4f5cbb0268dcb3"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
+const GoDjProjectRelationFacadeInputSHA256 = "61d2d4765c1bf81d31620195dbe085de52715feb30afa5c981ace56f53dbdc8e"
 
 type Backend interface {
 	db.Queryer
@@ -431,6 +431,15 @@ func newAuthorsAuthorQuery(_state *relationFacadeState, _query orm.QuerySet[auth
 
 func (_query AuthorsAuthorQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query AuthorsAuthorQuery) BulkUpdate(_ctx context.Context, _inputs []authors.Author, _options ...orm.BulkUpdateOption[authors.Author]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -1133,6 +1142,12 @@ func (_query AuthorsAuthorPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query AuthorsAuthorPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []authors.Author, _options ...orm.BulkUpdateOption[authors.Author]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query AuthorsAuthorPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[authors.Author], _patch orm.PatchInput[authors.Author]) (*AuthorsAuthor, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1305,6 +1320,15 @@ func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post
 
 func (_query BlogPostQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query BlogPostQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -2360,6 +2384,12 @@ func (_query BlogPostPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _result, _created, nil
 }
+func (_query BlogPostPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query BlogPostPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPost, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -2735,6 +2765,12 @@ func (_query BlogPostEagerQuery) GetOrCreate(_ctx context.Context, _input orm.Cr
 	}
 	return _wrapped, _created, nil
 }
+func (_query BlogPostEagerQuery) BulkUpdate(_ctx context.Context, _inputs []blog.Post, _options ...orm.BulkUpdateOption[blog.Post]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query BlogPostEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[blog.Post], _patch orm.PatchInput[blog.Post]) (*BlogPost, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -2906,4 +2942,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8bb87b7a7236f0ae472e138cebbbe9c5e316771c6941d1425ed9fc0a41275815
+var _ goDjProjectSnapshot_6b095474cbd1fb2c5e994ce6874b10ef972ff3ca8da7a087ab7e3103392955f9

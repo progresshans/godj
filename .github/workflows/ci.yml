@@ -418,7 +418,7 @@ jobs:
           consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          # Intel race partitions the generated consumers across jobs. Shard
+          # macOS race partitions the generated consumers across jobs. Shard
           # 0 owns all other relation packages on that coordinate.
           # Every job discovers the binary's roots and checks exact execution.
           test_timeout="${{ matrix.test_timeout }}"
@@ -1045,6 +1045,7 @@ jobs:
                 ./conformance/projectmigrateproduct
                 ./conformance/projectshowmigrationsproduct
                 ./conformance/projectsqlmigrateproduct
+                ./conformance/systemstate/product
                 ./conformance/systemstate/restart
                 ./conformance/runserverproduct
               )

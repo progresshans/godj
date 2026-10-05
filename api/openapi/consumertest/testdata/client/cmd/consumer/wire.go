@@ -34,6 +34,9 @@ func checkGeneratedWire(ctx context.Context) error {
 	if err := checkGeneratedBulkTicketWire(ctx); err != nil {
 		return err
 	}
+	if err := checkGeneratedBulkUpdateTicketWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedSlugWire(ctx); err != nil {
 		return err
 	}

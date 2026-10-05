@@ -19,15 +19,19 @@ import (
 // Generated native consumers establish database rollback and conflict behavior.
 type bulkBackend struct {
 	*creationBackend
-	limits      db.BulkInsertLimits
-	limitErr    error
-	plans       []query.BulkInsertPlan
-	next        int64
-	insert      func(int, query.BulkInsertPlan) (db.BulkInsertResult, error)
-	runBulk     func(context.Context, func(db.Session) error, *bulkSession) error
-	finishInner func(error) error
-	child       *bulkSession
-	savepoints  int
+	limits         db.BulkInsertLimits
+	limitErr       error
+	plans          []query.BulkInsertPlan
+	next           int64
+	insert         func(int, query.BulkInsertPlan) (db.BulkInsertResult, error)
+	runBulk        func(context.Context, func(db.Session) error, *bulkSession) error
+	finishInner    func(error) error
+	child          *bulkSession
+	savepoints     int
+	updateLimit    int
+	updateLimitErr error
+	updatePlans    []query.BulkUpdatePlan
+	update         func(int, query.BulkUpdatePlan) (int64, error)
 }
 
 func newBulkBackend() *bulkBackend {

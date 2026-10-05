@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 var _ orm.ProjectionDescriptor[details.Child] = details.ChildDescriptor{}
 var _ orm.ProjectionDescriptor[details.Detail] = details.DetailDescriptor{}
@@ -36,6 +36,7 @@ type relationSelectQuery[M, O any] interface {
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
+	BulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -196,6 +197,9 @@ func (_query DetailsChildSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsChildSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Child, _options ...orm.BulkUpdateOption[details.Child]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query DetailsChildSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChildObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -433,6 +437,9 @@ func (_query DetailsDetailSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query DetailsDetailSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Detail, _options ...orm.BulkUpdateOption[details.Detail]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsDetailSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetailObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -669,6 +676,9 @@ func (_query DetailsGrandchildSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query DetailsGrandchildSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Grandchild, _options ...orm.BulkUpdateOption[details.Grandchild]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsGrandchildSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchildObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -904,6 +914,9 @@ func (_query DetailsHiddenSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsHiddenSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Hidden, _options ...orm.BulkUpdateOption[details.Hidden]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query DetailsHiddenSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHiddenObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1159,6 +1172,9 @@ func (_query DetailsOverlapSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsOverlapSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Overlap, _options ...orm.BulkUpdateOption[details.Overlap]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query DetailsOverlapSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlapObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1429,6 +1445,9 @@ func (_query DetailsProtectedSelectRelatedQuery) GetOrCreate(_ctx context.Contex
 	}
 	return _object, _created, nil
 }
+func (_query DetailsProtectedSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Protected, _options ...orm.BulkUpdateOption[details.Protected]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsProtectedSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtectedObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1665,6 +1684,9 @@ func (_query DetailsRequiredRightSelectRelatedQuery) GetOrCreate(_ctx context.Co
 	}
 	return _object, _created, nil
 }
+func (_query DetailsRequiredRightSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.RequiredRight, _options ...orm.BulkUpdateOption[details.RequiredRight]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsRequiredRightSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRightObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1900,6 +1922,9 @@ func (_query DetailsRightSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsRightSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Right, _options ...orm.BulkUpdateOption[details.Right]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query DetailsRightSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRightObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -2155,6 +2180,9 @@ func (_query DetailsTwinSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query DetailsTwinSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Twin, _options ...orm.BulkUpdateOption[details.Twin]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query DetailsTwinSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwinObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -2425,6 +2453,9 @@ func (_query DetailsWatcherSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query DetailsWatcherSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Watcher, _options ...orm.BulkUpdateOption[details.Watcher]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsWatcherSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcherObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -2660,6 +2691,9 @@ func (_query ParentsLeftSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ParentsLeftSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Left, _options ...orm.BulkUpdateOption[parents.Left]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ParentsLeftSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeftObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -2897,6 +2931,9 @@ func (_query ParentsNodeSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ParentsNodeSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Node, _options ...orm.BulkUpdateOption[parents.Node]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsNodeSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNodeObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -3133,6 +3170,9 @@ func (_query ParentsRequiredLeftSelectRelatedQuery) GetOrCreate(_ctx context.Con
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRequiredLeftSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RequiredLeft, _options ...orm.BulkUpdateOption[parents.RequiredLeft]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRequiredLeftSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeftObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -3368,6 +3408,9 @@ func (_query ParentsRootSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ParentsRootSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Root, _options ...orm.BulkUpdateOption[parents.Root]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ParentsRootSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRootObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -3617,6 +3660,9 @@ func (_query ParentsRootLabelsSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query ParentsRootLabelsSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RootLabels, _options ...orm.BulkUpdateOption[parents.RootLabels]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRootLabelsSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabelsObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -3704,4 +3750,4 @@ func (_object *ParentsRootLabelsObject) RootObject(_ctx context.Context) (*Paren
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_efc89ccc70cedb32ec9c6e73f9ef4226ad8415a90589f84d0e7f99edee17d442
+var _ goDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c

@@ -7,6 +7,13 @@ import (
 
 func renderProjectFacadeBulk(output *bytes.Buffer, model projectRelationFacadeModel) {
 	raw := model.model.app.alias + "." + model.model.model.GoName
+	fmt.Fprintf(output, `// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query %[1]s) BulkUpdate(_ctx context.Context,_inputs []%[2]s,_options ...orm.BulkUpdateOption[%[2]s])(int64,error){
+ if _err:=_query.validate();_err!=nil{return 0,_err}
+ return _query.query.BulkUpdate(_ctx,_inputs,_options...)
+}
+`, model.queryType, raw)
 	for _, method := range []string{"BulkCreate", "BulkCreateInputs"} {
 		input, prepare := raw, "_inputs"
 		if method == "BulkCreateInputs" {

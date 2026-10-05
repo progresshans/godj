@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -590,16 +591,24 @@ func (site *Site) modelAction(model registeredModel, action registeredAction) we
 		if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 			return response, err
 		}
-		return site.adminAuthorize(request, action.permission, func(principal auth.Principal) (web.Response, error) {
+		return site.adminAuthorize(request, action.permissions[0], func(principal auth.Principal) (web.Response, error) {
+			if allowed, err := site.modelWriteAllowed(request.Context(), model, principal, action.permissions...); err != nil {
+				return operationResponse(err)
+			} else if !allowed {
+				return siteForbidden()
+			}
 			ids, err := selectedIDs(values)
 			if err != nil {
 				return siteBadRequest()
 			}
 			result, err := action.run(request.Context(), principal, ids)
 			if err != nil {
+				if _, rejected := validation.Rejected(err); rejected {
+					return siteBadRequest()
+				}
 				return operationResponse(err)
 			}
-			location := site.signedNoticeLocation(model, "published", strconv.Itoa(result.Matched()))
+			location := site.signedNoticeLocation(model, "action", strconv.Itoa(result.Matched()))
 			return siteRedirect(location)
 		})
 	}

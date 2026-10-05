@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 var _ orm.ProjectionDescriptor[accounts.Group] = accounts.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[accounts.GroupPermissionsLink] = accounts.GroupPermissionsLinkDescriptor{}
@@ -30,6 +30,7 @@ type relationSelectQuery[M, O any] interface {
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
+	BulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -195,6 +196,9 @@ func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.GroupPermissionsLink, _options ...orm.BulkUpdateOption[accounts.GroupPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query AccountsGroupPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.GroupPermissionsLink], _patch orm.PatchInput[accounts.GroupPermissionsLink]) (*AccountsGroupPermissionsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -422,6 +426,9 @@ func (_query AccountsUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query AccountsUserGroupsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserGroupsLink, _options ...orm.BulkUpdateOption[accounts.UserGroupsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query AccountsUserGroupsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserGroupsLink], _patch orm.PatchInput[accounts.UserGroupsLink]) (*AccountsUserGroupsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -647,6 +654,9 @@ func (_query AccountsUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query AccountsUserPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []accounts.UserPermissionsLink, _options ...orm.BulkUpdateOption[accounts.UserPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query AccountsUserPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accounts.UserPermissionsLink], _patch orm.PatchInput[accounts.UserPermissionsLink]) (*AccountsUserPermissionsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -874,6 +884,9 @@ func (_query WorkAccessGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessGuardSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessGuard, _options ...orm.BulkUpdateOption[work.AccessGuard]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query WorkAccessGuardSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessGuard], _patch orm.PatchInput[work.AccessGuard]) (*WorkAccessGuardObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1100,6 +1113,9 @@ func (_query WorkAccessNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _object, _created, nil
 }
+func (_query WorkAccessNoteSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.AccessNote, _options ...orm.BulkUpdateOption[work.AccessNote]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query WorkAccessNoteSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.AccessNote], _patch orm.PatchInput[work.AccessNote]) (*WorkAccessNoteObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1314,6 +1330,9 @@ func (_query WorkGuardSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _object, _created, nil
 }
+func (_query WorkGuardSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.Guard, _options ...orm.BulkUpdateOption[work.Guard]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query WorkGuardSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Guard], _patch orm.PatchInput[work.Guard]) (*WorkGuardObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1519,6 +1538,9 @@ func (_query WorkNoteSelectRelatedQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _object, _created, nil
 }
+func (_query WorkNoteSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []work.Note, _options ...orm.BulkUpdateOption[work.Note]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query WorkNoteSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[work.Note], _patch orm.PatchInput[work.Note]) (*WorkNoteObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1573,4 +1595,4 @@ func (_factory WorkNoteObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_3db596fea2aa93eaee3b2ee030419c94906e303d3e7c21f3bb07fd104a167b6d
+var _ goDjProjectSnapshot_53dae1367ff4cfb59a815a1e621aa8fc15187758975737eed0a6b8eef5f2494f

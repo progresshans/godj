@@ -12,6 +12,36 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
+func (a *Application) ticketBulkActions() []admin.ActionConfig {
+	if a.adminAudit == nil {
+		return nil
+	}
+	result := make([]admin.ActionConfig, 0, 2)
+	for _, action := range []struct {
+		name, label string
+		closed      bool
+	}{
+		{"close", "Close selected tickets", true}, {"reopen", "Reopen selected tickets", false},
+	} {
+		result = append(result, admin.ActionConfig{
+			Name: action.name, Label: action.label, Permission: ChangeTicket,
+			AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel},
+			Run: func(ctx context.Context, actor auth.Principal, ids []int64) (admin.ActionResult, error) {
+				changes := make([]ticketBulkChange, len(ids))
+				for index, id := range ids {
+					changes[index] = ticketBulkChange{index: index, id: id, patch: models.TicketPatch{}.WithClosed(action.closed)}
+				}
+				updated, err := a.updateTickets(ctx, actor, changes, a.adminAudit)
+				if err != nil {
+					return admin.ActionResult{}, err
+				}
+				return admin.ActionResult{MatchedIDs: updated.changedIDs}, nil
+			},
+		})
+	}
+	return result
+}
+
 // AdminRenderLimits covers forty rows with the bounded label chooser. The
 // enclosing web.Application must use MaxResponseBytes with this byte limit.
 func AdminRenderLimits() templates.Limits {

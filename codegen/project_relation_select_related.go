@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 // GenerateProjectRelationSelectRelated renders the current project-only
 // select-related companion. It attaches a composable builder to the existing
@@ -78,6 +78,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 		fmt.Fprintln(&output, "\tGet(context.Context) (*O, error)")
 		fmt.Fprintln(&output, "\tGetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)")
 		fmt.Fprintln(&output, "\tUpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)")
+		fmt.Fprintln(&output, "\tBulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)")
 		fmt.Fprintln(&output, "\tFirst(context.Context) (*O, bool, error)")
 		fmt.Fprintln(&output, "}")
 		fmt.Fprintln(&output)
@@ -248,7 +249,10 @@ func (_query %[1]s) rebuild() %[1]s{
  _object,_err:=_query.wrap(_selected);if _err!=nil{return nil,_created,_err};return _object,_created,nil
 }
 `, queryType, source.objectType, sourceType)
-	fmt.Fprintf(output, `func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[3]s],_patch orm.PatchInput[%[3]s])(*%[2]s,bool,error){
+	fmt.Fprintf(output, `func (_query %[1]s) BulkUpdate(_ctx context.Context,_inputs []%[3]s,_options ...orm.BulkUpdateOption[%[3]s])(int64,error){
+ return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx,_inputs,_options...)
+}
+func (_query %[1]s) UpdateOrCreate(_ctx context.Context,_create orm.CreateInput[%[3]s],_patch orm.PatchInput[%[3]s])(*%[2]s,bool,error){
  _selected,_created,_err:=_query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx,_create,_patch);if _err!=nil{return nil,false,_err}
  _object,_err:=_query.wrap(_selected);if _err!=nil{return nil,_created,_err};return _object,_created,nil
 }

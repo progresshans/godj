@@ -346,6 +346,7 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 				}
 			}
 			var creates []ticketBulkCandidate
+			var updates []ticketBulkChange
 			for _, row := range prepared.Rows() {
 				if !row.Existing() {
 					value, err := row.Model()
@@ -360,56 +361,38 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 				if !found {
 					return errors.New("helpdesk: missing prepared editor row")
 				}
-				id := int64(0)
-				if row.Existing() {
-					current, _, err := view.set.Current(row.Index())
-					if err != nil {
-						return err
-					}
-					id = current.ID
-				}
-				saved, changed, err := editor.app.saveTicketFormInSession(ctx, session, actor, id, instance.BoundForm())
+				current, _, err := view.set.Current(row.Index())
 				if err != nil {
-					if failures, rejected := validation.Rejected(err); rejected {
-						view.set, callbackErr = view.set.WithRowErrors(row.Index(), failures)
-						if callbackErr != nil {
-							return callbackErr
+					return err
+				}
+				bound := instance.BoundForm()
+				updates = append(updates, ticketBulkChange{index: row.Index(), id: current.ID, form: &bound})
+			}
+			attachFailure := func(err error) error {
+				if failures, rejected := validation.Rejected(err); rejected {
+					for _, failure := range failures.All() {
+						index, present := bulkFailureIndex(failure)
+						var attachErr error
+						if present {
+							view.set, attachErr = view.set.WithRowErrors(index, validation.NewErrors(failure))
+						} else {
+							view.set, attachErr = view.set.WithErrors(validation.NewErrors(failure))
+						}
+						if attachErr != nil {
+							return attachErr
 						}
 					}
-					return err
 				}
-				if id != 0 && len(changed) == 0 {
-					continue
-				}
-				action := admin.ActionChange
-				if id == 0 {
-					action = admin.ActionAdd
-				}
-				event, err := admin.PrepareEvent(actor.ID(), "helpdesk.ticket", saved.ID, action, changed, saved.Subject)
-				if err != nil {
-					return err
-				}
-				if err = editor.appendAudit(ctx, session, event); err != nil {
-					return err
+				return err
+			}
+			if len(updates) != 0 {
+				if _, err := editor.app.updateTicketsInSession(ctx, session, actor, updates, editor.appendAudit); err != nil {
+					return attachFailure(err)
 				}
 			}
 			if len(creates) != 0 {
 				if _, err := editor.app.createTicketsInSession(ctx, session, actor, creates, editor.appendAudit); err != nil {
-					if failures, rejected := validation.Rejected(err); rejected {
-						for _, failure := range failures.All() {
-							index, present := bulkFailureIndex(failure)
-							var attachErr error
-							if present {
-								view.set, attachErr = view.set.WithRowErrors(index, validation.NewErrors(failure))
-							} else {
-								view.set, attachErr = view.set.WithErrors(validation.NewErrors(failure))
-							}
-							if attachErr != nil {
-								return attachErr
-							}
-						}
-					}
-					return err
+					return attachFailure(err)
 				}
 			}
 			return nil

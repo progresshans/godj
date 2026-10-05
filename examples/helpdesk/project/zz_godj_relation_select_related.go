@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
 var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
@@ -31,6 +31,7 @@ type relationSelectQuery[M, O any] interface {
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
+	BulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -196,6 +197,9 @@ func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx co
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -423,6 +427,9 @@ func (_query IdentityUserGroupsLinkSelectRelatedQuery) GetOrCreate(_ctx context.
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserGroupsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -649,6 +656,9 @@ func (_query IdentityUserPermissionsLinkSelectRelatedQuery) GetOrCreate(_ctx con
 	}
 	return _object, _created, nil
 }
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserPermissionsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -863,6 +873,9 @@ func (_query ModelsLabelSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ModelsLabelSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.Label, _options ...orm.BulkUpdateOption[models.Label]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsLabelSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Label], _patch orm.PatchInput[models.Label]) (*ModelsLabelObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1074,6 +1087,9 @@ func (_query ModelsServiceReportSelectRelatedQuery) GetOrCreate(_ctx context.Con
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ModelsServiceReportSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.ServiceReport, _options ...orm.BulkUpdateOption[models.ServiceReport]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ModelsServiceReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.ServiceReport], _patch orm.PatchInput[models.ServiceReport]) (*ModelsServiceReportObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1322,6 +1338,9 @@ func (_query ModelsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, _
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ModelsTicketSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.Ticket, _options ...orm.BulkUpdateOption[models.Ticket]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ModelsTicketSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Ticket], _patch orm.PatchInput[models.Ticket]) (*ModelsTicketObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1587,6 +1606,9 @@ func (_query ModelsTicketLabelSelectRelatedQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _object, _created, nil
 }
+func (_query ModelsTicketLabelSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []models.TicketLabel, _options ...orm.BulkUpdateOption[models.TicketLabel]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsTicketLabelSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.TicketLabel], _patch orm.PatchInput[models.TicketLabel]) (*ModelsTicketLabelObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1698,4 +1720,4 @@ func (_object *ModelsTicketLabelObject) TicketObject(_ctx context.Context) (*Mod
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_0bdbbd39d8d187aed0b2c0ea4e5c6420ed0665a247807eb35e07ed66259e9403
+var _ goDjProjectSnapshot_b2369703f3378ee9e84d40448224d9067dfbfa483eb3d7d198d7eb330ac159a7

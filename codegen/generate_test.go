@@ -10,7 +10,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"testing"
 
@@ -308,12 +307,9 @@ func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 	if len(want) == 0 {
 		t.Fatal("GenerateProject() omitted models/zz_godj_generated.go")
 	}
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(currentFile), ".."))
-	path := filepath.Join(root, "examples", "article", "models", "zz_godj_generated.go")
+	// Go tests run in their package directory. Compiler paths may be trimmed
+	// and therefore must not be used to locate the checked-in source tree.
+	path := filepath.Join("..", "examples", "article", "models", "zz_godj_generated.go")
 	got, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read committed generated source: %v", err)

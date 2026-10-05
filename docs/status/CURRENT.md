@@ -1,28 +1,25 @@
 # 현재 상태
 
-- 갱신: 2026-10-02
-- 현재 구현: [GDJ-0109 Native bulk 생성과 여러 티켓 생성](../../work/0109-bulk-creation-and-ticket-import.md)
-- 진행 중인 전체 검증: [Hosted full 36932376723](https://github.com/progresshans/godj/actions/runs/36932376723), source `1819908303e90bf400e2e993286625685a33665d`
+- 갱신: 2026-10-05
+- 현재 구현: [GDJ-0110 Native bulk update와 여러 티켓 수정](../../work/0110-bulk-update-and-ticket-editing.md)
+- 통합 대기: [GDJ-0109 Native bulk 생성과 여러 티켓 생성](../../work/0109-bulk-creation-and-ticket-import.md)
+- 최근 Hosted full: [36932376723](https://github.com/progresshans/godj/actions/runs/36932376723), source `1819908303e90bf400e2e993286625685a33665d`; 선언된 scope 성공, 추가 PostgreSQL 회귀의 실행 담당 보완 대기
 - 최근 완료: [GDJ-0108 행 잠금과 조회 후 생성 또는 갱신](../../work/0108-row-locking-and-update-or-create.md)
-- 최근 전체 검증: [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942), source `f6e95bb81f80605491bbf04feab49017f79f49e4`; 필수 owner·집계·새 capture/Git source 결합과 소비 완료
-- Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
+- Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-첫 Hosted full은 macOS ARM/race package timeout으로 실패했다. 모든 테스트를 유지하는 분할을 적용하고 수정 source로 전체 재검증을 요청했다.
-
-Native bulk 생성의 AST·backend·generic ORM·typed root facade와 Helpdesk Form/Admin/API·독립 client를 구현했다.
-정식 Django bulk-create 23개 사례의 양 DB 직접 대조와 업무 소비·현재 권한/관계·전체 rollback/audit를 영향 세 mode에서
-확인했다. 실제 Admin 여러 건 생성과 기존 티켓 편집기의 브라우저 저장도 확인했으며 새 source의 Hosted 통합은 남아 있다.
-
-기반 source `f6e95bb8`의 [Hosted full 36900514942](https://github.com/progresshans/godj/actions/runs/36900514942)는
-65개 job·필수 owner·집계·새 capture의 Git source 결합과 소비를 완료했다. 이 작업의 새 source는 포함하지 않는다.
+Selected-field bulk update의 AST/backend·generic ORM·생성 facade와 Helpdesk 편집기·Admin·API·독립 client를 연결했다.
+고정 Django 기준·native 잠금 대기의 비교와 실제 브라우저 흐름, 완성된 변경 묶음의 양 DB 영향 세 mode를 확인했다.
+선행 source의 Hosted 결과와 현재 bulk-update source를 구분한다.
 
 ## 다음 행동
 
-GDJ-0109의 Hosted full에서 필수 owner·실제 실행·새 capture/source 결합·최종 집계를 확인한다.
-Bulk update·확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
-의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다. [검증 문서](../TESTING.md)를 따른다.
+실행 담당이 빠진 PostgreSQL system-state product 회귀도 실제 양 DB의 세 mode에서 확인하고 CI에 연결했다. GDJ-0110의 새 source로
+두 작업의 다음 Hosted 통합 milestone을 실행하여 필수 owner·실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다.
+Writable expression·확장 query, codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
+의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 
-공유 Go cache·병렬 실행·생성 소비자의 `-trimpath`를 유지한다. 전체/cold/Hosted 검증은 명시한 통합 milestone이 소유한다.
-장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이며 한 기능 완료와 구분한다.
+[검증 문서](../TESTING.md)에 따라 공유 Go cache·병렬 실행·생성 소비자의 `-trimpath`를 유지한다.
+전체/cold/Hosted 검증은 명시한 통합 milestone이 소유한다. 장기 목표는 [헌장](../CHARTER.md)과
+[기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이며 한 기능 완료와 구분한다.

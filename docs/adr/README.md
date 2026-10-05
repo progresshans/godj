@@ -94,6 +94,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0082](0082-file-storage-publication-and-reference.md) | Accepted | 저장 이름과 요청 capability를 분리하고 파일 게시/불확실한 결과를 DB commit과 구분 |
 | [0083](0083-url-fields-and-input-normalization.md) | Accepted design | URLField의 입력 정규화와 저장 경계 |
 
+| [0089](0089-bulk-update-and-selected-field-ownership.md) | Accepted | Selected-field bulk update와 native 잠금 재평가·업무 전부 성공 조건 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

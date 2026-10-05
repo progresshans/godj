@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
-const GoDjProjectRelationFacadeInputSHA256 = "92a677f7c8c6dd62750713d3fbb15588bef0270da591f47a94695824bd4446e4"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
+const GoDjProjectRelationFacadeInputSHA256 = "1fd1b565237823c475dbbca0ce762cc4a291854820c226315d773d7fce768672"
 
 type Backend interface {
 	db.Queryer
@@ -441,6 +441,15 @@ func newIdentityGroupQuery(_state *relationFacadeState, _query orm.QuerySet[iden
 
 func (_query IdentityGroupQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityGroupQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Group, _options ...orm.BulkUpdateOption[identity.Group]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -1287,6 +1296,12 @@ func (_query IdentityGroupPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query IdentityGroupPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Group, _options ...orm.BulkUpdateOption[identity.Group]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityGroupPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Group], _patch orm.PatchInput[identity.Group]) (*IdentityGroup, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1461,6 +1476,15 @@ func newIdentityGroupPermissionsLinkQuery(_state *relationFacadeState, _query or
 
 func (_query IdentityGroupPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityGroupPermissionsLinkQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -2483,6 +2507,12 @@ func (_query IdentityGroupPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context
 	}
 	return _result, _created, nil
 }
+func (_query IdentityGroupPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityGroupPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -2858,6 +2888,12 @@ func (_query IdentityGroupPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Co
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityGroupPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.GroupPermissionsLink, _options ...orm.BulkUpdateOption[identity.GroupPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityGroupPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.GroupPermissionsLink], _patch orm.PatchInput[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -2993,6 +3029,15 @@ func newIdentityPermissionQuery(_state *relationFacadeState, _query orm.QuerySet
 
 func (_query IdentityPermissionQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityPermissionQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Permission, _options ...orm.BulkUpdateOption[identity.Permission]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -3839,6 +3884,12 @@ func (_query IdentityPermissionPrefetchQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _result, _created, nil
 }
+func (_query IdentityPermissionPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.Permission, _options ...orm.BulkUpdateOption[identity.Permission]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityPermissionPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.Permission], _patch orm.PatchInput[identity.Permission]) (*IdentityPermission, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -4006,6 +4057,15 @@ func newIdentityUserQuery(_state *relationFacadeState, _query orm.QuerySet[ident
 
 func (_query IdentityUserQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityUserQuery) BulkUpdate(_ctx context.Context, _inputs []identity.User, _options ...orm.BulkUpdateOption[identity.User]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -4852,6 +4912,12 @@ func (_query IdentityUserPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.User, _options ...orm.BulkUpdateOption[identity.User]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.User], _patch orm.PatchInput[identity.User]) (*IdentityUser, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -5026,6 +5092,15 @@ func newIdentityUserGroupsLinkQuery(_state *relationFacadeState, _query orm.Quer
 
 func (_query IdentityUserGroupsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityUserGroupsLinkQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -6048,6 +6123,12 @@ func (_query IdentityUserGroupsLinkPrefetchQuery) GetOrCreate(_ctx context.Conte
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserGroupsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserGroupsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -6423,6 +6504,12 @@ func (_query IdentityUserGroupsLinkEagerQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityUserGroupsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserGroupsLink, _options ...orm.BulkUpdateOption[identity.UserGroupsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserGroupsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserGroupsLink], _patch orm.PatchInput[identity.UserGroupsLink]) (*IdentityUserGroupsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -6567,6 +6654,15 @@ func newIdentityUserPermissionsLinkQuery(_state *relationFacadeState, _query orm
 
 func (_query IdentityUserPermissionsLinkQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query IdentityUserPermissionsLinkQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -7589,6 +7685,12 @@ func (_query IdentityUserPermissionsLinkPrefetchQuery) GetOrCreate(_ctx context.
 	}
 	return _result, _created, nil
 }
+func (_query IdentityUserPermissionsLinkPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserPermissionsLinkPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -7964,6 +8066,12 @@ func (_query IdentityUserPermissionsLinkEagerQuery) GetOrCreate(_ctx context.Con
 	}
 	return _wrapped, _created, nil
 }
+func (_query IdentityUserPermissionsLinkEagerQuery) BulkUpdate(_ctx context.Context, _inputs []identity.UserPermissionsLink, _options ...orm.BulkUpdateOption[identity.UserPermissionsLink]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query IdentityUserPermissionsLinkEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[identity.UserPermissionsLink], _patch orm.PatchInput[identity.UserPermissionsLink]) (*IdentityUserPermissionsLink, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -8099,6 +8207,15 @@ func newModelsCategoryQuery(_state *relationFacadeState, _query orm.QuerySet[mod
 
 func (_query ModelsCategoryQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ModelsCategoryQuery) BulkUpdate(_ctx context.Context, _inputs []models.Category, _options ...orm.BulkUpdateOption[models.Category]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -8801,6 +8918,12 @@ func (_query ModelsCategoryPrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _result, _created, nil
 }
+func (_query ModelsCategoryPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []models.Category, _options ...orm.BulkUpdateOption[models.Category]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsCategoryPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Category], _patch orm.PatchInput[models.Category]) (*ModelsCategory, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -8972,6 +9095,15 @@ func newModelsLabelQuery(_state *relationFacadeState, _query orm.QuerySet[models
 
 func (_query ModelsLabelQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ModelsLabelQuery) BulkUpdate(_ctx context.Context, _inputs []models.Label, _options ...orm.BulkUpdateOption[models.Label]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -10027,6 +10159,12 @@ func (_query ModelsLabelPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _result, _created, nil
 }
+func (_query ModelsLabelPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []models.Label, _options ...orm.BulkUpdateOption[models.Label]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsLabelPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Label], _patch orm.PatchInput[models.Label]) (*ModelsLabel, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -10401,6 +10539,12 @@ func (_query ModelsLabelEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ModelsLabelEagerQuery) BulkUpdate(_ctx context.Context, _inputs []models.Label, _options ...orm.BulkUpdateOption[models.Label]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsLabelEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Label], _patch orm.PatchInput[models.Label]) (*ModelsLabel, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -10552,6 +10696,15 @@ func newModelsServiceReportQuery(_state *relationFacadeState, _query orm.QuerySe
 
 func (_query ModelsServiceReportQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ModelsServiceReportQuery) BulkUpdate(_ctx context.Context, _inputs []models.ServiceReport, _options ...orm.BulkUpdateOption[models.ServiceReport]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -11396,6 +11549,12 @@ func (_query ModelsServiceReportPrefetchQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _result, _created, nil
 }
+func (_query ModelsServiceReportPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []models.ServiceReport, _options ...orm.BulkUpdateOption[models.ServiceReport]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsServiceReportPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.ServiceReport], _patch orm.PatchInput[models.ServiceReport]) (*ModelsServiceReport, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -11770,6 +11929,12 @@ func (_query ModelsServiceReportEagerQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _wrapped, _created, nil
 }
+func (_query ModelsServiceReportEagerQuery) BulkUpdate(_ctx context.Context, _inputs []models.ServiceReport, _options ...orm.BulkUpdateOption[models.ServiceReport]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsServiceReportEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.ServiceReport], _patch orm.PatchInput[models.ServiceReport]) (*ModelsServiceReport, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -11890,6 +12055,15 @@ func newModelsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[model
 
 func (_query ModelsTicketQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ModelsTicketQuery) BulkUpdate(_ctx context.Context, _inputs []models.Ticket, _options ...orm.BulkUpdateOption[models.Ticket]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -13084,6 +13258,12 @@ func (_query ModelsTicketPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query ModelsTicketPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []models.Ticket, _options ...orm.BulkUpdateOption[models.Ticket]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsTicketPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Ticket], _patch orm.PatchInput[models.Ticket]) (*ModelsTicket, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -13459,6 +13639,12 @@ func (_query ModelsTicketEagerQuery) GetOrCreate(_ctx context.Context, _input or
 	}
 	return _wrapped, _created, nil
 }
+func (_query ModelsTicketEagerQuery) BulkUpdate(_ctx context.Context, _inputs []models.Ticket, _options ...orm.BulkUpdateOption[models.Ticket]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsTicketEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.Ticket], _patch orm.PatchInput[models.Ticket]) (*ModelsTicket, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -13631,6 +13817,15 @@ func newModelsTicketLabelQuery(_state *relationFacadeState, _query orm.QuerySet[
 
 func (_query ModelsTicketLabelQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ModelsTicketLabelQuery) BulkUpdate(_ctx context.Context, _inputs []models.TicketLabel, _options ...orm.BulkUpdateOption[models.TicketLabel]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -14653,6 +14848,12 @@ func (_query ModelsTicketLabelPrefetchQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _result, _created, nil
 }
+func (_query ModelsTicketLabelPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []models.TicketLabel, _options ...orm.BulkUpdateOption[models.TicketLabel]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsTicketLabelPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.TicketLabel], _patch orm.PatchInput[models.TicketLabel]) (*ModelsTicketLabel, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -15028,6 +15229,12 @@ func (_query ModelsTicketLabelEagerQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _wrapped, _created, nil
 }
+func (_query ModelsTicketLabelEagerQuery) BulkUpdate(_ctx context.Context, _inputs []models.TicketLabel, _options ...orm.BulkUpdateOption[models.TicketLabel]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ModelsTicketLabelEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[models.TicketLabel], _patch orm.PatchInput[models.TicketLabel]) (*ModelsTicketLabel, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -15311,4 +15518,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0bdbbd39d8d187aed0b2c0ea4e5c6420ed0665a247807eb35e07ed66259e9403
+var _ goDjProjectSnapshot_b2369703f3378ee9e84d40448224d9067dfbfa483eb3d7d198d7eb330ac159a7

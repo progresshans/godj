@@ -226,6 +226,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err := admin.RegisterModel(builder, admin.ModelConfig[ticketRecord]{
 		Inlines:            inlines,
 		CollectionFormSets: bulkForms,
+		Actions:            a.ticketBulkActions(),
 		AppLabel:           "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
 		FormOverrides: overrides,
 		ReadOnlyFields: []admin.ReadOnlyField[ticketRecord]{{Name: "external_payload_digest", Label: "Payload SHA-256 (base64)", Value: func(value ticketRecord) (string, error) {
@@ -552,6 +553,9 @@ func (a *Application) publishableTicket(ctx context.Context, session db.Session,
 	}
 	if !found {
 		return ticketRecord{}, admin.ErrObjectNotFound
+	}
+	if err := a.validateStoredTicketLabels(ctx, session, stored); err != nil {
+		return ticketRecord{}, err
 	}
 	if scalarWritten {
 		stored.Ticket, err = synchronizePayloadDigest(ctx, session, stored.Ticket)

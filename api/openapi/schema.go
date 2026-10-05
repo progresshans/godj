@@ -129,6 +129,58 @@ func Object(properties ...Property) (Schema, error) {
 	return schemaObject(result...)
 }
 
+// ExtendObject appends explicit properties to an inline closed object without
+// changing its existing fields, requiredness or annotations. A reference or
+// other schema shape is rejected; callers must provide its concrete object.
+func ExtendObject(base Schema, properties ...Property) (Schema, error) {
+	object, valid := base.value.AsObject()
+	if !valid {
+		return Schema{}, schemaConfigError("object", "base is not an inline object schema")
+	}
+	kind, _ := object.Get("type")
+	name, _ := kind.AsString()
+	additional, _ := object.Get("additionalProperties")
+	open, boolean := additional.AsBoolean()
+	if name != "object" || !boolean || open {
+		return Schema{}, schemaConfigError("object", "base is not a closed object schema")
+	}
+	value, _ := object.Get("properties")
+	existing, valid := value.AsObject()
+	if !valid {
+		return Schema{}, schemaConfigError("object.properties", "base has no properties")
+	}
+	required := make(map[string]bool)
+	if value, present := object.Get("required"); present {
+		items, _ := value.AsList()
+		for _, item := range items {
+			name, _ := item.AsString()
+			required[name] = true
+		}
+	}
+	all := make([]Property, 0, existing.Len()+len(properties))
+	for _, member := range existing.Members() {
+		all = append(all, Property{Name: member.Name(), Schema: Schema{value: member.Value()}, Required: required[member.Name()]})
+	}
+	all = append(all, properties...)
+	extended, err := Object(all...)
+	if err != nil {
+		return Schema{}, err
+	}
+	newObject, _ := extended.value.AsObject()
+	members := make([]serializers.Member, 0, object.Len()+1)
+	for _, member := range object.Members() {
+		if member.Name() != "properties" && member.Name() != "required" {
+			members = append(members, member)
+		}
+	}
+	for _, name := range []string{"properties", "required"} {
+		if value, present := newObject.Get(name); present {
+			members = append(members, serializers.MemberOf(name, value))
+		}
+	}
+	return schemaObject(members...)
+}
+
 // Array describes a JSON array whose elements use one schema.
 func Array(items Schema) (Schema, error) {
 	if !schemaValid(items) {

@@ -34,6 +34,9 @@ type bulkTicketBackend struct {
 	atomics, savepoints, reads, bulks, singleInserts, links int
 	batchRows                                               []int
 	keys                                                    []int64
+	updates, singleUpdates                                  int
+	updateRows                                              []int
+	updateMasks                                             [][]string
 	cancel                                                  context.CancelFunc
 	retained                                                func(db.RelationSession) error
 }
@@ -150,18 +153,74 @@ func (session *bulkTicketSession) BulkInsert(ctx context.Context, plan query.Bul
 	return result, err
 }
 
+func (session *bulkTicketSession) BulkUpdateBatchSize(ctx context.Context, spec query.BulkUpdateSpec) (int, error) {
+	return session.RelationSession.(db.BulkUpdater).BulkUpdateBatchSize(ctx, spec)
+}
+func (session *bulkTicketSession) BulkUpdate(ctx context.Context, plan query.BulkUpdatePlan) (int64, error) {
+	backend := session.owner
+	backend.updates++
+	backend.updateRows = append(backend.updateRows, plan.RowCount())
+	var fields []string
+	for _, field := range plan.Spec().Fields() {
+		fields = append(fields, field.Name())
+	}
+	backend.updateMasks = append(backend.updateMasks, fields)
+	if backend.mode == "update_second_batch_error" && backend.updates == 2 {
+		return 0, errors.New("private later update failure")
+	}
+	if backend.mode == "update_late_scope" || backend.mode == "update_late_missing" {
+		value, err := models.TicketObjects.Using(session.RelationSession).Filter(models.TicketFields.ID.Exact(plan.Keys()[len(plan.Keys())-1])).Get(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if backend.mode == "update_late_scope" {
+			_, err = models.TicketObjects.Update(ctx, session.RelationSession, value, models.TicketPatch{}.WithCategoryID(backend.outside))
+		} else {
+			_, err = models.TicketObjects.Delete(ctx, session.RelationSession, &value)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+	count, err := session.RelationSession.(db.BulkUpdater).BulkUpdate(ctx, plan)
+	if err == nil {
+		backend.keys = append(backend.keys, plan.Keys()...)
+		if backend.mode == "partial_update_count" {
+			count--
+		}
+		if backend.mode == "canceled_bulk" {
+			backend.cancel()
+		}
+	}
+	return count, err
+}
+
 func (session *bulkTicketSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	backend := session.owner
 	backend.reads++
 	if plan.Table() == "helpdesk_ticket" {
+		if backend.updates == 0 && strings.HasPrefix(backend.mode, "update_native_") {
+			for _, condition := range plan.Conditions() {
+				if condition.Field().Name() == "external_reference" {
+					return uniqueEmptyRows{}, nil
+				}
+			}
+		}
 		if backend.bulks == 0 && (backend.mode == "native_conflict" || backend.mode == "native_later_conflict") {
 			return uniqueEmptyRows{}, nil
 		}
-		if backend.bulks > 0 && backend.mode == "output_error" {
+		if (backend.bulks > 0 || backend.updates > 0) && backend.mode == "output_error" {
 			return nil, errors.New("private output read failure")
 		}
 	}
 	return session.RelationSession.Query(ctx, plan)
+}
+
+func (session *bulkTicketSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	if plan.Table() == "helpdesk_ticket" {
+		session.owner.singleUpdates++
+	}
+	return session.RelationSession.Update(ctx, plan)
 }
 
 func (session *bulkTicketSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {

@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v21"
-const GoDjProjectRelationFacadeInputSHA256 = "32824e2f984428c21471447f20ba3e07a9fe9d1c142082f752aa06dcba21c42b"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v22"
+const GoDjProjectRelationFacadeInputSHA256 = "a317b7eb6c71379935f62d7a36fdc064535f5ed708918b0ef53b6a65db71cd9e"
 
 type Backend interface {
 	db.Queryer
@@ -452,6 +452,15 @@ func newDetailsChildQuery(_state *relationFacadeState, _query orm.QuerySet[detai
 
 func (_query DetailsChildQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsChildQuery) BulkUpdate(_ctx context.Context, _inputs []details.Child, _options ...orm.BulkUpdateOption[details.Child]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -1355,6 +1364,12 @@ func (_query DetailsChildPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query DetailsChildPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Child, _options ...orm.BulkUpdateOption[details.Child]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsChildPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChild, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -1729,6 +1744,12 @@ func (_query DetailsChildEagerQuery) GetOrCreate(_ctx context.Context, _input or
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsChildEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Child, _options ...orm.BulkUpdateOption[details.Child]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsChildEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Child], _patch orm.PatchInput[details.Child]) (*DetailsChild, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -1862,6 +1883,15 @@ func newDetailsDetailQuery(_state *relationFacadeState, _query orm.QuerySet[deta
 
 func (_query DetailsDetailQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsDetailQuery) BulkUpdate(_ctx context.Context, _inputs []details.Detail, _options ...orm.BulkUpdateOption[details.Detail]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -2706,6 +2736,12 @@ func (_query DetailsDetailPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query DetailsDetailPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Detail, _options ...orm.BulkUpdateOption[details.Detail]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsDetailPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetail, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -3080,6 +3116,12 @@ func (_query DetailsDetailEagerQuery) GetOrCreate(_ctx context.Context, _input o
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsDetailEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Detail, _options ...orm.BulkUpdateOption[details.Detail]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsDetailEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Detail], _patch orm.PatchInput[details.Detail]) (*DetailsDetail, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -3195,6 +3237,15 @@ func newDetailsGrandchildQuery(_state *relationFacadeState, _query orm.QuerySet[
 
 func (_query DetailsGrandchildQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsGrandchildQuery) BulkUpdate(_ctx context.Context, _inputs []details.Grandchild, _options ...orm.BulkUpdateOption[details.Grandchild]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -4018,6 +4069,12 @@ func (_query DetailsGrandchildPrefetchQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _result, _created, nil
 }
+func (_query DetailsGrandchildPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Grandchild, _options ...orm.BulkUpdateOption[details.Grandchild]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsGrandchildPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchild, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -4392,6 +4449,12 @@ func (_query DetailsGrandchildEagerQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsGrandchildEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Grandchild, _options ...orm.BulkUpdateOption[details.Grandchild]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsGrandchildEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Grandchild], _patch orm.PatchInput[details.Grandchild]) (*DetailsGrandchild, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -4507,6 +4570,15 @@ func newDetailsHiddenQuery(_state *relationFacadeState, _query orm.QuerySet[deta
 
 func (_query DetailsHiddenQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsHiddenQuery) BulkUpdate(_ctx context.Context, _inputs []details.Hidden, _options ...orm.BulkUpdateOption[details.Hidden]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -5330,6 +5402,12 @@ func (_query DetailsHiddenPrefetchQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _result, _created, nil
 }
+func (_query DetailsHiddenPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Hidden, _options ...orm.BulkUpdateOption[details.Hidden]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsHiddenPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHidden, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -5704,6 +5782,12 @@ func (_query DetailsHiddenEagerQuery) GetOrCreate(_ctx context.Context, _input o
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsHiddenEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Hidden, _options ...orm.BulkUpdateOption[details.Hidden]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsHiddenEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Hidden], _patch orm.PatchInput[details.Hidden]) (*DetailsHidden, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -5822,6 +5906,15 @@ func newDetailsOverlapQuery(_state *relationFacadeState, _query orm.QuerySet[det
 
 func (_query DetailsOverlapQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsOverlapQuery) BulkUpdate(_ctx context.Context, _inputs []details.Overlap, _options ...orm.BulkUpdateOption[details.Overlap]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -6844,6 +6937,12 @@ func (_query DetailsOverlapPrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _result, _created, nil
 }
+func (_query DetailsOverlapPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Overlap, _options ...orm.BulkUpdateOption[details.Overlap]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsOverlapPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlap, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -7219,6 +7318,12 @@ func (_query DetailsOverlapEagerQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsOverlapEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Overlap, _options ...orm.BulkUpdateOption[details.Overlap]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsOverlapEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Overlap], _patch orm.PatchInput[details.Overlap]) (*DetailsOverlap, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -7360,6 +7465,15 @@ func newDetailsProtectedQuery(_state *relationFacadeState, _query orm.QuerySet[d
 
 func (_query DetailsProtectedQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsProtectedQuery) BulkUpdate(_ctx context.Context, _inputs []details.Protected, _options ...orm.BulkUpdateOption[details.Protected]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -8183,6 +8297,12 @@ func (_query DetailsProtectedPrefetchQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _result, _created, nil
 }
+func (_query DetailsProtectedPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Protected, _options ...orm.BulkUpdateOption[details.Protected]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsProtectedPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtected, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -8557,6 +8677,12 @@ func (_query DetailsProtectedEagerQuery) GetOrCreate(_ctx context.Context, _inpu
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsProtectedEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Protected, _options ...orm.BulkUpdateOption[details.Protected]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsProtectedEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Protected], _patch orm.PatchInput[details.Protected]) (*DetailsProtected, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -8672,6 +8798,15 @@ func newDetailsRequiredRightQuery(_state *relationFacadeState, _query orm.QueryS
 
 func (_query DetailsRequiredRightQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsRequiredRightQuery) BulkUpdate(_ctx context.Context, _inputs []details.RequiredRight, _options ...orm.BulkUpdateOption[details.RequiredRight]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -9495,6 +9630,12 @@ func (_query DetailsRequiredRightPrefetchQuery) GetOrCreate(_ctx context.Context
 	}
 	return _result, _created, nil
 }
+func (_query DetailsRequiredRightPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.RequiredRight, _options ...orm.BulkUpdateOption[details.RequiredRight]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsRequiredRightPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRight, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -9869,6 +10010,12 @@ func (_query DetailsRequiredRightEagerQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsRequiredRightEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.RequiredRight, _options ...orm.BulkUpdateOption[details.RequiredRight]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsRequiredRightEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.RequiredRight], _patch orm.PatchInput[details.RequiredRight]) (*DetailsRequiredRight, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -9984,6 +10131,15 @@ func newDetailsRightQuery(_state *relationFacadeState, _query orm.QuerySet[detai
 
 func (_query DetailsRightQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsRightQuery) BulkUpdate(_ctx context.Context, _inputs []details.Right, _options ...orm.BulkUpdateOption[details.Right]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -10807,6 +10963,12 @@ func (_query DetailsRightPrefetchQuery) GetOrCreate(_ctx context.Context, _input
 	}
 	return _result, _created, nil
 }
+func (_query DetailsRightPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Right, _options ...orm.BulkUpdateOption[details.Right]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsRightPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRight, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -11181,6 +11343,12 @@ func (_query DetailsRightEagerQuery) GetOrCreate(_ctx context.Context, _input or
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsRightEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Right, _options ...orm.BulkUpdateOption[details.Right]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsRightEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Right], _patch orm.PatchInput[details.Right]) (*DetailsRight, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -11299,6 +11467,15 @@ func newDetailsTwinQuery(_state *relationFacadeState, _query orm.QuerySet[detail
 
 func (_query DetailsTwinQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsTwinQuery) BulkUpdate(_ctx context.Context, _inputs []details.Twin, _options ...orm.BulkUpdateOption[details.Twin]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -12321,6 +12498,12 @@ func (_query DetailsTwinPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _result, _created, nil
 }
+func (_query DetailsTwinPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Twin, _options ...orm.BulkUpdateOption[details.Twin]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsTwinPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwin, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -12696,6 +12879,12 @@ func (_query DetailsTwinEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsTwinEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Twin, _options ...orm.BulkUpdateOption[details.Twin]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsTwinEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Twin], _patch orm.PatchInput[details.Twin]) (*DetailsTwin, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -12837,6 +13026,15 @@ func newDetailsWatcherQuery(_state *relationFacadeState, _query orm.QuerySet[det
 
 func (_query DetailsWatcherQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query DetailsWatcherQuery) BulkUpdate(_ctx context.Context, _inputs []details.Watcher, _options ...orm.BulkUpdateOption[details.Watcher]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -13693,6 +13891,12 @@ func (_query DetailsWatcherPrefetchQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _result, _created, nil
 }
+func (_query DetailsWatcherPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []details.Watcher, _options ...orm.BulkUpdateOption[details.Watcher]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsWatcherPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcher, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -14067,6 +14271,12 @@ func (_query DetailsWatcherEagerQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _wrapped, _created, nil
 }
+func (_query DetailsWatcherEagerQuery) BulkUpdate(_ctx context.Context, _inputs []details.Watcher, _options ...orm.BulkUpdateOption[details.Watcher]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query DetailsWatcherEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[details.Watcher], _patch orm.PatchInput[details.Watcher]) (*DetailsWatcher, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -14163,6 +14373,15 @@ func newParentsLabelQuery(_state *relationFacadeState, _query orm.QuerySet[paren
 
 func (_query ParentsLabelQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsLabelQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Label, _options ...orm.BulkUpdateOption[parents.Label]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -14570,6 +14789,15 @@ func newParentsLeftQuery(_state *relationFacadeState, _query orm.QuerySet[parent
 
 func (_query ParentsLeftQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsLeftQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Left, _options ...orm.BulkUpdateOption[parents.Left]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -15426,6 +15654,12 @@ func (_query ParentsLeftPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _result, _created, nil
 }
+func (_query ParentsLeftPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Left, _options ...orm.BulkUpdateOption[parents.Left]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsLeftPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeft, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -15800,6 +16034,12 @@ func (_query ParentsLeftEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsLeftEagerQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Left, _options ...orm.BulkUpdateOption[parents.Left]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsLeftEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Left], _patch orm.PatchInput[parents.Left]) (*ParentsLeft, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -15907,6 +16147,15 @@ func newParentsNodeQuery(_state *relationFacadeState, _query orm.QuerySet[parent
 
 func (_query ParentsNodeQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsNodeQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Node, _options ...orm.BulkUpdateOption[parents.Node]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -16763,6 +17012,12 @@ func (_query ParentsNodePrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _result, _created, nil
 }
+func (_query ParentsNodePrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Node, _options ...orm.BulkUpdateOption[parents.Node]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsNodePrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNode, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -17137,6 +17392,12 @@ func (_query ParentsNodeEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsNodeEagerQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Node, _options ...orm.BulkUpdateOption[parents.Node]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsNodeEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Node], _patch orm.PatchInput[parents.Node]) (*ParentsNode, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -17244,6 +17505,15 @@ func newParentsRequiredLeftQuery(_state *relationFacadeState, _query orm.QuerySe
 
 func (_query ParentsRequiredLeftQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsRequiredLeftQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RequiredLeft, _options ...orm.BulkUpdateOption[parents.RequiredLeft]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -18067,6 +18337,12 @@ func (_query ParentsRequiredLeftPrefetchQuery) GetOrCreate(_ctx context.Context,
 	}
 	return _result, _created, nil
 }
+func (_query ParentsRequiredLeftPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RequiredLeft, _options ...orm.BulkUpdateOption[parents.RequiredLeft]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRequiredLeftPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeft, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -18441,6 +18717,12 @@ func (_query ParentsRequiredLeftEagerQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsRequiredLeftEagerQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RequiredLeft, _options ...orm.BulkUpdateOption[parents.RequiredLeft]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRequiredLeftEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RequiredLeft], _patch orm.PatchInput[parents.RequiredLeft]) (*ParentsRequiredLeft, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -18557,6 +18839,15 @@ func newParentsRootQuery(_state *relationFacadeState, _query orm.QuerySet[parent
 
 func (_query ParentsRootQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsRootQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Root, _options ...orm.BulkUpdateOption[parents.Root]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -19370,6 +19661,12 @@ func (_query ParentsRootPrefetchQuery) GetOrCreate(_ctx context.Context, _input 
 	}
 	return _result, _created, nil
 }
+func (_query ParentsRootPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Root, _options ...orm.BulkUpdateOption[parents.Root]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRootPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRoot, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -19744,6 +20041,12 @@ func (_query ParentsRootEagerQuery) GetOrCreate(_ctx context.Context, _input orm
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsRootEagerQuery) BulkUpdate(_ctx context.Context, _inputs []parents.Root, _options ...orm.BulkUpdateOption[parents.Root]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRootEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.Root], _patch orm.PatchInput[parents.Root]) (*ParentsRoot, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -19872,6 +20175,15 @@ func newParentsRootLabelsQuery(_state *relationFacadeState, _query orm.QuerySet[
 
 func (_query ParentsRootLabelsQuery) validate() error {
 	return _query.state.validate()
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query ParentsRootLabelsQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RootLabels, _options ...orm.BulkUpdateOption[parents.RootLabels]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
 }
 
 // BulkCreate writes explicit inputs and returns owned objects in input order.
@@ -20894,6 +21206,12 @@ func (_query ParentsRootLabelsPrefetchQuery) GetOrCreate(_ctx context.Context, _
 	}
 	return _result, _created, nil
 }
+func (_query ParentsRootLabelsPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RootLabels, _options ...orm.BulkUpdateOption[parents.RootLabels]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRootLabelsPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabels, bool, error) {
 	if _err := _query.validate(_ctx); _err != nil {
 		return nil, false, _err
@@ -21269,6 +21587,12 @@ func (_query ParentsRootLabelsEagerQuery) GetOrCreate(_ctx context.Context, _inp
 	}
 	return _wrapped, _created, nil
 }
+func (_query ParentsRootLabelsEagerQuery) BulkUpdate(_ctx context.Context, _inputs []parents.RootLabels, _options ...orm.BulkUpdateOption[parents.RootLabels]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ParentsRootLabelsEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[parents.RootLabels], _patch orm.PatchInput[parents.RootLabels]) (*ParentsRootLabels, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -21602,4 +21926,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_efc89ccc70cedb32ec9c6e73f9ef4226ad8415a90589f84d0e7f99edee17d442
+var _ goDjProjectSnapshot_e72da6b7e0314765370d414132f65377b5a8c8021eafa7dc713aac1621cdc48c

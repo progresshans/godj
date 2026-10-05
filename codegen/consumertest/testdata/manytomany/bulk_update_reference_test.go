@@ -1,0 +1,467 @@
+package consumer
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"reflect"
+	"slices"
+	"testing"
+
+	"example.com/godj-project-bundle/owners"
+	"example.com/godj-project-bundle/project"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+type bulkUpdateReferenceResult struct {
+	Count          *int64
+	Error          string
+	SQLState       *string `json:"sqlstate"`
+	Inputs         []bulkReferenceObject
+	Before, After  []bulkReferenceObject
+	Updated, Child *bulkUpdateReferenceResult
+	ParentError    string `json:"parent_error"`
+}
+
+type bulkUpdateReferenceCase struct {
+	Case      string
+	Value     bulkUpdateReferenceResult
+	Rows      []bulkReferenceObject
+	Callbacks []string
+	Commands  []string `json:"transaction_commands"`
+	Updates   int      `json:"update_statements"`
+	Selects   int      `json:"select_statements"`
+}
+
+// Generated non-null strings cannot represent Python None. A deliberately
+// malformed descriptor exercises the same nullable boundary before native I/O.
+type bulkUpdateNullNameDescriptor struct {
+	owners.BulkReferenceItemDescriptor
+	key int64
+}
+
+func (descriptor bulkUpdateNullNameDescriptor) WriteFieldValue(value owners.BulkReferenceItem, field ir.Field) (query.Value, bool) {
+	if value.ID == descriptor.key && field.Name == "name" {
+		return query.Null(), true
+	}
+	return descriptor.BulkReferenceItemDescriptor.WriteFieldValue(value, field)
+}
+
+type bulkUpdateReferenceProbe struct {
+	collectionBackend
+	plans                           []query.BulkUpdatePlan
+	reads, transactions, savepoints int
+}
+
+func (probe *bulkUpdateReferenceProbe) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	probe.reads++
+	return probe.collectionBackend.Query(ctx, plan)
+}
+func (probe *bulkUpdateReferenceProbe) BulkUpdateBatchSize(ctx context.Context, spec query.BulkUpdateSpec) (int, error) {
+	return probe.collectionBackend.(db.BulkUpdater).BulkUpdateBatchSize(ctx, spec)
+}
+func (probe *bulkUpdateReferenceProbe) BulkUpdate(ctx context.Context, plan query.BulkUpdatePlan) (int64, error) {
+	probe.plans = append(probe.plans, plan)
+	return probe.collectionBackend.(db.BulkUpdater).BulkUpdate(ctx, plan)
+}
+func (probe *bulkUpdateReferenceProbe) Atomic(ctx context.Context, callback func(db.Session) error) error {
+	probe.transactions++
+	return probe.collectionBackend.(db.Atomic).Atomic(ctx, func(session db.Session) error {
+		return callback(bulkUpdateReferenceSession{session, probe})
+	})
+}
+
+type bulkUpdateReferenceSession struct {
+	db.Session
+	probe *bulkUpdateReferenceProbe
+}
+
+func (session bulkUpdateReferenceSession) ValidateSession(ctx context.Context) error {
+	return session.Session.(db.SessionValidator).ValidateSession(ctx)
+}
+func (session bulkUpdateReferenceSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	session.probe.reads++
+	return session.Session.Query(ctx, plan)
+}
+func (session bulkUpdateReferenceSession) Savepoint(ctx context.Context, callback func(db.Session) error) error {
+	session.probe.savepoints++
+	return db.WithSavepoint(ctx, session.Session, func(child db.Session) error {
+		return callback(bulkUpdateReferenceSession{child, session.probe})
+	})
+}
+func (session bulkUpdateReferenceSession) BulkUpdateBatchSize(ctx context.Context, spec query.BulkUpdateSpec) (int, error) {
+	return session.Session.(db.BulkUpdater).BulkUpdateBatchSize(ctx, spec)
+}
+func (session bulkUpdateReferenceSession) BulkUpdate(ctx context.Context, plan query.BulkUpdatePlan) (int64, error) {
+	session.probe.plans = append(session.probe.plans, plan)
+	return session.Session.(db.BulkUpdater).BulkUpdate(ctx, plan)
+}
+
+func bulkUpdateReferenceError(t *testing.T, err error) string {
+	t.Helper()
+	switch {
+	case errors.Is(err, &query.Error{Code: query.CodeUnknownField}):
+		return "FieldDoesNotExist"
+	case errors.Is(err, &query.Error{Code: query.CodeMissingPrimaryKey}):
+		return "ValueError"
+	case errors.Is(err, &query.Error{Code: query.CodeUnsupported}):
+		return "TypeError"
+	default:
+		return bulkReferenceError(t, err)
+	}
+}
+
+func TestBulkUpdateReference(t *testing.T) {
+	withCollectionBackends(t, func(t *testing.T, backend collectionBackend, _ func() (collectionBackend, error), exec func(string) error, postgres bool) {
+		t.Cleanup(func() { check(t, backend.Close()) })
+		vendor := "sqlite"
+		if postgres {
+			vendor = "postgres"
+		}
+		data, err := os.ReadFile("bulk_update-django61-" + vendor + ".json")
+		check(t, err)
+		var reference struct{ Cases []bulkUpdateReferenceCase }
+		check(t, json.Unmarshal(data, &reference))
+		if len(reference.Cases) != 40 {
+			t.Fatal("incomplete bulk update reference")
+		}
+		for _, native := range reference.Cases {
+			t.Run(native.Case, func(t *testing.T) {
+				key := `INTEGER PRIMARY KEY AUTOINCREMENT`
+				if postgres {
+					key = `BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY`
+				}
+				t.Cleanup(func() {
+					check(t, exec(`DROP TABLE IF EXISTS "gdj_bulk_peer"`))
+					check(t, exec(`DROP TABLE IF EXISTS "gdj_bulk_item"`))
+					check(t, exec(`DROP TABLE IF EXISTS "gdj_bulk_group"`))
+				})
+				// Authored native CHECK/deferred FK match the independent observer.
+				// Read/write identity, field codecs and relationships remain generated.
+				for _, statement := range []string{
+					`CREATE TABLE "gdj_bulk_group" ("id" ` + key + `, "name" varchar(32) NOT NULL)`,
+					`CREATE TABLE "gdj_bulk_item" ("id" ` + key + `, "name" varchar(32) NOT NULL UNIQUE, "amount" bigint NOT NULL, "note" varchar(32), "group_id" bigint REFERENCES "gdj_bulk_group"("id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "bulk_update_nonnegative" CHECK ("amount" >= 0))`,
+					`CREATE TABLE "gdj_bulk_peer" ("id" ` + key + `, "source_id" bigint NOT NULL REFERENCES "gdj_bulk_item"("id"), "target_id" bigint NOT NULL REFERENCES "gdj_bulk_item"("id"), UNIQUE ("source_id","target_id"))`,
+					`INSERT INTO "gdj_bulk_group" ("id","name") VALUES (1,'first'),(2,'second')`,
+					`INSERT INTO "gdj_bulk_item" ("id","name","amount","note","group_id") VALUES (1,'one',1,'kept-one',1),(2,'two',2,'kept-two',2),(3,'three',3,NULL,NULL)`,
+					`INSERT INTO "gdj_bulk_peer" ("source_id","target_id") VALUES (1,2),(1,3)`,
+				} {
+					check(t, exec(statement))
+				}
+				ctx := t.Context()
+				probe := &bulkUpdateReferenceProbe{collectionBackend: backend}
+				manager := owners.BulkReferenceItemObjects
+				api, err := project.Using(probe)
+				check(t, err)
+				source := api.OwnersBulkReferenceItem
+				relations, err := project.BindRelations()
+				check(t, err)
+				makeValue := func(key int64, name string, amount int64) owners.BulkReferenceItem {
+					value := owners.NewBulkReferenceItemWithID(key)
+					value.Name, value.Amount = name, amount
+					return value
+				}
+				batch := func() []owners.BulkReferenceItem {
+					values := []owners.BulkReferenceItem{makeValue(1, "ignored-one", 11), makeValue(2, "ignored-two", 22)}
+					values[0].Note = new("ignored-note")
+					return values
+				}
+				values := batch()
+				fields := []string{"amount"}
+				var batchSize *int
+				switch native.Case {
+				case "empty", "empty_missing_fields", "empty_unknown_field", "empty_primary_key", "empty_invalid_batch", "sliced_empty_input":
+					values = nil
+					if native.Case == "empty_missing_fields" {
+						fields = nil
+					}
+					if native.Case == "empty_unknown_field" {
+						fields = []string{"missing"}
+					}
+					if native.Case == "empty_primary_key" {
+						fields = []string{"id"}
+					}
+					if native.Case == "empty_invalid_batch" {
+						batchSize = new(0)
+					}
+					if native.Case == "sliced_empty_input" {
+						source, err = source.OrderBy(owners.BulkReferenceItemFields.ID.Asc()).Limit(1)
+						check(t, err)
+					}
+				case "missing_primary_key":
+					values = []owners.BulkReferenceItem{{Name: "unsaved", Amount: 11}}
+				case "primary_key_field":
+					fields = []string{"id"}
+				case "unknown_field":
+					fields = []string{"missing"}
+				case "many_to_many_field":
+					fields = []string{"peers"}
+				case "one_batch_selected_fields", "eager_and_prefetch_read_shape", "cached_query":
+				case "two_fields_and_null":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 15), makeValue(2, "", 0)}
+					values[1].Note = new("")
+					fields = []string{"amount", "note"}
+				case "batched", "parent_commit", "parent_rollback":
+					batchSize = new(1)
+				case "duplicate_field_names":
+					fields = []string{"amount", "amount"}
+				case "duplicate_keys_one_batch", "duplicate_keys_two_batches":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 10), makeValue(1, "", 20)}
+					batchSize = new(2)
+					if native.Case == "duplicate_keys_two_batches" {
+						batchSize = new(1)
+					}
+				case "missing_key_count":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 11), makeValue(999, "", 22)}
+				case "all_missing":
+					values = []owners.BulkReferenceItem{makeValue(999, "", 22)}
+				case "unchanged_value_count":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 1), makeValue(2, "", 2)}
+				case "large_zero_negative_keys":
+					check(t, exec(`INSERT INTO "gdj_bulk_item" ("id","name","amount") VALUES (9007199254740993,'large',0),(0,'zero',0),(-9,'negative',0)`))
+					values = []owners.BulkReferenceItem{makeValue(9007199254740993, "", 11), makeValue(0, "", 22), makeValue(-9, "", 33)}
+					batchSize = new(2)
+				case "query_filter":
+					source = source.Filter(owners.BulkReferenceItemFields.Name.Exact("one"))
+				case "forward_filter":
+					source = source.Filter(relations.OwnersBulkReferenceItem.Group.Name.Exact("first"))
+				case "many_to_many_filter":
+					source = source.Filter(relations.OwnersBulkReferenceItem.Peers.Name.In("two", "three"))
+				case "boolean_filter":
+					source = source.Filter(orm.Or(owners.BulkReferenceItemFields.Name.Exact("one"), relations.OwnersBulkReferenceItem.Group.Name.Exact("second")))
+				case "empty_query_filter":
+					source = source.Filter(owners.BulkReferenceItemFields.ID.In())
+				case "ordering_and_distinct":
+					source = source.OrderBy(owners.BulkReferenceItemFields.Name.Desc()).Distinct()
+				case "sliced":
+					source, err = source.OrderBy(owners.BulkReferenceItemFields.ID.Asc()).Limit(1)
+					check(t, err)
+				case "row_lock_read_shape":
+					source = source.SelectForUpdate(orm.RowLockOptions{NoWait: true})
+				case "failure_later_unique":
+					values = []owners.BulkReferenceItem{makeValue(1, "changed", 0), makeValue(2, "three", 0)}
+					fields, batchSize = []string{"name"}, new(1)
+				case "failure_later_check", "borrowed_failure":
+					amount := int64(11)
+					if native.Case == "borrowed_failure" {
+						amount = 12
+					}
+					values = []owners.BulkReferenceItem{makeValue(1, "", amount), makeValue(2, "", -1)}
+					batchSize = new(1)
+				case "failure_later_not_null":
+					values = []owners.BulkReferenceItem{makeValue(1, "changed", 0), makeValue(2, "", 0)}
+					fields, batchSize = []string{"name"}, new(1)
+					manager = orm.NewManager[owners.BulkReferenceItem](bulkUpdateNullNameDescriptor{key: 2})
+				case "unselected_invalid_value":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 11)}
+					manager = orm.NewManager[owners.BulkReferenceItem](bulkUpdateNullNameDescriptor{key: 1})
+				case "selected_foreign_key":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 0), makeValue(2, "", 0)}
+					values[1].GroupID = new(int64(1))
+					fields = []string{"group"}
+				case "missing_foreign_key":
+					values = []owners.BulkReferenceItem{makeValue(1, "", 0)}
+					values[0].GroupID, fields = new(int64(999)), []string{"group"}
+				case "unsaved_related_object":
+					// Raw Go FK fields carry keys/NULL; they cannot carry an unsaved
+					// target object. A separate negative compile checks that boundary.
+					values, fields = []owners.BulkReferenceItem{makeValue(1, "", 11)}, []string{"group"}
+				default:
+					t.Fatal("unhandled bulk update reference", native.Case)
+				}
+				options := []orm.BulkUpdateOption[owners.BulkReferenceItem]{orm.BulkUpdateFieldNames[owners.BulkReferenceItem](fields...)}
+				if batchSize != nil {
+					options = append(options, orm.BulkUpdateBatchSize[owners.BulkReferenceItem](*batchSize))
+				}
+				before := slices.Clone(values)
+				for index, value := range values {
+					before[index] = (owners.BulkReferenceItemDescriptor{}).CloneWriteModel(value)
+				}
+				var count int64
+				var callErr error
+				want := native.Value
+				switch native.Case {
+				case "failure_later_not_null", "unselected_invalid_value":
+					count, callErr = manager.BulkUpdate(ctx, probe, values, options...)
+				case "eager_and_prefetch_read_shape":
+					count, callErr = source.SelectRelated(source.Related.Group).PrefetchRelated(source.Prefetch.Peers).BulkUpdate(ctx, values, options...)
+				case "cached_query":
+					cached := manager.Using(probe).OrderBy(owners.BulkReferenceItemFields.ID.Asc())
+					warm, err := cached.All(ctx)
+					check(t, err)
+					if !reflect.DeepEqual(bulkReferenceObjects(warm), native.Value.Before) {
+						t.Fatal("initial cached models differ")
+					}
+					count, callErr = cached.BulkUpdate(ctx, values, options...)
+					after, err := cached.All(ctx)
+					check(t, err)
+					if !reflect.DeepEqual(bulkReferenceObjects(after), native.Value.After) {
+						t.Fatal("bulk update changed cached models")
+					}
+					if native.Value.Updated == nil {
+						t.Fatal("missing cached reference result")
+					}
+					want = *native.Value.Updated
+				case "parent_commit", "parent_rollback":
+					rollback := errors.New("authored parent rollback")
+					outer := probe.Atomic(ctx, func(session db.Session) error {
+						count, callErr = manager.BulkUpdate(ctx, session, values, options...)
+						if callErr != nil {
+							return callErr
+						}
+						if native.Case == "parent_rollback" {
+							return rollback
+						}
+						return nil
+					})
+					if native.Case == "parent_rollback" {
+						if !errors.Is(outer, rollback) {
+							t.Fatal(outer)
+						}
+					} else {
+						check(t, outer)
+					}
+				case "borrowed_failure":
+					check(t, probe.Atomic(ctx, func(session db.Session) error {
+						// A surrounding write must survive the failed child's savepoint.
+						group := owners.NewBulkReferenceGroupWithID(1)
+						group.Name = "parent survives"
+						if _, err := owners.BulkReferenceGroupObjects.Update(ctx, session, group, owners.BulkReferenceGroupPatch{}.WithName(group.Name)); err != nil {
+							return err
+						}
+						count, callErr = manager.BulkUpdate(ctx, session, values, options...)
+						if callErr == nil {
+							return errors.New("borrowed child unexpectedly succeeded")
+						}
+						parentCount, err := manager.Using(session).Count(ctx)
+						if err != nil {
+							return err
+						}
+						if parentCount != 3 {
+							return errors.New("parent lost original rows")
+						}
+						return nil
+					}))
+					if native.Value.Child == nil || native.Value.ParentError != "TransactionManagementError" {
+						t.Fatal("Django parent poisoning changed")
+					}
+					want = *native.Value.Child
+					parent, err := owners.BulkReferenceGroupObjects.Using(backend).Filter(owners.BulkReferenceGroupFields.ID.Exact(1)).Get(ctx)
+					check(t, err)
+					if parent.Name != "parent survives" {
+						t.Fatal("child failure rolled back parent write")
+					}
+				default:
+					count, callErr = source.BulkUpdate(ctx, values, options...)
+				}
+				if !reflect.DeepEqual(values, before) {
+					t.Fatal("bulk update mutated input models")
+				}
+				inputView := bulkReferenceObjects(values)
+				if native.Case == "failure_later_not_null" {
+					inputView[1].Name = nil
+				}
+				if native.Case == "unselected_invalid_value" {
+					inputView[0].Name = nil
+				}
+				if !reflect.DeepEqual(inputView, want.Inputs) {
+					t.Fatalf("input values differ: Go=%+v Django=%+v", inputView, want.Inputs)
+				}
+				wantError, wantCount := want.Error, want.Count
+				switch native.Case {
+				case "many_to_many_field":
+					if wantError != "ValueError" {
+						t.Fatal("Django columnless field policy changed")
+					}
+					wantError = "FieldDoesNotExist"
+				case "failure_later_not_null":
+					if wantError != "IntegrityError" || native.Updates != 2 || want.Inputs[1].Name != nil {
+						t.Fatal("Django NULL failure changed")
+					}
+					wantError = "ValueError"
+				case "missing_foreign_key":
+					if wantError != "IntegrityError" {
+						t.Fatal("Django deferred FK policy changed")
+					}
+					wantError = "CommitOutcomeUnknown"
+					if !postgres {
+						var cause interface{ Code() int }
+						if !errors.As(callErr, &cause) || cause.Code() != 787 {
+							t.Fatal("deferred SQLite FK cause lost", callErr)
+						}
+					}
+				case "unsaved_related_object":
+					if wantError != "ValueError" || want.Inputs[0].GroupID != nil {
+						t.Fatal("Django unsaved object policy changed")
+					}
+					wantError, wantCount = "", new(int64(1))
+				}
+				if got := bulkUpdateReferenceError(t, callErr); got != wantError {
+					t.Fatalf("error differs: Go=%s Django=%s wanted Go=%s cause=%v", got, want.Error, wantError, callErr)
+				}
+				if callErr != nil {
+					if count != 0 {
+						t.Fatal("failure exposed partial count", count)
+					}
+				} else if wantCount == nil || count != *wantCount {
+					t.Fatal("affected count differs", count, wantCount)
+				}
+				if postgres && want.SQLState != nil && native.Case != "failure_later_not_null" {
+					var cause *pgconn.PgError
+					if !errors.As(callErr, &cause) || cause.Code != *want.SQLState {
+						t.Fatal("native SQLSTATE cause lost", callErr)
+					}
+				}
+				stored, err := owners.BulkReferenceItemObjects.Using(backend).OrderBy(owners.BulkReferenceItemFields.ID.Asc()).All(ctx)
+				check(t, err)
+				wantedRows := slices.Clone(native.Rows)
+				if native.Case == "unsaved_related_object" {
+					wantedRows[0].GroupID = nil
+				}
+				if got := bulkReferenceObjects(stored); !reflect.DeepEqual(got, wantedRows) {
+					t.Fatalf("final rows differ: Go=%+v Django=%+v", got, wantedRows)
+				}
+				wantUpdates := native.Updates
+				switch native.Case {
+				case "failure_later_not_null":
+					wantUpdates = 0
+				case "empty_query_filter", "unsaved_related_object":
+					wantUpdates = 1
+				}
+				if len(probe.plans) != wantUpdates {
+					t.Fatal("native bulk statement count differs", len(probe.plans), wantUpdates)
+				}
+				wantTransactions, wantSavepoints := 0, 0
+				if slices.Contains(native.Commands, "BEGIN") {
+					wantTransactions = 1
+				}
+				switch native.Case {
+				case "sliced":
+					wantTransactions = 0
+				case "missing_primary_key", "unsaved_related_object":
+					wantTransactions = 1
+				case "parent_commit", "parent_rollback", "borrowed_failure":
+					wantSavepoints = 1
+				}
+				if probe.transactions != wantTransactions || probe.savepoints != wantSavepoints {
+					t.Fatal("write scope differs", probe.transactions, probe.savepoints, wantTransactions, wantSavepoints)
+				}
+				wantReads := native.Selects
+				if native.Case == "borrowed_failure" {
+					wantReads = 1
+				}
+				if probe.reads != wantReads {
+					t.Fatal("unexpected materializing query", probe.reads, wantReads)
+				}
+				if len(native.Callbacks) != 0 {
+					t.Fatal("Django bulk called model save/clean/signals")
+				}
+			})
+		}
+	})
+}

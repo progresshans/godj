@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"testing"
 
@@ -35,11 +34,13 @@ replace github.com/progresshans/godj => %s
 
 func codegenRepositoryRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve codegen consumer test path")
+	// The host test process stays in this package directory. Its compiler
+	// source paths may be trimmed, just like those of generated child modules.
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	return root
 }
 
 func writeGeneratedTestFile(t *testing.T, root, name string, data []byte) {

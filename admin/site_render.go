@@ -148,7 +148,7 @@ func (site *Site) listContext(
 	}
 	actions := make([]templates.Value, 0, len(model.actions))
 	for _, action := range model.actions {
-		allowed, err := site.auth.Authorized(ctx, principal, action.permission)
+		allowed, err := site.modelWriteAllowed(ctx, model, principal, action.permissions...)
 		if err != nil {
 			return nil, err
 		}
@@ -179,7 +179,7 @@ func (site *Site) listContext(
 		return nil, err
 	}
 	affected := int64(0)
-	if query.Get("notice") == "published" {
+	if query.Get("notice") == "action" {
 		affected, _ = strconv.ParseInt(query.Get("count"), 10, 64)
 	}
 	return map[string]templates.Value{
@@ -247,7 +247,7 @@ func (site *Site) validateNotice(model registeredModel, values url.Values) error
 		if count != "" {
 			return &ConfigError{Path: "request.values.count", Code: "unexpected"}
 		}
-	case "published":
+	case "action":
 		parsed, err := strconv.Atoi(count)
 		if err != nil || parsed < 0 || strconv.Itoa(parsed) != count || parsed > MaximumSelectedIDs {
 			return &ConfigError{Path: "request.values.count", Code: "invalid"}
@@ -295,8 +295,8 @@ func noticeText(notice, count string) string {
 		return "Object changed."
 	case "deleted":
 		return "Object deleted."
-	case "published":
-		return count + " object(s) published."
+	case "action":
+		return count + " object(s) changed by the action."
 	default:
 		return ""
 	}

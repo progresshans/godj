@@ -40,6 +40,36 @@ Admin은 40행의 선택 목록을 표시하므로 `admin.SiteConfig.RenderLimit
 `web.Config.MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes`를 함께 설정한다. 요청은 64 KiB·1,024개 값·값당
 4 KiB이며, 선택지는 최대 256개다. 기본 출력 예산을 넘는 HTML을 잘라 반환하지 않는다.
 
+## 여러 티켓 수정과 선택 작업
+
+`PATCH /api/tickets/bulk/`는 `TicketBulkPatch` 객체 배열을 받아 입력 순서의 모든 Ticket과 200을 반환한다.
+각 객체는 정확한 양수 int64 `id`와 수정할 필드만 포함한다. 예를 들어 다음 요청은 첫 티켓을 닫고 두 번째의
+subject와 라벨을 바꾼다. 생략한 scalar와 라벨은 보존하며 nullable field의 명시적 null은 값을 비운다.
+
+```json
+[{"id":1,"closed":true},{"id":2,"subject":"Updated ticket","labels":[]}]
+```
+
+ChangeTicket·ViewLabel과 구성된 인증/CSRF를 입력 파싱 전에 확인한다. 1..40개의 ID는 서로 달라야 하고 모두 현재
+Category에 존재해야 한다. 누락/외부 티켓은 어느 ID인지 밝히지 않는 전체 404다. `id`만 있는 항목은 현재 티켓을
+반환하며 UPDATE와 audit를 만들지 않는다. 입력의 byte/depth/value·항목 예산, 전체 응답 예산과 원 index 진단은
+여러 티켓 생성과 같다. Query parameter·서버 Category·payload digest·알 수 없는 입력은 거부한다.
+
+현재 값에 partial patch를 적용하고 실제로 달라진 scalar mask가 같은 행을 20개씩 native bulk UPDATE한다.
+각 UPDATE에도 Category 조건을 유지하며 선택한 행을 모두 수정하지 못하면 전체 rollback한다. 입력 집합과 DB의
+UUID 고유성, 라벨의 현재 범위를 먼저 검증하고 라벨 변경·저장 JSON/digest·전체 응답 준비와 실제 변경 행의 change
+audit를 같은 transaction에 둔다. 뒤쪽 batch나 audit가 실패해도 부분 성공을 반환하지 않는다. Revision precondition은
+제공하지 않으며 확인되지 않은 commit/rollback을 성공이나 자동 재시도로 바꾸지 않는다.
+
+`AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`의 Ticket 목록은 **Close selected tickets**와
+**Reopen selected tickets**를 제공한다. ViewTicket·ChangeTicket·ViewLabel, active staff·CSRF와 Authorizer의 허용을
+모두 요구한다. 최대 40개를 선택할 수 있고 다른 필드와 라벨은 보존한다. 성공 알림은 실제 변경한 수이며 같은 작업을
+반복하면 0이다. 기본 Admin의 선택 상한과 별개로 이 업무의 40개 한도를 저장 전에 적용한다.
+
+모든 티켓 쓰기의 결과 확인은 필터 없는 실제 라벨 연결과 공개 가능한 라벨 집합을 대조한다. 라벨을 생략하거나
+값이 바뀌지 않아도 이미 저장된 외부 범주 연결을 조용히 숨기고 성공 처리하지 않는다. 일반 읽기는 범위 안 라벨만
+표시한다. 저장 중 membership이 달라진 실행 오류는 사용자가 제출한 라벨의 입력 오류와 구분한다.
+
 ## 여러 티켓을 함께 편집하기
 
 `application.TicketEditor`는 GET/POST `/tickets/edit/`의 HTML 편집 화면을 제공한다. Subject·Closed·External reference·Labels를
@@ -75,7 +105,7 @@ optimistic revision 입력은 제공하지 않는다. 동일 행의 동시 입�
 오류 화면의 hidden category에는 항상 서버 값을 표시한다. 부모를 선택하거나 티켓을 다른 Category로 옮기는 입력이 아니다.
 
 GET은 한 read snapshot에서 행·관계·선택지를 읽는다. POST는 같은 category/cohort/선택지를 하나의 `AtomicRelation`에서
-다시 읽고 Formset/모델 검증, 기존 행 삭제/변경, 새 행의 native bulk 생성·라벨 연결과 감사 기록을 수행한다. 삭제는 프로젝트의 완전한
+다시 읽고 Formset/모델 검증, 기존 행 삭제/native bulk 수정, 새 행의 native bulk 생성·라벨 연결과 감사 기록을 수행한다. 삭제는 프로젝트의 완전한
 PROTECT/CASCADE 정책을 borrowed session에서 실행한다. 변경 없는 기존 행은 데이터/audit 쓰기를 생략한다. 고유성 검사·관계
 저장·감사 기록·취소가 실패하면 앞서 수행한 행의 변경도 outer transaction이 롤백한다. Runtime을 사용하면 다른 cooperative
 write와 같은 DB/schema fence를 사용한다. 다른 connection에서 이 규약을 우회하는 직접 SQL까지 인가/직렬화를 보장하지 않는다.
@@ -96,7 +126,7 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 ## JSON API
 
 `application.API(helpdesk.APIConfig{Authentication: authentication, AppendAudit: runtime.AppendAudit})`로 API를 한 번 조합한 뒤
-`api.Routes()`를 Web 설정에 연결한다. Label 확보·티켓별 Report 저장·여러 티켓 생성에는 transaction 안의 감사 기록이 필수다.
+`api.Routes()`를 Web 설정에 연결한다. Label 확보·티켓별 Report 저장·여러 티켓 생성/수정에는 transaction 안의 감사 기록이 필수다.
 `runtime`을 Application의 backend로 전달하고, `AppendAudit`는 제공된 session만 사용한다.
 이 설정이 기존 모든 CRUD 쓰기에 공통 감사를 추가하는 것은 아니다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.

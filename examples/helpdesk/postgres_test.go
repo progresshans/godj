@@ -23,7 +23,9 @@ func TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance(t *testing.T) {
 		}
 		t.Skip("GODJ_TEST_POSTGRES_URL is not configured; Helpdesk PostgreSQL consumer was not run")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	// This runs the same cumulative HTTP/identity/collection/bulk scenarios as
+	// SQLite. Keep their race budget aligned; individual waits remain bounded.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {

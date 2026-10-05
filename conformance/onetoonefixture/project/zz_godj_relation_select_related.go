@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v7"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v8"
 
 var _ orm.ProjectionDescriptor[reports.Certificate] = reports.CertificateDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Link] = reports.LinkDescriptor{}
@@ -26,6 +26,7 @@ type relationSelectQuery[M, O any] interface {
 	Get(context.Context) (*O, error)
 	GetOrCreate(context.Context, orm.CreateInput[M]) (*O, bool, error)
 	UpdateOrCreate(context.Context, orm.CreateInput[M], orm.PatchInput[M]) (*O, bool, error)
+	BulkUpdate(context.Context, []M, ...orm.BulkUpdateOption[M]) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -186,6 +187,9 @@ func (_query ReportsCertificateSelectRelatedQuery) GetOrCreate(_ctx context.Cont
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []reports.Certificate, _options ...orm.BulkUpdateOption[reports.Certificate]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ReportsCertificateSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Certificate], _patch orm.PatchInput[reports.Certificate]) (*ReportsCertificateObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -423,6 +427,9 @@ func (_query ReportsLinkSelectRelatedQuery) GetOrCreate(_ctx context.Context, _i
 	}
 	return _object, _created, nil
 }
+func (_query ReportsLinkSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []reports.Link, _options ...orm.BulkUpdateOption[reports.Link]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query ReportsLinkSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Link], _patch orm.PatchInput[reports.Link]) (*ReportsLinkObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -658,6 +665,9 @@ func (_query ReportsOptionalReportSelectRelatedQuery) GetOrCreate(_ctx context.C
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ReportsOptionalReportSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []reports.OptionalReport, _options ...orm.BulkUpdateOption[reports.OptionalReport]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ReportsOptionalReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.OptionalReport], _patch orm.PatchInput[reports.OptionalReport]) (*ReportsOptionalReportObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -913,6 +923,9 @@ func (_query ReportsReportSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ReportsReportSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []reports.Report, _options ...orm.BulkUpdateOption[reports.Report]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ReportsReportSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Report], _patch orm.PatchInput[reports.Report]) (*ReportsReportObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1182,6 +1195,9 @@ func (_query ReportsReviewSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 		return nil, _created, _err
 	}
 	return _object, _created, nil
+}
+func (_query ReportsReviewSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []reports.Review, _options ...orm.BulkUpdateOption[reports.Review]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
 }
 func (_query ReportsReviewSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[reports.Review], _patch orm.PatchInput[reports.Review]) (*ReportsReviewObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
@@ -1457,6 +1473,9 @@ func (_query TicketsTicketSelectRelatedQuery) GetOrCreate(_ctx context.Context, 
 	}
 	return _object, _created, nil
 }
+func (_query TicketsTicketSelectRelatedQuery) BulkUpdate(_ctx context.Context, _inputs []tickets.Ticket, _options ...orm.BulkUpdateOption[tickets.Ticket]) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).BulkUpdate(_ctx, _inputs, _options...)
+}
 func (_query TicketsTicketSelectRelatedQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[tickets.Ticket], _patch orm.PatchInput[tickets.Ticket]) (*TicketsTicketObject, bool, error) {
 	_selected, _created, _err := _query.query.WithConfigurationError(_query.configurationErr).UpdateOrCreate(_ctx, _create, _patch)
 	if _err != nil {
@@ -1601,4 +1620,4 @@ func (_object *TicketsTicketObject) ReviewObject(_ctx context.Context) (*Reports
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_42a639519df299826f4864a6748c8726f5ab769f06d7c0fe7b37ba59fa952001
+var _ goDjProjectSnapshot_866753febe66486fa2bbe0f28f8140f533796af59f1f67f96853515cdf82ae92

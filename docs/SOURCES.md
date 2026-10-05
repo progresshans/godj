@@ -278,3 +278,19 @@ Python 예외명은 명시한 Go 오류 code에 대응하며 원문 문구는 AB
 Native SQL의 savepoint 이름이나 물리 제어문 문자열을 비교하는 recorder가 아니며, 제어문/실패 정리는 양 backend 검사가 소유한다.
 Python keyword/default 입력을 소스 호환으로 구현하지 않는다. Go는 명시적인 typed CreateInput과 원 Manager snapshot을 사용하고
 잘못된 생성 필드는 mutation 검증에서 거부한다. 관련 계약은 [ADR-0086](adr/0086-single-object-creation-and-savepoint-ownership.md)을 따른다.
+
+GDJ-0110의 selected-field bulk update 기준은 고정 Django 6.1의 `django/db/models/query.py`,
+`django/db/models/sql/compiler.py`, `django/db/transaction.py`와
+[공식 QuerySet 문서](https://docs.djangoproject.com/en/6.1/ref/models/querysets/#bulk-update)다.
+[독립 observer](../conformance/runners/django/bulk_update_reference.py)는 직접 작성한 40개 입력으로 필터·반복/없는 key·
+실제 count·batch/실패/부모 scope를 관찰하며 Go 코드·출력·expected를 읽지 않는다. 고정 Python/Django/DB와
+실행한 전체 upstream module 및 observer 자신의 hash를 [원본 fixture](../codegen/consumertest/testdata/bulkupdate/)에 남긴다.
+Django는 BSD-3-Clause이며 Python 내부 객체 구조의 복제나 소스 호환을 목표로 하지 않는다. 이 native 자료만으로
+Go 구현·대조·환경별 검증의 완료를 주장하지 않는다.
+
+[잠금 대기 observer](../conformance/runners/django/bulk_update_concurrency_reference.py)는 두 PostgreSQL 연결과
+`pg_blocking_pids`의 실제 barrier로 root/join/trimmed relation/NOT EXISTS의 일곱 동시 수정 결과를 독립 관찰한다.
+[원본 결과](../codegen/consumertest/testdata/bulkupdate/bulk_update-concurrency-django61-postgres.json)는 변경 없이 보존한다.
+실행한 upstream module hash는 결과에, observer hash와 정리 증거는 별도 native receipt에 기록한다.
+Typed 입력·빈 IN 실행·borrowed savepoint·지연 FK commit의 명시적 Go 차이와 native 조건 재평가는
+[ADR-0089](adr/0089-bulk-update-and-selected-field-ownership.md)가 설명한다.

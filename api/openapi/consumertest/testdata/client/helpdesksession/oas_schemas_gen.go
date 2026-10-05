@@ -669,6 +669,46 @@ type HelpdeskTicketBulkCreateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketBulkCreateUnsupportedMediaType) helpdeskTicketBulkCreateRes() {}
 
+type HelpdeskTicketBulkUpdateBadRequest GoDjAPIError
+
+func (*HelpdeskTicketBulkUpdateBadRequest) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateForbidden GoDjAPIError
+
+func (*HelpdeskTicketBulkUpdateForbidden) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketBulkUpdateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketBulkUpdateInternalServerError) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateNotFound GoDjAPIError
+
+func (*HelpdeskTicketBulkUpdateNotFound) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateOKApplicationJSON []Ticket
+
+func (*HelpdeskTicketBulkUpdateOKApplicationJSON) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketBulkUpdateRequestEntityTooLarge) helpdeskTicketBulkUpdateRes() {}
+
+type HelpdeskTicketBulkUpdateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketBulkUpdateUnsupportedMediaType) helpdeskTicketBulkUpdateRes() {}
+
 type HelpdeskTicketCreateBadRequest GoDjAPIError
 
 func (*HelpdeskTicketCreateBadRequest) helpdeskTicketCreateRes() {}
@@ -2135,6 +2175,74 @@ func (o OptNilString) Or(d string) string {
 	return d
 }
 
+// NewOptNilTicketBulkPatchPriority returns new OptNilTicketBulkPatchPriority with value set to v.
+func NewOptNilTicketBulkPatchPriority(v TicketBulkPatchPriority) OptNilTicketBulkPatchPriority {
+	return OptNilTicketBulkPatchPriority{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilTicketBulkPatchPriority is optional nullable TicketBulkPatchPriority.
+type OptNilTicketBulkPatchPriority struct {
+	Value TicketBulkPatchPriority
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilTicketBulkPatchPriority was set.
+func (o OptNilTicketBulkPatchPriority) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilTicketBulkPatchPriority) Reset() {
+	var v TicketBulkPatchPriority
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilTicketBulkPatchPriority) SetTo(v TicketBulkPatchPriority) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilTicketBulkPatchPriority) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilTicketBulkPatchPriority) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v TicketBulkPatchPriority
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilTicketBulkPatchPriority) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilTicketBulkPatchPriority) Get() (v TicketBulkPatchPriority, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilTicketBulkPatchPriority) Or(d TicketBulkPatchPriority) TicketBulkPatchPriority {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilTicketCreatePriority returns new OptNilTicketCreatePriority with value set to v.
 func NewOptNilTicketCreatePriority(v TicketCreatePriority) OptNilTicketCreatePriority {
 	return OptNilTicketCreatePriority{
@@ -2937,6 +3045,214 @@ func (s *Ticket) SetLabels(val []int64) {
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
+
+// Ref: #/components/schemas/TicketBulkPatch
+type TicketBulkPatch struct {
+	Subject           OptString                     `json:"subject"`
+	Details           OptNilString                  `json:"details"`
+	Closed            OptBool                       `json:"closed"`
+	Priority          OptNilTicketBulkPatchPriority `json:"priority"`
+	Resolution        OptNilString                  `json:"resolution"`
+	DueAt             OptNilDateTime                `json:"due_at"`
+	Reviewed          OptNilBool                    `json:"reviewed"`
+	ServiceOn         OptNilDate                    `json:"service_on"`
+	ServiceAt         OptNilString                  `json:"service_at"`
+	Elapsed           OptNilString                  `json:"elapsed"`
+	Effort            OptNilFloat64                 `json:"effort"`
+	ExpectedCost      OptNilString                  `json:"expected_cost"`
+	ExternalReference OptNilUUID                    `json:"external_reference"`
+	ExternalPayload   jx.Raw                        `json:"external_payload"`
+	ExternalURL       OptNilString                  `json:"external_url"`
+	Labels            []int64                       `json:"labels"`
+	ID                int64                         `json:"id"`
+}
+
+// GetSubject returns the value of Subject.
+func (s *TicketBulkPatch) GetSubject() OptString {
+	return s.Subject
+}
+
+// GetDetails returns the value of Details.
+func (s *TicketBulkPatch) GetDetails() OptNilString {
+	return s.Details
+}
+
+// GetClosed returns the value of Closed.
+func (s *TicketBulkPatch) GetClosed() OptBool {
+	return s.Closed
+}
+
+// GetPriority returns the value of Priority.
+func (s *TicketBulkPatch) GetPriority() OptNilTicketBulkPatchPriority {
+	return s.Priority
+}
+
+// GetResolution returns the value of Resolution.
+func (s *TicketBulkPatch) GetResolution() OptNilString {
+	return s.Resolution
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *TicketBulkPatch) GetDueAt() OptNilDateTime {
+	return s.DueAt
+}
+
+// GetReviewed returns the value of Reviewed.
+func (s *TicketBulkPatch) GetReviewed() OptNilBool {
+	return s.Reviewed
+}
+
+// GetServiceOn returns the value of ServiceOn.
+func (s *TicketBulkPatch) GetServiceOn() OptNilDate {
+	return s.ServiceOn
+}
+
+// GetServiceAt returns the value of ServiceAt.
+func (s *TicketBulkPatch) GetServiceAt() OptNilString {
+	return s.ServiceAt
+}
+
+// GetElapsed returns the value of Elapsed.
+func (s *TicketBulkPatch) GetElapsed() OptNilString {
+	return s.Elapsed
+}
+
+// GetEffort returns the value of Effort.
+func (s *TicketBulkPatch) GetEffort() OptNilFloat64 {
+	return s.Effort
+}
+
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *TicketBulkPatch) GetExpectedCost() OptNilString {
+	return s.ExpectedCost
+}
+
+// GetExternalReference returns the value of ExternalReference.
+func (s *TicketBulkPatch) GetExternalReference() OptNilUUID {
+	return s.ExternalReference
+}
+
+// GetExternalPayload returns the value of ExternalPayload.
+func (s *TicketBulkPatch) GetExternalPayload() jx.Raw {
+	return s.ExternalPayload
+}
+
+// GetExternalURL returns the value of ExternalURL.
+func (s *TicketBulkPatch) GetExternalURL() OptNilString {
+	return s.ExternalURL
+}
+
+// GetLabels returns the value of Labels.
+func (s *TicketBulkPatch) GetLabels() []int64 {
+	return s.Labels
+}
+
+// GetID returns the value of ID.
+func (s *TicketBulkPatch) GetID() int64 {
+	return s.ID
+}
+
+// SetSubject sets the value of Subject.
+func (s *TicketBulkPatch) SetSubject(val OptString) {
+	s.Subject = val
+}
+
+// SetDetails sets the value of Details.
+func (s *TicketBulkPatch) SetDetails(val OptNilString) {
+	s.Details = val
+}
+
+// SetClosed sets the value of Closed.
+func (s *TicketBulkPatch) SetClosed(val OptBool) {
+	s.Closed = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *TicketBulkPatch) SetPriority(val OptNilTicketBulkPatchPriority) {
+	s.Priority = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *TicketBulkPatch) SetResolution(val OptNilString) {
+	s.Resolution = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *TicketBulkPatch) SetDueAt(val OptNilDateTime) {
+	s.DueAt = val
+}
+
+// SetReviewed sets the value of Reviewed.
+func (s *TicketBulkPatch) SetReviewed(val OptNilBool) {
+	s.Reviewed = val
+}
+
+// SetServiceOn sets the value of ServiceOn.
+func (s *TicketBulkPatch) SetServiceOn(val OptNilDate) {
+	s.ServiceOn = val
+}
+
+// SetServiceAt sets the value of ServiceAt.
+func (s *TicketBulkPatch) SetServiceAt(val OptNilString) {
+	s.ServiceAt = val
+}
+
+// SetElapsed sets the value of Elapsed.
+func (s *TicketBulkPatch) SetElapsed(val OptNilString) {
+	s.Elapsed = val
+}
+
+// SetEffort sets the value of Effort.
+func (s *TicketBulkPatch) SetEffort(val OptNilFloat64) {
+	s.Effort = val
+}
+
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *TicketBulkPatch) SetExpectedCost(val OptNilString) {
+	s.ExpectedCost = val
+}
+
+// SetExternalReference sets the value of ExternalReference.
+func (s *TicketBulkPatch) SetExternalReference(val OptNilUUID) {
+	s.ExternalReference = val
+}
+
+// SetExternalPayload sets the value of ExternalPayload.
+func (s *TicketBulkPatch) SetExternalPayload(val jx.Raw) {
+	s.ExternalPayload = val
+}
+
+// SetExternalURL sets the value of ExternalURL.
+func (s *TicketBulkPatch) SetExternalURL(val OptNilString) {
+	s.ExternalURL = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *TicketBulkPatch) SetLabels(val []int64) {
+	s.Labels = val
+}
+
+// SetID sets the value of ID.
+func (s *TicketBulkPatch) SetID(val int64) {
+	s.ID = val
+}
+
+type TicketBulkPatchPriority int64
+
+const (
+	TicketBulkPatchPriority1      TicketBulkPatchPriority = 1
+	TicketBulkPatchPriority0      TicketBulkPatchPriority = 0
+	TicketBulkPatchPriorityMinus1 TicketBulkPatchPriority = -1
+)
+
+// AllValues returns all TicketBulkPatchPriority values.
+func (TicketBulkPatchPriority) AllValues() []TicketBulkPatchPriority {
+	return []TicketBulkPatchPriority{
+		TicketBulkPatchPriority1,
+		TicketBulkPatchPriority0,
+		TicketBulkPatchPriorityMinus1,
+	}
+}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {

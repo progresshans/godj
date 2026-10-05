@@ -358,7 +358,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			}
 		}
 		links, err := helpdeskmodels.TicketLabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketLabelFields.ID.Asc()).All(t.Context())
-		if err != nil || len(links) != 5 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID || links[3].TicketID != bulkIDs[0] || links[4].TicketID != bulkIDs[1] || links[3].LabelID != labels[1].ID || links[4].LabelID != labels[1].ID {
+		if err != nil || len(links) != 4 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID || collectionOwnerID <= 0 || links[2].TicketID != collectionOwnerID || links[2].LabelID != labels[1].ID || links[3].TicketID != bulkIDs[0] || links[3].LabelID != labels[1].ID {
 			t.Fatalf("generated link lifecycle/cascade final state differs: %v", err)
 		}
 

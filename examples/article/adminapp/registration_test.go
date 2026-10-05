@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/sqlite"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/forms"
@@ -42,7 +43,7 @@ func TestRegisterArticlePublishesIRDerivedTypedConfiguration(t *testing.T) {
 		len(descriptor.Actions) != 1 || descriptor.Actions[0].Name != "publish" {
 		t.Fatalf("descriptor = %#v", descriptor)
 	}
-	if descriptor.Permissions.View != ArticleViewPermission || descriptor.Actions[0].Permission != ArticleChangePermission {
+	if descriptor.Permissions.View != ArticleViewPermission || !reflect.DeepEqual(descriptor.Actions[0].Permissions, []auth.Permission{ArticleChangePermission}) {
 		t.Fatalf("permissions = %#v, actions = %#v", descriptor.Permissions, descriptor.Actions)
 	}
 }

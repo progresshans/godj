@@ -29,6 +29,23 @@ func (a *Application) apiUpdateMode(request *web.Request, principal auth.Princip
 	if handled || err != nil {
 		return response, err
 	}
+	patch, labels, err := ticketPatchFromValues(values)
+	if err != nil {
+		return web.Response{}, err
+	}
+	updated, _, err := a.updatePatch(request.Context(), principal, id, patch, labels)
+	if err != nil {
+		return objectFailure(err)
+	}
+	value, err := a.encoder.Encode(updated)
+	if err != nil {
+		return web.Response{}, err
+	}
+	return api.JSON(http.StatusOK, value)
+}
+
+// ticketPatchFromValues consumes only successfully bound Ticket input values.
+func ticketPatchFromValues(values serializers.Values) (models.TicketPatch, []int64, error) {
 	patch := models.TicketPatch{}
 	var labels []int64
 	for _, entry := range values.All() {
@@ -134,18 +151,10 @@ func (a *Application) apiUpdateMode(request *web.Request, principal auth.Princip
 				patch = patch.WithReviewed(boolean)
 			}
 		default:
-			return web.Response{}, errors.New("helpdesk: validated update contains an unhandled field")
+			return models.TicketPatch{}, nil, errors.New("helpdesk: validated update contains an unhandled field")
 		}
 	}
-	updated, _, err := a.updatePatch(request.Context(), principal, id, patch, labels)
-	if err != nil {
-		return objectFailure(err)
-	}
-	value, err := a.encoder.Encode(updated)
-	if err != nil {
-		return web.Response{}, err
-	}
-	return api.JSON(http.StatusOK, value)
+	return patch, labels, nil
 }
 
 func (a *Application) bindInput(request *web.Request, mode serializers.Mode) (serializers.Values, web.Response, bool, error) {
