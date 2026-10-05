@@ -1,6 +1,7 @@
 package serializers
 
 import (
+	"context"
 	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
@@ -99,83 +100,7 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 	}
 	members := make([]Member, 0, len(encoder.spec.fields))
 	for index, field := range encoder.spec.fields {
-		if read, computed := encoder.computed[field.name]; computed {
-			computed, present := read(value)
-			if !present {
-				return Value{}, invalidValue(field.name, "missing computed value")
-			}
-			converted, err := computedOutputValue(field, computed)
-			if err != nil {
-				return Value{}, err
-			}
-			members = append(members, MemberOf(field.name, converted))
-			continue
-		}
-		metadata := encoder.fields[index]
-		if collection, found := encoder.many[field.name]; found {
-			keys, present := encoder.readMany(value, collection.Clone())
-			if !present {
-				return Value{}, invalidValue(field.name, "missing collection value")
-			}
-			members = append(members, MemberOf(field.name, Integers(keys...)))
-			continue
-		}
-		scalar, found := encoder.read(value, metadata.Clone())
-		if !found {
-			return Value{}, invalidValue(field.name, "missing model value")
-		}
-		var converted Value
-		switch scalar.Kind() {
-		case query.ValueNull:
-			converted = Null()
-		case query.ValueString:
-			text, _ := scalar.String()
-			converted = String(text)
-		case query.ValueBoolean:
-			boolean, _ := scalar.Boolean()
-			converted = Boolean(boolean)
-		case query.ValueJSON:
-			document, _ := scalar.JSON()
-			converted = JSON(document)
-		case query.ValueBinary:
-			data, ok := scalar.Binary()
-			if !ok {
-				return Value{}, invalidValue(field.name, "invalid binary model value")
-			}
-			converted = Binary(data)
-		case query.ValueUUID:
-			identifier, _ := scalar.UUID()
-			converted = UUID(identifier)
-		case query.ValueDecimal:
-			number, _ := scalar.Decimal()
-			var err error
-			converted, err = decimalOutput(number, field.decimalDigits, field.decimalPlaces)
-			if err != nil {
-				return Value{}, invalidValue(field.name, "decimal model value exceeds field precision or scale")
-			}
-		case query.ValueFloat:
-			number, _ := scalar.Float()
-			converted = Float(number)
-		case query.ValueDuration:
-			instant, _ := scalar.Duration()
-			converted = Duration(instant)
-		case query.ValueTime:
-			instant, _ := scalar.Time()
-			converted = Time(instant)
-		case query.ValueDate:
-			instant, _ := scalar.Date()
-			converted = Date(instant)
-		case query.ValueDateTime:
-			instant, _ := scalar.DateTime()
-			converted = DateTime(instant)
-		case query.ValueInteger:
-			integer, _ := scalar.Integer()
-			converted = Integer(integer)
-		default:
-			return Value{}, invalidValue(field.name, "invalid scalar")
-		}
-		var err error
-		converted, err = outputValue(field, converted)
+		converted, err := encoder.encodeField(value, index)
 		if err != nil {
 			return Value{}, err
 		}
@@ -186,6 +111,112 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		return Value{}, err
 	}
 	return object.Value(), nil
+}
+
+// Project binds a stable model value to lazy, validated output. It retains the
+// same allowlist and conversion as Encode. Collection values are visited only
+// after the shared response budget admits their length, without copying them.
+func (encoder ModelEncoder[M]) Project(value M) Projection {
+	if encoder.read == nil {
+		return Projection{}
+	}
+	return ObjectProjection(len(encoder.spec.fields), func(_ context.Context, index int) (string, Projection, error) {
+		field := encoder.spec.fields[index]
+		if collection, found := encoder.many[field.name]; found {
+			keys, present := encoder.readMany(value, collection.Clone())
+			if !present {
+				return field.name, Projection{}, invalidValue(field.name, "missing collection value")
+			}
+			return field.name, ArrayProjection(len(keys), func(_ context.Context, item int) (Projection, error) {
+				return ValueProjection(Integer(keys[item])), nil
+			}), nil
+		}
+		converted, err := encoder.encodeField(value, index)
+		return field.name, ValueProjection(converted), err
+	})
+}
+
+func (encoder ModelEncoder[M]) encodeField(value M, index int) (Value, error) {
+	field := encoder.spec.fields[index]
+	if read, computed := encoder.computed[field.name]; computed {
+		computed, present := read(value)
+		if !present {
+			return Value{}, invalidValue(field.name, "missing computed value")
+		}
+		converted, err := computedOutputValue(field, computed)
+		if err != nil {
+			return Value{}, err
+		}
+		return converted, nil
+	}
+	metadata := encoder.fields[index]
+	if collection, found := encoder.many[field.name]; found {
+		keys, present := encoder.readMany(value, collection.Clone())
+		if !present {
+			return Value{}, invalidValue(field.name, "missing collection value")
+		}
+		return Integers(keys...), nil
+	}
+	scalar, found := encoder.read(value, metadata.Clone())
+	if !found {
+		return Value{}, invalidValue(field.name, "missing model value")
+	}
+	var converted Value
+	switch scalar.Kind() {
+	case query.ValueNull:
+		converted = Null()
+	case query.ValueString:
+		text, _ := scalar.String()
+		converted = String(text)
+	case query.ValueBoolean:
+		boolean, _ := scalar.Boolean()
+		converted = Boolean(boolean)
+	case query.ValueJSON:
+		document, _ := scalar.JSON()
+		converted = JSON(document)
+	case query.ValueBinary:
+		data, ok := scalar.Binary()
+		if !ok {
+			return Value{}, invalidValue(field.name, "invalid binary model value")
+		}
+		converted = Binary(data)
+	case query.ValueUUID:
+		identifier, _ := scalar.UUID()
+		converted = UUID(identifier)
+	case query.ValueDecimal:
+		number, _ := scalar.Decimal()
+		var err error
+		converted, err = decimalOutput(number, field.decimalDigits, field.decimalPlaces)
+		if err != nil {
+			return Value{}, invalidValue(field.name, "decimal model value exceeds field precision or scale")
+		}
+	case query.ValueFloat:
+		number, _ := scalar.Float()
+		converted = Float(number)
+	case query.ValueDuration:
+		instant, _ := scalar.Duration()
+		converted = Duration(instant)
+	case query.ValueTime:
+		instant, _ := scalar.Time()
+		converted = Time(instant)
+	case query.ValueDate:
+		instant, _ := scalar.Date()
+		converted = Date(instant)
+	case query.ValueDateTime:
+		instant, _ := scalar.DateTime()
+		converted = DateTime(instant)
+	case query.ValueInteger:
+		integer, _ := scalar.Integer()
+		converted = Integer(integer)
+	default:
+		return Value{}, invalidValue(field.name, "invalid scalar")
+	}
+	var err error
+	converted, err = outputValue(field, converted)
+	if err != nil {
+		return Value{}, err
+	}
+	return converted, nil
 }
 
 // FromModel creates a serializer from an explicit allowlist. It never discovers

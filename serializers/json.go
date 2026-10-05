@@ -2,6 +2,7 @@ package serializers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -341,12 +342,31 @@ func EncodeObject(object Object, limits Limits) ([]byte, error) {
 }
 
 type encodeState struct {
+	ctx      context.Context
 	limits   Limits
 	values   int
 	document []byte
 }
 
 func (s *encodeState) appendValue(value Value, depth int) error {
+	if err := s.enterValue(depth); err != nil {
+		return err
+	}
+	if value.kind == ValueString && len(value.string) > s.limits.MaxStringBytes {
+		return resourceLimit("value.string", "JSON string exceeds the configured byte limit")
+	}
+	if !value.validValue() {
+		return invalidValue("value", "value is zero or invalid")
+	}
+	return s.appendEnteredValue(value, depth)
+}
+
+func (s *encodeState) enterValue(depth int) error {
+	if s.ctx != nil {
+		if err := s.ctx.Err(); err != nil {
+			return err
+		}
+	}
 	if depth > s.limits.MaxDepth {
 		return resourceLimit("value.depth", "JSON nesting exceeds the configured depth limit")
 	}
@@ -354,6 +374,10 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 	if s.values > s.limits.MaxValues {
 		return resourceLimit("value.values", "JSON value count exceeds the configured limit")
 	}
+	return nil
+}
+
+func (s *encodeState) appendEnteredValue(value Value, depth int) error {
 	switch value.kind {
 	case ValueNull:
 		return s.appendBytes([]byte("null"))

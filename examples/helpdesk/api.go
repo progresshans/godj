@@ -46,10 +46,6 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if a == nil || nilAuthentication(authentication) || config.AppendAudit == nil {
 		return nil, fmt.Errorf("helpdesk API: application, authentication and transactional audit are required")
 	}
-	ticket, err := openapi.ModelResponseSchema(a.output)
-	if err != nil {
-		return nil, fmt.Errorf("helpdesk API Ticket schema: %w", err)
-	}
 	input, err := openapi.RequestSchema(a.input, serializers.ModeFull)
 	if err != nil {
 		return nil, fmt.Errorf("helpdesk API TicketCreate schema: %w", err)
@@ -58,17 +54,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, fmt.Errorf("helpdesk API TicketPatch schema: %w", err)
 	}
-	category, err := openapi.Object(
-		openapi.Property{Name: "id", Schema: openapi.Integer(), Required: true},
-		openapi.Property{Name: "name", Schema: openapi.String(), Required: true},
-	)
-	if err != nil {
-		return nil, err
-	}
-	ticketRef, err := openapi.Ref("Ticket")
-	if err != nil {
-		return nil, err
-	}
+	ticketRef := a.responses.ticket.Schema()
 	inputRef, err := openapi.Ref("TicketCreate")
 	if err != nil {
 		return nil, err
@@ -81,21 +67,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	categoryRef, err := openapi.Ref("CategorySummary")
-	if err != nil {
-		return nil, err
-	}
-	detailRef, err := openapi.Ref("TicketDetail")
-	if err != nil {
-		return nil, err
-	}
-	detailSchema, err := openapi.Object(
-		openapi.Property{Name: "ticket", Schema: ticketRef, Required: true},
-		openapi.Property{Name: "category", Schema: categoryRef, Required: true},
-	)
-	if err != nil {
-		return nil, err
-	}
+	detailRef := a.responses.detail.Schema()
 	items, err := openapi.Array(ticketRef)
 	if err != nil {
 		return nil, err
@@ -225,24 +197,22 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		return nil, err
 	}
 	operations = append(operations, priorityRaise)
-	summary, summarySchema, err := a.ticketSummaryOperation(protect, categoryRef, errorSchema)
+	summary, err := a.ticketSummaryOperation(protect, errorSchema)
 	if err != nil {
 		return nil, err
 	}
 	operations = append(operations, summary)
 	schemas := append(reportSchemas, labelSchemas...)
 	schemas = append(schemas, linkSchemas...)
-	schemas = append(schemas, bulkUpdateSchema, prioritySchema, summarySchema)
+	schemas = append(schemas, bulkUpdateSchema, prioritySchema)
+	schemas = append(schemas, a.responses.schemas...)
 	return &API{
 		authentication: authentication,
 		operations:     operations,
 		schemas: append([]openapi.NamedSchema{
-			{Name: "Ticket", Schema: ticket},
 			{Name: "TicketCreate", Schema: input},
 			{Name: "TicketUpdate", Schema: input},
 			{Name: "TicketPatch", Schema: partial},
-			{Name: "TicketDetail", Schema: detailSchema},
-			{Name: "CategorySummary", Schema: category},
 		}, schemas...),
 	}, nil
 }

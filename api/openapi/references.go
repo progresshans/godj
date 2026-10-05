@@ -28,6 +28,21 @@ type NamedSchema struct {
 	Schema Schema
 }
 
+// ValidateSchema validates a standalone root and its closed component graph
+// using the same identity, reference, recursion and resource rules as New.
+// It performs no I/O and does not validate application response values.
+func ValidateSchema(root Schema, components ...NamedSchema) error {
+	catalog, err := prepareSchemaCatalog(components)
+	if err != nil {
+		return err
+	}
+	if _, err := catalog.raw(root); err != nil {
+		return err
+	}
+	_, err = catalog.components()
+	return err
+}
+
 // Ref describes a local reference to one NamedSchema. The target can be declared
 // later; document construction checks that it exists and is not recursive.
 // Names use NamedSchema's bounded component-key grammar. Remote references,

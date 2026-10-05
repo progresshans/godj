@@ -3,6 +3,72 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0113 — Typed 응답 선언과 공통 출력 예산
+
+`api/output`의 닫힌 Shape/Property/Output과 named identity, 기존 ModelEncoder의 Spec/출력, 요청별 lazy
+Projection을 연결했다. 실제 Helpdesk 요약과 Ticket/Category 상세의 필드·nullable·범위·JSON/schema 선언은
+같은 typed 출력에서 온다. 인가·조회 범위·snapshot·라벨 load·쓰기의 commit 전 출력 검증은 기존 owner를 유지한다.
+새 Django 외부 의미나 입력 binder·endpoint DSL·viewset을 구현한 것으로 계산하지 않는다.
+
+영향 검증과 정리를 완료했다. 최종 source는 parent `2be7433d0d310ee0c8cbc39bee09670285bc7407`,
+비Markdown 3139 files / inventory `85394365bd875beb3c89b20e74b50e26b92002921d47d7a74cc2b8cc4ccd7da7`다.
+Go 1.26.5/darwin/arm64·공유 cache·offline graph, PostgreSQL 17.10 Debian/UTF8/libc/C/C와 실제 SQLite를 사용한다.
+실행 디렉터리는 `typed-output-20261006-062828`이며 아래 모든 대상 section을 같은 source에서 완료했다.
+
+| Mode | Runtime 4 packages | Helpdesk/독립 client 2 packages | 외부 compile 4 owners |
+|---|---|---|---|
+| normal | 3875 run/pass, skip 0 | 1283 run/pass, skip 0 | 67 run/pass, skip 0 |
+| race | 3875 run/pass, skip 0 | 1283 run/pass, skip 0 | !race 소유 규칙으로 비대상 |
+| CGO=0 | 3875 run/pass, skip 0 | 1283 run/pass, skip 0 | 67 run/pass, skip 0 |
+
+Runtime은 serializers·api·api/openapi·api/output의 전체 package tests다. Business는 Helpdesk의 양 DB 전체와
+실제 OpenAPI 6개 profile의 byte 일치·locked ogen 재생성 drift·독립 HTTP/client·최종 DB 검사다.
+세 mode에서 schema/client 변경 없이 같은 wire 계약을 확인했다. 독립 client는 SQLite 기반 HTTP fixture를 사용하고
+같은 API의 실제 PostgreSQL 동작은 Helpdesk의 native consumer가 검사한다. 외부 compile은 정상 소비자, typed API
+오용, 직접 의존 경계, offline/platform 환경 owner를 선택했다. 새로운 getter/DTO/output type·private codec 거부도
+각 fixture의 독립 build-fail과 compiler 진단을 확인한다. !race compile owner의 부모는 runtime.Caller로 저장소를
+찾으므로 `-trimpath`를 사용하지 않으며 기존 child 실행 owner의 설정을 유지한다.
+
+첫 시도 `typed-output-20261006-062418`은 초기 inventory
+`9fc14ec79c67cf3d02b88fffeea541a268ea14c5fbf0b8d535326b6180fec8b3`에서 runtime 3875개와 business
+1283개가 통과한 뒤, wrapper가 compile 부모에 `-trimpath`를 적용해 `github.com/progresshans/godj/go.sum`과
+상대 저장소 경로를 찾지 못했다. Compile은 4 run/1 pass, skip 0이었다. 실패 receipt
+`a2ca62e888ff8914fbcfd8ba3226ae77b91f82439691087e97a8a86668906fef`와 원 로그를 보존했다.
+
+같은 source의 두 성공 section을 재검증해 재개한 `typed-output-20261006-062722`에서는 실제 compiler의
+타입 거부가 정상 동작했지만 테스트가 `func(row) string`을 기대해 실제 `func(value row) string` 진단과 달랐다.
+Compile은 67 run/65 pass, skip 0이었고 receipt
+`1ad75f451fb035850ce089c04cd462fd6e71d8ca48dad3b5ba37ed62437870db`는 false다. 해당 기대 문자열만
+고친 뒤 현재 최종 source에서 일반 모드부터 다시 실행했다. 두 실패 실행의 container 제거는 확인했지만 실패 경로에서
+DB schema/session 숫자는 별도 수집하지 않았다. 이전 source의 결과를 최종 source PASS로 전이하지 않는다.
+
+Runtime은 exact int64/JSON token·fixed-scale Decimal·untrimmed/NULL/legacy 선택 값과 model/computed allowlist,
+같은 named identity 재사용·별도 동일 이름 거부·깊이/개수·nil/zero/잘못된 설정, 동시 출력·선언/응답 소유권을 대조한다.
+기존 eager Value와 lazy Projection의 일곱 자원 한도 경계를 독립 값으로 확인하고, container 사전 거부·남은 값 예산·
+중첩 모델/opaque JSON의 공유 예산·callback/취소/잘못된 값에 부분 출력이 없음을 검사했다.
+
+원 로그의 run/pass/skip·terminal 상태와 runtime 136·business 1132·compile 9개 필수 경로를 확인했다.
+Business 필수 경로는 기존 PostgreSQL Helpdesk manifest와 대응 SQLite 경로를 포함한다. 새 CI owner를 만들거나
+기존 필수 manifest를 줄이지 않았다. Format 0.397초·영향 vet 9.785초와 CI 도구 57개/8.091초가 통과했다.
+마지막 DB schema/session은 `0|0`, DB 제거·container stop/removal과 원 source 유지도 확인했다.
+최종 receipt `typed-output-20261006-062828/receipt.json` /
+`7cb969fc38fe1fd424001c3a4fe535c53b38a8fa049df2eac6c546c542435f06`는 pass다.
+
+| Mode/section | 초 | 원 로그 SHA-256 |
+|---|---:|---|
+| normal/compile | 5.147 | `b762587c02ee5120b68d237758b0dad8b03dcb975ebcde03098e7c4ca389ff0e` |
+| normal/runtime | 1.482 | `0ab0827b6ab0770b65bd2ce3e96137d7b523a7d94081d679929e5885340081a3` |
+| normal/business | 90.633 | `74ded6884429c251256ab112c81f128217294a4f4e07b5ab9541a01403d966c7` |
+| race/runtime | 4.37 | `e695033f4f4ec2c7a813bcfc07688145156c6d4fef3af0cad26368ceb85b21a6` |
+| race/business | 831.063 | `7156f49b83ed18aec700d60181e7031b297f94773c0f0f59e2dfb4100a8c7703` |
+| cgo0/compile | 5.289 | `4245374e1c133a63e2ea780e62627aaeadb8a57acd438ea995200a5d26a0c440` |
+| cgo0/runtime | 3.659 | `93e00547b2df09caff5cc72e31f4246d145ffd32719cf25b531a9f6b7c20db2f` |
+| cgo0/business | 121.796 | `711965076ffcce6b8f39d11f29b51dd457a24d1462669ca5f05fcd01ac9f9a5c` |
+
+현재 source의 전체 local/platform/Hosted 완료는 아니다. 선행 Hosted run `37365281161`은
+`720c9be6211f00a146a39d00957a81ce69ed294f`이며 이 변경이나 GDJ-0112의 검증으로 계산하지 않는다.
+
+
 ## GDJ-0112 — 그룹 집계의 독립 기준 관찰
 
 2026-10-06 KST, 고정 Python 3.14.3·Django 6.1·SQLite 3.50.4·psycopg 3.3.6·PostgreSQL 17.10
@@ -171,6 +237,14 @@ runner 종료·CPU/메모리 부족·네트워크 차단을 가능한 원인으�
 Job log 요청은 404였으며 원 API/annotation을 `hosted-query-update-37365281161/job-111951940314-failure.json` /
 `e1706c409580c63f7e14f57fd7027804d380c2e931014df9fbf47f9b1c937030`에 보존했다. 실제 test assertion 실패나
 검증 성공으로 계산하지 않는다.
+2026-10-06 06:33 KST의 동일 job log 재조회도 404였다. 후속 receipt
+`hosted-query-update-37365281161/job-111951940314-log-retry-20261005-213300.json` /
+`d2d2f2a8d46ffc4f794c8afc1b2abeb2a0b51f4ee812bec5d347c1d31e9b005e`에 원 오류 응답과 hash를 보존했다.
+같은 실행의 macos-15-intel/race relation shard 3/3 job `111951940939`도 06:46 KST에 runner 통신 상실로
+종료됐다. Runner `1000014252`의 product step은 in_progress, cleanup/post step은 pending으로 남았고 log는 404다.
+동일한 원인 후보 annotation을 확인했으며 assertion·CPU/메모리·네트워크 중 어느 원인인지 아직 확인하지 못했다.
+Receipt `hosted-query-update-37365281161/job-111951940939-failure.json` /
+`7fe66c2cdf7002f9e318038b18cb24715bcf36ca3c33cbaf2d1ae8b01fae640b`에 원 job·annotation·log 응답을 보존했다.
 
 ## GDJ-0111 — QuerySet 갱신과 scalar 표현식 기반
 

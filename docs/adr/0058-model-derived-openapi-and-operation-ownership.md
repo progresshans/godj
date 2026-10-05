@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -61,6 +61,28 @@ Description을 제공하지 않는 custom authentication은 기존 API 실행에
 Article은 authenticated loopback site의 `GET /api/openapi.json`에 Article view 권한을 적용한다.
 
 ## Schema 정체성과 정책의 공유
+
+GDJ-0113의 `api/output`은 업무 DTO의 공개 property와 typed getter를 한 번 선언하는 닫힌 `Shape[T]`를 제공한다.
+`New`가 nested 선언·nil reader·중복 이름·자원 설정·schema graph를 검증한 뒤 불변 `Output[T]`를 반환한다.
+Object의 필드는 항상 required이고 pointer Nullable은 nil/null과 값을 구분하며, nil slice Array는 빈 배열이다.
+int64 범위와 배열 길이는 같은 선언에서 실제 출력과 schema에 적용한다. 잘못된 DTO·getter/field·출력 타입은 compile 오류다.
+임의 schema와 encoder를 짝짓거나 struct reflection으로 공개 범위를 늘리는 escape hatch는 제공하지 않는다.
+
+`Model`은 `ModelEncoder.Spec()`과 동일 encoder의 출력 경로를 함께 소비한다. 모델 의미의 새 원본이나 별도 Spec은 없으며
+입력 default·trimming·choices를 출력에 다시 적용하지 않는다. 허용한 필드·nullable·길이·codec·computed field를 보존한다.
+Named Shape 자체를 재사용할 때 component를 공유하고 별도 identity의 같은 이름은 내용이 같아도 거부한다.
+`Components`로 여러 prepared output의 component를 모으며 OpenAPI의 기존 closed graph·깊이·개수·byte 검사를 재사용한다.
+수동 schema·다른 API와의 최종 충돌은 기존 document 조합이 소유한다.
+
+출력은 요청별 lazy `serializers.Projection`으로 방문하고 기존 JSON writer 하나가 전체 bytes/depth/value 예산을 계산한다.
+컨테이너 길이·남은 값/깊이 예산을 먼저 확인하며 중첩 모델, collection과 opaque JSON도 같은 예산에 속한다.
+Context 취소·reader/값/자원 오류에는 부분 bytes·HTTP 응답을 반환하지 않는다. 출력 getter는 순수하며 호출 동안 DTO와
+가변 필드를 안정적으로 유지할 책임은 application에 있다. 선언과 완성된 결과는 호출자 slice·DTO 변경에서 분리한다.
+이 연결은 인가·읽기 snapshot·transaction·commit 전 출력 검증을 옮기거나 추측하지 않는다.
+
+Helpdesk의 집계 요약과 Ticket/Category 상세가 첫 소비자다. Ticket은 IR에서 온 encoder를 재사용하고 CategorySummary는
+기존 두 필드의 업무 projection을 유지한다. 입력 binder·endpoint DSL·viewset·추가 primitive·optional omission은 별도 범위다.
+이 설계의 채택과 환경별 실행 완료는 구분하며 검증 결과는 TEST_EVIDENCE 한 곳에 기록한다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

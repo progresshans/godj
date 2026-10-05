@@ -67,6 +67,7 @@ type Application struct {
 	input           serializers.Spec
 	output          serializers.Spec
 	encoder         serializers.ModelEncoder[ticketRecord]
+	responses       apiOutputs
 	parser          api.Parser
 	relations       project.Relations
 	collections     project.Collections
@@ -144,6 +145,10 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	a.encoder, err = serializers.NewModelEncoder(a.output, metadata, ticketScalar, ticketCollection)
+	if err != nil {
+		return nil, err
+	}
+	a.responses, err = prepareAPIOutputs(a.encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -696,22 +701,7 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 	if err != nil {
 		return web.Response{}, err
 	}
-	ticketValue, err := a.encoder.Encode(raw)
-	if err != nil {
-		return web.Response{}, err
-	}
-	categoryValue, err := serializers.NewObject(
-		serializers.MemberOf("id", serializers.Integer(category.ID)),
-		serializers.MemberOf("name", serializers.String(category.Name)),
-	)
-	if err != nil {
-		return web.Response{}, err
-	}
-	value, err := serializers.NewObject(serializers.MemberOf("ticket", ticketValue), serializers.MemberOf("category", categoryValue.Value()))
-	if err != nil {
-		return web.Response{}, err
-	}
-	return api.JSON(http.StatusOK, value.Value())
+	return a.responses.detail.JSON(request.Context(), http.StatusOK, ticketDetailResponse{ticket: raw, category: models.Category{ID: category.ID, Name: category.Name}})
 }
 
 // Business values use numeric equality for Float and Decimal, including zero's

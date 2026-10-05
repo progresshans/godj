@@ -29,6 +29,7 @@ const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
 	fixtures := []string{
+		"output_external_consumer.go.txt",
 		"external_consumer.go.txt",
 		"write_external_consumer.go.txt",
 		"save_external_consumer.go.txt",
@@ -515,6 +516,10 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "output getter retains scalar type", fixture: "output_getter_mismatch.go.txt", wantFragments: []string{"func(value row) string", "func(row) int64"}},
+		{name: "output property retains DTO type", fixture: "output_dto_mismatch.go.txt", wantFragments: []string{"Property", "other", "row"}},
+		{name: "output encoding retains DTO type", fixture: "output_encode_mismatch.go.txt", wantFragments: []string{"other{}", "row"}},
+		{name: "output schema encoder binding is closed", fixture: "output_private_codec.go.txt", wantFragments: []string{"unexported field node"}},
 		{name: "float predicate rejects float32", fixture: "float_predicate_float32.go.txt", wantFragments: []string{"float32(1)", "float64"}},
 		{name: "float write rejects typed integer", fixture: "float_write_integer.go.txt", wantFragments: []string{"int64(1)", "float64"}},
 		{name: "float reference rejects integer field", fixture: "float_reference_integer.go.txt", wantFragments: []string{"int64", "float64"}},

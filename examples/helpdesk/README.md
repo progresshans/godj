@@ -31,6 +31,11 @@ Category가 사라졌으면 404다. Category 정보와 집계 행/총수는 요�
 다시 현재 상태를 읽는다. 조회는 ticket 본문·라벨·digest를 불러오거나 고치지 않고 audit도 쓰지 않는다. DB·취소·정리 오류는
 부분 응답으로 바뀌지 않는다. HTML과 성공 JSON 응답은 `Cache-Control: no-store`를 사용한다.
 
+요약과 티켓/Category 상세의 JSON 응답은 [typed 출력 선언](api_output.go)에서 필드·getter·nullable·범위와
+OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 명시적 두 필드만 공개하며, 같은 선언을
+준비할 때 조회나 인가는 수행하지 않는다. [출력 API](../../api/output/README.md)의 전체 예산과 취소·실패 의미를 따른다.
+쓰기 작업은 기존처럼 commit 전에 응답 준비를 끝낸다.
+
 ## 여러 티켓 생성하기
 
 `AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`로 만든 Ticket 목록은 **Create multiple tickets**
