@@ -298,6 +298,10 @@ sequence 1..10의 actor/object/action/changed-fields를 정확히 대조했다. 
 [Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948), attempt 1 /
 workflow_dispatch가 생성됐음을 확인했다. 새 계획은 74 jobs이며 실제 필수 owner·실행·새 capture의 source 결합/소비와
 집계가 모두 확인되기 전까지 통합 완료가 아니다. 이후 dispatch 기록은 Markdown만 변경한다.
+이전 `37329368105`는 최종 cancelled, 68 jobs 중 success 33/failure 18/cancelled 16/skipped 1이다.
+Failure에는 앞서 기록한 회귀와 누적 timeout, 이를 거부한 최종 aggregate가 포함된다. Terminal failure receipt
+`hosted-bulk-update-37329368105/failure-receipt.json` / `3cf765fe832f523624e925723972b9e0e5a6cb64a298cba46ce70bde8b1ea3ea`.
+부분 성공이나 취소를 새 source의 전체 검증으로 사용하지 않는다.
 
 ### 브라우저와 독립 저장 결과
 
