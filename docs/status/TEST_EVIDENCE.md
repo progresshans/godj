@@ -542,6 +542,11 @@ GDJ-0109/0110의 통합 완료가 아니다. 별도 사본의 GDJ-0111 새 구�
 `hosted-priority-predecessor-37348366499/job-111892710385.log` /
 `0d0bcb49d0c7fdaa7a4e538d30186a14a532cf4ab3bacb7b391f9cac8a313100`을 보존했다.
 
+후속 통합 source의 새 full 요청 뒤 이 선행 실행의 잔여 job을 취소했다. 최종 76 jobs는 success 66,
+failure 2, cancelled 8이며 실패 owner와 최종 집계 실패를 보존한다. Terminal receipt
+`hosted-bulk-update-37348366499/failure-receipt.json` /
+`972eb92b39cebd0b51f7b06c22a945c3666283a6120343b894a03d0156211540`. 이 실행은 전체 PASS가 아니다.
+
 별도 source `0683f9d4b2d9daedfd98fff142b730f40c55e515`는 compiler를 포함하는 fixture 준비에 10분 예산을
 분리하고 단계별 시작/완료 시간·timeout·일반 종료 실패를 기록한다. Timeout은 기존 owned process-tree cleanup으로
 회수한다. 제품 명령·PTY의 4분 및 개별 취소/lock/cleanup 한도는 유지한다. 변경은 해당 fixture helper 하나이며
