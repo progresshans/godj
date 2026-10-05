@@ -27,6 +27,10 @@ GDJ-0109/0110의 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`는
 macOS Intel의 명령 fixture 준비 실패가 확인됐다. 별도 준비 예산·단계 진단 보완을 새 업무 source와 통합해 검증한다.
 그 실행은 선행 source를 검증하며 이 작업의 새 구현을 검증한 것으로 사용하지 않는다. 별도 작업 사본에서 구현한다.
 
+공통 기반과 업무 소비자·fixture 보완을 통합한 source `0f9cdb8386c9b9e4ec4599c698cfd311c80dd4a6`의
+[Hosted full 37359348832](https://github.com/progresshans/godj/actions/runs/37359348832)을 요청했다. 영향 검사와
+브라우저/외부 명령을 완료했고 현재는 이 묶음의 전체 owner·source/capture·최종 집계를 확인한다.
+
 ## 구현과 검증
 
 - [x] 고정 Django의 query update·field expression·NULL/수치·실패·cache·부모/동시성 의미를 독립 관찰

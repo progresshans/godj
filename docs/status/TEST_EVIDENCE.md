@@ -167,6 +167,13 @@ Format·188개 문서 링크·diff·실행 전후 clean source도 통과했다. 
 후속 증거 기록은 Markdown만 바꾼다. 이 source의 Hosted 전체는 아직 남아 있으며 선행 Hosted 결과나
 전체 기능 카탈로그의 완료로 전이하지 않는다.
 
+2026-10-05T18:53:22Z, 세 원격 ref의 source `0f9cdb8386c9b9e4ec4599c698cfd311c80dd4a6`를 확인하고
+[Hosted full 37359348832](https://github.com/progresshans/godj/actions/runs/37359348832), attempt 1/workflow_dispatch를
+요청했다. 직전 통합 검증 source와 차이는 CURRENT/TEST_EVIDENCE의 Markdown뿐이다. 이 실행이 GDJ-0109/0110/0111을
+합친 76-job milestone을 맡는다. 모든 필수 owner·cold/process·raw PostgreSQL·4개 S3 lifecycle·동일 source의 새
+capture 생성/선택/소비·최종 집계가 확인되기 전에는 전체 PASS가 아니다. 이미 실패한 선행 실행은 새 실행 요청 뒤 취소해
+미완료 경로를 PASS로 이월하지 않는다.
+
 ## GDJ-0110 — native bulk update의 기준과 기반
 
 2026-10-02 KST, Go source/output/expected fixture를 읽지 않는 `conformance/runners/django/bulk_update_reference.py`로
