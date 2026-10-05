@@ -43,7 +43,10 @@ func (summary *TicketSummary) Routes() []web.Route {
 }
 
 func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.Response, error) {
-	input, diagnostics := parseTicketSummaryQuery(request.HTTP().URL.RawQuery)
+	input, diagnostics, err := summary.app.queries.summary.Parse(request.HTTP().URL.RawQuery)
+	if err != nil {
+		return web.Response{}, err
+	}
 	if !diagnostics.Empty() {
 		return ticketEditorText(http.StatusBadRequest)
 	}

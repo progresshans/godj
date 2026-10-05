@@ -3,6 +3,75 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0114 — Typed query 입력과 같은 parameter 선언
+
+`api/parameters`의 닫힌 scalar codec·required/default/optional·typed DTO setter와 같은 OpenAPI parameter를
+구현했다. Canonical int64와 선행 0을 허용하는 unsigned digits, untrimmed UTF-8 byte/empty/NUL 정책을 구분한다.
+전체 값 검증 전에 setter를 호출하지 않고 오류에 zero DTO를 반환한다. 준비 시 zero/nil·범위/default·이름/중복·
+resource 설정을 거부하며 잘못된 선언의 위치를 표시한다. 요청 DTO/Optional 포인터·선언 slice·문서 slice의 소유권과
+동시 사용을 검증했다. 인가·Category/관계 scope·Summary snapshot·목록의 별도 count/items 읽기와 오류 표현은 유지한다.
+
+최종 parent `8ecc3152af2cdc3efa5250c5acb1fd2705f71bef`, 비Markdown 3152 files / inventory
+`b53366723e2c2d24d066ed17ca73ed4d08eb6265197b4bd97ac8f7226071ecbc`에서 영향 검증을 마쳤다.
+Go 1.26.5/darwin/arm64·공유 cache·offline graph, PostgreSQL 17.10 Debian/UTF8/libc/C/C와 SQLite를 사용했다.
+실행 디렉터리는 `typed-query-20261006-073016`이며 아래 모든 section은 같은 frozen source다.
+
+| Mode | Query/OpenAPI 2 packages | Helpdesk/독립 client 2 packages | 외부 compile 4 owners |
+|---|---|---|---|
+| normal | 187 run/pass, skip 0 | 1283 run/pass, skip 0 | 73 run/pass, skip 0 |
+| race | 187 run/pass, skip 0 | 1283 run/pass, skip 0 | !race 소유 규칙으로 비대상 |
+| CGO=0 | 187 run/pass, skip 0 | 1283 run/pass, skip 0 | 73 run/pass, skip 0 |
+
+Runtime은 `api/parameters`와 `api/openapi` 전체다. Business는 Helpdesk 전체 SQLite/PostgreSQL과 실제 OpenAPI
+6개 profile·locked ogen drift·독립 HTTP client·최종 DB 검사다. External compile의 기존 네 owner가 정상 소비자와
+setter scalar·DTO·Optional pointer·default type·private codec 조작 거부를 실제 compiler로 확인했다.
+필수 runtime 55·business 1132·compile 15개 경로와 정확히 한 번의 run/pass·terminal·skip 0을 대조했다.
+기존 PostgreSQL/relation manifest는 줄이지 않았다. Header/path/body binder·endpoint DSL을 완료한 것으로 계산하지 않는다.
+
+실제 OpenAPI 6개 중 Helpdesk query metadata/default/description만 바뀌었다. 별도 candidate에서 같은 ogen 1.24.0으로
+생성·컴파일한 뒤 JSON 한 파일과 Go 주석 변경 두 파일을 발행했다. 요청 Go 타입·client module/tool lock은 유지한다.
+Generation receipt `typed-query-client-20261006-071656/receipt.json` /
+`360489f385e0112bb01391660db0511f0dcc7d263824ad9dc50c1f9ab06438a1`는 pass다. 기존 UUID의 string-validator
+미적용 경고 다섯 줄은 generator 진단으로 보존했으며 새 query 정책의 runtime 검증으로 해석하지 않는다.
+새 native HTTP 검사는 leading-zero 페이지·Unicode byte 거부·진단 순서·인증 선행을, 독립 client는 63-byte 허용/
+66-byte 거부와 생략/명시적 empty/zero 및 이후 CSRF/permission 흐름을 확인했다. Query byte 정책은 일반 generator가
+무조건 강제한다고 가정하지 않고 서버에서 검사한다.
+
+첫 checkpoint `typed-query-20261006-071951`, inventory
+`80a9a0f391da0bf2302c419c999828e323a25f20f98239914b467eba437a1033`는 compile 73개/runtime 187개와 Helpdesk 양 DB가
+통과했지만 새 독립 client 검사에서 존재하지 않는 `HelpdeskLabelListBadRequest` 타입을 사용해 compile에 실패했다.
+Business는 1283 run/1282 pass, skip 0, receipt
+`7aa9ebf41cc2cece7fa85918c5037d80d381dea70e1c5e09576a6b23be788c31`은 false다. 실제 생성된 GET 오류 wrapper인
+`GoDjAPIErrorHeaders`로 검사 타입을 고쳤다.
+
+두 번째 `typed-query-20261006-072351`, inventory
+`e1cf6a203eeb20702bcbbbbaad0a4127f28bdd84bf09c0d715cf264c021f7cef`에서도 compile 73개/runtime 187개와 Helpdesk 양 DB는
+통과했으나 독립 client의 추가 GET이 새 masked CSRF 응답을 반영하지 않아 뒤의 권한 검사 stage에서 실패했다.
+Business는 1283 run/1282 pass, skip 0, receipt
+`ff36e9e26cd28b4a8f9e8ee8a8542214ca4ffa3fae9ce50d2545c6985f99e428`은 false다. 세 새 GET의 header/pair 갱신을
+기존 client 규칙에 맞춰 검사하며 기존 CSRF·permission assertion은 유지했다. 두 실패의 container 제거는 확인했으나
+실패 경로의 DB schema/session 수를 별도로 수집하지 않았다. 실패 원 로그는 보존하고 이전 source PASS를 전이하지 않는다.
+Focused client 재현 수정은 4.969초에 통과했다. 설정 오류 위치 개선까지 반영한 최종 source에서 일반 모드부터 모두 재실행했다.
+
+Format 0.45초·영향 vet 9.789초, source 불변 확인과 DB schema/session `0|0`·DB 제거·container 제거를
+완료했다. 최종 receipt `typed-query-20261006-073016/receipt.json` /
+`02da02556fc4a9f26239ce3aa7ced37503ea33450aa7130d9b228481c088c075`는 pass다.
+
+| Mode/section | 초 | 원 로그 SHA-256 |
+|---|---:|---|
+| normal/compile | 5.604 | `5c61685ee52e0f288d2dba1a6ae4bd0236c8ff6b96134455df1455ec72b703b3` |
+| normal/runtime | 1.562 | `9fccaf03a47c71f24081a34a689316a1694b82526f3205b82493d61198edc604` |
+| normal/business | 136.231 | `7da4e0f2ee0eced055d0e3a526101e58e80dc6105ea0f45407f4e744ffa27fbf` |
+| race/runtime | 4.215 | `58d6b8ad6cf987cff39c6068aad6cd5733daa5edbaf0fa7a52cc60ef9e2f131e` |
+| race/business | 831.989 | `f57d21a609f4835a4d8ecdbee778b7311ab7b3773596cd9b61e48cbb0fecd368` |
+| cgo0/compile | 7.388 | `159bf2d4d4a7a0fc678a12bab4064dbb50912a40320c2d80e032f3515ccf9f72` |
+| cgo0/runtime | 1.555 | `5281bb1bc52eb7f982bd8e9d795d5d72075527f85ba8e103d3c26d3f1c54e30a` |
+| cgo0/business | 124.295 | `b150dcdcb554c14d5b1048bf15a46a379c373503a215aa71f3ff0e23057b3825` |
+
+현재 source의 전체 local/platform/Hosted 완료는 아니다. 선행 Hosted `37365281161`은
+`720c9be6211f00a146a39d00957a81ce69ed294f`만 검증하며 GDJ-0112/0113/0114의 결과로 전이하지 않는다.
+후속 통합 milestone이 새 source의 전체 platform/Hosted 검증을 소유한다.
+
 ## GDJ-0113 — Typed 응답 선언과 공통 출력 예산
 
 `api/output`의 닫힌 Shape/Property/Output과 named identity, 기존 ModelEncoder의 Spec/출력, 요청별 lazy
@@ -219,7 +288,12 @@ Receipt `hosted-query-update-runner-failure-37363189671/receipt.json` /
 제품 source 차이가 없고 Markdown만 다른 `720c9be6211f00a146a39d00957a81ce69ed294f`를
 [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), workflow_dispatch/attempt 1,
 2026-10-05 19:43:53 UTC에 full로 dispatch했다. 새 실행은 validation-plan을 통과하고 실제 jobs에 진입했다.
-예상 76개 owner와 fresh capture의 source 결합·소비·최종 aggregate 확인은 진행 중이다.
+Attempt 1은 2026-10-05 22:13:24 UTC에 76 jobs / 57 success·14 cancelled·4 failure·1 skipped로 종료됐다.
+Failure 4개 중 하나는 미완료 owner를 거부한 최종 aggregate이며 아래 세 실제 실행 중단과 구분한다.
+전체 job/annotation과 원 API는 `hosted-query-update-37365281161/attempt-1-terminal.json` /
+`744938c7c3a012472ac5aad839d91a7371b68df4e57cbaec22b1c0ae506dec85`에 보존했다.
+같은 SHA의 실패 작업만 `gh run rerun --failed`로 요청하고 attempt 2의 실제 실행 진입을 확인했다.
+기존 성공 owner를 보존하며 76개 필수 owner와 attempt별 fresh capture의 source 결합·소비·최종 aggregate를 확인한다.
 
 새 실행에서도 2026-10-05 20:13:39 UTC 기준 13개 job이 runner_id 0·steps 0의 같은 배정 오류로 취소됐다.
 해당 API 원 기록은 `hosted-query-update-runner-failure-37365281161/failures-20261005-201339.json` /
@@ -229,8 +303,8 @@ Receipt `hosted-query-update-runner-failure-37363189671/receipt.json` /
 14번째 취소인 exact darwin/arm64 owner `111951939502`도 runner_id 0·steps 0과 같은 배정 실패였으며
 GitHub가 macOS arm64 capacity constraint를 추가로 기록했다. Receipt `hosted-query-update-runner-failure-37365281161/exact-profile-runner-failure.json` /
 `a638aa98b5d65fe8a6f0f887ca7710a802a7b958750ee4e2aaeea64545fc0fbb`.
-이 중단은 필수 테스트의 완료가 아니며 코드 assertion 실패와도 구분한다. 다른 실행의 완료를 기다려 실패 job만
-같은 source로 재실행할 예정이며, 진행 중인 job을 성공으로 계산하지 않는다.
+이 중단은 필수 테스트의 완료가 아니며 코드 assertion 실패와도 구분한다. Attempt 1의 다른 작업이 끝난 뒤
+실패 job만 같은 source로 재실행했으며, 진행 중인 job을 성공으로 계산하지 않는다.
 macos-15-intel/cgo0 Command products job `111951940314`도 runner와 server의 통신 상실로 종료됐다.
 Runner id `1000014164`, test step은 in_progress로 남았고 후속 필수 step은 시작되지 않았다. GitHub annotation은
 runner 종료·CPU/메모리 부족·네트워크 차단을 가능한 원인으로 열거하지만 현재 자료로 어느 원인인지 단정하지 않는다.

@@ -68,6 +68,7 @@ type Application struct {
 	output          serializers.Spec
 	encoder         serializers.ModelEncoder[ticketRecord]
 	responses       apiOutputs
+	queries         apiQueries
 	parser          api.Parser
 	relations       project.Relations
 	collections     project.Collections
@@ -149,6 +150,10 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	a.responses, err = prepareAPIOutputs(a.encoder)
+	if err != nil {
+		return nil, err
+	}
+	a.queries, err = prepareAPIQueries()
 	if err != nil {
 		return nil, err
 	}

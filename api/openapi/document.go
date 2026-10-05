@@ -277,11 +277,8 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	}
 	seen := make(map[string]bool)
 	for _, parameter := range operation.Parameters {
-		if parameter.In != "query" && parameter.In != "header" || !validToken(parameter.Name) || !validText(parameter.Description, 4096, false) {
-			return nil, documentError("operation.parameter", "only named query/header parameters with bounded descriptions are supported")
-		}
-		if parameter.AllowEmptyValue && parameter.In != "query" {
-			return nil, documentError("operation.parameter", "empty values may only be enabled for query parameters")
+		if err := validateParameterDeclaration(parameter); err != nil {
+			return nil, err
 		}
 		key := parameter.In + ":" + parameter.Name
 		if parameter.In == "header" {

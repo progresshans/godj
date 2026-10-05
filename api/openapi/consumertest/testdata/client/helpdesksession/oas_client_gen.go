@@ -62,12 +62,11 @@ type Invoker interface {
 	HelpdeskLabelEnsure(ctx context.Context, request *LabelCreate) (HelpdeskLabelEnsureRes, error)
 	// HelpdeskLabelList invokes helpdesk:label-list operation.
 	//
-	// Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset
-	// defaults to 0 (0..2147483647). Count is the matching total before pagination. Search is a literal
-	// case-insensitive name substring of at most 64 UTF-8 bytes; empty means no filter. Unknown/duplicate
-	// parameters, invalid encoding, NUL and query strings over 2048 bytes return 400. Authentication and
-	// permission precede query parsing. Count and items are separate reads, so concurrent changes can
-	// shift pages.
+	// Returns labels in ID order within the assigned category. Count is the matching total before
+	// pagination. Search is a literal case-insensitive name substring; empty means no filter.
+	// Unknown/duplicate parameters, invalid encoding, NUL and query strings over 2048 bytes return 400.
+	// Authentication and permission precede query parsing. Count and items are separate reads, so
+	// concurrent changes can shift pages.
 	//
 	// GET /api/labels/
 	HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error)
@@ -243,9 +242,9 @@ type Invoker interface {
 	// HelpdeskTicketLabelList invokes helpdesk:ticket-label-list operation.
 	//
 	// Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
-	// are exposed. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count precedes
-	// pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over 2048 bytes return
-	// 400. Count and items are separate reads, so concurrent changes can shift pages.
+	// are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and
+	// queries over 2048 bytes return 400. Count and items are separate reads, so concurrent changes can
+	// shift pages.
 	//
 	// GET /api/ticket-labels/
 	HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error)
@@ -853,12 +852,11 @@ func (c *Client) sendHelpdeskLabelEnsure(ctx context.Context, request *LabelCrea
 
 // HelpdeskLabelList invokes helpdesk:label-list operation.
 //
-// Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset
-// defaults to 0 (0..2147483647). Count is the matching total before pagination. Search is a literal
-// case-insensitive name substring of at most 64 UTF-8 bytes; empty means no filter. Unknown/duplicate
-// parameters, invalid encoding, NUL and query strings over 2048 bytes return 400. Authentication and
-// permission precede query parsing. Count and items are separate reads, so concurrent changes can
-// shift pages.
+// Returns labels in ID order within the assigned category. Count is the matching total before
+// pagination. Search is a literal case-insensitive name substring; empty means no filter.
+// Unknown/duplicate parameters, invalid encoding, NUL and query strings over 2048 bytes return 400.
+// Authentication and permission precede query parsing. Count and items are separate reads, so
+// concurrent changes can shift pages.
 //
 // GET /api/labels/
 func (c *Client) HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error) {
@@ -2759,9 +2757,9 @@ func (c *Client) sendHelpdeskTicketLabelDetail(ctx context.Context, params Helpd
 // HelpdeskTicketLabelList invokes helpdesk:ticket-label-list operation.
 //
 // Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
-// are exposed. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count precedes
-// pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over 2048 bytes return
-// 400. Count and items are separate reads, so concurrent changes can shift pages.
+// are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and
+// queries over 2048 bytes return 400. Count and items are separate reads, so concurrent changes can
+// shift pages.
 //
 // GET /api/ticket-labels/
 func (c *Client) HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error) {

@@ -16,11 +16,11 @@ type HelpdeskLabelDetailParams struct {
 
 // HelpdeskLabelListParams is parameters of helpdesk:label-list operation.
 type HelpdeskLabelListParams struct {
-	// Maximum page size; default 20.
+	// Maximum page size; unsigned decimal digits, including leading zeroes.
 	Limit OptInt64 `json:",omitempty,omitzero"`
-	// Rows to skip; default 0.
+	// Rows to skip; unsigned decimal digits, including leading zeroes.
 	Offset OptInt64 `json:",omitempty,omitzero"`
-	// Literal name substring; at most 64 UTF-8 bytes.
+	// Literal name substring; empty means no filter.
 	Search OptString `json:",omitempty,omitzero"`
 }
 
@@ -86,9 +86,9 @@ type HelpdeskTicketLabelDetailParams struct {
 
 // HelpdeskTicketLabelListParams is parameters of helpdesk:ticket-label-list operation.
 type HelpdeskTicketLabelListParams struct {
-	// Maximum page size; default 20.
+	// Maximum page size; unsigned decimal digits, including leading zeroes.
 	Limit OptInt64 `json:",omitempty,omitzero"`
-	// Rows to skip; default 0.
+	// Rows to skip; unsigned decimal digits, including leading zeroes.
 	Offset OptInt64 `json:",omitempty,omitzero"`
 }
 
@@ -134,9 +134,9 @@ type HelpdeskTicketServiceReportSaveParams struct {
 
 // HelpdeskTicketSummaryParams is parameters of helpdesk:ticket-summary operation.
 type HelpdeskTicketSummaryParams struct {
-	// Page number, default 1; canonical positive decimal integer, at most 50001.
+	// Page number; canonical positive decimal integer.
 	P OptInt64 `json:",omitempty,omitzero"`
-	// Minimum open tickets in each returned group, default 0; canonical nonnegative int64 decimal integer.
+	// Minimum open tickets in each returned group; canonical nonnegative int64 decimal integer.
 	MinOpen OptInt64 `json:",omitempty,omitzero"`
 }
 

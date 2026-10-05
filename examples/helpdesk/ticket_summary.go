@@ -3,7 +3,6 @@ package helpdesk
 import (
 	"context"
 	"errors"
-	"net/url"
 	"strconv"
 	"sync"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/validation"
 )
 
 const (
@@ -24,44 +22,6 @@ const (
 type ticketSummaryQuery struct {
 	page        int
 	minimumOpen int64
-}
-
-func parseTicketSummaryQuery(raw string) (ticketSummaryQuery, validation.Errors) {
-	result := ticketSummaryQuery{page: 1}
-	invalid := func(field string) (ticketSummaryQuery, validation.Errors) {
-		return ticketSummaryQuery{}, validation.NewErrors(validation.New(validation.Field(field), "invalid"))
-	}
-	if len(raw) > 128 {
-		return invalid(string(validation.NonField))
-	}
-	values, err := url.ParseQuery(raw)
-	if err != nil {
-		return invalid(string(validation.NonField))
-	}
-	for name, entries := range values {
-		if name != "p" && name != "min_open" || len(entries) != 1 {
-			return invalid(string(validation.NonField))
-		}
-	}
-	for _, name := range []string{"p", "min_open"} {
-		entries, present := values[name]
-		if !present {
-			continue
-		}
-		value, err := strconv.ParseInt(entries[0], 10, 64)
-		if err != nil || value < 0 || strconv.FormatInt(value, 10) != entries[0] {
-			return invalid(name)
-		}
-		if name == "p" {
-			if value < 1 || value > ticketSummaryMaximumPage {
-				return invalid(name)
-			}
-			result.page = int(value)
-		} else {
-			result.minimumOpen = value
-		}
-	}
-	return result, validation.NewErrors()
 }
 
 type ticketSummaryRow struct {

@@ -1,7 +1,7 @@
 package helpdesk
 
 import (
-	"math"
+	"fmt"
 	"net/http"
 
 	"github.com/progresshans/godj/api"
@@ -11,23 +11,12 @@ import (
 )
 
 func (a *Application) ticketSummaryOperation(protect func(openapi.Operation, api.AuthenticatedHandler) (openapi.Operation, error), failure openapi.Schema) (openapi.Operation, error) {
-	count, err := openapi.IntegerRange(0, math.MaxInt64)
-	if err != nil {
-		return openapi.Operation{}, err
-	}
-	page, err := openapi.IntegerRange(1, ticketSummaryMaximumPage)
-	if err != nil {
-		return openapi.Operation{}, err
-	}
 	ref := a.responses.summary.Schema()
 	operation, err := protect(openapi.Operation{
 		Route:   web.Route{Name: "helpdesk:ticket-summary", Method: http.MethodGet, Path: "/api/tickets/summary/"},
 		Summary: "Summarize tickets by priority", Permission: ViewTicket,
-		Description: "Groups tickets in the application's fixed category by their stored priority, retaining null and every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false. min_open filters groups, then results are ordered by open count descending and priority descending with null last. Pages contain at most 20 groups; total_groups is the count after filtering and before pagination, including on empty or past-end pages. Category identity/name, rows and total share one read snapshot per request. Separate page requests observe current state independently. This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the only business permission, checked before parsing and lookup. Query strings are limited to 128 bytes; unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers are rejected.",
-		Parameters: []openapi.Parameter{
-			{Name: "p", In: "query", Schema: page, Description: "Page number, default 1; canonical positive decimal integer, at most 50001."},
-			{Name: "min_open", In: "query", Schema: count, Description: "Minimum open tickets in each returned group, default 0; canonical nonnegative int64 decimal integer."},
-		},
+		Description: fmt.Sprintf("Groups tickets in the application's fixed category by their stored priority, retaining null and every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false. min_open filters groups, then results are ordered by open count descending and priority descending with null last. Pages contain at most 20 groups; total_groups is the count after filtering and before pagination, including on empty or past-end pages. Category identity/name, rows and total share one read snapshot per request. Separate page requests observe current state independently. This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the only business permission, checked before parsing and lookup. Query strings are limited to %d bytes; unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers are rejected.", a.queries.summary.MaxBytes()),
+		Parameters:  a.queries.summary.Parameters(),
 		Responses: []openapi.Response{
 			helpdeskJSONResponse(http.StatusOK, "The current category and consistent filtered group page.", ref),
 			helpdeskJSONResponse(http.StatusBadRequest, "Invalid summary query parameters.", failure),
@@ -38,7 +27,10 @@ func (a *Application) ticketSummaryOperation(protect func(openapi.Operation, api
 }
 
 func (a *Application) apiTicketSummary(request *web.Request, _ auth.Principal) (web.Response, error) {
-	input, diagnostics := parseTicketSummaryQuery(request.HTTP().URL.RawQuery)
+	input, diagnostics, err := a.queries.summary.Parse(request.HTTP().URL.RawQuery)
+	if err != nil {
+		return web.Response{}, err
+	}
 	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
 	}

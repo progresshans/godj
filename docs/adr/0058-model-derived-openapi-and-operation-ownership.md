@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -81,8 +81,24 @@ Context 취소·reader/값/자원 오류에는 부분 bytes·HTTP 응답을 반�
 이 연결은 인가·읽기 snapshot·transaction·commit 전 출력 검증을 옮기거나 추측하지 않는다.
 
 Helpdesk의 집계 요약과 Ticket/Category 상세가 첫 소비자다. Ticket은 IR에서 온 encoder를 재사용하고 CategorySummary는
-기존 두 필드의 업무 projection을 유지한다. 입력 binder·endpoint DSL·viewset·추가 primitive·optional omission은 별도 범위다.
+기존 두 필드의 업무 projection을 유지한다. JSON body/model binder·endpoint DSL·viewset·추가 출력 primitive·optional omission은 별도 범위다.
 이 설계의 채택과 환경별 실행 완료는 구분하며 검증 결과는 TEST_EVIDENCE 한 곳에 기록한다.
+
+GDJ-0114의 [typed query 입력](../../api/parameters/README.md)은 닫힌 scalar codec·presence policy·typed DTO setter에서
+runtime 변환과 OpenAPI parameter를 함께 준비한다. Canonical int64와 선행 0을 허용하는 unsigned digits를 명시적으로
+구분하며 문자열은 trim하지 않는 UTF-8 byte/empty/NUL 정책을 갖는다. Required·검증된 omission default·Optional pointer는
+서로 다른 선언이다. Query 부재를 JSON null로 바꾸지 않으며 일반 JSON Schema의 값 범위와 URL lexical/byte 정책을
+별도 metadata로 표현한다. 기본값은 실제 입력 도메인에서 검증한 뒤 schema default로 내보낸다.
+
+초기화한 선언은 불변이고 1 MiB 이하 raw query·128 parameters로 제한한다. 이름과 URL 구조를 먼저 확인하고 scalar는
+선언 순서로 검증한다. 전체 검증이 끝나기 전에는 setter를 호출하지 않으며 실패에는 부분 DTO를 노출하지 않는다.
+Setter는 순수하고 DTO 포인터를 보관하지 않는다. 반환 DTO·Optional 값과 parameter slice는 각 호출자가 소유한다.
+순수 parsing에 I/O를 추가하지 않고 실제 request/body·context·인가·DB/transaction 수명은 해당 업무 owner에 남긴다.
+
+Helpdesk 요약은 기존 canonical 정수·진단 순서·snapshot을, Label/티켓–Label 목록은 기존 digits·default·전체 query 오류와
+count/items 별도 읽기를 유지한다. 인증 이후 parsing 순서와 Category/관계 scope도 유지한다. Ticket 본문 검색의 raw-segment
+parser는 오류/semicolon 의미가 달라 이번 연결에 포함하지 않는다. 일반 body/header/path binder나 endpoint 전체 구성을
+완료한 것으로 계산하지 않으며 별도 호환 profile을 만들지 않는다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

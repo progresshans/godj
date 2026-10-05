@@ -44,6 +44,9 @@ func assertLabelContracts(t *testing.T, document helpdeskDocument) {
 	if len(parameters) != 3 || parameters[0].Name != "limit" || string(parameters[0].Schema.Minimum) != "1" || string(parameters[0].Schema.Maximum) != "100" || parameters[1].Name != "offset" || string(parameters[1].Schema.Minimum) != "0" || string(parameters[1].Schema.Maximum) != "2147483647" || parameters[2].Name != "search" {
 		t.Fatal("Label pagination bounds do not match its public query schema")
 	}
+	if string(parameters[0].Schema.Default) != "20" || string(parameters[1].Schema.Default) != "0" || string(parameters[2].Schema.Default) != `""` || parameters[0].Schema.QueryInteger != "unsigned-digits" || parameters[1].Schema.QueryInteger != "unsigned-digits" || parameters[2].Schema.MaxBytes != 64 || parameters[2].Schema.MaxLength != 64 || !parameters[2].Schema.NoNUL || !parameters[2].AllowEmptyValue || parameters[0].Required || parameters[1].Required || parameters[2].Required {
+		t.Fatal("Label parameters lost their declared defaults, lexical or byte policies")
+	}
 	for _, entry := range []struct{ path, method, schema, status string }{{"/api/labels/", "post", "LabelCreate", "201"}, {"/api/labels/{id}/", "put", "LabelUpdate", "200"}, {"/api/labels/{id}/", "patch", "LabelPatch", "200"}} {
 		operation := document.Paths[entry.path][entry.method]
 		if operation.RequestBody == nil || !operation.RequestBody.Required || operation.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+entry.schema || operation.Responses[entry.status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/Label" {
@@ -363,11 +366,15 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 || page.Items[0] != second {
 		t.Fatal("scoped search/pagination", response.Code, response.Body)
 	}
+	response = client.request("GET", "/api/labels/?search=label&limit=0001&offset=0001", "", false)
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 || page.Items[0] != second {
+		t.Fatal("Label digits grammar changed", response.Code, response.Body)
+	}
 	response = client.request("GET", "/api/labels/?limit=100&offset=2147483647", "", false)
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || page.Limit != 100 || page.Offset != 2147483647 || len(page.Items) != 0 {
 		t.Fatal("published pagination boundary failed", response.Code, response.Body)
 	}
-	for _, raw := range []string{"limit=0", "limit=101", "limit=-1", "limit=1&limit=2", "offset=-1", "offset=2147483648", "offset=", "limit=1.0", "category=1", "search=%00", "search=%ff", "search=%zz", "search=" + strings.Repeat("a", 65), strings.Repeat("x", 2049)} {
+	for _, raw := range []string{"limit=0", "limit=101", "limit=-1", "limit=1&limit=2", "offset=-1", "offset=2147483648", "offset=", "limit=1.0", "limit=%2B1", "category=1", "search=%00", "search=%ff", "search=%zz", "search=" + strings.Repeat("a", 65), "search=" + url.QueryEscape(strings.Repeat("한", 22)), strings.Repeat("x", 2049)} {
 		before := backend.queries
 		response = client.request("GET", "/api/labels/?"+raw, "", false)
 		if response.Code != 400 || backend.queries != before {

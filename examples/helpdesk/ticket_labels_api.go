@@ -1,6 +1,7 @@
 package helpdesk
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 
@@ -81,7 +82,7 @@ func (a *Application) ticketLabelOperations(protect func(openapi.Operation, api.
 		operation openapi.Operation
 		handler   api.AuthenticatedHandler
 	}{
-		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-list", Method: http.MethodGet, Path: "/api/ticket-labels/"}, Summary: "List ticket-label links", Permission: ViewTicketLabel, Description: "Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs are exposed. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over 2048 bytes return 400. Count and items are separate reads, so concurrent changes can shift pages.", Parameters: []openapi.Parameter{{Name: "limit", In: "query", Schema: limit, Description: "Maximum page size; default 20."}, {Name: "offset", In: "query", Schema: offset, Description: "Rows to skip; default 0."}}, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiTicketLabelList},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-list", Method: http.MethodGet, Path: "/api/ticket-labels/"}, Summary: "List ticket-label links", Permission: ViewTicketLabel, Description: fmt.Sprintf("Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over %d bytes return 400. Count and items are separate reads, so concurrent changes can shift pages.", a.queries.links.MaxBytes()), Parameters: a.queries.links.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiTicketLabelList},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-create", Method: http.MethodPost, Path: "/api/ticket-labels/"}, Summary: "Link a label to a ticket", Permission: AddTicketLabel, AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel}, Description: writePolicy, RequestBody: &openapi.RequestBody{Schema: createRef, Required: true, Description: "One JSON object. Unknown/duplicate members, null keys and trailing data are rejected."}, Responses: writes(http.StatusCreated)}, a.apiTicketLabelCreate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-detail", Method: http.MethodGet, Path: "/api/ticket-labels/<int64:id>/"}, Summary: "Read a ticket-label link", Permission: ViewTicketLabel, Description: "Link view permission covers its endpoint IDs; endpoint names are not exposed.", Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped link.", linkRef), notFound}}, a.apiTicketLabelDetail},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-update", Method: http.MethodPut, Path: "/api/ticket-labels/<int64:id>/"}, Summary: "Replace a ticket-label link's endpoints", Permission: ChangeTicketLabel, AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel}, Description: writePolicy, RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiTicketLabelUpdate},
@@ -107,8 +108,11 @@ func (a *Application) ticketLabelResponse(status int, value models.TicketLabel) 
 	return api.JSON(status, encoded)
 }
 func (a *Application) apiTicketLabelList(request *web.Request, _ auth.Principal) (web.Response, error) {
-	options, valid := pagedListRequest(request.HTTP().URL.RawQuery, false)
-	if !valid {
+	options, diagnostics, err := a.queries.links.Parse(request.HTTP().URL.RawQuery)
+	if err != nil {
+		return web.Response{}, err
+	}
+	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}
 	page, err := a.listTicketLabels(request.Context(), options)

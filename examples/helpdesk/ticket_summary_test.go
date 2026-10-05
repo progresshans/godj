@@ -284,6 +284,16 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 					t.Fatal("invalid query reached database", path, suffix, response.Code)
 				}
 			}
+			if path == "/api/tickets/summary/" {
+				response := client.request(http.MethodGet, path+"?min_open=bad&p=bad", "", false)
+				var envelope struct {
+					Code   string
+					Errors []struct{ Field, Code string }
+				}
+				if response.Code != http.StatusBadRequest || json.Unmarshal(response.Body.Bytes(), &envelope) != nil || envelope.Code != "validation_error" || len(envelope.Errors) != 1 || envelope.Errors[0].Field != "p" || envelope.Errors[0].Code != "invalid" || backend.snapshots != 0 {
+					t.Fatal("summary diagnostic order differs from the declaration", response.Code, response.Body)
+				}
+			}
 			denied, deniedBackend, _ := newClient(category.ID, "", helpdeskDeniedPermissions{helpdesk.ViewTicket})
 			if response := denied.request(http.MethodGet, path+"?p=bad", "", false); response.Code != http.StatusForbidden || deniedBackend.snapshots != 0 {
 				t.Fatal("permission must precede parsing", response.Code)

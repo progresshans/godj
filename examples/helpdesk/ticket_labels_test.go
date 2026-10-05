@@ -56,6 +56,9 @@ func assertTicketLabelContracts(t *testing.T, document helpdeskDocument) {
 	if !slices.Equal(page.Required, []string{"items", "count", "limit", "offset"}) || page.Properties["items"].Items == nil || page.Properties["items"].Items.Ref != "#/components/schemas/TicketLabel" || len(parameters) != 2 || parameters[0].Name != "limit" || string(parameters[0].Schema.Maximum) != "100" || parameters[1].Name != "offset" || string(parameters[1].Schema.Maximum) != "2147483647" {
 		t.Fatal("link list pagination contract")
 	}
+	if string(parameters[0].Schema.Default) != "20" || string(parameters[1].Schema.Default) != "0" || parameters[0].Schema.QueryInteger != "unsigned-digits" || parameters[1].Schema.QueryInteger != "unsigned-digits" || parameters[0].Required || parameters[1].Required || parameters[0].AllowEmptyValue || parameters[1].AllowEmptyValue {
+		t.Fatal("link query lost its typed omission or lexical policy")
+	}
 	if _, found := document.Paths["/api/tickets/{id}/"]["delete"].Responses["400"]; !found {
 		t.Fatal("confirmed protection undocumented")
 	}
@@ -577,6 +580,10 @@ func verifyHelpdeskTicketLabels(t *testing.T, ctx context.Context, runtime *syst
 	response = client.request("GET", "/api/ticket-labels/?limit=1&offset=1", "", false)
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 || page.Items[0] != two {
 		t.Fatal("link scoped page", response.Code, response.Body)
+	}
+	response = client.request("GET", "/api/ticket-labels/?limit=0001&offset=0001", "", false)
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 || page.Items[0] != two {
+		t.Fatal("link digits grammar changed", response.Code, response.Body)
 	}
 	response = client.request("GET", "/api/ticket-labels/?limit=100&offset=2147483647", "", false)
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Count != 2 || len(page.Items) != 0 {

@@ -36,6 +36,12 @@ OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 �
 준비할 때 조회나 인가는 수행하지 않는다. [출력 API](../../api/output/README.md)의 전체 예산과 취소·실패 의미를 따른다.
 쓰기 작업은 기존처럼 commit 전에 응답 준비를 끝낸다.
 
+요약의 `p`/`min_open`과 Label·티켓–Label 목록의 `limit`/`offset`/`search`는
+[typed query 선언](api_parameters.go)에서 DTO 변환·범위·기본값·OpenAPI를 구성한다. 요약의 canonical 정수와
+목록의 선행 0을 허용하는 digits를 구분하며 문자열 byte/empty 정책도 같은 선언에서 온다.
+모든 값을 검증한 뒤 DTO를 할당한다. 인증 우선순위·Category 범위·조회 방식과 각 화면/API의 오류 표현은 유지한다.
+[입력 API](../../api/parameters/README.md)는 query 부재·기본값·Optional 의미와 제한을 설명한다.
+
 ## 여러 티켓 생성하기
 
 `AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`로 만든 Ticket 목록은 **Create multiple tickets**

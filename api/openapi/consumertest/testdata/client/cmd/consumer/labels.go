@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
 )
@@ -37,6 +38,18 @@ func checkHelpdeskLabels(ctx context.Context, client, readOnly *hs.Client, trans
 	page, err := readOnly.HelpdeskLabelList(ctx, hs.HelpdeskLabelListParams{Limit: hs.NewOptInt64(1), Offset: hs.NewOptInt64(1), Search: hs.NewOptString("Client")})
 	if value, ok := page.(*hs.LabelListHeaders); err != nil || !ok || readOnlyTransport.lastStatus() != 200 || value.Response.Count != 2 || value.Response.Limit != 1 || value.Response.Offset != 1 || len(value.Response.Items) != 1 || value.Response.Items[0] != *second || !value.XGodjCsrftoken.Set || !readOnlyState.ready(value.XGodjCsrftoken.Value) {
 		return fail("generated Label pagination/search scope")
+	}
+	page, err = readOnly.HelpdeskLabelList(ctx, hs.HelpdeskLabelListParams{Search: hs.NewOptString(strings.Repeat("한", 21))})
+	if value, ok := page.(*hs.LabelListHeaders); err != nil || !ok || readOnlyTransport.lastStatus() != 200 || value.Response.Count != 0 || value.Response.Limit != 20 || value.Response.Offset != 0 || len(value.Response.Items) != 0 || !value.XGodjCsrftoken.Set || !readOnlyState.ready(value.XGodjCsrftoken.Value) {
+		return fail("generated query byte boundary and omission defaults")
+	}
+	page, err = readOnly.HelpdeskLabelList(ctx, hs.HelpdeskLabelListParams{Search: hs.NewOptString(strings.Repeat("한", 22))})
+	if value, ok := page.(*hs.GoDjAPIErrorHeaders); err != nil || !ok || readOnlyTransport.lastStatus() != 400 || value.Response.Code != "validation_error" || len(value.Response.Errors) != 1 || value.Response.Errors[0].Field != "__all__" || value.Response.Errors[0].Code != "invalid" || !value.XGodjCsrftoken.Set || !readOnlyState.ready(value.XGodjCsrftoken.Value) {
+		return fail("generated query must enforce UTF-8 bytes independently of code points")
+	}
+	page, err = readOnly.HelpdeskLabelList(ctx, hs.HelpdeskLabelListParams{Search: hs.NewOptString(""), Offset: hs.NewOptInt64(0)})
+	if value, ok := page.(*hs.LabelListHeaders); err != nil || !ok || readOnlyTransport.lastStatus() != 200 || value.Response.Count != 2 || value.Response.Limit != 20 || value.Response.Offset != 0 || len(value.Response.Items) != 2 || !value.XGodjCsrftoken.Set || !readOnlyState.ready(value.XGodjCsrftoken.Value) {
+		return fail("generated explicit empty query and zero preserve pagination semantics")
 	}
 	badPage := hs.LabelList{Count: 0, Limit: 0, Offset: 0, Items: []hs.Label{}}
 	if err := badPage.Validate(); err == nil {

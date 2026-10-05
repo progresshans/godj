@@ -1,14 +1,10 @@
 package helpdesk
 
 import (
+	"fmt"
 	"math"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"unicode/utf8"
 
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
@@ -95,7 +91,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		operation openapi.Operation
 		handler   api.AuthenticatedHandler
 	}{
-		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-list", Method: http.MethodGet, Path: "/api/labels/"}, Summary: "List category labels", Permission: ViewLabel, Description: "Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count is the matching total before pagination. Search is a literal case-insensitive name substring of at most 64 UTF-8 bytes; empty means no filter. Unknown/duplicate parameters, invalid encoding, NUL and query strings over 2048 bytes return 400. Authentication and permission precede query parsing. Count and items are separate reads, so concurrent changes can shift pages.", Parameters: []openapi.Parameter{{Name: "limit", In: "query", Schema: limit, Description: "Maximum page size; default 20."}, {Name: "offset", In: "query", Schema: offset, Description: "Rows to skip; default 0."}, {Name: "search", In: "query", Schema: openapi.String(), AllowEmptyValue: true, Description: "Literal name substring; at most 64 UTF-8 bytes."}}, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiLabelList},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-list", Method: http.MethodGet, Path: "/api/labels/"}, Summary: "List category labels", Permission: ViewLabel, Description: fmt.Sprintf("Returns labels in ID order within the assigned category. Count is the matching total before pagination. Search is a literal case-insensitive name substring; empty means no filter. Unknown/duplicate parameters, invalid encoding, NUL and query strings over %d bytes return 400. Authentication and permission precede query parsing. Count and items are separate reads, so concurrent changes can shift pages.", a.queries.labels.MaxBytes()), Parameters: a.queries.labels.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiLabelList},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-create", Method: http.MethodPost, Path: "/api/labels/"}, Summary: "Create a category label", Permission: AddLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true, Description: "One JSON object; unknown/duplicate members, null name and trailing data are rejected."}, Responses: writes(http.StatusCreated)}, a.apiLabelCreate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-detail", Method: http.MethodGet, Path: "/api/labels/<int64:id>/"}, Summary: "Read a category label", Permission: ViewLabel, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The label.", labelRef), notFound}}, a.apiLabelDetail},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-update", Method: http.MethodPut, Path: "/api/labels/<int64:id>/"}, Summary: "Update a category label", Permission: ChangeLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiLabelUpdate},
@@ -114,54 +110,12 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 	return operations, []openapi.NamedSchema{{Name: "Label", Schema: output}, {Name: "LabelCreate", Schema: input}, {Name: "LabelUpdate", Schema: input}, {Name: "LabelPatch", Schema: partial}, {Name: "LabelList", Schema: list}, {Name: "LabelEnsureResult", Schema: ensureResult}}, nil
 }
 
-func pagedListRequest(raw string, allowSearch bool) (admin.ListRequest, bool) {
-	result := admin.ListRequest{Limit: 20}
-	if len(raw) > 2048 || !utf8.ValidString(raw) || strings.ContainsRune(raw, 0) {
-		return result, false
-	}
-	values, err := url.ParseQuery(raw)
-	if err != nil {
-		return result, false
-	}
-	for name, values := range values {
-		if len(values) != 1 || !utf8.ValidString(values[0]) || strings.ContainsRune(values[0], 0) {
-			return result, false
-		}
-		value := values[0]
-		if name == "search" && allowSearch {
-			if len(value) > 64 {
-				return result, false
-			}
-			result.Search = value
-			continue
-		}
-		if name != "limit" && name != "offset" || value == "" {
-			return result, false
-		}
-		for _, character := range value {
-			if character < '0' || character > '9' {
-				return result, false
-			}
-		}
-		integer, err := strconv.ParseInt(value, 10, 32)
-		if err != nil {
-			return result, false
-		}
-		if name == "limit" {
-			if integer < 1 || integer > 100 {
-				return result, false
-			}
-			result.Limit = int(integer)
-		} else {
-			result.Offset = int(integer)
-		}
-	}
-	return result, true
-}
-
 func (a *Application) apiLabelList(request *web.Request, _ auth.Principal) (web.Response, error) {
-	options, valid := pagedListRequest(request.HTTP().URL.RawQuery, true)
-	if !valid {
+	options, diagnostics, err := a.queries.labels.Parse(request.HTTP().URL.RawQuery)
+	if err != nil {
+		return web.Response{}, err
+	}
+	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}
 	page, err := a.listLabels(request.Context(), options)

@@ -284,6 +284,9 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	if summary.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketSummary" || len(summary.Parameters) != 2 || summary.Parameters[0].Name != "p" || summary.Parameters[1].Name != "min_open" || summarySchema.AdditionalProperties || !slices.Equal(summarySchema.Required, []string{"category", "page", "page_size", "min_open", "total_groups", "results"}) {
 		t.Fatal("summary operation lost its closed page contract")
 	}
+	if string(summary.Parameters[0].Schema.Default) != "1" || string(summary.Parameters[1].Schema.Default) != "0" || summary.Parameters[0].Schema.QueryInteger != "canonical-decimal" || summary.Parameters[1].Schema.QueryInteger != "canonical-decimal" || summary.Parameters[0].Required || summary.Parameters[1].Required || summary.Parameters[0].AllowEmptyValue || summary.Parameters[1].AllowEmptyValue {
+		t.Fatal("summary query lost its typed omission or lexical policy")
+	}
 	summaryItems := summarySchema.Properties["results"]
 	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "total", "open"}) {
 		t.Fatal("summary result lost its required bounded groups")
@@ -447,8 +450,9 @@ type helpdeskDocumentOperation struct {
 	AdditionalPermissions []string `json:"x-godj-additional-permissions"`
 	Security              []map[string][]string
 	Parameters            []struct {
-		Name, In string
-		Schema   helpdeskDocumentSchema
+		Name, In                  string
+		Schema                    helpdeskDocumentSchema
+		Required, AllowEmptyValue bool
 	}
 	Responses map[string]struct {
 		Content map[string]struct{ Schema helpdeskDocumentSchema }
@@ -475,6 +479,9 @@ type helpdeskDocumentSchema struct {
 	Default              json.RawMessage
 	Enum                 json.RawMessage
 	Normalization        json.RawMessage `json:"x-godj-normalization"`
+	QueryInteger         string          `json:"x-godj-query-integer"`
+	MaxBytes             int             `json:"x-godj-max-bytes"`
+	NoNUL                bool            `json:"x-godj-no-nul"`
 	MaxLength            int
 	ReadOnly             bool
 	AdditionalProperties bool
