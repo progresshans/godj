@@ -1043,6 +1043,46 @@ type HelpdeskTicketPatchUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketPatchUnsupportedMediaType) helpdeskTicketPatchRes() {}
 
+type HelpdeskTicketRaisePriorityBadRequest GoDjAPIError
+
+func (*HelpdeskTicketRaisePriorityBadRequest) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityForbidden GoDjAPIError
+
+func (*HelpdeskTicketRaisePriorityForbidden) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketRaisePriorityInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketRaisePriorityInternalServerError) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityNotFound GoDjAPIError
+
+func (*HelpdeskTicketRaisePriorityNotFound) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityOKApplicationJSON []Ticket
+
+func (*HelpdeskTicketRaisePriorityOKApplicationJSON) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketRaisePriorityRequestEntityTooLarge) helpdeskTicketRaisePriorityRes() {}
+
+type HelpdeskTicketRaisePriorityUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketRaisePriorityUnsupportedMediaType) helpdeskTicketRaisePriorityRes() {}
+
 type HelpdeskTicketServiceReportInternalServerError struct {
 	Data io.Reader
 }
@@ -3923,6 +3963,21 @@ func (TicketPatchPriority) AllValues() []TicketPatchPriority {
 		TicketPatchPriority0,
 		TicketPatchPriorityMinus1,
 	}
+}
+
+// Ref: #/components/schemas/TicketPriorityRaise
+type TicketPriorityRaise struct {
+	Ids []int64 `json:"ids"`
+}
+
+// GetIds returns the value of Ids.
+func (s *TicketPriorityRaise) GetIds() []int64 {
+	return s.Ids
+}
+
+// SetIds sets the value of Ids.
+func (s *TicketPriorityRaise) SetIds(val []int64) {
+	s.Ids = val
 }
 
 // Ref: #/components/schemas/TicketUpdate

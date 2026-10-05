@@ -23,7 +23,8 @@ GDJ-0109/0110의 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`는
 [Hosted full 37335450948](https://github.com/progresshans/godj/actions/runs/37335450948)에서 PostgreSQL race/core 시간 제한으로
 통합을 완료하지 못했다. 필수 검사를 유지한 CI 분할 source로 다시 확인한다.
 분할 후 CI 필수 목록 검사의 옛 배열 참조도 수정했다. 새 통합은 source `faa5a3396ad3a7e9e2807e2fcab26ec0fe037484`의
-[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499)이 맡는다.
+[Hosted full 37348366499](https://github.com/progresshans/godj/actions/runs/37348366499)에서 PostgreSQL 분할 job은 통과했지만
+macOS Intel의 명령 fixture 준비 실패가 확인됐다. 별도 준비 예산·단계 진단 보완을 새 업무 source와 통합해 검증한다.
 그 실행은 선행 source를 검증하며 이 작업의 새 구현을 검증한 것으로 사용하지 않는다. 별도 작업 사본에서 구현한다.
 
 ## 구현과 검증
@@ -32,7 +33,7 @@ GDJ-0109/0110의 수정 source `19dd8178ae6f4a3d853ab6879543efa333cffb8a`는
 - [x] 불변 scalar/assignment AST와 원 query 범위, field/타입 소유권·자원 한도·명시적인 미지원 오류
 - [x] SQLite/PostgreSQL native UPDATE·조건 재평가·원래 행의 값과 atomic/savepoint·취소/불확실한 결과
 - [x] generic ORM·typed 생성 facade·동적 입력, 잘못된 model/field/타입 거부와 독립 생성 소비자
-- [ ] Helpdesk 우선순위 명령의 현재 권한·범위·무변경·원자 audit·Admin/API/독립 client
+- [x] Helpdesk 우선순위 명령의 현재 권한·범위·무변경·원자 audit·Admin/API/독립 client
 - [ ] 완성한 변경 묶음의 영향 검사·정식 기준 대조·생성 drift·필요한 통합과 현행 의미/증거 기록
 
 ## 현재 경계와 다음 구현
@@ -53,8 +54,9 @@ SQL affected count와 업무의 실제 변경 건수를 구별한다. ORM의 nat
 일반 annotation/group/having·window/subquery/function, 모델 Save/BulkUpdate에 expression을 넣는 추가 표면과
 나머지 기능 카탈로그는 이 작업의 성공으로 완료 처리하지 않는다. 공통 scalar AST가 후속 표현식을 확장할 기반이 된다.
 공통 scalar/assignment·native UPDATE·typed/dynamic 및 생성 facade의 영향 검증과 독립 대조를 완료했다.
-의미는 [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md)에 둔다. 다음은 실제 Helpdesk 우선순위
-명령의 연결과 업무 검증이며, 기준/기반 완료를 수직 소비자나 전체 플랫폼 완료로 계산하지 않는다.
+의미는 [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md)에 둔다. Helpdesk 우선순위 명령은
+Admin/API/독립 client에 연결했고 업무 양 DB·세 mode와 브라우저를 확인했다. Hosted source 통합을 진행하며,
+기준/기반·수직 소비자 완료를 전체 플랫폼 완료로 계산하지 않는다.
 
 [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md),
 [검증 전략](../docs/TESTING.md)을 따른다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에만 기록한다.

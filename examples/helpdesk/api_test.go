@@ -36,7 +36,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create", "ticket-bulk-update"}
+	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create", "ticket-bulk-update", "ticket-raise-priority"}
 	if len(recording.permissions) != len(authenticationOrder) || len(recording.additional) != len(authenticationOrder) {
 		t.Fatal("incomplete authentication composition")
 	}
@@ -175,7 +175,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 29; index++ {
+	for index := 1; index <= 30; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -183,7 +183,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
-	if err != nil || len(adapter.Routes()) != 29 {
+	if err != nil || len(adapter.Routes()) != 30 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -204,7 +204,7 @@ func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, 
 		return helpdesk.ViewTicket, nil
 	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
-	case "helpdesk:ticket-update", "helpdesk:ticket-patch", "helpdesk:ticket-bulk-update":
+	case "helpdesk:ticket-update", "helpdesk:ticket-patch", "helpdesk:ticket-bulk-update", "helpdesk:ticket-raise-priority":
 		return helpdesk.ChangeTicket, []auth.Permission{helpdesk.ViewLabel}
 	case "helpdesk:ticket-delete":
 		return helpdesk.DeleteTicket, nil
@@ -251,8 +251,8 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 11 || len(routes) != 29 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
-		t.Fatal("Helpdesk document changed the twenty-nine-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 12 || len(routes) != 30 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+		t.Fatal("Helpdesk document changed the thirty-operation surface")
 	}
 	for _, route := range routes {
 		permission, additional := helpdeskExpectedAuthorization(t, route.Name)
@@ -279,6 +279,21 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
+	raise := document.Paths["/api/tickets/raise-priority/"]["post"]
+	selection := document.Components.Schemas["TicketPriorityRaise"]
+	ids := selection.Properties["ids"]
+	if raise.RequestBody == nil || !raise.RequestBody.Required || raise.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketPriorityRaise" || len(selection.Properties) != 1 || !slices.Equal(selection.Required, []string{"ids"}) || selection.AdditionalProperties || ids.Type != "array" || ids.MinItems != 1 || ids.MaxItems != 40 || ids.Items == nil || ids.Items.Format != "int64" || string(ids.Items.Minimum) != "1" || string(ids.Items.Maximum) != "9223372036854775807" {
+		t.Fatal("priority selection's required bounded exact integer contract")
+	}
+	result := raise.Responses["200"].Content[api.JSONContentType].Schema
+	if result.Type != "array" || result.MinItems != 1 || result.MaxItems != 40 || result.Items == nil || result.Items.Ref != "#/components/schemas/Ticket" {
+		t.Fatal("priority complete result contract")
+	}
+	for _, status := range []string{"400", "403", "404", "413", "415"} {
+		if raise.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
+			t.Fatal("priority failure contract", status)
+		}
+	}
 	bulk := document.Paths["/api/tickets/bulk/"]["post"]
 	if bulk.RequestBody == nil || !bulk.RequestBody.Required {
 		t.Fatal("bulk body absent")

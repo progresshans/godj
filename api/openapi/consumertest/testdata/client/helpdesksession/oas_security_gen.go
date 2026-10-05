@@ -41,6 +41,7 @@ var operationRolesCsrfCookie = map[string][]string{
 	HelpdeskTicketLabelPatchOperation:        []string{},
 	HelpdeskTicketLabelUpdateOperation:       []string{},
 	HelpdeskTicketPatchOperation:             []string{},
+	HelpdeskTicketRaisePriorityOperation:     []string{},
 	HelpdeskTicketServiceReportSaveOperation: []string{},
 	HelpdeskTicketUpdateOperation:            []string{},
 }
@@ -86,6 +87,7 @@ var operationRolesCsrfHeader = map[string][]string{
 	HelpdeskTicketLabelPatchOperation:        []string{},
 	HelpdeskTicketLabelUpdateOperation:       []string{},
 	HelpdeskTicketPatchOperation:             []string{},
+	HelpdeskTicketRaisePriorityOperation:     []string{},
 	HelpdeskTicketServiceReportSaveOperation: []string{},
 	HelpdeskTicketUpdateOperation:            []string{},
 }
@@ -139,6 +141,7 @@ var operationRolesSessionAuth = map[string][]string{
 	HelpdeskTicketLabelUpdateOperation:       []string{},
 	HelpdeskTicketListOperation:              []string{},
 	HelpdeskTicketPatchOperation:             []string{},
+	HelpdeskTicketRaisePriorityOperation:     []string{},
 	HelpdeskTicketServiceReportOperation:     []string{},
 	HelpdeskTicketServiceReportSaveOperation: []string{},
 	HelpdeskTicketUpdateOperation:            []string{},

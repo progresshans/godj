@@ -60,6 +60,13 @@ receipt가 모두 필수다. Wire 검사는 2^53 밖과 MaxInt64 ID·명시적 f
 응답과 request Validate의 ID/cardinality, 고정 500 응답의 단일 전송을 구별한다. Synthetic 응답은 실제 DB의
 rollback 증거가 아니며 양 DB의 실패/경쟁은 Helpdesk 검사가 소유한다.
 
+우선순위 명령은 `POST /api/tickets/raise-priority/`의 required `TicketPriorityRaise.ids` 배열을 사용한다.
+독립 client는 Low/Normal/NULL/Urgent의 실제 상승·반복 무변경·역순 응답·다른 필드 보존, 중복/잘못된 선택과
+누락/외부 Category·조회 전용 권한·CSRF의 전체 거부를 확인한다. 부모는 네 행의 최종 Urgent와 각각 2/1/2/0개
+change audit 및 최초 add audit를 직접 조회한다. `helpdesk_priority_raise`와 `generated_priority_raise_wire` receipt가
+필수다. Wire 검사는 큰 key/기존 int64 극값·required 응답·명시적 개수/ID Validate와 500의 단일 전송을 검사한다.
+선택 원소의 중복 거부는 실제 서버 검사이며 JSON Schema의 정수 범위와 구별한다.
+
 TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
 ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
 부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.

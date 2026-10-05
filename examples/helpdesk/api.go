@@ -29,7 +29,8 @@ type API struct {
 }
 
 // APIConfig supplies request admission and the transactional audit required by
-// label ensure, ticket report saving and bulk ticket creation/update. AppendAudit must use the supplied session, propagate errors and
+// label ensure, ticket report saving, bulk writes and priority commands.
+// AppendAudit must use the supplied session, propagate errors and
 // never open or commit a separate transaction. Other API writes retain their
 // existing audit policies; this callback does not add generic write auditing.
 type APIConfig struct {
@@ -219,9 +220,14 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		return nil, err
 	}
 	operations = append(operations, bulkUpdate)
+	priorityRaise, prioritySchema, err := a.raisePriorityOperation(protect, config.AppendAudit, ticketRef, errorSchema)
+	if err != nil {
+		return nil, err
+	}
+	operations = append(operations, priorityRaise)
 	schemas := append(reportSchemas, labelSchemas...)
 	schemas = append(schemas, linkSchemas...)
-	schemas = append(schemas, bulkUpdateSchema)
+	schemas = append(schemas, bulkUpdateSchema, prioritySchema)
 	return &API{
 		authentication: authentication,
 		operations:     operations,

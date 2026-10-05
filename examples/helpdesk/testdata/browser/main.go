@@ -180,7 +180,7 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			evidence[index] = map[string]any{"id": row.ID, "subject": row.Subject, "category": row.CategoryID, "closed": row.Closed, "audit": history}
+			evidence[index] = map[string]any{"id": row.ID, "subject": row.Subject, "category": row.CategoryID, "closed": row.Closed, "priority": row.Priority, "audit": history}
 		}
 		links, err := models.TicketLabelObjects.Using(runtime).OrderBy(models.TicketLabelFields.ID.Asc()).All(shutdown)
 		if err != nil {

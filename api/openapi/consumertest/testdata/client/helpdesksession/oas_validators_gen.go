@@ -922,6 +922,79 @@ func (s *HelpdeskTicketPatchUnsupportedMediaType) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskTicketRaisePriorityBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketRaisePriorityForbidden) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketRaisePriorityNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s HelpdeskTicketRaisePriorityOKApplicationJSON) Validate() error {
+	alias := ([]Ticket)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	if err := (validate.Array{
+		MinLength:    1,
+		MinLengthSet: true,
+		MaxLength:    40,
+		MaxLengthSet: true,
+	}).ValidateLength(len(alias)); err != nil {
+		return errors.Wrap(err, "array")
+	}
+	var failures []validate.FieldError
+	for i, elem := range alias {
+		if err := func() error {
+			if err := elem.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			failures = append(failures, validate.FieldError{
+				Name:  fmt.Sprintf("[%d]", i),
+				Error: err,
+			})
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketRaisePriorityRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketRaisePriorityUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskTicketServiceReportSaveBadRequest) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
@@ -2918,6 +2991,64 @@ func (s TicketPatchPriority) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *TicketPriorityRaise) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Ids == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    40,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Ids)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Ids {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ids",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *TicketUpdate) Validate() error {

@@ -552,6 +552,12 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			verifyHelpdeskBulkUpdateConcurrency(t, ctx, runtime, open, after.PasswordHasher, client)
 		})
 	})
+	t.Run("ticket_priority_raise", func(t *testing.T) {
+		verifyHelpdeskPriorityRaise(t, ctx, runtime, client)
+		t.Run("concurrent", func(t *testing.T) {
+			verifyHelpdeskPriorityConcurrency(t, ctx, runtime, open, after.PasswordHasher, client)
+		})
+	})
 }
 
 // Seed through the historical column set before the new generated model can be

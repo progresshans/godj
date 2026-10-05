@@ -247,6 +247,11 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return err
 	}
 	expected = append(expected, bulk...)
+	priorityRows, err := checkHelpdeskPriorityRaise(ctx, client, readOnly, transport, state, target.OtherTicketID)
+	if err != nil {
+		return err
+	}
+	expected = append(expected, priorityRows...)
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

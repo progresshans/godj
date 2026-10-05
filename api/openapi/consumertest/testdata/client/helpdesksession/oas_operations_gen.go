@@ -32,6 +32,7 @@ const (
 	HelpdeskTicketLabelUpdateOperation       OperationName = "HelpdeskTicketLabelUpdate"
 	HelpdeskTicketListOperation              OperationName = "HelpdeskTicketList"
 	HelpdeskTicketPatchOperation             OperationName = "HelpdeskTicketPatch"
+	HelpdeskTicketRaisePriorityOperation     OperationName = "HelpdeskTicketRaisePriority"
 	HelpdeskTicketServiceReportOperation     OperationName = "HelpdeskTicketServiceReport"
 	HelpdeskTicketServiceReportSaveOperation OperationName = "HelpdeskTicketServiceReportSave"
 	HelpdeskTicketUpdateOperation            OperationName = "HelpdeskTicketUpdate"

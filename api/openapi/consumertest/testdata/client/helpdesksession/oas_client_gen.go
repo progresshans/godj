@@ -305,6 +305,22 @@ type Invoker interface {
 	//
 	// PATCH /api/tickets/{id}/
 	HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error)
+	// HelpdeskTicketRaisePriority invokes helpdesk:ticket-raise-priority operation.
+	//
+	// Raises Low (-1) to Normal (0) and Normal to Urgent (1) using the current stored value; SQL null
+	// becomes Normal. Urgent and legacy values outside these choices are preserved. Authentication,
+	// required CSRF and change/label-view permissions precede parsing. All unique positive IDs must exist
+	// in the current category. Current selection, category, priority, stored label integrity, output and
+	// actual-change audits are checked in one transaction; failure rolls back the complete command.
+	// Numeric rows use one native expression UPDATE and null rows use a separate constant UPDATE; the
+	// original priority and category stay in each predicate and every intended row must match. Response
+	// order follows the input. Unchanged rows produce no write, digest repair or audit. Changed rows
+	// synchronize their stored JSON digest. There is no automatic retry or partial success; uncertain
+	// outcomes remain errors. Query parameters, duplicate IDs, unknown fields and client-supplied priority
+	// values are rejected.
+	//
+	// POST /api/tickets/raise-priority/
+	HelpdeskTicketRaisePriority(ctx context.Context, request *TicketPriorityRaise) (HelpdeskTicketRaisePriorityRes, error)
 	// HelpdeskTicketServiceReport invokes helpdesk:ticket-service-report operation.
 	//
 	// An existing scoped ticket with no report returns JSON null. A missing or out-of-category ticket
@@ -3339,6 +3355,117 @@ func (c *Client) sendHelpdeskTicketPatch(ctx context.Context, request *TicketPat
 	}()
 
 	result, err := decodeHelpdeskTicketPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketRaisePriority invokes helpdesk:ticket-raise-priority operation.
+//
+// Raises Low (-1) to Normal (0) and Normal to Urgent (1) using the current stored value; SQL null
+// becomes Normal. Urgent and legacy values outside these choices are preserved. Authentication,
+// required CSRF and change/label-view permissions precede parsing. All unique positive IDs must exist
+// in the current category. Current selection, category, priority, stored label integrity, output and
+// actual-change audits are checked in one transaction; failure rolls back the complete command.
+// Numeric rows use one native expression UPDATE and null rows use a separate constant UPDATE; the
+// original priority and category stay in each predicate and every intended row must match. Response
+// order follows the input. Unchanged rows produce no write, digest repair or audit. Changed rows
+// synchronize their stored JSON digest. There is no automatic retry or partial success; uncertain
+// outcomes remain errors. Query parameters, duplicate IDs, unknown fields and client-supplied priority
+// values are rejected.
+//
+// POST /api/tickets/raise-priority/
+func (c *Client) HelpdeskTicketRaisePriority(ctx context.Context, request *TicketPriorityRaise) (HelpdeskTicketRaisePriorityRes, error) {
+	res, err := c.sendHelpdeskTicketRaisePriority(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketRaisePriority(ctx context.Context, request *TicketPriorityRaise) (res HelpdeskTicketRaisePriorityRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/raise-priority/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketRaisePriorityRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketRaisePriorityOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketRaisePriorityOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketRaisePriorityOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketRaisePriorityResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

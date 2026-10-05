@@ -71,6 +71,23 @@ audit를 같은 transaction에 둔다. 뒤쪽 batch나 audit가 실패해도 부
 값이 바뀌지 않아도 이미 저장된 외부 범주 연결을 조용히 숨기고 성공 처리하지 않는다. 일반 읽기는 범위 안 라벨만
 표시한다. 저장 중 membership이 달라진 실행 오류는 사용자가 제출한 라벨의 입력 오류와 구분한다.
 
+## 선택 티켓의 우선순위 올리기
+
+Ticket 목록의 **Raise selected ticket priorities** 작업과 `POST /api/tickets/raise-priority/`는 같은 명령을 사용한다.
+API 입력은 `{"ids":[2,1]}` 형태의 닫힌 객체이며 1..40개의 서로 다른 양수 int64 ID를 정확한 JSON 정수로 받는다.
+전체 body는 4,096 byte까지다. 생략/null/문자열/소수·지수 표기·중복 ID/멤버·추가 필드와 query parameter를 거부한다.
+ChangeTicket·ViewLabel 및 인증/CSRF를 파싱 전에 확인하며 Admin은 ViewTicket·active staff도 요구한다.
+
+현재 값의 Low(-1)는 Normal(0), Normal은 Urgent(1)로 올리고 SQL NULL은 Normal로 설정한다. Urgent와 기존 선택지
+밖의 값은 그대로 반환한다. 숫자 대상에는 `F(priority) + 1`의 native UPDATE 하나를, NULL 대상에는 상수 UPDATE
+하나를 실행한다. 각각 원 우선순위와 Category 조건을 유지하며 예정한 모든 행이 일치해야 한다. 선택 행이나 그 상태가
+현재 범위에 없으면 전체 404다. DB 명령의 matched count와 업무에서 실제로 바뀐 티켓 수를 구별한다.
+
+저장 라벨의 현재 범위, 변경 행의 JSON digest, 전체 응답과 실제 변경 행의 change audit를 같은 transaction에서
+확인한다. Urgent/기존 값은 UPDATE·digest 복구·audit를 만들지 않는다. 뒤쪽 UPDATE·라벨 확인·출력·audit 실패와
+취소는 전체 rollback이며 불확실한 결과는 실행 오류다. 자동 재시도·부분 성공은 없다. API는 바뀌지 않은 티켓까지
+입력 순서의 Ticket 배열과 200을 반환한다. Admin의 알림은 `Priority raised for N ticket(s).`로 실제 변경 수를 표시한다.
+
 ## 여러 티켓을 함께 편집하기
 
 `application.TicketEditor`는 GET/POST `/tickets/edit/`의 HTML 편집 화면을 제공한다. Subject·Closed·External reference·Labels를

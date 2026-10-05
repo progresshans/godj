@@ -16,7 +16,7 @@ func (a *Application) ticketBulkActions() []admin.ActionConfig {
 	if a.adminAudit == nil {
 		return nil
 	}
-	result := make([]admin.ActionConfig, 0, 2)
+	result := make([]admin.ActionConfig, 0, 3)
 	for _, action := range []struct {
 		name, label, result string
 		closed              bool
@@ -40,7 +40,18 @@ func (a *Application) ticketBulkActions() []admin.ActionConfig {
 			},
 		})
 	}
-	return result
+	return append(result, admin.ActionConfig{
+		Name: "raise-priority", Label: "Raise selected ticket priorities", Permission: ChangeTicket,
+		AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel},
+		SuccessNotice:         admin.ActionNotice{Tag: "priority-raised", Text: "Priority raised for {count} ticket(s)."},
+		Run: func(ctx context.Context, actor auth.Principal, ids []int64) (admin.ActionResult, error) {
+			updated, err := a.raiseTicketPriority(ctx, actor, ids, a.adminAudit)
+			if err != nil {
+				return admin.ActionResult{}, err
+			}
+			return admin.ActionResult{MatchedIDs: updated.changedIDs}, nil
+		},
+	})
 }
 
 // AdminRenderLimits covers forty rows with the bounded label chooser. The

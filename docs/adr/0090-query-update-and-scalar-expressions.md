@@ -68,6 +68,19 @@ Owned transaction 또는 borrowed savepoint 안에서 실행한다. 부모의 so
 borrowed 결과는 부모 commit 전까지 provisional이다. 뒤쪽 실패와 확인 가능한 rollback은 원 행을 복원한다.
 Literal COMMIT/rollback의 불확실성은 성공이나 자동 retry로 바꾸지 않는다. 단건 Patch와 같은 기존 scope guard를 쓴다.
 
+## Helpdesk의 명령과 ORM 의미 구분
+
+선택 티켓 우선순위 명령은 `POST /api/tickets/raise-priority/`와 Admin의 `raise-priority` 작업을 같은 writer에
+연결한다. Category의 현재 선택 행을 읽어 변경 예정 집합을 정하고 Low/Normal에 `F(priority) + 1`을 한 statement로
+적용한다. NULL은 별도 statement에서 Normal로 설정한다. 원 우선순위와 Category 조건을 함께 남겨 모든 예정 행이
+실제로 일치하는지 확인한다. Urgent와 기존 choices 밖의 값은 그대로 두며 수정하지 않은 열·라벨도 보존한다.
+
+전체 입력은 1..40개의 서로 다른 양수 int64 key다. 인증·CSRF·ChangeTicket·ViewLabel을 파싱 전에 확인하며 Admin은
+ViewTicket도 요구한다. 모든 선택 행·현재 라벨 무결성·변경 행의 digest·전체 응답·실제 변경 audit가 하나의 relation
+transaction에 속한다. Unchanged 행은 digest를 복구하거나 audit를 추가하지 않는다. API는 모든 선택 행을 입력
+순서로 반환하고 Admin은 실제 변경 수를 표시한다. 뒤쪽 실패·취소·불확실한 결과를 부분 성공이나 재시도로 바꾸지 않는다.
+NULL을 Normal로 올리는 업무 정책은 일반 scalar AST의 NULL 전파와 별개다.
+
 ## Cache와 검증 경계
 
 성공한 UPDATE는 0건/빈 assignment도 호출 query 자신의 cache를 비운다. 같은 query의 복사본은 이 상태를

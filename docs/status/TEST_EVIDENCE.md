@@ -96,8 +96,67 @@ Receipt `query-update-foundation-20261006-021342/receipt.json` /
 `09955243dcd33f3ef437bc524f05df8c24e6d4b85c80dc3e09b0ee47fd82c2dc`와 후속 consumer-only PASS
 `da24e8949e7fb859315059a69a7d5b560563fe8c3398540efdb5ab739d62c98c`를 보존했다. 모든 소유 container를 제거했다.
 
-Helpdesk 우선순위 명령·Admin/API/client/브라우저 연결과 해당 업무 묶음의 검증, GDJ-0111 source의 Hosted 전체는 남아 있다.
-이 기반 결과를 GDJ-0109/0110의 진행 중인 Hosted source나 전체 기능 카탈로그의 완료로 전이하지 않는다.
+### Helpdesk 우선순위 명령 — 양 DB와 업무 검증
+
+Parent `7cebee684a6fb9cb9dce064f13bf5e9c5911ffab`에서 같은 Category의 선택 티켓 우선순위 명령을 Admin/API와
+독립 OpenAPI 생성 client에 연결했다. 숫자 Low/Normal에는 native `F(priority)+1` 한 문장, NULL에는 상수 갱신
+한 문장을 사용한다. Urgent·기존 선택지 밖의 극값과 제외 필드/라벨을 보존한다. 원 우선순위/Category 조건과
+모든 예정 행의 count, 현재 라벨 무결성·변경 행의 저장 JSON/digest·완성된 응답·실제 변경 audit를 함께 확인한다.
+
+첫 normal 실행은 양 DB fixture의 외부 Category에 같은 이름의 라벨을 반복해서 옮기려다 여섯 준비 경로에서
+UNIQUE 제약에 걸렸다. 실제 요청을 실행하기 전 fixture 실패이며 통과로 계산하지 않았다. 라벨 이름을 Category별로
+구별하고 실제 제약과 scope 부정 검사를 유지했다. 실패 receipt `priority-business-20261006-031153/receipt.json` /
+`2f5ee47dd9ffa8d924def8bd7b2a05ea6bfcb35a20d0383f16c695a547ac64eb`, 소유 container 제거 확인.
+
+수정 후 normal은 3 packages·1397 run/pass·0 skip, 118.161s, 원 log
+`6f8215dfaa23c143e16565be319c796ad6c94b8bc892255c292784f62c904f76`였다. Source guard는 이 실행과 병행한
+Playwright가 checkout에 추가한 console/snapshot 두 파일을 감지해 다음 mode로 진행하지 않았다. 실행 코드/생성물의
+변경은 없었다. 두 원 파일을 외부 증거 디렉터리에 보존하고 전체 비Markdown inventory가 실행 전과 정확히 같음을
+다시 검증했다. 원 JSON의 필수 경로·중복 없는 run/pass·package 종료·no-skip을 다시 검사한 뒤 normal 결과를 연결해
+race/CGO=0을 진행한다. 중단 receipt `priority-business-20261006-031446/receipt.json` /
+`72f34814ba3f3ad4962361e4cd1454a087a801c41a60b5e0acad35aca958b070`를 보존하며 이 receipt 자체를 PASS로 바꾸지 않았다.
+
+이어진 race는 SQLite owner를 371.6s에 완료했지만, PostgreSQL의 기존 bulk-update 회귀를 실행하던 중
+Go package 전체의 10분 한도가 만료됐다(`panic: test timed out after 10m0s`). 1244 run/1240 pass·0 skip으로
+필수 경로와 package 종료가 미완료이므로 실행 전체를 실패로 보존했다. Receipt
+`priority-business-20261006-031819/receipt.json` /
+`326535a1f1eeac4e13c8cf7fe6100f7198dc4428f51861a3a300f3d1f7956b82`, 원 race log
+`a6f24df85c918d232bc713423ca22572d1375164b653a3a6f9975df9ada8a6f9`; 소유 container 제거 확인.
+각 DB consumer의 기존 10분과 개별 취소/경쟁 한도를 유지하고, 둘을 감싸는 로컬 checkpoint의 package 한도만
+22분으로 맞춰 race를 처음부터 재실행한다. 기존 완료 normal은 같은 source/필수 목록을 다시 검증해 연결하며
+중단된 race의 부분 결과를 PASS로 가져오지 않는다.
+
+동일 비Markdown inventory `de4c972c5be6cefda1eeeec7529b83d39f2606251c3e2bde824ca2a3d46c6199`에서 별도
+loopback SQLite·실제 identity/session/audit와 Chrome/Playwright CLI 0.1.22를 사용했다. 기존 생성/편집/선택 작업
+22/9/9개 및 새 우선순위 36개, 총 76개 assertion과 CLI exit 0·Error section 없음·직접 화면을 확인했다.
+우선순위 변경 수는 2→1→0이며 두 선택 행만 Urgent에 도달했다. 종료 후 원 DB 독립 조회는 5 Ticket·4 TicketLabel·
+13 audit와 row별 priority event 0/1/2/0/0을 확인했다. 첫 favicon 404 외 앱 오류를 관찰하지 않았다.
+Browser 종료·server exit 0·listener 닫힘을 확인했다. Receipt `priority-browser-20261006/receipt.json` /
+`dd2209c4b8dec0664fd57a7e756d452472872f5b75908b80baa820cb45ec03c1`.
+
+최종 업무 checkpoint는 비Markdown 3100 files의 위 inventory에서 실제 SQLite/PostgreSQL 17.10
+Debian/UTF8/libc/C/C와 Go 1.26.5/darwin/arm64를 사용했다. 완료 normal 원 로그는 앞에서 설명한 동일 source 검증으로
+연결하고, 중단된 race는 다시 실행했다.
+
+| Mode | packages | run/pass | skip | 시간 | Log SHA-256 |
+|---|---:|---:|---:|---:|---|
+| normal | 3 | 1397 | 0 | 118.161s | `6f8215dfaa23c143e16565be319c796ad6c94b8bc892255c292784f62c904f76` |
+| race | 3 | 1397 | 0 | 783.672s | `a6bb774e908552afcadaa6e06afe609fa33bf5f39fe2ec050073164ed31c1a68` |
+| cgo0 | 3 | 1397 | 0 | 114.600s | `d93035f463a1809c899a56dd151da265dacb234969c3f6742e937da4c21d015a` |
+
+범위는 Helpdesk 전체, OpenAPI 및 독립 생성 client다. 필수 262개 root/child 경로와 package 종료·중복 없는 실행·
+no-skip을 확인했다. 새로운 PostgreSQL 필수 경로 99개가 세 mode에 모두 있으며 기존 요구는 제거하지 않았다.
+권한/CSRF의 파싱 전 거부, exact ID·선택 한도, 현재 Category/우선순위·저장 라벨 변화, 두 번째 statement·후속 audit·
+완성 응답 예산 실패와 취소, callback 수명·commit/rollback unknown, no-op/기존 int64 극값과 digest/제외 필드 보존을
+검사했다. 두 실제 연결의 경쟁에서 leader commit은 두 번의 상승과 audit 두 개, rollback은 한 번과 audit 한 개를
+남겼다. Observer는 미확정 행과 audit를 보지 못했다. 독립 client의 actual HTTP·required receipts·최종 DB/audit와
+실제 문서/고정 ogen 생성물의 drift도 각 mode에서 확인했다.
+
+Format 0.491s, 영향 vet 5.871s, CI 도구 57개 3.999s가 PASS했다. Source 유지·schema/session `0|0`·
+소유 DB/container 제거를 확인했다. Receipt `priority-business-20261006-033051/receipt.json` /
+`064069f8d5b805c4f10d8f8f1b7997bef5cf974789fdd6a687e19aca62cba59c`.
+GDJ-0111과 fixture 보완을 합친 source의 Hosted 전체는 아직 남아 있다. 선행 Hosted 결과나 전체 기능 카탈로그의
+완료로 전이하지 않는다.
 
 ## GDJ-0110 — native bulk update의 기준과 기반
 
@@ -457,6 +516,27 @@ GDJ-0109/0110의 통합 완료가 아니다. 별도 사본의 GDJ-0111 새 구�
 최종 76 jobs는 success 48/failure 7/cancelled 21이며, 여섯 relation 실패의 원 log 모두 같은 옛 배열 참조를 확인했다.
 일곱 번째는 필수 owner 실패를 거부한 aggregate다. Terminal receipt `hosted-bulk-update-37345812096/failure-receipt.json` /
 `df525f922a55c5b580f27abce2f38aa30d4a34b1009500c6842331a9d25b46a7`을 보존했다.
+
+`37348366499`에서는 분할한 PostgreSQL 8 jobs가 모두 성공했지만 macOS Intel/CGO=0 command job
+`111892710385`가 실패했다. `TestGlobalCreatesuperuserExternalSQLiteProduct/durable_lifecycle`의 준비 단계에서
+`godj generate`가 `signal: killed`, 출력 0 bytes·truncated=false로 종료됐다. 전체 operator root는 598.633s였고
+실패 child는 257.47s였다. 이 fixture는 준비 build/generate와 실제 명령에 같은 4분 제한을 사용했다. 원 로그에는
+개별 준비 단계 시간이나 timeout 분류가 없어 종료 원인을 그 이상 확정하지 않는다. Targeted migration 단계는
+33 pass/0 skip이었지만 필수 operator owner 실패를 최종 단계가 거부했다. 원 log
+`hosted-priority-predecessor-37348366499/job-111892710385.log` /
+`0d0bcb49d0c7fdaa7a4e538d30186a14a532cf4ab3bacb7b391f9cac8a313100`을 보존했다.
+
+별도 source `0683f9d4b2d9daedfd98fff142b730f40c55e515`는 compiler를 포함하는 fixture 준비에 10분 예산을
+분리하고 단계별 시작/완료 시간·timeout·일반 종료 실패를 기록한다. Timeout은 기존 owned process-tree cleanup으로
+회수한다. 제품 명령·PTY의 4분 및 개별 취소/lock/cleanup 한도는 유지한다. 변경은 해당 fixture helper 하나이며
+SHA-256 `b70e4ab68e8e463495abc52895f61ff2d5e8c18c29a3c252ce53b8bd18debe8f`다.
+로컬 Go 1.26.5/darwin/arm64의 실제 외부 SQLite operator 제품은 normal/race/CGO=0 각각 11 run/pass·0 skip,
+120.359/149.245/112.639s였다. Log는 순서대로 `72c894240b635b5ef34246b17472687dd86dea87ba4b229d14cb0a210f493581`,
+`a900b414b6d1fff70bcd809117c34d83cadbfc7b6eece676a34571dc01529bd2`,
+`add223ee1d3486688a4aa11d317f0647cf5dd9e3f8697c8a86df2055537ca965`이며 source 유지와 필수 두 child를 확인했다.
+Receipt `operator-setup-20261006-031336/receipt.json` /
+`c449d146f131316a8623a844c5e203dc681389a9b95ed7b9cd3c7c6e175f691f`.
+이 로컬 결과는 실패한 Hosted Intel 환경의 PASS가 아니며, 업무 변경과 통합한 source의 새 전체 실행이 필요하다.
 
 ### 브라우저와 독립 저장 결과
 

@@ -37,6 +37,8 @@ type bulkTicketBackend struct {
 	updates, singleUpdates                                  int
 	updateRows                                              []int
 	updateMasks                                             [][]string
+	queryUpdates                                            int
+	priorityKeys                                            []int64
 	cancel                                                  context.CancelFunc
 	retained                                                func(db.RelationSession) error
 }
@@ -209,7 +211,7 @@ func (session *bulkTicketSession) Query(ctx context.Context, plan query.Plan) (d
 		if backend.bulks == 0 && (backend.mode == "native_conflict" || backend.mode == "native_later_conflict") {
 			return uniqueEmptyRows{}, nil
 		}
-		if (backend.bulks > 0 || backend.updates > 0) && backend.mode == "output_error" {
+		if (backend.bulks > 0 || backend.updates > 0 || backend.queryUpdates > 0) && backend.mode == "output_error" {
 			return nil, errors.New("private output read failure")
 		}
 	}

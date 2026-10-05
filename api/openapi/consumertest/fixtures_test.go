@@ -193,13 +193,19 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if err != nil {
 			t.Fatal("read Helpdesk effects:", err)
 		}
-		if len(tickets) != 9 {
-			t.Fatalf("Helpdesk generated client left %d tickets, want two original, five single creates and two bulk creates", len(tickets))
+		if len(tickets) != 13 {
+			t.Fatalf("Helpdesk generated client left %d tickets, want two original, five single creates, two bulk creates and four priority rows", len(tickets))
 		}
 		bulkTickets := make(map[string]helpdeskmodels.Ticket)
+		priorityTickets := make(map[string]helpdeskmodels.Ticket)
 		var singleTickets []helpdeskmodels.Ticket
 		for _, stored := range tickets {
-			if strings.HasPrefix(stored.Subject, "Client bulk ") {
+			if strings.HasPrefix(stored.Subject, "Client priority ") {
+				if _, duplicate := priorityTickets[stored.Subject]; duplicate {
+					t.Fatal("duplicate generated priority subject")
+				}
+				priorityTickets[stored.Subject] = stored
+			} else if strings.HasPrefix(stored.Subject, "Client bulk ") {
 				if _, duplicate := bulkTickets[stored.Subject]; duplicate {
 					t.Fatal("duplicate generated bulk subject")
 				}
@@ -208,6 +214,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				singleTickets = append(singleTickets, stored)
 			}
 		}
+		verifyGeneratedPriorityEffects(t, helpdeskRuntime, category.ID, helpdeskAll.ID(), priorityTickets)
 		bulkIDs := verifyGeneratedBulkTicketEffects(t, helpdeskRuntime, category.ID, helpdeskAll.ID(), bulkTickets)
 		selectedCount, createdCount := 0, 0
 		var collectionOwnerID int64

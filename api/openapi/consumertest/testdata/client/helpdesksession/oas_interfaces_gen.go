@@ -105,6 +105,10 @@ type HelpdeskTicketPatchRes interface {
 	helpdeskTicketPatchRes()
 }
 
+type HelpdeskTicketRaisePriorityRes interface {
+	helpdeskTicketRaisePriorityRes()
+}
+
 type HelpdeskTicketServiceReportRes interface {
 	helpdeskTicketServiceReportRes()
 }
