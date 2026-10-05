@@ -437,7 +437,7 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 	}{
 		{"command-product-matrix", "operator", "required_tests", "", operatorRequiredSentinels},
 		{"command-product-matrix", "targeted", "required_passes", "", targetRequiredSentinels},
-		{"postgresql-product", "", "core_required_passes", "scripts/ci/postgres-core-required.txt", postgresCoreRequiredSentinels},
+		{"postgresql-product", "", "required_passes", "scripts/ci/postgres-core-required.txt", postgresCoreRequiredSentinels},
 		{"postgresql-product", "", "operator_target_required_passes", "", postgresOperatorTargetRequiredSentinels},
 	} {
 		job := ciJob(t, jobs, inventory.job)
@@ -451,10 +451,11 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 		}
 		actual := make(map[string]bool)
 		if inventory.file != "" {
-			// The Python execution-owner test runs the workflow's shell loader
-			// and verifies every byte. Keep the required sentinel membership
-			// check on that external roster, not the empty array initializer.
-			ciRequire(t, inventory.job, job, inventory.file)
+			// Python tests execute the partition planner and shell loader,
+			// checking exact ownership in all modes. This test keeps the
+			// required product sentinels bound to that authoritative manifest.
+			ciRequire(t, inventory.job, job, "scripts/ci/postgres_shards.py", "--required "+inventory.file,
+				`required_passes+=("$sentinel")`, `< "$partition/required.txt"`)
 			for _, value := range strings.Fields(ciRead(t, inventory.file)) {
 				actual[value] = true
 			}

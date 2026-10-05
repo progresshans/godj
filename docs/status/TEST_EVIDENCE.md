@@ -332,6 +332,27 @@ CI source `3d3b51b508d41f66efe55e8125423233c27b5aaa`의 두 원격 ref 게시를
 [Hosted full 37345812096](https://github.com/progresshans/godj/actions/runs/37345812096), attempt 1/workflow_dispatch를 요청했다.
 이 실행의 제품 source는 선행 bulk 보정본과 같으며 별도 사본의 GDJ-0111 구현을 포함하지 않는다. 이 요청 기록은 Markdown-only다.
 
+
+### CI 필수 목록 회귀 검사의 분할기 연결
+
+위 `37345812096`의 Linux amd64/CGO=0 relation job `111884694216`은
+`TestWorkflowRequiredProductSentinelsRemainInventoried`에서 실패했다. 분할 workflow는 원본 manifest와 partition
+출력을 `required_passes`로 읽지만 기존 Go 검사는 제거된 `core_required_passes` 배열 이름을 요구했다.
+원 log SHA-256 `8132533b0dea18bb422cf827eb2002aa9e6dc4e56e41d4c0aba61910a4fa3f3d`를 보존했다.
+필수 sentinel의 manifest 소속 검사를 유지하고 분할기 호출·원본 입력·실제 shell 로더에 연결했다.
+기존 Python의 mode별 정확히 한 번 배정/실행 파일 검사도 유지하며 제품 runtime·필수 목록·workflow는 바꾸지 않았다.
+
+Parent `3d1a59192a88bbd7915241df972a4033049304e6`, 비Markdown inventory
+`e4785d45a335f3ba51412f31ddcb23652c21d7524c34d5f276530345bb1d9f15`에서
+`go test -json -count=1 -timeout=3m ./conformance/internal/protocol` 전체 124 roots/909 run·pass/0 skip을
+3.633초에 확인했다. 필수 root·중복·package 종료와 실행 전후 source 동일을 확인했다. Log
+`2545ca9c981e96375cde9464d40804d40e336dff78ba6c9fa98a04ba6dca8133`, receipt
+`postgres-partition-contract-repair/receipt.json` / `6b925340965287224440e9256f435230e5ca9b0e357d5e836a1d877cc9497ea0`.
+먼저 부모 package에 `-trimpath`를 적용한 로컬 시도는 기존 protocol fixture의 `runtime.Caller` 경로 탐색이 실패했다.
+그 결과는 `postgres-partition-contract-repair-trimpath-failed/`에 별도로 보존했으며 PASS에 포함하지 않는다.
+정상 실행은 workflow와 같은 부모 command이며 생성/외부 consumer의 trimpath 정책과 구별한다.
+수정 source의 새 full과 실제 artifact/capture 검증은 아직 남아 있다.
+
 ### 브라우저와 독립 저장 결과
 
 2026-10-02 KST의 실제 Playwright CLI 0.1.22·격리 SQLite/identity/session/Admin/API에서 생성 22개, 편집 9개,
