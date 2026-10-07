@@ -94,11 +94,15 @@ Handler는 성공 응답을 `Output.Prepare(ctx, status, dto)`로 완전히 enco
 정확히 그 Output 또는 그 복사본이 만든 응답만 허용한다. 같은 Go 타입·schema라도 별도 Output이나 다른 예산에서
 준비한 응답은 거부한다. `Prepared[T]`는 원 DTO/가변 slice·getter를 보관하지 않고 완성된 bytes만 보유한다.
 서로 다른 DTO의 Prepared 타입 사이의 대입·명시적 변환은 compile 오류다.
-성공 상태는 선언한 JSON 응답을 갖는 2xx이고 204/205는 허용하지 않는다. 다른 상태, zero 응답, JSON 이외/중복 Content-Type은
-실행 오류다. `Prepared.WithHeaders`는 header를 교체·복사하며 Content-Type을 포함한 완전한 header 집합을 넘겨야 한다.
+JSON 성공 상태는 선언한 JSON 응답을 갖는 2xx이며 204/205는 허용하지 않는다. `output.NoContent()`를 선택하면
+성공은 204만 허용하고 같은 operation에 content 없는 응답을 기술한다. Unit Go type은 `struct{}`이며 JSON schema를
+대신하는 DTO를 만들지 않는다. 다른 상태, zero 응답, JSON 출력의 잘못되거나 중복된 Content-Type은 실행 오류다.
+`Prepared.WithHeaders`는 header를 교체·복사하며 JSON 출력에는 Content-Type을 포함한 완전한 header 집합을 넘긴다.
+NoContent의 기본 header는 비어 있으며 resource metadata는 허용하고 message framing header는 거부한다.
 추가 header와 인증 profile의 응답 header는 해당 application/adapter가 소유한다.
 
-쓰기 handler는 transaction 안에서 출력 준비를 끝내고 commit 성공이 확인된 뒤 준비 응답을 반환한다.
+쓰기 handler는 commit 전에 출력 준비를 끝내고 commit 성공이 확인된 뒤 준비 응답을 반환한다.
+저장된 값에 의존하는 JSON은 transaction 안에서 준비하며, 고정된 NoContent 응답은 쓰기 전에 준비할 수 있다.
 Endpoint가 commit 뒤 getter를 다시 실행하지 않는다. Handler는 취소·불확실한 결과를 Go 오류로 반환하고,
 endpoint는 오류와 함께 온 준비 응답을 버린다. 반면 handler가 nil 오류로 확정한 준비 결과는 그 뒤의 context 취소만으로
 실패로 바꾸지 않는다. 이 경계가 이미 확인된 commit을 재시도할 쓰기로 오인하는 일을 막는다.
@@ -118,7 +122,8 @@ Reject는 status/code를 즉시 검사하고 immutable 진단은 endpoint의 실
 [Label ensure의 원자 저장](../../examples/helpdesk/label_ensure.go),
 [Article의 조회 우선 수정](../../examples/article/apiapp/typed_update.go),
 [Label의 body 검증 우선 수정](../../examples/helpdesk/label_update_endpoint.go),
-[Article의 원자적 배열 생성](../../examples/article/apiapp/bulk_create.go)에 있다.
-Streaming/no-content 성공, 여러 종류의 성공 DTO,
+[Article의 원자적 배열 생성](../../examples/article/apiapp/bulk_create.go),
+[Article](../../examples/article/apiapp/typed_delete.go)와 [Label](../../examples/helpdesk/label_delete_endpoint.go)의 삭제에 있다.
+Streaming·205 성공, 여러 종류의 성공 DTO,
 자동 CRUD/viewset은 후속 범위다. 현재 수동 handler/OpenAPI API와 혼합할 수 있으며 `Collect`의 추가 Output declaration으로
 그 수동 operation의 named schema도 함께 모을 수 있다.

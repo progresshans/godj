@@ -431,6 +431,14 @@ func (s *GodjConformanceArticleCreateUnsupportedMediaType) Validate() error {
 	return nil
 }
 
+func (s *GodjConformanceArticleDeleteBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *GodjConformanceArticleDeleteForbidden) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {

@@ -25,6 +25,9 @@ func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, 
 // These responses belong exclusively to the generated-code wire regression.
 // The preceding application flows use the three real parent-owned servers.
 func checkGeneratedWire(ctx context.Context) error {
+	if err := checkGeneratedNoContentWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedArticleBulkWire(ctx); err != nil {
 		return err
 	}

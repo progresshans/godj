@@ -168,6 +168,14 @@ func (s *HelpdeskLabelCreateUnsupportedMediaType) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskLabelDeleteBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskLabelDeleteForbidden) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {

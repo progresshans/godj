@@ -51,6 +51,8 @@ Go source/output·expected fixture를 읽지 않으며 [양 DB 원 출력](../co
 - [RFC 9110 HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-13): conditional 우선순위·validator·Range/HEAD/206/304/412/416 기준.
   [고정 Django conditional observer](../conformance/runners/django/file_conditional_reference.py)는 같은 6.1 `django/utils/cache.py`의
   공통 결과와 세 명시적 차이를 관찰한다. Range의 공통 결과는 실행 Go 버전의 `net/http.ServeContent`와 별도로 대조한다.
+- [RFC 9110 204](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.5)·[Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6),
+  [RFC 9112 Transfer-Encoding](https://www.rfc-editor.org/rfc/rfc9112.html#section-6.1): typed NoContent의 본문/trailer·framing 제한과 resource metadata 기준. 구현 코드는 직접 작성했다.
 - [SQLite foreign keys](https://sqlite.org/foreignkeys.html), [transactions](https://sqlite.org/lang_transaction.html), [ALTER TABLE](https://sqlite.org/lang_altertable.html)
 - [modernc SQLite driver](https://pkg.go.dev/modernc.org/sqlite)
 - [pgx](https://github.com/jackc/pgx), [PostgreSQL documentation](https://www.postgresql.org/docs/17/)

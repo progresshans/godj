@@ -201,6 +201,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 	}
 	fixture.requireSecretsAbsent(t)
 	t.Run("typed_update", func(t *testing.T) { verifyArticleTypedUpdate(t, backend) })
+	t.Run("typed_delete", func(t *testing.T) { verifyArticleTypedDelete(t, backend) })
 	t.Run("typed_bulk", func(t *testing.T) { verifyArticleTypedBulk(t, backend) })
 }
 

@@ -6,6 +6,10 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Article/Label의 typed NoContent 삭제는 기존 실제 Session/Bearer CRUD와 관계 범위/CSRF 검사를 사용한다.
+독립 wire 검사 `generated_no_content_wire`는 세 profile의 exact int64 경로·빈 요청과 204/validation 400/plain 500의
+서로 다른 생성 응답 타입, 서버 오류의 단일 요청을 검사한다. 합성 응답은 native 삭제/rollback 검증으로 계산하지 않는다.
+
 Identity의 `If-Revision`은 서버의 typed Header가 제공한 required int64 parameter와 canonical/19-byte metadata를
 사용한다. Session/Bearer client는 같은 generated PATCH와 실제 인증/CSRF transport에서 누락 428, 중복·비정규/범위
 오류 400, 큰 정수/최댓값의 stale 412와 mixed-case 성공을 확인한다. 이 부정 입력만 전송 직전 header를 교체하며

@@ -34,5 +34,17 @@ func prepare(authentication api.Authentication) ([]openapi.Operation, []openapi.
 	if err != nil {
 		return nil, nil, err
 	}
-	return endpoint.Collect([]endpoint.Endpoint{prepared})
+	empty := output.NoContent()
+	remove, err := endpoint.New(authentication, endpoint.Config[int64, struct{}]{
+		Route:     web.Route{Name: "consumer:delete", Method: "DELETE", Path: "/api/items/<int64:id>/"},
+		Admission: endpoint.Authenticated(), Input: endpoint.PathInt64("id"), Output: empty,
+		Success: []endpoint.Status{{Code: 204, Description: "Deleted."}},
+		Handle: func(request *web.Request, actor auth.Principal, id int64) (output.Prepared[struct{}], error) {
+			return empty.Prepare(request.Context(), 204, struct{}{})
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return endpoint.Collect([]endpoint.Endpoint{prepared, remove})
 }

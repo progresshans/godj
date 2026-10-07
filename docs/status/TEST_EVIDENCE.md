@@ -3,6 +3,45 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0120 — Typed 204 응답과 삭제 endpoint
+
+2026-10-08 KST, 기준 `cc2c2f2564bfca11955ca1baa0d047c8f1555b21`의 별도 작업 사본에서
+NoContent Output/Prepared·동일 endpoint/OpenAPI를 Article와 Helpdesk Label 삭제에 연결했다.
+JSON schema를 만들지 않고 exact Output 소유권·204 상태·context와 framing header 제한을 유지한다.
+고정 응답은 삭제 전에 준비하며, Article는 기존 prepared transaction owner로 callback/hook/commit을 확인한다.
+Label의 scope와 CASCADE는 기존 relation transaction이 소유한다. 이 변경은 아직 원격 검증 전이다.
+
+추가한 검사의 범위는 다음과 같다. 이 목록은 테스트 코드의 존재이며 실행 성공을 뜻하지 않는다.
+
+- Output/endpoint: zero·독립/같은 타입의 다른 출력 소유권·잘못된 상태·JSON helper·framing header 거부,
+  선언과 admission·실패 응답 폐기·확인된 완료 뒤 취소·실제 HTTP의 빈 body/metadata.
+- Article: 실제 Bearer HTTP에서 양 DB의 정상 삭제·무시하는 query/body·권한/없는/잘못된 대상,
+  callback 누락·missing 은폐/join·취소·validation·rollback/commit 불명과 durable row/재시도 횟수.
+- Label: 실제 Session/CSRF adapter에서 양 DB의 scope·입력 body 비소비·인가·callback 누락·scope 오류 은폐,
+  validation·link DML 뒤 실패/전체 rollback·취소·commit 불명/확인 뒤 취소, 관련 없는 ticket/label/link 보존.
+- 외부 compile-positive/negative와 독립 생성 client의 `generated_no_content_wire`:
+  세 profile의 exact int64 삭제 경로·빈 요청·204/400/500 타입 구분과 단일 요청. 기존 실제 CRUD/client flow도 유지한다.
+- PostgreSQL core 필수 목록에 두 Article/두 Helpdesk native owner의 새 parent/child 66개를 추가했다.
+  기존 모든 필수 경로를 보존하며 normal/race/CGO0 owner를 명시한다.
+
+Go 1.26.5/darwin/arm64·공유 cache·offline graph에서 포맷과 최소 compile을 실행했다.
+`GOTOOLCHAIN=local GOWORK=off GOFLAGS=-mod=readonly GOPROXY=off GONOPROXY=none GOSUMDB=off go test -run '^$'`
+대상은 api/output·api/endpoint·examples/article/apiapp·examples/article/articleapp·examples/article·examples/helpdesk·
+internal/compiletest·api/openapi/consumertest다. 별도 SDK module cmd/consumer도 `-trimpath`로 compile했다.
+모든 대상의 최종 compile은 성공했으며 테스트 본문은 실행하지 않았다. SDK 새 wire 검사에서 Bearer 오류 DTO의
+header wrapper를 빠뜨린 최초 compile 오류는 `.Response`로 수정한 뒤 해당 module compile을 다시 통과했다.
+
+실제 exporter로 여섯 문서를 준비하고 구조 비교했다. Article Session·Label Session의 DELETE에 validation 400이
+추가됐고, 이미 인증 400이 있는 Article Bearer는 해당 설명만 바뀌었다. 나머지 세 문서는 byte 동일하다.
+기존 고정 ogen으로 변경된 세 profile을 임시 경로에 생성한 뒤 검토해 반영했다. Article Bearer generated Go는
+동일하고 두 Session package에는 400 응답형/decoder 등 각 4개 파일이 바뀌었다. 고정 tool/module/config는 유지했다.
+이 생성 작업은 전체 drift·SDK HTTP·native DB 실행 증거가 아니다.
+
+`scripts/ci/test_postgres_shards.py -v`의 5 tests와 `scripts/check_docs.py`의 문서 202개 링크,
+`git diff --check`를 통과했다. 최초 필수 목록에 넣었던 빈 줄/주석은 strict manifest 문법이 거부해 제거했다.
+공개 외부 compile fixture 실행·새 테스트 본문·native DB/HTTP·race/CGO0·SDK drift/HTTP·전체 platform/cold는
+이 source의 원격 CI에서 확인해야 한다. 선행 `cc2c2f25`의 진행 중인 CI는 이 작업 사본의 증거가 아니다.
+
 ## GDJ-0119 — Typed header와 Identity revision 조건
 
 2026-10-08 KST, 기준 `632cf6db3feafd9622d230170e8eddee73a2545a`의 작업 사본에서 Header·Endpoint 결합과

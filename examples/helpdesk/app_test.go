@@ -524,6 +524,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		})
 	})
 	t.Run("category_labels", func(t *testing.T) { verifyHelpdeskLabels(t, ctx, runtime, open, client, category.ID, other.ID, seedID) })
+	t.Run("typed_label_delete", func(t *testing.T) { verifyTypedLabelDelete(t, ctx, runtime, client, category.ID, other.ID) })
 	t.Run("ticket_labels", func(t *testing.T) { verifyHelpdeskTicketLabels(t, ctx, runtime, open, client, category.ID, other.ID) })
 	t.Run("ticket_collections", func(t *testing.T) {
 		verifyHelpdeskTicketCollections(t, ctx, runtime, open, client, category.ID, other.ID, after, seedLargeLabel)

@@ -431,25 +431,25 @@ func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
 	if id <= 0 {
 		return Article{}, invalid("id", "id must be positive")
 	}
-	var deleted articlemodels.Article
-	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
-		current, found, err := getModel(ctx, session, id)
+	return preparedAtomic(ctx, r, MutationDelete, func(work context.Context, session db.Session) (Article, error) {
+		current, found, err := getModel(work, session, id)
 		if err != nil {
-			return MutationResult{}, err
+			return Article{}, err
 		}
 		if !found {
-			return MutationResult{}, notFound(id)
+			return Article{}, notFound(id)
 		}
-		deleted = current
-		if _, err := articlemodels.ArticleObjects.Delete(ctx, session, &current); err != nil {
-			return MutationResult{}, err
+		deleted := snapshot(current)
+		if _, err := articlemodels.ArticleObjects.Delete(work, session, &current); err != nil {
+			return Article{}, err
 		}
-		return mutationResult(MutationDelete, snapshot(deleted), nil), nil
+		if r.mutationHook != nil {
+			if err := r.mutationHook(work, session, mutationResult(MutationDelete, deleted, nil)); err != nil {
+				return Article{}, err
+			}
+		}
+		return deleted, nil
 	})
-	if err != nil {
-		return Article{}, fmt.Errorf("article delete: %w", err)
-	}
-	return snapshot(deleted), nil
 }
 
 func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, error) {

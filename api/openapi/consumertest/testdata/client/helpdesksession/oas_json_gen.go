@@ -693,6 +693,44 @@ func (s *HelpdeskLabelCreateUnsupportedMediaType) UnmarshalJSON(data []byte) err
 	return s.Decode(d)
 }
 
+// Encode encodes HelpdeskLabelDeleteBadRequest as json.
+func (s *HelpdeskLabelDeleteBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskLabelDeleteBadRequest from json.
+func (s *HelpdeskLabelDeleteBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskLabelDeleteBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskLabelDeleteBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskLabelDeleteBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskLabelDeleteBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HelpdeskLabelDeleteForbidden as json.
 func (s *HelpdeskLabelDeleteForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)

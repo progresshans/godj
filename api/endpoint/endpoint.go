@@ -21,7 +21,7 @@ import (
 )
 
 // Status is a response status and its public description. Success declarations
-// use the exact Output schema; Errors use the framework's JSON error envelope.
+// use the exact Output representation; Errors use the framework's JSON error envelope.
 // Authentication and internal-error responses remain owned by their profiles.
 type Status struct {
 	Code        int
@@ -100,11 +100,22 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 	}
 	success, failures := make(map[int]bool, len(config.Success)), make(map[int]bool)
 	for index, status := range config.Success {
-		if status.Code < 200 || status.Code >= 300 || status.Code == http.StatusNoContent || status.Code == http.StatusResetContent || success[status.Code] {
-			return Endpoint{}, invalidIndex(index, "success must be a distinct JSON-compatible 2xx status")
+		if success[status.Code] {
+			return Endpoint{}, invalidIndex(index, "success statuses must be distinct")
+		}
+		response := openapi.Response{Status: status.Code, Description: status.Description}
+		if config.Output.IsNoContent() {
+			if status.Code != http.StatusNoContent {
+				return Endpoint{}, invalidIndex(index, "no-content success requires status 204")
+			}
+		} else {
+			if status.Code < 200 || status.Code >= 300 || status.Code == http.StatusNoContent || status.Code == http.StatusResetContent {
+				return Endpoint{}, invalidIndex(index, "JSON success requires a JSON-compatible 2xx status")
+			}
+			response.ContentType, response.Schema = api.JSONContentType, config.Output.Schema()
 		}
 		success[status.Code] = true
-		operation.Responses = append(operation.Responses, openapi.Response{Status: status.Code, Description: status.Description, ContentType: api.JSONContentType, Schema: config.Output.Schema()})
+		operation.Responses = append(operation.Responses, response)
 	}
 	errorSchema, err := openapi.Ref(openapi.ErrorSchemaName)
 	if err != nil {
@@ -188,7 +199,7 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 		if err != nil {
 			return web.Response{}, err
 		}
-		if !success[response.Status()] || !jsonContentType(response.Header()) {
+		if !success[response.Status()] || !encoder.IsNoContent() && !jsonContentType(response.Header()) {
 			return web.Response{}, responseError("handler returned an undeclared status or representation", nil)
 		}
 		return response, nil

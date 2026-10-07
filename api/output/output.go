@@ -1,4 +1,4 @@
-// Package output binds explicit Go getters to JSON output and OpenAPI schemas.
+// Package output binds typed JSON or no-content responses to their declarations.
 // Shapes are immutable declarations; preparation performs no I/O and never
 // reads a DTO. There is no struct reflection or arbitrary encoder/schema pair.
 package output
@@ -36,7 +36,7 @@ func schemaOf(node *node) openapi.Schema {
 	return node.schema
 }
 
-// Output is a prepared declaration and one whole-response resource budget. It
+// Output is a prepared response declaration and, for JSON, its resource budget. It
 // may be shared concurrently when application getters are concurrency-safe.
 // Source values and mutable fields must remain stable until Encode/Prepare/JSON
 // returns.
@@ -48,7 +48,7 @@ type Output[T any] struct {
 
 // A nonzero-sized identity separates even independently prepared outputs with
 // the same shape and limits. Copying an Output deliberately retains ownership.
-type responseOwner struct{ valid bool }
+type responseOwner struct{ noContent bool }
 
 func New[T any](shape Shape[T], limits serializers.Limits) (Output[T], error) {
 	if shape.project == nil || shape.node == nil {
@@ -58,7 +58,7 @@ func New[T any](shape Shape[T], limits serializers.Limits) (Output[T], error) {
 	if err != nil {
 		return Output[T]{}, configError("response limits are invalid", err)
 	}
-	output := Output[T]{shape: shape, limits: resolved, owner: &responseOwner{valid: true}}
+	output := Output[T]{shape: shape, limits: resolved, owner: &responseOwner{}}
 	if _, err := Components(output.Declaration()); err != nil {
 		return Output[T]{}, err
 	}
@@ -66,10 +66,13 @@ func New[T any](shape Shape[T], limits serializers.Limits) (Output[T], error) {
 }
 
 // Schema returns the root schema, including its named reference when declared.
-// Components collects the matching definitions for the document.
+// NoContent has no JSON schema. Components collects definitions for the document.
 func (o Output[T]) Schema() openapi.Schema { return schemaOf(o.shape.node) }
 
 func (o Output[T]) Encode(ctx context.Context, value T) ([]byte, error) {
+	if o.IsNoContent() {
+		return nil, responseError("no-content output has no JSON value", nil)
+	}
 	if o.shape.project == nil || o.shape.node == nil {
 		return nil, configError("output is zero or invalid", nil)
 	}
@@ -94,6 +97,9 @@ func (o Output[T]) Encode(ctx context.Context, value T) ([]byte, error) {
 // encoding succeed. Authorization, reads and transaction ownership stay with
 // the handler; write handlers must validate output before committing a write.
 func (o Output[T]) JSON(ctx context.Context, status int, value T) (web.Response, error) {
+	if o.IsNoContent() {
+		return web.Response{}, responseError("no-content output has no JSON representation", nil)
+	}
 	prepared, err := o.Prepare(ctx, status, value)
 	if err != nil {
 		return web.Response{}, err
@@ -101,8 +107,8 @@ func (o Output[T]) JSON(ctx context.Context, status int, value T) (web.Response,
 	return o.Response(prepared)
 }
 
-// Prepared is a complete immutable JSON response bound to the exact Output
-// that encoded it. The zero value is invalid. Its Go type retains the DTO type,
+// Prepared is a complete immutable response bound to the exact Output that
+// prepared it. The zero value is invalid. Its Go type retains the DTO type,
 // while the private owner also retains the declaration and resource budget.
 // A handler can prepare it before committing an application transaction, then
 // return it only after that transaction's successful outcome is confirmed.
@@ -115,11 +121,16 @@ type Prepared[T any] struct {
 }
 
 // WithHeaders takes the same detached header snapshot as web.Response. Endpoint
-// consumers additionally check the JSON Content-Type; other header policy
-// remains with the application and its authentication adapter.
+// consumers additionally check the JSON Content-Type. NoContent rejects message
+// framing headers; resource metadata remains with the application and adapter.
 func (prepared Prepared[T]) WithHeaders(header http.Header) (Prepared[T], error) {
 	if prepared.owner == nil {
 		return Prepared[T]{}, responseError("prepared response is zero or invalid", nil)
+	}
+	if prepared.owner.noContent {
+		if err := validateNoContentHeaders(header); err != nil {
+			return Prepared[T]{}, err
+		}
 	}
 	response, err := prepared.response.WithHeaders(header)
 	if err != nil {
@@ -128,15 +139,29 @@ func (prepared Prepared[T]) WithHeaders(header http.Header) (Prepared[T], error)
 	return Prepared[T]{response: response, owner: prepared.owner}, nil
 }
 
-// Prepare encodes the whole DTO now, retaining neither its getters nor its
-// mutable values for later evaluation. It performs no persistence or HTTP I/O.
+// Prepare creates a no-content response or encodes the whole JSON DTO now,
+// retaining no getters or mutable values. It performs no persistence or HTTP I/O.
 func (o Output[T]) Prepare(ctx context.Context, status int, value T) (Prepared[T], error) {
-	body, err := o.Encode(ctx, value)
-	if err != nil {
-		return Prepared[T]{}, err
+	var body []byte
+	var header http.Header
+	if o.IsNoContent() {
+		if status != http.StatusNoContent {
+			return Prepared[T]{}, responseError("no-content output requires status 204", nil)
+		}
+		if ctx == nil {
+			return Prepared[T]{}, responseError("output requires a context", nil)
+		}
+		if err := ctx.Err(); err != nil {
+			return Prepared[T]{}, responseError("output was cancelled", err)
+		}
+	} else {
+		var err error
+		body, err = o.Encode(ctx, value)
+		if err != nil {
+			return Prepared[T]{}, err
+		}
+		header = http.Header{"Content-Type": {api.JSONContentType}}
 	}
-	header := make(http.Header)
-	header.Set("Content-Type", api.JSONContentType)
 	response, err := web.NewResponse(status, header, body)
 	if err != nil {
 		return Prepared[T]{}, responseError("HTTP response is invalid", err)
@@ -159,9 +184,14 @@ func (o Output[T]) Response(prepared Prepared[T]) (web.Response, error) {
 
 // Declaration describes a prepared Output independent of its Go value type.
 // Its fields are private; the zero declaration is invalid.
-type Declaration struct{ node *node }
+type Declaration struct {
+	node      *node
+	noContent bool
+}
 
-func (o Output[T]) Declaration() Declaration { return Declaration{node: o.shape.node} }
+func (o Output[T]) Declaration() Declaration {
+	return Declaration{node: o.shape.node, noContent: o.IsNoContent()}
+}
 
 // Components returns detached definitions for one or more prepared outputs.
 // Reusing the same named Shape shares its identity. Independently naming two
@@ -201,11 +231,17 @@ func Components(outputs ...Declaration) ([]openapi.NamedSchema, error) {
 		return nil
 	}
 	for _, output := range outputs {
+		if output.noContent {
+			continue
+		}
 		if err := visit(output.node); err != nil {
 			return nil, err
 		}
 	}
 	for _, output := range outputs {
+		if output.noContent {
+			continue
+		}
 		if err := openapi.ValidateSchema(output.node.schema, definitions...); err != nil {
 			return nil, configError("output schema graph is invalid", err)
 		}

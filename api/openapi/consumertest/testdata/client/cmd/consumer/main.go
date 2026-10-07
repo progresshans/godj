@@ -52,6 +52,7 @@ type identityEndpoint struct {
 // The parent independently requires every name. A successful process cannot
 // omit a flow, publish partial results, or infer race instrumentation at runtime.
 var requiredChecks = [...]string{
+	"generated_no_content_wire",
 	"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry",
 	"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry",
 	"article_bearer_bulk", "article_bearer_slug", "article_bearer_crud",
@@ -178,6 +179,7 @@ func run(ctx context.Context, config input) ([]string, error) {
 			"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 		}},
 		{func() error { return checkGeneratedWire(ctx) }, []string{
+			"generated_no_content_wire",
 			"generated_article_bulk_wire", "generated_slug_wire", "generated_int64_wire", "generated_response_rejections",
 			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_url_wire", "generated_binary_wire", "generated_json_wire", "generated_collection_wire", "generated_label_ensure_wire", "generated_report_save_wire", "generated_bulk_tickets_wire", "generated_bulk_ticket_updates_wire", "generated_priority_raise_wire", "generated_ticket_summary_wire",
 		}},

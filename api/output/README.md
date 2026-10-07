@@ -58,7 +58,16 @@ Typed endpoint에서는 `Prepare(ctx, status, value)`로 같은 검증·encode�
 `Response(prepared)`는 그 Output 또는 복사본의 결과만 받아 getter를 다시 실행하지 않는다. 독립적으로 준비한
 같은 schema/타입/한도라도 다른 Output의 응답은 거부한다. Zero 또는 실패한 준비 결과도 사용할 수 없다.
 `Prepared.WithHeaders`는 body를 유지하며 완전한 header 집합을 교체·복사한다.
-[Endpoint](../endpoint/README.md)가 성공 상태와 JSON 표현을 실제 문서 선언에 연결한다.
+[Endpoint](../endpoint/README.md)가 성공 상태와 출력 표현을 실제 문서 선언에 연결한다.
+
+`output.NoContent()`는 `Output[struct{}]`로 본문 없는 204를 선언한다.
+`empty.Prepare(ctx, http.StatusNoContent, struct{}{})`로 준비하고 같은 Output의 `Response` 또는 typed endpoint에서 반환한다.
+JSON shape/schema와 기본 Content-Type을 만들지 않으며 `Components`에 추가할 정의도 없다. `Schema`는 유효한 JSON
+schema가 아닌 zero 값이다. `Encode`/`JSON`으로 사용하거나 204 외 상태로 준비하면 명시적인 오류다.
+소유권·zero 거부·context 확인은 JSON 출력과 같다. `WithHeaders`는 ETag 같은 resource metadata를 복사하며,
+204의 framing에 맞지 않는 Content-Length·Transfer-Encoding·Trailer는 대소문자와 관계없이 거부한다.
+고정 응답은 쓰기 전에 준비할 수 있다. 성공한 삭제/commit을 확인한 뒤에만 반환하고 오류에는 준비 결과를 버린다.
+실제 사용은 [Article 삭제](../../examples/article/apiapp/typed_delete.go)와 [Label 삭제](../../examples/helpdesk/label_delete_endpoint.go)에 있다.
 
 입력 binder, 선택적 필드 생략, arbitrary struct/schema/encoder 연결과 순환 schema는 이 출력 API의 지원 범위가 아니다.
 기존의 명시적 `api.JSON`, `serializers.Value`와 수동 OpenAPI 선언도 사용할 수 있다.

@@ -16,6 +16,7 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
 )
 
 // Called by the existing SQLite and PostgreSQL Bearer HTTP owners. All fault
@@ -189,6 +190,9 @@ func (backend *typedArticleBackend) Atomic(ctx context.Context, callback func(db
 	if backend.mode == "joined_miss" {
 		return errors.Join(err, errors.New("private rollback boundary"))
 	}
+	if err != nil && backend.mode == "delete_rollback_unknown" {
+		return errors.Join(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown})
+	}
 	if err == nil && backend.mode == "commit_unknown" {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
 	}
@@ -211,6 +215,19 @@ func (session typedArticleSession) Query(ctx context.Context, plan query.Plan) (
 func (session typedArticleSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
 	session.owner.writes.Add(1)
 	return session.Session.Update(ctx, plan)
+}
+
+func (session typedArticleSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
+	session.owner.writes.Add(1)
+	switch session.owner.mode {
+	case "delete_error", "delete_rollback_unknown":
+		return 0, errors.New("private delete failure")
+	case "delete_cancel":
+		return 0, context.Canceled
+	case "delete_rejection":
+		return 0, validation.Reject(validation.NewErrors(validation.New(validation.NonField, "protected")), nil)
+	}
+	return session.Session.Delete(ctx, plan)
 }
 
 type typedArticleInvalidOutputRows struct{ db.Rows }

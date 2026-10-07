@@ -1540,6 +1540,44 @@ func (s *GodjConformanceArticleCreateUnsupportedMediaType) UnmarshalJSON(data []
 	return s.Decode(d)
 }
 
+// Encode encodes GodjConformanceArticleDeleteBadRequest as json.
+func (s *GodjConformanceArticleDeleteBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes GodjConformanceArticleDeleteBadRequest from json.
+func (s *GodjConformanceArticleDeleteBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjConformanceArticleDeleteBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = GodjConformanceArticleDeleteBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjConformanceArticleDeleteBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjConformanceArticleDeleteBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes GodjConformanceArticleDeleteForbidden as json.
 func (s *GodjConformanceArticleDeleteForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)

@@ -256,6 +256,10 @@ type HelpdeskLabelCreateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskLabelCreateUnsupportedMediaType) helpdeskLabelCreateRes() {}
 
+type HelpdeskLabelDeleteBadRequest GoDjAPIError
+
+func (*HelpdeskLabelDeleteBadRequest) helpdeskLabelDeleteRes() {}
+
 type HelpdeskLabelDeleteForbidden GoDjAPIError
 
 func (*HelpdeskLabelDeleteForbidden) helpdeskLabelDeleteRes() {}

@@ -1,7 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-10-08
-- 현재 작업: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md)
+- 현재 구현: [GDJ-0120 Typed 204 응답과 삭제 endpoint](../../work/0120-typed-no-content-responses.md)
+- 진행 중인 검증: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI](https://github.com/progresshans/godj/actions/runs/37660451511)
 - 검증 운영: PR 생성·push·재개와 main push에서 [전체 원격 CI](../TESTING.md)를 자동 실행한다. 로컬은 포맷·최소 compile와 실패 재현을 맡는다.
 - 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
 - 영향 검증 완료·전체 통합 재검증 대기: [GDJ-0117 Typed 경로와 단계 입력](../../work/0117-typed-path-and-ordered-inputs.md), source `55e0453d` 및 인증 관찰자/기준 잠금 보정 `587aeea0`
@@ -15,6 +16,10 @@
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
+
+이 작업 사본은 GDJ-0120의 NoContent Output·Prepared와 endpoint/OpenAPI를 Article·Label 삭제에 연결했다.
+최소 compile·실제 문서 export·필요한 SDK 생성물을 준비했으며 테스트 본문·HTTP/DB·생성 drift는 원격 검증 대기다.
+게시된 header source의 원격 실행과 이 미게시 변경을 구분한다.
 
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
 원격 Linux/amd64에서 typed parameter/OpenAPI/endpoint와 독립 SDK의 normal/race/CGO0·재생성 drift·실제 HTTP를 확인했다.
@@ -31,6 +36,7 @@ PR 자동 CI에서 현재 source의 전체 통합을 확인하며 이전 source�
 
 Header를 포함한 PR source의 자동 CI에서 필수 job·capture·최종 집계를 확인하고 실패한 검증을 보정한다.
 기존 428/400/412 의미와 인증·경로/query·header·body·DB 순서를 실제 소비자와 독립 client로 확인한다.
+GDJ-0120 source를 게시한 뒤 삭제 전 응답 준비·확인된 commit·실패/unknown과 양 DB/client를 원격 CI에서 검증한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

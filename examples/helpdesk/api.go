@@ -226,7 +226,11 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, labelEnsure, labelUpdate, labelPatch}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	labelDelete, err := a.labelDeleteEndpoint(authentication)
+	if err != nil {
+		return nil, err
+	}
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, labelEnsure, labelUpdate, labelPatch, labelDelete}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
 	if err != nil {
 		return nil, err
 	}

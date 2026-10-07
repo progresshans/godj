@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md), [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md), [GDJ-0118](../../work/0118-typed-json-collections.md), [GDJ-0119](../../work/0119-typed-header-inputs.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md), [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md), [GDJ-0118](../../work/0118-typed-json-collections.md), [GDJ-0119](../../work/0119-typed-header-inputs.md), [GDJ-0120](../../work/0120-typed-no-content-responses.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -133,9 +133,10 @@ typed handler와 OpenAPI operation을 함께 준비한다. Route와 전체 schem
 준비 결과는 DTO를 보관하지 않으며 구조에도 T를 결합해 명시적 다른 DTO 타입 변환을 compile로 거부한다.
 별도 비영 크기 identity가 정확한 Output과 예산에 결합한다. Output 복사본은 identity를 공유하지만 같아 보이는 독립
 선언에서 만든 결과는 거부한다. Endpoint는 준비 응답의 owner·선언한 JSON 2xx 상태·정확한 단일 Content-Type을 검사한다.
-204/205·streaming·다른 성공 DTO union은 이 연결에서 지원하지 않는다. 추가 header 정책은 Web/application/adapter가 소유한다.
+JSON 출력은 204/205를 허용하지 않는다. 본문 없는 204는 아래 GDJ-0120이 연결하며 streaming·다른 성공 DTO union은
+후속 범위다. 추가 header 정책은 Web/application/adapter가 소유한다.
 
-Handler는 transaction 안에서 출력 준비를 끝내고 성공한 commit 뒤에만 결과를 반환한다. Endpoint는 나중에 encode하지
+Handler는 commit 전에 출력 준비를 끝내고 성공한 commit 뒤에만 결과를 반환한다. Endpoint는 나중에 encode하지
 않으며 handler가 보고한 오류/취소에는 준비 결과를 버린다. Handler의 nil 오류는 확정된 결과를 뜻하며,
 그 뒤의 request context 취소만으로 이를 실패로 바꾸지 않는다. 이미 확인된 commit을 불확실한 쓰기나 재시도 신호로
 되돌리지 않는 기존 transaction 계약을 보존한다. `Reject`의 직접 반환만 선언한 4xx로 바꾸고 wrapped/joined 오류를
@@ -214,6 +215,21 @@ Identity의 User/Group/Permission 수정·삭제와 password 명령은 Required 
 직접 소비한다. 기존 누락 428/invalid 400/현재 revision 불일치 412는 업무의 명시적 HTTP 정책이다. 같은 parameter를
 문서에 쓰되 authentication/CSRF → path/query → header → body → manager의 순서와 현재 인가·쓰기 fence를 유지한다.
 Cookie·반복/list header·자동 CRUD와 전체 Identity endpoint 전환은 이 연결의 범위가 아니다.
+
+GDJ-0120은 `output.NoContent()`를 닫힌 `Output[struct{}]`의 별도 표현으로 제공한다. Unit 값은 응답 데이터가 아니며
+JSON Shape/schema를 만들지 않는다. 초기화 때 endpoint는 204만 허용하고 content 없는 OpenAPI 응답을 만든다.
+준비는 context를 확인하고 빈 body/header를 소유한다. 동일 Output 복사본만 Prepared를 반환할 수 있으며 같은 Go type의
+독립 NoContent/JSON 선언과도 혼용하지 못한다. JSON Encode/JSON helper는 명시적인 오류다.
+`Prepared.WithHeaders`는 resource metadata를 복사하며 Content-Length·Transfer-Encoding·Trailer는 거부한다.
+이는 [RFC 9110의 204/Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.5)와
+[RFC 9112의 framing](https://www.rfc-editor.org/rfc/rfc9112.html#section-6.1)에 따른다.
+
+Article와 Helpdesk Label 삭제는 같은 선언으로 인가·양수 경로·204와 오류 상태를 연결한다. 기존 query/body 무시 정책을
+유지하며 fixed response를 삭제 전에 준비하고 확인된 commit 뒤에만 반환한다. Article의 기존 삭제 kernel은 같은
+prepared transaction owner를 사용해 callback 누락/반복·오류 은폐를 거부하고 mutation hook과 삭제를 함께 commit한다.
+확인된 missing/validation만 기존 404/400으로 반환한다. 취소와 wrapped/joined infrastructure·unknown outcome은
+오류로 보존한다. Label의 category 확인과 CASCADE는 기존 relation transaction이 소유하며 관련 없는 label/ticket을 보존한다.
+기존 validation 400 응답을 명시적으로 기술해 Session client도 같은 실패 형태를 읽도록 한다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

@@ -522,6 +522,7 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "no-content output has no DTO", fixture: "output_no_content_mismatch.go.txt", wantFragments: []string{"Output[struct{}]", "Output[string]"}},
 		{name: "list input retains its slice type", fixture: "endpoint_list_mismatch.go.txt", wantFragments: []string{"Input", "[]row", "row"}},
 		{name: "list validator retains the item type", fixture: "input_list_validator_mismatch.go.txt", wantFragments: []string{"ListValidator", "other"}},
 		{name: "sequence preserves ordered field types", fixture: "endpoint_sequence_mismatch.go.txt", wantFragments: []string{"Pair", "int64", "string"}},

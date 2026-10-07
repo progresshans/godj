@@ -560,6 +560,10 @@ type GodjConformanceArticleCreateUnsupportedMediaType GoDjAPIError
 
 func (*GodjConformanceArticleCreateUnsupportedMediaType) godjConformanceArticleCreateRes() {}
 
+type GodjConformanceArticleDeleteBadRequest GoDjAPIError
+
+func (*GodjConformanceArticleDeleteBadRequest) godjConformanceArticleDeleteRes() {}
+
 type GodjConformanceArticleDeleteForbidden GoDjAPIError
 
 func (*GodjConformanceArticleDeleteForbidden) godjConformanceArticleDeleteRes() {}

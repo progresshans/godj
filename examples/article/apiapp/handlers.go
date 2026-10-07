@@ -112,17 +112,6 @@ func (a *Application) retrieveHead(request *web.Request, principal auth.Principa
 	return emptyBody(response, err)
 }
 
-func (a *Application) delete(request *web.Request, _ auth.Principal) (web.Response, error) {
-	id, ok := detailID(request)
-	if !ok {
-		return notFoundResponse()
-	}
-	if _, err := a.repository.Delete(request.Context(), id); err != nil {
-		return a.writeError(err)
-	}
-	return api.NoContent()
-}
-
 func (a *Application) listOptions(*web.Request, auth.Principal) (web.Response, error) {
 	return optionsResponse(http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPost)
 }

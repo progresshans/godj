@@ -137,12 +137,6 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 			Summary:    "Describe Article detail methods",
 			Permission: articleapp.ArticleViewPermission, Responses: []openapi.Response{detailOptionsResponse},
 		}, handler: a.detailOptions},
-		{operation: openapi.Operation{
-			Route:      web.Route{Name: Namespace + ":article-delete", Method: http.MethodDelete, Path: DetailPath},
-			Summary:    "Delete an Article",
-			Permission: articleapp.ArticleDeletePermission,
-			Responses:  []openapi.Response{{Status: http.StatusNoContent, Description: "The Article was deleted. The response has no body or Content-Type."}, notFound},
-		}, handler: a.delete},
 	}
 	operations := make([]openapi.Operation, 0, len(declarations))
 	for _, declaration := range declarations {
@@ -169,7 +163,11 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 	if err != nil {
 		return nil, err
 	}
-	typed, schemas, err := endpoint.Collect([]endpoint.Endpoint{fullUpdate, partialUpdate, bulk})
+	remove, err := a.deleteEndpoint(authentication)
+	if err != nil {
+		return nil, err
+	}
+	typed, schemas, err := endpoint.Collect([]endpoint.Endpoint{fullUpdate, partialUpdate, bulk, remove})
 	if err != nil {
 		return nil, err
 	}
