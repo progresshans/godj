@@ -50,3 +50,6 @@ Source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/g
 보정 source `f45eb512`에서 실제 transport 설명과 구성 순서에 독립적인 경로 관찰을 연결하고 영향 세 mode·고정 reference 대조를
 완료했다. 후속 전체 통합은 보정 source의 새 실행이 소유하며 상세는 TEST_EVIDENCE를 따른다.
 Source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)에서 전체 통합을 진행한다.
+
+Hosted `37581945355`의 기준 checksum 연결 누락은 `587aeea0`에서 보완했다. 전체 scenario의 기존 digest 재현·
+새 digest와 artifact 잠금 검증을 완료했으며 새 source의 전체 통합은 후속 Hosted가 소유한다. 상세는 TEST_EVIDENCE에 둔다.

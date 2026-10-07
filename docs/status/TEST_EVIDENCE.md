@@ -3,6 +3,33 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0116/0117 — 기준 결과의 checksum 연결 보완
+
+2026-10-07 KST, Hosted full `37581945355`의 Python compatibility 세 버전과 relation product에서
+갱신한 API-011 oracle에 연결된 checksum 누락을 확인했다. Python 3.14.3/3.14.7/3.13.15는 각각 portable suite 뒤
+전체 semantic digest에서 실패했고, relation product는 기존 artifact byte lock에서 실패했다. 최초 여섯 실패 job의
+원 로그는 `hosted-37581945355-job-{112663608911,112663608920,112663609021,112663609489,112663609499,112663609555}.log`에 보존했다.
+해당 source의 전체 성공을 주장하지 않는다.
+
+보완 source `587aeea035f72c16f635f115f5df792c459d44e8`은 oracle 바이트 변경 없이 DRF `SHA256SUMS`,
+Go artifact catalog와 CI 전체 digest를 연결한다. 같은 고정 uv 0.10.12/Python 3.14.3/Django 6.1/DRF 3.18에서
+311개 scenario를 실제 관찰했고 payload는 1,082,209 bytes다. API-011의 두 profile 경로 순서만 이전 순서로
+되돌린 payload가 기존 digest `c07d1ed3914ba692e7b35bb38da73e9d1f3565de9ed39a7e9391590d1f0062e5`와 정확히 같다.
+현재 payload의 digest는 `d046e618ed26bbd3717d52b98c0542dfe7f10f7fc8259a4455ad583b698639a0`이고,
+바뀐 scenario는 Go-native `godj.api_authentication.article_route_reuse` 하나다. 기존 Django-owned 의미는 바뀌지 않았다.
+관찰은 36.587s이며 과거/현재 payload와 scenario별 digest를 함께 보존했다.
+
+Go 1.26.5/darwin/arm64·공유 cache·offline graph의 전체 `conformance/internal/protocol`은
+124 roots·909 run/pass·0 skip으로 통과했다. 원 JSON SHA는
+`ab339ddbffe70bbcb04e66548c2a31851f5a56c8985d884dcb2bf28cdb32c86b`이다. 모든 oracle checksum 27개도
+실제 파일과 대조했고 CI의 scenario 개수/bytes/digest가 실제 관찰과 같은지 확인했다. 변경은 기준 잠금의 연결뿐이므로
+제품/인증 행동의 세 mode 영향 검증은 앞선 `f45eb512`가 소유하며 같은 검사를 반복하지 않았다.
+
+`typed-auth-reference-lock-audit-20261007-1557/receipt.json` SHA는
+`f3dd47080b12a0d0bc1c95a5090fcb91c88c8fa55fff55369e1529cfc659b5a1`이다. 비Markdown 3193개 source inventory SHA는
+`783520686a71ad12a59e0ae6506bec6db06055acab479723a1172f6d8610c2b9`이고 모두 `587aeea0`의 Git blob과 대조했다.
+Source audit SHA는 `7c470485e0d04177365b64b4eeb3c40e20baa54fed5aa9c54dc2e8671683bc05`다. 새 source의 Hosted full·capture·최종 집계는 후속 실행이 소유한다.
+
 ## GDJ-0116/0117 — Hosted에서 발견한 인증 관찰자 연결 보정
 
 2026-10-07 KST, source `63478ee6`의 Hosted full `37579524401`에서 portable conformance와 project-check의
