@@ -114,6 +114,15 @@ class APIAuthenticationScenarioTests(unittest.TestCase):
         self.assertEqual(cases["rfc_alphabet"]["verifier_calls"], 1)
         self.assertEqual(cases["tab_separator"]["outcome"], "invalid_request")
 
+        reuse = _observation("godj.api_authentication.article_route_reuse", "API-011")
+        routes = reuse["result"]["profiles"]["bearer"]["routes"]
+        self.assertEqual(routes, sorted({
+            "GET /api/articles/", "POST /api/articles/",
+            "GET /api/articles/:id/", "PUT /api/articles/:id/",
+            "PATCH /api/articles/:id/", "DELETE /api/articles/:id/",
+        }))
+        self.assertEqual(reuse["result"]["profiles"]["session"]["routes"], routes)
+
     @unittest.skipUnless(_DRF_AVAILABLE, "requires Django REST framework")
     def test_drf_missing_and_invalid_token_semantics(self) -> None:
         missing = _observation(

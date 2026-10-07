@@ -195,14 +195,16 @@ def secret_and_failure_boundary(contract_id: str) -> dict[str, Any]:
 
 
 def article_route_reuse(contract_id: str) -> dict[str, Any]:
-    routes = [
+    # This Go-native decision specifies route membership, not construction
+    # order. Retain every member and sort the observation deterministically.
+    routes = sorted([
         "GET /api/articles/",
         "POST /api/articles/",
         "GET /api/articles/:id/",
         "PUT /api/articles/:id/",
         "PATCH /api/articles/:id/",
         "DELETE /api/articles/:id/",
-    ]
+    ])
     return observed(
         contract_id,
         {

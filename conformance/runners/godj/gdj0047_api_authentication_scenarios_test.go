@@ -3,6 +3,7 @@ package godj
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"os"
 	"reflect"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/web"
 )
 
 var gdj0047ExpectedRegistrations = []struct {
@@ -28,6 +30,38 @@ var gdj0047ExpectedRegistrations = []struct {
 	{id: "AUT-016", scenario: "godj.api_authentication.secret_and_failure_boundary", phase: protocol.PhaseEvaluation},
 	{id: "API-011", scenario: "godj.api_authentication.article_route_reuse", phase: protocol.PhaseCommit, dbState: true},
 	{id: "API-012", scenario: "godj.api_authentication.denial_mutation_boundary", phase: protocol.PhaseEvaluation, dbState: true},
+}
+
+func TestGDJ0047CRUDRouteObservationPreservesMembership(t *testing.T) {
+	routes := []web.Route{
+		{Method: http.MethodGet, Path: "/api/articles/"},
+		{Method: http.MethodPost, Path: "/api/articles/"},
+		{Method: http.MethodGet, Path: "/api/articles/<int64:id>/"},
+		{Method: http.MethodPut, Path: "/api/articles/<int64:id>/"},
+		{Method: http.MethodPatch, Path: "/api/articles/<int64:id>/"},
+		{Method: http.MethodDelete, Path: "/api/articles/<int64:id>/"},
+	}
+	want := []string{"DELETE /api/articles/:id/", "GET /api/articles/", "GET /api/articles/:id/", "PATCH /api/articles/:id/", "POST /api/articles/", "PUT /api/articles/:id/"}
+	if got := gdj0047CRUDRoutes(routes); !slices.Equal(got, want) {
+		t.Fatalf("CRUD observation = %v, want %v", got, want)
+	}
+	reordered := slices.Clone(routes)
+	slices.Reverse(reordered)
+	if !slices.Equal(gdj0047CRUDRoutes(reordered), want) || routes[0].Method != http.MethodGet {
+		t.Fatal("declaration order changed the observation or the observer mutated routes")
+	}
+	for name, changed := range map[string][]web.Route{
+		"missing":          routes[1:],
+		"duplicate":        append(slices.Clone(routes), routes[0]),
+		"extra":            append(slices.Clone(routes), web.Route{Method: http.MethodPost, Path: "/api/other/"}),
+		"different method": append(slices.Clone(routes[:5]), web.Route{Method: http.MethodPost, Path: routes[5].Path}),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if slices.Equal(gdj0047CRUDRoutes(changed), want) {
+				t.Fatal("changed route membership was hidden")
+			}
+		})
+	}
 }
 
 func TestGDJ0047APIAuthenticationHandlersObserveRealProfilesAndSQLite(t *testing.T) {

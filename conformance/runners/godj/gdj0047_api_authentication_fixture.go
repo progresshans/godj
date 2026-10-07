@@ -155,14 +155,25 @@ type gdj0047InvocationSnapshot struct {
 	principalID string
 }
 
+// Article endpoints document the same transport that admits their requests.
+// Both observation decorators retain that capability from the real runtime.
+type gdj0047Authentication interface {
+	api.Authentication
+	api.AuthenticationDescriber
+}
+
 // gdj0047CountingAuthentication decorates one real authentication Runtime.
 // It counts only invocations that crossed parsing, verification, and
 // authorization and records the exact Principal passed to the Article handler.
 type gdj0047CountingAuthentication struct {
-	inner       api.Authentication
+	inner       gdj0047Authentication
 	calls       atomic.Int64
 	mu          sync.Mutex
 	principalID string
+}
+
+func (authentication *gdj0047CountingAuthentication) DescribeAuthentication() (api.AuthenticationDescription, error) {
+	return authentication.inner.DescribeAuthentication()
 }
 
 func (authentication *gdj0047CountingAuthentication) Require(

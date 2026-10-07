@@ -101,7 +101,7 @@ func gdj0047CommonAuthenticationBoundary(ctx context.Context, contract protocol.
 	if nilHandlerErr == nil || nilHandler != nil {
 		return protocol.Observation{}, errors.New("GDJ-0047 nil authenticated handler was published")
 	}
-	partial := &gdj0047PartialAuthentication{failAt: 3, principal: principal}
+	partial := &gdj0047PartialAuthentication{failAt: 3, inner: fixture.bearerRuntime}
 	partialApplication, partialErr := apiapp.New(fixture.observed, partial)
 	if partialErr == nil || partialApplication != nil || partial.calls != partial.failAt {
 		return protocol.Observation{}, errors.New("GDJ-0047 partial wrapper failure did not fail atomically")
@@ -144,23 +144,25 @@ func gdj0047CommonAuthenticationBoundary(ctx context.Context, contract protocol.
 }
 
 type gdj0047PartialAuthentication struct {
-	failAt    int
-	calls     int
-	principal auth.Principal
+	failAt int
+	calls  int
+	inner  gdj0047Authentication
+}
+
+func (authentication *gdj0047PartialAuthentication) DescribeAuthentication() (api.AuthenticationDescription, error) {
+	return authentication.inner.DescribeAuthentication()
 }
 
 func (authentication *gdj0047PartialAuthentication) Require(
-	_ auth.Permission,
+	permission auth.Permission,
 	handler api.AuthenticatedHandler,
-	_ ...auth.Permission,
+	additional ...auth.Permission,
 ) (web.Handler, error) {
 	authentication.calls++
 	if authentication.calls == authentication.failAt {
 		return nil, errors.New("intentional GDJ-0047 wrapper construction failure")
 	}
-	return func(request *web.Request) (web.Response, error) {
-		return handler(request, authentication.principal)
-	}, nil
+	return authentication.inner.Require(permission, handler, additional...)
 }
 
 func gdj0047BoundedBearerHeader(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -898,6 +900,9 @@ func gdj0047CRUDRoutes(routes []web.Route) []string {
 		path := strings.ReplaceAll(route.Path, "<int64:id>", ":id")
 		result = append(result, route.Method+" "+path)
 	}
+	// The contract compares the published CRUD members, not the application's
+	// construction order. Sorting retains missing, extra and duplicate routes.
+	slices.Sort(result)
 	return result
 }
 
