@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md), [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md), [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md), [GDJ-0118](../../work/0118-typed-json-collections.md), [GDJ-0119](../../work/0119-typed-header-inputs.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -100,8 +100,8 @@ Setter는 순수하고 DTO 포인터를 보관하지 않는다. 반환 DTO·Opti
 
 Helpdesk 요약은 기존 canonical 정수·진단 순서·snapshot을, Label/티켓–Label 목록은 기존 digits·default·전체 query 오류와
 count/items 별도 읽기를 유지한다. 인증 이후 parsing 순서와 Category/관계 scope도 유지한다. Ticket 본문 검색의 raw-segment
-parser는 오류/semicolon 의미가 달라 이번 연결에 포함하지 않는다. Header/path binder나 endpoint 전체 구성을
-완료한 것으로 계산하지 않으며 별도 호환 profile을 만들지 않는다.
+parser는 오류/semicolon 의미가 달라 이 연결에 포함하지 않는다. Endpoint·경로·header는 아래 GDJ-0116/0117/0119에서
+연결하며 별도 호환 profile을 만들지 않는다.
 
 GDJ-0115의 [typed JSON 입력](../../api/input/README.md)은 같은 `serializers.Spec`의 full/partial 검증 결과와
 `RequestSchema`를 `input.Body[T]`로 연결한다. 모델 의미는 `FromModel`이 Schema IR에서 가져온다. Writable field마다
@@ -120,7 +120,7 @@ null을 드러내며 Presence의 bool과 함께 생략을 구분한다. 기존 o
 않는다. Borrowed body를 닫거나 detached goroutine을 시작하지 않으며 진행 중인 Read 해제는 transport/body owner의
 책임이다. 늦은 취소에도 부분 DTO를 반환하지 않지만 setter의 외부 부작용을 취소하는 transaction은 추론하지 않는다.
 Label과 ServiceReport의 create/PUT/PATCH·ensure/save는 이 연결을 사용한다. 인가·CSRF·대상/관계 scope·고유성·저장과
-audit/출력 원자성은 기존 업무가 소유한다. 경로·배열 연결은 아래 GDJ-0117/0118이 다루고 header·자동 viewset은 후속 범위다.
+audit/출력 원자성은 기존 업무가 소유한다. 경로·배열·header 연결은 아래 GDJ-0117/0118/0119가 다루며 자동 viewset은 후속 범위다.
 
 GDJ-0116의 [typed endpoint](../../api/endpoint/README.md)는 같은 Query/Body·Output과 명시한 admission·상태에서
 typed handler와 OpenAPI operation을 함께 준비한다. Route와 전체 schema graph는 기존 OpenAPI/Web validator로 검사하며
@@ -142,7 +142,7 @@ Handler는 transaction 안에서 출력 준비를 끝내고 성공한 commit 뒤
 풀어 expected rejection으로 만들지 않는다. 취소와 동시에 일어난 입력/업무 오류는 내부 cause를 함께 보존한다.
 Helpdesk 요약의 읽기 snapshot과 Label ensure의 reload·출력·audit·commit 순서가 이 연결을 소비한다.
 각 operation과 component의 최종 충돌은 application 문서에서 검사하며 동일 Input/Named Shape만 component identity를 공유한다.
-경로와 입력 결합은 GDJ-0117, 배열 body는 GDJ-0118이 연결하며 header·일반 CRUD/viewset은 후속 범위로 유지한다.
+경로와 입력 결합은 GDJ-0117, 배열 body는 GDJ-0118, header는 GDJ-0119가 연결하며 일반 CRUD/viewset은 후속 범위로 유지한다.
 
 GDJ-0117은 기존 router의 Int64/String accessor를 닫힌 `Input[int64]`/`Input[string]`으로 연결한다.
 새 parser나 path schema를 만들지 않는다. Typed path가 있으면 route의 모든 parameter를 같은 이름·converter로
@@ -193,6 +193,27 @@ non-null 빈 slug는 고유성 값이다. 반환 key/count를 확인한 뒤 최�
 ArticleCreate 입력으로 1..40개를 생성한다. 실패·출력/hook 오류·취소·잘못된 callback 수명과 unknown에는 부분 결과를
 게시하지 않으며 자동 재시도하지 않는다. 이는 Article application의 bounded atomic bulk 정책이며 DRF의 기본 list
 serializer나 ORM BulkCreate 자체에 per-object save/hook 정책을 추가하는 뜻이 아니다.
+
+GDJ-0119의 `parameters.Header[T]`는 application field 하나의 scalar·presence·byte 정책과 OpenAPI parameter를
+함께 준비한다. Query와 같은 닫힌 정수/문자열 codec을 사용하되 URL decoding 없이 HTTP 서버가 제공한 field text를
+읽는다. 대소문자와 무관한 map entry 하나/value 하나만 허용하고 중복·case alias를 거부한다. Trim·comma split/join은
+수행하지 않으며 HTAB 외 ASCII control·DEL과 설정한 byte 한도 초과를 거부한다. 문자열은 UTF-8도 검사한다.
+Required·Default·Optional의 부재 의미는 query와 같고 default는 header의 control/byte 정책도 만족해야 한다.
+선언은 불변이며 입력 map/slice를 보관하지 않고 각 Optional 결과를 따로 소유한다. 이 순수 parser는 I/O를 하지 않는다.
+
+Header 이름과 1..1 MiB의 값 예산은 준비 때 검사한다. Authorization·Cookie·Content-Type·Accept와 HTTP 서버가
+별도 request field로 소유하는 Host·Transfer-Encoding·Trailer를 application parameter로 받지 않는다.
+최종 operation은 인증 profile의 CSRF header도 거부한다. 전체 header admission·transport normalization과 인증/CSRF는
+기존 HTTP server/adapter가 계속 소유한다. 정수 schema는 정확한 int64 범위와 header 전용 lexical/byte metadata를,
+문자열 schema는 같은 control·byte/empty 정책을 기록한다. 일반 generator가 extension을 전부 검사한다고 가정하지 않는다.
+
+`endpoint.Header`는 같은 선언을 입력 단계로 사용하며 client 진단은 일반 400 envelope다. Sequence는 서로 다른
+header를 결합하고 같은 이름의 반복을 대소문자와 무관하게 거부한다. Query/header는 별도 namespace이므로 같은 이름도
+가능하며 header는 NoQuery와 충돌하지 않는다. 실패·취소에는 뒤 단계/body/handler를 실행하지 않는다.
+Identity의 User/Group/Permission 수정·삭제와 password 명령은 Required canonical 1..MaxInt64-1, 19-byte 선언을
+직접 소비한다. 기존 누락 428/invalid 400/현재 revision 불일치 412는 업무의 명시적 HTTP 정책이다. 같은 parameter를
+문서에 쓰되 authentication/CSRF → path/query → header → body → manager의 순서와 현재 인가·쓰기 fence를 유지한다.
+Cookie·반복/list header·자동 CRUD와 전체 Identity endpoint 전환은 이 연결의 범위가 아니다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

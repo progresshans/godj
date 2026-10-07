@@ -56,6 +56,32 @@ func Query[T any](query parameters.Query[T]) Input[T] {
 	}
 }
 
+// Header reads one prepared application field after admission. Its parser and
+// parameter declaration remain bound; client diagnostics use the endpoint's
+// standard 400 envelope. A consumer needing another missing-condition status
+// can use parameters.Header directly and own that explicit HTTP policy.
+func Header[T any](header parameters.Header[T]) Input[T] {
+	if header.MaxBytes() == 0 {
+		return Input[T]{err: configError("input", "header is zero or unprepared", nil)}
+	}
+	return Input[T]{
+		definition: &inputDefinition{parameters: []openapi.Parameter{header.Parameter()}},
+		depth:      1, stages: 1, failures: []int{http.StatusBadRequest},
+		read: func(request *web.Request, _ auth.Principal) (T, validation.Errors, error) {
+			return header.Parse(request.HTTP().Header)
+		},
+	}
+}
+
+func hasQueryParameters(parameters []openapi.Parameter) bool {
+	for _, parameter := range parameters {
+		if parameter.In == "query" {
+			return true
+		}
+	}
+	return false
+}
+
 // JSONBody gives this exact full/partial Body schema an explicit component
 // name. Reuse the Input value to share that component between endpoints.
 // Body parsing does not inspect query parameters; NoQuery adds that policy.
@@ -131,7 +157,7 @@ func NoQuery[T any](input Input[T]) Input[T] {
 	if input.err != nil {
 		return input
 	}
-	if input.definition == nil || input.read == nil || len(input.definition.parameters) != 0 {
+	if input.definition == nil || input.read == nil || hasQueryParameters(input.definition.parameters) {
 		return Input[T]{err: configError("input", "NoQuery requires an input without query parameters", nil)}
 	}
 	result := input

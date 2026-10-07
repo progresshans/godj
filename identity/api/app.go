@@ -5,10 +5,12 @@ package identityapi
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/api/parameters"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
@@ -45,6 +47,7 @@ type Application struct {
 	groups       orm.RelationDeleter[models.Group]
 	permissions  orm.RelationDeleter[models.Permission]
 	parser       api.Parser
+	revision     parameters.Header[int64]
 	policy       api.JSONPolicy
 	document     openapi.Document
 	resources    []resource
@@ -91,6 +94,11 @@ func New(config Config) (*Application, error) {
 		return nil, err
 	}
 	a := &Application{namespace: config.Namespace, manager: manager, users: config.Users, groups: config.Groups, permissions: config.Permissions, parser: parser, policy: policy}
+	a.revision, err = parameters.NewHeader("If-Revision", parameters.Required(parameters.CanonicalInt64(1, math.MaxInt64-1)), 19,
+		"One canonical positive decimal row revision (1..9223372036854775806). For password replacement, use the User revision. This is an application condition, not an ETag.")
+	if err != nil {
+		return nil, err
+	}
 	if err := a.prepareSpecs(); err != nil {
 		return nil, err
 	}

@@ -30,9 +30,8 @@ func (a *Application) describe(authentication api.AlternativeAuthentication) (op
 	limit, _ := openapi.IntegerRange(1, 100)
 	offset, _ := openapi.IntegerRange(0, math.MaxInt32)
 	revision, _ := openapi.IntegerRange(1, math.MaxInt64)
-	writableRevision, _ := openapi.IntegerRange(1, math.MaxInt64-1)
 	versionHeader := openapi.Header{Name: "Revision", Schema: revision, Required: true, Description: "Current row revision as a canonical positive decimal, for example 1."}
-	preconditionParameter := openapi.Parameter{Name: "If-Revision", In: "header", Required: true, Schema: writableRevision, Description: "One canonical positive decimal row revision (1..9223372036854775806). For password replacement, use the User revision. This is an application condition, not an ETag."}
+	preconditionParameter := a.revision.Parameter()
 	addSchema := func(name string, schema openapi.Schema) (openapi.Schema, error) {
 		schemas = append(schemas, openapi.NamedSchema{Name: name, Schema: schema})
 		return openapi.Ref(name)

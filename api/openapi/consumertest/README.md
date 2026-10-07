@@ -6,6 +6,13 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Identity의 `If-Revision`은 서버의 typed Header가 제공한 required int64 parameter와 canonical/19-byte metadata를
+사용한다. Session/Bearer client는 같은 generated PATCH와 실제 인증/CSRF transport에서 누락 428, 중복·비정규/범위
+오류 400, 큰 정수/최댓값의 stale 412와 mixed-case 성공을 확인한다. 이 부정 입력만 전송 직전 header를 교체하며
+반환은 generated 응답 decoder가 읽는다. No-op 전후 상세와 최종 부모 DB 검사를 유지하고 재시도는 허용하지 않는다.
+필수 receipt는 `identity_bearer_typed_headers`와 `identity_session_typed_headers`다. 큰 revision의 실제 갱신·취소·
+audit/무변경은 Identity의 SQLite/PostgreSQL 검사가, int64의 정확한 생성 wire는 기존 별도 wire fixture가 검증한다.
+
 Identity의 `password_usable`은 User/UserSummary의 required read-only boolean이다.
 Session/Bearer client는 사용 불가 생성·반복 설정·복구와 활성 상태의 독립성, 목록과 view-only 상세의 현재 상태를 확인한다.
 별도 wire 검사는 두 응답형의 true/false와 필드 누락·null·숫자·문자열 거부를 확인한다.

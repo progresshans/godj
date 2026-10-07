@@ -29,6 +29,7 @@ const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
 	fixtures := []string{
+		"header_external_consumer.go.txt",
 		"endpoint_list_external_consumer.go.txt",
 		"endpoint_sequence_external_consumer.go.txt",
 		"endpoint_external_consumer.go.txt",
@@ -542,6 +543,9 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		{name: "query optional retains presence", fixture: "parameters_optional_mismatch.go.txt", wantFragments: []string{"int64", "*int64"}},
 		{name: "query default retains scalar type", fixture: "parameters_default_mismatch.go.txt", wantFragments: []string{"\"1\"", "int64"}},
 		{name: "query schema decoder binding is closed", fixture: "parameters_private_codec.go.txt", wantFragments: []string{"unexported field decode"}},
+		{name: "header retains scalar type", fixture: "header_scalar_mismatch.go.txt", wantFragments: []string{"Header[int64]", "Header[string]"}},
+		{name: "header endpoint retains presence", fixture: "header_presence_mismatch.go.txt", wantFragments: []string{"Input[*int64]", "Input[int64]"}},
+		{name: "header reader metadata binding is closed", fixture: "header_private_reader.go.txt", wantFragments: []string{"unexported field decode"}},
 		{name: "output getter retains scalar type", fixture: "output_getter_mismatch.go.txt", wantFragments: []string{"func(value row) string", "func(row) int64"}},
 		{name: "output property retains DTO type", fixture: "output_dto_mismatch.go.txt", wantFragments: []string{"Property", "other", "row"}},
 		{name: "output encoding retains DTO type", fixture: "output_encode_mismatch.go.txt", wantFragments: []string{"other{}", "row"}},

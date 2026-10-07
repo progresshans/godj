@@ -80,6 +80,9 @@ func TestManagementDocumentIsBuiltFromActualProtectedRoutesAndAllowlist(t *testi
 		}
 	}
 	response := patch["responses"].(map[string]any)["200"].(map[string]any)["headers"].(map[string]any)["Revision"].(map[string]any)
+	if condition["x-godj-header-integer"] != "canonical-decimal" || condition["x-godj-max-bytes"] != json.Number("19") || condition["x-godj-query-integer"] != nil {
+		t.Fatal("revision header parser policy is absent or describes query decoding")
+	}
 	for _, bound := range []struct {
 		schema  map[string]any
 		maximum string

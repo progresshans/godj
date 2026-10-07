@@ -9,12 +9,13 @@ import (
 )
 
 // Codec is a closed scalar conversion and its schema. Its zero value is invalid.
-// Constructors defer declaration errors to New; callers cannot replace either
-// half of the binding with an unrelated decoder or schema.
+// Constructors defer declaration errors to New or NewHeader; callers cannot
+// replace either half of the binding with an unrelated decoder or schema.
 type Codec[T any] struct {
-	decode func(string) (T, bool)
-	schema func(*T) (openapi.Schema, error)
-	empty  bool
+	decode       func(string) (T, bool)
+	schema       func(*T) (openapi.Schema, error)
+	headerSchema func(int, *T) (openapi.Schema, error)
+	empty        bool
 }
 
 // CanonicalInt64 accepts only strconv.FormatInt's decimal spelling, within the
@@ -29,10 +30,13 @@ func DigitsInt64(minimum, maximum int64) Codec[int64] {
 	return integer(minimum, maximum, openapi.UnsignedDigits)
 }
 
-func integer(minimum, maximum int64, grammar openapi.QueryIntegerGrammar) Codec[int64] {
+func integer(minimum, maximum int64, grammar openapi.IntegerTextGrammar) Codec[int64] {
 	return Codec[int64]{
 		schema: func(fallback *int64) (openapi.Schema, error) {
 			return openapi.QueryInteger(minimum, maximum, grammar, fallback)
+		},
+		headerSchema: func(maximumBytes int, fallback *int64) (openapi.Schema, error) {
+			return openapi.HeaderInteger(minimum, maximum, grammar, maximumBytes, fallback)
 		},
 		decode: func(raw string) (int64, bool) {
 			if grammar == openapi.UnsignedDigits {
@@ -51,13 +55,16 @@ func integer(minimum, maximum int64, grammar openapi.QueryIntegerGrammar) Codec[
 	}
 }
 
-// String accepts untrimmed UTF-8 without NUL, within the decoded byte limit.
-// URL '+' decodes to a space; an encoded plus remains a literal plus.
+// String accepts untrimmed UTF-8 without NUL, within the byte limit. Query
+// parsing first URL-decodes the value; header parsing preserves field text.
 func String(maximumBytes int, allowEmpty bool) Codec[string] {
 	return Codec[string]{
 		empty: allowEmpty,
 		schema: func(fallback *string) (openapi.Schema, error) {
 			return openapi.QueryString(maximumBytes, allowEmpty, fallback)
+		},
+		headerSchema: func(headerBytes int, fallback *string) (openapi.Schema, error) {
+			return openapi.HeaderString(min(maximumBytes, headerBytes), allowEmpty, fallback)
 		},
 		decode: func(raw string) (string, bool) {
 			if len(raw) > maximumBytes || !allowEmpty && raw == "" || !utf8.ValidString(raw) || strings.ContainsRune(raw, 0) {

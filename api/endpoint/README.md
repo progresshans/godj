@@ -1,7 +1,7 @@
 # Typed HTTP endpoint
 
 `api/endpoint`는 typed 입력·준비 응답·명시한 인가와 상태에서 실제 HTTP handler와 OpenAPI operation을 함께 만든다.
-입력은 기존 `parameters.Query[T]`·`input.Body[T]`와 router의 경로 값을, 출력은 `output.Output[T]`를 사용한다.
+입력은 기존 `parameters.Query[T]`·`parameters.Header[T]`·`input.Body[T]`와 router의 경로 값을, 출력은 `output.Output[T]`를 사용한다.
 모델의 검증 원본·조회·transaction 경계와 응답 encode 시점은 각 API가 소유한다.
 
 ```go
@@ -43,11 +43,15 @@ JSON negotiation은 기존 `api.JSONPolicy`와 실제 middleware가 소유한다
 문서 선언이다. 이 bool이 proof 검증을 수행하지는 않는다. Zero admission·빈/중복 권한·없는 adapter capability는 준비 오류다.
 인증 transport와 CSRF는 기존 adapter가 검증하고 typed 입력을 읽기 전에 끝낸다. 같은 permission snapshot을 실행과 문서에 쓴다.
 
-`Query(query)`는 같은 bounded URL parser/parameter를 연결한다. `JSONBody(name, body, mode, description)`는
+`Query(query)`는 같은 bounded URL parser/parameter를 연결한다. `Header(header)`는 같은 scalar/presence/byte 정책과
+header parameter를 연결한다. Header의 missing/invalid 진단도 일반 입력 400이며, Identity처럼 누락을 428로
+표현하는 업무는 `parameters.Header.Parse`를 직접 사용해 해당 상태를 소유한다. 인증 profile의 CSRF header와
+transport/인증/표현용 reserved header를 application 입력으로 선언할 수 없다.
+`JSONBody(name, body, mode, description)`는
 같은 full/partial model 입력의 JSON parser와 named schema를 연결한다. 같은 Input 값을 재사용하면 component도 공유하며,
 독립 선언의 같은 이름은 오류다. `NoInput()`은 입력을 읽지 않으며 query를 검사하지도 않는다.
 `NoQuery(input)`은 비어 있지 않은 raw query를 wrapped parser 이전에 거부한다. Query parameter가 선언된 Input과는 조합할 수 없다.
-각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query는 400, JSON body는 400/413/415이며
+각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query/Header는 400, JSON body는 400/413/415이며
 `Errors`에서 같은 상태의 업무 설명을 지정하거나 다른 4xx를 추가할 수 있다.
 
 `JSONListBody(item, input.ListConfig, description, optionalValidator)`는 bare `JSONBody`에서 `Input[[]T]`를 만든다.
@@ -64,8 +68,10 @@ trim하지 않고 반환한 문자열의 bounded bytes를 소유한다. Int64는
 
 `Sequence(first, second)`는 첫 입력 뒤 두 번째 입력을 읽고 `Pair[A, B]{First, Second}`를 만든다.
 실패·진단·취소에는 뒤 단계를 실행하지 않으며 전체 입력이 성공하기 전에는 handler를 부르지 않는다.
-한 pipeline은 query parser 하나, JSON body 하나와 서로 다른 경로 값을 결합할 수 있다. 같은 parser/body의 반복과
-NoQuery/선언한 query parameter의 충돌은 초기화에서 거부한다. `NoQuery`의 거부 시점도 감싼 입력의 단계 순서를 따른다.
+한 pipeline은 query parser 하나, JSON body 하나와 서로 다른 header·경로 값을 결합할 수 있다.
+대소문자만 다른 이름을 포함해 같은 header의 반복, 같은 query parser/body의 반복과 NoQuery/선언한 query parameter의
+충돌은 초기화에서 거부한다. Query와 header의 같은 이름은 서로 다른 source다. Header만 있는 입력은 NoQuery로
+감쌀 수 있으며 `NoQuery`의 거부 시점도 감싼 입력의 단계 순서를 따른다.
 
 `Resolve(input, prepare)`는 앞선 typed 값과 admitted Principal·같은 borrowed request를 받고 다른 업무 값으로 준비한다.
 대상 조회나 업무 검증의 위치를 명시하며 wire schema를 바꾸지 않는다. Callback은 동시 사용에 안전해야 하고 body를
@@ -113,6 +119,6 @@ Reject는 status/code를 즉시 검사하고 immutable 진단은 endpoint의 실
 [Article의 조회 우선 수정](../../examples/article/apiapp/typed_update.go),
 [Label의 body 검증 우선 수정](../../examples/helpdesk/label_update_endpoint.go),
 [Article의 원자적 배열 생성](../../examples/article/apiapp/bulk_create.go)에 있다.
-Header typed binder, streaming/no-content 성공, 여러 종류의 성공 DTO,
+Streaming/no-content 성공, 여러 종류의 성공 DTO,
 자동 CRUD/viewset은 후속 범위다. 현재 수동 handler/OpenAPI API와 혼합할 수 있으며 `Collect`의 추가 Output declaration으로
 그 수동 operation의 named schema도 함께 모을 수 있다.

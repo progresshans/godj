@@ -9,7 +9,7 @@ import (
 func TestQuerySchemaDeclarations(t *testing.T) {
 	for _, declaration := range []struct {
 		min, max int64
-		grammar  openapi.QueryIntegerGrammar
+		grammar  openapi.IntegerTextGrammar
 		fallback *int64
 	}{
 		{2, 1, openapi.CanonicalDecimal, nil}, {0, 1, "unrecognized", nil}, {-1, 1, openapi.UnsignedDigits, nil},

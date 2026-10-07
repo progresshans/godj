@@ -46,6 +46,9 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err := checkIdentitySessionEmails(ctx, client, target, state); err != nil {
 		return err
 	}
+	if err := checkIdentitySessionHeaders(ctx, client, httpClient, target, state); err != nil {
+		return err
+	}
 	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
 	loginDetail, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
 	logged, ok := loginDetail.(*is.GodjIdentityIdentityUsersDetailOKHeaders)

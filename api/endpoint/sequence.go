@@ -3,6 +3,7 @@ package endpoint
 import (
 	"errors"
 	"slices"
+	"strings"
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
@@ -22,7 +23,7 @@ type Pair[A, B any] struct {
 }
 
 // Sequence reads first, then second. It supports one query parser, one body,
-// and independently named router values. Duplicate sources and conflicting
+// independently named headers and router values. Duplicate sources and conflicting
 // query policies are configuration errors, not repeated body reads or silently
 // ignored inputs. Pipelines have a maximum depth of 64 and 4096 total reader
 // invocations, counting repeated shared stages each time they would run.
@@ -48,6 +49,17 @@ func Sequence[A, B any](first Input[A], second Input[B]) Input[Pair[A, B]] {
 	if left.query && right.query || left.body != nil && right.body != nil {
 		return Input[Pair[A, B]]{err: configError("input", "sequence must not repeat a query parser or JSON body", nil)}
 	}
+	headers := make(map[string]bool)
+	for _, parameter := range left.parameters {
+		if parameter.In == "header" {
+			headers[strings.ToLower(parameter.Name)] = true
+		}
+	}
+	for _, parameter := range right.parameters {
+		if parameter.In == "header" && headers[strings.ToLower(parameter.Name)] {
+			return Input[Pair[A, B]]{err: configError("input", "sequence must not read the same header twice", nil)}
+		}
+	}
 	definition := &inputDefinition{
 		parameters: append(slices.Clone(left.parameters), right.parameters...),
 		body:       left.body, paths: append(slices.Clone(left.paths), right.paths...),
@@ -57,7 +69,7 @@ func Sequence[A, B any](first Input[A], second Input[B]) Input[Pair[A, B]] {
 	if definition.body == nil {
 		definition.body = right.body
 	}
-	if definition.noQuery && len(definition.parameters) != 0 {
+	if definition.noQuery && hasQueryParameters(definition.parameters) {
 		return Input[Pair[A, B]]{err: configError("input", "NoQuery conflicts with declared query parameters", nil)}
 	}
 	failures := slices.Clone(first.failures)

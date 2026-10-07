@@ -1,8 +1,12 @@
-# Typed query 입력
+# Typed query와 header 입력
 
-하나의 선언이 URL query 변환·Go DTO 할당·OpenAPI parameter를 소유한다. `api/parameters`는
+하나의 선언이 URL query 또는 HTTP header의 변환과 OpenAPI parameter를 소유한다. `api/parameters`는
 reflect/tag 추론이나 임의 decoder/schema 쌍 없이 현재 필요한 int64와 문자열을 지원한다.
 인가·CSRF·대상 범위·DB/context·오류 응답은 handler가 소유한다.
+
+## Query
+
+`Query[T]`는 여러 parameter를 검증한 뒤 typed setter로 하나의 DTO를 만든다.
 
 ```go
 type ListQuery struct {
@@ -27,7 +31,7 @@ input, diagnostics, err := query.Parse(request.HTTP().URL.RawQuery)
 |---|---|
 | `CanonicalInt64(min, max)` | inclusive int64 범위. `FormatInt`의 decimal 표기만 허용하며 `+1`, `01`, `-0`, 공백·소수·지수·overflow를 거부한다. |
 | `DigitsInt64(min, max)` | nonnegative inclusive int64 범위. 비어 있지 않은 ASCII digits를 받으며 `001`을 1로 읽는다. |
-| `String(maxBytes, allowEmpty)` | trim하지 않는 UTF-8. 디코딩한 byte 길이를 제한하고 NUL을 거부한다. |
+| `String(maxBytes, allowEmpty)` | trim하지 않는 UTF-8. Byte 길이를 제한하고 NUL을 거부한다. Query는 URL decoding 뒤, header는 원 field text를 검사한다. |
 | `Required(codec)` | 생략은 `required`. 빈 값의 허용 여부는 codec이 정한다. |
 | `Default(codec, value)` | 생략한 때만 검증된 기본값을 사용한다. 같은 값이 schema `default`가 된다. |
 | `Optional(codec)` | `*T`로 부재를 표현한다. nil·명시적 0·명시적 빈 문자열을 구분한다. JSON null 변환은 없다. |
@@ -52,7 +56,43 @@ Setter는 순수하고 동시 호출에 안전해야 하며 DTO 포인터를 외
 일반 generator가 확장 정책까지 검증한다고 가정하지 않는다. 서버 parser가 그 정책을 검사하며 실제 문서·고정 생성물·
 독립 HTTP client를 대조한다. `allowEmptyValue`는 문자열의 empty 정책과 함께 나온다.
 
-Helpdesk의 요약 HTML/API와 Label·티켓–Label API 목록이 첫 소비자다. JSON body/model binder, header/path,
-반복 query/list 값, 추가 scalar, endpoint DSL과 viewset은 이 package의 현재 범위에 포함하지 않는다.
+Helpdesk의 요약 HTML/API와 Label·티켓–Label API 목록이 query의 첫 소비자다.
+
+## Header
+
+`Header[T]`는 application이 소유한 field 하나를 같은 scalar·presence 선언으로 읽는다.
+
+```go
+revision, err := parameters.NewHeader("If-Revision",
+    parameters.Required(parameters.CanonicalInt64(1, math.MaxInt64-1)),
+    19, "Current row revision.",
+)
+if err != nil { return err }
+// Operation.Parameters에 revision.Parameter()를 넣고, 인증 이후 읽는다.
+value, diagnostics, err := revision.Parse(request.HTTP().Header)
+```
+
+초기화는 ASCII HTTP token 이름, codec·presence·default와 1..1 MiB의 field value byte 예산을 확인한다.
+문자열은 codec의 byte 예산과 header 예산 중 작은 한도를 사용한다. Default도 이 한도와 header control 정책을
+만족해야 한다. `Authorization`, `Cookie`, `Content-Type`, `Accept`, `Host`, `Transfer-Encoding`, `Trailer`는
+인증·표현·HTTP transport가 소유하므로 선언할 수 없다. 최종 operation은 자신의 인증 profile의 CSRF header도 거부한다.
+
+`Parse`는 대소문자와 무관하게 일치하는 map entry 하나와 value 하나만 받는다. 같은 값이어도 중복 value나
+case alias는 오류다. Comma 목록으로 나누거나 합치지 않으며 trim·URL decoding을 하지 않는다.
+HTTP 서버가 이미 정규화한 field text가 입력이다. HTAB 외의 ASCII control과 DEL을 거부하며 문자열 codec은
+UTF-8도 검사한다. 다른 header는 다른 선언과 transport가 소유하고 전체 header 개수/크기 admission은 HTTP 서버가 맡는다.
+
+필수 field 부재는 `required`, 나머지 client 오류는 `invalid`이고 진단에는 field 이름만 들어간다.
+Zero Header의 사용은 Go 설정 오류다. 입력 map/slice를 수정하거나 결과에 보관하지 않으며 문자열과 Optional 값은
+요청마다 소유한다. `Parameter()`는 분리된 metadata와 불변 schema를 반환한다.
+정수의 범위/default와 `x-godj-header-integer`, byte 한도는 같은 선언에서 생성한다. 문자열의 control pattern과
+UTF-8 byte/empty 정책도 schema에 나타나며 header에는 query용 `allowEmptyValue`를 붙이지 않는다.
+
+Identity의 User/Group/Permission 변경·삭제와 password 명령이 실제 소비자다. 이 업무는 `Parse`의 필수 부재를
+428, 잘못된 값을 400으로 연결하고 현재 DB revision의 불일치는 manager에서 412로 처리한다.
+[`endpoint.Header`](../endpoint/README.md)는 일반 입력 진단을 400으로 연결하며, 이런 별도 상태 정책은 직접 소비자가 소유한다.
+
+JSON model/body는 [`api/input`](../input/README.md), 경로와 입력 결합은 [`api/endpoint`](../endpoint/README.md)가 소유한다.
+Cookie·반복/list header나 query 값, 추가 scalar와 자동 viewset은 현재 범위에 포함하지 않는다.
 [장기 의미](../../docs/adr/0058-model-derived-openapi-and-operation-ownership.md)와
 [환경별 검증](../../docs/status/TEST_EVIDENCE.md)을 구분한다.

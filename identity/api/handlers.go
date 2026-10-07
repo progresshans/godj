@@ -3,11 +3,9 @@ package identityapi
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
@@ -39,30 +37,19 @@ func (a *Application) bind(request *web.Request, spec serializers.Spec, mode ser
 
 // The row revision condition accepts one canonical positive decimal. It is
 // distinct from HTTP representation validators and also applies to commands.
-func precondition(request *web.Request) (int64, int) {
-	count := 0
-	var values []string
-	for key, v := range request.HTTP().Header {
-		if strings.EqualFold(key, "If-Revision") {
-			count++
-			values = v
-		}
+func (a *Application) precondition(request *web.Request) (int64, int, error) {
+	value, diagnostics, err := a.revision.Parse(request.HTTP().Header)
+	if err != nil {
+		return 0, 0, err
 	}
-	if count == 0 {
-		return 0, http.StatusPreconditionRequired
+	if diagnostics.Empty() {
+		return value, 0, nil
 	}
-	if count != 1 || len(values) != 1 {
-		return 0, http.StatusBadRequest
+	first, _ := diagnostics.At(0)
+	if first.Code() == "required" {
+		return 0, http.StatusPreconditionRequired, nil
 	}
-	number := values[0]
-	if len(number) > 19 {
-		return 0, http.StatusBadRequest
-	}
-	value, err := strconv.ParseInt(number, 10, 64)
-	if err != nil || value <= 0 || value == math.MaxInt64 || strconv.FormatInt(value, 10) != number {
-		return 0, http.StatusBadRequest
-	}
-	return value, 0
+	return 0, http.StatusBadRequest, nil
 }
 
 func objectID(request *web.Request) (int64, bool) {
@@ -244,7 +231,10 @@ func (a *Application) update(r resource, mode serializers.Mode) api.Authenticate
 		if !ok {
 			return invalidRequest()
 		}
-		revision, status := precondition(request)
+		revision, status, err := a.precondition(request)
+		if err != nil {
+			return web.Response{}, err
+		}
 		if status != 0 {
 			return preconditionFailure(status)
 		}
@@ -299,7 +289,10 @@ func (a *Application) remove(r resource) api.AuthenticatedHandler {
 		if !ok {
 			return invalidRequest()
 		}
-		revision, status := precondition(request)
+		revision, status, err := a.precondition(request)
+		if err != nil {
+			return web.Response{}, err
+		}
 		if status != 0 {
 			return preconditionFailure(status)
 		}
@@ -307,7 +300,6 @@ func (a *Application) remove(r resource) api.AuthenticatedHandler {
 		if request.HTTP().ContentLength != 0 || len(request.HTTP().TransferEncoding) != 0 {
 			return invalidRequest()
 		}
-		var err error
 		switch r.name {
 		case "users":
 			_, err = a.manager.DeleteUser(request.Context(), actor, id, revision, a.users)
@@ -328,7 +320,10 @@ func (a *Application) setPassword(request *web.Request, actor auth.Principal) (w
 	if !ok {
 		return invalidRequest()
 	}
-	revision, status := precondition(request)
+	revision, status, err := a.precondition(request)
+	if err != nil {
+		return web.Response{}, err
+	}
 	if status != 0 {
 		return preconditionFailure(status)
 	}

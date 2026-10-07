@@ -275,5 +275,6 @@ func RunManagementAPI(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		}
 	})
 	runManagementAPIPermissions(t, open)
+	runManagementAPIHeaders(t, open)
 	runManagementAPIFailures(t, open)
 }

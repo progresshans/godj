@@ -283,7 +283,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		key := parameter.In + ":" + parameter.Name
 		if parameter.In == "header" {
 			key = strings.ToLower(key)
-			if reservedParameterHeader(parameter.Name) || strings.EqualFold(parameter.Name, profile.CSRFHeader) {
+			if strings.EqualFold(parameter.Name, profile.CSRFHeader) {
 				return nil, documentError("operation.parameter", "authentication and representation headers are owned by the profile")
 			}
 		}
@@ -617,7 +617,7 @@ func validToken(value string) bool {
 
 func reservedParameterHeader(name string) bool {
 	switch strings.ToLower(name) {
-	case "authorization", "cookie", "content-type", "accept":
+	case "authorization", "cookie", "content-type", "accept", "host", "transfer-encoding", "trailer":
 		return true
 	default:
 		return false

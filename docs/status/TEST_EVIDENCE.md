@@ -3,6 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0119 — Typed header와 Identity revision 조건
+
+2026-10-08 KST, 기준 `632cf6db3feafd9622d230170e8eddee73a2545a`의 작업 사본에서 Header·Endpoint 결합과
+Identity 소비자를 구현했다. 같은 codec/presence·byte 예산에서 parsing과 parameter schema를 준비하며,
+case-insensitive 단일 field/value·raw text·control/UTF-8 검사와 정확한 int64를 사용한다. Identity의 필수 누락 428,
+invalid 400, 업무 revision 불일치 412와 authentication/CSRF → path/query → header → body → manager 순서를 유지한다.
+
+선언/순서·외부 compile-positive/negative와 실제 Session/Bearer client 회귀를 추가했다. 양 DB의 User/Group/Permission
+검사는 2^53 밖 revision의 native 갱신·stale·취소와 전체 identity/audit 무변경을 확인하도록 연결했다.
+PostgreSQL 필수 목록에는 해당 native product root의 새 경로 36개를 추가했다. SQLite의 36개 경로는 기존 relation matrix의 필수 목록에 연결했다. 기존 no-skip과 source binding을 유지한다.
+이 문단은 검증 코드의 범위이며 아직 실행 성공을 뜻하지 않는다.
+
+Go 1.26.5/darwin/arm64·공유 module cache·offline graph에서 실제 exporter를 한 번 실행했다:
+`GOTOOLCHAIN=local GOWORK=off GOFLAGS=-mod=readonly GOPROXY=off GONOPROXY=none GOSUMDB=off go run ./api/openapi/consumertest/testdata/export -out <output>`.
+여섯 문서를 모두 내보냈고 Identity Session/Bearer의 If-Revision parameter 20개에
+`x-godj-header-integer: canonical-decimal`, `x-godj-max-bytes: 19`만 추가됐음을 구조 비교로 확인했다.
+이 두 확장을 제거하면 이전 두 문서의 JSON 값과 같고 나머지 네 문서는 byte 동일하다. 두 고정 SDK 입력 문서를 갱신했다.
+이 실행은 제품 초기화/문서 생성의 compile 근거이며 SDK 재생성·HTTP·DB 회귀의 실행 증거가 아니다.
+
+같은 작업 사본에서 변경한 Go 파일 25개의 gofmt와 `go test -run '^$'` compile을 확인했다. Compile 대상은
+api/parameters·api/openapi·api/endpoint·identity/api·internal/compiletest·api/openapi/consumertest·internal/identitytest이며,
+별도 SDK module의 cmd/consumer도 기존 `-trimpath`/offline 설정에서 compile했다. 테스트 본문은 실행하지 않았다.
+문서 링크 201개 파일과 diff 검사를 통과했다. 최초 PostgreSQL 목록 검사에서 잘못 등록한 SQLite 경로 36개를
+relation 목록으로 옮겼고 PostgreSQL owner 5 tests·relation shard 7 tests가 모두 통과했다. 각 경로는 해당 DB를
+실제 실행하는 기존 job의 필수 검사로 유지했다.
+
+새 source의 SDK 재생성 drift·native HTTP/SQLite/PostgreSQL·normal/race/CGO-disabled와 전체 platform/cold 검증은
+PR push의 원격 자동 CI가 소유한다. 선행 source `632cf6db`의
+[37653281819](https://github.com/progresshans/godj/actions/runs/37653281819)는 header를 포함하지 않으므로 이 작업의 PASS로 계산하지 않는다.
+이 실행의 macOS arm64 Command race job `112901927109`와 Relation race shard 1 job `112901927310`은
+runner 획득 5회 실패로 시작하지 못했다. GitHub check annotation이 runner capacity 부족을 기록했으며 steps는 비어 있다.
+이는 해당 환경의 미실행이며 제품 테스트 실패나 성공으로 분류하지 않는다.
+
 ## CI — PR 자동 전체 검증
 
 2026-10-08 KST, PR 생성·새 commit push·재개와 main push에서 전체 CI를 실행하도록 변경했다.

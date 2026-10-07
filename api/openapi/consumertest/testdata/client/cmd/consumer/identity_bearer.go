@@ -35,6 +35,9 @@ func checkIdentityBearer(ctx context.Context, target identityEndpoint) error {
 	if err := checkIdentityBearerEmails(ctx, client, target); err != nil {
 		return err
 	}
+	if err := checkIdentityBearerHeaders(ctx, client, httpClient, target); err != nil {
+		return err
+	}
 	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
 	detail, err := client.GodjIdentityIdentityUsersDetail(ctx, ib.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
 	logged, ok := detail.(*ib.UserHeaders)
