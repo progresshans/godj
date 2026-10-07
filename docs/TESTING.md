@@ -21,7 +21,7 @@ go test ./orm -count=1
 
 | 범위 | 소유하는 위험 | 실행 시점 |
 |---|---|---|
-| 빠른 feedback | formatting, compile, pure/affected logic, 관련 drift | 편집·PR feedback |
+| 빠른 feedback | formatting, compile, pure/affected logic, 관련 drift | 편집·명시적 실행 |
 | 관련 integration | SQLite/PostgreSQL 실제 동작, relation/cache, security, rollback와 필요한 race | 관련 변경 통합 |
 | CLI/process | 실제 linked build/child, TTY/signal/cancel/reap, private workspace와 output | 명령·프로세스 소유권 변경 |
 | Reference | pinned Django/DRF actual, normalizer/comparator와 source authority | 해당 계약·adapter·profile 변경 |
@@ -30,10 +30,11 @@ go test ./orm -count=1
 
 `make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
 `make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
-Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. PR의 빠른 feedback 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
+Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. 빠른 검사의 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
+PR 생성·push·재개만으로 검증을 자동 실행하지 않는다.
 Full/scoped Hosted 검증은 CI workflow의 수동 실행 또는 `ci:full`, `ci:orm`, `ci:cli`, `ci:web`, `ci:reference` 라벨로 선택한다.
 대상 커밋을 먼저 push한 뒤 라벨을 추가한다. 라벨 추가 이벤트 시점의 PR head를 검증하므로,
-같은 라벨로 다시 실행하려면 기존 라벨을 제거한 뒤 다시 추가한다. 라벨이 붙어 있는 상태에서의 PR push는 빠른 feedback만 실행한다.
+같은 라벨로 다시 실행하려면 기존 라벨을 제거한 뒤 다시 추가한다. 라벨이 붙어 있어도 이후 PR push는 검증을 다시 실행하지 않는다.
 Draft PR을 테스트 서버로 쓸 수 있으며 매 docs push가 전체 platform 검증을 다시 요청하지 않게 한다.
 Job 선택과 aggregate가 필요한 검증의 누락을 확인한다. 선택하지 않은 그룹은 not-selected이며 PASS로 가장하지 않는다.
 
