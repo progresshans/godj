@@ -29,6 +29,7 @@ const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
 	fixtures := []string{
+		"input_external_consumer.go.txt",
 		"parameters_external_consumer.go.txt",
 		"output_external_consumer.go.txt",
 		"external_consumer.go.txt",
@@ -517,6 +518,11 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "body setter retains scalar type", fixture: "input_setter_mismatch.go.txt", wantFragments: []string{"string", "int64"}},
+		{name: "body property retains DTO type", fixture: "input_dto_mismatch.go.txt", wantFragments: []string{"Property", "other", "row"}},
+		{name: "body nullable retains pointer type", fixture: "input_nullable_mismatch.go.txt", wantFragments: []string{"int64", "*int64"}},
+		{name: "body setter retains presence", fixture: "input_presence_mismatch.go.txt", wantFragments: []string{"Presence", "string"}},
+		{name: "body conversion binding is closed", fixture: "input_private_codec.go.txt", wantFragments: []string{"unexported field read"}},
 		{name: "query setter retains scalar type", fixture: "parameters_setter_mismatch.go.txt", wantFragments: []string{"string", "int64"}},
 		{name: "query parameter retains DTO type", fixture: "parameters_dto_mismatch.go.txt", wantFragments: []string{"Parameter", "other", "row"}},
 		{name: "query optional retains presence", fixture: "parameters_optional_mismatch.go.txt", wantFragments: []string{"int64", "*int64"}},

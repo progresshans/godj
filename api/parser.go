@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
@@ -52,6 +54,9 @@ func NewParser(config ParserConfig) (Parser, error) {
 
 // ParseObject accepts only application/json with no parameter other than an
 // optional UTF-8 charset. It bounds bytes before serializer allocation.
+// Parsing checks cancellation before/between reads and before returning a value.
+// The body/transport owner unblocks an in-progress Read; Parser does not close
+// its borrowed body or start a detached reader goroutine.
 func (p Parser) ParseObject(request *web.Request) (serializers.Object, error) {
 	return parseJSONBody(p, request, "object", serializers.DecodeObject)
 }
@@ -86,24 +91,57 @@ func parseJSONBody[T any](p Parser, request *web.Request, kind string, decode fu
 	if raw.Body == nil {
 		return zero, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is unavailable"}
 	}
+	ctx := request.Context()
+	if err := ctx.Err(); err != nil {
+		return zero, bodyReadFailure(err)
+	}
 	if err := validateJSONContentType(raw.Header.Values("Content-Type")); err != nil {
 		return zero, err
 	}
 	if raw.ContentLength > p.maxBodyBytes {
 		return zero, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
 	}
-	document, err := io.ReadAll(io.LimitReader(raw.Body, p.maxBodyBytes+1))
+	document, err := io.ReadAll(io.LimitReader(contextBodyReader{ctx: ctx, reader: raw.Body}, p.maxBodyBytes+1))
 	if err != nil {
-		return zero, &Error{Code: FailureBodyRead, Field: "body", Detail: "request body could not be read", Cause: err}
+		return zero, bodyReadFailure(err)
+	}
+	if err := ctx.Err(); err != nil {
+		return zero, bodyReadFailure(err)
 	}
 	if int64(len(document)) > p.maxBodyBytes {
 		return zero, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
 	}
 	object, err := decode(document, p.jsonLimits)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return zero, bodyReadFailure(errors.Join(cancelled, err))
+	}
 	if err != nil {
 		return zero, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is not an accepted JSON " + kind, Cause: err}
 	}
 	return object, nil
+}
+
+type contextBodyReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (reader contextBodyReader) Read(buffer []byte) (int, error) {
+	if err := reader.ctx.Err(); err != nil {
+		return 0, err
+	}
+	n, err := reader.reader.Read(buffer)
+	if cancelled := reader.ctx.Err(); cancelled != nil {
+		if err == nil || err == io.EOF {
+			return n, cancelled
+		}
+		return n, errors.Join(err, cancelled)
+	}
+	return n, err
+}
+
+func bodyReadFailure(cause error) error {
+	return &Error{Code: FailureBodyRead, Field: "body", Detail: "request body could not be read", Cause: cause}
 }
 
 func validateJSONContentType(values []string) error {

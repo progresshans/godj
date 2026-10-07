@@ -43,6 +43,7 @@ SQLite 선택과 PostgreSQL 환경변수를 동시에 설정하지 않는다. Po
 - [Article Web](examples/article/webapp/), [Admin](examples/article/adminapp/), [API](examples/article/apiapp/)
 - [Typed API 출력](api/output/README.md): 같은 필드 선언에서 JSON 검증과 OpenAPI 연결
 - [Typed query 입력](api/parameters/README.md): 변환·기본값·부재와 OpenAPI parameter 연결
+- [Typed JSON 입력](api/input/README.md): 같은 모델 Serializer에서 DTO·full/partial·null과 OpenAPI 연결
 - [아키텍처](docs/ARCHITECTURE.md), [동시성과 실패](docs/CONCURRENCY.md), [테스트 실행](docs/TESTING.md)
 
 Django는 고정된 버전의 외부 동작을 비교하는 기준이다. Python source나 서드파티 Python app의 실행 호환은 목표가 아니다.

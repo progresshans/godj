@@ -17,12 +17,19 @@ import (
 
 func (a *Application) initReports() error {
 	metadata := (models.ServiceReportDescriptor{}).Metadata()
-	var err error
-	a.reportInput, err = serializers.FromModel(metadata, serializers.ModelField{Name: "ticket"}, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
+	inputSpec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "ticket"}, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
 	if err != nil {
 		return err
 	}
-	a.reportSaveInput, err = serializers.FromModel(metadata, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
+	saveSpec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "summary"}, serializers.ModelField{Name: "completed"})
+	if err != nil {
+		return err
+	}
+	a.reportInput, err = prepareReportAPIInput(inputSpec, true)
+	if err != nil {
+		return err
+	}
+	a.reportSaveInput, err = prepareReportAPIInput(saveSpec, false)
 	if err != nil {
 		return err
 	}

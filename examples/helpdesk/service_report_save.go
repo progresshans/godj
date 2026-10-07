@@ -193,14 +193,12 @@ func (a *Application) apiReportSave(appendAudit appendReportAudit) api.Authentic
 		if !ok {
 			return objectNotFound()
 		}
-		values, response, handled, err := a.bindInputSpec(request, a.reportSaveInput, serializers.ModeFull)
+		values, response, handled, err := bindTypedInput(request, a.reportSaveInput, serializers.ModeFull)
 		if handled || err != nil {
 			return response, err
 		}
-		summaryValue, _ := values.Get("summary")
-		summary, _ := summaryValue.AsString()
-		completedValue, _ := values.Get("completed")
-		completed, _ := completedValue.AsBoolean()
+		summary, _ := values.summary.Get()
+		completed, _ := values.completed.Get()
 		result, err := a.saveServiceReport(request.Context(), actor, serviceReportInput{ticketID: id, summary: summary, completed: completed}, appendAudit)
 		if err != nil {
 			return objectFailure(err)

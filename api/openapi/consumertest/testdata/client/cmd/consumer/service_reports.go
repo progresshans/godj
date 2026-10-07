@@ -71,6 +71,17 @@ func checkHelpdeskServiceReports(ctx context.Context, client, readOnly *hs.Clien
 	if value, ok := changed.(*hs.ServiceReport); err != nil || !ok || value.ID != id || value.Ticket != first || value.Summary != report.Summary || !value.Completed {
 		return fail("generated report PATCH self uniqueness and omissions")
 	}
+	for _, transition := range []struct {
+		input hs.OptBool
+		want  bool
+	}{
+		{hs.OptBool{}, true}, {hs.NewOptBool(false), false}, {hs.NewOptBool(true), true},
+	} {
+		patched, patchErr := client.HelpdeskServiceReportPatch(ctx, &hs.ServiceReportPatch{Completed: transition.input}, hs.HelpdeskServiceReportPatchParams{ID: id})
+		if value, ok := patched.(*hs.ServiceReport); patchErr != nil || !ok || transport.lastStatus() != 200 || value.ID != id || value.Ticket != first || value.Summary != report.Summary || value.Completed != transition.want {
+			return fail("generated report PATCH omission and explicit boolean value")
+		}
+	}
 	updated, err := client.HelpdeskServiceReportUpdate(ctx, &hs.ServiceReportUpdate{Ticket: second, Summary: "Reassigned"}, hs.HelpdeskServiceReportUpdateParams{ID: id})
 	if value, ok := updated.(*hs.ServiceReport); err != nil || !ok || value.ID != id || value.Ticket != second || value.Summary != "Reassigned" || value.Completed {
 		return fail("generated report PUT reassignment and default")

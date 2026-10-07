@@ -3,6 +3,73 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0115 — Typed JSON body와 같은 모델 입력 선언
+
+`api/input`의 `Body[T]`·닫힌 scalar/collection codec·`Presence[V]`·Nullable pointer가 기존 Spec.Bind의 결과와
+같은 full/partial RequestSchema를 연결한다. 준비 시 writable field의 완전성·이름/중복·Kind/nullability·nil/zero와
+parser 설정을 확인한다. 모델 의미는 FromModel과 Schema IR에서 가져오고 DTO setter는 검증/전체 변환 이후에만
+호출한다. Read-only·unknown 진단 순서, choices·정규화, omission default와 model-null/JSON literal-null을 보존한다.
+Label/ServiceReport의 생성·PUT/PATCH·ensure/save를 연결하며 인가/CSRF·관계/고유성·transaction/audit owner를 유지했다.
+
+### 취소 문제 재현과 수정
+
+기존 parser를 Web Application의 실제 request 경로와 계측 reader로 실행했다. 정상·읽기 전 취소·첫 Read에서 취소한
+세 경우 모두 2회 읽고 정상 object를 반환했다. 네트워크/DB 없이 주입한 reader를 사용한 독립 재현이며 실제 socket의
+blocked Read 해제 검증은 아니다. Probe `api-parser-cancellation-probe.go` /
+`3e8a51f2fd5878396843d9acc5313e35d1ce5908dd68f8632d6c5c934e866b66`, 수정 전 JSONL
+`api-parser-cancellation-before.jsonl` / `de428b8710db54d32e559d90fa49cb5b9c91926e7662ad86e53e5cbae8d23a8f`.
+
+공통 parser는 읽기 전/사이·decode 이후 context를 확인하고 reader 오류·취소 cause를 보존한다. Borrowed body를
+닫거나 detached reader를 만들지 않는다. 수정 후 같은 probe는 정상 2회/object 반환, 선행 취소 0회·읽기 중 취소
+1회이며 두 취소에는 object를 반환하지 않았다. 수정 후 JSONL `api-parser-cancellation-after.jsonl` /
+`3f6fb29aff2be181f2f6193f478519e9f67b57570874536657a073ae5f177bdd`.
+그때와 최종 검증의 parser blob SHA-256은 `c2aecc2e6512fe065919b56d675514b1dfd20676a43a876cb78f7319a1ed1211`이다.
+
+### 완성한 source의 영향 검증
+
+2026-10-06 KST, parent `8c9226267fcca0d67a4d97cb7b9fe6da5b92da6e`, 비Markdown 3165 files / inventory
+`280f55591d5c2dfac18d20f477998d186c7bca707e2552caf55453cd9e603080`에서 실행했다. Go 1.26.5/darwin/arm64의
+공유 cache·offline graph·child trimpath와 PostgreSQL 17.10 Debian/UTF8/libc/C/C·SQLite를 사용했다.
+Runtime은 api·api/input·api/openapi·serializers 네 package 전체다. Business는 Helpdesk 전체 양 DB·독립 HTTP client와
+여섯 실제 OpenAPI profile의 byte 일치·고정 ogen 재생성 drift·최종 DB 검사를 포함한다. 생성 문서/client 파일 변경은 없다.
+
+| Mode | Runtime 4 packages | Business 2 packages | 외부 compile 4 owners |
+|---|---|---|---|
+| normal | 3930 run/pass, skip 0 | 1283 run/pass, skip 0 | 79 run/pass, skip 0 |
+| race | 3930 run/pass, skip 0 | 1283 run/pass, skip 0 | 기존 !race owner 규칙으로 비대상 |
+| CGO=0 | 3930 run/pass, skip 0 | 1283 run/pass, skip 0 | 79 run/pass, skip 0 |
+
+Runtime의 필수 root 137개, business의 실제 PostgreSQL/SQLite 경로 1132개, compile의 필수 경로 21개를 확인했다.
+8개 section 모두 정확히 한 번의 run/pass·terminal·skip 0·현재 source 일치다. 외부 compiler는 정상 사용과 scalar·
+DTO·nullable pointer·presence 타입 혼용 및 private codec 변조를 거부했다. Context 선행/읽기/late 취소·원 reader 오류·
+expired borrowed request, byte/depth/value budget과 media/JSON 문법을 검사했다. 현재 16개 field kind의 typed 변환·
+nullable, 검증 실패의 setter 0회/zero DTO, Spec 순서·선언 snapshot·동시 포인터/list/default 소유권을 포함한다.
+
+실제 Report PATCH에서 생략은 기존 true를 보존하고 명시적 false는 저장하는 것을 양 DB와 독립 client로 확인했다.
+잘못된 completed/null과 함께 제출한 정상 summary도 storage query/transaction에 도달하지 않는다. 기존 full default·
+순서·scope/권한/CSRF·rollback/unknown outcome과 ensure/save 흐름을 같은 전체 business suite에서 확인했다.
+
+| Mode / section | 시간 | Log SHA-256 |
+|---|---:|---|
+| normal / compile | 7.645s | `a2c54d3e3218733a0fd02510b518a0b2c88635e1376a3de0517bbaed960f66c9` |
+| normal / runtime | 2.678s | `edf3f7cde9b9e66c5956dc49ef069fbd536f0efb9095501a2f9b5c4b4c4358fd` |
+| normal / business | 149.142s | `6be0a7a6a4c6fdcd160fbaeb017a57783d488623b91e3d4283e7be152146fe04` |
+| race / runtime | 4.611s | `4f04db0d4a95cf753df8db619b72f7e6fab5d4c21ef22306b996317a067b9ce2` |
+| race / business | 1132.284s | `1688f19644217dfb99a9d25038d5a6d8e7833221e1e9c8847651971f5e4e9d3d` |
+| cgo0 / compile | 7.394s | `c3f4ca0d541c06e46c1b66a70e9d87764b08bf89a36fd5f1fae7fdc813be9351` |
+| cgo0 / runtime | 1.850s | `3f10c6ba5fd86421dead9cda13d069e1c5007fb8ae66929b02a9a5424cae41d7` |
+| cgo0 / business | 147.302s | `79b4869c3f74af8628a1ccdf8b745ecb621e2514af64f8699497da2d0192db35` |
+
+Format 0.529s, 영향 vet 14.767s가 통과했다. CI 필수 manifest를 줄이지 않았고 이 변경은 새 native root를 추가하지 않는다.
+최종 schema/session `0|0`, 소유 DB와 container 제거, frozen source 유지까지 확인했다. 최종 receipt
+`typed-body-20261006-084152/receipt.json` / `74efebb18f50639ff8523294362a33baf0f485e7966b2a82319bb301e5d04b2c`.
+2026-10-07 발행 전 8개 원 JSON log·필수 경로/횟수·hash와 3165개 현재 파일을 다시 대조하고 owned container 부재도
+확인했다. `typed-body-publication-audit.json` / `e373d6e2f8a06185b0ce0d6725564c2caef6eb1d79e120d935150dfe015655fd`.
+
+이 결과는 영향 범위이며 새 source의 전체 platform/Hosted 완료가 아니다. 선행 full `37365281161`의
+`720c9be6211f00a146a39d00957a81ce69ed294f`에는 그룹 집계·typed 출력/query/body가 없다. 후속 고정 source의 Hosted
+milestone이 이 기능들의 전체 환경을 소유하며 로컬 전체 검증을 중복하지 않는다.
+
 ## GDJ-0109/0110/0111 — 같은 source의 Hosted 전체 통합 완료
 
 2026-10-06 KST, [Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)의

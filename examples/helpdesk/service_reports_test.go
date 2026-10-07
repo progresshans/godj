@@ -279,12 +279,22 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 	if response = client.request("PATCH", path, reportInput(first.ID, "Self update"), true); response.Code != 200 {
 		t.Fatal("self uniqueness", response.Code, response.Body)
 	}
-	if response = client.request("PATCH", path, `{}`, true); response.Code != 200 {
-		t.Fatal("no-op report update", response.Code, response.Body)
+	for _, change := range []struct {
+		body      string
+		completed bool
+	}{
+		{`{"completed":true}`, true}, {`{}`, true}, {`{"completed":false}`, false},
+	} {
+		response = client.request("PATCH", path, change.body, true)
+		var current reportConsumerValue
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &current) != nil || current.ID != report.ID || current.Ticket != first.ID || current.Summary != "Self update" || current.Completed != change.completed {
+			t.Fatal("report partial omission or explicit false", change.body, response.Code, response.Body)
+		}
 	}
-	for _, body := range []string{`{"id":5}`, `{"summary":null}`, `{"ticket":null}`, `{"ticket":1,"ticket":2}`, `{"unknown":true}`, `{"summary":"ok"} {}`, `[]`} {
-		if response = client.request("PATCH", path, body, true); response.Code != 400 {
-			t.Fatal("invalid report input accepted", body, response.Code, response.Body)
+	for _, body := range []string{`{"id":5}`, `{"summary":null}`, `{"ticket":null}`, `{"completed":null}`, `{"summary":"must not persist","completed":null}`, `{"ticket":1,"ticket":2}`, `{"unknown":true}`, `{"summary":"ok"} {}`, `[]`} {
+		beforeQueries, beforeTx := backend.queries, backend.transactions
+		if response = client.request("PATCH", path, body, true); response.Code != 400 || backend.queries != beforeQueries || backend.transactions != beforeTx {
+			t.Fatal("invalid report input reached storage", body, response.Code, response.Body)
 		}
 	}
 	if response = client.request("PUT", path, `{"summary":"missing ticket"}`, true); response.Code != 400 {

@@ -2,14 +2,15 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
 
 Article client가 요청과 응답 형태를 알려면 handler와 serializer 설정을 함께 읽어야 했다. 별도의 수동 OpenAPI 파일은
 field·route·permission 변경에서 쉽게 어긋난다. [개발 기준](../DEVELOPMENT_CRITERIA.md)에 따라 기존 모델과 실제 endpoint
-선언에서 읽을 수 있는 문서를 만든다. 이 흐름에 필요하지 않은 binder·DTO 생성·DI·범용 viewset은 도입하지 않는다.
+선언에서 읽을 수 있는 문서를 만든다. 실제 소비자에서 필요한 typed 입력/출력 연결은 같은 선언을 사용하며,
+DTO 생성·DI·범용 viewset은 각각 필요한 업무와 의미를 확인해 설계한다.
 
 ## 결정
 
@@ -81,7 +82,8 @@ Context 취소·reader/값/자원 오류에는 부분 bytes·HTTP 응답을 반�
 이 연결은 인가·읽기 snapshot·transaction·commit 전 출력 검증을 옮기거나 추측하지 않는다.
 
 Helpdesk의 집계 요약과 Ticket/Category 상세가 첫 소비자다. Ticket은 IR에서 온 encoder를 재사용하고 CategorySummary는
-기존 두 필드의 업무 projection을 유지한다. JSON body/model binder·endpoint DSL·viewset·추가 출력 primitive·optional omission은 별도 범위다.
+기존 두 필드의 업무 projection을 유지한다. Typed JSON body는 아래 GDJ-0115에서 연결한다.
+Endpoint DSL·viewset·추가 출력 primitive·optional omission은 별도 범위다.
 이 설계의 채택과 환경별 실행 완료는 구분하며 검증 결과는 TEST_EVIDENCE 한 곳에 기록한다.
 
 GDJ-0114의 [typed query 입력](../../api/parameters/README.md)은 닫힌 scalar codec·presence policy·typed DTO setter에서
@@ -97,8 +99,27 @@ Setter는 순수하고 DTO 포인터를 보관하지 않는다. 반환 DTO·Opti
 
 Helpdesk 요약은 기존 canonical 정수·진단 순서·snapshot을, Label/티켓–Label 목록은 기존 digits·default·전체 query 오류와
 count/items 별도 읽기를 유지한다. 인증 이후 parsing 순서와 Category/관계 scope도 유지한다. Ticket 본문 검색의 raw-segment
-parser는 오류/semicolon 의미가 달라 이번 연결에 포함하지 않는다. 일반 body/header/path binder나 endpoint 전체 구성을
+parser는 오류/semicolon 의미가 달라 이번 연결에 포함하지 않는다. Header/path binder나 endpoint 전체 구성을
 완료한 것으로 계산하지 않으며 별도 호환 profile을 만들지 않는다.
+
+GDJ-0115의 [typed JSON 입력](../../api/input/README.md)은 같은 `serializers.Spec`의 full/partial 검증 결과와
+`RequestSchema`를 `input.Body[T]`로 연결한다. 모델 의미는 `FromModel`이 Schema IR에서 가져온다. Writable field마다
+닫힌 typed codec과 `Presence[V]` setter를 연결하고 준비 시 누락·중복·unknown/read-only·Kind/nullability 불일치와
+nil/zero 선언을 거부한다. Read-only field의 입력 거부는 원 Spec에 유지한다. String/Email/URL/Slug·수치·temporal·
+Decimal·UUID·Binary·JSON·integer-list는 정리된 값의 Go type만 옮기며 새로운 JSON 입력 정규화 규칙을 만들지 않는다.
+
+Full의 default는 effective present 값이고 Partial 생략에는 default를 적용하지 않는다. Nullable codec은 `*V`로
+null을 드러내며 Presence의 bool과 함께 생략을 구분한다. 기존 omission default를 choices·Email 등 제출 규칙으로
+재검증하지 않는다. JSON literal-null default와 model-null, 원 진단/unknown 이름 순서도 Spec.Bind의 의미를 보존한다.
+전체 검증/변환 성공 전에는 setter를 호출하지 않는다. Setter는 Spec 순서로 실행하며 순수·동시 사용 안전·DTO pointer
+비보관 계약을 갖는다. Nullable pointer와 integer-list는 요청마다 소유하고 불변 scalar text는 안전하게 공유한다.
+
+실제 body I/O는 공통 Parser의 media·byte·JSON aggregate 예산을 사용한다. 읽기 전/사이·decode 이후와 typed 검증·
+변환·반환 경계에서 context를 확인한다. Reader의 원 오류와 취소를 보존하고 이를 client validation 400으로 바꾸지
+않는다. Borrowed body를 닫거나 detached goroutine을 시작하지 않으며 진행 중인 Read 해제는 transport/body owner의
+책임이다. 늦은 취소에도 부분 DTO를 반환하지 않지만 setter의 외부 부작용을 취소하는 transaction은 추론하지 않는다.
+Label과 ServiceReport의 create/PUT/PATCH·ensure/save는 이 연결을 사용한다. 인가·CSRF·대상/관계 scope·고유성·저장과
+audit/출력 원자성은 기존 업무가 소유한다. Header/path·Ticket bulk 배열·자동 endpoint/viewset은 별도 후속 범위다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

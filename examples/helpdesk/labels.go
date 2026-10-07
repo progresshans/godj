@@ -17,8 +17,11 @@ import (
 func (a *Application) initLabels() error {
 	descriptor := models.LabelDescriptor{}
 	metadata := descriptor.Metadata()
-	var err error
-	a.labelInput, err = serializers.FromModel(metadata, serializers.ModelField{Name: "name"})
+	inputSpec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "name"})
+	if err != nil {
+		return err
+	}
+	a.labelInput, err = prepareLabelAPIInput(inputSpec)
 	if err != nil {
 		return err
 	}

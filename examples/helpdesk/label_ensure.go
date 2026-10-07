@@ -129,12 +129,11 @@ func (a *Application) apiLabelEnsure(appendAudit appendLabelAudit) api.Authentic
 		if request.HTTP().URL.RawQuery != "" {
 			return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 		}
-		values, response, handled, err := a.bindInputSpec(request, a.labelInput, serializers.ModeFull)
+		values, response, handled, err := bindTypedInput(request, a.labelInput, serializers.ModeFull)
 		if handled || err != nil {
 			return response, err
 		}
-		value, _ := values.Get("name")
-		name, _ := value.AsString()
+		name, _ := values.name.Get()
 		result, err := a.ensureLabel(request.Context(), actor, name, appendAudit)
 		if err != nil {
 			return objectFailure(err)

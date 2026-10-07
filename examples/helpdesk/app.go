@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/calendar"
@@ -74,11 +75,11 @@ type Application struct {
 	collections     project.Collections
 	objects         project.Models
 	deleters        project.RelationDeleters
-	reportInput     serializers.Spec
-	reportSaveInput serializers.Spec
+	reportInput     input.Body[reportAPIInput]
+	reportSaveInput input.Body[reportAPIInput]
 	reportOutput    serializers.Spec
 	reportEncoder   serializers.ModelEncoder[models.ServiceReport]
-	labelInput      serializers.Spec
+	labelInput      input.Body[labelAPIInput]
 	labelOutput     serializers.Spec
 	labelEncoder    serializers.ModelEncoder[models.Label]
 	linkInput       serializers.Spec

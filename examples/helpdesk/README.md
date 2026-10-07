@@ -42,6 +42,11 @@ OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 �
 모든 값을 검증한 뒤 DTO를 할당한다. 인증 우선순위·Category 범위·조회 방식과 각 화면/API의 오류 표현은 유지한다.
 [입력 API](../../api/parameters/README.md)는 query 부재·기본값·Optional 의미와 제한을 설명한다.
 
+Label과 ServiceReport의 JSON 입력은 [typed body 선언](api_inputs.go)에서 기존 모델 Serializer와 DTO를 연결한다.
+Full은 required/default를 적용하고 Partial은 생략을 보존한다. 명시적 false·null과 생략을 구분하며 같은 Spec으로
+OpenAPI를 만든다. Create/PUT/PATCH·Label ensure·Report save의 인가/CSRF·관계/고유성·transaction/audit 순서는 유지한다.
+공통 parser는 읽기 전·사이·반환 경계에서 context를 확인하고 reader failure와 취소에 부분 결과를 반환하지 않는다.
+
 ## 여러 티켓 생성하기
 
 `AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})`로 만든 Ticket 목록은 **Create multiple tickets**

@@ -21,15 +21,15 @@ func (a *Application) reportOperations(protect func(openapi.Operation, api.Authe
 	if err != nil {
 		return nil, nil, err
 	}
-	input, err := openapi.RequestSchema(a.reportInput, serializers.ModeFull)
+	input, err := a.reportInput.Schema(serializers.ModeFull)
 	if err != nil {
 		return nil, nil, err
 	}
-	partial, err := openapi.RequestSchema(a.reportInput, serializers.ModePartial)
+	partial, err := a.reportInput.Schema(serializers.ModePartial)
 	if err != nil {
 		return nil, nil, err
 	}
-	saveInput, err := openapi.RequestSchema(a.reportSaveInput, serializers.ModeFull)
+	saveInput, err := a.reportSaveInput.Schema(serializers.ModeFull)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -144,16 +144,13 @@ func (a *Application) apiReportList(request *web.Request, _ auth.Principal) (web
 	return api.JSON(http.StatusOK, list)
 }
 func (a *Application) apiReportCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
-	values, response, handled, err := a.bindInputSpec(request, a.reportInput, serializers.ModeFull)
+	values, response, handled, err := bindTypedInput(request, a.reportInput, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
 	}
-	keyValue, _ := values.Get("ticket")
-	key, _ := keyValue.AsInteger()
-	textValue, _ := values.Get("summary")
-	summary, _ := textValue.AsString()
-	boolValue, _ := values.Get("completed")
-	completed, _ := boolValue.AsBoolean()
+	key, _ := values.ticketID.Get()
+	summary, _ := values.summary.Get()
+	completed, _ := values.completed.Get()
 	created, err := a.createReport(request.Context(), serviceReportInput{ticketID: key, summary: summary, completed: completed})
 	if err != nil {
 		return objectFailure(err)
@@ -185,23 +182,19 @@ func (a *Application) apiReportUpdateMode(request *web.Request, mode serializers
 	if !valid {
 		return objectNotFound()
 	}
-	values, response, handled, err := a.bindInputSpec(request, a.reportInput, mode)
+	values, response, handled, err := bindTypedInput(request, a.reportInput, mode)
 	if handled || err != nil {
 		return response, err
 	}
 	patch := models.ServiceReportPatch{}
-	for _, entry := range values.All() {
-		switch entry.Name() {
-		case "ticket":
-			key, _ := entry.Value().AsInteger()
-			patch = patch.WithTicketID(key)
-		case "summary":
-			text, _ := entry.Value().AsString()
-			patch = patch.WithSummary(text)
-		case "completed":
-			value, _ := entry.Value().AsBoolean()
-			patch = patch.WithCompleted(value)
-		}
+	if key, present := values.ticketID.Get(); present {
+		patch = patch.WithTicketID(key)
+	}
+	if summary, present := values.summary.Get(); present {
+		patch = patch.WithSummary(summary)
+	}
+	if completed, present := values.completed.Get(); present {
+		patch = patch.WithCompleted(completed)
 	}
 	updated, _, err := a.updateReport(request.Context(), id, patch)
 	if err != nil {

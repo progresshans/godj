@@ -19,11 +19,11 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 	if err != nil {
 		return nil, nil, err
 	}
-	input, err := openapi.RequestSchema(a.labelInput, serializers.ModeFull)
+	input, err := a.labelInput.Schema(serializers.ModeFull)
 	if err != nil {
 		return nil, nil, err
 	}
-	partial, err := openapi.RequestSchema(a.labelInput, serializers.ModePartial)
+	partial, err := a.labelInput.Schema(serializers.ModePartial)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,12 +149,11 @@ func (a *Application) labelResponse(status int, value models.Label) (web.Respons
 }
 
 func (a *Application) apiLabelCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
-	values, response, handled, err := a.bindInputSpec(request, a.labelInput, serializers.ModeFull)
+	values, response, handled, err := bindTypedInput(request, a.labelInput, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
 	}
-	value, _ := values.Get("name")
-	name, _ := value.AsString()
+	name, _ := values.name.Get()
 	created, err := a.createLabel(request.Context(), name)
 	if err != nil {
 		return objectFailure(err)
@@ -188,13 +187,12 @@ func (a *Application) apiLabelUpdateMode(request *web.Request, mode serializers.
 	if !valid {
 		return objectNotFound()
 	}
-	values, response, handled, err := a.bindInputSpec(request, a.labelInput, mode)
+	values, response, handled, err := bindTypedInput(request, a.labelInput, mode)
 	if handled || err != nil {
 		return response, err
 	}
 	patch := models.LabelPatch{}
-	if value, present := values.Get("name"); present {
-		name, _ := value.AsString()
+	if name, present := values.name.Get(); present {
 		patch = patch.WithName(name)
 	}
 	updated, _, err := a.updateLabel(request.Context(), id, patch)
