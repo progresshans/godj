@@ -389,8 +389,8 @@ jobs:
           shards="${{ matrix.shards }}"
           consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          # Race partitions the generated consumers across jobs. Shard
-          # 0 owns all other relation packages on that coordinate.
+          # Partitioned coordinates split generated consumers across jobs.
+          # Shard 0 owns all other relation packages on that coordinate.
           # Every job discovers the binary's roots and checks exact execution.
           test_timeout="${{ matrix.test_timeout }}"
           test_flags=(-timeout="$test_timeout" -json -count=1)

@@ -107,7 +107,7 @@ class RelationShardTest(unittest.TestCase):
             with self.subTest(shard=shard, packages=packages), self.assertRaises(ValueError):
                 verify(self.write('misowned.json', values), self.roots, shard, 3, packages)
 
-    def test_workflow_plan_preserves_all_coordinates_and_partitions_race(self):
+    def test_workflow_plan_preserves_coordinates_coverage_and_timeouts(self):
         output = self.directory / 'outputs'
         environment = dict(os.environ, GITHUB_OUTPUT=str(output))
         result = subprocess.run([sys.executable, str(Path(__file__).with_name('workflow.py')), 'plan'], env=environment,
@@ -115,18 +115,34 @@ class RelationShardTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
+        split = {(runner, 'race') for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15-intel', 'macos-26')}
+        split.add(('macos-15-intel', 'normal'))
         seen = {}
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])
             seen.setdefault(coordinate, []).append(row['shard'])
-            self.assertEqual(row['shards'], 3 if coordinate[3] == 'race' else 1)
-            if coordinate[1] == 'linux':
-                self.assertEqual((row['job_timeout'], row['test_timeout']), (45, '35m'))
-        expected = {(runner, goos, arch, mode): ([0, 1, 2, 3] if mode == 'race' else [1])
+            self.assertEqual(row['shards'], 3 if (coordinate[0], coordinate[3]) in split else 1)
+            budget = (90, '70m') if coordinate[1] == 'darwin' and coordinate[3] == 'race' else (45, '35m')
+            self.assertEqual((row['job_timeout'], row['test_timeout']), budget)
+        expected = {(runner, goos, arch, mode): ([0, 1, 2, 3] if (runner, mode) in split else [1])
                     for runner, goos, arch in [('ubuntu-24.04', 'linux', 'amd64'), ('ubuntu-24.04-arm', 'linux', 'arm64'),
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
                     for mode in ('normal', 'race', 'cgo0')}
         self.assertEqual(seen, expected)
+
+        # Every emitted coordinate must still assign the complete root and
+        # child inventory once, with runtime/compile checks on one owner.
+        runtime = 'github.com/progresshans/godj/internal/compiletest'
+        required = [CONSUMER + '|' + root + '/child' for root in self.roots] + [runtime + '|TestExternalConsumerCompiles']
+        for coordinate in expected:
+            selected = [row for row in actual['include'] if (
+                row['platform']['runs_on'], row['platform']['expected_goos'],
+                row['platform']['expected_goarch'], row['mode']) == coordinate]
+            plans = [plan(self.roots, required, [CONSUMER, runtime], row['shard'], row['shards']) for row in selected]
+            self.assertEqual(Counter(root for item in plans for root in item['roots']), Counter(self.roots))
+            self.assertEqual(Counter(entry for item in plans for entry in item['required']),
+                             Counter(required + [CONSUMER + '|' + root for root in self.roots]))
+            self.assertEqual(sum(runtime in item['packages'] for item in plans), 1)
 
     def test_cli_plan_and_verifier_keep_required_child_failure_visible(self):
         required = self.directory / 'required.txt'

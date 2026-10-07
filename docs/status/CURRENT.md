@@ -11,15 +11,18 @@
 - 기준 잠금 보완: [37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)의 checksum 누락을 source `587aeea0`에서 고치고 영향 검증 완료
 - 보완 source의 Hosted full 실패: [37584339052](https://github.com/progresshans/godj/actions/runs/37584339052), source `6d0473cdf9d649158e5fcd731cbf1a43a0261211`의 macOS Intel 관계 normal job
 - 최근 Hosted full 완료: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
-- 선행 PR 자동 CI: [37653281819](https://github.com/progresshans/godj/actions/runs/37653281819), source `632cf6db3feafd9622d230170e8eddee73a2545a` (header 미포함)
+- 보정 전 원격 CI: [37656685420](https://github.com/progresshans/godj/actions/runs/37656685420), source `0b2816efed4f6d04e671781401dfea02187687a3` (Identity 테스트 namespace 실패)
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
-실제 여섯 OpenAPI 문서를 export했으며 런타임·SDK drift·DB·race·전체 통합은 header를 포함한 source의 자동 CI 검증 대기다.
-선행 [배열 입력](../../work/0118-typed-json-collections.md)의 구현·영향 검증과 source `632cf6db`의 자동 CI는
-새 header를 포함한 source의 실행 결과와 구분한다.
+원격 Linux/amd64에서 typed parameter/OpenAPI/endpoint와 독립 SDK의 normal/race/CGO0·재생성 drift·실제 HTTP를 확인했다.
+원격에서 발견한 Identity header 테스트의 namespace 설정 오류를 보정했고 해당 두 root의 90 run/pass를 로컬에서 확인했다.
+선행 Intel Mac의 누적 package 시간 초과에 대해 필수 검사를 유지한 normal 실행 분할도 준비했다.
+수정 source의 Identity native 양 DB·platform/cold와 최종 집계는 새 자동 CI에서 확인한다.
+선행 [배열 입력](../../work/0118-typed-json-collections.md)의 영향 검증과 취소된 source `632cf6db`의 CI는
+현재 source의 실행 결과와 구분한다.
 선행 endpoint/경로 source의 Hosted full 실패는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록했다.
 PR 자동 CI에서 현재 source의 전체 통합을 확인하며 이전 source의 부분 성공과 구분한다.
 구현과 환경별 실행 완료를 구분하며 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.

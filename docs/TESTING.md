@@ -105,9 +105,10 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표는 독립 generated module의
-합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
-Linux의 분할 job도 45분·package 35분을 유지하며 macOS Intel/ARM 분할은 90분·package 70분 한도를 사용한다.
+관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표와 macOS Intel normal은
+독립 generated module의 합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
+macOS Intel normal을 포함한 normal/CGO0와 Linux race는 45분·package 35분을 유지한다.
+macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.
 `scripts/ci/relation_shards.py`가 동일 OS/arch/mode의 실제 Go binary에서 `-list .`로 발견한 Test/Example/Fuzz root를
 결정적으로 분배한다. 필수 child는 부모를 따라가며 분할 좌표의 일반 관계 package와 추가 checker/runner는
 별도 runtime job(번호 0)만 맡는다. 다른 좌표는 한 job이 전체를 실행한다.

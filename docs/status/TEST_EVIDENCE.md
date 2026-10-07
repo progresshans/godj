@@ -29,12 +29,57 @@ api/parameters·api/openapi·api/endpoint·identity/api·internal/compiletest·a
 relation 목록으로 옮겼고 PostgreSQL owner 5 tests·relation shard 7 tests가 모두 통과했다. 각 경로는 해당 DB를
 실제 실행하는 기존 job의 필수 검사로 유지했다.
 
-새 source의 SDK 재생성 drift·native HTTP/SQLite/PostgreSQL·normal/race/CGO-disabled와 전체 platform/cold 검증은
-PR push의 원격 자동 CI가 소유한다. 선행 source `632cf6db`의
-[37653281819](https://github.com/progresshans/godj/actions/runs/37653281819)는 header를 포함하지 않으므로 이 작업의 PASS로 계산하지 않는다.
+게시 source `0b2816efed4f6d04e671781401dfea02187687a3`의
+[자동 CI 37656685420](https://github.com/progresshans/godj/actions/runs/37656685420)가 `pull_request`로 시작됐다.
+PR merge commit `3a8c0e5742329c560eaf51baf96394cb327fafe2`의 tree
+`43d886e2cf9394d85083de2c19bf3f05ae79a9c5`는 게시 source와 같다. 아래는 완료한 해당 job만의 결과다.
+
+- api/parameters·api/openapi·api/endpoint: Linux/amd64 normal·race·CGO-disabled PASS.
+  각 owner는 `112914090147`(normal/core-vet), `112914089942`(race/core), `112914089913`(CGO0/core)이며 normal vet도 완료했다.
+- 독립 OpenAPI client: Linux/amd64 normal `112914090030`, CGO0 `112914089904` PASS.
+  실제 여섯 문서와 고정 입력, ogen 재생성 파일 집합/byte·module lock, 독립 client build와 HTTP/최종 SQLite 상태를
+  확인했다. 새 두 header receipt도 부모/자식의 필수 검사에 포함한다. 해당 consumer와 API package에는 skip 경로가 없다.
+- 다섯 job의 완료 상태·head SHA와 원 로그를 대조했다. 작은 로그 묶음의 `portable-receipt.json` SHA-256은
+  `64cadd3d0fc73d9e9bd7757218045cf11e88ecc2dbdae7bf2ed23c39b8443713`이다.
+- 독립 client의 race owner `112914090060`도 PASS. 부모와 child가 같은 race mode에서 실행됐으며
+  원 job 로그 SHA-256은 `9fa7fefc1baadae2f0551d2000eaaa687aaecdccc03038265a09dbf14817246e`다.
+
+이후 Linux/arm64 관계 CGO0 job `112914091177`에서 새 Identity header 테스트 두 개가 route 구성 중 실패했다.
+같은 환경의 normal `112914091126`과 race/runtime `112914090986`에서도 같은 두 초기화 실패를 확인했다.
+Fixture의 installed label `identity`와 route namespace `headeridentity`가 달라 기존 router가 올바르게 거부했다.
+로컬 darwin/arm64에서 해당 두 root만 실행해 같은 실패를 재현하고 fixture label을 route namespace에 맞췄다.
+Fixture 보정 source는 `682c2b1a503cbe85a7bafdaceebb6208a79d26a3`이다.
+수정 후 같은 두 root의 90 run/pass·0 skip을 확인했다. 원 JSON SHA-256은
+`1c5bdc7349e88a789c6799b4c5099829088f92bc767ec6b9c36372efdd9adae6`다.
+제품의 namespace 검증과 body/업무 I/O 선행 거부 assertion은 유지했다. 이는 실패를 재현한 focused normal 검사이며
+수정 source의 DB·race·platform 전체 성공은 새 원격 CI에서 확인한다.
+
+`0b2816ef`의 전체 CI는 완료하지 못했고 수정 source가 전체를 다시 검증한다.
+완료한 일부 job을 전체 PASS로 확대하지 않는다. 선행 source `632cf6db`의
+[37653281819](https://github.com/progresshans/godj/actions/runs/37653281819)는 새 push로 취소됐다.
+최종 76개 job 중 56 success·17 cancelled·3 failure이며 header를 포함하지 않는다.
 이 실행의 macOS arm64 Command race job `112901927109`와 Relation race shard 1 job `112901927310`은
 runner 획득 5회 실패로 시작하지 못했다. GitHub check annotation이 runner capacity 부족을 기록했으며 steps는 비어 있다.
-이는 해당 환경의 미실행이며 제품 테스트 실패나 성공으로 분류하지 않는다.
+이는 해당 환경의 미실행이며 제품 테스트 실패나 성공으로 분류하지 않는다. 나머지 failure는 미완료 그룹을 거부한 최종 집계다.
+
+### Intel macOS normal 관계 검증의 실행 분할
+
+선행 `6d0473cd`의 [실패 job 112671205987](https://github.com/progresshans/godj/actions/runs/37584339052/job/112671205987)
+원 로그를 확인했다. 87개 생성 소비자 root를 한 package에서 실행하다 누적 35분 한도에 도달했다.
+마지막 root와 subtest는 실행한 지 5초였고 assertion 실패 목록은 비어 있었다. 원 로그 SHA-256은
+`924a43fdec20e321990ee76b6dc8754613f685280d754a1fdc1e3fa7332d1688`이다.
+해당 소비자 source는 `6d0473cd`와 `0b2816ef` 사이에 같으며 현재 matrix도 같은 단일 package/35분 구성이었다.
+
+macOS Intel normal을 기존 root 분배기로 소비자 3개 job과 일반 관계/compile 1개 job에 나눈다.
+Job 45분·package 35분은 유지한다. 다른 좌표와 macOS race의 기존 90분/70분 예산은 바꾸지 않았다.
+12개 OS/arch/mode 좌표를 유지하며 관계 job은 24개에서 27개가 된다. 실제 binary discovery, 모든 root와 필수 child,
+no-skip·누락/중복·package 소유권 검사와 모든 shard의 최종 집계는 그대로 적용한다.
+
+CI 도구 24 tests가 통과했다. 모든 matrix 좌표에 대해 전체 root/child의 정확히 한 번 배정과 runtime/compile owner
+하나를 확인하도록 기존 회귀를 보완했다. 이전 실제 discovery를 사용하는 정적 배정에서도 87 root를 29개씩 나누고
+현재 필수 경로 2,471개를 빠짐없이 한 번 배정했다. 일반 package 49개는 runtime job만 소유한다.
+이 정적 감사의 receipt SHA-256은 `1b4acd53fa03b4121b4037c4f52b7dc1a3c6a4db20e83fd9b297bf0cc64550b2`다.
+현재 source의 새 discovery와 각 배정의 실제 실행 완료는 보완 source의 원격 CI가 검증한다.
 
 ## CI — PR 자동 전체 검증
 
