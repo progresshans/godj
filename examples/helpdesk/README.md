@@ -42,14 +42,16 @@ OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 �
 모든 값을 검증한 뒤 DTO를 할당한다. 인증 우선순위·Category 범위·조회 방식과 각 화면/API의 오류 표현은 유지한다.
 [입력 API](../../api/parameters/README.md)는 query 부재·기본값·Optional 의미와 제한을 설명한다.
 
-Label과 ServiceReport의 JSON 입력은 [typed body 선언](api_inputs.go)에서 기존 모델 Serializer와 DTO를 연결한다.
+Ticket 생성·Label·ServiceReport의 JSON 입력은 [typed body 선언](api_inputs.go)에서 기존 모델 Serializer와 DTO를 연결한다.
 Full은 required/default를 적용하고 Partial은 생략을 보존한다. 명시적 false·null과 생략을 구분하며 같은 Spec으로
 OpenAPI를 만든다. Create/PUT/PATCH·Label ensure·Report save의 인가/CSRF·관계/고유성·transaction/audit 순서는 유지한다.
-요약·Label ensure·Label PUT/PATCH는 [typed endpoint](../../api/endpoint/README.md)에서 같은 입력·권한·응답·상태를 실제 handler와
+Ticket 단건/배열 생성·요약·Label ensure·Label PUT/PATCH는 [typed endpoint](../../api/endpoint/README.md)에서 같은 입력·권한·응답·상태를 실제 handler와
 문서에 연결한다. Ensure는 transaction 안에서 완성한 응답을 commit 확인 후 반환하며 이후 취소만으로 성공을 번복하지 않는다.
 Label 수정은 같은 router의 양수 ID 검증, body 검증, transaction 안의 현재 Category/Label 조회 순서를 유지한다.
 변경 없는 PATCH도 최종 응답을 준비하며 출력 실패에는 준비 응답과 transaction 결과를 게시하지 않는다.
 공통 parser는 읽기 전·사이·반환 경계에서 context를 확인하고 reader failure와 취소에 부분 결과를 반환하지 않는다.
+Ticket의 단건/배열은 하나의 Body와 named `TicketCreate` component를 공유한다. 단건 생성도 최종 저장 행의 응답을
+transaction 안에서 준비하며 출력 실패·잘못된 callback 수명·불확실한 commit에는 결과를 게시하지 않는다.
 
 ## 여러 티켓 생성하기
 
@@ -69,7 +71,8 @@ API는 `POST /api/tickets/bulk/`에서 `TicketCreate` 객체 배열을 받는다
 배열은 1..40개, 전체 body는 163,840 byte·깊이 16·65,536개 값까지이며 각 항목의 compact JSON은 4,096 byte까지다.
 각 필드의 생략/null/default·고유성·JSON 입력 정책은 아래의 단건 생성과 같다. `id`, `category`,
 `external_payload_digest` 등 read-only/unknown 입력은 거부한다. Field 진단의 `params` 배열에 있는 `index` 항목은
-0부터 시작하는 원래 입력 위치를 문자열로 담는다. 저장 직전의 native 고유성 충돌은 행을 추측하지 않는 `__all__/unique`다. 전체 진단이 출력 예산을
+0부터 시작하는 원래 입력 행을 문자열로 담는다. `labels` 원소의 위치는 별도 `item_index`다. 단건 field의 `index`는 유지한다.
+저장 직전의 native 고유성 충돌은 행을 추측하지 않는 `__all__/unique`다. 전체 진단이 출력 예산을
 초과하면 `__all__/too_many_errors`와 개수로 요청 전체를 거부하며 일부 진단만 성공처럼 반환하지 않는다.
 
 두 표면은 같은 writer를 사용한다. 현재 Category·모든 라벨·입력 집합/DB의 UUID 고유성을 확인한 뒤 20행 native

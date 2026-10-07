@@ -120,7 +120,7 @@ null을 드러내며 Presence의 bool과 함께 생략을 구분한다. 기존 o
 않는다. Borrowed body를 닫거나 detached goroutine을 시작하지 않으며 진행 중인 Read 해제는 transport/body owner의
 책임이다. 늦은 취소에도 부분 DTO를 반환하지 않지만 setter의 외부 부작용을 취소하는 transaction은 추론하지 않는다.
 Label과 ServiceReport의 create/PUT/PATCH·ensure/save는 이 연결을 사용한다. 인가·CSRF·대상/관계 scope·고유성·저장과
-audit/출력 원자성은 기존 업무가 소유한다. Header/path·Ticket bulk 배열·자동 viewset은 별도 후속 범위다.
+audit/출력 원자성은 기존 업무가 소유한다. 경로·배열 연결은 아래 GDJ-0117/0118이 다루고 header·자동 viewset은 후속 범위다.
 
 GDJ-0116의 [typed endpoint](../../api/endpoint/README.md)는 같은 Query/Body·Output과 명시한 admission·상태에서
 typed handler와 OpenAPI operation을 함께 준비한다. Route와 전체 schema graph는 기존 OpenAPI/Web validator로 검사하며
@@ -142,7 +142,7 @@ Handler는 transaction 안에서 출력 준비를 끝내고 성공한 commit 뒤
 풀어 expected rejection으로 만들지 않는다. 취소와 동시에 일어난 입력/업무 오류는 내부 cause를 함께 보존한다.
 Helpdesk 요약의 읽기 snapshot과 Label ensure의 reload·출력·audit·commit 순서가 이 연결을 소비한다.
 각 operation과 component의 최종 충돌은 application 문서에서 검사하며 동일 Input/Named Shape만 component identity를 공유한다.
-경로와 입력 결합은 아래 GDJ-0117이 연결하며 header·배열 body·일반 CRUD/viewset은 후속 범위로 유지한다.
+경로와 입력 결합은 GDJ-0117, 배열 body는 GDJ-0118이 연결하며 header·일반 CRUD/viewset은 후속 범위로 유지한다.
 
 GDJ-0117은 기존 router의 Int64/String accessor를 닫힌 `Input[int64]`/`Input[string]`으로 연결한다.
 새 parser나 path schema를 만들지 않는다. Typed path가 있으면 route의 모든 parameter를 같은 이름·converter로
@@ -168,6 +168,31 @@ Article PUT/PATCH는 DRF의 기존 대상 확인 우선을 유지하고 Helpdesk
 출력 실패·hook 실패·취소는 rollback하고 nil/반복/미완료·삼켜진 callback은 성공 결과를 내보내지 않는다.
 확인된 commit 뒤 취소는 성공을 번복하지 않으며 불확실한 transaction/rollback과 joined 오류는 404로 바꾸지 않는다.
 Model/IR·full/partial default/nullable와 API의 공개 operation/schema 의미는 기존 선언에서 이어받는다.
+
+GDJ-0118의 `input.ListBody[T]`는 같은 Body/Spec의 full/partial 정책과 typed 변환을 객체 배열에 적용한다.
+전체 parser 예산과 각 compact item 예산을 구분하며 단건 parser의 크기를 배열 전체에 재사용하지 않는다.
+선언한 count 0..1024 범위와 item schema를 runtime/OpenAPI에 함께 사용하고 업무는 더 좁은 범위를 선택한다.
+Field 진단은 모든 행에서 입력 순서로 수집하며 `index`는 바깥 행, 기존 integer-list의 `index`는 `item_index`다.
+단건 진단은 기존 위치를 유지한다. 최대 16,384개 진단 뒤에도 전체 count·문자열/위치 유효성과 취소를 확인하고,
+초과에는 count를 포함한 전체 거부를 반환한다. 잘린 오류 목록이나 부분 DTO slice를 완성된 결과로 게시하지 않는다.
+
+선택적인 row validator는 Spec/typed 변환이 성공한 행에서만 실행하며 순수·동시 사용 안전·비변경·비보관 계약이다.
+Setter와 validator는 I/O/commit을 하지 않는다. 다른 행이 invalid여도 유효한 행의 callback은 실행될 수 있으며,
+내부 오류나 취소는 뒤 행을 중단한다. Callback의 parser 형태 오류가 요청의 client parser 오류로 바뀌지 않는다.
+`endpoint.JSONListBody`는 bare JSONBody의 named item identity를 공유한다. 감싼 정책을 버리는 파생은 거부하고
+NoQuery/Sequence/Resolve를 배열 바깥에 적용한다. 입력 진단과 직접 Reject는 같은 endpoint ErrorLimits를 사용한다.
+명시한 SummarizeValidationErrors는 validation의 resource overflow에만 작은 표준 오류/count를 적용하며,
+내부/잘못된 진단·rollback/unknown outcome과 다른 오류 code를 400 요약으로 바꾸지 않는다.
+
+Helpdesk는 단건과 여러 티켓 생성에 같은 typed Body를 연결한다. 기존 1..40 rows·항목/전체 예산, 현재 Category/labels,
+고유성·저장 JSON/digest·전체 출력·audit·commit 의미를 유지한다. 단건도 하나의 prepared transaction owner에서
+최종 출력을 준비한다. Article의 공개 `BulkCreateAndPrepare`는 모든 후보와 전체 입력 집합/DB의 slug 고유성을
+INSERT 전에 확인하고 20행 native batches를 하나의 borrowed transaction에 넣는다. SQL NULL은 서로 충돌하지 않고
+non-null 빈 slug는 고유성 값이다. 반환 key/count를 확인한 뒤 최종 행을 입력 순서로 다시 읽고 detached 전체 결과를
+준비한 다음 기존 mutation hook을 한 번 실행한다. API는 Session/Bearer의 Add permission과 필요한 CSRF 뒤 같은
+ArticleCreate 입력으로 1..40개를 생성한다. 실패·출력/hook 오류·취소·잘못된 callback 수명과 unknown에는 부분 결과를
+게시하지 않으며 자동 재시도하지 않는다. 이는 Article application의 bounded atomic bulk 정책이며 DRF의 기본 list
+serializer나 ORM BulkCreate 자체에 per-object save/hook 정책을 추가하는 뜻이 아니다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

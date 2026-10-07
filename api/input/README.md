@@ -71,6 +71,37 @@ setter 사이·반환 전에 취소를 확인한다.
 aggregate budget·legacy default와 모든 runtime grammar를 검증했다고 해석하지 않는다. Named component와 route,
 관계/고유성 검사·DB transaction·audit·출력 준비는 기존 operation/업무 owner가 계속 소유한다.
 
-실제 연결은 [Helpdesk 선언](../../examples/helpdesk/api_inputs.go), [Label](../../examples/helpdesk/labels_api.go),
-[ServiceReport](../../examples/helpdesk/service_reports_api.go)를 참고한다. Ticket bulk 배열·header/path 입력·자동 endpoint와
-viewset은 이 API의 구현 범위에 포함하지 않는다. 환경별 검증과 후속 통합은 [실행 증거](../../docs/status/TEST_EVIDENCE.md)에 기록한다.
+## 객체 배열
+
+`NewList(body, ListConfig, optionalValidator)`는 같은 `Body[T]`를 `ListBody[T]`로 연결한다.
+`Parse`/`Bind`는 `[]T, validation.Errors, error`를 반환하고 `Schema(mode)`는 같은 item schema의 배열이다.
+`MinItems`는 0 이상, `MaxItems`는 1..1024이며 minimum이 maximum보다 클 수 없다. 업무는 그 안에서 더 작은
+개수 범위를 선택한다. `Bounds()`는 준비한 inclusive 범위를 반환한다.
+
+```go
+list, err := input.NewList(body, input.ListConfig{
+    MinItems: 1, MaxItems: 40,
+    Parser: api.ParserConfig{MaxBodyBytes: 40 * 4096},
+    ItemLimits: serializers.Limits{MaxDocumentBytes: 4096},
+})
+```
+
+`Parser`는 전체 배열의 bytes·depth·values 등 자원 정책이고, `ItemLimits`는 각 객체를 compact JSON으로 표현한
+예산이다. 원래 Body의 단건 parser 예산을 배열 전체에 재사용하지 않는다. 배열 parser는 한 번만 body를 읽으며,
+각 객체에 같은 Spec의 full/partial 검증과 typed 변환을 수행한다. 개수 실패는 전체 `__all__/invalid_count`,
+항목 예산 실패는 해당 행의 `__all__/limit_exceeded`다. Field 진단은 입력 행 순서와 행 안의 기존 진단 순서를 유지한다.
+
+진단의 `index`는 0부터 시작하는 바깥 행 번호다. Integer-list field가 이미 가진 `index`는 `item_index`로 옮겨
+두 위치를 구별한다. 단건 Body의 field `index`는 바뀌지 않는다. 중복·모호한 위치나 표현할 수 없는 진단 문자열은
+설정/내부 오류다. 진단은 최대 16,384개를 보관하며 이를 넘으면 전체 개수를 담은 `__all__/too_many_errors` 하나로
+거부한다. 일부 오류만 전체 결과처럼 반환하지 않으며 초과 뒤의 진단도 문자열·위치와 context를 확인한다.
+
+선택적인 `ListValidator[T]`는 Spec과 typed binding이 성공한 한 행을 검사한다. 순수하고 동시 요청에 안전해야 하며
+DTO·pointer·slice를 변경하거나 보관하지 않고 I/O·commit을 하지 않는다. Field 진단은 다른 행의 검증을 막지 않지만
+Go 오류·취소는 즉시 중단한다. Validator의 일반 오류가 parser의 400/413/415로 바뀌지 않는다. 다른 행이 실패했어도
+유효한 행의 순수 setter/validator는 실행될 수 있다. 요청 전체가 실패하면 부분 DTO slice는 반환하지 않는다.
+
+실제 연결은 [Helpdesk 선언](../../examples/helpdesk/api_inputs.go), [여러 티켓 생성](../../examples/helpdesk/ticket_bulk_api.go),
+[Article 배열 endpoint](../../examples/article/apiapp/bulk_create.go)를 참고한다. Header 입력·nested writable serializer와
+자동 viewset은 후속 범위다. 경로/endpoint 연결은 [api/endpoint](../endpoint/README.md)가 소유한다.
+환경별 검증과 후속 통합은 [실행 증거](../../docs/status/TEST_EVIDENCE.md)에 기록한다.

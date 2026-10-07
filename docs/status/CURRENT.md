@@ -1,7 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-10-07
-- 현재 작업: [GDJ-0117 Typed 경로와 단계 입력 결합](../../work/0117-typed-path-and-ordered-inputs.md)
+- 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
+- 영향 검증 완료·전체 통합 진행: [GDJ-0117 Typed 경로와 단계 입력](../../work/0117-typed-path-and-ordered-inputs.md), source `55e0453d` 및 인증 관찰자/기준 잠금 보정 `587aeea0`
 - 후속 전체 통합 대기: [GDJ-0116 Typed endpoint](../../work/0116-typed-endpoint-declarations.md), source `18fc0451`의 영향 세 mode·양 DB/client·drift/정리 완료
 - 최근 통합 완료: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md), [GDJ-0115 Typed JSON 입력](../../work/0115-typed-json-body-inputs.md)
 - GDJ-0116/0117 Hosted 보정: [37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)의 인증 관찰자 실패를 source `f45eb512`에서 수정하고 영향 검증 완료
@@ -12,15 +13,16 @@
 
 ## 현재
 
-[GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md)의 typed 경로·Sequence/Resolve와 공유 입력 선언을 구현했다.
-Article의 대상 조회 우선과 Helpdesk의 body 검증 우선을 유지하고 쓰기의 응답 준비를 commit 전에 연결했다.
-Source `55e0453d`의 영향 세 mode·양 DB·독립 client/compile·drift·고정 Article API 대조와 정리를 완료했다.
-구현과 환경별 실행 완료를 구분한다. 실행 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
+[GDJ-0118](../../work/0118-typed-json-collections.md) source `6e6e4042`에서 같은 모델 Body의 typed 배열과
+Helpdesk 단건/여러 건·Article 여러 건 생성을 연결하고 영향 세 mode·양 DB/client·실패/취소·정리를 완료했다.
+선행 endpoint/경로 source의 전체 통합은 별도 Hosted 실행에서 확인하며 배열 source의 전체 검증과 구분한다.
+구현과 환경별 실행 완료를 구분하며 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
 
-다음으로 기존 bulk 흐름의 전체/항목 예산·indexed 진단·원자성을 유지하는 typed JSON 배열 입력을 연결한다.
-GDJ-0116/0117 보완 source의 Hosted full `37584339052`에서 필수 owner·capture 결합·최종 집계를 확인한다.
+기준 잠금 보완 source의 Hosted full `37584339052`에서 필수 owner·capture·최종 집계를 확인한다.
+다음은 Identity의 If-Revision을 같은 scalar·presence/schema에서 읽는 typed header 입력이다.
+기존 428/400/412 의미와 인증·경로/query·header·body·DB 순서를 유지하는 실제 소비자로 연결한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

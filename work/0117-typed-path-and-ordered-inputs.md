@@ -49,7 +49,8 @@ GDJ-0116 source `18fc0451`은 영향 세 mode·양 DB·외부 compile·독립 cl
 Source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)은 인증 관찰자 연결 실패를 검출했다.
 보정 source `f45eb512`에서 실제 transport 설명과 구성 순서에 독립적인 경로 관찰을 연결하고 영향 세 mode·고정 reference 대조를
 완료했다. 후속 전체 통합은 보정 source의 새 실행이 소유하며 상세는 TEST_EVIDENCE를 따른다.
-Source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)에서 전체 통합을 진행한다.
+후속 source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)은 아래 기준 잠금 누락을 검출했다.
 
 Hosted `37581945355`의 기준 checksum 연결 누락은 `587aeea0`에서 보완했다. 전체 scenario의 기존 digest 재현·
-새 digest와 artifact 잠금 검증을 완료했으며 새 source의 전체 통합은 후속 Hosted가 소유한다. 상세는 TEST_EVIDENCE에 둔다.
+새 digest와 artifact 잠금 검증을 완료했다. 현재 전체 통합은 source `6d0473cd`의
+[Hosted full 37584339052](https://github.com/progresshans/godj/actions/runs/37584339052)에서 진행한다. 상세는 TEST_EVIDENCE에 둔다.

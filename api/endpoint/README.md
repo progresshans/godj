@@ -50,6 +50,12 @@ JSON negotiation은 기존 `api.JSONPolicy`와 실제 middleware가 소유한다
 각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query는 400, JSON body는 400/413/415이며
 `Errors`에서 같은 상태의 업무 설명을 지정하거나 다른 4xx를 추가할 수 있다.
 
+`JSONListBody(item, input.ListConfig, description, optionalValidator)`는 bare `JSONBody`에서 `Input[[]T]`를 만든다.
+배열 전체/항목 예산과 count는 [typed 목록](../input/README.md)의 정책을 사용하고 단건과 정확히 같은 named item
+component를 공유한다. 같은 `item` 값을 단건·여러 배열 endpoint에서 재사용할 수 있으며 full/partial mode도 유지한다.
+NoQuery·Resolve·Sequence로 감싼 입력을 배열 원본으로 받지 않는다. 원본의 정책을 버리지 않도록 그 조합을 배열에 적용한다.
+배열의 배열과 같은 body를 두 번 읽는 Sequence는 준비 오류다.
+
 `PathInt64(name)`과 `PathString(name)`은 router가 이미 검증·변환한 값을 읽는다. 문자열을 다시 decode하거나
 trim하지 않고 반환한 문자열의 bounded bytes를 소유한다. Int64는 router의 0 이상 범위이며 양수 PK나 대상 존재 여부는
 업무 검증이다. Typed path를 하나라도 선언하면 route의 모든 parameter를 정확히 한 번 같은 이름·종류로 연결해야 한다.
@@ -95,10 +101,18 @@ endpoint는 오류와 함께 온 준비 응답을 버린다. 반면 handler가 n
 rollback 실패·불확실한 transaction 결과가 일반 입력 오류로 바뀌지 않는다. 원 Go 오류는 내부에서 보존하고 HTTP 오류 처리는
 Web layer에 맡긴다. 직접 반환하는 진단은 기존 API error envelope의 공개 값 계약을 따른다.
 
+`Config.ErrorLimits`는 입력 진단과 Resolve/handler의 직접 Reject에 같은 오류 표현 예산을 적용한다.
+Zero limits는 기존 기본값이다. 선언 시 빈 validation envelope를 표현하지 못하는 예산은 거부한다.
+`SummarizeValidationErrors`를 켜면 validation envelope가 자원 예산을 넘을 때만 기본 예산의 작은
+`__all__/too_many_errors`와 전체 진단 개수로 같은 상태의 요청 전체를 거부한다. 잘린 진단 목록을 게시하지 않는다.
+잘못된 문자열/상태/code, validation 이외의 오류, 내부·wrapped·joined·취소/unknown outcome은 요약으로 재분류하지 않는다.
+Reject는 status/code를 즉시 검사하고 immutable 진단은 endpoint의 실제 예산으로 요청 시 표현한다.
+
 실제 사용 예시는 [요약 조회](../../examples/helpdesk/ticket_summary_api.go)와
 [Label ensure의 원자 저장](../../examples/helpdesk/label_ensure.go),
 [Article의 조회 우선 수정](../../examples/article/apiapp/typed_update.go),
-[Label의 body 검증 우선 수정](../../examples/helpdesk/label_update_endpoint.go)에 있다.
-Header typed binder, 배열 body, streaming/no-content 성공, 여러 종류의 성공 DTO,
+[Label의 body 검증 우선 수정](../../examples/helpdesk/label_update_endpoint.go),
+[Article의 원자적 배열 생성](../../examples/article/apiapp/bulk_create.go)에 있다.
+Header typed binder, streaming/no-content 성공, 여러 종류의 성공 DTO,
 자동 CRUD/viewset은 후속 범위다. 현재 수동 handler/OpenAPI API와 혼합할 수 있으며 `Collect`의 추가 Output declaration으로
 그 수동 operation의 named schema도 함께 모을 수 있다.

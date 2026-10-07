@@ -45,6 +45,14 @@ Label 확보는 `POST /api/labels/ensure/`를 사용한다. 실제 서버에서 
 두 성공 응답형·필수 label/created·null/누락/잘못된 bool 거부 및 고정 500 응답의 단일 전송을 검사한다.
 Synthetic 500은 실제 DB의 실패 증거가 아니며, 부모/자식 transaction·audit rollback과 unknown outcome은 Helpdesk 양 DB 검사가 소유한다.
 
+Article의 `POST /api/articles/bulk/`는 Session/Bearer의 같은 named ArticleCreate 객체 배열에서 생성된다.
+독립 client는 두 profile의 cleaning/default/null, 뒤 행의 진단/index, 기존/입력 집합의 slug 고유성과 count를 검사한다.
+Bearer read-only 인가와 Session CSRF 거부 뒤 DB count를 확인하고 성공한 두 행을 개별 상세로 다시 읽는다.
+부모는 각 DB의 기존 slug 행과 두 bulk 행의 최종 scalar/null/ID 순서를 독립 조회한다. `article_bearer_bulk`,
+`article_session_bulk`, `generated_article_bulk_wire` receipt가 필수다. Wire 검사는 큰 int64 두 값·required 배열
+응답·명시적인 두 profile의 cardinality Validate, 잘못된 shape/null/숫자 및 synthetic 500의 단일 전송을 검사한다.
+실제 SQLite/PostgreSQL 여러 batch의 rollback·출력/hook·unknown outcome은 Article native HTTP/업무 검사가 소유한다.
+
 여러 티켓 생성은 `POST /api/tickets/bulk/`의 typed 배열 입력/출력을 사용한다. Min/max·뒤쪽 항목의 index 진단,
 scalar 기본값과 exact JSON/digest·고유성·외부 Category 라벨·read-only 권한·CSRF 거부를 실제 HTTP로 확인한다.
 부모는 두 새 티켓의 scalar·라벨 연결·서로 다른 ID와 한 번씩의 durable add audit를 DB에서 독립적으로 검사한다.

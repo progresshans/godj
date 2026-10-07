@@ -3,6 +3,79 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0118 — Typed JSON 배열과 두 앱의 원자 생성
+
+2026-10-07 KST, source `6e6e4042696a007a834f0a59175d41a6fed42087`에서 같은 Body/Spec의 full/partial 검증을 typed 배열로 연결했다.
+전체 request와 항목의 compact JSON 예산, 1..1024 범위의 선언된 개수 제한, named item identity와 순서 있는
+진단을 공유한다. 실패 요청은 DTO의 일부를 반환하지 않는다. 바깥 행은 `index`, integer-list 필드 내부 위치는
+`item_index`로 구분한다. 최대 16,384개 진단을 보관하며 초과 시 전체 개수를 가진 완전한 거부를 만든다.
+버려지는 초과 진단도 JSON 문자열·index의 유효성을 검사하고 내부 callback 오류를 client parser 오류로 분류하지 않는다.
+Endpoint의 input/직접 Reject는 같은 오류 예산을 사용하며 명시적 validation overflow만 요약한다.
+
+Article은 1..40개의 전체 후보와 DB/입력 집합의 slug 고유성을 검사한 뒤 20행 native batches를 하나의
+transaction/savepoint에 넣는다. 최종 저장 row를 입력 순서로 다시 읽고 전체 출력·기존 mutation hook을 commit 전에
+완료한다. Helpdesk의 단건/여러 티켓 생성도 같은 typed item과 준비 응답을 사용한다. 기존 Category/label 범위·고유성,
+저장 JSON/digest·전체 출력·audit를 유지한다. 인증/CSRF는 본문 읽기보다 먼저 실행하며, malformed/repeated/retained/
+concurrent callback·취소·실패·unknown outcome에는 성공을 게시하지 않는다. 확인된 commit 뒤 취소는 완료를 번복하지 않는다.
+
+Go 1.26.5/darwin/arm64·공유 cache·offline graph, SQLite와 별도 PostgreSQL 17.10 UTF8/C/C에서 실행했다.
+Runtime은 api/input·api/endpoint·Article apiapp/articleapp 네 package, business는 Article·siteapp·Helpdesk·독립
+OpenAPI client 네 package다. 인증 conformance는 GDJ-0047의 두 package/11 roots, compile은 외부 소비자·타입 오용·
+의존 경계·offline 환경의 네 roots, protocol은 reference artifact/profile와 GDJ-0047의 세 roots를 검증했다.
+부모 Article 테스트는 실제 source 위치를 유지하고 generated/external child는 기존 `-trimpath` 정책을 유지했다.
+
+| Mode | 범위 | run/pass | skip | 시간 | 원 JSON SHA-256 |
+|---|---|---:|---:|---:|---|
+| normal | runtime | 369/369 | 0 | 2.937s | `66c5a57ef317697974bd9adc63fc91f1a42f0c535b5c2e205030407675ab4b11` |
+| normal | protocol | 104/104 | 0 | 0.619s | `41e7d1df968cf086b7fc83aa3a2aada958a4ab71aa32465834c9406c351ab985` |
+| normal | compile | 93/93 | 0 | 4.851s | `4fcb65327276d42321b13911cff38119458058398526ad169bc5300644f88cfb` |
+| normal | business | 1541/1541 | 0 | 126.275s | `d3fbe9c9eca6c9f7f3773e501334fcc7a8d0ddbd59dea0f7113ba839901357f5` |
+| normal | conformance | 30/30 | 0 | 11.18s | `5af197fcde73251b7d3ddba565e99c7211e83f63d230fc6ca7cce0aae6874830` |
+| race | runtime | 369/369 | 0 | 6.916s | `d21110e44e6ea4af6558d779bbbfc55edade7852ea764b0eb58148fb494bece6` |
+| race | business | 1541/1541 | 0 | 880.482s | `8afe2bece6f484df4527fb9d395627c265de6ba89b5a41fca28f7d31fde4da7c` |
+| race | conformance | 30/30 | 0 | 23.539s | `e9e33842bce2f5c29219ea514603e302327bb48d18bb63cee457d59ad00adee0` |
+| cgo0 | compile | 93/93 | 0 | 5.259s | `12965b55a96dc4c2eecebf4588ba0d997b56acbbcdce19f954f93fe6fdccb753` |
+| cgo0 | runtime | 369/369 | 0 | 2.366s | `3bc01047e515c234390e45931336097a6ab651be8b068ff3816e363d277922e1` |
+| cgo0 | business | 1541/1541 | 0 | 111.565s | `8c82387637563196a421860a34a6e3d7804af9f328b5c64b1945f7f8b976d6cc` |
+| cgo0 | conformance | 30/30 | 0 | 4.737s | `c4db2407034fafb6ea9a86c7dec473a00bda2d84810d91e1ba76f6d136322a00` |
+
+각 행은 필수 root/subtest의 run/pass 한 번, 모든 소유 package 완료와 skip 0을 원 JSON으로 확인한 결과다.
+새 PostgreSQL 필수 경로 80개가 기존 경로를 지우지 않고 모든 mode에서 실행됐다. 40행/두 batch, 마지막 항목의
+입력 실패에 DB 진입 없음, native 후기 unique 충돌·reload/출력 예산·hook·취소·unknown과 durable row 재조회,
+단건/배열 index 분리와 실제 Session/Bearer/CSRF를 포함한다. 이전 prepared update의 수명·race 회귀도 함께 실행했다.
+
+여섯 실제 OpenAPI를 다시 export하고 고정 ogen v1.24.0으로 생성했다. Article 두 profile은 새 bulk 경로,
+Helpdesk는 중첩 item 위치 설명만 바뀌었고 Identity 두 profile·Account의 문서와 생성물은 byte 동일하다.
+세 dependency/config lock은 유지했다. 독립 client는 두 인증 profile의 거부·개수/고유성·clean/default/null·
+성공 응답 순서/최종 DB, exact int64·array wire·required response·no retry를 확인했다. 새 receipt 세 개를
+부모와 child 양쪽에 필수로 연결했다. 생성 receipt SHA는 `4e5e3015054abf7afde4f172677ca7be416edf36efee7c7eea684b9f2b24f91a`다.
+
+고정 uv 0.10.12/Python 3.14.3/Django 6.1/DRF 3.18의 독립 관찰로 311개 scenario 전체를 재구성했다.
+변경은 API-011 양 profile의 `POST /api/articles/bulk/` 추가와 shared_routes 6→7뿐이다. 이를 되돌린 payload는
+선행 digest `d046e618ed26bbd3717d52b98c0542dfe7f10f7fc8259a4455ad583b698639a0`를 재현했다.
+새 payload 1,082,315 bytes의 SHA는 `9f16d52cdfe19db5fc1a2222fb04b01500c673ca45d48de7ea7d7245b0eb453c`,
+새 oracle 23,804 bytes의 SHA는 `57db6a41fd8c92f7724245ca2c6b487c872b3582f6ca85b8b9908ec7687c912b`다.
+Oracle·SHA256SUMS·artifact catalog·CI byte/digest를 함께 연결했다. 기준 재생성 receipt SHA는 `7c8e2fb8887ac8eb4dbc7448607607eb7d1753d5c5886855d45affa473d210c4`다.
+고정 Article API의 10개 product 계약 대조와 Python 인증 5 tests·0 skip도 통과했다. Format·영향 vet·CI 실행 owner·
+문서/링크·diff를 확인했고 임시 schema/다른 session 0, DB 삭제와 container 종료/제거를 확인했다.
+
+최초 실행 `162307`은 parser의 NUL 전체 오류와 늘어난 route 수에 대한 기존 assertion을 검출했다.
+다음 `162429`는 실제 세 경로 중 기존 두 경로만 기대한 site composition assertion을 검출했다.
+해당 검사를 새 경로의 정확한 membership과 기존 parser 계약에 맞췄고 원 실패 로그를 보존했다.
+보정 후 `163000` 실행은 전체 frozen source에서 위 Go 검사를 모두 통과했다. 이후 CI owner Python 검사를 잘못된
+module 경로로 호출해 import 단계에서 중단됐다. 원 실패 receipt SHA는 `01c9e229d7ba9f79c6fbfecc446d23c0442ce84b8a28416422d259bf7148ec1d`로 보존했다.
+제품 source를 바꾸지 않고 `python3 scripts/ci/test_postgres_shards.py -v`로 다섯 검사를 완료했다. 이어 문서/diff를
+확인하고 별도 PostgreSQL에서 normal business 1,541 run/pass·0 skip을 다시 실행해 임시 schema/다른 session 0과
+DB 삭제를 실제 확인했다. 이 정리 확인 실행은 99.947s, 원 JSON SHA `b3118fc3f7e14121d2a21cfb9b84e6195501e81dd6b305b8b1248d143be0738d`다.
+원 container도 제거됐지만 중단 전 SQL 정리 수치는 관찰하지 못했다. 원 12개 Go 실행과 처음 네 static 성공은
+동일한 3,208개 frozen 파일과 원 로그 digest로 결합했고, 실패한 static 명령을 성공 결과로 옮기지 않았다.
+
+`typed-json-collections-20261007-165223-completion/receipt.json` SHA는 `576c66f7ead61414e2746428afeb94d5b5f396a95286ff5d6e7811d064a647d9`다.
+비Markdown 3,208개 inventory SHA `d341fb2027bafcc5ac49543f784f63cf29984778ef7342eb9ae6dd2855aa3494`를
+모두 source의 Git blob과 대조했고 실행 전후 동일함을 확인했다. Source audit SHA는 `f9bcb3b50ea0024126f3c2e235212250301437d78cec7924301a7d0dc2f5ea72`다.
+이번 기록은 영향 검증이다. 이 source의 다른 OS/architecture와 전체 platform·cold/Hosted는 후속 통합 milestone이
+소유한다. 별도 진행 중인 `6d0473cd`의 Hosted full `37584339052`는 GDJ-0116/0117만 포함하므로 이 작업의
+전체 검증으로 전이하지 않는다. 전체 기능 카탈로그의 완료도 아니다.
 ## GDJ-0112~0115 — 그룹과 typed 출력/query/body의 Hosted 전체 통합 완료
 
 2026-10-07 KST, source `def77d5e1c949a87d538181d05a72a3c75e97201`의
