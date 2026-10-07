@@ -245,6 +245,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		t.Fatalf("repeated delete changed Article count to %d", got)
 	}
 	t.Run("typed_bulk", func(t *testing.T) { verifyArticleBulkSession(t, fixture, viewer, freshCSRF, viewerCSRF) })
+	t.Run("admin_mutation_outcomes", func(t *testing.T) { verifyArticleAdminMutationOutcomes(t, backend) })
 }
 
 type articleAPIAdminSessionFixture struct {
@@ -252,6 +253,7 @@ type articleAPIAdminSessionFixture struct {
 	client     *http.Client
 	repository articleapp.Repository
 	sessions   *sessions.Manager
+	audit      *admin.AuditLog
 }
 
 func newArticleAPIAdminSessionFixture(t *testing.T, backend articleapp.Backend) articleAPIAdminSessionFixture {
@@ -357,7 +359,7 @@ func newArticleAPIAdminSessionFixture(t *testing.T, backend articleapp.Backend) 
 	}
 	server := httptest.NewServer(application)
 	t.Cleanup(server.Close)
-	fixture := articleAPIAdminSessionFixture{server: server, repository: repository, sessions: manager}
+	fixture := articleAPIAdminSessionFixture{server: server, repository: repository, sessions: manager, audit: audit}
 	fixture.client = fixture.newClient(t)
 	return fixture
 }

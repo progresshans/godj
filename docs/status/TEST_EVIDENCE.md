@@ -42,6 +42,16 @@ header wrapper를 빠뜨린 최초 compile 오류는 `.Response`로 수정한 �
 공개 외부 compile fixture 실행·새 테스트 본문·native DB/HTTP·race/CGO0·SDK drift/HTTP·전체 platform/cold는
 이 source의 원격 CI에서 확인해야 한다. 선행 `cc2c2f25`의 진행 중인 CI는 이 작업 사본의 증거가 아니다.
 
+후속 소비자 검토에서 Article Admin adapter가 확인된 missing에도 `errors.Join`으로 framework marker를
+붙이지만 Admin Site는 직접 marker만 404로 처리하는 불일치를 확인했다. 직접 Article missing만
+`admin.ErrObjectNotFound`로 바꾸고 wrapped/joined·callback 누락·불확실한 결과는 원 오류로 보존하도록 수정했다.
+공통 marker 설명도 이미 실행 중인 직접 반환 계약에 맞췄다. 새 회귀는 양 DB의 실제 Admin login/CSRF/form에서
+Site 조회 뒤 missing, swallowed/joined/wrapped miss, callback 누락·commit 불명, 삭제 취소와 성공한 수정/삭제를
+검사한다. 저장 row와 한 번의 transaction/DML·확정 후의 정확한 메모리 audit, 실패 시 성공 redirect/audit 부재를 확인하도록 했다.
+두 기존 Session native owner에 parent/child 36개를 더해 GDJ-0120의 새 필수 경로는 총 102개다.
+이 후속 변경은 gofmt·examples/article/adminapp 및 examples/article의 `go test -run '^$'` 최소 compile,
+필수 목록 owner 검사 5 tests를 통과했다. 새 HTTP/DB 테스트 본문은 아직 실행하지 않았으며 원격 CI가 소유한다.
+
 ## GDJ-0119 — Typed header와 Identity revision 조건
 
 2026-10-08 KST, 기준 `632cf6db3feafd9622d230170e8eddee73a2545a`의 작업 사본에서 Header·Endpoint 결합과

@@ -176,7 +176,7 @@ func (backend *typedArticleBackend) Atomic(ctx context.Context, callback func(db
 		return nil
 	}
 	err := backend.Backend.Atomic(ctx, func(session db.Session) error {
-		if backend.mode == "swallowed_miss" || backend.mode == "joined_miss" || backend.mode == "confirmed_miss" {
+		if backend.mode == "swallowed_miss" || backend.mode == "joined_miss" || backend.mode == "wrapped_miss" || backend.mode == "confirmed_miss" {
 			row := articlemodels.NewArticleWithID(backend.id)
 			if _, err := articlemodels.ArticleObjects.Delete(ctx, session, &row); err != nil {
 				return err
@@ -189,6 +189,9 @@ func (backend *typedArticleBackend) Atomic(ctx context.Context, callback func(db
 	}
 	if backend.mode == "joined_miss" {
 		return errors.Join(err, errors.New("private rollback boundary"))
+	}
+	if backend.mode == "wrapped_miss" {
+		return fmt.Errorf("private rollback boundary: %w", err)
 	}
 	if err != nil && backend.mode == "delete_rollback_unknown" {
 		return errors.Join(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown})

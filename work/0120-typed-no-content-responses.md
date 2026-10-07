@@ -23,6 +23,8 @@ Article와 Helpdesk Label 삭제는 실제 204 응답과 OpenAPI를 따로 연�
   성공한 삭제/commit을 확인한 뒤에만 게시한다. 실패·취소·unknown에는 준비된 응답을 버리며 자동 재시도하지 않는다.
 - Article 삭제는 기존 prepared transaction owner로 callback 완료와 mutation hook을 확인한다. 확인된 missing은
   직접 404로 분류할 수 있게 보존하며 wrapped/joined 실패는 풀지 않는다. 기존 validation 400을 두 operation에 명시한다.
+- 같은 Repository를 쓰는 Article Admin도 확인된 missing만 직접 `admin.ErrObjectNotFound`로 반환한다.
+  Site 조회 뒤 대상이 없어지는 수정/삭제와 오류 은폐·wrapped/joined 실패·unknown commit의 HTTP/저장/audit를 함께 검사한다.
 - 공개 compile-positive/negative·output/endpoint 소유권, 실제 Session/Bearer와 양 DB의 관계/audit·취소/unknown,
   실제 문서·생성 client drift와 HTTP를 함께 확인한다. 전체 실행은 원격 CI가 소유한다.
 

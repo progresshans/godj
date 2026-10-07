@@ -38,8 +38,8 @@ const (
 )
 
 // ErrObjectNotFound is the adapter-neutral missing-row marker. Model callbacks
-// wrap it when a row disappears between an Admin read and its write so the HTTP
-// boundary can return 404 without importing an application package.
+// return it directly for confirmed absence between an Admin read and its write.
+// Wrapped/joined execution failures remain errors at the HTTP boundary.
 var ErrObjectNotFound = errors.New("admin: object not found")
 
 // ErrReconciliationRequired marks a callback contract failure discovered only

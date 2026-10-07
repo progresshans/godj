@@ -230,6 +230,9 @@ prepared transaction owner를 사용해 callback 누락/반복·오류 은폐를
 확인된 missing/validation만 기존 404/400으로 반환한다. 취소와 wrapped/joined infrastructure·unknown outcome은
 오류로 보존한다. Label의 category 확인과 CASCADE는 기존 relation transaction이 소유하며 관련 없는 label/ticket을 보존한다.
 기존 validation 400 응답을 명시적으로 기술해 Session client도 같은 실패 형태를 읽도록 한다.
+같은 Article 저장 경로를 사용하는 Admin adapter도 확인된 missing만 직접 framework marker로 바꾼다.
+Admin Site의 바깥 조회 이후 발생한 missing과 transaction 실패를 구별하며, 불확실한 결과에는 성공 redirect나
+메모리 audit를 게시하지 않는다. 직접 marker만 404로 처리하는 기존 Admin 계약을 따른다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

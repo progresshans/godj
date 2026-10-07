@@ -18,6 +18,7 @@
 ## 현재
 
 이 작업 사본은 GDJ-0120의 NoContent Output·Prepared와 endpoint/OpenAPI를 Article·Label 삭제에 연결했다.
+같은 Article 저장 경로의 Admin missing 변환도 직접 marker 계약에 맞췄다.
 최소 compile·실제 문서 export·필요한 SDK 생성물을 준비했으며 테스트 본문·HTTP/DB·생성 drift는 원격 검증 대기다.
 게시된 header source의 원격 실행과 이 미게시 변경을 구분한다.
 

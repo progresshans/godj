@@ -2,7 +2,6 @@ package adminapp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/progresshans/godj/admin"
@@ -154,11 +153,14 @@ func articleDisplayTextValidator(field validation.Field) forms.FieldValidator {
 	})
 }
 
-// Add the framework marker at the Admin callback boundary while preserving
-// the original error chain, including rollback and outcome-unknown failures.
+// Only a confirmed application miss becomes the Admin marker. Wrapped/joined
+// execution failures retain their causes and cannot masquerade as a 404.
 func adminMutationError(err error) error {
-	if errors.Is(err, articleapp.ErrNotFound) {
-		return errors.Join(admin.ErrObjectNotFound, err)
+	if err == articleapp.ErrNotFound {
+		return admin.ErrObjectNotFound
+	}
+	if missing, ok := err.(*articleapp.Error); ok && missing != nil && missing.Code == articleapp.CodeNotFound && missing.Cause == nil {
+		return admin.ErrObjectNotFound
 	}
 	return err
 }
