@@ -70,6 +70,17 @@ Format 0.529s, 영향 vet 14.767s가 통과했다. CI 필수 manifest를 줄이�
 `720c9be6211f00a146a39d00957a81ce69ed294f`에는 그룹 집계·typed 출력/query/body가 없다. 후속 고정 source의 Hosted
 milestone이 이 기능들의 전체 환경을 소유하며 로컬 전체 검증을 중복하지 않는다.
 
+
+### 새 source의 Hosted 전체 요청
+
+제품/생성 소비자 source `def77d5e1c949a87d538181d05a72a3c75e97201`를 발행하고
+[Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)을 2026-10-07 04:00:26 UTC에
+workflow_dispatch / suite=full / attempt 1로 시작했다. Validation-plan이 통과했고 실제 runner 작업에 진입했다.
+이 source는 GDJ-0112/0113/0114/0115를 함께 포함한다. 필수 owner·platform/cold/process·PostgreSQL 원 로그·S3 수명과
+새 capture의 Git source 결합/실제 소비·최종 aggregate는 아직 완료하지 않았다. 요청 receipt
+`typed-api-hosted-request-37569379536.json` / `2ffa0bd1649989608b7f42647adab49b512662e039b54f6e589e2ede3589e598`.
+로컬 전체 검증을 추가로 중복하지 않으며 다음 제품 변경은 이 고정 source와 분리한다.
+
 ## GDJ-0109/0110/0111 — 같은 source의 Hosted 전체 통합 완료
 
 2026-10-06 KST, [Hosted full 37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)의

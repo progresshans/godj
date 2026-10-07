@@ -3,6 +3,7 @@
 - 갱신: 2026-10-07
 - 현재 작업: [GDJ-0115 Typed JSON body와 모델 입력](../../work/0115-typed-json-body-inputs.md)
 - 통합 대기: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md)
+- 진행 중인 Hosted full: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
 - 최근 Hosted full 완료: [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), source `720c9be6211f00a146a39d00957a81ce69ed294f`
 - 최근 완료: [GDJ-0111 QuerySet 갱신](../../work/0111-query-update-and-writable-expressions.md); GDJ-0109/0110도 같은 source에서 통합 완료
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -22,7 +23,8 @@ Typed 출력과 실제 요약·상세 API/client의 영향 세 mode·외부 comp
 
 ## 다음 행동
 
-검증한 typed body source를 발행하고 그룹 집계와 typed API를 포함하는 새 source의 Hosted 전체 통합을 수행한다.
+Typed body source를 발행하고 그룹 집계와 typed API를 포함하는 Hosted full을 시작했다.
+필수 owner의 실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 
