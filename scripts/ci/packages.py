@@ -5,7 +5,7 @@ import json
 import os
 import sys
 
-from scopes import OWNERS
+from workflow import JOBS
 
 MODULE = 'github.com/progresshans/godj/'
 PRODUCTS = {
@@ -54,7 +54,7 @@ def relation_owned(relative):
 
 
 def selected(packages, group_name, owners=()):
-    if not set(owners) <= set(OWNERS):
+    if not set(owners) <= JOBS:
         raise ValueError('unknown CI execution owner')
     result = []
     for package in packages:

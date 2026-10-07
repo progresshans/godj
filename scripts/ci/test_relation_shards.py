@@ -107,10 +107,10 @@ class RelationShardTest(unittest.TestCase):
             with self.subTest(shard=shard, packages=packages), self.assertRaises(ValueError):
                 verify(self.write('misowned.json', values), self.roots, shard, 3, packages)
 
-    def test_scope_plan_preserves_all_coordinates_and_partitions_race(self):
+    def test_workflow_plan_preserves_all_coordinates_and_partitions_race(self):
         output = self.directory / 'outputs'
-        environment = dict(os.environ, VALIDATION_SUITE='full', GITHUB_OUTPUT=str(output))
-        result = subprocess.run([sys.executable, str(Path(__file__).with_name('scopes.py')), 'plan'], env=environment,
+        environment = dict(os.environ, GITHUB_OUTPUT=str(output))
+        result = subprocess.run([sys.executable, str(Path(__file__).with_name('workflow.py')), 'plan'], env=environment,
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])

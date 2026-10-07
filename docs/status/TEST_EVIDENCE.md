@@ -3,6 +3,30 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## CI — PR 자동 전체 검증
+
+2026-10-08 KST, PR 생성·새 commit push·재개와 main push에서 전체 CI를 실행하도록 변경했다.
+수동 실행도 같은 전체 검증을 요청한다. 라벨·suite 입력·문서 경로 필터와 부분 실행 분기를 제거했다.
+같은 PR/branch의 새 실행은 이전 실행을 취소한다. 로컬은 포맷·최소 compile와 실패 재현을 기본 범위로 삼는다.
+
+`workflow.py`는 모든 필수 job과 기존 관계 matrix를 계획하고, 최종 집계에서 plan과 모든 job의 성공을 요구한다.
+하나의 job에서 실행하는 operator/targeted 두 제품도 모두 성공해야 한다. 삭제한 부분 실행 fallback의 검증은 기존
+전체 실행과 같이 관계/project-check/Portable의 해당 OS·arch·mode가 소유한다. PostgreSQL capture의 source binding도
+새 script를 포함한다. 필수 sentinel·no-skip·same-run capture·cold build와 플랫폼/DB matrix는 유지했다.
+
+로컬에서 `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest test_workflow test_packages test_relation_shards`를
+`scripts/ci`에서 실행해 24 tests·0 failures·0 skips를 확인했다. Plan과 양 command의 실패·취소·skip·누락을 거부하고,
+CI/로컬 package의 중복·누락 방지와 관계 matrix의 모든 좌표·race partition을 검증했다.
+Ruby YAML 파싱으로 PR 기본 이벤트·main push·입력 없는 수동 실행과 이전 실행 취소를 확인했다.
+변경 Go 파일의 gofmt, 문서 링크와 diff 검사를 적용했다. 이 변경의 Go·DB·전체 플랫폼 실행은 원격 CI가 검증하며
+위 로컬 검사만으로 Hosted 전체 성공을 주장하지 않는다.
+
+선행 source `6d0473cdf9d649158e5fcd731cbf1a43a0261211`의
+[Hosted full 37584339052](https://github.com/progresshans/godj/actions/runs/37584339052)은 completed/failure다.
+76 jobs 중 74 success, macOS Intel 관계 normal job과 최종 집계가 failure였다.
+실패 job은 [112671205987](https://github.com/progresshans/godj/actions/runs/37584339052/job/112671205987)이며,
+이전 source의 실행 결과를 이번 source의 전체 검증으로 옮기지 않는다.
+
 ## GDJ-0118 — Typed JSON 배열과 두 앱의 원자 생성
 
 2026-10-07 KST, source `6e6e4042696a007a834f0a59175d41a6fed42087`에서 같은 Body/Spec의 full/partial 검증을 typed 배열로 연결했다.

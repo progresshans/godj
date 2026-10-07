@@ -167,11 +167,11 @@ func ciMakeTarget(t *testing.T, text, target string) string {
 func ciPlan(t *testing.T) map[string]string {
 	t.Helper()
 	outputPath := filepath.Join(t.TempDir(), "plan.txt")
-	command := exec.CommandContext(t.Context(), "python3", "scripts/ci/scopes.py", "plan")
+	command := exec.CommandContext(t.Context(), "python3", "scripts/ci/workflow.py", "plan")
 	command.Dir = conformanceRepositoryRoot(t)
-	command.Env = append(os.Environ(), "VALIDATION_SUITE=full", "GITHUB_OUTPUT="+outputPath, "PYTHONDONTWRITEBYTECODE=1")
+	command.Env = append(os.Environ(), "GITHUB_OUTPUT="+outputPath, "PYTHONDONTWRITEBYTECODE=1")
 	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("read CI scope owner authority: %v\n%s", err, output)
+		t.Fatalf("read CI execution plan: %v\n%s", err, output)
 	}
 	output, err := os.ReadFile(outputPath)
 	if err != nil {
@@ -210,14 +210,14 @@ func ciRelationMatrix(t *testing.T, job string) []map[string]string {
 	return rows
 }
 
-func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
+func TestWorkflowRequiredJobsReachAggregate(t *testing.T) {
 	jobs := ciJobs(t)
 	var owners []string
 	if err := json.Unmarshal([]byte(ciPlan(t)["jobs"]), &owners); err != nil {
 		t.Fatal(err)
 	}
 	if len(owners) == 0 {
-		t.Fatal("full validation plan has no owners")
+		t.Fatal("CI execution plan has no required jobs")
 	}
 	sort.Strings(owners)
 	var discovered []string
@@ -228,14 +228,16 @@ func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
 	}
 	sort.Strings(discovered)
 	if !reflect.DeepEqual(discovered, owners) {
-		t.Fatalf("workflow owners differ from scope authority: jobs=%v owners=%v", discovered, owners)
+		t.Fatalf("workflow jobs differ from the required plan: jobs=%v owners=%v", discovered, owners)
 	}
 	for _, owner := range owners {
 		job := ciJob(t, jobs, owner)
 		if !containsString(ciNeeds(t, job), "validation-plan") {
 			t.Fatalf("owner %s lacks the validation plan dependency", owner)
 		}
-		ciRequire(t, owner, job, "needs.validation-plan.outputs.jobs", "'"+owner+"'")
+		if regexp.MustCompile(`(?m)^    if:`).MatchString(job) {
+			t.Fatalf("required job %s has an optional execution condition", owner)
+		}
 		if regexp.MustCompile(`continue-on-error:\s*true`).MatchString(job) {
 			t.Fatalf("owner %s can ignore failure", owner)
 		}
@@ -246,8 +248,8 @@ func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
 	if actual := ciNeeds(t, aggregate); !reflect.DeepEqual(actual, want) {
 		t.Fatalf("aggregate needs=%v want all owners=%v", actual, want)
 	}
-	ciRequire(t, "aggregate", aggregate, "always()", "toJSON(needs)", "needs.validation-plan.outputs.suite", "scripts/ci/scopes.py verify")
-	ciRequire(t, "plan", ciJob(t, jobs, "validation-plan"), "scripts/ci/scopes.py plan")
+	ciRequire(t, "aggregate", aggregate, "always()", "toJSON(needs)", "scripts/ci/workflow.py verify")
+	ciRequire(t, "plan", ciJob(t, jobs, "validation-plan"), "scripts/ci/workflow.py plan")
 }
 
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
@@ -292,11 +294,10 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	for _, product := range []string{"operator", "targeted"} {
 		step := ciStep(t, commands, product)
 		ciRequire(t, product, step, "matrix.mode", "-race", "CGO_ENABLED=0", "go test", "go vet", "-timeout=",
-			"!cancelled()", "steps.dependencies.outcome == 'success'",
-			"contains(fromJSON(needs.validation-plan.outputs.command_products || '[]'), '"+product+"')")
+			"!cancelled()", "steps.dependencies.outcome == 'success'")
 	}
 	ciRequire(t, "command outcome gate", commands, "steps.operator.outcome", "steps.targeted.outcome",
-		"COMMAND_PRODUCTS_RESULTS_JSON", "scripts/ci/scopes.py verify-command-products")
+		"COMMAND_PRODUCTS_RESULTS_JSON", "scripts/ci/workflow.py verify-command-products")
 	portable := ciMatrix(t, ciJob(t, jobs, "portable-go-matrix"), "include")
 	for mode, prefix := range map[string]string{"normal": "go-test", "race": "go-race", "cgo0": "cgo-zero-build"} {
 		for _, group := range []string{"core", "integration", "conformance", "products"} {
@@ -361,7 +362,6 @@ func TestRunserverKeepsNormalRaceAndCGOZeroProductCoverage(t *testing.T) {
 		body := ciMakeTarget(t, makefile, target)
 		ciRequire(t, target, body, "scripts/ci/packages.py portable-products", "go test", mode)
 	}
-	ciRequire(t, "fast feedback", ciRead(t, ".github/workflows/feedback.yml"), "make quick", "scripts/ci", "not full platform validation")
 	quick := ciMakeTarget(t, makefile, "quick")
 	for _, heavy := range []string{"godj-conformance", "go-test-products", "go-test-platform"} {
 		if strings.Contains(quick, heavy) {

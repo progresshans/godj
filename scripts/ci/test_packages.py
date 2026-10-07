@@ -257,7 +257,7 @@ class ExecutionOwnerTests(unittest.TestCase):
 
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
-        from scopes import SCOPES, selected as select_owners
+        from workflow import JOBS
         for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details'))]:
             prefix = 'conformance/' + family
             consumers = [MODULE + relative for relative in (
@@ -265,11 +265,8 @@ class ExecutionOwnerTests(unittest.TestCase):
                 prefix + '/project', prefix + '/cmd/projectrunner',
             )]
             adjacent = MODULE + prefix + 'helper'
-            for scope in SCOPES:
-                _, owners = select_owners(scope)
-                if 'portable-go-matrix' not in owners:
-                    continue
-                with self.subTest(family=family, scope=scope):
+            for owners in ((), JOBS):
+                with self.subTest(family=family, ci=bool(owners)):
                     relation = selected(consumers + [adjacent], 'relation', owners) if 'relation-product-matrix' in owners else []
                     portable = selected(consumers + [adjacent], 'conformance', owners)
                     for package in consumers:
@@ -278,9 +275,9 @@ class ExecutionOwnerTests(unittest.TestCase):
                     self.assertIn(adjacent, portable)
             self.assertEqual(consumers, selected(consumers, 'conformance'))
 
-    def test_every_scope_preserves_exactly_one_portable_or_relation_owner(self):
+    def test_ci_and_local_preserve_exactly_one_package_owner(self):
         from packages import RELATION_PACKAGES, RELATION_PREFIXES, PORTABLE_PRODUCTS, selected as select_packages
-        from scopes import SCOPES, selected as select_owners
+        from workflow import JOBS
         relatives = sorted(RELATION_PACKAGES | set(RELATION_PREFIXES) | PORTABLE_PRODUCTS | {
             'codegen', 'schema/ir', 'internal/projectgenerate', 'conformance/cmd/godjcheck',
             'internal/migrationgraph', 'internal/migrationautodetect',
@@ -291,16 +288,13 @@ class ExecutionOwnerTests(unittest.TestCase):
             'conformance/identityfixture/cmd/projectrunner', 'conformance/identityfixturehelper',
         })
         packages = [MODULE + relative for relative in relatives]
-        for scope in SCOPES:
-            _, owners = select_owners(scope)
-            if 'portable-go-matrix' not in owners:
-                continue
+        for owners in ((), JOBS):
             portable = [package for category in ('core', 'integration', 'conformance', 'portable-products')
                         for package in select_packages(packages, category, owners)]
             relation = select_packages(packages, 'relation', owners) if 'relation-product-matrix' in owners else []
             runserver = [MODULE + 'conformance/runserverproduct'] if 'product-project-check-matrix' in owners else []
             for package in packages:
-                with self.subTest(scope=scope, package=package):
+                with self.subTest(ci=bool(owners), package=package):
                     self.assertEqual(1, (portable + relation + runserver).count(package))
         # A local invocation without CI owners must retain the complete groups.
         self.assertIn(MODULE + 'db/sqlite', select_packages(packages, 'core'))

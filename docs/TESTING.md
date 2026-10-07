@@ -5,8 +5,9 @@
 
 ## 작업 중
 
-한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 편집 중에는 필요한 compile 확인만 하고,
-변경 묶음이 완성되면 gofmt와 affected package/test를 모아 실행한다. 아래 package는 예시이며 변경 영향에 맞게 바꾼다.
+한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 로컬에서는 포맷·필요한 최소 compile 확인과
+실패 재현을 수행한다. 변경 묶음에 gofmt를 적용하고 push하면 원격 CI가 영향 테스트를 포함한 전체 검증을 실행한다.
+아래 명령은 필요한 로컬 재현의 예시이며 package/test를 실패 원인과 변경 영향에 맞게 좁힌다.
 
 ```sh
 go test ./schema/... ./query/...
@@ -21,22 +22,20 @@ go test ./orm -count=1
 
 | 범위 | 소유하는 위험 | 실행 시점 |
 |---|---|---|
-| 빠른 feedback | formatting, compile, pure/affected logic, 관련 drift | 편집·명시적 실행 |
-| 관련 integration | SQLite/PostgreSQL 실제 동작, relation/cache, security, rollback와 필요한 race | 관련 변경 통합 |
-| CLI/process | 실제 linked build/child, TTY/signal/cancel/reap, private workspace와 output | 명령·프로세스 소유권 변경 |
-| Reference | pinned Django/DRF actual, normalizer/comparator와 source authority | 해당 계약·adapter·profile 변경 |
-| 전체 platform | OS/arch/mode, cold build, external archive와 전체 기능 간 조합 | 명시한 통합 milestone |
+| 로컬 feedback | formatting, 필요한 compile와 실패 재현 | 편집·문제 조사 |
+| 관련 integration | SQLite/PostgreSQL 실제 동작, relation/cache, security, rollback와 필요한 race | 원격 CI |
+| CLI/process | 실제 linked build/child, TTY/signal/cancel/reap, private workspace와 output | 원격 CI |
+| Reference | pinned Django/DRF actual, normalizer/comparator와 source authority | 원격 CI |
+| 전체 platform | OS/arch/mode, cold build, external archive와 전체 기능 간 조합 | 원격 CI |
 | 장기 검증 | 반복 stress/fuzz, 큰 입력, RSS·성능 | 관련 위험 또는 주기적 실행 |
 
 `make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
 `make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
 Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. 빠른 검사의 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
-PR 생성·push·재개만으로 검증을 자동 실행하지 않는다.
-Full/scoped Hosted 검증은 CI workflow의 수동 실행 또는 `ci:full`, `ci:orm`, `ci:cli`, `ci:web`, `ci:reference` 라벨로 선택한다.
-대상 커밋을 먼저 push한 뒤 라벨을 추가한다. 라벨 추가 이벤트 시점의 PR head를 검증하므로,
-같은 라벨로 다시 실행하려면 기존 라벨을 제거한 뒤 다시 추가한다. 라벨이 붙어 있어도 이후 PR push는 검증을 다시 실행하지 않는다.
-Draft PR을 테스트 서버로 쓸 수 있으며 매 docs push가 전체 platform 검증을 다시 요청하지 않게 한다.
-Job 선택과 aggregate가 필요한 검증의 누락을 확인한다. 선택하지 않은 그룹은 not-selected이며 PASS로 가장하지 않는다.
+PR 생성·새 commit push·재개와 main push에서 전체 원격 CI를 자동 실행한다. Draft PR도 같은 검증을 받는다.
+수동 실행은 같은 전체 검증을 다시 요청한다. 라벨·부분 실행 범위·문서 경로에 따른 실행 선택은 없다.
+같은 PR이나 branch에 새 실행이 요청되면 진행 중인 이전 실행을 취소하고 최신 source를 검증한다.
+완료 판정은 해당 run의 실제 checkout과 모든 필수 job의 성공을 확인한다. 실패·취소·skip·누락은 전체 성공이 아니다.
 
 Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
 [suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
@@ -77,8 +76,9 @@ dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=o
 host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
-DB schema/port/temp 디렉터리는 lane별로 분리하고 기본 build cache와 병렬 실행을 유지한다. 캐시 누적만을 이유로 매번
-cache를 비우거나 실행을 일괄 직렬화하지 않는다. 먼저 중복 build·불필요한 검증 범위·cache 누적과 실행 중 임시 공간을 구분한다.
+DB schema/port/temp 디렉터리는 lane별로 분리하고 기본 build cache와 병렬 실행을 유지한다. 로컬 디스크 여유가 부족해
+cache 정리가 필요하면 활성 Go 작업이 종료된 뒤 정리한다. 이후 무거운 재빌드와 검증은 원격 CI에서 수행한다.
+중복 build·검증 범위·cache 누적과 실행 중 임시 공간을 구분하며, 같은 검증을 로컬과 원격에서 관성적으로 반복하지 않는다.
 
 `internal/projectcheck`의 다섯 protocol과 projectgenerate/projectmigration protocol은 Portable core가 문법·resource 검사를
 소유한다. 공용 `wirejson`과 `projectwire`도 core에 속한다. CLI platform owner는 이들을 사용하는 실제 outer command와
@@ -95,14 +95,15 @@ linked runner를 실행하며 protocol 패키지 전체를 다시 선택하지 �
 | 공통 Query AST 의미 | backend compiler unit | SQLite와 PostgreSQL 실제 SQL·identifier/NULL·rollback은 각각 DB owner |
 | 관계 actual 생성 | contract별 fresh observer | 관계별 query/cache/rollback 회귀, 고정 oracle 대조와 sibling case 미실행 대조 |
 
-Portable과 관계/CLI matrix의 Linux amd64는 같은 Ubuntu 이미지와 Go 버전을 사용한다. 같은 scope에 관계 owner가 선택되면
-`scripts/ci/packages.py`가 관계 package 전체를 Portable에서 제외한다. Runserver도 project-check owner가 선택된 경우 그 matrix가 맡는다.
-선택한 owner가 없는 scoped/local 실행은 Portable의 원래 package 범위를 유지한다. OS·architecture·CGO·race가 다른 좌표의 검증은 유지한다.
+Portable과 관계/CLI matrix의 Linux amd64는 같은 Ubuntu 이미지와 Go 버전을 사용한다.
+`scripts/ci/packages.py`는 CI에서 관계 package 전체를 관계 matrix에 배정하고 Portable에서 제외한다.
+Runserver는 project-check matrix가 맡는다. CI owner를 전달하지 않는 로컬 재현은 원래 package 범위를 유지한다.
+OS·architecture·CGO·race가 다른 좌표의 검증은 각각 실행한다.
 
 Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`에서 checkout·toolchain·dependency 준비를 공유한다.
-각 제품은 독립 process·timeout·JSON log·required sentinel·no-skip 검사를 유지한다. 하나가 실패해도 취소되지 않은 다른 선택 제품은
-실행하며, 마지막 outcome 검사가 선택된 step의 실패·skip·누락을 거부한다. `web`은 operator, `orm`은 targeted migrate,
-`cli`와 `full`은 둘 다 실행한다. PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
+각 제품은 독립 process·timeout·JSON log·required sentinel·no-skip 검사를 유지한다. 하나가 실패해도 실행이 취소되지 않았다면
+다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
+PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
 관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표는 독립 generated module의
 합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
@@ -122,12 +123,11 @@ Linux의 분할 job도 45분·package 35분을 유지하며 macOS Intel/ARM 분�
 `codegen/consumertest`, 소비자 타입 오류와 publication 실패 시 기존 결과 보존은 각각 compile·projectgenerate 검증이 맡는다.
 
 SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
-Full scope에서 conformance Go runner 전체를 project-check matrix가 실행하면 관계 matrix는 같은 runner subset을 다시 실행하지 않는다.
-해당 owner가 없는 ORM scope에서는 관계 matrix가 subset을 실행한다. Linux amd64 checker 전체를 Portable이 실행하면 관계 matrix의 같은 subset은 생략한다.
+Conformance Go runner 전체는 project-check matrix가 실행하고 관계 matrix는 같은 runner subset을 반복하지 않는다.
+Linux amd64 checker 전체는 Portable이 맡고 관계 matrix의 같은 subset을 생략한다.
 Portable conformance는 `scripts/ci/conformance_tests.py`가 JSON 시작·종료와 package 완료를 대조하고, 옮겨진 checker의 필수 sentinel·no-skip도 확인한다.
-선택된 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
-aggregate는 선택한 owner의 실패·취소·누락을 거부한다. Full scope의 Darwin CGO-disabled lifecycle도 이 두 matrix가 소유하며,
-reference-only scope에서는 exact Darwin job이 직접 실행한다.
+다른 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
+aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. Darwin CGO-disabled lifecycle도 관계/project-check matrix가 소유한다.
 
 ## 남겨야 하는 검증
 
@@ -244,8 +244,8 @@ CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>
 
 ## 문서와 과거 증거
 
-문서-only 변경은 local link·상태 일관성과 `git diff --check`를 검증한다. 제품 입력을 바꾸지 않은 실행 기록 추가 때문에
-전체 product matrix를 반복하지 않는다. 현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
+문서-only 변경의 로컬 검증은 link·상태 일관성과 `git diff --check`로 제한한다. PR/main push에는 같은 원격 CI가 적용된다.
+현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
 명령, source, 환경, 결과, 실패/skip, 미실행 범위를 남기면 된다. 작은 수정마다 여러 activation/checkpoint/terminal EVID를 만들지 않는다.
 
 코드 규모는 `go run ./scripts/sourceinventory`로 집계한다. 현재 작업 사본의 Git 추적 파일과 무시되지 않은 새 Go/Python 파일을
