@@ -28,7 +28,10 @@ Go 1.26.5/darwin/arm64·공유 cache·offline graph의 전체 `conformance/inter
 `typed-auth-reference-lock-audit-20261007-1557/receipt.json` SHA는
 `f3dd47080b12a0d0bc1c95a5090fcb91c88c8fa55fff55369e1529cfc659b5a1`이다. 비Markdown 3193개 source inventory SHA는
 `783520686a71ad12a59e0ae6506bec6db06055acab479723a1172f6d8610c2b9`이고 모두 `587aeea0`의 Git blob과 대조했다.
-Source audit SHA는 `7c470485e0d04177365b64b4eeb3c40e20baa54fed5aa9c54dc2e8671683bc05`다. 새 source의 Hosted full·capture·최종 집계는 후속 실행이 소유한다.
+Source audit SHA는 `7c470485e0d04177365b64b4eeb3c40e20baa54fed5aa9c54dc2e8671683bc05`다. 비Markdown이 보완 source와 같은 `6d0473cdf9d649158e5fcd731cbf1a43a0261211`의
+[Hosted full 37584339052](https://github.com/progresshans/godj/actions/runs/37584339052)을 2026-10-07 15:56 KST에
+workflow_dispatch/suite=full로 시작했다. 필수 owner·capture/source 결합·최종 집계는 이 새 실행이 소유하며 아직 미완료다.
+같은 ref의 실패 실행 `37581945355`를 concurrency 정책으로 대체하고 선행 `37569379536` attempt 2는 유지한다.
 
 ## GDJ-0116/0117 — Hosted에서 발견한 인증 관찰자 연결 보정
 
