@@ -96,7 +96,7 @@ Endpoint의 Header/Sequence/NoQuery와 연결하고 Identity의 If-Revision을 �
 필수 부재 428·형식 오류 400·업무 revision 불일치 412와 인증/CSRF·경로/query·header·body·manager 순서를 유지한다.
 실제 문서 여섯 개를 export해 Identity 두 profile의 20개 parameter만 lexical/byte metadata가 추가됐음을 확인했다.
 Namespace 보정 source `cc2c2f25`의 원격 API/SDK·재생성 drift·실제 HTTP와 SQLite/PostgreSQL 필수 실행을 세 mode에서
-확인했다. Reference/capture owner와 Intel normal 생성 소비자 세 분할도 완료했다.
+확인했다. Reference/capture owner와 Intel 관계 normal의 생성 소비자 세 분할·runtime도 완료했다.
 나머지 macOS·최종 집계와 checkout DNS 실패 재시도는 진행 중이다.
 
 GDJ-0120은 본문 없는 204의 Output/Prepared·같은 endpoint/OpenAPI 선언을 Article/Label 삭제에 연결했다.

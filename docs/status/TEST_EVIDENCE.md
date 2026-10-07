@@ -173,14 +173,18 @@ reference 변경 없음 검사도 성공했다. 이 결과는 해당 reference/c
 Intel normal 생성 소비자 shard 1/3 `112927133835`는 66 run/pass·42 필수 경로·29 root,
 shard 2/3 `112927133786`은 72 run/pass·38 필수 경로·29 root,
 shard 3/3 `112927133705`는 46 run/pass·32 필수 경로·29 root를 완료했다. 각각 0 skip이며 실제 discovery에
-배정된 root의 정확히 한 번 실행을 확인했다. Runtime owner의 완료 전에는 Intel 전체 성공으로 표현하지 않는다.
+배정된 root의 정확히 한 번 실행을 확인했다. Runtime owner `112927133869`도 2026-10-08 04:00:06 KST에
+49 package·8,647 run/pass·0 skip·2,359 필수 경로를 완료했다. 세 소비자 분할과 합쳐 Intel 관계 normal의
+현재 필수 2,471경로와 소비자 87 root가 검증됐다. 선행 source의 누적 시간 초과를 보완한 해당 좌표는 완료했으며,
+나머지 mode·전체 CI의 완료와 구분한다.
 
 원 로그/필수 목록/hash를 담은 작은 감사 요약의 SHA-256은 API/SDK
 `7fbb6179b77afe547af66f254df7286424abbf6ad67572d6e41427d9bdea34be`, PostgreSQL/capture
 `2c361290066080de1149531f088f33097b591047626d4548121dd35b61812bd4`, 관계 owner
 `08b032cb1d255caf8fe9e84a034142cd4f0844da5d9f17373d6747a981ae3c44`다.
 후속 Intel shard 1 감사는 `21334a0fb1a7377bf5afa6ef79a0d68f34ab54d1005e85c838d5c8d383316942`,
-reference/capture 감사는 `306cbf15758a970d54bc8e38d536cb17814525941d0464a5b56f67da92155342`다.
+reference/capture 감사는 `306cbf15758a970d54bc8e38d536cb17814525941d0464a5b56f67da92155342`,
+Intel normal runtime 감사는 `5654118bd3697ee6e0a83eebe45d7633172beac268b5ad9aba7a3ac996184aa6`다.
 이 감사는 기존 원격 결과를 읽은 것이며 로컬 Go/DB 테스트를 다시 실행하지 않았다.
 
 전체 CI는 관찰 시점에 진행 중이다. Command Intel normal `112927132903`은 checkout에서

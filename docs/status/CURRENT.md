@@ -25,7 +25,7 @@
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
 Namespace 보정 source `cc2c2f25`의 원격 Linux/amd64에서 typed API·독립 SDK의 normal/race/CGO0와
 재생성 drift·실제 HTTP, SQLite/PostgreSQL의 필수 실행·no-skip과 source 연결을 확인했다.
-선행 Intel Mac 누적 시간 초과를 보완한 normal 생성 소비자 분할 세 묶음과 reference/capture owner도 완료했다.
+선행 Intel Mac 누적 시간 초과를 보완한 관계 normal의 세 소비자 분할·runtime과 reference/capture owner도 완료했다.
 일부 macOS·최종 집계가 남아 있으며 checkout DNS 실패의 같은 source 재시도를 처리한다.
 선행 [배열 입력](../../work/0118-typed-json-collections.md)의 영향 검증과 취소된 source `632cf6db`의 CI는
 현재 source의 실행 결과와 구분한다.
