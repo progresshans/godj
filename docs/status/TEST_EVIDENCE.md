@@ -73,6 +73,10 @@ bytes는 `55e0453d`의 모든 비Markdown Git blob과 일치한다. Runner 말�
 원본은 workspace의 `typed-path-input-20261007-143748/{receipt,source,source-audit,required}.json`과 mode별 로그다.
 다른 OS/arch·전체 cold/process/Hosted는 GDJ-0116과 함께 후속 통합 milestone이 소유한다.
 선행 `def77d5e`의 Hosted 실행은 GDJ-0112–0115만 포함하며 GDJ-0116/0117의 전체 성공 근거가 아니다.
+2026-10-07 KST, 같은 비Markdown source인 `63478ee6743b6a1864b03eb34bb1d8d572968e47`의
+[Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)을 workflow_dispatch/suite=full로 시작했다.
+선행 실행과 다른 ref의 concurrency group을 사용하며 기존 실행은 취소하지 않았다. 실제 run source·event·ref를 확인했고
+이 source의 전체 platform·cold/process·capture/source 결합과 최종 집계는 진행 중이다.
 
 ## GDJ-0116 — Typed endpoint와 준비 응답의 실행/문서 연결
 
