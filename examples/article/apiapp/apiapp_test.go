@@ -92,7 +92,7 @@ func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
 		{name: apiapp.Namespace + ":article-delete", method: http.MethodDelete, path: apiapp.DetailPath, permission: articleapp.ArticleDeletePermission},
 	}
 
-	authentication := &recordingAuthentication{}
+	authentication := &recordingAuthentication{inspectBindings: true}
 	application, err := apiapp.New(harness.backend, authentication)
 	if err != nil {
 		t.Fatal(err)
@@ -101,13 +101,25 @@ func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
 	if len(routes) != len(expected) || len(authentication.calls) != len(expected) {
 		t.Fatalf("routes/calls = %d/%d, want %d/%d", len(routes), len(authentication.calls), len(expected), len(expected))
 	}
-	for index, want := range expected {
-		got := routes[index]
-		if got.Name != want.name || got.Method != want.method || got.Path != want.path || got.Handler == nil {
-			t.Fatalf("route %d = %#v, want name=%q method=%q path=%q with handler", index, got, want.name, want.method, want.path)
+	seen := make(map[string]bool, len(routes))
+	for _, got := range routes {
+		found := false
+		for _, want := range expected {
+			if got.Name != want.name {
+				continue
+			}
+			if seen[got.Name] || got.Method != want.method || got.Path != want.path || got.Handler == nil {
+				t.Fatalf("invalid route binding: %#v", got)
+			}
+			binding, err := got.Handler(nil)
+			if err != nil || binding.Header().Get("X-Test-Permission") != string(want.permission) {
+				t.Fatalf("permission binding for %s differs", got.Name)
+			}
+			seen[got.Name], found = true, true
+			break
 		}
-		if authentication.calls[index].permission != want.permission || authentication.calls[index].handler == nil {
-			t.Fatalf("authentication call %d = %#v, want permission %q with handler", index, authentication.calls[index], want.permission)
+		if !found {
+			t.Fatalf("unexpected route: %s", got.Name)
 		}
 	}
 
@@ -118,6 +130,8 @@ func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
 	}{
 		{name: "Require error", failAt: 4},
 		{name: "nil protected handler", nilAt: 7},
+		{name: "typed Require error", failAt: 9},
+		{name: "typed nil protected handler", nilAt: 10},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			authentication := &recordingAuthentication{failAt: test.failAt, nilAt: test.nilAt}
@@ -416,9 +430,14 @@ type authenticationCall struct {
 }
 
 type recordingAuthentication struct {
-	calls  []authenticationCall
-	failAt int
-	nilAt  int
+	inspectBindings bool
+	calls           []authenticationCall
+	failAt          int
+	nilAt           int
+}
+
+func (*recordingAuthentication) DescribeAuthentication() (api.AuthenticationDescription, error) {
+	return api.AuthenticationDescription{Kind: api.AuthenticationSession, SessionCookieName: websessionauth.DefaultSessionCookieName, CSRFCookieName: websessionauth.DefaultCSRFCookieName, CSRFHeader: websessionauth.DefaultCSRFHeader}, nil
 }
 
 func (a *recordingAuthentication) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
@@ -429,6 +448,11 @@ func (a *recordingAuthentication) Require(permission auth.Permission, handler ap
 	}
 	if call == a.nilAt {
 		return nil, nil
+	}
+	if a.inspectBindings {
+		return func(*web.Request) (web.Response, error) {
+			return web.NewResponse(200, http.Header{"X-Test-Permission": {string(permission)}}, nil)
+		}, nil
 	}
 	return func(request *web.Request) (web.Response, error) {
 		return handler(request, auth.Anonymous())

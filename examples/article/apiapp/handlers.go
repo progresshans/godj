@@ -67,7 +67,7 @@ func (a *Application) create(request *web.Request, _ auth.Principal) (web.Respon
 	if handled || err != nil {
 		return response, err
 	}
-	created, err := a.repository.Create(request.Context(), fullInput(values))
+	created, err := a.repository.Create(request.Context(), values.full(nil))
 	if err != nil {
 		return a.writeError(err)
 	}
@@ -110,54 +110,6 @@ func (a *Application) retrieve(request *web.Request, _ auth.Principal) (web.Resp
 func (a *Application) retrieveHead(request *web.Request, principal auth.Principal) (web.Response, error) {
 	response, err := a.retrieve(request, principal)
 	return emptyBody(response, err)
-}
-
-func (a *Application) update(request *web.Request, _ auth.Principal) (web.Response, error) {
-	id, ok := detailID(request)
-	if !ok {
-		return notFoundResponse()
-	}
-	current, response, handled, err := a.requireArticle(request, id)
-	if handled || err != nil {
-		return response, err
-	}
-	values, response, handled, err := a.bind(request, serializers.ModeFull)
-	if handled || err != nil {
-		return response, err
-	}
-	updated, _, err := a.repository.Update(request.Context(), id, fullUpdateInput(current, values))
-	if err != nil {
-		return a.writeError(err)
-	}
-	value, err := a.articleValue(updated)
-	if err != nil {
-		return web.Response{}, err
-	}
-	return api.JSON(http.StatusOK, value)
-}
-
-func (a *Application) patch(request *web.Request, _ auth.Principal) (web.Response, error) {
-	id, ok := detailID(request)
-	if !ok {
-		return notFoundResponse()
-	}
-	_, response, handled, err := a.requireArticle(request, id)
-	if handled || err != nil {
-		return response, err
-	}
-	values, response, handled, err := a.bind(request, serializers.ModePartial)
-	if handled || err != nil {
-		return response, err
-	}
-	updated, _, err := a.repository.Patch(request.Context(), id, partialInput(values))
-	if err != nil {
-		return a.writeError(err)
-	}
-	value, err := a.articleValue(updated)
-	if err != nil {
-		return web.Response{}, err
-	}
-	return api.JSON(http.StatusOK, value)
 }
 
 func (a *Application) delete(request *web.Request, _ auth.Principal) (web.Response, error) {
@@ -204,23 +156,6 @@ func optionsResponse(methods ...string) (web.Response, error) {
 func detailID(request *web.Request) (int64, bool) {
 	id, ok := request.Int64Parameter("id")
 	return id, ok && id > 0
-}
-
-// DRF resolves a detail object before parsing update input. Preserve that
-// observable precedence so a missing target remains 404 even when its body is
-// malformed, while authentication, CSRF, and permission still run first in
-// the outer session wrapper.
-func (a *Application) requireArticle(request *web.Request, id int64) (articleapp.Article, web.Response, bool, error) {
-	article, found, err := a.repository.Get(request.Context(), id)
-	if err != nil {
-		response, responseErr := a.readError(err)
-		return articleapp.Article{}, response, responseErr == nil, responseErr
-	}
-	if !found {
-		response, err := notFoundResponse()
-		return articleapp.Article{}, response, true, err
-	}
-	return article, web.Response{}, false, nil
 }
 
 func (a *Application) readError(err error) (web.Response, error) {

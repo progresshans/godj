@@ -246,17 +246,23 @@ func TestArticleOpenAPIResponseContractMatchesHTTPCreatePatchAndHEAD(t *testing.
 	}
 }
 
+type undescribedAuthentication struct{ api.Authentication }
+
 func TestArticleOpenAPIRequiresAnExplicitAuthenticationDescription(t *testing.T) {
 	harness := newHarness(t)
 	custom := &recordingAuthentication{}
-	application, err := apiapp.New(harness.backend, custom)
+	if application, err := apiapp.New(harness.backend, undescribedAuthentication{custom}); err == nil || application != nil {
+		t.Fatal("typed endpoint accepted an undescribed authentication profile")
+	}
+	described := &recordingAuthentication{}
+	application, err := apiapp.New(harness.backend, described)
 	if err != nil || application == nil || len(application.Routes()) != 10 {
-		t.Fatalf("custom authentication cannot serve existing routes: %v", err)
+		t.Fatalf("described custom authentication cannot serve routes: %v", err)
 	}
-	if _, err := application.OpenAPI(); err == nil {
-		t.Fatal("OpenAPI guessed a profile for an undescribed authentication adapter")
+	if _, err := application.OpenAPI(); err != nil {
+		t.Fatal(err)
 	}
-	if len(custom.calls) != 10 {
+	if len(described.calls) != 10 {
 		t.Fatal("document construction rebuilt authenticated handlers")
 	}
 	var absent *apiapp.Application

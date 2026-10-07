@@ -61,7 +61,7 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 	if config.Input.err != nil {
 		return Endpoint{}, configError("input", "input declaration is invalid", config.Input.err)
 	}
-	if config.Input.read == nil || config.Input.definition == nil {
+	if config.Input.read == nil || config.Input.definition == nil || config.Input.depth < 1 || config.Input.depth > maximumInputDepth || config.Input.stages < 1 || config.Input.stages > maximumInputStages {
 		return Endpoint{}, configError("input", "input is zero or unprepared", nil)
 	}
 	if len(config.Success) == 0 || len(config.Success)+len(config.Errors) > 32 {
@@ -72,7 +72,14 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 	if err != nil {
 		return Endpoint{}, configError("output", "output declaration is invalid", err)
 	}
-	definitions = append(definitions, config.Input.definition.schemas...)
+	inputDefinitions, err := inputSchemas(config.Input.definition)
+	if err != nil {
+		return Endpoint{}, err
+	}
+	definitions = append(definitions, inputDefinitions...)
+	if err := validatePathBindings(config.Route.Path, config.Input.definition.paths); err != nil {
+		return Endpoint{}, err
+	}
 	operation := openapi.Operation{Route: config.Route, Summary: config.Summary, Description: config.Description,
 		Parameters: slices.Clone(config.Input.definition.parameters), RequestBody: cloneBody(config.Input.definition.body)}
 	if err := config.Admission.describe(&operation); err != nil {
@@ -127,12 +134,12 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 		if err := ctx.Err(); err != nil {
 			return web.Response{}, err
 		}
-		value, diagnostics, err := reader(request)
+		value, diagnostics, err := reader(request, actor)
 		if cancelled := ctx.Err(); cancelled != nil {
 			return web.Response{}, errors.Join(cancelled, err)
 		}
 		if err != nil {
-			response, handled, responseErr := api.RequestErrorResponse(err)
+			response, handled, responseErr := expectedInputError(err)
 			if !handled {
 				return web.Response{}, err
 			}
@@ -205,8 +212,7 @@ func (endpoint Endpoint) Operation() (openapi.Operation, error) {
 func Collect(endpoints []Endpoint, extraOutputs ...output.Declaration) ([]openapi.Operation, []openapi.NamedSchema, error) {
 	operations := make([]openapi.Operation, 0, len(endpoints))
 	outputs := slices.Clone(extraOutputs)
-	var inputs []openapi.NamedSchema
-	visited := make(map[*inputDefinition]bool, len(endpoints))
+	var inputs []*inputDefinition
 	for _, endpoint := range endpoints {
 		operation, err := endpoint.Operation()
 		if err != nil {
@@ -214,16 +220,17 @@ func Collect(endpoints []Endpoint, extraOutputs ...output.Declaration) ([]openap
 		}
 		operations = append(operations, operation)
 		outputs = append(outputs, endpoint.output)
-		if !visited[endpoint.input] {
-			inputs = append(inputs, endpoint.input.schemas...)
-			visited[endpoint.input] = true
-		}
+		inputs = append(inputs, endpoint.input)
 	}
 	definitions, err := output.Components(outputs...)
 	if err != nil {
 		return nil, nil, err
 	}
-	definitions = append(definitions, inputs...)
+	inputDefinitions, err := inputSchemas(inputs...)
+	if err != nil {
+		return nil, nil, err
+	}
+	definitions = append(definitions, inputDefinitions...)
 	// ValidateSchema checks duplicate component names and complete references.
 	for _, definition := range definitions {
 		if err := openapi.ValidateSchema(definition.Schema, definitions...); err != nil {

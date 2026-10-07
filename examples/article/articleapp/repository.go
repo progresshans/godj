@@ -398,103 +398,26 @@ func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
 	return snapshot(created), nil
 }
 
+// Update replaces the submitted scalar values and returns the confirmed row.
 func (r Repository) Update(ctx context.Context, id int64, input Input) (Article, []string, error) {
-	if err := r.validateWrite(ctx, input); err != nil {
-		return Article{}, nil, err
-	}
-	if id <= 0 {
-		return Article{}, nil, invalid("id", "id must be positive")
-	}
-	patch := (Patch{}).WithTitle(input.Title).WithPublished(input.Published)
-	if input.Summary == nil {
-		patch = patch.WithSummaryNull()
-	} else {
-		patch = patch.WithSummary(*input.Summary)
-	}
-	if input.Slug == nil {
-		patch = patch.WithSlugNull()
-	} else {
-		patch = patch.WithSlug(*input.Slug)
-	}
-	return r.update(ctx, id, patch, MutationUpdate)
+	result, err := UpdateAndPrepare(ctx, r, id, input, ownUpdatedArticle)
+	return result.article, result.changed, err
 }
 
-// Patch updates only supplied fields. It reads and conditionally updates the
-// row inside one backend transaction. Empty and value-equivalent patches are
-// no-op writes but still require the target row to exist.
+// Patch updates only supplied fields in one transaction. Empty and equivalent
+// inputs still require the row to exist and return its confirmed current value.
 func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, []string, error) {
-	if err := validateContext(ctx); err != nil {
-		return Article{}, nil, err
-	}
-	if interfaceNil(r.backend) {
-		return Article{}, nil, invalid("backend", "repository is zero or invalid")
-	}
-	if id <= 0 {
-		return Article{}, nil, invalid("id", "id must be positive")
-	}
-	if err := validatePatch(patch); err != nil {
-		return Article{}, nil, err
-	}
-
-	return r.update(ctx, id, patch, MutationPatch)
+	result, err := PatchAndPrepare(ctx, r, id, patch, ownUpdatedArticle)
+	return result.article, result.changed, err
 }
 
-func (r Repository) update(ctx context.Context, id int64, patch Patch, operation MutationOperation) (Article, []string, error) {
-	var updated articlemodels.Article
-	var changed []string
-	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
-		current, found, err := getModel(ctx, session, id)
-		if err != nil {
-			return MutationResult{}, err
-		}
-		if !found {
-			return MutationResult{}, notFound(id)
-		}
-		changed = patchChangedFields(current, patch)
-		if len(changed) == 0 {
-			updated = current
-			return MutationResult{Operation: operation}, nil
-		}
+type updatedArticle struct {
+	article Article
+	changed []string
+}
 
-		modelPatch := articlemodels.ArticlePatch{}
-		if operation == MutationUpdate || patch.title.supplied && current.Title != patch.title.value {
-			modelPatch = modelPatch.WithTitle(patch.title.value)
-		}
-		if operation == MutationUpdate || patch.published.supplied && current.Published != patch.published.value {
-			modelPatch = modelPatch.WithPublished(patch.published.value)
-		}
-		if operation == MutationUpdate || patch.summary.supplied && !patchSummaryEquals(current.Summary, patch.summary) {
-			if patch.summary.null {
-				modelPatch = modelPatch.WithSummaryNull()
-			} else {
-				modelPatch = modelPatch.WithSummary(patch.summary.value)
-			}
-		}
-		if operation == MutationUpdate || patch.slug.supplied && !patchSummaryEquals(current.Slug, patch.slug) {
-			if patch.slug.null {
-				modelPatch = modelPatch.WithSlugNull()
-			} else {
-				modelPatch = modelPatch.WithSlug(patch.slug.value)
-			}
-		}
-		violations, err := articlemodels.ArticleObjects.ValidateUniqueUpdate(ctx, session, current, modelPatch)
-		if err != nil {
-			return MutationResult{}, err
-		}
-		if !violations.Empty() {
-			return MutationResult{}, validation.Reject(violations, nil)
-		}
-		value, err := articlemodels.ArticleObjects.Patch(ctx, session, current, modelPatch)
-		if err != nil {
-			return MutationResult{}, writeRejection(err)
-		}
-		updated = value
-		return mutationResult(operation, snapshot(updated), changed), nil
-	})
-	if err != nil {
-		return Article{}, nil, mutationError(ctx, string(operation), err)
-	}
-	return snapshot(updated), append([]string(nil), changed...), nil
+func ownUpdatedArticle(_ context.Context, article Article, changed []string) (updatedArticle, error) {
+	return updatedArticle{article: article, changed: changed}, nil
 }
 
 func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
@@ -850,6 +773,14 @@ func mutationError(ctx context.Context, operation string, err error) error {
 		return errors.Join(err, contextErr)
 	}
 	if _, rejected := validation.Rejected(err); rejected {
+		return err
+	}
+	// A confirmed rollback preserves the direct application rejection. Keep
+	// joined/wrapped infrastructure failures distinct from this expected miss.
+	if missing, ok := err.(*Error); ok && missing != nil && missing.Code == CodeNotFound && missing.Cause == nil {
+		return err
+	}
+	if err == ErrNotFound {
 		return err
 	}
 	return fmt.Errorf("article %s: %w", operation, err)

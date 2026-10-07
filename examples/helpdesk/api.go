@@ -206,7 +206,15 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{summary, labelEnsure}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	labelUpdate, err := a.labelUpdateEndpoint(authentication, serializers.ModeFull)
+	if err != nil {
+		return nil, err
+	}
+	labelPatch, err := a.labelUpdateEndpoint(authentication, serializers.ModePartial)
+	if err != nil {
+		return nil, err
+	}
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{summary, labelEnsure, labelUpdate, labelPatch}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
 	if err != nil {
 		return nil, err
 	}

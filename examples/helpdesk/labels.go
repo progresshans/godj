@@ -3,6 +3,8 @@ package helpdesk
 import (
 	"context"
 	"errors"
+	"github.com/progresshans/godj/api/output"
+	"net/http"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -91,7 +93,8 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 			if !ok {
 				return models.Label{}, nil, errors.New("helpdesk: invalid label name")
 			}
-			return a.updateLabel(ctx, id, models.LabelPatch{}.WithName(name))
+			result, err := a.updateLabel(ctx, id, models.LabelPatch{}.WithName(name))
+			return result.value, result.changed, err
 		},
 		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.Label, error) {
 			id := mutation.ID
@@ -156,55 +159,65 @@ func (a *Application) createLabel(ctx context.Context, name string) (models.Labe
 	return created, nil
 }
 
-func (a *Application) updateLabel(ctx context.Context, id int64, patch models.LabelPatch) (models.Label, []string, error) {
-	var updated models.Label
-	var changed []string
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		current, found, err := a.label(ctx, session, id)
+type updatedLabel struct {
+	value    models.Label
+	changed  []string
+	response output.Prepared[models.Label]
+}
+
+func (a *Application) updateLabel(ctx context.Context, id int64, patch models.LabelPatch) (updatedLabel, error) {
+	return runApplicationAtomic(ctx, a.backend, "label update", func(work context.Context, session db.Session) (updatedLabel, error) {
+		current, found, err := a.label(work, session, id)
 		if err != nil {
-			return err
+			return updatedLabel{}, err
 		}
 		if !found {
-			return admin.ErrObjectNotFound
+			return updatedLabel{}, admin.ErrObjectNotFound
 		}
 		mutation := patch.BuildPatch(current)
 		if err := mutation.Err(); err != nil {
-			return err
+			return updatedLabel{}, err
 		}
+		var changed []string
 		for _, assignment := range mutation.Assignments() {
 			if assignment.Field().Name() != "name" {
-				return errors.New("helpdesk: label category is assigned by the server")
+				return updatedLabel{}, errors.New("helpdesk: label category is assigned by the server")
 			}
 			name, ok := assignment.Value().String()
 			if !ok {
-				return errors.New("helpdesk: invalid label name")
+				return updatedLabel{}, errors.New("helpdesk: invalid label name")
 			}
 			if name != current.Name {
 				changed = append(changed, "name")
 			}
 		}
-		if len(changed) == 0 {
-			updated = current
-			return nil
+		updated := current
+		if len(changed) != 0 {
+			violations, err := models.LabelObjects.ValidateUniqueUpdate(work, session, current, patch)
+			if err != nil {
+				return updatedLabel{}, err
+			}
+			if !violations.Empty() {
+				return updatedLabel{}, validation.Reject(violations, nil)
+			}
+			updated, err = models.LabelObjects.Patch(work, session, current, patch)
+			if err != nil {
+				return updatedLabel{}, writeRejection(err)
+			}
+			updated, found, err = a.label(work, session, updated.ID)
+			if err != nil {
+				return updatedLabel{}, err
+			}
+			if !found {
+				return updatedLabel{}, admin.ErrObjectNotFound
+			}
 		}
-		violations, err := models.LabelObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+		response, err := a.responses.label.Prepare(work, http.StatusOK, updated)
 		if err != nil {
-			return err
+			return updatedLabel{}, err
 		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		updated, err = models.LabelObjects.Patch(ctx, session, current, patch)
-		if err != nil {
-			return writeRejection(err)
-		}
-		updated, err = a.publishableLabel(ctx, session, updated.ID)
-		return err
+		return updatedLabel{value: updated, changed: changed, response: response}, nil
 	})
-	if err != nil {
-		return models.Label{}, nil, operationError(ctx, err)
-	}
-	return updated, changed, nil
 }
 
 func (a *Application) publishableLabel(ctx context.Context, backend db.Queryer, id int64) (models.Label, error) {

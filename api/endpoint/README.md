@@ -1,7 +1,7 @@
 # Typed HTTP endpoint
 
 `api/endpoint`는 typed 입력·준비 응답·명시한 인가와 상태에서 실제 HTTP handler와 OpenAPI operation을 함께 만든다.
-입력은 기존 `parameters.Query[T]` 또는 `input.Body[T]`, 출력은 `output.Output[T]`를 사용한다.
+입력은 기존 `parameters.Query[T]`·`input.Body[T]`와 router의 경로 값을, 출력은 `output.Output[T]`를 사용한다.
 모델의 검증 원본·조회·transaction 경계와 응답 encode 시점은 각 API가 소유한다.
 
 ```go
@@ -50,6 +50,34 @@ JSON negotiation은 기존 `api.JSONPolicy`와 실제 middleware가 소유한다
 각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query는 400, JSON body는 400/413/415이며
 `Errors`에서 같은 상태의 업무 설명을 지정하거나 다른 4xx를 추가할 수 있다.
 
+`PathInt64(name)`과 `PathString(name)`은 router가 이미 검증·변환한 값을 읽는다. 문자열을 다시 decode하거나
+trim하지 않고 반환한 문자열의 bounded bytes를 소유한다. Int64는 router의 0 이상 범위이며 양수 PK나 대상 존재 여부는
+업무 검증이다. Typed path를 하나라도 선언하면 route의 모든 parameter를 정확히 한 번 같은 이름·종류로 연결해야 한다.
+불일치·중복·누락은 초기화 오류다. 경로의 grammar·한도·OpenAPI schema는 기존 Web route compiler가 계속 소유한다.
+경로 Input을 쓰지 않는 endpoint는 handler가 수동 accessor를 사용할 수 있다.
+
+`Sequence(first, second)`는 첫 입력 뒤 두 번째 입력을 읽고 `Pair[A, B]{First, Second}`를 만든다.
+실패·진단·취소에는 뒤 단계를 실행하지 않으며 전체 입력이 성공하기 전에는 handler를 부르지 않는다.
+한 pipeline은 query parser 하나, JSON body 하나와 서로 다른 경로 값을 결합할 수 있다. 같은 parser/body의 반복과
+NoQuery/선언한 query parameter의 충돌은 초기화에서 거부한다. `NoQuery`의 거부 시점도 감싼 입력의 단계 순서를 따른다.
+
+`Resolve(input, prepare)`는 앞선 typed 값과 admitted Principal·같은 borrowed request를 받고 다른 업무 값으로 준비한다.
+대상 조회나 업무 검증의 위치를 명시하며 wire schema를 바꾸지 않는다. Callback은 동시 사용에 안전해야 하고 body를
+소비하거나 request를 보관하지 않는다. 쓰기를 commit하지 않으며 최종 handler가 transaction 결과를 소유한다.
+예상 client 실패는 선언한 상태의 `Reject`를 직접 반환한다. 일반 오류와 callback이 반환한 parser 오류는 내부 오류로
+보존하며 뒤 단계를 실행하지 않는다. Callback 전후 context를 확인해 취소와 원 오류를 함께 보존한다.
+
+```go
+lookup := endpoint.Resolve(endpoint.PathInt64("id"), loadArticle)
+body := endpoint.JSONBody("ArticlePatch", articleBody, serializers.ModePartial, "Partial fields.")
+inputs := endpoint.Sequence(lookup, body) // Input[Pair[Article, ArticleInput]]
+```
+
+이 순서는 대상 조회 뒤 body parsing이다. Body를 먼저 검증하는 업무는 단계 순서를 그에 맞게 선언한다.
+Resolve/Sequence/NoQuery 조합은 최대 깊이 64와 총 실행 단계 4096으로 제한한다. 반복 공유한 단계도 매 호출을 센다.
+모은 입력 graph는 identity별 4096 nodes다. 같은 JSONBody Input을
+서로 다른 pipeline에서 재사용해도 하나의 component를 공유하며 독립 선언의 이름 충돌은 계속 거부한다.
+
 Handler는 성공 응답을 `Output.Prepare(ctx, status, dto)`로 완전히 encode하고 반환한다.
 정확히 그 Output 또는 그 복사본이 만든 응답만 허용한다. 같은 Go 타입·schema라도 별도 Output이나 다른 예산에서
 준비한 응답은 거부한다. `Prepared[T]`는 원 DTO/가변 slice·getter를 보관하지 않고 완성된 bytes만 보유한다.
@@ -68,7 +96,9 @@ rollback 실패·불확실한 transaction 결과가 일반 입력 오류로 바�
 Web layer에 맡긴다. 직접 반환하는 진단은 기존 API error envelope의 공개 값 계약을 따른다.
 
 실제 사용 예시는 [요약 조회](../../examples/helpdesk/ticket_summary_api.go)와
-[Label ensure의 원자 저장](../../examples/helpdesk/label_ensure.go)에 있다.
-Header/path typed binder, query/body를 합친 typed 입력, 배열 body, streaming/no-content 성공, 여러 종류의 성공 DTO,
+[Label ensure의 원자 저장](../../examples/helpdesk/label_ensure.go),
+[Article의 조회 우선 수정](../../examples/article/apiapp/typed_update.go),
+[Label의 body 검증 우선 수정](../../examples/helpdesk/label_update_endpoint.go)에 있다.
+Header typed binder, 배열 body, streaming/no-content 성공, 여러 종류의 성공 DTO,
 자동 CRUD/viewset은 후속 범위다. 현재 수동 handler/OpenAPI API와 혼합할 수 있으며 `Collect`의 추가 Output declaration으로
 그 수동 operation의 named schema도 함께 모을 수 있다.

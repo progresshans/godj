@@ -7,6 +7,7 @@ import (
 	bodyinput "github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/api/parameters"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
@@ -15,7 +16,9 @@ import (
 // Input binds a closed runtime reader and its actual request declaration.
 // Its zero value is invalid; construction errors are reported by New.
 type Input[T any] struct {
-	read       func(*web.Request) (T, validation.Errors, error)
+	read       func(*web.Request, auth.Principal) (T, validation.Errors, error)
+	depth      int
+	stages     int
 	definition *inputDefinition
 	failures   []int
 	err        error
@@ -25,6 +28,10 @@ type inputDefinition struct {
 	parameters []openapi.Parameter
 	body       *openapi.RequestBody
 	schemas    []openapi.NamedSchema
+	children   []*inputDefinition
+	paths      []pathBinding
+	query      bool
+	noQuery    bool
 }
 
 func Query[T any](query parameters.Query[T]) Input[T] {
@@ -32,9 +39,10 @@ func Query[T any](query parameters.Query[T]) Input[T] {
 		return Input[T]{err: configError("input", "query is zero or unprepared", nil)}
 	}
 	return Input[T]{
-		definition: &inputDefinition{parameters: query.Parameters()},
-		failures:   []int{http.StatusBadRequest},
-		read: func(request *web.Request) (T, validation.Errors, error) {
+		definition: &inputDefinition{parameters: query.Parameters(), query: true},
+		depth:      1, stages: 1,
+		failures: []int{http.StatusBadRequest},
+		read: func(request *web.Request, _ auth.Principal) (T, validation.Errors, error) {
 			return query.Parse(request.HTTP().URL.RawQuery)
 		},
 	}
@@ -53,12 +61,13 @@ func JSONBody[T any](name string, body bodyinput.Body[T], mode serializers.Mode,
 		return Input[T]{err: err}
 	}
 	return Input[T]{
+		depth: 1, stages: 1,
 		definition: &inputDefinition{
 			body:    &openapi.RequestBody{Schema: ref, Required: true, Description: description},
 			schemas: []openapi.NamedSchema{{Name: name, Schema: schema}},
 		},
 		failures: []int{http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnsupportedMediaType},
-		read: func(request *web.Request) (T, validation.Errors, error) {
+		read: func(request *web.Request, _ auth.Principal) (T, validation.Errors, error) {
 			return body.Parse(request, mode)
 		},
 	}
@@ -67,7 +76,7 @@ func JSONBody[T any](name string, body bodyinput.Body[T], mode serializers.Mode,
 // NoInput has no body or parameter declaration and performs no request I/O.
 // The application can still use its router-owned path parameters in the handler.
 func NoInput() Input[struct{}] {
-	return Input[struct{}]{definition: &inputDefinition{}, read: func(*web.Request) (struct{}, validation.Errors, error) {
+	return Input[struct{}]{definition: &inputDefinition{}, depth: 1, stages: 1, read: func(*web.Request, auth.Principal) (struct{}, validation.Errors, error) {
 		return struct{}{}, validation.Errors{}, nil
 	}}
 }
@@ -83,16 +92,27 @@ func NoQuery[T any](input Input[T]) Input[T] {
 		return Input[T]{err: configError("input", "NoQuery requires an input without query parameters", nil)}
 	}
 	result := input
+	result.depth++
+	result.stages++
+	if result.depth > maximumInputDepth {
+		return Input[T]{err: configError("input", "input pipeline exceeds 64 stages", nil)}
+	}
+	if result.stages > maximumInputStages {
+		return Input[T]{err: configError("input", "input pipeline exceeds 4096 execution stages", nil)}
+	}
+	definition := *input.definition
+	definition.schemas, definition.children, definition.noQuery = nil, []*inputDefinition{input.definition}, true
+	result.definition = &definition
 	result.failures = slices.Clone(input.failures)
 	if !slices.Contains(result.failures, http.StatusBadRequest) {
 		result.failures = append(result.failures, http.StatusBadRequest)
 	}
-	result.read = func(request *web.Request) (T, validation.Errors, error) {
+	result.read = func(request *web.Request, actor auth.Principal) (T, validation.Errors, error) {
 		if request.HTTP().URL.RawQuery != "" {
 			var zero T
 			return zero, validation.NewErrors(validation.New(validation.NonField, "invalid")), nil
 		}
-		return input.read(request)
+		return input.read(request, actor)
 	}
 	return result
 }

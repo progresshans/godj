@@ -3,6 +3,27 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0117 — Typed 경로와 순서 입력 결합
+
+`PathInt64`/`PathString`은 기존 router 변환을 사용하고 `Sequence`/`Resolve`는 기존 query/body와 업무 조회를
+명시한 순서로 연결한다. Source 충돌·path 누락/종류·shared component identity와 깊이 64/실행 4096/graph 4096
+한도를 검사한다. 같은 단계의 반복 공유로 실행량이 급증하는 조합도 준비 때 거부한다.
+Article PUT/PATCH의 조회 우선과 Helpdesk Label의 body 우선을 보존하고 두 쓰기의 출력 준비를 commit 앞으로 옮겼다.
+Article의 neutral update/patch는 같은 kernel에서 준비·기존 hook·commit을 연결하며 no-op의 hook 생략을 유지한다.
+
+영향 checkpoint `typed-path-input-20261007-143748`은 진행 중이다. 이 구현 commit의 비Markdown 3193개 파일을
+inventory `bd2ad799511f501b70c3eee7a6c8b0afe9a7f8f8048d22300368604bb830dbbd`로 고정했다.
+Normal compile 90개·runtime 4361개·양 DB/실제 소비자 1461개와 race runtime 4361개가 run/pass·skip 0이다.
+나머지 race/CGO-disabled·고정 DRF product 대조·정적 검사·DB 정리와 최종 source 검사는 아직 완료하지 않았다.
+전체 platform/Hosted는 GDJ-0116과 함께 후속 통합 milestone이 소유하며 선행 `def77d5e` 실행의 결과를 전이하지 않는다.
+
+첫 checkpoint `typed-path-input-20261007-143501`의 normal business는 Article 생성 회귀 두 개가 부모 `-trimpath`로
+소스 경로를 찾지 못해 실패했다. 이는 추가한 검증 runner 옵션이었다. 부모의 해당 옵션을 저장소 실행 방식에 맞춰
+제거했고 child consumer의 trimpath는 유지했다. 제품/테스트는 바꾸지 않았으며 business 전체를 다시 실행했다.
+앞선 성공 compile/runtime은 비Markdown source 전체와 명령·필수 실행·원 JSON 해시를 대조해 재사용했다.
+앞선 실패 receipt와 로그는 보존했다. 실행 원본은 workspace의
+`typed-path-input-20261007-143501`/`typed-path-input-20261007-143748`에 있으며 최종 확인 뒤 이 절을 갱신한다.
+
 ## GDJ-0116 — Typed endpoint와 준비 응답의 실행/문서 연결
 
 Source `18fc0451a7af087a891d1e26545a9f89abb6d8b4`에서 `api/endpoint`가 typed Query/Body·Output·명시적

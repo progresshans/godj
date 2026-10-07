@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md), [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -55,7 +55,8 @@ Handler 구성/현재 principal resolution은 해당 authentication adapter가 �
 Proof 자체의 현재 상태 검사는 application handler가 소유한다. 이 구분으로 reset request는 익명으로 호출하고,
 reset proof/completion은 같은 생성 client가 보관한 서버 proof cookie를 전송할 수 있다. Safe 요청에 CSRF cookie가
 없으면 새 cookie/header pair가 나올 수 있으므로 이후 unsafe 요청은 마지막으로 받은 pair를 사용한다.
-Description을 제공하지 않는 custom authentication은 기존 API 실행에 사용할 수 있으나 문서 생성은 명시적으로 실패한다.
+Description을 제공하지 않는 custom authentication은 수동 handler에 사용할 수 있으나 문서 생성은 명시적으로 실패한다.
+Typed endpoint를 포함한 Article/Helpdesk API는 같은 transport를 준비 때 확인하므로 API 초기화부터 description을 요구한다.
 
 `New`는 전체 선언을 확인한 뒤 OpenAPI 3.1.1 JSON을 결정적으로 게시한다. 반환 byte·route slice는 복사하고 schema 값은
 기존 immutable JSON 표현을 사용한다. 오류 시 부분 문서를 반환하지 않는다. 문서 조회 route와 공개 권한은 application이 선택한다.
@@ -141,7 +142,32 @@ Handler는 transaction 안에서 출력 준비를 끝내고 성공한 commit 뒤
 풀어 expected rejection으로 만들지 않는다. 취소와 동시에 일어난 입력/업무 오류는 내부 cause를 함께 보존한다.
 Helpdesk 요약의 읽기 snapshot과 Label ensure의 reload·출력·audit·commit 순서가 이 연결을 소비한다.
 각 operation과 component의 최종 충돌은 application 문서에서 검사하며 동일 Input/Named Shape만 component identity를 공유한다.
-Header/path·합성 query/body·배열 body·일반 CRUD/viewset은 후속 범위로 유지한다.
+경로와 입력 결합은 아래 GDJ-0117이 연결하며 header·배열 body·일반 CRUD/viewset은 후속 범위로 유지한다.
+
+GDJ-0117은 기존 router의 Int64/String accessor를 닫힌 `Input[int64]`/`Input[string]`으로 연결한다.
+새 parser나 path schema를 만들지 않는다. Typed path가 있으면 route의 모든 parameter를 같은 이름·converter로
+정확히 한 번 선언해야 하며 중복·누락·불일치는 startup 오류다. 0 이상 Int64의 양수 PK 규칙과 객체 존재 여부는 업무가 소유한다.
+문자열은 이미 decode된 하나의 bounded segment를 복사하고 재해석하지 않는다.
+
+`Sequence[A,B]`는 입력을 선언한 순서로 읽고 전부 성공한 `Pair[A,B]`만 handler에 넘긴다. Query parser/body는
+각각 하나이며 중복 읽기나 NoQuery/parameter 충돌은 준비 때 거부한다. `Resolve[A,B]`는 앞선 닫힌 입력을 받은
+명시적 업무 조회/검증 단계다. Admitted Principal과 borrowed request/context를 전달하고 startup에서는 실행하지 않는다.
+Callback은 body를 소비하거나 request를 보관하지 않으며 쓰기를 commit하지 않는다. 최종 handler가 transaction을 소유한다.
+실패·진단·취소는 뒤 단계를 중단한다. Resolve의 직접 `Reject`만 선언한 client 실패이고 일반 오류나 callback의 직접
+parser 오류를 닫힌 입력 parser의 400/413/415로 오인하지 않는다. 원 오류/cancellation cause는 내부에서 유지한다.
+
+조합 깊이는 64, 총 실행 단계는 4096으로 제한하며 반복 공유한 단계도 매 실행을 센다. 작은 DAG를 중복 호출해
+실행량이 급증하는 조합도 준비 때 거부한다. New/Collect가 모은 입력 graph는 4096 identities로 제한한다. 공통 JSONBody의 identity를
+Sequence/Resolve/NoQuery를 넘어 추적하므로 같은 입력을 독립 pipeline에 넣어도 component 하나를 공유한다.
+같은 이름의 별도 선언은 계속 거부하며 OpenAPI의 component/byte 제한은 별도로 유지한다.
+
+Article PUT/PATCH는 DRF의 기존 대상 확인 우선을 유지하고 Helpdesk Label 수정은 양수 ID 확인 뒤 body를 검증한다.
+두 업무는 transaction 안에서 최종 응답을 준비하고 commit 확인 후만 반환한다. Article의 neutral repository는
+`UpdateAndPrepare`/`PatchAndPrepare`로 같은 변경 kernel을 사용하며 detached row/changed fields를 준비 callback에
+전달한 뒤 기존 mutation hook을 실행한다. No-op도 출력 준비는 수행하지만 mutation hook과 DML은 생략한다.
+출력 실패·hook 실패·취소는 rollback하고 nil/반복/미완료·삼켜진 callback은 성공 결과를 내보내지 않는다.
+확인된 commit 뒤 취소는 성공을 번복하지 않으며 불확실한 transaction/rollback과 joined 오류는 404로 바꾸지 않는다.
+Model/IR·full/partial default/nullable와 API의 공개 operation/schema 의미는 기존 선언에서 이어받는다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

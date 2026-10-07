@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"maps"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"slices"
@@ -22,6 +24,7 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
+	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
 func assertLabelContracts(t *testing.T, document helpdeskDocument) {
@@ -146,6 +149,7 @@ func labelInput(name string) string {
 type labelFaultBackend struct {
 	helpdesk.Backend
 	mode                                  string
+	cancel                                context.CancelFunc
 	stageID, moveID, moveCategory         int64
 	queries, transactions, checks, writes int
 }
@@ -161,6 +165,9 @@ func (b *labelFaultBackend) ReadSnapshot(ctx context.Context, check func(db.Quer
 }
 func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) error) error {
 	b.transactions++
+	if b.mode == "missing_callback" {
+		return nil
+	}
 	err := b.Backend.Atomic(ctx, func(session db.Session) error {
 		if b.stageID != 0 {
 			row, found, err := models.TicketObjects.Using(session).Filter(models.TicketFields.ID.Exact(b.stageID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
@@ -193,6 +200,9 @@ func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) erro
 	}
 	if err == nil && b.mode == "commit_unknown" {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
+	}
+	if err == nil && b.mode == "post_commit_cancel" && b.cancel != nil {
+		b.cancel()
 	}
 	return err
 }
@@ -233,7 +243,11 @@ func (b *labelFaultBackend) query(ctx context.Context, reader db.Queryer, plan q
 			}
 		}
 	}
-	return reader.Query(ctx, plan)
+	rows, err := reader.Query(ctx, plan)
+	if err == nil && plan.Table() == "helpdesk_label" && plan.ResultShape().Kind() != query.ResultProjection && (written && b.mode == "output_error" || b.mode == "no_op_output_error") {
+		return ensureInvalidOutputRows{rows}, nil
+	}
+	return rows, err
 }
 func (s *labelFaultSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	s.owner.writes++
@@ -327,6 +341,39 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 	response = client.request("POST", "/api/labels/", labelInput("Second label"), true)
 	second := decode(response.Code, response.Body.Bytes())
 	path := fmt.Sprintf("/api/labels/%d/", second.ID)
+	t.Run("typed_update_precedence", func(t *testing.T) {
+		for _, method := range []string{"PUT", "PATCH"} {
+			for _, probe := range []struct {
+				name, target string
+				status       int
+				reads        bool
+			}{
+				{"existing malformed", path, 400, true},
+				{"missing malformed", "/api/labels/9223372036854775807/", 400, true},
+				{"zero id", "/api/labels/0/", 404, false},
+				{"missing csrf", path, 403, false},
+			} {
+				t.Run(method+"/"+probe.name, func(t *testing.T) {
+					beforeQueries, beforeTx := backend.queries, backend.transactions
+					body := &labelObservedBody{Reader: strings.NewReader(`{`)}
+					request := httptest.NewRequest(method, "http://helpdesk.test"+probe.target, nil)
+					request.Body, request.ContentLength = body, -1
+					for _, cookie := range client.cookies {
+						request.AddCookie(cookie)
+					}
+					request.Header.Set("Content-Type", "application/json")
+					if probe.name != "missing csrf" {
+						request.Header.Set(websessionauth.DefaultCSRFHeader, client.csrf)
+					}
+					response := httptest.NewRecorder()
+					client.application.ServeHTTP(response, request)
+					if response.Code != probe.status || (body.reads > 0) != probe.reads || backend.queries != beforeQueries || backend.transactions != beforeTx {
+						t.Fatal("Label path/body order changed", response.Code, body.reads, backend.queries-beforeQueries, backend.transactions-beforeTx)
+					}
+				})
+			}
+		}
+	})
 	for _, method := range []string{"POST", "PUT", "PATCH"} {
 		target := path
 		if method == "POST" {
@@ -400,24 +447,73 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 	}
 	baseline := readUniqueTicket(t, ctx, runtime, ticketID)
 	backend.stageID = ticketID
-	for _, mode := range []string{"native", "query_error", "cancel", "driver_error", "reload_error", "rollback_unknown"} {
-		backend.mode = mode
-		name := first.Name
-		if mode == "driver_error" || mode == "reload_error" {
-			name = "failed " + mode
-		}
-		before := count()
-		response = client.request("POST", "/api/labels/", labelInput(name), true)
-		if mode == "native" {
-			conflict(response.Code, response.Body.Bytes(), "unique")
-		} else if response.Code != 500 {
-			t.Fatal("execution failure became a diagnostic", mode, response.Code, response.Body)
-		}
-		if count() != before || !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, runtime, ticketID)) {
-			t.Fatal("Label failure committed a prior write", mode)
+	for _, method := range []string{"POST", "PUT", "PATCH"} {
+		for _, mode := range []string{"native", "query_error", "cancel", "driver_error", "reload_error", "output_error", "rollback_unknown"} {
+			t.Run("typed_label_write/"+method+"/"+mode, func(t *testing.T) {
+				backend.mode = mode
+				name := first.Name
+				if mode == "driver_error" || mode == "reload_error" || mode == "output_error" {
+					name = "failed " + mode
+				}
+				before := count()
+				target := path
+				if method == "POST" {
+					target = "/api/labels/"
+				}
+				response = client.request(method, target, labelInput(name), true)
+				if mode == "native" {
+					conflict(response.Code, response.Body.Bytes(), "unique")
+				} else if response.Code != 500 {
+					t.Fatal("execution failure became a diagnostic", mode, response.Code, response.Body)
+				}
+				if count() != before || read(second.ID).Name != second.Name || !reflect.DeepEqual(baseline, readUniqueTicket(t, ctx, runtime, ticketID)) {
+					t.Fatal("Label failure committed a prior write", method, mode)
+				}
+			})
 		}
 	}
 	backend.stageID, backend.mode = 0, ""
+	t.Run("typed_update_completion", func(t *testing.T) {
+		for _, mode := range []string{"no_op_output_error", "missing_callback", "notfound_unknown", "commit_unknown", "post_commit_cancel"} {
+			t.Run(mode, func(t *testing.T) {
+				backend.mode = mode
+				requestCtx, cancel := context.WithCancel(ctx)
+				defer cancel()
+				backend.cancel = cancel
+				body, target, status := labelInput("Prepared label "+mode), path, 500
+				if mode == "no_op_output_error" {
+					body = `{}`
+				}
+				if mode == "notfound_unknown" {
+					target = "/api/labels/9223372036854775807/"
+				}
+				if mode == "post_commit_cancel" {
+					status = 200
+				}
+				before, writes, transactions := read(second.ID), backend.writes, backend.transactions
+				response := client.requestContext(requestCtx, "PATCH", target, body, true)
+				if response.Code != status {
+					t.Fatal("Label completion outcome", response.Code, response.Body)
+				}
+				after := read(second.ID)
+				if mode == "commit_unknown" || mode == "post_commit_cancel" {
+					if after.Name != "Prepared label "+mode || backend.writes != writes+1 || backend.transactions != transactions+1 {
+						t.Fatal("confirmed or unknown commit was retried/lost", after.Name)
+					}
+					if mode == "post_commit_cancel" && (requestCtx.Err() == nil || !strings.Contains(response.Body.String(), after.Name)) {
+						t.Fatal("confirmed response was not preserved")
+					}
+					backend.mode = ""
+					if restored := client.request("PATCH", path, labelInput(second.Name), true); restored.Code != 200 {
+						t.Fatal("restore completion fixture", restored.Code)
+					}
+				} else if after.Name != before.Name || backend.writes != writes {
+					t.Fatal("failed/no-op completion changed Label")
+				}
+				backend.mode, backend.cancel = "", nil
+			})
+		}
+	})
 	backend.moveID, backend.moveCategory = second.ID, otherCategoryID
 	response = client.request("POST", change, url.Values{"name": {"moved during write"}, "csrfmiddlewaretoken": {client.csrf}}.Encode(), false)
 	if response.Code != 404 || read(second.ID).CategoryID != categoryID || read(second.ID).Name != second.Name {
@@ -548,3 +644,14 @@ func verifyHelpdeskLabels(t *testing.T, ctx context.Context, runtime *systemstat
 		t.Fatal("Label operations missed native paths or changed related data")
 	}
 }
+
+type labelObservedBody struct {
+	io.Reader
+	reads int
+}
+
+func (body *labelObservedBody) Read(data []byte) (int, error) {
+	body.reads++
+	return body.Reader.Read(data)
+}
+func (*labelObservedBody) Close() error { return nil }

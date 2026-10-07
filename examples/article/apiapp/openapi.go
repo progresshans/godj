@@ -5,15 +5,15 @@ import (
 	"net/http"
 
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
 
-// OpenAPI describes the same operations used by Routes. A custom authentication
-// adapter can serve the API without exposing a documentation profile; document
-// construction explicitly rejects an adapter that does not describe its policy.
+// OpenAPI describes the same operations used by Routes. The typed update
+// endpoints require an explicit authentication description during construction.
 func (a *Application) OpenAPI() (openapi.Document, error) {
 	if a == nil {
 		return openapi.Document{}, fmt.Errorf("article api OpenAPI: application is nil")
@@ -37,31 +37,12 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 		a.schemas = append(a.schemas, openapi.NamedSchema{Name: name, Schema: schema})
 		return reference, nil
 	}
-	article, err := openapi.ModelResponseSchema(a.spec)
-	if err != nil {
-		return nil, fmt.Errorf("article api response schema: %w", err)
-	}
-	article, err = named("Article", article)
-	if err != nil {
-		return nil, err
-	}
+	article := a.response.Schema()
 	full, err := openapi.RequestSchema(a.spec, serializers.ModeFull)
 	if err != nil {
 		return nil, fmt.Errorf("article api full input schema: %w", err)
 	}
 	create, err := named("ArticleCreate", full)
-	if err != nil {
-		return nil, err
-	}
-	replace, err := named("ArticleReplace", full)
-	if err != nil {
-		return nil, err
-	}
-	partial, err := openapi.RequestSchema(a.spec, serializers.ModePartial)
-	if err != nil {
-		return nil, fmt.Errorf("article api partial input schema: %w", err)
-	}
-	partial, err = named("ArticlePatch", partial)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +92,6 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 		invalid, notFound,
 	}
 	readResponses := []openapi.Response{articleJSONResponse(http.StatusOK, "The Article.", article), notFound}
-	writeResponses := []openapi.Response{articleJSONResponse(http.StatusOK, "The updated Article.", article), invalid, notFound, tooLarge, unsupported}
 	created := articleJSONResponse(http.StatusCreated, "The created Article.", article)
 	created.Headers = []openapi.Header{{Name: "Location", Description: "Relative URL of the created Article.", Schema: openapi.String(), Required: true}}
 	listOptionsResponse := articleJSONResponse(http.StatusOK, "The methods supported by the collection.", listOptions)
@@ -162,20 +142,6 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 			Permission: articleapp.ArticleViewPermission, Responses: []openapi.Response{detailOptionsResponse},
 		}, handler: a.detailOptions},
 		{operation: openapi.Operation{
-			Route:   web.Route{Name: Namespace + ":article-update", Method: http.MethodPut, Path: DetailPath},
-			Summary: "Update an Article", Description: updateOrder,
-			Permission:  articleapp.ArticleChangePermission,
-			RequestBody: &openapi.RequestBody{Schema: replace, Required: true, Description: bodyLimits + " Title is required. Omitted published defaults to false. Omitted summary preserves its current value; explicit null clears it."},
-			Responses:   writeResponses,
-		}, handler: a.update},
-		{operation: openapi.Operation{
-			Route:   web.Route{Name: Namespace + ":article-partial-update", Method: http.MethodPatch, Path: DetailPath},
-			Summary: "Partially update an Article", Description: updateOrder,
-			Permission:  articleapp.ArticleChangePermission,
-			RequestBody: &openapi.RequestBody{Schema: partial, Required: true, Description: bodyLimits + " Only supplied fields change. An empty object is accepted. Explicit null clears summary; an empty string remains distinct from null."},
-			Responses:   writeResponses,
-		}, handler: a.patch},
-		{operation: openapi.Operation{
 			Route:      web.Route{Name: Namespace + ":article-delete", Method: http.MethodDelete, Path: DetailPath},
 			Summary:    "Delete an Article",
 			Permission: articleapp.ArticleDeletePermission,
@@ -195,6 +161,20 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 		operation.Route.Handler = handler
 		operations = append(operations, operation)
 	}
+	fullUpdate, err := a.typedUpdate(authentication, serializers.ModeFull, bodyLimits+" Title is required. Omitted published defaults to false. Omitted summary preserves its current value; explicit null clears it.", updateOrder)
+	if err != nil {
+		return nil, err
+	}
+	partialUpdate, err := a.typedUpdate(authentication, serializers.ModePartial, bodyLimits+" Only supplied fields change. An empty object is accepted. Explicit null clears summary; an empty string remains distinct from null.", updateOrder)
+	if err != nil {
+		return nil, err
+	}
+	typed, schemas, err := endpoint.Collect([]endpoint.Endpoint{fullUpdate, partialUpdate})
+	if err != nil {
+		return nil, err
+	}
+	a.schemas = append(a.schemas, schemas...)
+	operations = append(operations, typed...)
 	return operations, nil
 }
 

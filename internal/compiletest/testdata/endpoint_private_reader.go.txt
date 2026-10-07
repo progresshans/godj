@@ -2,8 +2,11 @@ package consumer
 
 import (
 	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
-var invalid = endpoint.Input[string]{read: func(*web.Request) (string, validation.Errors, error) { return "", validation.Errors{}, nil }}
+var invalid = endpoint.Input[string]{read: func(*web.Request, auth.Principal) (string, validation.Errors, error) {
+	return "", validation.Errors{}, nil
+}}

@@ -200,6 +200,7 @@ func runArticleAPIBearerUserFlow(t *testing.T, backend articleapp.Backend) {
 		t.Fatalf("Bearer verifier calls = %d, want 8", got)
 	}
 	fixture.requireSecretsAbsent(t)
+	t.Run("typed_update", func(t *testing.T) { verifyArticleTypedUpdate(t, backend) })
 }
 
 type articleAPIBearerVerifier struct {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/progresshans/godj/api"
+	bodyinput "github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/serializers"
@@ -25,135 +26,94 @@ func (a *Application) articleValue(article articleapp.Article) (serializers.Valu
 	return a.encoder.Encode(articleapp.ModelSnapshot(article))
 }
 
-func (a *Application) bind(request *web.Request, mode serializers.Mode) (serializers.Values, web.Response, bool, error) {
-	object, err := a.parser.ParseObject(request)
+type articleInput struct {
+	title     bodyinput.Presence[string]
+	published bodyinput.Presence[bool]
+	summary   bodyinput.Presence[*string]
+	slug      bodyinput.Presence[*string]
+}
+
+func prepareArticleInput(spec serializers.Spec, config api.ParserConfig) (bodyinput.Body[articleInput], error) {
+	return bodyinput.New(spec, config,
+		bodyinput.Field("title", bodyinput.String(), func(value *articleInput, field bodyinput.Presence[string]) { value.title = field }),
+		bodyinput.Field("published", bodyinput.Boolean(), func(value *articleInput, field bodyinput.Presence[bool]) { value.published = field }),
+		bodyinput.Field("summary", bodyinput.Nullable(bodyinput.String()), func(value *articleInput, field bodyinput.Presence[*string]) { value.summary = field }),
+		bodyinput.Field("slug", bodyinput.Nullable(bodyinput.String()), func(value *articleInput, field bodyinput.Presence[*string]) { value.slug = field }),
+	)
+}
+
+func (a *Application) bind(request *web.Request, mode serializers.Mode) (articleInput, web.Response, bool, error) {
+	value, diagnostics, err := a.body.Parse(request, mode)
 	if err != nil {
-		response, expected, responseErr := api.RequestErrorResponse(err)
-		return serializers.Values{}, response, expected, responseErrOrCause(expected, responseErr, err)
+		response, handled, failure := api.RequestErrorResponse(err)
+		if handled {
+			return articleInput{}, response, true, failure
+		}
+		return articleInput{}, web.Response{}, false, err
 	}
-	result, err := a.spec.Bind(object, mode)
-	if err != nil {
-		return serializers.Values{}, web.Response{}, false, err
+	if diagnostics.Empty() {
+		diagnostics = value.textDiagnostics()
 	}
-	if !result.Valid() {
-		response, err := api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, result.Errors())
-		return serializers.Values{}, response, true, err
-	}
-	values := result.Values()
-	if diagnostics := repositoryTextDiagnostics(values); !diagnostics.Empty() {
+	if !diagnostics.Empty() {
 		response, err := api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
-		return serializers.Values{}, response, true, err
+		return articleInput{}, response, true, err
 	}
-	return values, web.Response{}, false, nil
+	return value, web.Response{}, false, nil
 }
 
-func responseErrOrCause(expected bool, responseErr, cause error) error {
-	if responseErr != nil {
-		return responseErr
+func (value articleInput) full(current *articleapp.Article) articleapp.Input {
+	title, _ := value.title.Get()
+	published, _ := value.published.Get()
+	result := articleapp.Input{Title: title, Published: published}
+	if summary, present := value.summary.Get(); present {
+		result.Summary = summary
+	} else if current != nil && current.Summary != nil {
+		copy := *current.Summary
+		result.Summary = &copy
 	}
-	if expected {
-		return nil
+	if slug, present := value.slug.Get(); present {
+		result.Slug = slug
+	} else if current != nil && current.Slug != nil {
+		copy := *current.Slug
+		result.Slug = &copy
 	}
-	return cause
+	return result
 }
 
-func fullInput(values serializers.Values) articleapp.Input {
-	title, _ := stringValue(values, "title")
-	published, _ := booleanValue(values, "published")
-	summary, supplied, null := nullableStringValue(values, "summary")
-	input := articleapp.Input{Title: title, Published: published}
-	if supplied && !null {
-		input.Summary = &summary
-	}
-	if slug, supplied, null := nullableStringValue(values, "slug"); supplied && !null {
-		input.Slug = &slug
-	}
-	return input
-}
-
-func fullUpdateInput(current articleapp.Article, values serializers.Values) articleapp.Input {
-	input := fullInput(values)
-	if _, supplied := values.Get("summary"); !supplied && current.Summary != nil {
-		summary := *current.Summary
-		input.Summary = &summary
-	}
-	if _, supplied := values.Get("slug"); !supplied && current.Slug != nil {
-		slug := *current.Slug
-		input.Slug = &slug
-	}
-	return input
-}
-
-func partialInput(values serializers.Values) articleapp.Patch {
+func (value articleInput) patch() articleapp.Patch {
 	patch := articleapp.Patch{}
-	if title, supplied := stringValue(values, "title"); supplied {
+	if title, present := value.title.Get(); present {
 		patch = patch.WithTitle(title)
 	}
-	if published, supplied := booleanValue(values, "published"); supplied {
+	if published, present := value.published.Get(); present {
 		patch = patch.WithPublished(published)
 	}
-	if summary, supplied, null := nullableStringValue(values, "summary"); supplied {
-		if null {
+	if summary, present := value.summary.Get(); present {
+		if summary == nil {
 			patch = patch.WithSummaryNull()
 		} else {
-			patch = patch.WithSummary(summary)
+			patch = patch.WithSummary(*summary)
 		}
 	}
-	if slug, supplied, null := nullableStringValue(values, "slug"); supplied {
-		if null {
+	if slug, present := value.slug.Get(); present {
+		if slug == nil {
 			patch = patch.WithSlugNull()
 		} else {
-			patch = patch.WithSlug(slug)
+			patch = patch.WithSlug(*slug)
 		}
 	}
 	return patch
 }
 
-func stringValue(values serializers.Values, name string) (string, bool) {
-	value, supplied := values.Get(name)
-	if !supplied {
-		return "", false
-	}
-	result, valid := value.AsString()
-	return result, valid
-}
-
-func booleanValue(values serializers.Values, name string) (bool, bool) {
-	value, supplied := values.Get(name)
-	if !supplied {
-		return false, false
-	}
-	result, valid := value.AsBoolean()
-	return result, valid
-}
-
-func nullableStringValue(values serializers.Values, name string) (string, bool, bool) {
-	value, supplied := values.Get(name)
-	if !supplied {
-		return "", false, false
-	}
-	if value.IsNull() {
-		return "", true, true
-	}
-	result, valid := value.AsString()
-	return result, valid, false
-}
-
-// The neutral repository deliberately rejects non-text control bytes. Keep
-// that policy on the validation side of the I/O boundary so a bounded client
-// value cannot turn into an internal 500 after serializer validation.
-func repositoryTextDiagnostics(values serializers.Values) validation.Errors {
+// The repository's non-text-control policy remains a validation rule before
+// writes, after the model Spec's trimming and scalar validation.
+func (value articleInput) textDiagnostics() validation.Errors {
 	diagnostics := validation.NewErrors()
-	for _, name := range []string{"title", "summary"} {
-		value, supplied := values.Get(name)
-		if !supplied || value.IsNull() {
-			continue
-		}
-		text, ok := value.AsString()
-		if !ok || acceptedRepositoryText(text) {
-			continue
-		}
-		diagnostics = diagnostics.Append(validation.NewErrors(validation.New(validation.Field(name), codeInvalid)))
+	if title, present := value.title.Get(); present && !acceptedRepositoryText(title) {
+		diagnostics = diagnostics.Append(validation.NewErrors(validation.New("title", codeInvalid)))
+	}
+	if summary, present := value.summary.Get(); present && summary != nil && !acceptedRepositoryText(*summary) {
+		diagnostics = diagnostics.Append(validation.NewErrors(validation.New("summary", codeInvalid)))
 	}
 	return diagnostics
 }

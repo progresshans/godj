@@ -1,7 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-10-07
-- 현재 작업: [GDJ-0116 Typed endpoint와 실행·문서 연결](../../work/0116-typed-endpoint-declarations.md)
+- 현재 작업: [GDJ-0117 Typed 경로와 단계 입력 결합](../../work/0117-typed-path-and-ordered-inputs.md)
+- 후속 전체 통합 대기: [GDJ-0116 Typed endpoint](../../work/0116-typed-endpoint-declarations.md), source `18fc0451`의 영향 세 mode·양 DB/client·drift/정리 완료
 - 통합 대기: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md), [GDJ-0115 Typed JSON 입력](../../work/0115-typed-json-body-inputs.md)
 - 진행 중인 Hosted full: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
 - 최근 Hosted full 완료: [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), source `720c9be6211f00a146a39d00957a81ce69ed294f`
@@ -10,27 +11,16 @@
 
 ## 현재
 
-그룹 집계와 현재 Category의 업무 요약을 구현하고 기준 대조·영향 세 mode·브라우저·정적 검사·DB 정리를 완료했다.
-업무 응답의 JSON 조립과 OpenAPI에서 같은 property·nullable·한도를 중복 선언하는 부분을 typed 출력 선언으로 연결했다.
-모델 응답은 기존 IR/encoder 의미를 재사용하고 인가·조회·transaction 경계는 각 업무가 소유한다.
-Typed 출력과 실제 요약·상세 API/client의 영향 세 mode·외부 compile·정적 검사·정리를 완료했다.
-요약과 Label/티켓–Label 목록의 query 변환·범위·기본값·OpenAPI parameter 중복을 typed 입력 선언으로 연결했다.
-실제 문서/고정 client의 재생성과 영향 세 mode·양 DB·독립 HTTP/compile·drift와 정리를 완료했다.
-기존 모델 Serializer의 full/partial 결과를 typed DTO·부재/null과 연결하고 Label/ServiceReport에 적용했다.
-공통 JSON body parser의 request context 취소를 보완하고 영향 세 mode·양 DB·독립 client/compile·drift와 정리를 완료했다.
-선행 bulk 생성·수정·QuerySet 갱신은 같은 source의 Hosted 전체 통합을 완료했다.
-그룹 집계와 typed API의 새 source는 현재 Hosted 전체 통합에서 검증 중이다.
-Typed 입력·준비 응답·권한과 실제 HTTP/OpenAPI operation을 한 선언에 연결했다.
-요약 조회와 Label ensure의 원자 쓰기에 적용했으며 응답 준비 시점을 보존한다.
-Source `18fc0451`의 영향 세 mode·외부 compile·실제 admission·양 DB/독립 client·drift와 정리를 완료했다.
-확인된 commit 뒤 취소로 성공을 번복하지 않도록 보완했고 실패/unknown outcome의 거부를 유지했다.
-다음 경로·단계 입력 결합은 별도 사본에서 구현 중이며 아직 영향 검증을 수행하지 않았다.
+[GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md)의 typed 경로·Sequence/Resolve와 공유 입력 선언을 구현했다.
+Article의 대상 조회 우선과 Helpdesk의 body 검증 우선을 유지하고 쓰기의 응답 준비를 commit 전에 연결했다.
+단계 중단·source 충돌·공유 schema·총 실행 한도와 실제 DB/HTTP 실패 사례를 추가했으며 영향 통합 검증을 준비한다.
+구현과 환경별 실행 완료를 구분한다. 실행 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
 
 선행 Hosted의 필수 owner·새 capture의 source 결합/소비·최종 집계를 확인한다.
-경로·단계 입력 결합을 구현하고 Article/Helpdesk의 다른 조회/body 순서와 commit 전 출력 준비를 연결한다.
-Endpoint 이후 source의 전체 환경은 후속 통합 milestone이 함께 소유한다.
+경로 입력·단계 결합과 두 소비자의 lookup/body 순서, commit 전 출력 준비를 영향 세 mode·양 DB/client에서 검증한다.
+확인한 source의 GDJ-0116/0117 전체 platform/Hosted를 한 후속 통합 milestone에서 검증한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

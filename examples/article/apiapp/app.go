@@ -8,7 +8,9 @@ import (
 	"reflect"
 
 	"github.com/progresshans/godj/api"
+	bodyinput "github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/serializers"
@@ -38,7 +40,8 @@ const (
 // route declarations whose handlers share this read-only configuration.
 type Application struct {
 	repository     articleapp.Repository
-	parser         api.Parser
+	body           bodyinput.Body[articleInput]
+	response       output.Output[articlemodels.Article]
 	spec           serializers.Spec
 	encoder        serializers.ModelEncoder[articlemodels.Article]
 	authentication api.Authentication
@@ -60,16 +63,13 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	if err != nil {
 		return nil, fmt.Errorf("article api JSON policy: %w", err)
 	}
-	parser, err := api.NewParser(api.ParserConfig{
+	parserConfig := api.ParserConfig{
 		MaxBodyBytes: maximumJSONBodyBytes,
 		JSONLimits: serializers.Limits{
 			MaxDocumentBytes: maximumJSONBodyBytes,
 			MaxDepth:         maximumJSONDepth,
 			MaxStringBytes:   maximumJSONStringByte,
 		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("article api parser: %w", err)
 	}
 	spec, err := articleSpec()
 	if err != nil {
@@ -80,9 +80,17 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	if err != nil {
 		return nil, fmt.Errorf("article api encoder: %w", err)
 	}
+	body, err := prepareArticleInput(spec, parserConfig)
+	if err != nil {
+		return nil, fmt.Errorf("article api typed input: %w", err)
+	}
+	response, err := output.New(output.Named("Article", output.Model(encoder)), serializers.Limits{})
+	if err != nil {
+		return nil, fmt.Errorf("article api typed output: %w", err)
+	}
 	application := &Application{
-		repository:     repository,
-		parser:         parser,
+		repository: repository,
+		body:       body, response: response,
 		spec:           spec,
 		encoder:        encoder,
 		authentication: authentication,
