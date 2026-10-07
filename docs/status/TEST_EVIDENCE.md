@@ -47,6 +47,12 @@ package 35분 초과·최종 집계 실패로 끝났다. 당시 개별 실행 �
 같은 source·필수 검사·예산을 유지한 failed-only attempt 2를 한 번 시작했으며 아직 완료하지 않았다.
 보정 source의 전체 platform·capture/source 결합·필수 owner·최종 집계는 새 full 실행이 소유한다.
 
+2026-10-07 15:31 KST, 비Markdown이 보정 source와 같은 `a9775e4ce50c46f2de2df04dad92f995eac770b5`의
+[Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)을 workflow_dispatch/suite=full로 시작했다.
+같은 ref의 기존 실패 실행 `37579524401`은 concurrency 정책으로 cancelled 종료됐다. 원 실패를 고친 새 source의
+검증으로 교체한 것이며 이전 부분 성공을 새 source의 전체 성공으로 합산하지 않는다. 별도 ref의 선행 `37569379536`
+attempt 2는 유지했다. 두 실행의 필수 owner·capture/source 결합과 최종 집계는 아직 완료하지 않았다.
+
 ## GDJ-0117 — Typed 경로와 순서 입력 결합
 
 Source `55e0453d1838855672029c47ce567e83ffe6f14b`의 `PathInt64`/`PathString`은 기존 router 변환을 사용하고

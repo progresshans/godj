@@ -59,3 +59,4 @@ Source `18fc0451`의 구현·영향 세 mode·외부 compile·양 DB·독립 HTT
 GDJ-0117과 결합한 source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)은
 인증 계약 관찰자의 transport 설명 누락을 검출했다. 보정 source `f45eb512`의 영향 세 mode·고정 reference 대조를
 완료했고 전체 통합은 이 보정을 포함한 새 실행에서 확인한다. 상세는 TEST_EVIDENCE를 따른다.
+새 전체 통합은 source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)에서 진행한다.
