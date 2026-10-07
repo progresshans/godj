@@ -3,6 +3,79 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0116 — Typed endpoint와 준비 응답의 실행/문서 연결
+
+Source `18fc0451a7af087a891d1e26545a9f89abb6d8b4`에서 `api/endpoint`가 typed Query/Body·Output·명시적
+admission·상태로 실제 protected handler와 OpenAPI operation을 함께 준비한다. All/Any·Authenticated·익명 CSRF의
+실제 adapter를 사용하고 인가/CSRF를 입력보다 먼저 실행한다. 초기화는 DTO·handler·I/O를 실행하지 않는다.
+Helpdesk 요약과 Label ensure를 연결하며 한 번의 읽기 snapshot과 출력 준비·audit·commit의 원자 순서를 유지했다.
+
+`Prepared[T]`는 완성된 bytes와 정확한 Output의 identity를 보유하며 DTO/getter를 보관하지 않는다. 다른 한도/선언의
+결과·zero·미선언 상태·잘못된/중복 Content-Type은 실행 오류다. T를 구조에도 결합해 다른 DTO로 명시적 변환하는
+경로를 compile로 거부한다. Expected rejection의 직접 반환만 4xx로 처리하고 wrapped/joined 오류와 취소 cause를 보존한다.
+
+### 실제 회귀에서 보완한 완료 경계
+
+첫 normal checkpoint `typed-endpoint-20261007-133711`에서 새 endpoint의 handler 이후 context 재검사가
+양 DB의 `label_ensure/api/post_commit_cancel`을 201에서 500으로 바꾼 것을 확인했다. 이미 commit된 row/audit를
+실패·재시도 신호로 바꾸는 결함이었다. Handler의 nil 오류가 확정한 준비 결과는 늦은 취소만으로 번복하지 않도록
+수정했다. Handler가 보고한 취소·출력/audit/rollback/unknown outcome에는 준비 응답을 계속 버린다.
+기존 native 사례의 기대값과 DB/audit 검사를 유지했고 최종 세 mode에서 통과했다.
+
+같은 실행에서 인증 준비 순서에 결합된 테스트와 문서화되지 않은 custom adapter를 허용하던 테스트도 실패했다.
+최종 조립 검사는 각 반환 route의 실제 wrapper에서 권한/추가 권한을 확인하며 31개 중 어느 wrapper의 오류/nil도
+부분 API를 게시하지 않는 검증을 유지한다. Typed endpoint는 실제 AuthenticationDescriber를 요구한다는 초기화 계약을
+README/ADR에 반영했고 미설명 profile의 거부를 검증했다. 수정 중 테스트 변수명 compile 오류와 남은 순서 의존성의
+실패 기록도 보존했다. 이전 실패 receipt는 PASS로 바꾸지 않았다.
+
+### 영향 검증과 source 결합
+
+2026-10-07 KST, Go 1.26.5/darwin/arm64·공유 cache·offline graph·child trimpath,
+PostgreSQL 17.10 Debian/UTF8/libc/C/C와 SQLite에서 검증했다. 비Markdown 3180개 파일의 inventory는
+`de13892bfdabe9cf168b05d7bb5cd670baf8c4bdc9585bdf556f82f34aafa500`이며 발행 전 해당 Git commit의 모든 blob과 대조했다.
+Runtime은 api·endpoint·output·parameters·input·openapi·sessionauth·bearerauth·serializers의 9개 package 전체,
+business는 Helpdesk 전체 양 DB와 별도 모듈의 독립 HTTP client/고정 ogen drift다. 실제 여섯 OpenAPI profile과
+기존 schema 파일의 byte 일치·생성 파일 집합/내용 일치·최종 DB 상태를 포함하며 generated 변경은 없다.
+
+| Mode | Runtime 9 packages | Business 2 packages | 외부 compile 4 owners |
+|---|---|---|---|
+| normal | 4205 run/pass, skip 0 | 1283 run/pass, skip 0 | 86 run/pass, skip 0 |
+| race | 4205 run/pass, skip 0 | 1283 run/pass, skip 0 | 기존 !race owner 규칙으로 비대상 |
+| CGO=0 | 4205 run/pass, skip 0 | 1283 run/pass, skip 0 | 86 run/pass, skip 0 |
+
+Runtime root 185개, business 필수 경로 1132개, compile 필수 경로 28개의 실행/terminal과 중복·누락·skip 0을
+8개 원 JSON log에서 대조했다. 새 compile 대조는 endpoint 입력 DTO·handler 입력/출력 타입·Prepared 타입 변환·
+private prepared 응답과 input reader 위조를 거부하고 정상 외부 consumer를 함께 확인한다.
+실제 Session/Bearer 인가·익명 CSRF·본문 읽기 전 거부, 취소/reader cause·borrowed 수명, query-before-body,
+선언/header/bytes snapshot과 동시 재사용, exact Output owner·완료 결과와 오류 우선 처리를 검증했다.
+
+Normal compile/runtime은 `typed-endpoint-20261007-134117`의 성공 결과를 재사용했다. 이후 차이는 별도 Helpdesk
+테스트 파일 `examples/helpdesk/api_test.go`뿐임을 전체 inventory로 확인했으며 그 파일은 두 재사용 section의
+입력/소비자가 아니다. Runtime/compile의 제품·테스트·fixture·lock은 byte 동일하다. 실패한 business section은
+재사용하지 않고 최종 수정 후 전체 실행했다. 이 source 동등성·이전 inventory·원 로그 위치는 각 receipt에 기록했다.
+
+| Mode / section | 시간 | Log SHA-256 |
+|---|---:|---|
+| normal / compile | 5.771s | `736d4ad3aac4cf12c39b65af2fe22f80c2d59abc145f8654fbc32f9afc3bbb56` |
+| normal / runtime | 2.803s | `bfa5cc96ea0af9fdf3d8ec794b04f7d390c4301e600edaf443c71da68ca3c52e` |
+| normal / business | 119.378s | `2da8f48ce5ac46260582cd404a95efb27a5fdf758b8209f4874ff02ce26c6615` |
+| race / runtime | 18.344s | `ecb5b6a7f68a53a2e90a5d04717a18c3f68c32425417d75fac379d740a9b07c6` |
+| race / business | 893.436s | `4049802f9736fd34f2eeebe84349e132deff45936261ad7c28b33a42920153b8` |
+| cgo0 / compile | 5.341s | `989e7c711473957f9fdfbb7dbbc3d9b88e9f4b5558a0207c2674f5eb53137b21` |
+| cgo0 / runtime | 4.536s | `c4dd4df7bee03f94705ded09606506160afa8410d6d319a1c9930bf93e58a19b` |
+| cgo0 / business | 127.262s | `3f3e32bb14c438f79533b7ffe0eba781107704e4bf53dace7a8bb0d7c14127e6` |
+
+Format 0.395s와 영향 vet 6.777s가 통과했다. CI 필수 manifest는 축소하지 않았으며 새 endpoint package는
+기존 core discovery에, compile fixture는 기존 ABI owner에 포함된다. 최종 schema/session `0|0`, owned DB/container
+제거와 frozen source 유지까지 확인했다. Receipt `typed-endpoint-20261007-134555/receipt.json` /
+`5e70474191c32df740d3ec12e884e790707dcbc7ae94798dbfb94abee570d52d`, publication audit `typed-endpoint-publication-audit.json` /
+`e235fe9952dc6bb8e97d1fa2c5e1c6390c51b029d49ee858d068faf87e957d0e`.
+
+이 결과는 영향 범위다. 진행 중인 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)은
+`def77d5e`의 GDJ-0112/0113/0114/0115만 포함하며 이 endpoint source의 전체 platform/cold/process 검증을 대신하지 않는다.
+경로와 단계 입력 결합은 별도 작업 사본에서 구현 중이며 이 기록의 source에 포함되지 않는다. 그 후속 묶음과 필요한
+전체 환경을 하나의 명시적 통합 milestone으로 검증하며 로컬 전체를 중복하지 않는다.
+
 ## GDJ-0115 — Typed JSON body와 같은 모델 입력 선언
 
 `api/input`의 `Body[T]`·닫힌 scalar/collection codec·`Presence[V]`·Nullable pointer가 기존 Spec.Bind의 결과와

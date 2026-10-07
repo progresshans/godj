@@ -22,12 +22,15 @@ Typed 출력과 실제 요약·상세 API/client의 영향 세 mode·외부 comp
 그룹 집계와 typed API의 새 source는 현재 Hosted 전체 통합에서 검증 중이다.
 Typed 입력·준비 응답·권한과 실제 HTTP/OpenAPI operation을 한 선언에 연결했다.
 요약 조회와 Label ensure의 원자 쓰기에 적용했으며 응답 준비 시점을 보존한다.
-외부 compile·실제 admission·응답 소유권·오류 경계 테스트를 추가했고 영향 검증은 아직 미완료다.
+Source `18fc0451`의 영향 세 mode·외부 compile·실제 admission·양 DB/독립 client·drift와 정리를 완료했다.
+확인된 commit 뒤 취소로 성공을 번복하지 않도록 보완했고 실패/unknown outcome의 거부를 유지했다.
+다음 경로·단계 입력 결합은 별도 사본에서 구현 중이며 아직 영향 검증을 수행하지 않았다.
 
 ## 다음 행동
 
 선행 Hosted의 필수 owner·새 capture의 source 결합/소비·최종 집계를 확인한다.
-완성한 endpoint 묶음의 영향 세 mode·외부 compile·양 DB·독립 client/drift와 정리를 검증한다.
+경로·단계 입력 결합을 구현하고 Article/Helpdesk의 다른 조회/body 순서와 commit 전 출력 준비를 연결한다.
+Endpoint 이후 source의 전체 환경은 후속 통합 milestone이 함께 소유한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

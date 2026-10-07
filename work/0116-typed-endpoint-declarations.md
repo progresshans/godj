@@ -45,8 +45,12 @@ Header/path typed binding·배열 body·범용 viewset·자동 CRUD의 완료를
 - [x] 선언에 결합된 typed 준비 응답과 응답 한도·형식/상태·실패 소유권 구현
 - [x] Typed 입력·handler·권한과 OpenAPI operation의 공통 준비 구현
 - [x] 실제 요약·ensure 흐름과 서로 다른 DTO/상태·transaction 경계 연결 구현
-- [ ] 외부 compile·인가/CSRF·오류/소유권·실제 양 DB/독립 client·영향 검증과 정리
-- [ ] 필요한 후속 source의 전체 통합 범위 기록
+- [x] 외부 compile·인가/CSRF·오류/소유권·실제 양 DB/독립 client·영향 세 mode 검증과 정리
+- [ ] endpoint와 다음 입력 결합을 포함한 후속 source의 전체 platform/Hosted 통합
+
+Source `18fc0451`의 구현·영향 세 mode·외부 compile·양 DB·독립 HTTP/client·drift와 정리를 완료했다.
+실행 상세와 초기 회귀·수정은 TEST_EVIDENCE가 소유한다. 다음 경로/단계 입력 결합은 별도 사본에서 구현 중이며
+그 후속 source의 명시적 milestone이 endpoint의 전체 환경을 함께 검증한다.
 
 선행 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)은
 `def77d5e1c949a87d538181d05a72a3c75e97201`의 GDJ-0112/0113/0114/0115를 검증한다. 이 작업의 새 source와 분리한다.
