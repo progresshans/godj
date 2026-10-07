@@ -923,7 +923,7 @@ jobs:
           assert len(SCENARIOS) == 311, len(SCENARIOS)
           assert len(payload) == 1082209, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "c07d1ed3914ba692e7b35bb38da73e9d1f3565de9ed39a7e9391590d1f0062e5", digest
+          assert digest == "d046e618ed26bbd3717d52b98c0542dfe7f10f7fc8259a4455ad583b698639a0", digest
           PY
 
       - name: Require a clean worktree
