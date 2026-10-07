@@ -200,6 +200,7 @@ def article_route_reuse(contract_id: str) -> dict[str, Any]:
     routes = sorted([
         "GET /api/articles/",
         "POST /api/articles/",
+        "POST /api/articles/bulk/",
         "GET /api/articles/:id/",
         "PUT /api/articles/:id/",
         "PATCH /api/articles/:id/",

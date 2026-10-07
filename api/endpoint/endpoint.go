@@ -15,6 +15,8 @@ import (
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
@@ -34,7 +36,14 @@ type Config[I, O any] struct {
 	Output               output.Output[O]
 	Success              []Status
 	Errors               []Status
-	Handle               func(*web.Request, auth.Principal, I) (output.Prepared[O], error)
+	// ErrorLimits bounds the complete public error envelope. Zero fields use
+	// serializer defaults. It applies to input diagnostics and direct Reject.
+	ErrorLimits serializers.Limits
+	// SummarizeValidationErrors replaces an oversized validation_error with one
+	// too_many_errors diagnostic containing the original count, using standard
+	// envelope limits. Other encoding errors and internal causes stay errors.
+	SummarizeValidationErrors bool
+	Handle                    func(*web.Request, auth.Principal, I) (output.Prepared[O], error)
 }
 
 // Endpoint retains immutable startup snapshots. It can be shared concurrently
@@ -66,6 +75,10 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 	}
 	if len(config.Success) == 0 || len(config.Success)+len(config.Errors) > 32 {
 		return Endpoint{}, configError("responses", "response count is outside the supported range", nil)
+	}
+	policy := errorPolicy{limits: config.ErrorLimits, summarize: config.SummarizeValidationErrors}
+	if _, err := api.ErrorResponseWithLimits(http.StatusBadRequest, api.CodeValidationError, validation.Errors{}, policy.limits); err != nil {
+		return Endpoint{}, configError("error_limits", "error limits cannot encode the empty error envelope", err)
 	}
 	declaration := config.Output.Declaration()
 	definitions, err := output.Components(declaration)
@@ -139,7 +152,7 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 			return web.Response{}, errors.Join(cancelled, err)
 		}
 		if err != nil {
-			response, handled, responseErr := expectedInputError(err)
+			response, handled, responseErr := expectedInputError(err, policy)
 			if !handled {
 				return web.Response{}, err
 			}
@@ -155,7 +168,7 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 			if !failures[http.StatusBadRequest] {
 				return web.Response{}, responseError("input returned undeclared validation errors", nil)
 			}
-			return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
+			return policy.response(http.StatusBadRequest, api.CodeValidationError, diagnostics)
 		}
 		prepared, err := handle(request, actor, value)
 		if err != nil {
@@ -166,10 +179,10 @@ func New[I, O any](authentication api.Authentication, config Config[I, O]) (Endp
 			if !expected || failure == nil {
 				return web.Response{}, err
 			}
-			if !failures[failure.response.Status()] {
+			if !failures[failure.status] {
 				return web.Response{}, responseError("handler returned an undeclared error status", nil)
 			}
-			return failure.response, nil
+			return policy.response(failure.status, failure.code, failure.diagnostics)
 		}
 		response, err := encoder.Response(prepared)
 		if err != nil {

@@ -185,8 +185,12 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			backend *sqlite.Backend
 		}{{"Article Bearer", bearerBackend}, {"Article Session", sessionBackend}} {
 			rows, err := articlemodels.ArticleObjects.Using(fixture.backend).OrderBy(articlemodels.ArticleFields.ID.Asc()).All(t.Context())
-			if err != nil || len(rows) != 1 || rows[0].Title != "Retained Slug Article" || rows[0].Published || rows[0].Summary != nil || rows[0].Slug == nil || *rows[0].Slug != "Client_읽기-주소" {
+			if err != nil || len(rows) != 3 || rows[0].Title != "Retained Slug Article" || rows[0].Published || rows[0].Summary != nil || rows[0].Slug == nil || *rows[0].Slug != "Client_읽기-주소" {
 				t.Fatalf("%s generated slug client final DB state differs: %v", fixture.name, err)
+			}
+			first, second := rows[1], rows[2]
+			if first.ID <= rows[0].ID || second.ID <= first.ID || first.Title != "Client bulk article first" || !first.Published || first.Summary == nil || *first.Summary != "bulk summary" || first.Slug == nil || *first.Slug != "Client_bulk" || second.Title != "Client bulk article second" || second.Published || second.Summary != nil || second.Slug != nil {
+				t.Fatalf("%s generated bulk client final DB state differs", fixture.name)
 			}
 		}
 		tickets, err := helpdeskmodels.TicketObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketFields.ID.Asc()).All(t.Context())

@@ -6,6 +6,7 @@ package articlesession
 type OperationName = string
 
 const (
+	GodjConformanceArticleBulkCreateOperation    OperationName = "GodjConformanceArticleBulkCreate"
 	GodjConformanceArticleCreateOperation        OperationName = "GodjConformanceArticleCreate"
 	GodjConformanceArticleDeleteOperation        OperationName = "GodjConformanceArticleDelete"
 	GodjConformanceArticleDetailOperation        OperationName = "GodjConformanceArticleDetail"

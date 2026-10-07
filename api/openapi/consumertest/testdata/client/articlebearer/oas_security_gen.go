@@ -17,6 +17,7 @@ type SecuritySource interface {
 
 // operationRolesBearerAuth is a private map storing roles per operation.
 var operationRolesBearerAuth = map[string][]string{
+	GodjConformanceArticleBulkCreateOperation:    []string{},
 	GodjConformanceArticleCreateOperation:        []string{},
 	GodjConformanceArticleDeleteOperation:        []string{},
 	GodjConformanceArticleDetailOperation:        []string{},

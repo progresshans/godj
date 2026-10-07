@@ -51,7 +51,8 @@ func TestSharedCSRFKeyRingComposesAcrossTwoArticleSiteRuntimes(t *testing.T) {
 		Paths   map[string]json.RawMessage
 	}
 	if err := json.Unmarshal([]byte(firstDocument.body), &document); err != nil ||
-		!strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 2 || document.Paths[apiapp.ListPath] == nil {
+		!strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 3 || document.Paths[apiapp.ListPath] == nil ||
+		document.Paths["/api/articles/{id}/"] == nil || document.Paths[apiapp.BulkCreatePath] == nil {
 		t.Fatal("published API document does not describe the Article routes")
 	}
 	for _, secret := range []string{fixture.username, fixture.password, firstDocument.header.Get(websessionauth.DefaultCSRFHeader)} {

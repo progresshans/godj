@@ -2,13 +2,10 @@ package articleapp
 
 import (
 	"context"
-	"errors"
 	"slices"
-	"sync"
 
 	"github.com/progresshans/godj/db"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -67,72 +64,29 @@ func PatchAndPrepare[T any](ctx context.Context, repository Repository, id int64
 }
 
 func updateAndPrepare[T any](ctx context.Context, repository Repository, id int64, patch Patch, operation MutationOperation, prepare func(context.Context, Article, []string) (T, error)) (T, error) {
-	var zero T
-	work, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var mu sync.Mutex
-	var prepared T
-	var callbackError error
-	entries, completed, sealed := 0, false, false
-	err := repository.backend.Atomic(ctx, func(session db.Session) error {
-		mu.Lock()
-		if sealed {
-			mu.Unlock()
-			return errors.New("article: update callback outlived its owner")
+	return preparedAtomic(ctx, repository, operation, func(work context.Context, session db.Session) (T, error) {
+		var zero T
+		article, changed, err := repository.updateIn(work, session, id, patch, operation)
+		if err != nil {
+			return zero, err
 		}
-		entries++
-		if entries != 1 {
-			mu.Unlock()
-			return errors.New("article: repeated update callback")
+		result, err := prepare(work, cloneArticle(article), slices.Clone(changed))
+		if err != nil {
+			return zero, err
 		}
-		mu.Unlock()
-		value, failure := func() (T, error) {
-			if interfaceNil(session) {
-				return zero, errors.New("article: update session is absent")
-			}
-			if err := work.Err(); err != nil {
+		if err := work.Err(); err != nil {
+			return zero, err
+		}
+		if len(changed) != 0 && repository.mutationHook != nil {
+			if err := repository.mutationHook(work, session, mutationResult(operation, article, changed)); err != nil {
 				return zero, err
 			}
-			article, changed, err := repository.updateIn(work, session, id, patch, operation)
-			if err != nil {
-				return zero, err
-			}
-			result, err := prepare(work, cloneArticle(article), slices.Clone(changed))
-			if err != nil {
-				return zero, err
-			}
-			if err := work.Err(); err != nil {
-				return zero, err
-			}
-			if len(changed) != 0 && repository.mutationHook != nil {
-				if err := repository.mutationHook(work, session, mutationResult(operation, article, changed)); err != nil {
-					return zero, err
-				}
-			}
-			if err := work.Err(); err != nil {
-				return zero, err
-			}
-			return result, nil
-		}()
-		mu.Lock()
-		prepared, callbackError, completed = value, failure, true
-		mu.Unlock()
-		return failure
+		}
+		if err := work.Err(); err != nil {
+			return zero, err
+		}
+		return result, nil
 	})
-	mu.Lock()
-	sealed = true
-	valid := entries <= 1 && (entries == 0 && err != nil || completed)
-	result, callbackErr := prepared, callbackError
-	mu.Unlock()
-	if !valid || callbackErr != nil && (err == nil || !errors.Is(err, callbackErr)) {
-		failure := &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown,
-			Detail: "Article update transaction did not confirm one complete callback", Cause: errors.Join(err, callbackErr)}
-		return zero, mutationError(ctx, string(operation), failure)
-	}
-	if err != nil {
-		return zero, mutationError(ctx, string(operation), err)
-	}
-	return result, nil
 }
 
 func (r Repository) updateIn(ctx context.Context, session db.Session, id int64, patch Patch, operation MutationOperation) (Article, []string, error) {

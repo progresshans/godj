@@ -434,6 +434,51 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 	s.Response = val
 }
 
+type GodjConformanceArticleBulkCreateBadRequest GoDjAPIErrorHeaders
+
+func (*GodjConformanceArticleBulkCreateBadRequest) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateCreatedApplicationJSON []Article
+
+func (*GodjConformanceArticleBulkCreateCreatedApplicationJSON) godjConformanceArticleBulkCreateRes() {
+}
+
+type GodjConformanceArticleBulkCreateForbidden GoDjAPIErrorHeaders
+
+func (*GodjConformanceArticleBulkCreateForbidden) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjConformanceArticleBulkCreateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjConformanceArticleBulkCreateInternalServerError) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateNotAcceptable GoDjAPIError
+
+func (*GodjConformanceArticleBulkCreateNotAcceptable) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateRequestEntityTooLarge GoDjAPIError
+
+func (*GodjConformanceArticleBulkCreateRequestEntityTooLarge) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjConformanceArticleBulkCreateUnauthorized) godjConformanceArticleBulkCreateRes() {}
+
+type GodjConformanceArticleBulkCreateUnsupportedMediaType GoDjAPIError
+
+func (*GodjConformanceArticleBulkCreateUnsupportedMediaType) godjConformanceArticleBulkCreateRes() {}
+
 type GodjConformanceArticleCreateBadRequest GoDjAPIErrorHeaders
 
 func (*GodjConformanceArticleCreateBadRequest) godjConformanceArticleCreateRes() {}

@@ -27,8 +27,8 @@ import (
 func TestRoutesReverseNegotiationAndAllowAreClosedAndDeterministic(t *testing.T) {
 	harness := newHarness(t)
 	routes := harness.adapter.Routes()
-	if len(routes) != 10 {
-		t.Fatalf("route count = %d, want 10", len(routes))
+	if len(routes) != 11 {
+		t.Fatalf("route count = %d, want 11", len(routes))
 	}
 	names := make(map[string]struct{}, len(routes))
 	for _, route := range routes {
@@ -84,6 +84,7 @@ func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
 		{name: apiapp.Namespace + ":article-list-head", method: http.MethodHead, path: apiapp.ListPath, permission: articleapp.ArticleViewPermission},
 		{name: apiapp.Namespace + ":article-list-options", method: http.MethodOptions, path: apiapp.ListPath, permission: articleapp.ArticleViewPermission},
 		{name: apiapp.Namespace + ":article-create", method: http.MethodPost, path: apiapp.ListPath, permission: articleapp.ArticleAddPermission},
+		{name: apiapp.Namespace + ":article-bulk-create", method: http.MethodPost, path: apiapp.BulkCreatePath, permission: articleapp.ArticleAddPermission},
 		{name: apiapp.DetailRouteName, method: http.MethodGet, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},
 		{name: apiapp.Namespace + ":article-detail-head", method: http.MethodHead, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},
 		{name: apiapp.Namespace + ":article-detail-options", method: http.MethodOptions, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},

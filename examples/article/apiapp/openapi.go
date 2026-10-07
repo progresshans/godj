@@ -38,11 +38,7 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 		return reference, nil
 	}
 	article := a.response.Schema()
-	full, err := openapi.RequestSchema(a.spec, serializers.ModeFull)
-	if err != nil {
-		return nil, fmt.Errorf("article api full input schema: %w", err)
-	}
-	create, err := named("ArticleCreate", full)
+	create, err := openapi.Ref("ArticleCreate")
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +165,11 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 	if err != nil {
 		return nil, err
 	}
-	typed, schemas, err := endpoint.Collect([]endpoint.Endpoint{fullUpdate, partialUpdate})
+	bulk, err := a.bulkCreateEndpoint(authentication, endpoint.JSONBody("ArticleCreate", a.body, serializers.ModeFull, bodyLimits))
+	if err != nil {
+		return nil, err
+	}
+	typed, schemas, err := endpoint.Collect([]endpoint.Endpoint{fullUpdate, partialUpdate, bulk})
 	if err != nil {
 		return nil, err
 	}

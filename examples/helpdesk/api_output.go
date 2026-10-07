@@ -21,6 +21,7 @@ type labelEnsureResponse struct {
 type apiOutputs struct {
 	label       output.Output[models.Label]
 	ticket      output.Output[ticketRecord]
+	ticketBulk  output.Output[[]ticketRecord]
 	detail      output.Output[ticketDetailResponse]
 	summary     output.Output[ticketSummaryPage]
 	labelEnsure output.Output[labelEnsureResponse]
@@ -56,6 +57,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 	))
 	var err error
 	if result.ticket, err = output.New(ticket, serializers.Limits{}); err != nil {
+		return apiOutputs{}, err
+	}
+	if result.ticketBulk, err = output.New(output.Array(ticket, 1, ticketBulkMaximum), serializers.Limits{MaxValues: maximumJSONListValues}); err != nil {
 		return apiOutputs{}, err
 	}
 	if result.detail, err = output.New(detail, serializers.Limits{}); err != nil {

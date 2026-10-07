@@ -158,9 +158,10 @@ func inputSchemas(inputs ...*inputDefinition) ([]openapi.NamedSchema, error) {
 	return schemas, nil
 }
 
-func expectedInputError(err error) (web.Response, bool, error) {
+func expectedInputError(err error, policy errorPolicy) (web.Response, bool, error) {
 	if failure, expected := err.(*rejection); expected && failure != nil {
-		return failure.response, true, nil
+		response, err := policy.response(failure.status, failure.code, failure.diagnostics)
+		return response, true, err
 	}
 	return api.RequestErrorResponse(err)
 }

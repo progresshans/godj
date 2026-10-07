@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/input"
+	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/calendar"
@@ -66,6 +67,7 @@ type Application struct {
 	categoryID      int64
 	registry        admin.Registry
 	input           serializers.Spec
+	ticketInput     input.Body[ticketInput]
 	output          serializers.Spec
 	encoder         serializers.ModelEncoder[ticketRecord]
 	responses       apiOutputs
@@ -151,6 +153,10 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	a.responses, err = prepareAPIOutputs(a.encoder, a.labelEncoder)
+	if err != nil {
+		return nil, err
+	}
+	a.ticketInput, err = prepareTicketAPIInput(a.input)
 	if err != nil {
 		return nil, err
 	}
@@ -350,111 +356,110 @@ type ticketInput struct {
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
 	return models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 }
-func (a *Application) create(ctx context.Context, principal auth.Principal, input ticketInput) (ticketRecord, error) {
-	var created ticketRecord
-	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
-		if err := ticketWritePermission(ctx, principal, AddTicket); err != nil {
-			return err
-		}
-		if _, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(a.categoryID)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx); err != nil {
-			return err
-		} else if !found {
-			return admin.ErrObjectNotFound
-		}
-		keys, err := a.validateTicketLabelKeys(ctx, session, input.labels)
+func (a *Application) createTicket(ctx context.Context, principal auth.Principal, input ticketInput) (output.Prepared[ticketRecord], error) {
+	return runApplicationRelationAtomic(ctx, a.backend, "ticket create", func(ctx context.Context, session db.RelationSession) (output.Prepared[ticketRecord], error) {
+		created, err := a.createTicketInSession(ctx, session, principal, input)
 		if err != nil {
-			return err
+			return output.Prepared[ticketRecord]{}, err
 		}
-		create := models.NewTicketCreate(input.subject, a.categoryID).WithClosed(input.closed)
-		if input.priority == nil {
-			create = create.WithPriorityNull()
-		} else {
-			create = create.WithPriority(*input.priority)
-		}
-		if input.details == nil {
-			create = create.WithDetailsNull()
-		} else {
-			create = create.WithDetails(*input.details)
-		}
-		if input.resolution == nil {
-			create = create.WithResolutionNull()
-		} else {
-			create = create.WithResolution(*input.resolution)
-		}
-		if input.dueAt == nil {
-			create = create.WithDueAtNull()
-		} else {
-			create = create.WithDueAt(*input.dueAt)
-		}
-		if input.reviewed == nil {
-			create = create.WithReviewedNull()
-		} else {
-			create = create.WithReviewed(*input.reviewed)
-		}
-		if input.serviceOn == nil {
-			create = create.WithServiceOnNull()
-		} else {
-			create = create.WithServiceOn(*input.serviceOn)
-		}
-		if input.externalReference == nil {
-			create = create.WithExternalReferenceNull()
-		} else {
-			create = create.WithExternalReference(*input.externalReference)
-		}
-		if input.externalURL == nil {
-			create = create.WithExternalURLNull()
-		} else {
-			create = create.WithExternalURL(*input.externalURL)
-		}
-		if input.externalPayload == nil {
-			create = create.WithExternalPayloadNull()
-		} else {
-			create = create.WithExternalPayload(*input.externalPayload)
-		}
-		if input.expectedCost == nil {
-			create = create.WithExpectedCostNull()
-		} else {
-			create = create.WithExpectedCost(*input.expectedCost)
-		}
-		if input.effort == nil {
-			create = create.WithEffortNull()
-		} else {
-			create = create.WithEffort(*input.effort)
-		}
-		if input.elapsed == nil {
-			create = create.WithElapsedNull()
-		} else {
-			create = create.WithElapsed(*input.elapsed)
-		}
-		if input.serviceAt == nil {
-			create = create.WithServiceAtNull()
-		} else {
-			create = create.WithServiceAt(*input.serviceAt)
-		}
-		violations, err := models.TicketObjects.ValidateUniqueCreate(ctx, session, create)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		raw, err := models.TicketObjects.Create(ctx, session, create)
-		if err != nil {
-			return writeRejection(err)
-		}
-		if _, err := a.setTicketLabelKeys(ctx, session, raw, keys); err != nil {
-			return err
-		}
-		created, err = a.publishableTicket(ctx, session, raw.ID, true)
-		return err
+		return a.responses.ticket.Prepare(ctx, http.StatusCreated, created)
 	})
-	if err != nil {
-		if contextErr := ctx.Err(); contextErr != nil {
-			return ticketRecord{}, errors.Join(err, contextErr)
-		}
+}
+
+func (a *Application) createTicketInSession(ctx context.Context, session db.RelationSession, principal auth.Principal, input ticketInput) (ticketRecord, error) {
+	if err := ticketWritePermission(ctx, principal, AddTicket); err != nil {
 		return ticketRecord{}, err
 	}
-	return created, nil
+	if _, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(a.categoryID)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx); err != nil {
+		return ticketRecord{}, err
+	} else if !found {
+		return ticketRecord{}, admin.ErrObjectNotFound
+	}
+	keys, err := a.validateTicketLabelKeys(ctx, session, input.labels)
+	if err != nil {
+		return ticketRecord{}, err
+	}
+	create := models.NewTicketCreate(input.subject, a.categoryID).WithClosed(input.closed)
+	if input.priority == nil {
+		create = create.WithPriorityNull()
+	} else {
+		create = create.WithPriority(*input.priority)
+	}
+	if input.details == nil {
+		create = create.WithDetailsNull()
+	} else {
+		create = create.WithDetails(*input.details)
+	}
+	if input.resolution == nil {
+		create = create.WithResolutionNull()
+	} else {
+		create = create.WithResolution(*input.resolution)
+	}
+	if input.dueAt == nil {
+		create = create.WithDueAtNull()
+	} else {
+		create = create.WithDueAt(*input.dueAt)
+	}
+	if input.reviewed == nil {
+		create = create.WithReviewedNull()
+	} else {
+		create = create.WithReviewed(*input.reviewed)
+	}
+	if input.serviceOn == nil {
+		create = create.WithServiceOnNull()
+	} else {
+		create = create.WithServiceOn(*input.serviceOn)
+	}
+	if input.externalReference == nil {
+		create = create.WithExternalReferenceNull()
+	} else {
+		create = create.WithExternalReference(*input.externalReference)
+	}
+	if input.externalURL == nil {
+		create = create.WithExternalURLNull()
+	} else {
+		create = create.WithExternalURL(*input.externalURL)
+	}
+	if input.externalPayload == nil {
+		create = create.WithExternalPayloadNull()
+	} else {
+		create = create.WithExternalPayload(*input.externalPayload)
+	}
+	if input.expectedCost == nil {
+		create = create.WithExpectedCostNull()
+	} else {
+		create = create.WithExpectedCost(*input.expectedCost)
+	}
+	if input.effort == nil {
+		create = create.WithEffortNull()
+	} else {
+		create = create.WithEffort(*input.effort)
+	}
+	if input.elapsed == nil {
+		create = create.WithElapsedNull()
+	} else {
+		create = create.WithElapsed(*input.elapsed)
+	}
+	if input.serviceAt == nil {
+		create = create.WithServiceAtNull()
+	} else {
+		create = create.WithServiceAt(*input.serviceAt)
+	}
+	violations, err := models.TicketObjects.ValidateUniqueCreate(ctx, session, create)
+	if err != nil {
+		return ticketRecord{}, err
+	}
+	if !violations.Empty() {
+		return ticketRecord{}, validation.Reject(violations, nil)
+	}
+	raw, err := models.TicketObjects.Create(ctx, session, create)
+	if err != nil {
+		return ticketRecord{}, writeRejection(err)
+	}
+	if _, err := a.setTicketLabelKeys(ctx, session, raw, keys); err != nil {
+		return ticketRecord{}, err
+	}
+	return a.publishableTicket(ctx, session, raw.ID, true)
 }
 
 // Resolve the current row and apply explicit changes in the same transaction.
@@ -663,23 +668,6 @@ func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Respo
 	// A page can contain many individually bounded JSON documents. Keep its
 	// aggregate budget explicit without weakening request or other responses.
 	return api.JSONWithLimits(http.StatusOK, value, serializers.Limits{MaxValues: maximumJSONListValues})
-}
-
-func (a *Application) apiCreate(request *web.Request, principal auth.Principal) (web.Response, error) {
-	values, response, handled, err := a.bindInput(request, serializers.ModeFull)
-	if handled || err != nil {
-		return response, err
-	}
-	input := ticketInputFromValues(values)
-	created, err := a.create(request.Context(), principal, input)
-	if err != nil {
-		return objectFailure(err)
-	}
-	value, err := a.encoder.Encode(created)
-	if err != nil {
-		return web.Response{}, err
-	}
-	return api.JSON(http.StatusCreated, value)
 }
 
 // Viewing a ticket includes its assigned category's identity and label. The

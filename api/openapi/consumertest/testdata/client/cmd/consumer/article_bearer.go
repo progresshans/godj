@@ -114,7 +114,10 @@ func checkArticleBearer(ctx context.Context, target endpoint) error {
 	if err := requireEmptyBearerList(ctx, client, transport); err != nil {
 		return err
 	}
-	return checkArticleBearerSlug(ctx, client, transport)
+	if err := checkArticleBearerSlug(ctx, client, transport); err != nil {
+		return err
+	}
+	return checkArticleBearerBulk(ctx, client, readOnly, transport)
 }
 
 func requireEmptyBearerList(ctx context.Context, client *ab.Client, transport *observedTransport) error {

@@ -20,8 +20,9 @@ import (
 const (
 	Namespace = "godj_conformance"
 
-	ListPath   = "/api/articles/"
-	DetailPath = "/api/articles/<int64:id>/"
+	ListPath       = "/api/articles/"
+	DetailPath     = "/api/articles/<int64:id>/"
+	BulkCreatePath = "/api/articles/bulk/"
 
 	ListRouteName    = Namespace + ":article-list"
 	DetailRouteName  = Namespace + ":article-detail"
@@ -42,7 +43,7 @@ type Application struct {
 	repository     articleapp.Repository
 	body           bodyinput.Body[articleInput]
 	response       output.Output[articlemodels.Article]
-	spec           serializers.Spec
+	bulkResponse   output.Output[[]articlemodels.Article]
 	encoder        serializers.ModelEncoder[articlemodels.Article]
 	authentication api.Authentication
 	operations     []openapi.Operation
@@ -84,14 +85,18 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	if err != nil {
 		return nil, fmt.Errorf("article api typed input: %w", err)
 	}
-	response, err := output.New(output.Named("Article", output.Model(encoder)), serializers.Limits{})
+	shape := output.Named("Article", output.Model(encoder))
+	response, err := output.New(shape, serializers.Limits{})
 	if err != nil {
 		return nil, fmt.Errorf("article api typed output: %w", err)
 	}
+	bulkResponse, err := output.New(output.Array(shape, 1, articleapp.BulkCreateMaximum), serializers.Limits{MaxValues: 1 << 16})
+	if err != nil {
+		return nil, fmt.Errorf("article api typed bulk output: %w", err)
+	}
 	application := &Application{
 		repository: repository,
-		body:       body, response: response,
-		spec:           spec,
+		body:       body, response: response, bulkResponse: bulkResponse,
 		encoder:        encoder,
 		authentication: authentication,
 		jsonPolicy:     jsonPolicy,

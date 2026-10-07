@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/endpoint"
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/serializers"
@@ -56,10 +57,6 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		return nil, fmt.Errorf("helpdesk API TicketPatch schema: %w", err)
 	}
 	ticketRef := a.responses.ticket.Schema()
-	inputRef, err := openapi.Ref("TicketCreate")
-	if err != nil {
-		return nil, err
-	}
 	updateRef, err := openapi.Ref("TicketUpdate")
 	if err != nil {
 		return nil, err
@@ -113,20 +110,36 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	create, err := protect(openapi.Operation{
-		Route:       web.Route{Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/"},
-		Summary:     "Create a ticket",
-		Description: "The application assigns the selected category and checks its existence within the create transaction. Authentication, CSRF when required, and permission checks precede body parsing. Structural input validation precedes the category lookup; uniqueness checks follow it in the same transaction. External_payload_digest is a server-owned SHA-256 of the stored JSON, returned as padded base64 or null and rejected in requests. Existing rows retain null until a real ticket scalar write refreshes the digest; read and no-op requests preserve it. SQL null payload has no digest, while a stored JSON null has its own digest.",
-		Permission:  AddTicket, AdditionalPermissions: []auth.Permission{ViewLabel},
-		RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true, Description: fmt.Sprintf("The body must be one JSON object, limited to %d bytes and depth %d. The JSON string limit is %d bytes, subject to the smaller whole-body limit. Duplicate members and trailing data are rejected. Subject is required. Omitted closed defaults to false; omitted details, priority, resolution, due_at, reviewed, service_on, service_at, elapsed, effort, expected_cost, external_reference and external_payload become null. External_payload accepts any JSON value with exact number tokens and canonical object order. JSON null clears the SQL value; PUT/PATCH omission preserves it. Empty objects, arrays and strings are present values. Empty object keys are accepted inside external_payload. Duplicate keys, NUL, malformed Unicode and request or model budget overflows are rejected. JSON strings remain strings rather than being parsed a second time. The payload itself is limited to depth 14 so it also fits the detail/list response envelope. Native storage normalization is checked inside the transaction before a write is committed. External_reference uses a canonical lowercase hyphenated UUID string for clients and responses. Runtime input also accepts UUID aliases, exact unsigned 128-bit JSON integer tokens, and booleans as zero or one; floating tokens such as 1.0 are invalid. The all-zero UUID is a present value and is unique across all tickets, as is every non-null external reference. Multiple SQL null references are allowed. Duplicate input returns 400 validation_error with the external_reference field and unique code. A concurrent storage conflict returns the same code on __all__ without disclosing a stored value. The transaction rolls back on either rejection. Null clears the reference, while PUT/PATCH omission preserves it. Expected_cost is an exact decimal with up to 14 total digits and 2 decimal places, returned as a fixed-scale JSON string. Decimal strings and exact JSON number tokens are accepted; excess precision/scale and non-finite values are rejected before persistence. Null clears the cost, while PUT/PATCH omission preserves an existing value. Boolean, array and object values are invalid. Effort is a finite binary64 work quantity; JSON numbers, booleans and decimal strings follow field conversion, rounding to binary64. Non-finite inputs and overflowing JSON integers are rejected before persistence. Elapsed is a signed duration with microsecond precision, rendered as normalized [days ]HH:MM:SS[.ffffff]. Duration strings accept Django day/time and ISO week/day/time inputs; numbers follow the pinned DRF JSON-number profile. Service_at is a clock without a date or timezone, with microsecond precision; accepted ISO offsets are discarded without converting the clock. Service_on is a calendar date without a clock or timezone; ISO calendar, compact and week inputs normalize to YYYY-MM-DD in years 0001 through 9999. Reviewed accepts only JSON true, false, or null; false is distinct from null. Due_at requires an RFC 3339 timestamp with an explicit offset; instants are normalized to UTC microseconds, truncating finer precision. Empty details and resolution are distinct from null. Resolution is multiline text without a model length limit; the request body budget still applies. Priority accepts 1 (Urgent), 0 (Normal), -1 (Low), or null; zero is distinct from null. Existing stored priorities outside these input choices remain visible in responses. Subject, details and resolution text is trimmed. The generated id and assigned category cannot be supplied. Labels is an optional non-null integer array; omission creates an empty collection, duplicates are collapsed, and only positive label IDs in the selected category are accepted. AddTicket and ViewLabel are checked before parsing; the whole candidate set and admitted permissions are rechecked in the same transaction as the scalar write.", maximumJSONBodyBytes, serializers.DefaultMaxDepth, serializers.DefaultMaxStringBytes)},
-		Responses: []openapi.Response{
-			helpdeskJSONResponse(http.StatusCreated, "The created ticket.", ticketRef),
-			helpdeskJSONResponse(http.StatusBadRequest, "The body cannot be parsed, a supplied field is invalid, or a non-null external reference is already in use. A concurrent uniqueness conflict uses the __all__ diagnostic field.", errorSchema),
-			helpdeskJSONResponse(http.StatusNotFound, "The application's selected category no longer exists.", errorSchema),
-			helpdeskJSONResponse(http.StatusRequestEntityTooLarge, fmt.Sprintf("The request body exceeds %d bytes.", maximumJSONBodyBytes), errorSchema),
-			helpdeskJSONResponse(http.StatusUnsupportedMediaType, "The request Content-Type is not supported application/json.", errorSchema),
+	ticketBody := endpoint.JSONBody("TicketCreate", a.ticketInput, serializers.ModeFull, fmt.Sprintf("The body must be one JSON object, limited to %d bytes and depth %d. The JSON string limit is %d bytes, subject to the smaller whole-body limit. Duplicate members and trailing data are rejected. Subject is required. Omitted closed defaults to false; omitted details, priority, resolution, due_at, reviewed, service_on, service_at, elapsed, effort, expected_cost, external_reference and external_payload become null. External_payload accepts any JSON value with exact number tokens and canonical object order. JSON null clears the SQL value; PUT/PATCH omission preserves it. Empty objects, arrays and strings are present values. Empty object keys are accepted inside external_payload. Duplicate keys, NUL, malformed Unicode and request or model budget overflows are rejected. JSON strings remain strings rather than being parsed a second time. The payload itself is limited to depth 14 so it also fits the detail/list response envelope. Native storage normalization is checked inside the transaction before a write is committed. External_reference uses a canonical lowercase hyphenated UUID string for clients and responses. Runtime input also accepts UUID aliases, exact unsigned 128-bit JSON integer tokens, and booleans as zero or one; floating tokens such as 1.0 are invalid. The all-zero UUID is a present value and is unique across all tickets, as is every non-null external reference. Multiple SQL null references are allowed. Duplicate input returns 400 validation_error with the external_reference field and unique code. A concurrent storage conflict returns the same code on __all__ without disclosing a stored value. The transaction rolls back on either rejection. Null clears the reference, while PUT/PATCH omission preserves it. Expected_cost is an exact decimal with up to 14 total digits and 2 decimal places, returned as a fixed-scale JSON string. Decimal strings and exact JSON number tokens are accepted; excess precision/scale and non-finite values are rejected before persistence. Null clears the cost, while PUT/PATCH omission preserves an existing value. Boolean, array and object values are invalid. Effort is a finite binary64 work quantity; JSON numbers, booleans and decimal strings follow field conversion, rounding to binary64. Non-finite inputs and overflowing JSON integers are rejected before persistence. Elapsed is a signed duration with microsecond precision, rendered as normalized [days ]HH:MM:SS[.ffffff]. Duration strings accept Django day/time and ISO week/day/time inputs; numbers follow the pinned DRF JSON-number profile. Service_at is a clock without a date or timezone, with microsecond precision; accepted ISO offsets are discarded without converting the clock. Service_on is a calendar date without a clock or timezone; ISO calendar, compact and week inputs normalize to YYYY-MM-DD in years 0001 through 9999. Reviewed accepts only JSON true, false, or null; false is distinct from null. Due_at requires an RFC 3339 timestamp with an explicit offset; instants are normalized to UTC microseconds, truncating finer precision. Empty details and resolution are distinct from null. Resolution is multiline text without a model length limit; the request body budget still applies. Priority accepts 1 (Urgent), 0 (Normal), -1 (Low), or null; zero is distinct from null. Existing stored priorities outside these input choices remain visible in responses. Subject, details and resolution text is trimmed. The generated id and assigned category cannot be supplied. Labels is an optional non-null integer array; omission creates an empty collection, duplicates are collapsed, and only positive label IDs in the selected category are accepted. AddTicket and ViewLabel are checked before parsing; the whole candidate set and admitted permissions are rechecked in the same transaction as the scalar write.", maximumJSONBodyBytes, serializers.DefaultMaxDepth, serializers.DefaultMaxStringBytes))
+	create, err := endpoint.New(authentication, endpoint.Config[ticketInput, ticketRecord]{
+		Route:   web.Route{Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/"},
+		Summary: "Create a ticket", Description: "The application assigns the selected category and checks its existence within the create transaction. Authentication, CSRF when required, and permission checks precede body parsing. Structural input validation precedes the category lookup; uniqueness checks follow it in the same transaction. External_payload_digest is a server-owned SHA-256 of the stored JSON, returned as padded base64 or null and rejected in requests. Existing rows retain null until a real ticket scalar write refreshes the digest; read and no-op requests preserve it. SQL null payload has no digest, while a stored JSON null has its own digest.",
+		Admission: endpoint.All(AddTicket, ViewLabel), Output: a.responses.ticket,
+		Input: endpoint.Resolve(ticketBody, func(request *web.Request, _ auth.Principal, value ticketInput) (ticketInput, error) {
+			diagnostics, err := validateTicketAPIInput(request.Context(), value)
+			if err != nil {
+				return ticketInput{}, err
+			}
+			if !diagnostics.Empty() {
+				return ticketInput{}, endpoint.Reject(http.StatusBadRequest, api.CodeValidationError, diagnostics)
+			}
+			return value, nil
+		}),
+		Success: []endpoint.Status{{Code: http.StatusCreated, Description: "The created ticket."}},
+		Errors: []endpoint.Status{
+			{Code: http.StatusBadRequest, Description: "The body cannot be parsed, a supplied field is invalid, or a non-null external reference is already in use. A concurrent uniqueness conflict uses the __all__ diagnostic field."},
+			{Code: http.StatusNotFound, Description: "The application's selected category no longer exists."},
+			{Code: http.StatusRequestEntityTooLarge, Description: fmt.Sprintf("The request body exceeds %d bytes.", maximumJSONBodyBytes)},
+			{Code: http.StatusUnsupportedMediaType, Description: "The request Content-Type is not supported application/json."},
 		},
-	}, a.apiCreate)
+		Handle: func(request *web.Request, actor auth.Principal, value ticketInput) (output.Prepared[ticketRecord], error) {
+			prepared, err := a.createTicket(request.Context(), actor, value)
+			if err != nil {
+				return output.Prepared[ticketRecord]{}, typedEndpointFailure(err)
+			}
+			return prepared, nil
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -179,15 +192,14 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	operations := append([]openapi.Operation{list, create, detail, update, patch}, reportOperations...)
+	operations := append([]openapi.Operation{list, detail, update, patch}, reportOperations...)
 	operations = append(operations, labelOperations...)
 	operations = append(operations, linkOperations...)
 	operations = append(operations, remove)
-	bulk, err := a.bulkTicketOperation(protect, config.AppendAudit, inputRef, ticketRef, errorSchema)
+	bulk, err := a.bulkTicketEndpoint(authentication, config.AppendAudit, ticketBody)
 	if err != nil {
 		return nil, err
 	}
-	operations = append(operations, bulk)
 	bulkUpdate, bulkUpdateSchema, err := a.bulkUpdateTicketOperation(protect, config.AppendAudit, partial, ticketRef, errorSchema)
 	if err != nil {
 		return nil, err
@@ -214,7 +226,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{summary, labelEnsure, labelUpdate, labelPatch}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, labelEnsure, labelUpdate, labelPatch}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +239,6 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		authentication: authentication,
 		operations:     operations,
 		schemas: append([]openapi.NamedSchema{
-			{Name: "TicketCreate", Schema: input},
 			{Name: "TicketUpdate", Schema: input},
 			{Name: "TicketPatch", Schema: partial},
 		}, schemas...),

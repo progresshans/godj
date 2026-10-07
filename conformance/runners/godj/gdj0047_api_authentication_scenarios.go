@@ -812,7 +812,7 @@ func gdj0047ArticleRouteReuse(ctx context.Context, contract protocol.Contract) (
 	defer func() { err = errors.Join(err, fixture.close()) }()
 	bearerRoutes := gdj0047CRUDRoutes(fixture.bearerAdapter.Routes())
 	sessionRoutes := gdj0047CRUDRoutes(fixture.sessionAdapter.Routes())
-	if !slices.Equal(bearerRoutes, sessionRoutes) || len(bearerRoutes) != 6 {
+	if !slices.Equal(bearerRoutes, sessionRoutes) || len(bearerRoutes) != 7 {
 		return protocol.Observation{}, fmt.Errorf("GDJ-0047 Article route profiles differ: bearer=%v session=%v", bearerRoutes, sessionRoutes)
 	}
 	fixture.observed.reset()
@@ -892,7 +892,7 @@ func gdj0047ArticleRouteReuse(ctx context.Context, contract protocol.Contract) (
 }
 
 func gdj0047CRUDRoutes(routes []web.Route) []string {
-	result := make([]string, 0, 6)
+	result := make([]string, 0, len(routes))
 	for _, route := range routes {
 		if route.Method == http.MethodHead || route.Method == http.MethodOptions {
 			continue

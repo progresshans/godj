@@ -158,9 +158,10 @@ type Invoker interface {
 	// A rejection or failed audit rolls back the entire request. Results retain input order and contain
 	// stored JSON with its server-owned digest. There is no conflict-ignore, partial success or automatic
 	// retry. An uncertain commit remains an execution error. Query parameters are rejected. Field
-	// diagnostics carry a zero-based index parameter; a concurrent storage conflict uses all/unique
-	// without guessing a row. If diagnostics exceed the bounded response budget, all/too_many_errors
-	// rejects the complete request without listing partial diagnostics.
+	// diagnostics carry a zero-based index parameter; an integer-array field position uses item_index; a
+	// concurrent storage conflict uses all/unique without guessing a row. If diagnostics exceed the
+	// bounded response budget, all/too_many_errors rejects the complete request without listing partial
+	// diagnostics.
 	//
 	// POST /api/tickets/bulk/
 	HelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (HelpdeskTicketBulkCreateRes, error)
@@ -1893,9 +1894,10 @@ func (c *Client) sendHelpdeskServiceReportUpdate(ctx context.Context, request *S
 // A rejection or failed audit rolls back the entire request. Results retain input order and contain
 // stored JSON with its server-owned digest. There is no conflict-ignore, partial success or automatic
 // retry. An uncertain commit remains an execution error. Query parameters are rejected. Field
-// diagnostics carry a zero-based index parameter; a concurrent storage conflict uses all/unique
-// without guessing a row. If diagnostics exceed the bounded response budget, all/too_many_errors
-// rejects the complete request without listing partial diagnostics.
+// diagnostics carry a zero-based index parameter; an integer-array field position uses item_index; a
+// concurrent storage conflict uses all/unique without guessing a row. If diagnostics exceed the
+// bounded response budget, all/too_many_errors rejects the complete request without listing partial
+// diagnostics.
 //
 // POST /api/tickets/bulk/
 func (c *Client) HelpdeskTicketBulkCreate(ctx context.Context, request []TicketCreate) (HelpdeskTicketBulkCreateRes, error) {

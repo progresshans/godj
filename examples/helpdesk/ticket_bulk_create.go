@@ -8,16 +8,14 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/admin"
-	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/uuid"
 	"github.com/progresshans/godj/validation"
-	"github.com/progresshans/godj/web"
 )
 
 const ticketBulkMaximum = 40
@@ -34,13 +32,19 @@ type appendTicketAudit func(context.Context, db.Session, admin.PreparedEvent) er
 
 type createdTickets struct {
 	records  []ticketRecord
-	response web.Response
+	response output.Prepared[[]ticketRecord]
 }
 
 func bulkRowFailures(index int, failures validation.Errors) validation.Errors {
 	items := failures.All()
 	for position, failure := range items {
-		items[position] = validation.New(failure.Field(), failure.Code(), append(failure.Params(), validation.NewParam("index", strconv.Itoa(index)))...)
+		parameters := failure.Params()
+		for slot, parameter := range parameters {
+			if parameter.Key() == "index" {
+				parameters[slot] = validation.NewParam("item_index", parameter.Value())
+			}
+		}
+		items[position] = validation.New(failure.Field(), failure.Code(), append(parameters, validation.NewParam("index", strconv.Itoa(index)))...)
 	}
 	return validation.NewErrors(items...)
 }
@@ -165,7 +169,6 @@ func (a *Application) createTicketsInSession(ctx context.Context, session db.Rel
 		return createdTickets{}, errors.New("helpdesk: incomplete bulk ticket result")
 	}
 	result := createdTickets{records: make([]ticketRecord, len(values))}
-	encoded := make([]serializers.Value, len(values))
 	events := make([]admin.PreparedEvent, len(values))
 	for index, object := range bulk.Objects {
 		stored, err := object.Unwrap()
@@ -183,22 +186,14 @@ func (a *Application) createTicketsInSession(ctx context.Context, session db.Rel
 			return createdTickets{}, errors.New("helpdesk: stored bulk label membership differs from the validated selection")
 		}
 		result.records[index] = storedRecord
-		encoded[index], err = a.encoder.Encode(storedRecord)
-		if err != nil {
-			return createdTickets{}, err
-		}
 		events[index], err = admin.PrepareEvent(actor.ID(), "helpdesk.ticket", stored.ID, admin.ActionAdd, nil, storedRecord.Subject)
 		if err != nil {
 			return createdTickets{}, err
 		}
 	}
-	list, err := serializers.NewList(encoded...)
-	if err != nil {
-		return createdTickets{}, err
-	}
 	// Validate the complete response, after backend JSON normalization and
 	// digest refresh, before any caller can report success or commit audit.
-	result.response, err = api.JSONWithLimits(http.StatusCreated, list, serializers.Limits{MaxValues: maximumJSONListValues})
+	result.response, err = a.responses.ticketBulk.Prepare(ctx, http.StatusCreated, result.records)
 	if err != nil {
 		return createdTickets{}, err
 	}

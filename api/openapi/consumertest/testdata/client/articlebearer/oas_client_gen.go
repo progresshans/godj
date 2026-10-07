@@ -22,6 +22,17 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// GodjConformanceArticleBulkCreate invokes godj_conformance:article-bulk-create operation.
+	//
+	// Authentication, required CSRF and add permission precede parsing. All rows and unique slugs are
+	// checked before native bulk INSERTs. Every batch, stored-row reload, complete output and mutation
+	// hook share one transaction. Results retain input order. Failure or an uncertain commit publishes no
+	// partial result and does not retry. Query parameters are rejected. Field errors carry the original
+	// zero-based index; a concurrent unique conflict is a whole-request rejection. This atomic bulk policy
+	// belongs to the Article application.
+	//
+	// POST /api/articles/bulk/
+	GodjConformanceArticleBulkCreate(ctx context.Context, request []ArticleCreate) (GodjConformanceArticleBulkCreateRes, error)
 	// GodjConformanceArticleCreate invokes godj_conformance:article-create operation.
 	//
 	// Create an Article.
@@ -126,6 +137,90 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// GodjConformanceArticleBulkCreate invokes godj_conformance:article-bulk-create operation.
+//
+// Authentication, required CSRF and add permission precede parsing. All rows and unique slugs are
+// checked before native bulk INSERTs. Every batch, stored-row reload, complete output and mutation
+// hook share one transaction. Results retain input order. Failure or an uncertain commit publishes no
+// partial result and does not retry. Query parameters are rejected. Field errors carry the original
+// zero-based index; a concurrent unique conflict is a whole-request rejection. This atomic bulk policy
+// belongs to the Article application.
+//
+// POST /api/articles/bulk/
+func (c *Client) GodjConformanceArticleBulkCreate(ctx context.Context, request []ArticleCreate) (GodjConformanceArticleBulkCreateRes, error) {
+	res, err := c.sendGodjConformanceArticleBulkCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGodjConformanceArticleBulkCreate(ctx context.Context, request []ArticleCreate) (res GodjConformanceArticleBulkCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/articles/bulk/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjConformanceArticleBulkCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjConformanceArticleBulkCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjConformanceArticleBulkCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // GodjConformanceArticleCreate invokes godj_conformance:article-create operation.

@@ -201,6 +201,16 @@ func (session *bulkTicketSession) Query(ctx context.Context, plan query.Plan) (d
 	backend := session.owner
 	backend.reads++
 	if plan.Table() == "helpdesk_ticket" {
+		if backend.singleInserts > 0 && (backend.mode == "single_reload_error" || backend.mode == "swallowed_callback" || backend.mode == "rollback_unknown") {
+			return nil, errors.New("private single ticket reload failure")
+		}
+		if backend.singleInserts > 0 && backend.mode == "single_output_error" && plan.ResultShape().Kind() != query.ResultProjection {
+			rows, err := session.RelationSession.Query(ctx, plan)
+			if err != nil {
+				return rows, err
+			}
+			return singleTicketInvalidOutputRows{Rows: rows}, nil
+		}
 		if backend.updates == 0 && strings.HasPrefix(backend.mode, "update_native_") {
 			for _, condition := range plan.Conditions() {
 				if condition.Field().Name() == "external_reference" {
@@ -229,7 +239,11 @@ func (session *bulkTicketSession) Insert(ctx context.Context, plan query.InsertP
 	if plan.Table() == "helpdesk_ticket" {
 		session.owner.singleInserts++
 	}
-	return session.RelationSession.Insert(ctx, plan)
+	id, err := session.RelationSession.Insert(ctx, plan)
+	if err == nil && plan.Table() == "helpdesk_ticket" && session.owner.mode == "single_cancel" {
+		session.owner.cancel()
+	}
+	return id, err
 }
 
 func (session *bulkTicketSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
@@ -267,7 +281,7 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 		t.Run(surface, func(t *testing.T) {
 			cases := []string{"created", "multiple_batches", "invalid_second", "duplicate_batch", "duplicate_existing", "native_conflict", "native_later_conflict", "second_batch_error", "foreign_label", "late_category", "late_ticket_scope", "late_label_scope", "output_error", "bad_returned_keys", "link_error", "audit_error", "canceled_audit", "canceled_bulk", "post_commit_cancel", "missing_callback", "nil_session", "repeated_callback", "concurrent_callback", "swallowed_callback", "rollback_unknown", "commit_unknown", "denied_add", "denied_label", "csrf", "duplicate_csrf", "forged_id", "forged_category", "forged_digest", "query", "empty", "too_many", "duplicate_field"}
 			if surface == "api" {
-				cases = append(cases, "aggregate_output_budget", "many_diagnostics", "diagnostic_overflow", "scalar_item", "body_limit", "per_item_limit", "read_only_body")
+				cases = append(cases, "aggregate_output_budget", "many_diagnostics", "diagnostic_overflow", "scalar_item", "body_limit", "per_item_limit", "read_only_body", "nested_label_index")
 			} else {
 				cases = append(cases, "denied_view", "missing_management", "forged_initial", "duplicate_management", "unknown_index", "escaped_redisplay")
 			}
@@ -387,6 +401,9 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 					case "foreign_label":
 						inputs[1]["labels"] = []int64{foreign.ID}
 						want, committed = validationStatus, false
+					case "nested_label_index":
+						inputs[1]["labels"] = []any{label.ID, label.ID, "not-an-integer"}
+						want, committed = 400, false
 					case "late_category", "late_ticket_scope":
 						want, committed = 404, false
 					case "late_label_scope", "output_error", "bad_returned_keys", "second_batch_error", "link_error", "audit_error", "canceled_audit", "canceled_bulk", "missing_callback", "nil_session", "repeated_callback", "concurrent_callback", "swallowed_callback", "rollback_unknown", "aggregate_output_budget":
@@ -605,7 +622,7 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 					if mode == "audit_error" && audits != 2 {
 						t.Fatal("late audit rollback was not exercised")
 					}
-					if (mode == "duplicate_batch" || mode == "duplicate_existing" || mode == "foreign_label" || mode == "invalid_second") && backend.bulks != 0 {
+					if (mode == "duplicate_batch" || mode == "duplicate_existing" || mode == "foreign_label" || mode == "invalid_second" || mode == "nested_label_index") && backend.bulks != 0 {
 						t.Fatal("invalid complete input reached bulk SQL")
 					}
 					if len(deny) != 0 || mode == "csrf" || mode == "duplicate_csrf" {
@@ -620,6 +637,30 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 					}
 					if mode == "diagnostic_overflow" && !strings.Contains(response.Body.String(), `"code":"too_many_errors"`) {
 						t.Fatal("oversized diagnostics did not fail explicitly")
+					}
+					if mode == "nested_label_index" {
+						var result struct {
+							Errors []struct {
+								Field  string
+								Params []struct{ Key, Value string }
+							}
+						}
+						if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+							t.Fatal(err)
+						}
+						if len(result.Errors) != 1 || result.Errors[0].Field != "labels" {
+							t.Fatal("nested label diagnostic", response.Body.String())
+						}
+						positions := map[string]string{}
+						for _, parameter := range result.Errors[0].Params {
+							if _, found := positions[parameter.Key]; found {
+								t.Fatal("ambiguous duplicate position")
+							}
+							positions[parameter.Key] = parameter.Value
+						}
+						if positions["index"] != "1" || positions["item_index"] != "2" || backend.atomics != 0 {
+							t.Fatal("row/item position or pre-I/O validation lost", positions, backend.atomics)
+						}
 					}
 					if backend.retained != nil {
 						before := backend.reads

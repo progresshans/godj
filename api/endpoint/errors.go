@@ -1,9 +1,12 @@
 package endpoint
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
@@ -17,14 +20,35 @@ func Reject(status int, code api.ResponseCode, diagnostics validation.Errors) er
 	if status < 400 || status >= 500 {
 		return responseError("rejection status must be a client error", nil)
 	}
-	response, err := api.ErrorResponse(status, code, diagnostics)
+	// Validate the public status/code now. Diagnostics are immutable and are
+	// rendered by the endpoint using its complete error-representation budget.
+	_, err := api.ErrorResponse(status, code, validation.Errors{})
 	if err != nil {
 		return err
 	}
-	return &rejection{response: response}
+	return &rejection{status: status, code: code, diagnostics: diagnostics}
 }
 
-type rejection struct{ response web.Response }
+type rejection struct {
+	status      int
+	code        api.ResponseCode
+	diagnostics validation.Errors
+}
+
+type errorPolicy struct {
+	limits    serializers.Limits
+	summarize bool
+}
+
+func (policy errorPolicy) response(status int, code api.ResponseCode, diagnostics validation.Errors) (web.Response, error) {
+	response, err := api.ErrorResponseWithLimits(status, code, diagnostics, policy.limits)
+	if policy.summarize && code == api.CodeValidationError && errors.Is(err, &serializers.Error{Code: serializers.CodeResourceLimit}) {
+		// This is a complete rejection with the original diagnostic count, not a
+		// truncated prefix. The small summary uses the standard envelope budget.
+		return api.ErrorResponse(status, code, validation.NewErrors(validation.New(validation.NonField, "too_many_errors", validation.NewParam("count", strconv.Itoa(diagnostics.Len())))))
+	}
+	return response, err
+}
 
 func (failure *rejection) Error() string   { return "api endpoint: expected client rejection" }
 func (failure rejection) GoString() string { return "api endpoint: expected client rejection" }

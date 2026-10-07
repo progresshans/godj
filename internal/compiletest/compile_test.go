@@ -29,6 +29,7 @@ const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
 	fixtures := []string{
+		"endpoint_list_external_consumer.go.txt",
 		"endpoint_sequence_external_consumer.go.txt",
 		"endpoint_external_consumer.go.txt",
 		"input_external_consumer.go.txt",
@@ -520,6 +521,8 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "list input retains its slice type", fixture: "endpoint_list_mismatch.go.txt", wantFragments: []string{"Input", "[]row", "row"}},
+		{name: "list validator retains the item type", fixture: "input_list_validator_mismatch.go.txt", wantFragments: []string{"ListValidator", "other"}},
 		{name: "sequence preserves ordered field types", fixture: "endpoint_sequence_mismatch.go.txt", wantFragments: []string{"Pair", "int64", "string"}},
 		{name: "resolver requires preceding input type", fixture: "endpoint_resolver_mismatch.go.txt", wantFragments: []string{"int64", "string"}},
 		{name: "resolved output retains DTO type", fixture: "endpoint_resolved_mismatch.go.txt", wantFragments: []string{"Input", "other", "row"}},

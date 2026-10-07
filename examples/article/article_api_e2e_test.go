@@ -244,6 +244,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 	if got := articleAPIArticleCount(t, fixture.repository); got != 5 {
 		t.Fatalf("repeated delete changed Article count to %d", got)
 	}
+	t.Run("typed_bulk", func(t *testing.T) { verifyArticleBulkSession(t, fixture, viewer, freshCSRF, viewerCSRF) })
 }
 
 type articleAPIAdminSessionFixture struct {

@@ -23,6 +23,8 @@ import (
 // GDJ-0117 normalizes only the Go-native API-011 route membership order.
 // Both profile lists reproduce the independent pinned reference; all other
 // observations and profile locks remain unchanged.
+// GDJ-0118 adds the Article bulk route to both API-011 profiles and increments
+// shared_routes; the independent oracle and all-scenario digest own this delta.
 func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 	t.Parallel()
 	root := conformanceRepositoryRoot(t)
@@ -117,8 +119,8 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":                          {37972, "80b8d8629706a500b37461d4914adff746b5dd41eb1f6c497b719f3b03bed752"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json":                  {12873, "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json":                {-1, "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                      {283, "aa126e1c85c63feb3434102039287c5dc41008adfa4445c326f304e1b38a0bc5"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json":  {23698, "2a5a0ea5cb75893558716453b6ab65d1f3982819d04acc19cf73394e58e1d78d"},
+		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                      {283, "8536abb5d062de2121de53f2a75f224401fb81883b71099f4819d70e86978f75"},
+		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json":  {23804, "57db6a41fd8c92f7724245ca2c6b487c872b3582f6ca85b8b9908ec7687c912b"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json":         {47099, "91abed33c2c39b96aa31c57690bda9d62d4bc51b401385741a510f945f260467"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json":   {12663, "4aded47e2a0db9524a18625174e8d8815b69911e5310323fbe17bad34899cc53"},
 		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                      {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},

@@ -23,6 +23,7 @@ type SecuritySource interface {
 
 // operationRolesCsrfCookie is a private map storing roles per operation.
 var operationRolesCsrfCookie = map[string][]string{
+	GodjConformanceArticleBulkCreateOperation:    []string{},
 	GodjConformanceArticleCreateOperation:        []string{},
 	GodjConformanceArticleDeleteOperation:        []string{},
 	GodjConformanceArticlePartialUpdateOperation: []string{},
@@ -52,6 +53,7 @@ func GetRolesForCsrfCookie(operation string) []string {
 
 // operationRolesCsrfHeader is a private map storing roles per operation.
 var operationRolesCsrfHeader = map[string][]string{
+	GodjConformanceArticleBulkCreateOperation:    []string{},
 	GodjConformanceArticleCreateOperation:        []string{},
 	GodjConformanceArticleDeleteOperation:        []string{},
 	GodjConformanceArticlePartialUpdateOperation: []string{},
@@ -81,6 +83,7 @@ func GetRolesForCsrfHeader(operation string) []string {
 
 // operationRolesSessionAuth is a private map storing roles per operation.
 var operationRolesSessionAuth = map[string][]string{
+	GodjConformanceArticleBulkCreateOperation:    []string{},
 	GodjConformanceArticleCreateOperation:        []string{},
 	GodjConformanceArticleDeleteOperation:        []string{},
 	GodjConformanceArticleDetailOperation:        []string{},

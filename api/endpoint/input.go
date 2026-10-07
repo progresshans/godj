@@ -21,7 +21,15 @@ type Input[T any] struct {
 	stages     int
 	definition *inputDefinition
 	failures   []int
+	jsonBody   *jsonBodySource[T]
 	err        error
+}
+
+// Only a bare JSONBody retains this source. Wrappers clear it so deriving an
+// array can never silently discard a query policy or application preparation.
+type jsonBodySource[T any] struct {
+	body bodyinput.Body[T]
+	mode serializers.Mode
 }
 
 type inputDefinition struct {
@@ -62,6 +70,7 @@ func JSONBody[T any](name string, body bodyinput.Body[T], mode serializers.Mode,
 	}
 	return Input[T]{
 		depth: 1, stages: 1,
+		jsonBody: &jsonBodySource[T]{body: body, mode: mode},
 		definition: &inputDefinition{
 			body:    &openapi.RequestBody{Schema: ref, Required: true, Description: description},
 			schemas: []openapi.NamedSchema{{Name: name, Schema: schema}},
@@ -69,6 +78,40 @@ func JSONBody[T any](name string, body bodyinput.Body[T], mode serializers.Mode,
 		failures: []int{http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnsupportedMediaType},
 		read: func(request *web.Request, _ auth.Principal) (T, validation.Errors, error) {
 			return body.Parse(request, mode)
+		},
+	}
+}
+
+// JSONListBody derives an array from a bare JSONBody declaration. The single
+// and array inputs share the exact named item component. Reuse that JSONBody
+// value; independent declarations with the same name still conflict. Add
+// NoQuery, Sequence or Resolve around the resulting array, not its source.
+// The list reads the body once with config's whole-request and item budgets.
+func JSONListBody[T any](item Input[T], config bodyinput.ListConfig, description string, validators ...bodyinput.ListValidator[T]) Input[[]T] {
+	if item.err != nil {
+		return Input[[]T]{err: item.err}
+	}
+	if item.jsonBody == nil || item.definition == nil || item.definition.body == nil || item.read == nil {
+		return Input[[]T]{err: configError("input", "JSONListBody requires a bare JSONBody declaration", nil)}
+	}
+	list, err := bodyinput.NewList(item.jsonBody.body, config, validators...)
+	if err != nil {
+		return Input[[]T]{err: err}
+	}
+	minimum, maximum := list.Bounds()
+	schema, err := openapi.ArrayRange(item.definition.body.Schema, minimum, maximum)
+	if err != nil {
+		return Input[[]T]{err: err}
+	}
+	return Input[[]T]{
+		depth: 1, stages: 1,
+		definition: &inputDefinition{
+			body:     &openapi.RequestBody{Schema: schema, Required: true, Description: description},
+			children: []*inputDefinition{item.definition},
+		},
+		failures: slices.Clone(item.failures),
+		read: func(request *web.Request, _ auth.Principal) ([]T, validation.Errors, error) {
+			return list.Parse(request, item.jsonBody.mode)
 		},
 	}
 }
@@ -92,6 +135,7 @@ func NoQuery[T any](input Input[T]) Input[T] {
 		return Input[T]{err: configError("input", "NoQuery requires an input without query parameters", nil)}
 	}
 	result := input
+	result.jsonBody = nil
 	result.depth++
 	result.stages++
 	if result.depth > maximumInputDepth {

@@ -216,11 +216,12 @@ func (r PublishResult) Matched() int { return len(r.MatchedIDs) }
 type MutationOperation string
 
 const (
-	MutationCreate  MutationOperation = "create"
-	MutationUpdate  MutationOperation = "update"
-	MutationPatch   MutationOperation = "patch"
-	MutationDelete  MutationOperation = "delete"
-	MutationPublish MutationOperation = "publish"
+	MutationCreate     MutationOperation = "create"
+	MutationBulkCreate MutationOperation = "bulk_create"
+	MutationUpdate     MutationOperation = "update"
+	MutationPatch      MutationOperation = "patch"
+	MutationDelete     MutationOperation = "delete"
+	MutationPublish    MutationOperation = "publish"
 )
 
 // MutationItem is a detached semantic Article mutation. ChangedFields uses

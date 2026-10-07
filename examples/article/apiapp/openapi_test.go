@@ -27,7 +27,7 @@ func TestArticleOpenAPIDescribesPublishedRoutesAndModelContracts(t *testing.T) {
 	if err := json.Unmarshal(document.Bytes(), &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(decoded.OpenAPI, "3.1.") || len(decoded.Paths) != 2 {
+	if !strings.HasPrefix(decoded.OpenAPI, "3.1.") || len(decoded.Paths) != 3 {
 		t.Fatalf("document version/paths = %q/%d", decoded.OpenAPI, len(decoded.Paths))
 	}
 	ids := make(map[string]bool)
@@ -46,11 +46,26 @@ func TestArticleOpenAPIDescribesPublishedRoutesAndModelContracts(t *testing.T) {
 			}
 		}
 	}
-	if len(ids) != 10 || len(document.Routes()) != len(ids) {
+	if len(ids) != 11 || len(document.Routes()) != len(ids) {
 		t.Fatalf("published/documented route counts differ: %d/%d", len(document.Routes()), len(ids))
 	}
 	list := decoded.Paths[apiapp.ListPath]
 	detail := decoded.Paths["/api/articles/{id}/"]
+	bulk := decoded.Paths[apiapp.BulkCreatePath]["post"]
+	if bulk.RequestBody == nil || !bulk.RequestBody.Required {
+		t.Fatal("bulk input body is absent")
+	}
+	for _, expected := range []struct {
+		schema articleDocumentSchema
+		name   string
+	}{
+		{bulk.RequestBody.Content[api.JSONContentType].Schema, "ArticleCreate"},
+		{bulk.Responses["201"].Content[api.JSONContentType].Schema, "Article"},
+	} {
+		if !expected.schema.allowsType("array") || expected.schema.MinItems != 1 || expected.schema.MaxItems != 40 || expected.schema.Items == nil || expected.schema.Items.Ref != "#/components/schemas/"+expected.name {
+			t.Fatal("bulk loses its bounds or shares a different item component", expected)
+		}
+	}
 	for _, operation := range []articleDocumentOperation{list["post"], detail["put"]} {
 		if operation.RequestBody == nil || !operation.RequestBody.Required {
 			t.Fatal("full write does not require a request body")
@@ -256,13 +271,17 @@ func TestArticleOpenAPIRequiresAnExplicitAuthenticationDescription(t *testing.T)
 	}
 	described := &recordingAuthentication{}
 	application, err := apiapp.New(harness.backend, described)
-	if err != nil || application == nil || len(application.Routes()) != 10 {
+	if err != nil || application == nil {
 		t.Fatalf("described custom authentication cannot serve routes: %v", err)
+	}
+	bindings := len(described.calls)
+	if bindings == 0 || bindings != len(application.Routes()) {
+		t.Fatal("not every route has an authentication binding")
 	}
 	if _, err := application.OpenAPI(); err != nil {
 		t.Fatal(err)
 	}
-	if len(described.calls) != 10 {
+	if len(described.calls) != bindings {
 		t.Fatal("document construction rebuilt authenticated handlers")
 	}
 	var absent *apiapp.Application
@@ -324,13 +343,15 @@ type articleDocumentResponse struct {
 type articleDocumentMedia struct{ Schema articleDocumentSchema }
 
 type articleDocumentSchema struct {
-	Ref        string `json:"$ref"`
-	Type       json.RawMessage
-	Properties map[string]articleDocumentSchema
-	Required   []string
-	Default    json.RawMessage
-	Enum       []string
-	AnyOf      []articleDocumentSchema
+	Ref                string `json:"$ref"`
+	Type               json.RawMessage
+	Properties         map[string]articleDocumentSchema
+	Required           []string
+	Default            json.RawMessage
+	Enum               []string
+	AnyOf              []articleDocumentSchema
+	Items              *articleDocumentSchema
+	MinItems, MaxItems int
 }
 
 func (schema articleDocumentSchema) allowsType(want string) bool {

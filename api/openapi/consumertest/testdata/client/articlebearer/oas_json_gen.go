@@ -1110,6 +1110,170 @@ func (s *GoDjAPIErrorErrorsItemParamsItem) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes GodjConformanceArticleBulkCreateCreatedApplicationJSON as json.
+func (s GodjConformanceArticleBulkCreateCreatedApplicationJSON) Encode(e *jx.Encoder) {
+	unwrapped := []Article(s)
+
+	e.ArrStart()
+	for _, elem := range unwrapped {
+		elem.Encode(e)
+	}
+	e.ArrEnd()
+}
+
+// Decode decodes GodjConformanceArticleBulkCreateCreatedApplicationJSON from json.
+func (s *GodjConformanceArticleBulkCreateCreatedApplicationJSON) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjConformanceArticleBulkCreateCreatedApplicationJSON to nil")
+	}
+	var unwrapped []Article
+	if err := func() error {
+		unwrapped = make([]Article, 0)
+		if err := d.Arr(func(d *jx.Decoder) error {
+			var elem Article
+			if err := elem.Decode(d); err != nil {
+				return err
+			}
+			unwrapped = append(unwrapped, elem)
+			return nil
+		}); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = GodjConformanceArticleBulkCreateCreatedApplicationJSON(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s GodjConformanceArticleBulkCreateCreatedApplicationJSON) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjConformanceArticleBulkCreateCreatedApplicationJSON) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes GodjConformanceArticleBulkCreateNotAcceptable as json.
+func (s *GodjConformanceArticleBulkCreateNotAcceptable) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes GodjConformanceArticleBulkCreateNotAcceptable from json.
+func (s *GodjConformanceArticleBulkCreateNotAcceptable) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjConformanceArticleBulkCreateNotAcceptable to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = GodjConformanceArticleBulkCreateNotAcceptable(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjConformanceArticleBulkCreateNotAcceptable) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjConformanceArticleBulkCreateNotAcceptable) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes GodjConformanceArticleBulkCreateRequestEntityTooLarge as json.
+func (s *GodjConformanceArticleBulkCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes GodjConformanceArticleBulkCreateRequestEntityTooLarge from json.
+func (s *GodjConformanceArticleBulkCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjConformanceArticleBulkCreateRequestEntityTooLarge to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = GodjConformanceArticleBulkCreateRequestEntityTooLarge(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjConformanceArticleBulkCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjConformanceArticleBulkCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes GodjConformanceArticleBulkCreateUnsupportedMediaType as json.
+func (s *GodjConformanceArticleBulkCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes GodjConformanceArticleBulkCreateUnsupportedMediaType from json.
+func (s *GodjConformanceArticleBulkCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjConformanceArticleBulkCreateUnsupportedMediaType to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = GodjConformanceArticleBulkCreateUnsupportedMediaType(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjConformanceArticleBulkCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjConformanceArticleBulkCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes GodjConformanceArticleCreateNotAcceptable as json.
 func (s *GodjConformanceArticleCreateNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)

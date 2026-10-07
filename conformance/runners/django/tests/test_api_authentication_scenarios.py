@@ -118,6 +118,7 @@ class APIAuthenticationScenarioTests(unittest.TestCase):
         routes = reuse["result"]["profiles"]["bearer"]["routes"]
         self.assertEqual(routes, sorted({
             "GET /api/articles/", "POST /api/articles/",
+            "POST /api/articles/bulk/",
             "GET /api/articles/:id/", "PUT /api/articles/:id/",
             "PATCH /api/articles/:id/", "DELETE /api/articles/:id/",
         }))
