@@ -69,7 +69,7 @@ func headerApplication(t *testing.T, allowed bool) (*web.Application, *headerBus
 	if err != nil {
 		t.Fatal(err)
 	}
-	configured, err := settings.New(settings.Definition{ProjectName: "header_identity", InstalledApps: []apps.Config{{Name: "example.test/identity", Label: "identity"}}})
+	configured, err := settings.New(settings.Definition{ProjectName: "header_identity", InstalledApps: []apps.Config{{Name: "example.test/identity", Label: "headeridentity"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
