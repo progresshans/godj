@@ -13,13 +13,14 @@
 
 [GDJ-0117](../../work/0117-typed-path-and-ordered-inputs.md)의 typed 경로·Sequence/Resolve와 공유 입력 선언을 구현했다.
 Article의 대상 조회 우선과 Helpdesk의 body 검증 우선을 유지하고 쓰기의 응답 준비를 commit 전에 연결했다.
-단계 중단·source 충돌·공유 schema·총 실행 한도와 실제 DB/HTTP 실패 사례를 추가했으며 영향 통합 검증을 준비한다.
+Source `55e0453d`의 영향 세 mode·양 DB·독립 client/compile·drift·고정 Article API 대조와 정리를 완료했다.
 구현과 환경별 실행 완료를 구분한다. 실행 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
 
 선행 Hosted의 필수 owner·새 capture의 source 결합/소비·최종 집계를 확인한다.
-경로 입력·단계 결합과 두 소비자의 lookup/body 순서, commit 전 출력 준비를 영향 세 mode·양 DB/client에서 검증한다.
+고정한 경로·단계 입력 source와 완료한 영향 검증을 Draft PR에 연결한다.
+다음으로 기존 bulk 흐름의 전체/항목 예산·indexed 진단·원자성을 유지하는 typed JSON 배열 입력을 연결한다.
 확인한 source의 GDJ-0116/0117 전체 platform/Hosted를 한 후속 통합 milestone에서 검증한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.

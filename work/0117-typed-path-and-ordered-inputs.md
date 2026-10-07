@@ -38,8 +38,10 @@ Header 입력·배열 body·자동 CRUD/viewset·출력 union과 임의 route co
 - [x] 경로 compiler/accessor와 Article/Helpdesk의 parsing/lookup/commit 순서 확인
 - [x] Typed 경로·순서 결합·명시적 준비와 schema identity/한도 구현
 - [x] 실제 두 소비자·body/출력·transaction 경계 연결
-- [ ] 외부 compile·실제 HTTP·권한/CSRF·양 DB·독립 client/drift·취소/실패와 영향 검증
-- [ ] source와 후속 통합 범위 기록
+- [x] 외부 compile·실제 HTTP·권한/CSRF·양 DB·독립 client/drift·취소/실패와 영향 검증
+- [x] source와 후속 통합 범위 기록
+- [ ] GDJ-0116과 같은 source의 전체 platform/Hosted 통합
 
+GDJ-0117 source `55e0453d`의 영향 세 mode·양 DB·외부 compile·독립 client/drift·고정 Article API 대조와 정리를 완료했다.
 GDJ-0116 source `18fc0451`은 영향 세 mode·양 DB·외부 compile·독립 client/drift와 정리를 완료했다. 선행 Hosted full `37569379536`은
 `def77d5e`의 GDJ-0112/0113/0114/0115만 검증하며 이 작업에 전이하지 않는다. 현재 외부 입력이 필요한 blocker는 없다.

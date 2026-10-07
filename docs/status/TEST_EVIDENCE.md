@@ -5,24 +5,74 @@
 
 ## GDJ-0117 — Typed 경로와 순서 입력 결합
 
-`PathInt64`/`PathString`은 기존 router 변환을 사용하고 `Sequence`/`Resolve`는 기존 query/body와 업무 조회를
-명시한 순서로 연결한다. Source 충돌·path 누락/종류·shared component identity와 깊이 64/실행 4096/graph 4096
-한도를 검사한다. 같은 단계의 반복 공유로 실행량이 급증하는 조합도 준비 때 거부한다.
+Source `55e0453d1838855672029c47ce567e83ffe6f14b`의 `PathInt64`/`PathString`은 기존 router 변환을 사용하고
+`Sequence`/`Resolve`는 query/body와 업무 조회를 명시한 순서로 연결한다. Source 충돌·path 누락/종류·shared
+component identity와 깊이 64/실행 4096/graph 4096 한도를 검사한다. 같은 단계의 반복 공유로 실행량이 급증하는
+조합도 준비 때 거부한다. 실패·진단·취소는 뒤 단계·body·handler를 중단하며 callback의 일반 오류는 내부 cause로 보존한다.
+
 Article PUT/PATCH의 조회 우선과 Helpdesk Label의 body 우선을 보존하고 두 쓰기의 출력 준비를 commit 앞으로 옮겼다.
-Article의 neutral update/patch는 같은 kernel에서 준비·기존 hook·commit을 연결하며 no-op의 hook 생략을 유지한다.
+Article의 neutral update/patch는 같은 kernel에서 detached row·changed fields의 준비, 기존 mutation hook, commit을
+연결한다. No-op은 출력 준비를 하되 DML/hook을 생략한다. 출력·hook·취소·unjoined/repeated/swallowed callback과
+unknown outcome에는 결과를 내보내지 않는다. 확인된 commit 뒤 취소는 성공을 번복하지 않으며 joined/private 실패를
+404로 바꾸지 않는다. 기존 full/partial·생략/null/false·CSRF/권한·scope·API schema를 유지했다.
 
-영향 checkpoint `typed-path-input-20261007-143748`은 진행 중이다. 이 구현 commit의 비Markdown 3193개 파일을
-inventory `bd2ad799511f501b70c3eee7a6c8b0afe9a7f8f8048d22300368604bb830dbbd`로 고정했다.
-Normal compile 90개·runtime 4361개·양 DB/실제 소비자 1461개와 race runtime 4361개가 run/pass·skip 0이다.
-나머지 race/CGO-disabled·고정 DRF product 대조·정적 검사·DB 정리와 최종 source 검사는 아직 완료하지 않았다.
-전체 platform/Hosted는 GDJ-0116과 함께 후속 통합 milestone이 소유하며 선행 `def77d5e` 실행의 결과를 전이하지 않는다.
+### 영향 검증과 source 결합
 
-첫 checkpoint `typed-path-input-20261007-143501`의 normal business는 Article 생성 회귀 두 개가 부모 `-trimpath`로
-소스 경로를 찾지 못해 실패했다. 이는 추가한 검증 runner 옵션이었다. 부모의 해당 옵션을 저장소 실행 방식에 맞춰
-제거했고 child consumer의 trimpath는 유지했다. 제품/테스트는 바꾸지 않았으며 business 전체를 다시 실행했다.
-앞선 성공 compile/runtime은 비Markdown source 전체와 명령·필수 실행·원 JSON 해시를 대조해 재사용했다.
-앞선 실패 receipt와 로그는 보존했다. 실행 원본은 workspace의
-`typed-path-input-20261007-143501`/`typed-path-input-20261007-143748`에 있으며 최종 확인 뒤 이 절을 갱신한다.
+2026-10-07 KST, Go 1.26.5/darwin/arm64·공유 cache·offline graph·child trimpath,
+PostgreSQL 17.10 Debian/UTF8/libc/C/C와 SQLite에서 `typed-path-input-20261007-143748`을 완료했다.
+비Markdown 3193개 파일의 inventory는
+`bd2ad799511f501b70c3eee7a6c8b0afe9a7f8f8048d22300368604bb830dbbd`이다.
+모든 원 JSON의 SHA·필수 실행·실제 package·각 Test의 단일 run/pass를 검사했고 skip 0이다.
+
+| Mode | 실행 범위 | run/pass | 필수 경로 | 시간 | 원 JSON SHA-256 |
+|---|---|---:|---:|---:|---|
+| normal | 외부 ABI 4 owners | 90/90 | 32 | 6.570s | `661490b30385b27e762d9e02954cabadcc3d8f092013cf3a23ecc078d264605f` |
+| normal | API/입출력·Article application 13 packages | 4361/4361 | 230 | 8.172s | `4a9eb03f666219ae631644c3c2ab28acb70618da4d5f7f0aff2c3d9fa2e8df79` |
+| normal | Article/Helpdesk·site·독립 client 4 packages | 1461/1461 | 1304 | 143.315s | `eafd4f03d4705e0a95c942be0cdaecc2d73723cee3630aea1f0489eb5e17b79e` |
+| race | API/입출력·Article application 13 packages | 4361/4361 | 230 | 18.853s | `f91304185a43ccecd1c09e108aa6c25bb43e7829a56b0b468c0cc9892fc47ac6` |
+| race | Article/Helpdesk·site·독립 client 4 packages | 1461/1461 | 1304 | 877.509s | `05ad4356434f6ee278aea705966b075bb086ba9a14833cd9b134192079765a08` |
+| cgo0 | 외부 ABI 4 owners | 90/90 | 32 | 5.807s | `81182f162080808b40e2890c55c2418dabdd785cbe9d943c660899e27fb1db39` |
+| cgo0 | API/입출력·Article application 13 packages | 4361/4361 | 230 | 6.078s | `f3d178b0e9d9bdc9036494de2da5bc1e35e808043f29c4f00013ff678c0f0898` |
+| cgo0 | Article/Helpdesk·site·독립 client 4 packages | 1461/1461 | 1304 | 97.172s | `99af143bf55c70bbc1ac6dd334c984c1df1eb3a36e57d5a5f244a6d0945e30bd` |
+
+Runtime은 실제 Session/Bearer admission, 경로의 canonical/Unicode/byte 변환, 전체 parameter binding,
+단계 실패/취소/reader cause, query/body 순서, component identity·동시 DTO 소유권과 두 자원 한도의 경계를 포함한다.
+정상 외부 module과 Pair 순서·resolver 입력/결과 DTO의 compile 거부를 기존 독립 compile owner에서 실행했다.
+Race에서는 정책대로 중복 ABI compile을 실행하지 않고 runtime/실제 소비자의 계측을 유지했다.
+
+양 DB의 실제 Article HTTP에서 malformed/missing 순서·권한·no-op·commit 전 출력·확정된 miss와 rollback 불확실성·
+callback 생략/삼킴·commit unknown/no-retry를 검사했다. 양 DB의 Helpdesk Label은 body I/O 중단, 현재 Category,
+POST/PUT/PATCH의 native conflict·조회/DML/reload/output/rollback 실패와 앞선 쓰기의 rollback,
+no-op 출력 실패·callback 생략·확인된 commit 뒤 취소를 검사했다. Article의 callback/hook snapshot·nil/반복/concurrent/
+retained/미완료 callback은 neutral repository의 실제 SQLite와 race 검사가 추가로 소유한다.
+
+기존 Article 생성물/manifest·bootstrap과 여섯 실제 OpenAPI 문서의 byte 일치, 고정 ogen client 재생성·독립 HTTP/최종 DB를
+확인했다. 생성 ABI·모델 선언은 바뀌지 않았다. Normal의 Article API product는 고정 DRF oracle과 검토된 DEV-0007 기준의
+10개 계약에 일치했다(`article-api-locked-product.log`, SHA
+`d999af4f1a35c80296c23198b32b8dd789d45515d8088da1dca38a4716f48df6`, 9.576s).
+포맷 검사와 영향 vet도 통과했다. 새 필수 native 경로 122개는 양 DB 흐름을 포함하며 세 mode 모두 실제 pass에 존재한다.
+
+### 검증 runner 보정과 재사용
+
+첫 checkpoint `typed-path-input-20261007-143501`은 normal business의 Article 생성 회귀 두 개가 부모 `-trimpath`로
+소스 경로를 찾지 못해 실패했다. 추가한 runner 옵션을 저장소 실행 방식에 맞춰 제거했고 child consumer의 trimpath는
+유지했다. 제품/테스트는 바꾸지 않았으며 business 전체를 다시 실행했다. 앞선 성공 compile/runtime은 비Markdown
+source 전체와 명령·필수 실행·원 JSON 해시를 대조해 재사용했다. 실패 receipt
+`3e46f6dbfe955277b89632252ab33cbd9295b6b3002fb8bdb6c47cb98f5bcf83`와 로그는 보존했다.
+
+실행 도중 같은 파일들을 local product commit으로 고정했으므로 receipt의 시작 parent는 `897468fe`이고 실제 검증
+bytes는 `55e0453d`의 모든 비Markdown Git blob과 일치한다. Runner 말미의 당시 HEAD 비교가 새 manifest 경로를 0으로
+기록한 부분은, 최종 감사에서 시작 parent 대비 122개 추가·기존 경로 보존·세 mode의 실제 pass를 직접 대조했다.
+실행 시작의 required.json에도 이 경로들이 포함되어 있었다. 검증 runner의 비교 기준도 시작 parent로 고정했다.
+
+### 종료와 남은 통합 범위
+
+테스트 schema/session은 `0|0`, 전용 DB와 container는 제거했다. 최종 receipt SHA는
+`1bae2f225b95cf94d298cf3d33bdb2d831ddbf3f8623453bb20c4bc1aa8440dd`이고 source/원 로그/필수 경로/정리 감사 SHA는
+`b1d192899e6e5f727e575d5ae04d37fee5bb17738669cd0eed4a8e23b9ab279c`이다.
+원본은 workspace의 `typed-path-input-20261007-143748/{receipt,source,source-audit,required}.json`과 mode별 로그다.
+다른 OS/arch·전체 cold/process/Hosted는 GDJ-0116과 함께 후속 통합 milestone이 소유한다.
+선행 `def77d5e`의 Hosted 실행은 GDJ-0112–0115만 포함하며 GDJ-0116/0117의 전체 성공 근거가 아니다.
 
 ## GDJ-0116 — Typed endpoint와 준비 응답의 실행/문서 연결
 
