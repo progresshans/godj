@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-12
-- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md)
+- 관련 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), [GDJ-0113](../../work/0113-typed-api-response-shapes.md), [GDJ-0114](../../work/0114-typed-query-parameters.md), [GDJ-0115](../../work/0115-typed-json-body-inputs.md), [GDJ-0116](../../work/0116-typed-endpoint-declarations.md)
 - 보완: [JSON API](0046-json-serializer-and-session-authenticated-article-api.md), [인증 profile](0049-first-party-bff-and-bearer-api-authentication.md)
 
 ## 맥락과 선택
@@ -83,7 +83,7 @@ Context 취소·reader/값/자원 오류에는 부분 bytes·HTTP 응답을 반�
 
 Helpdesk의 집계 요약과 Ticket/Category 상세가 첫 소비자다. Ticket은 IR에서 온 encoder를 재사용하고 CategorySummary는
 기존 두 필드의 업무 projection을 유지한다. Typed JSON body는 아래 GDJ-0115에서 연결한다.
-Endpoint DSL·viewset·추가 출력 primitive·optional omission은 별도 범위다.
+Endpoint 연결은 아래 GDJ-0116이 소유하며 viewset·추가 출력 primitive·optional omission은 별도 범위다.
 이 설계의 채택과 환경별 실행 완료는 구분하며 검증 결과는 TEST_EVIDENCE 한 곳에 기록한다.
 
 GDJ-0114의 [typed query 입력](../../api/parameters/README.md)은 닫힌 scalar codec·presence policy·typed DTO setter에서
@@ -119,7 +119,29 @@ null을 드러내며 Presence의 bool과 함께 생략을 구분한다. 기존 o
 않는다. Borrowed body를 닫거나 detached goroutine을 시작하지 않으며 진행 중인 Read 해제는 transport/body owner의
 책임이다. 늦은 취소에도 부분 DTO를 반환하지 않지만 setter의 외부 부작용을 취소하는 transaction은 추론하지 않는다.
 Label과 ServiceReport의 create/PUT/PATCH·ensure/save는 이 연결을 사용한다. 인가·CSRF·대상/관계 scope·고유성·저장과
-audit/출력 원자성은 기존 업무가 소유한다. Header/path·Ticket bulk 배열·자동 endpoint/viewset은 별도 후속 범위다.
+audit/출력 원자성은 기존 업무가 소유한다. Header/path·Ticket bulk 배열·자동 viewset은 별도 후속 범위다.
+
+GDJ-0116의 [typed endpoint](../../api/endpoint/README.md)는 같은 Query/Body·Output과 명시한 admission·상태에서
+typed handler와 OpenAPI operation을 함께 준비한다. Route와 전체 schema graph는 기존 OpenAPI/Web validator로 검사하며
+초기화에서 getter·setter·handler·I/O를 실행하지 않는다. 실제 adapter에 All/Any·Authenticated·익명 CSRF를 연결하고
+같은 detached permission snapshot을 문서에 쓴다. 실제 AuthenticationDescriber와 필요한 adapter capability를 요구하며
+알 수 없는 profile·없는 capability·zero 선언은 준비 오류다.
+인증/CSRF/인가가 입력을 읽기 전에 끝나며 입력별 bounded parsing과 기존 client error envelope를 보존한다.
+
+`Output.Prepare`는 현재 context와 전체 응답 budget으로 encode한 완성된 `Prepared[T]`를 만든다.
+준비 결과는 DTO를 보관하지 않으며 구조에도 T를 결합해 명시적 다른 DTO 타입 변환을 compile로 거부한다.
+별도 비영 크기 identity가 정확한 Output과 예산에 결합한다. Output 복사본은 identity를 공유하지만 같아 보이는 독립
+선언에서 만든 결과는 거부한다. Endpoint는 준비 응답의 owner·선언한 JSON 2xx 상태·정확한 단일 Content-Type을 검사한다.
+204/205·streaming·다른 성공 DTO union은 이 연결에서 지원하지 않는다. 추가 header 정책은 Web/application/adapter가 소유한다.
+
+Handler는 transaction 안에서 출력 준비를 끝내고 성공한 commit 뒤에만 결과를 반환한다. Endpoint는 나중에 encode하지
+않으며 handler가 보고한 오류/취소에는 준비 결과를 버린다. Handler의 nil 오류는 확정된 결과를 뜻하며,
+그 뒤의 request context 취소만으로 이를 실패로 바꾸지 않는다. 이미 확인된 commit을 불확실한 쓰기나 재시도 신호로
+되돌리지 않는 기존 transaction 계약을 보존한다. `Reject`의 직접 반환만 선언한 4xx로 바꾸고 wrapped/joined 오류를
+풀어 expected rejection으로 만들지 않는다. 취소와 동시에 일어난 입력/업무 오류는 내부 cause를 함께 보존한다.
+Helpdesk 요약의 읽기 snapshot과 Label ensure의 reload·출력·audit·commit 순서가 이 연결을 소비한다.
+각 operation과 component의 최종 충돌은 application 문서에서 검사하며 동일 Input/Named Shape만 component identity를 공유한다.
+Header/path·합성 query/body·배열 body·일반 CRUD/viewset은 후속 범위로 유지한다.
 
 `NamedSchema`와 `Ref(name)`은 caller가 선택한 명시적인 타입 정체성을 보존한다. 구조가 같아도 자동으로 합치지 않고
 local component 참조를 그대로 출력한다. Component 이름은 1–128 bytes의 `[A-Za-z0-9._-]+`이며,

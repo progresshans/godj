@@ -8,6 +8,7 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -161,7 +162,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelOperations, labelSchemas, err := a.labelOperations(protect, config.AppendAudit)
+	labelOperations, labelSchemas, err := a.labelOperations(protect)
 	if err != nil {
 		return nil, err
 	}
@@ -197,15 +198,23 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		return nil, err
 	}
 	operations = append(operations, priorityRaise)
-	summary, err := a.ticketSummaryOperation(protect, errorSchema)
+	summary, err := a.ticketSummaryEndpoint(authentication)
 	if err != nil {
 		return nil, err
 	}
-	operations = append(operations, summary)
+	labelEnsure, err := a.labelEnsureEndpoint(authentication, config.AppendAudit)
+	if err != nil {
+		return nil, err
+	}
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{summary, labelEnsure}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	if err != nil {
+		return nil, err
+	}
+	operations = append(operations, typedOperations...)
 	schemas := append(reportSchemas, labelSchemas...)
 	schemas = append(schemas, linkSchemas...)
 	schemas = append(schemas, bulkUpdateSchema, prioritySchema)
-	schemas = append(schemas, a.responses.schemas...)
+	schemas = append(schemas, typedSchemas...)
 	return &API{
 		authentication: authentication,
 		operations:     operations,

@@ -150,7 +150,7 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.responses, err = prepareAPIOutputs(a.encoder)
+	a.responses, err = prepareAPIOutputs(a.encoder, a.labelEncoder)
 	if err != nil {
 		return nil, err
 	}

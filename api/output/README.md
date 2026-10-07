@@ -53,5 +53,12 @@ Zero 필드는 기본값을 쓰고 hard cap을 넘는 설정은 실패한다. Pr
 소유하며 쓰기 작업의 출력 검증을 commit 뒤로 미루면 안 된다. `serializers.Projection`은 이 실행을 위한 요청별 lazy view이며
 응답 cache나 immutable model snapshot으로 사용하지 않는다.
 
-입력 binder, 자동 endpoint/router, 선택적 필드 생략, arbitrary struct/schema/encoder 연결과 순환 schema는 이 API의 지원 범위가 아니다.
+Typed endpoint에서는 `Prepare(ctx, status, value)`로 같은 검증·encode를 마친 `Prepared[T]`를 반환한다.
+이는 DTO 대신 완성된 응답을 보관하므로 transaction 안에서 준비하고 commit 뒤에 반환할 수 있다.
+`Response(prepared)`는 그 Output 또는 복사본의 결과만 받아 getter를 다시 실행하지 않는다. 독립적으로 준비한
+같은 schema/타입/한도라도 다른 Output의 응답은 거부한다. Zero 또는 실패한 준비 결과도 사용할 수 없다.
+`Prepared.WithHeaders`는 body를 유지하며 완전한 header 집합을 교체·복사한다.
+[Endpoint](../endpoint/README.md)가 성공 상태와 JSON 표현을 실제 문서 선언에 연결한다.
+
+입력 binder, 선택적 필드 생략, arbitrary struct/schema/encoder 연결과 순환 schema는 이 출력 API의 지원 범위가 아니다.
 기존의 명시적 `api.JSON`, `serializers.Value`와 수동 OpenAPI 선언도 사용할 수 있다.

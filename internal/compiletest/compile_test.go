@@ -29,6 +29,7 @@ const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
 	fixtures := []string{
+		"endpoint_external_consumer.go.txt",
 		"input_external_consumer.go.txt",
 		"parameters_external_consumer.go.txt",
 		"output_external_consumer.go.txt",
@@ -518,6 +519,12 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "endpoint input retains DTO type", fixture: "endpoint_input_mismatch.go.txt", wantFragments: []string{"Input", "other", "row"}},
+		{name: "endpoint handler retains input type", fixture: "endpoint_handler_mismatch.go.txt", wantFragments: []string{"other", "row"}},
+		{name: "endpoint handler retains output type", fixture: "endpoint_response_mismatch.go.txt", wantFragments: []string{"Prepared", "other", "row"}},
+		{name: "prepared output rejects type conversion", fixture: "output_prepared_conversion.go.txt", wantFragments: []string{"cannot convert", "Prepared", "other", "row"}},
+		{name: "prepared response ownership is closed", fixture: "output_prepared_private.go.txt", wantFragments: []string{"unexported field response"}},
+		{name: "endpoint input reader is closed", fixture: "endpoint_private_reader.go.txt", wantFragments: []string{"unexported field read"}},
 		{name: "body setter retains scalar type", fixture: "input_setter_mismatch.go.txt", wantFragments: []string{"string", "int64"}},
 		{name: "body property retains DTO type", fixture: "input_dto_mismatch.go.txt", wantFragments: []string{"Property", "other", "row"}},
 		{name: "body nullable retains pointer type", fixture: "input_nullable_mismatch.go.txt", wantFragments: []string{"int64", "*int64"}},

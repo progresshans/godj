@@ -1,8 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-10-07
-- 현재 작업: [GDJ-0115 Typed JSON body와 모델 입력](../../work/0115-typed-json-body-inputs.md)
-- 통합 대기: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md)
+- 현재 작업: [GDJ-0116 Typed endpoint와 실행·문서 연결](../../work/0116-typed-endpoint-declarations.md)
+- 통합 대기: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md), [GDJ-0115 Typed JSON 입력](../../work/0115-typed-json-body-inputs.md)
 - 진행 중인 Hosted full: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
 - 최근 Hosted full 완료: [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), source `720c9be6211f00a146a39d00957a81ce69ed294f`
 - 최근 완료: [GDJ-0111 QuerySet 갱신](../../work/0111-query-update-and-writable-expressions.md); GDJ-0109/0110도 같은 source에서 통합 완료
@@ -19,12 +19,15 @@ Typed 출력과 실제 요약·상세 API/client의 영향 세 mode·외부 comp
 기존 모델 Serializer의 full/partial 결과를 typed DTO·부재/null과 연결하고 Label/ServiceReport에 적용했다.
 공통 JSON body parser의 request context 취소를 보완하고 영향 세 mode·양 DB·독립 client/compile·drift와 정리를 완료했다.
 선행 bulk 생성·수정·QuerySet 갱신은 같은 source의 Hosted 전체 통합을 완료했다.
-그룹 집계와 typed API는 그 source 이후 구현이며 선행 성공을 전이하지 않는다.
+그룹 집계와 typed API의 새 source는 현재 Hosted 전체 통합에서 검증 중이다.
+Typed 입력·준비 응답·권한과 실제 HTTP/OpenAPI operation을 한 선언에 연결했다.
+요약 조회와 Label ensure의 원자 쓰기에 적용했으며 응답 준비 시점을 보존한다.
+외부 compile·실제 admission·응답 소유권·오류 경계 테스트를 추가했고 영향 검증은 아직 미완료다.
 
 ## 다음 행동
 
-Typed body source를 발행하고 그룹 집계와 typed API를 포함하는 Hosted full을 시작했다.
-필수 owner의 실제 실행·새 capture의 source 결합/소비·최종 집계를 확인한다.
+선행 Hosted의 필수 owner·새 capture의 source 결합/소비·최종 집계를 확인한다.
+완성한 endpoint 묶음의 영향 세 mode·외부 compile·양 DB·독립 client/drift와 정리를 검증한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

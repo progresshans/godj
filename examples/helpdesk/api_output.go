@@ -3,7 +3,6 @@ package helpdesk
 import (
 	"math"
 
-	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/serializers"
@@ -14,14 +13,19 @@ type ticketDetailResponse struct {
 	category models.Category
 }
 
-type apiOutputs struct {
-	ticket  output.Output[ticketRecord]
-	detail  output.Output[ticketDetailResponse]
-	summary output.Output[ticketSummaryPage]
-	schemas []openapi.NamedSchema
+type labelEnsureResponse struct {
+	label   models.Label
+	created bool
 }
 
-func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord]) (apiOutputs, error) {
+type apiOutputs struct {
+	ticket      output.Output[ticketRecord]
+	detail      output.Output[ticketDetailResponse]
+	summary     output.Output[ticketSummaryPage]
+	labelEnsure output.Output[labelEnsureResponse]
+}
+
+func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEncoder serializers.ModelEncoder[models.Label]) (apiOutputs, error) {
 	var result apiOutputs
 	ticket := output.Named("Ticket", output.Model(encoder))
 	// This two-field application summary keeps its existing wire contract. It
@@ -59,8 +63,12 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord]) (apiOutpu
 	if result.summary, err = output.New(summary, serializers.Limits{}); err != nil {
 		return apiOutputs{}, err
 	}
-	result.schemas, err = output.Components(result.ticket.Declaration(), result.detail.Declaration(), result.summary.Declaration())
-	if err != nil {
+	label := output.Named("Label", output.Model(labelEncoder))
+	ensure := output.Named("LabelEnsureResult", output.Object(
+		output.Field("label", label, func(value labelEnsureResponse) models.Label { return value.label }),
+		output.Field("created", output.Boolean(), func(value labelEnsureResponse) bool { return value.created }),
+	))
+	if result.labelEnsure, err = output.New(ensure, serializers.Limits{}); err != nil {
 		return apiOutputs{}, err
 	}
 	return result, nil

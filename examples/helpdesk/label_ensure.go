@@ -7,12 +7,13 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/serializers"
-	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
@@ -21,7 +22,7 @@ type appendLabelAudit func(context.Context, db.Session, admin.PreparedEvent) err
 type ensuredLabel struct {
 	label    models.Label
 	created  bool
-	response web.Response
+	response output.Prepared[labelEnsureResponse]
 }
 
 // ensureLabel shares one parent transaction across lookup/create, output
@@ -72,19 +73,11 @@ func (a *Application) ensureLabelInSession(ctx context.Context, session db.Sessi
 	if err != nil {
 		return ensuredLabel{}, err
 	}
-	encoded, err := a.labelEncoder.Encode(value)
-	if err != nil {
-		return ensuredLabel{}, err
-	}
-	object, err := serializers.NewObject(serializers.MemberOf("label", encoded), serializers.MemberOf("created", serializers.Boolean(created)))
-	if err != nil {
-		return ensuredLabel{}, err
-	}
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
 	}
-	response, err := api.JSON(status, object.Value())
+	response, err := a.responses.labelEnsure.Prepare(ctx, status, labelEnsureResponse{label: value, created: created})
 	if err != nil {
 		return ensuredLabel{}, err
 	}
@@ -124,20 +117,28 @@ func (a *Application) labelEnsureCommands(form forms.Spec) []admin.CollectionCom
 	}}
 }
 
-func (a *Application) apiLabelEnsure(appendAudit appendLabelAudit) api.AuthenticatedHandler {
-	return func(request *web.Request, actor auth.Principal) (web.Response, error) {
-		if request.HTTP().URL.RawQuery != "" {
-			return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
-		}
-		values, response, handled, err := bindTypedInput(request, a.labelInput, serializers.ModeFull)
-		if handled || err != nil {
-			return response, err
-		}
-		name, _ := values.name.Get()
-		result, err := a.ensureLabel(request.Context(), actor, name, appendAudit)
-		if err != nil {
-			return objectFailure(err)
-		}
-		return result.response, nil
-	}
+func (a *Application) labelEnsureEndpoint(authentication api.Authentication, appendAudit appendLabelAudit) (endpoint.Endpoint, error) {
+	return endpoint.New(authentication, endpoint.Config[labelAPIInput, labelEnsureResponse]{
+		Route:       web.Route{Name: "helpdesk:label-ensure", Method: http.MethodPost, Path: "/api/labels/ensure/"},
+		Summary:     "Find or create a category label",
+		Description: "Authentication, both add and view permissions, and CSRF precede parsing. Accepts the same normalized name as ordinary creation; category and id remain server-owned. Query parameters are rejected. The current assigned category is checked in the parent transaction. An exact (category, name) match returns 200 with created=false; a new label returns 201 with created=true only after the row and its single add audit event commit together. Reuse does not append an audit event. A concurrent native unique conflict is rolled back to a savepoint before one fresh lookup. Output, audit, cancellation and uncertain transaction failures do not publish a result or trigger automatic retries. Ordinary creation continues to reject duplicates.",
+		Admission:   endpoint.All(AddLabel, ViewLabel),
+		Input:       endpoint.NoQuery(endpoint.JSONBody("LabelCreate", a.labelInput, serializers.ModeFull, "")),
+		Output:      a.responses.labelEnsure,
+		Success:     []endpoint.Status{{Code: http.StatusOK, Description: "The existing scoped label; created is false."}, {Code: http.StatusCreated, Description: "The newly committed scoped label; created is true."}},
+		Errors: []endpoint.Status{
+			{Code: http.StatusBadRequest, Description: "Invalid name, body or query parameters. A native unique conflict with no matching visible label uses __all__/unique after confirmed rollback."},
+			{Code: http.StatusNotFound, Description: "The label or assigned category does not exist in the selected scope."},
+			{Code: http.StatusRequestEntityTooLarge, Description: "The JSON body exceeds 4096 bytes."},
+			{Code: http.StatusUnsupportedMediaType, Description: "The body is not application/json."},
+		},
+		Handle: func(request *web.Request, actor auth.Principal, values labelAPIInput) (output.Prepared[labelEnsureResponse], error) {
+			name, _ := values.name.Get()
+			result, err := a.ensureLabel(request.Context(), actor, name, appendAudit)
+			if err != nil {
+				return output.Prepared[labelEnsureResponse]{}, typedEndpointFailure(err)
+			}
+			return result.response, nil
+		},
+	})
 }

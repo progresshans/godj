@@ -25,7 +25,7 @@ import (
 
 func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	application := helpdeskConstructionApplication(t)
-	recording := &helpdeskRecordingAuthentication{}
+	recording := &helpdeskRecordingAuthentication{inspectBindings: true}
 	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording}))
 	if err != nil {
 		t.Fatal(err)
@@ -36,14 +36,15 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	authenticationOrder := []string{"ticket-list", "ticket-detail", "ticket-create", "ticket-update", "ticket-patch", "service-report-list", "service-report-create", "service-report-detail", "service-report-update", "service-report-patch", "service-report-delete", "ticket-service-report", "ticket-service-report-save", "label-list", "label-create", "label-detail", "label-update", "label-patch", "label-delete", "label-ensure", "ticket-label-list", "ticket-label-create", "ticket-label-detail", "ticket-label-update", "ticket-label-patch", "ticket-label-delete", "ticket-delete", "ticket-bulk-create", "ticket-bulk-update", "ticket-raise-priority", "ticket-summary"}
-	if len(recording.permissions) != len(authenticationOrder) || len(recording.additional) != len(authenticationOrder) {
+	boundRoutes := adapter.Routes()
+	if len(recording.permissions) != len(boundRoutes) || len(recording.additional) != len(boundRoutes) {
 		t.Fatal("incomplete authentication composition")
 	}
-	for index, name := range authenticationOrder {
-		permission, additional := helpdeskExpectedAuthorization(t, "helpdesk:"+name)
-		if recording.permissions[index] != permission || !slices.Equal(recording.additional[index], additional) {
-			t.Fatalf("authentication binding %s differs", name)
+	for _, route := range boundRoutes {
+		permission, additional := helpdeskExpectedAuthorization(t, route.Name)
+		binding, err := route.Handler(nil)
+		if err != nil || binding.Header().Get("X-Test-Permission") != string(permission) || !slices.Equal(binding.Header().Values("X-Test-Additional"), permissionStrings(additional)) {
+			t.Fatalf("authentication binding %s differs", route.Name)
 		}
 	}
 
@@ -156,7 +157,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	encoded := document.Bytes()
 	encoded[0] = '!'
 	again, err := adapter.OpenAPI()
-	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != len(authenticationOrder) {
+	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != len(boundRoutes) {
 		t.Fatalf("reading or mutating snapshots changed the API or repeated authentication: %v", err)
 	}
 }
@@ -177,17 +178,20 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	}
 	for index := 1; index <= 31; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
-			if result, err := application.API(helpdeskAPIConfig(recording)); result != nil || err == nil || len(recording.permissions) != index {
+			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
 			}
 		}
 	}
-	adapter, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{}))
+	if result, err := application.API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
+		t.Fatal("typed endpoint accepted an undocumented authentication profile")
+	}
+	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{&helpdeskRecordingAuthentication{}}))
 	if err != nil || len(adapter.Routes()) != 31 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
-	if _, err := adapter.OpenAPI(); err == nil {
-		t.Fatal("undocumented custom authentication published a guessed profile")
+	if _, err := adapter.OpenAPI(); err != nil {
+		t.Fatal("documented custom authentication cannot describe its routes", err)
 	}
 	if routes := (*helpdesk.API)(nil).Routes(); routes != nil {
 		t.Fatal("nil API published routes")
@@ -509,9 +513,10 @@ func decodeHelpdeskDocument(t *testing.T, encoded []byte) helpdeskDocument {
 }
 
 type helpdeskRecordingAuthentication struct {
-	permissions   []auth.Permission
-	additional    [][]auth.Permission
-	failAt, nilAt int
+	permissions     []auth.Permission
+	additional      [][]auth.Permission
+	failAt, nilAt   int
+	inspectBindings bool
 }
 
 func (recording *helpdeskRecordingAuthentication) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
@@ -522,6 +527,12 @@ func (recording *helpdeskRecordingAuthentication) Require(permission auth.Permis
 	}
 	if len(recording.permissions) == recording.nilAt {
 		return nil, nil
+	}
+	if recording.inspectBindings {
+		// Observe each returned route's actual wrapper, independent of the
+		// order used while preparing routes. No application I/O is invoked.
+		header := http.Header{"X-Test-Permission": {string(permission)}, "X-Test-Additional": permissionStrings(additional)}
+		return func(*web.Request) (web.Response, error) { return web.NewResponse(http.StatusOK, header, nil) }, nil
 	}
 	return func(request *web.Request) (web.Response, error) { return handler(request, auth.Anonymous()) }, nil
 }

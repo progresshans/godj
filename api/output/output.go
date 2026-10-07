@@ -38,11 +38,17 @@ func schemaOf(node *node) openapi.Schema {
 
 // Output is a prepared declaration and one whole-response resource budget. It
 // may be shared concurrently when application getters are concurrency-safe.
-// Source values and mutable fields must remain stable until Encode/JSON returns.
+// Source values and mutable fields must remain stable until Encode/Prepare/JSON
+// returns.
 type Output[T any] struct {
 	shape  Shape[T]
 	limits serializers.Limits
+	owner  *responseOwner
 }
+
+// A nonzero-sized identity separates even independently prepared outputs with
+// the same shape and limits. Copying an Output deliberately retains ownership.
+type responseOwner struct{ valid bool }
 
 func New[T any](shape Shape[T], limits serializers.Limits) (Output[T], error) {
 	if shape.project == nil || shape.node == nil {
@@ -52,7 +58,7 @@ func New[T any](shape Shape[T], limits serializers.Limits) (Output[T], error) {
 	if err != nil {
 		return Output[T]{}, configError("response limits are invalid", err)
 	}
-	output := Output[T]{shape: shape, limits: resolved}
+	output := Output[T]{shape: shape, limits: resolved, owner: &responseOwner{valid: true}}
 	if _, err := Components(output.Declaration()); err != nil {
 		return Output[T]{}, err
 	}
@@ -88,20 +94,67 @@ func (o Output[T]) Encode(ctx context.Context, value T) ([]byte, error) {
 // encoding succeed. Authorization, reads and transaction ownership stay with
 // the handler; write handlers must validate output before committing a write.
 func (o Output[T]) JSON(ctx context.Context, status int, value T) (web.Response, error) {
-	body, err := o.Encode(ctx, value)
+	prepared, err := o.Prepare(ctx, status, value)
 	if err != nil {
 		return web.Response{}, err
+	}
+	return o.Response(prepared)
+}
+
+// Prepared is a complete immutable JSON response bound to the exact Output
+// that encoded it. The zero value is invalid. Its Go type retains the DTO type,
+// while the private owner also retains the declaration and resource budget.
+// A handler can prepare it before committing an application transaction, then
+// return it only after that transaction's successful outcome is confirmed.
+type Prepared[T any] struct {
+	response web.Response
+	owner    *responseOwner
+	// Retain T in the underlying structure too: otherwise Go permits an
+	// explicit conversion between Prepared values with unrelated DTO types.
+	_ func(T)
+}
+
+// WithHeaders takes the same detached header snapshot as web.Response. Endpoint
+// consumers additionally check the JSON Content-Type; other header policy
+// remains with the application and its authentication adapter.
+func (prepared Prepared[T]) WithHeaders(header http.Header) (Prepared[T], error) {
+	if prepared.owner == nil {
+		return Prepared[T]{}, responseError("prepared response is zero or invalid", nil)
+	}
+	response, err := prepared.response.WithHeaders(header)
+	if err != nil {
+		return Prepared[T]{}, err
+	}
+	return Prepared[T]{response: response, owner: prepared.owner}, nil
+}
+
+// Prepare encodes the whole DTO now, retaining neither its getters nor its
+// mutable values for later evaluation. It performs no persistence or HTTP I/O.
+func (o Output[T]) Prepare(ctx context.Context, status int, value T) (Prepared[T], error) {
+	body, err := o.Encode(ctx, value)
+	if err != nil {
+		return Prepared[T]{}, err
 	}
 	header := make(http.Header)
 	header.Set("Content-Type", api.JSONContentType)
 	response, err := web.NewResponse(status, header, body)
 	if err != nil {
-		return web.Response{}, responseError("HTTP response is invalid", err)
+		return Prepared[T]{}, responseError("HTTP response is invalid", err)
 	}
 	if err := ctx.Err(); err != nil {
-		return web.Response{}, responseError("output was cancelled", err)
+		return Prepared[T]{}, responseError("output was cancelled", err)
 	}
-	return response, nil
+	return Prepared[T]{response: response, owner: o.owner}, nil
+}
+
+// Response returns bytes already prepared by this exact Output or one of its
+// copies. It never re-encodes after an application commit, accepts a response
+// from a different declaration/budget, or performs HTTP I/O.
+func (o Output[T]) Response(prepared Prepared[T]) (web.Response, error) {
+	if o.owner == nil || prepared.owner != o.owner || prepared.response.Status() == 0 {
+		return web.Response{}, responseError("prepared response belongs to another output or is invalid", nil)
+	}
+	return prepared.response, nil
 }
 
 // Declaration describes a prepared Output independent of its Go value type.

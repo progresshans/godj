@@ -45,6 +45,8 @@ OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 �
 Label과 ServiceReport의 JSON 입력은 [typed body 선언](api_inputs.go)에서 기존 모델 Serializer와 DTO를 연결한다.
 Full은 required/default를 적용하고 Partial은 생략을 보존한다. 명시적 false·null과 생략을 구분하며 같은 Spec으로
 OpenAPI를 만든다. Create/PUT/PATCH·Label ensure·Report save의 인가/CSRF·관계/고유성·transaction/audit 순서는 유지한다.
+요약과 Label ensure는 [typed endpoint](../../api/endpoint/README.md)에서 같은 입력·권한·응답·상태를 실제 handler와
+문서에 연결한다. Ensure는 transaction 안에서 완성한 응답을 commit 확인 후 반환하며 이후 취소만으로 성공을 번복하지 않는다.
 공통 parser는 읽기 전·사이·반환 경계에서 context를 확인하고 reader failure와 취소에 부분 결과를 반환하지 않는다.
 
 ## 여러 티켓 생성하기
@@ -188,7 +190,8 @@ Form/identity/확인된 데이터 거부는 HTTP 200으로 오류와 원래 입�
 `runtime`을 Application의 backend로 전달하고, `AppendAudit`는 제공된 session만 사용한다.
 이 설정이 기존 모든 CRUD 쓰기에 공통 감사를 추가하는 것은 아니다.
 `api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
-문서화 profile이 없는 custom authentication도 Routes에 사용할 수 있지만 OpenAPI 구성은 명시적으로 실패한다.
+요약·Label ensure의 typed endpoint는 실제 transport와 operation을 함께 준비하므로 custom authentication도
+`api.AuthenticationDescriber`를 제공해야 한다. 문서화 profile이 없으면 API 초기화가 실패한다.
 
 문서의 `Ticket`, `TicketCreate`, `TicketDetail`, `CategorySummary`는 명시적인 component 이름이다.
 Ticket 응답과 생성 입력은 실제 ModelEncoder와 Bind가 사용하는 serializer spec에서 파생하며,
