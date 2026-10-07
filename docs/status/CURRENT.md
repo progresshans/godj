@@ -2,7 +2,7 @@
 
 - 갱신: 2026-10-08
 - 현재 구현: [GDJ-0120 Typed 204 응답과 삭제 endpoint](../../work/0120-typed-no-content-responses.md)
-- 진행 중인 검증: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI](https://github.com/progresshans/godj/actions/runs/37660451511)
+- 영향 검증 완료·전체 통합 진행: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI](https://github.com/progresshans/godj/actions/runs/37660451511)
 - 검증 운영: PR 생성·push·재개와 main push에서 [전체 원격 CI](../TESTING.md)를 자동 실행한다. 로컬은 포맷·최소 compile와 실패 재현을 맡는다.
 - 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
 - 영향 검증 완료·전체 통합 재검증 대기: [GDJ-0117 Typed 경로와 단계 입력](../../work/0117-typed-path-and-ordered-inputs.md), source `55e0453d` 및 인증 관찰자/기준 잠금 보정 `587aeea0`
@@ -22,10 +22,10 @@
 게시된 header source의 원격 실행과 이 미게시 변경을 구분한다.
 
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
-원격 Linux/amd64에서 typed parameter/OpenAPI/endpoint와 독립 SDK의 normal/race/CGO0·재생성 drift·실제 HTTP를 확인했다.
-원격에서 발견한 Identity header 테스트의 namespace 설정 오류를 보정했고 해당 두 root의 90 run/pass를 로컬에서 확인했다.
-선행 Intel Mac의 누적 package 시간 초과에 대해 필수 검사를 유지한 normal 실행 분할도 준비했다.
-수정 source의 Identity native 양 DB·platform/cold와 최종 집계는 새 자동 CI에서 확인한다.
+Namespace 보정 source `cc2c2f25`의 원격 Linux/amd64에서 typed API·독립 SDK의 normal/race/CGO0와
+재생성 drift·실제 HTTP, SQLite/PostgreSQL의 필수 실행·no-skip과 source 연결을 확인했다.
+선행 Intel Mac 누적 시간 초과를 보완한 normal 분할 중 두 생성 소비자 묶음도 완료했다.
+일부 macOS·reference/cold·최종 집계가 남아 있으며 checkout DNS 실패의 같은 source 재시도를 처리한다.
 선행 [배열 입력](../../work/0118-typed-json-collections.md)의 영향 검증과 취소된 source `632cf6db`의 CI는
 현재 source의 실행 결과와 구분한다.
 선행 endpoint/경로 source의 Hosted full 실패는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록했다.

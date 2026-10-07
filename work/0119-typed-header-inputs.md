@@ -38,7 +38,7 @@ Cookie·반복/list header, arbitrary decoder/schema 쌍, 자동 CRUD/viewset은
 - [x] Identity의 현재 header 문법·상태·admission/body/DB 순서와 OpenAPI 소유권 확인
 - [x] Typed header scalar/presence와 같은 parameter·endpoint 결합 구현
 - [x] Identity 실제 소비자·generated client와 실패 경계 연결
-- [ ] 원격 CI의 compile/HTTP/양 DB·세 mode·drift와 source 기록
+- [x] 보정 source `cc2c2f25`의 원격 compile/HTTP/양 DB·세 mode·drift와 source 기록
 - [ ] GDJ-0118과 결합한 source의 전체 platform/Hosted 통합
 
 선행 GDJ-0116/0117 source `6d0473cd`의 Hosted full `37584339052`는 macOS Intel 관계 normal job에서 실패했다.

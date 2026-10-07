@@ -120,6 +120,53 @@ CI 도구 24 tests가 통과했다. 모든 matrix 좌표에 대해 전체 root/c
 이 정적 감사의 receipt SHA-256은 `1b4acd53fa03b4121b4037c4f52b7dc1a3c6a4db20e83fd9b297bf0cc64550b2`다.
 현재 source의 새 discovery와 각 배정의 실제 실행 완료는 보완 source의 원격 CI가 검증한다.
 
+### 보정 source의 원격 영향 검증과 진행 중인 전체 실행
+
+2026-10-08 03:25 KST, source `cc2c2f2564bfca11955ca1baa0d047c8f1555b21`의
+[자동 CI 37660451511](https://github.com/progresshans/godj/actions/runs/37660451511) attempt 1에서 아래 완료한 결과를 확인했다.
+PR merge checkout `779697822d0833dfa64e1b4b63199381877d878d`의 부모는 base `f8a5e20c`와 이 source이며,
+tree `01c83fd7123d78eb75ade48c382143af7b89db75`가 source tree와 같다. Job API의 head·실제 checkout 로그와
+capture envelope를 같은 실행에 대조했다. GDJ-0120 source `698eb69e`는 이 실행에 포함되지 않는다.
+
+- Typed parameter/OpenAPI/endpoint: normal/core-vet `112927132811`, race/core `112927132792`,
+  CGO0/core `112927132995`의 해당 package 실제 테스트 PASS. Normal vet도 완료했다.
+- 독립 SDK: normal/integration `112927132864`, race/integration `112927132839`, CGO0/integration `112927133095` PASS.
+  여섯 실제 문서·고정 입력·ogen 재생성 file set/byte·lock·독립 client build/HTTP·최종 DB 검증을 실행했고,
+  필수 Session/Bearer header receipt도 검사했다. Skip/선택 제외 경로가 없는 해당 test와 실제 package 결과를 대조했다.
+- Linux/amd64 SQLite 관계 owner: normal `112927133475`은 8,783 run/pass, race/runtime `112927133358`은
+  8,499 run/pass, CGO0 `112927133726`은 8,783 run/pass이고 모두 0 skip이다. 새 header 경로가 포함된
+  현재 필수 목록과 package 완료/no-skip 검사를 통과했다. Normal/CGO0는 생성 소비자 87 root도 정확히 한 번 검증했다.
+- PostgreSQL core의 원본 JSON event artifact 5개를 현재 manifest/분할 계획과 대조했다. 모든 mode에서
+  원 필수 3,032경로를 빠짐없이 확인했고 각 mode의 Identity header 36개 경로도 실제 run/pass였다.
+
+| Mode / 분할 | Artifact ID | Run / pass | Skip | 필수 경로 |
+| --- | --- | --- | --- | --- |
+| normal / core | 11502108022 | 5909 / 5909 | 0 | 3032 |
+| race / core | 11502646734 | 5807 / 5807 | 0 | 2967 |
+| race / core-consumers | 11502017950 | 81 / 81 | 0 | 55 |
+| race / core-processes | 11501646099 | 21 / 21 | 0 | 10 |
+| CGO0 / core | 11501988146 | 5909 / 5909 | 0 | 3032 |
+
+System-state capture artifact `11501129870`의 payload SHA-256은
+`50db3507a7b467f869b132c91a6a0a929f0071241a239ea1a3bcc08af13beea3`, operator capture `11500383782`는
+`7d40ce744ed2ec351308bda173b1502765d833b1cd157d5fcdbc893ec07adc48`다. 두 checksum·repository/run/attempt·producer·
+checkout envelope를 확인했다. 이를 소비하는 전체 reference/cold gate의 완료는 아래 남은 검증에 포함한다.
+
+Intel normal 생성 소비자 shard 2/3 `112927133786`은 72 run/pass·38 필수 경로·29 root,
+shard 3/3 `112927133705`는 46 run/pass·32 필수 경로·29 root를 완료했다. 각각 0 skip이며 실제 discovery에
+배정된 root의 정확히 한 번 실행을 확인했다. Shard 1과 runtime owner의 완료 전에는 Intel 전체 성공으로 표현하지 않는다.
+
+원 로그/필수 목록/hash를 담은 작은 감사 요약의 SHA-256은 API/SDK
+`7fbb6179b77afe547af66f254df7286424abbf6ad67572d6e41427d9bdea34be`, PostgreSQL/capture
+`2c361290066080de1149531f088f33097b591047626d4548121dd35b61812bd4`, 관계 owner
+`08b032cb1d255caf8fe9e84a034142cd4f0844da5d9f17373d6747a981ae3c44`다.
+이 감사는 기존 원격 결과를 읽은 것이며 로컬 Go/DB 테스트를 다시 실행하지 않았다.
+
+전체 CI는 관찰 시점에 진행 중이다. Command Intel normal `112927132903`은 checkout에서
+`Could not resolve host: github.com`으로 git exit 128이 발생했고 Go setup·두 제품 검사는 실행되지 않았다.
+나머지 macOS·reference/cold·최종 집계의 결과를 확인한 뒤 이 환경 실패를 같은 source에서 재시도한다.
+진행 중인 job·대기·부분 성공을 전체 통합 PASS로 확대하지 않는다.
+
 ## CI — PR 자동 전체 검증
 
 2026-10-08 KST, PR 생성·새 commit push·재개와 main push에서 전체 CI를 실행하도록 변경했다.
