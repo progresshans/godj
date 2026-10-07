@@ -40,4 +40,5 @@ Transfer-Encoding은 [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html#sect
 - [x] Article·Label 삭제의 실제 소비자와 실패 경계 연결
 - [ ] 공개 compile·실제 HTTP/DB/client·drift와 원격 검증
 
-선행 GDJ-0119/CI 보정 source `cc2c2f25`의 원격 검증과 이 작업 사본의 미게시 변경을 구분한다.
+선행 GDJ-0119 source `cc2c2f25`의 부분 성공과 이 작업의 새 검증 대상을 구분한다.
+Intel CGO0 분할 보완을 포함한 PR source의 자동 전체 CI가 이번 변경의 실행을 검증한다.

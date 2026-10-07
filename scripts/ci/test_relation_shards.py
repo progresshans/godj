@@ -116,7 +116,7 @@ class RelationShardTest(unittest.TestCase):
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
         split = {(runner, 'race') for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15-intel', 'macos-26')}
-        split.add(('macos-15-intel', 'normal'))
+        split.update({('macos-15-intel', 'normal'), ('macos-15-intel', 'cgo0')})
         seen = {}
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])

@@ -40,7 +40,7 @@ header wrapper를 빠뜨린 최초 compile 오류는 `.Response`로 수정한 �
 `scripts/ci/test_postgres_shards.py -v`의 5 tests와 `scripts/check_docs.py`의 문서 202개 링크,
 `git diff --check`를 통과했다. 최초 필수 목록에 넣었던 빈 줄/주석은 strict manifest 문법이 거부해 제거했다.
 공개 외부 compile fixture 실행·새 테스트 본문·native DB/HTTP·race/CGO0·SDK drift/HTTP·전체 platform/cold는
-이 source의 원격 CI에서 확인해야 한다. 선행 `cc2c2f25`의 진행 중인 CI는 이 작업 사본의 증거가 아니다.
+이 source의 원격 CI에서 확인해야 한다. 선행 `cc2c2f25`의 원격 결과는 이 변경의 실행 증거가 아니다.
 
 후속 소비자 검토에서 Article Admin adapter가 확인된 missing에도 `errors.Join`으로 framework marker를
 붙이지만 Admin Site는 직접 marker만 404로 처리하는 불일치를 확인했다. 직접 Article missing만
@@ -130,7 +130,7 @@ CI 도구 24 tests가 통과했다. 모든 matrix 좌표에 대해 전체 root/c
 이 정적 감사의 receipt SHA-256은 `1b4acd53fa03b4121b4037c4f52b7dc1a3c6a4db20e83fd9b297bf0cc64550b2`다.
 현재 source의 새 discovery와 각 배정의 실제 실행 완료는 보완 source의 원격 CI가 검증한다.
 
-### 보정 source의 원격 영향 검증과 진행 중인 전체 실행
+### 보정 source의 원격 영향 검증과 전체 실행
 
 2026-10-08 03:25 KST, source `cc2c2f2564bfca11955ca1baa0d047c8f1555b21`의
 [자동 CI 37660451511](https://github.com/progresshans/godj/actions/runs/37660451511) attempt 1에서 아래 완료한 결과를 확인했다.
@@ -187,12 +187,34 @@ reference/capture 감사는 `306cbf15758a970d54bc8e38d536cb17814525941d0464a5b56
 Intel normal runtime 감사는 `5654118bd3697ee6e0a83eebe45d7633172beac268b5ad9aba7a3ac996184aa6`다.
 이 감사는 기존 원격 결과를 읽은 것이며 로컬 Go/DB 테스트를 다시 실행하지 않았다.
 
-전체 CI는 관찰 시점에 진행 중이다. Command Intel normal `112927132903`은 checkout에서
+전체 CI는 attempt 1의 79 jobs 중 76 success·3 failure로 종료됐다. Command Intel normal `112927132903`은 checkout에서
 `Could not resolve host: github.com`으로 git exit 128이 발생했고 Go setup·두 제품 검사는 실행되지 않았다.
-나머지 macOS·최종 집계의 결과를 확인한 뒤 이 환경 실패를 같은 source에서 재시도한다.
-실패 job만 재실행하는 API도 전체 run 진행 중에는 HTTP 403 `The workflow run containing this job is already running`으로
-거부됐다. 기존 실행과 source를 유지하며 전체 attempt가 끝난 뒤 재시도한다.
-진행 중인 job·대기·부분 성공을 전체 통합 PASS로 확대하지 않는다.
+진행 중 실패 job만 재실행하는 API 요청은 HTTP 403 `The workflow run containing this job is already running`으로
+거부됐으며 기존 실행은 유지했다. 이후 아래 CGO0 실패가 확인됐다.
+최종 `CI result` job `112978550285`는 2026-10-08 04:36:13 KST에 `command-product-matrix`와
+`relation-product-matrix`의 실패를 보고했다. 같은 source·attempt의 모든 job과 최종 집계 로그를 대조한 요약의
+SHA-256은 `8097cba3430b17fe22b5b95721aef691419b09372169c53fd2e571c43251219e`다.
+완료한 영향 검증을 전체 통합 PASS로 확대하지 않으며, 보완 source의 자동 CI에서 다시 검증한다.
+
+### Intel CGO0 누적 시간 초과와 분할 보완
+
+같은 source의 Intel CGO0 관계 job `112927133947`은 2026-10-08 04:30:07 KST에 실패했다.
+Go setup·runner 확인 뒤 생성 소비자 package가 `panic: test timed out after 35m0s`로 종료됐다.
+완료된 상위 테스트 39개의 누적 시간은 2,068.46초였고, 종료 당시 `TestGeneratedNestedForwardConsumer`는
+실행 32초째 자식 Go command를 기다리고 있었다. 완료된 discovery의 87 root 중 나머지 실행과 최종 inventory는
+끝나지 않았다. 이 기록으로 해당 개별 테스트의 교착이나 제품 assertion 실패를 주장하지 않는다.
+실패 로그 SHA-256은 `450de1d86aff65f9a33b387806b0a75386c0279eebcdd5fc028c74c9c79fb06f`,
+source·job·discovery·완료 테스트 시간과 실패를 모은 감사 요약은
+`538e0ac1bab066e804d784c35f5849cf0f3f1ee4c5e1a1dbd1f6d0e4c63c4acd`다.
+
+Intel CGO0에도 이미 normal/race가 사용하는 runtime 0과 생성 소비자 1/2/3 분할을 적용했다.
+Job 45분·Go package 35분을 유지하고, 필수 child·no-skip·정확한 root/package 소유권과 전체 shard 집계를 보존한다.
+CI 도구 회귀 24 tests가 통과했다. 현재 변경과 소비자 source가 같은 기존 실제 discovery를 사용한 정적 감사에서
+87 root를 29개씩 분배하고 현재 필수 2,471경로를 정확히 한 번 배정했다. Runtime 49 package·2,359경로와
+소비자 세 묶음의 42/38/32경로가 합쳐 원래 목록을 보존하며 관계 matrix는 12좌표·30 jobs다.
+이 정적 배정 요약의 SHA-256은 `e9e4324b257388447c20edcc373c2bda3b6b5bf21758a1143b6bfdad64f18f6e`다.
+새 CGO0 분할의 실제 실행은 아직 검증하지 않았다. 변경 전 source를 단순 재시도하는 대신 이 보완과 GDJ-0120을
+포함한 새 PR source에서 전체 CI를 실행하며, `cc2c2f25`의 부분 성공을 새 source의 PASS로 옮기지 않는다.
 
 ## CI — PR 자동 전체 검증
 

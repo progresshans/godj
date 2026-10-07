@@ -39,8 +39,10 @@ Cookie·반복/list header, arbitrary decoder/schema 쌍, 자동 CRUD/viewset은
 - [x] Typed header scalar/presence와 같은 parameter·endpoint 결합 구현
 - [x] Identity 실제 소비자·generated client와 실패 경계 연결
 - [x] 보정 source `cc2c2f25`의 원격 compile/HTTP/양 DB·세 mode·drift와 source 기록
-- [ ] GDJ-0118과 결합한 source의 전체 platform/Hosted 통합
+- [ ] GDJ-0118/0120과 결합한 source의 전체 platform/Hosted 통합
 
 선행 GDJ-0116/0117 source `6d0473cd`의 Hosted full `37584339052`는 macOS Intel 관계 normal job에서 실패했다.
+`cc2c2f25`의 `37660451511`은 header 영향 검증을 통과했지만 Intel CGO0의 누적 시간 초과와 checkout DNS 실패로
+전체 실행은 실패했다. CGO0 분할 보완과 GDJ-0120을 포함한 새 source에서 전체 통합을 다시 확인한다.
 CI 자동 전환과 GDJ-0118을 포함한 `632cf6db`의 `37653281819` 실행은 header를 포함한 source와 구분한다.
 GDJ-0118 source `6e6e4042`의 영향 검증 완료와 이 작업의 새 실행을 구분한다. 현재 외부 입력이 필요한 blocker는 없다.

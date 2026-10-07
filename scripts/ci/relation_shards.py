@@ -28,10 +28,10 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            # Intel macOS also exhausts the normal package timeout through
-            # cumulative generated builds. Keep its budget and split roots.
-            split_normal = (goos, goarch, mode) == ('darwin', 'amd64', 'normal')
-            count = 3 if mode == 'race' or split_normal else 1
+            # Intel macOS also exhausts normal and CGO0 package timeouts through
+            # cumulative generated builds. Keep those budgets and split roots.
+            split_intel = (goos, goarch) == ('darwin', 'amd64')
+            count = 3 if mode == 'race' or split_intel else 1
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
