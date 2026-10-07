@@ -160,21 +160,34 @@ capture envelope를 같은 실행에 대조했다. GDJ-0120 source `698eb69e`는
 System-state capture artifact `11501129870`의 payload SHA-256은
 `50db3507a7b467f869b132c91a6a0a929f0071241a239ea1a3bcc08af13beea3`, operator capture `11500383782`는
 `7d40ce744ed2ec351308bda173b1502765d833b1cd157d5fcdbc893ec07adc48`다. 두 checksum·repository/run/attempt·producer·
-checkout envelope를 확인했다. 이를 소비하는 전체 reference/cold gate의 완료는 아래 남은 검증에 포함한다.
+checkout envelope를 확인했다.
 
-Intel normal 생성 소비자 shard 2/3 `112927133786`은 72 run/pass·38 필수 경로·29 root,
+같은 attempt의 reference/capture job `112945468424`는 2026-10-08 03:46:57 KST에 성공했다.
+위 두 artifact를 선택한 producer job은 각각 `112927132427`·`112927132431`이며 producer attempt 1과
+같은 source·checkout을 확인했다. 두 envelope의 실행/저장소/checkout/payload 검증 뒤 문서·format·generated drift,
+Python 377 tests, contractcheck 27종 각 두 번과 godjcheck 26종을 완료했다.
+Linux/386의 migration/project-check 15 package와 runserver 1 package는 compile-only,
+관계·query/ORM·product runner 14 package는 실제 `-count=1` 테스트 PASS다. Oracle checksum 27개와
+reference 변경 없음 검사도 성공했다. 이 결과는 해당 reference/capture owner의 완료이며 전체 CI 판정은 아니다.
+
+Intel normal 생성 소비자 shard 1/3 `112927133835`는 66 run/pass·42 필수 경로·29 root,
+shard 2/3 `112927133786`은 72 run/pass·38 필수 경로·29 root,
 shard 3/3 `112927133705`는 46 run/pass·32 필수 경로·29 root를 완료했다. 각각 0 skip이며 실제 discovery에
-배정된 root의 정확히 한 번 실행을 확인했다. Shard 1과 runtime owner의 완료 전에는 Intel 전체 성공으로 표현하지 않는다.
+배정된 root의 정확히 한 번 실행을 확인했다. Runtime owner의 완료 전에는 Intel 전체 성공으로 표현하지 않는다.
 
 원 로그/필수 목록/hash를 담은 작은 감사 요약의 SHA-256은 API/SDK
 `7fbb6179b77afe547af66f254df7286424abbf6ad67572d6e41427d9bdea34be`, PostgreSQL/capture
 `2c361290066080de1149531f088f33097b591047626d4548121dd35b61812bd4`, 관계 owner
 `08b032cb1d255caf8fe9e84a034142cd4f0844da5d9f17373d6747a981ae3c44`다.
+후속 Intel shard 1 감사는 `21334a0fb1a7377bf5afa6ef79a0d68f34ab54d1005e85c838d5c8d383316942`,
+reference/capture 감사는 `306cbf15758a970d54bc8e38d536cb17814525941d0464a5b56f67da92155342`다.
 이 감사는 기존 원격 결과를 읽은 것이며 로컬 Go/DB 테스트를 다시 실행하지 않았다.
 
 전체 CI는 관찰 시점에 진행 중이다. Command Intel normal `112927132903`은 checkout에서
 `Could not resolve host: github.com`으로 git exit 128이 발생했고 Go setup·두 제품 검사는 실행되지 않았다.
-나머지 macOS·reference/cold·최종 집계의 결과를 확인한 뒤 이 환경 실패를 같은 source에서 재시도한다.
+나머지 macOS·최종 집계의 결과를 확인한 뒤 이 환경 실패를 같은 source에서 재시도한다.
+실패 job만 재실행하는 API도 전체 run 진행 중에는 HTTP 403 `The workflow run containing this job is already running`으로
+거부됐다. 기존 실행과 source를 유지하며 전체 attempt가 끝난 뒤 재시도한다.
 진행 중인 job·대기·부분 성공을 전체 통합 PASS로 확대하지 않는다.
 
 ## CI — PR 자동 전체 검증
