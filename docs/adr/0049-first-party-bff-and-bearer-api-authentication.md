@@ -120,6 +120,9 @@ digest-pinned PostgreSQL required, final local full/386/archive와 exact hosted 
     오분류하지 않습니다.
 11. Article API constructor는 `api.Authentication`을 받고 모든 protected route wrapper를 성공적으로 만든 뒤에만 immutable application을
     게시합니다. Handler, serializer, query와 repository는 profile과 무관하게 재사용합니다.
+    Typed endpoint의 transport 문서를 함께 준비하므로 `AuthenticationDescriber`도 실제 profile에서 전달합니다.
+    API-011은 CRUD 경로의 membership을 양 profile에서 비교하며 관찰 목록은 정렬합니다. 내부 구성 순서는 계약이 아니며
+    경로 누락·추가·중복·method 변경은 계속 검출합니다.
 12. First-party browser는 durable session cookie+CSRF를 기본 profile로 유지합니다. BFF는 browser cookie를 소유하고 server-to-server
     Bearer를 전달할 수 있지만 GoDj가 BFF token custody나 OAuth client를 이번 ADR에서 구현하지 않습니다.
 

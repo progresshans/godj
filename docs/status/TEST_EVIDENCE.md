@@ -3,6 +3,50 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0116/0117 — Hosted에서 발견한 인증 관찰자 연결 보정
+
+2026-10-07 KST, source `63478ee6`의 Hosted full `37579524401`에서 portable conformance와 project-check의
+인증 계약 관찰자가 typed Article endpoint를 초기화하지 못했다. 확인한 실패 job 12개 모두 실제 adapter를 감싼
+`gdj0047CountingAuthentication`이 `AuthenticationDescriber`를 전달하지 않은 같은 원인이다.
+Job `112655819933`/`112655819975`의 로그와 나머지 실패 원본·SHA를 workspace의
+`hosted-37579524401-observed-{jobs,failures}.json`과 개별 job 로그에 보존했다. 전체 성공이 아니다.
+
+보정 source `f45eb5120d4f8e956ec94979ed282e6f2735d590`은 실제 Session/Bearer runtime의 transport 설명을
+두 관찰 wrapper로 전달한다. 의도한 부분 초기화 실패도 실제 runtime을 감싸 계속 검증한다.
+이후 드러난 API-011의 CRUD 경로 나열 순서는 관찰자의 구성 순서에 의존하지 않도록 양쪽을 정렬했다.
+누락·추가·중복·method 변경을 보존하는 부정 대조를 추가했다. 제품 경로·인가·입력·저장 동작은 변경하지 않았다.
+
+고정 uv 0.10.12·Python 3.14.3·Django 6.1·DRF 3.18 환경에서 Python observer로 기준을 재생성했다.
+변경은 API-011의 bearer/session 두 경로 목록 순서뿐임을 JSON 전체 비교로 확인했다. 나머지 9개 관찰과
+profile·DB state·metrics·DEV-0009의 일곱 명시적 차이는 같다. Oracle SHA는
+`2a5a0ea5cb75893558716453b6ab65d1f3982819d04acc19cf73394e58e1d78d`이다.
+
+Go 1.26.5/darwin/arm64·공유 cache·offline graph에서 두 conformance package의
+`^Test(GDJ0047|RunGDJ0047)` 11개 root와 전체 subtest를 실행했다. 기존 10개 계약의 실제 HTTP/SQLite 상태·
+인증/권한/CSRF·취소·secret scan·독립 product expectation 비교와 새 경로 부정 대조를 포함한다.
+
+| Mode | run/pass | skip | 시간 | 원 JSON SHA-256 |
+|---|---:|---:|---:|---|
+| normal | 30/30 | 0 | 7.653s | `e0f2dd178fec4cf9444d9adeab7c27223f4bf84d434af28fcaaeb8999163c6e8` |
+| race | 30/30 | 0 | 22.456s | `d8e63dfbc005b59f0f74168afd0d690c3fde8d52d9f2301a4f2ffd5642aecc3b` |
+| CGO-disabled | 30/30 | 0 | 3.911s | `a387077d1b09089b568e270449d760e5a4211d593e8d1cb640419b6e08f11e32` |
+
+같은 frozen DRF 환경의 `test_api_authentication_scenarios`는 5 tests·0 skip·7.222s이며 원 로그 SHA는
+`5c7e18b3ab567866f6bf68943ce13bf9929abecd91ef97fe482ed6d71a0b4aca`다. 비Markdown 3193개 source inventory SHA는
+`040dffd93374d12e5fa54ff75c039c85d0e131e858956815b562f8fc42f9e292`이고 format/diff 검사를 통과했다.
+`typed-endpoint-auth-observer-20261007-152502/receipt.json` SHA는
+`69059bb6b52f822bcd44bb0e5435362170e8d0edd7e0a0fe24de7c3cf8a3ebb9`이다.
+모든 비Markdown 파일을 `f45eb512`의 Git blob과 대조하고 원 로그 checksum을 다시 확인한 source audit SHA는
+`35ee24b5665dc55439e64a0f02c9afc932dc9056fd657d33c9485e0ce22c7cd0`이다.
+첫 로컬 실행은 wrapper 보정 뒤 경로 순서 차이를 검출해 실패했고 그 로그를 보존했다. 기본 uv 0.12.3의
+reference 재생성은 profile guard가 거부했으며 기존 고정 uv 실행기로 재실행했다. 기준 비교 보조 script의 JSON
+최상위 key 오류는 생성된 원본을 보존한 채 고쳐 감사했다. 실패 결과를 PASS로 전이하지 않았다.
+
+별도 선행 source `def77d5e`의 Hosted `37569379536` attempt 1은 74/76 성공과 Intel Mac normal relation의
+package 35분 초과·최종 집계 실패로 끝났다. 당시 개별 실행 중 검사는 9초였고 단정할 assertion 실패는 없었다.
+같은 source·필수 검사·예산을 유지한 failed-only attempt 2를 한 번 시작했으며 아직 완료하지 않았다.
+보정 source의 전체 platform·capture/source 결합·필수 owner·최종 집계는 새 full 실행이 소유한다.
+
 ## GDJ-0117 — Typed 경로와 순서 입력 결합
 
 Source `55e0453d1838855672029c47ce567e83ffe6f14b`의 `PathInt64`/`PathString`은 기존 router 변환을 사용하고

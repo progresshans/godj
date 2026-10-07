@@ -46,4 +46,6 @@ GDJ-0117 source `55e0453d`의 영향 세 mode·양 DB·외부 compile·독립 cl
 GDJ-0116 source `18fc0451`은 영향 세 mode·양 DB·외부 compile·독립 client/drift와 정리를 완료했다. 선행 Hosted full `37569379536`은
 `def77d5e`의 GDJ-0112/0113/0114/0115만 검증하며 이 작업에 전이하지 않는다. 현재 외부 입력이 필요한 blocker는 없다.
 
-후속 전체 통합은 source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)에서 진행 중이다.
+Source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)은 인증 관찰자 연결 실패를 검출했다.
+보정 source `f45eb512`에서 실제 transport 설명과 구성 순서에 독립적인 경로 관찰을 연결하고 영향 세 mode·고정 reference 대조를
+완료했다. 후속 전체 통합은 보정 source의 새 실행이 소유하며 상세는 TEST_EVIDENCE를 따른다.

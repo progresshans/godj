@@ -4,8 +4,8 @@
 - 현재 작업: [GDJ-0117 Typed 경로와 단계 입력 결합](../../work/0117-typed-path-and-ordered-inputs.md)
 - 후속 전체 통합 대기: [GDJ-0116 Typed endpoint](../../work/0116-typed-endpoint-declarations.md), source `18fc0451`의 영향 세 mode·양 DB/client·drift/정리 완료
 - 통합 대기: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md), [GDJ-0115 Typed JSON 입력](../../work/0115-typed-json-body-inputs.md)
-- GDJ-0116/0117 Hosted full: [37579524401](https://github.com/progresshans/godj/actions/runs/37579524401), source `63478ee6743b6a1864b03eb34bb1d8d572968e47`
-- 진행 중인 Hosted full: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
+- GDJ-0116/0117 Hosted 보정: [37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)의 인증 관찰자 실패를 source `f45eb512`에서 수정하고 영향 검증 완료
+- 재시도 중인 선행 Hosted full: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
 - 최근 Hosted full 완료: [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161), source `720c9be6211f00a146a39d00957a81ce69ed294f`
 - 최근 완료: [GDJ-0111 QuerySet 갱신](../../work/0111-query-update-and-writable-expressions.md); GDJ-0109/0110도 같은 source에서 통합 완료
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -20,9 +20,9 @@ Source `55e0453d`의 영향 세 mode·양 DB·독립 client/compile·drift·고�
 ## 다음 행동
 
 선행 Hosted의 필수 owner·새 capture의 source 결합/소비·최종 집계를 확인한다.
-고정한 경로·단계 입력 source와 완료한 영향 검증을 Draft PR에 연결한다.
+인증 관찰자 보정 source와 영향 검증을 Draft PR 및 후속 Hosted full에 연결한다.
 다음으로 기존 bulk 흐름의 전체/항목 예산·indexed 진단·원자성을 유지하는 typed JSON 배열 입력을 연결한다.
-GDJ-0116/0117의 같은 source를 Hosted full `37579524401`에서 검증하고 필수 owner·capture 결합·최종 집계를 확인한다.
+GDJ-0116/0117 보정 source의 새 전체 실행에서 필수 owner·capture 결합·최종 집계를 확인한다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 
