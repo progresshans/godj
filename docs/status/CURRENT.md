@@ -2,7 +2,7 @@
 
 - 갱신: 2026-10-08
 - 현재 구현: [GDJ-0120 Typed 204 응답과 삭제 endpoint](../../work/0120-typed-no-content-responses.md)
-- GDJ-0120 최초 원격 실행: source `3ab717e1`의 [CI](https://github.com/progresshans/godj/actions/runs/37677328887)에서 드러난 Label 삭제 검사 준비를 보완
+- GDJ-0120 원격 실행: source `5c9f9a82`의 [CI](https://github.com/progresshans/godj/actions/runs/37681128457), API·SQLite 부분 성공과 SDK 진단·PostgreSQL 실행 목록 보완
 - 영향 검증 완료·전체 통합 보완: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI 실패](https://github.com/progresshans/godj/actions/runs/37660451511)
 - 검증 운영: PR 생성·push·재개와 main push에서 [전체 원격 CI](../TESTING.md)를 자동 실행한다. 로컬은 포맷·최소 compile와 실패 재현을 맡는다.
 - 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
@@ -21,8 +21,11 @@
 이 작업 사본은 GDJ-0120의 NoContent Output·Prepared와 endpoint/OpenAPI를 Article·Label 삭제에 연결했다.
 같은 Article 저장 경로의 Admin missing 변환도 직접 marker 계약에 맞췄다.
 최초 원격 실행에서 드러난 Label 삭제 검사의 site별 CSRF 발급·조회·문서 비교를 보완했다.
-수정한 삭제 회귀의 로컬 재현을 확인했으며 보완 source의 HTTP/DB·생성 drift·전체 통합은 원격 검증 대기다.
-선행 source의 원격 부분 성공과 이 변경의 새 검증 대상을 구분한다.
+보완 source의 API 세 모드와 Article·Helpdesk SQLite 소비자는 원격에서 통과했다.
+독립 SDK의 normal/CGO0도 통과했으나 race의 Identity 권한 삭제 검사는 실패했고 원인은 아직 확정하지 않았다.
+해당 실패의 요청 오류·응답 타입·context 상태 진단을 보완했으며 로컬 SDK race는 통과했다.
+PostgreSQL 세 모드의 영향 소비자는 통과했으나 존재하지 않는 Admin 중간 경로를 요구한 목록 검사에서 실패했다.
+실제 사례를 모두 보존해 필수 목록을 바로잡았다. 두 보완의 원격 실행과 전체 통합은 남아 있다.
 
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
 Namespace 보정 source `cc2c2f25`의 원격 Linux/amd64에서 typed API·독립 SDK의 normal/race/CGO0와
@@ -38,9 +41,10 @@ PR 자동 CI에서 현재 source의 전체 통합을 확인하며 이전 source�
 
 ## 다음 행동
 
-CGO0 분할 보완과 GDJ-0120을 포함한 PR source의 자동 CI에서 필수 job·capture·최종 집계를 확인한다.
+현재 PR source의 CI에서 PostgreSQL·CGO0 분할·필수 job·capture·최종 집계를 확인한다.
+독립 SDK 실패의 고정 진단과 PostgreSQL 목록 보완을 후속 원격 실행에 연결한다.
 기존 428/400/412 의미와 인증·경로/query·header·body·DB 순서를 실제 소비자와 독립 client로 확인한다.
-GDJ-0120 source를 게시한 뒤 삭제 전 응답 준비·확인된 commit·실패/unknown과 양 DB/client를 원격 CI에서 검증한다.
+삭제 전 응답 준비·확인된 commit·실패/unknown과 양 DB/client의 미완료 검증을 닫는다.
 Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
 의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
 

@@ -48,7 +48,8 @@ header wrapper를 빠뜨린 최초 compile 오류는 `.Response`로 수정한 �
 공통 marker 설명도 이미 실행 중인 직접 반환 계약에 맞췄다. 새 회귀는 양 DB의 실제 Admin login/CSRF/form에서
 Site 조회 뒤 missing, swallowed/joined/wrapped miss, callback 누락·commit 불명, 삭제 취소와 성공한 수정/삭제를
 검사한다. 저장 row와 한 번의 transaction/DML·확정 후의 정확한 메모리 audit, 실패 시 성공 redirect/audit 부재를 확인하도록 했다.
-두 기존 Session native owner에 parent/child 36개를 더해 GDJ-0120의 새 필수 경로는 총 102개다.
+당시 두 기존 Session native owner의 필수 목록에 36개를 더해 새 경로를 총 102개로 설정했다.
+이 중 실제로 실행되지 않는 중간 경로 네 개는 아래 원격 목록 검사에서 확인해 바로잡았다.
 이 후속 변경은 gofmt·examples/article/adminapp 및 examples/article의 `go test -run '^$'` 최소 compile,
 필수 목록 owner 검사 5 tests를 통과했다. 이 최소 compile는 새 HTTP/DB 테스트 본문을 실행하지 않은 검사이며,
 실제 실행은 다음 원격 결과와 구분한다.
@@ -87,6 +88,80 @@ Go 1.26.5/darwin/arm64·CGO=1·공유 cache·offline graph에서 실패한 하�
 최종 실행에서 SQLite 삭제의 16 cases가 모두 통과했고 package 결과는 PASS 2.470s였다.
 이 로컬 결과는 해당 실패 재현 범위이며 PostgreSQL·race/CGO0·전체 실행의 증거가 아니다.
 보완 source의 자동 원격 CI에서 실제 HTTP/양 DB·SDK와 전체 통합을 다시 확인한다.
+
+### 보완 source의 원격 실행과 독립 SDK 실패 진단
+
+선행 `3ab717e1`의 PostgreSQL normal/core `112984177789`와 CGO0/core `112984177794`에서도
+같은 Label 삭제 검사의 CSRF·정렬 오류를 확인했다. 해당 검사를 보완한 source
+`5c9f9a826657882a4af5d4cbba82582e491905bc`의 [자동 CI 37681128457](https://github.com/progresshans/godj/actions/runs/37681128457)
+attempt 1에서 새 실행 결과를 확인했다. 실제 checkout `69b059193aa07282005c9a5d4a25b29afa423480`의
+부모는 base `f8a5e20c`와 이 source이고, tree `735e0db2ab88e38bf572652ffebab05a08daac36`가 source tree와 같다.
+
+Portable API core의 normal/vet `112997897106`, race `112997897170`, CGO0 `112997897040`에서
+api/output·endpoint·parameters·openapi의 실제 uncached package 테스트가 모두 통과했다.
+같은 source의 integration 결과는 다음과 같다.
+
+| Mode | Job ID | 독립 SDK package | Article package | Helpdesk package | Job 결론 |
+| --- | --- | --- | --- | --- | --- |
+| normal | 112997897251 | PASS 21.710s | PASS 7.654s | PASS 72.002s | success |
+| race | 112997897175 | FAIL 142.615s | PASS 126.048s | PASS 645.523s | failure |
+| CGO0 | 112997897279 | PASS 32.791s | PASS 10.118s | PASS 96.414s | success |
+
+이 portable 실행은 실제 SQLite 소비자를 포함한다. PostgreSQL 실행 증거와 구분한다.
+SDK normal/CGO0는 여섯 실제 문서·고정 생성물 drift, 완료 영수증과 HTTP 뒤 부모의 native DB 검사를 통과했다.
+API 세 job과 integration 세 job의 source·checkout·로그 checksum을 연결한 요약의 SHA-256은
+`7c4ece12bf556c65ca6b3d7c0e832176875162297d8c8cb9a85888a7abced02e`다.
+
+SDK race는 `TestGeneratedOpenAPIClientContract`의 `identity permission host cascade`에서 실패했다.
+원 로그 SHA-256은 `d12f48d647433805bf7b87bfd3711c5c3b5788c50636473f1720e48512dad8f1`이다.
+해당 로그에는 data race 보고가 없고 요청 오류와 응답 타입 불일치가 같은 단계명으로 기록됐다.
+따라서 timeout이나 제품 결함으로 원인을 단정하지 않는다. SDK race 전체와 전체 CI의 PASS를 주장하지 않는다.
+
+변경 전 source에서 Go 1.26.5/darwin/arm64·CGO=1·공유 cache·offline graph로
+`GOTOOLCHAIN=local GOWORK=off GOFLAGS=-mod=readonly GOPROXY=off GONOPROXY=none GOSUMDB=off go test -race -count=1 -timeout=6m -run '^TestGeneratedOpenAPIClientContract$' ./api/openapi/consumertest`
+를 실행했고 PASS 20.287s로 원격 실패는 재현되지 않았다.
+
+실패한 삭제 호출의 deadline·cancel·기타 요청 실패·응답 타입을 고정 단계명으로 구분하도록 진단을 보완했다.
+Child 전체 context가 종료된 경우에는 정해진 상태 한 줄만 덧붙이며, 부모는 소스에 있는 단계명과
+이 두 context 상태의 정확한 조합만 읽는다. 알 수 없는 상태·중복·추가 출력은 진단으로 채택하지 않는다.
+요청 URL·응답 body·인증정보·임의의 오류 문자열은 추가하지 않았다. 기존 child 전체 45초·HTTP 요청 10초·부모 5분,
+성공 영수증과 race 계측·실제 저장 확인 조건을 유지했다.
+
+진단 보완 뒤 같은 환경에서 selector 없이 `go test -race -count=1 -timeout=6m ./api/openapi/consumertest`를
+위 offline 설정으로 실행해 PASS 23.084s를 확인했다. 실제 여섯 profile의 drift·SDK HTTP/native DB와
+알 수 없는 출력의 거부 회귀를 포함한다. 이 로컬 성공은 원격 원인 확정이나 새 source의 Hosted 성공 증거가 아니다.
+현재 원격 실행의 PostgreSQL·Intel CGO0 분할·나머지 owner와 최종 집계는 계속 확인해야 하며,
+진단 보완은 후속 source의 원격 실행 대상이다.
+
+### PostgreSQL 실제 실행과 필수 경로 보완
+
+같은 source `5c9f9a82`의 PostgreSQL 세 mode/core는 실제 테스트 뒤 필수 목록 검사에서 실패했다.
+`verifyArticleAdminMutationOutcomes`는 `t.Run(operation+"/"+mode)`로 사례를 실행하므로
+`admin_mutation_outcomes/change`·`delete`만의 실행 이벤트는 없다. 기존 목록에는 양 DB의 이 네 중간 경로가 들어 있었다.
+
+세 job의 같은 run/source artifact에서 원본 JSON 전체를 받아 archive digest,
+실제 checkout·실행 plan·필수 목록·원 로그를 대조했다. 아래 실제 run/pass는 각각 한 번씩 완료됐고
+skip·실패·잘린 package 결과는 없었다. 매 mode에서 위 네 경로만 누락됐으며, 이를 제외한 목록을
+원 JSON의 전체 실행과 대조했다. 새 삭제/Admin 경로 98개는 세 mode 모두 실제 통과했다.
+
+| Mode / core | Job ID | Packages | 실제 run/pass | 실제 존재하는 필수 경로 | 새 삭제/Admin |
+| --- | --- | --- | --- | --- | --- |
+| normal | 112997897399 | 16 | 6,007 / 6,007 | 3,130 | 98 / 98 |
+| race | 112997897363 | 7 | 5,905 / 5,905 | 3,065 | 98 / 98 |
+| CGO0 | 112997897321 | 16 | 6,007 / 6,007 | 3,130 | 98 / 98 |
+
+Race의 나머지 필수 경로는 기존 core-consumers·core-processes owner가 맡으며 이 table의 범위가 아니다.
+각 검증 요약 SHA-256은 normal `452288bb60562b1b7177f83809e4ea8f0e7da4d181415732919603567270c138`,
+race `e23d495a1f070f2cfc4aa87f57a32ac68e22fbdebc76b95452bd9109cff1fac5`,
+CGO0 `e6fd4fce78cb3736c5a28959fc833d7d02c741c0cb8215d61502ef3c9b1f159f`다.
+이는 실제 테스트의 부분 실행 근거다. 세 job은 failure이며 뒤의 normal capture 게시·재시작 검증·최종 CI 성공은 포함하지 않는다.
+
+필수 목록에서 실제로 존재하지 않는 네 항목만 제거했다. 기존 3,032개와 새 실제 98개,
+Admin의 양 DB 각각 15개 사례와 enclosing owner, 세 mode의 고유 실행 소유권을 보존했다.
+테스트 코드·사례·assertion은 삭제하거나 바꾸지 않았다. 목록 차이·모든 기존 항목 보존·정확한 Admin 사례 집합과
+`scripts/ci/test_postgres_shards.py -v`의 5 tests를 통과했다. 보완한 3,130개 목록의 SHA-256은
+`9f98d4517ec71a754f5545534f95d512f6d8f72f914a7192aacc6094ce6bd33b`다.
+보완 source의 원격 목록 gate와 독립 SDK race 전체는 별도로 확인해야 한다.
 
 ## GDJ-0119 — Typed header와 Identity revision 조건
 

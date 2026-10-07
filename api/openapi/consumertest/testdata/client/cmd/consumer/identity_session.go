@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -368,8 +369,17 @@ func identityHostDeletion(ctx context.Context, client *is.Client, target identit
 		return fail("identity group host set null")
 	}
 	deletedPermission, err := client.GodjIdentityIdentityPermissionsDelete(ctx, is.GodjIdentityIdentityPermissionsDeleteParams{ID: target.CascadePermissionID, IfRevision: 1})
-	if _, ok := deletedPermission.(*is.GodjIdentityIdentityPermissionsDeleteNoContent); err != nil || !ok {
-		return fail("identity permission host cascade")
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fail("identity permission host cascade request deadline")
+		}
+		if errors.Is(err, context.Canceled) {
+			return fail("identity permission host cascade request canceled")
+		}
+		return fail("identity permission host cascade request failed")
+	}
+	if _, ok := deletedPermission.(*is.GodjIdentityIdentityPermissionsDeleteNoContent); !ok {
+		return fail("identity permission host cascade response type")
 	}
 	return nil
 }

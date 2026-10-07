@@ -231,6 +231,10 @@ CGO_ENABLED=0 go test -count=1 ./api/openapi/consumertest
 위 테스트는 갱신한 원본 문서·고정 생성기·정확한 생성 파일 집합과 실제 HTTP client를 함께 확인한다.
 CI integration target의 normal/race/CGO=0 실행도 같은 package를 포함한다. 생성물과 문서를 변경한 소스와 함께 commit한다.
 
+Client 실패는 소스에 선언된 고정 단계명으로 진단한다. 전체 context가 종료됐으면 정해진 deadline/cancel 상태만
+덧붙이며 부모는 정확한 조합만 인정한다. 요청 URL·인증정보·응답 body나 임의의 오류 문자열은 진단에 추가하지 않는다.
+Child 전체 45초, 개별 HTTP 요청 10초, 생성·빌드까지 포함하는 부모 5분의 한도는 각각 유지한다.
+
 Duration은 canonical `[days ]HH:MM:SS[.ffffff]` string·pattern·length와 nullable branch를 사용한다.
 음수·SQLite int64 양 끝·소수초·생략/null의 실제 HTTP와 DB, required response와 request.Validate를 독립 client로 확인한다.
 서버의 더 넓은 duration input grammar와 생성 client의 canonical string 계약은 구분한다.

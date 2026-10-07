@@ -101,6 +101,11 @@ func entrypoint() (status int) {
 	checks, err := run(ctx, config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			fmt.Fprintln(os.Stderr, "consumer context: deadline exceeded")
+		} else if errors.Is(ctx.Err(), context.Canceled) {
+			fmt.Fprintln(os.Stderr, "consumer context: canceled")
+		}
 		return status
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(report{Checks: checks, Race: raceEnabled}); err != nil {
