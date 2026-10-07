@@ -3,6 +3,35 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0112~0115 — 그룹과 typed 출력/query/body의 Hosted 전체 통합 완료
+
+2026-10-07 KST, source `def77d5e1c949a87d538181d05a72a3c75e97201`의
+[Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536) attempt 2가 성공했다.
+Attempt 1의 Intel Mac normal relation package 시간 초과와 집계 실패를 보존했고, 같은 source·필수 검사·35분
+package 예산의 failed-only 재시도에서 해당 job과 최종 집계가 통과했다. 재시도 job `112658418559`는
+06:24:38~06:59:57 UTC에 실행했다. 기존 74개 성공은 같은 source의 원 실행에서 재사용하고 새 성공 2개를 합쳤다.
+GitHub API의 152개 기록에서 재사용 관계를 추적해 독립 최종 owner 76개를 각각 한 번씩 확인했다.
+
+완료 범위는 이 source가 포함한 GDJ-0112 그룹 집계/업무 요약, GDJ-0113 typed 출력, GDJ-0114 typed query와
+GDJ-0115 typed JSON 입력이다. 후속 GDJ-0116/0117과 현재 배열 입력 작업의 전체 검증으로 전이하지 않는다.
+12개 relation platform/mode 좌표(24 jobs)에서 실제 생성 소비자 root 87개의 완전한 분할을 확인했다.
+Go inventory report 81개와 PostgreSQL required path 2794개를 source의 실행계획·원 JSON·no-skip 검증으로 대조했다.
+PostgreSQL normal/CGO=0 core는 각각 5665 run/pass·16 packages, race core의 세 shard 합도 5665 run/pass다.
+각 mode의 operator-target는 별도로 12 run/pass·2 packages이며 PostgreSQL 전체에서 skip은 0이다.
+
+고정 Python profile와 compatibility matrix, 32-bit conformance, cold external CLI milestone, 26개 product suite를
+원 로그와 필수 step 완료로 확인했다. Capture 두 개는 같은 run의 attempt 1 producer/consumer에서 실제 게시·소비했고,
+원본 artifact 14개의 ZIP digest/크기와 source archive의 3361개 Git blob·mode를 확인했다. System-state capture는
+757 files/7,683,565 bytes/source SHA `f6db001dcd1707b1be65247a0cb7a93bc874e58e2dd09f9e388ae6ea8af8f3a9`,
+operator capture는 836 files/7,555,001 bytes/source SHA `eea20db55e077ceb1d0f5490117120c5585bec18bca359e2e525d9c1e0498a26`다.
+각 실제 Go source를 독립 checksum으로 다시 결합했다. S3 normal/race/core-consumers/CGO=0의 고정 build와
+child/server 종료·reap·graceful cleanup도 확인했다. 최종 집계는 8개 필수 owner와 `full_platform_verified: true`다.
+
+`hosted-full-attempts-37569379536/audit.json` SHA는
+`df104820f97e4ac1c5bcfe3715a6c31dfe3a47f58ab009a276b3e745643df51f`이다. 원 job별 로그 묶음 SHA는
+`cae534df7d6bcf335e13e9461f6107fc0443134489f27fd4a540de00d374fe3b`, source archive SHA는
+`91a0efaeadc3aa32ebbc95c469e04a3ae6529cc288a11366a0762d7579d34823`다. 같은 전체 검증을 로컬에서 반복하지 않았다.
+
 ## GDJ-0116/0117 — 기준 결과의 checksum 연결 보완
 
 2026-10-07 KST, Hosted full `37581945355`의 Python compatibility 세 버전과 relation product에서

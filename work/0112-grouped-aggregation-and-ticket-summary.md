@@ -1,7 +1,7 @@
 ---
 id: GDJ-0112
-status: active
-updated: 2026-10-06
+status: complete
+updated: 2026-10-07
 baseline_commit: "60c6395ff95896591bc8be1d6b898e1e8ad198c6"
 integration_owner: "root"
 ---
@@ -52,6 +52,6 @@ Query 복사, 입력과 출력의 가변 값, cache 공유·취소·rows/transac
 공통 AST·두 compiler·typed/dynamic ORM·생성 facade와 독립 생성 소비자를 구현하고 양 DB·세 mode의 영향 검사,
 발행/생성 drift·전체 compile을 확인했다. 설계 경계는 [ADR-0091](../docs/adr/0091-grouped-results-and-having.md)에
 기록한다. Helpdesk 업무 요약의 HTML/API/client와 실제 브라우저 흐름을 연결했고 영향 세 mode·정적 검사·
-필수 실행·DB 정리를 완료했다. 후속 source의 전체 platform 통합은 명시한 다음 Hosted milestone에서 확인하며,
-현재 진행 중인 선행 source 결과로 대체하지 않는다.
-현재 외부 입력이 필요한 blocker는 없다.
+필수 실행·DB 정리를 완료했다. Source `def77d5e1c949a87d538181d05a72a3c75e97201`의 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)
+attempt 2에서 필수 owner·capture/source 결합·최종 집계까지 완료했다. GDJ-0112~0115의 통합 증거이며
+후속 기능의 검증으로 전이하지 않는다. 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.

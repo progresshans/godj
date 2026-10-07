@@ -1,7 +1,7 @@
 ---
 id: GDJ-0114
-status: active
-updated: 2026-10-06
+status: complete
+updated: 2026-10-07
 baseline_commit: "8ecc3152af2cdc3efa5250c5acb1fd2705f71bef"
 integration_owner: "root"
 ---
@@ -45,9 +45,8 @@ Django parsing 의미를 채택하거나 JSON body/model binder·header/path 입
 - [x] 요약 HTML/API와 두 페이지 API의 실제 typed DTO 연결
 - [x] 독립 compile 거부·값/오류/소유권·실제 HTTP/생성 client 대조
 - [x] 필요한 영향 세 mode·양 DB·drift와 문서/실행 증거 기록
-- [ ] 선행 그룹/typed 출력과 함께 후속 source의 통합 milestone 전체 platform/Hosted 확인
+- [x] 선행 그룹/typed 출력과 함께 후속 source의 통합 milestone 전체 platform/Hosted 확인
 
-선행 Hosted [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)은
-`720c9be6211f00a146a39d00957a81ce69ed294f`만 검증한다. 현재 기능의 전체 local/Hosted를 중복하지 않고
-관련 영향 검사와 필요한 통합 milestone을 분리한다. 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md),
-활성 상태는 [CURRENT](../docs/status/CURRENT.md)에 둔다. 현재 외부 입력이 필요한 blocker는 없다.
+Source `def77d5e1c949a87d538181d05a72a3c75e97201`의 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)
+attempt 2에서 필수 owner·capture/source 결합·최종 집계까지 완료했다. GDJ-0112~0115의 통합 증거이며
+후속 기능의 검증으로 전이하지 않는다. 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.

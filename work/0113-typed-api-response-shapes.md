@@ -1,7 +1,7 @@
 ---
 id: GDJ-0113
-status: active
-updated: 2026-10-06
+status: complete
+updated: 2026-10-07
 baseline_commit: "2be7433d0d310ee0c8cbc39bee09670285bc7407"
 integration_owner: "root"
 ---
@@ -42,11 +42,8 @@ OpenAPI component identity·cycle/resource 검사, 실제 authentication operati
 - [x] 실제 Helpdesk 요약/상세 API를 같은 출력 계약으로 연결하고 선언 중복 제거
 - [x] 독립 compile 거부·runtime/schema·실패/취소/복사/동시성 대조와 실제 client
 - [x] 필요한 영향 세 mode·양 DB·drift와 현행 의미/실행 증거 기록
-- [ ] GDJ-0112와 연결한 후속 source의 통합 milestone 전체 platform/Hosted 확인
+- [x] GDJ-0112와 연결한 후속 source의 통합 milestone 전체 platform/Hosted 확인
 
-선행 Hosted full [37365281161](https://github.com/progresshans/godj/actions/runs/37365281161)은
-`720c9be6211f00a146a39d00957a81ce69ed294f`만 검증하며 이 작업이나 GDJ-0112에 전이하지 않는다.
-GDJ-0112와 이 기반을 연결한 source의 전체 platform 검증은 다음 통합 milestone에서 소유한다.
-로컬은 관련 package/소비자의 영향 검사와 필요한 DB·race·CGO=0을 사용하고 전체/cold를 중복하지 않는다.
-실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 활성 상태는 [CURRENT](../docs/status/CURRENT.md)에 둔다.
-제품·소비자와 영향 검증은 완료했고 후속 source의 통합 milestone은 남아 있다. 현재 외부 입력이 필요한 blocker는 없다.
+Source `def77d5e1c949a87d538181d05a72a3c75e97201`의 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)
+attempt 2에서 필수 owner·capture/source 결합·최종 집계까지 완료했다. GDJ-0112~0115의 통합 증거이며
+후속 기능의 검증으로 전이하지 않는다. 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0115
-status: active
+status: complete
 updated: 2026-10-07
 baseline_commit: "32ad43bd934789dfb9ba3174bf43ac89a50b51e8"
 integration_owner: "root"
@@ -54,12 +54,9 @@ Header/path·endpoint DSL·viewset·배포 SDK 전체의
 - [x] Spec/IR 기반 typed body와 presence·현재 scalar/collection 변환·같은 schema
 - [x] Label/ServiceReport의 실제 full/partial·업무 명령 연결
 - [x] 외부 compile·진단/소유권·actual HTTP/client·필요한 영향 세 mode/양 DB/drift·정리
-- [ ] 그룹/typed 출력/query/body를 포함하는 후속 source의 전체 platform/Hosted 통합
+- [x] 그룹/typed 출력/query/body를 포함하는 후속 source의 전체 platform/Hosted 통합
 
-완성한 묶음의 공통 runtime·양 DB 업무/독립 client·외부 compile과 static/drift·정리를 영향 세 mode에서 확인했다.
-현재 비Markdown source도 검증 inventory와 일치한다. Source `def77d5e1c949a87d538181d05a72a3c75e97201`의
-[Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)을 시작했고 plan 통과·실제 job 진입을 확인했다.
-전체 owner·capture/source 결합과 소비·최종 집계는 진행 중이다.
-선행 Hosted `37365281161`은 전체 통합을 완료했으며 source는 `720c9be6211f00a146a39d00957a81ce69ed294f`다.
-이 작업과 GDJ-0112/0113/0114의 결과로 계산하지 않는다. 전체 local/Hosted를 중복하지 않고 명시한 통합 milestone이
-전체 환경을 소유한다. 현재 외부 입력이 필요한 blocker는 없다.
+공통 runtime·양 DB 업무/독립 client·외부 compile과 static/drift·정리를 영향 세 mode에서 확인했다.
+Source `def77d5e1c949a87d538181d05a72a3c75e97201`의 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)
+attempt 2에서 필수 owner·capture/source 결합·최종 집계까지 완료했다. GDJ-0112~0115의 통합 증거이며
+후속 기능의 검증으로 전이하지 않는다. 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
