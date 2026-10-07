@@ -232,9 +232,13 @@ python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
 `postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
 
 PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, generated consumer,
-process product를 core/core-consumers/core-processes로 나눈다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
-필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속해야 하며, 새 child sentinel도 같은 package의 owner가 맡는다.
-누락·중복·모호한 package와 빈 partition은 실패다. Package별 18분 timeout과 no-skip 검사는 유지한다.
+process product를 core/core-consumers/core-processes로 나누고, Helpdesk의 PostgreSQL 소비자 root는
+core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
+두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
+필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
+누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
+Package별 18분 timeout과 no-skip 검사를 유지하며,
+generated consumer의 core-consumers race만 기존 30분 한도를 사용한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.
 원 Go JSON/stderr·필수 목록·partition 계획은 성공 여부와 관계없이 `postgres-product-<mode>-<shard>-<attempt>`에 보존한다.
 취소 실행의 불완전한 로그는 진단 자료이며 package 완료나 필수 실행 PASS를 대신하지 않는다.

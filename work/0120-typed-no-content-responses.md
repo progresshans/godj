@@ -42,3 +42,8 @@ Transfer-Encoding은 [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html#sect
 
 선행 GDJ-0119 source `cc2c2f25`의 부분 성공과 이 작업의 새 검증 대상을 구분한다.
 Intel CGO0 분할 보완을 포함한 PR source의 자동 전체 CI가 이번 변경의 실행을 검증한다.
+Source `0ea94a3e`에서 API·독립 SDK와 SQLite 소비자의 세 모드, Linux/amd64 normal·CGO0 공개 compile,
+PostgreSQL normal·CGO0의 필수 목록까지 통과했다. PostgreSQL race/core는 Helpdesk package의 누적 timeout으로
+실패했다. PostgreSQL 소비자 root를 별도 race 작업으로 옮겨 필수 목록과 시간 한도를 보존했다.
+새 분할의 실제 실행과 전체 통합은 미완료이며 상세 source·job·로그 대조와 분할 검사는
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다.

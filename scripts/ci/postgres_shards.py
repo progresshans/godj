@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Own every PostgreSQL core sentinel exactly once in each execution mode.
 
-Race partitions separate framework, generated consumers and process products.
+Race partitions separate framework, the Helpdesk PostgreSQL consumer,
+generated consumers and process products.
 Normal/CGO-disabled retain one core owner; the normal capture producer is stable.
 The required manifest stays authoritative for tests, including child-only roots.
 """
@@ -24,7 +25,14 @@ PROCESSES = (
     './conformance/systemstate/product', './conformance/systemstate/restart',
     './conformance/runserverproduct',
 )
-PARTITIONS = {'core': FRAMEWORK, 'core-consumers': CONSUMERS, 'core-processes': PROCESSES}
+HELPDESK_POSTGRES_PACKAGE = MODULE + 'examples/helpdesk'
+HELPDESK_POSTGRES_ROOT = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+PARTITIONS = {
+    'core': FRAMEWORK,
+    'core-helpdesk-postgres': ('./examples/helpdesk',),
+    'core-consumers': CONSUMERS,
+    'core-processes': PROCESSES,
+}
 ALL_PACKAGES = (*FRAMEWORK, *CONSUMERS, *PROCESSES)
 
 
@@ -58,6 +66,14 @@ def plan(mode, shard, entries):
         raise ValueError('only race core has multiple partitions')
     packages = ALL_PACKAGES if mode != 'race' else PARTITIONS[shard]
     selected = [entry for entry in entries if any(matches(entry.partition('|')[0], pattern) for pattern in packages)]
+    if mode == 'race' and shard in ('core', 'core-helpdesk-postgres'):
+        # The SQLite and PostgreSQL consumers share a Go package timeout.
+        # Move the whole PostgreSQL root, including future child sentinels.
+        def is_helpdesk_postgres(entry):
+            package, _, test = entry.partition('|')
+            return package == HELPDESK_POSTGRES_PACKAGE and test.split('/')[0] == HELPDESK_POSTGRES_ROOT
+
+        selected = [entry for entry in selected if is_helpdesk_postgres(entry) == (shard == 'core-helpdesk-postgres')]
     if not selected:
         raise ValueError('PostgreSQL partition has no required execution')
     return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,
@@ -67,10 +83,20 @@ def plan(mode, shard, entries):
 def audit(entries):
     for mode in ('normal', 'race', 'cgo0'):
         shards = PARTITIONS if mode == 'race' else ('core',)
-        owned = Counter(entry for shard in shards for entry in plan(mode, shard, entries)['required'])
+        partitions = [plan(mode, shard, entries) for shard in shards]
+        owned = Counter(entry for partition in partitions for entry in partition['required'])
         if owned != Counter({entry: 1 for entry in entries}):
             raise ValueError('PostgreSQL mode does not own every required test exactly once')
-    return {'required_tests': len(entries), 'modes_verified': 3, 'core_coordinates': 5}
+        for partition in partitions:
+            # Go applies one root regex to every selected package. A repeated
+            # root name in another package must not reselect an excluded root.
+            roots = {entry.partition('|')[2].split('/')[0] for entry in partition['required']}
+            selected = [entry for entry in entries
+                        if entry.partition('|')[2].split('/')[0] in roots
+                        and any(matches(entry.partition('|')[0], pattern) for pattern in partition['packages'])]
+            if selected != partition['required']:
+                raise ValueError('PostgreSQL test selector reaches another partition')
+    return {'required_tests': len(entries), 'modes_verified': 3, 'core_coordinates': len(PARTITIONS) + 2}
 
 
 def main():

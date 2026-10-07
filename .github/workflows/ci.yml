@@ -931,6 +931,9 @@ jobs:
             shard: core
             timeout_minutes: 60
           - mode: race
+            shard: core-helpdesk-postgres
+            timeout_minutes: 60
+          - mode: race
             shard: core-consumers
             timeout_minutes: 40
           - mode: race
@@ -993,7 +996,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-consumers|core-processes)
+            core|core-helpdesk-postgres|core-consumers|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"

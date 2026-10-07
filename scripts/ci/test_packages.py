@@ -233,7 +233,8 @@ class ExecutionOwnerTests(unittest.TestCase):
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
         coordinates = [('normal', 'core', '18m'), ('normal', 'operator-target', '18m'),
-                       ('race', 'core', '18m'), ('race', 'core-consumers', '30m'),
+                       ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
+                       ('race', 'core-consumers', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
                        ('cgo0', 'core', '18m'), ('cgo0', 'operator-target', '18m')]
         for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
@@ -254,6 +255,39 @@ class ExecutionOwnerTests(unittest.TestCase):
                     self.assertRegex(name, pattern)
                 self.assertNotRegex('TestUnrelatedUnregisteredProduct', pattern)
                 self.assertEqual(len(expected), len(pattern.removeprefix('^(').removesuffix(')$').split('|')))
+
+    def test_postgres_race_helpdesk_roots_run_in_separate_workflow_invocations(self):
+        from postgres_shards import plan, required_entries
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/ci.yml').read_text()
+        start = workflow.index('          required_tests=()')
+        selection = workflow[start:workflow.index('          case "$mode" in', start)]
+        entries = required_entries(root / 'scripts/ci/postgres-core-required.txt')
+        helpdesk = MODULE + 'examples/helpdesk|'
+        all_roots = {entry.removeprefix(helpdesk).split('/')[0] for entry in entries if entry.startswith(helpdesk)}
+        postgres = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+        seen = set()
+        for shard, expected in (('core', all_roots - {postgres}), ('core-helpdesk-postgres', {postgres})):
+            with self.subTest(shard=shard):
+                required = plan('race', shard, entries)['required']
+                script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'
+                script += f'mode=race\nshard={shard}\n'
+                script += selection + '\nprintf "%s\\n" "${test_flags[@]}"\n'
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
+                                        input='\n'.join(required) + '\n', cwd=root,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(0, result.returncode, result.stderr)
+                flags = result.stdout.splitlines()
+                self.assertEqual(['-p=1', '-timeout=18m', '-json', '-count=1', '-run'], flags[:-1])
+                pattern = flags[-1]
+                for name in all_roots:
+                    if name in expected:
+                        self.assertRegex(name, pattern)
+                    else:
+                        self.assertNotRegex(name, pattern)
+                self.assertFalse(seen.intersection(expected))
+                seen.update(expected)
+        self.assertEqual(all_roots, seen)
 
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected

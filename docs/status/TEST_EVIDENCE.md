@@ -163,6 +163,76 @@ Admin의 양 DB 각각 15개 사례와 enclosing owner, 세 mode의 고유 실�
 `9f98d4517ec71a754f5545534f95d512f6d8f72f914a7192aacc6094ce6bd33b`다.
 보완 source의 원격 목록 gate와 독립 SDK race 전체는 별도로 확인해야 한다.
 
+### Source `0ea94a3e`의 원격 후속 검증
+
+목록·진단 보완 source `0ea94a3eb7ca1d7447dd45575885226007fd1367`를 게시한 뒤
+[자동 CI 37685450605](https://github.com/progresshans/godj/actions/runs/37685450605) attempt 1의 결과를 확인했다.
+실제 PR checkout은 `752fe99b0c2a0e3036c5fc198a7408e3647e4c8d`이며 부모는 base `f8a5e20c`와 이 source다.
+Tree `7d4bb3276b32675ecf2e3c7ced948b4428715545`가 source tree와 같고 각 아래 job의 실제 checkout도 같음을 확인했다.
+Go 1.26.5/Linux amd64에서 현재 source의 실제 API·SDK 실행 결과는 다음과 같다.
+
+| Mode | API core job | Integration job | SDK | Article | Helpdesk |
+| --- | --- | --- | --- | --- | --- |
+| normal/vet | 113012716425 | 113012716400 | PASS 33.295s | PASS 10.863s | PASS 93.477s |
+| race | 113012716743 | 113012716761 | PASS 144.227s | PASS 127.533s | PASS 644.701s |
+| CGO0 | 113012716667 | 113012716375 | PASS 31.395s | PASS 10.470s | PASS 94.666s |
+
+API core 세 job은 api/output·endpoint·parameters·openapi를 실제로 실행했다. Integration 세 job은 여섯 실제 문서와
+고정 생성물의 drift·독립 SDK의 전체 완료 영수증·HTTP 뒤 native DB 확인과 SQLite 소비자를 통과했다.
+각 job의 uncached package 결과·필수 step·깨끗한 worktree와 source 연결을 대조한 여섯 요약의 통합 SHA-256은
+`445fc9192d9179a34e9bfb9ec3eaec609018d5724fe95c4f97498e825f7552d1`이다.
+이 실행에서 SDK race 실패는 재발하지 않았다. 선행 `5c9f9a82`의 실패 원인을 timeout으로 확정하거나
+제품 결함을 고쳤다는 의미는 아니며 기존 실패 기록과 고정 진단을 유지한다.
+
+Linux/amd64 relation normal `113012717726`과 CGO0 `113012717684`도 통과했다. 각 job은 49 packages의
+8,784개 run/pass·skip 0, 필수 2,470개와 생성 consumer root 87개를 확인했다. 실제 binary discovery로 만든
+실행 plan과 현재 필수 목록·source를 대조했다. 공개 NoContent endpoint의 정상 fixture와 DTO 불일치의
+compile-negative fixture가 실행된 필수 compile owner에 포함됨도 확인했다.
+각 요약 SHA-256은 normal `9ac62b86811202d5942f8a2d0f2295dff19d782bc1e62943d28470c85de443de`,
+CGO0 `c727432521b70cdc1e849849b80c0f3d6aac5ce7f8cd7fe956081eab457dceba`다.
+
+PostgreSQL normal/core `113012716738`와 CGO0/core `113012716169`는 보완한 필수 목록 gate까지 통과했다.
+각 실제 JSON의 16 packages·6,007개 run/pass·skip 0와 필수 3,130개, 새 삭제/Admin 경로 98개를 확인했다.
+Archive digest·job/source/checkout·plan·필수 목록·각 테스트의 단 한 번 실행과 완료를 함께 대조했다.
+검증 요약 SHA-256은 normal `754fdd9c50f9b98f88d10f652ce7b708c4393c931a8b64997bf2f3975ad10331`,
+CGO0 `eecc2f660c7467b673863e53efaef3d9360a87a910bc72d574c158787338358f`다.
+Normal의 실제 실행 step과 capture 게시·worktree 확인·container 정리도 성공했다.
+이 부분 성공을 전체 platform 완료로 올리지 않는다. 위 검증 중 제품 소스 변경이나 로컬 Go 재실행은 없었다.
+
+### PostgreSQL race의 package 누적 timeout과 실행 분할
+
+같은 실행의 PostgreSQL race/core `113012716067`은 Helpdesk package의 `18m0s` timeout으로 실패했다.
+필수 목록 gate 이전의 Go 실행 실패다. 같은 run/source의 `postgres-product-race-core-1` artifact
+`11513920555`의 archive digest `881dc55ae7b310c996e8d6c07836e17eea1df2da1a00e8cdf1e99c865ab2cba5`와
+원 JSON SHA-256 `4fd4f026ca133d0be2bf3688720972fe9186bddf01aa67797fc5b0b12c2fe75d`를 확인했다.
+화면 진단은 60,000 bytes에서 잘렸으므로 원 JSON 23,661개 이벤트 전체로 원인을 대조했다.
+
+Helpdesk의 helper 네 개가 완료된 뒤 SQLite public 소비자는 PASS 573.37s였다. 다음 PostgreSQL public
+소비자는 약 477초 실행된 시점에 package 전체의 18분 한도가 끝났고 package는 FAIL 1080.037s였다.
+따라서 한 PostgreSQL 하위 사례가 18분 동안 멈춘 것으로 해석하지 않는다. 이 원 로그에는 assertion 실패나
+data race 보고가 없으며, PostgreSQL root의 완료와 새 삭제/Admin 98개 전체의 race PASS를 주장할 수 없다.
+선행 `5c9f9a82`에서 두 소비자가 완료됐던 사실도 이 실패 실행의 증거를 대신하지 않는다.
+의존한 reference/capture 소비 job은 skipped이며 이 source의 전체 platform 성공 조건은 충족되지 않았다.
+
+보완은 race에서 `examples/helpdesk`의 `TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance`와
+그 모든 필수 child를 `core-helpdesk-postgres` 작업으로 옮긴다. 기존 core는 다른 framework package와
+Helpdesk SQLite·helper를 맡는다. Root/package의 정확한 일치를 사용하며 root만 같은 다른 package가
+공통 `-run` regex로 제외된 소비자를 다시 선택할 수 있으면 계획 검사를 실패시킨다.
+Normal/CGO0의 package·필수 순서, normal capture 생산·service restart, S3 owner, no-skip 검사를 유지했다.
+새 race 작업의 Go package 한도는 기존 18분, job 한도는 core와 같은 60분이다. 기존 한도를 늘리지 않았다.
+제품 Go 코드·테스트 사례·assertion·3,130개 필수 manifest는 이 보완에서 변경하지 않았다.
+
+로컬 계획 검사에서 기존 3,032개와 새 삭제/Admin 98개를 세 mode마다 정확히 한 번 소유함을 확인했다.
+Race의 core/core-helpdesk-postgres/core-consumers/core-processes는 각각 2,460/605/55/10개 필수 경로를
+맡으며 새 삭제/Admin 98개는 첫 두 작업에 81/17개로 나뉜다. 실제 workflow의 shell selector를 실행해
+Helpdesk의 여섯 root가 5/1로 분리되고 18분 한도가 유지됨을 검사했다. 새 child·비슷한 이름·다른 package의
+동일 root 충돌·누락/중복/빈 partition 거부도 포함한다.
+`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts/ci python3 -m unittest test_postgres_shards test_packages test_workflow`의
+25 tests와 문서 202개 링크·`git diff --check`가 통과했다. 실패 로그와 수정 파일 hash를 연결한 로컬 계획 요약 SHA-256은
+`cae8c7938deb6ce88d90b665108b93d42125fab3da155235bd67a3a308747ff0`다.
+이 결과는 분할 계획의 로컬 검증이며 새 작업의 Hosted 실제 완료를 뜻하지 않는다. 새 PR source에서
+두 소비자의 완료·모든 필수 경로·Intel CGO0 분할·same-run capture 소비·전체 CI의 최종 결론을 확인해야 한다.
+
 ## GDJ-0119 — Typed header와 Identity revision 조건
 
 2026-10-08 KST, 기준 `632cf6db3feafd9622d230170e8eddee73a2545a`의 작업 사본에서 Header·Endpoint 결합과

@@ -17,6 +17,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
+        self.assertEqual(6, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assertEqual(self.required, plan(mode, 'core', self.required)['required'])
             self.assertEqual(list(ALL_PACKAGES), plan(mode, 'core', self.required)['packages'])
@@ -39,6 +40,40 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 self.assertEqual(shard == owner, entry in plan('race', shard, required)['required'])
         self.assertFalse(matches(MODULE + 'conformance/postgresproducthelper', './conformance/postgresproduct/...'))
 
+    def test_helpdesk_postgres_root_and_children_have_a_separate_race_owner(self):
+        root = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+        for package, test, owner in (
+            ('examples/helpdesk', root + '/new_capability/deep_child', 'core-helpdesk-postgres'),
+            ('examples/helpdesk', root + 'Extra/new_child', 'core'),
+            ('examples/article', root + 'Extra/another_package', 'core'),
+        ):
+            entry = MODULE + package + '|' + test
+            required = [*self.required, entry]
+            with self.subTest(entry=entry):
+                audit(required)
+                for shard in PARTITIONS:
+                    self.assertEqual(shard == owner, entry in plan('race', shard, required)['required'])
+                for mode in ('normal', 'cgo0'):
+                    self.assertEqual(required, plan(mode, 'core', required)['required'])
+        postgres = MODULE + 'examples/helpdesk|' + root
+        selected = plan('race', 'core-helpdesk-postgres', self.required)
+        self.assertEqual(['./examples/helpdesk'], selected['packages'])
+        self.assertEqual([entry for entry in self.required if entry == postgres or entry.startswith(postgres + '/')],
+                         selected['required'])
+        self.assertIn(postgres, selected['required'])
+        self.assertNotIn(postgres, plan('race', 'core', self.required)['required'])
+        with self.assertRaises(ValueError):
+            audit([entry for entry in self.required if entry not in selected['required']])
+
+    def test_cross_package_root_collision_cannot_reselect_a_partitioned_consumer(self):
+        root = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+        entry = MODULE + 'examples/article|' + root + '/same_name_in_another_package'
+        required = [*self.required, entry]
+        self.assertIn(entry, plan('race', 'core', required)['required'])
+        self.assertNotIn(entry, plan('race', 'core-helpdesk-postgres', required)['required'])
+        with self.assertRaisesRegex(ValueError, 'test selector reaches another partition'):
+            audit(required)
+
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],
                         [MODULE + 'orm|TestForeign'], [MODULE + 'storage|not-a-test'], [MODULE + 'storage|TestBad\tName']):
@@ -47,7 +82,8 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 path.write_text('\n'.join(entries) + '\n')
                 with self.assertRaises(ValueError):
                     required_entries(path)
-        for mode, shard in (('normal', 'core-consumers'), ('cgo0', 'core-processes'), ('race', 'missing')):
+        for mode, shard in (('normal', 'core-consumers'), ('cgo0', 'core-processes'),
+                            ('normal', 'core-helpdesk-postgres'), ('cgo0', 'core-helpdesk-postgres'), ('race', 'missing')):
             with self.subTest(mode=mode, shard=shard), self.assertRaises(ValueError):
                 plan(mode, shard, self.required)
 
