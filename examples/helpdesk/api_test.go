@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -434,7 +435,11 @@ func assertHelpdeskResponseDocumented(t *testing.T, document helpdeskDocument, m
 		}
 		return
 	}
-	if _, ok := declared.Content[response.Header().Get("Content-Type")]; !ok {
+	mediaType, _, err := mime.ParseMediaType(response.Header().Get("Content-Type"))
+	if err != nil {
+		t.Fatalf("%s %s returned an invalid content type: %v", method, path, err)
+	}
+	if _, ok := declared.Content[mediaType]; !ok {
 		t.Fatalf("%s %s returned undocumented content type %q", method, path, response.Header().Get("Content-Type"))
 	}
 }

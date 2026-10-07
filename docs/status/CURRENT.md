@@ -2,6 +2,7 @@
 
 - 갱신: 2026-10-08
 - 현재 구현: [GDJ-0120 Typed 204 응답과 삭제 endpoint](../../work/0120-typed-no-content-responses.md)
+- GDJ-0120 최초 원격 실행: source `3ab717e1`의 [CI](https://github.com/progresshans/godj/actions/runs/37677328887)에서 드러난 Label 삭제 검사 준비를 보완
 - 영향 검증 완료·전체 통합 보완: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI 실패](https://github.com/progresshans/godj/actions/runs/37660451511)
 - 검증 운영: PR 생성·push·재개와 main push에서 [전체 원격 CI](../TESTING.md)를 자동 실행한다. 로컬은 포맷·최소 compile와 실패 재현을 맡는다.
 - 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
@@ -19,8 +20,9 @@
 
 이 작업 사본은 GDJ-0120의 NoContent Output·Prepared와 endpoint/OpenAPI를 Article·Label 삭제에 연결했다.
 같은 Article 저장 경로의 Admin missing 변환도 직접 marker 계약에 맞췄다.
-최소 compile·실제 문서 export·필요한 SDK 생성물을 준비했으며 테스트 본문·HTTP/DB·생성 drift는 원격 검증 대기다.
-선행 header source의 원격 결과와 이 변경의 새 검증 대상을 구분한다.
+최초 원격 실행에서 드러난 Label 삭제 검사의 site별 CSRF 발급·조회·문서 비교를 보완했다.
+수정한 삭제 회귀의 로컬 재현을 확인했으며 보완 source의 HTTP/DB·생성 drift·전체 통합은 원격 검증 대기다.
+선행 source의 원격 부분 성공과 이 변경의 새 검증 대상을 구분한다.
 
 [GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
 Namespace 보정 source `cc2c2f25`의 원격 Linux/amd64에서 typed API·독립 SDK의 normal/race/CGO0와

@@ -91,6 +91,10 @@ func verifyTypedLabelDelete(t *testing.T, ctx context.Context, runtime *systemst
 			}
 			client := helpdeskHTTP(t, application, runtime, authorizer)
 			client.cookies, client.csrf = maps.Clone(authenticated.cookies), authenticated.csrf
+			// The composed site signs its own CSRF tokens, even with shared sessions.
+			if response := client.request("GET", "/admin/", "", false); response.Code != 200 || client.csrf == "" {
+				t.Fatal("could not obtain this site's CSRF token", response.Code)
+			}
 			path := fmt.Sprintf("/api/labels/%d/", label.ID)
 			want, transactions := 500, 1
 			switch mode {
@@ -136,8 +140,11 @@ func verifyTypedLabelDelete(t *testing.T, ctx context.Context, runtime *systemst
 			if mode == "validation_rejection" && !strings.Contains(response.Body.String(), `"code":"protected"`) {
 				t.Fatal("confirmed deletion rejection lost public diagnostics", response.Body)
 			}
+			if want == 500 && response.Body.String() != "Internal Server Error\n" {
+				t.Fatal("unconfirmed deletion exposed a nonstandard failure body", response.Body)
+			}
 			assertHelpdeskResponseDocumented(t, client.document, "DELETE", "/api/labels/{id}/", response)
-			stored, found, err := models.LabelObjects.Using(runtime).Filter(models.LabelFields.ID.Exact(label.ID)).First(ctx)
+			stored, found, err := models.LabelObjects.Using(runtime).Filter(models.LabelFields.ID.Exact(label.ID)).OrderBy(models.LabelFields.ID.Asc()).First(ctx)
 			deleted := want == 204 || mode == "commit_unknown"
 			if err != nil || found == deleted || found && stored != label {
 				t.Fatal("label commit disagrees with response", found, err)

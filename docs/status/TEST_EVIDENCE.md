@@ -9,7 +9,7 @@
 NoContent Output/Prepared·동일 endpoint/OpenAPI를 Article와 Helpdesk Label 삭제에 연결했다.
 JSON schema를 만들지 않고 exact Output 소유권·204 상태·context와 framing header 제한을 유지한다.
 고정 응답은 삭제 전에 준비하며, Article는 기존 prepared transaction owner로 callback/hook/commit을 확인한다.
-Label의 scope와 CASCADE는 기존 relation transaction이 소유한다. 이 변경은 아직 원격 검증 전이다.
+Label의 scope와 CASCADE는 기존 relation transaction이 소유한다. 초기 준비와 후속 원격 실행 결과를 아래에서 구분한다.
 
 추가한 검사의 범위는 다음과 같다. 이 목록은 테스트 코드의 존재이며 실행 성공을 뜻하지 않는다.
 
@@ -50,7 +50,43 @@ Site 조회 뒤 missing, swallowed/joined/wrapped miss, callback 누락·commit 
 검사한다. 저장 row와 한 번의 transaction/DML·확정 후의 정확한 메모리 audit, 실패 시 성공 redirect/audit 부재를 확인하도록 했다.
 두 기존 Session native owner에 parent/child 36개를 더해 GDJ-0120의 새 필수 경로는 총 102개다.
 이 후속 변경은 gofmt·examples/article/adminapp 및 examples/article의 `go test -run '^$'` 최소 compile,
-필수 목록 owner 검사 5 tests를 통과했다. 새 HTTP/DB 테스트 본문은 아직 실행하지 않았으며 원격 CI가 소유한다.
+필수 목록 owner 검사 5 tests를 통과했다. 이 최소 compile는 새 HTTP/DB 테스트 본문을 실행하지 않은 검사이며,
+실제 실행은 다음 원격 결과와 구분한다.
+
+### 최초 원격 실행과 Label 삭제 검사 보완
+
+Source `3ab717e13cd414216dd83571e5d2698c0664d6d8`을 PR에 게시해
+[자동 CI 37677328887](https://github.com/progresshans/godj/actions/runs/37677328887) attempt 1을 실행했다.
+실제 checkout `3d1cd544cbdb46b77b14ca8747bc7a6612be74c7`의 부모는 base `f8a5e20c`와 이 source이며,
+tree `c0e348098c8b5fb5328a1980665decf253d64cb5`가 source tree와 같음을 확인했다.
+Portable race/core `112984178053`에서 api/output·endpoint·parameters·openapi의 실제 package 테스트가 통과했다.
+이 job/source/checkout과 로그를 대조한 요약의 SHA-256은
+`519e15d4ccd1ab8873b54389ba9d72e5e247c8cf5d22dca20259263ebc4a3e35`다.
+
+세 integration job 안에서 독립 SDK와 Article package는 다음과 같이 통과했지만,
+Helpdesk의 새 `typed_label_delete` 검사 실패로 각 job의 결론은 failure다.
+
+| Mode | Job ID | SDK package | Article package |
+| --- | --- | --- | --- |
+| normal | 112984178140 | PASS 33.888s | PASS 11.135s |
+| race | 112984178231 | PASS 144.880s | PASS 127.233s |
+| CGO0 | 112984178008 | PASS 33.375s | PASS 11.165s |
+
+같은 실제 checkout과 uncached package 결과를 확인했다. 세 실패 로그는 새 site에 다른 인증 인스턴스의
+CSRF 토큰을 복사해 발생한 `csrf_rejected`와 정렬 없이 `First`로 저장 결과를 조회한 오류를 기록했다.
+실패 경로와 부분 성공을 모은 요약의 SHA-256은 `286bc18f8d643e7f1801941c44cadb3e6abb7c1d776b39558e5a5ddab8d35766`다.
+
+삭제 검사 준비를 기존 소비자처럼 해당 site의 GET 응답에서 CSRF 토큰을 받도록 바꾸고, PK 정렬을 명시했다.
+로컬 실패 재현에서 이어 확인한 500 문서 비교도 보완했다. OpenAPI의 `text/plain`과 실제 응답의
+`text/plain; charset=utf-8`을 파싱한 미디어 타입으로 대조하며, 잘못된 Content-Type과 미선언 타입은 계속 거부한다.
+불확실한 삭제의 500 본문은 정확한 `Internal Server Error\n`인지 추가로 검사한다.
+기존 인증·scope·CSRF 거부와 본문 비소비·호출 횟수·CASCADE·rollback·불명 commit의 저장 결과 조건은 유지했다.
+
+Go 1.26.5/darwin/arm64·CGO=1·공유 cache·offline graph에서 실패한 하위 검사만 재현했다:
+`GOTOOLCHAIN=local GOWORK=off GOFLAGS=-mod=readonly GOPROXY=off GONOPROXY=none GOSUMDB=off go test -count=1 -timeout=10m -v -run '^TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFields$/^typed_label_delete$' ./examples/helpdesk`.
+최종 실행에서 SQLite 삭제의 16 cases가 모두 통과했고 package 결과는 PASS 2.470s였다.
+이 로컬 결과는 해당 실패 재현 범위이며 PostgreSQL·race/CGO0·전체 실행의 증거가 아니다.
+보완 source의 자동 원격 CI에서 실제 HTTP/양 DB·SDK와 전체 통합을 다시 확인한다.
 
 ## GDJ-0119 — Typed header와 Identity revision 조건
 
