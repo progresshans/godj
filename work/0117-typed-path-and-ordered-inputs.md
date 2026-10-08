@@ -1,7 +1,7 @@
 ---
 id: GDJ-0117
-status: active
-updated: 2026-10-07
+status: complete
+updated: 2026-10-08
 baseline_commit: "897468fe56e994ada73a4f2e5b71ae4b2bcf59b4"
 integration_owner: "root"
 ---
@@ -40,17 +40,11 @@ Header 입력·배열 body·자동 CRUD/viewset·출력 union과 임의 route co
 - [x] 실제 두 소비자·body/출력·transaction 경계 연결
 - [x] 외부 compile·실제 HTTP·권한/CSRF·양 DB·독립 client/drift·취소/실패와 영향 검증
 - [x] source와 후속 통합 범위 기록
-- [ ] GDJ-0116과 같은 source의 전체 platform/Hosted 통합
+- [x] GDJ-0116과 같은 source의 전체 platform/Hosted 통합
 
-GDJ-0117 source `55e0453d`의 영향 세 mode·양 DB·외부 compile·독립 client/drift·고정 Article API 대조와 정리를 완료했다.
-GDJ-0116 source `18fc0451`은 영향 세 mode·양 DB·외부 compile·독립 client/drift와 정리를 완료했다. 선행 Hosted full `37569379536`은
-`def77d5e`의 GDJ-0112/0113/0114/0115만 검증하며 이 작업에 전이하지 않는다. 현재 외부 입력이 필요한 blocker는 없다.
-
-Source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)은 인증 관찰자 연결 실패를 검출했다.
-보정 source `f45eb512`에서 실제 transport 설명과 구성 순서에 독립적인 경로 관찰을 연결하고 영향 세 mode·고정 reference 대조를
-완료했다. 후속 전체 통합은 보정 source의 새 실행이 소유하며 상세는 TEST_EVIDENCE를 따른다.
-후속 source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)은 아래 기준 잠금 누락을 검출했다.
-
-Hosted `37581945355`의 기준 checksum 연결 누락은 `587aeea0`에서 보완했다. 전체 scenario의 기존 digest 재현·
-새 digest와 artifact 잠금 검증을 완료했다. 현재 전체 통합은 source `6d0473cd`의
-[Hosted full 37584339052](https://github.com/progresshans/godj/actions/runs/37584339052)에서 진행한다. 상세는 TEST_EVIDENCE에 둔다.
+Source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[전체 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1에서
+GDJ-0116/0117/0118/0119/0120을 함께 검증했다. 필수 실행과 no-skip, 실제 checkout/tree,
+생성 drift·양 DB·세 모드·각 platform·same-run capture·최종 집계를 대조해 전체 통합을 완료했다.
+선행 실패와 보정, 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
+후속 GDJ-0121의 새 구현과 전체 카탈로그 완성은 이 완료에 포함하지 않는다.

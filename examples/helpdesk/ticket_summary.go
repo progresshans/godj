@@ -8,6 +8,8 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -27,6 +29,9 @@ type ticketSummaryQuery struct {
 type ticketSummaryRow struct {
 	priority    *int64
 	total, open int64
+	cost        orm.Optional[decimal.Decimal]
+	effort      orm.Optional[float64]
+	elapsed     orm.Optional[duration.Duration]
 }
 type ticketSummaryPage struct {
 	category models.Category
@@ -104,9 +109,13 @@ func (a *Application) ticketSummaryInSnapshot(ctx context.Context, reader db.Que
 	opened := orm.Count(fields.ID).Where(fields.Closed.Exact(false))
 	grouped, err := orm.GroupBy(models.TicketObjects.Using(reader).Filter(fields.CategoryID.Exact(a.categoryID)),
 		orm.Project1(fields.Priority, func(value *int64) *int64 { return value }),
-		orm.Aggregate2(orm.CountRows[models.Ticket](), opened, func(total, open int64) [2]int64 { return [2]int64{total, open} }),
-		func(priority *int64, counts [2]int64) ticketSummaryRow {
-			return ticketSummaryRow{priority, counts[0], counts[1]}
+		orm.Aggregate5(orm.CountRows[models.Ticket](), opened, orm.Sum(fields.ExpectedCost), orm.Avg(fields.Effort), orm.Sum(fields.Elapsed),
+			func(total, open int64, cost orm.Optional[decimal.Decimal], effort orm.Optional[float64], elapsed orm.Optional[duration.Duration]) ticketSummaryRow {
+				return ticketSummaryRow{total: total, open: open, cost: cost, effort: effort, elapsed: elapsed}
+			}),
+		func(priority *int64, row ticketSummaryRow) ticketSummaryRow {
+			row.priority = priority
+			return row
 		})
 	if err != nil {
 		return result, err
@@ -116,6 +125,13 @@ func (a *Application) ticketSummaryInSnapshot(ctx context.Context, reader db.Que
 		return result, err
 	}
 	return ticketSummaryPage{category: category, found: true, query: input, groups: groups}, nil
+}
+
+func summaryOptionalPointer[V any](value orm.Optional[V]) *V {
+	if present, valid := value.Get(); valid {
+		return &present
+	}
+	return nil
 }
 
 func ticketSummaryPriorityLabel(value *int64) string {

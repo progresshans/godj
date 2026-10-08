@@ -22,6 +22,11 @@ func NeedsAggregateCompiler(plan query.Plan) bool {
 		if filter || related || expression.Kind() == query.ResultCount {
 			return true
 		}
+		if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
+			if where, present := plan.Where(); present && where.HasRelations() {
+				return true
+			}
+		}
 	}
 	return false
 }

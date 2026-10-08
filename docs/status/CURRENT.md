@@ -1,53 +1,26 @@
 # 현재 상태
 
 - 갱신: 2026-10-08
-- 현재 구현: [GDJ-0120 Typed 204 응답과 삭제 endpoint](../../work/0120-typed-no-content-responses.md)
-- GDJ-0120 원격 실행: source `0ea94a3e`의 [CI](https://github.com/progresshans/godj/actions/runs/37685450605), API·SDK 세 모드와 PostgreSQL normal/CGO0 성공, PostgreSQL race/core 누적 timeout 실패·분할 보완
-- 영향 검증 완료·전체 통합 보완: [GDJ-0119 Typed header와 Identity revision 조건](../../work/0119-typed-header-inputs.md), source `cc2c2f25`의 [전체 CI 실패](https://github.com/progresshans/godj/actions/runs/37660451511)
-- 검증 운영: PR 생성·push·재개와 main push에서 [전체 원격 CI](../TESTING.md)를 자동 실행한다. 로컬은 포맷·최소 compile와 실패 재현을 맡는다.
-- 최근 영향 검증 완료·후속 통합 대기: [GDJ-0118 Typed JSON 배열과 원자적 여러 건 생성](../../work/0118-typed-json-collections.md)
-- 영향 검증 완료·전체 통합 재검증 대기: [GDJ-0117 Typed 경로와 단계 입력](../../work/0117-typed-path-and-ordered-inputs.md), source `55e0453d` 및 인증 관찰자/기준 잠금 보정 `587aeea0`
-- 후속 전체 통합 대기: [GDJ-0116 Typed endpoint](../../work/0116-typed-endpoint-declarations.md), source `18fc0451`의 영향 세 mode·양 DB/client·drift/정리 완료
-- 최근 통합 완료: [GDJ-0112 그룹 집계](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0113 Typed 출력](../../work/0113-typed-api-response-shapes.md), [GDJ-0114 Typed query 입력](../../work/0114-typed-query-parameters.md), [GDJ-0115 Typed JSON 입력](../../work/0115-typed-json-body-inputs.md)
-- GDJ-0116/0117 Hosted 보정: [37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)의 인증 관찰자 실패를 source `f45eb512`에서 수정하고 영향 검증 완료
-- 기준 잠금 보완: [37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)의 checksum 누락을 source `587aeea0`에서 고치고 영향 검증 완료
-- 보완 source의 Hosted full 실패: [37584339052](https://github.com/progresshans/godj/actions/runs/37584339052), source `6d0473cdf9d649158e5fcd731cbf1a43a0261211`의 macOS Intel 관계 normal job
-- 최근 Hosted full 완료: [37569379536](https://github.com/progresshans/godj/actions/runs/37569379536), source `def77d5e1c949a87d538181d05a72a3c75e97201`
-- 보정 전 원격 CI: [37656685420](https://github.com/progresshans/godj/actions/runs/37656685420), source `0b2816efed4f6d04e671781401dfea02187687a3` (Identity 테스트 namespace 실패)
+- 현재: [GDJ-0121 숫자 합계·평균과 업무 지표](../../work/0121-numeric-aggregates-and-ticket-metrics.md) 구현·로컬 영향 검증 완료, 원격 통합 미완료
+- 최근 전체 통합: source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의 [CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301), GDJ-0116부터 GDJ-0120까지 포함
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-이 작업 사본은 GDJ-0120의 NoContent Output·Prepared와 endpoint/OpenAPI를 Article·Label 삭제에 연결했다.
-같은 Article 저장 경로의 Admin missing 변환도 직접 marker 계약에 맞췄다.
-최초 원격 실행에서 드러난 Label 삭제 검사의 site별 CSRF 발급·조회·문서 비교를 보완했다.
-SDK의 실패 진단과 PostgreSQL 목록을 보완한 현재 source에서 API·독립 SDK·Article·Helpdesk SQLite의 세 모드가 통과했다.
-Linux/amd64 normal·CGO0의 공개 compile과 PostgreSQL normal·CGO0의 실제 필수 경로도 확인했다.
-선행 SDK race 실패는 재발하지 않았지만 당시 원인은 미확정으로 남긴다.
-PostgreSQL race/core는 Helpdesk의 두 DB 소비자가 공유하는 package timeout에 도달했다.
-PostgreSQL 소비자 root를 별도 race 작업으로 분리했으며 새 분할의 실제 실행과 전체 통합은 미완료다.
+SUM/AVG의 typed/dynamic AST·결과 타입과 양 DB 산술·실패 경계를 구현했다. 생성 소비자와 Helpdesk의
+비용 합계·노력 평균·시간 합계를 HTML/API·독립 SDK에 연결했다. 독립 Django 관찰을 바탕으로
+Decimal의 전역 결과 precision과 Duration의 DB 계산/반올림 경계를 분리했다.
+로컬 normal의 영향 검사·실제 양 DB·SDK drift/HTTP·브라우저를 확인했으며 이 변경의 원격 세 모드·전체 통합은 미완료다.
 
-[GDJ-0119](../../work/0119-typed-header-inputs.md)는 typed header·endpoint 입력 결합과 Identity의 revision 조건을 구현했다.
-Namespace 보정 source `cc2c2f25`의 원격 Linux/amd64에서 typed API·독립 SDK의 normal/race/CGO0와
-재생성 drift·실제 HTTP, SQLite/PostgreSQL의 필수 실행·no-skip과 source 연결을 확인했다.
-선행 Intel Mac 누적 시간 초과를 보완한 관계 normal의 세 소비자 분할·runtime과 reference/capture owner도 완료했다.
-전체 CI는 Intel CGO0의 누적 시간 초과와 Command checkout DNS 실패로 종료됐다.
-CGO0에도 같은 분할을 적용했으며 GDJ-0120을 포함한 새 source의 자동 전체 CI에서 재검증한다.
-선행 [배열 입력](../../work/0118-typed-json-collections.md)의 영향 검증과 취소된 source `632cf6db`의 CI는
-현재 source의 실행 결과와 구분한다.
-선행 endpoint/경로 source의 Hosted full 실패는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록했다.
-PR 자동 CI에서 현재 source의 전체 통합을 확인하며 이전 source의 부분 성공과 구분한다.
-구현과 환경별 실행 완료를 구분하며 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
+선행 source의 전체 CI는 OS/arch·세 모드·필수 경로·same-run capture·최종 집계까지 확인했다.
+그 결과는 새 숫자 집계의 원격 PASS로 사용하지 않는다. 현재 외부 입력이 필요한 blocker는 없다.
 
 ## 다음 행동
 
-분할 보완을 포함한 PR source의 CI에서 PostgreSQL·CGO0 분할·필수 job·capture·최종 집계를 확인한다.
-PostgreSQL race의 필수 경로와 두 소비자의 독립 완료를 확인해 현재 영향 검증을 마무리한다.
-기존 428/400/412 의미와 인증·경로/query·header·body·DB 순서를 실제 소비자와 독립 client로 확인한다.
-삭제 전 응답 준비·확인된 commit·실패/unknown과 양 DB/client의 미완료 검증을 닫는다.
-Codec 특성/storage provider·custom user model·인증/mail provider와 나머지 카탈로그 기능도
-의존 순서에 따라 계속 구현한다. 현재 외부 입력이 필요한 blocker는 없다.
+숫자 집계 PR source의 원격 CI에서 필수 실행·생성 drift·DB/race/process·
+전체 platform을 확인한다. 이어 codec 특성/storage provider·custom user model·인증/mail provider와
+남은 카탈로그 기능을 의존 순서에 따라 구현한다.
 
-[검증 문서](../TESTING.md)에 따라 공유 Go cache·병렬 실행·생성 소비자의 `-trimpath`를 유지한다.
-전체/cold 검증은 PR과 main의 원격 CI가 소유한다. 장기 목표는 [헌장](../CHARTER.md)과
-[기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이며 한 기능 완료와 구분한다.
+검증 범위와 환경을 먼저 정하며 로컬 전체와 Hosted 전체를 중복하지 않는다. 공유 Go cache·병렬 실행·
+생성 소비자의 `-trimpath`와 [검증 문서](../TESTING.md)의 실행 소유권을 유지한다.
+장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이며 한 기능 완료와 구분한다.

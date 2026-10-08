@@ -19,7 +19,25 @@ func CountResult(operand ResultExpression) (ResultExpression, error) {
 }
 
 func (e ResultExpression) IsAggregate() bool {
-	return e.kind == ResultCountAll || e.kind == ResultCount || e.kind == ResultMin || e.kind == ResultMax
+	return e.kind == ResultCountAll || e.kind == ResultCount || e.kind == ResultMin || e.kind == ResultMax || e.kind == ResultSum || e.kind == ResultAvg
+}
+
+// SumResult and AvgResult keep the operand's field and finite forward route.
+func SumResult(operand ResultExpression) (ResultExpression, error) {
+	return numericAggregateResult(operand, ResultSum)
+}
+func AvgResult(operand ResultExpression) (ResultExpression, error) {
+	return numericAggregateResult(operand, ResultAvg)
+}
+func numericAggregateResult(operand ResultExpression, kind ResultExpressionKind) (ResultExpression, error) {
+	if err := validateGroupKey(operand); err != nil {
+		return ResultExpression{}, err
+	}
+	operand.kind = kind
+	if err := operand.validateAggregate(); err != nil {
+		return ResultExpression{}, err
+	}
+	return operand, nil
 }
 func (e ResultExpression) Distinct() bool             { return e.distinct }
 func (e ResultExpression) Filter() (Expression, bool) { return e.filter, e.filter.node != nil }
@@ -28,8 +46,8 @@ func (e ResultExpression) WithDistinct() (ResultExpression, error) {
 	if err := e.validateAggregate(); err != nil {
 		return ResultExpression{}, err
 	}
-	if e.kind != ResultCount {
-		return ResultExpression{}, groupUnsupported("DISTINCT requires a counted field")
+	if e.kind != ResultCount && e.kind != ResultSum && e.kind != ResultAvg {
+		return ResultExpression{}, groupUnsupported("DISTINCT requires COUNT, SUM or AVG of a field")
 	}
 	e.distinct = true
 	return e, nil
@@ -69,7 +87,7 @@ func (e ResultExpression) validateAggregate() error {
 		}
 		return nil
 	}
-	if e.kind != ResultCount && e.kind != ResultMin && e.kind != ResultMax {
+	if e.kind != ResultCount && e.kind != ResultMin && e.kind != ResultMax && e.kind != ResultSum && e.kind != ResultAvg {
 		return invalidPlanError("aggregate expression is invalid")
 	}
 	if !validResultField(e.field) {
@@ -78,11 +96,18 @@ func (e ResultExpression) validateAggregate() error {
 	if e.field.Kind() == FieldJSON {
 		return groupUnsupported("JSON aggregate operands are not implemented")
 	}
-	if e.kind != ResultCount && e.field.Kind() == FieldBoolean {
+	if (e.kind == ResultMin || e.kind == ResultMax) && e.field.Kind() == FieldBoolean {
 		return invalidPlanError("MIN/MAX require an ordered scalar field")
 	}
-	if e.distinct && e.kind != ResultCount {
-		return invalidPlanError("DISTINCT requires a counted field")
+	if e.kind == ResultSum || e.kind == ResultAvg {
+		switch e.field.Kind() {
+		case FieldInteger, FieldFloat, FieldDecimal, FieldDuration:
+		default:
+			return invalidPlanError("SUM/AVG require an integer, float, decimal or duration field")
+		}
+	}
+	if e.distinct && e.kind != ResultCount && e.kind != ResultSum && e.kind != ResultAvg {
+		return invalidPlanError("DISTINCT requires COUNT, SUM or AVG of a field")
 	}
 	if e.relation != nil {
 		if !e.relation.Terminal().Equal(e.field) {
@@ -160,10 +185,7 @@ func NewGroupExpression(value ResultExpression, lookup Lookup, literal Value) (G
 	if err != nil {
 		return GroupExpression{}, err
 	}
-	kind := value.field.Kind()
-	if value.kind == ResultCount || value.kind == ResultCountAll {
-		kind = FieldInteger
-	}
+	kind := value.ResultValueKind()
 	if _, err := literal.DatabaseValue(); err != nil {
 		return GroupExpression{}, err
 	}

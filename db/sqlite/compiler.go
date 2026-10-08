@@ -179,7 +179,8 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 }
 
 func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
-	return queryplan.AppendAggregates(sql, expressions, sourceFields, func(function string, field query.FieldRef) (string, error) {
+	return queryplan.AppendAggregates(sql, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
+		field, _ := expression.Field()
 		var column string
 		var err error
 		if sourceAlias != "" {
@@ -187,7 +188,10 @@ func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.
 		} else {
 			column, err = quoteIdentifier(field.Column())
 		}
-		return function + "(" + column + ")", err
+		if err != nil {
+			return "", err
+		}
+		return renderAggregate(expression, column, "")
 	})
 }
 

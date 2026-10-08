@@ -85,25 +85,13 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	if !expression.IsAggregate() {
 		return appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, false)
 	}
-	function := "COUNT"
-	if expression.Kind() == query.ResultMin {
-		function = "MIN"
-	}
-	if expression.Kind() == query.ResultMax {
-		function = "MAX"
-	}
-	statement.WriteString(function + "(")
-	if expression.Distinct() {
-		statement.WriteString("DISTINCT ")
-	}
-	if expression.Kind() == query.ResultCountAll {
-		statement.WriteByte('*')
-	} else {
-		if err := appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, true); err != nil {
+	var operand, filterSQL strings.Builder
+	if expression.Kind() != query.ResultCountAll {
+		if err := appendResultValue(&operand, expression, "t0", prepared.ByKey, arguments, true); err != nil {
 			return err
 		}
 	}
-	statement.WriteByte(')')
+	filterStart := len(*arguments)
 	if filter, present := expression.Filter(); present {
 		filterPlan, err := query.NewPlan(plan.Table(), plan.SourceFields()).WithWhere(filter)
 		if err != nil {
@@ -118,12 +106,21 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 		if err := bindGroupedWhere(filterPlan, analysis, filterJoins); err != nil {
 			return err
 		}
-		statement.WriteString(" FILTER (WHERE ")
-		if err := appendWhereNode(statement, analysis.root, false, false, arguments); err != nil {
+		filterSQL.WriteString(" FILTER (WHERE ")
+		if err := appendWhereNode(&filterSQL, analysis.root, false, false, arguments); err != nil {
 			return err
 		}
-		statement.WriteByte(')')
+		filterSQL.WriteByte(')')
 	}
+	rendered, err := renderAggregate(expression, operand.String(), filterSQL.String())
+	if err != nil {
+		return err
+	}
+	field, _ := expression.Field()
+	if field.Kind() == query.FieldFloat && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
+		*arguments = append(*arguments, (*arguments)[filterStart:]...)
+	}
+	statement.WriteString(rendered)
 	return nil
 }
 

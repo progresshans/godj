@@ -9,6 +9,9 @@ GoDj 자체의 배포 라이선스는 아직 선택되지 않았다. 루트 LICE
 SQLite와 PostgreSQL dependency의 기존 `LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`, `LICENSE.pgx`와
 [NOTICE](../NOTICE.md)를 보존한다. 이 파일들은 모든 transitive dependency의 검토를 대신하지 않는다.
 
+숫자 집계의 Decimal division scale 규칙은 PostgreSQL 17.10의 의미를 Go로 이식한다.
+파일 가까이의 출처·수정 고지와 `LICENSE.postgresql`·[NOTICE](../NOTICE.md)를 함께 보존한다.
+
 ## 독립 시나리오와 파생물
 
 | 분류 | 기록할 것 |

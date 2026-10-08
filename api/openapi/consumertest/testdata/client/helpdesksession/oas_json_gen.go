@@ -9367,13 +9367,28 @@ func (s *TicketSummaryResultsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("open")
 		e.Int64(s.Open)
 	}
+	{
+		e.FieldStart("expected_cost_total")
+		s.ExpectedCostTotal.Encode(e)
+	}
+	{
+		e.FieldStart("effort_average")
+		s.EffortAverage.Encode(e)
+	}
+	{
+		e.FieldStart("elapsed_total")
+		s.ElapsedTotal.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicketSummaryResultsItem = [4]string{
+var jsonFieldsNameOfTicketSummaryResultsItem = [7]string{
 	0: "priority",
 	1: "priority_label",
 	2: "total",
 	3: "open",
+	4: "expected_cost_total",
+	5: "effort_average",
+	6: "elapsed_total",
 }
 
 // Decode decodes TicketSummaryResultsItem from json.
@@ -9431,6 +9446,36 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
+		case "expected_cost_total":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.ExpectedCostTotal.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expected_cost_total\"")
+			}
+		case "effort_average":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.EffortAverage.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"effort_average\"")
+			}
+		case "elapsed_total":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.ElapsedTotal.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed_total\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -9441,7 +9486,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -4,9 +4,10 @@
 <p><a href="/tickets/edit/">Edit tickets</a> · <a href="/admin/tickets/">Ticket details</a></p>
 <form method="get" action="/tickets/summary/"><label>Minimum open tickets <input type="number" name="min_open" min="0" step="1" value="{{ min_open }}"></label> <button type="submit">Apply filter</button> <a href="/tickets/summary/">Clear filter</a></form>
 <p>{{ total_groups }} priority groups. Page {{ page }}.</p>
-<table><caption>Tickets by priority, ordered by open count then priority</caption><thead><tr><th scope="col">Priority</th><th scope="col">Total tickets</th><th scope="col">Open tickets</th></tr></thead><tbody>
-{% for row in rows %}<tr><th scope="row">{{ row.priority }}</th><td>{{ row.total }}</td><td>{{ row.open }}</td></tr>{% empty %}<tr><td colspan="3">No priority groups on this page.</td></tr>{% endfor %}
+<p>Totals and averages use provided values. Missing values are excluded.</p>
+<table><caption>Tickets by priority, ordered by open count then priority</caption><thead><tr><th scope="col">Priority</th><th scope="col">Total tickets</th><th scope="col">Open tickets</th><th scope="col">Total expected cost</th><th scope="col">Average effort</th><th scope="col">Total elapsed</th></tr></thead><tbody>
+{% for row in rows %}<tr><th scope="row">{{ row.priority }}</th><td>{{ row.total }}</td><td>{{ row.open }}</td><td>{{ row.cost }}</td><td>{{ row.effort }}</td><td>{{ row.elapsed }}</td></tr>{% empty %}<tr><td colspan="6">No priority groups on this page.</td></tr>{% endfor %}
 </tbody></table>
 <nav aria-label="Summary pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
-<p>Counts and category details share one read snapshot for this request. Reloading or changing pages reads the current state.</p>
+<p>Metrics and category details share one read snapshot for this request. Reloading or changing pages reads the current state.</p>
 </main></body></html>

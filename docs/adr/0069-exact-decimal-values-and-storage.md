@@ -30,6 +30,7 @@ GoDj의 새 Decimal SQLite column은 BLOB이며 field scale과 무관한 canonic
 부호 prefix, fixed-width biased adjusted exponent, 정규화 coefficient digits와 terminator 순서로 값을 인코딩한다.
 음수는 magnitude bytes를 반전하고 zero는 단일 표현을 사용한다. SQLite의 기본 BLOB 비교로 exact·ordered·IN·F·Min/Max가
 같은 숫자 순서를 사용한다. 비교를 위해 float CAST나 process-global collation/function을 등록하지 않는다.
+숫자 집계의 별도 함수는 아래 경계를 따른다.
 Decoder는 byte 한도·부호·exponent·digits·terminator·canonical 재인코딩을 검사하고 잘못된 physical 값을 거부한다.
 
 PostgreSQL은 native NUMERIC(max_digits, decimal_places)와 pgx numeric binary parameter를 사용한다. Numeric coefficient를 float로
@@ -39,6 +40,32 @@ Raw NUMERIC NaN·Infinity, SQLite의 다른 storage class/잘못된 key와 선�
 SQLite의 물리 표현은 Django NUMERIC table과 호환된다고 주장하지 않는다. Physical preflight는 GoDj의 BLOB shape를 확인한다.
 기존 Django Decimal table의 채택에는 별도의 명시적 변환이 필요하며, 이미 소실된 값은 복원했다고 주장할 수 없다.
 Historical migration은 precision과 physical column 의미를 함께 유지한다. 일반 type/nullability/default 변경과 backfill은 별도 범위다.
+
+## 집계 결과의 precision
+
+[GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md)의 SUM/AVG는 원본 DecimalField precision과
+결과의 전역 Decimal 범위를 분리한다. 합계가 원본 max_digits를 넘거나 평균이 원본 scale을 넘어도 전역 범위 안이면
+정확한 Decimal이다. 결과를 field precision으로 다시 cast/scan하지 않는다. 1000 significant digits·adjusted exponent
+한도를 넘는 결과는 오류이며, NULL과 signed numeric zero는 기존 DB 의미를 따른다.
+
+PostgreSQL은 각 기여 operand의 finite·field precision을 확인한 뒤 native NUMERIC SUM/AVG를 사용한다.
+외부 NaN이나 잘못된 값이 HAVING에서 사라져 정상 결과로 보이지 않게 native statement를 실패시킨다.
+오류용 cast는 row에 의존해 정상 query의 계획 단계에서 실행되지 않고 저장된 값을 진단에 포함하지 않는다.
+SQLite는 field precision과 canonical order key를 단일 BLOB operand로
+묶고 집계 invocation마다 소유한 exact unscaled integer sum·non-NULL count를 사용한다. Native DISTINCT는 이 한 operand의
+numeric equality에 적용된다. 모든 physical key와 source precision을 검사하고 driver buffer를 보관하지 않는다.
+Count는 positive int64 한도를 가지며 source 1000 digits와 합쳐 누적 integer를 1019 digits 이하로 제한한다.
+오류 상태는 그 invocation에서 유지하고 finalization에서 상태를 해제한다. Window inverse는 아직 명시적으로 거부한다.
+함수 등록은 backend 초기화에서 한 번 수행하며 query·application metadata·누적값을 전역 mutable state에 저장하지 않는다.
+
+SQLite 평균은 고정 PostgreSQL 17.10의 finite NUMERIC division scale과 같은 규칙을 적용한다.
+양수 magnitude의 선두 base-10000 weight/digit로 quotient weight를 잡고, 선두 numerator digit가 denominator 이하이면
+한 weight를 낮춘다. Result scale은 `max(16 - 4*quotient_weight, source_scale, 0)`을 1000으로 제한한 값이다.
+Exact sum/count를 이 scale에서 한 번 half-away-from-zero로 반올림한다. 고정 소수 20자리나 원본 field scale로
+일괄 잘라서 identity·작은 값·큰 magnitude의 정밀도를 잃지 않는다. 최대 scale의 underflow는 이 명시적 반올림의 결과다.
+이 규칙의 upstream 출처·PostgreSQL License와 변경 내용은 [SOURCES](../SOURCES.md)와 [NOTICE](../../NOTICE.md)에 둔다.
+GoDj의 exact SQLite 저장/집계는 Django SQLite NUMERIC affinity가 잃은 자릿수를 재현하지 않는다.
+독립 Django native 관찰과 GoDj의 의도한 차이·실제 제품 검증은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
 
 ## 기존 값의 precision 변경
 

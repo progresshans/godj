@@ -13,7 +13,8 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 ## 우선순위별 업무 요약
 
 `application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET
-`/api/tickets/summary/`가 포함된다. 두 표면은 현재 Category의 티켓을 우선순위로 묶어 전체/열린 건수를 계산한다.
+`/api/tickets/summary/`가 포함된다. 두 표면은 현재 Category의 티켓을 우선순위로 묶어 전체/열린 건수와
+예상 비용 합계·노력 평균·경과 시간 합계를 계산한다.
 `ViewTicket`만 필요하며 인증·인가를 query 해석과 조회 전에 확인한다. Category·Label 조회 권한이나 쓰기 권한은
 추가로 요구하지 않는다. Category는 application 구성이 고정하며 사용자 입력으로 바꿀 수 없다.
 
@@ -24,12 +25,16 @@ API는 nullable int64 자체와 `priority_label`을 반환한다. JSON 응답의
 `min_open`은 0 이상의 int64 최소 열린 건수이며 기본값은 0이다. `p`는 1..50001의 페이지, 기본값은 1이다.
 20개 그룹씩 열린 건수 내림차순·우선순위 내림차순(NULL 마지막)으로 반환한다. `total_groups`는 HAVING 적용 뒤,
 페이지 적용 전의 총 그룹 수이므로 마지막 이후 페이지도 실제 총수를 유지한다. 응답은 `category`, `page`, `page_size`,
-`min_open`, `total_groups`, `results`의 닫힌 객체이며 각 결과는 `priority`, `priority_label`, `total`, `open`을 포함한다.
+`min_open`, `total_groups`, `results`의 닫힌 객체이며 각 결과는 `priority`, `priority_label`, `total`, `open`,
+`expected_cost_total`, `effort_average`, `elapsed_total`을 포함한다. 새 지표는 값이 있는 티켓만 사용하며 모두
+없으면 null이다. 0은 실제 값이다. 비용 합계는 원본 필드 자릿수를 넘어도 exact canonical Decimal 문자열로,
+노력 평균은 finite binary64 숫자로, 시간 합계는 normalized Duration 문자열로 반환한다.
 
 Query는 128 byte 이하이며 알 수 없는 이름·중복·빈 값·잘못된 encoding과 정규 decimal 표기가 아닌 값은 400이다.
 Category가 사라졌으면 404다. Category 정보와 집계 행/총수는 요청별 하나의 읽기 스냅샷에 속한다. 다른 페이지 요청은
 다시 현재 상태를 읽는다. 조회는 ticket 본문·라벨·digest를 불러오거나 고치지 않고 audit도 쓰지 않는다. DB·취소·정리 오류는
-부분 응답으로 바뀌지 않는다. HTML과 성공 JSON 응답은 `Cache-Control: no-store`를 사용한다.
+부분 응답으로 바뀌지 않는다. 범위를 넘거나 비유한 지표도 성공 결과로 게시하지 않는다.
+HTML과 성공 JSON 응답은 `Cache-Control: no-store`를 사용한다.
 
 요약과 티켓/Category 상세의 JSON 응답은 [typed 출력 선언](api_output.go)에서 필드·getter·nullable·범위와
 OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 명시적 두 필드만 공개하며, 같은 선언을

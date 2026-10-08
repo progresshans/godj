@@ -239,9 +239,9 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 }
 
 // AppendAggregates validates the closed scalar aggregate grammar before each
-// field reaches the backend. The backend renders MIN/MAX with its physical type
+// field reaches the backend. The backend renders aggregates with its physical type
 // rules; the AST and source-field validation stay independent of SQL dialects.
-func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, renderAggregate func(string, query.FieldRef) (string, error)) error {
+func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, renderAggregate func(query.ResultExpression) (string, error)) error {
 	for index, expression := range expressions {
 		if index > 0 {
 			sql.WriteString(", ")
@@ -252,17 +252,15 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 				return invalidPlan("COUNT(*) result contains a field")
 			}
 			sql.WriteString("COUNT(*)")
-		case query.ResultMin, query.ResultMax:
+		case query.ResultMin, query.ResultMax, query.ResultSum, query.ResultAvg:
 			field, ok := expression.Field()
-			if !ok || !ContainsField(sourceFields, field) ||
-				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldBinary && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
-				return invalidPlan("MIN/MAX result requires an ordered scalar source field")
+			if !ok || !ContainsField(sourceFields, field) {
+				return invalidPlan("aggregate operand is not an exact source field")
 			}
-			function := "MAX"
-			if expression.Kind() == query.ResultMin {
-				function = "MIN"
+			if _, err := query.NewAggregateResult(expression); err != nil {
+				return err
 			}
-			rendered, err := renderAggregate(function, field)
+			rendered, err := renderAggregate(expression)
 			if err != nil {
 				return err
 			}

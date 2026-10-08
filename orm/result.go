@@ -364,6 +364,23 @@ func Aggregate4[M, A, B, C, D, R any](first AggregateExpression[M, A], second Ag
 	return result
 }
 
+func Aggregate5[M, A, B, C, D, E, R any](first AggregateExpression[M, A], second AggregateExpression[M, B], third AggregateExpression[M, C], fourth AggregateExpression[M, D], fifth AggregateExpression[M, E], build func(A, B, C, D, E) R) Aggregate[M, R] {
+	result := Aggregate[M, R]{
+		expressions: []query.ResultExpression{first.expression, second.expression, third.expression, fourth.expression, fifth.expression},
+		err:         firstError(first.err, second.err, third.err, fourth.err, fifth.err),
+	}
+	if build == nil && result.err == nil {
+		result.err = invalidResultBuilder("aggregate builder is nil")
+	}
+	result.newDecoder = func() resultDecoder[R] {
+		a, b, c, d, e := first.newCell(), second.newCell(), third.newCell(), fourth.newCell(), fifth.newCell()
+		return resultDecoder[R]{destinations: []any{a.destination, b.destination, c.destination, d.destination, e.destination},
+			decode: func() R { return build(a.value(), b.value(), c.value(), d.value(), e.value()) },
+		}
+	}
+	return result
+}
+
 func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Projection[M, R]) ([]R, error) {
 	if err := source.validateTerminal(ctx); err != nil {
 		return nil, err
@@ -423,7 +440,7 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 		return zero, err
 	}
 	if !shape.IsCountAll() {
-		if err := validateNonCountAggregateSource(source.plan); err != nil {
+		if err := validateNonCountAggregateSource(source.plan, shape); err != nil {
 			return zero, err
 		}
 	}
@@ -470,7 +487,7 @@ func validateProjectionSource(plan query.Plan) error {
 	return nil
 }
 
-func validateNonCountAggregateSource(plan query.Plan) error {
+func validateNonCountAggregateSource(plan query.Plan, shape query.ResultShape) error {
 	for _, ordering := range plan.Orderings() {
 		if _, related := ordering.Expression().RelationPath(); related {
 			return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
@@ -480,6 +497,11 @@ func validateNonCountAggregateSource(plan query.Plan) error {
 		return err
 	}
 	if where, ok := plan.Where(); ok && where.HasRelations() {
+		for _, expression := range shape.Expressions() {
+			if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
+				return nil // Numeric aggregates use the prepared grouping compiler.
+			}
+		}
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
 	}
 	return nil

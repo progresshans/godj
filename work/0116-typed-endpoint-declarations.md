@@ -1,7 +1,7 @@
 ---
 id: GDJ-0116
-status: active
-updated: 2026-10-07
+status: complete
+updated: 2026-10-08
 baseline_commit: "8a97c78432014ac0d3d4e0ef21378f80a1724cc6"
 integration_owner: "root"
 ---
@@ -46,21 +46,11 @@ Header/path typed binding·배열 body·범용 viewset·자동 CRUD의 완료를
 - [x] Typed 입력·handler·권한과 OpenAPI operation의 공통 준비 구현
 - [x] 실제 요약·ensure 흐름과 서로 다른 DTO/상태·transaction 경계 연결 구현
 - [x] 외부 compile·인가/CSRF·오류/소유권·실제 양 DB/독립 client·영향 세 mode 검증과 정리
-- [ ] endpoint와 다음 입력 결합을 포함한 후속 source의 전체 platform/Hosted 통합
+- [x] endpoint와 다음 입력 결합을 포함한 후속 source의 전체 platform/Hosted 통합
 
-Source `18fc0451`의 구현·영향 세 mode·외부 compile·양 DB·독립 HTTP/client·drift와 정리를 완료했다.
-실행 상세와 초기 회귀·수정은 TEST_EVIDENCE가 소유한다. 다음 경로/단계 입력 결합은 별도 사본에서 구현 중이며
-그 후속 source의 명시적 milestone이 endpoint의 전체 환경을 함께 검증한다.
-
-선행 [Hosted full 37569379536](https://github.com/progresshans/godj/actions/runs/37569379536)은
-`def77d5e1c949a87d538181d05a72a3c75e97201`의 GDJ-0112/0113/0114/0115를 검증한다. 이 작업의 새 source와 분리한다.
-로컬 전체와 Hosted 전체를 중복하지 않으며 현재 외부 입력이 필요한 blocker는 없다.
-
-GDJ-0117과 결합한 source `63478ee6`의 [Hosted full 37579524401](https://github.com/progresshans/godj/actions/runs/37579524401)은
-인증 계약 관찰자의 transport 설명 누락을 검출했다. 보정 source `f45eb512`의 영향 세 mode·고정 reference 대조를
-완료했고 전체 통합은 이 보정을 포함한 새 실행에서 확인한다. 상세는 TEST_EVIDENCE를 따른다.
-후속 source `a9775e4c`의 [Hosted full 37581945355](https://github.com/progresshans/godj/actions/runs/37581945355)은 아래 기준 잠금 누락을 검출했다.
-
-Hosted `37581945355`의 기준 checksum 연결 누락은 `587aeea0`에서 보완했다. 전체 scenario의 기존 digest 재현·
-새 digest와 artifact 잠금 검증을 완료했다. 현재 전체 통합은 source `6d0473cd`의
-[Hosted full 37584339052](https://github.com/progresshans/godj/actions/runs/37584339052)에서 진행한다. 상세는 TEST_EVIDENCE에 둔다.
+Source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[전체 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1에서
+GDJ-0116/0117/0118/0119/0120을 함께 검증했다. 필수 실행과 no-skip, 실제 checkout/tree,
+생성 drift·양 DB·세 모드·각 platform·same-run capture·최종 집계를 대조해 전체 통합을 완료했다.
+선행 실패와 보정, 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
+후속 GDJ-0121의 새 구현과 전체 카탈로그 완성은 이 완료에 포함하지 않는다.

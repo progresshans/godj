@@ -18,6 +18,8 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/jsonvalue"
@@ -41,6 +43,9 @@ type summaryItem struct {
 	Priority    *int64 `json:"priority"`
 	Label       string `json:"priority_label"`
 	Total, Open int64
+	Cost        *string  `json:"expected_cost_total"`
+	Effort      *float64 `json:"effort_average"`
+	Elapsed     *string  `json:"elapsed_total"`
 }
 
 func TestTicketSummaryRequiresUsableAuthentication(t *testing.T) {
@@ -60,6 +65,7 @@ type summaryBackend struct {
 	mode                       string
 	snapshots, queries, groups int
 	closed                     int
+	rowsets                    int
 	cancel                     context.CancelFunc
 }
 
@@ -129,6 +135,7 @@ func (reader *summaryReader) Query(ctx context.Context, plan query.Plan) (db.Row
 		if err != nil {
 			return nil, err
 		}
+		reader.owner.rowsets++
 		return &summaryRows{Rows: rows, owner: reader.owner}, nil
 	}
 	if plan.Table() != "helpdesk_category" {
@@ -188,6 +195,26 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 			}
 			input = input.WithExternalPayload(document)
 		}
+		if priority == nil {
+			cost, err := decimal.Parse("999999999999.99")
+			if err != nil {
+				t.Fatal(err)
+			}
+			effort, microseconds := float64(2), int64(2)
+			if payload {
+				effort, microseconds = 1, 1
+			}
+			if closed {
+				cost, err = decimal.Parse("0.02")
+				if err != nil {
+					t.Fatal(err)
+				}
+				effort, microseconds = 3, -1
+			}
+			input = input.WithExpectedCost(cost).WithEffort(effort).WithElapsed(duration.FromMicroseconds(microseconds))
+		} else if *priority == -1 && !closed {
+			input = input.WithExpectedCost(decimal.Decimal{}).WithEffort(0).WithElapsed(duration.Duration{})
+		}
 		row, err := models.TicketObjects.Create(ctx, runtime, input)
 		if err != nil {
 			t.Fatal(err)
@@ -232,6 +259,17 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		if response.Header().Get("Cache-Control") != "no-store" || result.Category.ID != category.ID || result.Category.Name != category.Name || result.Results == nil {
 			t.Fatal("summary lost category, cache or array contract")
 		}
+		var wire struct{ Results []map[string]json.RawMessage }
+		if err := json.Unmarshal(response.Body.Bytes(), &wire); err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range wire.Results {
+			for _, name := range []string{"expected_cost_total", "effort_average", "elapsed_total"} {
+				if _, present := row[name]; !present {
+					t.Fatal("nullable metric omitted", name)
+				}
+			}
+		}
 		return result
 	}
 	t.Run("groups_filters_and_pages", func(t *testing.T) {
@@ -239,6 +277,13 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		first := decode(client, "")
 		if first.Total != 27 || first.Page != 1 || first.PageSize != 20 || len(first.Results) != 20 || first.Results[0].Priority != nil || first.Results[0].Label != "Not set" || first.Results[0].Total != 3 || first.Results[0].Open != 2 || first.Results[1].Priority == nil || *first.Results[1].Priority != math.MaxInt64 || first.Results[1].Label != "Other (9223372036854775807)" {
 			t.Fatalf("first summary page %+v", first)
+		}
+		metrics := first.Results[0]
+		if metrics.Cost == nil || *metrics.Cost != "2000000000000" || metrics.Effort == nil || *metrics.Effort != 2 || metrics.Elapsed == nil || *metrics.Elapsed != "00:00:00.000002" {
+			t.Fatal("summary lost exact widened cost, average or duration", metrics)
+		}
+		if missing := first.Results[1]; missing.Cost != nil || missing.Effort != nil || missing.Elapsed != nil {
+			t.Fatal("missing metrics became zero", missing)
 		}
 		for index := 2; index < 20; index++ {
 			if first.Results[index].Priority == nil || *first.Results[index].Priority != int64(32-index) {
@@ -257,6 +302,10 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		if second.Results[3].Label != "Urgent" || second.Results[4].Label != "Low" || second.Results[4].Total != 2 || second.Results[4].Open != 1 || second.Results[6].Label != "Normal" || second.Results[6].Open != 0 {
 			t.Fatal("choice labels or conditional count")
 		}
+		zero := second.Results[4]
+		if zero.Cost == nil || *zero.Cost != "0" || zero.Effort == nil || *zero.Effort != 0 || zero.Elapsed == nil || *zero.Elapsed != "00:00:00" {
+			t.Fatal("present zero or excluded NULL metric", zero)
+		}
 		for _, input := range []struct {
 			suffix string
 			count  int64
@@ -271,8 +320,36 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Summary &lt;script&gt;&amp; category") || strings.Contains(page.Body.String(), "<script>") || strings.Contains(page.Body.String(), "private outside") || !strings.Contains(page.Body.String(), "Other (-9223372036854775808)") || !strings.Contains(page.Body.String(), "?p=1&amp;min_open=0") {
 			t.Fatalf("summary HTML %d %s", page.Code, page.Body.String())
 		}
-		if backend.snapshots != 8 || backend.queries != 16 || backend.groups != 8 || backend.closed != 8 || *audits != 0 {
+		if !strings.Contains(page.Body.String(), "<td>0</td><td>0</td><td>00:00:00</td>") || !strings.Contains(page.Body.String(), "Total expected cost") || !strings.Contains(page.Body.String(), "Average effort") || !strings.Contains(page.Body.String(), "Total elapsed") {
+			t.Fatal("summary HTML numeric columns", page.Body.String())
+		}
+		wide := client.request(http.MethodGet, helpdesk.TicketSummaryPath, "", false)
+		if wide.Code != http.StatusOK || !strings.Contains(wide.Body.String(), "<td>2000000000000</td><td>2</td><td>00:00:00.000002</td>") {
+			t.Fatal("summary HTML lost exact metrics", wide.Code, wide.Body.String())
+		}
+		if backend.snapshots != 9 || backend.queries != 18 || backend.groups != 9 || backend.closed != 9 || *audits != 0 {
 			t.Fatal("summary must use one snapshot/two reads, close rows, and avoid audit", backend, *audits)
+		}
+	})
+	t.Run("nonfinite_metrics_publish_no_result", func(t *testing.T) {
+		category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Non-finite metrics"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, effort := range []float64{math.Inf(1), math.Inf(-1)} {
+			if _, err := models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Metric special value", category.ID).WithEffort(effort)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		client, backend, audits := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+		for _, path := range []string{helpdesk.TicketSummaryPath, "/api/tickets/summary/"} {
+			response := client.request(http.MethodGet, path, "", false)
+			if response.Code != http.StatusInternalServerError || strings.Contains(response.Body.String(), "expected_cost_total") || strings.Contains(response.Body.String(), "Metric special") || strings.Contains(response.Body.String(), "NaN") || *audits != 0 {
+				t.Fatal("failed metric published a partial result", path, response.Code, response.Body.String())
+			}
+		}
+		if backend.snapshots != 2 || backend.groups != 2 || backend.closed != backend.rowsets {
+			t.Fatal("failed metric leaked its read scope", backend)
 		}
 	})
 	t.Run("admission_and_query", func(t *testing.T) {

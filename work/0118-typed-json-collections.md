@@ -1,7 +1,7 @@
 ---
 id: GDJ-0118
-status: active
-updated: 2026-10-07
+status: complete
+updated: 2026-10-08
 baseline_commit: "eae80329b30ee971fa0a62fb4eda861a50aeed14"
 integration_owner: "root"
 ---
@@ -47,11 +47,11 @@ Header, arbitrary JSON union·nested writable serializer, 자동 CRUD/viewset과
 - [x] Helpdesk/Article의 실제 여러 건 생성과 단건 입력 연결
 - [x] 외부 compile·실제 HTTP·인증/CSRF·양 DB/client·실패/취소·drift 영향 검증
 - [x] source와 후속 통합 범위 기록
-- [ ] 후속 입력 작업과 결합한 source의 전체 platform/Hosted 통합
+- [x] 후속 입력 작업과 결합한 source의 전체 platform/Hosted 통합
 
-Source `6e6e4042`의 typed 배열·두 앱 생성과 영향 세 mode·양 DB/client·drift·필수 경로·정리를 완료했다.
-실행과 검증 보조 runner의 호출 보정은 TEST_EVIDENCE에 기록했다. 이 source의 전체 platform/Hosted는 후속 통합 milestone이 소유한다.
-
-GDJ-0117 source `55e0453d`는 영향 세 mode·양 DB/client·고정 Article API 대조와 정리를 완료했다.
-GDJ-0116/0117의 전체 통합은 인증 관찰자와 기준 잠금 보완을 포함한 source `6d0473cd`의 Hosted full `37584339052`에서 진행 중이며 이 작업의 검증으로 전이하지 않는다.
-현재 외부 입력이 필요한 blocker는 없다.
+Source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[전체 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1에서
+GDJ-0116/0117/0118/0119/0120을 함께 검증했다. 필수 실행과 no-skip, 실제 checkout/tree,
+생성 drift·양 DB·세 모드·각 platform·same-run capture·최종 집계를 대조해 전체 통합을 완료했다.
+선행 실패와 보정, 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
+후속 GDJ-0121의 새 구현과 전체 카탈로그 완성은 이 완료에 포함하지 않는다.

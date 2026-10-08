@@ -9,7 +9,7 @@ import (
 )
 
 // DynamicAggregateInput binds names against the source's metadata snapshot.
-// Kind is one of count_all, count, min, max. It is never rendered as SQL.
+// Kind is one of count_all, count, min, max, sum, avg. It is never rendered as SQL.
 type DynamicAggregateInput struct {
 	Kind     query.ResultExpressionKind
 	Field    string
@@ -73,6 +73,10 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 			switch input.Kind {
 			case query.ResultCount:
 				value, err = query.CountResult(operand)
+			case query.ResultSum:
+				value, err = query.SumResult(operand)
+			case query.ResultAvg:
+				value, err = query.AvgResult(operand)
 			case query.ResultMin, query.ResultMax:
 				if _, related := operand.RelationPath(); related {
 					return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "dynamic related MIN/MAX are not implemented"}
@@ -235,16 +239,7 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 	factories := make([]func() scalarCell[query.Value], len(expressions))
 	for index, expression := range expressions {
 		field, _ := expression.Field()
-		kind, nullable := field.Kind(), field.Nullable()
-		if _, related := expression.RelationPath(); related {
-			nullable = true
-		}
-		switch expression.Kind() {
-		case query.ResultCountAll, query.ResultCount:
-			kind, nullable = query.FieldInteger, false
-		case query.ResultMin, query.ResultMax:
-			nullable = true
-		}
+		kind, nullable := expression.ResultValueKind(), expression.ResultNullable()
 		switch kind {
 		case query.FieldInteger:
 			factories[index] = dynamicGroupCell(nullableIntegerResultCell, nullable)
@@ -255,7 +250,11 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 		case query.FieldFloat:
 			factories[index] = dynamicGroupCell(nullableFloatResultCell, nullable)
 		case query.FieldDecimal:
-			factories[index] = dynamicGroupCell(func() scalarCell[*decimal.Decimal] { return nullableDecimalResultCell(field) }, nullable)
+			if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
+				factories[index] = dynamicGroupCell(nullableAggregateDecimalCell, nullable)
+			} else {
+				factories[index] = dynamicGroupCell(func() scalarCell[*decimal.Decimal] { return nullableDecimalResultCell(field) }, nullable)
+			}
 		case query.FieldUUID:
 			factories[index] = dynamicGroupCell(nullableUUIDResultCell, nullable)
 		case query.FieldBinary:
@@ -267,7 +266,11 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 		case query.FieldTime:
 			factories[index] = dynamicGroupCell(nullableTimeResultCell, nullable)
 		case query.FieldDuration:
-			factories[index] = dynamicGroupCell(nullableDurationResultCell, nullable)
+			if expression.Kind() == query.ResultAvg {
+				factories[index] = dynamicGroupCell(nullableAggregateDurationCell, nullable)
+			} else {
+				factories[index] = dynamicGroupCell(nullableDurationResultCell, nullable)
+			}
 		default:
 			return nil, invalidResultBuilder("dynamic group result has no scalar decoder")
 		}

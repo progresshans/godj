@@ -22,6 +22,12 @@ Session/Bearer client는 사용 불가 생성·반복 설정·복구와 활성 �
 별도 wire 검사는 두 응답형의 true/false와 필드 누락·null·숫자·문자열 거부를 확인한다.
 이 필드는 stored password를 공개하거나 입력으로 상태를 변경하는 통로가 아니다.
 
+Helpdesk summary는 같은 generated 응답에 `expected_cost_total`·`effort_average`·`elapsed_total`을 required nullable
+값으로 포함한다. 독립 client는 보존한 ticket 응답으로 exact Decimal/Duration 합계와 이 fixture의 finite 평균을 계산하고
+현재 Category의 실제 집계와 비교한다. Framework helper나 다른 summary 응답을 예상값으로 사용하지 않는다.
+별도 wire 검사는 원본 필드보다 큰 Decimal 합계·전체 모델 Duration 범위·0/null 구분과 필수 값·타입·canonical 표현의
+거부를 확인한다. JSON Schema의 Decimal 확장 정책이 generator의 모든 수치 범위 검사를 대신한다고 주장하지 않는다.
+
 `testdata/client`에는 framework module을 import하거나 replace하는 연결이 없다. 생성기와 client runtime 버전은
 그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
 부모 테스트의 생성·build는 준비된 module cache를 사용해 offline으로 실행한다.

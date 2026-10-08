@@ -304,3 +304,15 @@ Go 구현·대조·환경별 검증의 완료를 주장하지 않는다.
 실행한 upstream module hash는 결과에, observer hash와 정리 증거는 별도 native receipt에 기록한다.
 Typed 입력·빈 IN 실행·borrowed savepoint·지연 FK commit의 명시적 Go 차이와 native 조건 재평가는
 [ADR-0089](adr/0089-bulk-update-and-selected-field-ownership.md)가 설명한다.
+
+GDJ-0121 숫자 집계는 고정 Django 6.1 `django/db/models/aggregates.py`·`functions/mixins.py`와
+SQLite/PostgreSQL adapter의 공개 결과·NULL·precision·overflow를 독립 관찰한다(BSD-3-Clause).
+[숫자 관찰](../conformance/runners/django/numeric_aggregate_reference/observe.py)과
+[Duration 반환/HAVING 관찰](../conformance/runners/django/numeric_aggregate_reference/duration_boundaries.py)은
+같은 upstream source verification을 확인하고 Go 소스·예상값을 읽지 않는다.
+변경하지 않은 [원본 bytes](../codegen/consumertest/testdata/numericaggregate/)와 observer/module hash를 함께 검증한다.
+SQLite Decimal 평균의 division scale은 PostgreSQL 17.10
+[`select_div_scale`와 `numeric_avg`](https://github.com/postgres/postgres/blob/REL_17_10/src/backend/utils/adt/numeric.c)를
+기준으로 한다. [구현](../db/sqlite/decimal_aggregate.go)의 scale 규칙은 `derived=true`인 의미적 이식이며,
+Go `math/big`와 Decimal 문자열로 계산한다. PostgreSQL의 내부 객체·배열·division 코드를 제품에 포함하지 않는다.
+원본 copyright와 [PostgreSQL License](../LICENSE.postgresql)를 보존하며 [NOTICE](../NOTICE.md)에 변경 내용을 기록한다.

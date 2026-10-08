@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
 )
@@ -14,8 +17,46 @@ import (
 // not from another summary request or a GoDj helper imported by this module.
 func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, transport *observedTransport, state *sessionState, category int64, tickets []hs.Ticket) error {
 	groups := make(map[hs.NilInt64]hs.TicketSummaryResultsItem)
+	type metrics struct {
+		cost        *big.Rat
+		elapsed     *big.Int
+		effort      float64
+		effortCount int
+	}
+	values := make(map[hs.NilInt64]metrics)
 	for _, ticket := range tickets {
 		row := groups[ticket.Priority]
+		if row.Total == 0 {
+			row.ExpectedCostTotal.SetToNull()
+			row.EffortAverage.SetToNull()
+			row.ElapsedTotal.SetToNull()
+		}
+		metric := values[ticket.Priority]
+		if !ticket.ExpectedCost.Null {
+			cost, ok := new(big.Rat).SetString(ticket.ExpectedCost.Value)
+			if !ok {
+				return fail("retained ticket has invalid decimal cost")
+			}
+			if metric.cost == nil {
+				metric.cost = new(big.Rat)
+			}
+			metric.cost.Add(metric.cost, cost)
+		}
+		if !ticket.Effort.Null {
+			metric.effort += ticket.Effort.Value
+			metric.effortCount++
+		}
+		if !ticket.Elapsed.Null {
+			elapsed, err := summaryDurationMicros(ticket.Elapsed.Value)
+			if err != nil {
+				return err
+			}
+			if metric.elapsed == nil {
+				metric.elapsed = new(big.Int)
+			}
+			metric.elapsed.Add(metric.elapsed, elapsed)
+		}
+		values[ticket.Priority] = metric
 		row.Priority = ticket.Priority
 		row.Total++
 		if !ticket.Closed {
@@ -38,7 +79,27 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 		groups[ticket.Priority] = row
 	}
 	var expected []hs.TicketSummaryResultsItem
-	for _, row := range groups {
+	for key, row := range groups {
+		metric := values[key]
+		if metric.cost != nil {
+			// Stored ticket costs have two decimal places. Exact rational
+			// addition avoids binary64 and preserves sums wider than a field.
+			cost := strings.TrimRight(strings.TrimRight(metric.cost.FloatString(2), "0"), ".")
+			if cost == "-0" {
+				cost = "0"
+			}
+			row.ExpectedCostTotal.SetTo(cost)
+		}
+		if metric.effortCount > 0 {
+			row.EffortAverage.SetTo(metric.effort / float64(metric.effortCount))
+		}
+		if metric.elapsed != nil {
+			elapsed, err := summaryDurationText(metric.elapsed)
+			if err != nil {
+				return err
+			}
+			row.ElapsedTotal.SetTo(elapsed)
+		}
 		expected = append(expected, row)
 	}
 	slices.SortFunc(expected, func(a, b hs.TicketSummaryResultsItem) int {
@@ -97,4 +158,68 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 		}
 	}
 	return requireHelpdeskTickets(ctx, client, transport, state, tickets...)
+}
+
+// These helpers use only the independent client's standard library and
+// retained response strings. They do not import GoDj or ask the summary API
+// to supply its own expected totals.
+func summaryDurationMicros(text string) (*big.Int, error) {
+	day, clock := int64(0), text
+	if prefix, tail, found := strings.Cut(text, " "); found {
+		parsed, err := strconv.ParseInt(prefix, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		day, clock = parsed, tail
+	}
+	parts := strings.Split(clock, ":")
+	if len(parts) != 3 {
+		return nil, fail("retained duration clock")
+	}
+	hour, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	minute, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	seconds, fraction, _ := strings.Cut(parts[2], ".")
+	second, err := strconv.ParseInt(seconds, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	microseconds := int64(0)
+	if fraction != "" {
+		if len(fraction) != 6 {
+			return nil, fail("retained duration precision")
+		}
+		microseconds, err = strconv.ParseInt(fraction, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if day < -999999999 || day > 999999999 || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 {
+		return nil, fail("retained duration range")
+	}
+	result := big.NewInt(day)
+	result.Mul(result, big.NewInt(86400000000))
+	result.Add(result, big.NewInt(((hour*60+minute)*60+second)*1000000+microseconds))
+	return result, nil
+}
+func summaryDurationText(microseconds *big.Int) (string, error) {
+	var days, remainder big.Int
+	days.DivMod(microseconds, big.NewInt(86400000000), &remainder)
+	if !days.IsInt64() || days.Int64() < -999999999 || days.Int64() > 999999999 {
+		return "", fail("expected duration sum exceeds model domain")
+	}
+	rest := remainder.Int64()
+	text := fmt.Sprintf("%02d:%02d:%02d", rest/3600000000, rest/60000000%60, rest/1000000%60)
+	if rest%1000000 != 0 {
+		text += fmt.Sprintf(".%06d", rest%1000000)
+	}
+	if days.Sign() != 0 {
+		text = days.String() + " " + text
+	}
+	return text, nil
 }

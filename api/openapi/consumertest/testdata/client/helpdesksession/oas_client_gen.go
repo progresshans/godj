@@ -349,14 +349,17 @@ type Invoker interface {
 	//
 	// Groups tickets in the application's fixed category by their stored priority, retaining null and
 	// every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false.
-	// min_open filters groups, then results are ordered by open count descending and priority descending
-	// with null last. Pages contain at most 20 groups; total_groups is the count after filtering and
-	// before pagination, including on empty or past-end pages. Category identity/name, rows and total
-	// share one read snapshot per request. Separate page requests observe current state independently.
-	// This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the
-	// only business permission, checked before parsing and lookup. Query strings are limited to 128 bytes;
-	// unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers
-	// are rejected.
+	// expected_cost_total is an exact canonical decimal string, effort_average is a finite binary64
+	// number, and elapsed_total is a normalized duration string. Each metric excludes missing values and
+	// is null when no value is present; zero remains a value. Decimal totals can exceed the source field
+	// precision. Unrepresentable or non-finite metrics fail the response. min_open filters groups, then
+	// results are ordered by open count descending and priority descending with null last. Pages contain
+	// at most 20 groups; total_groups is the count after filtering and before pagination, including on
+	// empty or past-end pages. Category identity/name, rows and total share one read snapshot per request.
+	// Separate page requests observe current state independently. This is a read-only operation without
+	// audit, ticket-body loading or digest repair. ViewTicket is the only business permission, checked
+	// before parsing and lookup. Query strings are limited to 128 bytes; unknown/duplicate parameters,
+	// empty values, malformed encoding and non-canonical decimal integers are rejected.
 	//
 	// GET /api/tickets/summary/
 	HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error)
@@ -3719,14 +3722,17 @@ func (c *Client) sendHelpdeskTicketServiceReportSave(ctx context.Context, reques
 //
 // Groups tickets in the application's fixed category by their stored priority, retaining null and
 // every legacy int64 value. Total counts all tickets; open counts those whose closed flag is false.
-// min_open filters groups, then results are ordered by open count descending and priority descending
-// with null last. Pages contain at most 20 groups; total_groups is the count after filtering and
-// before pagination, including on empty or past-end pages. Category identity/name, rows and total
-// share one read snapshot per request. Separate page requests observe current state independently.
-// This is a read-only operation without audit, ticket-body loading or digest repair. ViewTicket is the
-// only business permission, checked before parsing and lookup. Query strings are limited to 128 bytes;
-// unknown/duplicate parameters, empty values, malformed encoding and non-canonical decimal integers
-// are rejected.
+// expected_cost_total is an exact canonical decimal string, effort_average is a finite binary64
+// number, and elapsed_total is a normalized duration string. Each metric excludes missing values and
+// is null when no value is present; zero remains a value. Decimal totals can exceed the source field
+// precision. Unrepresentable or non-finite metrics fail the response. min_open filters groups, then
+// results are ordered by open count descending and priority descending with null last. Pages contain
+// at most 20 groups; total_groups is the count after filtering and before pagination, including on
+// empty or past-end pages. Category identity/name, rows and total share one read snapshot per request.
+// Separate page requests observe current state independently. This is a read-only operation without
+// audit, ticket-body loading or digest repair. ViewTicket is the only business permission, checked
+// before parsing and lookup. Query strings are limited to 128 bytes; unknown/duplicate parameters,
+// empty values, malformed encoding and non-canonical decimal integers are rejected.
 //
 // GET /api/tickets/summary/
 func (c *Client) HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error) {

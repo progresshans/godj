@@ -112,6 +112,17 @@ func scanDecimal(raw any, precision ir.DecimalSpec) (decimal.Decimal, error) {
 	if !precision.Valid() {
 		return decimal.Decimal{}, decimal.ErrInvalid
 	}
+	value, err := scanDecimalValue(raw)
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
+	if !value.Fits(precision.MaxDigits, precision.DecimalPlaces) {
+		return decimal.Decimal{}, decimal.ErrRange
+	}
+	return value, nil
+}
+
+func scanDecimalValue(raw any) (decimal.Decimal, error) {
 	var value decimal.Decimal
 	var err error
 	switch source := raw.(type) {
@@ -124,9 +135,6 @@ func scanDecimal(raw any, precision ir.DecimalSpec) (decimal.Decimal, error) {
 	}
 	if err != nil {
 		return decimal.Decimal{}, err
-	}
-	if !value.Fits(precision.MaxDigits, precision.DecimalPlaces) {
-		return decimal.Decimal{}, decimal.ErrRange
 	}
 	return value, nil
 }

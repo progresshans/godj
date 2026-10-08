@@ -34,6 +34,12 @@ if err != nil {
 모든 객체 필드는 필수다. `Nullable`의 nil은 `null`, non-nil은 원래 타입의 값이며 필드를 생략하지 않는다.
 `Array`의 nil slice는 `[]`다. 정수는 exact int64이고 범위는 양 끝을 포함한다. 배열 길이 범위도 같은 방식으로
 실제 출력과 schema에 적용한다. String·Boolean은 입력 trimming·default·choices를 적용하지 않는다.
+
+`Float()`는 finite binary64 JSON 숫자이며 ORM의 NaN/Infinity를 이 출력 경계에서 거부한다.
+`Decimal()`은 원본 field precision과 독립된 전역 Decimal의 canonical 문자열을 출력한다. OpenAPI는
+표기·길이와 significant digits/adjusted exponent의 명시적 정책을 기술하며 실제 값 범위는 같은 typed 출력에서 검사한다.
+`Duration()`은 전체 모델 day 범위의 normalized 문자열이다. 세 shape 모두 `Nullable`과 결합할 수 있고,
+잘못된 값이 포함되면 prepared 응답 전체를 실패시켜 일부 필드만 게시하지 않는다.
 추가 primitive가 필요한 모델은 `output.Model(encoder)`로 기존 `serializers.ModelEncoder`를 연결한다.
 이 연결은 encoder가 소유한 동일한 Spec에서 schema를 얻으므로 별도 Spec이나 임의 schema를 붙일 수 없다.
 모델 필드 허용 목록·NULL·길이·Decimal/JSON 등 기존 codec·명시적 computed field의 의미를 보존한다.

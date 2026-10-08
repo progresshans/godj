@@ -6,6 +6,8 @@ import (
 	"slices"
 
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/serializers"
 )
 
@@ -22,6 +24,27 @@ func Boolean() Shape[bool] {
 }
 
 func Int64() Shape[int64] { return Int64Range(math.MinInt64, math.MaxInt64) }
+
+// Float emits finite binary64 JSON numbers. Model NaN and Infinity remain
+// valid ORM values but fail this JSON output boundary before publication.
+func Float() Shape[float64] {
+	return Shape[float64]{node: &node{schema: openapi.Float()}, project: func(value float64) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.Float(value)), nil
+	}}
+}
+
+// Decimal emits canonical exact strings without applying source-field scale.
+func Decimal() Shape[decimal.Decimal] {
+	return Shape[decimal.Decimal]{node: &node{schema: openapi.Decimal()}, project: func(value decimal.Decimal) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.Decimal(value)), nil
+	}}
+}
+
+func Duration() Shape[duration.Duration] {
+	return Shape[duration.Duration]{node: &node{schema: openapi.Duration()}, project: func(value duration.Duration) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.Duration(value)), nil
+	}}
+}
 
 func Int64Range(minimum, maximum int64) Shape[int64] {
 	schema, err := openapi.IntegerRange(minimum, maximum)

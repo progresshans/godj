@@ -293,8 +293,20 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 		t.Fatal("summary query lost its typed omission or lexical policy")
 	}
 	summaryItems := summarySchema.Properties["results"]
-	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "total", "open"}) {
+	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "total", "open", "expected_cost_total", "effort_average", "elapsed_total"}) {
 		t.Fatal("summary result lost its required bounded groups")
+	}
+	summaryCost := summaryItems.Items.Properties["expected_cost_total"]
+	if len(summaryCost.AnyOf) != 2 || !summaryCost.allowsType("null") || summaryCost.AnyOf[0].Type != "string" || summaryCost.AnyOf[0].MinLength != 1 || summaryCost.AnyOf[0].MaxLength != 2002 || summaryCost.AnyOf[0].Pattern != `^-?(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$` {
+		t.Fatal("summary cost must preserve canonical exact results beyond the source precision")
+	}
+	summaryEffort := summaryItems.Items.Properties["effort_average"]
+	if len(summaryEffort.AnyOf) != 2 || !summaryEffort.allowsType("null") || summaryEffort.AnyOf[0].Type != "number" || summaryEffort.AnyOf[0].Format != "double" {
+		t.Fatal("summary effort must preserve nullable floating-point results")
+	}
+	summaryElapsed := summaryItems.Items.Properties["elapsed_total"]
+	if len(summaryElapsed.AnyOf) != 2 || !summaryElapsed.allowsType("null") || summaryElapsed.AnyOf[0].Type != "string" || summaryElapsed.AnyOf[0].Pattern != document.Components.Schemas["Ticket"].Properties["elapsed"].AnyOf[0].Pattern {
+		t.Fatal("summary elapsed must preserve canonical duration results")
 	}
 	summaryPriority := summaryItems.Items.Properties["priority"]
 	if len(summaryPriority.AnyOf) != 2 || !summaryPriority.allowsType("null") || summaryPriority.AnyOf[0].Format != "int64" || len(summaryPriority.AnyOf[0].Enum) != 0 || string(summaryPriority.AnyOf[0].Minimum) != "-9223372036854775808" || string(summaryPriority.AnyOf[0].Maximum) != "9223372036854775807" {

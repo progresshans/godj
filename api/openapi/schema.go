@@ -478,16 +478,7 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	case serializers.FieldFloat:
 		schema = Float()
 	case serializers.FieldDuration:
-		var err error
-		schema, err = schemaAnnotate(String(),
-			serializers.MemberOf("pattern", serializers.String(`^(-?[1-9][0-9]{0,8} )?([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{6})?$`)),
-			serializers.MemberOf("minLength", serializers.Integer(8)),
-			serializers.MemberOf("maxLength", serializers.Integer(26)),
-			serializers.MemberOf("x-godj-duration", serializers.String("normalized-days-and-microseconds")),
-		)
-		if err != nil {
-			return Schema{}, err
-		}
+		schema = Duration()
 	case serializers.FieldTime:
 		var err error
 		policy, policyErr := serializers.NewObject(

@@ -76,41 +76,12 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	if !expression.IsAggregate() {
 		return appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, false)
 	}
-	function := "COUNT"
-	if expression.Kind() == query.ResultMin {
-		function = "MIN"
-	}
-	if expression.Kind() == query.ResultMax {
-		function = "MAX"
-	}
-	field, hasField := expression.Field()
-	ordered := expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax
-	if ordered && field.Kind() == query.FieldBinary {
-		statement.WriteString("decode(")
-	}
-	statement.WriteString(function + "(")
-	if expression.Distinct() {
-		statement.WriteString("DISTINCT ")
-	}
-	if expression.Kind() == query.ResultCountAll {
-		statement.WriteByte('*')
-	} else {
-		if ordered && field.Kind() == query.FieldBinary {
-			statement.WriteString("encode(")
-		}
-		if err := appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, true); err != nil {
+	var operand, filterSQL strings.Builder
+	if expression.Kind() != query.ResultCountAll {
+		if err := appendResultValue(&operand, expression, "t0", prepared.ByKey, arguments, true); err != nil {
 			return err
 		}
-		if ordered {
-			switch field.Kind() {
-			case query.FieldBinary:
-				statement.WriteString(`, 'hex') COLLATE "C"`)
-			case query.FieldUUID:
-				statement.WriteString(`::text COLLATE "C"`)
-			}
-		}
 	}
-	statement.WriteByte(')')
 	if filter, present := expression.Filter(); present {
 		filterPlan, err := query.NewPlan(plan.Table(), plan.SourceFields()).WithWhere(filter)
 		if err != nil {
@@ -120,27 +91,21 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 		if err != nil {
 			return err
 		}
-		statement.WriteString(" FILTER (WHERE ")
+		filterSQL.WriteString(" FILTER (WHERE ")
 		leaves := analysis.leaves
-		if err := appendWhereExpression(statement, analysis.expression, &leaves, groupedFieldResolver(prepared), groupedRHSField, arguments, false); err != nil {
+		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(prepared), groupedRHSField, arguments, false); err != nil {
 			return err
 		}
 		if len(leaves) != 0 {
 			return invalidPlan("aggregate filter has unused prepared leaves")
 		}
-		statement.WriteByte(')')
+		filterSQL.WriteByte(')')
 	}
-	if ordered {
-		switch field.Kind() {
-		case query.FieldBinary:
-			statement.WriteString(", 'hex')")
-		case query.FieldUUID:
-			statement.WriteString("::uuid")
-		}
+	rendered, err := renderAggregate(expression, operand.String(), filterSQL.String(), true)
+	if err != nil {
+		return err
 	}
-	if hasField && ordered {
-		appendDecimalResultPrecision(statement, field)
-	}
+	statement.WriteString(rendered)
 	return nil
 }
 

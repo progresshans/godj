@@ -1,6 +1,6 @@
 ---
 id: GDJ-0120
-status: active
+status: complete
 updated: 2026-10-08
 baseline_commit: "cc2c2f2564bfca11955ca1baa0d047c8f1555b21"
 integration_owner: "root"
@@ -38,12 +38,12 @@ Transfer-Encoding은 [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html#sect
 - [x] 기존 두 삭제 handler와 typed Output/Endpoint의 제한 확인
 - [x] 닫힌 NoContent declaration/Prepared·OpenAPI·오류/소유권 연결
 - [x] Article·Label 삭제의 실제 소비자와 실패 경계 연결
-- [ ] 공개 compile·실제 HTTP/DB/client·drift와 원격 검증
+- [x] Source `b14d0eaf`의 공개 compile·실제 HTTP/양 DB/client·세 모드·drift와 원격 영향 검증
+- [x] 선행 typed endpoint·입력 작업과 결합한 source의 전체 platform/Hosted 통합
 
-선행 GDJ-0119 source `cc2c2f25`의 부분 성공과 이 작업의 새 검증 대상을 구분한다.
-Intel CGO0 분할 보완을 포함한 PR source의 자동 전체 CI가 이번 변경의 실행을 검증한다.
-Source `0ea94a3e`에서 API·독립 SDK와 SQLite 소비자의 세 모드, Linux/amd64 normal·CGO0 공개 compile,
-PostgreSQL normal·CGO0의 필수 목록까지 통과했다. PostgreSQL race/core는 Helpdesk package의 누적 timeout으로
-실패했다. PostgreSQL 소비자 root를 별도 race 작업으로 옮겨 필수 목록과 시간 한도를 보존했다.
-새 분할의 실제 실행과 전체 통합은 미완료이며 상세 source·job·로그 대조와 분할 검사는
-[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다.
+Source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[전체 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1에서
+GDJ-0116/0117/0118/0119/0120을 함께 검증했다. 필수 실행과 no-skip, 실제 checkout/tree,
+생성 drift·양 DB·세 모드·각 platform·same-run capture·최종 집계를 대조해 전체 통합을 완료했다.
+선행 실패와 보정, 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
+후속 GDJ-0121의 새 구현과 전체 카탈로그 완성은 이 완료에 포함하지 않는다.

@@ -22,6 +22,8 @@ import (
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/migrations"
@@ -100,7 +102,15 @@ func run() error {
 	}
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
 		for _, closed := range []bool{false, true} {
-			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Unset summary", category.ID).WithClosed(closed)); err != nil {
+			cost, effort, microseconds := "0.1", 1.5, int64(1)
+			if closed {
+				cost, effort, microseconds = "0.2", 2.5, 2
+			}
+			amount, err := decimal.Parse(cost)
+			if err != nil {
+				return err
+			}
+			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Unset summary", category.ID).WithClosed(closed).WithExpectedCost(amount).WithEffort(effort).WithElapsed(duration.FromMicroseconds(microseconds))); err != nil {
 				return err
 			}
 		}

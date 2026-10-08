@@ -3317,6 +3317,94 @@ func (s *TicketSummaryResultsItem) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.ExpectedCostTotal.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     2002,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "expected_cost_total",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.EffortAverage.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -1.7976931348623157e+308,
+					MaxSet:        true,
+					Max:           1.7976931348623157e+308,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "effort_average",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ElapsedTotal.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     8,
+					MinLengthSet:  true,
+					MaxLength:     26,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^(-?[1-9][0-9]{0,8} )?([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{6})?$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "elapsed_total",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}

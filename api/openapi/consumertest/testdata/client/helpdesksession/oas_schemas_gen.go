@@ -4108,10 +4108,13 @@ func (s *TicketSummaryHeaders) SetResponse(val TicketSummary) {
 func (*TicketSummaryHeaders) helpdeskTicketSummaryRes() {}
 
 type TicketSummaryResultsItem struct {
-	Priority      NilInt64 `json:"priority"`
-	PriorityLabel string   `json:"priority_label"`
-	Total         int64    `json:"total"`
-	Open          int64    `json:"open"`
+	Priority          NilInt64   `json:"priority"`
+	PriorityLabel     string     `json:"priority_label"`
+	Total             int64      `json:"total"`
+	Open              int64      `json:"open"`
+	ExpectedCostTotal NilString  `json:"expected_cost_total"`
+	EffortAverage     NilFloat64 `json:"effort_average"`
+	ElapsedTotal      NilString  `json:"elapsed_total"`
 }
 
 // GetPriority returns the value of Priority.
@@ -4134,6 +4137,21 @@ func (s *TicketSummaryResultsItem) GetOpen() int64 {
 	return s.Open
 }
 
+// GetExpectedCostTotal returns the value of ExpectedCostTotal.
+func (s *TicketSummaryResultsItem) GetExpectedCostTotal() NilString {
+	return s.ExpectedCostTotal
+}
+
+// GetEffortAverage returns the value of EffortAverage.
+func (s *TicketSummaryResultsItem) GetEffortAverage() NilFloat64 {
+	return s.EffortAverage
+}
+
+// GetElapsedTotal returns the value of ElapsedTotal.
+func (s *TicketSummaryResultsItem) GetElapsedTotal() NilString {
+	return s.ElapsedTotal
+}
+
 // SetPriority sets the value of Priority.
 func (s *TicketSummaryResultsItem) SetPriority(val NilInt64) {
 	s.Priority = val
@@ -4152,6 +4170,21 @@ func (s *TicketSummaryResultsItem) SetTotal(val int64) {
 // SetOpen sets the value of Open.
 func (s *TicketSummaryResultsItem) SetOpen(val int64) {
 	s.Open = val
+}
+
+// SetExpectedCostTotal sets the value of ExpectedCostTotal.
+func (s *TicketSummaryResultsItem) SetExpectedCostTotal(val NilString) {
+	s.ExpectedCostTotal = val
+}
+
+// SetEffortAverage sets the value of EffortAverage.
+func (s *TicketSummaryResultsItem) SetEffortAverage(val NilFloat64) {
+	s.EffortAverage = val
+}
+
+// SetElapsedTotal sets the value of ElapsedTotal.
+func (s *TicketSummaryResultsItem) SetElapsedTotal(val NilString) {
+	s.ElapsedTotal = val
 }
 
 // Ref: #/components/schemas/TicketUpdate

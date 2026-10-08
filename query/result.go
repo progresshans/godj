@@ -29,6 +29,8 @@ const (
 	ResultCount    ResultExpressionKind = "count"
 	ResultMax      ResultExpressionKind = "max"
 	ResultMin      ResultExpressionKind = "min"
+	ResultSum      ResultExpressionKind = "sum"
+	ResultAvg      ResultExpressionKind = "avg"
 )
 
 // ResultExpression is an immutable, backend-independent selected value.
@@ -112,11 +114,33 @@ func (e ResultExpression) Kind() ResultExpressionKind { return e.kind }
 
 func (e ResultExpression) Field() (FieldRef, bool) {
 	switch e.kind {
-	case ResultField, ResultJSONPath, ResultCount, ResultMax, ResultMin:
+	case ResultField, ResultJSONPath, ResultCount, ResultMax, ResultMin, ResultSum, ResultAvg:
 		return e.field, true
 	default:
 		return FieldRef{}, false
 	}
+}
+
+// ResultValueKind is independent of the operand's exact source metadata.
+// In particular AVG(integer) returns Float and COUNT returns Integer without
+// fabricating a different FieldRef for that source column.
+func (e ResultExpression) ResultValueKind() FieldKind {
+	switch e.kind {
+	case ResultCountAll, ResultCount:
+		return FieldInteger
+	case ResultAvg:
+		if e.field.Kind() == FieldInteger {
+			return FieldFloat
+		}
+	}
+	return e.field.Kind()
+}
+
+func (e ResultExpression) ResultNullable() bool {
+	if e.kind == ResultCountAll || e.kind == ResultCount {
+		return false
+	}
+	return e.IsAggregate() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable()
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {

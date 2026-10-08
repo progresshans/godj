@@ -3,6 +3,78 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0121 — 숫자 합계·평균과 업무 지표
+
+2026-10-08 KST, 기준 `b14d0eaf3d49f01151c8b010fb97eac2a57532ef` 뒤의 작업 사본에서
+정수·Float·Decimal·Duration의 SUM/AVG, root/finite forward·nullable operand와 typed/dynamic 결과를 구현했다.
+원본 FieldRef·precision을 유지하고 결과 kind/nullability·Decimal 전역 결과 범위·Duration 평균 scanner를 분리했다.
+Helpdesk의 같은 읽기 snapshot·Category·인가·페이지에 비용 합계·노력 평균·시간 합계를 연결했다.
+구현의 장기 의미는 ADR-0069/0091, 독립 native 기준의 출처와 반복 관찰은 아래 조사 절을 따른다.
+로컬 실행은 Go 1.26.5 darwin/arm64·CGO=1의 normal이다. 새 source의 원격 세 모드·전체 platform PASS를 뜻하지 않는다.
+
+### 로컬 영향 실행
+
+- Query/ORM/SQLite/PostgreSQL의 새 숫자·scanner 및 기존 scalar/group compiler 검사 131개 run/pass, skip 0.
+  API output/openapi 전체 200개 run/pass, skip 0. 원 JSON SHA-256은 각각
+  `a16ad67555de291027e42fe8a92ca676c3e4cba3998666b37a5664f1eea8ea07`,
+  `e3e65194e1f9bbc8f91bdf39c647391518ac5752c5c64cff47b7b9d9d60300d6`이다.
+- `TestGeneratedNumericAggregation`은 독립 fixture의 backend별 34개 입력 사례·548개 동작을 실제로 실행했다.
+  두 DB의 reference/runtime child 1,178개가 정확히 한 번 run/pass했고 skip 0이다. Child 원 JSON SHA-256은
+  `f15ad8cac450b7b5d4084f888c97b74fb040d29257088d20570b706cf6cb810c`다.
+  Count와 정수 평균의 Float 변환, source precision 밖의 Decimal 결과·최대 정밀도,
+  Duration 반올림/HAVING 차이, NULL·distinct·filter·forward·cache/페이지·slice·취소와 borrowed scope를 포함한다.
+  잘못된 physical 값·원본 precision 위반·외부 PostgreSQL NaN/month/day 값·overflow는 결과나 builder를 게시하지 않았다.
+  텍스트/Boolean 집계, 정수 평균의 잘못된 결과 타입, 다른 모델과 외부 operand의 compile-negative 5개도 통과했다.
+- 같은 native checkpoint에서 양 DB Helpdesk summary의 HTML/API·허용 범위·NULL/0·큰 합계·빈/끝 페이지,
+  callback·cleanup·취소·오류/비유한 결과 폐기와 원본 row/audit 보존을 실행했다.
+  바깥 Go 검사 44개가 정확히 한 번 run/pass, skip 0이며 원 JSON SHA-256은
+  `4242abe5bfb33606daf0ba385f69d7ac470c66901db53f4765b6dd6547d82fe5`다.
+- 공통 compiler 변경의 기존 그룹 집계 회귀도 양 DB에서 실행했다. Child 144개 run/pass·skip 0과
+  compile-negative를 포함한 바깥 10개 run/pass를 확인했다. Child/바깥 원 JSON SHA-256은
+  `1de4a2e5bada84e45430b08661dd1a77feacff1309461175a1d8d8fc88edff15`,
+  `cbcb4079e52e4a236b0a3dc3747d34b7ddf5db8d0e888a30e9a301e4076a2fc8`이다.
+
+Native 환경은 pinned PostgreSQL 17.10 image
+`sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`, UTF8·libc·C/C다.
+각 checkpoint는 별도 2 CPU/512 MiB container와 loopback 임시 포트·소유 database/schema를 사용했다.
+잔여 schema/table/다른 session `0|0|0`, database 삭제·container 중단/제거·daemon 응답을 확인했다.
+숫자/Helpdesk 및 기존 그룹 회귀의 receipt SHA-256은 각각
+`f4fbd54e0e5bebd52fb52641017bfa381e58bd5903be1a01cefd296b80cfe09d`,
+`45073194a8865c48c1d501dc67b8a19ca6446b1a03a2692ac2009f3b78548f3f`다.
+각 실행 중 source가 변하지 않았으며 source manifest SHA-256은 두 실행 모두
+`a90f103c2c1abdafc544ca9a46f90043ee7441cf918277f91bdbae50d6a8b6c5`다.
+
+초기 소비자에서 eager selection을 field capability로 사용한 compile 오류와 이전 네 컬럼만 요구한 OpenAPI 검사를 수정했다.
+SQLite Decimal의 exact 값은 PostgreSQL reference에서 가져오되 key 순서는 SQLite의 독립 관찰을 유지하도록 했다.
+각 DB의 ASC NULL 위치 차이를 arithmetic 불일치로 취급한 테스트 보정을 포함한다. 이 실패 실행을 PASS에 합산하지 않았다.
+
+### 출력·독립 SDK·화면
+
+Decimal 출력은 원본 field scale을 적용하지 않는 canonical 문자열이며 signed zero를 포함한 기존 Decimal domain을 유지한다.
+독립 generator가 이해하지 못하는 전체 precision/adjusted-exponent 제한은 `x-godj-decimal`로 명시하며,
+Go 출력은 실제 global domain을 검사한다. 생성 client가 그 확장 제한까지 자동 검증한다고 주장하지 않는다.
+잘못된 타입·누락·비정규 소수 문자열·부동소수점 overflow·Duration 표기를 거부한다.
+SDK는 저장한 ticket 응답과 표준 `math/big`로 계산한 비용/시간·NULL/0를 실제 summary 응답과 대조한다.
+
+고정 ogen으로 여섯 실제 OpenAPI·생성물 drift와 locks를 검사하고 독립 module의 실제 HTTP를 실행했다.
+최종 numeric output·SDK·Helpdesk SQLite summary 22개 run/pass, skip 0이며 원 JSON SHA-256은
+`8a48f7113ce4edeab068a76a29cb4523529a1bf6395053375b8a21aacfd71094`다.
+Receipt SHA-256 `ef07da01f86a872e44573cb3e872dca2efbab9566e784755ba3616139f89e5bb`,
+source manifest SHA-256 `2acb10eadb15fcde5ceac3c39ba4c0a3e88f270a4a9ad478c7f852efc59a30ec`를 보존했다.
+Native checkpoint 뒤 바뀐 실행 소스는 numeric output과 SDK wire의 테스트 두 파일뿐이며 이 최종 실행에서 확인했다.
+Helpdesk `generate --check`는 12개 파일·snapshot
+`d2da4330dd343c3caff0d2c2193cd0cabfbae5c5a49d43b82274e36fa8e3547a`가 clean이었다.
+
+실제 로그인한 격리 Chromium에서 summary 탐색·새 세 컬럼·`0.3`/`2`/`00:00:00.000003`,
+20/7개 그룹 페이지·최대/최소 int64·HAVING·필터 유지/해제·입력 거부·API exact wire/no-store의 21개 검사를 통과했다.
+화면 screenshot을 확인하고 종료 시 ticket 30개·link 0개·ticket audit 0개와 프로세스 종료·임시 DB 제거를 확인했다.
+브라우저 receipt SHA-256은 `104030a42330defcb7e6f8f3eb6098c43e37cef29eb85c07b2b7791dde6355ba`다.
+현재 binary discovery는 generated root 88개다. 새 root와 필수 manifest를 12개 관계 좌표·30개 job에
+정확히 한 번씩 배정하고 PostgreSQL 필수 3,138개를 세 모드·core 여섯 좌표에 배정함을 확인했다.
+실행 계획 receipt SHA-256은 `466b18333a5a60d58b193db15adbc3736c40c31f644a918fc42bab92e052c696`이다.
+분할 도구 회귀 14개·문서 203개의 local link·diff 검사를 통과했다. 이는 원격 필수 경로의 실제 실행 PASS와 구분한다.
+외부 실행 자료는 `godj-verification/numeric-aggregate-*`에 보존했다. 이 작업의 Hosted 검증은 아직 미완료다.
+
 ## GDJ-0120 — Typed 204 응답과 삭제 endpoint
 
 2026-10-08 KST, 기준 `cc2c2f2564bfca11955ca1baa0d047c8f1555b21`의 별도 작업 사본에서
@@ -232,6 +304,148 @@ Helpdesk의 여섯 root가 5/1로 분리되고 18분 한도가 유지됨을 검�
 `cae8c7938deb6ce88d90b665108b93d42125fab3da155235bd67a3a308747ff0`다.
 이 결과는 분할 계획의 로컬 검증이며 새 작업의 Hosted 실제 완료를 뜻하지 않는다. 새 PR source에서
 두 소비자의 완료·모든 필수 경로·Intel CGO0 분할·same-run capture 소비·전체 CI의 최종 결론을 확인해야 한다.
+
+### 분할 source `b14d0eaf`의 실제 실행
+
+보완 source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[자동 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1이 전체 성공으로 완료됐다.
+Validation plan은 성공했으며 새 분할을 포함한 PostgreSQL 9개 작업이 생성됐다.
+실제 PR checkout `ec28e9a732e935641bf9e423006f3ee5ae89e38b`의 부모는 base `f8a5e20c`와 이 source다.
+Checkout/source/local Git tree `4ae3dac799af39dd46556c3e8477558afb77ee19`가 같고,
+아래 완료 job의 실제 checkout·Go 1.26.5/Linux amd64·실행 step·uncached package 결과를 확인했다.
+
+| Mode | API core job | Integration job | SDK | Article | Helpdesk SQLite |
+| --- | --- | --- | --- | --- | --- |
+| normal/vet | 113036843229 | 113036843188 | PASS 35.099s | PASS 12.346s | PASS 96.817s |
+| race | 113036843026 | 113036843255 | PASS 137.673s | PASS 122.232s | PASS 646.056s |
+| CGO0 | 113036843190 | 113036843957 | PASS 25.810s | PASS 8.464s | PASS 81.111s |
+
+API core는 output·endpoint·parameters·openapi를, integration은 실제 문서·고정 SDK drift와 독립 HTTP/native SQLite
+검사를 실행했다. 여섯 job의 source·원 로그 checksum과 필수 step·깨끗한 worktree를 연결한 요약 SHA-256은
+`20d30592c312f3039bc25d0157d5675405402c6205af97da01721e0878e51850`다.
+
+Linux/amd64 relation normal `113036843937`과 CGO0 `113036844282`도 완료됐다. 현재 package 목록·필수 manifest와
+binary discovery의 실행 계획을 대조해 각 job의 49 packages·8,784개 run/pass·skip 0, 필수 2,470개와 generated root 87개를 확인했다.
+공개 NoContent endpoint fixture와 DTO 불일치의 compile-negative가 해당 필수 compile owner에서 실행됨을
+현재 소스와 연결했다. 요약 SHA-256은 normal `5c8ded0a2c973a484d5b5a7a43680f7f6357a60bb27f3f0b5d507014a2d7b06a`,
+CGO0 `cd0b46816076d07441dd3740b42dc74de8b7c2da11ff32e239b10114b2c3ea56`다.
+
+새 PostgreSQL race/core-helpdesk-postgres `113036842822`는 실제 PostgreSQL 소비자 root만 실행했다.
+Root PASS 535.43s, package PASS 536.453s와 필수 605개·새 Label 삭제 17개, 실제 676개 run/pass·skip 0을 확인했다.
+같은 run/source의 artifact `11514592617` archive digest
+`1ad009e5514184e87d4854e080d327bbd4b0e94db4e7e7da9660edb94dce76ea`, 원 JSON SHA-256
+`f95c26b9fe3ed3c1ca84422cde80d94fa190e3077efa745fa204198134b6c94b`를 대조했다.
+게시된 package/required/plan과 현재 source의 계획이 같고, 모든 실제 테스트가 한 번씩 시작·완료됐으며
+SQLite 소비자와 helper root가 이 새 작업에서 실행되지 않았음을 확인했다.
+이 검증 요약 SHA-256은 `bb13f703d632e50dd6a91f3df96e07b20db54a6ca20c77d6f7140f80a3ce1557`이다.
+
+같은 방식으로 race/core-consumers `113036842677`의 1 package·81 run/pass·필수 55개와
+race/core-processes `113036842803`의 8 packages·21 run/pass·필수 10개도 확인했다. 두 작업 모두 skip 0이다.
+각 요약 SHA-256은 `6a7ce6bacda04561595ae2adb6662725d1632a2ce00bf8b9e7f4cdcf1babb1af`,
+`30cf76bd472fbd49ff9a1e5e290730025f6da91dc8c5b73bc9ffc02ea2563b80`이다.
+남은 PostgreSQL core 세 작업도 완료됐다. 각 원 Go JSON·package/required/plan·artifact digest와 실제 checkout을
+현재 source에 연결하고 모든 시작/완료·no-skip·필수 경로를 검증했다.
+
+| Mode/shard | Job | Packages | 실제 run/pass | 필수 경로 | GDJ-0120 경로 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| normal/core | 113036842794 | 16 | 6,007 | 3,130 | 98 |
+| race/core | 113036842766 | 7 | 5,229 | 2,460 | 81 |
+| CGO0/core | 113036842798 | 16 | 6,007 | 3,130 | 98 |
+
+세 작업 모두 skip 0이다. race/core는 helper 4개와 Helpdesk SQLite root만 실행했고 SQLite root는 567.05s에 완료됐다.
+위 PostgreSQL root 535.43s와 독립 완료됐으며 두 root의 package timeout을 공유하지 않는다.
+각 요약 SHA-256은 normal `af7771af67efc194ea02229fe38ba54c44c09a37586654141468112bb60d6371`,
+race `d30d2edcf4921b81fe4478fb5ae9e76e0e5b278520fd9a353e2bedacf95c34b0`,
+CGO0 `011b6276e5ed6354ac49e0fa20a6842e79ec4ebbfeced378df75eb28579adcf0`다.
+
+완료된 여섯 좌표의 원 JSON을 합쳐 모드마다 현재 필수 3,130개와 새 경로 98개가 정확히 한 번씩 완료됐음을 확인했다.
+race 네 분할은 비필수 항목을 포함한 모든 실제 테스트에서도 겹침이 없었다. 합집합 검사 SHA-256은
+`2d8f5202b0552622314e2655fe9a8a3f3193c13eb83912ede3c10b5c6c4141b8`다.
+이를 API·SDK·공개 compile 결과와 연결해 GDJ-0120의 영향 검증을 완료했다.
+Intel CGO0 분할·다른 platform·same-run capture 소비·최종 CI 집계도 아래와 같이 확인했다.
+
+### GDJ-0116부터 GDJ-0120까지의 전체 통합 완료
+
+같은 run의 83개 job이 모두 성공했고 소유자 8개를 확인한 최종 `full_platform_verified=true` 집계를 대조했다.
+각 job의 실제 checkout은 `ec28e9a732e935641bf9e423006f3ee5ae89e38b`로 동일했다.
+GitHub commit의 두 부모와 tree를 다시 확인하고 source archive의 3,431개 파일을 Git blob/mode와 대조했다.
+Source archive SHA-256은 `8367c50a6fd0dc4bce091251fd9b3b3f847d948c622890277bec278a543892ef`,
+전체 원 로그 archive SHA-256은 `1234b47871c4970958b6695906c5c4603b4ce4e82d36668d2961fc5d55bec132`다.
+
+Relation은 4개 OS/arch × 3개 모드의 12개 좌표·30개 job이다. 현재 source에서 실제 binary discovery와
+package/required 계획을 재계산하고 각 좌표의 generated root 87개가 정확히 한 번씩 소유됨을 확인했다.
+Intel의 normal/race/CGO0 각각은 세 consumer 분할과 runtime을 모두 포함한다. 필수 step·no-skip·깨끗한 worktree와
+portable package 소유권, command/product-check inventory·cold-build, Python exact/compatibility owner를 대조했다.
+전체 Go inventory report는 88개다. Profile/DB 소유권에 따른 명시적 skip은 실제 대응 owner의 실행과 구분했다.
+
+PostgreSQL 9개 job의 원 JSON·실행 계획과 artifact digest를 확인했다. 위 core 세 모드의 필수 3,130개뿐 아니라
+각 operator-target의 2 packages·12 run/pass·필수 3개·skip 0도 완료됐다.
+고정 S3 service 네 owner의 buildinfo·실행 binary·ready·정상 종료·child/server 회수도 실제 receipt와 대조했다.
+Conformance consumer는 26개 product suite, 32-bit compile/relation, 고정 oracle checksum을 검증했다.
+
+Same-run system-state capture artifact `11515930973`은 producer job `113036842794`에,
+operator capture `11513424774`는 producer job `113036842639`에 결합됐다. 두 payload checksum·envelope의 checkout/run과
+현재 source binding을 확인하고 consumer가 이 producer의 artifact를 선택·소비한 로그를 대조했다.
+System-state binding은 773 files·7,757,711 bytes·SHA-256
+`ddde5f743cb71eaabf78e81b6459a587141d230df0324a733eee7329d3e1ab14`,
+operator binding은 852 files·7,628,386 bytes·SHA-256
+`2830b5619f65fe1ed57fee62795c15a30a987d1f6df774655ac7bb0e996c5893`이다.
+
+전체 감사 receipt `hosted-full-pr-37692593301/audit.json`의 SHA-256은
+`f61fa7134b4798f6e484831f75cd3222a177d764eacc454a8dcf5fff743d0458`다.
+이 결과로 GDJ-0116/0117/0118/0119/0120의 후속 전체 통합을 완료했다.
+후속 GDJ-0121 숫자 집계는 이 source에 포함되지 않으며 그 변경의 환경별 PASS로 전이하지 않는다.
+
+## 후속 SUM/AVG 요구 관찰 — 구현 전 조사
+
+2026-10-08 KST, 다음 numeric aggregate의 결과 타입·범위 요구를 확인하기 위해 독립 Django 관찰을 수행했다.
+현재 원본 필드 metadata를 사용하는 MIN/MAX scanner와 달리 합계·평균은 원본의 정밀도/타입과 결과가 달라질 수 있다.
+Django 6.1·CPython 3.14.3·SQLite 3.50.4와 고정 PostgreSQL 17.10/UTF8/libc C/C·psycopg 3.3.6에서,
+직접 작성한 입력 19개와 동작 336개를 backend마다 두 번 실행했다. 관찰자는 Go 소스·결과·예상 fixture를 읽지 않았다.
+관련 설치 모듈 9개의 bytes가 [고정 Django source](https://github.com/django/django/tree/fe0a859f537d4238cf49fca39073513206f83122)와
+같음을 확인했으며, BSD-3-Clause 출처와 모듈별 SHA-256을 보존했다. 전체 wheel의 digest를 다시 검증했다는 뜻은 아니다.
+
+빈 결과·모두 NULL, distinct/filter·그룹/NULL HAVING과 정수·Float·Decimal·Duration의 합계/평균을 관찰했다.
+정수 평균은 Float 결과이며, 원본 scale 2의 Decimal 평균도 `0.005`처럼 더 많은 소수 자릿수를 반환했다.
+Decimal 합계의 이진 부동소수점 손실, 원본 자릿수를 넘는 합계, 반복 소수의 평균 정밀도가 DB별로 달랐다.
+SQLite의 정수/Duration 합계 overflow와 PostgreSQL의 더 넓은 결과, Float의 native overflow 결과도 구분했다.
+Duration 평균의 ±half-microsecond 사례는 두 DB에서 같은 half-even 결과를 보였다. 이를 모든 숫자 범위의 일치로 확대하지 않는다.
+향후 구현은 원본 필드 identity와 집계 결과의 타입·정밀도·범위를 분리하고, Decimal 반올림과 각 backend 변환을
+명시해야 한다. Float 모델의 NaN/Infinity 의미와 finite Form/JSON 경계는 기존 ADR-0068을 유지한다.
+
+최종 observer SHA-256은 `c0dcc762b400c7f27bb493626e7ea17f16ec2ef1afe1d038d88c1d1e7e85e4aa`이며,
+반복 실행의 원본 JSON은 각 backend 안에서 byte 동일했다. SQLite/PG SHA-256은 각각
+`7aab64fbe6cc5b74acff65045596695a48653fa8c9c84680ae0118f9ff9f4582`,
+`9ae221549d6ad39798e7732fb04da9af6b0d60892a76699bd5c5cbcb9186105c`다.
+DB의 잔여 table/다른 session `0|0`, database 삭제와 독립 container의 중단·제거를 확인한 receipt SHA-256은
+`c0f67d5062b458a64aa15a54715217a27217204b7e1b6a03367ccd438334ed04`다.
+이 결과는 후속 설계의 관찰 근거이며 SUM/AVG API 채택·GoDj 구현·typed/dynamic 소비자·실제 제품 검증은 미완료다.
+
+추가로 Decimal `(40,24)`, `(40,2)`, `(1000,1000)`, `(1000,0)`의 precision·rounding 경계를 확장했다.
+기존 19개 관찰자를 보존하고 별도 observer로 30 cases·468 actions를 backend마다 두 번 실행했다.
+PostgreSQL의 scale 24 identity와 반복 소수·원본 scale을 넘는 평균, 양/음 half-away 반올림,
+scale 1000의 최소값/underflow와 원본 max_digits를 넘는 합계를 관찰했다. 임의의 고정 소수 자릿수로
+평균을 자르면 유효한 입력의 정밀도를 잃으므로 결과 정밀도는 원본 필드와 분리해야 한다.
+SQLite의 고정 Django Decimal affinity가 보인 손실과 GoDj의 exact BLOB 저장 계약도 구분한다.
+새 observer SHA-256은 `26dc4886594473fe778b5030c85944d7fcd2bef6175c8484e8c1e278398020af`이며,
+원본 JSON은 각 backend 안에서 byte 동일했다. SQLite/PG SHA-256은 각각
+`7122c1d4036dadb45a18cf58930c7791ea6b879176d15cb828ce51ce039c97cf`,
+`6721d69a79b8c23028dd27cb3ea7f1d85e9a6ff15dc655742c7f23a4d57d1080`다.
+네 실행 exit 0·stderr empty, DB 잔여 table/다른 session `0|0`과 database/container 제거를 확인한 receipt SHA-256은
+`76df4c209c7a914056147587ea42596101e6aeec2949f58ce1baba236ebc5d6e`다. 이 확장도 제품 PASS가 아닌 구현 전 근거다.
+
+GDJ-0121 구현 중 Duration의 반환 반올림과 HAVING 경계를 추가로 독립 관찰했다. 양 DB에서 4 cases·80 actions를
+각각 두 번 실행했다. SQLite의 `AVG(1µs,2µs)`는 Python 결과로 `2µs`를 반환하지만 `>=2µs` HAVING에는 포함되지
+않고, `AVG(2µs,3µs)`는 결과 `2µs`이면서 `<=2µs`에는 포함되지 않았다. PostgreSQL의 native INTERVAL 평균은 두
+경계 모두 반올림한 `2µs`로 비교했다. 최대 int64 microseconds의 단일 평균은 SQLite에서 `2^63`, PostgreSQL에서
+원래 값이었다. 이를 바탕으로 SQLite Duration 평균의 변환을 전용 result scanner에 두고 SQL의 비교값을 보존한다.
+새 [관찰자](../../conformance/runners/django/numeric_aggregate_reference/duration_boundaries.py) SHA-256은
+`87fbe1d81e52b3b042105d3b22f00814e1fbad17939a5e1303032a75ffe008ea`다. SQLite/PG 반복 원본은 각각 byte 동일하며
+SHA-256은 `e8159030700f0fb2b0ed2c68925d9081d1cfa60317ae3443d02e3301b29c497e`,
+`520ff87e2bac2598b0d7e0a240d392909428deb99a6e07266de5d2d8bcd50b21`이다.
+네 실행 exit 0·stderr empty와 DB `0|0`·database/container 제거를 확인한 receipt SHA-256은
+`c1f7b63ed4b991c9e7574bb56a39a59a88e8d8e06b415a12f9d78d1532eebe9e`다.
+기존 30개 precision 관찰과 이 경계를 합친 34 cases·548 actions/backend를 생성 소비자에 연결했지만 제품 실행은 아직 미완료다.
 
 ## GDJ-0119 — Typed header와 Identity revision 조건
 

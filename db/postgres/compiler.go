@@ -604,7 +604,8 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 }
 
 func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
-	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(function string, field query.FieldRef) (string, error) {
+	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
+		field, _ := expression.Field()
 		var column string
 		var err error
 		if sourceAlias != "" {
@@ -615,18 +616,7 @@ func appendAggregateExpressions(statement *strings.Builder, expressions []query.
 		if err != nil {
 			return "", err
 		}
-		if field.Kind() == query.FieldBinary {
-			// Hex under C collation preserves unsigned byte order, including
-			// prefixes and empty bytes. Restore bytea for the binary scanner.
-			return "decode(" + function + "(encode(" + column + ", 'hex') COLLATE \"C\"), 'hex')", nil
-		}
-		if field.Kind() == query.FieldUUID {
-			// PostgreSQL 17 has native UUID ordering but no MIN/MAX(uuid).
-			// Fixed-width canonical text under C collation has the same unsigned
-			// order. Cast the result back so UUID row adaptation remains typed.
-			return function + "(" + column + "::text COLLATE \"C\")::uuid", nil
-		}
-		return function + "(" + column + ")", nil
+		return renderAggregate(expression, column, "", false)
 	})
 }
 

@@ -8,7 +8,10 @@ async (page) => {
     await page.getByRole("link", {name:"Ticket summary", exact:true}).click();
     check(await page.getByRole("heading", {name:"Ticket summary",exact:true}).count() === 1, "summary navigation");
     check(await page.locator("tbody tr").count() === 20, "twenty groups on first page");
-    check((await page.locator("tbody tr").first().innerText()).replace(/\s+/g," ").trim() === "Not set 3 2", "null priority remains a counted group");
+    check((await page.locator("tbody tr").first().innerText()).replace(/\s+/g," ").trim() === "Not set 3 2 0.3 2 00:00:00.000003", "null priority retains exact metrics and excludes missing values");
+    for (const name of ["Total expected cost", "Average effort", "Total elapsed"]) {
+        check(await page.getByRole("columnheader", {name, exact:true}).count() === 1, "numeric summary column: " + name);
+    }
     check((await page.locator("tbody tr").nth(1).innerText()).includes("9223372036854775807"), "legacy maximum int64 is displayed exactly");
     await page.getByRole("link", {name:"Next page",exact:true}).click();
     check(await page.locator("tbody tr").count() === 7, "remaining seven groups");

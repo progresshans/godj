@@ -3,6 +3,7 @@ package helpdesk
 import (
 	"errors"
 	"io/fs"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -56,8 +57,22 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 	}
 	rows := make([]templates.Value, 0, len(page.groups.Rows))
 	for _, row := range page.groups.Rows {
+		cost, effort, elapsed := "Not set", "Not set", "Not set"
+		if value, valid := row.cost.Get(); valid {
+			cost = value.String()
+		}
+		if value, valid := row.effort.Get(); valid {
+			if math.IsNaN(value) || math.IsInf(value, 0) {
+				return web.Response{}, errors.New("helpdesk: summary effort is not finite")
+			}
+			effort = strconv.FormatFloat(value, 'g', -1, 64)
+		}
+		if value, valid := row.elapsed.Get(); valid {
+			elapsed = value.String()
+		}
 		value, err := templates.Object(map[string]templates.Value{
 			"priority": templates.String(ticketSummaryPriorityLabel(row.priority)), "total": templates.Integer(row.total), "open": templates.Integer(row.open),
+			"cost": templates.String(cost), "effort": templates.String(effort), "elapsed": templates.String(elapsed),
 		})
 		if err != nil {
 			return web.Response{}, err

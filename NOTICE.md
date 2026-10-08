@@ -1,5 +1,19 @@
 # Third-party notices
 
+## PostgreSQL numeric division scale
+
+The division-scale rule in `db/sqlite/decimal_aggregate.go` is adapted from
+PostgreSQL 17.10, `src/backend/utils/adt/numeric.c`, `select_div_scale`, to
+match native NUMERIC averages. Portions Copyright (c) 1998-2024, PostgreSQL
+Global Development Group. The PostgreSQL License is preserved in
+`LICENSE.postgresql` from the pinned `REL_17_10` source.
+
+GoDj computes the scale from decimal strings and uses Go `math/big` for exact
+accumulation, division and half-away rounding. It does not include PostgreSQL
+object layouts, digit-array storage or native division implementation. This
+notice applies to the adapted scale rule, not to independently authored Django
+reference scenarios or to GoDj's overall project license.
+
 ## Django
 
 GoDj uses Django 6.1 as a development-time behavioral reference and test

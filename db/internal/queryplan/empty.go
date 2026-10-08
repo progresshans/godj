@@ -14,7 +14,7 @@ import (
 
 // EmptyRows supplies the result of a compiled query whose source is provably
 // empty. It must be called only after full backend plan/context validation.
-// Aggregate cells are limited to the implemented COUNT/MIN/MAX algebra.
+// COUNT over an empty source is zero; other supported aggregates are NULL.
 func EmptyRows(ctx context.Context, shape query.ResultShape) (db.Rows, error) {
 	return emptyRows(ctx, nil, shape)
 }
@@ -52,7 +52,7 @@ func emptyRows(ctx, lifetime context.Context, shape query.ResultShape) (db.Rows,
 			switch expression.Kind() {
 			case query.ResultCountAll, query.ResultCount:
 				rows.values = append(rows.values, int64(0))
-			case query.ResultMin, query.ResultMax:
+			case query.ResultMin, query.ResultMax, query.ResultSum, query.ResultAvg:
 				rows.values = append(rows.values, nil)
 			default:
 				return nil, invalidPlan("empty source has an unsupported aggregate")

@@ -4,6 +4,8 @@ import (
 	"math"
 
 	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/serializers"
 )
@@ -46,6 +48,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		output.Field("priority_label", output.String(), func(value ticketSummaryRow) string { return ticketSummaryPriorityLabel(value.priority) }),
 		output.Field("total", count, func(value ticketSummaryRow) int64 { return value.total }),
 		output.Field("open", count, func(value ticketSummaryRow) int64 { return value.open }),
+		output.Field("expected_cost_total", output.Nullable(output.Decimal()), func(value ticketSummaryRow) *decimal.Decimal { return summaryOptionalPointer(value.cost) }),
+		output.Field("effort_average", output.Nullable(output.Float()), func(value ticketSummaryRow) *float64 { return summaryOptionalPointer(value.effort) }),
+		output.Field("elapsed_total", output.Nullable(output.Duration()), func(value ticketSummaryRow) *duration.Duration { return summaryOptionalPointer(value.elapsed) }),
 	)
 	summary := output.Named("TicketSummary", output.Object(
 		output.Field("category", category, func(value ticketSummaryPage) models.Category { return value.category }),

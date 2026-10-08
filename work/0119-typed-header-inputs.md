@@ -1,6 +1,6 @@
 ---
 id: GDJ-0119
-status: active
+status: complete
 updated: 2026-10-08
 baseline_commit: "632cf6db3feafd9622d230170e8eddee73a2545a"
 integration_owner: "root"
@@ -39,10 +39,11 @@ Cookie·반복/list header, arbitrary decoder/schema 쌍, 자동 CRUD/viewset은
 - [x] Typed header scalar/presence와 같은 parameter·endpoint 결합 구현
 - [x] Identity 실제 소비자·generated client와 실패 경계 연결
 - [x] 보정 source `cc2c2f25`의 원격 compile/HTTP/양 DB·세 mode·drift와 source 기록
-- [ ] GDJ-0118/0120과 결합한 source의 전체 platform/Hosted 통합
+- [x] GDJ-0118/0120과 결합한 source의 전체 platform/Hosted 통합
 
-선행 GDJ-0116/0117 source `6d0473cd`의 Hosted full `37584339052`는 macOS Intel 관계 normal job에서 실패했다.
-`cc2c2f25`의 `37660451511`은 header 영향 검증을 통과했지만 Intel CGO0의 누적 시간 초과와 checkout DNS 실패로
-전체 실행은 실패했다. CGO0 분할 보완과 GDJ-0120을 포함한 새 source에서 전체 통합을 다시 확인한다.
-CI 자동 전환과 GDJ-0118을 포함한 `632cf6db`의 `37653281819` 실행은 header를 포함한 source와 구분한다.
-GDJ-0118 source `6e6e4042`의 영향 검증 완료와 이 작업의 새 실행을 구분한다. 현재 외부 입력이 필요한 blocker는 없다.
+Source `b14d0eaf3d49f01151c8b010fb97eac2a57532ef`의
+[전체 CI 37692593301](https://github.com/progresshans/godj/actions/runs/37692593301) attempt 1에서
+GDJ-0116/0117/0118/0119/0120을 함께 검증했다. 필수 실행과 no-skip, 실제 checkout/tree,
+생성 drift·양 DB·세 모드·각 platform·same-run capture·최종 집계를 대조해 전체 통합을 완료했다.
+선행 실패와 보정, 상세 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다.
+후속 GDJ-0121의 새 구현과 전체 카탈로그 완성은 이 완료에 포함하지 않는다.
