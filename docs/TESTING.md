@@ -53,6 +53,9 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 Operator fixture의 module 준비·global build·generated project 검증은 compiler 비용을 포함하는 준비 예산을 사용한다.
 준비 단계별 시작/완료 시간과 timeout·일반 종료 실패·출력 한도를 구분한다. 실제 제품 명령/PTY와 취소·잠금/cleanup
 시나리오의 별도 짧은 제한은 유지하며, 준비 timeout도 소유 process tree를 회수한다.
+SYS-003 등의 단일 worker 준비는 cold 의존성 컴파일을 포함해 최대 5분을 허용하고, 실제 worker 동작은 별도의
+90초 제한을 유지한다. 빌드 실패는 context 취소·deadline을 보존하고 원문 process 오류 대신 안전한 분류와 정제된
+compiler 진단을 표시한다. 이 준비 예산은 실제 시나리오의 결과·비밀값·재시작 검사를 생략하지 않는다.
 생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
 `codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
 생성 module의 자식 Go 명령은 `-trimpath`를 사용한다. 각 fixture의 writable 임시 디렉터리와 실행 위치는 계속 분리하면서,

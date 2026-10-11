@@ -1,6 +1,7 @@
 package gobuild
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -162,5 +163,31 @@ func TestBuildErrorPreservesClassificationWithoutPublishingRawCause(t *testing.T
 	err := fmt.Errorf("candidate verification: %w", &Error{Cause: cause, Diagnostic: "main.go:1:1: undefined: Missing"})
 	if !errors.Is(err, cause) || strings.Contains(err.Error(), cause.Error()) || Diagnostic(err) == "" {
 		t.Fatalf("build error = %v", err)
+	}
+}
+
+func TestBuildErrorClassifiesContextWithoutPublishingRawCause(t *testing.T) {
+	private := errors.New("private process details must not be published")
+	for _, test := range []struct {
+		name, want string
+		cause      error
+	}{
+		{"deadline", "Go build exceeded its deadline", context.DeadlineExceeded},
+		{"canceled", "Go build was canceled", context.Canceled},
+		{"silent_failure", "Go build failed", nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			failure := &Error{Cause: errors.Join(private, test.cause)}
+			if got := failure.Error(); got != test.want || !errors.Is(failure, private) {
+				t.Fatalf("safe error = %q, want %q with original classification", got, test.want)
+			}
+			if test.cause != nil && !errors.Is(failure, test.cause) {
+				t.Fatal("context classification was lost")
+			}
+			failure.Diagnostic = "main.go:1:1: undefined: Missing"
+			if got := failure.Error(); got != test.want+": "+failure.Diagnostic || strings.Contains(got, private.Error()) {
+				t.Fatalf("safe compiler diagnostic = %q", got)
+			}
+		})
 	}
 }

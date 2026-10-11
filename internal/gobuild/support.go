@@ -6,6 +6,7 @@ package gobuild
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -213,7 +214,17 @@ func (failure *Error) Error() string {
 	if failure == nil {
 		return "Go build failed"
 	}
-	return "Go build failed: " + failure.Diagnostic
+	message := "Go build failed"
+	switch {
+	case errors.Is(failure.Cause, context.DeadlineExceeded):
+		message = "Go build exceeded its deadline"
+	case errors.Is(failure.Cause, context.Canceled):
+		message = "Go build was canceled"
+	}
+	if failure.Diagnostic != "" {
+		message += ": " + failure.Diagnostic
+	}
+	return message
 }
 func (failure *Error) Unwrap() error {
 	if failure == nil {

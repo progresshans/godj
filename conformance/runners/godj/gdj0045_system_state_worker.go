@@ -89,7 +89,10 @@ func newSystemStateWorkerHarness(ctx context.Context) (*systemStateWorkerHarness
 		return nil, errors.New("locate system-state worker repository root")
 	}
 
-	buildContext, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	// Preparing the executable may compile cold, non-race dependencies even
+	// inside a race-instrumented runner. Give that work its own build budget;
+	// individual worker actions retain their separate 90-second deadline.
+	buildContext, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(
 		buildContext,
@@ -111,7 +114,7 @@ func newSystemStateWorkerHarness(ctx context.Context) (*systemStateWorkerHarness
 	if buildErr != nil {
 		harness.cleanup()
 		return nil, fmt.Errorf("build system-state worker: %w", &gobuild.Error{
-			Cause: buildErr, Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), os.Environ()),
+			Cause: errors.Join(buildErr, buildContext.Err()), Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), os.Environ()),
 		})
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {

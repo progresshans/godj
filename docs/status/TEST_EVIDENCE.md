@@ -8,7 +8,8 @@
 2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan
 snapshot과 양 compiler, typed/dynamic lazy ORM·composable DTO·생성 facade/소비자를 연결했다. Helpdesk의 같은
 읽기 snapshot에서 닫힌 건수·열린 비율을 계산하고 비율 필터·단일 statement Page·HTML/API·독립 client로 전달한다.
-설계는 ADR-0090/0091이 소유한다. 현재 아래의 생성·compile만 실행했으며 새 runtime/양 DB/Hosted PASS는 아직 없다.
+설계는 ADR-0090/0091이 소유한다. 초기 생성·compile과 후속 양 DB·원격 부분 검증은 아래에 구분한다.
+Intel macOS race의 worker 빌드 실패가 남아 있어 현재 작업의 전체 Hosted 통합 PASS는 아직 없다.
 
 ### 독립 관찰과 작성한 검증
 
@@ -31,7 +32,8 @@ Core AST/compiler·ORM과 생성 parent/compile-negative를 기존 relation/Post
 
 Helpdesk의 기존 전체 응답/인가·scope·snapshot callback·read-only/audit 보존 검사에 새 비율 입력·0/10000 및
 6666/6667 경계·총수·closed 값을 추가했다. 브라우저 probe의 정확한 30개 check 이름을 runner가 요구하며,
-같은 개수의 잘못된 이름도 성공으로 처리하지 않는 부정 검증을 작성했다. 아직 이 테스트 본문들은 실행하지 않았다.
+같은 개수의 잘못된 이름도 성공으로 처리하지 않는 부정 검증을 작성했다. 작성 시점에는 본문을 실행하지 않았고,
+이후 원격 실행 결과는 아래 해당 source의 기록을 따른다.
 
 ### 로컬 생성과 최소 compile
 
@@ -103,6 +105,51 @@ rowheader만 확인하도록 수정했다. API나 NULL 출력 계약을 바꾸�
 `1b641f92b8849c02e2037d926939b8d4e990dc11f4eaf8fb355ecd28c7c80a02`, source/receipt 결합은
 `00d0122b08ce4458f17aac607161c17557c462a9abf42fbd93dce42ef3db9e47`이다. 초기 로컬 시도는 해당 Chromium이
 없어 브라우저 실행 전에 멈췄으며, 고정 버전을 설치한 뒤 별도 native 재현과 수정 검사를 수행했다.
+
+### 양 DB·세 모드 원격 부분 검증과 Intel macOS 빌드 준비 수정
+
+Source `58e1eb4699571d5e60954909cb1240cbd3e92536`의
+[CI 38172816715](https://github.com/progresshans/godj/actions/runs/38172816715)에서 실제 checkout
+`9a8e11a4be11596dc8ac60e2db4e9b59c9785279`와 tree `964b6499fbdff3501c34b9eae53113c7be71c63a`를
+GitHub 객체·parent/head·validation-plan 및 각 원 job 로그로 대조했다. Source binding receipt SHA-256은
+`ecaa0c9e40b8e8ebe4bf9aac31c90a7e18c3a43daeb18b62dc098577dace3ebc`다. 이 실행은 아래 부분 검증을
+통과했지만 전체 통합 PASS가 아니며, 후속 worker 수정 source의 검증으로 전이하지 않는다.
+
+| 실제 실행 | 원 job / artifact | 확인한 범위 | 부분 audit receipt SHA-256 |
+|---|---|---|---|
+| PostgreSQL normal/core | `114568973250` / `11715620493` | 필수 3,149개·실제 6,037개, 16 package, skip 0 | `75125c7bb2e622e2f914376e01108c020f9f7dca7a7263a29b136f600a67f627` |
+| PostgreSQL race/core-consumers | `114568973217` / `11715342262` | 필수 70개·실제 103개, 1 package, skip 0 | `99bbd5df4467bb81086aa11df74b2a39fdaa10e4b4a28f4711d5cc5d4e4b1051` |
+| PostgreSQL CGO=0/core | `114568973266` / `11716105161` | 필수 3,149개·실제 6,037개, 16 package, skip 0 | `8d31b0b31a5ca061d48abecd6d763383c81916beeedc146a02c9b97dfc86624a` |
+| Helpdesk PostgreSQL race | `114568973506` / `11715098549` | 필수 606개·실제 677개, skip 0 | `dae7c7f153607a7b6bbae124f9285f9307c224fe370d55739a582f7382e05eb5` |
+| Hosted Helpdesk browser | `114568973353` / `11715355697` | 고정 Chromium의 정확한 30개 check·native read-only·cleanup | `a3fc9df77469dceddea3e35ece774dd70105227762061e05c077b9012cd3d640` |
+
+앞의 세 모드에서 새 derived 생성 소비자의 SQLite/PostgreSQL child 42개와 compile-negative 7개, 기존
+computed 소비자의 child 88개와 compile-negative 7개를 각각 확인했다. Outer Go event의 실행/통과 목록·중복·
+skip과 source wrapper가 검사한 정확한 child 목록·inner log digest를 대조했다. Artifact metadata의 run/head와
+zip SHA-256, 해당 source의 PostgreSQL 분할 계획/필수 목록도 일치했다. 자료는 외부
+`ci-38172816715-postgres-{normal-core,race-core-consumers,cgo0-core}-audit`,
+`ci-38172816715-helpdesk-postgres-audit`, `ci-38172816715-browser-audit`에 보존한다.
+
+Intel macOS race job `114568973399`는 `TestSystemStateAcceptedActualMatchesLockedProductBytes`의 SYS-003
+worker 빌드에서 실패했다. 해당 test는 약 121초 만에 `Go build failed:`만 반환했으며 원 로그 SHA-256은
+`d7cae74f86f29b795dfc16fe734d6abb9ee29b040b38b2990d57ef84b801729a`다. 이는 helper의 2분 빌드 준비 제한과
+일치한다. 원문 종료 원인이 진단에서 사라졌으므로 실제 cold compiler 비용에 의한 timeout은 이 로그만으로
+완전히 증명하지 않는다. 출력 없는 compiler 프로세스를 시작한 뒤 취소하는 로컬 재현에서는 context 원인이
+보존되지 않고 같은 빈 오류로 바뀌는 것을 확인했다.
+
+검증용 executable의 준비 예산을 5분으로 조정하고 `command.Run`의 실패와 build context 오류를 함께 보존한다.
+공통 build 오류는 deadline·취소를 안전한 고정 문구로 구분하며 원문 cause·비밀값을 출력하지 않는다. 실제 worker
+동작의 90초 제한, 시나리오·재시작·비밀값·결과 대조와 모든 필수 실행은 유지한다.
+
+Go 1.26.5 darwin/arm64·CGO=1에서 이 실패 경로와 기존 진단 비밀값 차단에 한정한 4개 root / 7개 검사를 실행해
+7개 PASS·skip 0·stderr 0을 확인했다. 새 worker 취소 검사는 실제 제어 프로세스의 시작과 중단, 오류 원인 보존과
+임시 worker 디렉터리 정리를 확인한다. 초기 로컬 시도는 runner에 부적합한 `-trimpath`로 source 경로 검사에서
+멈췄다. 실제 CI와 같이 그 옵션을 제외한 재현에서 빈 오류를 확인한 뒤 같은 설정으로 수정 결과를 검사했다.
+이는 Intel macOS의 cold build 재현이나 새 source의 전체 검증이 아니다. 자료는 외부
+`derived-build-prep-repair-1791754376332432000`, 실패 재현 log SHA-256은
+`60c62f9d0a98443ce2e9960848f8c2979ad957b87cca774b523a9db851adbbe2`, 수정 source/command/실행 receipt는
+`3447abcba17eebd45c5b9c14a3fd52941350acfc2151256d4fdaec56116d10a6`이다. 수정한 묶음의 전체 CI에서 실제
+Intel macOS 초기 빌드와 나머지 통합을 다시 확인한다.
 
 ## GDJ-0122 — 계산식 조회와 우선순위 미리보기
 
