@@ -39,11 +39,6 @@ import (
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
-// The cumulative real-database consumer includes migration growth, identity,
-// HTTP, relations, formsets and both bulk operations. Its aggregate race budget
-// is separate from the short per-scenario cancellation and lock-wait bounds.
-const helpdeskConsumerTimeout = 10 * time.Minute
-
 func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFields(t *testing.T) {
 	// Schema growth, identity, HTTP, collections and Admin formsets share this
 	// database. Allow their cumulative race cost when other packages also run;

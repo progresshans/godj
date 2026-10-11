@@ -248,6 +248,8 @@ core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite �
 누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
 Package별 18분 timeout과 no-skip 검사를 유지하며,
 generated consumer의 core-consumers race만 기존 30분 한도를 사용한다.
+Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
+개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.
 원 Go JSON/stderr·필수 목록·partition 계획은 성공 여부와 관계없이 `postgres-product-<mode>-<shard>-<attempt>`에 보존한다.
 취소 실행의 불완전한 로그는 진단 자료이며 package 완료나 필수 실행 PASS를 대신하지 않는다.

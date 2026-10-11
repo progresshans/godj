@@ -50,5 +50,9 @@ Decimal·Duration 산술/계산식 SUM/AVG는 남은 카탈로그 요구다. 한
 브라우저는 Portable normal integration에 고정 도구·실제 로그인·필수 결과·native readback·artifact 경로를 연결했다.
 수정 source의 원격 브라우저는 실제 로그인·23개 검사·native 보존과 정리를 통과했다. 생성 소비자의 양 DB/세 모드와
 나머지 전체 CI는 계속 진행 중이며 개별 실행 증거는 TEST_EVIDENCE를 따른다.
-CI 도구 부정 테스트의 원격 실행 누락도 확인해 필수 step과 엄격한 suite 실행에 연결했다. 이 후속 source의 검증은 남아 있다.
-독립 SDK race의 child 전체 context 만료에 맞춰 누적 실행 예산도 보완했다. 개별 HTTP·부모 process 한도와 모든 검사는 유지한다.
+CI 도구 부정 테스트의 원격 실행 누락도 확인해 필수 step과 엄격한 suite 실행에 연결했고 실제 실행 목록도 대조했다.
+독립 SDK race의 child 전체 context 만료에 맞춰 누적 실행 예산을 보완했고 원격 후속 실행은 통과했다.
+같은 CI에서 typed/dynamic NULL 직접 대입의 AST 불일치와 Helpdesk race의 누적 context 만료를 확인했다.
+NULL은 공통 assignment 생성에서 target kind를 가진 새 scalar로 정규화하며 원 표현식과 명시적 타입 제약을 보존한다.
+Helpdesk는 race의 전체 예산만 분리하고 개별 동시성·취소·정리 제한과 모든 커밋/롤백 검사를 유지한다.
+이 후속 수정의 실제 양 DB·세 모드와 원격 전체 통합 검증은 남아 있다.

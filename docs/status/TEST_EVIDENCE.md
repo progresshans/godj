@@ -156,6 +156,50 @@ CI 도구를 연결한 `86137cc7`에서도 해당 Go 입력은 같았다. 이 so
 이 조정의 Hosted 효과는 후속 동일 source의 전체 CI로 확인해야 한다. 앞선 source의 전체 CI는 이 실패와 실행 누락
 보완 뒤 자동 취소됐고 전체 성공으로 계산하지 않는다.
 
+### 현재 source의 원격 검증
+
+Source `b9c6f5423f4498ad9b5513a852d420996950a47e`의
+[CI 38109603076](https://github.com/progresshans/godj/actions/runs/38109603076)는 실제 checkout
+`a652d493ba6326302882fe2a972c070f574a3272`, tree `75c9b1bacf88b126f2f7dd50e86f6ab6c541bd8e`를 사용한다.
+Parent·source tree·실제 plan 로그를 대조한 receipt SHA-256은
+`6152993466b83dcab29efe3086b053e84be266c3344fb8ad74c0748e7f859a1e`이다.
+
+Portable normal core-vet job `114382340493`의 `Verify CI tooling`에서 62개 testcase의 완료 이름을
+각각 한 번 확인했다. `CI_TOOLS_VERIFIED tests=62 skips=0`과 이름 전체 개수가 일치하며 두 browser evidence
+부정 검사도 포함한다. 같은 job의 Go core·vet도 통과했다. 원 job 로그 SHA-256은
+`febaadb0c41590f5e8e40ecc8ea2a5d9fd92acc1cf12c7400a267ba1daccf380`, 별도 실행 목록 대조 receipt는
+`3743e3e662ebea83685b16865a1150d1f1393e671f26758b346005581c0e387b`다.
+같은 source의 normal integration job `114382340523`도 완료됐다. 독립 SDK package는 33.158초에 통과했고,
+원격 브라우저의 로그인·23개 UI/HTTP 검사와 native Ticket 전체 값/audit/link 보존·정리를 다시 확인했다.
+Job 로그 SHA-256은 `acec9eea553017ed5987459aa4196529a44328367ffd3af9d3c5991300df7fb0`이다.
+Current-run artifact `11690574236`의 run/source·ZIP digest와 receipt의 모든 파일 hash·명령/결과/정리 출력을
+대조했다. ZIP SHA-256은 `41b43b159e57cb99594bd10f7126963ee78231b6e2c4164fd592e12a86f230b5`, receipt는
+`f58b0f022c15f1e36efc8f1f0f865731012be3136b2e1c5dbccb742b25ba8220`이다. 새 screenshot은 위에서 시각 확인한
+PNG와 byte 단위로 같고 SHA-256 `d1699f0f0e3a374a578c20a4f3d15fc796ff4f8e24718f1cf7887b17b75e0e44`를 유지했다.
+Race integration job `114382340448`에서는 SDK consumer package가 150.003초에 통과했다. SDK 예산 보완의
+원격 후속 실행을 확인했지만 같은 job의 Helpdesk 소비자가 600.01초에 실패해 job 전체는 실패다. 여러 시나리오가
+공유한 10분 context가 마지막 `ticket_priority_raise/concurrent/leader_commit` 실행 3.44초 뒤에 만료됐고,
+다음 `leader_rollback`은 시작하자마자 context 오류를 반환했다. 원 job 로그 SHA-256은
+`3c3a560250c8e4484efb08c5dc58ba810a18a25c54fbb5cc79c0b0e987773632`이며 data race 보고는 없다.
+후속 수정은 normal/CGO=0의 10분을 유지하고 race 누적 context만 15분으로 분리한다. 같은 DB를 이어 쓰는
+시나리오, 개별 동시성 20초, 미확정 값의 외부 비가시성·commit/rollback·정확한 audit와 정리 검사는 유지한다.
+이 시간 조정의 효과는 새 source의 원격 전체 실행에서 확인한다.
+
+Relation ubuntu/race/runtime job `114382340709`에서는 `TestQueryUpdateTypedDynamicAndOwnedSource`와
+`TestQueryUpdateForeignKeyTypedMetadata`가 같은 갱신의 typed/dynamic AST 불일치로 실패했다.
+원 로그 SHA-256은 `6fc786d1e9e3d6fad26b7de57d3bcf4386ee9dfe70ff8848d474b249fbc451ca`이다.
+두 실패를 수정 전 로컬 normal에서 그대로 재현했고 원 JSON SHA-256은
+`fbba70edfdddc65446f12abd9f0110086c9b79cac7dbcb00deeae9dabc71f1a7`이다. Typed `AssignNull`의 결과 kind와
+dynamic `nil`의 bare NULL이 달랐다. 공통 `NewScalarAssignment`에서 bare NULL을 target kind를 가진 새 값으로
+정규화한다. 입력 표현식은 불변이며 명시적으로 다른 kind인 NULL·non-null target·source metadata 거부는 유지한다.
+수정 후 두 실패 root와 scalar 타입/소유권 root의 39개 root/child가 skip 0으로 통과했다. 원 JSON SHA-256은
+`b2f08c69123e0cca846c5c4d77da0ad773c6c4cb398b5cbf5e245cecb8836e15`다. 여기에는 scalar 12종의 typed/untyped
+NULL 대입 일치, 공유 입력의 독립 read 거부와 명시적 타입 불일치 거부가 포함된다. 로컬 결과는 실패 재현 범위이며
+후속 source의 DB·race/platform 전체 검증을 대신하지 않는다. 생성 소비자·전체 플랫폼·capture/최종 집계는 미완료다.
+Helpdesk 변경은 normal/race 각각 `-run '^$'`로 최소 compile만 통과했다. Build tag가 각 모드의 예산 파일 하나만
+선택하는 것도 확인했으며 소비자 runtime을 로컬에서 다시 실행하지 않았다. 수정 실패 재현과 두 compile의 receipt
+SHA-256은 `16ff311e2810b3dee1f34d3d2349ae72f1d4be0a8de612045b912e5daf798f68`이다.
+
 ## GDJ-0121 — 숫자 합계·평균과 업무 지표
 
 2026-10-08 KST, 기준 `b14d0eaf3d49f01151c8b010fb97eac2a57532ef` 뒤의 작업 사본에서
