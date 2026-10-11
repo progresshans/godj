@@ -32,7 +32,7 @@ async (page) => {
     check(new URL(page.url()).search === "" && await page.locator("tbody tr").count() === 20, "clear returns first unfiltered page");
     await page.getByLabel("Minimum open rate (basis points)",{exact:true}).fill("6667");
     await page.getByRole("button",{name:"Apply filter",exact:true}).click();
-    check(new URL(page.url()).searchParams.get("min_open_basis_points")==="6667" && (await page.getByRole("main").innerText()).includes("24 priority groups. Page 1.") && !(await page.locator("tbody tr").first().innerText()).includes("Not set"), "derived open-rate filter uses basis points");
+    check(new URL(page.url()).searchParams.get("min_open_basis_points")==="6667" && (await page.getByRole("main").innerText()).includes("24 priority groups. Page 1.") && (await page.locator("tbody tr").first().getByRole("rowheader").innerText()) !== "Not set", "derived open-rate filter uses basis points");
     await page.getByRole("link",{name:"Next page",exact:true}).click();
     check(new URL(page.url()).searchParams.get("min_open_basis_points")==="6667" && await page.locator("tbody tr").count()===4, "page link preserves derived rate filter");
     const ratioResponse=await page.request.get(origin+"/api/tickets/summary/?min_open_basis_points=6666");

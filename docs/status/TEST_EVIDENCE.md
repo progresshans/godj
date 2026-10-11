@@ -81,6 +81,29 @@ generator의 상수를 따른다. PostgreSQL 입력은 같은 충돌을 일으�
 receipt SHA-256은 `cf8cfd311e5f4f336a3736b72753c8e8b54e6b33270ebcd12619b1af36caa131`이다.
 수정 묶음 push로 새 전체 CI를 실행하며 이전 source의 부분 결과를 후속 source의 성공으로 계산하지 않는다.
 
+### 브라우저의 NULL 열 판정 수정
+
+후속 source `fea1d2cae34e85cf9ed8fa03253a781bba4789ec`의
+[CI 38171492954](https://github.com/progresshans/godj/actions/runs/38171492954)에서 core normal/race/CGO=0와
+HTML/API 통합은 통과했으나 브라우저의 비율 필터 assertion이 실패했다. 실패 job `114564999704`의 원 로그
+SHA-256은 `c38f4e761956e5b011a3e7a42eb1284ac884c97b5238cc1ac49afff90bf7141a`, immutable browser artifact
+`11713414279`의 zip SHA-256은 `5ee9dbe83f7c382d3a6608f6bd974dc2b07c2e997fb4c7900e028912b99fb261`이다.
+이 실행의 전체 PASS를 주장하지 않는다.
+
+Darwin/arm64에서 같은 CLI 0.1.22·Playwright core 1.64.0-alpha-1790635538000·Chromium 155.0.8059.12로
+진단 probe를 실행해 실패를 재현했다. `min_open_basis_points=6667`, 전체 24그룹, 첫 우선순위 max-int64는 정상이며
+첫 행의 비용/노력/시간 세 NULL 칸이 `Not set`을 표시했다. 행 전체에서 그 문자열을 찾던 assertion을 우선순위
+rowheader만 확인하도록 수정했다. API나 NULL 출력 계약을 바꾸지 않았고 30개 필수 check를 모두 유지했다.
+
+수정한 실제 repository probe로 전체 브라우저 흐름 30개를 통과했다. Native ticket 30건의 전체 값·link/audit 보존,
+브라우저 종료·fixture exit 0·DB 디렉터리 제거도 확인했다. 1440×1100 화면에서 9개 열과 필터를 확인했다.
+이는 원격 실패에 대한 로컬 재현/수정 증거이며 이후 source의 전체 Hosted/다른 플랫폼 성공을 대신하지 않는다.
+자료는 외부 `derived-browser-repair-1791750535261152000`에 보존한다. 수정 probe SHA-256은
+`121d6d6588092f728420b8e8d7531991c5b36d6895d7402bab88a4cfb2feae89`, 고정 브라우저 receipt는
+`1b641f92b8849c02e2037d926939b8d4e990dc11f4eaf8fb355ecd28c7c80a02`, source/receipt 결합은
+`00d0122b08ce4458f17aac607161c17557c462a9abf42fbd93dce42ef3db9e47`이다. 초기 로컬 시도는 해당 Chromium이
+없어 브라우저 실행 전에 멈췄으며, 고정 버전을 설치한 뒤 별도 native 재현과 수정 검사를 수행했다.
+
 ## GDJ-0122 — 계산식 조회와 우선순위 미리보기
 
 2026-10-08~12 KST, 기준 `02f350d3598f41dd34b0ddcb1fbf82474139aea4` 뒤 작업 사본에 같은 행 scalar/CASE의
