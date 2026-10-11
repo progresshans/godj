@@ -1,6 +1,7 @@
 package query
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -19,6 +20,7 @@ const (
 	ScalarField
 	ScalarBinary
 	ScalarNegate
+	ScalarCase
 )
 
 type ArithmeticOperator string
@@ -45,6 +47,73 @@ type scalarNode struct {
 	result       FieldKind
 	nullable     bool
 	depth, nodes int
+	branches     []ScalarWhen
+}
+
+// ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
+// are immutable; CaseScalar snapshots the ordered branch container.
+type ScalarWhen struct {
+	when  Expression
+	value ScalarExpression
+}
+
+func WhenScalar(when Expression, value ScalarExpression) (ScalarWhen, error) {
+	if err := when.validate(); err != nil {
+		return ScalarWhen{}, err
+	}
+	if err := value.Validate(); err != nil {
+		return ScalarWhen{}, err
+	}
+	if when.HasRelations() {
+		return ScalarWhen{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "conditional scalar predicates require same-row fields"}
+	}
+	return ScalarWhen{when: when, value: value}, nil
+}
+func (branch ScalarWhen) Predicate() Expression   { return branch.when }
+func (branch ScalarWhen) Value() ScalarExpression { return branch.value }
+
+func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpression, error) {
+	if err := fallback.Validate(); err != nil {
+		return ScalarExpression{}, err
+	}
+	if len(branches) == 0 {
+		return fallback, nil
+	}
+	if len(branches) >= MaximumScalarNodes {
+		return ScalarExpression{}, invalidPlanError("conditional scalar requires a bounded branch list")
+	}
+	result, nullable := fallback.ResultKind(), fallback.Nullable()
+	depth, nodes := fallback.Depth()+1, fallback.NodeCount()+1
+	for _, branch := range branches {
+		if _, err := WhenScalar(branch.when, branch.value); err != nil {
+			return ScalarExpression{}, err
+		}
+		kind := branch.value.ResultKind()
+		if result == "" {
+			result = kind
+		}
+		if kind != "" && kind != result {
+			return ScalarExpression{}, invalidPlanError("conditional scalar branches require one explicit result kind")
+		}
+		nullable = nullable || branch.value.Nullable()
+		depth = max(depth, 1+branch.when.node.depth, 1+branch.value.Depth())
+		nodes += branch.when.node.nodes + branch.value.NodeCount()
+		if depth > MaximumScalarDepth || nodes > MaximumScalarNodes {
+			return ScalarExpression{}, invalidPlanError("conditional scalar exceeds its resource budget")
+		}
+	}
+	if result == "" {
+		return ScalarExpression{}, invalidPlanError("conditional scalar has no explicit result kind")
+	}
+	return ScalarExpression{&scalarNode{kind: ScalarCase, result: result, nullable: nullable, left: fallback,
+		branches: slices.Clone(branches), depth: depth, nodes: nodes}}, nil
+}
+
+func (expression ScalarExpression) Case() (ScalarExpression, []ScalarWhen, bool) {
+	if expression.Kind() != ScalarCase {
+		return ScalarExpression{}, nil, false
+	}
+	return expression.node.left, slices.Clone(expression.node.branches), true
 }
 
 func LiteralExpression(value Value) (ScalarExpression, error) {
@@ -56,6 +125,17 @@ func LiteralExpression(value Value) (ScalarExpression, error) {
 		result = ""
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarLiteral, value: value, result: result, nullable: value.IsNull(), depth: 1, nodes: 1}}, nil
+}
+
+// NullExpression gives a selected NULL an explicit result type. Unlike a
+// FieldRef, this domain has no source column, nullability, or field precision.
+func NullExpression(kind FieldKind) (ScalarExpression, error) {
+	switch kind {
+	case FieldInteger, FieldFloat, FieldDecimal, FieldUUID, FieldBinary, FieldJSON, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	default:
+		return ScalarExpression{}, invalidPlanError("typed NULL requires a supported scalar result kind")
+	}
+	return ScalarExpression{&scalarNode{kind: ScalarLiteral, value: Null(), result: kind, nullable: true, depth: 1, nodes: 1}}, nil
 }
 
 func FieldExpression(field FieldRef) (ScalarExpression, error) {
@@ -105,7 +185,7 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarBinary, operator: operator, left: left, right: right, result: result,
-		nullable: left.node.nullable || right.node.nullable || operator == ArithmeticDivide || operator == ArithmeticModulo, depth: depth, nodes: nodes}}, nil
+		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo, depth: depth, nodes: nodes}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
@@ -188,8 +268,49 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.value == right.value && left.field == right.field && left.operator == right.operator &&
-		left.left.Equal(right.left) && left.right.Equal(right.right)
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator &&
+		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
+		return a.when.Equal(b.when) && a.value.Equal(b.value)
+	})
+}
+
+// ValidateSource preserves exact IR metadata even when none of its columns
+// are selected. Callers cannot replace a field's kind or precision to describe
+// the result of an operation on that field.
+func (expression ScalarExpression) ValidateSource(source []FieldRef) error {
+	fields := make(map[string]FieldRef, len(source))
+	for _, field := range source {
+		if previous, present := fields[field.Column()]; present && previous != field {
+			return invalidPlanError("scalar source has ambiguous column metadata")
+		}
+		fields[field.Column()] = field
+	}
+	return expression.validateSource(fields)
+}
+
+// Fields returns exact source leaves in traversal order. The result is owned
+// by the caller; the expression and its metadata remain immutable.
+func (expression ScalarExpression) Fields() []FieldRef {
+	var fields []FieldRef
+	var visit func(ScalarExpression)
+	visit = func(value ScalarExpression) {
+		if field, ok := value.Field(); ok {
+			fields = append(fields, field)
+		} else if _, left, right, ok := value.Binary(); ok {
+			visit(left)
+			visit(right)
+		} else if child, ok := value.Negated(); ok {
+			visit(child)
+		} else if fallback, branches, ok := value.Case(); ok {
+			visit(fallback)
+			for _, branch := range branches {
+				fields = append(fields, branch.when.SourceFields()...)
+				visit(branch.value)
+			}
+		}
+	}
+	visit(expression)
+	return fields
 }
 
 func (expression ScalarExpression) validateSource(fields map[string]FieldRef) error {
@@ -209,6 +330,21 @@ func (expression ScalarExpression) validateSource(fields map[string]FieldRef) er
 	}
 	if value, ok := expression.Negated(); ok {
 		return value.validateSource(fields)
+	}
+	if fallback, branches, ok := expression.Case(); ok {
+		if err := fallback.validateSource(fields); err != nil {
+			return err
+		}
+		for _, branch := range branches {
+			for _, field := range branch.when.SourceFields() {
+				if fields[field.Column()] != field {
+					return invalidPlanError("conditional predicate differs from its source metadata")
+				}
+			}
+			if err := branch.value.validateSource(fields); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -247,18 +383,36 @@ func (assignment ScalarAssignment) Validate() error {
 		if value.IsNull() && !assignment.field.Nullable() {
 			return invalidPlanError("non-null field cannot be assigned a NULL literal")
 		}
-		if digits, places, ok := assignment.field.DecimalPrecision(); ok && !value.IsNull() {
-			decimal, valid := value.Decimal()
-			if !valid || !decimal.Fits(digits, places) {
-				return invalidPlanError("decimal assignment exceeds declared precision or scale")
-			}
+	}
+	if assignment.field.Kind() == FieldDecimal {
+		return validateAssignedDecimal(assignment.expression, assignment.field)
+	}
+	return nil
+}
+
+func validateAssignedDecimal(expression ScalarExpression, target FieldRef) error {
+	if value, ok := expression.Literal(); ok && !value.IsNull() {
+		digits, places, _ := target.DecimalPrecision()
+		number, valid := value.Decimal()
+		if !valid || !number.Fits(digits, places) {
+			return invalidPlanError("decimal assignment exceeds declared precision or scale")
 		}
 	}
-	if source, ok := assignment.expression.Field(); ok && source.Kind() == FieldDecimal {
+	if source, ok := expression.Field(); ok {
 		fromDigits, fromPlaces, _ := source.DecimalPrecision()
-		toDigits, toPlaces, _ := assignment.field.DecimalPrecision()
+		toDigits, toPlaces, _ := target.DecimalPrecision()
 		if fromPlaces > toPlaces || fromDigits-fromPlaces > toDigits-toPlaces {
 			return &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "decimal field assignment cannot narrow declared precision or scale without an explicit conversion"}
+		}
+	}
+	if fallback, branches, ok := expression.Case(); ok {
+		if err := validateAssignedDecimal(fallback, target); err != nil {
+			return err
+		}
+		for _, branch := range branches {
+			if err := validateAssignedDecimal(branch.value, target); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

@@ -8,11 +8,12 @@ async (page) => {
     await page.getByRole("link", {name:"Ticket summary", exact:true}).click();
     check(await page.getByRole("heading", {name:"Ticket summary",exact:true}).count() === 1, "summary navigation");
     check(await page.locator("tbody tr").count() === 20, "twenty groups on first page");
-    check((await page.locator("tbody tr").first().innerText()).replace(/\s+/g," ").trim() === "Not set 3 2 0.3 2 00:00:00.000003", "null priority retains exact metrics and excludes missing values");
-    for (const name of ["Total expected cost", "Average effort", "Total elapsed"]) {
+    check((await page.locator("tbody tr").first().innerText()).replace(/\s+/g," ").trim() === "Not set Normal 3 2 0.3 2 00:00:00.000003", "null priority retains exact metrics and excludes missing values");
+    for (const name of ["After raise", "Total expected cost", "Average effort", "Total elapsed"]) {
         check(await page.getByRole("columnheader", {name, exact:true}).count() === 1, "numeric summary column: " + name);
     }
     check((await page.locator("tbody tr").nth(1).innerText()).includes("9223372036854775807"), "legacy maximum int64 is displayed exactly");
+    check((await page.locator("tbody tr").nth(1).locator("td").first().innerText()) === "Other (9223372036854775807) (unchanged)", "legacy maximum is preserved by CASE preview");
     await page.getByRole("link", {name:"Next page",exact:true}).click();
     check(await page.locator("tbody tr").count() === 7, "remaining seven groups");
     check((await page.locator("tbody tr").nth(3).innerText()).includes("Urgent"), "current choice label");

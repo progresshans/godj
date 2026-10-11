@@ -25,6 +25,9 @@ Session/Bearer client는 사용 불가 생성·반복 설정·복구와 활성 �
 Helpdesk summary는 같은 generated 응답에 `expected_cost_total`·`effort_average`·`elapsed_total`을 required nullable
 값으로 포함한다. 독립 client는 보존한 ticket 응답으로 exact Decimal/Duration 합계와 이 fixture의 finite 평균을 계산하고
 현재 Category의 실제 집계와 비교한다. Framework helper나 다른 summary 응답을 예상값으로 사용하지 않는다.
+`raise_to_priority`·`raise_to_label`·`would_change`도 required 값이다. 독립 client가 보존한 원 priority로 NULL/Low/Normal의
+상승과 Urgent/legacy 값 보존을 계산하며, wire 검사는 int64 극값과 필수 값의 누락·null·잘못된 타입을 거부한다.
+읽기 snapshot의 미리보기와 이후 쓰기 명령이 실제 현재 상태를 다시 확인하는 경계를 구분한다.
 별도 wire 검사는 원본 필드보다 큰 Decimal 합계·전체 모델 Duration 범위·0/null 구분과 필수 값·타입·canonical 표현의
 거부를 확인한다. JSON Schema의 Decimal 확장 정책이 generator의 모든 수치 범위 검사를 대신한다고 주장하지 않는다.
 

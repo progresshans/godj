@@ -24,22 +24,8 @@ func compileQueryUpdate(schema string, plan query.QueryUpdatePlan) (string, []an
 		},
 		QuoteTable: func(table string) (string, error) { return quoteTable(schema, table) }, QuoteIdentifier: quoteIdentifier,
 		Value: postgresValue, Placeholder: placeholder,
-		Literal: func(value query.Value, expected query.FieldKind, parameter string) (string, error) {
-			// An expression made only of parameters has no column from which
-			// PostgreSQL could infer an operator type. Bind its explicit kind.
-			kind := query.FieldKind(value.Kind())
-			if value.IsNull() {
-				kind = expected
-			}
-			switch kind {
-			case query.FieldInteger:
-				return "CAST(" + parameter + " AS bigint)", nil
-			case query.FieldFloat:
-				return "CAST(" + parameter + " AS double precision)", nil
-			default:
-				return parameter, nil
-			}
-		},
+		Predicate: compileScalarPredicate,
+		Literal:   readScalarLiteral,
 	})
 }
 

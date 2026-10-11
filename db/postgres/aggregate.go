@@ -30,13 +30,15 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	ordered := expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax
 	if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
 		var err error
-		operand, err = numericAggregateOperand(field, operand)
+		if _, computed := expression.Scalar(); !computed {
+			operand, err = numericAggregateOperand(field, operand)
+		}
 		if err != nil {
 			return "", err
 		}
 	}
 	if ordered {
-		switch field.Kind() {
+		switch expression.OperandKind() {
 		case query.FieldBinary:
 			// Hex under C collation preserves unsigned byte ordering.
 			operand = "encode(" + operand + ", 'hex') COLLATE \"C\""
@@ -50,7 +52,7 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	}
 	result := function + "(" + operand + ")" + filter
 	if ordered {
-		switch field.Kind() {
+		switch expression.OperandKind() {
 		case query.FieldBinary:
 			result = "decode(" + result + ", 'hex')"
 		case query.FieldUUID:
@@ -67,7 +69,7 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	// type must match the AST even when native Decimal row adaptation is on.
 	// Casting the completed aggregate preserves native intermediate sums and
 	// makes an unrepresentable int64 result a database error, never a wrap.
-	if field.Kind() == query.FieldInteger {
+	if expression.OperandKind() == query.FieldInteger {
 		switch expression.Kind() {
 		case query.ResultSum:
 			result = "(" + result + ")::bigint"

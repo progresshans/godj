@@ -9360,6 +9360,18 @@ func (s *TicketSummaryResultsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.PriorityLabel)
 	}
 	{
+		e.FieldStart("raise_to_priority")
+		e.Int64(s.RaiseToPriority)
+	}
+	{
+		e.FieldStart("raise_to_label")
+		e.Str(s.RaiseToLabel)
+	}
+	{
+		e.FieldStart("would_change")
+		e.Bool(s.WouldChange)
+	}
+	{
 		e.FieldStart("total")
 		e.Int64(s.Total)
 	}
@@ -9381,14 +9393,17 @@ func (s *TicketSummaryResultsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketSummaryResultsItem = [7]string{
+var jsonFieldsNameOfTicketSummaryResultsItem = [10]string{
 	0: "priority",
 	1: "priority_label",
-	2: "total",
-	3: "open",
-	4: "expected_cost_total",
-	5: "effort_average",
-	6: "elapsed_total",
+	2: "raise_to_priority",
+	3: "raise_to_label",
+	4: "would_change",
+	5: "total",
+	6: "open",
+	7: "expected_cost_total",
+	8: "effort_average",
+	9: "elapsed_total",
 }
 
 // Decode decodes TicketSummaryResultsItem from json.
@@ -9396,7 +9411,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode TicketSummaryResultsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -9422,8 +9437,44 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"priority_label\"")
 			}
-		case "total":
+		case "raise_to_priority":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.RaiseToPriority = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"raise_to_priority\"")
+			}
+		case "raise_to_label":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.RaiseToLabel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"raise_to_label\"")
+			}
+		case "would_change":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.WouldChange = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"would_change\"")
+			}
+		case "total":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int64()
 				s.Total = int64(v)
@@ -9435,7 +9486,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int64()
 				s.Open = int64(v)
@@ -9447,7 +9498,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "expected_cost_total":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.ExpectedCostTotal.Decode(d); err != nil {
 					return err
@@ -9457,7 +9508,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"expected_cost_total\"")
 			}
 		case "effort_average":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.EffortAverage.Decode(d); err != nil {
 					return err
@@ -9467,7 +9518,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"effort_average\"")
 			}
 		case "elapsed_total":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.ElapsedTotal.Decode(d); err != nil {
 					return err
@@ -9485,8 +9536,9 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b01111111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

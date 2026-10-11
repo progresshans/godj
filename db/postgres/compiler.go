@@ -13,6 +13,17 @@ import (
 const postgresIdentifierMaxBytes = 63
 
 func compilePlan(schema string, plan query.Plan) (string, []any, error) {
+	statement, arguments, err := compileReadPlan(schema, plan)
+	if err != nil {
+		return "", nil, err
+	}
+	if len(arguments) > postgresBulkParameters || len(statement) > 4<<20 {
+		return "", nil, unsupportedResultShape("query exceeds PostgreSQL statement or parameter budget")
+	}
+	return statement, arguments, nil
+}
+
+func compileReadPlan(schema string, plan query.Plan) (string, []any, error) {
 	if err := plan.ValidateGrouping(); err != nil {
 		return "", nil, err
 	}
@@ -150,14 +161,13 @@ func compileDerivedAggregate(
 	where whereAnalysis,
 ) (string, []any, error) {
 	const sourceAlias = "godj_source"
-	var statement strings.Builder
-	statement.WriteString("SELECT ")
-	if err := appendAggregateExpressions(&statement, expressions, sourceFields, sourceAlias); err != nil {
-		return "", nil, err
-	}
-
 	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, queryplan.FieldExpressions(sourceFields), where)
 	if err != nil {
+		return "", nil, err
+	}
+	var statement strings.Builder
+	statement.WriteString("SELECT ")
+	if err := appendAggregateExpressions(&statement, expressions, sourceFields, sourceAlias, &arguments); err != nil {
 		return "", nil, err
 	}
 	quotedAlias, err := quoteIdentifier(sourceAlias)
@@ -185,13 +195,14 @@ func compileDirectAggregate(
 
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
-	if err := appendAggregateExpressions(&statement, expressions, sourceFields, ""); err != nil {
+	arguments := []any{}
+	if err := appendAggregateExpressions(&statement, expressions, sourceFields, "", &arguments); err != nil {
 		return "", nil, err
 	}
 	statement.WriteString(" FROM ")
 	statement.WriteString(table)
 
-	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField, nil)
+	arguments, err = appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField, arguments)
 	if err != nil {
 		return "", nil, err
 	}
@@ -309,6 +320,15 @@ func (a *whereAnalyzer) walk(
 }
 
 func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootConjunction bool) (whereLeaf, error) {
+	if scalar, present := condition.Scalar(); present {
+		if err := scalar.ValidateSource(a.sourceFields); err != nil {
+			return whereLeaf{}, err
+		}
+		if _, err := query.NewExpression(condition); err != nil {
+			return whereLeaf{}, err
+		}
+		return whereLeaf{}, nil
+	}
 	values, err := prepareWhereCondition(condition)
 	if err != nil {
 		return whereLeaf{}, err
@@ -495,6 +515,24 @@ func appendWhereExpression(
 		// Advance a local slice header; the prepared values remain read-only.
 		leaf := (*leaves)[0]
 		*leaves = (*leaves)[1:]
+		if _, computed := condition.Scalar(); computed {
+			if err := queryplan.AppendScalarCondition(statement, condition, func(value query.ScalarExpression) (string, error) {
+				return compileReadScalarFields(value, resolveRHSField, arguments)
+			}, func(value query.Value) (string, error) {
+				if len(*arguments) >= postgresBulkParameters {
+					return "", invalidPlan("computed predicate exceeds PostgreSQL parameter budget")
+				}
+				argument, err := postgresValue(value)
+				if err != nil {
+					return "", err
+				}
+				*arguments = append(*arguments, argument)
+				return readScalarLiteral(value, query.FieldKind(value.Kind()), placeholder(len(*arguments)))
+			}); err != nil {
+				return err
+			}
+			break
+		}
 		field := leaf.existsField
 		if leaf.existsPrefix != "" {
 			if !negated {
@@ -603,20 +641,13 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 	}
 }
 
-func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
+func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
 	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
-		field, _ := expression.Field()
-		var column string
-		var err error
-		if sourceAlias != "" {
-			column, err = quoteQualified(sourceAlias, field.Column())
-		} else {
-			column, err = quoteIdentifier(field.Column())
-		}
-		if err != nil {
+		var operand strings.Builder
+		if err := appendResultValue(&operand, expression, sourceAlias, nil, arguments, true); err != nil {
 			return "", err
 		}
-		return renderAggregate(expression, column, "", false)
+		return renderAggregate(expression, operand.String(), "", false)
 	})
 }
 

@@ -31,6 +31,17 @@ func prioritySelectionError(ids []int64) error {
 	return nil
 }
 
+// The read expression previews the existing command's policy without loading
+// ticket bodies or changing a row. Only Low/Normal take the arithmetic branch;
+// legacy int64 extremes remain unchanged and cannot overflow that branch.
+func raisedPriorityExpression() orm.NumericExpression[models.Ticket, int64] {
+	field := models.TicketFields.Priority
+	return orm.Numeric(orm.Case(orm.F(field),
+		orm.When(field.IsNull(true), orm.Value[models.Ticket](int64(0))),
+		orm.When(field.In(-1, 0), orm.Add(orm.F(field), int64(1))),
+	))
+}
+
 func (a *Application) raiseTicketPriority(ctx context.Context, actor auth.Principal, ids []int64, appendAudit appendTicketAudit) (updatedTickets, error) {
 	if ctx == nil || appendAudit == nil {
 		return updatedTickets{}, errors.New("helpdesk: priority raise requires context and transactional audit")

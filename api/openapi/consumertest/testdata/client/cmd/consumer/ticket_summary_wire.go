@@ -13,7 +13,7 @@ import (
 )
 
 func checkGeneratedSummaryWire(ctx context.Context) error {
-	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"min_open":9223372036854775807,"total_groups":3,"results":[{"priority":null,"priority_label":"Not set","total":3,"open":2,"expected_cost_total":"10999999999999.89","effort_average":1.5,"elapsed_total":"-999999999 00:00:00"},{"priority":-9223372036854775808,"priority_label":"legacy","total":1,"open":0,"expected_cost_total":"0","effort_average":0,"elapsed_total":"00:00:00"},{"priority":9223372036854775807,"priority_label":"legacy","total":1,"open":0,"expected_cost_total":null,"effort_average":null,"elapsed_total":null}]}`
+	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"min_open":9223372036854775807,"total_groups":3,"results":[{"priority":null,"priority_label":"Not set","raise_to_priority":0,"raise_to_label":"Normal","would_change":true,"total":3,"open":2,"expected_cost_total":"10999999999999.89","effort_average":1.5,"elapsed_total":"-999999999 00:00:00"},{"priority":-9223372036854775808,"priority_label":"legacy","raise_to_priority":-9223372036854775808,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"expected_cost_total":"0","effort_average":0,"elapsed_total":"00:00:00"},{"priority":9223372036854775807,"priority_label":"legacy","raise_to_priority":9223372036854775807,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"expected_cost_total":null,"effort_average":null,"elapsed_total":null}]}`
 	params := hs.HelpdeskTicketSummaryParams{P: hs.NewOptInt64(50001), MinOpen: hs.NewOptInt64(9223372036854775807)}
 	calls := 0
 	client := func(status int, payload string) (*hs.Client, error) {
@@ -40,6 +40,10 @@ func checkGeneratedSummaryWire(ctx context.Context) error {
 		return fail("summary generated nullable and exact legacy int64 response")
 	}
 	first, zero, missing := value.Response.Results[0], value.Response.Results[1], value.Response.Results[2]
+	if first.RaiseToPriority != 0 || first.RaiseToLabel != "Normal" || !first.WouldChange || zero.RaiseToPriority != -9223372036854775808 || zero.WouldChange || missing.RaiseToPriority != 9223372036854775807 || missing.WouldChange {
+		return fail("summary generated exact computed priority preview")
+	}
+
 	if first.ExpectedCostTotal.Null || first.ExpectedCostTotal.Value != "10999999999999.89" || first.EffortAverage.Null || first.EffortAverage.Value != 1.5 || first.ElapsedTotal.Null || first.ElapsedTotal.Value != "-999999999 00:00:00" || zero.ExpectedCostTotal.Null || zero.ExpectedCostTotal.Value != "0" || zero.EffortAverage.Null || zero.EffortAverage.Value != 0 || zero.ElapsedTotal.Null || zero.ElapsedTotal.Value != "00:00:00" || !missing.ExpectedCostTotal.Null || !missing.EffortAverage.Null || !missing.ElapsedTotal.Null {
 		return fail("summary generated exact metrics and null/zero distinction")
 	}
@@ -53,6 +57,15 @@ func checkGeneratedSummaryWire(ctx context.Context) error {
 		strings.Replace(body, `,"elapsed_total":"-999999999 00:00:00"`, "", 1),
 		strings.Replace(body, `"expected_cost_total":"10999999999999.89"`, `"expected_cost_total":"01"`, 1),
 		strings.Replace(body, `"expected_cost_total":"10999999999999.89"`, `"expected_cost_total":"-0.0"`, 1),
+		strings.Replace(body, `"raise_to_priority":0,`, "", 1),
+		strings.Replace(body, `"raise_to_priority":0`, `"raise_to_priority":null`, 1),
+		strings.Replace(body, `"raise_to_priority":0`, `"raise_to_priority":0.0`, 1),
+		strings.Replace(body, `"raise_to_priority":0`, `"raise_to_priority":"0"`, 1),
+		strings.Replace(body, `"raise_to_priority":0`, `"raise_to_priority":9223372036854775808`, 1),
+		strings.Replace(body, `"raise_to_label":"Normal",`, "", 1),
+		strings.Replace(body, `"would_change":true,`, "", 1),
+		strings.Replace(body, `"would_change":true`, `"would_change":"true"`, 1),
+		strings.Replace(body, `"would_change":true`, `"would_change":null`, 1),
 	} {
 		calls = 0
 		malformed, err := client(200, payload)

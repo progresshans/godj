@@ -1,8 +1,8 @@
 # ADR-0090: QuerySet 갱신과 현재 행의 scalar 표현식
 
 - 상태: Accepted design — 공통 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-06
-- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md)
+- 날짜: 2026-10-11
+- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md)
 
 ## 입력과 공개 API
 
@@ -28,7 +28,7 @@ Manager와 생성 root/eager/prefetch facade는 같은 연산을 제공한다. �
 
 ## 불변 AST와 수치 의미
 
-`ScalarExpression`은 literal, source field, binary arithmetic, negate의 private 불변 tree다. Boolean 조건 AST와
+`ScalarExpression`은 literal, source field, binary arithmetic, negate, CASE의 private 불변 tree다. Boolean 조건 AST와
 별도 값 표현식이지만 typed/dynamic 경로마다 두 구현을 만들지 않는다. `ScalarAssignment`가 결과 kind를 target에
 결합하고 `QueryUpdatePlan`이 원 predicate·primary key·전체 source metadata와 assignment를 소유한다.
 깊이 64, assignment를 합친 전체 scalar node 1024, concrete source metadata와 backend parameter 예산을 검증한다.
@@ -49,7 +49,35 @@ nullable 여부에 따라 저장되거나 NOT NULL 오류가 된다. Backend별�
 Decimal 상수는 선언된 precision/scale에 정확히 맞아야 한다. Decimal field 복사는 target이 source의 선언 범위를
 좁히지 않을 때만 허용한다. SQLite exact BLOB과 PostgreSQL NUMERIC에 공통으로 적용할 연산·결과 precision·rounding
 계약을 정하기 전에는 Decimal arithmetic을 명시적으로 거부한다. Float로 바꾸는 구현이나 native DB의 임의 반올림을
-정확한 Decimal 지원으로 계산하지 않는다. Temporal/function/subquery/aggregate expression도 남은 기능이다.
+정확한 Decimal 지원으로 계산하지 않는다. Temporal 산술·function/subquery·aggregate 뒤 계산도 남은 기능이다.
+
+## 조회 결과와 조건부 값
+
+같은 scalar tree를 `ScalarResult`로 projection·조건·정렬·group key·aggregate operand에 연결한다.
+계산 결과에 가짜 FieldRef를 만들지 않는다. 결과 kind·nullable과 모든 원본 leaf의 kind·nullable·Decimal precision을
+별도로 검증하며 CASE의 조건에만 사용한 field도 원 source와 일치해야 한다. 같은 read/write renderer가 tree를
+순회하고 각 backend가 physical codec·식별자·parameter·native 연산을 소유한다.
+
+`F`, `Value`, `NullValue`, 산술과 `Case(fallback, When(predicate, value)...)`는 typed projection에
+`Optional[V]`를 제공한다. `Numeric`과 산술 결과의 sealed numeric capability는 int64/float64의 SUM/AVG·MIN/MAX를
+연결한다. AVG의 반환형은 float64다. Dynamic `BindExpression`/`ProjectDynamic`과 생성 Query의
+`Expression`/`ProjectExpressions`는 같은 AST에서 kind를 가진 `query.Value`를 반환한다.
+`BindPredicate`/생성 `ExpressionPredicate`도 metadata를 먼저 검증한다. 읽기에서 bare untyped NULL은 거부한다.
+
+CASE는 명시적 default와 순서가 있는 같은 행의 조건을 갖는다. 첫 true 조건의 값을 선택하고 SQL UNKNOWN은
+다음 조건으로 진행한다. Branch가 없으면 default 자체다. 조건과 값이 교차하는 전체 깊이/노드 예산을 유지하고
+branch slice를 복사한다. Decimal assignment는 선택되지 않는 branch도 선언된 target precision에 맞는지 검사한다.
+실행 중 선택되지 않는 row expression을 미리 계산하지 않지만 PostgreSQL의 constant folding 오류까지 숨기지는 않는다.
+
+계산식 비교의 NOT는 SQL 3값 논리를 유지한다. 기존 field lookup의 nullable 보정을 복사하지 않으며
+`F(nullable).Exact(value)`와 해당 field의 lookup은 이 경계를 의도적으로 구분한다. SQLite float 산술의 NaN→NULL과
+PostgreSQL NaN/오류, integer overflow/zero-division 차이는 native 결과로 검증한다. 읽기의 Decimal source leaf와
+Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가 자기 결과 domain을 다시 검증한다.
+전체 read SQL·parameter 예산도 적용한다. DISTINCT projection의 정렬은 선택한 표현식이어야 한다.
+
+이 기반에는 일반 named annotation과 dependency/재바인딩 API, 집계 뒤 query stage, 관계를 넘는 computed operand,
+subquery/window/function, Decimal·Duration 산술과 computed SUM/AVG가 포함되지 않는다. 독립 관찰의 지원 범위와
+현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 
 ## 선택, 실행과 동시성
 

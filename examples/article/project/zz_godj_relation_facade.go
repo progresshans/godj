@@ -612,6 +612,27 @@ func GroupModelsArticleBy[K, A, R any](_source ModelsArticleQuery, _keys orm.Pro
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
 }
 
+func (_query ModelsArticleQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[models.Article], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[models.Article]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query ModelsArticleQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[models.Article], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[models.Article]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query ModelsArticleQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[models.Article, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[models.Article, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
+}
+
 func (_query ModelsArticleQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[models.Article, orm.GroupRow], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.GroupedQuery[models.Article, orm.GroupRow]{}, _err
@@ -1048,6 +1069,27 @@ func GroupIdentityGroupBy[K, A, R any](_source IdentityGroupQuery, _keys orm.Pro
 		return orm.GroupedQuery[identity.Group, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityGroupQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.Group], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.Group]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityGroupQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.Group], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.Group]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityGroupQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.Group, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.Group, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query IdentityGroupQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.Group, orm.GroupRow], error) {
@@ -2123,6 +2165,27 @@ func GroupIdentityGroupPermissionsLinkBy[K, A, R any](_source IdentityGroupPermi
 		return orm.GroupedQuery[identity.GroupPermissionsLink, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.GroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.GroupPermissionsLink]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.GroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.GroupPermissionsLink]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.GroupPermissionsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.GroupPermissionsLink, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query IdentityGroupPermissionsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.GroupPermissionsLink, orm.GroupRow], error) {
@@ -3730,6 +3793,27 @@ func GroupIdentityPermissionBy[K, A, R any](_source IdentityPermissionQuery, _ke
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
 }
 
+func (_query IdentityPermissionQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.Permission], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.Permission]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityPermissionQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.Permission], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.Permission]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityPermissionQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.Permission, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.Permission, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
+}
+
 func (_query IdentityPermissionQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.Permission, orm.GroupRow], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.GroupedQuery[identity.Permission, orm.GroupRow]{}, _err
@@ -4796,6 +4880,27 @@ func GroupIdentityUserBy[K, A, R any](_source IdentityUserQuery, _keys orm.Proje
 		return orm.GroupedQuery[identity.User, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.User], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.User]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityUserQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.User], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.User]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityUserQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.User, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.User, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query IdentityUserQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.User, orm.GroupRow], error) {
@@ -5871,6 +5976,27 @@ func GroupIdentityUserGroupsLinkBy[K, A, R any](_source IdentityUserGroupsLinkQu
 		return orm.GroupedQuery[identity.UserGroupsLink, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserGroupsLinkQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.UserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.UserGroupsLink]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityUserGroupsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.UserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.UserGroupsLink]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityUserGroupsLinkQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.UserGroupsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.UserGroupsLink, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query IdentityUserGroupsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.UserGroupsLink, orm.GroupRow], error) {
@@ -7485,6 +7611,27 @@ func GroupIdentityUserPermissionsLinkBy[K, A, R any](_source IdentityUserPermiss
 		return orm.GroupedQuery[identity.UserPermissionsLink, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query IdentityUserPermissionsLinkQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[identity.UserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[identity.UserPermissionsLink]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query IdentityUserPermissionsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.UserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[identity.UserPermissionsLink]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query IdentityUserPermissionsLinkQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[identity.UserPermissionsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[identity.UserPermissionsLink, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query IdentityUserPermissionsLinkQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[identity.UserPermissionsLink, orm.GroupRow], error) {

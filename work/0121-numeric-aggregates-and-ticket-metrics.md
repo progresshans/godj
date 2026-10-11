@@ -1,6 +1,6 @@
 ---
 id: GDJ-0121
-status: active
+status: complete
 updated: 2026-10-08
 baseline_commit: "b14d0eaf3d49f01151c8b010fb97eac2a57532ef"
 integration_owner: "root"
@@ -41,7 +41,8 @@ source `b14d0eaf`의 전체 Hosted 통합도 완료됐다. 그 실행 결과를 
 - [x] 생성 facade/독립 소비자의 타입·실제 DB·실패 경계와 회귀 검사
 - [x] Helpdesk HTML/API·독립 client·문서/생성물 drift 연결
 - [x] 로컬 normal의 영향·실제 양 DB·독립 SDK/HTTP·브라우저 검증과 정리
-- [ ] 같은 source의 원격 세 모드·전체 platform 통합과 정확한 미완료 기록
+- [x] 같은 source의 원격 세 모드·전체 platform 통합과 정확한 미완료 기록
 
 로컬 검증은 구현과 테스트 소스의 hash로 연결했으며 실행 상세는 TEST_EVIDENCE를 따른다.
-원격 전체 통합이 끝나기 전에는 이 작업이나 전체 카탈로그를 완료로 표시하지 않는다.
+Source `02f350d3598f41dd34b0ddcb1fbf82474139aea4`의 CI 37706678533에서 원격 세 모드·전체 platform,
+필수 실행·same-run capture/source 결합과 최종 집계를 확인했다. 전체 카탈로그의 완료와 구분한다.

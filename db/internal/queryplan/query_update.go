@@ -21,6 +21,7 @@ type UpdateDialect struct {
 	Placeholder                 func(int) string
 	Literal                     func(query.Value, query.FieldKind, string) (string, error)
 	Expression                  func(query.ScalarExpression, string) (string, error)
+	Predicate                   func(query.Expression, func(query.FieldRef) (string, error), *[]any) (string, error)
 }
 
 func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (string, []any, error) {
@@ -59,56 +60,24 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 	if dialect.ParameterLimit <= 0 || len(arguments) > dialect.ParameterLimit {
 		return "", nil, invalidPlan("query update predicate exceeds its parameter budget")
 	}
-	var scalar func(query.ScalarExpression, query.FieldKind) (string, error)
-	scalar = func(expression query.ScalarExpression, expected query.FieldKind) (string, error) {
-		var sql string
-		if value, ok := expression.Literal(); ok {
-			if len(arguments) >= dialect.ParameterLimit {
-				return "", invalidPlan("query update exceeds its parameter budget")
-			}
-			argument, err := dialect.Value(value)
-			if err != nil {
-				return "", err
-			}
-			arguments = append(arguments, argument)
-			sql = dialect.Placeholder(len(arguments))
-			if dialect.Literal != nil {
-				sql, err = dialect.Literal(value, expected, sql)
-				if err != nil {
-					return "", err
-				}
-			}
-		} else if field, ok := expression.Field(); ok {
-			sql, err = dialect.QuoteIdentifier(field.Column())
+	scalarDialect := ScalarDialect{
+		ParameterLimit: dialect.ParameterLimit, Value: dialect.Value, Placeholder: dialect.Placeholder,
+		Literal: dialect.Literal, Expression: dialect.Expression,
+		Field: func(field query.FieldRef) (string, error) {
+			column, err := dialect.QuoteIdentifier(field.Column())
 			if err != nil {
 				return "", err
 			}
 			if source.Alias != "" {
-				sql = source.Alias + "." + sql
+				column = source.Alias + "." + column
 			}
-		} else if operator, left, right, ok := expression.Binary(); ok {
-			leftSQL, err := scalar(left, expression.ResultKind())
-			if err != nil {
-				return "", err
-			}
-			rightSQL, err := scalar(right, expression.ResultKind())
-			if err != nil {
-				return "", err
-			}
-			sql = "(" + leftSQL + " " + string(operator) + " " + rightSQL + ")"
-		} else if value, ok := expression.Negated(); ok {
-			inner, err := scalar(value, expression.ResultKind())
-			if err != nil {
-				return "", err
-			}
-			sql = "(-" + inner + ")"
-		} else {
-			return "", invalidPlan("query update has an unknown scalar node")
+			return column, nil
+		},
+	}
+	if dialect.Predicate != nil {
+		scalarDialect.Predicate = func(expression query.Expression, arguments *[]any) (string, error) {
+			return dialect.Predicate(expression, scalarDialect.Field, arguments)
 		}
-		if dialect.Expression != nil {
-			return dialect.Expression(expression, sql)
-		}
-		return sql, nil
 	}
 	assignments := plan.Assignments()
 	clauses := make([]string, len(assignments))
@@ -117,7 +86,7 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 		if err != nil {
 			return "", nil, err
 		}
-		value, err := scalar(assignment.Expression(), assignment.Field().Kind())
+		value, err := CompileScalar(assignment.Expression(), assignment.Field().Kind(), &arguments, scalarDialect)
 		if err != nil {
 			return "", nil, err
 		}

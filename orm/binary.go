@@ -120,8 +120,8 @@ func nullableBinaryResultCell() scalarCell[*binaryvalue.Value] {
 		return &copy
 	}}
 }
-func (f binaryField[M]) scalarOrderedField(M, binaryvalue.Value) (query.FieldRef, func() scalarCell[Optional[binaryvalue.Value]], error) {
-	return f.reference, func() scalarCell[Optional[binaryvalue.Value]] {
+func (f binaryField[M]) scalarOrderedField(M, binaryvalue.Value) (query.ResultExpression, func() scalarCell[Optional[binaryvalue.Value]], error) {
+	return query.FieldResult(f.reference), func() scalarCell[Optional[binaryvalue.Value]] {
 		var value NullableBinaryScanner
 		return scalarCell[Optional[binaryvalue.Value]]{destination: &value, value: func() Optional[binaryvalue.Value] {
 			return Optional[binaryvalue.Value]{value: value.Binary, valid: value.Valid}

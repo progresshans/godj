@@ -17,6 +17,8 @@ type dynamicScalarNode struct {
 	left, right  DynamicExpression
 	negate       bool
 	depth, nodes int
+	branches     []DynamicWhenExpression
+	result       query.FieldKind
 }
 
 func DynamicF(name string) DynamicExpression {
@@ -83,6 +85,28 @@ func (expression DynamicExpression) bind(model *preparedModel) (query.ScalarExpr
 		return query.ScalarExpression{}, err
 	}
 	node := expression.node
+	if len(node.branches) > 0 {
+		fallback, err := node.left.bind(model)
+		if err != nil {
+			return query.ScalarExpression{}, err
+		}
+		branches := make([]query.ScalarWhen, len(node.branches))
+		for index, branch := range node.branches {
+			predicate, err := branch.predicate.bind(model)
+			if err != nil {
+				return query.ScalarExpression{}, err
+			}
+			value, err := branch.value.bind(model)
+			if err != nil {
+				return query.ScalarExpression{}, err
+			}
+			branches[index], err = query.WhenScalar(predicate, value)
+			if err != nil {
+				return query.ScalarExpression{}, err
+			}
+		}
+		return query.CaseScalar(fallback, branches...)
+	}
 	if node.operator != "" || node.negate {
 		left, err := node.left.bind(model)
 		if err != nil {
@@ -98,6 +122,9 @@ func (expression DynamicExpression) bind(model *preparedModel) (query.ScalarExpr
 		return query.Arithmetic(node.operator, left, right)
 	}
 	if node.literal.Kind() != "" {
+		if node.result != "" && node.literal.IsNull() {
+			return query.NullExpression(node.result)
+		}
 		return query.LiteralExpression(node.literal)
 	}
 	index, found := model.byName[node.name]

@@ -159,3 +159,19 @@ Built-in password validator behavior and the embedded common-password dictionary
 come from the pinned Django 6.1 distribution under [BSD-3-Clause](LICENSE.django).
 Source hashes, attribution, adaptations and configuration boundaries are recorded
 in [identity/PASSWORD_VALIDATION.md](identity/PASSWORD_VALIDATION.md).
+
+## Conditional scalar and read-expression reference
+
+The independently written
+[computed-expression observer](conformance/runners/django/computed_expression_reference/observe.py)
+uses synthetic inputs and Django 6.1 public query APIs to observe CASE, arithmetic,
+projection, grouping, aggregates, and update behavior on SQLite and PostgreSQL.
+It does not consume GoDj output or expected-result fixtures. Its observations are
+development-time behavioral evidence, not an implementation copied from Django.
+The [source manifest](conformance/runners/django/computed_expression_reference/source-verification.json)
+records exact URLs and hashes for ten relevant modules at Django commit
+`fe0a859f537d4238cf49fca39073513206f83122`, including `expressions.py`, `query.py`,
+`aggregates.py`, and the SQL compilers/backend operations. Django copyright and
+BSD 3-Clause terms are preserved in [LICENSE.django](LICENSE.django).
+The checked-in raw observations retain their observer/source hashes; product
+implementation and environment-specific verification are recorded separately.

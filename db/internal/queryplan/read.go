@@ -198,6 +198,12 @@ func ProjectionExpressions(result query.ResultShape, sourceFields []query.FieldR
 		return nil, invalidPlan("projection result is empty")
 	}
 	for _, expression := range expressions {
+		if scalar, present := expression.Scalar(); present && expression.Kind() == query.ResultScalar {
+			if err := scalar.ValidateSource(sourceFields); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		field, ok := expression.Field()
 		_, related := expression.RelationPath()
 		if !ok || !related && !ContainsField(sourceFields, field) {
@@ -253,8 +259,11 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 			}
 			sql.WriteString("COUNT(*)")
 		case query.ResultMin, query.ResultMax, query.ResultSum, query.ResultAvg:
-			field, ok := expression.Field()
-			if !ok || !ContainsField(sourceFields, field) {
+			if scalar, present := expression.Scalar(); present {
+				if err := scalar.ValidateSource(sourceFields); err != nil {
+					return err
+				}
+			} else if field, ok := expression.Field(); !ok || !ContainsField(sourceFields, field) {
 				return invalidPlan("aggregate operand is not an exact source field")
 			}
 			if _, err := query.NewAggregateResult(expression); err != nil {

@@ -72,6 +72,7 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 		}
 		value, err := templates.Object(map[string]templates.Value{
 			"priority": templates.String(ticketSummaryPriorityLabel(row.priority)), "total": templates.Integer(row.total), "open": templates.Integer(row.open),
+			"raise_to": templates.String(ticketSummaryPriorityLabel(&row.raiseTo)), "would_change": templates.Bool(row.priority == nil || *row.priority != row.raiseTo),
 			"cost": templates.String(cost), "effort": templates.String(effort), "elapsed": templates.String(elapsed),
 		})
 		if err != nil {

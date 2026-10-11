@@ -89,6 +89,9 @@ Parameter binding과 identifier quoting은 backend compiler가 소유한다.
 Root scalar의 typed `In`과 dynamic `__in`은 빈 목록·NULL member를 보존한 같은 AST를 사용한다. Nullable negation의 NULL 의미를
 양 compiler가 유지하며, 확실히 빈 source도 전체 plan 검증을 마친 뒤에만 I/O를 생략한다. 빈 COUNT는 0, MIN/MAX는 NULL이고
 synthetic cursor는 query와 transaction lifetime에 묶인다. [목록 조회의 의미](adr/0062-scalar-membership-and-empty-query-execution.md)를 따른다.
+같은 행의 scalar 값 tree는 쓰기와 projection·조건·정렬·그룹/집계 operand가 공유한다. CASE의 Boolean/값 tree 전체에
+예산을 적용하며 원본 field metadata를 계산 결과의 kind/nullability로 바꾸지 않는다. 계산식 NOT의 SQL 3값 의미와
+field lookup의 NULL 보정은 구분한다. [Scalar 표현식](adr/0090-query-update-and-scalar-expressions.md)을 따른다.
 DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/internal/queryplan`이 공유한다. 각 compiler는
 물리 identifier 제한과 quoting, schema qualification, parameter 형식과 SQL 배치를 소유한다.
 관계 projection의 provenance·edge 충돌, 정렬된 alias와 JOIN 방향·nullable outer join도 공통 계획에서 결정한다.
@@ -107,9 +110,11 @@ descriptor 구현자가 소유한다. Project-bound lazy/reverse 객체도 검�
 
 Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
 DB rollback이 application memory를 자동 복원하지는 않는다. Query plan과 평가 cache도 별개의 수명이다.
-Scalar 집계는 COUNT/MIN/MAX를 지원한다. 현재 관계 filter의 cold Count는 JOIN 결과에 Distinct·정렬·슬라이스를 적용한
+Scalar 집계는 COUNT/MIN/MAX/SUM/AVG와 명시적인 그룹 결과를 지원한다. 정수 AVG는 Float이고 source/result domain은
+별도다. [그룹/집계 의미](adr/0091-grouped-results-and-having.md)의 operand와 조합 경계를 따른다.
+현재 관계 filter의 cold Count는 JOIN 결과에 Distinct·정렬·슬라이스를 적용한
 SELECT를 감싸 DB에서 COUNT(*)를 실행한다. Eager Count는 selected target projection만 제외하고 같은 필터·슬라이스를 센다.
-성공한 eager All cache가 있으면 그 길이를 재사용한다. 관계 일반 projection·MIN/MAX 집계는 별도 범위다.
+성공한 eager All cache가 있으면 그 길이를 재사용한다. 일반 collection/reverse 집계와 forward MIN/MAX의 public typed 표면은 별도 범위다.
 
 관계 상태는 project가 연결하고 model 객체의 소유권에 따라 관리한다. 같은 객체의 cache 공유, 복사·Fresh 이후 독립성,
 eager/prefetch의 성공 후 일괄 publication과 assignment 뒤 FK/cache reconciliation을 구분한다.

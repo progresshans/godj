@@ -11,11 +11,7 @@ const (
 // CountResult counts non-NULL values. The operand retains the exact scalar
 // metadata and optional forward route; it is never a SQL string or alias.
 func CountResult(operand ResultExpression) (ResultExpression, error) {
-	if err := validateGroupKey(operand); err != nil {
-		return ResultExpression{}, err
-	}
-	operand.kind = ResultCount
-	return operand, nil
+	return AggregateResult(ResultCount, operand)
 }
 
 func (e ResultExpression) IsAggregate() bool {
@@ -24,12 +20,15 @@ func (e ResultExpression) IsAggregate() bool {
 
 // SumResult and AvgResult keep the operand's field and finite forward route.
 func SumResult(operand ResultExpression) (ResultExpression, error) {
-	return numericAggregateResult(operand, ResultSum)
+	return AggregateResult(ResultSum, operand)
 }
 func AvgResult(operand ResultExpression) (ResultExpression, error) {
-	return numericAggregateResult(operand, ResultAvg)
+	return AggregateResult(ResultAvg, operand)
 }
-func numericAggregateResult(operand ResultExpression, kind ResultExpressionKind) (ResultExpression, error) {
+
+// AggregateResult composes one aggregate with a row value. An aggregate is
+// not itself a row operand; nested aggregation requires a query stage.
+func AggregateResult(kind ResultExpressionKind, operand ResultExpression) (ResultExpression, error) {
 	if err := validateGroupKey(operand); err != nil {
 		return ResultExpression{}, err
 	}
@@ -82,7 +81,7 @@ func (e ResultExpression) validateAggregate() error {
 		return groupUnsupported("aggregate JSON paths are not implemented")
 	}
 	if e.kind == ResultCountAll {
-		if e.field != (FieldRef{}) || e.relation != nil || e.distinct || e.filter.node != nil {
+		if e.field != (FieldRef{}) || e.relation != nil || e.distinct || e.filter.node != nil || e.scalar.node != nil {
 			return invalidPlanError("COUNT(*) cannot contain a field, DISTINCT, or filter")
 		}
 		return nil
@@ -90,17 +89,27 @@ func (e ResultExpression) validateAggregate() error {
 	if e.kind != ResultCount && e.kind != ResultMin && e.kind != ResultMax && e.kind != ResultSum && e.kind != ResultAvg {
 		return invalidPlanError("aggregate expression is invalid")
 	}
-	if !validResultField(e.field) {
-		return invalidPlanError("aggregate requires valid scalar field metadata")
+	if e.scalar.node != nil {
+		if _, err := ScalarResult(e.scalar); err != nil {
+			return err
+		}
+		if e.field != (FieldRef{}) || e.relation != nil || e.path.Valid() {
+			return invalidPlanError("computed aggregate contains field or path metadata")
+		}
+	} else if !validResultField(e.field) {
+		return invalidPlanError("aggregate requires valid scalar field metadata or a value expression")
 	}
-	if e.field.Kind() == FieldJSON {
+	if e.OperandKind() == FieldJSON {
 		return groupUnsupported("JSON aggregate operands are not implemented")
 	}
-	if (e.kind == ResultMin || e.kind == ResultMax) && e.field.Kind() == FieldBoolean {
+	if (e.kind == ResultMin || e.kind == ResultMax) && e.OperandKind() == FieldBoolean {
 		return invalidPlanError("MIN/MAX require an ordered scalar field")
 	}
 	if e.kind == ResultSum || e.kind == ResultAvg {
-		switch e.field.Kind() {
+		if e.scalar.node != nil && e.OperandKind() != FieldInteger && e.OperandKind() != FieldFloat {
+			return groupUnsupported("computed SUM/AVG require int64 or float64; Decimal and Duration expression aggregation require their own precision contract")
+		}
+		switch e.OperandKind() {
 		case FieldInteger, FieldFloat, FieldDecimal, FieldDuration:
 		default:
 			return invalidPlanError("SUM/AVG require an integer, float, decimal or duration field")
@@ -144,8 +153,17 @@ func validateAggregateFilter(e Expression) error {
 }
 
 func validateGroupKey(e ResultExpression) error {
-	if e.kind != ResultField || e.distinct || e.filter.node != nil || e.path.Valid() {
-		return groupUnsupported("group keys require scalar fields")
+	if (e.kind != ResultField && e.kind != ResultScalar) || e.distinct || e.filter.node != nil || e.path.Valid() {
+		return groupUnsupported("group keys require row scalar values")
+	}
+	if e.kind == ResultScalar {
+		if _, err := NewProjectionResult(e); err != nil {
+			return err
+		}
+		if e.OperandKind() == FieldJSON {
+			return groupUnsupported("JSON group keys require a separate equality contract")
+		}
+		return nil
 	}
 	if !validResultField(e.field) {
 		return invalidPlanError("group key has invalid field metadata")
@@ -376,6 +394,7 @@ func (s ResultShape) validateGrouped() error {
 	}
 	nodes := 0
 	for index, value := range s.expressions {
+		nodes += value.scalar.NodeCount()
 		var err error
 		if index < s.group.keys {
 			err = validateGroupKey(value)

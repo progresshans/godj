@@ -112,6 +112,56 @@ type Condition struct {
 	rhs          *conditionRHS
 	relationPath *RelationPath
 	jsonPath     JSONPath
+	scalar       ScalarExpression
+}
+
+// NewScalarCondition compares a computed row value. Unlike a field lookup,
+// negation follows SQL three-valued logic and does not add field NULL guards.
+func NewScalarCondition(scalar ScalarExpression, lookup Lookup, value Value) (Condition, error) {
+	condition := Condition{scalar: scalar, lookup: lookup, rhs: &conditionRHS{kind: conditionRHSLiteral, value: value}}
+	if err := validateScalarCondition(condition); err != nil {
+		return Condition{}, err
+	}
+	return condition, nil
+}
+
+func (c Condition) Scalar() (ScalarExpression, bool) { return c.scalar, c.scalar.node != nil }
+
+func validateScalarCondition(condition Condition) error {
+	if _, err := ScalarResult(condition.scalar); err != nil {
+		return err
+	}
+	if condition.field != (FieldRef{}) || condition.relationPath != nil || condition.jsonPath.Valid() || condition.rhs == nil || condition.rhs.kind != conditionRHSLiteral {
+		return invalidPlanError("computed predicate has mixed field or right-hand-side metadata")
+	}
+	value := condition.rhs.value
+	if _, err := value.DatabaseValue(); err != nil {
+		return err
+	}
+	kind := condition.scalar.ResultKind()
+	switch condition.lookup {
+	case LookupIsNull:
+		if value.Kind() == ValueBoolean {
+			return nil
+		}
+	case LookupExact:
+		if kind == FieldJSON {
+			return groupUnsupported("computed JSON equality requires an explicit value comparison contract")
+		}
+		if expressionValueMatchesField(value.Kind(), kind) {
+			return nil
+		}
+	case LookupGreaterThan, LookupGreaterThanOrEqual, LookupLessThan, LookupLessThanOrEqual:
+		if kind == FieldJSON {
+			return groupUnsupported("computed JSON ordering comparisons are not implemented")
+		}
+		if expressionOrderedValueMatchesField(value.Kind(), kind) {
+			return nil
+		}
+	default:
+		return groupUnsupported("computed predicate requires exact, ordered comparison, or isnull")
+	}
+	return invalidPlanError("computed predicate value does not match its result domain")
 }
 
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
@@ -196,6 +246,9 @@ func (c Condition) Lookup() Lookup  { return c.lookup }
 // For a JSON path this is the containing column, not path presence. Missing
 // keys do not add a NULL compensation guard under negation.
 func (c Condition) OperandNullable() bool {
+	if c.scalar.node != nil {
+		return c.scalar.Nullable()
+	}
 	if c.field.Nullable() {
 		return true
 	}
@@ -239,7 +292,7 @@ func (c Condition) RelationPath() (RelationPath, bool) {
 	return *c.relationPath, true
 }
 func (c Condition) Equal(other Condition) bool {
-	if c.field != other.field || c.lookup != other.lookup || !c.jsonPath.Equal(other.jsonPath) || (c.rhs == nil) != (other.rhs == nil) {
+	if c.field != other.field || c.lookup != other.lookup || !c.jsonPath.Equal(other.jsonPath) || !c.scalar.Equal(other.scalar) || (c.rhs == nil) != (other.rhs == nil) {
 		return false
 	}
 	if c.rhs != nil {
@@ -572,6 +625,9 @@ func (p Plan) validateWhereSource(expression Expression) error {
 func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction bool) error {
 	if node.kind == ExpressionLeaf {
 		condition := node.condition
+		if scalar, present := condition.Scalar(); present {
+			return scalar.ValidateSource(p.sourceFields)
+		}
 		path := condition.relationPath
 		if path == nil {
 			if !slices.Contains(p.sourceFields, condition.field) {
@@ -721,6 +777,9 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		if err := p.validateWhereNode(filter.node, true); err != nil {
 			return err
 		}
+	}
+	if scalar, present := expression.Scalar(); present {
+		return scalar.ValidateSource(p.sourceFields)
 	}
 	if path, related := expression.RelationPath(); related {
 		root := path.hops[0]

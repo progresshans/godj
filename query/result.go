@@ -25,6 +25,7 @@ type ResultExpressionKind string
 const (
 	ResultField    ResultExpressionKind = "field"
 	ResultJSONPath ResultExpressionKind = "json_path"
+	ResultScalar   ResultExpressionKind = "scalar"
 	ResultCountAll ResultExpressionKind = "count_all"
 	ResultCount    ResultExpressionKind = "count"
 	ResultMax      ResultExpressionKind = "max"
@@ -34,9 +35,9 @@ const (
 )
 
 // ResultExpression is an immutable, backend-independent selected value.
-// COUNT(*) has no field; other expressions retain the exact source field
-// identity. A related or JSON path result can be NULL even when that source is
-// required.
+// Scalar trees retain each exact source leaf and have their own result domain.
+// Ordinary field results keep their source identity. A related or JSON path
+// result can be NULL even when that source is required.
 type ResultExpression struct {
 	kind     ResultExpressionKind
 	field    FieldRef
@@ -44,10 +45,36 @@ type ResultExpression struct {
 	relation *RelationPath
 	distinct bool
 	filter   Expression
+	scalar   ScalarExpression
 }
 
 func FieldResult(field FieldRef) ResultExpression {
 	return ResultExpression{kind: ResultField, field: field}
+}
+
+// ScalarResult selects a value tree without manufacturing source metadata.
+// A bare untyped NULL has no decodable result kind and must be typed first.
+func ScalarResult(scalar ScalarExpression) (ResultExpression, error) {
+	if err := scalar.Validate(); err != nil {
+		return ResultExpression{}, err
+	}
+	if scalar.ResultKind() == "" {
+		return ResultExpression{}, invalidPlanError("selected scalar requires an explicit result kind")
+	}
+	return ResultExpression{kind: ResultScalar, scalar: scalar}, nil
+}
+
+// Scalar returns the original value operand, including under an aggregate.
+func (e ResultExpression) Scalar() (ScalarExpression, bool) {
+	return e.scalar, e.scalar.node != nil
+}
+
+// OperandKind reports the input domain before aggregate result conversion.
+func (e ResultExpression) OperandKind() FieldKind {
+	if e.scalar.node != nil {
+		return e.scalar.ResultKind()
+	}
+	return e.field.Kind()
 }
 
 func JSONPathResult(field FieldRef, path JSONPath) (ResultExpression, error) {
@@ -113,6 +140,9 @@ func MinResult(field FieldRef) ResultExpression {
 func (e ResultExpression) Kind() ResultExpressionKind { return e.kind }
 
 func (e ResultExpression) Field() (FieldRef, bool) {
+	if e.scalar.node != nil {
+		return FieldRef{}, false
+	}
 	switch e.kind {
 	case ResultField, ResultJSONPath, ResultCount, ResultMax, ResultMin, ResultSum, ResultAvg:
 		return e.field, true
@@ -129,22 +159,22 @@ func (e ResultExpression) ResultValueKind() FieldKind {
 	case ResultCountAll, ResultCount:
 		return FieldInteger
 	case ResultAvg:
-		if e.field.Kind() == FieldInteger {
+		if e.OperandKind() == FieldInteger {
 			return FieldFloat
 		}
 	}
-	return e.field.Kind()
+	return e.OperandKind()
 }
 
 func (e ResultExpression) ResultNullable() bool {
 	if e.kind == ResultCountAll || e.kind == ResultCount {
 		return false
 	}
-	return e.IsAggregate() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable()
+	return e.IsAggregate() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable() || e.scalar.Nullable()
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {
-	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) || e.distinct != other.distinct || !e.filter.Equal(other.filter) {
+	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) || e.distinct != other.distinct || !e.filter.Equal(other.filter) || !e.scalar.Equal(other.scalar) {
 		return false
 	}
 	return e.relation == nil || e.relation.Equal(*other.relation)
@@ -161,6 +191,10 @@ type ResultShape struct {
 // MaxProjectionExpressions bounds the selected cells independently of the
 // model's source fields, since many JSON paths may use the same source column.
 const MaxProjectionExpressions = 2048
+
+// MaxResultScalarNodes bounds composed projection/aggregate operands as one
+// result, independently of the number of ordinary model fields.
+const MaxResultScalarNodes = 4096
 
 func NewProjectionResult(expressions ...ResultExpression) (ResultShape, error) {
 	if len(expressions) == 0 || len(expressions) > MaxProjectionExpressions {
@@ -212,6 +246,13 @@ func (s ResultShape) Equal(other ResultShape) bool {
 }
 
 func (s ResultShape) validate() error {
+	nodes := 0
+	for _, expression := range s.expressions {
+		nodes += expression.scalar.NodeCount()
+		if nodes > MaxResultScalarNodes {
+			return invalidPlanError("result expressions exceed their scalar node budget")
+		}
+	}
 	switch s.kind {
 	case ResultGrouped:
 		return s.validateGrouped()
@@ -232,9 +273,23 @@ func (s ResultShape) validate() error {
 			relation string
 		}
 		seen := make(map[selectionKey]struct{}, len(s.expressions))
+		var scalars []ScalarExpression
 		for _, expression := range s.expressions {
 			if expression.distinct || expression.filter.node != nil {
 				return invalidPlanError("projection cannot contain aggregate modifiers")
+			}
+			if expression.kind == ResultScalar {
+				if _, err := ScalarResult(expression.scalar); err != nil {
+					return err
+				}
+				if expression.field != (FieldRef{}) || expression.relation != nil || expression.path.Valid() {
+					return invalidPlanError("scalar result contains field or path metadata")
+				}
+				if slices.ContainsFunc(scalars, expression.scalar.Equal) {
+					return invalidPlanError("projection result contains a duplicate expression")
+				}
+				scalars = append(scalars, expression.scalar)
+				continue
 			}
 			field, ok := expression.Field()
 			if !ok || !validResultField(field) {

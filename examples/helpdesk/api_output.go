@@ -46,6 +46,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 	row := output.Object(
 		output.Field("priority", output.Nullable(output.Int64()), func(value ticketSummaryRow) *int64 { return value.priority }),
 		output.Field("priority_label", output.String(), func(value ticketSummaryRow) string { return ticketSummaryPriorityLabel(value.priority) }),
+		output.Field("raise_to_priority", output.Int64(), func(value ticketSummaryRow) int64 { return value.raiseTo }),
+		output.Field("raise_to_label", output.String(), func(value ticketSummaryRow) string { return ticketSummaryPriorityLabel(&value.raiseTo) }),
+		output.Field("would_change", output.Boolean(), func(value ticketSummaryRow) bool { return value.priority == nil || *value.priority != value.raiseTo }),
 		output.Field("total", count, func(value ticketSummaryRow) int64 { return value.total }),
 		output.Field("open", count, func(value ticketSummaryRow) int64 { return value.open }),
 		output.Field("expected_cost_total", output.Nullable(output.Decimal()), func(value ticketSummaryRow) *decimal.Decimal { return summaryOptionalPointer(value.cost) }),

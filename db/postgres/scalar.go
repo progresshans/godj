@@ -56,9 +56,8 @@ func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 	// DTO expressions can select native values from a related model even
 	// when none of the root model's fields require adaptation.
 	for _, expression := range plan.ResultShape().Expressions() {
-		if field, ok := expression.Field(); ok {
-			visit([]query.FieldRef{field})
-		}
+		kind := expression.ResultValueKind()
+		needed = needed || kind == query.FieldDuration || kind == query.FieldDecimal || kind == query.FieldUUID || kind == query.FieldJSON
 	}
 	if !needed {
 		return rows, nil

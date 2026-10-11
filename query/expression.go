@@ -46,11 +46,19 @@ func NewExpression(condition Condition) (Expression, error) {
 	if err := validateExpressionCondition(condition); err != nil {
 		return Expression{}, err
 	}
+	depth, nodes := 1, 1
+	if scalar, present := condition.Scalar(); present {
+		depth += scalar.Depth()
+		nodes += scalar.NodeCount()
+		if depth > maximumExpressionDepth || nodes > maximumExpressionNodes {
+			return Expression{}, invalidPlanError("computed predicate exceeds its expression resource budget")
+		}
+	}
 	return Expression{node: &expressionNode{
 		kind:         ExpressionLeaf,
 		condition:    condition,
-		depth:        1,
-		nodes:        1,
+		depth:        depth,
+		nodes:        nodes,
 		hasRelations: condition.relationPath != nil,
 	}}, nil
 }
@@ -124,6 +132,23 @@ func (e Expression) Equal(other Expression) bool {
 // HasRelations reports whether any leaf retains relation-path provenance.
 func (e Expression) HasRelations() bool {
 	return e.node != nil && e.node.hasRelations
+}
+
+// SourceFields returns each predicate operand's original metadata. A scalar
+// condition includes every leaf of its composed value, in traversal order.
+func (e Expression) SourceFields() []FieldRef {
+	var fields []FieldRef
+	for _, condition := range expressionConditions(e) {
+		if scalar, present := condition.Scalar(); present {
+			fields = append(fields, scalar.Fields()...)
+		} else {
+			fields = append(fields, condition.Field())
+			if right, present := condition.RHSField(); present {
+				fields = append(fields, right)
+			}
+		}
+	}
+	return fields
 }
 
 func connectExpressions(kind ExpressionKind, left, right Expression, rest ...Expression) (Expression, error) {
@@ -204,6 +229,9 @@ func (e Expression) validate() error {
 }
 
 func validateExpressionCondition(condition Condition) error {
+	if _, present := condition.Scalar(); present {
+		return validateScalarCondition(condition)
+	}
 	if err := validateJSONPathCondition(condition); err != nil {
 		return err
 	}

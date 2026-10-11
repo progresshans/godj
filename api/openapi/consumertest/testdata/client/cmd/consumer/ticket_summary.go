@@ -76,6 +76,23 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 				row.PriorityLabel = "Other (" + strconv.FormatInt(ticket.Priority.Value, 10) + ")"
 			}
 		}
+		row.RaiseToPriority = ticket.Priority.Value
+		if ticket.Priority.Null {
+			row.RaiseToPriority = 0
+		} else if row.RaiseToPriority == -1 || row.RaiseToPriority == 0 {
+			row.RaiseToPriority++
+		}
+		row.WouldChange = ticket.Priority.Null || ticket.Priority.Value != row.RaiseToPriority
+		switch row.RaiseToPriority {
+		case -1:
+			row.RaiseToLabel = "Low"
+		case 0:
+			row.RaiseToLabel = "Normal"
+		case 1:
+			row.RaiseToLabel = "Urgent"
+		default:
+			row.RaiseToLabel = "Other (" + strconv.FormatInt(row.RaiseToPriority, 10) + ")"
+		}
 		groups[ticket.Priority] = row
 	}
 	var expected []hs.TicketSummaryResultsItem

@@ -3,6 +3,66 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0122 — 계산식 조회와 우선순위 미리보기
+
+2026-10-08~11 KST, 기준 `02f350d3598f41dd34b0ddcb1fbf82474139aea4` 뒤 작업 사본에 같은 행 scalar/CASE의
+조회·조건·정렬·그룹 키·집계 operand와 typed/dynamic/생성 facade를 연결했다. Helpdesk의 같은 읽기 snapshot에
+`raise_to_priority`·`raise_to_label`·`would_change`를 추가하고 HTML·OpenAPI·독립 client로 전달한다.
+장기 의미와 미지원 범위는 ADR-0090/0091을 따른다. 현재 제품 runtime/DB·race·전체 platform의 PASS는 아직 없다.
+2026-10-11의 사용자 지침에 따라 포맷·필요한 최소 compile 뒤 push하며 실제 영향·통합 검증은 원격 CI가 소유한다.
+
+### 독립 조건부 표현식 관찰
+
+앞서 수행한 77개 annotation 요구 조사와 별도로 고정 Django 6.1 commit
+`fe0a859f537d4238cf49fca39073513206f83122`의 CASE/읽기 표현식 20개를 양 DB에서 각각 두 번 관찰했다.
+CPython 3.14.3·SQLite 3.50.4, psycopg 3.3.6·PostgreSQL 17.10 UTF8/libc/C/C를 사용했다.
+관찰기는 Go source/expected를 읽지 않는다. 설치된 관련 10개 module의 upstream byte 대조 manifest SHA-256은
+`96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87`, 최종 observer SHA-256은
+`4258a93e6dea3862a991db5b184b7316056c41a12f085508ce05e16ff6e52cad`다. 전체 wheel digest를 검증했다고 주장하지 않는다.
+
+최종 각 DB의 두 출력은 byte 단위로 같고 stderr는 비어 있었다. SQLite는 정상 19/오류 1,
+PostgreSQL은 정상 17/오류 3이다. 공통 mixed kind 오류와 PostgreSQL의 실행/constant-folding zero-division
+SQLSTATE 22012를 포함한다. Branch 순서·NULL·원 int64 극값·선택되지 않는 row overflow·SQL NOT,
+계산된 집계/그룹/HAVING/distinct/slice·Decimal/Duration 복사·CASE update·Float NaN을 관찰했다.
+처음 unselected-row 사례가 IntegerField/BigIntegerField inference에서 멈춰 explicit output field를 지정한 뒤
+최종 20개 전체를 다시 관찰했다. 이 초기 결과를 최종 제품 예상값으로 사용하지 않는다.
+
+최종 SQLite/PostgreSQL 원 JSON SHA-256은 각각
+`2001bec8108cdc6ff653ab0a52c67da1e6d6dbe925c3ced61abb5a409d67e755`,
+`0f4602f9fe2332e0f9a0b29357cdf2ff5c956b03ff93585a8bee35f6cb5d82d2`다.
+각 사례는 소유 transaction을 rollback했고 전체 row/link 전후가 같았다. 별도 2 CPU/512 MiB loopback container의
+잔여 table/다른 session `0|0`, database 삭제·container 중단/제거와 daemon 응답을 확인했다.
+Receipt SHA-256은 `ced4cb0b11b1b3d4e6ffb77b1f912b0bd5de65f703c7e63e859b799246e4d85a`다.
+Observer/출처는 `conformance/runners/django/computed_expression_reference`, 원 결과는
+`codegen/consumertest/testdata/computedexpression`에 보존했다. 이것은 GoDj 제품 실행 PASS와 구별한다.
+
+### 생성물과 compile 준비
+
+현재 생성기로 Identity·관계 fixture 네 개·Article·Helpdesk의 일곱 project를 재생성했다.
+새 실제 OpenAPI 여섯 개를 export하고 별도 복사본에서 고정 ogen 여섯 profile과 독립 client build를 완료했다.
+Helpdesk summary의 세 required field와 설명, generated 파일 네 개만 달라졌고 나머지 다섯 profile과
+`go.mod`·`go.sum`·`ogen.yml`은 같았다. 검토한 문서·생성물만 작업 사본에 반영했다.
+생성 명령 receipt SHA-256은 `1a47aecb1f6574ae3406f74d4b7662f71a80123c62439185bdde1d2eb4f36819`,
+SDK 생성/build receipt는 `bae36a236dcbe55a1d082934c8cce5149d61c12d59556cd9cd4fc08d6a481070`,
+복사한 77개 파일 manifest는 `0f0f17e0b5a311fbfbde0d67d5a2e4efc18ab49a14860c2913d824ac7bc804f5`다.
+이는 원격의 generated drift·실제 HTTP client 실행을 대신하지 않는다.
+
+`TestGeneratedComputedExpressions`는 같은 raw reference에 결합된 20개/backend와 typed/dynamic·source/cache·
+취소/scan/close·실제 NULL assignment rollback·native precision/overflow·input ownership을 검사하도록 작성했다.
+자식 전체 run/pass·정확히 한 번 실행과 skip 0을 요구하고 바깥 일곱 compile-negative를 관계/PostgreSQL 필수 목록에
+추가했다. 로컬에서는 이 제품 테스트를 실행하지 않았다. 새 브라우저 probe도 수정했지만 아직 실행하지 않았다.
+초기 최소 compile에서 template constructor `Boolean`을 실제 `Bool`로, 새 generated consumer의 읽기 probe를
+project backend가 요구하는 borrowed `db.Session` capability로 고쳤다. 실패한 compile은 PASS에 합산하지 않는다.
+
+Go 1.26.5 darwin/arm64·CGO=1에서 query/orm/queryplan/SQLite/PostgreSQL/codegen/생성 소비자/Helpdesk/SDK
+아홉 package의 `go test -run '^$'` compile을 완료했다. 출력 SHA-256은
+`aec3ef258779d0e6b3d3d837ae9d71e155996bb457c34b04932fc7c4deb347ca`다. 새 fixture를 실제 생성한 별도 module의
+수정 후 consumer compile도 완료했고 출력 SHA-256은 `354035f90a26d2999d9001df3a03b6d7997fae34cd86c24f4d3290855dac52b8`다.
+두 명령은 테스트 본문을 실행하지 않았고 DB도 열지 않았다. 영향을 받는 Go 파일 66개에 gofmt를 적용했다.
+
+외부 자료는 `godj-verification/computed-case-reference-20261008`, `computed-generators-20261008-024011`,
+`computed-minimal-compile-1791687354795182000`에 보존했다. 원격 source/run과 실제 실행 증거는 완료 후 이 절에 기록한다.
+
 ## GDJ-0121 — 숫자 합계·평균과 업무 지표
 
 2026-10-08 KST, 기준 `b14d0eaf3d49f01151c8b010fb97eac2a57532ef` 뒤의 작업 사본에서
@@ -73,7 +133,73 @@ Helpdesk `generate --check`는 12개 파일·snapshot
 정확히 한 번씩 배정하고 PostgreSQL 필수 3,138개를 세 모드·core 여섯 좌표에 배정함을 확인했다.
 실행 계획 receipt SHA-256은 `466b18333a5a60d58b193db15adbc3736c40c31f644a918fc42bab92e052c696`이다.
 분할 도구 회귀 14개·문서 203개의 local link·diff 검사를 통과했다. 이는 원격 필수 경로의 실제 실행 PASS와 구분한다.
-외부 실행 자료는 `godj-verification/numeric-aggregate-*`에 보존했다. 이 작업의 Hosted 검증은 아직 미완료다.
+외부 실행 자료는 `godj-verification/numeric-aggregate-*`에 보존했다.
+
+### 같은 source의 Hosted 전체 통합 완료
+
+Source `02f350d3598f41dd34b0ddcb1fbf82474139aea4`, tree `921539622101bd327bb3a8baa3eb81f1f7dc9a0b`의
+[CI 37706678533](https://github.com/progresshans/godj/actions/runs/37706678533) attempt 1이 83개 job 모두 success로 끝났다.
+PR merge checkout `096259f00a288409bd0c48e51f5980fb43b19088`의 parent/source tree와 3,455개 source 파일의
+Git blob·mode, 각 job checkout을 직접 대조했다. 전체 audit는 필수 owner 8개·최종 `full_platform_verified`,
+12개 relation 좌표/30개 job의 generated root 88개씩 정확히 한 번 실행, 88개 Go inventory,
+관련 세 모드 package·cold/platform·386 compile/relation·필수 step과 알려진 환경별 조건부 skip 소유권을 확인했다.
+제품 conformance suite 26개와 같은 실행에서 생성한 두 capture의 artifact/producer/source 결합·실제 소비,
+네 S3 owner의 pinned service build/준비/종료도 확인했다. 필수 실행 skip은 없다.
+
+PostgreSQL 필수 core 경로는 3,138개다. Normal/CGO=0 core는 각각 6,015개 run/pass·skip 0,
+race는 core 5,230개·consumer 87개·process 21개·Helpdesk PostgreSQL 677개 run/pass·skip 0으로
+분리해 필수 manifest를 빠짐없이 실행했다. Operator 대상은 세 모드 모두 12개 run/pass·필수 3개·skip 0이다.
+새 numeric generated child는 normal/race/CGO=0 모두 실제 양 DB의 1,178개 required를 정확히 한 번 run/pass했다.
+각 child 원 JSON SHA-256은 `a0f490f405920031ceea8d4652bdba0d22ab1bb15393d3111b27652c4099fd8c`,
+`93b6cd759bee190524c03fecb2459fe8c26ed661ce97dfbd522478647ba51b46`,
+`56011a217a9973981217c41b1f0b10476a02aa005ba75a8fcf8baed989097ca5`다.
+독립 SDK/drift/HTTP를 소유한 portable integration은 세 모드의 24개 package를 모두 실행했다.
+
+System-state capture는 artifact `11521016605` / producer `113082641264`, payload SHA-256
+`8b44fd4547fba7a3f7b3766c7316d298b3daab913f48a555b4e72202c67740b4`, source binding 780개 파일/
+7,786,044 bytes / `cc6faff06b61c5bf766b696861623b381f56fd1f46c339ef099877af1363f611`다.
+Operator capture는 artifact `11520461488` / producer `113082641375`, payload
+`5e3ec58e65ec34a710adde5d78b43aaaf5225d88ac3342eefd3d748ad2eba653`, source binding 859개 파일/
+7,656,719 bytes / `3b0b99a0173c00bb9919a00800aa6b251f63fac4d231f97f6068a2ef63bcf0dc`다.
+전체 로그 ZIP SHA-256은 `bef40368d83f9493df45d328c02a1bbd18fb99733918d29dc48d88e7dc0aad8d`,
+source archive는 `e7bc444ee77847f9c1d49a166d3e2486c108f0bbc09a45a631da848f0f1cea62`,
+`audit.json`은 `8a5d5843c2c76156992f3a8add9ded40a200609f9c866e430211239eaee12f83`다.
+외부 자료 `godj-verification/hosted-full-pr-37706678533`을 보존했다. 이 결과는 후속 조회 표현식의 PASS가 아니다.
+
+## 후속 조회 표현식·annotation 요구 관찰 — 구현 전 조사
+
+2026-10-08 KST, 현재 ScalarExpression이 write assignment에만 연결된 경계를 조사했다.
+Django 6.1의 고정 commit `fe0a859f537d4238cf49fca39073513206f83122`에 대해 QuerySet 모듈까지 포함한
+관련 10개 설치 source의 bytes를 대조했다. Source verification SHA-256은
+`96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87`이다.
+새 observer는 Go source/output·예상 fixture를 읽지 않고 직접 작성한 모델과 입력으로 77개 동작을 관찰했다.
+동일 CPython 3.14.3·SQLite 3.50.4와 pinned PostgreSQL 17.10/UTF8/libc C/C에서 backend별 두 번 실행했고,
+각 backend의 결과 bytes가 반복 간 동일했다. 이 결과는 GoDj의 새 기능 구현이나 conformance PASS가 아니다.
+
+관찰에서 다음 경계를 확인했다.
+
+- 앞서 선언한 계산 결과를 같은 호출/후속 표현식에서 참조할 수 있지만, 이후 이름 재정의는 이미 만들어진
+  종속 표현식의 의미를 바꾸지 않았다. 알려지지 않은/앞으로 선언할 이름·순환과 모델 field/attname 충돌은 거부했다.
+- Nullable 계산 결과의 부정 비교는 SQL 3값 논리를 유지해 NULL 행을 포함하지 않았다. 원본 nullable field의
+  별도 lookup 보정을 계산 결과에 그대로 옮길 수 없다.
+- 같은 관계 filter라도 annotate 이전/이후에 따라 집계 join의 범위가 달랐다. 두 행을 가진 Category에서
+  enabled filter 뒤 Count는 1, Count 뒤 filter는 2였다. 복수 join의 multiplicity와 DISTINCT도 결과를 바꿨다.
+- 계산식 aggregate operand·그룹 뒤 계산/HAVING·숨긴 group key·slice/Distinct와 정렬 열의 의미를 관찰했다.
+  같은 단계의 중첩 aggregate는 거부했지만, annotation을 terminal aggregate로 다시 집계할 때는 별도 subquery를 사용했다.
+- SQLite의 zero-division NULL·integer overflow 승격과 PostgreSQL의 SQLSTATE 22012/22003을 구분했다.
+  PostgreSQL constant overflow는 native empty에서도 실패했지만 접힌 empty는 실행하지 않았다.
+  Alias 선택 정책·현재 query의 cache/파생 사본도 함께 확인했다.
+
+SQLite는 정상 결과 64개/예상 또는 관찰된 오류 13개, PostgreSQL은 정상 60개/오류 17개를 기록했다.
+실패 입력의 오류도 관찰 결과이며 제품 검사 실패/성공으로 바꾸지 않았다. 모든 case는 독립 rollback transaction을
+사용했고 마지막 물리 row/link가 시작과 동일했다. 잔여 table/다른 session `0|0`, database 삭제·container 중단/제거를 확인했다.
+Observer SHA-256은 `671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297`,
+SQLite/PG 원 JSON은 각각 `890be7473d897c94fcab00c2a80a212b19cbb53f9c300a7bf5295dfa6532cb5c`,
+`7776b22d1dc3fdfefb80868ecaccebc42d96b85eb1503c6c2f3ffecc073dfd5d`다.
+Receipt SHA-256 `b6e9ee28010c2badf23f52d1237ec4472deef647b0a2fdb8e0f371b3b712c767`과 원 자료는
+`godj-verification/annotation-reference-20261008/native-annotation-20261008-012438`에 보존했다.
+이 관찰 뒤 GDJ-0122에서 같은-row 계산식·조건부 값의 조회 연결을 시작했다.
+일반 named annotation·집계 단계/관계 join 재구성 전체를 이 관찰이나 초기 구현의 완료로 계산하지 않는다.
 
 ## GDJ-0120 — Typed 204 응답과 삭제 endpoint
 

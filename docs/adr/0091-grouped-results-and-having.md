@@ -1,8 +1,8 @@
 # ADR-0091: 그룹 결과와 집계 참조
 
 - 상태: Accepted design — 그룹 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-06
-- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md)
+- 날짜: 2026-10-11
+- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md)
 
 ## 문제와 기준
 
@@ -40,7 +40,10 @@ forward 경로는 전체 그룹을 제거하는 WHERE가 아니므로 그 자체
 Collection을 key·aggregate operand/조건으로 사용하는 추가 범위와 related MIN/MAX의 public typed 표면은 후속 범위다.
 
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
-별도 계약이 필요하므로 아직 명시적으로 거부한다. 임의 annotation·계산식 operand·subquery/window는 후속 범위다.
+별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 행의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
+int64/float64 산술·CASE는 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
+Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. 계산된 Decimal/Duration의 SUM/AVG,
+일반 named annotation·집계 뒤 추가 stage·subquery/window는 후속 범위다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
 
@@ -56,8 +59,10 @@ cache/DTO 게시 전에 검사하고 실패한 rows/scan/close 결과나 부분 
 보존하며, NULL 키와 빈 페이지를 구분하는 presence cell은 backend/ORM 내부에만 둔다. 페이지 행은
 전체-query cache를 채우지 않는다. 명시된 정렬 뒤 빠진 그룹 키를 NULLS LAST tie breaker로 붙인다.
 
-Compiler는 그룹 완료 후 derived relation을 필터해 HAVING 의미를 구현한다. Aggregate filter의 SQL·
-parameter를 반복하지 않으며 backend별 identifier·schema·물리 값·parameter 변환은 각 compiler가 소유한다.
+Compiler는 그룹 완료 후 derived relation을 필터해 HAVING 의미를 구현한다. Group key는 SELECT ordinal로 참조하여
+계산식 parameter가 GROUP BY에서 다른 값으로 재생성되지 않게 한다. Backend별 identifier·schema·물리 값·parameter
+변환은 각 compiler가 소유한다. SQLite Float SUM/AVG의 NULL/NaN guard는 같은 operand/filter를 두 번 사용하므로
+그 parameter도 SQL 순서대로 반복한다. HAVING/Page가 원본 표현식을 다시 평가하는 구조로 바꾸지 않는다.
 SQLite의 root/관계 table은 main schema로 한정해 내부 CTE가 같은 이름의 실제 table을 가리지 않는다.
 Predicate별 깊이/노드, 전체 group predicate 4096 nodes, backend parameter와 statement 한도를 사전 검증한다.
 
@@ -121,3 +126,9 @@ fixed scale/precision으로 좁히지 않는 exact canonical 문자열이다. Du
 finite JSON/HTML 숫자다. 산술·scan·출력 오류와 NaN/Infinity에는 전체 응답을 거부하며 부분 지표를 게시하지 않는다.
 Query 한도/정규 decimal 입력과 API schema는 실제 handler와 독립 generated client로 대조한다. 조회는 ticket 본문·
 라벨·digest를 로드하거나 고치지 않고 audit를 기록하지 않는다. HTML은 별도의 쓰기/audit 구성을 요구하지 않는다.
+
+GDJ-0122는 원 priority와 CASE로 계산한 한 번 상승 뒤 priority를 같은 group key로 읽는다. NULL→Normal,
+Low→Normal, Normal→Urgent이며 Urgent와 legacy int64 값은 보존한다. 원 priority가 키에 남으므로 서로 다른 현재
+그룹이 같은 예정값으로 합쳐지지 않는다. SQL 결과가 현재 업무 정책과 일치하고 non-null인지 확인한 뒤
+`raise_to_priority`·`raise_to_label`·`would_change`를 API와 HTML의 After raise 열에 게시한다.
+이 값은 해당 읽기 snapshot의 미리보기다. 나중의 실제 명령은 자기 transaction의 현재 행으로 정책을 다시 적용한다.

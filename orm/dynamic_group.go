@@ -11,10 +11,11 @@ import (
 // DynamicAggregateInput binds names against the source's metadata snapshot.
 // Kind is one of count_all, count, min, max, sum, avg. It is never rendered as SQL.
 type DynamicAggregateInput struct {
-	Kind     query.ResultExpressionKind
-	Field    string
-	Distinct bool
-	Filter   []LookupInput
+	Kind       query.ResultExpressionKind
+	Field      string
+	Distinct   bool
+	Filter     []LookupInput
+	Expression DynamicExpression
 }
 
 // GroupRow owns both ordered containers; its scalar Values are immutable.
@@ -60,16 +61,25 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 	for index, input := range aggregates {
 		var value query.ResultExpression
 		if input.Kind == query.ResultCountAll {
-			if input.Field != "" {
+			if input.Field != "" || input.Expression.node != nil || input.Expression.err != nil {
 				return zero, invalidResultBuilder("COUNT(*) cannot name a field")
 			}
 			value = query.CountAllResult()
 		} else {
-			operand, err := dynamicGroupField(source, binding, input.Field)
+			var operand query.ResultExpression
+			var err error
+			if input.Expression.node != nil || input.Expression.err != nil {
+				if input.Field != "" {
+					return zero, invalidResultBuilder("dynamic aggregate cannot combine a field name with an expression")
+				}
+				value, bindErr := BindExpression(source, input.Expression)
+				operand, err = value.expression, bindErr
+			} else {
+				operand, err = dynamicGroupField(source, binding, input.Field)
+			}
 			if err != nil {
 				return zero, err
 			}
-			field, _ := operand.Field()
 			switch input.Kind {
 			case query.ResultCount:
 				value, err = query.CountResult(operand)
@@ -81,11 +91,7 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 				if _, related := operand.RelationPath(); related {
 					return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "dynamic related MIN/MAX are not implemented"}
 				}
-				if input.Kind == query.ResultMin {
-					value = query.MinResult(field)
-				} else {
-					value = query.MaxResult(field)
-				}
+				value, err = query.AggregateResult(input.Kind, operand)
 			default:
 				return zero, invalidResultBuilder("dynamic aggregate kind is unsupported")
 			}
@@ -250,7 +256,7 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 		case query.FieldFloat:
 			factories[index] = dynamicGroupCell(nullableFloatResultCell, nullable)
 		case query.FieldDecimal:
-			if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
+			if _, computed := expression.Scalar(); computed || expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
 				factories[index] = dynamicGroupCell(nullableAggregateDecimalCell, nullable)
 			} else {
 				factories[index] = dynamicGroupCell(func() scalarCell[*decimal.Decimal] { return nullableDecimalResultCell(field) }, nullable)
@@ -259,6 +265,8 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 			factories[index] = dynamicGroupCell(nullableUUIDResultCell, nullable)
 		case query.FieldBinary:
 			factories[index] = dynamicGroupCell(nullableBinaryResultCell, nullable)
+		case query.FieldJSON:
+			factories[index] = dynamicGroupCell(nullableJSONResultCell, nullable)
 		case query.FieldDateTime:
 			factories[index] = dynamicGroupCell(nullableDateTimeResultCell, nullable)
 		case query.FieldDate:

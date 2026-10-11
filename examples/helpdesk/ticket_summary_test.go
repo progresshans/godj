@@ -41,6 +41,9 @@ type summaryEnvelope struct {
 }
 type summaryItem struct {
 	Priority    *int64 `json:"priority"`
+	RaiseTo     int64  `json:"raise_to_priority"`
+	RaiseLabel  string `json:"raise_to_label"`
+	WouldChange bool   `json:"would_change"`
 	Label       string `json:"priority_label"`
 	Total, Open int64
 	Cost        *string  `json:"expected_cost_total"`
@@ -263,8 +266,21 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		if err := json.Unmarshal(response.Body.Bytes(), &wire); err != nil {
 			t.Fatal(err)
 		}
-		for _, row := range wire.Results {
-			for _, name := range []string{"expected_cost_total", "effort_average", "elapsed_total"} {
+		for index, row := range wire.Results {
+			actual := result.Results[index]
+			expected, change := int64(0), true
+			if actual.Priority != nil {
+				expected = *actual.Priority
+				if expected == -1 || expected == 0 {
+					expected++
+				} else {
+					change = false
+				}
+			}
+			if actual.RaiseTo != expected || actual.WouldChange != change || actual.RaiseLabel == "" {
+				t.Fatal("priority preview changed command policy", actual)
+			}
+			for _, name := range []string{"raise_to_priority", "raise_to_label", "would_change", "expected_cost_total", "effort_average", "elapsed_total"} {
 				if _, present := row[name]; !present {
 					t.Fatal("nullable metric omitted", name)
 				}

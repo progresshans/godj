@@ -54,13 +54,15 @@ func Value[M, V any](value V) ScalarExpression[M, V] {
 }
 
 func NullValue[M, V any]() ScalarExpression[M, V] {
-	expression, err := query.LiteralExpression(query.Null())
+	expression, err := query.NullExpression(scalarKind[V]())
 	return ScalarExpression[M, V]{expression: expression, err: err}
 }
 
 func scalarValue(raw any) (query.Value, error) {
 	var value query.Value
 	switch raw := raw.(type) {
+	case query.Value:
+		value = raw
 	case nil:
 		value = query.Null()
 	case int:
@@ -115,55 +117,55 @@ func operandExpression[M, V any](operand ScalarOperand[M, V]) (query.ScalarExpre
 // precision/duration arithmetic needs a separate contract.
 type ArithmeticNumber interface{ int64 | float64 }
 
-func arithmeticOperands[M any, N ArithmeticNumber](operator query.ArithmeticOperator, left, right ScalarOperand[M, N]) ScalarExpression[M, N] {
+func arithmeticOperands[M any, N ArithmeticNumber](operator query.ArithmeticOperator, left, right ScalarOperand[M, N]) NumericExpression[M, N] {
 	first, err := operandExpression(left)
 	if err != nil {
-		return ScalarExpression[M, N]{err: err}
+		return NumericExpression[M, N]{ScalarExpression[M, N]{err: err}}
 	}
 	second, err := operandExpression(right)
 	if err != nil {
-		return ScalarExpression[M, N]{err: err}
+		return NumericExpression[M, N]{ScalarExpression[M, N]{err: err}}
 	}
 	expression, err := query.Arithmetic(operator, first, second)
-	return ScalarExpression[M, N]{expression: expression, err: err}
+	return NumericExpression[M, N]{ScalarExpression[M, N]{expression: expression, err: err}}
 }
 
-func Add[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) ScalarExpression[M, N] {
+func Add[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) NumericExpression[M, N] {
 	return AddExpressions(left, Value[M](right))
 }
-func Subtract[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) ScalarExpression[M, N] {
+func Subtract[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) NumericExpression[M, N] {
 	return SubtractExpressions(left, Value[M](right))
 }
-func Multiply[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) ScalarExpression[M, N] {
+func Multiply[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) NumericExpression[M, N] {
 	return MultiplyExpressions(left, Value[M](right))
 }
-func Divide[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) ScalarExpression[M, N] {
+func Divide[M any, N ArithmeticNumber](left ScalarOperand[M, N], right N) NumericExpression[M, N] {
 	return DivideExpressions(left, Value[M](right))
 }
-func Remainder[M any](left ScalarOperand[M, int64], right int64) ScalarExpression[M, int64] {
+func Remainder[M any](left ScalarOperand[M, int64], right int64) NumericExpression[M, int64] {
 	return RemainderExpressions(left, Value[M](right))
 }
-func AddExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) ScalarExpression[M, N] {
+func AddExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) NumericExpression[M, N] {
 	return arithmeticOperands(query.ArithmeticAdd, left, right)
 }
-func SubtractExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) ScalarExpression[M, N] {
+func SubtractExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) NumericExpression[M, N] {
 	return arithmeticOperands(query.ArithmeticSubtract, left, right)
 }
-func MultiplyExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) ScalarExpression[M, N] {
+func MultiplyExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) NumericExpression[M, N] {
 	return arithmeticOperands(query.ArithmeticMultiply, left, right)
 }
-func DivideExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) ScalarExpression[M, N] {
+func DivideExpressions[M any, N ArithmeticNumber](left, right ScalarOperand[M, N]) NumericExpression[M, N] {
 	return arithmeticOperands(query.ArithmeticDivide, left, right)
 }
-func RemainderExpressions[M any](left, right ScalarOperand[M, int64]) ScalarExpression[M, int64] {
+func RemainderExpressions[M any](left, right ScalarOperand[M, int64]) NumericExpression[M, int64] {
 	return arithmeticOperands(query.ArithmeticModulo, left, right)
 }
-func Negate[M any, N ArithmeticNumber](value ScalarOperand[M, N]) ScalarExpression[M, N] {
+func Negate[M any, N ArithmeticNumber](value ScalarOperand[M, N]) NumericExpression[M, N] {
 	expression, err := operandExpression(value)
 	if err == nil {
 		expression, err = query.NegateScalar(expression)
 	}
-	return ScalarExpression[M, N]{expression: expression, err: err}
+	return NumericExpression[M, N]{ScalarExpression[M, N]{expression: expression, err: err}}
 }
 
 // UpdateAssignment is an immutable, model-specific assignment. Unlike Save's

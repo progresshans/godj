@@ -293,8 +293,12 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 		t.Fatal("summary query lost its typed omission or lexical policy")
 	}
 	summaryItems := summarySchema.Properties["results"]
-	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "total", "open", "expected_cost_total", "effort_average", "elapsed_total"}) {
+	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "raise_to_priority", "raise_to_label", "would_change", "total", "open", "expected_cost_total", "effort_average", "elapsed_total"}) {
 		t.Fatal("summary result lost its required bounded groups")
+	}
+	raised := summaryItems.Items.Properties["raise_to_priority"]
+	if raised.Format != "int64" || raised.allowsType("null") || string(raised.Minimum) != "-9223372036854775808" || string(raised.Maximum) != "9223372036854775807" || summaryItems.Items.Properties["would_change"].Type != "boolean" || summaryItems.Items.Properties["raise_to_label"].Type != "string" {
+		t.Fatal("priority preview lost required output domains")
 	}
 	summaryCost := summaryItems.Items.Properties["expected_cost_total"]
 	if len(summaryCost.AnyOf) != 2 || !summaryCost.allowsType("null") || summaryCost.AnyOf[0].Type != "string" || summaryCost.AnyOf[0].MinLength != 1 || summaryCost.AnyOf[0].MaxLength != 2002 || summaryCost.AnyOf[0].Pattern != `^-?(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$` {

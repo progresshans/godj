@@ -136,13 +136,25 @@ transient table과 파생 제약 이름까지 초기/최종 검증한다. 소유
 자신의 intermediary를 다시 참조하는 생성 순환은 모델을 만든 뒤 AddField로 작성한다. 일반 collection manager/query는 아직 미지원이다.
 모든 Django Field, relation-as-PK, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
-Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
+같은 행의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
+계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
+계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. Decimal/Duration의 CASE 복사는 지원하지만
+계산식 SUM/AVG·산술, 일반 named annotation·추가 집계 stage·forward/collection computed operand는 미지원이다.
+SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
+구현 경계는 [Scalar 표현식](adr/0090-query-update-and-scalar-expressions.md), 실제 실행은 Evidence를 따른다.
+Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다.
 별도 그룹 결과는 scalar/finite forward 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
-조건부 집계·선택 결과에 대한 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
+정수·Float·Decimal·Duration의 root/finite forward SUM/AVG(distinct 포함), 조건부 집계·선택 결과의 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
 filter의 JOIN multiplicity·부정 EXISTS를 유지한다. Group Count는 현재 group slice를 세며 Page의 전체 그룹 수와
 행은 한 statement snapshot에서 읽는다. 일반 collection/reverse 집계·related MIN/MAX의 public API·JSON 그룹 키는
 미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은 [그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다.
+SUM/AVG의 빈 원본/모두 NULL 결과는 NULL이다. 정수 AVG는 Float이며 결과 종류를 원본 field metadata와 구분한다.
+SQLite 정수 SUM은 중간 int64 overflow도 거부하고 PostgreSQL은 넓은 native 결과를 마지막 bigint cast에서 검사한다.
+SQLite Decimal은 exact BLOB operand와 독립 aggregate 상태로 계산하고 PostgreSQL native NUMERIC와 같은 division scale을
+사용한다. 원본 precision과 전역 Decimal 결과 한도를 구분한다. Duration AVG의 SQLite binary64 계산/결과 half-even과
+PostgreSQL native INTERVAL/HAVING 차이를 유지한다. 각 backend의 잘못된 저장값·numeric failure를 조용히 NULL이나 float로
+바꾸지 않는다. 상세 범위는 [숫자 집계](adr/0091-grouped-results-and-having.md#숫자-합계와-평균), 현재 실행 범위는 Evidence를 따른다.
 유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.

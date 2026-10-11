@@ -4110,6 +4110,9 @@ func (*TicketSummaryHeaders) helpdeskTicketSummaryRes() {}
 type TicketSummaryResultsItem struct {
 	Priority          NilInt64   `json:"priority"`
 	PriorityLabel     string     `json:"priority_label"`
+	RaiseToPriority   int64      `json:"raise_to_priority"`
+	RaiseToLabel      string     `json:"raise_to_label"`
+	WouldChange       bool       `json:"would_change"`
 	Total             int64      `json:"total"`
 	Open              int64      `json:"open"`
 	ExpectedCostTotal NilString  `json:"expected_cost_total"`
@@ -4125,6 +4128,21 @@ func (s *TicketSummaryResultsItem) GetPriority() NilInt64 {
 // GetPriorityLabel returns the value of PriorityLabel.
 func (s *TicketSummaryResultsItem) GetPriorityLabel() string {
 	return s.PriorityLabel
+}
+
+// GetRaiseToPriority returns the value of RaiseToPriority.
+func (s *TicketSummaryResultsItem) GetRaiseToPriority() int64 {
+	return s.RaiseToPriority
+}
+
+// GetRaiseToLabel returns the value of RaiseToLabel.
+func (s *TicketSummaryResultsItem) GetRaiseToLabel() string {
+	return s.RaiseToLabel
+}
+
+// GetWouldChange returns the value of WouldChange.
+func (s *TicketSummaryResultsItem) GetWouldChange() bool {
+	return s.WouldChange
 }
 
 // GetTotal returns the value of Total.
@@ -4160,6 +4178,21 @@ func (s *TicketSummaryResultsItem) SetPriority(val NilInt64) {
 // SetPriorityLabel sets the value of PriorityLabel.
 func (s *TicketSummaryResultsItem) SetPriorityLabel(val string) {
 	s.PriorityLabel = val
+}
+
+// SetRaiseToPriority sets the value of RaiseToPriority.
+func (s *TicketSummaryResultsItem) SetRaiseToPriority(val int64) {
+	s.RaiseToPriority = val
+}
+
+// SetRaiseToLabel sets the value of RaiseToLabel.
+func (s *TicketSummaryResultsItem) SetRaiseToLabel(val string) {
+	s.RaiseToLabel = val
+}
+
+// SetWouldChange sets the value of WouldChange.
+func (s *TicketSummaryResultsItem) SetWouldChange(val bool) {
+	s.WouldChange = val
 }
 
 // SetTotal sets the value of Total.

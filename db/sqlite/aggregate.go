@@ -27,7 +27,7 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 	field, _ := expression.Field()
 	numeric := expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg
 	if numeric {
-		switch field.Kind() {
+		switch expression.OperandKind() {
 		case query.FieldInteger, query.FieldDuration:
 			operand = "godj_int64(" + operand + ")"
 		case query.FieldFloat:
@@ -54,7 +54,7 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 		selected = "DISTINCT " + selected
 	}
 	result := function + "(" + selected + ")" + filter
-	if numeric && field.Kind() == query.FieldFloat {
+	if numeric && expression.OperandKind() == query.FieldFloat {
 		// Native SQLite represents a NaN result as NULL. COUNT separates that
 		// arithmetic failure from a legitimate empty/all-NULL aggregate. A
 		// filtered call emits its bound arguments twice, in this same order.

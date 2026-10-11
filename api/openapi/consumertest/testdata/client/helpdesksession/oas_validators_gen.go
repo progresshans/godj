@@ -3278,6 +3278,27 @@ func (s *TicketSummaryResultsItem) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.RaiseToPriority)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "raise_to_priority",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
 			Min:           0,
 			MaxSet:        true,
 			Max:           9223372036854775807,

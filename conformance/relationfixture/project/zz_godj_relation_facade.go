@@ -612,6 +612,27 @@ func GroupAuthorsAuthorBy[K, A, R any](_source AuthorsAuthorQuery, _keys orm.Pro
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
 }
 
+func (_query AuthorsAuthorQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[authors.Author], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[authors.Author]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query AuthorsAuthorQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[authors.Author]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query AuthorsAuthorQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[authors.Author, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[authors.Author, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
+}
+
 func (_query AuthorsAuthorQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[authors.Author, orm.GroupRow], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.GroupedQuery[authors.Author, orm.GroupRow]{}, _err
@@ -1539,6 +1560,27 @@ func GroupBlogPostBy[K, A, R any](_source BlogPostQuery, _keys orm.Projection[bl
 		return orm.GroupedQuery[blog.Post, R]{}, _err
 	}
 	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query BlogPostQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[blog.Post], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[blog.Post]{}, _err
+	}
+	return orm.BindExpression(_query.query, _input)
+}
+
+func (_query BlogPostQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[blog.Post]{}, _err
+	}
+	return orm.BindPredicate(_query.query, _input)
+}
+
+func (_query BlogPostQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[blog.Post, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[blog.Post, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamic(_query.query, _inputs...)
 }
 
 func (_query BlogPostQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[blog.Post, orm.GroupRow], error) {

@@ -124,8 +124,8 @@ func nullableDurationResultCell() scalarCell[*duration.Duration] {
 		return &copy
 	}}
 }
-func (f durationField[M]) scalarOrderedField(M, duration.Duration) (query.FieldRef, func() scalarCell[Optional[duration.Duration]], error) {
-	return f.reference, func() scalarCell[Optional[duration.Duration]] {
+func (f durationField[M]) scalarOrderedField(M, duration.Duration) (query.ResultExpression, func() scalarCell[Optional[duration.Duration]], error) {
+	return query.FieldResult(f.reference), func() scalarCell[Optional[duration.Duration]] {
 		var value NullableDurationScanner
 		return scalarCell[Optional[duration.Duration]]{destination: &value, value: func() Optional[duration.Duration] {
 			return Optional[duration.Duration]{value: value.Duration, valid: value.Valid}

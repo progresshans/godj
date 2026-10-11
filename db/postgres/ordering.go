@@ -14,6 +14,13 @@ func validateOrderings(plan query.Plan) error {
 		return err
 	}
 	for _, ordering := range plan.Orderings() {
+		if scalar, present := ordering.Expression().Scalar(); present {
+			arguments := []any{}
+			if _, err := compileReadScalar(scalar, "", &arguments); err != nil {
+				return err
+			}
+			continue
+		}
 		field := ordering.Field()
 		if _, err := quoteIdentifier(field.Name()); err != nil {
 			return err
@@ -31,6 +38,14 @@ func validateOrderings(plan query.Plan) error {
 }
 
 func appendResultValue(statement *strings.Builder, expression query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments *[]any, ordering bool) error {
+	if scalar, present := expression.Scalar(); present {
+		value, err := compileReadScalar(scalar, alias, arguments)
+		if err != nil {
+			return err
+		}
+		statement.WriteString(value)
+		return nil
+	}
 	field, _ := expression.Field()
 	if path, related := expression.RelationPath(); related {
 		joined, ok := joins[queryplan.KeyForPath(path.Hops())]
@@ -125,6 +140,8 @@ func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.R
 		expression := ordering.Expression()
 		if len(hidden) > 0 {
 			statement.WriteString(queryplan.HiddenOrderingColumn(selected, hidden, expression))
+		} else if _, scalar := expression.Scalar(); scalar && queryplan.ExpressionIndex(selected, expression) >= 0 {
+			statement.WriteString(strconv.Itoa(queryplan.ExpressionIndex(selected, expression) + 1))
 		} else if _, path := expression.JSONPath(); path && plan.Distinct() {
 			// Reuse the selected cell: two bound path parameters are not the same
 			// PostgreSQL DISTINCT expression, even when their values happen to match.

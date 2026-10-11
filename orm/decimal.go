@@ -161,8 +161,8 @@ func nullableDecimalResultCell(field query.FieldRef) scalarCell[*decimal.Decimal
 		return &copy
 	}}
 }
-func (f decimalField[M]) scalarOrderedField(M, decimal.Decimal) (query.FieldRef, func() scalarCell[Optional[decimal.Decimal]], error) {
-	return f.reference, func() scalarCell[Optional[decimal.Decimal]] {
+func (f decimalField[M]) scalarOrderedField(M, decimal.Decimal) (query.ResultExpression, func() scalarCell[Optional[decimal.Decimal]], error) {
+	return query.FieldResult(f.reference), func() scalarCell[Optional[decimal.Decimal]] {
 		digits, places, _ := f.reference.DecimalPrecision()
 		value := NewNullableDecimalScanner(digits, places)
 		return scalarCell[Optional[decimal.Decimal]]{destination: &value, value: func() Optional[decimal.Decimal] {

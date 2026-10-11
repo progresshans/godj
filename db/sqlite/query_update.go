@@ -31,6 +31,7 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan) (string, []any, error) {
 		},
 		QuoteTable: quoteIdentifier, QuoteIdentifier: quoteIdentifier, ColumnKey: sqliteIdentifierKey,
 		Value: sqliteValue, Placeholder: func(index int) string { return "?" + strconv.Itoa(index) }, Expression: wrapSQLiteScalar,
+		Predicate: compileScalarPredicate,
 	})
 }
 

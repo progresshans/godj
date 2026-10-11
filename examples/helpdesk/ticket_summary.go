@@ -28,10 +28,19 @@ type ticketSummaryQuery struct {
 
 type ticketSummaryRow struct {
 	priority    *int64
+	raiseTo     int64
 	total, open int64
 	cost        orm.Optional[decimal.Decimal]
 	effort      orm.Optional[float64]
 	elapsed     orm.Optional[duration.Duration]
+}
+type ticketSummaryKey struct {
+	priority *int64
+	raiseTo  orm.Optional[int64]
+}
+type ticketSummaryComputedRow struct {
+	key     ticketSummaryKey
+	metrics ticketSummaryRow
 }
 type ticketSummaryPage struct {
 	category models.Category
@@ -106,16 +115,18 @@ func (a *Application) ticketSummaryInSnapshot(ctx context.Context, reader db.Que
 		return result, err
 	}
 	fields := models.TicketFields
+	raised := raisedPriorityExpression()
 	opened := orm.Count(fields.ID).Where(fields.Closed.Exact(false))
 	grouped, err := orm.GroupBy(models.TicketObjects.Using(reader).Filter(fields.CategoryID.Exact(a.categoryID)),
-		orm.Project1(fields.Priority, func(value *int64) *int64 { return value }),
+		orm.Project2(fields.Priority, raised, func(value *int64, raised orm.Optional[int64]) ticketSummaryKey {
+			return ticketSummaryKey{priority: value, raiseTo: raised}
+		}),
 		orm.Aggregate5(orm.CountRows[models.Ticket](), opened, orm.Sum(fields.ExpectedCost), orm.Avg(fields.Effort), orm.Sum(fields.Elapsed),
 			func(total, open int64, cost orm.Optional[decimal.Decimal], effort orm.Optional[float64], elapsed orm.Optional[duration.Duration]) ticketSummaryRow {
 				return ticketSummaryRow{total: total, open: open, cost: cost, effort: effort, elapsed: elapsed}
 			}),
-		func(priority *int64, row ticketSummaryRow) ticketSummaryRow {
-			row.priority = priority
-			return row
+		func(key ticketSummaryKey, row ticketSummaryRow) ticketSummaryComputedRow {
+			return ticketSummaryComputedRow{key: key, metrics: row}
 		})
 	if err != nil {
 		return result, err
@@ -124,7 +135,18 @@ func (a *Application) ticketSummaryInSnapshot(ctx context.Context, reader db.Que
 	if err != nil {
 		return result, err
 	}
-	return ticketSummaryPage{category: category, found: true, query: input, groups: groups}, nil
+	rows := make([]ticketSummaryRow, len(groups.Rows))
+	for index, value := range groups.Rows {
+		raised, present := value.key.raiseTo.Get()
+		expected, _ := raisedTicketPriority(value.key.priority)
+		if !present || raised != expected {
+			return result, errors.New("helpdesk: priority preview differs from the command policy")
+		}
+		row := value.metrics
+		row.priority, row.raiseTo = value.key.priority, raised
+		rows[index] = row
+	}
+	return ticketSummaryPage{category: category, found: true, query: input, groups: orm.GroupPage[ticketSummaryRow]{Total: groups.Total, Rows: rows}}, nil
 }
 
 func summaryOptionalPointer[V any](value orm.Optional[V]) *V {

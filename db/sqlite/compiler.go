@@ -10,6 +10,17 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	statement, arguments, err := compileReadPlan(plan)
+	if err != nil {
+		return "", nil, err
+	}
+	if len(arguments) > sqliteBulkParameters || len(statement) > 4<<20 {
+		return "", nil, unsupportedResult("query exceeds SQLite statement or parameter budget")
+	}
+	return statement, arguments, nil
+}
+
+func compileReadPlan(plan query.Plan) (string, []any, error) {
 	if err := plan.ValidateGrouping(); err != nil {
 		return "", nil, err
 	}
@@ -147,14 +158,15 @@ func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFie
 	}
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
-	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, sourceAlias); err != nil {
+	outerArguments := []any{}
+	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, sourceAlias, &outerArguments); err != nil {
 		return "", nil, err
 	}
 	sql.WriteString(" FROM (")
 	sql.WriteString(innerSQL)
 	sql.WriteString(") AS ")
 	sql.WriteString(quotedAlias)
-	return sql.String(), arguments, nil
+	return sql.String(), append(outerArguments, arguments...), nil
 }
 
 func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExpression, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
@@ -165,33 +177,32 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
-	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, ""); err != nil {
+	arguments := []any{}
+	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, "", &arguments); err != nil {
 		return "", nil, err
 	}
 	sql.WriteString(" FROM ")
 	sql.WriteString(table)
 
-	arguments, err := appendWhere(&sql, where)
+	whereArguments, err := appendWhere(&sql, where)
 	if err != nil {
 		return "", nil, err
 	}
-	return sql.String(), arguments, nil
+	return sql.String(), append(arguments, whereArguments...), nil
 }
 
-func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
+func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
 	return queryplan.AppendAggregates(sql, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
-		field, _ := expression.Field()
-		var column string
-		var err error
-		if sourceAlias != "" {
-			column, err = quoteQualified(sourceAlias, field.Column())
-		} else {
-			column, err = quoteIdentifier(field.Column())
-		}
-		if err != nil {
+		start := len(*arguments)
+		var operand strings.Builder
+		if err := appendResultValue(&operand, expression, sourceAlias, nil, arguments, true); err != nil {
 			return "", err
 		}
-		return renderAggregate(expression, column, "")
+		rendered, err := renderAggregate(expression, operand.String(), "")
+		if expression.OperandKind() == query.FieldFloat && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
+			*arguments = append(*arguments, (*arguments)[start:]...)
+		}
+		return rendered, err
 	})
 }
 
@@ -225,6 +236,12 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 
 	for _, leaf := range where.leaves {
 		condition := leaf.condition
+		if scalar, computed := condition.Scalar(); computed {
+			if err := scalar.ValidateSource(columns); err != nil {
+				return "", nil, err
+			}
+			continue
+		}
 		if _, related := condition.RelationPath(); !related {
 			if !queryplan.ContainsField(columns, condition.Field()) {
 				return "", nil, invalidPlan("condition field is not selected model metadata")
@@ -309,6 +326,10 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	}
 
 	for index, leaf := range where.leaves {
+		if _, computed := leaf.condition.Scalar(); computed {
+			leaf.scalarAlias = rootAlias
+			continue
+		}
 		alias := rootAlias
 		if exists, ok := prepared.Exists[index]; ok {
 			if len(exists.Joins) > 63 {

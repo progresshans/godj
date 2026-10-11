@@ -85,13 +85,13 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	if !expression.IsAggregate() {
 		return appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, false)
 	}
+	operandStart := len(*arguments)
 	var operand, filterSQL strings.Builder
 	if expression.Kind() != query.ResultCountAll {
 		if err := appendResultValue(&operand, expression, "t0", prepared.ByKey, arguments, true); err != nil {
 			return err
 		}
 	}
-	filterStart := len(*arguments)
 	if filter, present := expression.Filter(); present {
 		filterPlan, err := query.NewPlan(plan.Table(), plan.SourceFields()).WithWhere(filter)
 		if err != nil {
@@ -116,9 +116,8 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	if err != nil {
 		return err
 	}
-	field, _ := expression.Field()
-	if field.Kind() == query.FieldFloat && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
-		*arguments = append(*arguments, (*arguments)[filterStart:]...)
+	if expression.OperandKind() == query.FieldFloat && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
+		*arguments = append(*arguments, (*arguments)[operandStart:]...)
 	}
 	statement.WriteString(rendered)
 	return nil
@@ -127,6 +126,13 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 func bindGroupedWhere(plan query.Plan, analysis *sqliteWhereAnalysis, prepared queryplan.Joins) error {
 	for index, leaf := range analysis.leaves {
 		condition := leaf.condition
+		if scalar, computed := condition.Scalar(); computed {
+			if err := scalar.ValidateSource(plan.SourceFields()); err != nil {
+				return err
+			}
+			leaf.scalarAlias = "t0"
+			continue
+		}
 		if path, related := condition.RelationPath(); related {
 			if err := queryplan.RelationCondition(plan, condition, path, "SQLite"); err != nil {
 				return err

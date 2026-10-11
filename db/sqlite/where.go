@@ -23,14 +23,16 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind         query.ExpressionKind
-	condition    query.Condition
-	children     []*sqliteWhereNode
-	fieldSQL     string
-	rhsFieldSQL  string
-	inValues     []query.Value
-	inHasNull    bool
-	existsPrefix string
+	kind           query.ExpressionKind
+	condition      query.Condition
+	children       []*sqliteWhereNode
+	fieldSQL       string
+	scalarAlias    string
+	scalarResolver func(query.FieldRef) (string, error)
+	rhsFieldSQL    string
+	inValues       []query.Value
+	inHasNull      bool
+	existsPrefix   string
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -144,6 +146,12 @@ func analyzeWhereExpression(
 func bindScalarWhere(analysis *sqliteWhereAnalysis, sourceFields []query.FieldRef) error {
 	for _, leaf := range analysis.leaves {
 		condition := leaf.condition
+		if scalar, computed := condition.Scalar(); computed {
+			if err := scalar.ValidateSource(sourceFields); err != nil {
+				return err
+			}
+			continue
+		}
 		if _, related := condition.RelationPath(); related {
 			return invalidPlan("scalar query contains relation predicate metadata")
 		}
@@ -174,7 +182,7 @@ func appendWhere(sql *strings.Builder, analysis *sqliteWhereAnalysis) ([]any, er
 		return []any{}, nil
 	}
 	for _, leaf := range analysis.leaves {
-		if leaf.fieldSQL == "" {
+		if _, computed := leaf.condition.Scalar(); leaf.fieldSQL == "" && !computed {
 			return nil, invalidPlan("query expression field binding is missing")
 		}
 		if _, ok := leaf.condition.RHSField(); ok && leaf.rhsFieldSQL == "" {
@@ -199,6 +207,24 @@ func appendWhereNode(
 ) error {
 	switch node.kind {
 	case query.ExpressionLeaf:
+		if _, computed := node.condition.Scalar(); computed {
+			return queryplan.AppendScalarCondition(sql, node.condition, func(value query.ScalarExpression) (string, error) {
+				if node.scalarResolver != nil {
+					return compileReadScalarFields(value, node.scalarResolver, arguments)
+				}
+				return compileReadScalar(value, node.scalarAlias, arguments)
+			}, func(value query.Value) (string, error) {
+				if len(*arguments) >= sqliteBulkParameters {
+					return "", invalidPlan("computed predicate exceeds SQLite parameter budget")
+				}
+				argument, err := sqliteValue(value)
+				if err != nil {
+					return "", err
+				}
+				*arguments = append(*arguments, argument)
+				return "?", nil
+			})
+		}
 		if node.existsPrefix != "" {
 			if !oddNegation {
 				return invalidPlan("collection existence was bound outside negation")
