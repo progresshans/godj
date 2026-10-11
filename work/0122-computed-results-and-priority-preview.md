@@ -1,7 +1,7 @@
 ---
 id: GDJ-0122
-status: active
-updated: 2026-10-11
+status: complete
+updated: 2026-10-12
 baseline_commit: "02f350d3598f41dd34b0ddcb1fbf82474139aea4"
 integration_owner: "root"
 ---
@@ -36,23 +36,15 @@ Decimal·Duration 산술/계산식 SUM/AVG는 남은 카탈로그 요구다. 한
 - [x] 공통 scalar renderer·결과/조건 AST·typed/dynamic·생성 facade 구현
 - [x] 생성 소비자의 독립 결과 대조·compile-negative·cache/source/실패 테스트와 필수 CI 목록 작성
 - [x] Helpdesk 요약·OpenAPI/독립 client와 브라우저 probe 연결, 고정 생성물 갱신
-- [ ] 위 제품 경로의 실제 양 DB·실패·읽기 무결성 검증과 브라우저 실행
-- [ ] 영향 검증·생성 drift·관련 race/process 및 같은 source의 원격 전체 통합 검증
+- [x] 위 제품 경로의 실제 양 DB·실패·읽기 무결성 검증과 브라우저 실행
+- [x] 영향 검증·생성 drift·관련 race/process 및 같은 source의 원격 전체 통합 검증
 
-제품 영향 테스트의 첫 원격 실행에서 실패를 발견했다. 로컬은 포맷·필요한 compile과 실패 재현에 사용하며,
-전체 검증은 기존 Draft PR의 CI가 소유한다. 이전 source의 전체 통합이나 독립 Django 관찰을 현재 제품 PASS로 쓰지 않는다.
-최소 compile의 template Boolean 이름과 새 외부 소비자의 backend capability 오류를 수정했다.
-첫 원격 실행에서 발견한 golden/SQL 기대값 불일치를 보완했고, 기존 password-change 참조의 session 읽기까지
-시계를 고정해 실제 날짜에 따른 만료를 제거했다. 정상 예상값과 부정 대조는 유지하며 과거/미래 호스트 시계도 검사한다.
-생성 소비자의 borrowed session 생성자도 바로잡았다. 실제 실패 root의 제한된 SQLite 재현은 통과했으며
-세션 수명 검사와 잘못된 타입의 컴파일 거부는 유지했다. PostgreSQL/race의 검증은 남아 있다.
-선택한 native 결과 종류가 원 모델에 없는 경우를 포함한 scalar codec/typed NULL 검사를 추가했다.
-브라우저는 Portable normal integration에 고정 도구·실제 로그인·필수 결과·native readback·artifact 경로를 연결했다.
-수정 source의 원격 브라우저는 실제 로그인·23개 검사·native 보존과 정리를 통과했다. 생성 소비자의 양 DB/세 모드와
-나머지 전체 CI는 계속 진행 중이며 개별 실행 증거는 TEST_EVIDENCE를 따른다.
-CI 도구 부정 테스트의 원격 실행 누락도 확인해 필수 step과 엄격한 suite 실행에 연결했고 실제 실행 목록도 대조했다.
-독립 SDK race의 child 전체 context 만료에 맞춰 누적 실행 예산을 보완했고 원격 후속 실행은 통과했다.
-같은 CI에서 typed/dynamic NULL 직접 대입의 AST 불일치와 Helpdesk race의 누적 context 만료를 확인했다.
-NULL은 공통 assignment 생성에서 target kind를 가진 새 scalar로 정규화하며 원 표현식과 명시적 타입 제약을 보존한다.
-Helpdesk는 race의 전체 예산만 분리하고 개별 동시성·취소·정리 제한과 모든 커밋/롤백 검사를 유지한다.
-이 후속 수정의 실제 양 DB·세 모드와 원격 전체 통합 검증은 남아 있다.
+원격 피드백에서 발견한 생성물/SQL 기대값·borrowed session 연결·참조 시계 의존성을 보완했다.
+Typed/dynamic NULL 대입은 공통 assignment 생성에서 target kind를 가진 새 scalar로 정규화하며,
+공유 원 표현식과 명시적 타입 제약을 유지한다. 누적 race 소비자의 전체 context 예산과 개별 동시성·취소·정리
+예산을 분리했고 모든 커밋/롤백·감사 기록 검사는 보존했다. 실제 실패·재현·수정 과정은 TEST_EVIDENCE에 기록했다.
+
+Source `0ea21fa4`에서 제품·생성 소비자의 양 DB·세 모드, 독립 SDK·브라우저·전체 플랫폼을 검증했다.
+같은 source의 [CI 38110947560](https://github.com/progresshans/godj/actions/runs/38110947560)에서
+모든 필수 job·실행과 capture 소비·최종 집계를 대조해 전체 통합을 완료했다.
+각 실행의 source·필수 경로·실패 대조와 전체 검증 receipt는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
