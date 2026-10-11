@@ -95,6 +95,33 @@ func TestScalarExpressionTypesOwnershipAndLimits(t *testing.T) {
 	if _, err := query.NewScalarAssignment(id, field); err != nil {
 		t.Fatal("nullable reference should be checked per row by native constraints", err)
 	}
+	bareNull := scalarLiteral(t, query.Null())
+	for _, kind := range []query.FieldKind{query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldBinary, query.FieldJSON, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration} {
+		t.Run("null_assignment_"+string(kind), func(t *testing.T) {
+			target := query.NewFieldRef("value", "value", kind, true)
+			if kind == query.FieldDecimal {
+				target = query.NewDecimalFieldRef("value", "value", true, 9, 2)
+			}
+			typedNull, err := query.NullExpression(kind)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assignment := scalarAssignment(t, target, bareNull)
+			if !assignment.Equal(scalarAssignment(t, target, typedNull)) || bareNull.ResultKind() != "" || len(assignment.Expression().Fields()) != 0 {
+				t.Fatal("NULL assignment lost its target type or mutated the shared literal")
+			}
+		})
+	}
+	integerNull, err := query.NullExpression(query.FieldInteger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := query.NewScalarAssignment(query.NewFieldRef("text", "text", query.FieldString, true), integerNull); err == nil {
+		t.Fatal("an explicitly typed NULL changed kind during assignment")
+	}
+	if _, err := query.ScalarResult(bareNull); err == nil {
+		t.Fatal("assignment supplied a type to an independent read of the same NULL")
+	}
 	deep := value
 	for deep.Depth() < query.MaximumScalarDepth {
 		deep, err = query.NegateScalar(deep)

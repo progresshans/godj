@@ -362,6 +362,16 @@ func NewScalarAssignment(field FieldRef, expression ScalarExpression) (ScalarAss
 	if err := assignment.Validate(); err != nil {
 		return ScalarAssignment{}, err
 	}
+	// A bare NULL takes its type from the target. Own a typed expression here
+	// so typed and dynamic assignments share the same AST without mutating a
+	// literal that another assignment or read may still use.
+	if value, literal := expression.Literal(); literal && value.IsNull() && expression.ResultKind() == "" {
+		typed, err := NullExpression(field.Kind())
+		if err != nil {
+			return ScalarAssignment{}, err
+		}
+		assignment.expression = typed
+	}
 	return assignment, nil
 }
 func (assignment ScalarAssignment) Field() FieldRef              { return assignment.field }

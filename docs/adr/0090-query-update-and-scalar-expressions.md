@@ -37,6 +37,8 @@ Manager와 생성 root/eager/prefetch facade는 같은 연산을 제공한다. �
 상수와 같은 kind의 field 복사는 현재 scalar codec 전체에 적용한다. 숫자 연산은 같은 kind의 int64 또는 float64다.
 문자열·Boolean·정수/float 사이의 암묵 변환을 하지 않는다. Integer 나눗셈은 native truncate-toward-zero,
 나머지는 왼쪽 값의 부호를 따른다. NULL은 전파되고 untyped NULL은 상대 operand의 숫자 kind를 따른다.
+Bare NULL의 직접 대입은 target의 kind를 가진 새 scalar로 정규화한다. Typed/dynamic 대입은 같은 AST를 쓰며
+공유한 원 NULL은 바뀌지 않는다. 이미 kind를 선언한 NULL은 다른 target kind로 암묵 변환하지 않는다.
 Non-null target의 NULL literal은 preflight에서 거부하지만 nullable field/expression을 대입할 때 실제 NULL인 행은
 DB 제약으로 전체 statement가 실패한다. Float의 특수값은 [ADR-0068](0068-binary64-field-and-finite-json-boundaries.md)의 모델 범위를 따른다.
 
