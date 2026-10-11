@@ -1,0 +1,153 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "WEB-021",
+      "title": "Scalar variables render while missing variables resolve to the empty string",
+      "scenario": "django.template_form.scalar_and_missing",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/templates/language.txt#variables", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-022",
+      "title": "Dotted lookup follows dictionary attribute and list-index precedence deterministically",
+      "scenario": "django.template_form.dotted_lookup_precedence",
+      "phase": "evaluation",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/template/base.py::Variable._resolve_lookup", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0003", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-023",
+      "title": "Autoescape protects ordinary values while explicitly safe values retain markup",
+      "scenario": "django.template_form.autoescape_and_safe",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/templates/language.txt#automatic-html-escaping", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-024",
+      "title": "If and ordered for evaluation preserve truth and empty-branch semantics",
+      "scenario": "django.template_form.if_for_and_empty",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/templates/builtins.txt#if", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/templates/builtins.txt#for-empty", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-025",
+      "title": "Default length and lower filters expose a closed deterministic value transform",
+      "scenario": "django.template_form.closed_filters",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/templates/builtins.txt#built-in-filter-reference", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-026",
+      "title": "Unknown grammar private lookup and unclosed blocks fail during construction",
+      "scenario": "django.template_form.construction_failures",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/template/base.py::Parser", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "WEB-027",
+      "title": "Django template lookup automatically invokes a public zero-argument callable",
+      "scenario": "django.template_form.callable_exposure",
+      "phase": "evaluation",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/template/base.py::Variable._resolve_lookup", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0003", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "FRM-001",
+      "title": "Unbound forms remain unevaluated while bound-empty forms run required validation",
+      "scenario": "django.template_form.unbound_and_bound_empty",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/forms/api.txt#bound-and-unbound-forms", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "FRM-002",
+      "title": "Valid Article input strips strings and produces typed boolean and nullable cleaned values",
+      "scenario": "django.template_form.valid_article_clean",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/forms/validation.txt#form-and-field-validation", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "FRM-003",
+      "title": "Required maximum-length and NUL validation preserve stable field code order",
+      "scenario": "django.template_form.field_error_codes",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/forms/fields.py::CharField", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "FRM-004",
+      "title": "Cross-field errors are deterministic and invalid fields are excluded from cleaned data",
+      "scenario": "django.template_form.cross_field_validation",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/forms/validation.txt#cleaning-and-validating-fields-that-depend-on-each-other", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "FRM-005",
+      "title": "Invalid ModelForm input writes nothing while valid create and update publish exact row deltas",
+      "scenario": "django.template_form.model_form_write_boundary",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0043", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/forms/modelforms.txt#the-save-method", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+package consumer
+
+import (
+    "context"
+    "github.com/progresshans/godj/api"
+    "github.com/progresshans/godj/api/endpoint"
+    "github.com/progresshans/godj/api/input"
+    "github.com/progresshans/godj/api/openapi"
+    "github.com/progresshans/godj/api/output"
+    "github.com/progresshans/godj/auth"
+    "github.com/progresshans/godj/serializers"
+    "github.com/progresshans/godj/validation"
+    "github.com/progresshans/godj/web"
+)
+
+type listDTO struct { Name input.Presence[string] }
+
+func listEndpoint(ctx context.Context, authentication api.Authentication, request *web.Request, objects []serializers.Object) ([]openapi.Operation, []openapi.NamedSchema, error) {
+    name, err := serializers.StringField("name")
+    if err != nil { return nil, nil, err }
+    spec, err := serializers.NewSpec([]serializers.Field{name})
+    if err != nil { return nil, nil, err }
+    body, err := input.New(spec, api.ParserConfig{}, input.Field("name", input.String(), func(r *listDTO, p input.Presence[string]) { r.Name = p }))
+    if err != nil { return nil, nil, err }
+    bounds := input.ListConfig{MinItems:1, MaxItems:20, Parser:api.ParserConfig{MaxBodyBytes:8192}, ItemLimits:serializers.Limits{MaxDocumentBytes:1024}}
+    validator := func(context.Context,listDTO)(validation.Errors,error){ return validation.Errors{},nil }
+    list, err := input.NewList(body, bounds, validator)
+    if err != nil { return nil, nil, err }
+    _, err = list.Schema(serializers.ModeFull)
+    if err != nil { return nil, nil, err }
+    _, _, err = list.Bind(ctx, objects, serializers.ModePartial)
+    if err != nil { return nil, nil, err }
+    _, _, err = list.Parse(request, serializers.ModeFull)
+    if err != nil { return nil, nil, err }
+    _, _ = list.Bounds()
+    response, err := output.New(output.Array(output.String(),1,20),serializers.Limits{})
+    if err != nil { return nil, nil, err }
+    item := endpoint.JSONBody("ListItem",body,serializers.ModeFull,"Item.")
+    prepared, err := endpoint.New(authentication,endpoint.Config[[]listDTO,[]string]{
+        Route:web.Route{Name:"consumer:many",Method:"POST",Path:"/many/"}, Admission:endpoint.Authenticated(),
+        Input:endpoint.NoQuery(endpoint.JSONListBody(item,bounds,"List.",validator)), Output:response,
+        ErrorLimits:serializers.Limits{MaxValues:65536}, SummarizeValidationErrors:true,
+        Success:[]endpoint.Status{{Code:201,Description:"Created."}},
+        Handle:func(request *web.Request,_ auth.Principal,values []listDTO)(output.Prepared[[]string],error){
+            names:=make([]string,len(values));for i,value:=range values{names[i],_=value.Name.Get()};return response.Prepare(request.Context(),201,names)
+        },
+    })
+    if err != nil { return nil, nil, err }
+    return endpoint.Collect([]endpoint.Endpoint{prepared})
+}

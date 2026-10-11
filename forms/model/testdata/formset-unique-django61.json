@@ -1,0 +1,1075 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "source_sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+  "backend": "sqlite",
+  "sqlite": "3.50.4",
+  "storage_unchanged": true,
+  "cleanup_empty": true,
+  "cases": [
+    {
+      "name": "unique_values",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789002"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "duplicate",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": 2
+    },
+    {
+      "name": "canonical_uuid",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678123442348234123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": 2
+    },
+    {
+      "name": "three_duplicates",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-2-subject": "three",
+        "items-2-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [
+        null,
+        null
+      ],
+      "clean_calls": 3
+    },
+    {
+      "name": "null_distinct",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "",
+        "items-1-subject": "two",
+        "items-1-external_reference": ""
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "nullable_mixed",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-2-subject": "three",
+        "items-2-external_reference": ""
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 3
+    },
+    {
+      "name": "deleted_duplicate",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-0-DELETE": "on",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "both_deleted",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-0-DELETE": "on",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-DELETE": "on"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "invalid_survivor_keeps_deleted",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-0-DELETE": "on",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-2-subject": "",
+        "items-2-external_reference": "12345678-1234-4234-8234-123456789002"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id"
+          ],
+          "errors": {
+            "subject": [
+              "required"
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": 3
+    },
+    {
+      "name": "invalid_row_ignored",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id"
+          ],
+          "errors": {
+            "subject": [
+              "required"
+            ]
+          }
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "max_before_unique",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {
+        "validate_max": true
+      },
+      "max_num": 1,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [
+        "too_many_forms"
+      ],
+      "clean_calls": 2
+    },
+    {
+      "name": "min_before_unique",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {
+        "min_num": 3,
+        "validate_min": true
+      },
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [
+        "too_few_forms"
+      ],
+      "clean_calls": 2
+    },
+    {
+      "name": "model_clean_candidate_separate",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "same-candidate-one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "same-candidate-two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789002"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "excluded_unique",
+      "model": "ticket",
+      "fields": [
+        "subject"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-subject": "two",
+        "items-1-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "empty_extra",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 1
+    },
+    {
+      "name": "deleted_empty_extra",
+      "model": "ticket",
+      "fields": [
+        "subject",
+        "external_reference"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-subject": "one",
+        "items-0-external_reference": "12345678-1234-4234-8234-123456789001",
+        "items-1-DELETE": "on"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id",
+            "subject"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "external_reference",
+            "id"
+          ],
+          "errors": {
+            "subject": [
+              "required"
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "different_tuple",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "1",
+        "items-0-name": "one",
+        "items-1-category": "1",
+        "items-1-name": "two"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "different_parent",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "1",
+        "items-0-name": "same",
+        "items-1-category": "2",
+        "items-1-name": "same"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "duplicate_tuple",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "1",
+        "items-0-name": "same",
+        "items-1-category": "1",
+        "items-1-name": "same"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          }
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": 2
+    },
+    {
+      "name": "deleted_tuple",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "1",
+        "items-0-name": "same",
+        "items-0-DELETE": "on",
+        "items-1-category": "1",
+        "items-1-name": "same"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "invalid_parent",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "999",
+        "items-0-name": "same",
+        "items-1-category": "1",
+        "items-1-name": "same"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "name"
+          ],
+          "errors": {
+            "category": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "excluded_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-name": "same",
+        "items-1-name": "same"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    },
+    {
+      "name": "tuple_boundaries",
+      "model": "label",
+      "fields": [
+        "category",
+        "name"
+      ],
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "0",
+        "items-0-category": "1",
+        "items-0-name": "23",
+        "items-1-category": "12",
+        "items-1-name": "3"
+      },
+      "options": {},
+      "max_num": 10,
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        },
+        {
+          "valid": true,
+          "cleaned_fields": [
+            "DELETE",
+            "category",
+            "id",
+            "name"
+          ],
+          "errors": {}
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": 2
+    }
+  ]
+}

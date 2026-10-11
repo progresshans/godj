@@ -1,5 +1,9 @@
 # ADR-0005: Contract-first 수직 단면으로 구현한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0005-contract-first-vertical-slices.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 문서: [Compatibility](../COMPATIBILITY.md), [Testing](../TESTING.md), [Roadmap](../ROADMAP.md)
@@ -30,7 +34,3 @@ M0는 8~12개 계약과 oracle/comparator를 검증하고, M1은 한 모델의 D
 ## 의도적으로 결정하지 않은 것
 
 초기 manifest encoding과 exact scenario adapter layout은 GDJ-0001에서 결정합니다.
-
-## 검증
-
-각 milestone은 CURRENT, work, implementation matrix, test evidence가 같은 checkout과 contract 상태를 가리킬 때만 닫습니다.

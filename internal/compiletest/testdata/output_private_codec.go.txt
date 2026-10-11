@@ -1,0 +1,6 @@
+package consumer
+
+import "github.com/progresshans/godj/api/output"
+
+type row struct { ID int64 }
+var _ = output.Shape[row]{node: nil}

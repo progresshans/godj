@@ -190,7 +190,7 @@ func setupMigrationRestartDatabase(ctx context.Context, path string, fixture mig
 		trace := newMigrationExecutionTrace(writer, fixture.definitions, &migrationExecutionFault{
 			key: fixture.failedMigration, direction: migrations.DirectionForward,
 		}, nil)
-		_, executionErr := (migrations.Executor{Backend: trace}).ExecutePlan(
+		_, executionErr := (migrations.DirectExecutor{Backend: trace}).ExecutePlan(
 			ctx, migrations.EmptyProjectState(), fixture.definitions, plan,
 		)
 		if executionErr == nil {
@@ -230,7 +230,7 @@ func writeMigrationRestartRecord(ctx context.Context, writer *sqlite.Backend, ke
 }
 
 func executeMigrationRestartSeed(ctx context.Context, writer *sqlite.Backend, definitions []migrations.Migration, keys ...migrations.MigrationKey) error {
-	_, err := (migrations.Executor{Backend: writer}).ExecutePlan(
+	_, err := (migrations.DirectExecutor{Backend: writer}).ExecutePlan(
 		ctx,
 		migrations.EmptyProjectState(),
 		definitions,

@@ -1,0 +1,29 @@
+package relationdeleteconsumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+)
+
+var (
+	_ orm.WriteDescriptor[authors.Author]                                                                           = authors.AuthorDescriptor{}
+	_ orm.RelationDeleter[authors.Author]                                                                           = project.RelationDeleters{}.AuthorsAuthor
+	_ func() (project.RelationDeleters, error)                                                                      = project.BindRelationDeleters
+	_ func(orm.RelationDeleter[authors.Author], context.Context, db.RelationAtomic, *authors.Author) (int64, error) = orm.RelationDeleter[authors.Author].Delete
+)
+
+func deleteAuthor(
+	ctx context.Context,
+	backend db.RelationAtomic,
+	author *authors.Author,
+) (int64, error) {
+	boundRelationDeleters, err := project.BindRelationDeleters()
+	if err != nil {
+		return 0, err
+	}
+	return boundRelationDeleters.AuthorsAuthor.Delete(ctx, backend, author)
+}

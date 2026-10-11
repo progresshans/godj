@@ -1,0 +1,614 @@
+{
+  "autodetection": {
+    "add": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_changepair_compound_first_second",
+        "operations": [
+          {
+            "constraint": {
+              "fields": [
+                "first",
+                "second"
+              ],
+              "name": "compound_first_second"
+            },
+            "kind": "AddConstraint",
+            "model": "changepair"
+          }
+        ]
+      }
+    ],
+    "add_field_and_constraint": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_changepair_third_changepair_compound_first_third",
+        "operations": [
+          {
+            "kind": "AddField",
+            "model": "changepair",
+            "name": "third"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "first",
+                "third"
+              ],
+              "name": "compound_first_third"
+            },
+            "kind": "AddConstraint",
+            "model": "changepair"
+          }
+        ]
+      }
+    ],
+    "cross_app_cycle": [
+      {
+        "app": "compound",
+        "dependencies": [],
+        "name": "0001_initial",
+        "operations": [
+          {
+            "constraints": [],
+            "fields": [
+              "id",
+              "key"
+            ],
+            "kind": "CreateModel",
+            "name": "A"
+          }
+        ]
+      },
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_initial"
+          ],
+          [
+            "compound_peer",
+            "0001_initial"
+          ]
+        ],
+        "name": "0002_initial",
+        "operations": [
+          {
+            "kind": "AddField",
+            "model": "a",
+            "name": "peer"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "peer",
+                "key"
+              ],
+              "name": "compound_a_peer_key"
+            },
+            "kind": "AddConstraint",
+            "model": "a"
+          }
+        ]
+      },
+      {
+        "app": "compound_peer",
+        "dependencies": [
+          [
+            "compound",
+            "0001_initial"
+          ]
+        ],
+        "name": "0001_initial",
+        "operations": [
+          {
+            "constraints": [
+              {
+                "fields": [
+                  "peer",
+                  "key"
+                ],
+                "name": "compound_b_peer_key"
+              }
+            ],
+            "fields": [
+              "id",
+              "key",
+              "peer"
+            ],
+            "kind": "CreateModel",
+            "name": "B"
+          }
+        ]
+      }
+    ],
+    "remove": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_remove_changepair_compound_first_second",
+        "operations": [
+          {
+            "kind": "RemoveConstraint",
+            "model": "changepair",
+            "name": "compound_first_second"
+          }
+        ]
+      }
+    ],
+    "remove_field_and_constraint": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_remove_changepair_compound_first_second_and_more",
+        "operations": [
+          {
+            "kind": "RemoveConstraint",
+            "model": "changepair",
+            "name": "compound_first_second"
+          },
+          {
+            "kind": "RemoveField",
+            "model": "changepair",
+            "name": "second"
+          }
+        ]
+      }
+    ],
+    "rename": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_remove_changepair_compound_first_second_and_more",
+        "operations": [
+          {
+            "kind": "RemoveConstraint",
+            "model": "changepair",
+            "name": "compound_first_second"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "first",
+                "second"
+              ],
+              "name": "compound_renamed"
+            },
+            "kind": "AddConstraint",
+            "model": "changepair"
+          }
+        ]
+      }
+    ],
+    "reorder_constraints": [],
+    "reorder_fields": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_remove_changepair_compound_first_second_and_more",
+        "operations": [
+          {
+            "kind": "RemoveConstraint",
+            "model": "changepair",
+            "name": "compound_first_second"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "second",
+                "first"
+              ],
+              "name": "compound_first_second"
+            },
+            "kind": "AddConstraint",
+            "model": "changepair"
+          }
+        ]
+      }
+    ],
+    "replace_member": [
+      {
+        "app": "compound",
+        "dependencies": [
+          [
+            "compound",
+            "0001_base"
+          ]
+        ],
+        "name": "0002_remove_changepair_compound_first_second_and_more",
+        "operations": [
+          {
+            "kind": "RemoveConstraint",
+            "model": "changepair",
+            "name": "compound_first_second"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "first",
+                "third"
+              ],
+              "name": "compound_first_second"
+            },
+            "kind": "AddConstraint",
+            "model": "changepair"
+          }
+        ]
+      }
+    ],
+    "same_app_cycle": [
+      {
+        "app": "compound",
+        "dependencies": [],
+        "name": "0001_initial",
+        "operations": [
+          {
+            "constraints": [],
+            "fields": [
+              "id",
+              "key"
+            ],
+            "kind": "CreateModel",
+            "name": "A"
+          },
+          {
+            "constraints": [],
+            "fields": [
+              "id",
+              "key",
+              "peer"
+            ],
+            "kind": "CreateModel",
+            "name": "B"
+          },
+          {
+            "kind": "AddField",
+            "model": "a",
+            "name": "peer"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "peer",
+                "key"
+              ],
+              "name": "compound_b_peer_key"
+            },
+            "kind": "AddConstraint",
+            "model": "b"
+          },
+          {
+            "constraint": {
+              "fields": [
+                "peer",
+                "key"
+              ],
+              "name": "compound_a_peer_key"
+            },
+            "kind": "AddConstraint",
+            "model": "a"
+          }
+        ]
+      }
+    ]
+  },
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "forms": {
+    "complete_duplicate": {
+      "cleaned_name": "shared",
+      "errors": [
+        {
+          "codes": [
+            "unique_together"
+          ],
+          "field": "__all__"
+        }
+      ],
+      "valid": false
+    },
+    "complete_self": {
+      "cleaned_name": "shared",
+      "errors": [],
+      "valid": true
+    },
+    "server_owned_category": {
+      "cleaned_name": "shared",
+      "errors": [],
+      "valid": true
+    }
+  },
+  "migration": {
+    "catalog_preserved": true,
+    "constraint_columns": [
+      "bucket",
+      "code"
+    ],
+    "duplicates_rejected": true,
+    "native_duplicate": "integrity_error",
+    "retained_index": true,
+    "reverse_constraint_removed": true,
+    "reverse_duplicate_count": 2,
+    "reverse_rows_preserved": true,
+    "rows_preserved": true
+  },
+  "named_single": {
+    "errors": [
+      {
+        "errors": [
+          {
+            "code": "unique",
+            "unique_check": [
+              "name"
+            ]
+          }
+        ],
+        "field": "name"
+      }
+    ],
+    "selects": 1,
+    "valid": false
+  },
+  "native": {
+    "insert": {
+      "all_label_rows_preserved": true,
+      "earlier_write_rolled_back": true,
+      "integrity_error": true
+    },
+    "update": {
+      "all_label_rows_preserved": true,
+      "earlier_write_rolled_back": true,
+      "integrity_error": true
+    }
+  },
+  "nullable": [
+    {
+      "left": null,
+      "native": "saved",
+      "right": null,
+      "stored_count": 2,
+      "validation": {
+        "errors": [],
+        "selects": 0,
+        "valid": true
+      }
+    },
+    {
+      "left": 1,
+      "native": "saved",
+      "right": null,
+      "stored_count": 2,
+      "validation": {
+        "errors": [],
+        "selects": 0,
+        "valid": true
+      }
+    },
+    {
+      "left": null,
+      "native": "saved",
+      "right": "key",
+      "stored_count": 2,
+      "validation": {
+        "errors": [],
+        "selects": 0,
+        "valid": true
+      }
+    },
+    {
+      "left": 1,
+      "native": "integrity_error",
+      "right": "key",
+      "stored_count": 1,
+      "validation": {
+        "errors": [
+          {
+            "errors": [
+              {
+                "code": "unique_together",
+                "unique_check": [
+                  "left",
+                  "right"
+                ]
+              }
+            ],
+            "field": "__all__"
+          }
+        ],
+        "selects": 1,
+        "valid": false
+      }
+    },
+    {
+      "left": 2,
+      "native": "integrity_error",
+      "right": "",
+      "stored_count": 1,
+      "validation": {
+        "errors": [
+          {
+            "errors": [
+              {
+                "code": "unique_together",
+                "unique_check": [
+                  "left",
+                  "right"
+                ]
+              }
+            ],
+            "field": "__all__"
+          }
+        ],
+        "selects": 1,
+        "valid": false
+      }
+    }
+  ],
+  "overlapping": {
+    "both": {
+      "errors": [
+        {
+          "errors": [
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "first",
+                "second"
+              ]
+            },
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "first",
+                "third"
+              ]
+            }
+          ],
+          "field": "__all__"
+        }
+      ],
+      "selects": 2,
+      "valid": false
+    },
+    "exclude_first": {
+      "errors": [],
+      "selects": 0,
+      "valid": true
+    },
+    "exclude_second": {
+      "errors": [
+        {
+          "errors": [
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "first",
+                "third"
+              ]
+            }
+          ],
+          "field": "__all__"
+        }
+      ],
+      "selects": 1,
+      "valid": false
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "MigrationAutodetector": "b1aea70cd2483df3621e8e950e5d82f1aacf14308bbb9c42d29ec62a7a7c5b88",
+    "Model": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "ModelForm": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+    "UniqueConstraint": "974e64dc78f8a33701e9d0372bfba7fa4578bc0b9f1fe08df2491fb7f0774663"
+  },
+  "validation": {
+    "exclude_category": {
+      "errors": [],
+      "selects": 0,
+      "valid": true
+    },
+    "exclude_name": {
+      "errors": [],
+      "selects": 0,
+      "valid": true
+    },
+    "other_category": {
+      "errors": [],
+      "selects": 1,
+      "valid": true
+    },
+    "own_unchanged": {
+      "errors": [],
+      "selects": 1,
+      "valid": true
+    },
+    "reassign_conflict": {
+      "errors": [
+        {
+          "errors": [
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "category",
+                "name"
+              ]
+            }
+          ],
+          "field": "__all__"
+        }
+      ],
+      "selects": 1,
+      "valid": false
+    },
+    "same_pair": {
+      "errors": [
+        {
+          "errors": [
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "category",
+                "name"
+              ]
+            }
+          ],
+          "field": "__all__"
+        }
+      ],
+      "selects": 1,
+      "valid": false
+    },
+    "update_conflict": {
+      "errors": [
+        {
+          "errors": [
+            {
+              "code": "unique_together",
+              "unique_check": [
+                "category",
+                "name"
+              ]
+            }
+          ],
+          "field": "__all__"
+        }
+      ],
+      "selects": 1,
+      "valid": false
+    }
+  }
+}

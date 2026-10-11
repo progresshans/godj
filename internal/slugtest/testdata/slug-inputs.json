@@ -1,0 +1,294 @@
+[
+  {
+    "name": "plain",
+    "value": "article-name"
+  },
+  {
+    "name": "upper",
+    "value": "Article_Name-9"
+  },
+  {
+    "name": "digits",
+    "value": "123"
+  },
+  {
+    "name": "only_dash",
+    "value": "-"
+  },
+  {
+    "name": "only_underscore",
+    "value": "_"
+  },
+  {
+    "name": "repeated",
+    "value": "__--"
+  },
+  {
+    "name": "empty",
+    "value": ""
+  },
+  {
+    "name": "null",
+    "value": null
+  },
+  {
+    "name": "spaces",
+    "value": "   "
+  },
+  {
+    "name": "ascii_padding",
+    "value": " \tArticle_Name\r\n"
+  },
+  {
+    "name": "unicode_padding",
+    "value": "  이름-2"
+  },
+  {
+    "name": "control_padding",
+    "value": "\u001cPlain\u001f"
+  },
+  {
+    "name": "newline_end",
+    "value": "plain\n"
+  },
+  {
+    "name": "two_newlines",
+    "value": "plain\n\n"
+  },
+  {
+    "name": "newline_middle",
+    "value": "plain\nname"
+  },
+  {
+    "name": "crlf_end",
+    "value": "plain\r\n"
+  },
+  {
+    "name": "embedded_space",
+    "value": "plain name"
+  },
+  {
+    "name": "dot",
+    "value": "plain.name"
+  },
+  {
+    "name": "slash",
+    "value": "plain/name"
+  },
+  {
+    "name": "backslash",
+    "value": "plain\\name"
+  },
+  {
+    "name": "percent",
+    "value": "plain%20name"
+  },
+  {
+    "name": "colon",
+    "value": "plain:name"
+  },
+  {
+    "name": "question",
+    "value": "plain?name"
+  },
+  {
+    "name": "hash",
+    "value": "plain#name"
+  },
+  {
+    "name": "quote",
+    "value": "plain'name"
+  },
+  {
+    "name": "sql",
+    "value": "x'); DROP TABLE slug_reference_article; --"
+  },
+  {
+    "name": "markup",
+    "value": "<script>"
+  },
+  {
+    "name": "email",
+    "value": "person@example.com"
+  },
+  {
+    "name": "url",
+    "value": "https://example.com"
+  },
+  {
+    "name": "null_byte",
+    "value": "plain\u0000name"
+  },
+  {
+    "name": "null_end",
+    "value": "plain\u0000"
+  },
+  {
+    "name": "hangul",
+    "value": "읽기-쉬운_주소"
+  },
+  {
+    "name": "han",
+    "value": "中文-文章"
+  },
+  {
+    "name": "latin",
+    "value": "café"
+  },
+  {
+    "name": "latin_decomposed",
+    "value": "café"
+  },
+  {
+    "name": "sharp_s",
+    "value": "Straße"
+  },
+  {
+    "name": "greek",
+    "value": "Σίσυφος"
+  },
+  {
+    "name": "cyrillic",
+    "value": "статья"
+  },
+  {
+    "name": "arabic_letters",
+    "value": "مقالة"
+  },
+  {
+    "name": "arabic_digits",
+    "value": "١٢٣"
+  },
+  {
+    "name": "devanagari_marks",
+    "value": "हिन्दी"
+  },
+  {
+    "name": "jamo",
+    "value": "한"
+  },
+  {
+    "name": "fullwidth_letters",
+    "value": "ＡＢＣ１２３"
+  },
+  {
+    "name": "fullwidth_dash",
+    "value": "plain－name"
+  },
+  {
+    "name": "fullwidth_underscore",
+    "value": "plain＿name"
+  },
+  {
+    "name": "em_dash",
+    "value": "plain—name"
+  },
+  {
+    "name": "roman_numeral",
+    "value": "Ⅳ"
+  },
+  {
+    "name": "superscript",
+    "value": "²"
+  },
+  {
+    "name": "fraction",
+    "value": "¼"
+  },
+  {
+    "name": "circled_digit",
+    "value": "①"
+  },
+  {
+    "name": "tamil_number",
+    "value": "௰"
+  },
+  {
+    "name": "deseret",
+    "value": "𐐀𐐨"
+  },
+  {
+    "name": "unicode16_letter",
+    "value": "𞗐"
+  },
+  {
+    "name": "unicode16_digit",
+    "value": "𞗱"
+  },
+  {
+    "name": "unassigned",
+    "value": "𿿿"
+  },
+  {
+    "name": "combining_mark",
+    "value": "́"
+  },
+  {
+    "name": "zero_width_joiner",
+    "value": "a‍b"
+  },
+  {
+    "name": "zero_width_nonjoiner",
+    "value": "a‌b"
+  },
+  {
+    "name": "zero_width_space",
+    "value": "a​b"
+  },
+  {
+    "name": "bidi_override",
+    "value": "a‮b"
+  },
+  {
+    "name": "emoji",
+    "value": "article-😀"
+  },
+  {
+    "name": "replacement",
+    "value": "article-�"
+  },
+  {
+    "name": "next_line_middle",
+    "value": "ab"
+  },
+  {
+    "name": "tab_middle",
+    "value": "a\tb"
+  },
+  {
+    "name": "length_12",
+    "value": "aaaaaaaaaaaa"
+  },
+  {
+    "name": "length_13",
+    "value": "aaaaaaaaaaaaa"
+  },
+  {
+    "name": "length_50",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "name": "length_51",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "name": "unicode_50",
+    "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+  },
+  {
+    "name": "unicode_51",
+    "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+  },
+  {
+    "name": "padded_50",
+    "value": " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA "
+  },
+  {
+    "name": "invalid_long",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b"
+  },
+  {
+    "name": "very_long",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+]

@@ -1,0 +1,3 @@
+package consumer
+import("time";"github.com/progresshans/godj/examples/helpdesk/models")
+var _ = models.TicketFields.Elapsed.Exact(time.Second)

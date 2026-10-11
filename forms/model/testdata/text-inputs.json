@@ -1,0 +1,15 @@
+[
+  "",
+  " ",
+  "\r\n",
+  "\u00a0\u2003",
+  "one line",
+  "  first line\nsecond line  ",
+  "\n\nleading lines\n",
+  "windows\r\nline",
+  "</textarea><script>x</script> & \"quoted\"",
+  "100%_literal",
+  "\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e\u65e5\u672c\u8a9e",
+  "long paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\nlong paragraph\n",
+  "null\u0000character"
+]

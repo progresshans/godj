@@ -1,0 +1,4 @@
+package consumer
+import "github.com/progresshans/godj/api/input"
+type row struct{}
+var _ = input.Field("value",input.Integer(),func(*row,input.Presence[string]){})

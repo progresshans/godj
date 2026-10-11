@@ -1,0 +1,1932 @@
+{
+  "backend": "postgresql",
+  "coercions": [
+    {
+      "errors": {},
+      "input": [
+        "7"
+      ],
+      "valid": true,
+      "validated_labels": [
+        7
+      ]
+    },
+    {
+      "errors": {},
+      "input": [
+        "+7"
+      ],
+      "valid": true,
+      "validated_labels": [
+        7
+      ]
+    },
+    {
+      "errors": {},
+      "input": [
+        "007"
+      ],
+      "valid": true,
+      "validated_labels": [
+        7
+      ]
+    },
+    {
+      "errors": {},
+      "input": [
+        7.0
+      ],
+      "valid": true,
+      "validated_labels": [
+        7
+      ]
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": [
+        7.1
+      ],
+      "valid": false
+    },
+    {
+      "errors": {},
+      "input": [
+        "7.0"
+      ],
+      "valid": true,
+      "validated_labels": [
+        7
+      ]
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": [
+        "7e0"
+      ],
+      "valid": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": [
+        "bad"
+      ],
+      "valid": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": [
+        9223372036854775808
+      ],
+      "valid": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "not_a_list"
+        ]
+      },
+      "input": "7",
+      "valid": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "not_a_list"
+        ]
+      },
+      "input": 7,
+      "valid": false
+    },
+    {
+      "errors": {},
+      "input": {},
+      "valid": true,
+      "validated_labels": []
+    }
+  ],
+  "database_version": "170005",
+  "django": "6.1",
+  "drf": "3.18.0",
+  "observations": [
+    {
+      "errors": {
+        "subject": [
+          "required"
+        ]
+      },
+      "input": {},
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "subject": [
+          "required"
+        ]
+      },
+      "input": {
+        "labels": []
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels": [],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [
+          7
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels": [
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          9,
+          7,
+          9
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels": [
+        9,
+        7,
+        9
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          11,
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [
+          7,
+          11
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels": [
+        11,
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          1152921504606846976
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [
+          1152921504606846976
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 1,
+      "valid": true,
+      "validated_labels": [
+        1152921504606846976
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          12
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          7,
+          999
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "null"
+        ]
+      },
+      "input": {
+        "labels": null,
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          0
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          -1
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          true
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          null
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          [
+            7
+          ]
+        ],
+        "subject": "After"
+      },
+      "mode": "create",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "subject": [
+          "required"
+        ]
+      },
+      "input": {},
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "subject": [
+          "required"
+        ]
+      },
+      "input": {
+        "labels": []
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "result": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          9,
+          7,
+          9
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        9,
+        7,
+        9
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          11,
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          11
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          11
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        11,
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          1152921504606846976
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          1152921504606846976
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          1152921504606846976
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        1152921504606846976
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          12
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          7,
+          999
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "null"
+        ]
+      },
+      "input": {
+        "labels": null,
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          0
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          -1
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          true
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          null
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          [
+            7
+          ]
+        ],
+        "subject": "After"
+      },
+      "mode": "put",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {},
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": []
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "Before"
+      },
+      "result": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "result": {
+        "labels": [],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          9,
+          7,
+          9
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        9,
+        7,
+        9
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          11,
+          7
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          11
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          7,
+          11
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ]
+        },
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        11,
+        7
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {},
+      "input": {
+        "labels": [
+          1152921504606846976
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          1152921504606846976
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "result": {
+        "labels": [
+          1152921504606846976
+        ],
+        "positive_id": true,
+        "retained": {},
+        "subject": "After"
+      },
+      "ticket_count_delta": 0,
+      "valid": true,
+      "validated_labels": [
+        1152921504606846976
+      ],
+      "validated_labels_present": true
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          12
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          7,
+          999
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "null"
+        ]
+      },
+      "input": {
+        "labels": null,
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          0
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "does_not_exist"
+        ]
+      },
+      "input": {
+        "labels": [
+          -1
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          true
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          null
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    },
+    {
+      "errors": {
+        "labels": [
+          "invalid"
+        ]
+      },
+      "input": {
+        "labels": [
+          [
+            7
+          ]
+        ],
+        "subject": "After"
+      },
+      "mode": "patch",
+      "original": {
+        "labels": [
+          7,
+          9
+        ],
+        "positive_id": true,
+        "retained": {
+          "7": [
+            true,
+            true
+          ],
+          "9": [
+            true,
+            true
+          ]
+        },
+        "subject": "Before"
+      },
+      "ticket_count_delta": 0,
+      "valid": false,
+      "validated_labels_present": false
+    }
+  ],
+  "python": "3.14.3",
+  "rollback": {
+    "labels": [
+      7,
+      9
+    ],
+    "positive_id": true,
+    "retained": {
+      "7": [
+        true,
+        true
+      ],
+      "9": [
+        true,
+        true
+      ]
+    },
+    "subject": "Before"
+  },
+  "scope_changed_after_validation": {
+    "labels": [
+      11
+    ],
+    "positive_id": true,
+    "retained": {},
+    "subject": "Before"
+  },
+  "source_sha256": {
+    "drf_fields": "c0c1540aacc5b4b9d9ee972cae322b0a0a10823d017ea3ffc0d3b85d500143d6",
+    "drf_relations": "7bb3ef4a0515e2641729e3be48137f7bff04799c259081bfb1c38d1d6070eea9",
+    "drf_serializers": "9be844341dc7b2bde6a3808122840417b7d39aa9966a22136f416607248ba8b0"
+  }
+}

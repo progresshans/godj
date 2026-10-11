@@ -1,56 +1,196 @@
-# 구현·호환 상태표
+# 현재 구현 범위
 
-- 마지막 갱신: 2026-08-08
-- `Design`은 문서 결정, `Code`는 현재 checkout 구현, `Verified`는 기록된 실행 증거를 뜻합니다.
-- `—`는 해당 검증이 아직 적용되지 않음을 뜻하며 pass가 아닙니다.
+코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
+현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
-| Capability | Contract | Design | Code | Unit/Compile | Differential | Backend |
-|---|---|---|---|---|---|---|
-| Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Nine reference sets and eight product adapter sets bound to one exact profile | Django 6.1 / SQLite 3.50.4 reference |
-| Contract/oracle harness | META-002 | Accepted protocol v2 + fail-closed deviation policy | Nine-set Django reference harness + eight GoDj product adapters + explicit static/deviation baselines | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Product `83 passing + 4 deviation` plus 10 `oracle_locked`; 97 unique contracts and nine-set 72 cross-bindings | Django exact reference + Go SQLite 3.53.3 |
-| Write/migration reference oracle | MOD-001..MOD-007, MIG-001..MIG-004 | Accepted compatibility contracts | Django oracle + GoDj runtime adapter + explicit not-implemented fixture | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 11 `passing`; static fixture는 expected 11 mismatch | Django 6.1 / SQLite 3.50.4 vs Go SQLite 3.53.3 |
-| Django model metadata oracle | SCH-001 | Accepted M0 observation | Django reference + generated descriptor projection implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | `passing` | Django SQLite 3.50.4 / Go SQLite 3.53.3 |
-| Schema DSL | SCH-M1-001 subset | M1 scope Accepted | Auto/Char/Boolean/nullable Article + typed scalar default | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | SCH-001 `passing` through IR/codegen | — |
-| Normalized Schema IR | SCH-M1-001 | [ADR-0001](../adr/0001-schema-ir-as-canonical-source.md) Accepted | Version 2 normalize/validate/canonical hash/default deep clone | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | SCH-001 `passing` | — |
-| Deterministic codegen | GEN-M1-001 | ADR-0002/0006/0009/0011/0012 Accepted | v3 read model + `CloneModel` + create/patch/write descriptor + Save/key helpers, hash/golden/check/last-good | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | SCH/MOD/QRY generated paths `passing` | external positive/negative compile |
-| Codegen bootstrap | GEN-010 / GEN-M1-001 | [ADR-0006](../adr/0006-codegen-input-package-boundary.md) Accepted | M0 spike + production overlay compile-only replacement implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | — | missing/stale target fixtures |
-| Generated model/FieldSet | GEN-M1-001 | ADR-0007/0009/0011/0012 Accepted for verified subset | Article/FieldSet/descriptor/Manager/`CloneModel`/create/patch/Save option binding implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | QRY/SCH/MOD subset `passing` | SQLite 3.53.3 |
-| Generic Manager/QuerySet | QRY-001..QRY-021 | ADR-0003/0007/0012 Accepted for verified subset | Filter/OrderBy/Limit/Fresh + cached All/Count/Exists/At/First/Iterate implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 21 QRY contracts `passing` | SQLite 3.53.3 |
-| Typed predicate API | QRY-M1-001 | ADR-0003/0007 Accepted for M1 | exact/icontains/isnull + typed order implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | relevant QRY contracts `passing` | external negative compile |
-| Dynamic lookup API | QRY-008/QRY-010 + QRY-M1-001 | [ADR-0007](../adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) Accepted for M1 | Ordered ParseDynamic + policy/error taxonomy implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY-008/010 `passing` | pre-execution validation |
-| Shared Query AST | QRY-M1-001 | ADR-0003 Accepted | Immutable Plan/Condition/Ordering/Value subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | typed/dynamic equality + QRY `passing` | SQLite compiler |
-| QuerySet evaluation/cache reference | QRY-011..QRY-021 | Accepted GDJ-0007 contracts | Django runner/oracle + explicit not-implemented fixture | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 11 `passing`; static fixture remains expected 11 mismatch | Django 6.1 / SQLite 3.50.4 |
-| QuerySet cache/terminal product | Q-007, Q-011 / QRY-011..QRY-021 | [ADR-0012](../adr/0012-queryset-evaluation-cache-ownership.md) Accepted; GDJ-0008 completed | Shared evaluation state, singleflight, deep clone, `Fresh`, and six terminal APIs implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 11 `passing` | SQLite 3.53.3 |
-| SQLite query execution | DB-SQLITE-001 | [ADR-0008](../adr/0008-m1-sqlite-driver-and-execution-boundary.md) Accepted for M1 | Compiler/executor/context/cleanup + structured `missing_table` subset implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | QRY-001..021 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
-| SQLite mutation/transaction | MOD-001..MOD-007 | [ADR-0009](../adr/0009-m2-explicit-write-change-state.md) Accepted | Parameterized one-row mutation + callback-bound Atomic implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | MOD-001..007 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
-| Model write lifecycle subset | MOD-001..MOD-007 | [ADR-0009](../adr/0009-m2-explicit-write-change-state.md) Accepted | Generated create/patch + Manager create/update/delete implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 7 `passing`; instance Save is separate row, dirty/bulk not claimed | SQLite 3.53.3 |
-| Save lifecycle reference oracle | MOD-008..MOD-019 | Accepted GDJ-0005 contracts | Django runner/oracle + explicit not-implemented fixture | [Pass EVID-005](TEST_EVIDENCE.md#evid-20260808-005--gdj-0006-save-lifecycle-product-slice) | 12 `passing`; static fixture는 expected 12 mismatch | Django 6.1 / SQLite 3.50.4 |
-| Mutable instance Save product | MOD-008..MOD-019 | [ADR-0011](../adr/0011-m2-save-lifecycle-orchestration.md) Accepted | Manager Save, typed/dynamic mask, force, explicit key/fallback implemented | [Pass EVID-005](TEST_EVIDENCE.md#evid-20260808-005--gdj-0006-save-lifecycle-product-slice) | 12 `passing` | SQLite 3.53.3 |
-| Migration state/executor subset | MIG-001..MIG-004 | [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md) Accepted | ProjectState/CreateModel/AddField/Executor implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | MIG-001..004 `passing` | backend-neutral core |
-| SQLite migration editor/recorder | MIG-001..MIG-004 | [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md) Accepted | Same-transaction DDL/recorder + explicit capability errors | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 4 `passing`; file/graph/lock not claimed | modernc v1.56.0 / SQLite 3.53.3 |
-| Migration planning reference | MIG-005..MIG-016 | Accepted GDJ-0009 contracts | Django runner/oracle + GoDj public Planner adapter + explicit not-implemented fixture | [Pass EVID-009](TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice) | 12 `passing`; static ordered 12 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Migration graph/planner product | MIG-005..MIG-016 / Q-012 | [ADR-0013](../adr/0013-immutable-migration-planner.md) Accepted; GDJ-0010 completed | Immutable identity graph, separate AppliedState, canonical zero-I/O Planner와 structured errors implemented | [Pass EVID-009](TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice) | 12 `passing`; pure zero-I/O planner subset | Backend-neutral pure structural boundary |
-| Migration plan execution reference | MIG-017..MIG-026 / Q-012 | Accepted GDJ-0011 contracts | Django runner/oracle + GoDj live adapter + explicit static/deviation fixtures | [Pass EVID-011](TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse) | 6 `passing` + 4 verified `deviation`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Migration plan execution product | MIG-017..MIG-026 / Q-012 / DEV-0001 | [ADR-0014](../adr/0014-migration-plan-execution-atomic-reverse.md) Accepted; GDJ-0012 completed | Full-preflight `ExecutePlan`, per-migration commit, last durable state, cancellation와 same-transaction reverse implemented | [Pass EVID-011](TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse) | 6 exact `passing` + 4 DEV-0001 expected 0-diff | Existing backend interface + modernc SQLite 3.53.3 |
-| Recorder-backed restart planning reference | MIG-027..MIG-036 / Q-012 | Accepted GDJ-0013 contracts | Django runner/oracle + GoDj live adapter + explicit not-implemented fixture | [Pass EVID-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice) | 10 `passing`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Recorder-backed restart planning product | MIG-027..MIG-036 / Q-012 | [ADR-0015](../adr/0015-recorder-backed-applied-state.md) Accepted; GDJ-0014 completed | Separate applied-history reader, `LoadAppliedState`, `CheckHistory`, SQLite fresh-file read와 live adapter implemented | [Pass EVID-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice) | 10 `passing`; Django oracle와 protocol 의미상 0-diff | Backend-neutral reader/core + modernc SQLite 3.53.3 |
-| Historical ProjectState reconstruction reference | MIG-037..MIG-046 / Q-012 | Accepted GDJ-0015 contracts | Locked Django runner/oracle + explicit not-implemented fixture | [Pass EVID-015](TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice) | Product manifest 10 `passing`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Historical ProjectState reconstruction product | MIG-037..MIG-046 / Q-012 | [ADR-0016](../adr/0016-historical-project-state-reconstruction.md) Accepted; GDJ-0016 completed | Immutable tagged-request `StateReconstructor`, cloned definition/state replay, read-only recorder-backed live adapter implemented | [Pass EVID-015](TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice) | 10 `passing`; two byte-identical Go actuals and Django oracle protocol 10/0-diff | Backend-neutral pure core + mode=ro modernc SQLite 3.53.3 adapter |
-| Migration lifecycle reference | MIG-047..MIG-056 / Q-012 | Accepted GDJ-0017 contracts | Locked Django public-orchestration runner/oracle + explicit not-implemented fixture; GoDj adapter 없음 | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | 10 `oracle_locked`; Django oracle 10 `observed`; static ordered 10 mismatch; product exit 2/no actual | Django 6.1 / SQLite 3.50.4 reference |
-| Revision-fenced migration lifecycle feasibility | Q-012 | [ADR-0017](../adr/0017-revision-fenced-migration-lifecycle.md) Accepted safety direction; GDJ-0017 completed | Test-only SQLite fence/coordinator와 current product stale-gap characterization; 제품 source/API 미구현 | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Stale-before-write/between-step, single-winner, rollback, contention, unsupported와 process repetition pass; product differential 적용 안 됨 | modernc SQLite 3.53.3 test-only spike |
-| Relations | REL-001+ | Open Q-013 / M3 | Not started | Not run | Not run | — |
-| PostgreSQL backend | DB-PG-001+ | Planned M3 | Not started | Not run | Not run | Not started |
-| Web core | WEB-001+ | Long-term accepted | Not started | Not run | Not run | — |
-| Forms/Auth/Admin | FRM/AUT/ADM | Long-term accepted | Not started | Not run | Not run | — |
-| API | API-001+ | Profile open Q-016 | Not started | Not run | Not run | — |
-| Realtime | RTM-001+ | Profile open Q-016 | Not started | Not run | Not run | — |
-| MySQL/MariaDB/Oracle | DB-* | Planned M9 | Not started | Not run | Not run | Not started |
-| GIS/i18n/contrib | GIS/I18N/CTR | Long-term accepted | Not started | Not run | Not run | — |
+GDJ-0104의 URLField·Helpdesk 외부 참조는 제품/생성/소비자와 native·양 DB·독립 client·Admin 브라우저 및
+영향 세 mode·실패 대조/fuzz와 source `e79d7795`의 Hosted full 통합을 완료했다. [URL 의미](../adr/0083-url-fields-and-input-normalization.md)를 따른다.
 
-## 상태 갱신 규칙
+GDJ-0105의 SlugField·일반 DBIndex·Article 주소는 영향 검증과 source `99ac532a`의 Hosted full 통합을 완료했다.
+[Slug/인덱스 의미](../adr/0084-slug-fields-and-column-index-ownership.md)를 따른다.
 
-- `Code = Implemented`는 관련 source가 현재 checkout에 있을 때만 사용합니다.
-- `Unit/Compile = Pass`와 `Differential = passing`은 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)의 evidence ID를 셀 또는 주석에 연결합니다.
-- backend 이름만 적지 않고 exact profile을 evidence에 기록합니다.
-- 기능 일부만 통과하면 행을 더 잘게 나눕니다. 부분 구현을 전체 capability의 pass로 올리지 않습니다.
-- intentional deviation은 [COMPATIBILITY.md](../COMPATIBILITY.md)의 정책과 ADR 링크를 함께 남깁니다.
+GDJ-0106의 BinaryField·공통 Editable 입력 정책·Helpdesk payload 지문은 영향 검증·브라우저·실패 대조·생성 drift와
+source `8e5c2b3e`의 Hosted full 통합을 완료했다. 필수 실행·새 capture/source 결합·S3 service 수명을 함께 확인했다.
+[Binary 의미](../adr/0085-binary-fields-and-model-input-policy.md)와 환경별 [실행 기록](TEST_EVIDENCE.md)을 따른다.
+
+GDJ-0107의 fresh 단건 Get·지연 GetOrCreate, 원 metadata snapshot과 native savepoint를 구현하고
+일반/eager/prefetch 생성 소비자를 연결했다. [단건 생성 의미](../adr/0086-single-object-creation-and-savepoint-ownership.md)를 따른다.
+최종 Django 기준 fixture와 별도 Go 소비자의 양 DB 대조를 완료했다.
+Helpdesk의 Form/Admin/API·독립 client·원자 audit와 영향 세 mode·양 DB·실제 브라우저 확인을 완료했다.
+Source `8f8831ac`의 [Hosted full 36866445270](https://github.com/progresshans/godj/actions/runs/36866445270)은
+65개 job / 8개 필수 owner·최종 집계·새 capture의 Git source 결합과 소비, PostgreSQL core 세 mode와 S3 수명까지 완료했다.
+
+GDJ-0108의 행 잠금 AST·native backend·typed/dynamic 및 생성 facade와 UpdateOrCreate를 구현했다.
+고정 Django observer와 생성 소비자의 SQLite/PostgreSQL 직접 대조·기존 행/생성/FK 경쟁 및 API 영향 세 mode를
+확인했다. Helpdesk ServiceReport의 티켓별 저장·현재 관계 범위·원자 audit·Admin 선택 입력·독립 API/client 연결도
+구현했으며 해당 업무 묶음의 영향 세 mode·양 DB·브라우저와 훼손 대조를 완료했다. Source `f6e95bb8`의
+[Hosted 전체 통합](https://github.com/progresshans/godj/actions/runs/36900514942)은 65개 job·필수 owner와 새 capture의
+Git source 결합·소비·최종 집계까지 완료했다.
+[행 잠금과 upsert 의미](../adr/0087-row-locking-and-update-or-create.md)를 따른다.
+
+GDJ-0109의 native 다중 행 AST/backend, 원자 batch·입력 소유권·충돌 정책과 generic ORM/typed root facade를 구현했다.
+영향 세 mode와 고정 Django 23개 사례의 실제 양 DB 직접 대조를 확인했다. Helpdesk bulk Form/Admin/API/client,
+현재 scope·전체 rollback/audit와 기존 편집기의 새 행 저장을 연결하고 영향 세 mode·양 DB·실제 브라우저를 확인했다.
+PostgreSQL system-state product 회귀의 실행 담당을 보완하고 source `720c9be`의 Hosted full에서
+필수 실행·capture/source 결합·실제 소비와 최종 집계까지 통합을 완료했다.
+[Bulk 의미](../adr/0088-bulk-creation-and-native-batch-ownership.md)와 [실행 기록](TEST_EVIDENCE.md)을 따른다.
+
+GDJ-0110의 selected-field bulk update AST/native backend·generic ORM·typed root/eager/prefetch facade를 구현했다.
+고정 Django 40개 사례와 PostgreSQL 잠금 대기 7개를 보존하며 실제 양 DB 영향 세 mode에서 직접 대조했다.
+Helpdesk의 여러 행 편집·Admin close/reopen·partial 배열 API와 독립 client도 연결했고 업무 묶음의 양 DB 영향 세 mode와
+실제 브라우저를 확인했다. Hosted에서 발견한 Article 알림 회귀를 수정해 영향 세 mode·브라우저를 통과했고,
+누적 race 시간 한도와 생성 소비자 분할도 보완했다.
+Source `720c9be`의 Hosted full 통합을 완료했다. [선택 필드와 bulk update 의미](../adr/0089-bulk-update-and-selected-field-ownership.md)를 따른다.
+
+GDJ-0111의 QuerySet native 갱신·same-row scalar AST·typed/dynamic 및 생성 facade, FK key typed field와
+cache generation 경계를 구현했다. 실제 양 DB·영향 세 mode·고정 native 기준 대조와 생성 drift/전체 compile을
+확인했다. Helpdesk 우선순위 명령·Admin/API/독립 client도 연결했고 업무 양 DB·세 mode·실제 브라우저를 확인했다.
+Source `720c9be`의 [Hosted full 통합](https://github.com/progresshans/godj/actions/runs/37365281161)을 완료했다.
+[표현식과 갱신 의미](../adr/0090-query-update-and-scalar-expressions.md)를 따른다.
+
+GDJ-0112의 scalar/forward 그룹 키·조건부 Count/Min/Max·HAVING·그룹 Count/Page, typed/dynamic 공통 AST와
+생성 facade를 구현했다. 고정 Django의 실제 양 DB 기준과 독립 생성 소비자·cache/session/단일 statement 페이지를
+normal/race/CGO=0에서 확인했다. 해당 묶음의 발행·생성 drift와 전체 compile도 확인했다. Helpdesk 업무 요약의
+HTML/API·독립 client, 현재 ViewTicket/Category 범위, NULL·기존 int64 값·필터/페이지와 읽기 snapshot을 연결하고
+업무 영향 세 mode·브라우저·필수 실행·DB 정리를 확인했다. Source `def77d5e`의 Hosted full `37569379536`에서
+GDJ-0112~0115의 전체 통합을 완료했다. 재시도·필수 owner·capture/source 감사는 [실행 기록](TEST_EVIDENCE.md)을 따른다.
+[그룹 의미](../adr/0091-grouped-results-and-having.md)를 따른다.
+
+GDJ-0113은 `api/output`의 명시적 typed property·중첩/배열/nullable·같은 ModelEncoder와 named schema를
+연결하고 Helpdesk의 요약·상세에서 JSON/schema 중복을 제거했다. 요청별 lazy projection과 전체 응답 예산·취소·실패를
+같은 writer에서 처리한다. 관련 전체 package의 세 mode·외부 compile·양 DB/독립 client·drift와 정리를 확인했다.
+Source `def77d5e`의 Hosted full 통합을 완료했다. 이후 typed endpoint·경로·배열 source의 검증과 구분한다.
+[출력 API](../../api/output/README.md)와 [출력 의미](../adr/0058-model-derived-openapi-and-operation-ownership.md)를 따른다.
+
+GDJ-0114는 `api/parameters`의 typed query codec·required/default/optional·선할당 없는 검증과 같은 OpenAPI parameter를
+구현하고 Helpdesk 요약과 Label/티켓–Label 목록에 연결했다. Canonical/digits 정수 표기·UTF-8 byte/empty 정책을 구분한다.
+실제 OpenAPI에서 고정 client를 재생성하고 영향 세 mode·양 DB·독립 HTTP/compile·drift와 정리를 완료했다.
+Source `def77d5e`의 Hosted full 통합을 완료했다.
+[입력 API](../../api/parameters/README.md)의 구현과 환경별 검증 완료를 구분한다.
+
+GDJ-0115는 같은 Spec/IR의 full/partial 검증을 `api/input.Body[T]`와 typed presence·nullable·현재 scalar/collection으로
+연결하고 공통 parser의 context/reader 수명을 보완했다. Label/ServiceReport create/PUT/PATCH·ensure/save가 소비한다.
+완성한 source의 영향 세 mode·양 DB·독립 HTTP/client·외부 compile·drift와 정리를 완료했다.
+Source `def77d5e`의 Hosted full 통합을 완료했다.
+[입력 의미](../../api/input/README.md)와 구현/환경별 검증을 구분한다.
+
+GDJ-0116은 typed 입력·준비 응답·권한·상태에서 실제 HTTP handler와 OpenAPI operation을 함께 준비한다.
+정확한 Output/예산에 결합된 `Prepared[T]`와 오류 우선 처리를 구현하고 Helpdesk 요약·Label ensure에 연결했다.
+Source `18fc0451`의 영향 세 mode·실제 Session/Bearer admission·양 DB/독립 client·외부 compile·drift와 정리를 완료했다.
+확인된 commit 뒤 취소로 성공을 번복하던 초기 결함을 수정했고 native 기대값/DB/audit 검사를 유지했다.
+후속 입력·삭제 endpoint와 결합한 `b14d0eaf`의 전체 platform/Hosted 통합을 완료했다.
+[Endpoint API](../../api/endpoint/README.md)와 환경별 실행 기록을 구분한다.
+
+GDJ-0117은 같은 router의 typed 경로와 Sequence/Resolve의 입력 순서를 구현하고 Article/Label 수정에 연결했다.
+입력 source 충돌·shared schema identity·깊이/실행/graph 한도를 검사하며 쓰기의 응답 준비를 commit 전에 끝낸다.
+Source `55e0453d`의 영향 세 mode·양 DB·독립 client·외부 compile·drift·고정 Article API 대조와 정리를 완료했다.
+후속 `b14d0eaf`에서 GDJ-0116과 함께 전체 platform/Hosted 통합을 완료했다.
+
+GDJ-0118은 같은 Body의 typed 배열·항목/전체 예산·개수 범위·named item 공유와 bounded indexed 진단을 구현했다.
+Helpdesk 단건/여러 티켓 생성과 Article의 1..40건 native 원자 생성이 사용한다. 전체 후보·최종 저장 row·출력/hook/audit와
+commit 경계를 유지했다. Source `6e6e4042`의 영향 세 mode·양 DB·독립 client·외부 compile·drift와 정리를 완료했다.
+이 변경을 포함한 `b14d0eaf`의 전체 platform/Hosted 통합을 완료했다.
+
+GDJ-0119는 같은 scalar/presence·byte 정책과 OpenAPI parameter를 갖는 typed header를 구현했다.
+Endpoint의 Header/Sequence/NoQuery와 연결하고 Identity의 If-Revision을 같은 선언에서 읽고 문서화한다.
+필수 부재 428·형식 오류 400·업무 revision 불일치 412와 인증/CSRF·경로/query·header·body·manager 순서를 유지한다.
+실제 문서 여섯 개를 export해 Identity 두 profile의 20개 parameter만 lexical/byte metadata가 추가됐음을 확인했다.
+Namespace 보정 source `cc2c2f25`의 원격 API/SDK·재생성 drift·실제 HTTP와 SQLite/PostgreSQL 필수 실행을 세 mode에서
+확인했다. Reference/capture owner와 Intel 관계 normal의 생성 소비자 세 분할·runtime도 완료했다.
+해당 선행 CI의 실패·분할 보완을 거쳐 `b14d0eaf`의 전체 platform/Hosted 통합을 완료했다.
+
+GDJ-0120은 본문 없는 204의 Output/Prepared·같은 endpoint/OpenAPI 선언을 Article/Label 삭제에 연결했다.
+Article의 callback 완료·mutation hook과 Label의 category/관계 삭제 경계를 유지하며 기존 validation 400도 문서에 기술한다.
+Source `b14d0eaf`의 공개 compile·HTTP·양 DB·독립 client/drift·세 모드와 전체 platform/Hosted 통합을 완료했다.
+GDJ-0116부터 GDJ-0120까지의 같은 source·필수 실행·capture와 최종 집계는 [실행 기록](TEST_EVIDENCE.md)을 따른다.
+
+GDJ-0121은 정수·Float·Decimal·Duration의 root/finite forward SUM/AVG와 typed/dynamic 결과를 구현했다.
+원본 필드 metadata와 결과 종류·정밀도를 분리하고 exact Decimal·Duration 반올림/범위·backend 오류를 명시한다.
+Helpdesk의 비용 합계·노력 평균·시간 합계를 같은 읽기 snapshot·HTML/API·독립 SDK에 연결했다.
+Source `02f350d3`의 로컬 normal 영향·양 DB·생성 client/drift·브라우저를 확인했다.
+같은 source의 [Hosted full 37706678533](https://github.com/progresshans/godj/actions/runs/37706678533)에서
+원격 세 모드·전체 platform, 83개 job·필수 실행·capture/source와 최종 집계를 확인했다.
+
+GDJ-0122는 같은 행의 scalar/CASE를 조회·조건·정렬·그룹 키·집계 operand와 typed/dynamic/생성 facade에 연결했다.
+Helpdesk 요약에 한 번 상승 뒤의 priority·표시명·변경 여부를 같은 읽기 snapshot으로 제공한다.
+제품·생성물과 실패 경로 테스트를 작성했으며 현재 source의 실제 제품·원격 전체 검증은 대기 중이다.
+[설계 경계](../adr/0090-query-update-and-scalar-expressions.md)와 [실행 기록](TEST_EVIDENCE.md)을 구분한다.
+
+## 기능
+
+
+| 영역 | 구현된 범위 | 주요 제한·다음 경계 | 코드 |
+|---|---|---|---|
+| Schema/IR | Auto·signed int64 Integer(nullable/default)·Char·Email(254자 기본·별도 입력 의미)·URL(200자 기본·Form 스킴 보완/JSON 완전한 URL)·Slug(50자 기본·ASCII/Unicode 입력·기본 DBIndex)·File(100자 기본 저장 이름·별도 업로드 의미)·Image(내용 검증·일반 정수 폭/높이 참조 소유권)·Text·Date·DateTime·Time·Duration·Float(binary64/nullable/default)·Decimal(exact coefficient/exponent·precision/scale)·Binary(불변 bytes/nullable/default·기본 비편집 입력)·UUID(128-bit/nullable/default)·JSON(exact token·SQL/JSON null·nullable/default)·Boolean(nullable/default)·FK/OneToOne, File/Image의 저장 이름을 포함한 string/int64 choices, 일반 column DBIndex·column Unique와 named model unique 선언·정규화·생성 metadata, normalized immutable snapshot; Nullable과 독립적인 scalar/FK/ManyToMany Blank 입력 정책과 scalar NonEditable 입력 정책; columnless ManyToMany 선언·자동 storage projection·generated binding | 양 DB column UNIQUE·ORM 사전 검증·Helpdesk Form/Admin/API/client 연결 지원; named model constraint는 선언·CreateModel/Add/Remove 이력·자동 계획과 양 DB native 적용·모든 key catalog·전체 candidate의 ORM 사전 검증까지 반영, Category Label의 Form/Admin/API/client 연결 구현, GDJ-0097의 소비자·전체 통합 검증 완료; conditional/expression constraint·relation-as-PK·custom field 미지원 | [schema](../../schema/), [정수 의미](../adr/0059-signed-integer-field-and-model-growth.md), [Text 의미](../adr/0060-text-field-and-form-widget-semantics.md), [DateTime 의미](../adr/0061-datetime-field-and-canonical-instant-values.md), [Date 의미](../adr/0065-calendar-date-field-and-input-boundaries.md), [Time 의미](../adr/0066-clock-time-field-and-precision-boundaries.md), [Duration 의미](../adr/0067-duration-model-range-and-number-input.md), [Float 의미](../adr/0068-binary64-field-and-finite-json-boundaries.md), [Decimal 의미](../adr/0069-exact-decimal-values-and-storage.md), [UUID 의미](../adr/0070-uuid-model-values-and-storage.md), [JSON 의미](../adr/0071-json-values-and-native-storage-boundaries.md) |
+| 생성 | ProjectSpec, typed model/FieldSet/descriptor와 project relation binding, 후보 compile/publication/recovery; External app의 schema/ABI 확인·read-only 파일과 호스트 관계 소유권 구현·영향 검증 완료 | Linux/macOS local filesystem 중심 | [codegen](../../codegen/) |
+| Query | typed/dynamic 공통 AST, Boolean composition, Char/Text literal IExact(root·관계)·scalar comparison·IN, 검증 뒤 빈 조회 SQL 생략, same-model F, projection·Count/Min/Max/Sum/Avg·관계 filter Count와 root DTO, forward 대상의 scalar·JSON 문서/경로 DTO 선택·정렬 | JSON은 exact/IN/F exact·isnull·projection과 명시적 key/index 경로의 exact/IN/isnull, PostgreSQL contains/contained_by와 양 DB has_key/has_keys/has_any_keys(root/path·forward); root/forward JSON path projection; literal JSON gt/gte/lt/lte·ASC/DESC와 literal 문자열 IContains(root/path·forward); SQLite containment·path compound RHS 대소 비교·JSON Min/Max·ordered F·reverse value/path projection·정렬은 미지원; 넓은 reverse relation·tuple/subquery IN·일반 annotation·계산식 aggregate operand·window와 추가 scalar expression은 별도; 행 잠금은 ADR-0087의 backend/target 제한을 따름 | [orm](../../orm/), [query](../../query/), [IN 의미](../adr/0062-scalar-membership-and-empty-query-execution.md) |
+| 그룹 집계 | scalar/finite forward 키·COUNT(field/distinct)·조건부 Count/Min/Max·root/finite forward 숫자 SUM/AVG(distinct/filter)·선택 결과 HAVING/정렬, 그룹 수와 단일 statement Page, typed/dynamic·생성 facade, 내부 cell cache·복사/세션 수명 | JSON/collection 키·reverse/collection aggregate·related MIN/MAX·일반 annotation은 미지원; source slice/eager/lock·비키 ordering은 명시적 거부; 기존 그룹/Helpdesk 흐름은 영향 세 모드·브라우저·Hosted 통합 완료; 새 숫자 집계는 source/result domain을 분리하고 NULL/0·overflow/실패와 Helpdesk 지표의 로컬 normal·양 DB·client/브라우저를 확인, 같은 source의 원격 세 모드·전체 platform/Hosted 통합 완료 | [그룹 의미](../adr/0091-grouped-results-and-having.md) |
+| 평가 | lazy query, full-result cache, cloning, iterator와 cancellation; 원 cache와 metadata snapshot을 보존하는 fresh Get과 0/여러 행 오류; 지연 생성 입력과 확인된 unique rollback 뒤 한 번의 재조회인 GetOrCreate; native 행 잠금/읽기·쓰기 충돌 정책 아래 원자 UpdateOrCreate·분기별 지연 입력·빈 patch와 반환 graph 수명 | 임의 model/callback의 goroutine 안전성을 포함하지 않음 | [ORM cache](../CONCURRENCY.md#queryset-평가) |
+| 대량 생성 | 불변 multi-row AST, 전체 입력 준비와 원자 batch, 명시/자동 key·입력 순서·독립 결과, normal/unique-ignore/선택 필드 upsert, Manager·root QuerySet·typed root facade; Helpdesk의 여러 건 Form/Admin/API 생성·독립 client와 전체 scope/라벨/출력/audit 원자성 | ignore는 저장된 개별 입력/key를 추측하지 않음; update 결과는 update mask 밖의 DB 값을 자동 새로고침하지 않음; source `720c9be`의 Hosted 통합 완료 | [Bulk 의미](../adr/0088-bulk-creation-and-native-batch-ownership.md) |
+| 대량 수정 | 명시 key와 selected mask의 불변 AST·전체 입력 선검증·native batch UPDATE, 실제 count·중복/없는 key·원 cache 보존, Manager·QuerySet·typed root/eager/prefetch facade; Helpdesk 여러 행 편집·Admin close/reopen·partial 배열 API와 독립 client, 전체 scope/라벨/출력/audit 원자성 | nonempty sliced query는 거부; 업무 영향 세 mode·브라우저·source `720c9be`의 Hosted 통합 완료 | [Bulk update 의미](../adr/0089-bulk-update-and-selected-field-ownership.md) |
+| 조건 기반 갱신 | QuerySet.Update·상수/same-row field 복사·int64/float64 산술, typed/dynamic 공통 AST와 FK typed key, native 조건 재평가·원자 statement/savepoint와 호출 query cache 무효화; Helpdesk 우선순위 명령의 Admin/API/client·현재 범위·무변경/극값 보존·실제 변경 audit | Decimal/temporal/function/subquery·Save/BulkUpdate expression은 미지원; source `720c9be`의 Hosted 통합 완료 | [갱신 의미](../adr/0090-query-update-and-scalar-expressions.md) |
+| 관계 | AutoField-target FK, 자기·상호 참조 선언/생성, lazy/forward/reverse, 최대 64 hop forward의 scalar lookup·FK isnull과 AND/OR/NOT, prefetch/eager All·First·Count·Get·GetOrCreate·UpdateOrCreate와 여러 direct·nested forward selected 관계·하위 cache·다른 filter JOIN 조합, assignment/cache, CASCADE/PROTECT/SET_NULL과 recursive delete·transitive fingerprint; OneToOne의 명시적 cardinality·단일 reverse 객체/prefetch·직접 scalar 조건과 isnull/AND/OR/NOT·typed/dynamic facade의 forward/reverse 혼합 eager tree, 명시적 reverse Set·required/nullable Clear·unsaved 저장과 outgoing FK를 가진 target의 incoming 정책 삭제; ManyToMany root manager의 add/remove/clear/set·nullable/nonunique through·self symmetry; 같은 typed/dynamic AST의 mixed 관계 조건·scalar lookup·AND/OR/NOT·isnull·IN·filter별 multiplicity·Distinct·Count; ManyToMany 양방향 direct/nested/filtered prefetch·typed/path selection·독립 model cache; 단일 FK/역방향 OneToOne prefetch·target Filter/OrderBy/Distinct/eager·root eager 조합과 부모 cache 재사용·조회 부재와 해제 할당 구분; reverse FK collection·ManyToMany target eager·파생 query 설정 보존·named collection snapshot과 owner별 slice | eager First는 명시적 정렬 필요; relation F·collection value projection/ordering·무제한 깊이·일반 순환 관계 동작·materialized streaming은 명시한 양수 배치 크기·BatchQueryer·callback context 필요; raw Iterate는 prefetch 설정 거부; OneToOne의 ServiceReport migration·Form/Admin/API/client 구현, GDJ-0096의 소비자 통합 milestone 완료 | [관계 소유권](../CONCURRENCY.md#관계-객체), [일대일 의미](../adr/0073-one-to-one-cardinality-and-reverse-objects.md) |
+| Migration | strict current definition, historical replay, immutable planner, revision fence, durable prefix, 다른 속성이 같은 scalar/ManyToMany Blank와 scalar Editable/Binary 입력 길이의 metadata-only 변경·reverse·자동 계획,  Char/Email/URL/Slug 입력 의미·일반 column index·choices·Decimal precision·Unique·관계 cardinality/reverse namespace/delete policy AlterField와 bounded reverse; historical self/cyclic graph·여러 FK Add/Remove·transitive target; self/later/cyclic 자동 계획·선언 순서와 prefix 재개; 명시적 through의 ManyToMany metadata migration과 자동 intermediary의 Create/Add/Remove/Rename·reverse·자동 계획·SQL projection, retained link PK/sequence 보존 | Unique의 historical wire/digest·자동 변경 계획과 양 DB DDL/catalog·실패/재시도·SQLite remake의 index 보존은 지원; named constraint의 CreateModel/AddConstraint/RemoveConstraint·역방향·자동 계획·순환 member 지연과 양 DB native ownership·원자적 실패/재시도·SQLite remake 보존을 지원; 명시적 scalar default AddField의 기존 행 backfill·최종 DB default 제거·SQL projection을 지원; required FK/default 없는 required 추가는 빈 table에서만 적용; 임의 data migration·넓은 schema 변경은 후속 | [migrations](../../migrations/) |
+| Migration CLI | project check, migrate/plan/target, showmigrations, bounded makemigrations, forward sqlmigrate | writer는 지원하는 difference만 작성 | [project](../../project/), [CLI](../../cmd/godj/) |
+| SQLite/PostgreSQL | current AST/CRUD/migration/system-state paths; borrowed savepoint의 중첩 session/cursor 수명·child 실행 중 parent 차단·정리 실패 시 parent commit 거부; SQLite 새 physical connection의 FK 활성화/readback | 각 backend capability와 물리 schema precondition 적용; JSON TEXT/CHECK·native JSONB의 모델·query/관계·historical add/reverse와 Form/Admin/API·독립 client 연결; UUID 모델·query/집계·historical add/reverse와 Form/Admin/API·독립 client 연결; Decimal은 SQLite BLOB과 PostgreSQL NUMERIC의 exact 저장·Form/API 비용 소비자까지 연결; Float의 SQLite NaN 거부와 signed-zero 정규화, PostgreSQL native 특수값 의미 구분 | [Backend Matrix](../BACKEND_MATRIX.md) |
+| SQLite quarantine | retained handle 최대 1, 이후 새 I/O 거부, explicit Close | GDJ-0057 통합 source의 backend/platform/mode 검증 완료 | [lifecycle](../../db/sqlite/relation_transaction.go) |
+| Web | request context, closed int64·bounded str routing/reverse·typed accessor·OpenAPI kind/limit, middleware, bounded HTTP errors, server lifecycle; 불변 유한 streaming·lazily opened reader·크기/EOF 검사·HEAD·한 번의 close·전송 실패 abort와 인가된 FileResponse; 같은 열린 파일의 conditional 조회·bounded 단일/여러 byte Range; 원본 path 대신 route name의 오류 진단 | 문자열 경로의 영향 normal/race/CGO=0·고정 Django·실제 HTTP/독립 ogen probe 확인; 파일 조건/범위는 별도 영향 normal/race·양 DB 소비자와 native/표준 비교로 검증; arbitrary converters/realtime/production deployment toolkit 미지원 | [web](../../web/), [경로 결정](../adr/0045-closed-parameterized-routing-and-reverse.md) |
+| Template/Form | closed safe template value, escaping, validation, model field allowlist projection·공통 재사용 Definition과 비저장 입력, PasswordInput·명시적 Char 공백 정책·pure 문자열 정규화·IR보다 좁은 입력 길이·입력 진단 비공개, Select choices·NullBooleanSelect·Textarea·DateInput·TimeInput·NumberInput(Float step=any·Decimal 선언 scale)·UTC DateTimeInput과 명시적 빈 입력 정책 | Decimal 원문 precision·scale 검사와 손실 없는 초기값 표시; 제공한 initial과 제출의 길이/정밀도 제약 분리·Admin snapshot 일치/수정 저장; UUID 별칭 입력·canonical 초기값·값 기준 변경 감지; JSON 원문·빈 값·exact 숫자 기반 변경 감지; bound Form.WithErrors의 post-clean 진단·cleaned data 소유권; 원래 제출·모델 candidate·명시적 scalar clean 변경/저장 입력·typed instance 준비와 collection/command 분리·명시적 scalar/collection 저장 조정·BoundForm의 typed 준비/Helpdesk 저장 연결·typed forward 관계에서 기본 saver 유도/모델 결합 검사·pure model validator·unique→제외 재계산→constraint의 읽기 검증; Formset의 prefix/management·bounded 행 생성·빈 추가 행·삭제/정렬·전체 진단/선택과 typed InstanceSet의 서버 PK 집합·공통 모델 후보·한 번의 검증·scalar/collection 준비를 구현하고 native/소유권/race를 확인; Helpdesk HTML의 여러 행 scalar/collection·삭제 정책·감사 기록 원자 저장을 연결; unique field/복합 제약의 여러 행 cleaned tuple 검사·행/전체 진단·typed/core cleaned 제외를 연결; canonical project FK·서버 부모와 current 자식의 InlineSpec/InlineSet·hidden 부모 위조 거부·pending parent의 key 연결·nullable/cross-app/OneToOne·형제 unique를 구현하고 Helpdesk HTTP와 새 부모/자식의 양 DB 저장·지연 준비·rollback을 검증; 조회 전용 기존 행의 서버 initial·형제 unique를 보존하고 일반 clean/typed 쓰기 준비를 차단하며 새 행/명시적 삭제를 분리; Admin의 권한별 inline HTML·새 부모/자식 합성 callback과 Helpdesk 원자 저장/audit·오류 재표시를 연결; 권한별 비활성 빈 행과 외부 script의 미저장 행 추가/제거·min/max·원래 입력/오류 anchor 보존을 연결하고 실제 브라우저/SQLite 저장을 검증; FileField의 Form/Formset 바인딩·multipart 수명 기반과 ImageField의 context 기반 내용 디코딩·픽셀/프레임 한도·검증 metadata를 구현; Admin 파일 UI·모델 File/ImageField의 이름 후보/업로드 분리·크기 파생과 typed SaveFiles를 연결; File/Image choices의 Select·명시적 저장 이미지 검사·default/빈 값·형제 unique와 게시 없는 typed 준비를 연결하고 별도 영향 normal/race·양 DB/세 backend를 검증하고 `e824fdd7`의 Hosted web에 통합; 일반 ModelFormSet의 changed/new/deleted SavePlan·mutable 지연 저장·collection 사전 검사·행별 실패 결과와 여러 행 SaveFiles를 연결하고 Helpdesk Admin report가 같은 계획에서 기존 admission/audit를 유지; storage alias·인가된 파일 streaming과 S3/서명 다운로드를 연결하고 추가 provider는 미완료; 선택한 scalar와 명시적 int64 ModelChoice/ModelMultipleChoice snapshot 입력을 편집; 다중 선택은 unique key 목록·raw membership 변경 감지·빈 optional 목록을 보존; arbitrary callable/attribute 실행 없음 | [templates](../../templates/), [forms](../../forms/), [파일 입력](../../uploads/README.md) |
+| Admin | active staff admission·선택적 추가 permission, registry, permission, CRUD/history/action/command composition, 기존 객체 없이 실행하는 collection command와 독립 Form·복수 권한·명시적 RelatedChoices와 저장 직전 재검증·생성/변경/무변경 결과, typed InstanceSet을 전달하는 생성 전용 collection formset·현재 choice/CSRF·행 진단/입력 보존·commit 뒤 결과 개수/ID 확인과 명시적 전체 HTML 출력 예산, 생성 전용 form·생성/수정의 명시적 read-only post-clean callback·현재 Snapshot의 PK/revision 후보·revision 제출 조건·현재 actor를 받는 read callback, 기존 객체 snapshot의 명시적 ReadOnlyFields·read-only 등록, choices 표시명과 기존 값 보존·nullable Boolean의 세 상태·날짜·시간·Float·exact Decimal·Binary base64·UUID·JSON·Email 입력과 Char/Email/URL/Slug/File/Image/Text/JSON 검색; 부모/inline/명령의 FileInput·ClearableFileInput과 bounded multipart 전송 | view 또는 change 조회·view-only 상세(관계 ID 표시, 선택 catalog 조회 없음); 확인된 입력 거부의 field/non-field 재표시와 일반 원문 보존·password/file value 재표시 금지·파일 재선택 안내; multipart 전 read-only admission·CSRF/현재 권한·요청 수명과 오류/임시 정리; 모델 FileField의 기존/빈 이름·새 업로드·clear와 저장 callback을 실제 HTTP로 연결; 명령/비저장 ImageField의 accept·내용 오류/재선택·I/O 실패 구분과 filesystem/memory/S3의 원문 게시를 연결; File/Image choices의 Select·현재 권한/CSRF 뒤 검사·업로드 part 거부를 연결; 모델 ImageField의 검증 크기·서버 initial/Snapshot 일치·변경 목록/저장 callback과 위조 크기 POST 거부를 연결; 선택한 model field만 편집; RelatedChoices의 action별 명시적 권한·요청 snapshot·단일/다중 집합 저장 재검증, SelectMultiple·거부된 원문 보존과 PROTECT 화면 지원; 모든 relation UI의 일반화를 뜻하지 않음 | [admin](../../admin/) |
+| JSON API | 같은 scalar/presence·byte 정책과 parameter를 소유하는 typed header·Endpoint 입력 결합·Identity If-Revision; 같은 Body의 typed 배열·shared named item·전체/항목 예산·개수와 bounded indexed 진단, Helpdesk 단건/여러 건·Article native 원자 생성; typed 경로·순서 입력 결합·명시적 업무 준비와 shared schema identity; typed endpoint의 입력/출력 타입·정확한 응답 소유권·명시적 권한/상태와 HTTP/OpenAPI 공통 준비; 같은 Spec/IR의 typed body·full/partial presence·nullable·현재 scalar/collection과 context-aware parser를 Label/ServiceReport에 연결; typed query scalar·required/default/optional·DTO 선검증과 같은 parameter schema; typed 출력 property·getter·중첩/배열/nullable·범위와 같은 JSON/schema 선언, 전체 응답 budget/context와 lazy model projection; model-derived allowlist serializer·명시적 read-only computed field와 동일 output Spec·choice 입력 enum·ManyToMany integer-list 입력/출력과 명시적 pure collection reader, bounded parser·exact numeric token·Decimal fixed-scale·Binary base64·모델 NonEditable의 자동 read-only·UUID canonical 문자열·선언된 JSONField의 임의 JSON 값과 입력/응답 nullability, PUT/PATCH, pagination/filter, authentication profile, operation·모델 기반 OpenAPI 3.1·named local schema, Article 게시·Helpdesk composition, 고정 ogen Go client 회귀 | typed 출력/query/body·endpoint/경로·배열·header·204 삭제는 `b14d0eaf`와 후속 `02f350d3`에서 전체 Hosted 통합 완료; 계산식 기반 Helpdesk 미리보기의 새 required 응답·독립 SDK는 구현/생성물 준비 완료·원격 검증 대기; 자동 CRUD·출력 optional omission·browsable API·배포형/다언어 SDK·일반 viewset 자동화 미지원; schema는 runtime parser·인가 검증의 대체가 아님 | [api](../../api/), [OpenAPI](../../api/openapi/), [typed 출력](../../api/output/README.md), [typed 입력](../../api/parameters/README.md), [serializers](../../serializers/) |
+| Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout; Credential snapshot·session stamp·실제 HTTP 소비자; 재사용 User/Group/Permission 저장과 native snapshot의 Directory·불변 Account·직접/그룹 grant union; 관리자 password 교체 및 User/Group/Permission 생성/조회/편집/삭제의 현재 인가·revision·관계 집합·사용자 session 폐기·transaction audit, Group의 전체 사용자 grant 한도·삭제의 직접 소유자 revision 전파, 환경별 검증은 Evidence 참조 | 저장 인증·role·operator 전환·Article/Helpdesk·CLI 및 사용자/password service의 영향 검증 완료; Permission revision migration과 Group/Permission service의 영향 검증 완료; 관리 JSON API·OpenAPI·Article 연결과 영향 normal/race/CGO=0·양 DB 검증 완료; 독립 Session/Bearer generated client의 SQLite HTTP·부모 DB/session/audit 검사와 세 모드 검증 완료; 실제 Identity Form/Admin·Article composition·현재 action 권한의 선택 목록·인가와 같은 snapshot의 history·confirmation·host password policy 및 기존 소비자 영향 검증 완료; 고정 Unicode 16 정규화/소문자/분류·1,024-byte credential/CLI와 IR 256자·생성 150자/편집 256자 정합성 및 영향 검증 완료; 내장 네 password validator·명시적 Admin/API 정책과 Article 공통 구성의 영향 검증 완료; unusable credential과 관리 생성/설정/복구·API null·Admin 확인 command/생성 선택 및 독립 client의 영향 normal/race/CGO=0·양 DB 검증 완료; Admin/API·독립 client의 현재 password 상태 표시와 read-only 표현의 영향 normal/race/CGO=0·양 DB 검증 완료; 저장 last_login/session 원자 수립·현재 credential/admission·계정 교체 격리 및 Admin/API·독립 client의 영향 normal/race/CGO=0·양 DB 검증 완료, source `63b07213`의 Hosted 전체 62 jobs/8 owners 완료, 이후 변경에는 전이하지 않음; self-service password service/session/Web runtime의 영향 normal/race/CGO=0·양 DB·HTTP runtime·독립 참조 검증 완료, 일반 계정 login/logout·password Form·Session JSON/OpenAPI·독립 client, 명시적 authenticated-only/read-only admission과 Article 공유 구성의 영향 normal/race/CGO=0·양 DB 검증 완료; 시간 초과와 source 목록 보완 뒤 `fb817d6b`의 새 capture와 Hosted 전체 62 jobs/8 owners 완료; reset token·Form·메일의 독립 Django 양 DB 기준과 Go reset key ring·현재 token/profile/expiry fence·원자 password/session 폐기/audit service의 영향 normal/race/CGO=0·양 DB 검증 완료; reset 수신자 선택·같은 snapshot의 token/메일 구성·전달, 고정 full casefold의 영향 normal/race/CGO=0·양 DB 검증 완료; native HTTP·DB session의 양 DB 기준과 reset Prepare/ApplyIn·빌린 scope token 검사의 영향 normal/race/CGO=0·양 DB 검증 완료; reset proof session persistence·Web runtime의 최신 session/token/인증 binding·expiry와 원자 정리·cookie 게시를 영향 normal/race/CGO=0·양 DB·실제 HTTP probe에서 검증; 공개 reset Form/JSON·익명 CSRF/proof-cookie OpenAPI·Article 공유 구성·독립 client를 연결하고 영향 normal/race/CGO=0·양 DB·negative control 완료, 해당 source의 Hosted 전체는 후속 milestone; Admin 생성의 복합 오류·candidate profile·read-only 현재 인가를 독립 Django 양 DB와 대조하고 영향 세 모드·실제 HTTP 검증 완료; 기본 User의 재사용 일반/Admin Form·공통 IR Definition·읽기 Bind/Prepare/Commit·원래 Manager/actor 결합·복사본 한 번 저장 시도와 현재 상태 재검사를 구현하고 영향 세 모드·양 DB·native 저장 lifecycle 검증 완료; custom user model·모든 ModelForm 저장과 token issuer/JWT/OAuth/OIDC는 남아 있음 | [auth](../../auth/), [sessions](../../sessions/), [identity](../../identity/) |
+| Storage | context 기반 Save/Open/Stat/Delete·상대 이름·본문/이름/시도 한도, os.Root와 private staging·완성 후 no-overwrite 게시, 독립 Memory backend의 내용/파일/동시 저장 한도와 삭제 후 reader 수명, 요청 업로드의 명시적 소비·불변 application alias·선택적 URL capability·동일 opened-handle metadata와 SeekableReader, 저장 이미지의 독립 reader/내용 검사·canonical typed 크기 갱신, S3 conditional PUT/full checksum·version 고정 reader·명시적 서명 URL | 로컬 파일/별도 인스턴스·프로세스/HTTP 수명 검증; 게시와 cleanup/불확실을 구분; 모델 File/ImageField·크기/SaveFiles와 DB 참조 연계·부분 게시/DB rollback 보존을 양 DB 생성 소비자로 검증; filesystem/memory 양쪽의 실제 로그인·업로드·인가된 FileResponse/Range/conditional과 모델 소유권 조회를 연결; 저장 이미지 갱신은 양 DB/양 backend의 명시적 저장·rollback·재개방과 관련 race로 검증; Memory·Range/conditional·이미지 폼/모델은 `4793382d`의 Hosted full 통합 완료; 저장 이미지 검사와 BMP/DIB·전체 주 페이지 TIFF·APNG의 별도 기본 이미지·WebP의 실제 bitstream 크기/alpha와 모든 frame을 Form/Admin·양 DB 저장/재검사에 연결하고 이후 별도 normal/race/fuzz 검증; 이 이미지 변경은 `bcc7b76a`의 Hosted full에서 누적 통합 완료; S3는 고정 MinIO의 실제 조건부 게시/서명/독립 수명과 양 DB의 생성 모델·Form/Admin·관련 race로 검증하고 `ac4c40d5`의 Hosted web 필수 owner와 집계까지 통합 완료; BigTIFF의 64-bit IFD/값·양 byte order·전체 주 페이지와 동일 예산을 Form/Admin·양 DB/세 backend에 연결하고 별도 normal/race/fuzz·고정 LibTIFF·실패 대조를 검증, `8d89ec28`의 Hosted web 필수 owner·집계와 세 mode service receipt/source 결합까지 완료; AWS 운영 account·추가 provider·multipart 저장·자동 회수는 미완료 | [storage](../../storage/README.md) |
+| Mail | 불변 Address/Message·MIME plain/HTML·첨부·Bcc envelope, 크기/수신자 한도, context/timeout·검증된 STARTTLS/implicit TLS·명시적 plaintext·SMTPUTF8·AUTH PLAIN·접수/거절/unknown 구분, bounded Memory backend | 영향 normal/race/CGO=0·실제 loopback SMTP·독립 Django MIME 기준과 의존성 PostgreSQL 회귀 완료; reset request service의 수신자 선택/전달 연결과 영향 검증 완료; 공개 reset Form/API·동일 응답/내부 오류 보고·독립 client까지 영향 검증 완료; 운영 provider·다른 Django mail backend는 미완료 | [mail](../../mail/), [ADR-0078](../adr/0078-mail-message-ownership-and-delivery.md) |
+| Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application/relation transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, Label의 명시적 조회 후 생성·ServiceReport의 티켓별 upsert·여러 티켓의 native bulk 생성/수정·Admin close/reopen·부모 transaction audit와 독립 client, Category eager JOIN·라벨 일괄 prefetch 상세와 Ticket.labels 전체 집합 편집, priority·resolution·due_at·reviewed·service_on·service_at·elapsed·effort·expected_cost·external_reference·external_payload·서버 소유 external_payload_digest 추가와 priority choices/표시명 변경 및 expected_cost 한도 확장 migration, nullable Boolean·Date·Time·Duration·Float·Decimal·UUID·JSON의 Form/Admin·PUT/PATCH와 external_payload 전체/source 경로 검색 | 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님; 환경별 실행은 TEST_EVIDENCE 참조 | [examples](../../examples/) |
+
+## 계약과 증거
+
+GDJ-0102는 Blank 입력 정책·metadata-only migration, 모델 candidate·pure model validator·단계별 DB 후처리를 구현했다.
+기본 User 생성/수정, Group/Permission과 Helpdesk의 Ticket/Label/ServiceReport/TicketLabel은 명시적 읽기 검증과
+최종 저장 검사를 구분한다. 현재 인가·row/revision·관계 scope와 오류/cleanup 소유권을 영향 세 mode·실제 양 DB·독립 생성 소비자에서 검증했다.
+고정 Django의 입력/DB 사례와 명시적 차이는 [ADR-0080](../adr/0080-model-blank-policy-and-form-post-clean.md)을 따른다.
+후속 model clean의 명시적 scalar 변경과 제외 필드 저장 입력·Admin 연결을 구현하고 영향 세 mode·실제 양 DB·5개 부정 대조를 완료했다.
+Generated descriptor와 ORM의 typed 값 준비·Form instance 연결을 구현하고 영향 세 mode·양 DB·생성 drift·7개 부정 대조를 완료했다. clean/typed 준비 source `1b2fc492`의 Hosted 전체 62 jobs·8 owners·새 capture 결합까지 완료했다.
+선택 collection의 명시적 adapter와 scalar 저장 조정·deferred 관계 저장을 구현하고 영향 세 mode·양 DB·6개 부정 대조를 완료했다. Admin의 BoundForm 전달과 Helpdesk Ticket의 실제 저장 adapter 연결을 구현했다. Typed forward binding의 기본 collection saver와 모델/field 결합 검사를 실제 Helpdesk·교차 앱 생성 소비자에 연결하고 영향 세 mode/양 DB·4개 부정 대조를 확인했다. 전체 ModelForm 저장 자동화·나머지 제품 adapter 확대는 남아 있다. 저장 조정/제품 연결을 포함한 `f5b0020f`의 Hosted full `36397837881`은 62 jobs/8 owners·새 capture 결합까지 완료했다. 이후 기본 saver·cache·initial을 포함한 `cb76b165`의 Hosted full `36504649962`도 62 jobs/8 owners·새 capture의 Git source 결합을 완료했다. 이후 Formset 변경에는 전이하지 않는다. 기존 initial과 제출 제약 분리·Admin 스냅샷/Decimal 표시·실제 수정 저장은 native·영향 normal/관련 race·양 DB·세 부정 대조를 확인했다. [모델 Form 사용법](../../forms/model/README.md)을 따른다.
+
+GDJ-0101은 EmailField의 별도 IR kind, 문자열 저장·typed/dynamic/관계 query, Form/serializer·EmailInput,
+기본 User migration·Admin/API와 독립 client를 연결했다. 기존 이메일 데이터는 재작성하지 않으며 입력 검증과 저장을 구분한다.
+Char/Email만 바꾸는 migration은 다른 저장 속성이 동일한 경우에 한해 명시적 capability와 기존 history/revision fence를 사용한다.
+영향 normal/race/CGO=0·양 DB·독립 client·actual process 검증을 완료했다. 해당 구현과 선행 lifecycle을 포함한 source `ea2867f4`는 Hosted 전체 62 jobs·8 owners와 새 capture 결합을 확인했다. 이후 Blank/ModelForm 변경에 결과를 전이하지 않는다. [ADR-0079](../adr/0079-email-fields-and-input-semantics.md)를 따른다.
+
+GDJ-0098의 CASCADE 선언·생성 metadata/project wire·historical 정책 변경·자동 계획과 durable prefix 재개를 구현했다.
+양 DB의 deferred native FK·정책 변경/역방향·catalog drift와 SQLite remake의 행·sequence·다른 제약 보존도 구현했다.
+공통 ORM의 recursive collector·transitive generated fingerprint도 구현했다. 중복 경로·순환은 model+PK로 한 번 처리하며,
+도달한 모든 PROTECT 검사 뒤 SET_NULL·exact-key 삭제를 같은 transaction에서 실행한다. TicketLabel의 migration·scoped Form/Admin/API/OpenAPI/client와 두 endpoint의 권한·Category·pair uniqueness를 연결했다.
+Label/Ticket 삭제의 링크 CASCADE·ServiceReport PROTECT를 소비자에서 검증했으며, 복수 API 권한·검색 없는 Admin도 지원한다.
+Source `01b67211a083c507d5e69c6be26702439aada559`의 Hosted 전체 통합을 완료했다. GDJ-0099와 credential/session 기반을 포함하며, 이후 다중 사용자 구현의 검증으로 전이하지 않는다.
+GDJ-0099는 독립 ManyToMany 기준과 명시한 non-null tuple의 native conflict insert를 연결했다.
+Columnless 선언·normalized IR·자동 storage projection·generated metadata/descriptor·binding과 bounded project wire를 구현했다.
+명시적 through의 historical Add/Remove/Rename·reverse·자동 계획과 양 DB의 metadata migration을 연결했다.
+기존 nullable/nonunique/payload 연결의 행·sequence·catalog를 보존하며 선언 변경과 retained binding에 capability 검사를 적용한다.
+자동 intermediary의 Create/Add/Remove/Rename·reverse와 raw CreateModel의 columnless 선언도 연결했다.
+연결 PK·sequence·물리 identity를 유지하고 managed constraint 이름을 변경하며, storage 참조의 생성/제거 순서와 전체 transient inventory를 검증한다.
+공통 root collection runtime·generated forward/reverse manager의 add/remove/clear/set와 같은 AST의 기본 컬렉션 조회·명시적 Distinct를 연결했다.
+Nullable/nonunique through·retained ID/payload·self symmetry, incoming 정책·취소·unknown outcome과 cache 소유권을 처리한다.
+통합 model facade의 collection 접근자·명시적 UsingSession/InSession과 native session lifetime 검사를 연결했다.
+Outer transaction 소유권과 callback 종료 후 cache/model/view 사용 거부를 유지한다.
+일반 mixed 관계 조건의 filter scope·부정 EXISTS·manager core filter를 연결했다.
+ManyToMany direct/nested/filtered prefetch와 단일 관계 prefetch·root eager의 직접 조합을 구현했다.
+Owner별 slice의 named snapshot과 runtime/generated API·전체 owner 집합 조회를 연결했다.
+Custom single target query와 빌린 session/root backend의 native batch 실행·공통 graph/generated materialized streaming을 연결했다.
+양 DB·race·CGO=0 영향 checkpoint와 최종 backend 행 검증 보완을 확인했다.
+Ticket Form/Admin·API/OpenAPI·독립 generated client의 컬렉션 편집을 연결했다.
+Scalar와 전체 원하는 집합을 같은 transaction에서 저장하며 권한·CSRF·Category·실패/취소·두 runtime 경쟁·재시작을
+양 DB normal/race/CGO=0 영향 범위에서 확인했다. GDJ-0099 Hosted 전체 통합을 완료했다.
+실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
+
+Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.
+Reference-only MIG-075..086은 미등록 진단 reference이며 제품 passing으로 세지 않는다.
+Django와 다른 결과는 [DEVIATIONS](../DEVIATIONS.md)에 제한된 차이로 기록한다.
+
+GDJ-0057의 `0b8235c`는 전체 통합, GDJ-0058의 `aca9115`는 관련 ORM scope를 검증했다.
+과거 결과와 합쳐 PASS로 표시하지 않으며 Quick feedback, 관련 backend 검증과 전체 platform 검증은 각각 자신의 범위만 증명한다.
+
+Realtime, MySQL/MariaDB/Oracle, GIS/i18n/contrib와 넓은 ORM/Form/Admin/API는 [장기 범위](../CAPABILITY_CATALOG.md)이며
+현재 지원 항목이 아니다.

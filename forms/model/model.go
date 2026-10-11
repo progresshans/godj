@@ -1,0 +1,624 @@
+// Package model projects normalized Schema IR metadata into structural forms.
+// It intentionally provides no reflection, dynamic assignment, or autosave.
+package model
+
+import (
+	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
+
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uploads"
+	"github.com/progresshans/godj/uuid"
+)
+
+// Error reports an invalid model projection at startup.
+type Error struct {
+	Path string
+	Code string
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("forms/model: %s: %s", e.Path, e.Code)
+}
+
+// OverrideOption is a closed form override. Storage metadata and its default
+// cannot change. Optional input may clean to Null even for a nonnullable model;
+// Bind owns the subsequent model validation. An input length limit may narrow
+// the stored limit.
+type OverrideOption interface {
+	apply(*overrideConfig)
+}
+
+type overrideOption func(*overrideConfig)
+
+func (option overrideOption) apply(config *overrideConfig) { option(config) }
+
+func WithLabel(label string) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.label = label
+		config.hasLabel = true
+	})
+}
+
+func WithRequired(required bool) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.required = required
+		config.hasRequired = true
+	})
+}
+
+func WithWidget(widget forms.Widget) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.widget, config.hasWidget = widget, true
+	})
+}
+
+func WithValidators(validators ...forms.FieldValidator) OverrideOption {
+	detached := append([]forms.FieldValidator(nil), validators...)
+	return overrideOption(func(config *overrideConfig) {
+		config.validators = append(config.validators, detached...)
+	})
+}
+
+func WithStringNormalizer(normalize func(string) string) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.normalizeString, config.hasStringNormalizer = normalize, true })
+}
+
+// WithMaxLength narrows a Char/Text form's input policy without changing IR
+// storage metadata. Zero, negative or broader limits are configuration errors.
+func WithMaxLength(limit int) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.maxLength, config.hasMaxLength = limit, true })
+}
+
+// WithImageLimits configures bounded content inspection for a model ImageField.
+func WithImageLimits(limits uploads.ImageLimits) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.imageLimits, config.hasImageLimits = limits, true })
+}
+
+// WithImageChoiceInspector selects the explicit read capability for an
+// ImageField whose canonical choices select existing storage names.
+func WithImageChoiceInspector(inspector forms.ImageChoiceInspector) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.inspectImageChoice, config.hasImageInspector = inspector, true
+	})
+}
+
+type overrideConfig struct {
+	inspectImageChoice  forms.ImageChoiceInspector
+	hasImageInspector   bool
+	imageLimits         uploads.ImageLimits
+	hasImageLimits      bool
+	normalizeString     func(string) string
+	hasStringNormalizer bool
+	maxLength           int
+	hasMaxLength        bool
+	label               string
+	hasLabel            bool
+	required            bool
+	hasRequired         bool
+	widget              forms.Widget
+	hasWidget           bool
+	validators          []forms.FieldValidator
+}
+
+// Override identifies one existing IR field and presentation/validation-only
+// customizations for its projected form field.
+type Override struct {
+	name   string
+	config overrideConfig
+	err    error
+}
+
+func OverrideField(name string, options ...OverrideOption) Override {
+	config := overrideConfig{}
+	for index, option := range options {
+		if option == nil {
+			return Override{name: name, err: &Error{
+				Path: fmt.Sprintf("overrides.%s.options[%d]", name, index),
+				Code: "nil",
+			}}
+		}
+		option.apply(&config)
+	}
+	return Override{name: name, config: config}
+}
+
+// NewSpec projects editable scalar and relation fields in exact IR declaration
+// order. Auto primary keys and image-owned dimensions are non-editable.
+// Unsupported kinds are rejected rather than silently omitted.
+func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
+	return NewSpecForFields(model, nil, overrides...)
+}
+
+// NewSpecForFields projects only the explicitly selected editable fields.
+// nil preserves all editable fields; an empty selection is rejected. Selection
+// never grants permission to assign an omitted field, including a relation.
+// Declaration order remains authoritative regardless of selection order.
+func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (forms.Spec, error) {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return forms.Spec{}, &Error{Path: "model", Code: "invalid_image_dimensions"}
+	}
+	if names != nil {
+		known := make(map[string]struct{}, len(model.Fields))
+		for _, field := range model.Fields {
+			if _, duplicate := known[field.Name]; duplicate {
+				return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+			}
+			known[field.Name] = struct{}{}
+		}
+		for _, field := range model.ManyToMany {
+			if _, duplicate := known[field.Name]; duplicate {
+				return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+			}
+			known[field.Name] = struct{}{}
+		}
+		selected := make(map[string]bool, len(names))
+		for _, name := range names {
+			if name == "" || selected[name] {
+				return forms.Spec{}, &Error{Path: "fields." + name, Code: "invalid_selection"}
+			}
+			if _, exists := known[name]; !exists {
+				return forms.Spec{}, &Error{Path: "fields." + name, Code: "unknown_field"}
+			}
+			selected[name] = true
+		}
+		projection := model
+		projection.Fields = nil
+		projection.ManyToMany = nil
+		for _, field := range model.Fields {
+			if selected[field.Name] {
+				if field.PrimaryKey || field.NonEditable || dimensions[field.Name] != "" {
+					return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "non_editable"}
+				}
+				projection.Fields = append(projection.Fields, field.Clone())
+				delete(selected, field.Name)
+			}
+		}
+		for _, field := range model.ManyToMany {
+			if selected[field.Name] {
+				projection.ManyToMany = append(projection.ManyToMany, field.Clone())
+				delete(selected, field.Name)
+			}
+		}
+		model = projection
+	}
+	overrideByName := make(map[string]overrideConfig, len(overrides))
+	for index, override := range overrides {
+		if override.err != nil {
+			return forms.Spec{}, override.err
+		}
+		if override.name == "" {
+			return forms.Spec{}, &Error{Path: fmt.Sprintf("overrides[%d]", index), Code: "invalid_name"}
+		}
+		if _, exists := overrideByName[override.name]; exists {
+			return forms.Spec{}, &Error{Path: "overrides." + override.name, Code: "duplicate"}
+		}
+		overrideByName[override.name] = cloneOverride(override.config)
+	}
+
+	known := make(map[string]struct{}, len(model.Fields))
+	fields := make([]forms.Field, 0, len(model.Fields))
+	for index, field := range model.Fields {
+		path := fmt.Sprintf("fields[%d]", index)
+		if field.Name == "" {
+			return forms.Spec{}, &Error{Path: path + ".name", Code: "invalid"}
+		}
+		if _, duplicate := known[field.Name]; duplicate {
+			return forms.Spec{}, &Error{Path: path + ".name", Code: "duplicate"}
+		}
+		known[field.Name] = struct{}{}
+		override := overrideByName[field.Name]
+		if field.Kind == ir.FieldAuto && field.PrimaryKey || field.NonEditable || dimensions[field.Name] != "" {
+			if _, configured := overrideByName[field.Name]; configured {
+				return forms.Spec{}, &Error{Path: "overrides." + field.Name, Code: "non_editable"}
+			}
+			continue
+		}
+		projected, err := projectField(field, override)
+		if err != nil {
+			return forms.Spec{}, &Error{Path: path + "." + field.Name, Code: errorCode(err)}
+		}
+		fields = append(fields, projected)
+	}
+	for _, field := range model.ManyToMany {
+		if _, duplicate := known[field.Name]; duplicate {
+			return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+		}
+		known[field.Name] = struct{}{}
+		projected, err := projectManyToMany(field, overrideByName[field.Name])
+		if err != nil {
+			return forms.Spec{}, err
+		}
+		fields = append(fields, projected)
+	}
+	for name := range overrideByName {
+		if _, ok := known[name]; !ok {
+			return forms.Spec{}, &Error{Path: "overrides." + name, Code: "unknown_field"}
+		}
+	}
+	if len(fields) == 0 {
+		return forms.Spec{}, &Error{Path: "fields", Code: "no_editable_fields"}
+	}
+	spec, err := forms.NewSpec(fields)
+	if err != nil {
+		return forms.Spec{}, &Error{Path: "fields", Code: errorCode(err)}
+	}
+	return spec, nil
+}
+
+func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
+	if override.hasImageInspector && (field.Kind != ir.FieldImage || field.Choices == nil) {
+		return forms.Field{}, &Error{Code: "unsupported_image_override"}
+	}
+	if override.hasImageLimits && field.Kind != ir.FieldImage {
+		return forms.Field{}, &Error{Code: "unsupported_image_override"}
+	}
+	if (override.hasStringNormalizer || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldSlug && field.Kind != ir.FieldText {
+		return forms.Field{}, &Error{Code: "unsupported_string_override"}
+	}
+	if err := ir.ValidateChoices(field); err != nil {
+		return forms.Field{}, &Error{Code: "invalid_choices"}
+	}
+	label := field.GoName
+	if label == "" {
+		label = field.Name
+	}
+	if override.hasLabel {
+		label = override.label
+	}
+	required := !field.Blank
+	if override.hasRequired {
+		required = override.required
+	}
+	options := []forms.FieldOption{forms.WithLabel(label)}
+	if override.hasStringNormalizer {
+		options = append(options, forms.WithStringNormalizer(override.normalizeString))
+	}
+	if field.Choices != nil {
+		choices := make([]forms.Choice, len(field.Choices))
+		for index, choice := range field.Choices {
+			value := forms.String(choice.Value.String)
+			if choice.Value.Kind == ir.ScalarInteger {
+				value = forms.Integer(choice.Value.Integer)
+			}
+			choices[index] = forms.Choice{Value: value, Label: choice.Label}
+		}
+		options = append(options, forms.WithChoices(choices...))
+	}
+	if override.hasWidget {
+		options = append(options, forms.WithWidget(override.widget))
+	}
+	if override.hasRequired {
+		options = append(options, forms.WithRequired(override.required))
+	}
+	if len(override.validators) != 0 {
+		options = append(options, forms.WithValidators(override.validators...))
+	}
+	switch field.Kind {
+	case ir.FieldBinary:
+		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength < 0 || field.MaxLength > binaryvalue.MaxBytes {
+			return forms.Field{}, &Error{Code: "invalid_binary_metadata"}
+		}
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(field.MaxLength))
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := binaryvalue.Parse(field.Default.Binary)
+			if field.Default.Kind != ir.ScalarBinary || err != nil || value.Base64() != field.Default.Binary {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Binary(value)))
+		}
+		return forms.BinaryField(field.Name, options...)
+	case ir.FieldFile, ir.FieldImage:
+		if field.PrimaryKey || field.Relation != nil || field.Decimal != nil || field.MaxLength <= 0 {
+			return forms.Field{}, &Error{Code: "invalid_file_metadata"}
+		}
+		maximum := field.MaxLength
+		if override.hasMaxLength {
+			if override.maxLength <= 0 || override.maxLength > maximum {
+				return forms.Field{}, &Error{Code: "invalid_input_max_length"}
+			}
+			maximum = override.maxLength
+		}
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(maximum))
+		if field.Choices != nil && field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := fileDefaultValue(field)
+			if err != nil {
+				return forms.Field{}, err
+			}
+			options = append(options, forms.WithDefault(value))
+		}
+		if field.Kind == ir.FieldImage {
+			if override.hasImageInspector {
+				options = append(options, forms.WithImageChoiceInspector(override.inspectImageChoice))
+			}
+			if override.hasImageLimits {
+				options = append(options, forms.WithImageLimits(override.imageLimits))
+			}
+			return forms.ImageField(field.Name, options...)
+		}
+		return forms.FileField(field.Name, options...)
+	case ir.FieldForeignKey:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Decimal != nil || field.Relation == nil ||
+			(field.Relation.Cardinality != ir.RelationManyToOne && field.Relation.Cardinality != ir.RelationOneToOne) ||
+			field.Relation.Target.AppLabel == "" || field.Relation.Target.ModelName == "" ||
+			(field.Relation.Cardinality == ir.RelationOneToOne && !field.Unique) {
+			return forms.Field{}, &Error{Code: "invalid_relation_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarInteger {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
+		}
+		return forms.ModelChoiceField(field.Name, options...)
+	case ir.FieldDecimal:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() {
+			return forms.Field{}, &Error{Code: "invalid_decimal_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := decimal.Parse(field.Default.Decimal)
+			if field.Default.Kind != ir.ScalarDecimal || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Decimal(value)))
+		}
+		return forms.DecimalField(field.Name, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, options...)
+	case ir.FieldJSON:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
+			return forms.Field{}, &Error{Code: "invalid_json_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := jsonvalue.Parse([]byte(field.Default.JSON))
+			if field.Default.Kind != ir.ScalarJSON || err != nil || value.Text != field.Default.JSON {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.JSON(value)))
+		}
+		return forms.JSONField(field.Name, options...)
+	case ir.FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
+			return forms.Field{}, &Error{Code: "invalid_uuid_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := uuid.Parse(field.Default.UUID)
+			if field.Default.Kind != ir.ScalarUUID || err != nil || value.String() != field.Default.UUID {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.UUID(value)))
+		}
+		return forms.UUIDField(field.Name, options...)
+	case ir.FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_float_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := floatvalue.FromBits(field.Default.FloatBits)
+			if field.Default.Kind != ir.ScalarFloat || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Float(value)))
+		}
+		return forms.FloatField(field.Name, options...)
+	case ir.FieldDuration:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_time_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := duration.Parse(field.Default.Duration)
+			if field.Default.Kind != ir.ScalarDuration || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Duration(value)))
+		}
+		return forms.DurationField(field.Name, options...)
+	case ir.FieldTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_time_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := clock.Parse(field.Default.Time)
+			if field.Default.Kind != ir.ScalarTime || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Time(value)))
+		}
+		return forms.TimeField(field.Name, options...)
+	case ir.FieldDate:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_date_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := calendar.Parse(field.Default.Date)
+			if field.Default.Kind != ir.ScalarDate || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Date(value)))
+		}
+		return forms.DateField(field.Name, options...)
+	case ir.FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_datetime_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := temporal.ParseCanonical(field.Default.DateTime)
+			if field.Default.Kind != ir.ScalarDateTime || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.DateTime(value)))
+		}
+		return forms.DateTimeField(field.Name, options...)
+	case ir.FieldInteger:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_integer_metadata"}
+		}
+		options = append(options, forms.WithRequired(required))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable || !required {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarInteger {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
+		}
+		return forms.IntegerField(field.Name, options...)
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText:
+		if field.PrimaryKey || field.Relation != nil ||
+			(field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug) && field.MaxLength <= 0 ||
+			field.Kind == ir.FieldText && field.MaxLength != 0 {
+			return forms.Field{}, &Error{Code: "invalid_char_metadata"}
+		}
+		if field.Kind == ir.FieldText && field.Choices == nil && !override.hasWidget {
+			options = append(options, forms.WithWidget(forms.Textarea))
+		}
+		if field.Kind == ir.FieldText && field.Choices == nil {
+			options = append(options, forms.WithEmptyValue(forms.String("")))
+		}
+		options = append(options, forms.WithRequired(required), forms.WithMaxLength(field.MaxLength))
+		if override.hasMaxLength {
+			if override.maxLength <= 0 || field.MaxLength > 0 && override.maxLength > field.MaxLength {
+				return forms.Field{}, &Error{Code: "invalid_input_max_length"}
+			}
+			options = append(options, forms.WithMaxLength(override.maxLength))
+		}
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarString {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.String(field.Default.String)))
+		}
+		if field.Kind == ir.FieldEmail && field.Choices == nil {
+			return forms.EmailField(field.Name, options...)
+		}
+		if field.Kind == ir.FieldURL && field.Choices == nil {
+			return forms.URLField(field.Name, options...)
+		}
+		if field.Kind == ir.FieldSlug && field.Choices == nil {
+			return forms.SlugField(field.Name, append(options, forms.WithAllowUnicode(field.AllowUnicode))...)
+		}
+		return forms.CharField(field.Name, options...)
+	case ir.FieldBoolean:
+		if field.PrimaryKey || field.Relation != nil || field.MaxLength != 0 {
+			return forms.Field{}, &Error{Code: "invalid_boolean_metadata"}
+		}
+		options = append(options, forms.WithRequired(false))
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarBoolean {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Boolean(field.Default.Boolean)))
+		}
+		return forms.BooleanField(field.Name, options...)
+	default:
+		return forms.Field{}, &Error{Code: "unsupported_kind"}
+	}
+}
+
+func cloneOverride(config overrideConfig) overrideConfig {
+	clone := config
+	clone.validators = append([]forms.FieldValidator(nil), config.validators...)
+	return clone
+}
+
+func errorCode(err error) string {
+	if typed, ok := err.(*Error); ok && typed.Code != "" {
+		return typed.Code
+	}
+	if typed, ok := err.(*forms.ConfigError); ok && typed.Code != "" {
+		return typed.Code
+	}
+	return "invalid"
+}

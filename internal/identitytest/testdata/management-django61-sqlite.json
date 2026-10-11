@@ -1,0 +1,103 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "observations": {
+    "admission": {
+      "add": {
+        "add": true,
+        "change": false,
+        "create": false,
+        "delete": false,
+        "view": false
+      },
+      "add_change": {
+        "add": true,
+        "change": true,
+        "create": true,
+        "delete": false,
+        "view": true
+      },
+      "change": {
+        "add": false,
+        "change": true,
+        "create": false,
+        "delete": false,
+        "view": true
+      },
+      "delete": {
+        "add": false,
+        "change": false,
+        "create": false,
+        "delete": true,
+        "view": false
+      },
+      "none": {
+        "add": false,
+        "change": false,
+        "create": false,
+        "delete": false,
+        "view": false
+      },
+      "view": {
+        "add": false,
+        "change": false,
+        "create": false,
+        "delete": false,
+        "view": true
+      }
+    },
+    "created": {
+      "active": true,
+      "direct_permissions": 1,
+      "effective": [
+        "change",
+        "view"
+      ],
+      "email": "Mixed@example.com",
+      "groups": 1,
+      "password_usable": true,
+      "staff": false,
+      "superuser": false,
+      "username": "Fred"
+    },
+    "deleted": {
+      "group_exists": true,
+      "memberships": 0,
+      "permission_exists": true,
+      "user_exists": false
+    },
+    "edited": {
+      "effective": [
+        "change"
+      ],
+      "first_name": "Edited",
+      "groups": 0,
+      "same_identity": true,
+      "same_password": true,
+      "staff": true,
+      "username": "Renamed"
+    },
+    "email_normalization": [
+      "Upper@i\u0307.example",
+      "x@\u03bf\u03c2",
+      "x@\u03bf\u03c3.example",
+      "Upper@example.com"
+    ],
+    "rollback": {
+      "effective": [
+        "change"
+      ],
+      "first_name": "Edited",
+      "groups": 0,
+      "same_password": true
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "admin_options": "7526be63d08ff1338acc3e78e56171683bcdc697d32ce4af1de17aff8f328a48",
+    "auth_admin": "6500e817a9aaae8322d43ec8cc1712fc6eedb053af7d47bed92875f811fc01a4",
+    "auth_models": "fb5cc235be494dcb49c52bbcb716e5d8e741729162ca54cdd31846d90f107fb9",
+    "base_user": "8f0851c891464b42def6cdf433e09cc70dc52351279eee8303a1c6076a888da0"
+  }
+}

@@ -1,0 +1,1705 @@
+package admin
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/progresshans/godj/binaryvalue"
+	"math"
+	"slices"
+	"sort"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/uuid"
+)
+
+const (
+	DefaultListLimit      = 20
+	MaximumListLimit      = 100
+	MaximumListOffset     = 1_000_000
+	MaximumSearchBytes    = 256
+	MaximumSelectedIDs    = 100
+	MaximumActions        = 32
+	MaximumRegistryModels = 256
+)
+
+// ErrObjectNotFound is the adapter-neutral missing-row marker. Model callbacks
+// return it directly for confirmed absence between an Admin read and its write.
+// Wrapped/joined execution failures remain errors at the HTTP boundary.
+var ErrObjectNotFound = errors.New("admin: object not found")
+
+// ErrReconciliationRequired marks a callback contract failure discovered only
+// after the callback reported success. The callback may already have committed;
+// callers must inspect durable state and must not retry automatically.
+var ErrReconciliationRequired = errors.New("admin: reconciliation required; do not retry automatically")
+
+// ConfigError reports an invalid Admin definition discovered before the
+// immutable registry is published.
+type ConfigError struct {
+	Path  string
+	Code  string
+	Cause error `json:"-"`
+}
+
+func (e *ConfigError) Error() string {
+	if e == nil {
+		return "admin: <nil>"
+	}
+	if e.Path == "" {
+		return "admin: " + e.Code
+	}
+	return fmt.Sprintf("admin: %s: %s", e.Path, e.Code)
+}
+
+// GoString keeps diagnostic %#v formatting on the same framework-owned,
+// secret-free surface as Error while Unwrap retains Cause for errors.Is/As.
+func (e ConfigError) GoString() string { return (&e).Error() }
+
+func (e *ConfigError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
+}
+
+// Permissions is the exact model-level authorization surface used by the
+// bounded Admin flow.
+type Permissions struct {
+	View   auth.Permission
+	Add    auth.Permission
+	Change auth.Permission
+	Delete auth.Permission
+}
+
+// ListRequest is the bounded, backend-independent list/search input.
+type ListRequest struct {
+	Search string
+	Offset int
+	Limit  int
+}
+
+// HistoryRequest is the hard-bounded adapter input for one object's most
+// recent process-lifetime semantic events.
+type HistoryRequest struct {
+	Limit int
+}
+
+// Page is the typed result returned by a model adapter. Total is a best-effort
+// count and need not share a storage snapshot with Items; concurrent writes may
+// happen between the adapter's count and row reads. The registry converts every
+// item to a closed Object before an HTTP renderer can observe it and raises
+// Total to the observed Offset+len(Items) lower bound when necessary.
+type Page[M any] struct {
+	Items  []M
+	Total  int64
+	Offset int
+	Limit  int
+}
+
+// Object is a closed immutable model snapshot suitable for templates. It
+// cannot expose generated methods, lazy ORM state, or arbitrary Go values.
+type Object struct {
+	id             int64
+	label          string
+	values         templates.Value
+	readOnlyValues templates.Value
+}
+
+func NewObject(id int64, label string, values map[string]templates.Value) (Object, error) {
+	if id <= 0 {
+		return Object{}, &ConfigError{Path: "object.id", Code: "invalid"}
+	}
+	if strings.TrimSpace(label) == "" || len(label) > MaximumDisplayBytes || !utf8.ValidString(label) || containsUnsafeDisplayControl(label) {
+		return Object{}, &ConfigError{Path: "object.label", Code: "invalid"}
+	}
+	closed, err := templates.Object(values)
+	if err != nil {
+		return Object{}, &ConfigError{Path: "object.values", Code: "invalid", Cause: err}
+	}
+	return Object{id: id, label: label, values: closed, readOnlyValues: templates.List()}, nil
+}
+
+func (object Object) ID() int64               { return object.id }
+func (object Object) Label() string           { return object.label }
+func (object Object) Values() templates.Value { return object.values }
+
+func (object Object) Value(name string) (templates.Value, bool) {
+	return object.values.Member(name)
+}
+
+// ActionResult is the semantic, secret-free outcome of one selected-row
+// action. MatchedIDs must be an ordered subset of the canonical selected IDs.
+type ActionResult struct {
+	MatchedIDs []int64
+}
+
+func (result ActionResult) Matched() int { return len(result.MatchedIDs) }
+
+// ActionConfig declares one bounded selected-row action.
+type ActionConfig struct {
+	Name                  string
+	Label                 string
+	Permission            auth.Permission
+	AdditionalPermissions []auth.Permission
+	SuccessNotice         ActionNotice
+	Run                   func(context.Context, auth.Principal, []int64) (ActionResult, error)
+}
+
+// ModelConfig is a typed startup definition. Structural form metadata comes
+// exclusively from Model; persistence conversion remains in explicit typed
+// application callbacks. Every callback must be safe for concurrent calls and
+// must not retain request inputs after it returns. The registry passes only
+// immutable values or detached slices/maps, but application I/O synchronization
+// remains owned by the adapter and its backend.
+type ModelConfig[M any] struct {
+	AppLabel      string
+	Slug          string
+	Model         ir.Model
+	FormOverrides []formmodel.Override
+	// PostClean transforms and checks the model candidate. On changes, Initial
+	// must supply every stored non-primary field. Declared outputs may include
+	// excluded scalar fields; the primary key and revision remain registry-owned.
+	PostClean formmodel.PostClean
+	// FormFields selects editable fields in model declaration order. nil means
+	// all supported editable fields. Excluded fields never enter Form.Cleaned.
+	FormFields []string
+	// RelatedChoices supplies each selected relation field's scoped choices.
+	// The Site checks these permissions before any choice or object query.
+	RelatedChoices []RelatedChoices
+	// CreateForm overrides the common model form only for creation. The common
+	// form remains the change form and the default for ordinary CRUD creation.
+	CreateForm               *FormConfig
+	AdditionalAddPermissions []auth.Permission
+	// Inlines share this parent's Create/Update operation. Prefixes are also
+	// semantic changed-field names: report a prefix when its children changed
+	// so a configured parent revision advances for that composite mutation.
+	Inlines []Inline
+	// RevisionField identifies a nonnullable integer model field excluded from
+	// editable input. Its observed value is submitted as a separate condition.
+	RevisionField  string
+	ReadOnlyFields []ReadOnlyField[M]
+	// ReadOnly publishes list/history views without mutation routes or callbacks.
+	ReadOnly   bool
+	ListFields []string
+	// SearchFields may be empty to disable text search for this model.
+	SearchFields []string
+	Permissions  Permissions
+
+	List func(context.Context, auth.Principal, ListRequest) (Page[M], error)
+	Get  func(context.Context, auth.Principal, int64) (M, bool, error)
+	// Snapshot must include ListFields and the selected editable fields. Other
+	// declared model values are optional and validated when explicitly supplied.
+	Snapshot func(M) (Object, error)
+	// Initial supplies all selected fields and may include other stored model
+	// fields for model validation. Extra values never enter rendered Form.Initial;
+	// only explicitly declared clean changes enter the persistence input. The registry owns the primary key and configured
+	// revision field from the validated Snapshot; supplied values must agree.
+	Initial func(M) (map[string]forms.Value, error)
+	// ValidateCreate is an optional read-only post-clean check. The Site invokes
+	// it after CSRF and add/choice admission, even when field cleaning failed.
+	// BoundForm retains model defaults/current values separately from Cleaned.
+	// Use its exclusions for database checks. Return only a
+	// confirmed validation.Reject for input errors; cancellation and storage
+	// failures remain execution errors. This is not reusable write authority:
+	// Create must still enforce current authorization and database constraints.
+	ValidateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
+	// ValidateChange is the read-only post-clean check for a current row. It
+	// runs after change/choice admission and the observed revision check, even
+	// when field cleaning failed. Recheck current authority and row/revision
+	// inside the same read snapshot as database validation; Update still owns
+	// the final authorized write and transaction.
+	ValidateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
+	// Create/Update receive the final rebound candidate and original submission.
+	// Input has already passed the representation boundary; PrepareInstance can
+	// connect the same candidate to a typed current model without binding twice.
+	// Callbacks may return validation.Reject after confirming no mutation
+	// committed. Diagnostics must name selected form fields or validation.NonField.
+	// Preserve transaction/rollback failures as execution errors instead.
+	Create func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (M, error)
+	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (M, []string, error)
+	Delete func(context.Context, auth.Principal, Mutation) (M, error)
+	// History is optional. Its absence removes history routes and links.
+	History            func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)
+	Actions            []ActionConfig
+	Commands           []CommandConfig
+	CollectionCommands []CollectionCommandConfig
+	CollectionFormSets []CollectionFormSet
+	// AdditionalAuditFields declares semantic event names that are not stored
+	// fields, such as "password". They never enter snapshots or editable input.
+	AdditionalAuditFields []string
+}
+
+// Builder is mutable only during single-threaded startup. Build seals it and
+// returns an immutable concurrent-use Registry.
+type Builder struct {
+	state *builderState
+}
+
+type builderState struct {
+	apps       apps.Registry
+	models     []registeredModel
+	byIdentity map[string]int
+	bySlug     map[string]int
+	sealed     bool
+}
+
+func NewBuilder(installed apps.Registry) *Builder {
+	return &Builder{
+		state: &builderState{
+			apps:       installed,
+			byIdentity: make(map[string]int),
+			bySlug:     make(map[string]int),
+		},
+	}
+}
+
+// RegisterModel validates and type-erases one model adapter. A top-level
+// generic function is used because Go methods cannot introduce type
+// parameters that are absent from their receiver.
+func RegisterModel[M any](builder *Builder, config ModelConfig[M]) error {
+	if builder == nil || builder.state == nil || builder.state.byIdentity == nil || builder.state.bySlug == nil {
+		return &ConfigError{Path: "builder", Code: "invalid"}
+	}
+	state := builder.state
+	if state.sealed {
+		return &ConfigError{Path: "builder", Code: "sealed"}
+	}
+	if len(state.models) >= MaximumRegistryModels {
+		return &ConfigError{Path: "models", Code: "limit_exceeded"}
+	}
+	registered, err := prepareRegistration(config, state.apps)
+	if err != nil {
+		return err
+	}
+	identity := modelIdentity(registered.appLabel, registered.model.Name)
+	if _, duplicate := state.byIdentity[identity]; duplicate {
+		return &ConfigError{Path: "models." + identity, Code: "duplicate"}
+	}
+	if _, duplicate := state.bySlug[registered.slug]; duplicate {
+		return &ConfigError{Path: "models." + registered.slug + ".slug", Code: "duplicate"}
+	}
+	index := len(state.models)
+	state.models = append(state.models, registered)
+	state.byIdentity[identity] = index
+	state.bySlug[registered.slug] = index
+	return nil
+}
+
+// Registry is an immutable model-registration snapshot. Its zero value is an
+// empty registry; a nonzero registry is created by Builder.Build.
+type Registry struct {
+	models     []registeredModel
+	byIdentity map[string]int
+	bySlug     map[string]int
+}
+
+func (builder *Builder) Build() (Registry, error) {
+	if builder == nil || builder.state == nil || builder.state.byIdentity == nil || builder.state.bySlug == nil {
+		return Registry{}, &ConfigError{Path: "builder", Code: "invalid"}
+	}
+	state := builder.state
+	if state.sealed {
+		return Registry{}, &ConfigError{Path: "builder", Code: "sealed"}
+	}
+	state.sealed = true
+	return Registry{
+		models:     append([]registeredModel(nil), state.models...),
+		byIdentity: cloneIndex(state.byIdentity),
+		bySlug:     cloneIndex(state.bySlug),
+	}, nil
+}
+
+// ModelDescriptor is a detached public registration description. It contains
+// no persistence or authorization callback.
+type ModelDescriptor struct {
+	Inlines            []InlineDescriptor
+	ReadOnly           bool
+	AppLabel           string
+	Slug               string
+	Model              ir.Model
+	ListFields         []string
+	SearchFields       []string
+	Permissions        Permissions
+	Actions            []ActionDescriptor
+	FormFields         []forms.Field
+	CreateFormFields   []forms.Field
+	AddPermissions     []auth.Permission
+	RevisionField      string
+	Commands           []CommandDescriptor
+	CollectionCommands []CollectionCommandDescriptor
+	CollectionFormSets []CollectionFormSetDescriptor
+	ReadOnlyFields     []ReadOnlyFieldDescriptor
+}
+
+type ActionDescriptor struct {
+	Name          string
+	Label         string
+	Permissions   []auth.Permission
+	SuccessNotice ActionNotice
+}
+
+func (registry Registry) All() []ModelDescriptor {
+	result := make([]ModelDescriptor, len(registry.models))
+	for index := range registry.models {
+		result[index] = registry.models[index].descriptor()
+	}
+	return result
+}
+
+func (registry Registry) Lookup(appLabel, modelName string) (ModelDescriptor, bool) {
+	index, ok := registry.byIdentity[modelIdentity(appLabel, modelName)]
+	if !ok || index < 0 || index >= len(registry.models) {
+		return ModelDescriptor{}, false
+	}
+	return registry.models[index].descriptor(), true
+}
+
+type registeredModel struct {
+	inlines                 []Inline
+	inlineOwner             *inlineToken
+	readOnly                bool
+	hasHistory              bool
+	appLabel                string
+	slug                    string
+	model                   ir.Model
+	form                    forms.Spec
+	postClean               formmodel.PostClean
+	formFor                 func(context.Context, auth.Principal) (forms.Spec, error)
+	choicePermissions       []auth.Permission
+	createForm              forms.Spec
+	createPostClean         formmodel.PostClean
+	createFormFor           func(context.Context, auth.Principal) (forms.Spec, error)
+	createChoicePermissions []auth.Permission
+	addPermissions          []auth.Permission
+	revisionField           string
+	listFields              []string
+	choiceLabels            map[string]map[ir.Scalar]string
+	searchFields            []string
+	permissions             Permissions
+	actions                 []registeredAction
+	commands                []registeredCommand
+	collectionCommands      []registeredCollectionCommand
+	collectionFormSets      []CollectionFormSet
+	readOnlyFields          []ReadOnlyFieldDescriptor
+
+	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
+	get            func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
+	create         func(context.Context, auth.Principal, forms.Form, InlineSubmission) (Object, error)
+	validateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
+	validateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
+	update         func(context.Context, auth.Principal, Mutation, forms.Form, InlineSubmission) (Object, []string, error)
+	delete         func(context.Context, auth.Principal, Mutation) (Object, error)
+	history        func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
+}
+
+type registeredPage struct {
+	objects []Object
+	total   int64
+	offset  int
+	limit   int
+}
+
+type registeredRecord struct {
+	object           Object
+	initial          map[string]forms.Value
+	candidateInitial map[string]forms.Value
+}
+
+type registeredAction struct {
+	name          string
+	label         string
+	permissions   []auth.Permission
+	successNotice ActionNotice
+	run           func(context.Context, auth.Principal, []int64) (ActionResult, error)
+}
+
+func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) (registeredModel, error) {
+	if _, ok := installed.Lookup(config.AppLabel); !ok {
+		return registeredModel{}, &ConfigError{Path: "model.app_label", Code: "not_installed"}
+	}
+	if !validSlug(config.Slug) {
+		return registeredModel{}, &ConfigError{Path: "model.slug", Code: "invalid"}
+	}
+	normalized, err := ir.Normalize(ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      config.AppLabel,
+		Models:        []ir.Model{config.Model},
+	})
+	if err != nil {
+		return registeredModel{}, &ConfigError{Path: "model.ir", Code: "invalid", Cause: err}
+	}
+	model := normalized.Models[0]
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return registeredModel{}, &ConfigError{Path: "model", Code: "invalid_image_dimensions", Cause: err}
+	}
+	if config.ReadOnly && len(config.ReadOnlyFields) != 0 {
+		return registeredModel{}, &ConfigError{Path: "model.read_only_fields", Code: "detail_unavailable"}
+	}
+	var form forms.Spec
+	if !config.ReadOnly {
+		form, err = prepareModelForm(model, FormConfig{Definition: formmodel.Definition{Fields: config.FormFields, Overrides: config.FormOverrides, PostClean: config.PostClean}})
+		if err != nil {
+			if invalid, ok := err.(*ConfigError); ok {
+				return registeredModel{}, invalid
+			}
+			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
+		}
+	} else if len(config.Inlines) != 0 || len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || !config.PostClean.Empty() || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.ValidateCreate != nil || config.ValidateChange != nil || config.Update != nil || config.Delete != nil || config.CreateForm != nil || len(config.AdditionalAddPermissions) != 0 || len(config.Commands) != 0 || len(config.CollectionCommands) != 0 || len(config.CollectionFormSets) != 0 {
+		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
+	}
+	fieldByName := make(map[string]ir.Field, len(model.Fields))
+	for _, field := range model.Fields {
+		fieldByName[field.Name] = field
+	}
+	manyByName := make(map[string]ir.ManyToManyField, len(model.ManyToMany))
+	for _, field := range model.ManyToMany {
+		manyByName[field.Name] = field.Clone()
+	}
+	listFields, err := validateFieldSelection("model.list_fields", config.ListFields, fieldByName, false)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	searchFields, err := validateFieldSelection("model.search_fields", config.SearchFields, fieldByName, true)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	permissionErr := validatePermission("model.permissions.view", config.Permissions.View)
+	if permissionErr == nil && config.Permissions.Change != "" {
+		permissionErr = validatePermission("model.permissions.change", config.Permissions.Change)
+	}
+	if !config.ReadOnly {
+		permissionErr = validatePermissions(config.Permissions)
+	}
+	if err := permissionErr; err != nil {
+		return registeredModel{}, err
+	}
+	permissions := config.Permissions
+	var addPermissions []auth.Permission
+	if !config.ReadOnly {
+		addPermissions, err = additionalPermissions(permissions.Add, config.AdditionalAddPermissions)
+		if err != nil {
+			return registeredModel{}, err
+		}
+	}
+	if config.List == nil || config.Snapshot == nil ||
+		(!config.ReadOnly && (config.Get == nil || config.Initial == nil || config.Create == nil || config.Update == nil || config.Delete == nil)) ||
+		(config.History != nil && config.Get == nil) {
+		return registeredModel{}, &ConfigError{Path: "model.callbacks", Code: "missing"}
+	}
+	actions, err := prepareActions(config.Actions)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	formFields := form.Fields()
+	formFor, choicePermissions, err := prepareRelatedChoices(form, config.RelatedChoices)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	createForm, createFormFor, createChoicePermissions := form, formFor, choicePermissions
+	postClean := config.PostClean.Clone()
+	createPostClean := postClean.Clone()
+	if config.CreateForm != nil {
+		createForm, err = prepareModelForm(model, *config.CreateForm)
+		if err != nil {
+			return registeredModel{}, &ConfigError{Path: "model.create_form", Code: "invalid", Cause: err}
+		}
+		createFormFor, createChoicePermissions, err = prepareRelatedChoices(createForm, config.CreateForm.RelatedChoices)
+		if err != nil {
+			return registeredModel{}, err
+		}
+		createPostClean = config.CreateForm.Definition.PostClean.Clone()
+	}
+	inlines, err := prepareInlines(config.Inlines, installed, config.AppLabel, model, form, createForm)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	if config.RevisionField != "" {
+		field, found := fieldByName[config.RevisionField]
+		if !found || field.Kind != ir.FieldInteger || field.Nullable || dimensions[config.RevisionField] != "" {
+			return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "invalid"}
+		}
+		for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
+			if name == config.RevisionField {
+				return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "clean_output"}
+			}
+		}
+		for _, input := range append(form.Fields(), createForm.Fields()...) {
+			if input.Name() == config.RevisionField {
+				return registeredModel{}, &ConfigError{Path: "model.revision_field", Code: "editable"}
+			}
+		}
+	}
+	readOnlyFields, readOnlyValues, err := prepareReadOnlyFields(config.ReadOnlyFields, form, createForm)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	// Include each form's CSRF token and, on changes, its revision condition.
+	// Relation selections also share the bounded request-wide input budget.
+	conditions := 1
+	if config.RevisionField != "" {
+		conditions++
+	}
+	inlineInputs := 0
+	for _, inline := range inlines {
+		// Four management values plus one value for each possible row field.
+		// Multiple choices still share the request-wide runtime budget.
+		inlineInputs += 4 + inline.config.AbsoluteMax*len(inline.inputs)
+	}
+	if len(formFields)+conditions+inlineInputs > MaximumInputValues || len(createForm.Fields())+1+inlineInputs > MaximumInputValues {
+		return registeredModel{}, &ConfigError{Path: "model.form", Code: "limit_exceeded"}
+	}
+	editable := make(map[string]struct{}, len(formFields))
+	for _, field := range formFields {
+		if field.Name() == "csrfmiddlewaretoken" {
+			return registeredModel{}, &ConfigError{Path: "model.form.csrfmiddlewaretoken", Code: "reserved"}
+		}
+		editable[field.Name()] = struct{}{}
+	}
+	for _, name := range postClean.Fields {
+		editable[name] = struct{}{}
+	}
+	for dimension, owner := range dimensions {
+		if _, selected := editable[owner]; selected {
+			editable[dimension] = struct{}{}
+		}
+	}
+	for _, inline := range inlines {
+		editable[inline.prefix] = struct{}{}
+	}
+	// Trusted persistence callbacks may derive server-owned model values from
+	// stored data. Reporting their changes must not make them form inputs.
+	for _, field := range model.Fields {
+		if field.NonEditable && !field.PrimaryKey {
+			editable[field.Name] = struct{}{}
+		}
+	}
+	// Only fields consumed by this registration are required. A storage-only
+	// field must not force an otherwise unchanged Admin adapter to expose it.
+	requiredSnapshotFields := make(map[string]struct{}, len(listFields)+len(formFields))
+	for _, name := range listFields {
+		requiredSnapshotFields[name] = struct{}{}
+	}
+	if config.RevisionField != "" {
+		requiredSnapshotFields[config.RevisionField] = struct{}{}
+	}
+	for _, field := range formFields {
+		requiredSnapshotFields[field.Name()] = struct{}{}
+	}
+	for dimension, owner := range dimensions {
+		if _, selected := requiredSnapshotFields[owner]; selected {
+			requiredSnapshotFields[dimension] = struct{}{}
+		}
+	}
+	for _, name := range append(append([]string(nil), postClean.Fields...), createPostClean.Fields...) {
+		requiredSnapshotFields[name] = struct{}{}
+	}
+	requiredSnapshotOrder := make([]string, 0, len(requiredSnapshotFields))
+	for _, field := range model.Fields {
+		if _, required := requiredSnapshotFields[field.Name]; required {
+			requiredSnapshotOrder = append(requiredSnapshotOrder, field.Name)
+		}
+	}
+	for _, field := range model.ManyToMany {
+		if _, required := requiredSnapshotFields[field.Name]; required {
+			requiredSnapshotOrder = append(requiredSnapshotOrder, field.Name)
+		}
+	}
+	validateSnapshot := func(object Object) error {
+		return validateRegisteredSnapshot(object, fieldByName, manyByName, requiredSnapshotOrder)
+	}
+	listSnapshotFields := append([]string(nil), listFields...)
+	if config.RevisionField != "" {
+		listSnapshotFields = append(listSnapshotFields, config.RevisionField)
+	}
+	validateListSnapshot := func(object Object) error {
+		return validateRegisteredSnapshot(object, fieldByName, manyByName, listSnapshotFields)
+	}
+	auditable := make(map[string]struct{}, len(model.Fields))
+	for _, field := range model.Fields {
+		if !field.PrimaryKey {
+			auditable[field.Name] = struct{}{}
+		}
+	}
+
+	for _, field := range model.ManyToMany {
+		auditable[field.Name] = struct{}{}
+	}
+	for _, name := range config.AdditionalAuditFields {
+		if _, stored := fieldByName[name]; stored {
+			return registeredModel{}, &ConfigError{Path: "model.audit_fields", Code: "model_field"}
+		}
+		if _, exists := auditable[name]; exists {
+			return registeredModel{}, &ConfigError{Path: "model.audit_fields", Code: "duplicate"}
+		}
+		if _, err := PrepareEvent("startup", modelIdentity(config.AppLabel, model.Name), 1, ActionChange, []string{name}, ""); err != nil {
+			return registeredModel{}, &ConfigError{Path: "model.audit_fields", Code: "invalid", Cause: err}
+		}
+		auditable[name] = struct{}{}
+	}
+
+	for _, inline := range inlines {
+		if _, exists := auditable[inline.prefix]; exists {
+			return registeredModel{}, &ConfigError{Path: "model.inlines", Code: "audit_field_conflict"}
+		}
+		auditable[inline.prefix] = struct{}{}
+	}
+
+	registered := registeredModel{
+		inlines: inlines, inlineOwner: &inlineToken{},
+		validateCreate:          config.ValidateCreate,
+		validateChange:          config.ValidateChange,
+		readOnlyFields:          readOnlyFields,
+		readOnly:                config.ReadOnly,
+		hasHistory:              config.History != nil,
+		appLabel:                config.AppLabel,
+		slug:                    config.Slug,
+		model:                   model.Clone(),
+		form:                    form,
+		postClean:               postClean,
+		formFor:                 formFor,
+		choicePermissions:       choicePermissions,
+		createForm:              createForm,
+		createPostClean:         createPostClean,
+		createFormFor:           createFormFor,
+		createChoicePermissions: createChoicePermissions,
+		addPermissions:          addPermissions,
+		revisionField:           config.RevisionField,
+		listFields:              listFields,
+		choiceLabels:            modelChoiceLabels(model, listFields),
+		searchFields:            searchFields,
+		permissions:             permissions,
+		actions:                 actions,
+	}
+	registered.commands, err = prepareCommands(config.Commands, registered)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	registered.collectionCommands, err = prepareCollectionCommands(config.CollectionCommands, registered)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	registered.collectionFormSets, err = prepareCollectionFormSets(config.CollectionFormSets, registered.model)
+	if err != nil {
+		return registeredModel{}, err
+	}
+	registered.list = func(ctx context.Context, principal auth.Principal, request ListRequest) (registeredPage, error) {
+		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+			return registeredPage{}, err
+		}
+		normalizedRequest, err := normalizeListRequest(ctx, request)
+		if err != nil {
+			return registeredPage{}, err
+		}
+		if len(searchFields) == 0 && normalizedRequest.Search != "" {
+			return registeredPage{}, &ConfigError{Path: "list.search", Code: "unavailable"}
+		}
+		page, err := config.List(ctx, principal, normalizedRequest)
+		if err != nil {
+			return registeredPage{}, err
+		}
+		if page.Total < 0 || page.Offset != normalizedRequest.Offset || page.Limit != normalizedRequest.Limit || len(page.Items) > page.Limit {
+			return registeredPage{}, &ConfigError{Path: "list.result", Code: "invalid"}
+		}
+		objects := make([]Object, len(page.Items))
+		var previousID int64
+		for index, item := range page.Items {
+			object, err := config.Snapshot(item)
+			if err != nil {
+				return registeredPage{}, fmt.Errorf("admin: snapshot list item %d: %w", index, err)
+			}
+			if err := validateListSnapshot(object); err != nil {
+				return registeredPage{}, err
+			}
+			if _, err := registered.revision(object); err != nil {
+				return registeredPage{}, err
+			}
+			if index > 0 && object.id <= previousID {
+				return registeredPage{}, &ConfigError{Path: "list.result.order", Code: "not_strictly_ascending"}
+			}
+			previousID = object.id
+			objects[index] = object
+		}
+		total := page.Total
+		observedEnd := int64(page.Offset) + int64(len(page.Items))
+		if observedEnd > total {
+			total = observedEnd
+		}
+		return registeredPage{objects: objects, total: total, offset: page.Offset, limit: page.Limit}, nil
+	}
+	// Change-form loading snapshots safe display values and typed form initial
+	// values together. Nothing mutable is stored back into the registry.
+	registered.get = func(ctx context.Context, principal auth.Principal, id int64) (registeredRecord, bool, error) {
+		if config.Get == nil {
+			return registeredRecord{}, false, &ConfigError{Path: "get", Code: "unavailable"}
+		}
+		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+			return registeredRecord{}, false, err
+		}
+		if err := validateOperation(ctx, id); err != nil {
+			return registeredRecord{}, false, err
+		}
+		item, found, err := config.Get(ctx, principal, id)
+		if err != nil || !found {
+			return registeredRecord{}, found, err
+		}
+		object, err := config.Snapshot(item)
+		if err != nil {
+			return registeredRecord{}, false, err
+		}
+		if object.id != id {
+			return registeredRecord{}, false, &ConfigError{Path: "get.result.id", Code: "mismatch"}
+		}
+		if err := validateSnapshot(object); err != nil {
+			return registeredRecord{}, false, err
+		}
+		revision, err := registered.revision(object)
+		if err != nil {
+			return registeredRecord{}, false, err
+		}
+		object.readOnlyValues, err = readOnlyValues(ctx, item)
+		if err != nil {
+			return registeredRecord{}, false, err
+		}
+		if config.ReadOnly {
+			return registeredRecord{object: object}, true, nil
+		}
+		initial, err := config.Initial(item)
+		if err != nil {
+			return registeredRecord{}, false, err
+		}
+		selectedInitial, candidateInitial, err := modelInitialValues(model, form, initial, object.id, registered.revisionField, revision, !postClean.Empty())
+		if err != nil {
+			return registeredRecord{}, false, err
+		}
+		unbound, err := form.Unbound(selectedInitial)
+		if err != nil {
+			return registeredRecord{}, false, &ConfigError{Path: "get.result.initial", Code: "invalid", Cause: err}
+		}
+		for _, field := range formFields {
+			for dimension, owner := range dimensions {
+				if owner != field.Name() {
+					continue
+				}
+				value, present := candidateInitial[dimension]
+				snapshot, found := object.Value(dimension)
+				if !present || !found || !initialMatchesSnapshot(value, snapshot) {
+					return registeredRecord{}, false, &ConfigError{Path: "get.result.initial." + dimension, Code: "snapshot_mismatch"}
+				}
+			}
+		}
+		resolved := unbound.Initial()
+		if err := validateInitialSnapshot(resolved, formFields, object); err != nil {
+			return registeredRecord{}, false, err
+		}
+		return registeredRecord{object: object, initial: valuesMap(resolved), candidateInitial: candidateInitial}, true, nil
+	}
+	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form, inlines InlineSubmission) (Object, error) {
+		if config.ReadOnly {
+			return Object{}, &ConfigError{Path: "create", Code: "read_only"}
+		}
+		for _, permission := range addPermissions {
+			if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+				return Object{}, err
+			}
+		}
+		data, err := validatedSubmission(submitted, createForm.Fields())
+		if err != nil {
+			return Object{}, err
+		}
+		currentForm, err := createFormFor(ctx, principal)
+		if err != nil {
+			return Object{}, err
+		}
+		values, err := validateModelBoundData(ctx, model, data, currentForm, nil, createPostClean)
+		if err != nil {
+			return Object{}, err
+		}
+		inlines, err = registered.checkedInlines(ctx, principal, 0, inlines)
+		if err != nil {
+			return Object{}, err
+		}
+		item, err := config.Create(ctx, principal, values, inlines)
+		if err != nil {
+			return Object{}, err
+		}
+		object, err := config.Snapshot(item)
+		if err != nil {
+			return Object{}, reconciliationError("create", err)
+		}
+		if err := validateSnapshot(object); err != nil {
+			return Object{}, reconciliationError("create", err)
+		}
+		if _, err := registered.revision(object); err != nil {
+			return Object{}, reconciliationError("create", err)
+		}
+		return object, nil
+	}
+	registered.update = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form, inlines InlineSubmission) (Object, []string, error) {
+		id := mutation.ID
+		if config.ReadOnly {
+			return Object{}, nil, &ConfigError{Path: "update", Code: "read_only"}
+		}
+		if err := validatePrincipalPermission(ctx, principal, permissions.Change); err != nil {
+			return Object{}, nil, err
+		}
+		if err := registered.validateMutation(mutation); err != nil {
+			return Object{}, nil, err
+		}
+		data, err := validatedSubmission(submitted, formFields)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		currentForm, err := formFor(ctx, principal)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		current, found, err := registered.get(ctx, principal, id)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		if !found {
+			return Object{}, nil, ErrObjectNotFound
+		}
+		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
+			return Object{}, nil, err
+		}
+		values, err := validateModelBoundData(ctx, model, data, currentForm, current.candidateInitial, postClean)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		inlines, err = registered.checkedInlines(ctx, principal, id, inlines)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		item, changed, err := config.Update(ctx, principal, mutation, values, inlines)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		object, err := config.Snapshot(item)
+		if err != nil {
+			return Object{}, nil, reconciliationError("update", err)
+		}
+		if object.id != id {
+			return Object{}, nil, reconciliationError("update", &ConfigError{Path: "update.result.id", Code: "mismatch"})
+		}
+		if err := validateSnapshot(object); err != nil {
+			return Object{}, nil, reconciliationError("update", err)
+		}
+		changed, err = validateChangedFields(changed, editable)
+		if err != nil {
+			return Object{}, nil, reconciliationError("update", err)
+		}
+		if err := registered.validateMutationResult(mutation, object, len(changed) != 0); err != nil {
+			return Object{}, nil, reconciliationError("update", err)
+		}
+		return object, changed, nil
+	}
+	registered.delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (Object, error) {
+		id := mutation.ID
+		if config.ReadOnly {
+			return Object{}, &ConfigError{Path: "delete", Code: "read_only"}
+		}
+		if err := validatePrincipalPermission(ctx, principal, permissions.Delete); err != nil {
+			return Object{}, err
+		}
+		if err := registered.validateMutation(mutation); err != nil {
+			return Object{}, err
+		}
+		item, err := config.Delete(ctx, principal, mutation)
+		if err != nil {
+			return Object{}, err
+		}
+		object, err := config.Snapshot(item)
+		if err != nil {
+			return Object{}, reconciliationError("delete", err)
+		}
+		if err := validateSnapshot(object); err != nil {
+			return Object{}, reconciliationError("delete", err)
+		}
+		if object.id != id {
+			return Object{}, reconciliationError("delete", &ConfigError{Path: "delete.result.id", Code: "mismatch"})
+		}
+		if err := registered.validateMutationResult(mutation, object, false); err != nil {
+			return Object{}, reconciliationError("delete", err)
+		}
+		return object, nil
+	}
+	registered.history = func(ctx context.Context, principal auth.Principal, id int64) ([]AuditEntry, error) {
+		if config.History == nil {
+			return nil, &ConfigError{Path: "history", Code: "unavailable"}
+		}
+		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+			return nil, err
+		}
+		if err := validateOperation(ctx, id); err != nil {
+			return nil, err
+		}
+		entries, err := config.History(ctx, principal, id, HistoryRequest{Limit: MaximumHistoryEntries})
+		if err != nil {
+			return nil, err
+		}
+		if len(entries) > MaximumHistoryEntries {
+			return nil, &ConfigError{Path: "history.result", Code: "limit_exceeded"}
+		}
+		identity := modelIdentity(config.AppLabel, model.Name)
+		var previous uint64
+		result := make([]AuditEntry, len(entries))
+		for index, entry := range entries {
+			if entry.Sequence == 0 || entry.Sequence > math.MaxInt64 || entry.Sequence <= previous || entry.Model != identity || entry.ObjectID != id {
+				return nil, &ConfigError{Path: "history.result", Code: "invalid"}
+			}
+			if _, err := PrepareEvent(entry.ActorID, entry.Model, entry.ObjectID, entry.Action, entry.ChangedFields, entry.DisplayLabel); err != nil {
+				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d]", index), Code: "invalid", Cause: err}
+			}
+			if _, err := validateChangedFields(entry.ChangedFields, auditable); err != nil {
+				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d].changed_fields", index), Code: "invalid", Cause: err}
+			}
+			previous = entry.Sequence
+			result[index] = entry.Clone()
+		}
+		return result, nil
+	}
+	return registered, nil
+}
+
+func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
+	if len(actions) > MaximumActions {
+		return nil, &ConfigError{Path: "model.actions", Code: "limit_exceeded"}
+	}
+	seen := make(map[string]struct{}, len(actions))
+	result := make([]registeredAction, len(actions))
+	for index, action := range actions {
+		path := fmt.Sprintf("model.actions[%d]", index)
+		if !validSlug(action.Name) {
+			return nil, &ConfigError{Path: path + ".name", Code: "invalid"}
+		}
+		if _, duplicate := seen[action.Name]; duplicate {
+			return nil, &ConfigError{Path: path + ".name", Code: "duplicate"}
+		}
+		seen[action.Name] = struct{}{}
+		if action.Label == "" || len(action.Label) > MaximumDisplayBytes || !utf8.ValidString(action.Label) || containsUnsafeControl(action.Label) {
+			return nil, &ConfigError{Path: path + ".label", Code: "invalid"}
+		}
+		if err := validatePermission(path+".permission", action.Permission); err != nil {
+			return nil, err
+		}
+		if action.Run == nil {
+			return nil, &ConfigError{Path: path + ".run", Code: "missing"}
+		}
+		notice, err := prepareActionNotice(path+".success_notice", action.SuccessNotice)
+		if err != nil {
+			return nil, err
+		}
+		run := action.Run
+		permissions, err := additionalPermissions(action.Permission, action.AdditionalPermissions)
+		if err != nil {
+			return nil, err
+		}
+		result[index] = registeredAction{
+			name:          action.Name,
+			label:         action.Label,
+			permissions:   permissions,
+			successNotice: notice,
+			run: func(ctx context.Context, principal auth.Principal, selected []int64) (ActionResult, error) {
+				for _, permission := range permissions {
+					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+						return ActionResult{}, err
+					}
+				}
+				canonical, err := canonicalSelectedIDs(selected)
+				if err != nil {
+					return ActionResult{}, err
+				}
+				callbackIDs := append([]int64(nil), canonical...)
+				outcome, err := run(ctx, principal, callbackIDs)
+				if err != nil {
+					return ActionResult{}, err
+				}
+				matched, err := validateActionResult(outcome.MatchedIDs, canonical)
+				if err != nil {
+					return ActionResult{}, reconciliationError("action "+action.Name, err)
+				}
+				return ActionResult{MatchedIDs: matched}, nil
+			},
+		}
+	}
+	return result, nil
+}
+
+func reconciliationError(operation string, cause error) error {
+	return fmt.Errorf("admin: %s callback returned an invalid result after success: %w: %w", operation, ErrReconciliationRequired, cause)
+}
+
+func (model registeredModel) descriptor() ModelDescriptor {
+	collectionCommands := make([]CollectionCommandDescriptor, len(model.collectionCommands))
+	for index, command := range model.collectionCommands {
+		collectionCommands[index] = CollectionCommandDescriptor{Name: command.name, Label: command.label, Permissions: append([]auth.Permission(nil), command.permissions...), FormFields: command.form.Fields()}
+	}
+	commands := make([]CommandDescriptor, len(model.commands))
+	for index, command := range model.commands {
+		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permission: command.permission, FormFields: command.form.Fields()}
+	}
+	actions := make([]ActionDescriptor, len(model.actions))
+	for index, action := range model.actions {
+		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permissions: slices.Clone(action.permissions), SuccessNotice: action.successNotice}
+	}
+	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
+		ReadOnly:           model.readOnly,
+		AppLabel:           model.appLabel,
+		Slug:               model.slug,
+		Model:              model.model.Clone(),
+		ListFields:         append([]string(nil), model.listFields...),
+		SearchFields:       append([]string(nil), model.searchFields...),
+		Permissions:        model.permissions,
+		Actions:            actions,
+		FormFields:         model.form.Fields(),
+		CreateFormFields:   model.createForm.Fields(),
+		AddPermissions:     append([]auth.Permission(nil), model.addPermissions...),
+		RevisionField:      model.revisionField,
+		Commands:           commands,
+		CollectionCommands: collectionCommands,
+		CollectionFormSets: collectionFormSetDescriptors(model.collectionFormSets),
+		ReadOnlyFields:     append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
+	}
+}
+
+func validateFieldSelection(path string, fields []string, known map[string]ir.Field, textSearchOnly bool) ([]string, error) {
+	if len(fields) == 0 && !textSearchOnly {
+		return nil, &ConfigError{Path: path, Code: "empty"}
+	}
+	seen := make(map[string]struct{}, len(fields))
+	result := append([]string(nil), fields...)
+	for index, name := range result {
+		field, ok := known[name]
+		if !ok {
+			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "unknown_field"}
+		}
+		if _, duplicate := seen[name]; duplicate {
+			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
+		}
+		seen[name] = struct{}{}
+		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldSlug && !field.Kind.IsFile() && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
+			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
+		}
+	}
+	return result, nil
+}
+
+func validatePermissions(permissions Permissions) error {
+	checks := []struct {
+		name       string
+		permission auth.Permission
+	}{
+		{"view", permissions.View},
+		{"add", permissions.Add},
+		{"change", permissions.Change},
+		{"delete", permissions.Delete},
+	}
+	for _, check := range checks {
+		if err := validatePermission("model.permissions."+check.name, check.permission); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePermission(path string, permission auth.Permission) error {
+	validated, err := auth.NewPermission(string(permission))
+	if err != nil || validated != permission {
+		return &ConfigError{Path: path, Code: "invalid", Cause: err}
+	}
+	return nil
+}
+
+func normalizeListRequest(ctx context.Context, request ListRequest) (ListRequest, error) {
+	if ctx == nil {
+		return ListRequest{}, &ConfigError{Path: "list.context", Code: "nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return ListRequest{}, err
+	}
+	if request.Offset < 0 || request.Offset > MaximumListOffset {
+		return ListRequest{}, &ConfigError{Path: "list.offset", Code: "invalid"}
+	}
+	if request.Limit == 0 {
+		request.Limit = DefaultListLimit
+	}
+	if request.Limit < 1 || request.Limit > MaximumListLimit {
+		return ListRequest{}, &ConfigError{Path: "list.limit", Code: "invalid"}
+	}
+	if len(request.Search) > MaximumSearchBytes || !utf8.ValidString(request.Search) || strings.ContainsRune(request.Search, 0) {
+		return ListRequest{}, &ConfigError{Path: "list.search", Code: "invalid"}
+	}
+	return request, nil
+}
+
+func validateOperation(ctx context.Context, id int64) error {
+	if ctx == nil {
+		return &ConfigError{Path: "operation.context", Code: "nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if id <= 0 {
+		return &ConfigError{Path: "operation.id", Code: "invalid"}
+	}
+	return nil
+}
+
+func validatePrincipalPermission(ctx context.Context, principal auth.Principal, permission auth.Permission) error {
+	if ctx == nil {
+		return &ConfigError{Path: "operation.context", Code: "nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !principal.Authenticated() {
+		return &ConfigError{Path: "operation.principal", Code: "anonymous"}
+	}
+	if !principal.Has(permission) {
+		return &ConfigError{Path: "operation.permission", Code: "denied"}
+	}
+	return nil
+}
+
+func validatePrincipalRead(ctx context.Context, principal auth.Principal, permissions Permissions) error {
+	err := validatePrincipalPermission(ctx, principal, permissions.View)
+	if denied, ok := err.(*ConfigError); ok && denied.Path == "operation.permission" && denied.Code == "denied" && permissions.Change != "" {
+		return validatePrincipalPermission(ctx, principal, permissions.Change)
+	}
+	return err
+}
+
+func validateBoundForm(ctx context.Context, submitted forms.Form, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+	data, err := validatedSubmission(submitted, fields)
+	if err != nil {
+		return forms.Values{}, err
+	}
+	return validateBoundData(ctx, data, spec, fields)
+}
+
+func validatedSubmission(submitted forms.Form, fields []forms.Field) (forms.Data, error) {
+	if !submitted.Bound() || !submitted.Valid() || !submitted.Errors().Empty() {
+		return forms.Data{}, &ConfigError{Path: "form", Code: "not_bound_valid"}
+	}
+	values := submitted.Cleaned()
+	entries := values.All()
+	if len(entries) != len(fields) {
+		return forms.Data{}, &ConfigError{Path: "form.cleaned", Code: "field_count_mismatch"}
+	}
+	for index, field := range fields {
+		entry := entries[index]
+		if entry.Name() != field.Name() {
+			return forms.Data{}, &ConfigError{Path: fmt.Sprintf("form.cleaned[%d]", index), Code: "field_order_mismatch"}
+		}
+		if !validFormValue(entry.Value(), field) {
+			return forms.Data{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
+		}
+	}
+	// Rebind the original submission against current server-owned choices and
+	// policy. Re-serializing cleaned values loses omission and repeats string
+	// normalization, which need not be idempotent.
+	return submitted.Submitted(), nil
+}
+
+func validateBoundData(ctx context.Context, data forms.Data, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+	revalidated, err := spec.Bind(ctx, data, nil)
+	if err != nil || !revalidated.Valid() || !revalidated.Errors().Empty() {
+		if err == nil {
+			if rejection := relatedChoiceRejection(revalidated, fields); rejection != nil {
+				return forms.Values{}, rejection
+			}
+		}
+		return forms.Values{}, &ConfigError{Path: "form.cleaned", Code: "spec_validation_failed", Cause: err}
+	}
+	return revalidated.Cleaned(), nil
+}
+
+// validateInitialSnapshot matches values already checked by Spec.Unbound to the
+// authorized, model-validated snapshot. Input constraints belong to submissions.
+func validateInitialSnapshot(values forms.Values, fields []forms.Field, object Object) error {
+	entries := values.All()
+	if len(entries) != len(fields) {
+		return &ConfigError{Path: "get.result.initial", Code: "field_count_mismatch"}
+	}
+	for index, field := range fields {
+		entry := entries[index]
+		if entry.Name() != field.Name() {
+			return &ConfigError{Path: fmt.Sprintf("get.result.initial[%d]", index), Code: "field_order_mismatch"}
+		}
+		snapshot, ok := object.Value(field.Name())
+		if !ok || !initialMatchesSnapshot(entry.Value(), snapshot) {
+			return &ConfigError{Path: "get.result.initial." + field.Name(), Code: "snapshot_mismatch"}
+		}
+	}
+	return nil
+}
+
+func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool {
+	switch initial.Kind() {
+	case forms.ValueFile:
+		file, ok := initial.AsFile()
+		_, pending := file.Upload()
+		name, valid := snapshot.AsString()
+		return ok && !pending && !file.Clear() && valid && snapshot.Kind() == templates.ValueString && file.Name() == name
+	case forms.ValueIntegerList:
+		keys, ok := initial.AsIntegers()
+		items, listed := snapshot.Items()
+		if !ok || !listed || len(keys) != len(items) {
+			return false
+		}
+		for i, item := range items {
+			key, integer := item.AsInteger()
+			if !integer || key != keys[i] {
+				return false
+			}
+		}
+		return true
+	case forms.ValueNull:
+		return snapshot.IsNull()
+	case forms.ValueJSON:
+		left, leftOK := initial.AsJSON()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.Text == right
+	case forms.ValueBinary:
+		left, leftOK := initial.AsBinary()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.Base64() == right
+	case forms.ValueUUID:
+		left, leftOK := initial.AsUUID()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
+	case forms.ValueDecimal:
+		left, leftOK := initial.AsDecimal()
+		text, rightOK := snapshot.AsString()
+		right, err := decimal.Parse(text)
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && err == nil && left.Equal(right)
+	case forms.ValueFloat:
+		left, leftOK := initial.AsFloat()
+		right, rightOK := snapshot.AsString()
+		text, err := floatvalue.JSON(left)
+		return leftOK && rightOK && err == nil && snapshot.Kind() == templates.ValueString && text == right
+	case forms.ValueDuration:
+		left, leftOK := initial.AsDuration()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
+	case forms.ValueTime:
+		left, leftOK := initial.AsTime()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
+	case forms.ValueDate:
+		left, leftOK := initial.AsDate()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
+	case forms.ValueDateTime:
+		left, leftOK := initial.AsDateTime()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && temporal.Format(left) == right
+	case forms.ValueInteger:
+		left, leftOK := initial.AsInteger()
+		right, rightOK := snapshot.AsInteger()
+		return leftOK && rightOK && left == right
+	case forms.ValueString:
+		left, leftOK := initial.AsString()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left == right
+	case forms.ValueBoolean:
+		left, leftOK := initial.AsBoolean()
+		right, rightOK := snapshot.AsBool()
+		return leftOK && rightOK && left == right
+	default:
+		return false
+	}
+}
+
+func validFormValue(value forms.Value, field forms.Field) bool {
+	switch field.Kind() {
+	case forms.FieldFile, forms.FieldImage:
+		if value.IsNull() {
+			return !field.Required()
+		}
+		file, ok := value.AsFile()
+		if !ok {
+			return false
+		}
+		if file.Clear() {
+			return !field.Required() && (field.Widget() == forms.ClearableFileInput || field.Widget() == forms.Select)
+		}
+		if received, present := file.Upload(); present {
+			return (field.AllowEmptyFile() || received.Size() > 0) &&
+				(field.MaxLength() == 0 || utf8.RuneCountInString(received.Name()) <= field.MaxLength())
+		}
+		return file.Name() != "" || !field.Required()
+	case forms.FieldIntegerList:
+		keys, ok := value.AsIntegers()
+		return ok && (!field.Required() || len(keys) > 0)
+	case forms.FieldJSON:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsJSON()
+		return ok
+	case forms.FieldBinary:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		data, ok := value.AsBinary()
+		return ok && (!field.Required() || len(data.Data) > 0) && (field.MaxLength() == 0 || len(data.Data) <= field.MaxLength())
+	case forms.FieldUUID:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsUUID()
+		return ok
+	case forms.FieldDecimal:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		number, ok := value.AsDecimal()
+		digits, places, configured := field.DecimalPrecision()
+		return ok && configured && number.Fits(digits, places)
+	case forms.FieldFloat:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsFloat()
+		return ok
+	case forms.FieldDuration:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsDuration()
+		return ok
+	case forms.FieldTime:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsTime()
+		return ok
+	case forms.FieldDate:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsDate()
+		return ok
+	case forms.FieldDateTime:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsDateTime()
+		return ok
+	case forms.FieldInteger:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsInteger()
+		return ok
+	case forms.FieldChar, forms.FieldEmail, forms.FieldURL, forms.FieldSlug:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		text, ok := value.AsString()
+		if !ok || !utf8.ValidString(text) || strings.ContainsRune(text, 0) || field.TrimWhitespace() && strings.TrimSpace(text) != text {
+			return false
+		}
+		if field.Required() && text == "" {
+			return false
+		}
+		return field.MaxLength() == 0 || utf8.RuneCountInString(text) <= field.MaxLength()
+	case forms.FieldBoolean:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		boolean, ok := value.AsBoolean()
+		return ok && (field.Nullable() || !field.Required() || boolean)
+	default:
+		return false
+	}
+}
+
+func validateRegisteredSnapshot(object Object, modelFields map[string]ir.Field, many map[string]ir.ManyToManyField, required []string) error {
+	for _, name := range required {
+		if _, found := object.Value(name); !found {
+			return &ConfigError{Path: "snapshot." + name, Code: "missing_field"}
+		}
+	}
+	return validateObject(object, modelFields, many)
+}
+
+// Projectors construct their exact selected fields; registrations separately
+// check their required subset. Both validate exposed values against a prepared
+// field index, preserving unknown-field errors before value-constraint errors.
+func validateObject(object Object, fieldByName map[string]ir.Field, many map[string]ir.ManyToManyField) error {
+	members, ok := object.values.Members()
+	if !ok {
+		return &ConfigError{Path: "snapshot.values", Code: "invalid"}
+	}
+	for _, member := range members {
+		_, stored := fieldByName[member.Name()]
+		_, collection := many[member.Name()]
+		if !stored && !collection {
+			return &ConfigError{Path: "snapshot." + member.Name(), Code: "unknown_field"}
+		}
+	}
+	if object.id <= 0 || object.label == "" {
+		return &ConfigError{Path: "snapshot", Code: "invalid"}
+	}
+	for _, member := range members {
+		if _, collection := many[member.Name()]; collection {
+			items, ok := member.Value().Items()
+			if !ok {
+				return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
+			}
+			for _, item := range items {
+				key, ok := item.AsInteger()
+				if !ok || key <= 0 {
+					return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
+				}
+			}
+			continue
+		}
+		field := fieldByName[member.Name()]
+		if !validSnapshotValue(member.Value(), field, object.id) {
+			return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
+		}
+	}
+	return nil
+}
+
+func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) bool {
+	switch field.Kind {
+	case ir.FieldAuto:
+		integer, ok := value.AsInteger()
+		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldJSON:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		identifier, err := jsonvalue.Parse([]byte(text))
+		return err == nil && identifier.Text == text
+	case ir.FieldBinary:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		data, err := binaryvalue.Parse(text)
+		return err == nil && data.Base64() == text
+	case ir.FieldUUID:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		identifier, err := uuid.Parse(text)
+		return err == nil && identifier.String() == text
+	case ir.FieldDecimal:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString || field.Decimal == nil {
+			return false
+		}
+		number, err := decimal.Parse(text)
+		if err != nil || !number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
+			return false
+		}
+		fixed, err := number.Fixed(field.Decimal.DecimalPlaces)
+		return err == nil && text == fixed
+	case ir.FieldFloat:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		number, err := floatvalue.ParseInput(text)
+		if err != nil {
+			return false
+		}
+		canonical, err := floatvalue.JSON(number)
+		return err == nil && text == canonical
+	case ir.FieldDuration:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		_, err := duration.Parse(text)
+		return err == nil
+	case ir.FieldTime:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		_, err := clock.Parse(text)
+		return err == nil
+	case ir.FieldDate:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		_, err := calendar.Parse(text)
+		return err == nil
+	case ir.FieldDateTime:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		_, err := temporal.ParseCanonical(text)
+		return err == nil
+	case ir.FieldInteger:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		_, ok := value.AsInteger()
+		return ok
+	case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		return ok && value.Kind() == templates.ValueString && utf8.ValidString(text) &&
+			!strings.ContainsRune(text, 0) && (field.MaxLength == 0 || utf8.RuneCountInString(text) <= field.MaxLength)
+	case ir.FieldBoolean:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		_, ok := value.AsBool()
+		return ok
+	case ir.FieldForeignKey:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		integer, ok := value.AsInteger()
+		return ok && integer > 0
+	default:
+		return false
+	}
+}
+
+func validateChangedFields(fields []string, editable map[string]struct{}) ([]string, error) {
+	seen := make(map[string]struct{}, len(fields))
+	result := append([]string(nil), fields...)
+	for index, field := range result {
+		if _, ok := editable[field]; !ok {
+			return nil, &ConfigError{Path: fmt.Sprintf("update.changed[%d]", index), Code: "unknown_field"}
+		}
+		if _, duplicate := seen[field]; duplicate {
+			return nil, &ConfigError{Path: fmt.Sprintf("update.changed[%d]", index), Code: "duplicate"}
+		}
+		seen[field] = struct{}{}
+	}
+	return result, nil
+}
+
+func canonicalSelectedIDs(ids []int64) ([]int64, error) {
+	if len(ids) == 0 || len(ids) > MaximumSelectedIDs {
+		return nil, &ConfigError{Path: "action.selected", Code: "invalid_count"}
+	}
+	result := append([]int64(nil), ids...)
+	for _, id := range result {
+		if id <= 0 {
+			return nil, &ConfigError{Path: "action.selected", Code: "invalid_id"}
+		}
+	}
+	sort.Slice(result, func(left, right int) bool { return result[left] < result[right] })
+	write := 0
+	for _, id := range result {
+		if write != 0 && result[write-1] == id {
+			continue
+		}
+		result[write] = id
+		write++
+	}
+	return result[:write], nil
+}
+
+func validateActionResult(matched, selected []int64) ([]int64, error) {
+	selectedSet := make(map[int64]struct{}, len(selected))
+	for _, id := range selected {
+		selectedSet[id] = struct{}{}
+	}
+	result := append([]int64(nil), matched...)
+	var previous int64
+	for index, id := range result {
+		if id <= 0 || index > 0 && id <= previous {
+			return nil, &ConfigError{Path: "action.result", Code: "not_canonical"}
+		}
+		if _, ok := selectedSet[id]; !ok {
+			return nil, &ConfigError{Path: "action.result", Code: "unselected_id"}
+		}
+		previous = id
+	}
+	return result, nil
+}
+
+func valuesMap(values forms.Values) map[string]forms.Value {
+	entries := values.All()
+	result := make(map[string]forms.Value, len(entries))
+	for _, entry := range entries {
+		result[entry.Name()] = entry.Value()
+	}
+	return result
+}
+
+func cloneIndex(input map[string]int) map[string]int {
+	clone := make(map[string]int, len(input))
+	for key, value := range input {
+		clone[key] = value
+	}
+	return clone
+}
+
+func modelIdentity(appLabel, modelName string) string { return appLabel + "." + modelName }
+
+func validSlug(value string) bool {
+	if value == "" || len(value) > MaximumModelBytes {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character >= 'a' && character <= 'z' || index > 0 && character >= '0' && character <= '9' ||
+			index > 0 && character == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}

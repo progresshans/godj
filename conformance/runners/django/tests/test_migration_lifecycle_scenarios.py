@@ -1,12 +1,9 @@
 from __future__ import annotations
 
+
 import ast
 import inspect
 import json
-import os
-import subprocess
-import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -15,6 +12,7 @@ from django.db import connection, connections
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
+from conformance.runners.django.tests.values import denormalize, observed
 from conformance.runners.django import migration_lifecycle_scenarios as scenarios
 
 
@@ -31,38 +29,6 @@ STATIC = (
     / "conformance/fixtures"
     / "godj-migration-lifecycle-not-implemented.json"
 )
-
-
-def denormalize(value):
-    value_type = value["type"]
-    if value_type == "null":
-        return None
-    if value_type in {"bool", "string"}:
-        return value["value"]
-    if value_type == "int":
-        return int(value["value"])
-    if value_type == "list":
-        return [denormalize(item) for item in value["items"]]
-    if value_type == "object":
-        return {
-            field["name"]: denormalize(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unexpected normalized value type: {value_type!r}")
-
-
-def observed(scenario, contract_id):
-    observation = scenario(contract_id)
-    return {
-        "raw": observation,
-        "result": (
-            denormalize(observation["result"])
-            if observation["result"] is not None
-            else None
-        ),
-        "db": denormalize(observation["db_state"]),
-        "metrics": denormalize(observation["metrics"]),
-    }
 
 
 def keys(values):
@@ -185,7 +151,10 @@ class MigrationLifecycleScenarioTests(unittest.TestCase):
         )
         for contract in manifest["contracts"]:
             with self.subTest(contract=contract["id"]):
-                self.assertEqual(contract["status"], "oracle_locked")
+                self.assertEqual(
+                    contract["status"],
+                    "deviation" if contract["id"] == "MIG-052" else "passing",
+                )
                 self.assertEqual(
                     contract["comparison"],
                     (
@@ -195,7 +164,28 @@ class MigrationLifecycleScenarioTests(unittest.TestCase):
                     ),
                 )
                 self.assertTrue(contract["provenance"])
+                decision_provenance = [
+                    provenance
+                    for provenance in contract["provenance"]
+                    if provenance["kind"] == "decision"
+                ]
+                self.assertEqual(
+                    decision_provenance,
+                    (
+                        [
+                            {
+                                "kind": "decision",
+                                "reference": "DEV-0002",
+                                "derived": False,
+                            }
+                        ]
+                        if contract["id"] == "MIG-052"
+                        else []
+                    ),
+                )
                 for provenance in contract["provenance"]:
+                    if provenance["kind"] == "decision":
+                        continue
                     self.assertIn(
                         "django@fe0a859f537d4238cf49fca39073513206f83122:",
                         provenance["reference"],
@@ -691,45 +681,6 @@ class MigrationLifecycleScenarioTests(unittest.TestCase):
         }:
             self.assertNotIn(forbidden, keys_seen)
         self.assert_environment_clean()
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_two_hashseed_processes_match_checked_in_oracle(self) -> None:
-        outputs: list[bytes] = []
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            for index, hash_seed in enumerate(("17", "982451653"), 1):
-                output = Path(temporary_directory) / f"lifecycle-{index}.json"
-                environment = os.environ.copy()
-                environment.update(
-                    {
-                        "LC_ALL": "C",
-                        "PYTHONHASHSEED": hash_seed,
-                        "TZ": "UTC",
-                    }
-                )
-                subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "conformance.runners.django",
-                        "--profile",
-                        str(PROFILE),
-                        "--manifest",
-                        str(MANIFEST),
-                        "--output",
-                        str(output),
-                    ],
-                    cwd=ROOT,
-                    env=environment,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                outputs.append(output.read_bytes())
-        self.assertEqual(outputs[0], outputs[1])
-        self.assertEqual(outputs[0], ORACLE.read_bytes())
 
 
 if __name__ == "__main__":

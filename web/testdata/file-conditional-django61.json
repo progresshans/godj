@@ -1,0 +1,233 @@
+{
+  "cases": [
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {},
+      "method": "GET",
+      "name": "ordinary",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "\"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "strong_none_match",
+      "status": 304
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "W/\"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "weak_none_match",
+      "status": 304
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "\"other\", \"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "list_none_match",
+      "status": 304
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "*"
+      },
+      "method": "GET",
+      "name": "wildcard_none_match",
+      "status": 304
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Match": "\"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "strong_match",
+      "status": 200
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Match": "*"
+      },
+      "method": "GET",
+      "name": "wildcard_match",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-Match": "W/\"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "weak_match",
+      "status": 412
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-Match": "\"other\"",
+        "If-None-Match": "\"cmV2aXNpb24tb25l\""
+      },
+      "method": "GET",
+      "name": "mismatch_first",
+      "status": 412
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Match": "\"cmV2aXNpb24tb25l\"",
+        "If-Unmodified-Since": "Mon, 03 Feb 2025 03:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "match_over_date",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-Unmodified-Since": "Mon, 03 Feb 2025 03:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "unmodified_old",
+      "status": 412
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Unmodified-Since": "Mon, 03 Feb 2025 04:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "unmodified_current",
+      "status": 200
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Modified-Since": "Mon, 03 Feb 2025 03:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "modified_old",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-Modified-Since": "Mon, 03 Feb 2025 04:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "modified_current",
+      "status": 304
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-Modified-Since": "Mon, 03 Feb 2025 05:05:06 GMT"
+      },
+      "method": "GET",
+      "name": "modified_future",
+      "status": 304
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Modified-Since": "invalid"
+      },
+      "method": "GET",
+      "name": "invalid_date",
+      "status": 200
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": true,
+      "headers": {
+        "If-Modified-Since": "Mon, 03 Feb 2025 05:05:06 GMT",
+        "If-None-Match": "\"other\""
+      },
+      "method": "GET",
+      "name": "none_match_over_date",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "\"cmV2aXNpb24tb25l\""
+      },
+      "method": "HEAD",
+      "name": "head_none_match",
+      "status": 304
+    },
+    {
+      "body_hex": "",
+      "common": true,
+      "headers": {
+        "If-None-Match": "\"cmV2aXNpb24tb25l\"",
+        "Range": "bytes=999-"
+      },
+      "method": "GET",
+      "name": "conditional_before_range",
+      "status": 304
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": false,
+      "headers": {
+        "If-Range": "\"cmV2aXNpb24tb25l\"",
+        "Range": "bytes=2-4"
+      },
+      "method": "GET",
+      "name": "native_range_unsupported",
+      "status": 200
+    },
+    {
+      "body_hex": "",
+      "common": false,
+      "headers": {
+        "If-None-Match": "\"cmV2aXNpb24tb25l\",invalid"
+      },
+      "method": "GET",
+      "name": "native_invalid_tag_suffix",
+      "status": 304
+    },
+    {
+      "body_hex": "30313233343536373839",
+      "common": false,
+      "headers": {
+        "If-None-Match": "*"
+      },
+      "method": "GET",
+      "name": "native_unknown_etag_wildcard",
+      "status": 200
+    }
+  ],
+  "django": "6.1",
+  "etag": "\"cmV2aXNpb24tb25l\"",
+  "modified": 1738555506,
+  "python": "3.14.3",
+  "source_sha256": "cef63ee1b300683e517241a7232d111dd627a61ab86abc3b6c273cb8ee81da4e",
+  "version": "revision-one"
+}

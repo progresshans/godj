@@ -1,0 +1,1853 @@
+{
+  "django": "6.1",
+  "backend": "sqlite",
+  "leaves": {
+    "reviewer_ada": {
+      "path": "reviewer__name",
+      "value": "Ada"
+    },
+    "reviewer_bob": {
+      "path": "reviewer__name",
+      "value": "Bob"
+    },
+    "reviewer_zero": {
+      "path": "reviewer__rank",
+      "value": 0
+    },
+    "reviewer_bio": {
+      "path": "reviewer__bio",
+      "value": " space\nline "
+    },
+    "reviewer_seen": {
+      "path": "reviewer__seen_at",
+      "value": "2026-09-19T00:00:00.123456+00:00",
+      "type": "datetime"
+    },
+    "reviewer_id": {
+      "path": "reviewer__id",
+      "value": 2
+    },
+    "author_ada": {
+      "path": "author__name",
+      "value": "Ada"
+    },
+    "title_keep": {
+      "path": "title",
+      "value": "keep"
+    },
+    "title_drop": {
+      "path": "title",
+      "value": "drop"
+    },
+    "reviewer_null": {
+      "path": "reviewer__isnull",
+      "value": true
+    },
+    "reviewer_present": {
+      "path": "reviewer__isnull",
+      "value": false
+    }
+  },
+  "observations": [
+    {
+      "name": "reviewer_ada_not0",
+      "expression": "reviewer_ada",
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada'"
+      ]
+    },
+    {
+      "name": "reviewer_ada_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_ada"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada'"
+      ]
+    },
+    {
+      "name": "reviewer_ada_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_ada"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_bob_not0",
+      "expression": "reviewer_bob",
+      "ids": [
+        5,
+        6
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Bob' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Bob'"
+      ]
+    },
+    {
+      "name": "reviewer_bob_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_bob"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_bob_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_bob"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        5,
+        6
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Bob' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Bob'"
+      ]
+    },
+    {
+      "name": "reviewer_bob_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_bob"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_zero_not0",
+      "expression": "reviewer_zero",
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"rank\" = 0 ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"rank\" = 0"
+      ]
+    },
+    {
+      "name": "reviewer_zero_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_zero"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"rank\" = 0 AND \"nullable_reference_author\".\"rank\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"rank\" = 0 AND \"nullable_reference_author\".\"rank\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_zero_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_zero"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"rank\" = 0 ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"rank\" = 0"
+      ]
+    },
+    {
+      "name": "reviewer_zero_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_zero"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"rank\" = 0 AND \"nullable_reference_author\".\"rank\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"rank\" = 0 AND \"nullable_reference_author\".\"rank\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_bio_not0",
+      "expression": "reviewer_bio",
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"bio\" = ' space\nline ' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"bio\" = ' space\nline '"
+      ]
+    },
+    {
+      "name": "reviewer_bio_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_bio"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"bio\" = ' space\nline ' AND \"nullable_reference_author\".\"bio\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"bio\" = ' space\nline ' AND \"nullable_reference_author\".\"bio\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_bio_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_bio"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"bio\" = ' space\nline ' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"bio\" = ' space\nline '"
+      ]
+    },
+    {
+      "name": "reviewer_bio_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_bio"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"bio\" = ' space\nline ' AND \"nullable_reference_author\".\"bio\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"bio\" = ' space\nline ' AND \"nullable_reference_author\".\"bio\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_seen_not0",
+      "expression": "reviewer_seen",
+      "ids": [
+        3,
+        4,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456'"
+      ]
+    },
+    {
+      "name": "reviewer_seen_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_seen"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' AND \"nullable_reference_author\".\"seen_at\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' AND \"nullable_reference_author\".\"seen_at\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_seen_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_seen"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456'"
+      ]
+    },
+    {
+      "name": "reviewer_seen_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_seen"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' AND \"nullable_reference_author\".\"seen_at\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"seen_at\" = '2026-09-19 00:00:00.123456' AND \"nullable_reference_author\".\"seen_at\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_id_not0",
+      "expression": "reviewer_id",
+      "ids": [
+        5,
+        6
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" = 2 ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" = 2"
+      ]
+    },
+    {
+      "name": "reviewer_id_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_id"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" = 2 AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" = 2 AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_id_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_id"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        5,
+        6
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" = 2 ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" = 2"
+      ]
+    },
+    {
+      "name": "reviewer_id_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_id"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" = 2 AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" = 2 AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "author_ada_not0",
+      "expression": "author_ada",
+      "ids": [
+        1,
+        3,
+        5
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada'"
+      ]
+    },
+    {
+      "name": "author_ada_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "author_ada"
+        ]
+      },
+      "ids": [
+        2,
+        4,
+        6,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "author_ada_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "author_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        5
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE \"nullable_reference_author\".\"name\" = 'Ada'"
+      ]
+    },
+    {
+      "name": "author_ada_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "author_ada"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        2,
+        4,
+        6,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"author_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "title_keep_not0",
+      "expression": "title_keep",
+      "ids": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'keep' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'keep'"
+      ]
+    },
+    {
+      "name": "title_keep_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "title_keep"
+        ]
+      },
+      "ids": [
+        2,
+        4,
+        6
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "title_keep_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "title_keep"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'keep' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'keep'"
+      ]
+    },
+    {
+      "name": "title_keep_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "title_keep"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        2,
+        4,
+        6
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "title_drop_not0",
+      "expression": "title_drop",
+      "ids": [
+        2,
+        4,
+        6
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'drop' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'drop'"
+      ]
+    },
+    {
+      "name": "title_drop_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "title_drop"
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "title_drop_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "title_drop"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        2,
+        4,
+        6
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'drop' ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"title\" = 'drop'"
+      ]
+    },
+    {
+      "name": "title_drop_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "title_drop"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "reviewer_null_not0",
+      "expression": "reviewer_null",
+      "ids": [
+        1,
+        2
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NULL ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NULL"
+      ]
+    },
+    {
+      "name": "reviewer_null_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_null"
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_null_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_null"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NULL ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NULL"
+      ]
+    },
+    {
+      "name": "reviewer_null_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_null"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_present_not0",
+      "expression": "reviewer_present",
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL"
+      ]
+    },
+    {
+      "name": "reviewer_present_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          "reviewer_present"
+        ]
+      },
+      "ids": [
+        1,
+        2
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_present_not2",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_present"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL"
+      ]
+    },
+    {
+      "name": "reviewer_present_not3",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_present"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" WHERE NOT (\"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_bob_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "reviewer_bob"
+        ]
+      },
+      "ids": [],
+      "count": 0,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" = 'Bob') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" = 'Bob')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_bob_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "reviewer_bob"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 7,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_bob_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "reviewer_bob"
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_author\".\"name\" = 'Bob') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_author\".\"name\" = 'Bob')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_bob_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "reviewer_bob"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL)) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR (\"nullable_reference_author\".\"name\" = 'Bob' AND \"nullable_reference_author\".\"name\" IS NOT NULL))"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_author_ada_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "author_ada"
+        ]
+      },
+      "ids": [
+        3
+      ],
+      "count": 1,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"T3\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"T3\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_author_ada_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "author_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 6,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"T3\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"T3\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_author_ada_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "author_ada"
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"T3\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"T3\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_author_ada_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "author_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        2,
+        6,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"T3\".\"name\" = 'Ada') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"T3\".\"name\" = 'Ada')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_title_keep_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "title_keep"
+        ]
+      },
+      "ids": [
+        3
+      ],
+      "count": 1,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_title_keep_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "title_keep"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 6,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_title_keep_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "title_keep"
+        ]
+      },
+      "ids": [
+        1,
+        3,
+        4,
+        5,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_title_keep_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "title_keep"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        2,
+        6
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_title_drop_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "title_drop"
+        ]
+      },
+      "ids": [
+        4
+      ],
+      "count": 1,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_title_drop_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "title_drop"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7
+      ],
+      "count": 6,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_title_drop_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "title_drop"
+        ]
+      },
+      "ids": [
+        2,
+        3,
+        4,
+        6
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_title_drop_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "title_drop"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        5,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'drop') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'drop')"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_null_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "reviewer_null"
+        ]
+      },
+      "ids": [],
+      "count": 0,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_null_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "reviewer_null"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 7,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_null_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "reviewer_null"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "count": 4,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_null_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "reviewer_null"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        5,
+        6,
+        7
+      ],
+      "count": 3,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"reviewer_id\" IS NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"reviewer_id\" IS NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_present_not0",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          "reviewer_present"
+        ]
+      },
+      "ids": [
+        3,
+        4
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_and_reviewer_present_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "and",
+            "children": [
+              "reviewer_ada",
+              "reviewer_present"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL AND \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_present_not0",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          "reviewer_present"
+        ]
+      },
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 5,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "reviewer_ada_or_reviewer_present_not1",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "reviewer_present"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT ((\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"reviewer_id\" IS NOT NULL)"
+      ]
+    },
+    {
+      "name": "mixed_negation",
+      "expression": {
+        "kind": "or",
+        "children": [
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_ada"
+            ]
+          },
+          "title_keep"
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7
+      ],
+      "count": 6,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL) OR \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "nested_and_or",
+      "expression": {
+        "kind": "and",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              "reviewer_ada",
+              "title_keep"
+            ]
+          },
+          {
+            "kind": "not",
+            "children": [
+              "author_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        4,
+        7
+      ],
+      "count": 2,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE ((\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'keep') AND NOT (\"T3\".\"name\" = 'Ada')) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") INNER JOIN \"nullable_reference_author\" \"T3\" ON (\"nullable_reference_post\".\"author_id\" = \"T3\".\"id\") WHERE ((\"nullable_reference_author\".\"name\" = 'Ada' OR \"nullable_reference_post\".\"title\" = 'keep') AND NOT (\"T3\".\"name\" = 'Ada'))"
+      ]
+    },
+    {
+      "name": "outer_not_mixed",
+      "expression": {
+        "kind": "not",
+        "children": [
+          {
+            "kind": "or",
+            "children": [
+              {
+                "kind": "not",
+                "children": [
+                  "reviewer_ada"
+                ]
+              },
+              "title_keep"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        4
+      ],
+      "count": 1,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (NOT (\"nullable_reference_author\".\"name\" = 'Ada') OR \"nullable_reference_post\".\"title\" = 'keep') ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE NOT (NOT (\"nullable_reference_author\".\"name\" = 'Ada') OR \"nullable_reference_post\".\"title\" = 'keep')"
+      ]
+    },
+    {
+      "name": "contradiction",
+      "expression": {
+        "kind": "and",
+        "children": [
+          "reviewer_ada",
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [],
+      "count": 0,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL)) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" INNER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' AND NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL))"
+      ]
+    },
+    {
+      "name": "tautology",
+      "expression": {
+        "kind": "or",
+        "children": [
+          "reviewer_ada",
+          {
+            "kind": "not",
+            "children": [
+              "reviewer_ada"
+            ]
+          }
+        ]
+      },
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "count": 7,
+      "sql": [
+        "SELECT \"nullable_reference_post\".\"id\" AS \"id\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL)) ORDER BY 1 ASC"
+      ],
+      "count_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"nullable_reference_post\" LEFT OUTER JOIN \"nullable_reference_author\" ON (\"nullable_reference_post\".\"reviewer_id\" = \"nullable_reference_author\".\"id\") WHERE (\"nullable_reference_author\".\"name\" = 'Ada' OR NOT (\"nullable_reference_author\".\"name\" = 'Ada' AND \"nullable_reference_author\".\"name\" IS NOT NULL))"
+      ]
+    }
+  ]
+}

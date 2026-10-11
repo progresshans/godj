@@ -15,8 +15,70 @@ var (
 	hex40Pattern         = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	hex64Pattern         = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	decisionPattern      = regexp.MustCompile(`^DEV-[0-9]{4}$`)
-	deviationPathPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\[[0-9]+\])?(\.[a-z][a-z0-9_]*(\[[0-9]+\])?)*$`)
+	deviationPathPattern = regexp.MustCompile(`^(?:\[[0-9]+\](?:\.[a-z][a-z0-9_]*(?:\[[0-9]+\])?)*|[a-z][a-z0-9_]*(?:\[[0-9]+\])?(?:\.[a-z][a-z0-9_]*(?:\[[0-9]+\])?)*)$`)
 )
+
+const queryExpressionScenarioPrefix = "django.query.expression."
+
+func extendedQueryExpressionScenarioRegistry() [20]string {
+	return [...]string{
+		queryExpressionScenarioPrefix + "scalar_exact_or",
+		queryExpressionScenarioPrefix + "escaped_ascii_icontains_or",
+		queryExpressionScenarioPrefix + "grouped_or_and_reuse",
+		queryExpressionScenarioPrefix + "nonnull_scalar_not",
+		queryExpressionScenarioPrefix + "nullable_negation_truth_table",
+		queryExpressionScenarioPrefix + "implicit_filter_and",
+		queryExpressionScenarioPrefix + "nested_connector_order_and_source_independence",
+		queryExpressionScenarioPrefix + "composite_distinct_stable_page",
+		queryExpressionScenarioPrefix + "projection_outside_predicate",
+		queryExpressionScenarioPrefix + "composite_count_max",
+		queryExpressionScenarioPrefix + "integer_gt_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_gte_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_lt_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_lte_literal_boundary",
+		queryExpressionScenarioPrefix + "range_composition_negation_and_reuse",
+		queryExpressionScenarioPrefix + "same_field_reference_boundaries",
+		queryExpressionScenarioPrefix + "same_model_field_reference_and_nullable_negation",
+		queryExpressionScenarioPrefix + "nullable_ordering_negation_truth_table",
+		queryExpressionScenarioPrefix + "field_reference_stable_projection",
+		queryExpressionScenarioPrefix + "field_reference_count_max",
+	}
+}
+
+func extendedSystemStateScenarioRegistry() [30]string {
+	return [...]string{
+		"godj.system_state.explicit_migration_gate",
+		"godj.system_state.admin_bootstrap_gate",
+		"django.system_state.credential_permission_restart",
+		"django.system_state.rotated_session_restart",
+		"godj.system_state.session_expiry_and_touch",
+		"godj.system_state.capacity_reap_and_rotate_rollback",
+		"godj.system_state.digest_only_current_codec",
+		"django.system_state.logout_restart_denial",
+		"django.system_state.csrf_restart",
+		"django.system_state.admin_audit_fault_rollback",
+		"django.system_state.audit_history_restart",
+		"godj.system_state.commit_outcome_unknown",
+		"godj.system_state.coordinated_atomic_fence",
+		"godj.system_state.concurrent_admin_bootstrap",
+		"godj.system_state.concurrent_session_capacity",
+		"godj.system_state.concurrent_touch_monotonicity",
+		"godj.system_state.concurrent_session_rotation",
+		"godj.system_state.concurrent_article_audit",
+		"godj.system_state.shared_csrf_key_ring",
+		"godj.system_state.two_process_backend_restart",
+		"godj.system_state.explicit_operator_provisioning",
+		"godj.system_state.createsuperuser_argv_and_pre_io",
+		"godj.system_state.tty_secret_transport",
+		"godj.system_state.project_provision_ownership",
+		"godj.system_state.operator_provision_cardinality",
+		"godj.system_state.provision_outcome_ownership",
+		"godj.system_state.open_existing_authenticator",
+		"godj.system_state.credential_absent_public_only",
+		"godj.system_state.operator_backend_login_restart",
+		"godj.system_state.sensitive_child_cleanup",
+	}
+}
 
 func (p Profile) Validate() error {
 	if p.FormatVersion != FormatVersion {
@@ -109,8 +171,9 @@ func (m Manifest) Validate() error {
 	if strings.TrimSpace(m.ProfileID) == "" {
 		return fmt.Errorf("profile_id is required")
 	}
-	if len(m.Contracts) < 8 || len(m.Contracts) > 12 {
-		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, got %d", len(m.Contracts))
+	contractCount := len(m.Contracts)
+	if contractCount < 8 || (contractCount > 12 && !manifestHasExactExtendedQueryExpressionRegistry(m.Contracts) && !manifestHasExactExtendedSystemStateRegistry(m.Contracts)) {
+		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, the exact 20-entry query-expression registry, or the exact 30-entry system-state registry, got %d", contractCount)
 	}
 	seen := make(map[string]struct{}, len(m.Contracts))
 	for index := range m.Contracts {
@@ -124,6 +187,32 @@ func (m Manifest) Validate() error {
 		seen[contract.ID] = struct{}{}
 	}
 	return nil
+}
+
+func manifestHasExactExtendedQueryExpressionRegistry(contracts []Contract) bool {
+	scenarios := extendedQueryExpressionScenarioRegistry()
+	if len(contracts) != len(scenarios) {
+		return false
+	}
+	for index, scenario := range scenarios {
+		if contracts[index].ID != fmt.Sprintf("QRY-%03d", index+34) || contracts[index].Scenario != scenario {
+			return false
+		}
+	}
+	return true
+}
+
+func manifestHasExactExtendedSystemStateRegistry(contracts []Contract) bool {
+	scenarios := extendedSystemStateScenarioRegistry()
+	if len(contracts) != len(scenarios) {
+		return false
+	}
+	for index, scenario := range scenarios {
+		if contracts[index].ID != fmt.Sprintf("SYS-%03d", index+1) || contracts[index].Scenario != scenario {
+			return false
+		}
+	}
+	return true
 }
 
 func (c Contract) Validate() error {

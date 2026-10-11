@@ -1,0 +1,45 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0004",
+  "contracts": [
+    {
+      "id": "AUT-004",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "redirect",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "none"},
+          "product": {"type": "string", "value": "admin_login"}
+        }
+      ]
+    },
+    {
+      "id": "AUT-005",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "delete.http_only",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": false},
+          "product": {"type": "bool", "value": true}
+        },
+        {
+          "dimension": "result",
+          "path": "login.expires_present",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": false},
+          "product": {"type": "bool", "value": true}
+        },
+        {
+          "dimension": "result",
+          "path": "login.max_age",
+          "operation": "replace",
+          "reference": {"type": "null"},
+          "product": {"type": "int", "value": "7200"}
+        }
+      ]
+    }
+  ]
+}

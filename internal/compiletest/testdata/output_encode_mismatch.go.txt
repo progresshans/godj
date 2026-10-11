@@ -1,0 +1,10 @@
+package consumer
+
+import (
+	"context"
+	"github.com/progresshans/godj/api/output"
+)
+
+type row struct { ID int64 }
+type other struct { ID int64 }
+func misuse(ctx context.Context, prepared output.Output[row]) { _, _ = prepared.Encode(ctx, other{}) }
