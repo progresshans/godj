@@ -78,7 +78,7 @@ func TestComputedRuntime(t *testing.T) {
 			within(t, func(session db.Session) {
 				probe := &computedReadProbe{Session: session}
 				raw := records.MeasureObjects.Using(probe).OrderBy(f.ID.Asc())
-				api, err := project.Using(probe)
+				api, err := project.UsingSession(probe)
 				check(t, err)
 				expression := orm.AddExpressions(orm.F(f.Amount), orm.F(f.Other))
 				dynamic, err := api.RecordsMeasure.Expression(orm.DynamicF("amount").Add(orm.DynamicF("other")))
@@ -119,7 +119,7 @@ func TestComputedRuntime(t *testing.T) {
 		})
 		t.Run("group_keys_aggregates_and_having", func(t *testing.T) {
 			within(t, func(session db.Session) {
-				api, err := project.Using(session)
+				api, err := project.UsingSession(session)
 				check(t, err)
 				key := orm.Remainder(orm.F(f.Amount), int64(2))
 				value := orm.Add(orm.F(f.Amount), int64(1))
@@ -332,6 +332,18 @@ func TestComputedRuntime(t *testing.T) {
 					t.Fatal("dynamic comparison ignored result kind")
 				}
 			})
+		})
+		t.Run("literal_codecs_and_typed_nulls", func(t *testing.T) {
+			within(t, func(session db.Session) {
+				_, err := records.OtherObjects.Create(t.Context(), session, records.NewOtherCreate(1, true))
+				check(t, err)
+				checkComputedCodecs(t, records.OtherObjects.Using(session))
+			})
+			count, err := records.OtherObjects.Using(backend).Count(t.Context())
+			check(t, err)
+			if count != 0 {
+				t.Fatal("literal codec fixture escaped its rollback")
+			}
 		})
 	})
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -128,6 +129,13 @@ func run() error {
 			}
 		}
 	}
+	var summaryBefore []models.Ticket
+	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
+		summaryBefore, err = models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	application, err := helpdesk.New(runtime, category.ID)
 	if err != nil {
 		return err
@@ -210,11 +218,17 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		if summaryBefore != nil && !reflect.DeepEqual(summaryBefore, rows) {
+			return errors.New("summary browser changed stored ticket data")
+		}
 		evidence := make([]map[string]any, len(rows))
 		for index, row := range rows {
 			history, err := runtime.AuditHistory(shutdown, "helpdesk.ticket", row.ID, 10)
 			if err != nil {
 				return err
+			}
+			if summaryBefore != nil && len(history) != 0 {
+				return errors.New("summary browser appended a ticket audit event")
 			}
 			evidence[index] = map[string]any{"id": row.ID, "subject": row.Subject, "category": row.CategoryID, "closed": row.Closed, "priority": row.Priority, "audit": history}
 		}
@@ -222,6 +236,10 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links})
+		if summaryBefore != nil && len(links) != 0 {
+			return errors.New("summary browser changed ticket links")
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
+			"summary_read_only_unchanged": summaryBefore != nil, "initial_summary_tickets": len(summaryBefore)})
 	}
 }

@@ -10,15 +10,21 @@ RUNNER = "conformance.runners.django.password_change_reference"
 
 
 class PasswordChangeReferenceTests(unittest.TestCase):
-    def observe(self, seed="0", mutation=""):
+    def observe(self, seed="0", mutation="", host_time=None):
         environment = os.environ | {"PYTHONHASHSEED": seed}
         environment.pop("GODJ_SELF_PASSWORD_DATABASE", None)
         prefix = ""
         if mutation:
             body = "\n".join("    " + line for line in mutation.splitlines())
             prefix = "import django\noriginal_setup = django.setup\ndef setup():\n    original_setup()\n" + body + "\ndjango.setup = setup\n"
-        result = subprocess.run([sys.executable, "-W", "error", "-c", prefix + f"\nimport runpy; runpy.run_module({RUNNER!r}, run_name='__main__', alter_sys=True)"],
-                                cwd=ROOT, env=environment, capture_output=True, check=True, timeout=180)
+        program = prefix + f"\nimport runpy; runpy.run_module({RUNNER!r}, run_name='__main__', alter_sys=True)"
+        if host_time:
+            program = ("from datetime import datetime\nfrom unittest.mock import patch\n"
+                       + f"with patch('django.utils.timezone.now', return_value=datetime.fromisoformat({host_time!r})):\n"
+                       + "\n".join("    " + line for line in program.splitlines()))
+        result = subprocess.run([sys.executable, "-W", "error", "-c", program],
+                                cwd=ROOT, env=environment, capture_output=True, timeout=180)
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", errors="replace"))
         self.assertEqual(result.stderr, b"")
         return json.loads(result.stdout)
 
@@ -31,6 +37,12 @@ class PasswordChangeReferenceTests(unittest.TestCase):
             expected = json.loads((ROOT / f"internal/identitytest/testdata/password-change-django61-{backend}.json").read_text())
             for field in ("observations", "source_sha256"):
                 self.assertEqual(actual[field], expected[field], (backend, field))
+
+    def test_host_clock_cannot_expire_or_retime_observed_sessions(self):
+        expected = json.loads((ROOT / "internal/identitytest/testdata/password-change-django61-sqlite.json").read_text())
+        for host_time in ("2000-01-01T00:00:00+00:00", "2040-01-01T00:00:00+00:00"):
+            with self.subTest(host_time=host_time):
+                self.assertEqual(self.observe(host_time=host_time)["observations"], expected["observations"])
 
     def test_rotation_stamp_and_last_login_controls(self):
         expected = self.observe()["observations"]

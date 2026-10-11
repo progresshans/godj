@@ -28,3 +28,13 @@ UUID 별칭 중복 거부와 전체 rollback, 수정 후 함께 commit된 scalar
 나머지 두 티켓은 각각 add 1개/change 1개가 `browser-operator` actor로 남아야 한다. 우선순위는 두 번째·세 번째
 티켓만 Urgent이고 나머지는 NULL이다. 최종 조회는 브라우저 결과와 독립적이다. 이 SQLite 브라우저 검사는
 양 DB의 취소·rollback/commit unknown·native batch 실패·동시 요청 검사를 대신하지 않는다.
+
+## 요약 화면의 원격 검증
+
+전체 CI의 `Portable Go (normal, integration)`은 `tools/package-lock.json`에 고정한 Playwright CLI와 해당
+Chromium으로 별도 `GODJ_BROWSER_SUMMARY=1` fixture를 실행한다. `login_probe.js`로 실제 로그인하고
+`summary_probe.js`의 탐색·페이지/HAVING·입력 거부·exact int64·숫자 지표·After raise 미리보기 23개를 확인한다.
+CLI exit code가 0이어도 tool error, 누락/중복 result와 불완전한 check 목록은 실패다. 브라우저/서버를 닫고 native
+readback에서 모든 Ticket 필드가 초기 snapshot과 같은지, 링크·티켓 audit가 비어 있는지와 임시 DB 제거를 검사한다.
+로그·실제 browser version·source checkout/tree·screenshot·receipt는 해당 run의 `helpdesk-summary-browser-*`
+artifact에 남는다. 일반 네 쓰기 probe와 이 읽기 fixture의 실행/예상 DB 상태를 혼합하지 않는다.

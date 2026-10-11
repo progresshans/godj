@@ -164,7 +164,7 @@ func selectComputed(ctx context.Context, source project.RecordsMeasureQuery, val
 
 func runComputedReference(t *testing.T, backend db.Session, name string) (any, error) {
 	ctx := t.Context()
-	api, err := project.Using(backend)
+	api, err := project.UsingSession(backend)
 	if err != nil {
 		return nil, err
 	}

@@ -102,7 +102,7 @@ func CheckCompiler(t *testing.T, compile func(query.QueryUpdatePlan) (string, []
 		t.Fatal(statement, arguments, err)
 	}
 	if postgres {
-		if !strings.Contains(statement, `"amount" = ("amount" + CAST($2 AS bigint))`) || !strings.Contains(statement, `"note" = $3`) || !strings.Contains(statement, `"name" = $1`) || strings.Contains(statement, "MATERIALIZED") {
+		if !strings.Contains(statement, `"amount" = ("amount" + CAST($2 AS bigint))`) || !strings.Contains(statement, `"note" = CAST($3 AS text)`) || !strings.Contains(statement, `"name" = $1`) || strings.Contains(statement, "MATERIALIZED") {
 			t.Fatal("lost native predicate or numeric type", statement)
 		}
 	} else {

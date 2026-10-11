@@ -273,6 +273,33 @@ jobs:
       - name: Run portable Go mode
         run: make ${{ matrix.make_targets }}
 
+      - name: Install locked Helpdesk browser tools
+        if: matrix.mode == 'normal' && matrix.shard == 'integration'
+        run: |
+          node --version
+          browser_tools="${RUNNER_TEMP}/helpdesk-browser-tools"
+          mkdir "$browser_tools"
+          cp examples/helpdesk/testdata/browser/tools/package.json examples/helpdesk/testdata/browser/tools/package-lock.json "$browser_tools/"
+          npm ci --prefix "$browser_tools" --ignore-scripts --no-audit --no-fund
+          node "$browser_tools/node_modules/playwright/cli.js" install --with-deps chromium
+
+      - name: Run isolated Helpdesk summary browser
+        id: helpdesk-browser
+        if: matrix.mode == 'normal' && matrix.shard == 'integration'
+        run: |
+          python3 scripts/ci/helpdesk_browser.py \
+            --node-tools "${RUNNER_TEMP}/helpdesk-browser-tools" \
+            --output-dir "${RUNNER_TEMP}/helpdesk-summary/output/playwright"
+
+      - name: Publish Helpdesk browser evidence
+        if: always() && matrix.mode == 'normal' && matrix.shard == 'integration' && steps.helpdesk-browser.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: helpdesk-summary-browser-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/helpdesk-summary/output/playwright/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Require a clean worktree
         run: |
           git diff --exit-code

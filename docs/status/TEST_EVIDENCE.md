@@ -8,7 +8,7 @@
 2026-10-08~11 KST, 기준 `02f350d3598f41dd34b0ddcb1fbf82474139aea4` 뒤 작업 사본에 같은 행 scalar/CASE의
 조회·조건·정렬·그룹 키·집계 operand와 typed/dynamic/생성 facade를 연결했다. Helpdesk의 같은 읽기 snapshot에
 `raise_to_priority`·`raise_to_label`·`would_change`를 추가하고 HTML·OpenAPI·독립 client로 전달한다.
-장기 의미와 미지원 범위는 ADR-0090/0091을 따른다. 현재 제품 runtime/DB·race·전체 platform의 PASS는 아직 없다.
+장기 의미와 미지원 범위는 ADR-0090/0091을 따른다. 현재 제품의 양 DB·race·전체 platform 통합은 아직 미완료다.
 2026-10-11의 사용자 지침에 따라 포맷·필요한 최소 compile 뒤 push하며 실제 영향·통합 검증은 원격 CI가 소유한다.
 
 ### 독립 조건부 표현식 관찰
@@ -50,7 +50,8 @@ SDK 생성/build receipt는 `bae36a236dcbe55a1d082934c8cce5149d61c12d59556cd9cd4
 `TestGeneratedComputedExpressions`는 같은 raw reference에 결합된 20개/backend와 typed/dynamic·source/cache·
 취소/scan/close·실제 NULL assignment rollback·native precision/overflow·input ownership을 검사하도록 작성했다.
 자식 전체 run/pass·정확히 한 번 실행과 skip 0을 요구하고 바깥 일곱 compile-negative를 관계/PostgreSQL 필수 목록에
-추가했다. 로컬에서는 이 제품 테스트를 실행하지 않았다. 새 브라우저 probe도 수정했지만 아직 실행하지 않았다.
+추가했다. 최초 게시 전에는 이 제품 테스트를 실행하지 않았다. 이후 실제 CI 실패의 제한된 재현은 아래에 기록한다.
+새 브라우저 probe도 수정했지만 아직 실행하지 않았다.
 초기 최소 compile에서 template constructor `Boolean`을 실제 `Bool`로, 새 generated consumer의 읽기 probe를
 project backend가 요구하는 borrowed `db.Session` capability로 고쳤다. 실패한 compile은 PASS에 합산하지 않는다.
 
@@ -62,6 +63,50 @@ Go 1.26.5 darwin/arm64·CGO=1에서 query/orm/queryplan/SQLite/PostgreSQL/codege
 
 외부 자료는 `godj-verification/computed-case-reference-20261008`, `computed-generators-20261008-024011`,
 `computed-minimal-compile-1791687354795182000`에 보존했다. 원격 source/run과 실제 실행 증거는 완료 후 이 절에 기록한다.
+
+### 첫 원격 피드백과 후속 수정
+
+Source `2bb4ce7b2c964c32e12ae0c8e179f474538c4d84`의 [CI 38107266595](https://github.com/progresshans/godj/actions/runs/38107266595)를
+PR push로 실행했다. Actual checkout `7ad062c2133e8cd24e77185f5c9e55aa77c90422`의 parent와 source tree
+`fe2cff6c152de1941507be107ce0a1697f06da3c`를 확인했다. Plan/source receipt SHA-256은
+`858c61f30644d837e0574787f6b5337acb5bbf5ed9cc2607d57a71e49e8f9055`다. 이 실행은 전체 PASS가 아니다.
+
+Portable core의 normal/race/CGO=0에서 facade golden과 PostgreSQL UPDATE 문자열 기대값이 실패했다.
+새 메서드 세 개를 실제 생성기로 golden에 반영하고 text literal의 명시적 `CAST(... AS text)`를 검사하도록 수정했다.
+SQL의 native WHERE·parameter 순서·injection 거부·정수 guard 검사는 유지했다. 두 실제 실패 테스트만 로컬 normal에서
+재실행해 통과했으며 로그 SHA-256은 `3c1d1bcc359dfb04d88127b9cb97f56c54bdae0337f7b1d333a476b0e174eb63`다.
+원격 세 실패 job의 원 로그 SHA-256은 normal `81802d184ddddc1ab1718725278324745780fb7f37c0343322fd1ffb1774e640`,
+race `66cd8c5a086d6e4556568ac2b6bff6930570285f97734d5c88529d23d3fbdfc9`,
+CGO=0 `0623db9241227aeaacba1b6afbb28d1628f3f812385141bf403f1babefcebdfc`다.
+
+Python 3.13.15의 password-change 참조 검사 두 개도 실패했다. 로그인·일부 쓰기만 2026-09-27로 고정한 반면
+session 읽기와 invalid-form 요청이 실제 시간을 사용했다. 기본 session 수명 1,209,600초가 지난 2026-10-11에는
+후속 요청이 HTML 응답으로 바뀌었다. 같은 source·Python 3.13.15에서 오류를 재현했다.
+관찰 전체의 기본 시계를 고정하고 기존의 명시적인 1..4초 진행을 유지했다. 기존 양 DB 예상 관찰/source hashes는
+바꾸지 않았으며 2000년/2040년 호스트 시계에서도 같은 결과인지 검사한다. 기존 hash seed·session 회전/auth stamp·
+last_login 부정 대조를 포함한 해당 파일의 세 검사를 로컬에서 통과했다. 고친 실행 로그 SHA-256은
+`790823beec1fa181a0b39b0cce831be24f7f07804007ef843e69f6ea3e645aa1`, 원격 실패 로그는
+`d810973a9db6ff8e540b529bfc141fb0e4a84a94b4d4718e383d37f888e1bc56`이다. 원격 네 Python 좌표의 재검증은 남아 있다.
+
+Relation Linux/amd64 race shard 2는 새 소비자의 borrowed session을 루트 연결용 `project.Using`에 넘겨 실패했다.
+세 호출을 `UsingSession`으로 고쳤으며 제품의 session lifetime 검사는 유지했다. 원격 실패 로그 SHA-256은
+`64b68ec716e344f128aa7c36ddf3122d7e9803be4b56b54fc837a7196452738f`다. 실제 실패 root만 로컬 normal/SQLite에서
+재실행했고 child 45개 및 일곱 compile-negative를 포함한 바깥 8개가 정확히 한 번 run/pass, skip 0이었다.
+부모/child 로그 SHA-256은 각각 `de31251e3abc4c269756ef2ea515070da46981369a21d3a61ff5212ce4733fae`,
+`ee0f2ebeb8237cd7e0f88bcfadc0d0581fe506097f9db5f9f37134898675bb0c`다. 이 제한된 실패 수정 실행의 consumer
+source manifest는 `0998bfc994577ec556ae8b1d32476961687382dc08533e854f560899a5690a76`이며 PostgreSQL/race의 증거가 아니다.
+
+추가로 원본 모델에 Decimal/Duration/UUID/JSON field가 없어도 선택된 결과 종류로 native 값을 읽는지 검사하도록 했다.
+전체 scalar codec의 literal/CASE/typed NULL, 빈 Binary·JSON null과 SQL NULL 구분을 typed/dynamic 경로에 추가했다.
+이 수정의 부모와 별도 consumer compile 원 로그 SHA-256은 각각
+`eb151b41513a1938376585ec026371abe5f029d3f5cf3df903d548d3dbbfa4b5`,
+`88a2fefcfc2fbd31ba39ce2ac01c7381d7e70e66e3943bc9bf1b20d9ada34390`이다. 위 실패 수정 재현에서 SQLite의
+14개 codec 사례도 통과했다. PostgreSQL의 결과 종류 변환과 원격 세 모드 검증은 남아 있다.
+
+Portable normal integration에 고정 Playwright CLI 0.1.22/Chromium revision 1247의 요약 검증을 연결했다.
+별도 실제 로그인과 23개 UI/HTTP assertion, 종료 후 전체 Ticket 필드의 초기 snapshot 대조·빈 링크/audit·DB 정리와
+source/version/log/screenshot receipt를 요구한다. 원격 준비·실행·artifact 게시 중 하나라도 실패하면 job이 실패한다.
+새 runner의 Python/JavaScript syntax와 fixture build만 로컬에서 확인했으며 브라우저 실행 PASS는 아직 없다.
 
 ## GDJ-0121 — 숫자 합계·평균과 업무 지표
 

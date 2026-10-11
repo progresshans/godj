@@ -76,6 +76,10 @@ dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=o
 host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
+Helpdesk 요약의 실제 브라우저는 Portable normal integration이 한 번 실행한다. 별도 임시 SQLite·실제 로그인·
+고정 CLI/Chromium으로 페이지/HAVING·지표·우선순위 미리보기를 검사하고 native readback으로 원본 행/링크/audit
+보존을 확인한다. CLI의 오류 텍스트·불완전한 결과, 서버 종료/DB 정리 실패를 통과시키지 않으며 source/version·로그·
+screenshot·receipt를 같은 run의 artifact로 보존한다. 이 단일 브라우저 좌표와 양 DB/세 mode 제품 검사는 서로 구분한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 기본 build cache와 병렬 실행을 유지한다. 로컬 디스크 여유가 부족해
 cache 정리가 필요하면 활성 Go 작업이 종료된 뒤 정리한다. 이후 무거운 재빌드와 검증은 원격 CI에서 수행한다.
 중복 build·검증 범위·cache 누적과 실행 중 임시 공간을 구분하며, 같은 검증을 로컬과 원격에서 관성적으로 반복하지 않는다.

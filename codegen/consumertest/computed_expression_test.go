@@ -38,7 +38,7 @@ func TestGeneratedComputedExpressions(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "reference_test.go", "runtime_test.go"} {
+	for _, name := range []string{"backend_test.go", "reference_test.go", "runtime_test.go", "codecs_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "computedexpression", name))
 		if err != nil {
 			t.Fatal(err)
@@ -96,8 +96,11 @@ func TestGeneratedComputedExpressions(t *testing.T) {
 		for _, record := range fixture.Cases {
 			required = append(required, "TestComputedReference/"+backend+"/"+record.Name)
 		}
-		for _, name := range []string{"typed_dynamic_projection_and_predicates", "group_keys_aggregates_and_having", "slice_distinct_empty_and_arguments", "source_cache_and_lifetime", "native_failures_and_precision", "dynamic_rejection_and_ownership"} {
+		for _, name := range []string{"typed_dynamic_projection_and_predicates", "group_keys_aggregates_and_having", "slice_distinct_empty_and_arguments", "source_cache_and_lifetime", "native_failures_and_precision", "dynamic_rejection_and_ownership", "literal_codecs_and_typed_nulls"} {
 			required = append(required, "TestComputedRuntime/"+backend+"/"+name)
+		}
+		for _, name := range []string{"integer", "float", "string", "boolean", "decimal", "duration", "datetime", "date", "time", "uuid", "binary", "binary_empty", "json", "json_null"} {
+			required = append(required, "TestComputedRuntime/"+backend+"/literal_codecs_and_typed_nulls/"+name)
 		}
 	}
 	output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestComputed(Reference|Runtime)$", "./consumer"))

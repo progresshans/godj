@@ -20,7 +20,11 @@ import django
 from django.conf import settings
 
 assert django.get_version() == '6.1' and not settings.configured
-with tempfile.TemporaryDirectory(prefix='godj-self-password-reference-') as directory:
+base = datetime(2026,9,27,1,2,3,123456,tzinfo=timezone.utc)
+# Session reads, invalid-form requests and post-change access must share the
+# same observed clock as login. Otherwise the real host date eventually expires
+# the synthetic session between the explicitly advanced operation clocks below.
+with tempfile.TemporaryDirectory(prefix='godj-self-password-reference-') as directory, patch('django.utils.timezone.now',return_value=base):
     name=os.environ.get('GODJ_SELF_PASSWORD_DATABASE')
     if name:
         assert re.fullmatch(r'godj_self_password_[0-9]+',name)
@@ -77,7 +81,6 @@ with tempfile.TemporaryDirectory(prefix='godj-self-password-reference-') as dire
     sys.modules[urls.__name__] = urls
     assert not connection.introspection.table_names()
     call_command('migrate',verbosity=0,interactive=False)
-    base = datetime(2026,9,27,1,2,3,123456,tzinfo=timezone.utc)
     old_password,new_password = '  original private password  ','  replacement private password  '
     def seed(name):
         user=User.objects.create_user(username=name,password=old_password,email='member@example.test')

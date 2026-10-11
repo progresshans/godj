@@ -39,6 +39,13 @@ Decimal·Duration 산술/계산식 SUM/AVG는 남은 카탈로그 요구다. 한
 - [ ] 위 제품 경로의 실제 양 DB·실패·읽기 무결성 검증과 브라우저 실행
 - [ ] 영향 검증·생성 drift·관련 race/process 및 같은 source의 원격 전체 통합 검증
 
-제품 영향 테스트는 아직 실행하지 않았다. 로컬은 포맷·필요한 compile과 실패 재현에 사용하며, 실제 검증은
-기존 Draft PR의 전체 CI가 소유한다. 이전 source의 전체 통합이나 독립 Django 관찰을 현재 제품 PASS로 쓰지 않는다.
+제품 영향 테스트의 첫 원격 실행에서 실패를 발견했다. 로컬은 포맷·필요한 compile과 실패 재현에 사용하며,
+전체 검증은 기존 Draft PR의 CI가 소유한다. 이전 source의 전체 통합이나 독립 Django 관찰을 현재 제품 PASS로 쓰지 않는다.
 최소 compile의 template Boolean 이름과 새 외부 소비자의 backend capability 오류를 수정했다.
+첫 원격 실행에서 발견한 golden/SQL 기대값 불일치를 보완했고, 기존 password-change 참조의 session 읽기까지
+시계를 고정해 실제 날짜에 따른 만료를 제거했다. 정상 예상값과 부정 대조는 유지하며 과거/미래 호스트 시계도 검사한다.
+생성 소비자의 borrowed session 생성자도 바로잡았다. 실제 실패 root의 제한된 SQLite 재현은 통과했으며
+세션 수명 검사와 잘못된 타입의 컴파일 거부는 유지했다. PostgreSQL/race의 검증은 남아 있다.
+선택한 native 결과 종류가 원 모델에 없는 경우를 포함한 scalar codec/typed NULL 검사를 추가했다.
+브라우저는 Portable normal integration에 고정 도구·실제 로그인·필수 결과·native readback·artifact 경로를 연결했다.
+이 추가 검사의 실제 실행은 후속 전체 CI가 소유한다.
