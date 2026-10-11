@@ -1,4 +1,4 @@
-"""Run every reference test to completion under an explicit execution profile."""
+"""Run every discovered test to completion under an explicit execution profile."""
 
 import argparse
 import os
@@ -68,24 +68,26 @@ def configure_profile(profile):
     if profile == "exact":
         os.environ["GODJ_EXACT_PROFILE"] = "1"
         return frozenset()
-    if profile not in {"normal", "compatibility"}:
+    if profile not in {"normal", "compatibility", "tools"}:
         raise ValueError("unknown Python execution profile")
     os.environ.pop("GODJ_EXACT_PROFILE", None)
-    return EXACT_PROFILE_TESTS
+    return frozenset() if profile == "tools" else EXACT_PROFILE_TESTS
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=("normal", "exact", "compatibility"), required=True)
+    parser.add_argument("--profile", choices=("normal", "exact", "compatibility", "tools"), required=True)
     args = parser.parse_args()
     allowed_skips = configure_profile(args.profile)
-    suite = unittest.defaultTestLoader.discover("conformance/runners/django/tests")
+    directory = "scripts/ci" if args.profile == "tools" else "conformance/runners/django/tests"
+    suite = unittest.defaultTestLoader.discover(directory)
     try:
         count, skipped = run_suite(suite, allowed_skips, sys.stderr)
     except ValueError as error:
         print(f"Python suite rejected: {error}", file=sys.stderr)
         return 1
-    print(f"PYTHON_SUITE_VERIFIED tests={count} skips={skipped}")
+    marker = "CI_TOOLS_VERIFIED" if args.profile == "tools" else "PYTHON_SUITE_VERIFIED"
+    print(f"{marker} tests={count} skips={skipped}")
     return 0
 
 

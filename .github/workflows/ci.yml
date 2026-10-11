@@ -270,6 +270,10 @@ jobs:
           test "$(go env GOOS)" = "linux"
           test "$(go env GOARCH)" = "amd64"
 
+      - name: Verify CI tooling
+        if: matrix.mode == 'normal' && matrix.shard == 'core-vet'
+        run: make ci-tools-test
+
       - name: Run portable Go mode
         run: make ${{ matrix.make_targets }}
 

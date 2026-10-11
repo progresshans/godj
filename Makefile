@@ -161,14 +161,14 @@ oracle-check:
 oracle-regenerate:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py oracle-regenerate
 
-ci: require-live-evidence docs-check format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
+ci: require-live-evidence docs-check format-check ci-tools-test generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
 
 check: quick
 
 # The quick loop excludes real command/process and conformance adapters.
 .PHONY: quick ci-tools-test go-test-integration go-test-conformance go-race-integration go-race-conformance cgo-zero-build-integration cgo-zero-build-conformance
 ci-tools-test:
-	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+	PYTHONDONTWRITEBYTECODE=1 python3 -m scripts.ci.python_tests --profile tools
 
 quick: docs-check format-check ci-tools-test go-test-core
 

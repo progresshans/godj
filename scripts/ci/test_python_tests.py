@@ -15,6 +15,9 @@ class PythonSuiteTests(unittest.TestCase):
                 os.environ["GODJ_EXACT_PROFILE"] = "1"
                 self.assertEqual(EXACT_PROFILE_TESTS, configure_profile(profile))
                 self.assertNotIn("GODJ_EXACT_PROFILE", os.environ)
+            os.environ["GODJ_EXACT_PROFILE"] = "1"
+            self.assertEqual(frozenset(), configure_profile("tools"))
+            self.assertNotIn("GODJ_EXACT_PROFILE", os.environ)
             with self.assertRaises(ValueError):
                 configure_profile("unknown")
 

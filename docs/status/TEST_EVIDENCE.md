@@ -106,7 +106,42 @@ source manifest는 `0998bfc994577ec556ae8b1d32476961687382dc08533e854f560899a569
 Portable normal integration에 고정 Playwright CLI 0.1.22/Chromium revision 1247의 요약 검증을 연결했다.
 별도 실제 로그인과 23개 UI/HTTP assertion, 종료 후 전체 Ticket 필드의 초기 snapshot 대조·빈 링크/audit·DB 정리와
 source/version/log/screenshot receipt를 요구한다. 원격 준비·실행·artifact 게시 중 하나라도 실패하면 job이 실패한다.
-새 runner의 Python/JavaScript syntax와 fixture build만 로컬에서 확인했으며 브라우저 실행 PASS는 아직 없다.
+새 runner의 Python/JavaScript syntax와 fixture build만 로컬에서 확인했다. 실제 브라우저 실행은 아래 원격 결과를 따른다.
+
+### 수정 source의 원격 통합 진행
+
+수정 source `fd5c19f02ebc57ccffb8e2650fbe7eb3c7ea5cb4`를 같은 Draft PR에 push해
+[CI 38108381182](https://github.com/progresshans/godj/actions/runs/38108381182)를 실행했다. 이전 실행은 새 push로
+자동 취소됐으며 최종 83개 job은 success 37, failure 9, cancelled 37이다. 실패 9개는 네 Python 좌표,
+세 portable core, relation shard 2, 최종 집계이며 전체 PASS가 아니다.
+
+새 실행의 실제 checkout `c74ed1cd4d40b0ee4f8829c23412e10427d347e6`과 source tree
+`5e6786fd51077a93e0f9f00988c881a740857c27`를 Git parent·로컬 source·실제 plan 로그와 대조했다.
+Source/plan receipt SHA-256은 `ebf50764d1c3810b5fa9835261b806ecb40cc2a4089bccd9896ef971e0f50268`이다.
+Portable core normal/race/CGO=0의 완료와 실제 codegen/PostgreSQL compiler package 실행을 확인했다.
+각 원 로그 SHA-256은 normal `f59ed6d96de6aef4d0cc3b57e308e1711cf8c6ecc3b3cb5640cfbf5b04c71c90`,
+race `d2159d86a6361f511f33b551a024e5cb26897cec86ef69158640df490a6ca022`,
+CGO=0 `9f4e66f3b0d3a7c8fb20c2fdfbd435d74a87c318c76c4c89a83db6f18c68db00`다.
+이는 첫 golden/SQL 실패 수정의 원격 회귀 증거다. 생성 소비자의 양 DB/세 모드, Python 전체,
+platform/capture·최종 집계의 전체 검증은 아직 진행 중이다.
+
+Portable normal integration job `114378721745`의 Go 실행·브라우저 설치/실행·artifact 게시와 clean worktree를
+확인했다. 독립 OpenAPI consumer package도 34.649초에 통과했다. 실제 checkout과 전체 job 로그 SHA-256은
+`6d8d9ec48e6616db43419368e94c0abef54b4a21e2163155e6ef8b6a51c5ab94`로 결합했다.
+Node 22.23.3·Chromium 155.0.8059.12·고정 CLI에서 로그인과 UI/HTTP 23개 검사를 완료했다. 실제 screenshot에서
+미리보기 열·NULL/기존 int64 표시·전체 일곱 열과 페이지 링크를 확인했다. 종료 후 native DB의 전체 Ticket 30건이
+초기 값과 같고 audit/link 추가가 없었다. Browser close, fixture exit 0·stderr 0·임시 DB 삭제도 확인했다.
+Artifact `11690607365`의 same-run/source와 archive digest를 대조했으며 ZIP SHA-256은
+`a1bcbb794995fa3844e854055776fa4ebe47b077ec449624a59992e546e6606c`, receipt는
+`9c68cf9a67c69794b508b358852c23e0817611ea79d9e8b5ff90e21078a99e2d`, screenshot은
+`d1699f0f0e3a374a578c20a4f3d15fc796ff4f8e24718f1cf7887b17b75e0e44`다. Receipt의 모든 파일·명령 로그 hash와
+원 로그인/23개 결과·native 종료 출력을 별도로 대조했다. 이것은 해당 source의 브라우저/SDK 부분 검증이며
+전체 CI 완료를 뜻하지 않는다.
+
+실행 범위를 대조하면서 `ci-tools-test`가 로컬 quick에만 연결돼 있음을 확인했다. 따라서 이 source의 원격 Python
+378개는 Django 참조 suite이며 새 브라우저 결과 판별기의 부정 테스트를 포함하지 않는다. 후속 수정에서
+Portable normal core-vet의 필수 `Verify CI tooling`과 `make ci`에 도구 suite를 연결했다. 같은 공통 launcher가
+전체 testcase 시작/종료·skip 0·실패와 expected failure를 검사한다. 이 보완의 실제 원격 실행은 아직 남아 있다.
 
 ## GDJ-0121 — 숫자 합계·평균과 업무 지표
 

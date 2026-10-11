@@ -152,6 +152,11 @@ Normal·compatibility의 고정 reference 전용 네 검사는 exact가 맡고, 
 exact flag를 설정하므로 host flag가 선택한 profile을 바꾸지 않는다. 전역 테스트 수를 고정하지 않고 실패·expected failure·
 임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
 
+CI 도구의 Python 검사는 같은 launcher의 `tools` profile로 `scripts/ci/test_*.py` 전체를 실행한다.
+Portable normal core-vet의 필수 `Verify CI tooling` step과 `make ci-tools-test`/`make ci`가 같은 경로를 사용한다.
+Skip을 허용하지 않으며 발견한 각 testcase의 시작·종료를 대조한다. 결과가 완전할 때만 `CI_TOOLS_VERIFIED`를
+게시한다. 브라우저의 거짓 성공·불완전 결과·native 보존 증거 누락 거부도 이 실행의 필수 검사다.
+
 고정 reference 파일의 size/hash는 protocol의 artifact 검증에서 대조한다. 실행 catalog는 그 expected payload의 원본이 아니다.
 전체 manifest/oracle 교차 거부는 현재 계약 집합에서 한 번 검증하며, 각 계약의 phase·payload·provenance와 부정 대조는 해당 계약 테스트가 맡는다.
 실제 catalog 실행 계획과 Make target dispatch로 빠진 계약·잘못된 profile·expected/capture wiring을 검증한다.

@@ -48,4 +48,6 @@ Decimal·Duration 산술/계산식 SUM/AVG는 남은 카탈로그 요구다. 한
 세션 수명 검사와 잘못된 타입의 컴파일 거부는 유지했다. PostgreSQL/race의 검증은 남아 있다.
 선택한 native 결과 종류가 원 모델에 없는 경우를 포함한 scalar codec/typed NULL 검사를 추가했다.
 브라우저는 Portable normal integration에 고정 도구·실제 로그인·필수 결과·native readback·artifact 경로를 연결했다.
-이 추가 검사의 실제 실행은 후속 전체 CI가 소유한다.
+수정 source의 원격 브라우저는 실제 로그인·23개 검사·native 보존과 정리를 통과했다. 생성 소비자의 양 DB/세 모드와
+나머지 전체 CI는 계속 진행 중이며 개별 실행 증거는 TEST_EVIDENCE를 따른다.
+CI 도구 부정 테스트의 원격 실행 누락도 확인해 필수 step과 엄격한 suite 실행에 연결했다. 이 후속 source의 검증은 남아 있다.
