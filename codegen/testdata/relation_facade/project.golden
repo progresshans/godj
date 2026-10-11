@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "eb58bfacaafadc17d2265f739ba2c8d10023dafb2c32a4097dfcfff27e2c0932"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "891b6a4b0a3064e044db47a0f47921f77251dc5e155ccf26ecca40e9e3ad692c"
 
 type Backend interface {
 	db.Queryer
@@ -603,6 +603,20 @@ func AggregateAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuth
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAuthorsAuthorQuery[R any](_source AuthorsAuthorQuery, _selection orm.Projection[authors.Author, R]) (orm.ResultQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[authors.Author, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAuthorsAuthorQuery[R any](_source AuthorsAuthorQuery, _selection orm.Aggregate[authors.Author, R]) (orm.ResultQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[authors.Author, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAuthorsAuthorBy[K, A, R any](_source AuthorsAuthorQuery, _keys orm.Projection[authors.Author, K], _aggregate orm.Aggregate[authors.Author, A], _build func(K, A) R) (orm.GroupedQuery[authors.Author, R], error) {
@@ -1553,6 +1567,20 @@ func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Projection[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[blog.Post, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Aggregate[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[blog.Post, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupBlogPostBy[K, A, R any](_source BlogPostQuery, _keys orm.Projection[blog.Post, K], _aggregate orm.Aggregate[blog.Post, A], _build func(K, A) R) (orm.GroupedQuery[blog.Post, R], error) {

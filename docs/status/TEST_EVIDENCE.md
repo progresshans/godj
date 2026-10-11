@@ -61,6 +61,26 @@ Go 1.26.5 darwin/arm64·CGO=1, 공유 cache·`-trimpath`를 사용했다. 로컬
 이 묶음은 기존 Draft PR의 전체 CI로 영향·생성 drift·양 DB·세 모드·process·독립 client/브라우저·전체 platform을
 검증한다. 선행 source `0ea21fa4`의 83개 전체 CI 성공은 이번 결과 단계의 검증으로 전이하지 않는다.
 
+### 첫 원격 실행과 생성 기준/식별자 수정
+
+제품 source `d52b4528b4f87bca095b087ef14d59b0c0a4257f`를 push해
+[전체 CI 38170953986](https://github.com/progresshans/godj/actions/runs/38170953986)를 시작했다. 실제 checkout
+`bcb71299b1ff6f8a5740220e0044ec7fe892b29a`의 parent와 source tree `0cf469836824160a31d317516e55cdc5770ba7d5`를
+GitHub 객체·로컬 commit·validation-plan 로그로 대조했다. Source binding receipt SHA-256은
+`3e50b4a0f665c631029a075cecb093a7fa139b0c3fa48d91f6f04981e280a3a7`이다.
+
+Portable core의 normal/race/CGO=0에서 facade golden이 v24에 남은 것과 공통 compiler 검사의 대문자 table이
+PostgreSQL의 기존 lowercase identifier 계약에 맞지 않는 것을 확인했다. 이 실행은 전체 PASS가 아니다.
+원 race 로그 SHA-256은 `845b535ff8577ebcaefd251ebd04d78c07107227dc1adb24d229b8845cc0447b`이며 세 원 로그를
+외부 `ci-38170953986-failures`에 보존했다. Golden은 현재 생성기로 다시 만들었고 version assertion은 실제
+generator의 상수를 따른다. PostgreSQL 입력은 같은 충돌을 일으키는 lowercase 이름을, SQLite는 대문자 이름을
+유지하여 두 identifier 정책과 CTE 충돌 회피를 계속 검사한다.
+
+원격에서 실패한 세 test 이름만 골라 `codegen`·`db/postgres`·`db/sqlite`의 normal 재현/수정 검사를 실행해 모두
+통과했다. Native PostgreSQL runtime나 전체 race 실행은 아니다. 외부 `derived-ci-repair-1791749695342887000`의
+receipt SHA-256은 `cf8cfd311e5f4f336a3736b72753c8e8b54e6b33270ebcd12619b1af36caa131`이다.
+수정 묶음 push로 새 전체 CI를 실행하며 이전 source의 부분 결과를 후속 source의 성공으로 계산하지 않는다.
+
 ## GDJ-0122 — 계산식 조회와 우선순위 미리보기
 
 2026-10-08~12 KST, 기준 `02f350d3598f41dd34b0ddcb1fbf82474139aea4` 뒤 작업 사본에 같은 행 scalar/CASE의

@@ -198,7 +198,11 @@ func DerivedCompiler(t *testing.T, compile func(query.Plan) (string, []any, erro
 		if err != nil {
 			t.Fatal(err)
 		}
-		base, err := query.NewPlan("GODJ_RESULTS", []query.FieldRef{field}).WithResultShape(result)
+		table := "GODJ_RESULTS"
+		if postgres {
+			table = "godj_results"
+		} // PostgreSQL retains its lowercase identifier contract.
+		base, err := query.NewPlan(table, []query.FieldRef{field}).WithResultShape(result)
 		if err != nil {
 			t.Fatal(err)
 		}

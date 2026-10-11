@@ -16,7 +16,11 @@ func ResultPageCompiler(t *testing.T, compile func(query.Plan) (string, []any, e
 	if err != nil {
 		t.Fatal(err)
 	}
-	input, err := Conditions(t, query.NewPlan("GODJ_PAGE_ROWS", []query.FieldRef{id, value}),
+	table := "GODJ_PAGE_ROWS"
+	if postgres {
+		table = "godj_page_rows"
+	}
+	input, err := Conditions(t, query.NewPlan(table, []query.FieldRef{id, value}),
 		query.NewCondition(id, query.LookupGreaterThan, query.Integer(7))).WithResultShape(shape)
 	if err != nil {
 		t.Fatal(err)
