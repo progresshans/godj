@@ -95,13 +95,13 @@ func connectDynamicPredicates(kind query.ExpressionKind, inputs []DynamicPredica
 	return DynamicPredicate{node: &dynamicPredicateNode{kind: kind, children: slices.Clone(inputs), nodes: nodes, depth: depth}}
 }
 
-func (value DynamicPredicate) bind(model *preparedModel) (query.Expression, error) {
+func (value DynamicPredicate) bind(source dynamicBinding) (query.Expression, error) {
 	if err := value.validate(); err != nil {
 		return query.Expression{}, err
 	}
 	node := value.node
 	if node.kind == query.ExpressionLeaf {
-		scalar, err := node.value.bind(model)
+		scalar, err := node.value.bind(source)
 		if err != nil {
 			return query.Expression{}, err
 		}
@@ -114,7 +114,7 @@ func (value DynamicPredicate) bind(model *preparedModel) (query.Expression, erro
 	children := make([]query.Expression, len(node.children))
 	for index, child := range node.children {
 		var err error
-		children[index], err = child.bind(model)
+		children[index], err = child.bind(source)
 		if err != nil {
 			return query.Expression{}, err
 		}
@@ -135,7 +135,7 @@ func BindPredicate[M any](source QuerySet[M], input DynamicPredicate) (Predicate
 	if source.prepared == nil {
 		return Predicate[M]{}, invalidResultBuilder("predicate binding requires model metadata")
 	}
-	expression, err := input.bind(source.prepared)
+	expression, err := input.bind(dynamicBinding{model: source.prepared})
 	if err != nil {
 		return Predicate[M]{}, err
 	}

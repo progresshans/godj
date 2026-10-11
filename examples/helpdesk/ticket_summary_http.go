@@ -72,6 +72,7 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 		}
 		value, err := templates.Object(map[string]templates.Value{
 			"priority": templates.String(ticketSummaryPriorityLabel(row.priority)), "total": templates.Integer(row.total), "open": templates.Integer(row.open),
+			"closed": templates.Integer(row.closed), "open_rate": templates.String(ticketSummaryOpenRateLabel(row.openBasisPoints)),
 			"raise_to": templates.String(ticketSummaryPriorityLabel(&row.raiseTo)), "would_change": templates.Bool(row.priority == nil || *row.priority != row.raiseTo),
 			"cost": templates.String(cost), "effort": templates.String(effort), "elapsed": templates.String(elapsed),
 		})
@@ -82,7 +83,7 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 	}
 	previous, next := "", ""
 	link := func(number int) string {
-		return TicketSummaryPath + "?p=" + strconv.Itoa(number) + "&min_open=" + strconv.FormatInt(input.minimumOpen, 10)
+		return TicketSummaryPath + "?p=" + strconv.Itoa(number) + "&min_open=" + strconv.FormatInt(input.minimumOpen, 10) + "&min_open_basis_points=" + strconv.FormatInt(input.minimumOpenBasisPoints, 10)
 	}
 	if input.page > 1 {
 		previous = link(input.page - 1)
@@ -93,6 +94,7 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 	values, err := templates.NewContext(map[string]templates.Value{
 		"category": templates.String(ticketEditorDisplay(page.category.Name)), "rows": templates.List(rows...), "total_groups": templates.Integer(page.groups.Total),
 		"page": templates.Integer(int64(input.page)), "min_open": templates.Integer(input.minimumOpen), "previous": templates.String(previous), "next": templates.String(next),
+		"min_open_basis_points": templates.Integer(input.minimumOpenBasisPoints),
 	})
 	if err != nil {
 		return web.Response{}, err

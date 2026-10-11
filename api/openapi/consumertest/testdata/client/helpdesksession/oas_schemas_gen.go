@@ -4011,12 +4011,13 @@ func (s *TicketPriorityRaise) SetIds(val []int64) {
 
 // Ref: #/components/schemas/TicketSummary
 type TicketSummary struct {
-	Category    CategorySummary            `json:"category"`
-	Page        int64                      `json:"page"`
-	PageSize    int64                      `json:"page_size"`
-	MinOpen     int64                      `json:"min_open"`
-	TotalGroups int64                      `json:"total_groups"`
-	Results     []TicketSummaryResultsItem `json:"results"`
+	Category           CategorySummary            `json:"category"`
+	Page               int64                      `json:"page"`
+	PageSize           int64                      `json:"page_size"`
+	MinOpen            int64                      `json:"min_open"`
+	MinOpenBasisPoints int64                      `json:"min_open_basis_points"`
+	TotalGroups        int64                      `json:"total_groups"`
+	Results            []TicketSummaryResultsItem `json:"results"`
 }
 
 // GetCategory returns the value of Category.
@@ -4037,6 +4038,11 @@ func (s *TicketSummary) GetPageSize() int64 {
 // GetMinOpen returns the value of MinOpen.
 func (s *TicketSummary) GetMinOpen() int64 {
 	return s.MinOpen
+}
+
+// GetMinOpenBasisPoints returns the value of MinOpenBasisPoints.
+func (s *TicketSummary) GetMinOpenBasisPoints() int64 {
+	return s.MinOpenBasisPoints
 }
 
 // GetTotalGroups returns the value of TotalGroups.
@@ -4067,6 +4073,11 @@ func (s *TicketSummary) SetPageSize(val int64) {
 // SetMinOpen sets the value of MinOpen.
 func (s *TicketSummary) SetMinOpen(val int64) {
 	s.MinOpen = val
+}
+
+// SetMinOpenBasisPoints sets the value of MinOpenBasisPoints.
+func (s *TicketSummary) SetMinOpenBasisPoints(val int64) {
+	s.MinOpenBasisPoints = val
 }
 
 // SetTotalGroups sets the value of TotalGroups.
@@ -4115,6 +4126,8 @@ type TicketSummaryResultsItem struct {
 	WouldChange       bool       `json:"would_change"`
 	Total             int64      `json:"total"`
 	Open              int64      `json:"open"`
+	Closed            int64      `json:"closed"`
+	OpenBasisPoints   int64      `json:"open_basis_points"`
 	ExpectedCostTotal NilString  `json:"expected_cost_total"`
 	EffortAverage     NilFloat64 `json:"effort_average"`
 	ElapsedTotal      NilString  `json:"elapsed_total"`
@@ -4153,6 +4166,16 @@ func (s *TicketSummaryResultsItem) GetTotal() int64 {
 // GetOpen returns the value of Open.
 func (s *TicketSummaryResultsItem) GetOpen() int64 {
 	return s.Open
+}
+
+// GetClosed returns the value of Closed.
+func (s *TicketSummaryResultsItem) GetClosed() int64 {
+	return s.Closed
+}
+
+// GetOpenBasisPoints returns the value of OpenBasisPoints.
+func (s *TicketSummaryResultsItem) GetOpenBasisPoints() int64 {
+	return s.OpenBasisPoints
 }
 
 // GetExpectedCostTotal returns the value of ExpectedCostTotal.
@@ -4203,6 +4226,16 @@ func (s *TicketSummaryResultsItem) SetTotal(val int64) {
 // SetOpen sets the value of Open.
 func (s *TicketSummaryResultsItem) SetOpen(val int64) {
 	s.Open = val
+}
+
+// SetClosed sets the value of Closed.
+func (s *TicketSummaryResultsItem) SetClosed(val int64) {
+	s.Closed = val
+}
+
+// SetOpenBasisPoints sets the value of OpenBasisPoints.
+func (s *TicketSummaryResultsItem) SetOpenBasisPoints(val int64) {
+	s.OpenBasisPoints = val
 }
 
 // SetExpectedCostTotal sets the value of ExpectedCostTotal.

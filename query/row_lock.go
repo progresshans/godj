@@ -148,6 +148,9 @@ func (p Plan) ValidateRowLock() error {
 	if !present {
 		return nil
 	}
+	if p.derived != nil || p.page != nil {
+		return groupUnsupported("row locks require a model source, not a derived result")
+	}
 	if err := lock.validate(); err != nil {
 		return err
 	}

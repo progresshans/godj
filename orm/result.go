@@ -3,7 +3,6 @@ package orm
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/progresshans/godj/query"
 )
@@ -391,43 +390,11 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if err := source.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-	if projection.err != nil {
-		return nil, projection.err
-	}
-	if projection.newDecoder == nil {
-		return nil, invalidResultBuilder("projection decoder is nil")
-	}
-	if err := validateProjectionSource(source.plan); err != nil {
-		return nil, err
-	}
-	shape, err := query.NewProjectionResult(projection.expressions...)
+	selected, err := SelectQuery(source, projection)
 	if err != nil {
 		return nil, err
 	}
-	plan, err := source.plan.WithResultShape(shape)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := openQueryRows(ctx, source.backend, plan)
-	if err != nil {
-		return nil, err
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	values := make([]R, 0)
-	for rows.Next() {
-		decoder := projection.newDecoder()
-		if scanErr := rows.Scan(decoder.destinations...); scanErr != nil {
-			err = fmt.Errorf("scan projection row: %w", scanErr)
-			break
-		}
-		values = append(values, decoder.decode())
-	}
-	err = lifecycle.finish(ctx, err)
-	if err != nil {
-		return nil, err
-	}
-	return sessionReadResult(ctx, source.backend, values, nil)
+	return selected.All(ctx)
 }
 
 func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate Aggregate[M, R]) (R, error) {
@@ -435,48 +402,11 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	if err := source.validateTerminal(ctx); err != nil {
 		return zero, err
 	}
-	if aggregate.err != nil {
-		return zero, aggregate.err
-	}
-	if aggregate.newDecoder == nil {
-		return zero, invalidResultBuilder("aggregate decoder is nil")
-	}
-	shape, err := query.NewAggregateResult(aggregate.expressions...)
+	selected, err := AggregateQuery(source, aggregate)
 	if err != nil {
 		return zero, err
 	}
-	if !shape.IsCountAll() {
-		if err := validateNonCountAggregateSource(source.plan, shape); err != nil {
-			return zero, err
-		}
-	}
-	plan, err := source.plan.WithResultShape(shape)
-	if err != nil {
-		return zero, err
-	}
-	rows, err := openQueryRows(ctx, source.backend, plan)
-	if err != nil {
-		return zero, err
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	decoder := aggregate.newDecoder()
-	if !rows.Next() {
-		if err := lifecycle.finish(ctx, nil); err != nil {
-			return zero, err
-		}
-		return zero, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned no row"}
-	}
-	if scanErr := rows.Scan(decoder.destinations...); scanErr != nil {
-		err = fmt.Errorf("scan aggregate row: %w", scanErr)
-	} else if rows.Next() {
-		err = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned more than one row"}
-	}
-	err = lifecycle.finish(ctx, err)
-	if err != nil {
-		return zero, err
-	}
-	return sessionReadResult(ctx, source.backend, decoder.decode(), nil)
+	return selected.One(ctx)
 }
 
 func scalarResult[M, V any](field ScalarField[M, V]) (query.ResultExpression, func() scalarCell[V], error) {

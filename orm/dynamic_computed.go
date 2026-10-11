@@ -17,7 +17,7 @@ func BindExpression[M any](source QuerySet[M], input DynamicExpression) (Dynamic
 	if source.prepared == nil {
 		return DynamicScalar[M]{}, invalidResultBuilder("expression binding requires model metadata")
 	}
-	value, err := input.bind(source.prepared)
+	value, err := input.bind(dynamicBinding{model: source.prepared})
 	if err != nil {
 		return DynamicScalar[M]{}, err
 	}

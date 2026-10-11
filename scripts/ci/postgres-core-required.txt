@@ -2774,6 +2774,7 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedGroupedAggregatio
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedGroupedAggregation/eager_source
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedGroupedAggregation/external_selector
 github.com/progresshans/godj/db/postgres|TestCompileGroupedResults
+github.com/progresshans/godj/db/postgres|TestCompileDerivedResults
 github.com/progresshans/godj/db/postgres|TestGroupedOrderedPhysicalCodecsAndPrecisionStayInCompiler
 github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/ticket_summary
 github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/ticket_summary/groups_filters_and_pages
@@ -3144,3 +3145,5 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedComputedExpressio
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedComputedExpressions/mixed_case
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedComputedExpressions/foreign_predicate
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedComputedExpressions/external_operand
+github.com/progresshans/godj/db/postgres|TestCompileResultPages
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedDerivedResults

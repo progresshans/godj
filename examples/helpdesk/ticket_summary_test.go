@@ -8,6 +8,7 @@ import (
 	"maps"
 	"math"
 	"net/http"
+	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -33,22 +34,24 @@ type summaryEnvelope struct {
 		ID   int64  `json:"id"`
 		Name string `json:"name"`
 	} `json:"category"`
-	Page        int64         `json:"page"`
-	PageSize    int64         `json:"page_size"`
-	MinimumOpen int64         `json:"min_open"`
-	Total       int64         `json:"total_groups"`
-	Results     []summaryItem `json:"results"`
+	Page                   int64         `json:"page"`
+	PageSize               int64         `json:"page_size"`
+	MinimumOpen            int64         `json:"min_open"`
+	MinimumOpenBasisPoints int64         `json:"min_open_basis_points"`
+	Total                  int64         `json:"total_groups"`
+	Results                []summaryItem `json:"results"`
 }
 type summaryItem struct {
-	Priority    *int64 `json:"priority"`
-	RaiseTo     int64  `json:"raise_to_priority"`
-	RaiseLabel  string `json:"raise_to_label"`
-	WouldChange bool   `json:"would_change"`
-	Label       string `json:"priority_label"`
-	Total, Open int64
-	Cost        *string  `json:"expected_cost_total"`
-	Effort      *float64 `json:"effort_average"`
-	Elapsed     *string  `json:"elapsed_total"`
+	Priority            *int64 `json:"priority"`
+	RaiseTo             int64  `json:"raise_to_priority"`
+	RaiseLabel          string `json:"raise_to_label"`
+	WouldChange         bool   `json:"would_change"`
+	Label               string `json:"priority_label"`
+	Total, Open, Closed int64
+	OpenBasisPoints     int64    `json:"open_basis_points"`
+	Cost                *string  `json:"expected_cost_total"`
+	Effort              *float64 `json:"effort_average"`
+	Elapsed             *string  `json:"elapsed_total"`
 }
 
 func TestTicketSummaryRequiresUsableAuthentication(t *testing.T) {
@@ -126,7 +129,7 @@ type summaryReader struct {
 
 func (reader *summaryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	reader.owner.queries++
-	if plan.ResultShape().GroupMode() == query.GroupPage {
+	if plan.ResultShape().Kind() == query.ResultPage {
 		reader.owner.groups++
 		if reader.owner.mode == "query_failure" || reader.owner.mode == "swallowed_error" {
 			return nil, errors.New("private summary query failure")
@@ -280,7 +283,10 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 			if actual.RaiseTo != expected || actual.WouldChange != change || actual.RaiseLabel == "" {
 				t.Fatal("priority preview changed command policy", actual)
 			}
-			for _, name := range []string{"raise_to_priority", "raise_to_label", "would_change", "expected_cost_total", "effort_average", "elapsed_total"} {
+			if actual.Total <= 0 || actual.Open < 0 || actual.Open > actual.Total || actual.Closed != actual.Total-actual.Open || actual.OpenBasisPoints != 10000*actual.Open/actual.Total {
+				t.Fatal("derived counts or basis points differ", actual)
+			}
+			for _, name := range []string{"raise_to_priority", "raise_to_label", "would_change", "closed", "open_basis_points", "expected_cost_total", "effort_average", "elapsed_total"} {
 				if _, present := row[name]; !present {
 					t.Fatal("nullable metric omitted", name)
 				}
@@ -326,10 +332,24 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 			suffix string
 			count  int64
 			rows   int
-		}{{"?min_open=2", 1, 1}, {"?min_open=1", 26, 20}, {"?min_open=9223372036854775807", 0, 0}, {"?p=50001", 27, 0}, {"?p=2&min_open=2", 1, 0}} {
+		}{{"?min_open=2", 1, 1}, {"?min_open=1", 26, 20}, {"?min_open=9223372036854775807", 0, 0}, {"?p=50001", 27, 0}, {"?p=2&min_open=2", 1, 0}, {"?min_open_basis_points=6666", 25, 20}, {"?min_open_basis_points=6667", 24, 20}, {"?min_open_basis_points=10000&p=2", 24, 4}, {"?min_open=2&min_open_basis_points=6667", 0, 0}} {
 			result := decode(client, input.suffix)
 			if result.Total != input.count || len(result.Results) != input.rows {
 				t.Fatal("filtered/past-end cardinality", input.suffix)
+			}
+			parameters, err := url.ParseQuery(strings.TrimPrefix(input.suffix, "?"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			minimum := int64(0)
+			if value := parameters.Get("min_open_basis_points"); value != "" {
+				minimum, err = strconv.ParseInt(value, 10, 64)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if result.MinimumOpenBasisPoints != minimum {
+				t.Fatal("summary did not retain the requested derived filter", input.suffix, result.MinimumOpenBasisPoints)
 			}
 		}
 		page := client.request(http.MethodGet, helpdesk.TicketSummaryPath+"?p=2", "", false)
@@ -343,7 +363,7 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 		if wide.Code != http.StatusOK || !strings.Contains(wide.Body.String(), "<td>2000000000000</td><td>2</td><td>00:00:00.000002</td>") {
 			t.Fatal("summary HTML lost exact metrics", wide.Code, wide.Body.String())
 		}
-		if backend.snapshots != 9 || backend.queries != 18 || backend.groups != 9 || backend.closed != 9 || *audits != 0 {
+		if backend.snapshots != 13 || backend.queries != 26 || backend.groups != 13 || backend.closed != 13 || *audits != 0 {
 			t.Fatal("summary must use one snapshot/two reads, close rows, and avoid audit", backend, *audits)
 		}
 	})
@@ -371,7 +391,7 @@ func verifyHelpdeskTicketSummary(t *testing.T, ctx context.Context, runtime *sys
 	t.Run("admission_and_query", func(t *testing.T) {
 		for _, path := range []string{helpdesk.TicketSummaryPath, "/api/tickets/summary/"} {
 			client, backend, _ := newClient(category.ID, "", auth.PrincipalAuthorizer{})
-			for _, suffix := range []string{"?p=0", "?p=50002", "?p=01", "?p=+1", "?p=1.0", "?p=1e1", "?p=", "?p=1&p=2", "?min_open=-1", "?min_open=01", "?min_open=", "?min_open=9223372036854775808", "?min_open=0&min_open=1", "?category=1", "?p=%FF", "?p=%", "?p=1;min_open=0", "?" + strings.Repeat("x", 129)} {
+			for _, suffix := range []string{"?p=0", "?p=50002", "?p=01", "?p=+1", "?p=1.0", "?p=1e1", "?p=", "?p=1&p=2", "?min_open=-1", "?min_open=01", "?min_open=", "?min_open=9223372036854775808", "?min_open=0&min_open=1", "?min_open_basis_points=-1", "?min_open_basis_points=10001", "?min_open_basis_points=01", "?min_open_basis_points=1.5", "?min_open_basis_points=", "?min_open_basis_points=0&min_open_basis_points=1", "?category=1", "?p=%FF", "?p=%", "?p=1;min_open=0", "?" + strings.Repeat("x", 129)} {
 				response := client.request(http.MethodGet, path+suffix, "", false)
 				if response.Code != http.StatusBadRequest || backend.snapshots != 0 {
 					t.Fatal("invalid query reached database", path, suffix, response.Code)

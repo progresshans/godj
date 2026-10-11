@@ -87,6 +87,8 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("func (_query BlogPostQuery) Count(_ctx context.Context) (int64, error)"),
 		[]byte("func SelectBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _projection orm.Projection[blog.Post, R]) ([]R, error)"),
 		[]byte("func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[blog.Post, R]) (R, error)"),
+		[]byte("func SelectBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Projection[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error)"),
+		[]byte("func AggregateBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Aggregate[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error)"),
 		[]byte("func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error)"),
 		[]byte("func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error)"),
 		[]byte("func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, error)"),

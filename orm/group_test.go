@@ -37,8 +37,14 @@ func TestGroupedAllCacheOwnsCellsAndDerivedQueriesAreCold(t *testing.T) {
 		}
 		return &resultTestRows{values: [][]any{{"canonical", int64(call + 1)}}}, nil
 	}}
-	group := groupTestQuery(t, backend)
-	if _, err := group.source.All(t.Context()); err != nil {
+	source := newResultTestQuerySet(backend)
+	fields := newResultTestFields()
+	group, err := GroupBy(source, Project1(fields.Note, func(note *string) *string { return note }),
+		Aggregate1(CountRows[resultTestModel](), func(n int64) int64 { return n }), func(note *string, n int64) groupTestResult { return groupTestResult{note, n} })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.All(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	first, err := group.All(t.Context())
@@ -84,7 +90,7 @@ func TestGroupedAllCacheOwnsCellsAndDerivedQueriesAreCold(t *testing.T) {
 			t.Fatal("derived group reused cache", err)
 		}
 	}
-	if group.source.Plan().ResultShape().Kind() != query.ResultModel || group.source.evaluation == nil {
+	if source.Plan().ResultShape().Kind() != query.ResultModel || source.evaluation == nil {
 		t.Fatal("grouping changed model source")
 	}
 }

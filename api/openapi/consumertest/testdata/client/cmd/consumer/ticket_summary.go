@@ -117,6 +117,11 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 			}
 			row.ElapsedTotal.SetTo(elapsed)
 		}
+		row.Closed = row.Total - row.Open
+		var basisPoints big.Int
+		basisPoints.Mul(big.NewInt(row.Open), big.NewInt(10000))
+		basisPoints.Quo(&basisPoints, big.NewInt(row.Total))
+		row.OpenBasisPoints = basisPoints.Int64()
 		expected = append(expected, row)
 	}
 	slices.SortFunc(expected, func(a, b hs.TicketSummaryResultsItem) int {
@@ -146,7 +151,7 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 	for _, viewer := range []*hs.Client{client, readOnly} {
 		response, err := viewer.HelpdeskTicketSummary(ctx, hs.HelpdeskTicketSummaryParams{})
 		value, ok := response.(*hs.TicketSummaryHeaders)
-		if err != nil || !ok || value.Response.Category.ID != category || value.Response.Category.Name != "Hardware & repairs" || value.Response.Page != 1 || value.Response.PageSize != 20 || value.Response.MinOpen != 0 || value.Response.TotalGroups != int64(len(groups)) || !reflect.DeepEqual(value.Response.Results, expected) {
+		if err != nil || !ok || value.Response.Category.ID != category || value.Response.Category.Name != "Hardware & repairs" || value.Response.Page != 1 || value.Response.PageSize != 20 || value.Response.MinOpen != 0 || value.Response.MinOpenBasisPoints != 0 || value.Response.TotalGroups != int64(len(groups)) || !reflect.DeepEqual(value.Response.Results, expected) {
 			return fail("summary generated native groups and view-only admission")
 		}
 	}
@@ -163,12 +168,25 @@ func checkHelpdeskSummary(ctx context.Context, client, readOnly *hs.Client, tran
 			return fail("summary generated HAVING and empty group array")
 		}
 	}
+	for _, minimum := range []int64{1, 5000, 6666, 6667, 10000} {
+		response, err := readOnly.HelpdeskTicketSummary(ctx, hs.HelpdeskTicketSummaryParams{MinOpenBasisPoints: hs.NewOptInt64(minimum)})
+		value, ok := response.(*hs.TicketSummaryHeaders)
+		filtered := make([]hs.TicketSummaryResultsItem, 0)
+		for _, row := range expected {
+			if row.OpenBasisPoints >= minimum {
+				filtered = append(filtered, row)
+			}
+		}
+		if err != nil || !ok || value.Response.MinOpenBasisPoints != minimum || value.Response.TotalGroups != int64(len(filtered)) || !reflect.DeepEqual(value.Response.Results, filtered) {
+			return fail("summary generated derived basis-point filtering")
+		}
+	}
 	response, err := client.HelpdeskTicketSummary(ctx, hs.HelpdeskTicketSummaryParams{P: hs.NewOptInt64(50001)})
 	page, ok := response.(*hs.TicketSummaryHeaders)
 	if err != nil || !ok || page.Response.Page != 50001 || page.Response.TotalGroups != int64(len(groups)) || len(page.Response.Results) != 0 || page.Response.Results == nil {
 		return fail("summary generated past-end total")
 	}
-	for _, params := range []hs.HelpdeskTicketSummaryParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {MinOpen: hs.NewOptInt64(-1)}} {
+	for _, params := range []hs.HelpdeskTicketSummaryParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {MinOpen: hs.NewOptInt64(-1)}, {MinOpenBasisPoints: hs.NewOptInt64(-1)}, {MinOpenBasisPoints: hs.NewOptInt64(10001)}} {
 		response, err := client.HelpdeskTicketSummary(ctx, params)
 		if failure, ok := response.(*hs.HelpdeskTicketSummaryBadRequest); err != nil || !ok || failure.Response.Code != "validation_error" {
 			return fail("summary generated invalid query")

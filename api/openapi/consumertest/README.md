@@ -300,3 +300,8 @@ Wire 검사는 nullable 출력의 누락/잘못된 타입/초과 길이를 거�
 빈 페이지의 총수·ViewTicket 조회를 확인한다. 실제 schema를 고정 ogen으로 생성하며 `TicketSummary.priority`를 쓰기용
 선택지 enum으로 좁히지 않는다. 별도 wire 사례는 필수 nullable 키, exact int64 양 끝값, 숫자/배열/페이지 경계와
 storage 오류의 단일 요청 처리를 검증한다. 합성 wire 응답은 native DB 검증으로 계산하지 않는다.
+
+요약의 `closed`와 `open_basis_points`는 required int64다. 독립 client는 보관한 Ticket 응답에서 닫힌 수와
+정수 basis point를 표준 라이브러리로 계산해 대조하며, `min_open_basis_points`의 6666/6667 경계·0..10000 범위와
+필터 뒤 total/행을 확인한다. Wire 검사는 필수 필드 누락·NULL/소수·범위 초과와 query echo 오류를 별도로 거부한다.
+Client는 실제 export schema와 고정 ogen으로 다시 생성하며 native HTTP 검증 상태는 TEST_EVIDENCE를 따른다.

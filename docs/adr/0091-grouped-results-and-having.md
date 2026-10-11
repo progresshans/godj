@@ -1,8 +1,8 @@
 # ADR-0091: 그룹 결과와 집계 참조
 
 - 상태: Accepted design — 그룹 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-11
-- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md)
+- 날짜: 2026-10-12
+- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md)
 
 ## 문제와 기준
 
@@ -43,7 +43,7 @@ Collection을 key·aggregate operand/조건으로 사용하는 추가 범위와 
 별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 행의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
 int64/float64 산술·CASE는 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
 Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. 계산된 Decimal/Duration의 SUM/AVG,
-일반 named annotation·집계 뒤 추가 stage·subquery/window는 후속 범위다.
+일반 named annotation·subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
 
@@ -114,11 +114,11 @@ Decimal의 exact 합계·평균 precision과 source/result 범위는 [ADR-0069](
 
 `TicketSummary`의 HTML과 API는 ViewTicket 인가 뒤 하나의 읽기 service를 사용한다. 현재 Category는 application이
 소유하며 query로 입력받지 않는다. Category의 존재/이름과 우선순위 그룹을 같은 `ReadSnapshot` handle로 읽고
-행·건수는 `GroupedQuery.Page` 한 statement에서 가져온다. callback의 누락·반복·동시 호출·오류 누락과 cleanup/취소
+행·건수는 집계 뒤 결과 단계의 `ResultQuery.Page` 한 statement에서 가져온다. callback의 누락·반복·동시 호출·오류 누락과 cleanup/취소
 실패에는 결과를 게시하지 않는다. 별도의 페이지 요청 사이에 snapshot을 유지한다고 주장하지 않는다.
 
 Priority의 NULL·기존 int64 값도 그룹이다. IR choices는 label만 제공하고 결과를 enum으로 좁히거나 데이터를 수정하지
-않는다. 전체 건수는 COUNT(*), 열린 건수는 closed=false인 ID의 조건부 COUNT다. 최소 열린 건수 HAVING 뒤 열린 건수
+않는다. 전체 건수는 COUNT(*), 열린 건수는 closed=false인 ID의 조건부 COUNT다. 최소 열린 건수 HAVING과 최소 열린 비율 후속 필터 뒤 열린 건수
 내림차순·priority 내림차순(NULL 마지막)으로 20개씩 조회한다. 끝을 지난 페이지도 필터 뒤 전체 그룹 수를 유지한다.
 비용 합계·노력 평균·경과 시간 합계는 열린/닫힌 행을 모두 포함한 같은 그룹의 비NULL 값으로 계산한다.
 모두 NULL이면 API는 명시적 null, HTML은 Not set으로 표시하며 실제 0과 구분한다. Decimal 합계는 원본
@@ -132,3 +132,69 @@ Low→Normal, Normal→Urgent이며 Urgent와 legacy int64 값은 보존한다. 
 그룹이 같은 예정값으로 합쳐지지 않는다. SQL 결과가 현재 업무 정책과 일치하고 non-null인지 확인한 뒤
 `raise_to_priority`·`raise_to_label`·`would_change`를 API와 HTML의 After raise 열에 게시한다.
 이 값은 해당 읽기 snapshot의 미리보기다. 나중의 실제 명령은 자기 transaction의 현재 행으로 정책을 다시 적용한다.
+
+## 결과 열과 후속 조회 단계
+
+후속 조회는 모델 FieldRef와 구분된 결과 scope를 사용한다. Scope는 선택한 scalar 결과의 순서·kind·NULL을
+소유하며, 결과 참조는 해당 scope의 열 위치를 가리킨다. 정수 AVG의 Float 결과와 SUM의 NULL을 원 필드의
+타입·nullable·Decimal precision으로 바꾸지 않는다. 결과를 모델 metadata에 임시 필드로 추가하지 않는다.
+
+Scope 복사본은 같은 불변 identity를 공유한다. 같은 shape로 따로 만든 scope는 별개의 소유자이며 이름·타입·
+선택 순서가 우연히 같아도 참조를 재결합하지 않는다. 이 identity는 SQL alias나 전역 번호가 아니다.
+SQL compiler는 실제 조회 단계 안에서 열 위치를 결정적으로 배치한다. 참조가 가리키는 값은 현재 입력 단계의
+실행 결과이며, 이전에 평가한 QuerySet cache나 다른 backend/session의 결과를 가져오는 handle이 아니다.
+
+원 행 필드와 후속 결과 참조는 각각 자기 source에서 검증한다. 선택된 값을 UPDATE나 원 행 WHERE에 넣거나,
+선택 없이 원 행 필드를 후속 단계로 가져오는 것을 거부한다. CASE의 값뿐 아니라 조건에 숨은 참조도 같은 규칙을
+적용한다. Scope chain에는 scalar tree 깊이와 별개인 32단계 상한을 둔다. 산술·부호 반전·CASE 조건·집계 filter도
+선행 단계 깊이를 보존하므로 표현식의 모양을 바꾸어 한도를 우회할 수 없다.
+
+새 조회 단계는 입력 plan의 필터·집계·DISTINCT·정렬·slice를 불변 snapshot으로 보존한다. 후속 조건과 계산은
+해당 입력의 결과 열만 참조한다. 상수 출력이나 COUNT(*)로 열 참조가 사라져도 물리 단계 깊이를 줄이지 않는다.
+전체 입력 chain에는 65,536개 node 한도를 추가한다. 행 잠금은 결과 단계로 암묵 전달하지 않고 명시적으로 거부한다.
+정렬·slice·DISTINCT가 있는 결과를 다시 집계할 때는 새로운 입력 단계를 만들어 그 순서를 보존한다.
+
+Compiler는 CTE의 열 목록으로 실제 결과 위치를 명명한다. 입력 SQL을 앞에 배치해 SQLite의 positional parameter와
+PostgreSQL의 numbered parameter가 같은 논리적 순서를 갖도록 한다. CTE/그룹 페이지 이름은 입력 SQL에서 이미
+사용한 이름을 피하고 case-insensitive table 이름도 고려한다. 원 모델 table 이름을 바꿔 충돌을 숨기지 않는다.
+오류 분류에 필요한 물리 source는 보존된 입력 plan에서 찾는다.
+
+`SelectQuery`/`AggregateQuery`는 projection과 한 행 aggregate를 지연 조회로 보존한다. 생성 facade도
+`Select<Model>Query`/`Aggregate<Model>Query`를 제공한다. `Derive`는 이 query 또는 `GroupedQuery`의 plan을
+새 입력 scope로 고정한다. `SelectedField`/`SelectedAggregate`는 입력에서 실제 선택한 표현식을 찾아 같은 Go
+cell decoder와 결과 domain을 유지한다. 결과의 모델 타입 표지는 `ResultOf[M]`이며 다음 단계마다 중첩된다.
+같은 타입의 별도 scope를 혼동하는 경우도 runtime preflight에서 거부한다. Dynamic `DynamicColumn(index)`와
+결과 source의 `Expression`/`Predicate`/`Project`는 같은 AST를 만들며 원 모델 이름을 이 단계에 다시 바인딩하지 않는다.
+
+`SelectResults`/`AggregateResults`/`GroupResults`는 해당 scope를 읽는다. `OptionalOperand`/`NullableOperand`는
+Go 입력 wrapper를 벗겨 산술·CASE에 연결하되 SQL NULL을 변환하거나 채우지 않는다. 원 projection의 nullable pointer,
+aggregate의 Optional과 computed Optional은 선택 단계 후에도 같은 decoder를 유지한다. 결과 열은 물리 행 UPDATE,
+DELETE나 잠금 API를 제공하지 않는다. Filter/OrderBy/Distinct를 기존 slice 뒤로 옮기려면 명시적으로 다시 Derive한다.
+Aggregate의 한 행을 필터·slice할 때도 같은 경계를 요구한다.
+
+`CombineProjections`/`CombineAggregates`는 선택 목록과 순수 builder를 합친다. 고정 arity를 늘리지 않고 넓은 DTO를
+조립하며 공통 selection 예산과 중복/타입 검증을 유지한다. Lazy result와 group은 완전히 읽고 닫은 private cell만
+cache한다. DTO는 게시할 때 다시 만들고 nullable 값의 메모리를 caller별로 소유한다. 원 QuerySet cache나 앞 단계의
+DTO builder를 새 stage 입력으로 재사용하지 않는다. Context/session·scan/iteration/close 실패에는 부분 결과를 게시하지 않는다.
+
+`ResultQuery.Page`는 입력을 한 번 materialize한 CTE에서 전체 수와 페이지를 만든다. Presence envelope와
+`ResultPage[R]`를 group page와 공유한다. 원 selected 순서·multiplicity·DISTINCT를 유지하며 NULL과 빈 페이지를 구분한다.
+명시 정렬 다음의 tie는 선택 cell로 채운다. Non-distinct projection의 미선택 정렬 값은 private 입력 열로만 추가한다.
+DISTINCT/group 결과에 미선택 정렬을 몰래 추가하거나 정렬 열을 공개 DTO에 끼워 넣지 않는다. 이미 slice된 결과는
+새 Derive 단계 후 Page할 수 있다. Limit 0도 전체 수를 읽고 Page는 All cache를 채우지 않는다.
+
+정적으로 빈 projection/group은 다음 단계의 빈 원본이다. 빈 원본의 aggregate는 COUNT 0/나머지 NULL 한 행이므로
+다음 단계에서도 그 한 행을 보존한다. Backend는 전체 원 plan을 검증한 뒤 빈 입력을 같은 scalar 종류의 합성 SQL로
+바꾸며, 접힌 빈 원본의 쓰지 않는 산술이나 table I/O를 되살리지 않는다. 실제 I/O가 필요한 빈 결과는 DB가 실행한다.
+Duration AVG의 SQLite fractional microseconds는 결과 참조·CASE·후속 비교에서도 유지하고 최종 scanner에서만
+half-even 반올림한다. 일반 Duration field/SUM의 int64 storage 검증을 넓히지 않는다.
+
+GDJ-0123 Helpdesk는 전체·열린 건수에서 닫힌 건수와 `open_basis_points = (10000 * open) / total`을 DB에서 계산한다.
+총수가 양수인 CASE branch에서 계산하며 정수 산술의 중간 overflow 오류를 유지한다. API는 required int64
+`closed`/`open_basis_points`와 적용한 `min_open_basis_points`를 반환하고 HTML은 100 basis points를 1%로 표시한다.
+필터는 0..10000의 canonical 정수이며 같은 snapshot 안에서 비율 조건 후 Page한다. Application은 반환된 NULL/건수/
+범위와 비율 정책을 확인하고 오류 시 전체 응답을 거부한다. 별도 Go 재계산을 DB 실패의 fallback으로 사용하지 않는다.
+원 Ticket·link·audit는 변경하지 않는다.
+
+단계별 compiler·공개 ORM·소비자의 구현과 검증 상태는 [CURRENT](../status/CURRENT.md)와
+[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.

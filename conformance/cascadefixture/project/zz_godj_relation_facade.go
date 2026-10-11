@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "72ccd078e3a9c2c32e0479653473ee8208940944e24d40d4d8c3cb9b882537b0"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "1418f870109d7ad80c391f663f33c7e8f8dbbe926b358e7b9835d3f28bafa4f7"
 
 type Backend interface {
 	db.Queryer
@@ -624,6 +624,20 @@ func AggregateDetailsChildInto[R any](_ctx context.Context, _source DetailsChild
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectDetailsChildQuery[R any](_source DetailsChildQuery, _selection orm.Projection[details.Child, R]) (orm.ResultQuery[details.Child, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Child, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsChildQuery[R any](_source DetailsChildQuery, _selection orm.Aggregate[details.Child, R]) (orm.ResultQuery[details.Child, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Child, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupDetailsChildBy[K, A, R any](_source DetailsChildQuery, _keys orm.Projection[details.Child, K], _aggregate orm.Aggregate[details.Child, A], _build func(K, A) R) (orm.GroupedQuery[details.Child, R], error) {
@@ -2130,6 +2144,20 @@ func AggregateDetailsDetailInto[R any](_ctx context.Context, _source DetailsDeta
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectDetailsDetailQuery[R any](_source DetailsDetailQuery, _selection orm.Projection[details.Detail, R]) (orm.ResultQuery[details.Detail, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Detail, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsDetailQuery[R any](_source DetailsDetailQuery, _selection orm.Aggregate[details.Detail, R]) (orm.ResultQuery[details.Detail, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Detail, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupDetailsDetailBy[K, A, R any](_source DetailsDetailQuery, _keys orm.Projection[details.Detail, K], _aggregate orm.Aggregate[details.Detail, A], _build func(K, A) R) (orm.GroupedQuery[details.Detail, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[details.Detail, R]{}, _err
@@ -3557,6 +3585,20 @@ func AggregateDetailsGrandchildInto[R any](_ctx context.Context, _source Details
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectDetailsGrandchildQuery[R any](_source DetailsGrandchildQuery, _selection orm.Projection[details.Grandchild, R]) (orm.ResultQuery[details.Grandchild, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Grandchild, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsGrandchildQuery[R any](_source DetailsGrandchildQuery, _selection orm.Aggregate[details.Grandchild, R]) (orm.ResultQuery[details.Grandchild, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Grandchild, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupDetailsGrandchildBy[K, A, R any](_source DetailsGrandchildQuery, _keys orm.Projection[details.Grandchild, K], _aggregate orm.Aggregate[details.Grandchild, A], _build func(K, A) R) (orm.GroupedQuery[details.Grandchild, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[details.Grandchild, R]{}, _err
@@ -4961,6 +5003,20 @@ func AggregateDetailsHiddenInto[R any](_ctx context.Context, _source DetailsHidd
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectDetailsHiddenQuery[R any](_source DetailsHiddenQuery, _selection orm.Projection[details.Hidden, R]) (orm.ResultQuery[details.Hidden, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Hidden, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsHiddenQuery[R any](_source DetailsHiddenQuery, _selection orm.Aggregate[details.Hidden, R]) (orm.ResultQuery[details.Hidden, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Hidden, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupDetailsHiddenBy[K, A, R any](_source DetailsHiddenQuery, _keys orm.Projection[details.Hidden, K], _aggregate orm.Aggregate[details.Hidden, A], _build func(K, A) R) (orm.GroupedQuery[details.Hidden, R], error) {
@@ -6370,6 +6426,20 @@ func AggregateDetailsOverlapInto[R any](_ctx context.Context, _source DetailsOve
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectDetailsOverlapQuery[R any](_source DetailsOverlapQuery, _selection orm.Projection[details.Overlap, R]) (orm.ResultQuery[details.Overlap, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Overlap, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsOverlapQuery[R any](_source DetailsOverlapQuery, _selection orm.Aggregate[details.Overlap, R]) (orm.ResultQuery[details.Overlap, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Overlap, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupDetailsOverlapBy[K, A, R any](_source DetailsOverlapQuery, _keys orm.Projection[details.Overlap, K], _aggregate orm.Aggregate[details.Overlap, A], _build func(K, A) R) (orm.GroupedQuery[details.Overlap, R], error) {
@@ -8004,6 +8074,20 @@ func AggregateDetailsProtectedInto[R any](_ctx context.Context, _source DetailsP
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectDetailsProtectedQuery[R any](_source DetailsProtectedQuery, _selection orm.Projection[details.Protected, R]) (orm.ResultQuery[details.Protected, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Protected, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsProtectedQuery[R any](_source DetailsProtectedQuery, _selection orm.Aggregate[details.Protected, R]) (orm.ResultQuery[details.Protected, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Protected, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupDetailsProtectedBy[K, A, R any](_source DetailsProtectedQuery, _keys orm.Projection[details.Protected, K], _aggregate orm.Aggregate[details.Protected, A], _build func(K, A) R) (orm.GroupedQuery[details.Protected, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[details.Protected, R]{}, _err
@@ -9410,6 +9494,20 @@ func AggregateDetailsRequiredRightInto[R any](_ctx context.Context, _source Deta
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectDetailsRequiredRightQuery[R any](_source DetailsRequiredRightQuery, _selection orm.Projection[details.RequiredRight, R]) (orm.ResultQuery[details.RequiredRight, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.RequiredRight, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsRequiredRightQuery[R any](_source DetailsRequiredRightQuery, _selection orm.Aggregate[details.RequiredRight, R]) (orm.ResultQuery[details.RequiredRight, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.RequiredRight, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupDetailsRequiredRightBy[K, A, R any](_source DetailsRequiredRightQuery, _keys orm.Projection[details.RequiredRight, K], _aggregate orm.Aggregate[details.RequiredRight, A], _build func(K, A) R) (orm.GroupedQuery[details.RequiredRight, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[details.RequiredRight, R]{}, _err
@@ -10814,6 +10912,20 @@ func AggregateDetailsRightInto[R any](_ctx context.Context, _source DetailsRight
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectDetailsRightQuery[R any](_source DetailsRightQuery, _selection orm.Projection[details.Right, R]) (orm.ResultQuery[details.Right, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Right, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsRightQuery[R any](_source DetailsRightQuery, _selection orm.Aggregate[details.Right, R]) (orm.ResultQuery[details.Right, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Right, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupDetailsRightBy[K, A, R any](_source DetailsRightQuery, _keys orm.Projection[details.Right, K], _aggregate orm.Aggregate[details.Right, A], _build func(K, A) R) (orm.GroupedQuery[details.Right, R], error) {
@@ -12223,6 +12335,20 @@ func AggregateDetailsTwinInto[R any](_ctx context.Context, _source DetailsTwinQu
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectDetailsTwinQuery[R any](_source DetailsTwinQuery, _selection orm.Projection[details.Twin, R]) (orm.ResultQuery[details.Twin, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Twin, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsTwinQuery[R any](_source DetailsTwinQuery, _selection orm.Aggregate[details.Twin, R]) (orm.ResultQuery[details.Twin, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Twin, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupDetailsTwinBy[K, A, R any](_source DetailsTwinQuery, _keys orm.Projection[details.Twin, K], _aggregate orm.Aggregate[details.Twin, A], _build func(K, A) R) (orm.GroupedQuery[details.Twin, R], error) {
@@ -13857,6 +13983,20 @@ func AggregateDetailsWatcherInto[R any](_ctx context.Context, _source DetailsWat
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectDetailsWatcherQuery[R any](_source DetailsWatcherQuery, _selection orm.Projection[details.Watcher, R]) (orm.ResultQuery[details.Watcher, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Watcher, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateDetailsWatcherQuery[R any](_source DetailsWatcherQuery, _selection orm.Aggregate[details.Watcher, R]) (orm.ResultQuery[details.Watcher, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[details.Watcher, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupDetailsWatcherBy[K, A, R any](_source DetailsWatcherQuery, _keys orm.Projection[details.Watcher, K], _aggregate orm.Aggregate[details.Watcher, A], _build func(K, A) R) (orm.GroupedQuery[details.Watcher, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[details.Watcher, R]{}, _err
@@ -15277,6 +15417,20 @@ func AggregateParentsLabelInto[R any](_ctx context.Context, _source ParentsLabel
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectParentsLabelQuery[R any](_source ParentsLabelQuery, _selection orm.Projection[parents.Label, R]) (orm.ResultQuery[parents.Label, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Label, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsLabelQuery[R any](_source ParentsLabelQuery, _selection orm.Aggregate[parents.Label, R]) (orm.ResultQuery[parents.Label, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Label, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupParentsLabelBy[K, A, R any](_source ParentsLabelQuery, _keys orm.Projection[parents.Label, K], _aggregate orm.Aggregate[parents.Label, A], _build func(K, A) R) (orm.GroupedQuery[parents.Label, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[parents.Label, R]{}, _err
@@ -15740,6 +15894,20 @@ func AggregateParentsLeftInto[R any](_ctx context.Context, _source ParentsLeftQu
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectParentsLeftQuery[R any](_source ParentsLeftQuery, _selection orm.Projection[parents.Left, R]) (orm.ResultQuery[parents.Left, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Left, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsLeftQuery[R any](_source ParentsLeftQuery, _selection orm.Aggregate[parents.Left, R]) (orm.ResultQuery[parents.Left, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Left, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupParentsLeftBy[K, A, R any](_source ParentsLeftQuery, _keys orm.Projection[parents.Left, K], _aggregate orm.Aggregate[parents.Left, A], _build func(K, A) R) (orm.GroupedQuery[parents.Left, R], error) {
@@ -17173,6 +17341,20 @@ func AggregateParentsNodeInto[R any](_ctx context.Context, _source ParentsNodeQu
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectParentsNodeQuery[R any](_source ParentsNodeQuery, _selection orm.Projection[parents.Node, R]) (orm.ResultQuery[parents.Node, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Node, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsNodeQuery[R any](_source ParentsNodeQuery, _selection orm.Aggregate[parents.Node, R]) (orm.ResultQuery[parents.Node, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Node, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupParentsNodeBy[K, A, R any](_source ParentsNodeQuery, _keys orm.Projection[parents.Node, K], _aggregate orm.Aggregate[parents.Node, A], _build func(K, A) R) (orm.GroupedQuery[parents.Node, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[parents.Node, R]{}, _err
@@ -18604,6 +18786,20 @@ func AggregateParentsRequiredLeftInto[R any](_ctx context.Context, _source Paren
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectParentsRequiredLeftQuery[R any](_source ParentsRequiredLeftQuery, _selection orm.Projection[parents.RequiredLeft, R]) (orm.ResultQuery[parents.RequiredLeft, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.RequiredLeft, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsRequiredLeftQuery[R any](_source ParentsRequiredLeftQuery, _selection orm.Aggregate[parents.RequiredLeft, R]) (orm.ResultQuery[parents.RequiredLeft, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.RequiredLeft, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupParentsRequiredLeftBy[K, A, R any](_source ParentsRequiredLeftQuery, _keys orm.Projection[parents.RequiredLeft, K], _aggregate orm.Aggregate[parents.RequiredLeft, A], _build func(K, A) R) (orm.GroupedQuery[parents.RequiredLeft, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[parents.RequiredLeft, R]{}, _err
@@ -20009,6 +20205,20 @@ func AggregateParentsRootInto[R any](_ctx context.Context, _source ParentsRootQu
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectParentsRootQuery[R any](_source ParentsRootQuery, _selection orm.Projection[parents.Root, R]) (orm.ResultQuery[parents.Root, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Root, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsRootQuery[R any](_source ParentsRootQuery, _selection orm.Aggregate[parents.Root, R]) (orm.ResultQuery[parents.Root, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.Root, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupParentsRootBy[K, A, R any](_source ParentsRootQuery, _keys orm.Projection[parents.Root, K], _aggregate orm.Aggregate[parents.Root, A], _build func(K, A) R) (orm.GroupedQuery[parents.Root, R], error) {
@@ -21418,6 +21628,20 @@ func AggregateParentsRootLabelsInto[R any](_ctx context.Context, _source Parents
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectParentsRootLabelsQuery[R any](_source ParentsRootLabelsQuery, _selection orm.Projection[parents.RootLabels, R]) (orm.ResultQuery[parents.RootLabels, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.RootLabels, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateParentsRootLabelsQuery[R any](_source ParentsRootLabelsQuery, _selection orm.Aggregate[parents.RootLabels, R]) (orm.ResultQuery[parents.RootLabels, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[parents.RootLabels, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupParentsRootLabelsBy[K, A, R any](_source ParentsRootLabelsQuery, _keys orm.Projection[parents.RootLabels, K], _aggregate orm.Aggregate[parents.RootLabels, A], _build func(K, A) R) (orm.GroupedQuery[parents.RootLabels, R], error) {
@@ -23070,4 +23294,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_423fd24c00b8e6bedb0c0c8068baed86544ea538806857d5885d18248446d961
+var _ goDjProjectSnapshot_b11f33a33eeb9d829a4d2074343fd2a3c59664097273ecdc9ff66c345baef917

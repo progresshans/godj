@@ -373,7 +373,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	}
 	rows, err := b.database.QueryContext(ctx, statement, arguments...)
 	if err != nil {
-		return nil, classifyDatabaseError(ctx, "query", b.schema, plan.Table(), err)
+		return nil, classifyDatabaseError(ctx, "query", b.schema, queryplan.SourceTable(plan), err)
 	}
 	return adaptScalarRows(rows, plan)
 }

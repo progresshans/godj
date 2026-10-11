@@ -142,11 +142,7 @@ func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.R
 		} else if err := appendResultValue(&statement, expression, alias, joins, &arguments, true); err != nil {
 			return "", nil, err
 		}
-		if ordering.Direction() == query.Ascending {
-			statement.WriteString(" ASC")
-		} else {
-			statement.WriteString(" DESC")
-		}
+		queryplan.AppendOrderDirection(&statement, ordering.Direction(), ordering.Nulls())
 	}
 	arguments = appendPagination(&statement, arguments, plan)
 	return statement.String(), arguments, nil

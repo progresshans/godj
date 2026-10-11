@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
+
+2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan
+snapshot과 양 compiler, typed/dynamic lazy ORM·composable DTO·생성 facade/소비자를 연결했다. Helpdesk의 같은
+읽기 snapshot에서 닫힌 건수·열린 비율을 계산하고 비율 필터·단일 statement Page·HTML/API·독립 client로 전달한다.
+설계는 ADR-0090/0091이 소유한다. 현재 아래의 생성·compile만 실행했으며 새 runtime/양 DB/Hosted PASS는 아직 없다.
+
+### 독립 관찰과 작성한 검증
+
+앞서 독립적으로 실행한 고정 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`의 77개 annotation
+관찰 원본을 `conformance/runners/django/annotation_reference`와
+`codegen/consumertest/testdata/derivedresult`에 보존했다. Observer SHA-256은
+`671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297`, 관련 module upstream byte 대조 manifest는
+`96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87`다. SQLite/PostgreSQL 원 JSON은 각각
+`890be7473d897c94fcab00c2a80a212b19cbb53f9c300a7bf5295dfa6532cb5c`,
+`7776b22d1dc3fdfefb80868ecaccebc42d96b85eb1503c6c2f3ffecc073dfd5d`이며 생성 소비자가 hash/provenance·77개 목록을 검증한다.
+이번에 reference로 연결한 범위는 slice 뒤 선택/필터/정렬, annotation 재집계·sliced 재집계, 그룹 뒤 계산/필터,
+계산 키의 그룹·숨긴 그룹 키 보존 9개다. 나머지 68개를 GoDj 지원이나 PASS로 계산하지 않는다.
+
+별도 native 소비자는 typed/dynamic AST, 비율 필터·단일 statement 페이지와 NULL/중복·빈 입력·COUNT 0 한 행,
+Duration AVG의 DB native 비교·마지막 decode, codec·zero-division·overflow·원 transaction rollback,
+다른 scope/원 모델 혼합·context·cache/copy·scan/iteration/close·종료 session을 검사한다. 정상 2DB 실행의 정확한
+child 목록 42개와 compile-negative 7개를 요구한다. SQLite-only 목록은 22개이며 PostgreSQL 검증의 대용이 아니다.
+Core AST/compiler·ORM과 생성 parent/compile-negative를 기존 relation/PostgreSQL 필수 manifest에 연결했다.
+공통 seed/backend/codec helper만 `expressioncommon`으로 옮겼고 기존 computed 소비자의 사례는 유지했다.
+
+Helpdesk의 기존 전체 응답/인가·scope·snapshot callback·read-only/audit 보존 검사에 새 비율 입력·0/10000 및
+6666/6667 경계·총수·closed 값을 추가했다. 브라우저 probe의 정확한 30개 check 이름을 runner가 요구하며,
+같은 개수의 잘못된 이름도 성공으로 처리하지 않는 부정 검증을 작성했다. 아직 이 테스트 본문들은 실행하지 않았다.
+
+### 로컬 생성과 최소 compile
+
+Go 1.26.5 darwin/arm64·CGO=1, 공유 cache·`-trimpath`를 사용했다. 로컬 전체 검증은 반복하지 않는다.
+
+- 결과 AST·compiler 초기 checkpoint의 최소 compile 자료는
+  `godj-verification/derived-result-minimal-compile-1791744043431028000`,
+  `derived-stage-compiler-check-1791745812771209000`, `derived-orm-page-compile-1791747009678697000`에 보존했다.
+  이후 변경의 PASS로 사용하지 않는다.
+- Facade generator v25로 현재 identity·identityfixture·helpdesk·article·relationfixture·onetoonefixture·cascadefixture
+  일곱 프로젝트를 다시 생성했다. 생성기 build와 일곱 generate 모두 exit 0이며 generated drift 테스트는 미실행이다.
+  자료 `derived-generator-build-1791747896377517000`, build receipt SHA-256
+  `e9d470f8ecb8ba01d0caa1abd07a915b2c3d6cc8441408367ae761d78fa17836`.
+- 실제 OpenAPI 여섯 profile을 export하고 고정 ogen으로 독립 client를 다시 생성·build했다. Helpdesk summary의
+  required `closed`/`open_basis_points`/`min_open_basis_points`와 query parameter/설명만 바뀌었고 나머지 다섯 schema와
+  dependency lock 세 파일은 같다. Helpdesk schema와 generated 파일 다섯 개를 반영했다. 실제 HTTP client는 아직
+  실행하지 않았다. 자료 `derived-openapi-1791748394513267000`, export receipt SHA-256
+  `5bce12ed6dbd88edd18dcba8fbbbf217139dcf25a1e7f7e74763b976f91668f8`, Helpdesk schema
+  `b739293610116fda198aab8ec183a0a27d28c3bb658e447bea9a5291bda9836d`.
+- 최종 빈 입력/Duration mean·Helpdesk 변경과 검증 사례를 gofmt한 뒤
+  `go test -trimpath -c -o <외부 bin> ./query ./orm ./db/internal/queryplan ./db/sqlite ./db/postgres ./codegen ./codegen/consumertest ./examples/helpdesk`
+  exit 0. 정확한 현재 project declaration에서 새 외부 module을 생성하고 derived/computed 두 소비자도 `go test -c`로
+  compile만 통과했다. 테스트 바이너리를 실행하지 않았다. 변경 Go 파일 171개의 hash·명령과 외부 module source를
+  결합한 자료는 `derived-complete-compile-1791749051894956000`, receipt SHA-256
+  `9a66f68d01e521be8afdc511657a06f41e81a15ac1c4d8e221ccaf6ecb702f84`다. 두 compile 로그는 비어 있으며 exit 0이다.
+
+이 묶음은 기존 Draft PR의 전체 CI로 영향·생성 drift·양 DB·세 모드·process·독립 client/브라우저·전체 platform을
+검증한다. 선행 source `0ea21fa4`의 83개 전체 CI 성공은 이번 결과 단계의 검증으로 전이하지 않는다.
+
 ## GDJ-0122 — 계산식 조회와 우선순위 미리보기
 
 2026-10-08~12 KST, 기준 `02f350d3598f41dd34b0ddcb1fbf82474139aea4` 뒤 작업 사본에 같은 행 scalar/CASE의

@@ -17,6 +17,7 @@ const (
 	ResultProjection ResultKind = "projection"
 	ResultAggregate  ResultKind = "aggregate"
 	ResultGrouped    ResultKind = "grouped"
+	ResultPage       ResultKind = "page"
 )
 
 // ResultExpressionKind identifies one ordered projection or aggregate cell.
@@ -171,6 +172,10 @@ func (e ResultExpression) ResultNullable() bool {
 		return false
 	}
 	return e.IsAggregate() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable() || e.scalar.Nullable()
+}
+
+func (e ResultExpression) RequiresDurationRounding() bool {
+	return e.ResultValueKind() == FieldDuration && (e.kind == ResultAvg || e.scalar.RequiresDurationRounding())
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {

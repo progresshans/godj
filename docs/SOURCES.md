@@ -44,6 +44,14 @@ Go source/output·expected fixture를 읽지 않으며 [양 DB 원 출력](../co
 수치/NULL·cache·transaction 의미와 명시적 미지원은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md),
 환경·source hash·실행 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
+
+[Annotation observer](../conformance/runners/django/annotation_reference/observe.py)는 같은 고정 Django 6.1의
+QuerySet·expressions·aggregates·SQLCompiler를 실행한다(BSD-3-Clause). 설치된 관련 module의 byte 대조 manifest와
+[양 DB의 77개 원 관찰](../codegen/consumertest/testdata/derivedresult/)을 보존한다. GDJ-0123의 생성 소비자는 그중
+선택·slice·집계 뒤 계산/조건·재집계·group key 보존 9개를 명시적으로 대조한다. 나머지 관찰을 제품 지원으로
+계산하지 않는다. 명시적 결과 scope와 원 행 구분은 [ADR-0091](adr/0091-grouped-results-and-having.md),
+실행한 source·환경과 원 hash는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
+
 ## Go와 DB
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)

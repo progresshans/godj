@@ -9179,6 +9179,10 @@ func (s *TicketSummary) encodeFields(e *jx.Encoder) {
 		e.Int64(s.MinOpen)
 	}
 	{
+		e.FieldStart("min_open_basis_points")
+		e.Int64(s.MinOpenBasisPoints)
+	}
+	{
 		e.FieldStart("total_groups")
 		e.Int64(s.TotalGroups)
 	}
@@ -9192,13 +9196,14 @@ func (s *TicketSummary) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketSummary = [6]string{
+var jsonFieldsNameOfTicketSummary = [7]string{
 	0: "category",
 	1: "page",
 	2: "page_size",
 	3: "min_open",
-	4: "total_groups",
-	5: "results",
+	4: "min_open_basis_points",
+	5: "total_groups",
+	6: "results",
 }
 
 // Decode decodes TicketSummary from json.
@@ -9256,8 +9261,20 @@ func (s *TicketSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"min_open\"")
 			}
-		case "total_groups":
+		case "min_open_basis_points":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int64()
+				s.MinOpenBasisPoints = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"min_open_basis_points\"")
+			}
+		case "total_groups":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int64()
 				s.TotalGroups = int64(v)
@@ -9269,7 +9286,7 @@ func (s *TicketSummary) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total_groups\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Results = make([]TicketSummaryResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -9296,7 +9313,7 @@ func (s *TicketSummary) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -9380,6 +9397,14 @@ func (s *TicketSummaryResultsItem) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Open)
 	}
 	{
+		e.FieldStart("closed")
+		e.Int64(s.Closed)
+	}
+	{
+		e.FieldStart("open_basis_points")
+		e.Int64(s.OpenBasisPoints)
+	}
+	{
 		e.FieldStart("expected_cost_total")
 		s.ExpectedCostTotal.Encode(e)
 	}
@@ -9393,17 +9418,19 @@ func (s *TicketSummaryResultsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTicketSummaryResultsItem = [10]string{
-	0: "priority",
-	1: "priority_label",
-	2: "raise_to_priority",
-	3: "raise_to_label",
-	4: "would_change",
-	5: "total",
-	6: "open",
-	7: "expected_cost_total",
-	8: "effort_average",
-	9: "elapsed_total",
+var jsonFieldsNameOfTicketSummaryResultsItem = [12]string{
+	0:  "priority",
+	1:  "priority_label",
+	2:  "raise_to_priority",
+	3:  "raise_to_label",
+	4:  "would_change",
+	5:  "total",
+	6:  "open",
+	7:  "closed",
+	8:  "open_basis_points",
+	9:  "expected_cost_total",
+	10: "effort_average",
+	11: "elapsed_total",
 }
 
 // Decode decodes TicketSummaryResultsItem from json.
@@ -9497,8 +9524,32 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
-		case "expected_cost_total":
+		case "closed":
 			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int64()
+				s.Closed = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"closed\"")
+			}
+		case "open_basis_points":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.OpenBasisPoints = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open_basis_points\"")
+			}
+		case "expected_cost_total":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.ExpectedCostTotal.Decode(d); err != nil {
 					return err
@@ -9508,7 +9559,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"expected_cost_total\"")
 			}
 		case "effort_average":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.EffortAverage.Decode(d); err != nil {
 					return err
@@ -9518,7 +9569,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"effort_average\"")
 			}
 		case "elapsed_total":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.ElapsedTotal.Decode(d); err != nil {
 					return err
@@ -9538,7 +9589,7 @@ func (s *TicketSummaryResultsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

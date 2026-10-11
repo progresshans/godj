@@ -88,7 +88,7 @@ func (scope *rootBatchScope) Query(ctx context.Context, plan query.Plan) (db.Row
 	}
 	native, err := lease.QueryContext(ctx, statement, arguments...)
 	if err != nil {
-		return nil, errors.Join(classifyDatabaseError(ctx, "stream query", scope.backend.schema, plan.Table(), err), lease.Close())
+		return nil, errors.Join(classifyDatabaseError(ctx, "stream query", scope.backend.schema, queryplan.SourceTable(plan), err), lease.Close())
 	}
 	rows, err := adaptScalarRows(native, plan)
 	if err != nil {

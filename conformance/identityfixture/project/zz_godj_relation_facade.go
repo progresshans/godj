@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "75d7727e569dea4fa3aa68a9ffd53d1dc19ada11b2cc5b8a2eaf2b5a7521d051"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "c3791168d5b7f3d6e89c8468b5f7623013eae24e1177c8f5fa7dbe22ce7c9cb7"
 
 type Backend interface {
 	db.Queryer
@@ -614,6 +614,20 @@ func AggregateAccountsGroupInto[R any](_ctx context.Context, _source AccountsGro
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAccountsGroupQuery[R any](_source AccountsGroupQuery, _selection orm.Projection[accounts.Group, R]) (orm.ResultQuery[accounts.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Group, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsGroupQuery[R any](_source AccountsGroupQuery, _selection orm.Aggregate[accounts.Group, R]) (orm.ResultQuery[accounts.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Group, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAccountsGroupBy[K, A, R any](_source AccountsGroupQuery, _keys orm.Projection[accounts.Group, K], _aggregate orm.Aggregate[accounts.Group, A], _build func(K, A) R) (orm.GroupedQuery[accounts.Group, R], error) {
@@ -1904,6 +1918,20 @@ func AggregateAccountsGroupPermissionsLinkInto[R any](_ctx context.Context, _sou
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAccountsGroupPermissionsLinkQuery[R any](_source AccountsGroupPermissionsLinkQuery, _selection orm.Projection[accounts.GroupPermissionsLink, R]) (orm.ResultQuery[accounts.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsGroupPermissionsLinkQuery[R any](_source AccountsGroupPermissionsLinkQuery, _selection orm.Aggregate[accounts.GroupPermissionsLink, R]) (orm.ResultQuery[accounts.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAccountsGroupPermissionsLinkBy[K, A, R any](_source AccountsGroupPermissionsLinkQuery, _keys orm.Projection[accounts.GroupPermissionsLink, K], _aggregate orm.Aggregate[accounts.GroupPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[accounts.GroupPermissionsLink, R], error) {
@@ -3534,6 +3562,20 @@ func AggregateAccountsPermissionInto[R any](_ctx context.Context, _source Accoun
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectAccountsPermissionQuery[R any](_source AccountsPermissionQuery, _selection orm.Projection[accounts.Permission, R]) (orm.ResultQuery[accounts.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Permission, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsPermissionQuery[R any](_source AccountsPermissionQuery, _selection orm.Aggregate[accounts.Permission, R]) (orm.ResultQuery[accounts.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Permission, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupAccountsPermissionBy[K, A, R any](_source AccountsPermissionQuery, _keys orm.Projection[accounts.Permission, K], _aggregate orm.Aggregate[accounts.Permission, A], _build func(K, A) R) (orm.GroupedQuery[accounts.Permission, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[accounts.Permission, R]{}, _err
@@ -4817,6 +4859,20 @@ func AggregateAccountsUserInto[R any](_ctx context.Context, _source AccountsUser
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAccountsUserQuery[R any](_source AccountsUserQuery, _selection orm.Projection[accounts.User, R]) (orm.ResultQuery[accounts.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.User, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsUserQuery[R any](_source AccountsUserQuery, _selection orm.Aggregate[accounts.User, R]) (orm.ResultQuery[accounts.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.User, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAccountsUserBy[K, A, R any](_source AccountsUserQuery, _keys orm.Projection[accounts.User, K], _aggregate orm.Aggregate[accounts.User, A], _build func(K, A) R) (orm.GroupedQuery[accounts.User, R], error) {
@@ -6107,6 +6163,20 @@ func AggregateAccountsUserGroupsLinkInto[R any](_ctx context.Context, _source Ac
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAccountsUserGroupsLinkQuery[R any](_source AccountsUserGroupsLinkQuery, _selection orm.Projection[accounts.UserGroupsLink, R]) (orm.ResultQuery[accounts.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserGroupsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsUserGroupsLinkQuery[R any](_source AccountsUserGroupsLinkQuery, _selection orm.Aggregate[accounts.UserGroupsLink, R]) (orm.ResultQuery[accounts.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserGroupsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAccountsUserGroupsLinkBy[K, A, R any](_source AccountsUserGroupsLinkQuery, _keys orm.Projection[accounts.UserGroupsLink, K], _aggregate orm.Aggregate[accounts.UserGroupsLink, A], _build func(K, A) R) (orm.GroupedQuery[accounts.UserGroupsLink, R], error) {
@@ -7744,6 +7814,20 @@ func AggregateAccountsUserPermissionsLinkInto[R any](_ctx context.Context, _sour
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectAccountsUserPermissionsLinkQuery[R any](_source AccountsUserPermissionsLinkQuery, _selection orm.Projection[accounts.UserPermissionsLink, R]) (orm.ResultQuery[accounts.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountsUserPermissionsLinkQuery[R any](_source AccountsUserPermissionsLinkQuery, _selection orm.Aggregate[accounts.UserPermissionsLink, R]) (orm.ResultQuery[accounts.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupAccountsUserPermissionsLinkBy[K, A, R any](_source AccountsUserPermissionsLinkQuery, _keys orm.Projection[accounts.UserPermissionsLink, K], _aggregate orm.Aggregate[accounts.UserPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[accounts.UserPermissionsLink, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[accounts.UserPermissionsLink, R]{}, _err
@@ -9377,6 +9461,20 @@ func AggregateWorkAccessGuardInto[R any](_ctx context.Context, _source WorkAcces
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectWorkAccessGuardQuery[R any](_source WorkAccessGuardQuery, _selection orm.Projection[work.AccessGuard, R]) (orm.ResultQuery[work.AccessGuard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessGuard, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateWorkAccessGuardQuery[R any](_source WorkAccessGuardQuery, _selection orm.Aggregate[work.AccessGuard, R]) (orm.ResultQuery[work.AccessGuard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessGuard, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupWorkAccessGuardBy[K, A, R any](_source WorkAccessGuardQuery, _keys orm.Projection[work.AccessGuard, K], _aggregate orm.Aggregate[work.AccessGuard, A], _build func(K, A) R) (orm.GroupedQuery[work.AccessGuard, R], error) {
@@ -11064,6 +11162,20 @@ func AggregateWorkAccessNoteInto[R any](_ctx context.Context, _source WorkAccess
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectWorkAccessNoteQuery[R any](_source WorkAccessNoteQuery, _selection orm.Projection[work.AccessNote, R]) (orm.ResultQuery[work.AccessNote, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessNote, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateWorkAccessNoteQuery[R any](_source WorkAccessNoteQuery, _selection orm.Aggregate[work.AccessNote, R]) (orm.ResultQuery[work.AccessNote, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessNote, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupWorkAccessNoteBy[K, A, R any](_source WorkAccessNoteQuery, _keys orm.Projection[work.AccessNote, K], _aggregate orm.Aggregate[work.AccessNote, A], _build func(K, A) R) (orm.GroupedQuery[work.AccessNote, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[work.AccessNote, R]{}, _err
@@ -12721,6 +12833,20 @@ func AggregateWorkGuardInto[R any](_ctx context.Context, _source WorkGuardQuery,
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectWorkGuardQuery[R any](_source WorkGuardQuery, _selection orm.Projection[work.Guard, R]) (orm.ResultQuery[work.Guard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Guard, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateWorkGuardQuery[R any](_source WorkGuardQuery, _selection orm.Aggregate[work.Guard, R]) (orm.ResultQuery[work.Guard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Guard, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupWorkGuardBy[K, A, R any](_source WorkGuardQuery, _keys orm.Projection[work.Guard, K], _aggregate orm.Aggregate[work.Guard, A], _build func(K, A) R) (orm.GroupedQuery[work.Guard, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[work.Guard, R]{}, _err
@@ -14127,6 +14253,20 @@ func AggregateWorkNoteInto[R any](_ctx context.Context, _source WorkNoteQuery, _
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectWorkNoteQuery[R any](_source WorkNoteQuery, _selection orm.Projection[work.Note, R]) (orm.ResultQuery[work.Note, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Note, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateWorkNoteQuery[R any](_source WorkNoteQuery, _selection orm.Aggregate[work.Note, R]) (orm.ResultQuery[work.Note, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Note, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupWorkNoteBy[K, A, R any](_source WorkNoteQuery, _keys orm.Projection[work.Note, K], _aggregate orm.Aggregate[work.Note, A], _build func(K, A) R) (orm.GroupedQuery[work.Note, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[work.Note, R]{}, _err
@@ -15490,4 +15630,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_7e94a47fe1b8fce5e3ac237601d04c607f18fa3365d9557553b770ba762c920e
+var _ goDjProjectSnapshot_acc1e737886ef9f70a8aedd3a34d3d18a0d808f1e4a56109567fd9c0bafefac7

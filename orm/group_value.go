@@ -197,7 +197,7 @@ func (o Ordering[M]) groupOrdering(M) (query.GroupOrdering, error) {
 	if o.err != nil {
 		return query.GroupOrdering{}, o.err
 	}
-	return query.NewGroupOrdering(o.ordering.Expression(), o.ordering.Direction(), query.NullsNative)
+	return query.NewGroupOrdering(o.ordering.Expression(), o.ordering.Direction(), o.ordering.Nulls())
 }
 func (v GroupValue[M, V]) order(direction query.Direction) GroupOrdering[M] {
 	if v.err != nil {
@@ -216,11 +216,11 @@ func (o GroupOrdering[M]) withNulls(nulls query.NullOrder) GroupOrdering[M] {
 }
 func (o GroupOrdering[M]) NullsFirst() GroupOrdering[M] { return o.withNulls(query.NullsFirst) }
 func (o GroupOrdering[M]) NullsLast() GroupOrdering[M]  { return o.withNulls(query.NullsLast) }
-func (o Ordering[M]) NullsFirst() GroupOrdering[M] {
-	value, err := o.groupOrdering(*new(M))
-	return (GroupOrdering[M]{ordering: value, err: err}).NullsFirst()
+func (o Ordering[M]) withNulls(nulls query.NullOrder) Ordering[M] {
+	if o.err == nil {
+		o.ordering, o.err = o.ordering.WithNulls(nulls)
+	}
+	return o
 }
-func (o Ordering[M]) NullsLast() GroupOrdering[M] {
-	value, err := o.groupOrdering(*new(M))
-	return (GroupOrdering[M]{ordering: value, err: err}).NullsLast()
-}
+func (o Ordering[M]) NullsFirst() Ordering[M] { return o.withNulls(query.NullsFirst) }
+func (o Ordering[M]) NullsLast() Ordering[M]  { return o.withNulls(query.NullsLast) }

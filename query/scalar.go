@@ -11,8 +11,8 @@ const (
 	MaximumScalarNodes = 1024
 )
 
-// ScalarKind distinguishes value expressions from Boolean predicates and
-// aggregate/result expressions. A zero ScalarExpression is invalid.
+// ScalarKind identifies value nodes independently of Boolean predicates and
+// aggregation operators. A zero ScalarExpression is invalid.
 type ScalarKind uint8
 
 const (
@@ -21,6 +21,7 @@ const (
 	ScalarBinary
 	ScalarNegate
 	ScalarCase
+	ScalarSelected
 )
 
 type ArithmeticOperator string
@@ -35,6 +36,7 @@ const (
 
 // ScalarExpression is an immutable bounded value tree. Fields refer to the
 // original row of one eventual source; they cannot introduce a relation join.
+// Selected result references use a separate scope in a subsequent read stage.
 // Literal containers have already been snapshotted by Value constructors.
 type ScalarExpression struct{ node *scalarNode }
 
@@ -48,6 +50,9 @@ type scalarNode struct {
 	nullable     bool
 	depth, nodes int
 	branches     []ScalarWhen
+	reference    ResultRef
+	resultDepth  int
+	durationMean bool
 }
 
 // ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
@@ -84,6 +89,8 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 	}
 	result, nullable := fallback.ResultKind(), fallback.Nullable()
 	depth, nodes := fallback.Depth()+1, fallback.NodeCount()+1
+	resultDepth := fallback.resultReferenceDepth()
+	durationMean := fallback.RequiresDurationRounding()
 	for _, branch := range branches {
 		if _, err := WhenScalar(branch.when, branch.value); err != nil {
 			return ScalarExpression{}, err
@@ -98,6 +105,11 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		nullable = nullable || branch.value.Nullable()
 		depth = max(depth, 1+branch.when.node.depth, 1+branch.value.Depth())
 		nodes += branch.when.node.nodes + branch.value.NodeCount()
+		resultDepth = max(resultDepth, branch.value.resultReferenceDepth())
+		durationMean = durationMean || branch.value.RequiresDurationRounding()
+		for _, condition := range expressionConditions(branch.when) {
+			resultDepth = max(resultDepth, condition.scalar.resultReferenceDepth())
+		}
 		if depth > MaximumScalarDepth || nodes > MaximumScalarNodes {
 			return ScalarExpression{}, invalidPlanError("conditional scalar exceeds its resource budget")
 		}
@@ -106,7 +118,14 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		return ScalarExpression{}, invalidPlanError("conditional scalar has no explicit result kind")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarCase, result: result, nullable: nullable, left: fallback,
-		branches: slices.Clone(branches), depth: depth, nodes: nodes}}, nil
+		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean}}, nil
+}
+
+// RequiresDurationRounding preserves native duration averages across result
+// references and CASE branches. They are rounded only at the final decoder;
+// ordinary model duration fields retain their strict physical value contract.
+func (expression ScalarExpression) RequiresDurationRounding() bool {
+	return expression.node != nil && expression.node.result == FieldDuration && expression.node.durationMean
 }
 
 func (expression ScalarExpression) Case() (ScalarExpression, []ScalarWhen, bool) {
@@ -185,7 +204,8 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarBinary, operator: operator, left: left, right: right, result: result,
-		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo, depth: depth, nodes: nodes}}, nil
+		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo,
+		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth())}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
@@ -199,7 +219,7 @@ func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarNegate, left: value, result: value.node.result, nullable: value.node.nullable,
-		depth: value.node.depth + 1, nodes: value.node.nodes + 1}}, nil
+		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth()}}, nil
 }
 
 func (expression ScalarExpression) Validate() error {
@@ -268,7 +288,7 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator &&
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) &&
 		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
 		return a.when.Equal(b.when) && a.value.Equal(b.value)
 	})
@@ -316,6 +336,9 @@ func (expression ScalarExpression) Fields() []FieldRef {
 func (expression ScalarExpression) validateSource(fields map[string]FieldRef) error {
 	if err := expression.Validate(); err != nil {
 		return err
+	}
+	if expression.resultReferenceDepth() != 0 {
+		return invalidPlanError("selected result cannot be used as an original row value")
 	}
 	if field, ok := expression.Field(); ok {
 		if fields[field.Column()] != field {
@@ -385,6 +408,9 @@ func (assignment ScalarAssignment) Validate() error {
 	}
 	if err := assignment.expression.Validate(); err != nil {
 		return err
+	}
+	if assignment.expression.resultReferenceDepth() != 0 {
+		return invalidPlanError("selected result cannot be assigned to an original row")
 	}
 	if kind := assignment.expression.ResultKind(); kind != "" && kind != assignment.field.Kind() {
 		return invalidPlanError("expression result does not match its assigned field kind")

@@ -286,15 +286,29 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertTicketLabelContracts(t, document)
 	summary := document.Paths["/api/tickets/summary/"]["get"]
 	summarySchema := document.Components.Schemas["TicketSummary"]
-	if summary.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketSummary" || len(summary.Parameters) != 2 || summary.Parameters[0].Name != "p" || summary.Parameters[1].Name != "min_open" || summarySchema.AdditionalProperties || !slices.Equal(summarySchema.Required, []string{"category", "page", "page_size", "min_open", "total_groups", "results"}) {
+	if summary.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketSummary" || len(summary.Parameters) != 3 || summary.Parameters[0].Name != "p" || summary.Parameters[1].Name != "min_open" || summary.Parameters[2].Name != "min_open_basis_points" || summarySchema.AdditionalProperties || !slices.Equal(summarySchema.Required, []string{"category", "page", "page_size", "min_open", "min_open_basis_points", "total_groups", "results"}) {
 		t.Fatal("summary operation lost its closed page contract")
 	}
 	if string(summary.Parameters[0].Schema.Default) != "1" || string(summary.Parameters[1].Schema.Default) != "0" || summary.Parameters[0].Schema.QueryInteger != "canonical-decimal" || summary.Parameters[1].Schema.QueryInteger != "canonical-decimal" || summary.Parameters[0].Required || summary.Parameters[1].Required || summary.Parameters[0].AllowEmptyValue || summary.Parameters[1].AllowEmptyValue {
 		t.Fatal("summary query lost its typed omission or lexical policy")
 	}
 	summaryItems := summarySchema.Properties["results"]
-	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "raise_to_priority", "raise_to_label", "would_change", "total", "open", "expected_cost_total", "effort_average", "elapsed_total"}) {
+	if summaryItems.Type != "array" || summaryItems.MaxItems != 20 || summaryItems.Items == nil || summaryItems.Items.AdditionalProperties || !slices.Equal(summaryItems.Items.Required, []string{"priority", "priority_label", "raise_to_priority", "raise_to_label", "would_change", "total", "open", "closed", "open_basis_points", "expected_cost_total", "effort_average", "elapsed_total"}) {
 		t.Fatal("summary result lost its required bounded groups")
+	}
+	rateParameter := summary.Parameters[2]
+	if string(rateParameter.Schema.Default) != "0" || string(rateParameter.Schema.Minimum) != "0" || string(rateParameter.Schema.Maximum) != "10000" || rateParameter.Schema.QueryInteger != "canonical-decimal" || rateParameter.Required || rateParameter.AllowEmptyValue {
+		t.Fatal("summary basis-point query lost its exact bounded integer contract")
+	}
+	for _, name := range []string{"open_basis_points", "closed"} {
+		value := summaryItems.Items.Properties[name]
+		want := "10000"
+		if name == "closed" {
+			want = "9223372036854775807"
+		}
+		if value.Type != "integer" || value.Format != "int64" || value.allowsType("null") || string(value.Minimum) != "0" || string(value.Maximum) != want {
+			t.Fatal("derived summary result lost its required integer domain", name)
+		}
 	}
 	raised := summaryItems.Items.Properties["raise_to_priority"]
 	if raised.Format != "int64" || raised.allowsType("null") || string(raised.Minimum) != "-9223372036854775808" || string(raised.Maximum) != "9223372036854775807" || summaryItems.Items.Properties["would_change"].Type != "boolean" || summaryItems.Items.Properties["raise_to_label"].Type != "string" {

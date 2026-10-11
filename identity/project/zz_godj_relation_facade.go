@@ -13,8 +13,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "fbfeaecb0fcb6d7664b78a2f2ce75ee94b1278ad67c20ea1a5468e0fe54630dd"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "a4ad2ecf60e1c0c4c29f5cbcb661448e160d8d1196b5d7a3c4ab36fc91b4f2c1"
 
 type Backend interface {
 	db.Queryer
@@ -606,6 +606,20 @@ func AggregateIdentityGroupInto[R any](_ctx context.Context, _source IdentityGro
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityGroupQuery[R any](_source IdentityGroupQuery, _selection orm.Projection[identity.Group, R]) (orm.ResultQuery[identity.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Group, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityGroupQuery[R any](_source IdentityGroupQuery, _selection orm.Aggregate[identity.Group, R]) (orm.ResultQuery[identity.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Group, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityGroupBy[K, A, R any](_source IdentityGroupQuery, _keys orm.Projection[identity.Group, K], _aggregate orm.Aggregate[identity.Group, A], _build func(K, A) R) (orm.GroupedQuery[identity.Group, R], error) {
@@ -1702,6 +1716,20 @@ func AggregateIdentityGroupPermissionsLinkInto[R any](_ctx context.Context, _sou
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityGroupPermissionsLinkQuery[R any](_source IdentityGroupPermissionsLinkQuery, _selection orm.Projection[identity.GroupPermissionsLink, R]) (orm.ResultQuery[identity.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityGroupPermissionsLinkQuery[R any](_source IdentityGroupPermissionsLinkQuery, _selection orm.Aggregate[identity.GroupPermissionsLink, R]) (orm.ResultQuery[identity.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityGroupPermissionsLinkBy[K, A, R any](_source IdentityGroupPermissionsLinkQuery, _keys orm.Projection[identity.GroupPermissionsLink, K], _aggregate orm.Aggregate[identity.GroupPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.GroupPermissionsLink, R], error) {
@@ -3330,6 +3358,20 @@ func AggregateIdentityPermissionInto[R any](_ctx context.Context, _source Identi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectIdentityPermissionQuery[R any](_source IdentityPermissionQuery, _selection orm.Projection[identity.Permission, R]) (orm.ResultQuery[identity.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Permission, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityPermissionQuery[R any](_source IdentityPermissionQuery, _selection orm.Aggregate[identity.Permission, R]) (orm.ResultQuery[identity.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Permission, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupIdentityPermissionBy[K, A, R any](_source IdentityPermissionQuery, _keys orm.Projection[identity.Permission, K], _aggregate orm.Aggregate[identity.Permission, A], _build func(K, A) R) (orm.GroupedQuery[identity.Permission, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[identity.Permission, R]{}, _err
@@ -4417,6 +4459,20 @@ func AggregateIdentityUserInto[R any](_ctx context.Context, _source IdentityUser
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityUserQuery[R any](_source IdentityUserQuery, _selection orm.Projection[identity.User, R]) (orm.ResultQuery[identity.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.User, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserQuery[R any](_source IdentityUserQuery, _selection orm.Aggregate[identity.User, R]) (orm.ResultQuery[identity.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.User, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityUserBy[K, A, R any](_source IdentityUserQuery, _keys orm.Projection[identity.User, K], _aggregate orm.Aggregate[identity.User, A], _build func(K, A) R) (orm.GroupedQuery[identity.User, R], error) {
@@ -5513,6 +5569,20 @@ func AggregateIdentityUserGroupsLinkInto[R any](_ctx context.Context, _source Id
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityUserGroupsLinkQuery[R any](_source IdentityUserGroupsLinkQuery, _selection orm.Projection[identity.UserGroupsLink, R]) (orm.ResultQuery[identity.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserGroupsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserGroupsLinkQuery[R any](_source IdentityUserGroupsLinkQuery, _selection orm.Aggregate[identity.UserGroupsLink, R]) (orm.ResultQuery[identity.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserGroupsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityUserGroupsLinkBy[K, A, R any](_source IdentityUserGroupsLinkQuery, _keys orm.Projection[identity.UserGroupsLink, K], _aggregate orm.Aggregate[identity.UserGroupsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserGroupsLink, R], error) {
@@ -7150,6 +7220,20 @@ func AggregateIdentityUserPermissionsLinkInto[R any](_ctx context.Context, _sour
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectIdentityUserPermissionsLinkQuery[R any](_source IdentityUserPermissionsLinkQuery, _selection orm.Projection[identity.UserPermissionsLink, R]) (orm.ResultQuery[identity.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserPermissionsLinkQuery[R any](_source IdentityUserPermissionsLinkQuery, _selection orm.Aggregate[identity.UserPermissionsLink, R]) (orm.ResultQuery[identity.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupIdentityUserPermissionsLinkBy[K, A, R any](_source IdentityUserPermissionsLinkQuery, _keys orm.Projection[identity.UserPermissionsLink, K], _aggregate orm.Aggregate[identity.UserPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserPermissionsLink, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[identity.UserPermissionsLink, R]{}, _err
@@ -8690,4 +8774,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_882e8f76dbd7f10cbf3fb93e51f2824ec2869c21d8c8e9c589cf8155624656f6
+var _ goDjProjectSnapshot_4d1c60cfb24d41d8c6a308c105c04b97d87d261ac33dbb96fc3263d55548b4d3

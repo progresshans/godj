@@ -138,6 +138,9 @@ type HelpdeskTicketSummaryParams struct {
 	P OptInt64 `json:",omitempty,omitzero"`
 	// Minimum open tickets in each returned group; canonical nonnegative int64 decimal integer.
 	MinOpen OptInt64 `json:",omitempty,omitzero"`
+	// Minimum open share in basis points, from 0 to 10000; 100 basis points equals one percent. Canonical
+	// decimal integer.
+	MinOpenBasisPoints OptInt64 `json:",omitempty,omitzero"`
 }
 
 // HelpdeskTicketUpdateParams is parameters of helpdesk:ticket-update operation.

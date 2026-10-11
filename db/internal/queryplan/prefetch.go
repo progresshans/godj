@@ -29,7 +29,7 @@ func AppendPrefetchWindow(sql *strings.Builder, plan query.Plan, appendValue fun
 		if err := appendValue(ordering.Expression()); err != nil {
 			return err
 		}
-		appendDirection(sql, ordering.Direction())
+		AppendOrderDirection(sql, ordering.Direction(), ordering.Nulls())
 	}
 	sql.WriteString(`) AS "godj_prefetch_rank"`)
 	return nil
@@ -96,15 +96,7 @@ func FinishPrefetchRows(inner string, plan query.Plan, selected, hidden []query.
 			sql.WriteString(", ")
 		}
 		sql.WriteString(`"godj_order_source"."o` + strconv.Itoa(index) + `"`)
-		appendDirection(&sql, ordering.Direction())
+		AppendOrderDirection(&sql, ordering.Direction(), ordering.Nulls())
 	}
 	return sql.String(), nil
-}
-
-func appendDirection(sql *strings.Builder, direction query.Direction) {
-	if direction == query.Ascending {
-		sql.WriteString(" ASC")
-	} else {
-		sql.WriteString(" DESC")
-	}
 }

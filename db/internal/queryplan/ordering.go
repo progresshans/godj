@@ -106,3 +106,18 @@ func HiddenOrderingColumn(selected, hidden []query.ResultExpression, expression 
 	}
 	return `"godj_order_source"."o` + strconv.Itoa(ExpressionIndex(hidden, expression)) + `"`
 }
+
+// AppendOrderDirection is shared by ordinary, grouped, staged and window reads.
+func AppendOrderDirection(statement *strings.Builder, direction query.Direction, nulls query.NullOrder) {
+	if direction == query.Ascending {
+		statement.WriteString(" ASC")
+	} else {
+		statement.WriteString(" DESC")
+	}
+	switch nulls {
+	case query.NullsFirst:
+		statement.WriteString(" NULLS FIRST")
+	case query.NullsLast:
+		statement.WriteString(" NULLS LAST")
+	}
+}

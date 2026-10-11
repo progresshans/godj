@@ -38,8 +38,15 @@ func TestGeneratedComputedExpressions(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "reference_test.go", "runtime_test.go", "codecs_test.go"} {
+	for _, name := range []string{"reference_test.go", "runtime_test.go", "codecs_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "computedexpression", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/"+name, data)
+	}
+	for _, name := range []string{"backend_test.go", "scalars_test.go"} {
+		data, err := os.ReadFile(filepath.Join("testdata", "expressioncommon", name))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -21,6 +21,15 @@ func Compile(plan query.Plan) (string, []any, error) {
 }
 
 func compileReadPlan(plan query.Plan) (string, []any, error) {
+	if input, _, page := plan.PageInput(); page {
+		return compileResultPage(plan, input)
+	}
+	if err := plan.ValidatePage(); err != nil {
+		return "", nil, err
+	}
+	if input, _, derived := plan.DerivedSource(); derived {
+		return compileResultStage(plan, input)
+	}
 	if err := plan.ValidateGrouping(); err != nil {
 		return "", nil, err
 	}

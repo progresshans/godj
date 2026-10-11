@@ -80,7 +80,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	b.queryCount.Add(1)
 	rows, err := b.database.QueryContext(ctx, statement, arguments...)
 	if err != nil {
-		return nil, classifyQueryError(err, plan.Table())
+		return nil, classifyQueryError(err, queryplan.SourceTable(plan))
 	}
 	return rows, nil
 }

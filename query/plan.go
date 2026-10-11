@@ -364,6 +364,7 @@ const (
 type Ordering struct {
 	expression ResultExpression
 	direction  Direction
+	nulls      NullOrder
 }
 
 func NewOrdering(field FieldRef, direction Direction) Ordering {
@@ -383,11 +384,30 @@ func NewResultOrdering(expression ResultExpression, direction Direction) (Orderi
 func (o Ordering) Field() FieldRef              { field, _ := o.expression.Field(); return field }
 func (o Ordering) Expression() ResultExpression { return o.expression }
 func (o Ordering) Direction() Direction         { return o.direction }
+func (o Ordering) Nulls() NullOrder {
+	if o.nulls == "" {
+		return NullsNative
+	}
+	return o.nulls
+}
+func (o Ordering) WithNulls(nulls NullOrder) (Ordering, error) {
+	o.nulls = nulls
+	if nulls != NullsNative && nulls != NullsFirst && nulls != NullsLast {
+		return Ordering{}, invalidPlanError("unknown NULL ordering")
+	}
+	if err := o.validate(); err != nil {
+		return Ordering{}, err
+	}
+	return o, nil
+}
 func (o Ordering) Equal(other Ordering) bool {
-	return o.direction == other.direction && o.expression.Equal(other.expression)
+	return o.direction == other.direction && o.Nulls() == other.Nulls() && o.expression.Equal(other.expression)
 }
 
 func (o Ordering) validate() error {
+	if o.Nulls() != NullsNative && o.Nulls() != NullsFirst && o.Nulls() != NullsLast {
+		return invalidPlanError("unknown NULL ordering")
+	}
 	if o.direction != Ascending && o.direction != Descending {
 		return invalidPlanError("unknown ordering direction")
 	}
@@ -424,6 +444,8 @@ type Plan struct {
 	relationProjections   []RelationProjection
 	prefetchWindow        *PrefetchWindow
 	rowLock               *RowLock
+	derived               *derivedSource
+	page                  *resultPageSource
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -626,7 +648,13 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 	if node.kind == ExpressionLeaf {
 		condition := node.condition
 		if scalar, present := condition.Scalar(); present {
+			if p.derived != nil {
+				return scalar.ValidateResultSource(p.derived.scope)
+			}
 			return scalar.ValidateSource(p.sourceFields)
+		}
+		if p.derived != nil {
+			return invalidPlanError("derived predicate requires selected scalar values")
 		}
 		path := condition.relationPath
 		if path == nil {
@@ -720,6 +748,9 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := result.validate(); err != nil {
 		return Plan{}, err
 	}
+	if p.derived != nil && result.kind != ResultProjection && result.kind != ResultAggregate && result.kind != ResultGrouped {
+		return Plan{}, invalidPlanError("derived query cannot become a model result")
+	}
 	if p.result.kind == ResultGrouped && result.kind != ResultGrouped {
 		return Plan{}, invalidPlanError("group result cannot be replaced with a row result")
 	}
@@ -735,7 +766,7 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 			if !slices.ContainsFunc(result.GroupKeys(), order.expression.Equal) {
 				return Plan{}, groupUnsupported("source ordering must select a group key; clear it explicitly before grouping")
 			}
-			groupOrder, err := NewGroupOrdering(order.expression, order.direction, NullsNative)
+			groupOrder, err := NewGroupOrdering(order.expression, order.direction, order.Nulls())
 			if err != nil {
 				return Plan{}, err
 			}
@@ -769,6 +800,9 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := clone.ValidateGrouping(); err != nil {
 		return Plan{}, err
 	}
+	if err := clone.ValidateDerived(); err != nil {
+		return Plan{}, err
+	}
 	return clone, nil
 }
 
@@ -779,7 +813,16 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		}
 	}
 	if scalar, present := expression.Scalar(); present {
+		if p.derived != nil {
+			return scalar.ValidateResultSource(p.derived.scope)
+		}
 		return scalar.ValidateSource(p.sourceFields)
+	}
+	if p.derived != nil {
+		if expression.kind == ResultCountAll {
+			return nil
+		}
+		return invalidPlanError("derived value requires a selected scalar expression")
 	}
 	if path, related := expression.RelationPath(); related {
 		root := path.hops[0]
@@ -800,7 +843,7 @@ func (p Plan) Equal(other Plan) bool {
 	if leftLocked != rightLocked || leftLocked && !leftLock.Equal(rightLock) {
 		return false
 	}
-	if p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
+	if !equalPageSources(p.page, other.page) || !equalDerivedSources(p.derived, other.derived) || p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
 		p.distinct != other.distinct || !p.result.Equal(other.result) || p.collectionFilters != other.collectionFilters || p.reuseCollectionFilter != other.reuseCollectionFilter {
 		return false
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/batchread"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
 )
@@ -67,7 +68,7 @@ func queryCursorBatches(ctx context.Context, executor cursorExecutor, schema str
 			return nil
 		}
 		if closeErr != nil {
-			closeErr = classifyDatabaseError(cleanup, "close batch cursor", schema, plan.Table(), closeErr)
+			closeErr = classifyDatabaseError(cleanup, "close batch cursor", schema, queryplan.SourceTable(plan), closeErr)
 			if closeFailure != nil {
 				closeErr = errors.Join(closeErr, closeFailure(closeErr))
 			}
@@ -82,7 +83,7 @@ func queryCursorBatches(ctx context.Context, executor cursorExecutor, schema str
 		}
 		defer op.Release()
 		if _, err := executor.ExecContext(op.Context(), declare, arguments...); err != nil {
-			return op.End(classifyDatabaseError(op.Context(), "declare batch cursor", schema, plan.Table(), err))
+			return op.End(classifyDatabaseError(op.Context(), "declare batch cursor", schema, queryplan.SourceTable(plan), err))
 		}
 		resource, resourceErr := op.Resource(closeCursor)
 		if resourceErr != nil {
@@ -96,7 +97,7 @@ func queryCursorBatches(ctx context.Context, executor cursorExecutor, schema str
 		}
 	} else {
 		if _, err := executor.ExecContext(ctx, declare, arguments...); err != nil {
-			failure := classifyDatabaseError(ctx, "declare batch cursor", schema, plan.Table(), err)
+			failure := classifyDatabaseError(ctx, "declare batch cursor", schema, queryplan.SourceTable(plan), err)
 			if closeFailure != nil {
 				failure = errors.Join(failure, closeFailure(failure))
 			}
@@ -136,7 +137,7 @@ func scanCursorBatch(ctx context.Context, executor cursorExecutor, schema string
 	}
 	native, err := executor.QueryContext(executionContext, "FETCH FORWARD "+strconv.Itoa(size)+" FROM "+name)
 	if err != nil {
-		failure := classifyDatabaseError(executionContext, "fetch batch cursor", schema, plan.Table(), err)
+		failure := classifyDatabaseError(executionContext, "fetch batch cursor", schema, queryplan.SourceTable(plan), err)
 		if op != nil {
 			failure = op.End(failure)
 		}

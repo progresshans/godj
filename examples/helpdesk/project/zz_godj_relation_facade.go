@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "0bfdbf739a239337da7abac26ea6057306b936a2cbbac63478adac565cb74a76"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "1838f496ea0ebf4804127c7aaccb0705de7e3bfad781fc6eab73249a7639eb18"
 
 type Backend interface {
 	db.Queryer
@@ -613,6 +613,20 @@ func AggregateIdentityGroupInto[R any](_ctx context.Context, _source IdentityGro
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityGroupQuery[R any](_source IdentityGroupQuery, _selection orm.Projection[identity.Group, R]) (orm.ResultQuery[identity.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Group, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityGroupQuery[R any](_source IdentityGroupQuery, _selection orm.Aggregate[identity.Group, R]) (orm.ResultQuery[identity.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Group, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityGroupBy[K, A, R any](_source IdentityGroupQuery, _keys orm.Projection[identity.Group, K], _aggregate orm.Aggregate[identity.Group, A], _build func(K, A) R) (orm.GroupedQuery[identity.Group, R], error) {
@@ -1709,6 +1723,20 @@ func AggregateIdentityGroupPermissionsLinkInto[R any](_ctx context.Context, _sou
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityGroupPermissionsLinkQuery[R any](_source IdentityGroupPermissionsLinkQuery, _selection orm.Projection[identity.GroupPermissionsLink, R]) (orm.ResultQuery[identity.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityGroupPermissionsLinkQuery[R any](_source IdentityGroupPermissionsLinkQuery, _selection orm.Aggregate[identity.GroupPermissionsLink, R]) (orm.ResultQuery[identity.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityGroupPermissionsLinkBy[K, A, R any](_source IdentityGroupPermissionsLinkQuery, _keys orm.Projection[identity.GroupPermissionsLink, K], _aggregate orm.Aggregate[identity.GroupPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.GroupPermissionsLink, R], error) {
@@ -3337,6 +3365,20 @@ func AggregateIdentityPermissionInto[R any](_ctx context.Context, _source Identi
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectIdentityPermissionQuery[R any](_source IdentityPermissionQuery, _selection orm.Projection[identity.Permission, R]) (orm.ResultQuery[identity.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Permission, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityPermissionQuery[R any](_source IdentityPermissionQuery, _selection orm.Aggregate[identity.Permission, R]) (orm.ResultQuery[identity.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.Permission, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupIdentityPermissionBy[K, A, R any](_source IdentityPermissionQuery, _keys orm.Projection[identity.Permission, K], _aggregate orm.Aggregate[identity.Permission, A], _build func(K, A) R) (orm.GroupedQuery[identity.Permission, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[identity.Permission, R]{}, _err
@@ -4424,6 +4466,20 @@ func AggregateIdentityUserInto[R any](_ctx context.Context, _source IdentityUser
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityUserQuery[R any](_source IdentityUserQuery, _selection orm.Projection[identity.User, R]) (orm.ResultQuery[identity.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.User, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserQuery[R any](_source IdentityUserQuery, _selection orm.Aggregate[identity.User, R]) (orm.ResultQuery[identity.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.User, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityUserBy[K, A, R any](_source IdentityUserQuery, _keys orm.Projection[identity.User, K], _aggregate orm.Aggregate[identity.User, A], _build func(K, A) R) (orm.GroupedQuery[identity.User, R], error) {
@@ -5520,6 +5576,20 @@ func AggregateIdentityUserGroupsLinkInto[R any](_ctx context.Context, _source Id
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectIdentityUserGroupsLinkQuery[R any](_source IdentityUserGroupsLinkQuery, _selection orm.Projection[identity.UserGroupsLink, R]) (orm.ResultQuery[identity.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserGroupsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserGroupsLinkQuery[R any](_source IdentityUserGroupsLinkQuery, _selection orm.Aggregate[identity.UserGroupsLink, R]) (orm.ResultQuery[identity.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserGroupsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupIdentityUserGroupsLinkBy[K, A, R any](_source IdentityUserGroupsLinkQuery, _keys orm.Projection[identity.UserGroupsLink, K], _aggregate orm.Aggregate[identity.UserGroupsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserGroupsLink, R], error) {
@@ -7157,6 +7227,20 @@ func AggregateIdentityUserPermissionsLinkInto[R any](_ctx context.Context, _sour
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectIdentityUserPermissionsLinkQuery[R any](_source IdentityUserPermissionsLinkQuery, _selection orm.Projection[identity.UserPermissionsLink, R]) (orm.ResultQuery[identity.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserPermissionsLink, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateIdentityUserPermissionsLinkQuery[R any](_source IdentityUserPermissionsLinkQuery, _selection orm.Aggregate[identity.UserPermissionsLink, R]) (orm.ResultQuery[identity.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[identity.UserPermissionsLink, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupIdentityUserPermissionsLinkBy[K, A, R any](_source IdentityUserPermissionsLinkQuery, _keys orm.Projection[identity.UserPermissionsLink, K], _aggregate orm.Aggregate[identity.UserPermissionsLink, A], _build func(K, A) R) (orm.GroupedQuery[identity.UserPermissionsLink, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[identity.UserPermissionsLink, R]{}, _err
@@ -8783,6 +8867,20 @@ func AggregateModelsCategoryInto[R any](_ctx context.Context, _source ModelsCate
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectModelsCategoryQuery[R any](_source ModelsCategoryQuery, _selection orm.Projection[models.Category, R]) (orm.ResultQuery[models.Category, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Category, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateModelsCategoryQuery[R any](_source ModelsCategoryQuery, _selection orm.Aggregate[models.Category, R]) (orm.ResultQuery[models.Category, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Category, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupModelsCategoryBy[K, A, R any](_source ModelsCategoryQuery, _keys orm.Projection[models.Category, K], _aggregate orm.Aggregate[models.Category, A], _build func(K, A) R) (orm.GroupedQuery[models.Category, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[models.Category, R]{}, _err
@@ -9730,6 +9828,20 @@ func AggregateModelsLabelInto[R any](_ctx context.Context, _source ModelsLabelQu
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectModelsLabelQuery[R any](_source ModelsLabelQuery, _selection orm.Projection[models.Label, R]) (orm.ResultQuery[models.Label, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Label, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateModelsLabelQuery[R any](_source ModelsLabelQuery, _selection orm.Aggregate[models.Label, R]) (orm.ResultQuery[models.Label, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Label, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupModelsLabelBy[K, A, R any](_source ModelsLabelQuery, _keys orm.Projection[models.Label, K], _aggregate orm.Aggregate[models.Label, A], _build func(K, A) R) (orm.GroupedQuery[models.Label, R], error) {
@@ -11406,6 +11518,20 @@ func AggregateModelsServiceReportInto[R any](_ctx context.Context, _source Model
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectModelsServiceReportQuery[R any](_source ModelsServiceReportQuery, _selection orm.Projection[models.ServiceReport, R]) (orm.ResultQuery[models.ServiceReport, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.ServiceReport, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateModelsServiceReportQuery[R any](_source ModelsServiceReportQuery, _selection orm.Aggregate[models.ServiceReport, R]) (orm.ResultQuery[models.ServiceReport, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.ServiceReport, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupModelsServiceReportBy[K, A, R any](_source ModelsServiceReportQuery, _keys orm.Projection[models.ServiceReport, K], _aggregate orm.Aggregate[models.ServiceReport, A], _build func(K, A) R) (orm.GroupedQuery[models.ServiceReport, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[models.ServiceReport, R]{}, _err
@@ -12836,6 +12962,20 @@ func AggregateModelsTicketInto[R any](_ctx context.Context, _source ModelsTicket
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectModelsTicketQuery[R any](_source ModelsTicketQuery, _selection orm.Projection[models.Ticket, R]) (orm.ResultQuery[models.Ticket, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Ticket, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateModelsTicketQuery[R any](_source ModelsTicketQuery, _selection orm.Aggregate[models.Ticket, R]) (orm.ResultQuery[models.Ticket, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.Ticket, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupModelsTicketBy[K, A, R any](_source ModelsTicketQuery, _keys orm.Projection[models.Ticket, K], _aggregate orm.Aggregate[models.Ticket, A], _build func(K, A) R) (orm.GroupedQuery[models.Ticket, R], error) {
@@ -14673,6 +14813,20 @@ func AggregateModelsTicketLabelInto[R any](_ctx context.Context, _source ModelsT
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
+func SelectModelsTicketLabelQuery[R any](_source ModelsTicketLabelQuery, _selection orm.Projection[models.TicketLabel, R]) (orm.ResultQuery[models.TicketLabel, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.TicketLabel, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateModelsTicketLabelQuery[R any](_source ModelsTicketLabelQuery, _selection orm.Aggregate[models.TicketLabel, R]) (orm.ResultQuery[models.TicketLabel, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[models.TicketLabel, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
 func GroupModelsTicketLabelBy[K, A, R any](_source ModelsTicketLabelQuery, _keys orm.Projection[models.TicketLabel, K], _aggregate orm.Aggregate[models.TicketLabel, A], _build func(K, A) R) (orm.GroupedQuery[models.TicketLabel, R], error) {
 	if _err := _source.validate(); _err != nil {
 		return orm.GroupedQuery[models.TicketLabel, R]{}, _err
@@ -16273,4 +16427,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d2da4330dd343c3caff0d2c2193cd0cabfbae5c5a49d43b82274e36fa8e3547a
+var _ goDjProjectSnapshot_dc298cf583480e2a93be655af2466a9a3902c263f5db3d97b10075536e97e44a

@@ -118,7 +118,7 @@ func (scope *rootBatchScope) Query(ctx context.Context, plan query.Plan) (db.Row
 	scope.backend.queryCount.Add(1)
 	rows, err := lease.QueryContext(ctx, statement, arguments...)
 	if err != nil {
-		return nil, errors.Join(classifyQueryError(err, plan.Table()), lease.Close())
+		return nil, errors.Join(classifyQueryError(err, queryplan.SourceTable(plan)), lease.Close())
 	}
 	return lease.Rows(rows), nil
 }

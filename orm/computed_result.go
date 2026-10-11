@@ -32,7 +32,7 @@ func (value ScalarExpression[M, V]) scalarResultField(M, Optional[V]) (query.Res
 	if err != nil {
 		return query.ResultExpression{}, nil, err
 	}
-	factory, err := computedCell[V](expression.ResultValueKind(), expression.ResultNullable())
+	factory, err := computedCell[V](expression, expression.ResultNullable())
 	return expression, factory, err
 }
 
@@ -46,7 +46,7 @@ func (value NumericExpression[M, N]) scalarSumField(M, N) (query.ResultExpressio
 	if err != nil {
 		return query.ResultExpression{}, nil, err
 	}
-	factory, err := computedCell[N](expression.ResultValueKind(), true)
+	factory, err := computedCell[N](expression, true)
 	return expression, factory, err
 }
 func (value NumericExpression[M, N]) scalarAvgField(M, float64) (query.ResultExpression, func() scalarCell[Optional[float64]], error) {
@@ -128,7 +128,8 @@ func scalarKind[V any]() query.FieldKind {
 // A computed result has its own domain. Source precision and native operand
 // validity are enforced inside SQL, before grouping/filtering can hide them.
 // No DTO is built until every driver value has passed this typed boundary.
-func computedCell[V any](kind query.FieldKind, nullable bool) (func() scalarCell[Optional[V]], error) {
+func computedCell[V any](expression query.ResultExpression, nullable bool) (func() scalarCell[Optional[V]], error) {
+	kind := expression.ResultValueKind()
 	if scalarKind[V]() != kind || kind == "" {
 		return nil, invalidResultBuilder("computed result type differs from its scalar domain")
 	}
@@ -155,6 +156,9 @@ func computedCell[V any](kind query.FieldKind, nullable bool) (func() scalarCell
 	case decimal.Decimal:
 		return convertComputedCell[decimal.Decimal, V](nullableAggregateDecimalCell, nullable), nil
 	case duration.Duration:
+		if expression.RequiresDurationRounding() {
+			return convertComputedCell[duration.Duration, V](nullableAggregateDurationCell, nullable), nil
+		}
 		return convertComputedCell[duration.Duration, V](nullableDurationResultCell, nullable), nil
 	case time.Time:
 		return convertComputedCell[time.Time, V](nullableDateTimeResultCell, nullable), nil

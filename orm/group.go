@@ -3,7 +3,6 @@ package orm
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"slices"
 
 	"github.com/progresshans/godj/query"
@@ -14,7 +13,7 @@ import (
 // caller-built DTOs. Each publication invokes the pure builder with fresh
 // nullable values. Copies share successful evaluation; refinements are cold.
 type GroupedQuery[M, R any] struct {
-	source     QuerySet[M]
+	origin     resultOrigin
 	plan       query.Plan
 	newDecoder func() resultDecoder[R]
 	evaluation *evaluationState[resultDecoder[R]]
@@ -32,20 +31,27 @@ func GroupBy[M, K, A, R any](source QuerySet[M], keys Projection[M, K], aggregat
 	if source.materialization != nil && (len(source.materialization.targets) > 0 || len(source.materialization.selections) > 0) {
 		return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "grouping requires a source without eager or prefetch selections"}
 	}
+	return newGroupedQuery(resultOrigin{source.backend, source.validateTerminal}, source.plan, keys, aggregate, build)
+}
+
+func newGroupedQuery[M, K, A, R any](origin resultOrigin, input query.Plan, keys Projection[M, K], aggregate Aggregate[M, A], build func(K, A) R) (GroupedQuery[M, R], error) {
+	var zero GroupedQuery[M, R]
+	if err := firstError(keys.err, aggregate.err); err != nil {
+		return zero, err
+	}
+	if build == nil || keys.newDecoder == nil || aggregate.newDecoder == nil {
+		return zero, invalidResultBuilder("group result requires non-nil builders")
+	}
 	shape, err := query.NewGroupedResult(keys.expressions, aggregate.expressions)
 	if err != nil {
 		return zero, err
 	}
-	plan, err := source.plan.WithResultShape(shape)
+	plan, err := input.WithResultShape(shape)
 	if err != nil {
 		return zero, err
 	}
-	result := GroupedQuery[M, R]{source: source, plan: plan, evaluation: newEvaluationState[resultDecoder[R]]()}
-	result.newDecoder = func() resultDecoder[R] {
-		key, value := keys.newDecoder(), aggregate.newDecoder()
-		return resultDecoder[R]{destinations: append(slices.Clone(key.destinations), value.destinations...), decode: func() R { return build(key.decode(), value.decode()) }}
-	}
-	return result, nil
+	return GroupedQuery[M, R]{origin: origin, plan: plan, evaluation: newEvaluationState[resultDecoder[R]](),
+		newDecoder: combineResultDecoders(keys.newDecoder, aggregate.newDecoder, build)}, nil
 }
 
 func (q GroupedQuery[M, R]) Plan() query.Plan { return q.plan }
@@ -135,7 +141,16 @@ func (q GroupedQuery[M, R]) Offset(offset int) (GroupedQuery[M, R], error) {
 	return q, nil
 }
 func (q GroupedQuery[M, R]) validate(ctx context.Context) error {
-	if err := q.source.validateTerminal(ctx); err != nil {
+	if interfaceIsNil(ctx) {
+		return invalidTerminalContext()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if q.origin.validate == nil {
+		return invalidResultBuilder("group query is uninitialized")
+	}
+	if err := q.origin.validate(ctx); err != nil {
 		return err
 	}
 	if q.err != nil {
@@ -143,6 +158,9 @@ func (q GroupedQuery[M, R]) validate(ctx context.Context) error {
 	}
 	if q.evaluation == nil || q.newDecoder == nil || q.plan.ResultShape().GroupMode() != query.GroupRows {
 		return invalidResultBuilder("group query is uninitialized")
+	}
+	if err := q.plan.ValidateDerived(); err != nil {
+		return err
 	}
 	return q.plan.ValidateGrouping()
 }
@@ -157,50 +175,23 @@ func (q GroupedQuery[M, R]) All(ctx context.Context) ([]R, error) {
 	return q.decode(ctx, values)
 }
 func (q GroupedQuery[M, R]) scanAll(ctx context.Context) ([]resultDecoder[R], error) {
-	rows, err := openQueryRows(ctx, q.source.backend, q.plan)
-	if err != nil {
-		return nil, err
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	values := make([]resultDecoder[R], 0)
-	for rows.Next() {
-		decoder := q.newDecoder()
-		if err = rows.Scan(decoder.destinations...); err != nil {
-			break
-		}
-		values = append(values, decoder)
-	}
-	if err = lifecycle.finish(ctx, err); err != nil {
-		return sessionReadResult(ctx, q.source.backend, []resultDecoder[R](nil), err)
-	}
-	return sessionReadResult(ctx, q.source.backend, values, nil)
+	return scanResultCells(ctx, q.origin.backend, q.plan, q.newDecoder)
 }
 func (q GroupedQuery[M, R]) decode(ctx context.Context, values []resultDecoder[R]) ([]R, error) {
-	if err := validateQuerySession(ctx, q.source.backend); err != nil {
-		return nil, err
-	}
-	result := make([]R, 0, len(values))
-	for _, value := range values {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		result = append(result, value.decode())
-	}
-	return sessionReadResult(ctx, q.source.backend, result, ctx.Err())
+	return publishResultCells(ctx, q.origin.backend, values)
 }
 func (q GroupedQuery[M, R]) Count(ctx context.Context) (int64, error) {
 	if err := q.validate(ctx); err != nil {
 		return 0, err
 	}
 	if values, ready := q.evaluation.cachedValues(); ready {
-		return sessionReadResult(ctx, q.source.backend, int64(len(values)), nil)
+		return sessionReadResult(ctx, q.origin.backend, int64(len(values)), nil)
 	}
 	plan, err := q.plan.WithGroupMode(query.GroupCount)
 	if err != nil {
 		return 0, err
 	}
-	rows, err := openQueryRows(ctx, q.source.backend, plan)
+	rows, err := openQueryRows(ctx, q.origin.backend, plan)
 	if err != nil {
 		return 0, err
 	}
@@ -214,26 +205,18 @@ func (q GroupedQuery[M, R]) Count(ctx context.Context) (int64, error) {
 		}
 	} else {
 		if err := lifecycle.finish(ctx, nil); err != nil {
-			return sessionReadResult(ctx, q.source.backend, int64(0), err)
+			return sessionReadResult(ctx, q.origin.backend, int64(0), err)
 		}
-		return sessionReadResult(ctx, q.source.backend, int64(0), invalidResultBuilder("group count returned no row"))
+		return sessionReadResult(ctx, q.origin.backend, int64(0), invalidResultBuilder("group count returned no row"))
 	}
 	if err = lifecycle.finish(ctx, err); err != nil {
-		return sessionReadResult(ctx, q.source.backend, int64(0), err)
+		return sessionReadResult(ctx, q.origin.backend, int64(0), err)
 	}
-	return sessionReadResult(ctx, q.source.backend, count.Int64, nil)
+	return sessionReadResult(ctx, q.origin.backend, count.Int64, nil)
 }
 
-// GroupPage reports the total number of groups after HAVING and before the
-// requested slice. Rows and total come from one statement snapshot. A page is
-// a fresh read and never populates a whole-query cache with partial results.
-type GroupPage[R any] struct {
-	Total int64
-	Rows  []R
-}
-
-func (q GroupedQuery[M, R]) Page(ctx context.Context, limit, offset int) (GroupPage[R], error) {
-	var zero GroupPage[R]
+func (q GroupedQuery[M, R]) Page(ctx context.Context, limit, offset int) (ResultPage[R], error) {
+	var zero ResultPage[R]
 	if err := q.validate(ctx); err != nil {
 		return zero, err
 	}
@@ -269,87 +252,7 @@ func (q GroupedQuery[M, R]) Page(ctx context.Context, limit, offset int) (GroupP
 	if err != nil {
 		return zero, err
 	}
-	rows, err := openQueryRows(ctx, q.source.backend, plan)
-	if err != nil {
-		return zero, err
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	values := make([]resultDecoder[R], 0)
-	var total int64
-	seen, sentinel := false, false
-	for rows.Next() {
-		raw := make([]any, len(plan.ResultShape().Expressions())+2)
-		targets := make([]any, len(raw))
-		for index := range raw {
-			targets[index] = &raw[index]
-		}
-		if err = rows.Scan(targets...); err != nil {
-			break
-		}
-		var count, present sql.NullInt64
-		if err = count.Scan(raw[0]); err != nil {
-			break
-		}
-		if err = present.Scan(raw[1]); err != nil {
-			break
-		}
-		if !count.Valid || count.Int64 < 0 || seen && count.Int64 != total || sentinel {
-			err = invalidResultBuilder("group page returned inconsistent totals or presence")
-			break
-		}
-		total, seen = count.Int64, true
-		if !present.Valid {
-			if len(values) != 0 {
-				err = invalidResultBuilder("group page mixed rows and empty sentinel")
-				break
-			}
-			for _, value := range raw[2:] {
-				if value != nil {
-					err = invalidResultBuilder("empty group page contains values")
-					break
-				}
-			}
-			if err != nil {
-				break
-			}
-			sentinel = true
-			continue
-		}
-		if present.Int64 != 1 || len(values) >= limit {
-			err = invalidResultBuilder("group page exceeded its bound or returned invalid presence")
-			break
-		}
-		decoder := q.newDecoder()
-		for index, destination := range decoder.destinations {
-			if err = scanGroupValue(destination, raw[index+2]); err != nil {
-				err = fmt.Errorf("scan group page cell %d: %w", index, err)
-				break
-			}
-		}
-		if err != nil {
-			break
-		}
-		values = append(values, decoder)
-	}
-	if err = lifecycle.finish(ctx, err); err != nil {
-		return sessionReadResult(ctx, q.source.backend, zero, err)
-	}
-	if err := validateQuerySession(ctx, q.source.backend); err != nil {
-		return zero, err
-	}
-	if !seen && !plan.EmptyResult() {
-		return zero, invalidResultBuilder("group page returned no count row")
-	}
-	expected := max(int64(0), min(int64(limit), total-int64(offset)))
-	if int64(len(values)) != expected {
-		return zero, invalidResultBuilder("group page count and rows disagree")
-	}
-	result, err := q.decode(ctx, values)
-	if err != nil {
-		return zero, err
-	}
-	return sessionReadResult(ctx, q.source.backend, GroupPage[R]{Total: total, Rows: result}, nil)
+	return readResultPage(ctx, q.origin.backend, plan, q.newDecoder, limit, offset)
 }
 
 // Page's outer join uses NULL cells for its empty-row sentinel. Conversion is

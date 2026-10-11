@@ -27,6 +27,9 @@ func NewQueryUpdatePlan(source Plan, key FieldRef, assignments []ScalarAssignmen
 
 // All native update forms retain the same predicate and collection scopes.
 func updateSelection(source Plan, key FieldRef) (Plan, error) {
+	if source.derived != nil || source.page != nil {
+		return Plan{}, groupUnsupported("updates require a model source, not a derived result")
+	}
 	if source.limit != nil || source.offset != nil && *source.offset != 0 || source.prefetchWindow != nil {
 		return Plan{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "update cannot use a sliced or windowed source"}
 	}

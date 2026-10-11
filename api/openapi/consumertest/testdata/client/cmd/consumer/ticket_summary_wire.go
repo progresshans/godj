@@ -13,14 +13,14 @@ import (
 )
 
 func checkGeneratedSummaryWire(ctx context.Context) error {
-	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"min_open":9223372036854775807,"total_groups":3,"results":[{"priority":null,"priority_label":"Not set","raise_to_priority":0,"raise_to_label":"Normal","would_change":true,"total":3,"open":2,"expected_cost_total":"10999999999999.89","effort_average":1.5,"elapsed_total":"-999999999 00:00:00"},{"priority":-9223372036854775808,"priority_label":"legacy","raise_to_priority":-9223372036854775808,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"expected_cost_total":"0","effort_average":0,"elapsed_total":"00:00:00"},{"priority":9223372036854775807,"priority_label":"legacy","raise_to_priority":9223372036854775807,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"expected_cost_total":null,"effort_average":null,"elapsed_total":null}]}`
-	params := hs.HelpdeskTicketSummaryParams{P: hs.NewOptInt64(50001), MinOpen: hs.NewOptInt64(9223372036854775807)}
+	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"min_open":9223372036854775807,"min_open_basis_points":10000,"total_groups":3,"results":[{"priority":null,"priority_label":"Not set","raise_to_priority":0,"raise_to_label":"Normal","would_change":true,"total":3,"open":2,"closed":1,"open_basis_points":6666,"expected_cost_total":"10999999999999.89","effort_average":1.5,"elapsed_total":"-999999999 00:00:00"},{"priority":-9223372036854775808,"priority_label":"legacy","raise_to_priority":-9223372036854775808,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"closed":1,"open_basis_points":0,"expected_cost_total":"0","effort_average":0,"elapsed_total":"00:00:00"},{"priority":9223372036854775807,"priority_label":"legacy","raise_to_priority":9223372036854775807,"raise_to_label":"legacy","would_change":false,"total":1,"open":0,"closed":1,"open_basis_points":0,"expected_cost_total":null,"effort_average":null,"elapsed_total":null}]}`
+	params := hs.HelpdeskTicketSummaryParams{P: hs.NewOptInt64(50001), MinOpen: hs.NewOptInt64(9223372036854775807), MinOpenBasisPoints: hs.NewOptInt64(10000)}
 	calls := 0
 	client := func(status int, payload string) (*hs.Client, error) {
 		return hs.NewClient("https://probe.invalid", wireHelpdeskSecurity{}, hs.WithClient(&http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 			calls++
 			values := request.URL.Query()
-			if request.Method != http.MethodGet || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/tickets/summary/" || len(values) != 2 || values.Get("p") != "50001" || values.Get("min_open") != "9223372036854775807" {
+			if request.Method != http.MethodGet || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/tickets/summary/" || len(values) != 3 || values.Get("p") != "50001" || values.Get("min_open") != "9223372036854775807" || values.Get("min_open_basis_points") != "10000" {
 				return nil, fail("summary generated exact query wire")
 			}
 			media := "application/json"
@@ -40,6 +40,9 @@ func checkGeneratedSummaryWire(ctx context.Context) error {
 		return fail("summary generated nullable and exact legacy int64 response")
 	}
 	first, zero, missing := value.Response.Results[0], value.Response.Results[1], value.Response.Results[2]
+	if value.Response.MinOpenBasisPoints != 10000 || first.Closed != 1 || first.OpenBasisPoints != 6666 || zero.Closed != 1 || zero.OpenBasisPoints != 0 || missing.Closed != 1 || missing.OpenBasisPoints != 0 {
+		return fail("summary generated exact derived integer metrics")
+	}
 	if first.RaiseToPriority != 0 || first.RaiseToLabel != "Normal" || !first.WouldChange || zero.RaiseToPriority != -9223372036854775808 || zero.WouldChange || missing.RaiseToPriority != 9223372036854775807 || missing.WouldChange {
 		return fail("summary generated exact computed priority preview")
 	}
@@ -66,6 +69,17 @@ func checkGeneratedSummaryWire(ctx context.Context) error {
 		strings.Replace(body, `"would_change":true,`, "", 1),
 		strings.Replace(body, `"would_change":true`, `"would_change":"true"`, 1),
 		strings.Replace(body, `"would_change":true`, `"would_change":null`, 1),
+		strings.Replace(body, `"min_open_basis_points":10000,`, "", 1),
+		strings.Replace(body, `"closed":1,`, "", 1),
+		strings.Replace(body, `"closed":1`, `"closed":null`, 1),
+		strings.Replace(body, `"closed":1`, `"closed":-1`, 1),
+		strings.Replace(body, `"open_basis_points":6666,`, "", 1),
+		strings.Replace(body, `"open_basis_points":6666`, `"open_basis_points":null`, 1),
+		strings.Replace(body, `"open_basis_points":6666`, `"open_basis_points":6666.0`, 1),
+		strings.Replace(body, `"open_basis_points":6666`, `"open_basis_points":-1`, 1),
+		strings.Replace(body, `"open_basis_points":6666`, `"open_basis_points":10001`, 1),
+		strings.Replace(body, `"min_open_basis_points":10000`, `"min_open_basis_points":10001`, 1),
+		strings.Replace(body, `"min_open_basis_points":10000`, `"min_open_basis_points":null`, 1),
 	} {
 		calls = 0
 		malformed, err := client(200, payload)
@@ -77,7 +91,7 @@ func checkGeneratedSummaryWire(ctx context.Context) error {
 		var validation *validate.Error
 		// Numeric schema bounds run after successful JSON decoding. Both must
 		// reject the response, while retaining their distinct error categories.
-		bounds := index == 5 || index == 7 || index == 12 || index == 15 || index == 17 || index == 18
+		bounds := index == 5 || index == 7 || index == 12 || index == 15 || index == 17 || index == 18 || index == 31 || index == 35 || index == 36 || index == 37
 		if calls != 1 || response != nil || bounds && !errors.As(err, &validation) || !bounds && !errors.As(err, &decoding) {
 			return fail("summary generated invalid response rejection category")
 		}

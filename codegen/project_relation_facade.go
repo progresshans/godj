@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -504,6 +504,19 @@ func (_query %[1]s) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...s
 	fmt.Fprintln(output, "\treturn orm.AggregateInto(_ctx, _source.query, _aggregate)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	for _, operation := range []string{"Select", "Aggregate"} {
+		selection := "Projection"
+		if operation == "Aggregate" {
+			selection = "Aggregate"
+		}
+		fmt.Fprintf(output, "func %s%sQuery[R any](_source %s, _selection orm.%s[%s, R]) (orm.ResultQuery[%s, R], error) {\n", operation, model.surface, model.queryType, selection, rawType, rawType)
+		fmt.Fprintln(output, "\tif _err := _source.validate(); _err != nil {")
+		fmt.Fprintf(output, "\t\treturn orm.ResultQuery[%s, R]{}, _err\n", rawType)
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\treturn orm.%sQuery(_source.query, _selection)\n", operation)
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+	}
 	fmt.Fprintf(output, "func Group%sBy[K, A, R any](_source %s, _keys orm.Projection[%s, K], _aggregate orm.Aggregate[%s, A], _build func(K, A) R) (orm.GroupedQuery[%s, R], error) {\n", model.surface, model.queryType, rawType, rawType, rawType)
 	fmt.Fprintln(output, "\tif _err := _source.validate(); _err != nil {")
 	fmt.Fprintf(output, "\t\treturn orm.GroupedQuery[%s, R]{}, _err\n", rawType)

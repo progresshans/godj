@@ -1,20 +1,20 @@
 import json
 import unittest
 
-from helpdesk_browser import result_document, verify_committed, verify_summary
+from helpdesk_browser import SUMMARY_CHECKS, result_document, verify_committed, verify_summary
 
 
 class BrowserEvidenceTest(unittest.TestCase):
     def test_cli_process_success_cannot_hide_a_tool_error_or_missing_result(self):
-        result = {'passed': 23, 'cases': ['case-' + str(i) for i in range(23)]}
+        result = {'passed': 30, 'cases': list(SUMMARY_CHECKS)}
         output = '### Result\n' + json.dumps(result) + '\n### Ran Playwright code\nprobe();\n'
         self.assertEqual(verify_summary(result_document(output)), result)
         for bad in ('', '### Error\ntimeout\n', output + '### Error\nlate failure\n',
                     output + output, '### Result\nnull\n', '### Result\n{}\ntruncated result'):
             with self.subTest(output=bad), self.assertRaises(ValueError):
                 result_document(bad)
-        for bad in ({}, dict(result, passed=22), dict(result, passed=23.0),
-                    dict(result, cases=result['cases'][:-1]), dict(result, cases=['same'] * 23)):
+        for bad in ({}, dict(result, passed=29), dict(result, passed=30.0),
+                    dict(result, cases=result['cases'][:-1]), dict(result, cases=['same'] * 30), dict(result,cases=['foreign-'+str(i) for i in range(30)])):
             with self.subTest(result=bad), self.assertRaises(ValueError):
                 verify_summary(bad)
 

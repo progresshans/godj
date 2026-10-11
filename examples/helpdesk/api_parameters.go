@@ -23,6 +23,9 @@ func prepareAPIQueries() (apiQueries, error) {
 		parameters.Field("min_open", parameters.Default(parameters.CanonicalInt64(0, math.MaxInt64), 0),
 			func(query *ticketSummaryQuery, value int64) { query.minimumOpen = value },
 			"Minimum open tickets in each returned group; canonical nonnegative int64 decimal integer."),
+		parameters.Field("min_open_basis_points", parameters.Default(parameters.CanonicalInt64(0, 10000), 0),
+			func(query *ticketSummaryQuery, value int64) { query.minimumOpenBasisPoints = value },
+			"Minimum open share in basis points, from 0 to 10000; 100 basis points equals one percent. Canonical decimal integer."),
 	)
 	if err != nil {
 		return apiQueries{}, err

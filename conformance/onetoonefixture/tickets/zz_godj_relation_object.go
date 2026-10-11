@@ -22,4 +22,4 @@ func (TicketDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage
 
 type GoDjAppPart2_dca907b807c13d6e2b50fc5f4fd0856d1098e449726e5fccf74fe29cfad422b7 struct{}
 
-var _ GoDjProjectSnapshot_6a755905945ee160471a41824c307c2558f458eb33c382d3250907b50120ab78
+var _ GoDjProjectSnapshot_0be162c4157d00a7e9bd99f064335130577fc749d97704986f7e44cbff070aa0

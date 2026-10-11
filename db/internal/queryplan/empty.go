@@ -40,6 +40,10 @@ func emptyRows(ctx, lifetime context.Context, shape query.ResultShape) (db.Rows,
 		return nil, err
 	}
 	switch shape.Kind() {
+	case query.ResultPage:
+		rows.values = make([]any, len(shape.Expressions())+2)
+		rows.values[0] = int64(0)
+		return rows, nil
 	case query.ResultGrouped:
 		if shape.GroupMode() == query.GroupCount {
 			rows.values = []any{int64(0)}

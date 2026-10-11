@@ -152,7 +152,7 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 		}
 		rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
 		if err != nil {
-			return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
+			return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, queryplan.SourceTable(plan), err)
 		}
 		adapted, err := adaptScalarRows(rows, plan)
 		if err != nil {

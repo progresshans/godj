@@ -51,6 +51,8 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		output.Field("would_change", output.Boolean(), func(value ticketSummaryRow) bool { return value.priority == nil || *value.priority != value.raiseTo }),
 		output.Field("total", count, func(value ticketSummaryRow) int64 { return value.total }),
 		output.Field("open", count, func(value ticketSummaryRow) int64 { return value.open }),
+		output.Field("closed", count, func(value ticketSummaryRow) int64 { return value.closed }),
+		output.Field("open_basis_points", output.Int64Range(0, 10000), func(value ticketSummaryRow) int64 { return value.openBasisPoints }),
 		output.Field("expected_cost_total", output.Nullable(output.Decimal()), func(value ticketSummaryRow) *decimal.Decimal { return summaryOptionalPointer(value.cost) }),
 		output.Field("effort_average", output.Nullable(output.Float()), func(value ticketSummaryRow) *float64 { return summaryOptionalPointer(value.effort) }),
 		output.Field("elapsed_total", output.Nullable(output.Duration()), func(value ticketSummaryRow) *duration.Duration { return summaryOptionalPointer(value.elapsed) }),
@@ -60,6 +62,7 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		output.Field("page", output.Int64Range(1, ticketSummaryMaximumPage), func(value ticketSummaryPage) int64 { return int64(value.query.page) }),
 		output.Field("page_size", output.Int64Range(ticketSummaryPageSize, ticketSummaryPageSize), func(ticketSummaryPage) int64 { return ticketSummaryPageSize }),
 		output.Field("min_open", count, func(value ticketSummaryPage) int64 { return value.query.minimumOpen }),
+		output.Field("min_open_basis_points", output.Int64Range(0, 10000), func(value ticketSummaryPage) int64 { return value.query.minimumOpenBasisPoints }),
 		output.Field("total_groups", count, func(value ticketSummaryPage) int64 { return value.groups.Total }),
 		output.Field("results", output.Array(row, 0, ticketSummaryPageSize), func(value ticketSummaryPage) []ticketSummaryRow { return value.groups.Rows }),
 	))

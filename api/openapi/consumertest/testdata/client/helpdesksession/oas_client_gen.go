@@ -352,18 +352,21 @@ type Invoker interface {
 	// becomes Normal (0), Low (-1) becomes Normal, and Normal becomes Urgent (1); Urgent and legacy values
 	// are unchanged. would_change reports that difference. The preview is computed in the same read
 	// snapshot and does not authorize or execute a write. A later command reads the values then current.
-	// Total counts all tickets; open counts those whose closed flag is false. expected_cost_total is an
-	// exact canonical decimal string, effort_average is a finite binary64 number, and elapsed_total is a
-	// normalized duration string. Each metric excludes missing values and is null when no value is
-	// present; zero remains a value. Decimal totals can exceed the source field precision. Unrepresentable
-	// or non-finite metrics fail the response. min_open filters groups, then results are ordered by open
-	// count descending and priority descending with null last. Pages contain at most 20 groups;
-	// total_groups is the count after filtering and before pagination, including on empty or past-end
-	// pages. Category identity/name, rows and total share one read snapshot per request. Separate page
-	// requests observe current state independently. This is a read-only operation without audit,
-	// ticket-body loading or digest repair. ViewTicket is the only business permission, checked before
-	// parsing and lookup. Query strings are limited to 128 bytes; unknown/duplicate parameters, empty
-	// values, malformed encoding and non-canonical decimal integers are rejected.
+	// Total counts all tickets; open counts those whose closed flag is false, and closed is total minus
+	// open. open_basis_points is the integer part of (10000 * open / total), computed in the database
+	// after grouping; 100 basis points equals one percent. expected_cost_total is an exact canonical
+	// decimal string, effort_average is a finite binary64 number, and elapsed_total is a normalized
+	// duration string. Each metric excludes missing values and is null when no value is present; zero
+	// remains a value. Decimal totals can exceed the source field precision. Unrepresentable or non-finite
+	// metrics fail the response. min_open filters group counts and min_open_basis_points filters the
+	// derived open share from 0 through 10000, then results are ordered by open count descending and
+	// priority descending with null last. Pages contain at most 20 groups; total_groups is the count after
+	// filtering and before pagination, including on empty or past-end pages. Category identity/name, rows
+	// and total share one read snapshot per request. Separate page requests observe current state
+	// independently. This is a read-only operation without audit, ticket-body loading or digest repair.
+	// ViewTicket is the only business permission, checked before parsing and lookup. Query strings are
+	// limited to 128 bytes; unknown/duplicate parameters, empty values, malformed encoding and
+	// non-canonical decimal integers are rejected.
 	//
 	// GET /api/tickets/summary/
 	HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error)
@@ -3729,18 +3732,21 @@ func (c *Client) sendHelpdeskTicketServiceReportSave(ctx context.Context, reques
 // becomes Normal (0), Low (-1) becomes Normal, and Normal becomes Urgent (1); Urgent and legacy values
 // are unchanged. would_change reports that difference. The preview is computed in the same read
 // snapshot and does not authorize or execute a write. A later command reads the values then current.
-// Total counts all tickets; open counts those whose closed flag is false. expected_cost_total is an
-// exact canonical decimal string, effort_average is a finite binary64 number, and elapsed_total is a
-// normalized duration string. Each metric excludes missing values and is null when no value is
-// present; zero remains a value. Decimal totals can exceed the source field precision. Unrepresentable
-// or non-finite metrics fail the response. min_open filters groups, then results are ordered by open
-// count descending and priority descending with null last. Pages contain at most 20 groups;
-// total_groups is the count after filtering and before pagination, including on empty or past-end
-// pages. Category identity/name, rows and total share one read snapshot per request. Separate page
-// requests observe current state independently. This is a read-only operation without audit,
-// ticket-body loading or digest repair. ViewTicket is the only business permission, checked before
-// parsing and lookup. Query strings are limited to 128 bytes; unknown/duplicate parameters, empty
-// values, malformed encoding and non-canonical decimal integers are rejected.
+// Total counts all tickets; open counts those whose closed flag is false, and closed is total minus
+// open. open_basis_points is the integer part of (10000 * open / total), computed in the database
+// after grouping; 100 basis points equals one percent. expected_cost_total is an exact canonical
+// decimal string, effort_average is a finite binary64 number, and elapsed_total is a normalized
+// duration string. Each metric excludes missing values and is null when no value is present; zero
+// remains a value. Decimal totals can exceed the source field precision. Unrepresentable or non-finite
+// metrics fail the response. min_open filters group counts and min_open_basis_points filters the
+// derived open share from 0 through 10000, then results are ordered by open count descending and
+// priority descending with null last. Pages contain at most 20 groups; total_groups is the count after
+// filtering and before pagination, including on empty or past-end pages. Category identity/name, rows
+// and total share one read snapshot per request. Separate page requests observe current state
+// independently. This is a read-only operation without audit, ticket-body loading or digest repair.
+// ViewTicket is the only business permission, checked before parsing and lookup. Query strings are
+// limited to 128 bytes; unknown/duplicate parameters, empty values, malformed encoding and
+// non-canonical decimal integers are rejected.
 //
 // GET /api/tickets/summary/
 func (c *Client) HelpdeskTicketSummary(ctx context.Context, params HelpdeskTicketSummaryParams) (HelpdeskTicketSummaryRes, error) {
@@ -3783,6 +3789,23 @@ func (c *Client) sendHelpdeskTicketSummary(ctx context.Context, params HelpdeskT
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.MinOpen.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "min_open_basis_points" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "min_open_basis_points",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinOpenBasisPoints.Get(); ok {
 				return e.EncodeValue(conv.Int64ToString(val))
 			}
 			return nil

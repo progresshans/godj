@@ -17,6 +17,38 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / 'examples/helpdesk/testdata/browser'
+SUMMARY_CHECKS = (
+    'summary navigation',
+    'twenty groups on first page',
+    'null priority retains exact metrics and excludes missing values',
+    'numeric summary column: After raise',
+    'numeric summary column: Closed tickets',
+    'numeric summary column: Open rate',
+    'numeric summary column: Total expected cost',
+    'numeric summary column: Average effort',
+    'numeric summary column: Total elapsed',
+    'legacy maximum int64 is displayed exactly',
+    'legacy maximum is preserved by CASE preview',
+    'remaining seven groups',
+    'current choice label',
+    'legacy minimum int64 is displayed exactly',
+    'no false next page',
+    'filter resets page',
+    'HAVING filters groups',
+    'past-end page preserves filtered total',
+    'past-end empty state',
+    'page link preserves filter',
+    'clear returns first unfiltered page',
+    'derived open-rate filter uses basis points',
+    'page link preserves derived rate filter',
+    'API derived ratio retains integer truncation boundary',
+    'malformed query rejected: /tickets/summary/?p=bad',
+    'malformed query rejected: /api/tickets/summary/?p=1&p=2',
+    'malformed query rejected: /tickets/summary/?min_open_basis_points=10001',
+    'malformed query rejected: /api/tickets/summary/?min_open_basis_points=10001',
+    'API keeps exact integer wire and group total',
+    'summary response is not cached',
+)
 
 
 def result_document(output):
@@ -37,9 +69,9 @@ def result_document(output):
 
 def verify_summary(result):
     cases = result.get('cases')
-    if (type(result.get('passed')) is not int or result['passed'] != 23 or not isinstance(cases, list) or len(cases) != 23
+    if (type(result.get('passed')) is not int or result['passed'] != len(SUMMARY_CHECKS) or not isinstance(cases, list) or len(cases) != len(SUMMARY_CHECKS)
             or any(not isinstance(case, str) or not case for case in cases)
-            or len(set(cases)) != len(cases)):
+            or set(cases) != set(SUMMARY_CHECKS)):
         raise ValueError('summary browser did not complete every declared check')
     return result
 

@@ -104,18 +104,20 @@ func FinishGroups(base string, plan query.Plan, placeholder func(query.Value) (s
 		}
 	}
 	if shape.GroupMode() == query.GroupPage {
+		groups := `"` + unusedSQLIdentifier("godj_groups", base) + `"`
+		pageName := `"` + unusedSQLIdentifier("godj_page", base) + `"`
 		var statement strings.Builder
-		statement.WriteString(`WITH "godj_groups" AS (` + filtered.String() + `), "godj_page" AS (SELECT `)
+		statement.WriteString(`WITH ` + groups + ` AS (` + filtered.String() + `), ` + pageName + ` AS (SELECT `)
 		appendGroupColumns(&statement, len(expressions), "")
-		statement.WriteString(`, 1 AS "godj_present" FROM "godj_groups"`)
+		statement.WriteString(`, 1 AS "godj_present" FROM ` + groups)
 		appendGroupOrderings(&statement, shape, "")
 		if err := page(&statement); err != nil {
 			return "", err
 		}
-		statement.WriteString(`) SELECT "godj_totals"."godj_total", "godj_page"."godj_present", `)
-		appendGroupColumns(&statement, len(expressions), `"godj_page".`)
-		statement.WriteString(` FROM (SELECT COUNT(*) AS "godj_total" FROM "godj_groups") AS "godj_totals" LEFT OUTER JOIN "godj_page" ON 1 = 1`)
-		appendGroupOrderings(&statement, shape, `"godj_page".`)
+		statement.WriteString(`) SELECT "godj_totals"."godj_total", ` + pageName + `."godj_present", `)
+		appendGroupColumns(&statement, len(expressions), pageName+`.`)
+		statement.WriteString(` FROM (SELECT COUNT(*) AS "godj_total" FROM ` + groups + `) AS "godj_totals" LEFT OUTER JOIN ` + pageName + ` ON 1 = 1`)
+		appendGroupOrderings(&statement, shape, pageName+`.`)
 		return statement.String(), nil
 	}
 	appendGroupOrderings(&filtered, shape, "")

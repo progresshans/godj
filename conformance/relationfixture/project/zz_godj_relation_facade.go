@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v24"
-const GoDjProjectRelationFacadeInputSHA256 = "f16786693570a9b1a1cfff060e9de186e0083c8f36842057595c50bd7338fbd8"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
+const GoDjProjectRelationFacadeInputSHA256 = "9397aa4d95e77f771792b577a5e547b86ededc6a568712c95bf931a0732fb78f"
 
 type Backend interface {
 	db.Queryer
@@ -603,6 +603,20 @@ func AggregateAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuth
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAuthorsAuthorQuery[R any](_source AuthorsAuthorQuery, _selection orm.Projection[authors.Author, R]) (orm.ResultQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[authors.Author, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAuthorsAuthorQuery[R any](_source AuthorsAuthorQuery, _selection orm.Aggregate[authors.Author, R]) (orm.ResultQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[authors.Author, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupAuthorsAuthorBy[K, A, R any](_source AuthorsAuthorQuery, _keys orm.Projection[authors.Author, K], _aggregate orm.Aggregate[authors.Author, A], _build func(K, A) R) (orm.GroupedQuery[authors.Author, R], error) {
@@ -1553,6 +1567,20 @@ func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _
 		return _zero, _err
 	}
 	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Projection[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[blog.Post, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateBlogPostQuery[R any](_source BlogPostQuery, _selection orm.Aggregate[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[blog.Post, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
 }
 
 func GroupBlogPostBy[K, A, R any](_source BlogPostQuery, _keys orm.Projection[blog.Post, K], _aggregate orm.Aggregate[blog.Post, A], _build func(K, A) R) (orm.GroupedQuery[blog.Post, R], error) {
@@ -3076,4 +3104,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_bd59c70fb84b09751d3a3a59b4cea65a8da249e5ce0ef3cc7499db7e7d1f5822
+var _ goDjProjectSnapshot_03cf5a472c653f94e811726146daf35713390a11367d109dd17775be9668d812

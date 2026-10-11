@@ -5,8 +5,19 @@ package query
 // skipping I/O; this is not a metadata or capability validation shortcut.
 // An aggregate over this source still returns its COUNT 0 / MIN or MAX NULL row.
 func (plan Plan) EmptyResult() bool {
+	if plan.page != nil {
+		return plan.page.input.EmptyResult()
+	}
 	if limit, set := plan.Limit(); set && limit == 0 && plan.result.GroupMode() != GroupPage {
 		return true
+	}
+	if plan.derived != nil {
+		input := plan.derived.input
+		// An aggregate over an empty source still produces one row. Only a
+		// row-shaped empty input proves that this stage has no source rows.
+		if (input.result.kind == ResultProjection || input.result.kind == ResultGrouped) && input.EmptyResult() {
+			return true
+		}
 	}
 	return predicateTruth(plan.where, false) == truthFalse
 }

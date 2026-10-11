@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql/driver"
 	"errors"
+	"math"
 	"strconv"
 
 	"github.com/progresshans/godj/db/internal/queryplan"
@@ -21,6 +22,7 @@ const invalidIntegerExpression = "godj: integer expression did not produce an in
 var scalarExpressionRegistrationError = errors.Join(
 	modernsqlite.RegisterDeterministicScalarFunction("godj_int64", 1, sqliteIntegerExpression),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_value", 3, sqliteDecimalExpression),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_mean", 1, sqliteDurationMean),
 )
 
 func sqliteIntegerExpression(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
@@ -68,17 +70,36 @@ func compileReadScalarFields(expression query.ScalarExpression, resolve func(que
 			}
 			return column, nil
 		},
-		Expression: func(expression query.ScalarExpression, statement string) (string, error) {
-			switch expression.ResultKind() {
-			case query.FieldFloat:
-				return "godj_float_operand(" + statement + ")", nil
-			case query.FieldDuration:
-				return "godj_int64(" + statement + ")", nil
-			default:
-				return wrapSQLiteScalar(expression, statement)
-			}
-		},
+		Expression: wrapReadScalar,
 	})
+}
+
+func wrapReadScalar(expression query.ScalarExpression, statement string) (string, error) {
+	switch expression.ResultKind() {
+	case query.FieldFloat:
+		return "godj_float_operand(" + statement + ")", nil
+	case query.FieldDuration:
+		if expression.RequiresDurationRounding() {
+			return "godj_duration_mean(" + statement + ")", nil
+		}
+		return "godj_int64(" + statement + ")", nil
+	default:
+		return wrapSQLiteScalar(expression, statement)
+	}
+}
+
+func sqliteDurationMean(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
+	if len(arguments) == 1 {
+		switch value := arguments[0].(type) {
+		case nil, int64:
+			return value, nil
+		case float64:
+			if !math.IsInf(value, 0) && !math.IsNaN(value) {
+				return value, nil
+			}
+		}
+	}
+	return nil, errors.New("godj: duration average result requires finite native microseconds")
 }
 
 func sqliteDecimalExpression(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {

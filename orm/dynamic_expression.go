@@ -12,6 +12,7 @@ type DynamicExpression struct {
 
 type dynamicScalarNode struct {
 	name         string
+	column       *int
 	literal      query.Value
 	operator     query.ArithmeticOperator
 	left, right  DynamicExpression
@@ -80,23 +81,31 @@ func (expression DynamicExpression) binary(operator query.ArithmeticOperator, ri
 	}
 	return DynamicExpression{node: &dynamicScalarNode{operator: operator, left: expression, right: right, depth: depth, nodes: nodes}}
 }
-func (expression DynamicExpression) bind(model *preparedModel) (query.ScalarExpression, error) {
+
+// dynamicBinding keeps model-name and result-column authority separate while
+// both binding paths traverse the same immutable expression grammar.
+type dynamicBinding struct {
+	model *preparedModel
+	scope query.ResultScope
+}
+
+func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExpression, error) {
 	if err := expression.validate(); err != nil {
 		return query.ScalarExpression{}, err
 	}
 	node := expression.node
 	if len(node.branches) > 0 {
-		fallback, err := node.left.bind(model)
+		fallback, err := node.left.bind(source)
 		if err != nil {
 			return query.ScalarExpression{}, err
 		}
 		branches := make([]query.ScalarWhen, len(node.branches))
 		for index, branch := range node.branches {
-			predicate, err := branch.predicate.bind(model)
+			predicate, err := branch.predicate.bind(source)
 			if err != nil {
 				return query.ScalarExpression{}, err
 			}
-			value, err := branch.value.bind(model)
+			value, err := branch.value.bind(source)
 			if err != nil {
 				return query.ScalarExpression{}, err
 			}
@@ -108,14 +117,14 @@ func (expression DynamicExpression) bind(model *preparedModel) (query.ScalarExpr
 		return query.CaseScalar(fallback, branches...)
 	}
 	if node.operator != "" || node.negate {
-		left, err := node.left.bind(model)
+		left, err := node.left.bind(source)
 		if err != nil {
 			return query.ScalarExpression{}, err
 		}
 		if node.negate {
 			return query.NegateScalar(left)
 		}
-		right, err := node.right.bind(model)
+		right, err := node.right.bind(source)
 		if err != nil {
 			return query.ScalarExpression{}, err
 		}
@@ -127,11 +136,21 @@ func (expression DynamicExpression) bind(model *preparedModel) (query.ScalarExpr
 		}
 		return query.LiteralExpression(node.literal)
 	}
-	index, found := model.byName[node.name]
+	if node.column != nil {
+		ref, err := source.scope.Column(*node.column)
+		if err != nil {
+			return query.ScalarExpression{}, err
+		}
+		return query.SelectedExpression(ref)
+	}
+	if source.model == nil || source.scope.Valid() {
+		return query.ScalarExpression{}, invalidResultBuilder("model field names cannot cross a result stage")
+	}
+	index, found := source.model.byName[node.name]
 	if !found {
 		return query.ScalarExpression{}, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: node.name, Detail: "expression field is not concrete source metadata"}
 	}
-	return query.FieldExpression(fieldReference(model.metadata.Fields[index]))
+	return query.FieldExpression(fieldReference(source.model.metadata.Fields[index]))
 }
 
 type DynamicUpdateInput struct {
@@ -149,7 +168,7 @@ func prepareDynamicUpdate[M any](model *preparedModel, inputs []DynamicUpdateInp
 		if !found {
 			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: input.Field, Detail: "query update field is not concrete source metadata"}
 		}
-		expression, err := DynamicValue(input.Value).bind(model)
+		expression, err := DynamicValue(input.Value).bind(dynamicBinding{model: model})
 		if err != nil {
 			return nil, err
 		}
