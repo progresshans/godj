@@ -96,7 +96,14 @@ func entrypoint() (status int) {
 		fmt.Fprintln(os.Stderr, "consumer input rejected")
 		return status
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	// The independent flows share one process budget. Race instrumentation
+	// needs room for their cumulative work; each HTTP request still has its
+	// own 10-second deadline and the parent owns the five-minute process bound.
+	budget := 45 * time.Second
+	if raceEnabled {
+		budget = 2 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 	checks, err := run(ctx, config)
 	if err != nil {

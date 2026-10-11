@@ -143,6 +143,19 @@ Artifact `11690607365`의 same-run/source와 archive digest를 대조했으며 Z
 Portable normal core-vet의 필수 `Verify CI tooling`과 `make ci`에 도구 suite를 연결했다. 같은 공통 launcher가
 전체 testcase 시작/종료·skip 0·실패와 expected failure를 검사한다. 이 보완의 실제 원격 실행은 아직 남아 있다.
 
+같은 `fd5c19f0` 실행의 race integration job `114378721717`에서는 독립 SDK 소비자가
+`identity session user patch (consumer context: deadline exceeded)`로 실패했다. 원 로그 SHA-256은
+`852bce104a94f7f4af2d2c13e047b1157b81ec204ed4defe29aaeeee48a73f47`이며 data race 보고는 없다.
+이는 child 전체의 45초 context 만료를 확인한 결과다. 개별 API의 소요 시간이나 제품 race 원인을 측정한 것은 아니다.
+CI 도구를 연결한 `86137cc7`에서도 해당 Go 입력은 같았다. 이 source의 실패 root 하나만 로컬 race에서
+재현했으나 26.3초에 통과해 Hosted 실패가 재현되지는 않았다. 원 JSON SHA-256은
+`d8211777084bf96216e29d247b9751d3e73578827937eded0aec974553290213`이다.
+
+후속 수정에서는 race child의 누적 실행 예산을 2분으로 조정했다. Normal/CGO=0의 45초, 개별 HTTP 10초,
+부모의 생성/build/실행 5분과 원래 모든 receipt·인가/오류·실제 저장 검사를 유지한다. 포맷만 로컬에서 확인했으며
+이 조정의 Hosted 효과는 후속 동일 source의 전체 CI로 확인해야 한다. 앞선 source의 전체 CI는 이 실패와 실행 누락
+보완 뒤 자동 취소됐고 전체 성공으로 계산하지 않는다.
+
 ## GDJ-0121 — 숫자 합계·평균과 업무 지표
 
 2026-10-08 KST, 기준 `b14d0eaf3d49f01151c8b010fb97eac2a57532ef` 뒤의 작업 사본에서

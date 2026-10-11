@@ -12,8 +12,8 @@ Helpdesk의 우선순위 요약에 변경 예정값을 보여주되 원본 prior
 독립 Django 관찰과 생성물 준비를 마쳤다. 첫 원격 실행의 생성물/SQL 기대값 불일치와 참조 시계의 실제 날짜 의존성을
 수정했고 해당 실패를 재현해 확인했다. 생성 소비자의 borrowed session 호출도 고쳐 제한된 SQLite 실패 재현을
 통과했다. 제품 코드·생성 소비자·실패 경로의 전체 통합 검증은 남아 있다.
-수정 source `fd5c19f0`의 [CI 38108381182](https://github.com/progresshans/godj/actions/runs/38108381182)가 진행 중이다.
-이 실행에서 빠져 있던 CI 도구 부정 테스트를 원격 필수 step에 연결했다. 후속 source의 실행까지 확인해야 한다.
+Source `fd5c19f0`에서 원격 브라우저와 core 세 모드를 확인했고, CI 도구 부정 테스트의 원격 실행 누락을 보완했다.
+독립 SDK race의 전체 context 만료도 확인해 계측 모드의 누적 실행 예산을 조정했다. 후속 source의 전체 검증은 남아 있다.
 
 선행 숫자 집계 source는 83개 Hosted job, 필수 실행·세 모드·OS/arch·same-run capture/source·최종 집계까지
 확인했다. 그 결과를 후속 계산식 코드의 PASS로 사용하지 않는다. 현재 외부 입력이 필요한 blocker는 없다.

@@ -51,3 +51,4 @@ Decimal·Duration 산술/계산식 SUM/AVG는 남은 카탈로그 요구다. 한
 수정 source의 원격 브라우저는 실제 로그인·23개 검사·native 보존과 정리를 통과했다. 생성 소비자의 양 DB/세 모드와
 나머지 전체 CI는 계속 진행 중이며 개별 실행 증거는 TEST_EVIDENCE를 따른다.
 CI 도구 부정 테스트의 원격 실행 누락도 확인해 필수 step과 엄격한 suite 실행에 연결했다. 이 후속 source의 검증은 남아 있다.
+독립 SDK race의 child 전체 context 만료에 맞춰 누적 실행 예산도 보완했다. 개별 HTTP·부모 process 한도와 모든 검사는 유지한다.

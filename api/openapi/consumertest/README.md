@@ -242,7 +242,8 @@ CI integration target의 normal/race/CGO=0 실행도 같은 package를 포함한
 
 Client 실패는 소스에 선언된 고정 단계명으로 진단한다. 전체 context가 종료됐으면 정해진 deadline/cancel 상태만
 덧붙이며 부모는 정확한 조합만 인정한다. 요청 URL·인증정보·응답 body나 임의의 오류 문자열은 진단에 추가하지 않는다.
-Child 전체 45초, 개별 HTTP 요청 10초, 생성·빌드까지 포함하는 부모 5분의 한도는 각각 유지한다.
+Child 전체의 누적 실행 한도는 normal/CGO=0 45초, race 2분이다. 개별 HTTP 요청의 10초 한도와
+생성·빌드까지 포함하는 부모의 5분 한도는 별도로 적용한다. 전체 완료 영수증과 부모의 native DB 대조를 모두 요구한다.
 
 Duration은 canonical `[days ]HH:MM:SS[.ffffff]` string·pattern·length와 nullable branch를 사용한다.
 음수·SQLite int64 양 끝·소수초·생략/null의 실제 HTTP와 DB, required response와 request.Validate를 독립 client로 확인한다.
