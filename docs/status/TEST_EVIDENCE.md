@@ -9,7 +9,8 @@
 snapshot과 양 compiler, typed/dynamic lazy ORM·composable DTO·생성 facade/소비자를 연결했다. Helpdesk의 같은
 읽기 snapshot에서 닫힌 건수·열린 비율을 계산하고 비율 필터·단일 statement Page·HTML/API·독립 client로 전달한다.
 설계는 ADR-0090/0091이 소유한다. 초기 생성·compile과 후속 양 DB·원격 부분 검증은 아래에 구분한다.
-Intel macOS race의 worker 빌드 실패가 남아 있어 현재 작업의 전체 Hosted 통합 PASS는 아직 없다.
+수정 source `97b441c6`의 양 DB·세 모드 소비자, 브라우저와 worker 빌드 준비 수정, 전체 platform 통합을 완료했다.
+최종 원격 실행과 원본 증거 대조는 아래 같은 source의 전체 통합 절을 따른다.
 
 ### 독립 관찰과 작성한 검증
 
@@ -150,6 +151,69 @@ Go 1.26.5 darwin/arm64·CGO=1에서 이 실패 경로와 기존 진단 비밀값
 `60c62f9d0a98443ce2e9960848f8c2979ad957b87cca774b523a9db851adbbe2`, 수정 source/command/실행 receipt는
 `3447abcba17eebd45c5b9c14a3fd52941350acfc2151256d4fdaec56116d10a6`이다. 수정한 묶음의 전체 CI에서 실제
 Intel macOS 초기 빌드와 나머지 통합을 다시 확인한다.
+
+### 같은 source의 전체 원격 통합
+
+Source `97b441c6f74994fd863b6ee99174478c8179c2e0`의
+[전체 CI 38177282549](https://github.com/progresshans/godj/actions/runs/38177282549)는 83개 job 모두 성공했다.
+실제 checkout `5c2f23bf02c022dfe4950484dd427e70382bd3dd`, parent의 head/base와 tree
+`4676cac1d378d30888861a4728a4cd590fa7f70f`를 Git 객체와 validation-plan·원 job 로그로 대조했다.
+Source binding receipt SHA-256은 `ba39019eeee2a10fcf9d66eef109ba47a99b0cc691c1ecffbfd3109a65374f48`이다.
+아래 결과는 선행 source의 PASS를 옮긴 것이 아니라 이 source에서 새로 실행한 범위다.
+
+| 실제 실행 | 원 job / artifact | 확인한 범위 | 부분 audit receipt SHA-256 |
+|---|---|---|---|
+| PostgreSQL normal/core | `114582394539` / `11716503596` | 필수 3,149개·실제 6,037개, 16 package, skip 0 | `998dd119a1bf44fef40c21294fbf0f35c84b52a3cff5ee849175524e2020d54f` |
+| PostgreSQL race/core-consumers | `114582394680` / `11717028065` | 필수 70개·실제 103개, 1 package, skip 0 | `14c008e9f44eb554d16b3ddf48b6b5d93530c076d4eaf3c69c07928d7b1b41f2` |
+| PostgreSQL CGO=0/core | `114582394599` / `11717108507` | 필수 3,149개·실제 6,037개, 16 package, skip 0 | `320b3ce3657432f75e3f1facd507e15905fa2b433c15cc7b857901585e1120db` |
+| Helpdesk PostgreSQL race | `114582394527` / `11717380316` | 필수 606개·실제 677개, skip 0 | `ba6e359a02e40e93ea407d2449d2d97933c013c6993b506f842d1c95b2d6e7f8` |
+| Hosted Helpdesk browser | `114582394581` / `11716746457` | 고정 Chromium의 정확한 30개 check·native read-only·cleanup | `7573d9e4cc9e3a4b735aafcfedb06d236d13ca05f0cf7a2a7cc156565edc8f6e` |
+
+앞의 세 모드는 derived 생성 소비자의 양 DB child 42개와 compile-negative 7개, computed 소비자의 양 DB
+child 88개와 compile-negative 7개를 각각 통과했다. Source wrapper의 정확한 inner 목록·log digest와 실제
+outer Go event, 각 shard의 필수 목록·package·artifact의 immutable zip SHA-256을 대조했다. Browser는 30개
+필수 check 이름, 실제 로그인·명령 exit 0·Ticket 30건의 전체 값/link/audit 보존과 브라우저/fixture/DB 정리를
+확인했다. Helpdesk race는 snapshot/admission·취소·scan/iteration/close·callback/cleanup 실패도 포함한다.
+
+Intel macOS의 Product project check race/CGO=0 jobs `114582394755`/`114582394739`는 각각 runner 399개를
+skip 없이 통과했다. Go 1.26.5 darwin/amd64·빈 GOFLAGS의 전체 runner 명령과 guard/skip 없는 SYS-003 소비자
+source를 확인했다. 따라서 앞선 worker 빌드 실패 경로의 새 원격 실행은 통과했지만, 앞선 로그가 숨긴 실제
+종료 원인을 뒤늦게 확정했다는 뜻은 아니다. Ubuntu ARM normal/CGO=0 jobs `114582394774`/`114582394779`도
+같은 runner 399개를 skip 없이 통과했다. 이 네 job의 후속 runserver는 각각 11개 PASS와 PostgreSQL 전용 1개
+skip이며, 해당 DB 검증은 별도 PostgreSQL owner가 담당한다. Intel/ARM 부분 audit SHA-256은 각각
+`b7b691a865d09adb6b49bac9123c6ec62657b0d021b15509c9ad16fdfa0b5800`,
+`709011be542d868e8ba05caf9d430c44d2e809148754b2f39baa046cf04701d4`다.
+
+같은 실행의 capture consumer job `114590178779`는 제품 suite 26개와 새 systemstate/operator artifact의
+실제 선택·소비·source 결합을 통과했다. 32-bit migration/projectcheck/runserver compile과 relation 실행,
+oracle checksum·파일 무변경 검사도 통과했다. Python 378개 중 정확한 Darwin profile 소유 4개는 이 job에서
+skip했고, 최종 전체 대조에서 exact Darwin owner의 skip 없는 실행을 별도로 확인했다. 부분 audit SHA-256은
+`d5dbd139ce45eb7b02e25eb287e4a90605a821ee5b06ef99310d42149fa9eb10`이다.
+원 metadata·로그·zip·source 결합과 각 receipt는 외부 `ci-38177282549-*-audit`에 보존한다.
+
+전체 수집·대조는 pull_request attempt 1의 head·merge parent·동일 tree와 3,513개 Git blob의 byte/mode를
+확인했다. 83개 job의 정확한 구성·필수 step, 8개 필수 owner와 최종 `full_platform_verified=true`가 일치했다.
+Relation 30개 job은 OS/arch·모드 12개 조합마다 현재 생성 소비자 root 90개를 정확히 한 번씩 실행했다.
+Portable package 집합과 Go inventory 88개, PostgreSQL 9개 job의 원 event log·실행 계획을 대조했다.
+필수 PostgreSQL 경로 3,149개는 각 모드에서 누락·중복·skip 없이 실행됐다. Portable conformance의 명시된
+비대상 6개와 Python exact-profile 4개, runserver의 PostgreSQL 전용 skip은 각각 해당 실제 owner와 구분했다.
+마지막 macOS ARM race runtime도 49개 package·8,612개 PASS·skip 0으로 완료했다.
+
+생성 drift·외부 compile, 양 DB의 generated consumer와 독립 client, process·재시작·transaction/실패·보안·
+cache/race, Linux 32-bit의 명시된 compile/runtime 범위와 고정 Python/SQLite profile이 필수 실행에 포함됐다.
+같은 실행의 systemstate/operator capture는 각각 원 source 파일 802/881개와 결합됐으며 제품 suite 26개에서
+실제로 소비됐다. S3의 normal/core·race/core·race/core-consumers·CGO=0/core 네 service receipt는 고정 build,
+child/server 종료·reap·정리를 확인했다. 위 browser 30개와 도구 검증 62개/skip 0도 포함되며, 개수만 맞는 잘못된
+브라우저 check 목록과 tool-error를 성공으로 판정하지 않는 부정 검증도 통과했다.
+
+외부 `godj-verification/hosted-full-pr-38177282549`에 전체 원 metadata·로그·artifact zip·Git source와
+receipt를 보존한다. 수집 receipt `collection.json` SHA-256은
+`e36b6ea9e135ae4c073cedf4d7827e64a0b69d0fac29d6530d16baa74762aa99`, 전체 audit는
+`6fab854c17868295823d02ecf8da6af4df0f64561d6c0f2b6936f9f055b2092c`, 원 로그 zip은
+`d5031503a8ade5a86dbcd5c9aea409bcca08726518fceb44dbf4fcaf0b6f9e27`, source inventory는
+`dad3f5bfb920ec63d4940601ed7bc93a6a4d29b305bb4b7d81d76b9eeb542be1`이다.
+Audit의 `declared_ci_scope_verified`/`new_required_execution_verified`/`pass`는 true이며 finding은 없다.
+이는 source `97b441c6`의 선언된 전체 CI 통합 증거다. 이후 source나 기능 카탈로그의 미구현 범위로 전이하지 않는다.
 
 ## GDJ-0122 — 계산식 조회와 우선순위 미리보기
 

@@ -1,24 +1,22 @@
 # 현재 상태
 
 - 갱신: 2026-10-12
-- 현재: [GDJ-0123 집계 결과 단계와 티켓 현황 비율](../../work/0123-derived-results-and-ticket-ratios.md)의 원격 통합과 검증용 worker 빌드 준비 수정
-- 최근 전체 통합: source `0ea21fa44144c3ab4df7d90b1d5fd0eadb899779`의 [CI 38110947560](https://github.com/progresshans/godj/actions/runs/38110947560), GDJ-0122 포함
+- 현재: [GDJ-0123 집계 결과 단계와 티켓 현황 비율](../../work/0123-derived-results-and-ticket-ratios.md) 통합 완료, 후속 기반 선택
+- 최근 전체 통합: source `97b441c6f74994fd863b6ee99174478c8179c2e0`의 [CI 38177282549](https://github.com/progresshans/godj/actions/runs/38177282549), GDJ-0123 포함
 - Source·환경·실행 상세와 미완료 근거: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
 
-GDJ-0122의 같은 행 scalar/CASE와 Helpdesk 우선순위 미리보기는 해당 source의 전체 통합을 완료했다.
-후속 작업은 집계된 값을 다시 계산·조회하는 결과 단계다. 모델 FieldRef와 결과 열을 구분하고 기존 필터·집계·slice와
-읽기 snapshot·타입/NULL·실패 의미를 보존하는 구현과 검증 사례를 연결했다. 양 DB·세 모드 생성 소비자와 원격
-브라우저는 확인했다. Intel macOS race에서 검증용 worker의 초기 빌드가 실패해 준비 예산과 오류 분류를 수정했다.
-수정 source의 전체 원격 통합은 남아 있다.
+GDJ-0123의 결과 단계와 Helpdesk 닫힌 건수·열린 비율·필터/페이지를 위 source에서 통합했다.
+모델 FieldRef와 결과 열의 구분, 기존 필터·집계·slice와 읽기 snapshot·타입/NULL·실패 의미를 유지한다.
+양 DB·세 모드 생성 소비자, 원격 브라우저·독립 client, worker 빌드 준비 수정과 전체 platform 실행의
+원본 로그·필수 목록·같은 실행의 capture/source 결합을 대조했다.
 현재 외부 입력이 필요한 blocker는 없다.
 
 ## 다음 행동
 
-기존 Draft PR의 새 전체 CI에서 worker 빌드 준비 수정을 확인한다. 새 생성 소비자·빈 결과/NULL·양 DB·브라우저·
-독립 client와 같은 source의 전체 실행 근거를 검사하고 선행 source의 부분 결과와 구분한다.
-Named annotation·관계 computed operand·Decimal/Duration 산술·function/subquery/window,
+관계 computed operand와 계산값 간 비교의 현재 경계를 실제 Helpdesk 흐름·현행 명세와 대조해 다음 작업을 정한다.
+Named annotation·Decimal/Duration 산술·function/subquery/window,
 codec/storage·custom user/auth/mail과 나머지 요구도 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 범위로 유지한다.
 전체 목표는 [헌장](../CHARTER.md)을 따른다.
 

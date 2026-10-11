@@ -1,6 +1,6 @@
 ---
 id: GDJ-0123
-status: active
+status: complete
 updated: 2026-10-12
 baseline_commit: "98b416029aa9dda479c19ebe7e699a24b01c2d27"
 integration_owner: "root"
@@ -38,10 +38,12 @@ GDJ-0122는 같은 행의 값을 계산해 조회와 집계 operand로 연결했
 - [x] 양 backend compiler와 typed/dynamic ORM·생성 facade·결과 조립 구현
 - [x] 고정 Django 독립 결과와 생성 소비자·compile-negative·실패/소유권 검증 연결
 - [x] Helpdesk Form/HTML/API·독립 client·브라우저와 snapshot/read-only 경계 연결
-- [ ] 영향·생성 drift·양 DB·race/process/platform과 같은 source의 전체 원격 검증
+- [x] 영향·생성 drift·양 DB·race/process/platform과 같은 source의 전체 원격 검증
 
-결과 단계·양 compiler·typed/dynamic lazy ORM과 composable DTO·생성 facade/소비자, Helpdesk HTML/API·독립 SDK와
-검증 사례를 연결했다. 위 구현 체크는 테스트 실행 PASS가 아니다. 빈 projection과 COUNT 0 한 행의 구분,
-Duration AVG의 native 비교·마지막 decode, 조회 세션·cache·부분 실패를 함께 검증하도록 했다.
-포맷과 필요한 최소 compile 이후 완성한 묶음으로 push하고 영향·생성 drift·양 DB·race/process/platform 검증은
-기존 Draft PR의 전체 CI에서 수행한다. 선행 source의 전체 PASS를 이번 작업의 결과로 전이하지 않는다.
+Source `97b441c6f74994fd863b6ee99174478c8179c2e0`의
+[전체 CI 38177282549](https://github.com/progresshans/godj/actions/runs/38177282549)와 원본 실행 증거 대조를 완료했다.
+결과 단계·양 compiler·typed/dynamic lazy ORM·composable DTO·생성 facade와 Helpdesk HTML/API·독립 SDK를
+같은 source에서 검증했다. 빈 projection과 COUNT 0 한 행, Duration AVG의 native 비교·마지막 decode,
+scope·조회 세션·cache·부분 실패와 원 Ticket/link/audit 보존을 포함한다.
+환경별 실행·원격 실패와 수정·불변 artifact/source 결합은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+이 작업의 완료는 일반 annotation이나 기능 카탈로그 전체의 완료를 뜻하지 않는다.

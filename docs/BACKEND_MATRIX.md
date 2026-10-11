@@ -139,9 +139,14 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 같은 행의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
 계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
 계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. Decimal/Duration의 CASE 복사는 지원하지만
-계산식 SUM/AVG·산술, 일반 named annotation·추가 집계 stage·forward/collection computed operand는 미지원이다.
+해당 kind의 계산식 SUM/AVG·산술, 일반 named annotation·forward/collection computed operand는 미지원이다.
 SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
-구현 경계는 [Scalar 표현식](adr/0090-query-update-and-scalar-expressions.md), 실제 실행은 Evidence를 따른다.
+명시적 결과 stage는 선택한 열의 kind·NULL과 원본 plan의 필터·정렬·DISTINCT·slice를 보존하며,
+결과 열의 계산·필터·정렬·그룹·재집계와 단일 statement Page를 지원한다. 원 모델 FieldRef와 결과 scope를
+구분하고, 같은 단계의 중첩 집계나 다른 scope/선택되지 않은 열은 거부한다. 빈 projection의 0행과
+terminal COUNT의 0 한 행, Duration AVG의 native 비교와 마지막 decode도 구별한다.
+구현 경계는 [Scalar 표현식](adr/0090-query-update-and-scalar-expressions.md)과
+[결과 단계](adr/0091-grouped-results-and-having.md), 실제 실행은 Evidence를 따른다.
 Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다.
 별도 그룹 결과는 scalar/finite forward 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
