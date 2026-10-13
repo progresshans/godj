@@ -85,7 +85,8 @@ func (page *ServiceReportStatus) get(request *web.Request, actor auth.Principal)
 	values, err := templates.NewContext(map[string]templates.Value{
 		"category": templates.String(ticketEditorDisplay(result.category.Name)), "rows": templates.List(rows...),
 		"total": templates.Integer(result.reports.Total), "page": templates.Integer(int64(input.page)),
-		"comparison": templates.String(input.comparison), "previous": templates.String(previous), "next": templates.String(next),
+		"comparison_all": templates.Bool(input.comparison == "all"), "comparison_same": templates.Bool(input.comparison == "same"),
+		"comparison_different": templates.Bool(input.comparison == "different"), "previous": templates.String(previous), "next": templates.String(next),
 	})
 	if err != nil {
 		return web.Response{}, err

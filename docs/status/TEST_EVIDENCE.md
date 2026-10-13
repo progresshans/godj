@@ -58,6 +58,34 @@ Helpdesk 양 DB 소비자에는 45개 scoped 보고서와 외부 category를 사
 변경 묶음 push 뒤 자동 전체 CI에서 영향·generated drift·DB·race·process·독립 SDK/브라우저·전체 platform을 실행한다.
 선행 GDJ-0123 source `97b441c6`의 전체 83개 성공은 이번 source의 PASS로 전이하지 않는다.
 
+### 첫 원격 실패와 소비자·렌더링 수정
+
+Source `fd1f6f012fbff7e44624845b007e32cafb43a86d`의
+[CI 38341032943](https://github.com/progresshans/godj/actions/runs/38341032943)는 전체 PASS가 아니다.
+Checkout `949e5a70142af6b220755ad646366f73485080a1`과 source tree를 GitHub 객체·실제 checkout log·로컬 Git으로 대조했다.
+Source binding receipt는 `ef0aecd3cc9aebbfcaee12d0cd4cec541e8c46a2c1ec93c00f9df0d187c0cfd9`다.
+세 native consumer owner의 고정 Django 양 DB 관찰 step은 성공했지만 Go 전체 결과 대조의 성공을 뜻하지 않는다.
+
+Portable core의 PostgreSQL compiler 검사는 관계 filter의 COUNT/MAX를 여전히 미지원으로 기대했다.
+새 정상 SQL·원 predicate를 확인하고 sliced/distinct source의 거부를 함께 유지하도록 수정했다.
+Helpdesk의 새 template은 지원하지 않는 literal 비교를 사용해 시작 시 파싱이 실패했다.
+검증된 query에서 만든 Boolean 선택 상태를 template에 전달하도록 수정했다.
+SDK 검사는 기존 `same-origin` Referrer-Policy를 다른 값으로 기대했고, 추가한 마지막 GET 뒤의 CSRF pair를
+갱신하지 않아 후속 쓰기 부정 대조가 먼저 CSRF에서 거부됐다. 기존 정책과 반환 pair를 검증하도록 고쳤으며
+endpoint의 인가·CSRF 정책이나 응답을 느슨하게 바꾸지 않았다.
+
+Relation consumer의 첫 실제 실행에서 root backend에 borrowed constructor를 사용한 것과 일반 field projection을
+dynamic F projection과 구조적으로 같다고 비교한 것이 드러났다. Root probe는 원 backend capability를 유지하고
+명시적 F끼리 같은 AST를 대조하도록 고쳤다. 실제 borrowed session의 만료 검사는 유지한다.
+Related update target의 compile-negative는 실제 Go 진단의 exported `orm.ReferenceField`를 요구하도록 수정했다.
+
+실패한 경로만 로컬 normal로 재현/수정했다. PostgreSQL compiler root, Helpdesk SQLite의 status subtest,
+독립 SDK 전체 실제 HTTP contract, 새 생성 소비자의 SQLite 내부 8개/compile-negative 5개가 통과했다.
+로컬 PostgreSQL 서버·Django observer·브라우저·전체 suite나 race를 실행한 결과는 아니다.
+원 실패 log 8개와 로컬 실패/성공 log·명령·변경 source hash는 외부 `godj-verification/ci-38341032943-failures`에 보존했다.
+Repair receipt SHA-256은 `4e451a0c87e270b70bc488f16633615968039a8d8f1755d9cedd0df8021caeff`다.
+후속 수정 source의 자동 전체 CI로 환경별 결과와 원본 증거를 다시 확인한다.
+
 ## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
 
 2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan

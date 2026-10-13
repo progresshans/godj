@@ -135,9 +135,9 @@ func relatedValue(t *testing.T, value query.Value) any {
 	}
 }
 
-func observeRelated(t *testing.T, reader db.Session, name string) any {
+func observeRelated(t *testing.T, reader relatedBackend, name string) any {
 	t.Helper()
-	api, err := project.UsingSession(reader)
+	api, err := project.Using(reader)
 	check(t, err)
 	base := api.RecordsMeasure.OrderBy(records.MeasureFields.ID.Asc())
 	amount, target := orm.DynamicF("amount"), orm.DynamicF("datum__amount")

@@ -193,7 +193,7 @@ func TestGeneratedRelatedExpressions(t *testing.T) {
 		{"foreign_model_comparison", `_ = orm.ExactExpressions(orm.F(records.MeasureFields.Amount), orm.F(records.DetailFields.Bonus))`, "does not match"},
 		{"mixed_value_comparison", `_ = orm.ExactExpressions(orm.F(records.MeasureFields.Amount), relations.RecordsMeasure.Datum.Flag)`, "does not match"},
 		{"foreign_related_operand", `_ = orm.AddExpressions(orm.F(records.MeasureFields.Amount), relations.RecordsDatum.Group.Limit)`, "does not match"},
-		{"related_update_target", `_ = orm.AssignExpression(relations.RecordsMeasure.Datum.Amount, orm.F(records.MeasureFields.Amount))`, "referenceField"},
+		{"related_update_target", `_ = orm.AssignExpression(relations.RecordsMeasure.Datum.Amount, orm.F(records.MeasureFields.Amount))`, "orm.ReferenceField"},
 		{"wrong_related_projection", `_ = orm.Project1(orm.Scalar(relations.RecordsMeasure.Datum.Amount),func(value int64)int64{return value})`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {

@@ -406,8 +406,21 @@ func TestCompilerRelationProjectionKeepsAggregateBoundary(t *testing.T) {
 			}
 			continue
 		}
-		if !errors.Is(compileErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}) {
-			t.Fatalf("result %q error = %v, want backend unsupported_feature", shape.Kind(), compileErr)
+		if compileErr != nil || !strings.HasPrefix(statement, `SELECT COUNT(*) AS "c0", MAX("t0"."id") AS "c1" FROM `) || !strings.Contains(statement, "INNER JOIN") || !reflect.DeepEqual(arguments, []any{"Ada"}) {
+			t.Fatal("relation-filtered aggregate lost selected values or predicate", statement, arguments, compileErr)
+		}
+	}
+	limited, err := base.WithLimit(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []query.Plan{base.WithDistinct(), limited} {
+		plan, err := source.WithResultShape(aggregate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := compilePlan("godj_app", plan); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}) {
+			t.Fatal("relation-filtered aggregate widened sliced/distinct source", err)
 		}
 	}
 }

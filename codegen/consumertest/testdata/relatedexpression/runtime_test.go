@@ -23,7 +23,7 @@ import (
 )
 
 type relatedReadProbe struct {
-	db.Session
+	relatedBackend
 	mu     sync.Mutex
 	plans  []query.Plan
 	closed atomic.Int64
@@ -34,19 +34,13 @@ func (p *relatedReadProbe) Query(ctx context.Context, plan query.Plan) (db.Rows,
 	p.mu.Lock()
 	p.plans = append(p.plans, plan)
 	p.mu.Unlock()
-	rows, err := p.Session.Query(ctx, plan)
+	rows, err := p.relatedBackend.Query(ctx, plan)
 	if err != nil {
 		return rows, err
 	}
 	return &relatedRows{Rows: rows, owner: p}, nil
 }
 func (p *relatedReadProbe) calls() int { p.mu.Lock(); defer p.mu.Unlock(); return len(p.plans) }
-func (p *relatedReadProbe) ValidateSession(ctx context.Context) error {
-	if validator, ok := p.Session.(db.SessionValidator); ok {
-		return validator.ValidateSession(ctx)
-	}
-	return ctx.Err()
-}
 
 type relatedRows struct {
 	db.Rows
@@ -107,19 +101,20 @@ func TestRelatedRuntime(t *testing.T) {
 		check(t, err)
 		f, target := records.MeasureFields, relations.RecordsMeasure.Datum
 		added := orm.AddExpressions(orm.F(f.Amount), target.Amount)
-		projection := orm.Project2(f.Code, added, func(code string, value orm.Optional[int64]) []query.Value {
+		projection := orm.Project2(orm.F(f.Code), added, func(code orm.Optional[string], value orm.Optional[int64]) []query.Value {
 			cell := query.Null()
 			if number, present := value.Get(); present {
 				cell = query.Integer(number)
 			}
-			return []query.Value{query.String(code), cell}
+			name, _ := code.Get()
+			return []query.Value{query.String(name), cell}
 		})
 		t.Run("typed_dynamic_and_nulls", func(t *testing.T) {
-			probe := &relatedReadProbe{Session: backend}
+			probe := &relatedReadProbe{relatedBackend: backend}
 			base := records.MeasureObjects.Using(probe).OrderBy(f.ID.Asc())
 			typed, err := orm.SelectInto(t.Context(), base, projection)
 			check(t, err)
-			api, err := project.UsingSession(probe)
+			api, err := project.Using(probe)
 			check(t, err)
 			selected, err := api.RecordsMeasure.ProjectExpressions(orm.DynamicF("code"), orm.DynamicF("amount").Add(orm.DynamicF("datum__amount")))
 			check(t, err)
@@ -152,7 +147,7 @@ func TestRelatedRuntime(t *testing.T) {
 			assertRelatedJSON(t, observeRelated(t, backend, "case_rhs_related"), `[{"code":"a","value":"same"},{"code":"b","value":"other"},{"code":"c","value":"other"},{"code":"d","value":"other"},{"code":"e","value":"other"}]`)
 		})
 		t.Run("related_results_and_join_ownership", func(t *testing.T) {
-			probe := &relatedReadProbe{Session: backend}
+			probe := &relatedReadProbe{relatedBackend: backend}
 			both := orm.AddExpressions(added, target.Amount)
 			base := records.MeasureObjects.Using(probe).OrderBy(both.Desc().NullsLast(), f.ID.Asc())
 			selected, err := orm.SelectQuery(base, orm.Project2(f.Code, both, func(code string, value orm.Optional[int64]) string { return code }))
@@ -196,7 +191,7 @@ func TestRelatedRuntime(t *testing.T) {
 			}
 		})
 		t.Run("result_scopes_and_page", func(t *testing.T) {
-			probe := &relatedReadProbe{Session: backend}
+			probe := &relatedReadProbe{relatedBackend: backend}
 			left, right := orm.Add(orm.F(f.Amount), int64(1)), orm.Multiply(target.Amount, int64(2))
 			base, err := orm.SelectQuery(records.MeasureObjects.Using(probe).OrderBy(f.ID.Asc()), orm.Project3(f.Code, left, right,
 				func(code string, left, right orm.Optional[int64]) string { return code }))
@@ -234,8 +229,8 @@ func TestRelatedRuntime(t *testing.T) {
 			}
 		})
 		t.Run("source_assignment_and_input_rejection", func(t *testing.T) {
-			probe := &relatedReadProbe{Session: backend}
-			api, err := project.UsingSession(probe)
+			probe := &relatedReadProbe{relatedBackend: backend}
+			api, err := project.Using(probe)
 			check(t, err)
 			for _, input := range []orm.DynamicExpression{orm.DynamicF("datum__missing"), orm.DynamicF("datum__measures__amount"), orm.DynamicF("datum__group__data__amount"), orm.DynamicF("amount").Add(orm.DynamicF("datum__flag")), orm.DynamicValue(nil)} {
 				if _, err := api.RecordsMeasure.Expression(input); err == nil {
@@ -286,7 +281,7 @@ func TestRelatedRuntime(t *testing.T) {
 			}
 		})
 		t.Run("cache_context_and_cursor_failure", func(t *testing.T) {
-			probe := &relatedReadProbe{Session: backend}
+			probe := &relatedReadProbe{relatedBackend: backend}
 			selected, err := orm.SelectQuery(records.MeasureObjects.Using(probe).OrderBy(f.ID.Asc()), projection)
 			check(t, err)
 			first, err := selected.All(t.Context())
@@ -321,7 +316,7 @@ func TestRelatedRuntime(t *testing.T) {
 				t.Fatal("warm cache ignored cancellation")
 			}
 			for _, fault := range []string{"scan", "iteration", "close"} {
-				failed := &relatedReadProbe{Session: backend, fault: fault}
+				failed := &relatedReadProbe{relatedBackend: backend, fault: fault}
 				built := 0
 				value, err := orm.SelectInto(t.Context(), records.MeasureObjects.Using(failed), orm.Project1(added, func(value orm.Optional[int64]) orm.Optional[int64] { built++; return value }))
 				if err == nil || value != nil || built != 0 || failed.closed.Load() != 1 {

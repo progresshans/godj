@@ -42,13 +42,21 @@ func checkHelpdeskReportStatus(ctx context.Context, client, readOnly *hs.Client,
 					params.P = hs.NewOptInt64(number)
 				}
 				response, err := viewer.client.HelpdeskServiceReportStatus(ctx, params)
+				if err != nil {
+					return fail("generated report status request or response decoding")
+				}
 				value, ok := response.(*hs.ServiceReportStatusHeaders)
-				if err != nil || !ok || viewer.transport.lastStatus() != http.StatusOK ||
-					!value.XGodjCsrftoken.Set || !viewer.state.ready(value.XGodjCsrftoken.Value) ||
-					value.Response.Category.ID != category || value.Response.Category.Name != "Hardware & repairs" ||
-					value.Response.Page != number || value.Response.PageSize != 20 || value.Response.Comparison != name ||
-					value.Response.TotalReports != total || !reflect.DeepEqual(value.Response.Results, expected) {
-					return fail("generated report status native flags, filters, empty page and view permissions")
+				if !ok || viewer.transport.lastStatus() != http.StatusOK {
+					return fail("generated report status success response type and status")
+				}
+				if !value.XGodjCsrftoken.Set || !viewer.state.ready(value.XGodjCsrftoken.Value) {
+					return fail("generated report status CSRF response header")
+				}
+				if value.Response.Category.ID != category || value.Response.Category.Name != "Hardware & repairs" || value.Response.Page != number || value.Response.PageSize != 20 || value.Response.Comparison != name {
+					return fail("generated report status category and query metadata")
+				}
+				if value.Response.TotalReports != total || !reflect.DeepEqual(value.Response.Results, expected) {
+					return fail("generated report status filtered flags and total")
 				}
 			}
 		}
@@ -65,12 +73,12 @@ func checkHelpdeskReportStatus(ctx context.Context, client, readOnly *hs.Client,
 		}
 	}
 	detail, err := client.HelpdeskTicketDetail(ctx, hs.HelpdeskTicketDetailParams{ID: ticket.ID})
-	if value, ok := detail.(*hs.TicketDetailHeaders); err != nil || !ok || !sameHelpdeskTicket(value.Response.Ticket, ticket) {
+	if value, ok := detail.(*hs.TicketDetailHeaders); err != nil || !ok || !sameHelpdeskTicket(value.Response.Ticket, ticket) || !value.XGodjCsrftoken.Set || !state.ready(value.XGodjCsrftoken.Value) {
 		return fail("generated report status preserves stored ticket")
 	}
 	response, err := client.HelpdeskServiceReportDetail(ctx, hs.HelpdeskServiceReportDetailParams{ID: report.ID})
 	value, ok := response.(*hs.ServiceReportHeaders)
-	if err != nil || !ok || value.Response != report {
+	if err != nil || !ok || value.Response != report || !value.XGodjCsrftoken.Set || !state.ready(value.XGodjCsrftoken.Value) {
 		return fail("generated report status preserves stored report")
 	}
 	return nil
