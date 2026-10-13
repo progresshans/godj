@@ -191,8 +191,8 @@ def observe(vendor):
         action('root_exclusion', lambda: filtered_groups(base.exclude(tickets__enabled=True)))
         action('root_exclusion_then_filter', lambda: filtered_groups(base.exclude(tickets__amount__gt=4).filter(tickets__enabled=True)))
         action('root_or_condition', lambda: filtered_groups(base.filter(Q(tickets__enabled=True) | Q(code='none'))))
-        action('independent_collection_counts', lambda: list(Category.objects.values('code').annotate(labels=Count('labels__id'), tickets=Count('tickets__id'), amount=Sum('tickets__amount')).order_by('code')))
-        action('independent_distinct_aggregates', lambda: list(Category.objects.values('code').annotate(labels=Count('labels__id', distinct=True), tickets=Count('tickets__id', distinct=True), amount=Sum('tickets__amount', distinct=True)).order_by('code')))
+        action('independent_collection_counts', lambda: list(Category.objects.values('code').annotate(label_count=Count('labels__id'), ticket_count=Count('tickets__id'), amount=Sum('tickets__amount')).order_by('code')))
+        action('independent_distinct_aggregates', lambda: list(Category.objects.values('code').annotate(label_count=Count('labels__id', distinct=True), ticket_count=Count('tickets__id', distinct=True), amount=Sum('tickets__amount', distinct=True)).order_by('code')))
         action('nested_collections', lambda: list(grouped(total=Count('tickets__labels__id'), unique=Count('tickets__labels__id', distinct=True))))
         action('reverse_one_to_one_leaf', lambda: list(grouped(total=Count('tickets__detail__bonus'), amount=Sum('tickets__detail__bonus'))))
         action('source_key_isnull', lambda: list(grouped(total=Count('id', filter=Q(tickets__category__isnull=True)))))
@@ -238,5 +238,7 @@ if __name__ == '__main__':
     document = observe(args.vendor)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(document, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2) + '\n')
-    assert document['storage_unchanged'] and document['storage_cleaned'] and all('error' not in case for case in document['cases'])
+    assert document['storage_unchanged'] and document['storage_cleaned'], 'collection observer storage was changed or not cleaned'
+    failures = {case['name']: case['error'] for case in document['cases'] if 'error' in case}
+    assert not failures, json.dumps(failures, ensure_ascii=False, sort_keys=True)
     print(json.dumps({'backend': args.vendor, 'cases': len(document['cases']), 'sha256': hashlib.sha256(args.output.read_bytes()).hexdigest()}))

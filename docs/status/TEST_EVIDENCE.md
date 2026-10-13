@@ -15,7 +15,7 @@ Collection field의 COUNT/MIN/MAX/SUM/AVG와 FILTER를 집계 전용 AST·typed/
 
 [독립 Django observer](../../conformance/runners/django/collection_aggregate_reference/README.md)는 고정 Django 6.1 commit
 `fe0a859f537d4238cf49fca39073513206f83122`의 public ORM을 synthetic 입력으로 실행하며 Go source/결과를 읽지 않는다.
-Observer SHA-256 `f83793844d3a760bc4a90c529028cac83c942a6b164fe1b0b27d7a87eabc6efd`, input `243db553852348d045756742dd2fea2bf32c87374bca18231e49729c8dd300e0`,
+현재 observer SHA-256 `0037dd9c15bd0dc745f0b682ecf31a91cdaf1ab8dc7d625e39ccccad2dbe831a`, input `243db553852348d045756742dd2fea2bf32c87374bca18231e49729c8dd300e0`,
 20개 upstream module byte 대조 manifest `6d8f8a7a78098a27a30e1786f24bec1ee1aabbc4262f925d2be70e0278751227`를 사용한다.
 Python 3.14.3·Django 6.1·psycopg 3.3.6·PostgreSQL 17.10은 pin이며 SQLite native 버전은 실행 때 기록한다.
 
@@ -62,6 +62,28 @@ relation 필수 목록은 2,497개이고 공백/중복이 없다. 이는 실행 
 
 이 생성·컴파일은 실제 DB/HTTP/브라우저 실행 증거가 아니다. 묶음 push 뒤 자동 전체 CI에서 영향·generated drift·DB·race·process·
 독립 client/브라우저·전체 플랫폼과 source/run/attempt가 같은 원본 증거를 확인한다.
+
+### 첫 원격 실패와 제한된 로컬 수정 검증
+
+Source `4822a06309b12172bdb72d9c493956a9961423d8`의
+[CI 38374411001](https://github.com/progresshans/godj/actions/runs/38374411001)는 전체 PASS가 아니다.
+세 native owner는 독립 collection observer의 SQLite 두 사례에서 같은 `FieldError`를 기록했다.
+`tickets=Count(...)`라는 결과 이름이 이후 `tickets__amount`의 관계 해석을 가렸으므로 결과 이름을
+`label_count`/`ticket_count`로 구분했다. 원 집계·행 곱·DISTINCT·29개 사례·오류 없음 조건은 유지했다.
+실패 artifact 11800393388/11801095158/11800184065의 run/head·size·GitHub SHA-256을 검증해
+`godj-verification/ci-38374411001-failures`에 원 ZIP·JSON·job log를 보존했다. 저장 보존·정리는 참이며 두 사례만 오류다.
+
+Portable normal/CGO=0 integration은 Helpdesk의 nonfinite 준비 코드가 system-state runtime에서
+지원하지 않는 native query-update를 호출해 실패했다. 기존 모델 `Patch`로 비정상 값을 준비/복원하고,
+HTML/API 실패 후에도 그 값과 모델 전체가 저장소에 그대로 남는지 확인하도록 고쳤다. 읽기 오류 거부를 완화하지 않았다.
+
+실패 경로만 로컬 darwin/arm64 normal에서 확인했다. 고정 Python/Django·SQLite 3.50.4의 관측기 29개와
+저장 보존/정리가 통과했다. `collection-observer-repair-8dbfaahu/receipt.json` SHA-256
+`3b327d0c83d2667e526d02d1524824b8e9a1ac5f9dbb6dbf7f7ac69adf0f8b5d`.
+Helpdesk SQLite의 `label_usage`와 20개 하위 사례는 run/pass 각 22개(root 포함), fail/skip 0이다.
+`label-usage-failure-repair-foof2m9o/receipt.json` SHA-256
+`57f194a67577cc4c044fff71a9593d579c6dc588e5a6e65325ccb0bd27c676e3`.
+이는 원격 PostgreSQL·race·생성 소비자 전체·브라우저의 성공을 뜻하지 않으며 수정 source의 자동 전체 CI가 필요하다.
 
 ## GDJ-0124 — 관계 값 표현식과 서비스 보고서 상태 조회
 

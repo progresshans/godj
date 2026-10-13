@@ -21,7 +21,6 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/jsonvalue"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -302,12 +301,12 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 		})
 	}
 	t.Run("nonfinite_numeric_output_failure", func(t *testing.T) {
-		_, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(tickets[0].ID)).Update(ctx, orm.Assign(models.TicketFields.Effort, math.Inf(1)))
+		outside, err := models.TicketObjects.Patch(ctx, runtime, tickets[0], models.TicketPatch{}.WithEffort(math.Inf(1)))
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			_, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(tickets[0].ID)).Update(ctx, orm.Assign(models.TicketFields.Effort, *tickets[0].Effort))
+			_, err := models.TicketObjects.Patch(ctx, runtime, outside, models.TicketPatch{}.WithEffort(*tickets[0].Effort))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -317,6 +316,10 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 			response := client.request(http.MethodGet, path, "", false)
 			if response.Code != http.StatusInternalServerError || strings.Contains(response.Body.String(), "total_labels") || strings.Contains(response.Body.String(), "Label &lt;script&gt;") || backend.closed != 1 || *audits != 0 {
 				t.Fatal("nonfinite label usage published output", path, response.Code)
+			}
+			stored, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(outside.ID)).Get(ctx)
+			if err != nil || !reflect.DeepEqual(stored, outside) {
+				t.Fatal("failed label usage changed the nonfinite stored value", err)
 			}
 		}
 	})

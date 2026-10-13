@@ -156,8 +156,8 @@ func TestCollectionRuntime(t *testing.T) {
 		t.Run("join_multiplicity_filter_scopes_and_parameters", func(t *testing.T) {
 			assertCollectionJSON(t, observeCollection(t, backend, "chained_filters"), `[{"code":"blue","total":2,"amount":4,"average":2,"opened":2},{"code":"red","total":6,"amount":18,"average":3,"opened":4}]`)
 			assertCollectionJSON(t, observeCollection(t, backend, "chained_filters_reversed"), `[{"code":"blue","total":2,"amount":-1,"average":-0.5,"opened":2},{"code":"red","total":6,"amount":12,"average":2,"opened":6}]`)
-			assertCollectionJSON(t, observeCollection(t, backend, "independent_collection_counts"), `[{"code":"a","labels":16,"tickets":16,"amount":16},{"code":"b","labels":1,"tickets":1,"amount":null},{"code":"empty","labels":0,"tickets":0,"amount":null}]`)
-			assertCollectionJSON(t, observeCollection(t, backend, "independent_distinct_aggregates"), `[{"code":"a","labels":4,"tickets":4,"amount":4},{"code":"b","labels":1,"tickets":1,"amount":null},{"code":"empty","labels":0,"tickets":0,"amount":null}]`)
+			assertCollectionJSON(t, observeCollection(t, backend, "independent_collection_counts"), `[{"code":"a","label_count":16,"ticket_count":16,"amount":16},{"code":"b","label_count":1,"ticket_count":1,"amount":null},{"code":"empty","label_count":0,"ticket_count":0,"amount":null}]`)
+			assertCollectionJSON(t, observeCollection(t, backend, "independent_distinct_aggregates"), `[{"code":"a","label_count":4,"ticket_count":4,"amount":4},{"code":"b","label_count":1,"ticket_count":1,"amount":null},{"code":"empty","label_count":0,"ticket_count":0,"amount":null}]`)
 			assertCollectionJSON(t, observeCollection(t, backend, "nested_collections"), `[{"code":"blue","total":4,"unique":2},{"code":"foreign","total":2,"unique":2},{"code":"none","total":0,"unique":0},{"code":"nullonly","total":1,"unique":1},{"code":"orphan","total":1,"unique":1},{"code":"red","total":9,"unique":3}]`)
 			// FILTER uses row joins; root negation uses correlated existence. Null
 			// intermediary rows count the root but cannot count an absent target.

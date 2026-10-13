@@ -312,7 +312,7 @@ func observeCollection(t *testing.T, reader collectionBackend, name string) any 
 		}
 		grouped, err := api.CatalogCategory.GroupValues([]string{"code"}, inputs)
 		check(t, err)
-		return collectionRows(t, grouped.OrderBy(catalog.CategoryFields.Code.Asc()), "code", "labels", "tickets", "amount")
+		return collectionRows(t, grouped.OrderBy(catalog.CategoryFields.Code.Asc()), "code", "label_count", "ticket_count", "amount")
 	case "nested_collections":
 		return collectionRows(t, collectionGroup(t, base, agg(query.ResultCount, "tickets__labels__id"), orm.DynamicAggregateInput{Kind: query.ResultCount, Field: "tickets__labels__id", Distinct: true}), "code", "total", "unique")
 	case "reverse_one_to_one_leaf":

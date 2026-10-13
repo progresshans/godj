@@ -1,6 +1,6 @@
 # GDJ-0125: 컬렉션 집계와 라벨 사용 현황
 
-- 상태: implementation in progress — 구현 묶음 작성·최소 compile, 원격 통합 검증 미완료
+- 상태: implementation in progress — 첫 원격 실패 수정, 원격 통합 검증 미완료
 - 시작: 2026-10-13
 - 기준: `31722acfa53c119cefe858e5dcb11e1a3f76e20e`
 - 근거: [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [Q-011/Q-013](../docs/OPEN_QUESTIONS.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -39,9 +39,10 @@ Helpdesk는 Label root·지표별 Category 조건·두 view 권한·snapshot·HA
 공통 읽기 snapshot 소유권 검사로 기존 요약/상태 조회의 실패 경계를 유지하고 late/unfinished callback도 검증한다.
 브라우저는 기존 두 읽기 화면에 라벨 사용 현황과 Label/연결 readback을 추가했다.
 
-로컬은 생성·compile·문법/링크 확인이며 제품 테스트·독립 DB 관찰·브라우저는 아직 실행하지 않았다.
+구현 묶음은 push했으며 첫 원격 실행의 관측기 이름 충돌과 Helpdesk 테스트 준비 경로를 수정했다.
+로컬에서는 실패 재현 범위인 SQLite 독립 관측과 Helpdesk 라벨 사용 현황을 확인했다. 전체 양 DB·race·브라우저 검증은 미완료다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)의 GDJ-0125 절을 따른다.
-다음 단계는 묶음 push와 자동 전체 CI이며 완료 조건은 같은 source의 실행 결과를 확인한 뒤 표시한다.
+다음 단계는 수정 push와 자동 전체 CI이며 완료 조건은 같은 source의 실행 결과를 확인한 뒤 표시한다.
 
 ## 완료 조건과 검증 위치
 
