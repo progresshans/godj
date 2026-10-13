@@ -265,8 +265,8 @@ Portable의 SQLite invariant 실행은 이 reference/native 양 DB 검증을 대
 
 GDJ-0125의 컬렉션 집계도 같은 세 native owner에서 별도의
 [Django observer](../conformance/runners/django/collection_aggregate_reference/README.md)를 실행한다.
-역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용을 29개 사례로 대조한다.
-현재 observer/input/module manifest와 runtime pin을 확인하고, 양 DB의 reference/runtime 80개 child run/pass,
+역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용과 Distinct를 30개 사례로 대조한다.
+현재 observer/input/module manifest와 runtime pin을 확인하고, 양 DB의 reference/runtime 82개 child run/pass,
 부모의 모델·decoder compile-negative 5개를 요구한다. 원 reference와 `godj-collection-native.jsonl`을
 `collection-aggregate-reference/`에 함께 보존한다. Missing reference·잘린 event·미실행/skip은 성공이 아니다.
 

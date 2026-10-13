@@ -28,7 +28,7 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	}
 	field, _ := expression.Field()
 	ordered := expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax
-	if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
+	if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg || ordered && expression.OperandKind() == query.FieldDecimal {
 		var err error
 		if _, computed := expression.Scalar(); !computed {
 			operand, err = numericAggregateOperand(field, operand)

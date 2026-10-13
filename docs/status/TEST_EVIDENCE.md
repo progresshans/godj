@@ -15,12 +15,12 @@ Collection field의 COUNT/MIN/MAX/SUM/AVG와 FILTER를 집계 전용 AST·typed/
 
 [독립 Django observer](../../conformance/runners/django/collection_aggregate_reference/README.md)는 고정 Django 6.1 commit
 `fe0a859f537d4238cf49fca39073513206f83122`의 public ORM을 synthetic 입력으로 실행하며 Go source/결과를 읽지 않는다.
-현재 observer SHA-256 `0037dd9c15bd0dc745f0b682ecf31a91cdaf1ab8dc7d625e39ccccad2dbe831a`, input `243db553852348d045756742dd2fea2bf32c87374bca18231e49729c8dd300e0`,
+현재 observer SHA-256 `f5f51b8adc0f364c6c5c7a18b04df051a1607b414065a5c6fc240b9ed4dc75d4`, input `243db553852348d045756742dd2fea2bf32c87374bca18231e49729c8dd300e0`,
 20개 upstream module byte 대조 manifest `6d8f8a7a78098a27a30e1786f24bec1ee1aabbc4262f925d2be70e0278751227`를 사용한다.
 Python 3.14.3·Django 6.1·psycopg 3.3.6·PostgreSQL 17.10은 pin이며 SQLite native 버전은 실행 때 기록한다.
 
-Normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 각 DB의 29개 관찰을 만들고 현재 hash/runtime·목록·오류 없음·
-저장 보존/정리를 확인한다. 두 앱의 생성 소비자가 양 DB reference/runtime 80개 child run/pass·skip 0, 부모 compile-negative
+Normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 각 DB의 30개 관찰을 만들고 현재 hash/runtime·목록·오류 없음·
+저장 보존/정리를 확인한다. 두 앱의 생성 소비자가 양 DB reference/runtime 82개 child run/pass·skip 0, 부모 compile-negative
 5개를 요구한다. Native 원 events는 `godj-collection-native.jsonl`로 reference와 같은 artifact에 보존한다.
 별도의 Go-native 사례는 NULL·중복·독립/연속 Filter JOIN·typed/dynamic AST·숫자/ordered codec·scope/metadata/자원 거부·
 HAVING/Page/재집계·cache/cancel/session/cursor 오류를 다룬다. 기존 `reverse_counts`의 미지원 검사는 같은 고정 fixture와
@@ -84,6 +84,36 @@ Helpdesk SQLite의 `label_usage`와 20개 하위 사례는 run/pass 각 22개(ro
 `label-usage-failure-repair-foof2m9o/receipt.json` SHA-256
 `57f194a67577cc4c044fff71a9593d579c6dc588e5a6e65325ccb0bd27c676e3`.
 이는 원격 PostgreSQL·race·생성 소비자 전체·브라우저의 성공을 뜻하지 않으며 수정 source의 자동 전체 CI가 필요하다.
+
+### 후속 소비자 실패와 Decimal 입력 검증
+
+Source `f756ec76e933d99173664e8184081bf4c7e00342`의
+[CI 38376388864](https://github.com/progresshans/godj/actions/runs/38376388864)에서도 전체 PASS를 얻지 못했다.
+Linux amd64/arm64 관계 소비자가 Decimal MIN/MAX의 잘못된 physical 입력과 두 테스트 기대값 문제를 드러냈다.
+수정 전 동일한 세 사례를 로컬 SQLite에서 재현했다. 자료 `collection-native-failure-deu5tv9s/before-receipt.json`
+SHA-256 `11febd9ba0fd129630b19e9249221b8608eedf4e4b009cfc3424bd80538f2db5`.
+
+Decimal MIN/MAX는 최종 극값만 검사하면 집계에 참여한 다른 corrupt 값이 가려질 수 있었다. 양 backend compiler가
+기존 Decimal operand 검사를 각 원본/관련 필드 입력에 적용하도록 수정했다. FILTER로 제외한 잘못된 값에는 오류를
+내지 않으며, 포함한 값은 SUM/AVG/MIN/MAX에서 전체 결과를 거부하고 DTO를 게시하지 않는지 확인한다.
+원본 Decimal의 MIN/MAX도 같은 검사를 적용한다. Selected/computed 결과의 독립 Decimal domain은 유지한다.
+Borrowed session은 `UsingSession`으로 생성하고 commit/rollback 뒤 warm/cold/derived 결과의 수명 거부를 유지했다.
+그룹화 전 `Distinct()`를 무조건 거부한다는 테스트는 잘못된 기대였다. 고정 Django의 실제 관측을 추가해
+집계 전 JOIN 행은 유지하고 그룹 결과가 고유함을 대조한다. Slice·명시적 offset·비키 ordering·lock 거부는 계속 검사한다.
+
+수정 후 로컬 normal SQLite에서 실패 세 사례와 Distinct의 행 곱 대조를 통과했다. Root/DB를 포함한 6개 run/pass,
+fail/skip 0이며 `repair-receipt.json` SHA-256 `1eba5b54733283da4902921b94ece830f5eab053c224eb39f0373acaea0921a3`다.
+새 독립 관측은 같은 고정 Python/Django·SQLite 3.50.4에서 30개·오류 0·저장 보존/정리를 확인했다.
+`observer-repair-receipt.json` SHA-256 `184a74716c2dd6f8b3fcc1040d943eebe584f94a1de3fa3775eceb68269afe63`.
+새 관측은 양 DB 필수 child를 80개에서 82개로 늘리며, 기존 관측이나 runtime 사례는 삭제하지 않았다.
+
+위 실패 source에서 통과한 별도 범위도 보존했다. Normal integration의 브라우저 artifact `11801019806`은
+요약 30·보고서 19·라벨 사용 현황 21개 실제 check와 Ticket/Report 각 30·Label 26·연결 27개 저장 보존·audit·정리를
+확인했다. 실제 1440×1100 캡처 세 장을 열어 화면 잘림·겹침이 없음을 확인했다.
+`ci-38376388864-browser/audit.json` SHA-256 `6cf0d269eace2e27d1a0d799e862eb9854992095845f99fd34241e0137e0a744`.
+PostgreSQL race Helpdesk artifact `11801938401`에서도 라벨 사용 현황 21개 run/pass·skip 0을 원 event에서 대조했다.
+`ci-38376388864-helpdesk-postgres-race/audit.json` SHA-256 `72686fd8ab08ff263a46543f279a82a66bb197e28d62dcc1b829128b36620c4a`.
+이 부분 성공을 다음 수정 source의 통합 PASS로 이전하지 않는다.
 
 ## GDJ-0124 — 관계 값 표현식과 서비스 보고서 상태 조회
 

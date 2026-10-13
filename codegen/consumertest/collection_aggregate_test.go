@@ -66,6 +66,7 @@ var collectionReferenceCases = []string{
 	"optional_ancestor",
 	"source_filter_before_group",
 	"chained_filters",
+	"chained_filters_distinct_source",
 	"chained_filters_reversed",
 	"root_exclusion",
 	"root_exclusion_then_filter",

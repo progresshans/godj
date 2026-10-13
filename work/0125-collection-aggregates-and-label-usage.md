@@ -24,7 +24,8 @@ Helpdesk의 현재 Category에서 라벨별 연결 티켓 수·열린 티켓 수
   조건의 EXISTS와 집계 FILTER 안의 행 조건·NULL 보호는 서로 다른 문맥이다. 집계 조건만으로 원본 그룹을 제거하지 않는다.
 - Typed/dynamic과 생성 facade는 같은 AST와 compiler를 사용한다. 결과 표현식의 identity와 selected-result scope를
   보존하면서 compiler가 집계용 JOIN을 해석한다. 원본/관련 leaf metadata·모델 key·경로의 상충과 전체 자원 예산을 검사한다.
-- 기존 source slice/distinct/eager/lock·비키 ordering 제한과 명시적 결과 stage를 유지한다. 원본 filter 뒤 grouping과
+- 기존 source slice/eager/lock·비키 ordering 제한과 명시적 결과 stage를 유지한다. 그룹의 Distinct는 입력 JOIN 행을
+  미리 줄이지 않으며 filtered/related 전역 aggregate의 distinct source는 계속 거부한다. 원본 filter 뒤 grouping과
   선택 결과에 대한 HAVING을 구분하며, 일반 named annotation의 호출 순서 전체를 지원한 것으로 취급하지 않는다.
 - 새 HTML/API의 라벨 사용 현황은 ViewLabel과 ViewTicket을 모두 요구한다. Category·그룹 총수·페이지는 하나의 읽기
   snapshot에 속한다. 모든 지표에서 현재 Category 밖의 티켓 연결을 제외하되 0건 라벨은 보존한다.
@@ -34,12 +35,13 @@ Helpdesk의 현재 Category에서 라벨별 연결 티켓 수·열린 티켓 수
 
 집계 constructor·typed/dynamic capability·양 compiler에 collection 필드와 FILTER를 연결했다.
 공통 JOIN resolver는 원본 Filter의 가장 최근 collection occurrence를 해석하면서 선택 표현식 identity를 유지한다.
-별도 두 앱의 생성 소비자와 29개 독립 Django 관찰, 8개 native invariant와 모델/decoder compile-negative를 작성했다.
+별도 두 앱의 생성 소비자와 30개 독립 Django 관찰, 8개 native invariant와 모델/decoder compile-negative를 작성했다.
 Helpdesk는 Label root·지표별 Category 조건·두 view 권한·snapshot·HAVING/Page·HTML/API·OpenAPI client를 연결했다.
 공통 읽기 snapshot 소유권 검사로 기존 요약/상태 조회의 실패 경계를 유지하고 late/unfinished callback도 검증한다.
 브라우저는 기존 두 읽기 화면에 라벨 사용 현황과 Label/연결 readback을 추가했다.
 
 구현 묶음은 push했으며 첫 원격 실행의 관측기 이름 충돌과 Helpdesk 테스트 준비 경로를 수정했다.
+후속 원격 소비자의 실패로 드러난 Decimal MIN/MAX 입력 검증을 보완하고 세션 생성자와 Distinct 기대값을 바로잡았다.
 로컬에서는 실패 재현 범위인 SQLite 독립 관측과 Helpdesk 라벨 사용 현황을 확인했다. 전체 양 DB·race·브라우저 검증은 미완료다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)의 GDJ-0125 절을 따른다.
 다음 단계는 수정 push와 자동 전체 CI이며 완료 조건은 같은 source의 실행 결과를 확인한 뒤 표시한다.

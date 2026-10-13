@@ -26,6 +26,17 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 	}
 	field, _ := expression.Field()
 	numeric := expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg
+	if (expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax) && expression.OperandKind() == query.FieldDecimal {
+		if _, computed := expression.Scalar(); !computed {
+			// Validate every contributing physical value. Checking only the
+			// selected extremum can hide corrupt rows behind a valid value.
+			var err error
+			operand, err = readScalarField(field, operand)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
 	if numeric {
 		switch expression.OperandKind() {
 		case query.FieldInteger, query.FieldDuration:

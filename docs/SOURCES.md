@@ -62,7 +62,7 @@ Go source·출력·expected 값을 읽지 않는다. CI의 PostgreSQL consumer �
 [Collection-aggregate observer](../conformance/runners/django/collection_aggregate_reference/observe.py)는 같은 Django commit의
 reverse/M2M aggregate·FILTER·JOIN 재사용·HAVING·재집계를 독립 synthetic 입력으로 관찰한다(BSD-3-Clause).
 관련 20개 upstream module의 byte 대조와 고정 runtime은 [프로필](../conformance/runners/django/collection_aggregate_reference/README.md)이 소유한다.
-현재 source hash·양 DB의 29개 사례·storage 보존/정리는 해당 CI 실행에서 확인하며 Go source나 결과를 기준 입력으로 읽지 않는다.
+현재 source hash·양 DB의 30개 사례·storage 보존/정리는 해당 CI 실행에서 확인하며 Go source나 결과를 기준 입력으로 읽지 않는다.
 
 ## Go와 DB
 

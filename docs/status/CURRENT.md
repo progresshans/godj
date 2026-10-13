@@ -14,7 +14,7 @@ Helpdesk의 라벨별 사용 현황에서 소비하는 것이다. GDJ-0125의 �
 
 ## 다음 행동
 
-첫 원격 실행에서 드러난 관측기의 집계 이름 충돌과 Helpdesk 테스트 준비 경로를 수정했다.
+원격 실행에서 드러난 Decimal MIN/MAX 입력 검증과 소비자의 세션·Distinct 기대값을 수정했다.
 수정 묶음을 push하고 자동 전체 CI에서 같은 source의 양 DB·세 mode·전체 플랫폼과 원본 실행 증거를 확인한다.
 Named annotation·Decimal/Duration 산술·function/subquery/window,
 codec/storage·custom user/auth/mail과 나머지 요구도 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 범위로 유지한다.

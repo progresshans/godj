@@ -293,8 +293,12 @@ func observeCollection(t *testing.T, reader collectionBackend, name string) any 
 		return collectionRows(t, collectionGroup(t, base, agg(query.ResultCount, "category__tickets__id"), agg(query.ResultSum, "category__tickets__amount")), "code", "total", "amount")
 	case "source_filter_before_group":
 		return filtered(base.Filter(target.Enabled.Exact(true)))
-	case "chained_filters":
-		return filtered(base.Filter(target.Enabled.Exact(true)).Filter(target.Amount.GreaterThan(0)))
+	case "chained_filters", "chained_filters_distinct_source":
+		source := base.Filter(target.Enabled.Exact(true)).Filter(target.Amount.GreaterThan(0))
+		if name == "chained_filters_distinct_source" {
+			source = source.Distinct()
+		}
+		return filtered(source)
 	case "chained_filters_reversed":
 		return filtered(base.Filter(target.Amount.GreaterThan(0)).Filter(target.Enabled.Exact(true)))
 	case "root_exclusion":

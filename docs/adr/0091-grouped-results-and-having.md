@@ -62,8 +62,15 @@ group key의 cardinality 검증을 집계에 재사용하지 않는다. 반대�
 
 COUNT(field)는 NULL 제외·empty 0, MIN/MAX/SUM/AVG는 empty/all-NULL에서 NULL이다. 기존 ordered scalar와
 숫자 kind·physical operand 검증·Decimal precision·Duration 반올림·typed Optional을 그대로 사용한다.
+Decimal MIN/MAX도 각 기여 입력의 physical kind·canonical 값·선언 precision을 검사한다. 최종 극값만 검사해
+다른 잘못된 저장값을 숨기지 않는다. Aggregate FILTER에서 제외한 행은 기여 입력이 아니며 검사하지 않는다.
 여러 collection JOIN은 SQL의 행 곱을 만든다. COUNT/SUM/AVG의 DISTINCT는 operand 값에 대한 명시적 선택이며,
 다른 행이 같은 값을 가졌다는 이유로 자동 dedup하지 않는다. 중복 through 행도 실제 입력 행이다.
+
+모델 query의 `Distinct()` 뒤에 그룹화해도 집계 전 JOIN 행을 먼저 줄이지 않는다. 고정 Django의
+`distinct().values(...).annotate(...)`처럼 결과 행의 중복 제거이며, 모든 그룹 키를 선택한 결과는 이미 고유하다.
+원본 JOIN의 행 곱과 집계 값은 유지한다. 먼저 선택·중복 제거한 결과를 집계하려면 명시적 결과 단계를 사용한다.
+이 의미는 아직 거부하는 filtered/related 전역 aggregate의 distinct source와 구분한다.
 
 고정 Django의 [JOIN 재사용](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/query.py#L1060-L1085)과
 [표현식 조건 해석](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query_utils.py#L92-L106)을 기준으로,

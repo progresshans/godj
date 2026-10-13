@@ -187,6 +187,7 @@ def observe(vendor):
         action('optional_ancestor', lambda: list(grouped(total=Count('category__tickets__id'), amount=Sum('category__tickets__amount'))))
         action('source_filter_before_group', lambda: filtered_groups(base.filter(tickets__enabled=True)))
         action('chained_filters', lambda: filtered_groups(base.filter(tickets__enabled=True).filter(tickets__amount__gt=0)))
+        action('chained_filters_distinct_source', lambda: filtered_groups(base.filter(tickets__enabled=True).filter(tickets__amount__gt=0).distinct()))
         action('chained_filters_reversed', lambda: filtered_groups(base.filter(tickets__amount__gt=0).filter(tickets__enabled=True)))
         action('root_exclusion', lambda: filtered_groups(base.exclude(tickets__enabled=True)))
         action('root_exclusion_then_filter', lambda: filtered_groups(base.exclude(tickets__amount__gt=4).filter(tickets__enabled=True)))

@@ -155,6 +155,7 @@ func TestCollectionRuntime(t *testing.T) {
 		})
 		t.Run("join_multiplicity_filter_scopes_and_parameters", func(t *testing.T) {
 			assertCollectionJSON(t, observeCollection(t, backend, "chained_filters"), `[{"code":"blue","total":2,"amount":4,"average":2,"opened":2},{"code":"red","total":6,"amount":18,"average":3,"opened":4}]`)
+			assertCollectionJSON(t, observeCollection(t, backend, "chained_filters_distinct_source"), `[{"code":"blue","total":2,"amount":4,"average":2,"opened":2},{"code":"red","total":6,"amount":18,"average":3,"opened":4}]`)
 			assertCollectionJSON(t, observeCollection(t, backend, "chained_filters_reversed"), `[{"code":"blue","total":2,"amount":-1,"average":-0.5,"opened":2},{"code":"red","total":6,"amount":12,"average":2,"opened":6}]`)
 			assertCollectionJSON(t, observeCollection(t, backend, "independent_collection_counts"), `[{"code":"a","label_count":16,"ticket_count":16,"amount":16},{"code":"b","label_count":1,"ticket_count":1,"amount":null},{"code":"empty","label_count":0,"ticket_count":0,"amount":null}]`)
 			assertCollectionJSON(t, observeCollection(t, backend, "independent_distinct_aggregates"), `[{"code":"a","label_count":4,"ticket_count":4,"amount":4},{"code":"b","label_count":1,"ticket_count":1,"amount":null},{"code":"empty","label_count":0,"ticket_count":0,"amount":null}]`)
@@ -256,7 +257,9 @@ func TestCollectionRuntime(t *testing.T) {
 			}
 			limited, err := api.CatalogLabel.Limit(0)
 			check(t, err)
-			for _, source := range []project.CatalogLabelQuery{limited, api.CatalogLabel.Distinct(), api.CatalogLabel.OrderBy(f.ID.Asc()), api.CatalogLabel.SelectForUpdate(orm.RowLockOptions{})} {
+			offset, err := api.CatalogLabel.Offset(0)
+			check(t, err)
+			for _, source := range []project.CatalogLabelQuery{limited, offset, api.CatalogLabel.OrderBy(f.ID.Asc()), api.CatalogLabel.SelectForUpdate(orm.RowLockOptions{})} {
 				if _, err := source.GroupValues([]string{"code"}, valid); err == nil {
 					t.Fatal("unsupported grouped source state accepted")
 				}
@@ -362,8 +365,13 @@ func TestCollectionRuntime(t *testing.T) {
 						return errors.New("session has no lifetime validator")
 					}
 					probe = &collectionSessionProbe{Session: session, validator: validator}
-					warm = collectionCountQuery(t, probe)
-					cold = collectionCountQuery(t, probe)
+					api, err := project.UsingSession(probe)
+					if err != nil {
+						return err
+					}
+					input := orm.DynamicAggregateInput{Kind: query.ResultCount, Field: "tickets__id"}
+					warm = collectionGroup(t, api.CatalogLabel, input)
+					cold = collectionGroup(t, api.CatalogLabel, input)
 					rows, err := warm.All(t.Context())
 					if err != nil {
 						return err
@@ -437,12 +445,31 @@ func TestCollectionRuntime(t *testing.T) {
 					_, err := records.TicketObjects.Using(backend).Filter(records.TicketFields.ID.Exact(seed.tickets["a"].ID)).Update(t.Context(), orm.Assign(records.TicketFields.Price, *seed.tickets["a"].Price))
 					check(t, err)
 				}()
-				source := catalog.LabelObjects.Using(backend).Filter(f.Code.Exact("red"))
-				for _, value := range []orm.AggregateExpression[catalog.Label, orm.Optional[decimal.Decimal]]{orm.Sum(target.Price), orm.Avg(target.Price), orm.Min(target.Price), orm.Max(target.Price)} {
+				probe := &collectionReadProbe{collectionBackend: backend}
+				source := catalog.LabelObjects.Using(probe).Filter(f.Code.Exact("red"))
+				for _, test := range []struct {
+					name  string
+					value orm.AggregateExpression[catalog.Label, orm.Optional[decimal.Decimal]]
+				}{{"sum", orm.Sum(target.Price)}, {"avg", orm.Avg(target.Price)}, {"min", orm.Min(target.Price)}, {"max", orm.Max(target.Price)}} {
 					built := 0
-					_, err := orm.AggregateInto(t.Context(), source, orm.Aggregate1(value, func(n orm.Optional[decimal.Decimal]) orm.Optional[decimal.Decimal] { built++; return n }))
-					if err == nil || built != 0 {
-						t.Fatal("collection Decimal bypassed operand/result validation", err)
+					calls := probe.calls()
+					_, err := orm.AggregateInto(t.Context(), source, orm.Aggregate1(test.value, func(n orm.Optional[decimal.Decimal]) orm.Optional[decimal.Decimal] { built++; return n }))
+					if err == nil || built != 0 || probe.calls() != calls+1 {
+						t.Fatal("collection Decimal bypassed operand/result validation", test.name, err)
+					}
+					// A row excluded by this aggregate's FILTER is not an operand.
+					filtered, err := orm.AggregateInto(t.Context(), source, orm.Aggregate1(test.value.Where(target.Code.Exact("b")), func(n orm.Optional[decimal.Decimal]) orm.Optional[decimal.Decimal] { return n }))
+					check(t, err)
+					if n, ok := filtered.Get(); !ok || n.String() != "12.5" {
+						t.Fatal("collection Decimal evaluated an excluded operand", test.name, filtered)
+					}
+				}
+				for _, value := range []orm.AggregateExpression[records.Ticket, orm.Optional[decimal.Decimal]]{orm.Min(records.TicketFields.Price), orm.Max(records.TicketFields.Price)} {
+					built := 0
+					calls := probe.calls()
+					_, err := orm.AggregateInto(t.Context(), records.TicketObjects.Using(probe), orm.Aggregate1(value, func(n orm.Optional[decimal.Decimal]) orm.Optional[decimal.Decimal] { built++; return n }))
+					if err == nil || built != 0 || probe.calls() != calls+1 {
+						t.Fatal("root Decimal extremum hid a corrupt physical operand", err)
 					}
 				}
 			}()
