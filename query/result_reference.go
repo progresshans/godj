@@ -37,6 +37,9 @@ func newResultScope(shape ResultShape, minimumDepth int) (ResultScope, error) {
 		depth = max(depth, 1+value.scalar.resultReferenceDepth())
 		for _, condition := range expressionConditions(value.filter) {
 			depth = max(depth, 1+condition.scalar.resultReferenceDepth())
+			if right, present := condition.RHSScalar(); present {
+				depth = max(depth, 1+right.resultReferenceDepth())
+			}
 		}
 	}
 	if depth > MaximumResultStages {
@@ -130,6 +133,9 @@ func (expression ScalarExpression) ValidateResultSource(scope ResultScope) error
 	if err := expression.Validate(); err != nil {
 		return err
 	}
+	if expression.HasRelations() {
+		return invalidPlanError("related value cannot cross a result stage without selection")
+	}
 	if ref, present := expression.ResultReference(); present {
 		if !ref.scope.Equal(scope) {
 			return invalidPlanError("selected scalar belongs to a different result scope")
@@ -159,6 +165,11 @@ func (expression ScalarExpression) ValidateResultSource(scope ResultScope) error
 				}
 				if err := condition.scalar.ValidateResultSource(scope); err != nil {
 					return err
+				}
+				if right, present := condition.RHSScalar(); present {
+					if err := right.ValidateResultSource(scope); err != nil {
+						return err
+					}
 				}
 			}
 			if err := branch.value.ValidateResultSource(scope); err != nil {

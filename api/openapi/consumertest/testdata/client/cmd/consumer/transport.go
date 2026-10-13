@@ -140,6 +140,11 @@ func (transport *observedTransport) RoundTrip(request *http.Request) (*http.Resp
 			return nil, fail("identity bearer credential transport")
 		}
 	}
+	if request.URL.Path == "/api/service-reports/status/" && response.StatusCode == http.StatusOK &&
+		(response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("Referrer-Policy") != "no-referrer") {
+		response.Body.Close()
+		return nil, fail("report status private response policy")
+	}
 	transport.mu.Lock()
 	transport.status = response.StatusCode
 	transport.mu.Unlock()

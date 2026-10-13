@@ -8,6 +8,9 @@ import (
 
 func HasOrderingRelations(plan query.Plan) bool {
 	for _, ordering := range plan.Orderings() {
+		if scalar, present := ordering.Expression().Scalar(); present && scalar.HasRelations() {
+			return true
+		}
 		if _, related := ordering.Expression().RelationPath(); related {
 			return true
 		}
@@ -19,7 +22,7 @@ func HasOrderingRelations(plan query.Plan) bool {
 // COUNT's derived row source has the same root cells as a model result.
 func SelectedRows(plan query.Plan) ([]query.ResultExpression, error) {
 	if plan.ResultShape().Kind() == query.ResultProjection {
-		return ProjectionExpressions(plan.ResultShape(), plan.SourceFields())
+		return ProjectionExpressions(plan)
 	}
 	selected := FieldExpressions(plan.SourceFields())
 	for _, projection := range plan.RelationProjections() {

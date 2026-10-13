@@ -16,16 +16,17 @@ func NeedsAggregateCompiler(plan query.Plan) bool {
 	if plan.ResultShape().Kind() != query.ResultAggregate {
 		return false
 	}
+	if where, present := plan.Where(); present && where.HasRelations() && !plan.ResultShape().IsCountAll() {
+		return true
+	}
 	for _, expression := range plan.ResultShape().Expressions() {
+		if scalar, present := expression.Scalar(); present && scalar.HasRelations() {
+			return true
+		}
 		_, filter := expression.Filter()
 		_, related := expression.RelationPath()
 		if filter || related || expression.Kind() == query.ResultCount {
 			return true
-		}
-		if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
-			if where, present := plan.Where(); present && where.HasRelations() {
-				return true
-			}
 		}
 	}
 	return false

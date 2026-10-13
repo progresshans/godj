@@ -1,12 +1,33 @@
 package parameters
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/api/openapi"
 )
+
+// StringChoices snapshots exact accepted values. Unknown spellings, whitespace
+// and case differences fail unless they are explicit choices. Empty is a value
+// only when declared; omission still follows Required, Optional or Default.
+func StringChoices(values ...string) Codec[string] {
+	choices := slices.Clone(values)
+	return Codec[string]{
+		empty:  slices.Contains(choices, ""),
+		schema: func(fallback *string) (openapi.Schema, error) { return openapi.QueryStringChoices(choices, fallback) },
+		headerSchema: func(maximumBytes int, fallback *string) (openapi.Schema, error) {
+			return openapi.HeaderStringChoices(choices, maximumBytes, fallback)
+		},
+		decode: func(raw string) (string, bool) {
+			if !slices.Contains(choices, raw) {
+				return "", false
+			}
+			return strings.Clone(raw), true
+		},
+	}
+}
 
 // Codec is a closed scalar conversion and its schema. Its zero value is invalid.
 // Constructors defer declaration errors to New or NewHeader; callers cannot

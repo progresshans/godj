@@ -313,6 +313,9 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 		if plan.ResultShape().IsCountAll() {
 			return &resultTestRows{values: [][]any{{int64(2)}}}, nil
 		}
+		if plan.ResultShape().Kind() == query.ResultAggregate {
+			return &resultTestRows{values: [][]any{{int64(11)}}}, nil
+		}
 		if plan.ResultShape().Kind() == query.ResultProjection {
 			return &resultTestRows{values: [][]any{{int64(10)}, {int64(11)}}}, nil
 		}
@@ -324,24 +327,23 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
 	source.plan = querytest.Conditions(t, source.plan, query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")))
 	id := NewAutoField[relationObjectTestPost](relationObjectTestPostField("id"))
-	if _, aggregateErr := AggregateInto(
+	maximum, aggregateErr := AggregateInto(
 		context.Background(),
 		source,
 		Aggregate1(Max(id), func(value Optional[int64]) Optional[int64] { return value }),
-	); aggregateErr == nil {
-		t.Fatal("relation-backed AggregateInto() succeeded")
-	} else {
-		assertResultQueryError(t, aggregateErr, query.CategoryQuery, query.CodeUnsupported)
+	)
+	if value, present := maximum.Get(); aggregateErr != nil || !present || value != 11 {
+		t.Fatal("relation-backed MAX lost its result", maximum, aggregateErr)
 	}
-	if len(backend.plans) != 0 {
-		t.Fatalf("rejected relation scalar terminals performed %d backend calls", len(backend.plans))
+	if len(backend.plans) != 1 || !backend.plans[0].Conditions()[0].Equal(source.plan.Conditions()[0]) {
+		t.Fatal("relation-backed MAX lost its source predicate")
 	}
 
 	cold, err := source.Count(context.Background())
 	if err != nil || cold != 2 {
 		t.Fatalf("cold relation Count() = (%d, %v), want (2, nil)", cold, err)
 	}
-	if len(backend.plans) != 1 || !backend.plans[0].ResultShape().IsCountAll() {
+	if len(backend.plans) != 2 || !backend.plans[1].ResultShape().IsCountAll() {
 		t.Fatalf("cold relation Count() plans = %#v, want one COUNT(*) aggregate", backend.plans)
 	}
 	values, err := source.All(context.Background())
@@ -352,18 +354,18 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	if err != nil || warm != cold {
 		t.Fatalf("warm relation Count() = (%d, %v), want cold value %d", warm, err, cold)
 	}
-	if len(backend.plans) != 2 {
-		t.Fatalf("warm relation Count() performed I/O: plans = %d, want 2 total", len(backend.plans))
+	if len(backend.plans) != 3 {
+		t.Fatalf("warm relation Count() performed I/O: plans = %d, want 3 total", len(backend.plans))
 	}
 
 	projected, err := SelectInto(context.Background(), source, Project1(id, func(value int64) int64 { return value }))
 	if err != nil || len(projected) != 2 || projected[0] != 10 || projected[1] != 11 {
 		t.Fatal("relation-filtered root projection", projected, err)
 	}
-	if len(backend.plans) != 3 || backend.plans[2].ResultShape().Kind() != query.ResultProjection {
+	if len(backend.plans) != 4 || backend.plans[3].ResultShape().Kind() != query.ResultProjection {
 		t.Fatal("projection reused model cache or wrong row shape")
 	}
-	if count, err := source.Count(context.Background()); err != nil || count != cold || len(backend.plans) != 3 {
+	if count, err := source.Count(context.Background()); err != nil || count != cold || len(backend.plans) != 4 {
 		t.Fatal("projection changed cached model cardinality", err)
 	}
 }

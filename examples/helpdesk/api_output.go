@@ -21,12 +21,13 @@ type labelEnsureResponse struct {
 }
 
 type apiOutputs struct {
-	label       output.Output[models.Label]
-	ticket      output.Output[ticketRecord]
-	ticketBulk  output.Output[[]ticketRecord]
-	detail      output.Output[ticketDetailResponse]
-	summary     output.Output[ticketSummaryPage]
-	labelEnsure output.Output[labelEnsureResponse]
+	label        output.Output[models.Label]
+	ticket       output.Output[ticketRecord]
+	ticketBulk   output.Output[[]ticketRecord]
+	detail       output.Output[ticketDetailResponse]
+	summary      output.Output[ticketSummaryPage]
+	reportStatus output.Output[serviceReportStatusPage]
+	labelEnsure  output.Output[labelEnsureResponse]
 }
 
 func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEncoder serializers.ModelEncoder[models.Label]) (apiOutputs, error) {
@@ -77,6 +78,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		return apiOutputs{}, err
 	}
 	if result.summary, err = output.New(summary, serializers.Limits{}); err != nil {
+		return apiOutputs{}, err
+	}
+	if result.reportStatus, err = prepareServiceReportStatusOutput(category); err != nil {
 		return apiOutputs{}, err
 	}
 	label := output.Named("Label", output.Model(labelEncoder))

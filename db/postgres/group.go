@@ -42,6 +42,7 @@ func compileGrouped(schema string, plan query.Plan) (string, []any, error) {
 	if err := queryplan.AppendGroupSource(&statement, plan, prepared, func(table string) (string, error) { return quoteTable(schema, table) }, quoteIdentifier, quoteQualified); err != nil {
 		return "", nil, err
 	}
+	where.scalarSource = queryplan.ScalarSource{Plan: plan, Alias: "t0", Joins: prepared.ByKey}
 	arguments, err = appendWhere(&statement, where, groupedFieldResolver(prepared), groupedRHSField, arguments)
 	if err != nil {
 		return "", nil, err
@@ -74,11 +75,11 @@ func compileGrouped(schema string, plan query.Plan) (string, []any, error) {
 
 func appendGroupedValue(statement *strings.Builder, expression query.ResultExpression, plan query.Plan, prepared queryplan.Joins, arguments *[]any) error {
 	if !expression.IsAggregate() {
-		return appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, false)
+		return appendResultValue(statement, expression, plan, "t0", prepared.ByKey, arguments, false)
 	}
 	var operand, filterSQL strings.Builder
 	if expression.Kind() != query.ResultCountAll {
-		if err := appendResultValue(&operand, expression, "t0", prepared.ByKey, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ByKey, arguments, true); err != nil {
 			return err
 		}
 	}
@@ -93,7 +94,7 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 		}
 		filterSQL.WriteString(" FILTER (WHERE ")
 		leaves := analysis.leaves
-		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(prepared), groupedRHSField, arguments, false); err != nil {
+		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(prepared), groupedRHSField, queryplan.ScalarSource{Plan: filterPlan, Alias: "t0", Joins: prepared.ByKey}, arguments, false); err != nil {
 			return err
 		}
 		if len(leaves) != 0 {

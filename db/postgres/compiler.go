@@ -101,7 +101,7 @@ func compileScalar(
 	selected := queryplan.FieldExpressions(sourceFields)
 	if plan.ResultShape().Kind() == query.ResultProjection {
 		var err error
-		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), sourceFields)
+		selected, err = queryplan.ProjectionExpressions(plan)
 		if err != nil {
 			return "", nil, err
 		}
@@ -176,7 +176,7 @@ func compileDerivedAggregate(
 	}
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
-	if err := appendAggregateExpressions(&statement, expressions, sourceFields, sourceAlias, &arguments); err != nil {
+	if err := appendAggregateExpressions(&statement, expressions, plan, sourceFields, sourceAlias, &arguments); err != nil {
 		return "", nil, err
 	}
 	quotedAlias, err := quoteIdentifier(sourceAlias)
@@ -205,7 +205,7 @@ func compileDirectAggregate(
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
 	arguments := []any{}
-	if err := appendAggregateExpressions(&statement, expressions, sourceFields, "", &arguments); err != nil {
+	if err := appendAggregateExpressions(&statement, expressions, plan, sourceFields, "", &arguments); err != nil {
 		return "", nil, err
 	}
 	statement.WriteString(" FROM ")
@@ -231,6 +231,7 @@ type whereLeaf struct {
 }
 
 type whereAnalysis struct {
+	scalarSource queryplan.ScalarSource
 	expression   query.Expression
 	present      bool
 	hasRelations bool
@@ -261,6 +262,7 @@ func analyzeWhere(plan query.Plan, sourceFields []query.FieldRef) (whereAnalysis
 		return whereAnalysis{}, invalidPlan("query expression relation metadata is malformed")
 	}
 	return whereAnalysis{
+		scalarSource: queryplan.ScalarSource{Plan: plan},
 		expression:   expression,
 		present:      true,
 		hasRelations: hasRelations,
@@ -330,13 +332,11 @@ func (a *whereAnalyzer) walk(
 
 func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootConjunction bool) (whereLeaf, error) {
 	if scalar, present := condition.Scalar(); present {
-		if err := scalar.ValidateSource(a.sourceFields); err != nil {
+		if err := queryplan.ValidateScalarCondition(a.plan, condition); err != nil {
 			return whereLeaf{}, err
 		}
-		if _, err := query.NewExpression(condition); err != nil {
-			return whereLeaf{}, err
-		}
-		return whereLeaf{}, nil
+		right, _ := condition.RHSScalar()
+		return whereLeaf{related: scalar.HasRelations() || right.HasRelations()}, nil
 	}
 	values, err := prepareWhereCondition(condition)
 	if err != nil {
@@ -492,7 +492,7 @@ func appendWhere(
 	}
 	statement.WriteString(" WHERE ")
 	leaves := where.leaves
-	if err := appendWhereExpression(statement, where.expression, &leaves, resolveField, resolveRHSField, &arguments, false); err != nil {
+	if err := appendWhereExpression(statement, where.expression, &leaves, resolveField, resolveRHSField, where.scalarSource, &arguments, false); err != nil {
 		return nil, err
 	}
 	if len(leaves) != 0 {
@@ -507,6 +507,7 @@ func appendWhereExpression(
 	leaves *[]whereLeaf,
 	resolveField whereFieldResolver,
 	resolveRHSField whereRHSFieldResolver,
+	scalarSource queryplan.ScalarSource,
 	arguments *[]any,
 	negated bool,
 ) error {
@@ -526,7 +527,7 @@ func appendWhereExpression(
 		*leaves = (*leaves)[1:]
 		if _, computed := condition.Scalar(); computed {
 			if err := queryplan.AppendScalarCondition(statement, condition, func(value query.ScalarExpression) (string, error) {
-				return compileReadScalarFields(value, resolveRHSField, arguments)
+				return compileReadScalar(value, scalarSource, arguments)
 			}, func(value query.Value) (string, error) {
 				if len(*arguments) >= postgresBulkParameters {
 					return "", invalidPlan("computed predicate exceeds PostgreSQL parameter budget")
@@ -622,14 +623,14 @@ func appendWhereExpression(
 			if index > 0 {
 				statement.WriteString(operator)
 			}
-			if err := appendWhereExpression(statement, child, leaves, resolveField, resolveRHSField, arguments, negated); err != nil {
+			if err := appendWhereExpression(statement, child, leaves, resolveField, resolveRHSField, scalarSource, arguments, negated); err != nil {
 				return err
 			}
 		}
 	case query.ExpressionNot:
 		children := expression.Children()
 		statement.WriteString("NOT ")
-		if err := appendWhereExpression(statement, children[0], leaves, resolveField, resolveRHSField, arguments, !negated); err != nil {
+		if err := appendWhereExpression(statement, children[0], leaves, resolveField, resolveRHSField, scalarSource, arguments, !negated); err != nil {
 			return err
 		}
 	default:
@@ -650,10 +651,10 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 	}
 }
 
-func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
+func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, plan query.Plan, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
 	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
 		var operand strings.Builder
-		if err := appendResultValue(&operand, expression, sourceAlias, nil, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, sourceAlias, nil, arguments, true); err != nil {
 			return "", err
 		}
 		return renderAggregate(expression, operand.String(), "", false)
@@ -802,6 +803,7 @@ func compileRelation(
 	resolveRHSField := func(field query.FieldRef) (string, error) {
 		return quoteQualified(rootAlias, field.Column())
 	}
+	where.scalarSource = queryplan.ScalarSource{Plan: plan, Alias: "t0", Joins: joins}
 	arguments, err = appendWhere(&statement, where, resolveField, resolveRHSField, arguments)
 	if err != nil {
 		return "", nil, err

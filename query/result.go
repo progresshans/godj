@@ -85,7 +85,7 @@ func JSONPathResult(field FieldRef, path JSONPath) (ResultExpression, error) {
 	return ResultExpression{kind: ResultJSONPath, field: field, path: path}, nil
 }
 
-// RelatedJSONPathResult selects a nullable JSON value at a finite forward
+// RelatedJSONPathResult selects a nullable JSON value at a finite single-valued
 // target. Source-field identity remains the target's exact metadata; optional
 // ancestors never rewrite that metadata to manufacture a root field.
 func RelatedJSONPathResult(relation RelationPath, path JSONPath) (ResultExpression, error) {
@@ -103,13 +103,7 @@ func RelatedJSONPathResult(relation RelationPath, path JSONPath) (ResultExpressi
 // RelatedFieldResult preserves the selected target's field and route without
 // adding it to the root model metadata or changing declared nullability.
 func RelatedFieldResult(relation RelationPath) (ResultExpression, error) {
-	if err := relation.Validate(); err != nil {
-		return ResultExpression{}, err
-	}
-	if relation.hops[0].direction != RelationForward {
-		return ResultExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "scalar results require a forward relation"}
-	}
-	if err := relation.validateForwardSelection(); err != nil {
+	if err := relation.validateValueSelection(); err != nil {
 		return ResultExpression{}, err
 	}
 	return ResultExpression{kind: ResultField, field: relation.Terminal(), relation: &relation}, nil
@@ -235,7 +229,7 @@ func (s ResultShape) IsCountAll() bool {
 // HasRelations reports selection routes independently of predicate routes.
 func (s ResultShape) HasRelations() bool {
 	for _, expression := range s.expressions {
-		if expression.relation != nil || expression.filter.HasRelations() {
+		if expression.relation != nil || expression.filter.HasRelations() || expression.scalar.HasRelations() {
 			return true
 		}
 	}
@@ -305,7 +299,7 @@ func (s ResultShape) validate() error {
 				if (expression.kind != ResultField && expression.kind != ResultJSONPath) || !expression.relation.Terminal().Equal(field) {
 					return invalidPlanError("related result requires its exact terminal field")
 				}
-				if err := expression.relation.validateForwardSelection(); err != nil {
+				if err := expression.relation.validateValueSelection(); err != nil {
 					return err
 				}
 				key.relation = projectionRouteKey(expression.relation.hops)

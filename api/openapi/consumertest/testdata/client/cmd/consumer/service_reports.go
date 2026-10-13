@@ -7,7 +7,8 @@ import (
 	hs "example.com/godj-openapi-client/helpdesksession"
 )
 
-func checkHelpdeskServiceReports(ctx context.Context, client, readOnly *hs.Client, transport, readOnlyTransport *observedTransport, state, readOnlyState *sessionState, first, second, outside int64) error {
+func checkHelpdeskServiceReports(ctx context.Context, client, readOnly *hs.Client, transport, readOnlyTransport *observedTransport, state, readOnlyState *sessionState, category int64, firstTicket hs.Ticket, second, outside int64) error {
+	first := firstTicket.ID
 	reverse, err := client.HelpdeskTicketServiceReport(ctx, hs.HelpdeskTicketServiceReportParams{ID: first})
 	absent, ok := reverse.(*hs.NilServiceReportHeaders)
 	if err != nil || !ok || transport.lastStatus() != http.StatusOK || !absent.Response.Null || !absent.XGodjCsrftoken.Set || !state.ready(absent.XGodjCsrftoken.Value) {
@@ -29,6 +30,9 @@ func checkHelpdeskServiceReports(ctx context.Context, client, readOnly *hs.Clien
 		return fail("generated report create defaults")
 	}
 	id := report.ID
+	if err := checkHelpdeskReportStatus(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, category, firstTicket, *report); err != nil {
+		return err
+	}
 	duplicate, err := client.HelpdeskServiceReportCreate(ctx, &hs.ServiceReportCreate{Ticket: first, Summary: "duplicate"})
 	if value, ok := duplicate.(*hs.HelpdeskServiceReportCreateBadRequest); err != nil || !ok || transport.lastStatus() != 400 || value.Code != "validation_error" || len(value.Errors) != 1 || value.Errors[0].Field != "ticket" || value.Errors[0].Code != "unique" {
 		return fail("generated report duplicate diagnostic")
@@ -70,6 +74,9 @@ func checkHelpdeskServiceReports(ctx context.Context, client, readOnly *hs.Clien
 	changed, err := client.HelpdeskServiceReportPatch(ctx, &hs.ServiceReportPatch{Ticket: hs.NewOptInt64(first), Completed: hs.NewOptBool(true)}, hs.HelpdeskServiceReportPatchParams{ID: id})
 	if value, ok := changed.(*hs.ServiceReport); err != nil || !ok || value.ID != id || value.Ticket != first || value.Summary != report.Summary || !value.Completed {
 		return fail("generated report PATCH self uniqueness and omissions")
+	}
+	if err := checkHelpdeskReportStatus(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, category, firstTicket, *changed.(*hs.ServiceReport)); err != nil {
+		return err
 	}
 	for _, transition := range []struct {
 		input hs.OptBool

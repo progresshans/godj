@@ -18,6 +18,7 @@ const (
 	HelpdeskServiceReportDetailOperation     OperationName = "HelpdeskServiceReportDetail"
 	HelpdeskServiceReportListOperation       OperationName = "HelpdeskServiceReportList"
 	HelpdeskServiceReportPatchOperation      OperationName = "HelpdeskServiceReportPatch"
+	HelpdeskServiceReportStatusOperation     OperationName = "HelpdeskServiceReportStatus"
 	HelpdeskServiceReportUpdateOperation     OperationName = "HelpdeskServiceReportUpdate"
 	HelpdeskTicketBulkCreateOperation        OperationName = "HelpdeskTicketBulkCreate"
 	HelpdeskTicketBulkUpdateOperation        OperationName = "HelpdeskTicketBulkUpdate"

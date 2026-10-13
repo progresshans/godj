@@ -3,14 +3,12 @@ package sqlite
 import (
 	"strings"
 
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
-func compileScalarPredicate(expression query.Expression, resolve func(query.FieldRef) (string, error), arguments *[]any) (string, error) {
-	if expression.HasRelations() {
-		return "", unsupportedResult("conditional scalar predicates require same-row fields")
-	}
-	plan, err := query.NewPlan("", expression.SourceFields()).WithWhere(expression)
+func compileScalarPredicate(expression query.Expression, source queryplan.ScalarSource, arguments *[]any) (string, error) {
+	plan, err := query.NewPlan(source.Plan.Table(), source.Plan.SourceFields()).WithWhere(expression)
 	if err != nil {
 		return "", err
 	}
@@ -20,15 +18,15 @@ func compileScalarPredicate(expression query.Expression, resolve func(query.Fiel
 	}
 	for _, leaf := range analysis.leaves {
 		if _, computed := leaf.condition.Scalar(); computed {
-			leaf.scalarResolver = resolve
+			leaf.scalarSource = source
 			continue
 		}
-		leaf.fieldSQL, err = resolve(leaf.condition.Field())
+		leaf.fieldSQL, err = source.ResolveCondition(leaf.condition, quoteIdentifier, quoteQualified)
 		if err != nil {
 			return "", err
 		}
 		if right, present := leaf.condition.RHSField(); present {
-			leaf.rhsFieldSQL, err = resolve(right)
+			leaf.rhsFieldSQL, err = source.ResolveField(right, quoteIdentifier, quoteQualified)
 			if err != nil {
 				return "", err
 			}

@@ -60,7 +60,7 @@ func AggregateQuery[M, R any](source QuerySet[M], aggregate Aggregate[M, R]) (Re
 		return zero, err
 	}
 	if !shape.IsCountAll() {
-		if err := validateNonCountAggregateSource(source.plan, shape); err != nil {
+		if err := validateNonCountAggregateSource(source.plan); err != nil {
 			return zero, err
 		}
 	}

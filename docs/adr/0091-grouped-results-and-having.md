@@ -1,8 +1,8 @@
 # ADR-0091: 그룹 결과와 집계 참조
 
 - 상태: Accepted design — 그룹 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-12
-- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md)
+- 날짜: 2026-10-13
+- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md)
 
 ## 문제와 기준
 
@@ -34,18 +34,22 @@ metadata에서 해석하며, 결과의 동적 HAVING/정렬은 선택한 cell �
 소유하며 원본 descriptor·metadata와의 일치를 먼저 검증한다. Eager materialization을 binding의 대용으로 쓰지 않는다.
 Field/aggregate·다른 모델의 조합은 typed API 또는 metadata preflight에서 거부한다. Raw SQL 입력은 받지 않는다.
 
-그룹 key/COUNT(field)의 finite forward 값과 원본 relation filter를 허용한다. 원본 collection join이 행을
+그룹 key/COUNT(field)의 finite single-valued 값과 원본 relation filter를 허용한다. Forward FK/OneToOne과
+reverse OneToOne의 혼합 경로를 같은 값 AST로 표현한다. 원본 collection join이 행을
 늘리는 multiplicity와 negated collection의 EXISTS 의미는 기존 query compiler를 유지한다. 조건부 aggregate의
-forward 경로는 전체 그룹을 제거하는 WHERE가 아니므로 그 자체로 optional join을 inner join으로 승격하지 않는다.
-Collection을 key·aggregate operand/조건으로 사용하는 추가 범위와 related MIN/MAX의 public typed 표면은 후속 범위다.
+single-valued 경로는 전체 그룹을 제거하는 WHERE가 아니므로 그 자체로 optional join을 inner join으로 승격하지 않는다.
+Collection을 key·aggregate operand/조건으로 사용하는 추가 범위는 후속 범위다.
 
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
-별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 행의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
+별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 source와 single-valued 관계의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
 int64/float64 산술·CASE는 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
 Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. 계산된 Decimal/Duration의 SUM/AVG,
 일반 named annotation·subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
+GDJ-0124에서 relation-filtered root MIN/MAX도 SUM/AVG와 같은 grouping compiler로 연결한다.
+Related 숫자의 typed MIN/MAX는 `Numeric(related)`를, dynamic ordered 값은 `DynamicScalar.Min/Max`를 사용한다.
+관계 filter의 multiplicity를 숨기지 않으며 단일 COUNT(*)의 기존 slice/distinct 경로는 별도로 유지한다.
 
 ## 복사·실행과 페이지
 

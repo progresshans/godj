@@ -6,6 +6,13 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Helpdesk report status의 `helpdesk_report_status` receipt는 기존 fixture의 보고서 생성/변경 응답과 보존한 Ticket에서
+독립적으로 completion/closure/matched를 계산한다. 실제 read-only 권한의 generated HTTP로 all/same/different·기본값·
+빈/끝난 페이지와 total, 잘못된 page/enum, private cache 정책, 읽은 뒤 report/ticket 보존을 확인한다.
+별도 `generated_report_status_wire`는 required 값 누락·null·잘못된 Boolean·int64 overflow·범위와
+403/plain 500 응답 타입·단일 요청을 검사한다. 양쪽 권한 누락의 실제 인가 부정 대조와 snapshot 실패는 Helpdesk 양 DB suite가 소유한다.
+두 receipt 모두 부모가 정확한 완료 목록에서 요구한다. 합성 wire 성공을 DB/인가 실행 증거로 계산하지 않는다.
+
 Article/Label의 typed NoContent 삭제는 기존 실제 Session/Bearer CRUD와 관계 범위/CSRF 검사를 사용한다.
 독립 wire 검사 `generated_no_content_wire`는 세 profile의 exact int64 경로·빈 요청과 204/validation 400/plain 500의
 서로 다른 생성 응답 타입, 서버 오류의 단일 요청을 검사한다. 합성 응답은 native 삭제/rollback 검증으로 계산하지 않는다.

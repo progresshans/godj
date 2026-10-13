@@ -46,6 +46,31 @@ model 값은 `*int64`다. generated Create/Patch의 `WithPriority(0)`과 `WithPr
 Form은 offset 생략 시 UTC로 해석한다. [정밀도·범위·남은 시간 기능](adr/0061-datetime-field-and-canonical-instant-values.md)을 따른다.
 기존 행이 있는 Helpdesk의 확장 예는 [새 migration과 consumer](../examples/helpdesk/README.md)에 있다.
 
+## 관계 값을 계산하고 비교하기
+
+Project binding의 단일 값 관계는 원 모델의 scalar와 같은 계산 AST를 사용한다. 다음은 Helpdesk 보고서의 완료와
+티켓의 닫힘이 같은 행을 고르는 예다. `backend`는 실제 query backend이며 인가·현재 Category 범위는 application이 소유한다.
+
+```go
+relations, err := project.BindRelations()
+if err != nil { return err }
+fields := models.ServiceReportFields
+same := orm.ExactExpressions(orm.F(fields.Completed), relations.ModelsServiceReport.Ticket.Closed)
+source := models.ServiceReportObjects.Using(backend).Filter(same)
+rows, err := orm.SelectInto(ctx, source, orm.Project1(fields.ID, func(id int64) int64 { return id }))
+```
+
+Forward FK/OneToOne과 reverse OneToOne의 finite 혼합 경로를 허용한다. 없는 optional 대상은 NULL이며
+계산 비교의 NOT도 SQL 3값 의미를 따른다. `Scalar(related)`는 `Optional[T]` projection·비교·정렬을,
+`Numeric(related)`는 int64/float64 집계를 연결한다. 관계를 UPDATE assignment에 넣는 것은 거부한다.
+
+생성 query의 `Expression`, `ExpressionPredicate`, `ProjectExpressions`는 자기 project binding으로
+`DynamicF("ticket__closed")` 같은 경로를 해석한다. 예를 들어
+`ExpressionPredicate(orm.DynamicF("completed").Exact(orm.DynamicF("ticket__closed")))`는 위 typed 비교와 같은 AST다.
+Generic 함수에서는 `BindExpressionIn`/`BindPredicateIn`/`ProjectDynamicIn`에 source와 일치하는 `BoundModel`을 전달한다.
+Collection 값·JSON scalar 비교·named annotation·Decimal/Duration 산술은 아직 별도 범위다.
+설계와 실제 환경별 검증은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md)·[TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
 ## 프로젝트 명령
 
 README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사용한다.

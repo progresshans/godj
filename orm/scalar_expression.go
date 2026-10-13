@@ -15,7 +15,8 @@ import (
 )
 
 // ScalarOperand is sealed to model- and value-specific field references and
-// scalar expressions. Related fields are not operands for a row assignment.
+// scalar expressions, including single-valued related fields for reads. Row
+// assignments reject related values and predicates in the shared AST.
 type ScalarOperand[M, V any] interface {
 	scalarOperand(M, V) (query.ScalarExpression, error)
 }
@@ -111,6 +112,44 @@ func operandExpression[M, V any](operand ScalarOperand[M, V]) (query.ScalarExpre
 		return query.ScalarExpression{}, err
 	}
 	return expression, expression.Validate()
+}
+
+// Scalar exposes the computed-value projection, ordering and literal lookup
+// methods of an operand. Related fields retain their route and NULL semantics.
+func Scalar[M, V any](operand ScalarOperand[M, V]) ScalarExpression[M, V] {
+	expression, err := operandExpression(operand)
+	return ScalarExpression[M, V]{expression: expression, err: err}
+}
+
+func compareExpressions[M, V any](lookup query.Lookup, left, right ScalarOperand[M, V]) Predicate[M] {
+	first, err := operandExpression(left)
+	if err != nil {
+		return Predicate[M]{err: err}
+	}
+	second, err := operandExpression(right)
+	if err != nil {
+		return Predicate[M]{err: err}
+	}
+	condition, err := query.NewScalarComparison(first, lookup, second)
+	return predicateFromCondition[M](condition, err)
+}
+
+// ExactExpressions and ordered comparisons retain SQL three-valued logic.
+// Model and value types are shared by both operands at compile time.
+func ExactExpressions[M, V any](left, right ScalarOperand[M, V]) Predicate[M] {
+	return compareExpressions(query.LookupExact, left, right)
+}
+func GreaterThanExpressions[M, V any](left, right ScalarOperand[M, V]) Predicate[M] {
+	return compareExpressions(query.LookupGreaterThan, left, right)
+}
+func GreaterThanOrEqualExpressions[M, V any](left, right ScalarOperand[M, V]) Predicate[M] {
+	return compareExpressions(query.LookupGreaterThanOrEqual, left, right)
+}
+func LessThanExpressions[M, V any](left, right ScalarOperand[M, V]) Predicate[M] {
+	return compareExpressions(query.LookupLessThan, left, right)
+}
+func LessThanOrEqualExpressions[M, V any](left, right ScalarOperand[M, V]) Predicate[M] {
+	return compareExpressions(query.LookupLessThanOrEqual, left, right)
 }
 
 // ArithmeticNumber excludes implicit numeric conversions and types whose

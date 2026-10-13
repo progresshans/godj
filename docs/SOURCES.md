@@ -52,6 +52,13 @@ QuerySet·expressions·aggregates·SQLCompiler를 실행한다(BSD-3-Clause). �
 계산하지 않는다. 명시적 결과 scope와 원 행 구분은 [ADR-0091](adr/0091-grouped-results-and-having.md),
 실행한 source·환경과 원 hash는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
+[Relation-expression observer](../conformance/runners/django/related_expression_reference/observe.py)는 같은 고정 Django 6.1의
+relation resolution·F/CASE·두 expression 비교·그룹/집계를 실행한다(BSD-3-Clause).
+독립 synthetic 입력과 [설치 module의 upstream byte 대조 manifest](../conformance/runners/django/related_expression_reference/source-verification.json)를 사용한다.
+Go source·출력·expected 값을 읽지 않는다. CI의 PostgreSQL consumer 세 실행 소유자가 고정 Python/Django/psycopg에서
+각각 SQLite/PostgreSQL 원 관찰을 만들고, 생성 소비자가 현재 observer/input/source hash·사례 전체·정리 여부를 대조한다.
+원 JSON은 해당 실행의 artifact로 보존한다. 프로필과 실행 위치는 [설명](../conformance/runners/django/related_expression_reference/README.md)을 따른다.
+
 ## Go와 DB
 
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)

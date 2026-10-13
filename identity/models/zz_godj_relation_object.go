@@ -341,4 +341,4 @@ func (input UserPermissionsLinkCreate) BuildManyToManyCreate(source, target ir.F
 
 type GoDjAppPart2_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94 struct{}
 
-var _ GoDjProjectSnapshot_4d1c60cfb24d41d8c6a308c105c04b97d87d261ac33dbb96fc3263d55548b4d3
+var _ GoDjProjectSnapshot_a8f8fe6b8a3b05061f60915a9675a89df47304d35fbc1a27eef958931431fcee

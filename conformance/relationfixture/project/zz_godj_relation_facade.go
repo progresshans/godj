@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
-const GoDjProjectRelationFacadeInputSHA256 = "9397aa4d95e77f771792b577a5e547b86ededc6a568712c95bf931a0732fb78f"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
+const GoDjProjectRelationFacadeInputSHA256 = "32e83663bfc562f603cbfada9388045650a46679508d7fbcea316499a6fd7eb5"
 
 type Backend interface {
 	db.Queryer
@@ -630,21 +630,21 @@ func (_query AuthorsAuthorQuery) Expression(_input orm.DynamicExpression) (orm.D
 	if _err := _query.validate(); _err != nil {
 		return orm.DynamicScalar[authors.Author]{}, _err
 	}
-	return orm.BindExpression(_query.query, _input)
+	return orm.BindExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _input)
 }
 
 func (_query AuthorsAuthorQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[authors.Author]{}, _err
 	}
-	return orm.BindPredicate(_query.query, _input)
+	return orm.BindPredicateIn(_query.query, _query.state.models.AuthorsAuthor, _input)
 }
 
 func (_query AuthorsAuthorQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[authors.Author, []query.Value], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Projection[authors.Author, []query.Value]{}, _err
 	}
-	return orm.ProjectDynamic(_query.query, _inputs...)
+	return orm.ProjectDynamicIn(_query.query, _query.state.models.AuthorsAuthor, _inputs...)
 }
 
 func (_query AuthorsAuthorQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[authors.Author, orm.GroupRow], error) {
@@ -1594,21 +1594,21 @@ func (_query BlogPostQuery) Expression(_input orm.DynamicExpression) (orm.Dynami
 	if _err := _query.validate(); _err != nil {
 		return orm.DynamicScalar[blog.Post]{}, _err
 	}
-	return orm.BindExpression(_query.query, _input)
+	return orm.BindExpressionIn(_query.query, _query.state.models.BlogPost, _input)
 }
 
 func (_query BlogPostQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[blog.Post]{}, _err
 	}
-	return orm.BindPredicate(_query.query, _input)
+	return orm.BindPredicateIn(_query.query, _query.state.models.BlogPost, _input)
 }
 
 func (_query BlogPostQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[blog.Post, []query.Value], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Projection[blog.Post, []query.Value]{}, _err
 	}
-	return orm.ProjectDynamic(_query.query, _inputs...)
+	return orm.ProjectDynamicIn(_query.query, _query.state.models.BlogPost, _inputs...)
 }
 
 func (_query BlogPostQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[blog.Post, orm.GroupRow], error) {
@@ -3104,4 +3104,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_03cf5a472c653f94e811726146daf35713390a11367d109dd17775be9668d812
+var _ goDjProjectSnapshot_b354d02917863720cb4ab869179bb1b51cb5d19ecc35ff3342750c5fc6a14a74

@@ -50,6 +50,28 @@ SUMMARY_CHECKS = (
     'summary response is not cached',
 )
 
+REPORT_STATUS_CHECKS = (
+    'report status navigation',
+    'twenty report rows on first page',
+    'independent completion and closure flags',
+    'report summary is escaped',
+    'remaining ten report rows',
+    'report filter resets page',
+    'database comparison filters report rows',
+    'report page link preserves comparison',
+    'report filter has no false next page',
+    'same-status filter retains five reports',
+    'past-end report page retains filtered total',
+    'previous report page preserves filter',
+    'API report flags and total match',
+    'API same-status filter matches',
+    'malformed report query rejected: /service-reports/status/?p=bad',
+    'malformed report query rejected: /api/service-reports/status/?comparison=unknown',
+    'malformed report query rejected: /api/service-reports/status/?comparison=same&comparison=different',
+    'report status response is not cached',
+    'report status page contains no write form',
+)
+
 
 def result_document(output):
     # The CLI can report a tool error in text even with process exit code zero.
@@ -76,6 +98,16 @@ def verify_summary(result):
     return result
 
 
+def verify_report_status(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(REPORT_STATUS_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(REPORT_STATUS_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(REPORT_STATUS_CHECKS)):
+        raise ValueError('report status browser did not complete every declared check')
+    return result
+
+
 def verify_committed(value):
     rows, links = value.get('committed_tickets'), value.get('committed_links')
     if (value.get('summary_read_only_unchanged') is not True
@@ -85,6 +117,15 @@ def verify_committed(value):
             or any(row.get('audit') not in (None, []) for row in rows)
             or len({row['id'] for row in rows}) != 30):
         raise ValueError('summary browser did not preserve all rows, links and audit')
+    reports = value.get('committed_reports')
+    if (value.get('report_status_read_only_unchanged') is not True
+            or value.get('initial_status_reports') != 30
+            or not isinstance(reports, list) or len(reports) != 30
+            or any(not isinstance(row, dict) or type(row.get('id')) is not int or type(row.get('ticket')) is not int for row in reports)
+            or any(row.get('audit') not in (None, []) for row in reports)
+            or len({row['id'] for row in reports}) != 30
+            or {row['ticket'] for row in reports} != {row['id'] for row in rows}):
+        raise ValueError('report status browser did not preserve all reports, ticket bindings and audit')
 
 
 def run(node_tools, output):
@@ -100,7 +141,8 @@ def run(node_tools, output):
     receipt = {'pass': False, 'commands': [], 'cli_version': package['version'], 'core_version': core_version,
                'source_checkout': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                'source_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip(),
-               'probe_sha256': hashlib.sha256((FIXTURE / 'summary_probe.js').read_bytes()).hexdigest()}
+               'probe_sha256': hashlib.sha256((FIXTURE / 'summary_probe.js').read_bytes()).hexdigest(),
+               'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -186,6 +228,11 @@ def run(node_tools, output):
             screenshot = output / 'summary-desktop.png'
             if not screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the summary screenshot')
+            receipt['report_status'] = verify_report_status(result_document(browser('report-status', 'run-code', '--filename', str(FIXTURE / 'report_status_probe.js'))))
+            browser('report-screenshot', 'screenshot', '--filename=' + str(output / 'report-status-desktop.png'))
+            report_screenshot = output / 'report-status-desktop.png'
+            if not report_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or report_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the report status screenshot')
         except Exception as error:
             failure = error
         finally:

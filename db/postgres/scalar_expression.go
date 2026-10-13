@@ -5,33 +5,38 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func compileReadScalar(expression query.ScalarExpression, alias string, arguments *[]any) (string, error) {
-	return compileReadScalarFields(expression, func(field query.FieldRef) (string, error) {
-		if alias == "" {
-			return quoteIdentifier(field.Column())
-		}
-		return quoteQualified(alias, field.Column())
-	}, arguments)
-}
-
-func compileReadScalarFields(expression query.ScalarExpression, resolve func(query.FieldRef) (string, error), arguments *[]any) (string, error) {
+func compileReadScalar(expression query.ScalarExpression, source queryplan.ScalarSource, arguments *[]any) (string, error) {
+	if err := source.Plan.ValidateScalar(expression); err != nil {
+		return "", err
+	}
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{
 		ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder,
 		Literal: readScalarLiteral,
 		Predicate: func(value query.Expression, arguments *[]any) (string, error) {
-			return compileScalarPredicate(value, resolve, arguments)
+			return compileScalarPredicate(value, source, arguments)
 		},
 		Field: func(field query.FieldRef) (string, error) {
-			column, err := resolve(field)
+			column, err := source.ResolveField(field, quoteIdentifier, quoteQualified)
 			if err != nil {
 				return "", err
 			}
-			if field.Kind() == query.FieldDecimal || field.Kind() == query.FieldDuration {
-				return numericAggregateOperand(field, column)
+			return readScalarField(field, column)
+		},
+		Related: func(path query.RelationPath) (string, error) {
+			column, err := source.ResolveRelated(path, quoteQualified)
+			if err != nil {
+				return "", err
 			}
-			return column, nil
+			return readScalarField(path.Terminal(), column)
 		},
 	})
+}
+
+func readScalarField(field query.FieldRef, column string) (string, error) {
+	if field.Kind() == query.FieldDecimal || field.Kind() == query.FieldDuration {
+		return numericAggregateOperand(field, column)
+	}
+	return column, nil
 }
 
 // Standalone parameters have no source column from which PostgreSQL can infer

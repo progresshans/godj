@@ -122,7 +122,7 @@ func (e ResultExpression) validateAggregate() error {
 		if !e.relation.Terminal().Equal(e.field) {
 			return invalidPlanError("aggregate route terminal differs from field metadata")
 		}
-		if err := e.relation.validateForwardSelection(); err != nil {
+		if err := e.relation.validateValueSelection(); err != nil {
 			return err
 		}
 	}
@@ -138,8 +138,11 @@ func validateAggregateFilter(e Expression) error {
 	}
 	if condition, leaf := e.Condition(); leaf {
 		if path, related := condition.RelationPath(); related {
-			if err := path.validateForward(); err != nil {
-				return groupUnsupported("conditional aggregates require finite forward relation predicates")
+			if err := path.Validate(); err != nil {
+				return err
+			}
+			if !path.SingleValued() {
+				return groupUnsupported("conditional aggregates require single-valued relation predicates")
 			}
 		}
 		return nil
@@ -175,7 +178,7 @@ func validateGroupKey(e ResultExpression) error {
 		if !e.relation.Terminal().Equal(e.field) {
 			return invalidPlanError("group key route differs from its terminal field")
 		}
-		return e.relation.validateForwardSelection()
+		return e.relation.validateValueSelection()
 	}
 	return nil
 }

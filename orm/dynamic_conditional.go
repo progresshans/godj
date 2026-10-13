@@ -15,6 +15,7 @@ type dynamicPredicateNode struct {
 	value        DynamicExpression
 	lookup       query.Lookup
 	literal      query.Value
+	right        DynamicExpression
 	children     []DynamicPredicate
 	nodes, depth int
 }
@@ -22,6 +23,16 @@ type dynamicPredicateNode struct {
 func (value DynamicExpression) comparison(lookup query.Lookup, literal any) DynamicPredicate {
 	if err := value.validate(); err != nil {
 		return DynamicPredicate{err: err}
+	}
+	if right, expression := literal.(DynamicExpression); expression {
+		if err := right.validate(); err != nil {
+			return DynamicPredicate{err: err}
+		}
+		nodes, depth := 1+value.node.nodes+right.node.nodes, 1+max(value.node.depth, right.node.depth)
+		if nodes > query.MaximumScalarNodes || depth > query.MaximumScalarDepth {
+			return DynamicPredicate{err: invalidResultBuilder("dynamic predicate exceeds its expression budget")}
+		}
+		return DynamicPredicate{node: &dynamicPredicateNode{kind: query.ExpressionLeaf, value: value, lookup: lookup, right: right, nodes: nodes, depth: depth}}
 	}
 	right, err := scalarValue(literal)
 	if err != nil {
@@ -105,7 +116,16 @@ func (value DynamicPredicate) bind(source dynamicBinding) (query.Expression, err
 		if err != nil {
 			return query.Expression{}, err
 		}
-		condition, err := query.NewScalarCondition(scalar, node.lookup, node.literal)
+		var condition query.Condition
+		if node.right.node != nil || node.right.err != nil {
+			right, bindErr := node.right.bind(source)
+			if bindErr != nil {
+				return query.Expression{}, bindErr
+			}
+			condition, err = query.NewScalarComparison(scalar, node.lookup, right)
+		} else {
+			condition, err = query.NewScalarCondition(scalar, node.lookup, node.literal)
+		}
 		if err != nil {
 			return query.Expression{}, err
 		}
@@ -129,13 +149,19 @@ func (value DynamicPredicate) bind(source dynamicBinding) (query.Expression, err
 }
 
 func BindPredicate[M any](source QuerySet[M], input DynamicPredicate) (Predicate[M], error) {
-	if source.configurationErr != nil {
-		return Predicate[M]{}, source.configurationErr
+	return bindPredicate(source, nil, input)
+}
+
+func BindPredicateIn[M any](source QuerySet[M], binding BoundModel[M], input DynamicPredicate) (Predicate[M], error) {
+	return bindPredicate(source, &binding, input)
+}
+
+func bindPredicate[M any](source QuerySet[M], binding *BoundModel[M], input DynamicPredicate) (Predicate[M], error) {
+	bound, err := dynamicExpressionBinding(source, binding)
+	if err != nil {
+		return Predicate[M]{}, err
 	}
-	if source.prepared == nil {
-		return Predicate[M]{}, invalidResultBuilder("predicate binding requires model metadata")
-	}
-	expression, err := input.bind(dynamicBinding{model: source.prepared})
+	expression, err := input.bind(bound)
 	if err != nil {
 		return Predicate[M]{}, err
 	}

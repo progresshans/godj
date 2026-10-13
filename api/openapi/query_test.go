@@ -55,3 +55,36 @@ func TestQuerySchemaDeclarations(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestQueryChoicesSnapshotDefaultAndEnum(t *testing.T) {
+	choices, fallback := []string{"all", "same", "different"}, "all"
+	schema, err := openapi.QueryStringChoices(choices, &fallback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	choices[0], fallback = "changed", "changed"
+	object, _ := schema.Value().AsObject()
+	value, _ := object.Get("default")
+	if actual, _ := value.AsString(); actual != "all" {
+		t.Fatal("choice schema default aliases caller")
+	}
+	value, _ = object.Get("enum")
+	list, _ := value.AsList()
+	if len(list) != 3 {
+		t.Fatal("choice schema lost enum")
+	}
+	if first, _ := list[0].AsString(); first != "all" {
+		t.Fatal("choice schema aliases caller choices")
+	}
+	for _, fallback := range []string{"unknown", ""} {
+		if _, err := openapi.QueryStringChoices([]string{"same", "different"}, &fallback); err == nil {
+			t.Fatal("invalid schema default accepted")
+		}
+	}
+	if _, err := openapi.HeaderStringChoices([]string{"é"}, 1, nil); err == nil {
+		t.Fatal("header choice ignored byte budget")
+	}
+	if _, err := openapi.HeaderStringChoices([]string{"é"}, 2, nil); err != nil {
+		t.Fatal(err)
+	}
+}

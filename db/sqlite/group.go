@@ -83,12 +83,12 @@ func compileGrouped(plan query.Plan) (string, []any, error) {
 
 func appendGroupedValue(statement *strings.Builder, expression query.ResultExpression, plan query.Plan, prepared queryplan.Joins, arguments *[]any) error {
 	if !expression.IsAggregate() {
-		return appendResultValue(statement, expression, "t0", prepared.ByKey, arguments, false)
+		return appendResultValue(statement, expression, plan, "t0", prepared.ByKey, arguments, false)
 	}
 	operandStart := len(*arguments)
 	var operand, filterSQL strings.Builder
 	if expression.Kind() != query.ResultCountAll {
-		if err := appendResultValue(&operand, expression, "t0", prepared.ByKey, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ByKey, arguments, true); err != nil {
 			return err
 		}
 	}
@@ -126,11 +126,11 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 func bindGroupedWhere(plan query.Plan, analysis *sqliteWhereAnalysis, prepared queryplan.Joins) error {
 	for index, leaf := range analysis.leaves {
 		condition := leaf.condition
-		if scalar, computed := condition.Scalar(); computed {
-			if err := scalar.ValidateSource(plan.SourceFields()); err != nil {
+		if _, computed := condition.Scalar(); computed {
+			if err := queryplan.ValidateScalarCondition(plan, condition); err != nil {
 				return err
 			}
-			leaf.scalarAlias = "t0"
+			leaf.scalarSource = queryplan.ScalarSource{Plan: plan, Alias: "t0", Joins: prepared.ByKey}
 			continue
 		}
 		if path, related := condition.RelationPath(); related {

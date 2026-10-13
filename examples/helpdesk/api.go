@@ -214,6 +214,10 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	reportStatus, err := a.serviceReportStatusEndpoint(authentication)
+	if err != nil {
+		return nil, err
+	}
 	labelEnsure, err := a.labelEnsureEndpoint(authentication, config.AppendAudit)
 	if err != nil {
 		return nil, err
@@ -230,7 +234,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, labelEnsure, labelUpdate, labelPatch, labelDelete}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, reportStatus, labelEnsure, labelUpdate, labelPatch, labelDelete}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
 	if err != nil {
 		return nil, err
 	}

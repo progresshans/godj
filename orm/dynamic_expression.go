@@ -1,6 +1,10 @@
 package orm
 
-import "github.com/progresshans/godj/query"
+import (
+	"strings"
+
+	"github.com/progresshans/godj/query"
+)
 
 // DynamicExpression is a bounded immutable unresolved input. Binding names to
 // the Manager's metadata produces the same ScalarExpression used by typed
@@ -85,8 +89,9 @@ func (expression DynamicExpression) binary(operator query.ArithmeticOperator, ri
 // dynamicBinding keeps model-name and result-column authority separate while
 // both binding paths traverse the same immutable expression grammar.
 type dynamicBinding struct {
-	model *preparedModel
-	scope query.ResultScope
+	model   *preparedModel
+	scope   query.ResultScope
+	related func(string) (query.ScalarExpression, error)
 }
 
 func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExpression, error) {
@@ -148,6 +153,9 @@ func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExp
 	}
 	index, found := source.model.byName[node.name]
 	if !found {
+		if source.related != nil && strings.Contains(node.name, "__") {
+			return source.related(node.name)
+		}
 		return query.ScalarExpression{}, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: node.name, Detail: "expression field is not concrete source metadata"}
 	}
 	return query.FieldExpression(fieldReference(source.model.metadata.Fields[index]))

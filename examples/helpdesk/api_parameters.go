@@ -8,9 +8,10 @@ import (
 )
 
 type apiQueries struct {
-	summary parameters.Query[ticketSummaryQuery]
-	labels  parameters.Query[admin.ListRequest]
-	links   parameters.Query[admin.ListRequest]
+	summary      parameters.Query[ticketSummaryQuery]
+	reportStatus parameters.Query[serviceReportStatusQuery]
+	labels       parameters.Query[admin.ListRequest]
+	links        parameters.Query[admin.ListRequest]
 }
 
 func prepareAPIQueries() (apiQueries, error) {
@@ -26,6 +27,15 @@ func prepareAPIQueries() (apiQueries, error) {
 		parameters.Field("min_open_basis_points", parameters.Default(parameters.CanonicalInt64(0, 10000), 0),
 			func(query *ticketSummaryQuery, value int64) { query.minimumOpenBasisPoints = value },
 			"Minimum open share in basis points, from 0 to 10000; 100 basis points equals one percent. Canonical decimal integer."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
+	result.reportStatus, err = parameters.New(128,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, serviceReportStatusMaximumPage), 1),
+			func(query *serviceReportStatusQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("comparison", parameters.Default(parameters.StringChoices("all", "same", "different"), "all"),
+			func(query *serviceReportStatusQuery, value string) { query.comparison = value }, "Whether report completion and ticket closure have the same value; the statuses are independent."),
 	)
 	if err != nil {
 		return apiQueries{}, err

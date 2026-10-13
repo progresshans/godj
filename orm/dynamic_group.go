@@ -72,7 +72,7 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 				if input.Field != "" {
 					return zero, invalidResultBuilder("dynamic aggregate cannot combine a field name with an expression")
 				}
-				value, bindErr := BindExpression(source, input.Expression)
+				value, bindErr := bindExpression(source, binding, input.Expression)
 				operand, err = value.expression, bindErr
 			} else {
 				operand, err = dynamicGroupField(source, binding, input.Field)
@@ -142,17 +142,9 @@ func dynamicGroupField[M any](source QuerySet[M], binding *BoundModel[M], name s
 		if binding == nil {
 			return query.ResultExpression{}, invalidResultBuilder("dynamic relation group keys require a project-bound query")
 		}
-		predicate, err := parseRelationInput(*binding, nil, LookupInput{Key: name + "__isnull", Value: true})
+		path, err := dynamicValueRelation(*binding, name)
 		if err != nil {
 			return query.ResultExpression{}, err
-		}
-		condition, leaf := predicate.expression.Condition()
-		if !leaf {
-			return query.ResultExpression{}, invalidResultBuilder("dynamic group key did not resolve to one field")
-		}
-		path, related := condition.RelationPath()
-		if !related {
-			return query.ResultExpression{}, invalidResultBuilder("dynamic group key has no bound route")
 		}
 		return query.RelatedFieldResult(path)
 	}

@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 )
@@ -116,6 +117,7 @@ func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
+func (*GoDjAPIError) helpdeskServiceReportStatusRes() {}
 func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
 func (*GoDjAPIError) helpdeskTicketLabelDetailRes()   {}
 func (*GoDjAPIError) helpdeskTicketLabelListRes()     {}
@@ -597,6 +599,78 @@ func (*HelpdeskServiceReportPatchRequestEntityTooLarge) helpdeskServiceReportPat
 type HelpdeskServiceReportPatchUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskServiceReportPatchUnsupportedMediaType) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportStatusBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskServiceReportStatusBadRequest) helpdeskServiceReportStatusRes() {}
+
+type HelpdeskServiceReportStatusComparison string
+
+const (
+	HelpdeskServiceReportStatusComparisonAll       HelpdeskServiceReportStatusComparison = "all"
+	HelpdeskServiceReportStatusComparisonSame      HelpdeskServiceReportStatusComparison = "same"
+	HelpdeskServiceReportStatusComparisonDifferent HelpdeskServiceReportStatusComparison = "different"
+)
+
+// AllValues returns all HelpdeskServiceReportStatusComparison values.
+func (HelpdeskServiceReportStatusComparison) AllValues() []HelpdeskServiceReportStatusComparison {
+	return []HelpdeskServiceReportStatusComparison{
+		HelpdeskServiceReportStatusComparisonAll,
+		HelpdeskServiceReportStatusComparisonSame,
+		HelpdeskServiceReportStatusComparisonDifferent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HelpdeskServiceReportStatusComparison) MarshalText() ([]byte, error) {
+	switch s {
+	case HelpdeskServiceReportStatusComparisonAll:
+		return []byte(s), nil
+	case HelpdeskServiceReportStatusComparisonSame:
+		return []byte(s), nil
+	case HelpdeskServiceReportStatusComparisonDifferent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HelpdeskServiceReportStatusComparison) UnmarshalText(data []byte) error {
+	switch HelpdeskServiceReportStatusComparison(data) {
+	case HelpdeskServiceReportStatusComparisonAll:
+		*s = HelpdeskServiceReportStatusComparisonAll
+		return nil
+	case HelpdeskServiceReportStatusComparisonSame:
+		*s = HelpdeskServiceReportStatusComparisonSame
+		return nil
+	case HelpdeskServiceReportStatusComparisonDifferent:
+		*s = HelpdeskServiceReportStatusComparisonDifferent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HelpdeskServiceReportStatusInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportStatusInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportStatusInternalServerError) helpdeskServiceReportStatusRes() {}
+
+type HelpdeskServiceReportStatusNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskServiceReportStatusNotFound) helpdeskServiceReportStatusRes() {}
 
 type HelpdeskServiceReportUpdateBadRequest GoDjAPIError
 
@@ -1858,6 +1932,52 @@ func (o OptBool) Or(d bool) bool {
 	return d
 }
 
+// NewOptHelpdeskServiceReportStatusComparison returns new OptHelpdeskServiceReportStatusComparison with value set to v.
+func NewOptHelpdeskServiceReportStatusComparison(v HelpdeskServiceReportStatusComparison) OptHelpdeskServiceReportStatusComparison {
+	return OptHelpdeskServiceReportStatusComparison{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHelpdeskServiceReportStatusComparison is optional HelpdeskServiceReportStatusComparison.
+type OptHelpdeskServiceReportStatusComparison struct {
+	Value HelpdeskServiceReportStatusComparison
+	Set   bool
+}
+
+// IsSet returns true if OptHelpdeskServiceReportStatusComparison was set.
+func (o OptHelpdeskServiceReportStatusComparison) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHelpdeskServiceReportStatusComparison) Reset() {
+	var v HelpdeskServiceReportStatusComparison
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHelpdeskServiceReportStatusComparison) SetTo(v HelpdeskServiceReportStatusComparison) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHelpdeskServiceReportStatusComparison) Get() (v HelpdeskServiceReportStatusComparison, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHelpdeskServiceReportStatusComparison) Or(d HelpdeskServiceReportStatusComparison) HelpdeskServiceReportStatusComparison {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInt64 returns new OptInt64 with value set to v.
 func NewOptInt64(v int64) OptInt64 {
 	return OptInt64{
@@ -2834,6 +2954,173 @@ func (s *ServiceReportSaveResult) SetReport(val ServiceReport) {
 // SetCreated sets the value of Created.
 func (s *ServiceReportSaveResult) SetCreated(val bool) {
 	s.Created = val
+}
+
+// Ref: #/components/schemas/ServiceReportStatus
+type ServiceReportStatus struct {
+	Category     CategorySummary                  `json:"category"`
+	Page         int64                            `json:"page"`
+	PageSize     int64                            `json:"page_size"`
+	Comparison   string                           `json:"comparison"`
+	TotalReports int64                            `json:"total_reports"`
+	Results      []ServiceReportStatusResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *ServiceReportStatus) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *ServiceReportStatus) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *ServiceReportStatus) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetComparison returns the value of Comparison.
+func (s *ServiceReportStatus) GetComparison() string {
+	return s.Comparison
+}
+
+// GetTotalReports returns the value of TotalReports.
+func (s *ServiceReportStatus) GetTotalReports() int64 {
+	return s.TotalReports
+}
+
+// GetResults returns the value of Results.
+func (s *ServiceReportStatus) GetResults() []ServiceReportStatusResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *ServiceReportStatus) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *ServiceReportStatus) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *ServiceReportStatus) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetComparison sets the value of Comparison.
+func (s *ServiceReportStatus) SetComparison(val string) {
+	s.Comparison = val
+}
+
+// SetTotalReports sets the value of TotalReports.
+func (s *ServiceReportStatus) SetTotalReports(val int64) {
+	s.TotalReports = val
+}
+
+// SetResults sets the value of Results.
+func (s *ServiceReportStatus) SetResults(val []ServiceReportStatusResultsItem) {
+	s.Results = val
+}
+
+// ServiceReportStatusHeaders wraps ServiceReportStatus with response headers.
+type ServiceReportStatusHeaders struct {
+	XGodjCsrftoken OptString
+	Response       ServiceReportStatus
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *ServiceReportStatusHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *ServiceReportStatusHeaders) GetResponse() ServiceReportStatus {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *ServiceReportStatusHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ServiceReportStatusHeaders) SetResponse(val ServiceReportStatus) {
+	s.Response = val
+}
+
+func (*ServiceReportStatusHeaders) helpdeskServiceReportStatusRes() {}
+
+type ServiceReportStatusResultsItem struct {
+	ID           int64  `json:"id"`
+	Ticket       int64  `json:"ticket"`
+	Summary      string `json:"summary"`
+	Completed    bool   `json:"completed"`
+	TicketClosed bool   `json:"ticket_closed"`
+	Matched      bool   `json:"matched"`
+}
+
+// GetID returns the value of ID.
+func (s *ServiceReportStatusResultsItem) GetID() int64 {
+	return s.ID
+}
+
+// GetTicket returns the value of Ticket.
+func (s *ServiceReportStatusResultsItem) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReportStatusResultsItem) GetSummary() string {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReportStatusResultsItem) GetCompleted() bool {
+	return s.Completed
+}
+
+// GetTicketClosed returns the value of TicketClosed.
+func (s *ServiceReportStatusResultsItem) GetTicketClosed() bool {
+	return s.TicketClosed
+}
+
+// GetMatched returns the value of Matched.
+func (s *ServiceReportStatusResultsItem) GetMatched() bool {
+	return s.Matched
+}
+
+// SetID sets the value of ID.
+func (s *ServiceReportStatusResultsItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetTicket sets the value of Ticket.
+func (s *ServiceReportStatusResultsItem) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReportStatusResultsItem) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReportStatusResultsItem) SetCompleted(val bool) {
+	s.Completed = val
+}
+
+// SetTicketClosed sets the value of TicketClosed.
+func (s *ServiceReportStatusResultsItem) SetTicketClosed(val bool) {
+	s.TicketClosed = val
+}
+
+// SetMatched sets the value of Matched.
+func (s *ServiceReportStatusResultsItem) SetMatched(val bool) {
+	s.Matched = val
 }
 
 // Ref: #/components/schemas/ServiceReportUpdate

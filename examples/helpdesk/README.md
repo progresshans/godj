@@ -10,6 +10,28 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 
+## 보고서와 티켓 상태 비교
+
+`application.ServiceReportStatus(webAuth)`는 GET `/service-reports/status/`를 제공하고 API 구성에는
+GET `/api/service-reports/status/`가 포함된다. 현재 Category에 속한 티켓의 보고서만 보고서 ID 순으로 조회한다.
+보고서의 `completed`와 티켓의 `closed`는 독립 업무 값이며 `matched`는 두 값이 같은지 나타낸다.
+차이가 있다는 이유로 어느 값을 바꾸거나 오류로 판정하지 않는다.
+
+두 표면 모두 `ViewServiceReport`와 `ViewTicket`을 query 해석·조회 전에 요구한다. 기존 보고서 목록/상세의
+권한은 그대로다. `comparison=all|same|different`의 기본값은 `all`, `p`는 정규 decimal 1..50001이며 기본값 1이다.
+Query는 128 byte 이하여야 한다. 알 수 없는 이름·중복·빈 값·잘못된 encoding/enum/페이지는 400이다.
+
+응답은 required `category`, `page`, `page_size`, `comparison`, `total_reports`, `results`를 가진다.
+각 결과의 `id`, `ticket`, `summary`, `completed`, `ticket_closed`, `matched`도 required이며 NULL을 게시하지 않는다.
+20건씩 반환하고 끝을 지난 페이지에도 필터 뒤 총 보고서 수를 유지한다. Category 정보와 페이지의 총수·행은
+같은 읽기 snapshot에 속하며, 페이지의 count·rows는 한 statement다. Category가 없으면 404다.
+조회는 Ticket 본문·라벨·digest를 읽거나 고치지 않으며 audit/쓰기 구성을 요구하지 않는다.
+DB·취소·snapshot 수명·정리·출력 실패에는 부분 결과를 게시하지 않고 성공 HTML/JSON은 `no-store`다.
+
+Typed 관계 operand·두 scalar 비교·CASE·결과 Page를 [같은 read service](service_report_status.go)에서 사용한다.
+API query enum과 응답은 OpenAPI·독립 generated client로 연결하며 실행 범위는
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 우선순위별 업무 요약
 
 `application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET
@@ -153,10 +175,14 @@ routes = append(routes, editor.Routes()...)
 summary, err := application.TicketSummary(webAuth)
 if err != nil { return err }
 routes = append(routes, summary.Routes()...)
+reportStatus, err := application.ServiceReportStatus(webAuth)
+if err != nil { return err }
+routes = append(routes, reportStatus.Routes()...)
 // web.Config에서 MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes를 사용한다.
 ```
 
-같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`와 `helpdesk.TicketSummaryPath`를 추가하고,
+같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`, `helpdesk.TicketSummaryPath`,
+`helpdesk.ServiceReportStatusPath`를 추가하고,
 `admin.SiteConfig.AdditionalNextPaths`에도 같은 경로를 선언한다. Session/CSRF cookie 경로는 모든 화면을 포함해야 한다.
 편집기는 cookie 범위나 로그인 복귀 경로가 맞지 않으면 시작 시 거부한다. `AppendAudit`는 필수이며 제공된 session에 기록해야
 한다. 별도 transaction을 열거나 commit하지 않는다. 위 Runtime의 callback은 scalar·관계·삭제와 같은 transaction에 기록한다.

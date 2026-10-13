@@ -50,16 +50,21 @@ func NewExpression(condition Condition) (Expression, error) {
 	if scalar, present := condition.Scalar(); present {
 		depth += scalar.Depth()
 		nodes += scalar.NodeCount()
+		if right, present := condition.RHSScalar(); present {
+			depth = max(depth, 1+right.Depth())
+			nodes += right.NodeCount()
+		}
 		if depth > maximumExpressionDepth || nodes > maximumExpressionNodes {
 			return Expression{}, invalidPlanError("computed predicate exceeds its expression resource budget")
 		}
 	}
+	right, _ := condition.RHSScalar()
 	return Expression{node: &expressionNode{
 		kind:         ExpressionLeaf,
 		condition:    condition,
 		depth:        depth,
 		nodes:        nodes,
-		hasRelations: condition.relationPath != nil,
+		hasRelations: condition.relationPath != nil || condition.scalar.HasRelations() || right.HasRelations(),
 	}}, nil
 }
 
@@ -141,7 +146,10 @@ func (e Expression) SourceFields() []FieldRef {
 	for _, condition := range expressionConditions(e) {
 		if scalar, present := condition.Scalar(); present {
 			fields = append(fields, scalar.Fields()...)
-		} else {
+			if right, present := condition.RHSScalar(); present {
+				fields = append(fields, right.Fields()...)
+			}
+		} else if condition.relationPath == nil {
 			fields = append(fields, condition.Field())
 			if right, present := condition.RHSField(); present {
 				fields = append(fields, right)
@@ -149,6 +157,24 @@ func (e Expression) SourceFields() []FieldRef {
 		}
 	}
 	return fields
+}
+
+// RelationPaths includes paths inside values and CASE predicates. Root source
+// fields and related terminal metadata remain separate authorities.
+func (e Expression) RelationPaths() []RelationPath {
+	var paths []RelationPath
+	for _, condition := range expressionConditions(e) {
+		if path, related := condition.RelationPath(); related {
+			paths = append(paths, path)
+		}
+		if scalar, present := condition.Scalar(); present {
+			paths = append(paths, scalar.RelationPaths()...)
+		}
+		if scalar, present := condition.RHSScalar(); present {
+			paths = append(paths, scalar.RelationPaths()...)
+		}
+	}
+	return paths
 }
 
 func connectExpressions(kind ExpressionKind, left, right Expression, rest ...Expression) (Expression, error) {

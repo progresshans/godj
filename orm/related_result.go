@@ -1,6 +1,8 @@
 package orm
 
 import (
+	"time"
+
 	"github.com/progresshans/godj/binaryvalue"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
@@ -9,7 +11,6 @@ import (
 	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/uuid"
-	"time"
 )
 
 // Related scalar selection uses the same nullable cell as a root projection.
@@ -83,4 +84,64 @@ func (f RelatedUUIDField[M]) scalarResultField(M, *uuid.UUID) (query.ResultExpre
 func (f RelatedJSONField[M]) scalarResultField(M, *jsonvalue.Value) (query.ResultExpression, func() scalarCell[*jsonvalue.Value], error) {
 	expression, err := relatedResult(f.path, f.valid, f.configurationErr)
 	return expression, nullableJSONResultCell, err
+}
+
+// Related fields are scalar operands only while their route remains
+// single-valued. Query assignment validation rejects them, even inside CASE.
+func relatedOperand(path query.RelationPath, valid bool, cause error) (query.ScalarExpression, error) {
+	if cause != nil {
+		return query.ScalarExpression{}, cause
+	}
+	if !valid {
+		return query.ScalarExpression{}, relationInvalidPlan("related scalar field is unbound")
+	}
+	return query.RelatedExpression(path)
+}
+
+func (field RelatedIntegerField[M]) scalarOperand(M, int64) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedStringField[M]) scalarOperand(M, string) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedBooleanField[M]) scalarOperand(M, bool) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedFloatField[M]) scalarOperand(M, float64) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedDecimalField[M]) scalarOperand(M, decimal.Decimal) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedDateTimeField[M]) scalarOperand(M, time.Time) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedDateField[M]) scalarOperand(M, calendar.Date) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedTimeField[M]) scalarOperand(M, clock.Time) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedDurationField[M]) scalarOperand(M, duration.Duration) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedBinaryField[M]) scalarOperand(M, binaryvalue.Value) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedUUIDField[M]) scalarOperand(M, uuid.UUID) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
+}
+
+func (field RelatedJSONField[M]) scalarOperand(M, jsonvalue.Value) (query.ScalarExpression, error) {
+	return relatedOperand(field.path, field.valid, field.configurationErr)
 }

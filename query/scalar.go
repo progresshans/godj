@@ -22,6 +22,7 @@ const (
 	ScalarNegate
 	ScalarCase
 	ScalarSelected
+	ScalarRelated
 )
 
 type ArithmeticOperator string
@@ -35,7 +36,8 @@ const (
 )
 
 // ScalarExpression is an immutable bounded value tree. Fields refer to the
-// original row of one eventual source; they cannot introduce a relation join.
+// original row of one eventual source. Related leaves retain a single-valued
+// route and its exact terminal metadata instead of becoming root fields.
 // Selected result references use a separate scope in a subsequent read stage.
 // Literal containers have already been snapshotted by Value constructors.
 type ScalarExpression struct{ node *scalarNode }
@@ -53,6 +55,8 @@ type scalarNode struct {
 	reference    ResultRef
 	resultDepth  int
 	durationMean bool
+	relation     RelationPath
+	hasRelations bool
 }
 
 // ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
@@ -69,8 +73,10 @@ func WhenScalar(when Expression, value ScalarExpression) (ScalarWhen, error) {
 	if err := value.Validate(); err != nil {
 		return ScalarWhen{}, err
 	}
-	if when.HasRelations() {
-		return ScalarWhen{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "conditional scalar predicates require same-row fields"}
+	for _, path := range when.RelationPaths() {
+		if !path.SingleValued() {
+			return ScalarWhen{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "conditional scalar predicates require single-valued relations"}
+		}
 	}
 	return ScalarWhen{when: when, value: value}, nil
 }
@@ -91,6 +97,7 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 	depth, nodes := fallback.Depth()+1, fallback.NodeCount()+1
 	resultDepth := fallback.resultReferenceDepth()
 	durationMean := fallback.RequiresDurationRounding()
+	hasRelations := fallback.HasRelations()
 	for _, branch := range branches {
 		if _, err := WhenScalar(branch.when, branch.value); err != nil {
 			return ScalarExpression{}, err
@@ -107,8 +114,12 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		nodes += branch.when.node.nodes + branch.value.NodeCount()
 		resultDepth = max(resultDepth, branch.value.resultReferenceDepth())
 		durationMean = durationMean || branch.value.RequiresDurationRounding()
+		hasRelations = hasRelations || branch.value.HasRelations() || branch.when.HasRelations()
 		for _, condition := range expressionConditions(branch.when) {
 			resultDepth = max(resultDepth, condition.scalar.resultReferenceDepth())
+			if right, present := condition.RHSScalar(); present {
+				resultDepth = max(resultDepth, right.resultReferenceDepth())
+			}
 		}
 		if depth > MaximumScalarDepth || nodes > MaximumScalarNodes {
 			return ScalarExpression{}, invalidPlanError("conditional scalar exceeds its resource budget")
@@ -118,7 +129,7 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		return ScalarExpression{}, invalidPlanError("conditional scalar has no explicit result kind")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarCase, result: result, nullable: nullable, left: fallback,
-		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean}}, nil
+		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, hasRelations: hasRelations}}, nil
 }
 
 // RequiresDurationRounding preserves native duration averages across result
@@ -164,6 +175,58 @@ func FieldExpression(field FieldRef) (ScalarExpression, error) {
 	return ScalarExpression{&scalarNode{kind: ScalarField, field: field, result: field.Kind(), nullable: field.Nullable(), depth: 1, nodes: 1}}, nil
 }
 
+// RelatedExpression selects a value through finite single-valued joins. The
+// route may include reverse OneToOne hops; collection multiplicity is rejected.
+func RelatedExpression(path RelationPath) (ScalarExpression, error) {
+	if err := path.validateValueSelection(); err != nil {
+		return ScalarExpression{}, err
+	}
+	nullable := path.Terminal().Nullable()
+	for _, hop := range path.hops {
+		nullable = nullable || hop.Optional()
+	}
+	return ScalarExpression{&scalarNode{kind: ScalarRelated, relation: path, result: path.Terminal().Kind(),
+		nullable: nullable, depth: 1, nodes: 1, hasRelations: true}}, nil
+}
+
+func (expression ScalarExpression) RelationPath() (RelationPath, bool) {
+	if expression.Kind() != ScalarRelated {
+		return RelationPath{}, false
+	}
+	return expression.node.relation, true
+}
+
+func (expression ScalarExpression) HasRelations() bool {
+	return expression.node != nil && expression.node.hasRelations
+}
+
+// RelationPaths returns owned traversal-order paths, including CASE tests.
+func (expression ScalarExpression) RelationPaths() []RelationPath {
+	var paths []RelationPath
+	var visit func(ScalarExpression)
+	visit = func(value ScalarExpression) {
+		if !value.HasRelations() {
+			return
+		}
+		if path, ok := value.RelationPath(); ok {
+			paths = append(paths, path)
+		} else if _, left, right, ok := value.Binary(); ok {
+			visit(left)
+			visit(right)
+		} else if child, ok := value.Negated(); ok {
+			visit(child)
+		} else if fallback, branches, ok := value.Case(); ok {
+			visit(fallback)
+			for _, branch := range branches {
+				paths = append(paths, branch.when.RelationPaths()...)
+				visit(branch.value)
+			}
+		}
+	}
+	visit(expression)
+	return paths
+}
+
 func validScalarField(field FieldRef) bool {
 	return field.ValidType() && field.Name() != "" && field.Column() != "" &&
 		utf8.ValidString(field.Name()) && utf8.ValidString(field.Column()) &&
@@ -205,7 +268,7 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarBinary, operator: operator, left: left, right: right, result: result,
 		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo,
-		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth())}}, nil
+		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth()), hasRelations: left.HasRelations() || right.HasRelations()}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
@@ -219,7 +282,7 @@ func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarNegate, left: value, result: value.node.result, nullable: value.node.nullable,
-		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth()}}, nil
+		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth(), hasRelations: value.HasRelations()}}, nil
 }
 
 func (expression ScalarExpression) Validate() error {
@@ -288,7 +351,7 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) &&
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) &&
 		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
 		return a.when.Equal(b.when) && a.value.Equal(b.value)
 	})
@@ -298,6 +361,13 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 // are selected. Callers cannot replace a field's kind or precision to describe
 // the result of an operation on that field.
 func (expression ScalarExpression) ValidateSource(source []FieldRef) error {
+	if expression.HasRelations() {
+		return invalidPlanError("related scalar requires a plan with relation source authority")
+	}
+	return expression.validateSourceFields(source)
+}
+
+func (expression ScalarExpression) validateSourceFields(source []FieldRef) error {
 	fields := make(map[string]FieldRef, len(source))
 	for _, field := range source {
 		if previous, present := fields[field.Column()]; present && previous != field {
@@ -411,6 +481,9 @@ func (assignment ScalarAssignment) Validate() error {
 	}
 	if assignment.expression.resultReferenceDepth() != 0 {
 		return invalidPlanError("selected result cannot be assigned to an original row")
+	}
+	if assignment.expression.HasRelations() {
+		return invalidPlanError("related values and predicates cannot be assigned to an original row")
 	}
 	if kind := assignment.expression.ResultKind(); kind != "" && kind != assignment.field.Kind() {
 		return invalidPlanError("expression result does not match its assigned field kind")

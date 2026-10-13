@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -45,6 +46,50 @@ func integerTextSchema(minimum, maximum int64, grammar IntegerTextGrammar, fallb
 // A non-nil default is validated and copied. Empty input and omission differ.
 func QueryString(maximumBytes int, allowEmpty bool, fallback *string) (Schema, error) {
 	return stringTextSchema(maximumBytes, allowEmpty, fallback, "query")
+}
+
+// QueryStringChoices describes an exact, nonempty set of query spellings.
+// A default must be one of those choices; no case folding or trimming occurs.
+func QueryStringChoices(choices []string, fallback *string) (Schema, error) {
+	return stringChoicesSchema(choices, 0, fallback, "query")
+}
+
+// HeaderStringChoices keeps the same scalar spellings within the caller's
+// header byte budget. A choice that cannot fit is a declaration error.
+func HeaderStringChoices(choices []string, maximumBytes int, fallback *string) (Schema, error) {
+	if maximumBytes < 1 {
+		return Schema{}, schemaConfigError("header.choices", "header byte budget must be positive")
+	}
+	return stringChoicesSchema(choices, maximumBytes, fallback, "header")
+}
+
+func stringChoicesSchema(choices []string, maximumBytes int, fallback *string, source string) (Schema, error) {
+	base, err := EnumStrings(choices...)
+	if err != nil {
+		return Schema{}, err
+	}
+	longest := 1
+	for _, choice := range choices {
+		longest = max(longest, len(choice))
+	}
+	if maximumBytes != 0 && longest > maximumBytes {
+		return Schema{}, schemaConfigError(source+".choices", "choice exceeds the input byte budget")
+	}
+	if fallback != nil && !slices.Contains(choices, *fallback) {
+		return Schema{}, schemaConfigError(source+".default", "default is outside the declared choices")
+	}
+	annotations := []serializers.Member{
+		serializers.MemberOf("maxLength", serializers.Integer(int64(longest))),
+		serializers.MemberOf("x-godj-max-bytes", serializers.Integer(int64(longest))),
+		serializers.MemberOf("x-godj-no-nul", serializers.Boolean(true)),
+	}
+	if !slices.Contains(choices, "") {
+		annotations = append(annotations, serializers.MemberOf("minLength", serializers.Integer(1)))
+	}
+	if fallback != nil {
+		annotations = append(annotations, serializers.MemberOf("default", serializers.String(*fallback)))
+	}
+	return schemaAnnotate(base, annotations...)
 }
 
 func stringTextSchema(maximumBytes int, allowEmpty bool, fallback *string, source string) (Schema, error) {

@@ -67,6 +67,7 @@ func compileUpdateSource(schema string, plan query.Plan) (queryplan.UpdateSource
 		resolveRHS = func(field query.FieldRef) (string, error) { return quoteQualified("t0", field.Column()) }
 	}
 	var statement strings.Builder
+	where.scalarSource = queryplan.ScalarSource{Plan: plan, Field: resolveRHS}
 	arguments, err := appendWhere(&statement, where, resolve, resolveRHS, nil)
 	return queryplan.UpdateSource{Direct: true, Where: statement.String(), Alias: alias, Arguments: arguments}, err
 }

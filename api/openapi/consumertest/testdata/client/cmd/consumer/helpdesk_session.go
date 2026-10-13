@@ -217,7 +217,7 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if value, ok := putDenied.(*hs.HelpdeskTicketUpdateForbidden); err != nil || !ok || value.Code != "permission_denied" {
 		return fail("helpdesk read-only put permission before input validation")
 	}
-	if err := checkHelpdeskServiceReports(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, seed.ID, created.ID, target.OtherTicketID); err != nil {
+	if err := checkHelpdeskServiceReports(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, seed, created.ID, target.OtherTicketID); err != nil {
 		return err
 	}
 	if err := checkHelpdeskLabels(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, target.OtherLabelID); err != nil {

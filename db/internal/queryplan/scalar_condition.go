@@ -45,10 +45,33 @@ func AppendScalarCondition(statement *strings.Builder, condition query.Condition
 	default:
 		return invalidPlan("computed comparison lookup is unsupported")
 	}
-	right, err := parameter(condition.Value())
+	var right string
+	if scalar, present := condition.RHSScalar(); present {
+		right, err = render(scalar)
+	} else {
+		right, err = parameter(condition.Value())
+	}
 	if err != nil {
 		return err
 	}
 	statement.WriteString(right)
+	return nil
+}
+
+// ValidateScalarCondition checks both operands using the actual plan authority.
+func ValidateScalarCondition(plan query.Plan, condition query.Condition) error {
+	if _, err := query.NewExpression(condition); err != nil {
+		return err
+	}
+	left, present := condition.Scalar()
+	if !present {
+		return invalidPlan("computed comparison requires a scalar operand")
+	}
+	if err := plan.ValidateScalar(left); err != nil {
+		return err
+	}
+	if right, present := condition.RHSScalar(); present {
+		return plan.ValidateScalar(right)
+	}
 	return nil
 }

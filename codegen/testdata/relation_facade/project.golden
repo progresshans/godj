@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v25"
-const GoDjProjectRelationFacadeInputSHA256 = "891b6a4b0a3064e044db47a0f47921f77251dc5e155ccf26ecca40e9e3ad692c"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
+const GoDjProjectRelationFacadeInputSHA256 = "c14154e3085b7dd27a5d496d1d80355d003bb6110ee134e0b58d9e73b6f67681"
 
 type Backend interface {
 	db.Queryer
@@ -630,21 +630,21 @@ func (_query AuthorsAuthorQuery) Expression(_input orm.DynamicExpression) (orm.D
 	if _err := _query.validate(); _err != nil {
 		return orm.DynamicScalar[authors.Author]{}, _err
 	}
-	return orm.BindExpression(_query.query, _input)
+	return orm.BindExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _input)
 }
 
 func (_query AuthorsAuthorQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[authors.Author]{}, _err
 	}
-	return orm.BindPredicate(_query.query, _input)
+	return orm.BindPredicateIn(_query.query, _query.state.models.AuthorsAuthor, _input)
 }
 
 func (_query AuthorsAuthorQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[authors.Author, []query.Value], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Projection[authors.Author, []query.Value]{}, _err
 	}
-	return orm.ProjectDynamic(_query.query, _inputs...)
+	return orm.ProjectDynamicIn(_query.query, _query.state.models.AuthorsAuthor, _inputs...)
 }
 
 func (_query AuthorsAuthorQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[authors.Author, orm.GroupRow], error) {
@@ -1594,21 +1594,21 @@ func (_query BlogPostQuery) Expression(_input orm.DynamicExpression) (orm.Dynami
 	if _err := _query.validate(); _err != nil {
 		return orm.DynamicScalar[blog.Post]{}, _err
 	}
-	return orm.BindExpression(_query.query, _input)
+	return orm.BindExpressionIn(_query.query, _query.state.models.BlogPost, _input)
 }
 
 func (_query BlogPostQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[blog.Post]{}, _err
 	}
-	return orm.BindPredicate(_query.query, _input)
+	return orm.BindPredicateIn(_query.query, _query.state.models.BlogPost, _input)
 }
 
 func (_query BlogPostQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[blog.Post, []query.Value], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Projection[blog.Post, []query.Value]{}, _err
 	}
-	return orm.ProjectDynamic(_query.query, _inputs...)
+	return orm.ProjectDynamicIn(_query.query, _query.state.models.BlogPost, _inputs...)
 }
 
 func (_query BlogPostQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[blog.Post, orm.GroupRow], error) {

@@ -423,24 +423,15 @@ func validateProjectionSource(plan query.Plan) error {
 	return nil
 }
 
-func validateNonCountAggregateSource(plan query.Plan, shape query.ResultShape) error {
+func validateNonCountAggregateSource(plan query.Plan) error {
 	for _, ordering := range plan.Orderings() {
 		if _, related := ordering.Expression().RelationPath(); related {
 			return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
 		}
 	}
-	if err := validateProjectionSource(plan); err != nil {
-		return err
-	}
-	if where, ok := plan.Where(); ok && where.HasRelations() {
-		for _, expression := range shape.Expressions() {
-			if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg {
-				return nil // Numeric aggregates use the prepared grouping compiler.
-			}
-		}
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
-	}
-	return nil
+	// Relation filters share the prepared grouping compiler for all aggregate
+	// kinds. Its source slice/distinct restrictions still apply.
+	return validateProjectionSource(plan)
 }
 
 func invalidResultBuilder(detail string) error {

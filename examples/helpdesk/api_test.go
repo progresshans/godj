@@ -177,7 +177,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 31; index++ {
+	for index := 1; index <= 32; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -188,7 +188,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		t.Fatal("typed endpoint accepted an undocumented authentication profile")
 	}
 	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{&helpdeskRecordingAuthentication{}}))
-	if err != nil || len(adapter.Routes()) != 31 {
+	if err != nil || len(adapter.Routes()) != 32 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err != nil {
@@ -215,6 +215,8 @@ func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, 
 		return helpdesk.DeleteTicket, nil
 	case "helpdesk:service-report-list", "helpdesk:service-report-detail", "helpdesk:ticket-service-report":
 		return helpdesk.ViewServiceReport, nil
+	case "helpdesk:service-report-status":
+		return helpdesk.ViewServiceReport, []auth.Permission{helpdesk.ViewTicket}
 	case "helpdesk:service-report-create":
 		return helpdesk.AddServiceReport, nil
 	case "helpdesk:service-report-update", "helpdesk:service-report-patch":
@@ -256,7 +258,7 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 13 || len(routes) != 31 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 14 || len(routes) != 32 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
 		t.Fatal("Helpdesk document changed the declared operation surface")
 	}
 	for _, route := range routes {
@@ -284,6 +286,18 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
+	reportStatus := document.Paths["/api/service-reports/status/"]["get"]
+	reportStatusSchema := document.Components.Schemas["ServiceReportStatus"]
+	if reportStatus.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/ServiceReportStatus" || len(reportStatus.Parameters) != 2 || reportStatus.Parameters[0].Name != "p" || reportStatus.Parameters[1].Name != "comparison" || reportStatusSchema.AdditionalProperties || !slices.Equal(reportStatusSchema.Required, []string{"category", "page", "page_size", "comparison", "total_reports", "results"}) {
+		t.Fatal("report status operation lost its closed page contract")
+	}
+	if string(reportStatus.Parameters[0].Schema.Default) != "1" || string(reportStatus.Parameters[1].Schema.Default) != `"all"` || string(reportStatus.Parameters[1].Schema.Enum) != `["all","same","different"]` || reportStatus.Parameters[0].Schema.QueryInteger != "canonical-decimal" || reportStatus.Parameters[1].Required || reportStatus.Parameters[1].AllowEmptyValue {
+		t.Fatal("report status query lost enum/default/omission meaning")
+	}
+	reportStatusItems := reportStatusSchema.Properties["results"]
+	if reportStatusItems.Type != "array" || reportStatusItems.MaxItems != 20 || reportStatusItems.Items == nil || reportStatusItems.Items.AdditionalProperties || !slices.Equal(reportStatusItems.Items.Required, []string{"id", "ticket", "summary", "completed", "ticket_closed", "matched"}) {
+		t.Fatal("report status result lost its required bounded rows")
+	}
 	summary := document.Paths["/api/tickets/summary/"]["get"]
 	summarySchema := document.Components.Schemas["TicketSummary"]
 	if summary.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketSummary" || len(summary.Parameters) != 3 || summary.Parameters[0].Name != "p" || summary.Parameters[1].Name != "min_open" || summary.Parameters[2].Name != "min_open_basis_points" || summarySchema.AdditionalProperties || !slices.Equal(summarySchema.Required, []string{"category", "page", "page_size", "min_open", "min_open_basis_points", "total_groups", "results"}) {

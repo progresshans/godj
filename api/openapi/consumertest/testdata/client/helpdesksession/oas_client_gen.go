@@ -138,6 +138,19 @@ type Invoker interface {
 	//
 	// PATCH /api/service-reports/{id}/
 	HelpdeskServiceReportPatch(ctx context.Context, request *ServiceReportPatch, params HelpdeskServiceReportPatchParams) (HelpdeskServiceReportPatchRes, error)
+	// HelpdeskServiceReportStatus invokes helpdesk:service-report-status operation.
+	//
+	// Reports whose ticket belongs to the application's category, ordered by report ID. Report completion
+	// and ticket closure are independent; matched only reports whether their flags are equal. comparison
+	// accepts all, same or different, defaulting to all. p is a canonical positive page number. Pages
+	// contain at most 20 rows; total_reports counts filtered rows before pagination, including on empty
+	// and past-end pages. Category identity/name, rows and count share one read snapshot. Both
+	// ViewServiceReport and ViewTicket are required before parsing or lookup. The read performs no writes,
+	// audit, ticket-body loading or digest repair. Unknown/duplicate parameters, malformed encoding, empty
+	// values and queries longer than 128 bytes are rejected.
+	//
+	// GET /api/service-reports/status/
+	HelpdeskServiceReportStatus(ctx context.Context, params HelpdeskServiceReportStatusParams) (HelpdeskServiceReportStatusRes, error)
 	// HelpdeskServiceReportUpdate invokes helpdesk:service-report-update operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
@@ -1763,6 +1776,126 @@ func (c *Client) sendHelpdeskServiceReportPatch(ctx context.Context, request *Se
 	}()
 
 	result, err := decodeHelpdeskServiceReportPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportStatus invokes helpdesk:service-report-status operation.
+//
+// Reports whose ticket belongs to the application's category, ordered by report ID. Report completion
+// and ticket closure are independent; matched only reports whether their flags are equal. comparison
+// accepts all, same or different, defaulting to all. p is a canonical positive page number. Pages
+// contain at most 20 rows; total_reports counts filtered rows before pagination, including on empty
+// and past-end pages. Category identity/name, rows and count share one read snapshot. Both
+// ViewServiceReport and ViewTicket are required before parsing or lookup. The read performs no writes,
+// audit, ticket-body loading or digest repair. Unknown/duplicate parameters, malformed encoding, empty
+// values and queries longer than 128 bytes are rejected.
+//
+// GET /api/service-reports/status/
+func (c *Client) HelpdeskServiceReportStatus(ctx context.Context, params HelpdeskServiceReportStatusParams) (HelpdeskServiceReportStatusRes, error) {
+	res, err := c.sendHelpdeskServiceReportStatus(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportStatus(ctx context.Context, params HelpdeskServiceReportStatusParams) (res HelpdeskServiceReportStatusRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/service-reports/status/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "comparison" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "comparison",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Comparison.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportStatusOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportStatusResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

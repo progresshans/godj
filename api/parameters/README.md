@@ -32,6 +32,7 @@ input, diagnostics, err := query.Parse(request.HTTP().URL.RawQuery)
 | `CanonicalInt64(min, max)` | inclusive int64 범위. `FormatInt`의 decimal 표기만 허용하며 `+1`, `01`, `-0`, 공백·소수·지수·overflow를 거부한다. |
 | `DigitsInt64(min, max)` | nonnegative inclusive int64 범위. 비어 있지 않은 ASCII digits를 받으며 `001`을 1로 읽는다. |
 | `String(maxBytes, allowEmpty)` | trim하지 않는 UTF-8. Byte 길이를 제한하고 NUL을 거부한다. Query는 URL decoding 뒤, header는 원 field text를 검사한다. |
+| `StringChoices(values...)` | 닫힌 문자열 집합의 exact 값만 받는다. 선언 slice를 복사하고 중복·잘못된 UTF-8·NUL·빈 집합을 거부한다. 빈 문자열은 집합에 명시했을 때만 값이며 부재와 다르다. 같은 집합과 검증된 default를 OpenAPI enum에 사용한다. |
 | `Required(codec)` | 생략은 `required`. 빈 값의 허용 여부는 codec이 정한다. |
 | `Default(codec, value)` | 생략한 때만 검증된 기본값을 사용한다. 같은 값이 schema `default`가 된다. |
 | `Optional(codec)` | `*T`로 부재를 표현한다. nil·명시적 0·명시적 빈 문자열을 구분한다. JSON null 변환은 없다. |
@@ -57,6 +58,7 @@ Setter는 순수하고 동시 호출에 안전해야 하며 DTO 포인터를 외
 독립 HTTP client를 대조한다. `allowEmptyValue`는 문자열의 empty 정책과 함께 나온다.
 
 Helpdesk의 요약 HTML/API와 Label·티켓–Label API 목록이 query의 첫 소비자다.
+서비스 보고서 상태 조회의 `comparison`은 `StringChoices("all", "same", "different")`와 기본값 `all`을 사용한다.
 
 ## Header
 

@@ -257,6 +257,12 @@ Normal core의 system-state capture 생산·service restart, operator-target의 
 원 Go JSON/stderr·필수 목록·partition 계획은 성공 여부와 관계없이 `postgres-product-<mode>-<shard>-<attempt>`에 보존한다.
 취소 실행의 불완전한 로그는 진단 자료이며 package 완료나 필수 실행 PASS를 대신하지 않는다.
 
+GDJ-0124의 관계 표현식은 normal/core·CGO=0/core·race/core-consumers에서 먼저 고정
+[Django observer](../conformance/runners/django/related_expression_reference/README.md)를 양 DB로 실행한다.
+그 실행의 원 reference와 생성 consumer의 native child JSON events를 같은 PostgreSQL product artifact에 남긴다.
+Parent는 현재 observer/input/module manifest hash와 정확한 17개 reference 사례·52개 native child 실행·5개 compile-negative를 요구한다.
+Portable의 SQLite invariant 실행은 이 reference/native 양 DB 검증을 대신하지 않는다.
+
 CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<shard>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
 결과 보존·conditional no-overwrite·checksum 거부·version 고정 seek·서명 변조/만료와 actual HTTP admission을 검증한다.
 실행별 source와 결과는 TEST_EVIDENCE에 기록하며 MinIO 성공을 AWS 운영 account나 다른 S3 구현의 실행 증거로 대체하지 않는다.

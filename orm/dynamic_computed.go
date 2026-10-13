@@ -11,13 +11,19 @@ type DynamicScalar[M any] struct {
 }
 
 func BindExpression[M any](source QuerySet[M], input DynamicExpression) (DynamicScalar[M], error) {
-	if source.configurationErr != nil {
-		return DynamicScalar[M]{}, source.configurationErr
+	return bindExpression(source, nil, input)
+}
+
+func BindExpressionIn[M any](source QuerySet[M], binding BoundModel[M], input DynamicExpression) (DynamicScalar[M], error) {
+	return bindExpression(source, &binding, input)
+}
+
+func bindExpression[M any](source QuerySet[M], binding *BoundModel[M], input DynamicExpression) (DynamicScalar[M], error) {
+	bound, err := dynamicExpressionBinding(source, binding)
+	if err != nil {
+		return DynamicScalar[M]{}, err
 	}
-	if source.prepared == nil {
-		return DynamicScalar[M]{}, invalidResultBuilder("expression binding requires model metadata")
-	}
-	value, err := input.bind(dynamicBinding{model: source.prepared})
+	value, err := input.bind(bound)
 	if err != nil {
 		return DynamicScalar[M]{}, err
 	}
@@ -25,7 +31,7 @@ func BindExpression[M any](source QuerySet[M], input DynamicExpression) (Dynamic
 	if err != nil {
 		return DynamicScalar[M]{}, err
 	}
-	if err := value.ValidateSource(source.plan.SourceFields()); err != nil {
+	if err := source.plan.ValidateScalar(value); err != nil {
 		return DynamicScalar[M]{}, err
 	}
 	return DynamicScalar[M]{expression: expression}, nil
@@ -117,12 +123,20 @@ func (value DynamicScalar[M]) Max() AggregateExpression[M, query.Value] {
 // ProjectDynamic owns an ordered set of metadata-bound expressions. The same
 // projection can be used by SelectInto or as computed keys in GroupBy.
 func ProjectDynamic[M any](source QuerySet[M], inputs ...DynamicExpression) (Projection[M, []query.Value], error) {
+	return projectDynamic(source, nil, inputs...)
+}
+
+func ProjectDynamicIn[M any](source QuerySet[M], binding BoundModel[M], inputs ...DynamicExpression) (Projection[M, []query.Value], error) {
+	return projectDynamic(source, &binding, inputs...)
+}
+
+func projectDynamic[M any](source QuerySet[M], binding *BoundModel[M], inputs ...DynamicExpression) (Projection[M, []query.Value], error) {
 	if len(inputs) == 0 || len(inputs) > query.MaxProjectionExpressions {
 		return Projection[M, []query.Value]{}, invalidResultBuilder("dynamic projection exceeds its expression bound")
 	}
 	expressions := make([]query.ResultExpression, len(inputs))
 	for index, input := range inputs {
-		value, err := BindExpression(source, input)
+		value, err := bindExpression(source, binding, input)
 		if err != nil {
 			return Projection[M, []query.Value]{}, err
 		}

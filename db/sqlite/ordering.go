@@ -16,7 +16,11 @@ func validateOrderings(plan query.Plan) error {
 	for _, ordering := range plan.Orderings() {
 		if scalar, present := ordering.Expression().Scalar(); present {
 			arguments := []any{}
-			if _, err := compileReadScalar(scalar, "", &arguments); err != nil {
+			prepared, err := queryplan.PrepareJoins(plan, "sqlite")
+			if err != nil {
+				return err
+			}
+			if _, err := compileReadScalar(scalar, queryplan.ScalarSource{Plan: plan, Alias: "t0", Joins: prepared.ByKey}, &arguments); err != nil {
 				return err
 			}
 			continue
@@ -32,9 +36,9 @@ func validateOrderings(plan query.Plan) error {
 	return nil
 }
 
-func appendResultValue(statement *strings.Builder, expression query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments *[]any, ordering bool) error {
+func appendResultValue(statement *strings.Builder, expression query.ResultExpression, plan query.Plan, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments *[]any, ordering bool) error {
 	if scalar, present := expression.Scalar(); present {
-		value, err := compileReadScalar(scalar, alias, arguments)
+		value, err := compileReadScalar(scalar, queryplan.ScalarSource{Plan: plan, Alias: alias, Joins: joins}, arguments)
 		if err != nil {
 			return err
 		}
@@ -85,7 +89,7 @@ func appendRowSelection(statement *strings.Builder, plan query.Plan, selected, h
 		if index > 0 {
 			statement.WriteString(", ")
 		}
-		if err := appendResultValue(statement, expression, alias, joins, &arguments, false); err != nil {
+		if err := appendResultValue(statement, expression, plan, alias, joins, &arguments, false); err != nil {
 			return nil, err
 		}
 		if len(hidden) > 0 || window {
@@ -94,13 +98,13 @@ func appendRowSelection(statement *strings.Builder, plan query.Plan, selected, h
 	}
 	for index, expression := range hidden {
 		statement.WriteString(", ")
-		if err := appendResultValue(statement, expression, alias, joins, &arguments, true); err != nil {
+		if err := appendResultValue(statement, expression, plan, alias, joins, &arguments, true); err != nil {
 			return nil, err
 		}
 		statement.WriteString(` AS "o` + strconv.Itoa(index) + `"`)
 	}
 	if err := queryplan.AppendPrefetchWindow(statement, plan, func(expression query.ResultExpression) error {
-		return appendResultValue(statement, expression, alias, joins, &arguments, true)
+		return appendResultValue(statement, expression, plan, alias, joins, &arguments, true)
 	}); err != nil {
 		return nil, err
 	}
@@ -139,7 +143,7 @@ func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.R
 			statement.WriteString(queryplan.HiddenOrderingColumn(selected, hidden, expression))
 		} else if _, scalar := expression.Scalar(); scalar && expression.ResultValueKind() != query.FieldJSON && queryplan.ExpressionIndex(selected, expression) >= 0 {
 			statement.WriteString(strconv.Itoa(queryplan.ExpressionIndex(selected, expression) + 1))
-		} else if err := appendResultValue(&statement, expression, alias, joins, &arguments, true); err != nil {
+		} else if err := appendResultValue(&statement, expression, plan, alias, joins, &arguments, true); err != nil {
 			return "", nil, err
 		}
 		queryplan.AppendOrderDirection(&statement, ordering.Direction(), ordering.Nulls())

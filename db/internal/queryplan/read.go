@@ -192,14 +192,15 @@ func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool
 		(value == query.ValueString && field == query.FieldString)
 }
 
-func ProjectionExpressions(result query.ResultShape, sourceFields []query.FieldRef) ([]query.ResultExpression, error) {
-	expressions := result.Expressions()
+func ProjectionExpressions(plan query.Plan) ([]query.ResultExpression, error) {
+	expressions := plan.ResultShape().Expressions()
+	sourceFields := plan.SourceFields()
 	if len(expressions) == 0 {
 		return nil, invalidPlan("projection result is empty")
 	}
 	for _, expression := range expressions {
 		if scalar, present := expression.Scalar(); present && expression.Kind() == query.ResultScalar {
-			if err := scalar.ValidateSource(sourceFields); err != nil {
+			if err := plan.ValidateScalar(scalar); err != nil {
 				return nil, err
 			}
 			continue

@@ -88,7 +88,7 @@ func compileScalar(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, 
 	if err := validateReadSourceFields(sourceFields); err != nil {
 		return "", nil, err
 	}
-	if err := bindScalarWhere(where, sourceFields); err != nil {
+	if err := bindScalarWhere(where, plan); err != nil {
 		return "", nil, err
 	}
 	result := plan.ResultShape()
@@ -99,7 +99,7 @@ func compileScalar(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, 
 		}
 		return compileScalarRows(plan, queryplan.FieldExpressions(sourceFields), sourceFields, where)
 	case query.ResultProjection:
-		projection, err := queryplan.ProjectionExpressions(result, sourceFields)
+		projection, err := queryplan.ProjectionExpressions(plan)
 		if err != nil {
 			return "", nil, err
 		}
@@ -168,7 +168,7 @@ func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFie
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
 	outerArguments := []any{}
-	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, sourceAlias, &outerArguments); err != nil {
+	if err := appendScalarAggregateExpressions(&sql, expressions, plan, sourceFields, sourceAlias, &outerArguments); err != nil {
 		return "", nil, err
 	}
 	sql.WriteString(" FROM (")
@@ -187,7 +187,7 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
 	arguments := []any{}
-	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, "", &arguments); err != nil {
+	if err := appendScalarAggregateExpressions(&sql, expressions, plan, sourceFields, "", &arguments); err != nil {
 		return "", nil, err
 	}
 	sql.WriteString(" FROM ")
@@ -200,11 +200,11 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 	return sql.String(), append(arguments, whereArguments...), nil
 }
 
-func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
+func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, plan query.Plan, sourceFields []query.FieldRef, sourceAlias string, arguments *[]any) error {
 	return queryplan.AppendAggregates(sql, expressions, sourceFields, func(expression query.ResultExpression) (string, error) {
 		start := len(*arguments)
 		var operand strings.Builder
-		if err := appendResultValue(&operand, expression, sourceAlias, nil, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, sourceAlias, nil, arguments, true); err != nil {
 			return "", err
 		}
 		rendered, err := renderAggregate(expression, operand.String(), "")
@@ -245,8 +245,8 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 
 	for _, leaf := range where.leaves {
 		condition := leaf.condition
-		if scalar, computed := condition.Scalar(); computed {
-			if err := scalar.ValidateSource(columns); err != nil {
+		if _, computed := condition.Scalar(); computed {
+			if err := queryplan.ValidateScalarCondition(plan, condition); err != nil {
 				return "", nil, err
 			}
 			continue
@@ -336,7 +336,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 
 	for index, leaf := range where.leaves {
 		if _, computed := leaf.condition.Scalar(); computed {
-			leaf.scalarAlias = rootAlias
+			leaf.scalarSource = queryplan.ScalarSource{Plan: plan, Alias: rootAlias, Joins: joins}
 			continue
 		}
 		alias := rootAlias

@@ -49,6 +49,10 @@ type HelpdeskServiceReportPatchRes interface {
 	helpdeskServiceReportPatchRes()
 }
 
+type HelpdeskServiceReportStatusRes interface {
+	helpdeskServiceReportStatusRes()
+}
+
 type HelpdeskServiceReportUpdateRes interface {
 	helpdeskServiceReportUpdateRes()
 }

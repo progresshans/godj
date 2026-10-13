@@ -1,8 +1,8 @@
-# ADR-0090: QuerySet 갱신과 현재 행의 scalar 표현식
+# ADR-0090: QuerySet 갱신과 scalar 표현식
 
 - 상태: Accepted design — 공통 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-12
-- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md)
+- 날짜: 2026-10-13
+- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md)
 
 ## 입력과 공개 API
 
@@ -19,7 +19,8 @@
 
 `UpdateDynamic(ctx, DynamicUpdateInput{Field: "amount", Value: DynamicF("amount").Add(int64(1))})`도 같은
 Schema IR metadata와 scalar AST로 준비한다. 동적 이름은 schema의 concrete field name이다. Go 필드 이름이나
-관계 traversal을 SQL 문자열로 해석하지 않는다. `DynamicValue`는 닫힌 scalar 입력을 즉시 소유하며 임의 객체,
+관계 traversal을 UPDATE 값이나 SQL 문자열로 해석하지 않는다. 읽기의 관계 이름 binding은 아래 별도 계약을 따른다.
+`DynamicValue`는 닫힌 scalar 입력을 즉시 소유하며 임의 객체,
 aggregate, mutable raw container와 알 수 없는 이름은 I/O 전에 거부한다.
 
 Manager와 생성 root/eager/prefetch facade는 같은 연산을 제공한다. 기존의 한 모델·PatchInput 저장 메서드는
@@ -28,7 +29,7 @@ Manager와 생성 root/eager/prefetch facade는 같은 연산을 제공한다. �
 
 ## 불변 AST와 수치 의미
 
-`ScalarExpression`은 literal, source field, selected result, binary arithmetic, negate, CASE의 private 불변 tree다. Boolean 조건 AST와
+`ScalarExpression`은 literal, source field, single-valued related field, selected result, binary arithmetic, negate, CASE의 private 불변 tree다. Boolean 조건 AST와
 별도 값 표현식이지만 typed/dynamic 경로마다 두 구현을 만들지 않는다. `ScalarAssignment`가 결과 kind를 target에
 결합하고 `QueryUpdatePlan`이 원 predicate·primary key·전체 source metadata와 assignment를 소유한다.
 깊이 64, assignment를 합친 전체 scalar node 1024, concrete source metadata와 backend parameter 예산을 검증한다.
@@ -66,7 +67,7 @@ Decimal 상수는 선언된 precision/scale에 정확히 맞아야 한다. Decim
 `Expression`/`ProjectExpressions`는 같은 AST에서 kind를 가진 `query.Value`를 반환한다.
 `BindPredicate`/생성 `ExpressionPredicate`도 metadata를 먼저 검증한다. 읽기에서 bare untyped NULL은 거부한다.
 
-CASE는 명시적 default와 순서가 있는 같은 행의 조건을 갖는다. 첫 true 조건의 값을 선택하고 SQL UNKNOWN은
+CASE는 명시적 default와 순서가 있는 같은 source의 조건을 갖는다. 첫 true 조건의 값을 선택하고 SQL UNKNOWN은
 다음 조건으로 진행한다. Branch가 없으면 default 자체다. 조건과 값이 교차하는 전체 깊이/노드 예산을 유지하고
 branch slice를 복사한다. Decimal assignment는 선택되지 않는 branch도 선언된 target precision에 맞는지 검사한다.
 실행 중 선택되지 않는 row expression을 미리 계산하지 않지만 PostgreSQL의 constant folding 오류까지 숨기지는 않는다.
@@ -79,9 +80,37 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 
 결과 열 참조와 `Derive`의 명시적 후속 조회·재집계는 [ADR-0091](0091-grouped-results-and-having.md)을 따른다.
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
-일반 named annotation과 dependency/재바인딩 API, 관계를 넘는 computed operand,
+일반 named annotation과 dependency/재바인딩 API, collection을 넘는 computed operand,
 subquery/window/function, Decimal·Duration 산술과 computed SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
+
+## 단일 값 관계와 두 scalar 비교
+
+GDJ-0124는 finite forward FK/OneToOne과 reverse OneToOne의 혼합 경로를 읽기 scalar operand로 사용한다.
+원본 모델과 실제 related terminal의 metadata를 구분하며 optional ancestor나 없는 reverse 객체는 NULL이다.
+같은 이름/종류의 root 필드를 만들어 related 값을 가장하지 않는다. Root table/key와 정규 경로를 소유한 plan이
+검증 주체이며 field 목록만으로 관계를 승인할 수 없다. Collection 경로는 다중 값 계약 전까지 거부한다.
+
+Typed related field를 `AddExpressions`, `Case` 등에 직접 전달하고 `Scalar(related)`로 Optional projection·literal 비교·
+정렬을 만든다. `Numeric(related)`는 기존 int64/float64 집계 capability를 연결한다.
+`ExactExpressions(left, right)`와 네 ordered `...Expressions`는 같은 모델/값 타입의 operand를 받는다.
+양쪽의 원본 metadata·선택 결과 scope·CASE의 숨은 조건·깊이/노드를 모두 검사한다. Boolean은 exact만 지원하고
+JSON의 scalar-to-scalar 비교는 별도 값 비교 계약 전까지 거부한다. SQL UNKNOWN과 NOT를 기존 계산 비교와 같이 유지한다.
+
+Dynamic `BindExpressionIn`/`BindPredicateIn`/`ProjectDynamicIn`은 source와 일치하는 sealed `BoundModel`을 받아
+`DynamicF("ticket__closed")` 같은 경로를 해석한다. Root 전용 함수는 binding 없이 관계 이름을 추측하지 않는다.
+생성 facade는 자기 project binding으로 같은 AST를 만들고 dynamic RHS도 `DynamicExpression`으로 전달한다.
+선택 결과의 `DynamicColumn` 비교는 자기 결과 scope만 사용한다. 원본 관계를 후속 결과 단계로 직접 가져갈 수 없다.
+
+Projection·WHERE·CASE·ordering·group/aggregate가 한 statement의 canonical JOIN을 공유한다. 계산 조건/선택값은
+optional 행의 존재를 증명하지 않으므로 JOIN을 임의로 INNER로 바꾸지 않는다. 각 DB가 terminal의 physical codec과
+산술/parameter 예산을 검사한다. 관련 값을 UPDATE assignment로 쓰는 것은 CASE 조건 안에 숨겨도 거부한다.
+관련 비교로 원 UPDATE의 대상 행을 고르는 기존 membership 경로는 유지한다.
+
+Helpdesk의 서비스 보고서 상태 조회는 보고서 완료와 연결 티켓의 닫힘을 비교한다. 두 독립 업무 상태의 차이를
+오류로 판정하거나 자동 수정하지 않는다. HTML/API 모두 ViewServiceReport와 ViewTicket을 query 해석 전에 요구하며,
+현재 category·총수·20개 페이지를 같은 읽기 snapshot으로 반환한다. 전체 Ticket 본문·digest·쓰기·audit를 사용하지 않는다.
+같은 읽기 계약을 실제 양 DB·독립 SDK·브라우저 소비자로 검증하며 환경별 실행은 활성 work/Evidence에 기록한다.
 
 ## 선택, 실행과 동시성
 

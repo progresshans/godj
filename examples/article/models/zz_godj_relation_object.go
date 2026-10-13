@@ -22,4 +22,4 @@ func (ArticleDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorag
 
 type GoDjAppPart2_357f75c79af7d21e3d0869d81fc0016c2aee69a801989dc805a3b5982b1fc340 struct{}
 
-var _ GoDjProjectSnapshot_89e80e85b1deda9a5f9fb4273698bc05498a3c8f78f579510af969d3c4c1da52
+var _ GoDjProjectSnapshot_0b64c41c5bf4647b3e1ce870fcc1b80c03766ad8517dc6c2fc3a96ecbdcd3daa

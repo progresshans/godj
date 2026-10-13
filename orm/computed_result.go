@@ -20,8 +20,7 @@ import (
 type NumericExpression[M any, N ArithmeticNumber] struct{ ScalarExpression[M, N] }
 
 func Numeric[M any, N ArithmeticNumber](operand ScalarOperand[M, N]) NumericExpression[M, N] {
-	expression, err := operandExpression(operand)
-	return NumericExpression[M, N]{ScalarExpression[M, N]{expression: expression, err: err}}
+	return NumericExpression[M, N]{Scalar(operand)}
 }
 
 func (value ScalarExpression[M, V]) scalarResultField(M, Optional[V]) (query.ResultExpression, func() scalarCell[Optional[V]], error) {

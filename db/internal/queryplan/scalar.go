@@ -12,6 +12,7 @@ import (
 type ScalarDialect struct {
 	ParameterLimit int
 	Field          func(query.FieldRef) (string, error)
+	Related        func(query.RelationPath) (string, error)
 	Selected       func(query.ResultRef) (string, error)
 	Value          func(query.Value) (any, error)
 	Placeholder    func(int) string
@@ -49,6 +50,14 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 			}
 		} else if field, ok := expression.Field(); ok {
 			statement, err = dialect.Field(field)
+			if err != nil {
+				return "", err
+			}
+		} else if path, ok := expression.RelationPath(); ok {
+			if dialect.Related == nil {
+				return "", invalidPlan("scalar compiler does not provide related values")
+			}
+			statement, err = dialect.Related(path)
 			if err != nil {
 				return "", err
 			}

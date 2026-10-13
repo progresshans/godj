@@ -119,7 +119,7 @@ JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL N
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
 Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. 명시적 key/index 경로의 exact/IN/isnull을 typed/dynamic과 같은 AST로 연결했다. PostgreSQL은 root/path·forward contains/contained_by를 native JSONB 연산으로 처리하고 SQLite는 capability 오류로 거부한다.
 Root/path·forward has_key/has_keys/has_any_keys도 지원한다. PostgreSQL native JSONB membership과 SQLite object-key 의미,
-SQLite의 literal empty/NUL 보정·빈 목록 확장은 ADR-0071/DEV-0017에 명시한다. Root JSON 경로 projection도 typed nullable 결과로 연결했다. 관계 filter source의 root scalar/JSON 경로 DTO는 같은 JOIN과 선택값 기준 DISTINCT를 사용한다. Forward 대상의 JSON 문서 전체와 경로도 nullable DTO로 연결한다. Literal JSON의 gt/gte/lt/lte는 root/path·forward에서 DB별 의미로 처리한다. SQLite path의 array/object RHS는 미지원이며 whole field와 PostgreSQL path는 지원한다. JSON root/path·forward 정렬은 backend 값 의미와 정확한 경로 숫자를 유지한다. Literal 문자열 IContains도 root/path·forward에서 지원한다. SQLite는 저장 TEXT/정확한 subtree와 ASCII 문자 범위, PostgreSQL은 native JSONB TEXT 변환과 UPPER/LIKE를 사용한다. SQL NULL/missing·JSON null의 차이와 정확한 숫자/NUL 검색 정책은 ADR-0071/DEV-0017을 따른다. JSON Min/Max·ordered F·reverse value/path projection·정렬은 현재 미지원이다.
+SQLite의 literal empty/NUL 보정·빈 목록 확장은 ADR-0071/DEV-0017에 명시한다. Root JSON 경로 projection도 typed nullable 결과로 연결했다. 관계 filter source의 root scalar/JSON 경로 DTO는 같은 JOIN과 선택값 기준 DISTINCT를 사용한다. Forward 대상의 JSON 문서 전체와 경로도 nullable DTO로 연결한다. Literal JSON의 gt/gte/lt/lte는 root/path·forward에서 DB별 의미로 처리한다. SQLite path의 array/object RHS는 미지원이며 whole field와 PostgreSQL path는 지원한다. JSON root/path·forward 정렬은 backend 값 의미와 정확한 경로 숫자를 유지한다. Literal 문자열 IContains도 root/path·forward에서 지원한다. SQLite는 저장 TEXT/정확한 subtree와 ASCII 문자 범위, PostgreSQL은 native JSONB TEXT 변환과 UPPER/LIKE를 사용한다. SQL NULL/missing·JSON null의 차이와 정확한 숫자/NUL 검색 정책은 ADR-0071/DEV-0017을 따른다. JSON Min/Max·ordered F·collection value/path projection·정렬은 현재 미지원이다. Single reverse OneToOne의 값/경로 선택은 공통 single-valued 경로를 사용한다.
 GoDj write의 object key 정규화와 native JSONB numeric equality·지수 전개를 구분하며 PostgreSQL NUL과 readback 크기 초과를 거부한다.
 Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했다. Helpdesk는 native readback 뒤 응답 한도 검사까지 transaction 안에서 처리한다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
 
@@ -136,10 +136,11 @@ transient table과 파생 제약 이름까지 초기/최종 검증한다. 소유
 자신의 intermediary를 다시 참조하는 생성 순환은 모델을 만든 뒤 AddField로 작성한다. 일반 collection manager/query는 아직 미지원이다.
 모든 Django Field, relation-as-PK, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
-같은 행의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
+같은 source와 single-valued 관계의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
 계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
 계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. Decimal/Duration의 CASE 복사는 지원하지만
-해당 kind의 계산식 SUM/AVG·산술, 일반 named annotation·forward/collection computed operand는 미지원이다.
+해당 kind의 계산식 SUM/AVG·산술, 일반 named annotation·collection computed operand는 미지원이다.
+Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현 중이며 새 source의 실행은 아직 미완료다.
 SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
 명시적 결과 stage는 선택한 열의 kind·NULL과 원본 plan의 필터·정렬·DISTINCT·slice를 보존하며,
 결과 열의 계산·필터·정렬·그룹·재집계와 단일 statement Page를 지원한다. 원 모델 FieldRef와 결과 scope를
@@ -147,12 +148,12 @@ SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL nati
 terminal COUNT의 0 한 행, Duration AVG의 native 비교와 마지막 decode도 구별한다.
 구현 경계는 [Scalar 표현식](adr/0090-query-update-and-scalar-expressions.md)과
 [결과 단계](adr/0091-grouped-results-and-having.md), 실제 실행은 Evidence를 따른다.
-Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
+Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter를 연결한다. Related/filtered aggregate는 unsliced·non-distinct 원본을 요구한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다.
-별도 그룹 결과는 scalar/finite forward 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
-정수·Float·Decimal·Duration의 root/finite forward SUM/AVG(distinct 포함), 조건부 집계·선택 결과의 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
+별도 그룹 결과는 scalar/finite single-valued 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
+정수·Float·Decimal·Duration의 root/finite single-valued SUM/AVG(distinct 포함), 조건부 집계·선택 결과의 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
 filter의 JOIN multiplicity·부정 EXISTS를 유지한다. Group Count는 현재 group slice를 세며 Page의 전체 그룹 수와
-행은 한 statement snapshot에서 읽는다. 일반 collection/reverse 집계·related MIN/MAX의 public API·JSON 그룹 키는
+행은 한 statement snapshot에서 읽는다. Collection 집계·일반 named annotation·JSON 그룹 키는
 미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은 [그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다.
 SUM/AVG의 빈 원본/모두 NULL 결과는 NULL이다. 정수 AVG는 Float이며 결과 종류를 원본 field metadata와 구분한다.
 SQLite 정수 SUM은 중간 int64 overflow도 거부하고 PostgreSQL은 넓은 native 결과를 마지막 bigint cast에서 검사한다.
@@ -165,7 +166,8 @@ Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEF
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
 Typed/dynamic 대상은 Integer·Float·Decimal·UUID·Char/Text·Date·DateTime·Time·Duration의 nullable/non-null과 Boolean이다.
 Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typed DTO로 선택하며, 관련 값은 항상 nullable pointer로 반환한다. 같은 forward scalar에 ASC/DESC를 제공하고 정렬에만 등장하는 optional 경로도 행을 보존한다.
-원본 field metadata는 유지하고 target 부재·SQL NULL을 표현한다. Reverse value 선택/정렬·관계를 넘는 F와 related MIN/MAX는 미지원이다.
+원본 field metadata는 유지하고 target 부재·SQL NULL을 표현한다. Single reverse OneToOne의 값 선택/정렬과 혼합 경로를
+같은 AST로 연결한다. Related 숫자의 MIN/MAX는 Numeric operand로, dynamic ordered 값은 DynamicScalar로 연결한다.
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
@@ -192,7 +194,7 @@ Raw QuerySet.Iterate의 graph 없는 callback은 configured prefetch를 계속 �
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.
 필터로 제외된 required target은 해당 관계 접근에서 missing 오류를 반환하며 부모 목록 조회는 성공한다. Nullable/reverse 부재는 bool로 구분한다.
-관계를 넘는 F와 collection value projection/ordering·일반 collection/reverse 집계는 미지원이다.
+Collection value projection/ordering·collection aggregate는 미지원이다. 관련 값의 UPDATE assignment는 CASE 안에서도 거부한다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.

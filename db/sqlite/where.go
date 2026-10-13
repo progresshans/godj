@@ -23,16 +23,15 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind           query.ExpressionKind
-	condition      query.Condition
-	children       []*sqliteWhereNode
-	fieldSQL       string
-	scalarAlias    string
-	scalarResolver func(query.FieldRef) (string, error)
-	rhsFieldSQL    string
-	inValues       []query.Value
-	inHasNull      bool
-	existsPrefix   string
+	kind         query.ExpressionKind
+	condition    query.Condition
+	children     []*sqliteWhereNode
+	fieldSQL     string
+	scalarSource queryplan.ScalarSource
+	rhsFieldSQL  string
+	inValues     []query.Value
+	inHasNull    bool
+	existsPrefix string
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -48,6 +47,9 @@ func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
 	}
 	analysis.root = root
 	analysis.hasRelations = hasRelations
+	for _, leaf := range analysis.leaves {
+		leaf.scalarSource.Plan = plan
+	}
 	return analysis, nil
 }
 
@@ -87,6 +89,9 @@ func analyzeWhereExpression(
 				return nil, false, unsupportedRelatedCondition(condition, "SQLite reverse relation predicates under OR or NOT are not supported")
 			}
 		}
+		left, _ := condition.Scalar()
+		right, _ := condition.RHSScalar()
+		related = related || left.HasRelations() || right.HasRelations()
 		if expression.HasRelations() != related {
 			return nil, false, invalidPlan("query expression relation metadata is malformed")
 		}
@@ -143,11 +148,12 @@ func analyzeWhereExpression(
 	}
 }
 
-func bindScalarWhere(analysis *sqliteWhereAnalysis, sourceFields []query.FieldRef) error {
+func bindScalarWhere(analysis *sqliteWhereAnalysis, plan query.Plan) error {
+	sourceFields := plan.SourceFields()
 	for _, leaf := range analysis.leaves {
 		condition := leaf.condition
-		if scalar, computed := condition.Scalar(); computed {
-			if err := scalar.ValidateSource(sourceFields); err != nil {
+		if _, computed := condition.Scalar(); computed {
+			if err := queryplan.ValidateScalarCondition(plan, condition); err != nil {
 				return err
 			}
 			continue
@@ -209,10 +215,7 @@ func appendWhereNode(
 	case query.ExpressionLeaf:
 		if _, computed := node.condition.Scalar(); computed {
 			return queryplan.AppendScalarCondition(sql, node.condition, func(value query.ScalarExpression) (string, error) {
-				if node.scalarResolver != nil {
-					return compileReadScalarFields(value, node.scalarResolver, arguments)
-				}
-				return compileReadScalar(value, node.scalarAlias, arguments)
+				return compileReadScalar(value, node.scalarSource, arguments)
 			}, func(value query.Value) (string, error) {
 				if len(*arguments) >= sqliteBulkParameters {
 					return "", invalidPlan("computed predicate exceeds SQLite parameter budget")

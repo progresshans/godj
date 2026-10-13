@@ -54,6 +54,14 @@ type HelpdeskServiceReportPatchParams struct {
 	ID int64
 }
 
+// HelpdeskServiceReportStatusParams is parameters of helpdesk:service-report-status operation.
+type HelpdeskServiceReportStatusParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Whether report completion and ticket closure have the same value; the statuses are independent.
+	Comparison OptHelpdeskServiceReportStatusComparison `json:",omitempty,omitzero"`
+}
+
 // HelpdeskServiceReportUpdateParams is parameters of helpdesk:service-report-update operation.
 type HelpdeskServiceReportUpdateParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

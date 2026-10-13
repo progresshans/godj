@@ -96,6 +96,7 @@ const (
 	conditionRHSList
 	conditionRHSField
 	conditionRHSJSONKeys
+	conditionRHSScalar
 )
 
 type conditionRHS struct {
@@ -104,6 +105,7 @@ type conditionRHS struct {
 	values []Value
 	field  FieldRef
 	keys   JSONKeyList
+	scalar ScalarExpression
 }
 
 type Condition struct {
@@ -127,12 +129,55 @@ func NewScalarCondition(scalar ScalarExpression, lookup Lookup, value Value) (Co
 
 func (c Condition) Scalar() (ScalarExpression, bool) { return c.scalar, c.scalar.node != nil }
 
+// NewScalarComparison compares two values within one eventual row or result
+// scope. Both operands preserve SQL NULL under negation, including bare fields.
+func NewScalarComparison(left ScalarExpression, lookup Lookup, right ScalarExpression) (Condition, error) {
+	condition := Condition{scalar: left, lookup: lookup, rhs: &conditionRHS{kind: conditionRHSScalar, scalar: right}}
+	if err := validateScalarCondition(condition); err != nil {
+		return Condition{}, err
+	}
+	return condition, nil
+}
+
+func (c Condition) RHSScalar() (ScalarExpression, bool) {
+	if c.rhs == nil || c.rhs.kind != conditionRHSScalar {
+		return ScalarExpression{}, false
+	}
+	return c.rhs.scalar, true
+}
+
 func validateScalarCondition(condition Condition) error {
 	if _, err := ScalarResult(condition.scalar); err != nil {
 		return err
 	}
-	if condition.field != (FieldRef{}) || condition.relationPath != nil || condition.jsonPath.Valid() || condition.rhs == nil || condition.rhs.kind != conditionRHSLiteral {
+	if condition.field != (FieldRef{}) || condition.relationPath != nil || condition.jsonPath.Valid() || condition.rhs == nil {
 		return invalidPlanError("computed predicate has mixed field or right-hand-side metadata")
+	}
+	if right, present := condition.RHSScalar(); present {
+		if _, err := ScalarResult(right); err != nil {
+			return err
+		}
+		kind := condition.scalar.ResultKind()
+		if kind != right.ResultKind() {
+			return invalidPlanError("computed comparison requires same-kind scalar operands")
+		}
+		if kind == FieldJSON {
+			return groupUnsupported("computed JSON comparisons require an explicit value comparison contract")
+		}
+		switch condition.lookup {
+		case LookupExact:
+			return nil
+		case LookupGreaterThan, LookupGreaterThanOrEqual, LookupLessThan, LookupLessThanOrEqual:
+			if expressionOrderedValueMatchesField(ValueKind(kind), kind) {
+				return nil
+			}
+		default:
+			return groupUnsupported("scalar-to-scalar predicate requires exact or ordered comparison")
+		}
+		return invalidPlanError("computed comparison requires an ordered scalar domain")
+	}
+	if condition.rhs.kind != conditionRHSLiteral {
+		return invalidPlanError("computed predicate has an invalid right-hand-side kind")
 	}
 	value := condition.rhs.value
 	if _, err := value.DatabaseValue(); err != nil {
@@ -296,7 +341,7 @@ func (c Condition) Equal(other Condition) bool {
 		return false
 	}
 	if c.rhs != nil {
-		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field || !c.rhs.keys.Equal(other.rhs.keys) ||
+		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field || !c.rhs.keys.Equal(other.rhs.keys) || !c.rhs.scalar.Equal(other.rhs.scalar) ||
 			!slices.EqualFunc(c.rhs.values, other.rhs.values, func(left, right Value) bool {
 				return left.Equal(right)
 			}) {
@@ -648,10 +693,13 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 	if node.kind == ExpressionLeaf {
 		condition := node.condition
 		if scalar, present := condition.Scalar(); present {
-			if p.derived != nil {
-				return scalar.ValidateResultSource(p.derived.scope)
+			if err := p.ValidateScalar(scalar); err != nil {
+				return err
 			}
-			return scalar.ValidateSource(p.sourceFields)
+			if right, present := condition.RHSScalar(); present {
+				return p.ValidateScalar(right)
+			}
+			return nil
 		}
 		if p.derived != nil {
 			return invalidPlanError("derived predicate requires selected scalar values")
@@ -813,10 +861,7 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		}
 	}
 	if scalar, present := expression.Scalar(); present {
-		if p.derived != nil {
-			return scalar.ValidateResultSource(p.derived.scope)
-		}
-		return scalar.ValidateSource(p.sourceFields)
+		return p.ValidateScalar(scalar)
 	}
 	if p.derived != nil {
 		if expression.kind == ResultCountAll {
@@ -825,11 +870,7 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		return invalidPlanError("derived value requires a selected scalar expression")
 	}
 	if path, related := expression.RelationPath(); related {
-		root := path.hops[0]
-		if root.SourceTable() != p.table || !slices.Contains(p.sourceFields, NewFieldRef(root.Field(), root.SourceColumn(), FieldInteger, root.Nullable())) {
-			return invalidPlanError("value relation source key is not part of the plan source metadata")
-		}
-		return nil
+		return p.validateValueRelation(path)
 	}
 	if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
 		return invalidPlanError("value field is not part of the plan source metadata")

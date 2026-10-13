@@ -24,8 +24,10 @@ func compileQueryUpdate(schema string, plan query.QueryUpdatePlan) (string, []an
 		},
 		QuoteTable: func(table string) (string, error) { return quoteTable(schema, table) }, QuoteIdentifier: quoteIdentifier,
 		Value: postgresValue, Placeholder: placeholder,
-		Predicate: compileScalarPredicate,
-		Literal:   readScalarLiteral,
+		Predicate: func(expression query.Expression, resolve func(query.FieldRef) (string, error), arguments *[]any) (string, error) {
+			return compileScalarPredicate(expression, queryplan.ScalarSource{Plan: plan.Selection(), Field: resolve}, arguments)
+		},
+		Literal: readScalarLiteral,
 	})
 }
 

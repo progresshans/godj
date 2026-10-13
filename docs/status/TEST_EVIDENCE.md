@@ -3,6 +3,61 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0124 — 관계 값 표현식과 서비스 보고서 상태 조회
+
+2026-10-13 KST, 기준 `a5ef8ff6ea9accaea369c021a0e35eccae6f0804` 뒤 작업 사본에 single-valued 관계 scalar와
+두 operand 비교, 공통 JOIN/source 검증·양 compiler·typed/dynamic·생성 facade를 연결했다.
+Helpdesk 보고서 완료와 티켓 닫힘의 상태 조회는 두 view 권한·현재 category·읽기 snapshot·Page·HTML/API·독립 SDK를 사용한다.
+설계는 ADR-0090/0091이 소유한다. **이 source의 테스트 본문·DB·브라우저·원격 전체 실행은 아직 미완료다.**
+
+### 작성한 검증과 독립 기준
+
+Query AST는 원본/결과 scope·양쪽 metadata·CASE 조건·optional/reverse/collection·assignment 거부와 전체 자원 한도를 검사한다.
+별도 생성 소비자는 typed/dynamic AST와 NULL·CASE·forward/reverse/mixed·group/filter/order/DISTINCT·전역 집계·
+결과 단계/Page·cache/context/session·cursor 오류·native overflow·잘못된 related Decimal·unselected branch·rollback을 검사한다.
+Relation-filtered root MIN/MAX는 기존 거부 검사를 정상 결과/원 predicate 보존 검사로 바꾸고 양 DB native 값을 추가했다.
+COUNT의 cold/warm·중복·slice와 model cache의 기존 위험은 같은 검사에서 유지한다.
+
+고정 Django commit `fe0a859f537d4238cf49fca39073513206f83122`의 별도 relation observer는 Go source나 결과를 읽지 않는다.
+현재 observer SHA-256은 `edbb6a941b300f5b819b2f5bd2f54e6b7055a1ce0e8911b5c37826fd89568293`,
+synthetic input은 `1f300c536e4fa086fb65d1e3a6cbc7cb125f56f77f96ee06362f50317c498341`,
+15개 module byte 대조 manifest는 `058498ba8c8a921739e1b9de35e71bd5b88b1e90fa2baf709a8ab1cb027f58c2`다.
+Python 3.14.3·Django 6.1·psycopg 3.3.6·PostgreSQL 17.10을 고정했다. SQLite runtime 버전은 관찰마다 기록한다.
+CI normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 양 DB의 17개 원 관찰을 만들고
+현재 hash·목록·storage 보존/정리를 검증한 뒤 생성 소비자의 52개 native child run/pass·skip 0과 compile-negative 5개를 요구한다.
+원 JSON과 `godj-related-native.jsonl`을 그 owner의 PostgreSQL artifact에 보존한다. 아직 이 관찰을 실행한 것으로 주장하지 않는다.
+Portable은 8개 SQLite invariant child만 요구하며 원격 reference/native 양 DB의 대용이 아니다.
+
+Helpdesk 양 DB 소비자에는 45개 scoped 보고서와 외부 category를 사용한 네 정상/인가 흐름과 13개 snapshot/cursor/취소
+실패를 추가했다. 조회 전후 Ticket 전체·digest·ServiceReport·audit 보존과 기존 보고서 API의 권한을 유지한다.
+독립 SDK의 새 두 receipt는 실제 HTTP의 두 상태·필터·끝난 페이지·enum과 required 응답/wire 실패를 구분한다.
+기존 요약 브라우저 30개 check에 보고서 상태 19개를 더하고 30개 Ticket·30개 Report의 전체 저장값·audit·cleanup을 요구한다.
+새 테스트는 기존 relation/PostgreSQL 필수 목록과 자동 전체 CI의 소유권에 포함하며 scope나 job 수를 줄이지 않았다.
+
+### 로컬 생성과 최소 compile
+
+로컬은 Go 1.26.5 darwin/arm64에서 포맷·생성·compile과 문서/문법 검사만 수행했다. 테스트 바이너리를 실행하지 않았다.
+
+- Facade generator v26으로 byte-locked golden과 일곱 checked-in 프로젝트를 다시 생성했다. 생성 facade의 project binding과
+  manifest/공통 provenance header를 함께 갱신했다. 자료 `godj-verification/related-generate-3ckjayme`.
+- 실제 여섯 API profile을 export하고 고정 ogen의 Helpdesk package를 재생성했다. 추가된 status operation/response 외에
+  기존 경로·schema·다른 다섯 profile과 dependency lock 세 파일은 동일하다. 독립 client의 build만 통과했으며 HTTP는 미실행이다.
+  자료 `godj-verification/related-openapi-ztlbzgx6`.
+- 제품·query/compiler·ORM·생성기/소비자·API·Helpdesk test package 11개를 `go test -trimpath -c`로 compile했다.
+  브라우저 fixture는 build, 새 standalone 생성 module은 소비자 test binary compile만 통과했다.
+  Python observer/CI 도구의 AST와 새 browser probe의 JavaScript 문법도 확인했다.
+  변경 Go 파일 174개의 hash·명령·로그와 외부 module은 `godj-verification/related-final-compile-oufosdxc`에 보존했다.
+  Receipt SHA-256은 `4776de386a1df8f2474f69bfbbd2ab6cdb7c88b66fa9c058737d636d917b940b`다.
+  이후 native event 보존을 추가한 생성 parent와 그룹 전 명시적 ordering 해제를 반영한 consumer는 같은 자료의
+  별도 compile receipt가 소유한다. 두 compile 모두 exit 0이며 receipt SHA-256은 각각
+  `29002493ec95f5145d3a2469a00f832d086c1d0396040681a6ec6bbc42243175`,
+  `01ddb304efb8b2cd1fab1ca55c2d90d58ad5c4fa139484dbbd5613bb71c03bbe`다.
+- 문서 링크와 `git diff --check`를 확인했다. 첫 compile 명령은 같은 basename의 두 `consumertest` package가 출력 이름을
+  공유해서 실행 전 거부됐으며 출력 파일을 분리한 후 위 compile을 완료했다. 이를 테스트 실패/성공으로 계산하지 않는다.
+
+변경 묶음 push 뒤 자동 전체 CI에서 영향·generated drift·DB·race·process·독립 SDK/브라우저·전체 platform을 실행한다.
+선행 GDJ-0123 source `97b441c6`의 전체 83개 성공은 이번 source의 PASS로 전이하지 않는다.
+
 ## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
 
 2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan

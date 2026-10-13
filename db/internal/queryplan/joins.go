@@ -119,6 +119,30 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		return nil
 	}
+	addScalar := func(value query.ScalarExpression) error {
+		if err := plan.ValidateScalar(value); err != nil {
+			return err
+		}
+		for _, path := range value.RelationPaths() {
+			// A value or CASE branch does not prove that an optional row exists.
+			if err := addPath(path, false, true); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	addComputedCondition := func(condition query.Condition) error {
+		left, _ := condition.Scalar()
+		right, _ := condition.RHSScalar()
+		for _, value := range []query.ScalarExpression{left, right} {
+			if value.Kind() != 0 {
+				if err := addScalar(value); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
 	type existenceRequest struct {
 		condition        query.Condition
 		correlationDepth int
@@ -126,6 +150,9 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 	existences := make(map[int]existenceRequest)
 	for index, leaf := range conditionLeaves(plan) {
 		condition := leaf.condition
+		if err := addComputedCondition(condition); err != nil {
+			return Joins{}, err
+		}
 		if path, related := condition.RelationPath(); related {
 			if err := RelationCondition(plan, condition, path, backendName); err != nil {
 				return Joins{}, err
@@ -160,6 +187,11 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 	}
 	for _, expression := range plan.ResultShape().Expressions() {
+		if scalar, present := expression.Scalar(); present {
+			if err := addScalar(scalar); err != nil {
+				return Joins{}, err
+			}
+		}
 		if path, related := expression.RelationPath(); related {
 			if err := addPath(path, false, true); err != nil {
 				return Joins{}, err
@@ -169,6 +201,9 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			var visit func(query.Expression) error
 			visit = func(value query.Expression) error {
 				if condition, leaf := value.Condition(); leaf {
+					if err := addComputedCondition(condition); err != nil {
+						return err
+					}
 					if path, related := condition.RelationPath(); related {
 						if err := RelationCondition(plan, condition, path, backendName); err != nil {
 							return err
@@ -191,6 +226,11 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 	}
 	for _, ordering := range plan.Orderings() {
+		if scalar, present := ordering.Expression().Scalar(); present {
+			if err := addScalar(scalar); err != nil {
+				return Joins{}, err
+			}
+		}
 		if path, related := ordering.Expression().RelationPath(); related {
 			if err := addPath(path, false, true); err != nil {
 				return Joins{}, err
