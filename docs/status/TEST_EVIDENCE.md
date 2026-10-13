@@ -86,6 +86,21 @@ Related update target의 compile-negative는 실제 Go 진단의 exported `orm.R
 Repair receipt SHA-256은 `4e451a0c87e270b70bc488f16633615968039a8d8f1755d9cedd0df8021caeff`다.
 후속 수정 source의 자동 전체 CI로 환경별 결과와 원본 증거를 다시 확인한다.
 
+### 브라우저 필터 레이블 재현과 수정
+
+Source `06b3e9d5f1a6aac2fdc3bf500a3033c4088b6e2a`의
+[CI 38342829986](https://github.com/progresshans/godj/actions/runs/38342829986)는 normal integration의 Go 검사를 통과했지만
+브라우저 status probe에서 `getByLabel('Show', { exact: true })`가 선택 상자를 찾지 못해 실패했다.
+Checkout `303716cc9248405005b59841744e42f030580904`과 source tree를 대조했으며 이 실행을 전체 PASS로 기록하지 않는다.
+선택 항목까지 감싼 label을 분리하고 `for`/`id`로 선택 상자에 명시적으로 연결했다. 기존 browser probe는 그대로 유지했다.
+
+같은 고정 Playwright CLI/core·Chromium 155.0.8059.12로 로컬 darwin/arm64에서 실패를 재현한 뒤 수정한 template을 검증했다.
+기존 summary 30개와 report status 19개 check, 필터·페이지·HTML/API·잘못된 query, Ticket/Report 각 30개와 audit 보존,
+브라우저/fixture 종료와 임시 DB 정리가 통과했다. 상태 화면 screenshot도 확인했다.
+이 실행은 해당 브라우저 실패의 로컬 SQLite 재현이며 전체 suite·PostgreSQL·원격 수정 source의 검증을 대신하지 않는다.
+원격 job log·artifact와 로컬 실패/성공 원본·template hash는 `godj-verification/ci-38342829986-failures`에 보존했다.
+Browser repair receipt SHA-256은 `530d4aa56244beee086b5da8403991baf660e1ab53d45dc0ebafbbfcf7e179dd`다.
+
 ## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
 
 2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan
