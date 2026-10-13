@@ -101,6 +101,32 @@ Checkout `303716cc9248405005b59841744e42f030580904`과 source tree를 대조했�
 원격 job log·artifact와 로컬 실패/성공 원본·template hash는 `godj-verification/ci-38342829986-failures`에 보존했다.
 Browser repair receipt SHA-256은 `530d4aa56244beee086b5da8403991baf660e1ab53d45dc0ebafbbfcf7e179dd`다.
 
+### SQLite compiler 기대값 보완과 원격 부분 검증
+
+Source `ff590fb8db3ba436b2146f64c6aef3d300cd1eab`의
+[CI 38344017134](https://github.com/progresshans/godj/actions/runs/38344017134)는 macos-26 race runtime의
+`TestCompileRelationProjectionKeepsAggregateBoundary`에서 실패했다. SQLite 검사에도 관계 조건이 있는 COUNT/MAX를
+미지원으로 기대하는 이전 단언이 남아 있었다. 정상 SQL·JOIN·parameter 보존과 sliced/distinct source의 거부를
+함께 검사하도록 정리했다. 양 compiler와 ORM/생성 소비자의 관련 거부 검사를 검색해 적용 범위를 확인했다.
+로컬 normal에서 같은 실패를 재현한 뒤 해당 root 하나가 통과했다. 전체 suite·race·PostgreSQL을 로컬에서 반복하지 않았다.
+원격 실패와 로컬 전후 log·source/diff는 `godj-verification/ci-38344017134-failures`에 보존했으며
+repair receipt SHA-256은 `84c41147166c2bcadd67cee8528230d009da0720877d4f81a731d125480569bb`다.
+
+이 실행에서 별도로 완료한 아래 결과는 source `ff590fb8`의 해당 범위만 증명한다. 전체 CI 성공이나 후속 수정 source의
+검증으로 옮기지 않는다. Checkout `083e82002c463a3b2c5fe4d7f1893bddf5a36987`과 source tree·artifact digest를 대조했다.
+
+- Native race/core-consumers: 관련 표현식 내부 52개 run/pass·skip 0, compile-negative 5개, 양 DB Django 관찰 각 17개와
+  observer/input/module hash·저장 보존/정리를 원본으로 대조했다. 검증 source는 해당 commit의 Git archive에서 읽었다.
+  `ci-38344017134-related-race-audit/audit.json` SHA-256 `a50a48464bff18e89f9e2e3e6d2a7019eba361211399cd69d4c96f360cd7892d`.
+- Helpdesk PostgreSQL race: 필수 624개와 추가 child 71개가 각각 한 번 실행/성공했고 skip은 없다.
+  새 status parent와 17개 정상/실패 subcase도 정확히 실행했다. Receipt
+  `ci-38344017134-helpdesk-postgres-race-audit/audit.json` SHA-256 `8789fb8887a2c7f0a9cab8e5220cc54fb726df1fbe0ac2442d88b36cc26d71db`.
+- Normal integration 브라우저: summary 30개·status 19개와 Ticket/Report 각 30개 보존·audit·cleanup을 원본으로 확인했다.
+  원격 status screenshot도 확인했다. `ci-38344017134-browser-audit/audit.json` SHA-256
+  `3c5e60817ac5159ce3b687efa0ac87b5560ad55baec1f972d51e91558704c212`.
+- CI 도구 63개·skip 0과 browser 오류/누락·정확한 검사 목록·저장 보존의 세 부정 검증을 실행 log에서 확인했다.
+  `ci-38344017134-ci-tools-audit/audit.json` SHA-256 `8f7376f61b10f2095f6cb958eff32ee8891458f680384dfbf63bc6fa90e2db43`.
+
 ## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
 
 2026-10-12 KST, 기준 `98b416029aa9dda479c19ebe7e699a24b01c2d27` 뒤 작업 사본에 결과 scope·열 참조·입력 plan
