@@ -21,6 +21,7 @@ type labelEnsureResponse struct {
 }
 
 type apiOutputs struct {
+	labelUsage   output.Output[labelUsagePage]
 	label        output.Output[models.Label]
 	ticket       output.Output[ticketRecord]
 	ticketBulk   output.Output[[]ticketRecord]
@@ -81,6 +82,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		return apiOutputs{}, err
 	}
 	if result.reportStatus, err = prepareServiceReportStatusOutput(category); err != nil {
+		return apiOutputs{}, err
+	}
+	if result.labelUsage, err = prepareLabelUsageOutput(category); err != nil {
 		return apiOutputs{}, err
 	}
 	label := output.Named("Label", output.Model(labelEncoder))

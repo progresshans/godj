@@ -115,6 +115,7 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
+func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIError) helpdeskServiceReportStatusRes() {}
@@ -438,6 +439,78 @@ func (*HelpdeskLabelUpdateRequestEntityTooLarge) helpdeskLabelUpdateRes() {}
 type HelpdeskLabelUpdateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskLabelUpdateUnsupportedMediaType) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUsageBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskLabelUsageBadRequest) helpdeskLabelUsageRes() {}
+
+type HelpdeskLabelUsageInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelUsageInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelUsageInternalServerError) helpdeskLabelUsageRes() {}
+
+type HelpdeskLabelUsageNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskLabelUsageNotFound) helpdeskLabelUsageRes() {}
+
+type HelpdeskLabelUsageUsage string
+
+const (
+	HelpdeskLabelUsageUsageAll    HelpdeskLabelUsageUsage = "all"
+	HelpdeskLabelUsageUsageUsed   HelpdeskLabelUsageUsage = "used"
+	HelpdeskLabelUsageUsageUnused HelpdeskLabelUsageUsage = "unused"
+)
+
+// AllValues returns all HelpdeskLabelUsageUsage values.
+func (HelpdeskLabelUsageUsage) AllValues() []HelpdeskLabelUsageUsage {
+	return []HelpdeskLabelUsageUsage{
+		HelpdeskLabelUsageUsageAll,
+		HelpdeskLabelUsageUsageUsed,
+		HelpdeskLabelUsageUsageUnused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HelpdeskLabelUsageUsage) MarshalText() ([]byte, error) {
+	switch s {
+	case HelpdeskLabelUsageUsageAll:
+		return []byte(s), nil
+	case HelpdeskLabelUsageUsageUsed:
+		return []byte(s), nil
+	case HelpdeskLabelUsageUsageUnused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HelpdeskLabelUsageUsage) UnmarshalText(data []byte) error {
+	switch HelpdeskLabelUsageUsage(data) {
+	case HelpdeskLabelUsageUsageAll:
+		*s = HelpdeskLabelUsageUsageAll
+		return nil
+	case HelpdeskLabelUsageUsageUsed:
+		*s = HelpdeskLabelUsageUsageUsed
+		return nil
+	case HelpdeskLabelUsageUsageUnused:
+		*s = HelpdeskLabelUsageUsageUnused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type HelpdeskServiceReportCreateBadRequest GoDjAPIError
 
@@ -1498,6 +1571,195 @@ func (s *LabelUpdate) SetName(val string) {
 	s.Name = val
 }
 
+// Ref: #/components/schemas/LabelUsage
+type LabelUsage struct {
+	Category    CategorySummary         `json:"category"`
+	Page        int64                   `json:"page"`
+	PageSize    int64                   `json:"page_size"`
+	Usage       string                  `json:"usage"`
+	TotalLabels int64                   `json:"total_labels"`
+	Results     []LabelUsageResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *LabelUsage) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *LabelUsage) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *LabelUsage) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetUsage returns the value of Usage.
+func (s *LabelUsage) GetUsage() string {
+	return s.Usage
+}
+
+// GetTotalLabels returns the value of TotalLabels.
+func (s *LabelUsage) GetTotalLabels() int64 {
+	return s.TotalLabels
+}
+
+// GetResults returns the value of Results.
+func (s *LabelUsage) GetResults() []LabelUsageResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *LabelUsage) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *LabelUsage) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *LabelUsage) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetUsage sets the value of Usage.
+func (s *LabelUsage) SetUsage(val string) {
+	s.Usage = val
+}
+
+// SetTotalLabels sets the value of TotalLabels.
+func (s *LabelUsage) SetTotalLabels(val int64) {
+	s.TotalLabels = val
+}
+
+// SetResults sets the value of Results.
+func (s *LabelUsage) SetResults(val []LabelUsageResultsItem) {
+	s.Results = val
+}
+
+// LabelUsageHeaders wraps LabelUsage with response headers.
+type LabelUsageHeaders struct {
+	XGodjCsrftoken OptString
+	Response       LabelUsage
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *LabelUsageHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *LabelUsageHeaders) GetResponse() LabelUsage {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *LabelUsageHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *LabelUsageHeaders) SetResponse(val LabelUsage) {
+	s.Response = val
+}
+
+func (*LabelUsageHeaders) helpdeskLabelUsageRes() {}
+
+type LabelUsageResultsItem struct {
+	ID                int64      `json:"id"`
+	Name              string     `json:"name"`
+	Total             int64      `json:"total"`
+	Open              int64      `json:"open"`
+	Closed            int64      `json:"closed"`
+	ExpectedCostTotal NilString  `json:"expected_cost_total"`
+	EffortAverage     NilFloat64 `json:"effort_average"`
+	ElapsedTotal      NilString  `json:"elapsed_total"`
+}
+
+// GetID returns the value of ID.
+func (s *LabelUsageResultsItem) GetID() int64 {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *LabelUsageResultsItem) GetName() string {
+	return s.Name
+}
+
+// GetTotal returns the value of Total.
+func (s *LabelUsageResultsItem) GetTotal() int64 {
+	return s.Total
+}
+
+// GetOpen returns the value of Open.
+func (s *LabelUsageResultsItem) GetOpen() int64 {
+	return s.Open
+}
+
+// GetClosed returns the value of Closed.
+func (s *LabelUsageResultsItem) GetClosed() int64 {
+	return s.Closed
+}
+
+// GetExpectedCostTotal returns the value of ExpectedCostTotal.
+func (s *LabelUsageResultsItem) GetExpectedCostTotal() NilString {
+	return s.ExpectedCostTotal
+}
+
+// GetEffortAverage returns the value of EffortAverage.
+func (s *LabelUsageResultsItem) GetEffortAverage() NilFloat64 {
+	return s.EffortAverage
+}
+
+// GetElapsedTotal returns the value of ElapsedTotal.
+func (s *LabelUsageResultsItem) GetElapsedTotal() NilString {
+	return s.ElapsedTotal
+}
+
+// SetID sets the value of ID.
+func (s *LabelUsageResultsItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *LabelUsageResultsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetTotal sets the value of Total.
+func (s *LabelUsageResultsItem) SetTotal(val int64) {
+	s.Total = val
+}
+
+// SetOpen sets the value of Open.
+func (s *LabelUsageResultsItem) SetOpen(val int64) {
+	s.Open = val
+}
+
+// SetClosed sets the value of Closed.
+func (s *LabelUsageResultsItem) SetClosed(val int64) {
+	s.Closed = val
+}
+
+// SetExpectedCostTotal sets the value of ExpectedCostTotal.
+func (s *LabelUsageResultsItem) SetExpectedCostTotal(val NilString) {
+	s.ExpectedCostTotal = val
+}
+
+// SetEffortAverage sets the value of EffortAverage.
+func (s *LabelUsageResultsItem) SetEffortAverage(val NilFloat64) {
+	s.EffortAverage = val
+}
+
+// SetElapsedTotal sets the value of ElapsedTotal.
+func (s *LabelUsageResultsItem) SetElapsedTotal(val NilString) {
+	s.ElapsedTotal = val
+}
+
 // NewNilBool returns new NilBool with value set to v.
 func NewNilBool(v bool) NilBool {
 	return NilBool{
@@ -1926,6 +2188,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHelpdeskLabelUsageUsage returns new OptHelpdeskLabelUsageUsage with value set to v.
+func NewOptHelpdeskLabelUsageUsage(v HelpdeskLabelUsageUsage) OptHelpdeskLabelUsageUsage {
+	return OptHelpdeskLabelUsageUsage{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHelpdeskLabelUsageUsage is optional HelpdeskLabelUsageUsage.
+type OptHelpdeskLabelUsageUsage struct {
+	Value HelpdeskLabelUsageUsage
+	Set   bool
+}
+
+// IsSet returns true if OptHelpdeskLabelUsageUsage was set.
+func (o OptHelpdeskLabelUsageUsage) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHelpdeskLabelUsageUsage) Reset() {
+	var v HelpdeskLabelUsageUsage
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHelpdeskLabelUsageUsage) SetTo(v HelpdeskLabelUsageUsage) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHelpdeskLabelUsageUsage) Get() (v HelpdeskLabelUsageUsage, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHelpdeskLabelUsageUsage) Or(d HelpdeskLabelUsageUsage) HelpdeskLabelUsageUsage {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -3,6 +3,66 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0125 — 컬렉션 집계와 라벨 사용 현황
+
+2026-10-13 KST, 기준 `31722acfa53c119cefe858e5dcb11e1a3f76e20e` 뒤 작업 사본의 구현 묶음을 작성했다.
+Collection field의 COUNT/MIN/MAX/SUM/AVG와 FILTER를 집계 전용 AST·typed/dynamic·공통 JOIN resolver·양 DB compiler에
+연결했다. 원본 Filter의 마지막 materialized collection JOIN을 집계에서 사용하면서 HAVING/selected-result identity를 유지한다.
+일반 projection/group key/scalar/CASE/UPDATE는 single-valued 경계다. 설계는 [ADR-0091](../adr/0091-grouped-results-and-having.md)이 소유한다.
+새 source의 제품 테스트·DB·race·전체 플랫폼 통합은 아직 미완료다. 선행 `7afe56f7`의 PASS를 이전하지 않는다.
+
+### 작성한 기준과 필수 실행
+
+[독립 Django observer](../../conformance/runners/django/collection_aggregate_reference/README.md)는 고정 Django 6.1 commit
+`fe0a859f537d4238cf49fca39073513206f83122`의 public ORM을 synthetic 입력으로 실행하며 Go source/결과를 읽지 않는다.
+Observer SHA-256 `f83793844d3a760bc4a90c529028cac83c942a6b164fe1b0b27d7a87eabc6efd`, input `243db553852348d045756742dd2fea2bf32c87374bca18231e49729c8dd300e0`,
+20개 upstream module byte 대조 manifest `6d8f8a7a78098a27a30e1786f24bec1ee1aabbc4262f925d2be70e0278751227`를 사용한다.
+Python 3.14.3·Django 6.1·psycopg 3.3.6·PostgreSQL 17.10은 pin이며 SQLite native 버전은 실행 때 기록한다.
+
+Normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 각 DB의 29개 관찰을 만들고 현재 hash/runtime·목록·오류 없음·
+저장 보존/정리를 확인한다. 두 앱의 생성 소비자가 양 DB reference/runtime 80개 child run/pass·skip 0, 부모 compile-negative
+5개를 요구한다. Native 원 events는 `godj-collection-native.jsonl`로 reference와 같은 artifact에 보존한다.
+별도의 Go-native 사례는 NULL·중복·독립/연속 Filter JOIN·typed/dynamic AST·숫자/ordered codec·scope/metadata/자원 거부·
+HAVING/Page/재집계·cache/cancel/session/cursor 오류를 다룬다. 기존 `reverse_counts`의 미지원 검사는 같은 고정 fixture와
+실제 Count/Distinct 결과 대조로 바꾸고 collection key와 source slice/distinct/eager/lock의 거부는 유지했다.
+
+Helpdesk는 45개 current-category 라벨, 외부 Category 라벨/티켓과 의도적인 물리 cross-category 연결을 사용한다.
+빈 라벨·사용/미사용·숫자 null/0·페이지/총수, 두 view 권한과 query 거부, 15개 snapshot/cursor/취소 실패·nonfinite 출력 거부를
+작성했다. Ticket·Label·TicketLabel·Report 전체 저장값과 audit를 전후 대조한다. 공유 snapshot helper로 기존 요약/상태 조회의
+소유권 검사를 함께 유지한다. API의 닫힌 query/출력 선언을 실제 OpenAPI·독립 SDK 두 receipt에 연결했다.
+기존 브라우저 요약 30개·보고서 19개 check에 라벨 사용 현황 21개를 추가했으며, DB readback은 Ticket/Report 각 30개·
+Label 26개·연결 27개와 감사/cleanup을 요구한다. 필수 목록은 기존 실행 owner에 추가하고 job/scope를 줄이지 않았다.
+
+### 로컬 생성·최소 compile
+
+Go 1.26.5 darwin/arm64에서 테스트 바이너리를 컴파일했으며 제품 테스트 본문은 실행하지 않았다.
+
+- Query/ORM/공통 resolver/SQLite/PostgreSQL 5개 패키지의 `go test -trimpath -c`가 통과했다.
+  자료 `godj-verification/collection-aggregate-core-compile-sjmsbje6`, receipt
+  `b381c31f46d3d91a1ba662c6d0c08c0b60723ff2637eb036f0ff374d3e27232c`.
+- 생성 소비자 parent와 새 cross-app module을 컴파일했다. Selected 결과의 재집계 호출을 기존 `Numeric`/`OptionalOperand`
+  계약에 맞춘 뒤 child compile이 통과했다. `collection-consumer-compile-f3kf2o64/repair-receipt.json`
+  SHA-256 `5d130070df7123735867583f671fa16286785e437b445e1bf29a7344ee7ce1ee`는 초기 negative 진단 문자열의 불일치도 포함한다.
+  실제 모델 Count의 Go 진단에 맞춘 뒤 5개 invalid 프로그램이 의도한 type 오류로 거부됨을 확인했다. 별도 negative receipt
+  SHA-256 `2f98e3ae33125afd18c594df351e40f9f7efc1dab3fe7c74bdbe98fa3b91b056`.
+- 기존 grouped generated module도 변경된 `reverse_counts` 소비자와 함께 compile했다.
+  `grouped-collection-compile-pihpbiq5/receipt.json` SHA-256
+  `44d8322e2401a2f88d0b50b8e4d46621b9354ee58dfb7e2fe205a10a7cc543d1`.
+- Helpdesk 패키지를 컴파일하고 실제 여섯 API profile을 export했다. 고정 ogen Helpdesk client를 재생성했으며
+  새 `/api/labels/usage/`와 `LabelUsage` 외에 기존 경로/schema와 다른 다섯 profile은 동일하다.
+  `label-usage-compile-schema-ywsjgxab/repair-receipt.json` SHA-256
+  `2819d47de0c174155003c8c0e51abe4c59be7febed24ab751459c931c95c8361`.
+  최초 compile의 snapshot port 타입 누락을 수정한 기록을 같은 자료에 보존했다.
+- API consumer parent의 compile, 독립 client와 browser fixture의 build, 새 JS의 syntax와 Python 3개 파일의 AST를 확인했다.
+  `label-usage-consumers-compile-arx_ojj6/receipt.json` SHA-256
+  `ac3fd7b32738e67d17c20152f0750c0fe587030424cdc349706ceb09e6761884`.
+
+Markdown 링크 210개 문서와 diff 공백을 확인했다. PostgreSQL 필수 목록은 3,242개이며 세 mode마다 정확히 한 owner,
+relation 필수 목록은 2,497개이고 공백/중복이 없다. 이는 실행 계획의 정적 검사이며 테스트 실행 결과가 아니다.
+
+이 생성·컴파일은 실제 DB/HTTP/브라우저 실행 증거가 아니다. 묶음 push 뒤 자동 전체 CI에서 영향·generated drift·DB·race·process·
+독립 client/브라우저·전체 플랫폼과 source/run/attempt가 같은 원본 증거를 확인한다.
+
 ## GDJ-0124 — 관계 값 표현식과 서비스 보고서 상태 조회
 
 2026-10-13 KST, 기준 `a5ef8ff6ea9accaea369c021a0e35eccae6f0804` 뒤 작업 사본에 single-valued 관계 scalar와

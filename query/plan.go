@@ -870,6 +870,9 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		return invalidPlanError("derived value requires a selected scalar expression")
 	}
 	if path, related := expression.RelationPath(); related {
+		if expression.IsAggregate() {
+			return p.validateRelationSource(path)
+		}
 		return p.validateValueRelation(path)
 	}
 	if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {

@@ -112,9 +112,10 @@ func nullableDateTimeResultCell() scalarCell[*time.Time] {
 		return &copy
 	}}
 }
-func (f dateTimeField[M]) scalarOrderedField(M, time.Time) (query.ResultExpression, func() scalarCell[Optional[time.Time]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[time.Time]] {
+func (f dateTimeField[M]) scalarOrderedField(_ M, _ time.Time, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[time.Time]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[time.Time]] {
 		var value NullableDateTimeScanner
 		return scalarCell[Optional[time.Time]]{destination: &value, value: func() Optional[time.Time] { return Optional[time.Time]{value: value.Time, valid: value.Valid} }}
-	}, f.err
+	}, err
 }

@@ -122,6 +122,7 @@ var operationRolesSessionAuth = map[string][]string{
 	HelpdeskLabelListOperation:               []string{},
 	HelpdeskLabelPatchOperation:              []string{},
 	HelpdeskLabelUpdateOperation:             []string{},
+	HelpdeskLabelUsageOperation:              []string{},
 	HelpdeskServiceReportCreateOperation:     []string{},
 	HelpdeskServiceReportDeleteOperation:     []string{},
 	HelpdeskServiceReportDetailOperation:     []string{},

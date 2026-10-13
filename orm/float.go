@@ -129,13 +129,14 @@ func nullableFloatResultCell() scalarCell[*float64] {
 		return &copy
 	}}
 }
-func (f floatField[M]) scalarOrderedField(M, float64) (query.ResultExpression, func() scalarCell[Optional[float64]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[float64]] {
+func (f floatField[M]) scalarOrderedField(_ M, _ float64, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[float64]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[float64]] {
 		var value NullableFloatScanner
 		return scalarCell[Optional[float64]]{destination: &value, value: func() Optional[float64] {
 			return Optional[float64]{value: value.Float, valid: value.Valid}
 		}}
-	}, f.err
+	}, err
 }
 
 func (f floatField[M]) In(values ...float64) Predicate[M] {

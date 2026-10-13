@@ -8,8 +8,8 @@ const (
 	MaxGroupExpressionNodes = 4096
 )
 
-// CountResult counts non-NULL values. The operand retains the exact scalar
-// metadata and optional forward route; it is never a SQL string or alias.
+// CountResult counts non-NULL row values. RelatedAggregateResult also accepts
+// collection fields without making them row projection or scalar operands.
 func CountResult(operand ResultExpression) (ResultExpression, error) {
 	return AggregateResult(ResultCount, operand)
 }
@@ -18,7 +18,7 @@ func (e ResultExpression) IsAggregate() bool {
 	return e.kind == ResultCountAll || e.kind == ResultCount || e.kind == ResultMin || e.kind == ResultMax || e.kind == ResultSum || e.kind == ResultAvg
 }
 
-// SumResult and AvgResult keep the operand's field and finite forward route.
+// SumResult and AvgResult keep a row operand's field or scalar tree.
 func SumResult(operand ResultExpression) (ResultExpression, error) {
 	return AggregateResult(ResultSum, operand)
 }
@@ -37,6 +37,20 @@ func AggregateResult(kind ResultExpressionKind, operand ResultExpression) (Resul
 		return ResultExpression{}, err
 	}
 	return operand, nil
+}
+
+// RelatedAggregateResult consumes the field values of a finite relation route.
+// A collection is legal only inside this completed aggregate, never as an
+// intermediate row value that could escape into projection, ordering or UPDATE.
+func RelatedAggregateResult(kind ResultExpressionKind, relation RelationPath) (ResultExpression, error) {
+	if err := relation.validateAggregateSelection(); err != nil {
+		return ResultExpression{}, err
+	}
+	value := ResultExpression{kind: kind, field: relation.Terminal(), relation: &relation}
+	if err := value.validateAggregate(); err != nil {
+		return ResultExpression{}, err
+	}
+	return value, nil
 }
 func (e ResultExpression) Distinct() bool             { return e.distinct }
 func (e ResultExpression) Filter() (Expression, bool) { return e.filter, e.filter.node != nil }
@@ -122,7 +136,7 @@ func (e ResultExpression) validateAggregate() error {
 		if !e.relation.Terminal().Equal(e.field) {
 			return invalidPlanError("aggregate route terminal differs from field metadata")
 		}
-		if err := e.relation.validateValueSelection(); err != nil {
+		if err := e.relation.validateAggregateSelection(); err != nil {
 			return err
 		}
 	}
@@ -141,8 +155,8 @@ func validateAggregateFilter(e Expression) error {
 			if err := path.Validate(); err != nil {
 				return err
 			}
-			if !path.SingleValued() {
-				return groupUnsupported("conditional aggregates require single-valued relation predicates")
+			if err := path.validateUnboundAggregateRoute(); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -150,6 +164,25 @@ func validateAggregateFilter(e Expression) error {
 	for _, child := range e.Children() {
 		if err := validateAggregateFilter(child); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (p RelationPath) validateAggregateSelection() error {
+	if err := p.Validate(); err != nil {
+		return err
+	}
+	if p.scope != RelationTerminalRelatedField {
+		return groupUnsupported("related aggregates require a bound target field")
+	}
+	return p.validateUnboundAggregateRoute()
+}
+
+func (p RelationPath) validateUnboundAggregateRoute() error {
+	for _, hop := range p.hops {
+		if hop.filterScope != 0 {
+			return invalidPlanError("aggregate relation cannot borrow another filter's bound occurrence")
 		}
 	}
 	return nil

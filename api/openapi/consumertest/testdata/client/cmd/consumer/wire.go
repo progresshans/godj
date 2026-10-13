@@ -49,6 +49,9 @@ func checkGeneratedWire(ctx context.Context) error {
 	if err := checkGeneratedReportStatusWire(ctx); err != nil {
 		return err
 	}
+	if err := checkGeneratedLabelUsageWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedPriorityWire(ctx); err != nil {
 		return err
 	}

@@ -94,6 +94,21 @@ type Invoker interface {
 	//
 	// PUT /api/labels/{id}/
 	HelpdeskLabelUpdate(ctx context.Context, request *LabelUpdate, params HelpdeskLabelUpdateParams) (HelpdeskLabelUpdateRes, error)
+	// HelpdeskLabelUsage invokes helpdesk:label-usage operation.
+	//
+	// Labels in the application's category, ordered by label ID, including labels with no tickets. Counts
+	// and numeric metrics include only linked tickets in the same category. total counts tickets, open
+	// counts tickets that are not closed, and closed is total minus open. expected_cost_total and
+	// elapsed_total are sums; effort_average is the mean of present effort values. Missing numeric values,
+	// including empty relationships, are null. usage accepts all, used or unused, defaulting to all; used
+	// means at least one in-category ticket. p is a canonical positive page number. Pages contain at most
+	// 20 labels; total_labels counts matching labels before pagination, including empty and past-end
+	// pages. Category, count and rows share one read snapshot. Both ViewLabel and ViewTicket are required
+	// before parsing or lookup. Unknown/duplicate parameters, malformed encoding, empty values and queries
+	// longer than 128 bytes are rejected.
+	//
+	// GET /api/labels/usage/
+	HelpdeskLabelUsage(ctx context.Context, params HelpdeskLabelUsageParams) (HelpdeskLabelUsageRes, error)
 	// HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
@@ -1253,6 +1268,128 @@ func (c *Client) sendHelpdeskLabelUpdate(ctx context.Context, request *LabelUpda
 	}()
 
 	result, err := decodeHelpdeskLabelUpdateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelUsage invokes helpdesk:label-usage operation.
+//
+// Labels in the application's category, ordered by label ID, including labels with no tickets. Counts
+// and numeric metrics include only linked tickets in the same category. total counts tickets, open
+// counts tickets that are not closed, and closed is total minus open. expected_cost_total and
+// elapsed_total are sums; effort_average is the mean of present effort values. Missing numeric values,
+// including empty relationships, are null. usage accepts all, used or unused, defaulting to all; used
+// means at least one in-category ticket. p is a canonical positive page number. Pages contain at most
+// 20 labels; total_labels counts matching labels before pagination, including empty and past-end
+// pages. Category, count and rows share one read snapshot. Both ViewLabel and ViewTicket are required
+// before parsing or lookup. Unknown/duplicate parameters, malformed encoding, empty values and queries
+// longer than 128 bytes are rejected.
+//
+// GET /api/labels/usage/
+func (c *Client) HelpdeskLabelUsage(ctx context.Context, params HelpdeskLabelUsageParams) (HelpdeskLabelUsageRes, error) {
+	res, err := c.sendHelpdeskLabelUsage(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelUsage(ctx context.Context, params HelpdeskLabelUsageParams) (res HelpdeskLabelUsageRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/labels/usage/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "usage" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "usage",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Usage.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelUsageOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelUsageResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -20,6 +20,31 @@ func NewRelationChain(hops []RelationHop, primaryKeys []FieldRef, terminal Field
 // hop's destination). Older paths without identity metadata return nil.
 func (p RelationPath) PrimaryKeys() []FieldRef { return append([]FieldRef(nil), p.keys...) }
 
+// WithCollectionFilterScope copies a route into one validated collection
+// occurrence. Declaration metadata and model keys remain unchanged. Compilers
+// use this when an aggregate reuses a source filter's materialized join.
+func (p RelationPath) WithCollectionFilterScope(scope uint32) (RelationPath, error) {
+	if err := p.Validate(); err != nil {
+		return RelationPath{}, err
+	}
+	if scope >= maximumExpressionNodes {
+		return RelationPath{}, invalidPlanError("relation collection scope exceeds the expression budget")
+	}
+	copyPath := p
+	copyPath.hops = append([]RelationHop(nil), p.hops...)
+	collection := false
+	for index := range copyPath.hops {
+		collection = collection || !copyPath.hops[index].cardinality.SingleValued()
+		if collection {
+			copyPath.hops[index].filterScope = scope
+		}
+	}
+	if !collection && scope != 0 {
+		return RelationPath{}, invalidPlanError("single-valued relation has no collection occurrence")
+	}
+	return copyPath, nil
+}
+
 // ReuseNextCollectionFilter marks a manager's core membership filter. The
 // immediately following Filter may constrain that same intermediary row. Any
 // intervening query refinement consumes this one-use scope, including an empty

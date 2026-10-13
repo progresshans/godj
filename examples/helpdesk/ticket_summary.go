@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"sync"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db"
@@ -65,40 +64,10 @@ func (a *Application) readTicketSummary(ctx context.Context, input ticketSummary
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
-	work, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var mu sync.Mutex
-	var result ticketSummaryPage
-	var callbackErr error
-	entries, completed, sealed := 0, false, false
-	err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		mu.Lock()
-		if sealed {
-			mu.Unlock()
-			return errors.New("helpdesk: ticket summary callback outlived its owner")
-		}
-		entries++
-		if entries != 1 {
-			mu.Unlock()
-			return errors.New("helpdesk: repeated ticket summary callback")
-		}
-		mu.Unlock()
-		value, failure := a.ticketSummaryInSnapshot(work, reader, input)
-		mu.Lock()
-		result, callbackErr, completed = value, failure, true
-		mu.Unlock()
-		return failure
+	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (ticketSummaryPage, error) {
+		return a.ticketSummaryInSnapshot(work, reader, input)
 	})
-	mu.Lock()
-	sealed = true
-	valid := entries <= 1 && (entries == 0 && err != nil || completed)
-	value, failure := result, callbackErr
-	mu.Unlock()
-	cancel()
-	if !valid || failure != nil && (err == nil || !errors.Is(err, failure)) {
-		return zero, errors.Join(errors.New("helpdesk: invalid ticket summary read ownership"), err, failure)
-	}
-	if err = errors.Join(err, ctx.Err()); err != nil {
+	if err != nil {
 		return zero, err
 	}
 	if !value.found {

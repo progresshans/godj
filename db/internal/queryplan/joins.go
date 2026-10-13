@@ -2,6 +2,7 @@ package queryplan
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/progresshans/godj/query"
@@ -16,9 +17,10 @@ type Join struct {
 }
 
 type Joins struct {
-	Keys   []RelationKey
-	ByKey  map[RelationKey]Join
-	Exists map[int]CollectionExists
+	Keys        []RelationKey
+	ByKey       map[RelationKey]Join
+	ResultByKey map[RelationKey]Join
+	Exists      map[int]CollectionExists
 }
 
 // PrepareJoins validates the private occurrence graph and declaration inventory.
@@ -119,6 +121,50 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		return nil
 	}
+	// Result expressions retain their unbound identity for HAVING and selected
+	// result stages. Only this compilation maps an aggregate to the latest
+	// materialized occurrence of its first collection. Descendants use that
+	// same occurrence; another filter's similarly named child is not reusable.
+	resultKeys := make(map[RelationKey]RelationKey)
+	addAggregatePath := func(path query.RelationPath) error {
+		hops := path.Hops()
+		var scope uint32
+		for index, hop := range hops {
+			if hop.Cardinality().SingleValued() {
+				continue
+			}
+			key := KeyForPath(hops[:index+1])
+			key.FilterScope = 0
+			for candidate := range edges {
+				unbound := candidate
+				unbound.FilterScope = 0
+				if unbound == key && candidate.FilterScope > scope {
+					scope = candidate.FilterScope
+				}
+			}
+			break
+		}
+		bound, err := path.WithCollectionFilterScope(scope)
+		if err != nil {
+			return err
+		}
+		if err := addPath(bound, false, true); err != nil {
+			return err
+		}
+		boundHops := bound.Hops()
+		materialized := len(hops)
+		if path.TerminalScope() == query.RelationTerminalSourceKey {
+			materialized--
+		}
+		for index := 0; index < materialized; index++ {
+			key, resolved := KeyForPath(hops[:index+1]), KeyForPath(boundHops[:index+1])
+			if previous, present := resultKeys[key]; present && previous != resolved {
+				return invalidPlan("aggregate route resolved to conflicting occurrences")
+			}
+			resultKeys[key] = resolved
+		}
+		return nil
+	}
 	addScalar := func(value query.ScalarExpression) error {
 		if err := plan.ValidateScalar(value); err != nil {
 			return err
@@ -193,7 +239,13 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 		if path, related := expression.RelationPath(); related {
-			if err := addPath(path, false, true); err != nil {
+			var err error
+			if expression.IsAggregate() {
+				err = addAggregatePath(path)
+			} else {
+				err = addPath(path, false, true)
+			}
+			if err != nil {
 				return Joins{}, err
 			}
 		}
@@ -210,7 +262,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 						}
 						// A conditional aggregate must retain rows that do not meet
 						// the condition. Its optional routes never require a join.
-						return addPath(path, false, true)
+						return addAggregatePath(path)
 					}
 				}
 				for _, child := range value.Children() {
@@ -300,7 +352,18 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		joins[key] = joined
 	}
-	result := Joins{Keys: keys, ByKey: joins, Exists: make(map[int]CollectionExists, len(existences))}
+	resultJoins := joins
+	if len(resultKeys) != 0 {
+		resultJoins = maps.Clone(joins)
+		for key, resolved := range resultKeys {
+			join, present := joins[resolved]
+			if !present {
+				return Joins{}, invalidPlan("aggregate occurrence was not materialized")
+			}
+			resultJoins[key] = join
+		}
+	}
+	result := Joins{Keys: keys, ByKey: joins, ResultByKey: resultJoins, Exists: make(map[int]CollectionExists, len(existences))}
 	for index, request := range existences {
 		exists, err := prepareCollectionExists(plan, request.condition, request.correlationDepth, result, backendName)
 		if err != nil {

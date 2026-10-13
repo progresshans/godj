@@ -8,6 +8,7 @@ import (
 )
 
 type apiQueries struct {
+	labelUsage   parameters.Query[labelUsageQuery]
 	summary      parameters.Query[ticketSummaryQuery]
 	reportStatus parameters.Query[serviceReportStatusQuery]
 	labels       parameters.Query[admin.ListRequest]
@@ -36,6 +37,13 @@ func prepareAPIQueries() (apiQueries, error) {
 			func(query *serviceReportStatusQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("comparison", parameters.Default(parameters.StringChoices("all", "same", "different"), "all"),
 			func(query *serviceReportStatusQuery, value string) { query.comparison = value }, "Whether report completion and ticket closure have the same value; the statuses are independent."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
+	result.labelUsage, err = parameters.New(128,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, labelUsageMaximumPage), 1), func(query *labelUsageQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("usage", parameters.Default(parameters.StringChoices("all", "used", "unused"), "all"), func(query *labelUsageQuery, value string) { query.usage = value }, "Include all labels, labels with at least one in-category ticket, or labels without in-category tickets."),
 	)
 	if err != nil {
 		return apiQueries{}, err

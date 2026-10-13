@@ -66,34 +66,18 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 			}
 			value = query.CountAllResult()
 		} else {
-			var operand query.ResultExpression
 			var err error
 			if input.Expression.node != nil || input.Expression.err != nil {
 				if input.Field != "" {
 					return zero, invalidResultBuilder("dynamic aggregate cannot combine a field name with an expression")
 				}
-				value, bindErr := bindExpression(source, binding, input.Expression)
-				operand, err = value.expression, bindErr
-			} else {
-				operand, err = dynamicGroupField(source, binding, input.Field)
-			}
-			if err != nil {
-				return zero, err
-			}
-			switch input.Kind {
-			case query.ResultCount:
-				value, err = query.CountResult(operand)
-			case query.ResultSum:
-				value, err = query.SumResult(operand)
-			case query.ResultAvg:
-				value, err = query.AvgResult(operand)
-			case query.ResultMin, query.ResultMax:
-				if _, related := operand.RelationPath(); related {
-					return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "dynamic related MIN/MAX are not implemented"}
+				operand, bindErr := bindExpression(source, binding, input.Expression)
+				if bindErr != nil {
+					return zero, bindErr
 				}
-				value, err = query.AggregateResult(input.Kind, operand)
-			default:
-				return zero, invalidResultBuilder("dynamic aggregate kind is unsupported")
+				value, err = query.AggregateResult(input.Kind, operand.expression)
+			} else {
+				value, err = dynamicAggregateField(source, binding, input.Kind, input.Field)
 			}
 			if err != nil {
 				return zero, err
@@ -153,6 +137,29 @@ func dynamicGroupField[M any](source QuerySet[M], binding *BoundModel[M], name s
 		return query.ResultExpression{}, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: name, Detail: "group field is not source metadata"}
 	}
 	return query.FieldResult(fieldReference(field)), nil
+}
+
+func dynamicAggregateField[M any](source QuerySet[M], binding *BoundModel[M], kind query.ResultExpressionKind, name string) (query.ResultExpression, error) {
+	switch kind {
+	case query.ResultCount, query.ResultMin, query.ResultMax, query.ResultSum, query.ResultAvg:
+	default:
+		return query.ResultExpression{}, invalidResultBuilder("dynamic aggregate kind is unsupported")
+	}
+	if strings.Contains(name, "__") {
+		if binding == nil {
+			return query.ResultExpression{}, invalidResultBuilder("dynamic relation aggregates require a project-bound query")
+		}
+		path, err := dynamicValueRelation(*binding, name)
+		if err != nil {
+			return query.ResultExpression{}, err
+		}
+		return query.RelatedAggregateResult(kind, path)
+	}
+	field, err := dynamicGroupField(source, binding, name)
+	if err != nil {
+		return query.ResultExpression{}, err
+	}
+	return query.AggregateResult(kind, field)
 }
 
 type groupDescriptor[M any] struct {

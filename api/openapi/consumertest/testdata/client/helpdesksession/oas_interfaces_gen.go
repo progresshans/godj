@@ -29,6 +29,10 @@ type HelpdeskLabelUpdateRes interface {
 	helpdeskLabelUpdateRes()
 }
 
+type HelpdeskLabelUsageRes interface {
+	helpdeskLabelUsageRes()
+}
+
 type HelpdeskServiceReportCreateRes interface {
 	helpdeskServiceReportCreateRes()
 }

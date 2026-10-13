@@ -177,7 +177,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 32; index++ {
+	for index := 1; index <= 33; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -188,7 +188,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		t.Fatal("typed endpoint accepted an undocumented authentication profile")
 	}
 	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{&helpdeskRecordingAuthentication{}}))
-	if err != nil || len(adapter.Routes()) != 32 {
+	if err != nil || len(adapter.Routes()) != 33 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err != nil {
@@ -227,6 +227,8 @@ func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, 
 		return helpdesk.ChangeServiceReport, []auth.Permission{helpdesk.AddServiceReport, helpdesk.ViewServiceReport}
 	case "helpdesk:label-list", "helpdesk:label-detail":
 		return helpdesk.ViewLabel, nil
+	case "helpdesk:label-usage":
+		return helpdesk.ViewLabel, []auth.Permission{helpdesk.ViewTicket}
 	case "helpdesk:label-create":
 		return helpdesk.AddLabel, nil
 	case "helpdesk:label-update", "helpdesk:label-patch":
@@ -258,7 +260,7 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 14 || len(routes) != 32 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 15 || len(routes) != 33 || len(document.Paths["/api/labels/usage/"]) != 1 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
 		t.Fatal("Helpdesk document changed the declared operation surface")
 	}
 	for _, route := range routes {
@@ -286,6 +288,23 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
+	usage := document.Paths["/api/labels/usage/"]["get"]
+	usageSchema := document.Components.Schemas["LabelUsage"]
+	if usage.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelUsage" || len(usage.Parameters) != 2 || usage.Parameters[0].Name != "p" || usage.Parameters[1].Name != "usage" || usageSchema.AdditionalProperties || !slices.Equal(usageSchema.Required, []string{"category", "page", "page_size", "usage", "total_labels", "results"}) {
+		t.Fatal("label usage operation lost closed page contract")
+	}
+	if string(usage.Parameters[0].Schema.Default) != "1" || string(usage.Parameters[1].Schema.Default) != `"all"` || string(usage.Parameters[1].Schema.Enum) != `["all","used","unused"]` || usage.Parameters[0].Schema.QueryInteger != "canonical-decimal" || usage.Parameters[1].Required || usage.Parameters[1].AllowEmptyValue {
+		t.Fatal("label usage query lost enum/default/omission")
+	}
+	usageRows := usageSchema.Properties["results"]
+	if usageRows.Type != "array" || usageRows.MaxItems != 20 || usageRows.Items == nil || usageRows.Items.AdditionalProperties || !slices.Equal(usageRows.Items.Required, []string{"id", "name", "total", "open", "closed", "expected_cost_total", "effort_average", "elapsed_total"}) {
+		t.Fatal("label usage result lost required bounded rows")
+	}
+	for _, name := range []string{"expected_cost_total", "effort_average", "elapsed_total"} {
+		if len(usageRows.Items.Properties[name].AnyOf) != 2 {
+			t.Fatal("label usage numeric nullability", name)
+		}
+	}
 	reportStatus := document.Paths["/api/service-reports/status/"]["get"]
 	reportStatusSchema := document.Components.Schemas["ServiceReportStatus"]
 	if reportStatus.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/ServiceReportStatus" || len(reportStatus.Parameters) != 2 || reportStatus.Parameters[0].Name != "p" || reportStatus.Parameters[1].Name != "comparison" || reportStatusSchema.AdditionalProperties || !slices.Equal(reportStatusSchema.Required, []string{"category", "page", "page_size", "comparison", "total_reports", "results"}) {

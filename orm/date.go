@@ -129,11 +129,12 @@ func nullableDateResultCell() scalarCell[*calendar.Date] {
 		return &copy
 	}}
 }
-func (f dateField[M]) scalarOrderedField(M, calendar.Date) (query.ResultExpression, func() scalarCell[Optional[calendar.Date]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[calendar.Date]] {
+func (f dateField[M]) scalarOrderedField(_ M, _ calendar.Date, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[calendar.Date]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[calendar.Date]] {
 		var value NullableDateScanner
 		return scalarCell[Optional[calendar.Date]]{destination: &value, value: func() Optional[calendar.Date] { return Optional[calendar.Date]{value: value.Date, valid: value.Valid} }}
-	}, f.err
+	}, err
 }
 
 func (f dateField[M]) In(values ...calendar.Date) Predicate[M] {

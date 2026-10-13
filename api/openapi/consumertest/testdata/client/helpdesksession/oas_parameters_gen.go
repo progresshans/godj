@@ -36,6 +36,15 @@ type HelpdeskLabelUpdateParams struct {
 	ID int64
 }
 
+// HelpdeskLabelUsageParams is parameters of helpdesk:label-usage operation.
+type HelpdeskLabelUsageParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Include all labels, labels with at least one in-category ticket, or labels without in-category
+	// tickets.
+	Usage OptHelpdeskLabelUsageUsage `json:",omitempty,omitzero"`
+}
+
 // HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.
 type HelpdeskServiceReportDeleteParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

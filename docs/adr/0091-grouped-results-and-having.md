@@ -2,7 +2,7 @@
 
 - 상태: Accepted design — 그룹 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
 - 날짜: 2026-10-13
-- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md)
+- 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md), [GDJ-0125](../../work/0125-collection-aggregates-and-label-usage.md)
 
 ## 문제와 기준
 
@@ -38,7 +38,8 @@ Field/aggregate·다른 모델의 조합은 typed API 또는 metadata preflight�
 reverse OneToOne의 혼합 경로를 같은 값 AST로 표현한다. 원본 collection join이 행을
 늘리는 multiplicity와 negated collection의 EXISTS 의미는 기존 query compiler를 유지한다. 조건부 aggregate의
 single-valued 경로는 전체 그룹을 제거하는 WHERE가 아니므로 그 자체로 optional join을 inner join으로 승격하지 않는다.
-Collection을 key·aggregate operand/조건으로 사용하는 추가 범위는 후속 범위다.
+GDJ-0125에서 collection field aggregate와 조건을 아래 계약으로 확장한다. Collection group key와 일반
+collection scalar/CASE operand는 여전히 별도 의미를 요구한다. 이 설계 채택과 구현·검증 상태는 구분한다.
 
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
 별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 source와 single-valued 관계의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
@@ -48,8 +49,35 @@ Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
 GDJ-0124에서 relation-filtered root MIN/MAX도 SUM/AVG와 같은 grouping compiler로 연결한다.
-Related 숫자의 typed MIN/MAX는 `Numeric(related)`를, dynamic ordered 값은 `DynamicScalar.Min/Max`를 사용한다.
+GDJ-0124의 related 숫자 MIN/MAX는 `Numeric(related)`, dynamic ordered 값은 `DynamicScalar.Min/Max`를 사용한다.
+GDJ-0125는 직접 related field의 MIN/MAX와 dynamic aggregate field 경로도 같은 집계 AST에 연결한다.
 관계 filter의 multiplicity를 숨기지 않으며 단일 COUNT(*)의 기존 slice/distinct 경로는 별도로 유지한다.
+
+## 컬렉션 필드 집계
+
+라벨을 원본으로 연결 티켓의 지표를 읽을 때 빈 관계도 하나의 라벨 그룹으로 남긴다. 집계 전용 constructor와
+sealed typed capability가 finite reverse FK·ManyToMany를 포함한 필드 경로를 받는다. 행을 선택하는 scalar와
+group key의 cardinality 검증을 집계에 재사용하지 않는다. 반대로 collection field를 일반 projection·scalar
+산술·CASE·정렬·UPDATE 값에 전달하는 것은 허용하지 않는다. Root/target metadata·경로 연결·선택 결과 scope는 유지한다.
+
+COUNT(field)는 NULL 제외·empty 0, MIN/MAX/SUM/AVG는 empty/all-NULL에서 NULL이다. 기존 ordered scalar와
+숫자 kind·physical operand 검증·Decimal precision·Duration 반올림·typed Optional을 그대로 사용한다.
+여러 collection JOIN은 SQL의 행 곱을 만든다. COUNT/SUM/AVG의 DISTINCT는 operand 값에 대한 명시적 선택이며,
+다른 행이 같은 값을 가졌다는 이유로 자동 dedup하지 않는다. 중복 through 행도 실제 입력 행이다.
+
+고정 Django의 [JOIN 재사용](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/query.py#L1060-L1085)과
+[표현식 조건 해석](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query_utils.py#L92-L106)을 기준으로,
+집계는 원본 Filter가 이미 materialize한 같은 collection 경로의 가장 최근 JOIN을 재사용한다.
+재사용 가능한 JOIN이 없으면 관계를 outer JOIN으로 추가한다. 독립 Filter가 만든 여러 JOIN의 배수는 보존한다.
+공통 compiler의 집계용 경로 해석은 원본 WHERE와 구분하며 immutable 결과 표현식의 identity를 다시 쓰지 않는다.
+집계 FILTER의 NOT는 해당 joined row와 NULL 보호를 사용하고, 원본 collection 배제의 correlated EXISTS로 바꾸지 않는다.
+같은 aggregate를 HAVING·order·명시적 다음 결과 stage에서 참조해도 선택 identity와 decoder가 유지돼야 한다.
+
+Typed `Count/Sum/Avg/Min/Max(relatedField)`와 project-bound dynamic group aggregate가 같은 의미를 사용한다.
+관계 이름은 sealed project binding에서 해석한다. 일반 field·scalar의 Count capability도 동일 결과를 반환한다.
+원본 모델·관련 leaf·selected-result 열의 provenance와 context/cache/rows 정리는 기존 결과 query가 소유한다.
+양 DB의 독립 관찰과 generated consumer에서 빈 관계·nullable leaf·중복·조건·연속 Filter·복합 경로를 대조한 뒤
+검증 범위를 기록한다. 설계 문서만으로 현재 지원이나 Django parity를 주장하지 않는다.
 
 ## 복사·실행과 페이지
 
@@ -202,3 +230,12 @@ GDJ-0123 Helpdesk는 전체·열린 건수에서 닫힌 건수와 `open_basis_po
 
 단계별 compiler·공개 ORM·소비자의 구현과 검증 상태는 [CURRENT](../status/CURRENT.md)와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
+
+## Helpdesk 라벨 사용 현황
+
+GDJ-0125는 Label을 root로 묶어 빈 관계를 보존한다. Count·조건부 open Count·비용 Sum·노력 Avg·시간 Sum에 각각
+현재 Category의 Ticket 조건을 적용한다. 원본 Label의 Category 조건만으로 외부 연결의 존재나 수치를 공개하지 않는다.
+사용/미사용은 scoped Count의 HAVING이며 페이지 총수도 같은 필터 이후의 라벨 수다.
+두 view 권한·query 검증은 snapshot 시작 전에, Category와 group Page는 한 snapshot에서 처리한다.
+TicketSummary·ServiceReportStatus·LabelUsage는 같은 callback/cleanup 소유권 검사를 사용하며,
+누락·반복·동시·늦거나 미완료인 callback과 오류 삼킴·취소·cursor/출력 실패 때 결과를 게시하지 않는다.

@@ -15,11 +15,11 @@ func (o Optional[V]) groupLiteral() (query.Value, error) {
 	return scalarValue(o.value)
 }
 
-func Count[M, V any](field ScalarField[M, V]) AggregateExpression[M, int64] {
-	expression, _, err := scalarResult(field)
-	if err == nil {
-		expression, err = query.CountResult(expression)
+func Count[M any](field CountField[M]) AggregateExpression[M, int64] {
+	if interfaceIsNil(field) {
+		return AggregateExpression[M, int64]{err: invalidResultBuilder("COUNT field is nil")}
 	}
+	expression, err := field.countAggregateField(*new(M))
 	value := CountRows[M]()
 	value.expression, value.err = expression, err
 	return value

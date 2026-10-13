@@ -993,7 +993,7 @@ jobs:
           check-latest: false
           cache: true
 
-      - name: Set up pinned Django relation reference runtime
+      - name: Set up pinned Django relation and collection reference runtime
         if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
@@ -1011,6 +1011,17 @@ jobs:
             uv run --project conformance/reference/related-expressions --frozen python \
               conformance/runners/django/related_expression_reference/observe.py \
               --vendor "$vendor" --output "$RUNNER_TEMP/related-expression-reference/django61-$vendor.json"
+          done
+
+      - name: Observe independent Django collection aggregates on both native databases
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
+        run: |
+          for vendor in sqlite postgres; do
+            uv run --project conformance/reference/related-expressions --frozen python \
+              conformance/runners/django/collection_aggregate_reference/observe.py \
+              --vendor "$vendor" --output "$RUNNER_TEMP/collection-aggregate-reference/django61-$vendor.json"
           done
 
       - name: Assert exact PostgreSQL service profile
@@ -1032,6 +1043,7 @@ jobs:
       - name: Run and inventory PostgreSQL actual product tests
         env:
           GODJ_RELATED_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/related-expression-reference
+          GODJ_COLLECTION_AGGREGATE_REFERENCE_DIR: ${{ runner.temp }}/collection-aggregate-reference
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
@@ -1219,6 +1231,7 @@ jobs:
             ${{ runner.temp }}/postgresql-${{ matrix.mode }}-${{ matrix.shard }}-required-tests.txt
             ${{ runner.temp }}/postgresql-plan-${{ matrix.mode }}-${{ matrix.shard }}/
             ${{ runner.temp }}/related-expression-reference/
+            ${{ runner.temp }}/collection-aggregate-reference/
           if-no-files-found: error
           retention-days: 90
 

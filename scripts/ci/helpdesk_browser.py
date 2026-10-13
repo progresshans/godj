@@ -73,6 +73,41 @@ REPORT_STATUS_CHECKS = (
 )
 
 
+LABEL_USAGE_CHECKS = (
+    'label usage navigation',
+    'twenty label rows and scoped total',
+    'label collection metrics exclude missing values',
+    'label name is escaped',
+    'unused label preserves zero counts and missing metrics',
+    'outside category label remains private',
+    'remaining five label rows preserve filter',
+    'usage filter resets page',
+    'used filter removes empty relations',
+    'used page link preserves usage filter',
+    'used filter has no false next page',
+    'unused filter retains the empty label',
+    'past-end label page retains filtered total',
+    'previous label page preserves filter',
+    'API label metrics and group total match',
+    'API unused label keeps required null metrics',
+    'malformed label usage query rejected: /labels/usage/?p=bad',
+    'malformed label usage query rejected: /api/labels/usage/?usage=unknown',
+    'malformed label usage query rejected: /api/labels/usage/?usage=used&usage=unused',
+    'label usage response is not cached',
+    'label usage page contains no write form',
+)
+
+
+def verify_label_usage(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(LABEL_USAGE_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(LABEL_USAGE_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(LABEL_USAGE_CHECKS)):
+        raise ValueError('label usage browser did not complete every declared check')
+    return result
+
+
 def result_document(output):
     # The CLI can report a tool error in text even with process exit code zero.
     if re.search(r'^### Error\b', output, re.MULTILINE):
@@ -112,7 +147,7 @@ def verify_committed(value):
     rows, links = value.get('committed_tickets'), value.get('committed_links')
     if (value.get('summary_read_only_unchanged') is not True
             or value.get('initial_summary_tickets') != 30
-            or not isinstance(rows, list) or len(rows) != 30 or links not in (None, [])
+            or not isinstance(rows, list) or len(rows) != 30
             or any(not isinstance(row, dict) or type(row.get('id')) is not int for row in rows)
             or any(row.get('audit') not in (None, []) for row in rows)
             or len({row['id'] for row in rows}) != 30):
@@ -126,6 +161,22 @@ def verify_committed(value):
             or len({row['id'] for row in reports}) != 30
             or {row['ticket'] for row in reports} != {row['id'] for row in rows}):
         raise ValueError('report status browser did not preserve all reports, ticket bindings and audit')
+    labels = value.get('committed_labels')
+    expected_pairs = {(1, 1), (2, 1), (3, 1)} | {(1, label) for label in range(3, 27)}
+    if (value.get('label_usage_read_only_unchanged') is not True
+            or value.get('initial_usage_labels') != 26 or value.get('initial_usage_links') != 27
+            or not isinstance(labels, list) or len(labels) != 26
+            or any(not isinstance(row, dict) or type(row.get('id')) is not int
+                   or row.get('category') != (2 if row['id'] == 26 else 1)
+                   or row.get('audit') not in (None, []) for row in labels)
+            or {row['id'] for row in labels} != set(range(1, 27))
+            or not isinstance(links, list) or len(links) != 27
+            or any(not isinstance(row, dict) or type(row.get('ID')) is not int
+                   or type(row.get('TicketID')) is not int or type(row.get('LabelID')) is not int for row in links)
+            or {row['ID'] for row in links} != set(range(1, 28))
+            or {(row['TicketID'], row['LabelID']) for row in links} != expected_pairs):
+        raise ValueError('label usage browser did not preserve labels, scoped links and audit')
+
 
 
 def run(node_tools, output):
@@ -142,7 +193,8 @@ def run(node_tools, output):
                'source_checkout': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                'source_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip(),
                'probe_sha256': hashlib.sha256((FIXTURE / 'summary_probe.js').read_bytes()).hexdigest(),
-               'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest()}
+               'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest(),
+               'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -233,6 +285,12 @@ def run(node_tools, output):
             report_screenshot = output / 'report-status-desktop.png'
             if not report_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or report_screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the report status screenshot')
+            receipt['label_usage'] = verify_label_usage(result_document(browser('label-usage', 'run-code', '--filename', str(FIXTURE / 'label_usage_probe.js'))))
+            browser('label-usage-screenshot', 'screenshot', '--filename=' + str(output / 'label-usage-desktop.png'))
+            label_screenshot = output / 'label-usage-desktop.png'
+            if not label_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or label_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the label usage screenshot')
+
         except Exception as error:
             failure = error
         finally:

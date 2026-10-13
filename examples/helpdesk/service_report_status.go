@@ -3,7 +3,6 @@ package helpdesk
 import (
 	"context"
 	"errors"
-	"sync"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -51,40 +50,10 @@ func (a *Application) readServiceReportStatus(ctx context.Context, actor auth.Pr
 	if !actor.Authenticated() || !actor.Has(ViewServiceReport) || !actor.Has(ViewTicket) {
 		return zero, errors.New("helpdesk: report status lacks admitted permissions")
 	}
-	work, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var mu sync.Mutex
-	var result serviceReportStatusPage
-	var callbackErr error
-	entries, completed, sealed := 0, false, false
-	err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		mu.Lock()
-		if sealed {
-			mu.Unlock()
-			return errors.New("helpdesk: report status callback outlived its owner")
-		}
-		entries++
-		if entries != 1 {
-			mu.Unlock()
-			return errors.New("helpdesk: repeated report status callback")
-		}
-		mu.Unlock()
-		value, failure := a.serviceReportStatusInSnapshot(work, reader, input)
-		mu.Lock()
-		result, callbackErr, completed = value, failure, true
-		mu.Unlock()
-		return failure
+	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (serviceReportStatusPage, error) {
+		return a.serviceReportStatusInSnapshot(work, reader, input)
 	})
-	mu.Lock()
-	sealed = true
-	valid := entries <= 1 && (entries == 0 && err != nil || completed)
-	value, failure := result, callbackErr
-	mu.Unlock()
-	cancel()
-	if !valid || failure != nil && (err == nil || !errors.Is(err, failure)) {
-		return zero, errors.Join(errors.New("helpdesk: invalid report status read ownership"), err, failure)
-	}
-	if err = errors.Join(err, ctx.Err()); err != nil {
+	if err != nil {
 		return zero, err
 	}
 	if !value.found {

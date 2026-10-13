@@ -29,12 +29,20 @@ UUID 별칭 중복 거부와 전체 rollback, 수정 후 함께 commit된 scalar
 티켓만 Urgent이고 나머지는 NULL이다. 최종 조회는 브라우저 결과와 독립적이다. 이 SQLite 브라우저 검사는
 양 DB의 취소·rollback/commit unknown·native batch 실패·동시 요청 검사를 대신하지 않는다.
 
-## 요약 화면의 원격 검증
+## 읽기 화면의 원격 검증
 
 전체 CI의 `Portable Go (normal, integration)`은 `tools/package-lock.json`에 고정한 Playwright CLI와 해당
-Chromium으로 별도 `GODJ_BROWSER_SUMMARY=1` fixture를 실행한다. `login_probe.js`로 실제 로그인하고
-`summary_probe.js`의 탐색·페이지/HAVING·입력 거부·exact int64·숫자 지표·After raise 미리보기 23개를 확인한다.
-CLI exit code가 0이어도 tool error, 누락/중복 result와 불완전한 check 목록은 실패다. 브라우저/서버를 닫고 native
-readback에서 모든 Ticket 필드가 초기 snapshot과 같은지, 링크·티켓 audit가 비어 있는지와 임시 DB 제거를 검사한다.
-로그·실제 browser version·source checkout/tree·screenshot·receipt는 해당 run의 `helpdesk-summary-browser-*`
+Chromium으로 별도 `GODJ_BROWSER_SUMMARY=1` fixture를 실행한다. `login_probe.js`로 실제 로그인한 뒤
+`summary_probe.js` 30개, `report_status_probe.js` 19개, `label_usage_probe.js` 21개 check를 수행한다.
+라벨 사용 현황은 탐색·20건 페이지·all/used/unused·빈 관계의 0/NULL·Category 범위·정확한 숫자 지표·입력 거부를 다룬다.
+CLI exit code가 0이어도 tool error, 누락/중복 result와 불완전한 check 목록은 실패다.
+
+이 읽기 fixture에는 30개 Ticket·30개 Report·26개 Label(현재 Category 25개, 외부 1개)·27개 연결이 있다.
+라벨의 지표는 보존한 초기 티켓을 사용하며 라벨 1의 3건/2 open/1 closed·0.3 비용·2 노력 평균·3 microsecond와
+라벨 2의 빈 관계를 브라우저에서 확인한다. 기존 요약·상태 화면도 같은 초기 티켓/보고서로 계속 검증한다.
+브라우저/서버를 닫고 DB에서 모든 Ticket·Report·Label·연결의 전체 저장값이 초기 snapshot과 같은지,
+해당 모델의 감사 이력이 비어 있는지와 임시 DB 제거를 확인한다.
+
+로그·실제 browser version·source checkout/tree·세 screenshot·receipt는 해당 run의 `helpdesk-summary-browser-*`
 artifact에 남는다. 일반 네 쓰기 probe와 이 읽기 fixture의 실행/예상 DB 상태를 혼합하지 않는다.
+환경별 실제 검증 상태는 [TEST_EVIDENCE](../../../../docs/status/TEST_EVIDENCE.md)를 따른다.

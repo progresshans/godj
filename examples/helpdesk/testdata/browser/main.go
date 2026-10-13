@@ -131,6 +131,7 @@ func run() error {
 	}
 	var summaryBefore []models.Ticket
 	var reportsBefore []models.ServiceReport
+	var usageBefore labelUsageSnapshot
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
 		summaryBefore, err = models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
 		if err != nil {
@@ -146,6 +147,12 @@ func run() error {
 				return err
 			}
 			reportsBefore = append(reportsBefore, report)
+		}
+	}
+	if summaryBefore != nil {
+		usageBefore, err = seedLabelUsage(ctx, runtime, category, summaryBefore)
+		if err != nil {
+			return err
 		}
 	}
 	application, err := helpdesk.New(runtime, category.ID)
@@ -168,7 +175,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath)
 	persistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return err
@@ -177,7 +184,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		return err
 	}
@@ -205,6 +212,12 @@ func run() error {
 		return err
 	}
 	routes = append(routes, reportStatus.Routes()...)
+	labelUsage, err := application.LabelUsage(authentication)
+	if err != nil {
+		return err
+	}
+	routes = append(routes, labelUsage.Routes()...)
+
 	app, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
 		return err
@@ -253,8 +266,12 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		if summaryBefore != nil && len(links) != 0 {
-			return errors.New("summary browser changed ticket links")
+		var labelEvidence []map[string]any
+		if summaryBefore != nil {
+			labelEvidence, err = usageBefore.verify(shutdown, runtime, links)
+			if err != nil {
+				return err
+			}
 		}
 		reports, err := models.ServiceReportObjects.Using(runtime).OrderBy(models.ServiceReportFields.ID.Asc()).All(shutdown)
 		if err != nil {
@@ -276,6 +293,7 @@ func run() error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
 			"summary_read_only_unchanged": summaryBefore != nil, "initial_summary_tickets": len(summaryBefore),
-			"report_status_read_only_unchanged": reportsBefore != nil, "initial_status_reports": len(reportsBefore), "committed_reports": reportEvidence})
+			"report_status_read_only_unchanged": reportsBefore != nil, "initial_status_reports": len(reportsBefore), "committed_reports": reportEvidence,
+			"label_usage_read_only_unchanged": usageBefore.labels != nil, "initial_usage_labels": len(usageBefore.labels), "committed_labels": labelEvidence, "initial_usage_links": len(usageBefore.links)})
 	}
 }

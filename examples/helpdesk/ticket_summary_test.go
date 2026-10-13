@@ -73,6 +73,9 @@ type summaryBackend struct {
 	closed                     int
 	rowsets                    int
 	cancel                     context.CancelFunc
+	late                       func() error
+	started, release           chan struct{}
+	finished                   chan error
 }
 
 func (backend *summaryBackend) ReadSnapshot(ctx context.Context, callback func(db.Queryer) error) error {
@@ -89,6 +92,16 @@ func (backend *summaryBackend) ReadSnapshot(ctx context.Context, callback func(d
 	}
 	err := backend.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
 		wrapped := &summaryReader{Queryer: reader, owner: backend}
+		if backend.mode == "late_callback" {
+			backend.late = func() error { return callback(wrapped) }
+			return nil
+		}
+		if backend.mode == "unfinished_callback" {
+			go func() { backend.finished <- callback(wrapped) }()
+			<-backend.started
+			return nil
+		}
+
 		if backend.mode == "concurrent_callback" {
 			var wait sync.WaitGroup
 			wait.Add(2)
@@ -128,8 +141,16 @@ type summaryReader struct {
 }
 
 func (reader *summaryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if reader.owner.mode == "unfinished_callback" {
+		close(reader.owner.started)
+		<-reader.owner.release
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+
 	reader.owner.queries++
-	if plan.ResultShape().Kind() == query.ResultPage {
+	if plan.ResultShape().Kind() == query.ResultPage || plan.ResultShape().GroupMode() == query.GroupPage {
 		reader.owner.groups++
 		if reader.owner.mode == "query_failure" || reader.owner.mode == "swallowed_error" {
 			return nil, errors.New("private summary query failure")

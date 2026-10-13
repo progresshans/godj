@@ -88,7 +88,7 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	operandStart := len(*arguments)
 	var operand, filterSQL strings.Builder
 	if expression.Kind() != query.ResultCountAll {
-		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ByKey, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ResultByKey, arguments, true); err != nil {
 			return err
 		}
 	}
@@ -102,6 +102,7 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 			return err
 		}
 		filterJoins := prepared
+		filterJoins.ByKey = prepared.ResultByKey
 		filterJoins.Exists = nil
 		if err := bindGroupedWhere(filterPlan, analysis, filterJoins); err != nil {
 			return err

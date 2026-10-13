@@ -79,7 +79,7 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 	}
 	var operand, filterSQL strings.Builder
 	if expression.Kind() != query.ResultCountAll {
-		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ByKey, arguments, true); err != nil {
+		if err := appendResultValue(&operand, expression, plan, "t0", prepared.ResultByKey, arguments, true); err != nil {
 			return err
 		}
 	}
@@ -94,7 +94,9 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 		}
 		filterSQL.WriteString(" FILTER (WHERE ")
 		leaves := analysis.leaves
-		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(prepared), groupedRHSField, queryplan.ScalarSource{Plan: filterPlan, Alias: "t0", Joins: prepared.ByKey}, arguments, false); err != nil {
+		filterJoins := prepared
+		filterJoins.ByKey = prepared.ResultByKey
+		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(filterJoins), groupedRHSField, queryplan.ScalarSource{Plan: filterPlan, Alias: "t0", Joins: prepared.ResultByKey}, arguments, false); err != nil {
 			return err
 		}
 		if len(leaves) != 0 {

@@ -99,7 +99,7 @@ func groupedCanonicalRows(t *testing.T, rows []orm.GroupRow, names []string) []m
 	}
 	return result
 }
-func groupedResult(t *testing.T, ctx context.Context, grouped orm.GroupedQuery[records.Item, orm.GroupRow], names []string) []map[string]any {
+func groupedResult[M any](t *testing.T, ctx context.Context, grouped orm.GroupedQuery[M, orm.GroupRow], names []string) []map[string]any {
 	t.Helper()
 	rows, err := grouped.All(ctx)
 	check(t, err)
@@ -190,9 +190,6 @@ func TestGroupedReference(t *testing.T) {
 				case "collection_key":
 					_, rejected = source.GroupValues([]string{"peers__rank"}, []orm.DynamicAggregateInput{{Kind: query.ResultCountAll}})
 					unsupported = true
-				case "reverse_counts":
-					_, rejected = api.RecordsGroup.GroupValues([]string{"name"}, []orm.DynamicAggregateInput{{Kind: query.ResultCount, Field: "items__id"}})
-					unsupported = true
 				case "row_locked_group", "row_locked_group_in_atomic":
 					if native.Case == "row_locked_group_in_atomic" {
 						check(t, backend.Atomic(ctx, func(session db.Session) error {
@@ -253,6 +250,13 @@ func TestGroupedReference(t *testing.T) {
 						check(t, err)
 						grouped = grouped.OrderBy(fields.Rank.Asc().NullsLast(), fields.Enabled.Asc())
 						names = []string{"rank", "enabled", "total"}
+					case "reverse_counts":
+						groups, err := api.RecordsGroup.OrderBy().GroupValues([]string{"name"}, []orm.DynamicAggregateInput{
+							{Kind: query.ResultCount, Field: "items__id"}, {Kind: query.ResultCount, Field: "items__id", Distinct: true},
+						})
+						check(t, err)
+						observed = groupedResult(t, ctx, groups.OrderByDynamic(orm.GroupOrderInput{Column: 0, Direction: query.Ascending}), []string{"name", "total", "unique"})
+						handled = true
 					case "key_order_asc_native":
 						grouped = grouped.OrderBy(fields.Rank.Asc())
 					case "key_order_desc_native":

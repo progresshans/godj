@@ -10,6 +10,28 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 
+## 라벨 사용 현황
+
+`application.LabelUsage(webAuth)`는 GET `/labels/usage/`, API는 GET `/api/labels/usage/`를 제공한다.
+현재 Category의 라벨을 ID 순으로 읽고, 연결 티켓이 없는 라벨도 포함한다. 모든 지표는 같은 Category의 티켓만
+사용하므로 물리적으로 외부 Category 티켓이 연결돼 있어도 그 존재·상태·숫자 값이 나타나지 않는다.
+`ViewLabel`과 `ViewTicket`을 query 해석·조회 전에 모두 요구한다.
+
+`usage=all|used|unused`는 기본값 `all`이며 used는 현재 Category의 연결 티켓이 1개 이상인 라벨이다.
+`p`는 기본 1, 정규 decimal 1..50001이다. Query는 128 byte 이하의 닫힌 입력이며 중복·빈 값·잘못된 encoding·
+선택값·페이지를 거부한다. 응답의 `category`, `page`, `page_size`, `usage`, `total_labels`, `results`는 required다.
+20건 페이지와 총 라벨 수는 한 집계 statement에서 읽고 Category와 같은 snapshot을 사용한다.
+
+각 행은 `id`, `name`, `total`, `open`, `closed`, `expected_cost_total`, `effort_average`, `elapsed_total`을 가진다.
+마지막 세 값은 required nullable이며 값이 있는 티켓만 합계/평균에 참여한다. 빈 관계와 모두 NULL인 지표는 null,
+실제 0은 0이다. 비용·시간은 canonical 문자열이다. Open은 닫히지 않은 티켓 수, closed는 total-open이다.
+Category가 없으면 404, 읽기/정리/출력 실패에는 부분 결과를 게시하지 않으며 HTML/JSON은 `no-store`다.
+읽기는 Ticket·Label·TicketLabel·ServiceReport와 audit를 변경하지 않는다.
+
+[공통 읽기 service](label_usage.go)의 typed collection aggregate·FILTER·HAVING·Page를 화면과 API가 함께 사용한다.
+OpenAPI·독립 SDK·브라우저와 환경별 실행 상태는 [GDJ-0125](../../work/0125-collection-aggregates-and-label-usage.md)와
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 보고서와 티켓 상태 비교
 
 `application.ServiceReportStatus(webAuth)`는 GET `/service-reports/status/`를 제공하고 API 구성에는
@@ -178,11 +200,14 @@ routes = append(routes, summary.Routes()...)
 reportStatus, err := application.ServiceReportStatus(webAuth)
 if err != nil { return err }
 routes = append(routes, reportStatus.Routes()...)
+labelUsage, err := application.LabelUsage(webAuth)
+if err != nil { return err }
+routes = append(routes, labelUsage.Routes()...)
 // web.Config에서 MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes를 사용한다.
 ```
 
 같은 `webAuth`를 Admin과 공유할 때 `AllowedNextPaths`에 `helpdesk.TicketEditorPath`, `helpdesk.TicketSummaryPath`,
-`helpdesk.ServiceReportStatusPath`를 추가하고,
+`helpdesk.ServiceReportStatusPath`, `helpdesk.LabelUsagePath`를 추가하고,
 `admin.SiteConfig.AdditionalNextPaths`에도 같은 경로를 선언한다. Session/CSRF cookie 경로는 모든 화면을 포함해야 한다.
 편집기는 cookie 범위나 로그인 복귀 경로가 맞지 않으면 시작 시 거부한다. `AppendAudit`는 필수이며 제공된 session에 기록해야
 한다. 별도 transaction을 열거나 commit하지 않는다. 위 Runtime의 callback은 scalar·관계·삭제와 같은 transaction에 기록한다.

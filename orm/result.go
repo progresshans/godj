@@ -26,7 +26,7 @@ type ScalarField[M, V any] interface {
 
 // OrderedField is the sealed scalar subset with nullable MIN/MAX results.
 type OrderedField[M, V any] interface {
-	scalarOrderedField(M, V) (query.ResultExpression, func() scalarCell[Optional[V]], error)
+	scalarOrderedField(M, V, query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[V]], error)
 }
 
 type scalarCell[V any] struct {
@@ -41,8 +41,9 @@ func (f integerField[M]) scalarResultField(M, int64) (query.ResultExpression, fu
 	}, f.err
 }
 
-func (f integerField[M]) scalarOrderedField(M, int64) (query.ResultExpression, func() scalarCell[Optional[int64]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[int64]] {
+func (f integerField[M]) scalarOrderedField(_ M, _ int64, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[int64]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[int64]] {
 		var value sql.NullInt64
 		return scalarCell[Optional[int64]]{
 			destination: &value,
@@ -50,7 +51,7 @@ func (f integerField[M]) scalarOrderedField(M, int64) (query.ResultExpression, f
 				return Optional[int64]{value: value.Int64, valid: value.Valid}
 			},
 		}
-	}, f.err
+	}, err
 }
 
 func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.ResultExpression, func() scalarCell[*int64], error) {
@@ -78,8 +79,9 @@ func (f StringField[M]) scalarResultField(M, string) (query.ResultExpression, fu
 	}, f.err
 }
 
-func (f StringField[M]) scalarOrderedField(M, string) (query.ResultExpression, func() scalarCell[Optional[string]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[string]] {
+func (f StringField[M]) scalarOrderedField(_ M, _ string, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[string]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[string]] {
 		var value sql.NullString
 		return scalarCell[Optional[string]]{
 			destination: &value,
@@ -87,7 +89,7 @@ func (f StringField[M]) scalarOrderedField(M, string) (query.ResultExpression, f
 				return Optional[string]{value: value.String, valid: value.Valid}
 			},
 		}
-	}, f.err
+	}, err
 }
 
 func (f NullableStringField[M]) scalarResultField(M, *string) (query.ResultExpression, func() scalarCell[*string], error) {
@@ -108,8 +110,9 @@ func nullableStringResultCell() scalarCell[*string] {
 	}
 }
 
-func (f NullableStringField[M]) scalarOrderedField(M, string) (query.ResultExpression, func() scalarCell[Optional[string]], error) {
-	return query.FieldResult(f.reference), func() scalarCell[Optional[string]] {
+func (f NullableStringField[M]) scalarOrderedField(_ M, _ string, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[string]], error) {
+	expression, err := aggregateFieldResult(kind, f.reference, f.err)
+	return expression, func() scalarCell[Optional[string]] {
 		var value sql.NullString
 		return scalarCell[Optional[string]]{
 			destination: &value,
@@ -120,7 +123,7 @@ func (f NullableStringField[M]) scalarOrderedField(M, string) (query.ResultExpre
 				return Optional[string]{value: value.String, valid: true}
 			},
 		}
-	}, f.err
+	}, err
 }
 
 func (f BooleanField[M]) scalarResultField(M, bool) (query.ResultExpression, func() scalarCell[bool], error) {
@@ -267,10 +270,7 @@ func Max[M, V any](field OrderedField[M, V]) AggregateExpression[M, Optional[V]]
 	if interfaceIsNil(field) {
 		return AggregateExpression[M, Optional[V]]{err: invalidResultBuilder("MAX field is nil")}
 	}
-	expression, newCell, err := field.scalarOrderedField(*new(M), *new(V))
-	if err == nil {
-		expression, err = query.AggregateResult(query.ResultMax, expression)
-	}
+	expression, newCell, err := field.scalarOrderedField(*new(M), *new(V), query.ResultMax)
 	return AggregateExpression[M, Optional[V]]{
 		expression: expression,
 		newCell:    newCell,
@@ -282,10 +282,7 @@ func Min[M, V any](field OrderedField[M, V]) AggregateExpression[M, Optional[V]]
 	if interfaceIsNil(field) {
 		return AggregateExpression[M, Optional[V]]{err: invalidResultBuilder("MIN field is nil")}
 	}
-	expression, newCell, err := field.scalarOrderedField(*new(M), *new(V))
-	if err == nil {
-		expression, err = query.AggregateResult(query.ResultMin, expression)
-	}
+	expression, newCell, err := field.scalarOrderedField(*new(M), *new(V), query.ResultMin)
 	return AggregateExpression[M, Optional[V]]{
 		expression: expression,
 		newCell:    newCell,

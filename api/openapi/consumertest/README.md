@@ -6,6 +6,13 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Helpdesk 라벨 사용 현황의 `helpdesk_label_usage` receipt는 보존한 Ticket 응답의 라벨 ID·closed·numeric 값에서
+독립적으로 집계를 계산한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·기본값·끝난 페이지·NULL/0,
+조회 전용 권한과 query 거부를 실제 generated HTTP로 확인하고 조회 전후 Label·Ticket 응답을 비교한다.
+`generated_label_usage_wire`는 exact int64·required nullable Decimal/Float/Duration·범위·잘못된 응답과
+403/plain 500의 단일 전송을 검사한다. 두 권한의 개별 누락, 물리적인 외부 Category 연결과 snapshot/cursor 실패·audit 보존은
+Helpdesk 양 DB suite가 소유한다. 생성 코드만 있거나 synthetic wire가 성공한 것을 native 검증으로 계산하지 않는다.
+
 Helpdesk report status의 `helpdesk_report_status` receipt는 기존 fixture의 보고서 생성/변경 응답과 보존한 Ticket에서
 독립적으로 completion/closure/matched를 계산한다. 실제 read-only 권한의 generated HTTP로 all/same/different·기본값·
 빈/끝난 페이지와 total, 잘못된 page/enum, private cache 정책, 읽은 뒤 report/ticket 보존을 확인한다.

@@ -21,11 +21,20 @@ func (p Plan) ValidateScalar(expression ScalarExpression) error {
 }
 
 func (p Plan) validateValueRelation(path RelationPath) error {
-	if err := path.Validate(); err != nil {
+	if err := p.validateRelationSource(path); err != nil {
 		return err
 	}
 	if !path.SingleValued() {
 		return groupUnsupported("scalar values require single-valued relation paths")
+	}
+	return nil
+}
+
+// Source authority is common to row values and aggregate fields; cardinality
+// belongs to their separate expression contexts.
+func (p Plan) validateRelationSource(path RelationPath) error {
+	if err := path.Validate(); err != nil {
+		return err
 	}
 	if len(path.keys) != 0 && !slices.Contains(p.sourceFields, path.keys[0]) {
 		return invalidPlanError("value relation root primary key differs from source metadata")

@@ -263,6 +263,13 @@ GDJ-0124의 관계 표현식은 normal/core·CGO=0/core·race/core-consumers에�
 Parent는 현재 observer/input/module manifest hash와 정확한 17개 reference 사례·52개 native child 실행·5개 compile-negative를 요구한다.
 Portable의 SQLite invariant 실행은 이 reference/native 양 DB 검증을 대신하지 않는다.
 
+GDJ-0125의 컬렉션 집계도 같은 세 native owner에서 별도의
+[Django observer](../conformance/runners/django/collection_aggregate_reference/README.md)를 실행한다.
+역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용을 29개 사례로 대조한다.
+현재 observer/input/module manifest와 runtime pin을 확인하고, 양 DB의 reference/runtime 80개 child run/pass,
+부모의 모델·decoder compile-negative 5개를 요구한다. 원 reference와 `godj-collection-native.jsonl`을
+`collection-aggregate-reference/`에 함께 보존한다. Missing reference·잘린 event·미실행/skip은 성공이 아니다.
+
 CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<shard>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
 결과 보존·conditional no-overwrite·checksum 거부·version 고정 seek·서명 변조/만료와 actual HTTP admission을 검증한다.
 실행별 source와 결과는 TEST_EVIDENCE에 기록하며 MinIO 성공을 AWS 운영 account나 다른 S3 구현의 실행 증거로 대체하지 않는다.
