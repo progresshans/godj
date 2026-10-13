@@ -140,7 +140,8 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
 계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. Decimal/Duration의 CASE 복사는 지원하지만
 해당 kind의 계산식 SUM/AVG·산술, 일반 named annotation·collection computed operand는 미지원이다.
-Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현 중이며 새 source의 실행은 아직 미완료다.
+Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
+source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
 SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
 명시적 결과 stage는 선택한 열의 kind·NULL과 원본 plan의 필터·정렬·DISTINCT·slice를 보존하며,
 결과 열의 계산·필터·정렬·그룹·재집계와 단일 statement Page를 지원한다. 원 모델 FieldRef와 결과 scope를

@@ -8,7 +8,9 @@
 2026-10-13 KST, 기준 `a5ef8ff6ea9accaea369c021a0e35eccae6f0804` 뒤 작업 사본에 single-valued 관계 scalar와
 두 operand 비교, 공통 JOIN/source 검증·양 compiler·typed/dynamic·생성 facade를 연결했다.
 Helpdesk 보고서 완료와 티켓 닫힘의 상태 조회는 두 view 권한·현재 category·읽기 snapshot·Page·HTML/API·독립 SDK를 사용한다.
-설계는 ADR-0090/0091이 소유한다. **이 source의 테스트 본문·DB·브라우저·원격 전체 실행은 아직 미완료다.**
+설계는 ADR-0090/0091이 소유한다. 초기 작성·실패 재현과 후속 검증을 아래에 구분한다.
+수정 source `7afe56f73d615788d7aa7baa5e959a4ec27f6993`의 양 DB·세 모드·브라우저·전체 플랫폼 통합과
+원본 증거 대조를 완료했다. 최종 결과는 아래 같은 source의 전체 원격 통합 절을 따른다.
 
 ### 작성한 검증과 독립 기준
 
@@ -25,7 +27,8 @@ synthetic input은 `1f300c536e4fa086fb65d1e3a6cbc7cb125f56f77f96ee06362f50317c49
 Python 3.14.3·Django 6.1·psycopg 3.3.6·PostgreSQL 17.10을 고정했다. SQLite runtime 버전은 관찰마다 기록한다.
 CI normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 양 DB의 17개 원 관찰을 만들고
 현재 hash·목록·storage 보존/정리를 검증한 뒤 생성 소비자의 52개 native child run/pass·skip 0과 compile-negative 5개를 요구한다.
-원 JSON과 `godj-related-native.jsonl`을 그 owner의 PostgreSQL artifact에 보존한다. 아직 이 관찰을 실행한 것으로 주장하지 않는다.
+원 JSON과 `godj-related-native.jsonl`을 그 owner의 PostgreSQL artifact에 보존한다. 작성 당시에는 미실행이었으며,
+최종 source의 실제 관찰과 원본 대조는 아래 전체 원격 통합에 기록한다.
 Portable은 8개 SQLite invariant child만 요구하며 원격 reference/native 양 DB의 대용이 아니다.
 
 Helpdesk 양 DB 소비자에는 45개 scoped 보고서와 외부 category를 사용한 네 정상/인가 흐름과 13개 snapshot/cursor/취소
@@ -126,6 +129,72 @@ repair receipt SHA-256은 `84c41147166c2bcadd67cee8528230d009da0720877d4f81a731d
   `3c5e60817ac5159ce3b687efa0ac87b5560ad55baec1f972d51e91558704c212`.
 - CI 도구 63개·skip 0과 browser 오류/누락·정확한 검사 목록·저장 보존의 세 부정 검증을 실행 log에서 확인했다.
   `ci-38344017134-ci-tools-audit/audit.json` SHA-256 `8f7376f61b10f2095f6cb958eff32ee8891458f680384dfbf63bc6fa90e2db43`.
+
+### 같은 source의 전체 원격 통합
+
+Source `7afe56f73d615788d7aa7baa5e959a4ec27f6993`의
+[전체 CI 38346173948](https://github.com/progresshans/godj/actions/runs/38346173948)는 pull_request attempt 1의
+83개 job 모두 성공했다. 실제 checkout `1147a3491b64491d92deca6fae84b243cd795489`, head/base parent와 tree
+`7cbc0a040f7eb5f08f6981bd8a47039e5106a271`를 GitHub 객체·validation-plan·각 원 job 로그·로컬 Git으로 대조했다.
+Source binding receipt SHA-256은 `4ac9a2f2a451d922597eb592343f5233c489c95131e3e5ff02396e38e009142a`다.
+아래 결과는 이 source에서 새로 실행한 증거이며 선행 실패 실행의 부분 PASS를 옮긴 것이 아니다.
+
+| 실제 실행 | 원 job / artifact | 확인한 범위 | 부분 audit receipt SHA-256 |
+|---|---|---|---|
+| 관계 표현식 normal | `115128294983` / `11790680714` | 양 DB child 52개·compile-negative 5개·DB별 Django 관찰 17개 | `c11fb643b4d424a7a16e9141fb80d5d82180256832c916bc2904148f43bdb81b` |
+| 관계 표현식 race | `115128294854` / `11789534590` | 같은 전체 사례·원 child run/pass·skip 0 | `09447c25e25059b2f417f4e1348a761ca153320a8c01ca2cce7f69ed7afe3d4d` |
+| 관계 표현식 CGO=0 | `115128294989` / `11788799479` | 같은 전체 사례·원 child run/pass·skip 0 | `5466d35a6b6a123ff24f0c5c0c6d8cb819215ff96ffe04ae9f485b337dd9c9b3` |
+| Hosted Helpdesk browser | `115128294991` / `11788786891` | 요약 30개·보고서 상태 19개·저장 보존·정리 | `29f2581e554f3de002b7a7ccabc25cd802d37ccd87609eeb769801931436b7b9` |
+
+세 native mode의 독립 Django 관찰은 위 고정 source/module hash와 Python 3.14.3·Django 6.1·SQLite 3.50.4·
+PostgreSQL 17.10·psycopg 3.3.6을 확인했다. 정확한 사례 목록·원 응답·저장 전후 동일성·정리를 대조했다.
+Go wrapper뿐 아니라 별도 보존된 native child JSONL의 52개 run/pass를 각각 한 번씩 확인했다.
+원본/결과 scope·양쪽 operand·NULL·reverse/mixed·group/Page·assignment 거부·cache/session·cursor 실패와
+physical codec·native 오류를 포함한다. 기존 computed/derived 소비자의 88/42개 child와 각 compile-negative 7개도 유지됐다.
+
+PostgreSQL normal/core와 CGO=0/core는 각각 필수 3,192개·실제 6,080개·16 package·skip 0을 통과했다.
+Race는 core 5,255개, Helpdesk PostgreSQL 695개, 생성 소비자 109개, process 21개로 나누며 필수 목록의 합과
+실제 원 event를 대조했다. Operator-target은 각 mode에서 12개를 통과했다. 9개 PostgreSQL artifact의 전체 원 JSON은
+run/pass가 정확히 대응하고 중복·skip이 없다. Helpdesk CGO=0의 SQLite/PostgreSQL root는 각각 695개이며,
+새 보고서 상태 parent와 17개 정상/실패 child가 실행됐다. Query 전 권한·현재 Category·snapshot/취소·
+scan/iteration/close·잘못된 callback·cleanup 실패와 Ticket/Report/audit 보존을 포함한다.
+Helpdesk CGO=0 부분 receipt는 `ci-38346173948-related-cgo0-audit/helpdesk-audit.json`, SHA-256
+`5a1fdb11cb086a6212cab46f30490ea0c8be2562558762db0801513637a1cb6d`다.
+
+Browser는 고정 Chromium 155.0.8059.12의 실제 로그인·11개 명령 exit 0·정확한 check 이름을 대조했다.
+Ticket 30건·Report 30건의 전체 저장값과 audit 보존, 브라우저 종료·fixture exit 0·DB 제거·stderr 0을 확인했다.
+상태 screenshot은 앞서 직접 확인한 수정 화면과 byte가 같았다. CI 도구 63개/skip 0에는 tool-error·누락 결과·
+같은 개수의 잘못된 보고서 check 목록을 성공으로 처리하지 않는 세 부정 검증이 포함됐다.
+
+수정한 SQLite aggregate 기대값이 포함된 macos-26 race runtime job `115128295525`는 49 package·
+8,616개 run/pass·skip 0을 통과했다. 해당 성공 job은 원 per-test JSON을 artifact로 보존하지 않으므로,
+특정 test의 개별 event를 직접 읽었다고 주장하지 않는다. 동일 source의 해당 파일·필터 없는 runtime package 명령·
+실제 분할 계획·CI의 필수 실행/skip 검사와 성공 요약을 대조했다. 부분 receipt SHA-256은
+`b0a02bd2bfe4918d3a113bb64f9e3dff360d8546a383c90136d10af7531a87b9`다.
+
+전체 수집은 3,540개 Git blob의 byte/mode, 83개 job의 정확한 구성·필수 step, 16개 immutable artifact의
+run/head·digest·크기와 8개 필수 owner·최종 `full_platform_verified=true`를 확인했다.
+Relation 30개 job은 OS/arch·mode 12개 조합마다 실제 binary에서 발견한 생성 소비자 root 91개를 정확히 한 번씩
+소유했다. Portable package 집합·Go inventory 88개·PostgreSQL 필수 경로 3,192개의 mode별 완전성을 대조했다.
+Portable conformance의 비대상 6개·Python exact-profile 4개·runserver PostgreSQL 전용 skip은 각각 실제 owner의
+실행과 구분했으며 필수 실행 누락으로 덮지 않았다. 로컬 audit의 Go 실행은 source-binding 계산과 test 목록 발견용이며
+제품 테스트 본문을 다시 실행하지 않았다.
+
+같은 실행의 capture consumer는 새 systemstate/operator capture와 source 파일 805/884개의 결합을 검증하고
+제품 conformance suite 26개에서 실제 소비했다. 32-bit compile/runtime·oracle 무변경·exact Darwin/Python profile,
+S3 네 service receipt의 고정 build·child/server 종료·reap·정리도 확인했다. Capture 부분 receipt SHA-256은
+`df3bb7afe480911d3c1ffd5d2874bcb6bd639289b49117c0a5721496145c23c3`다.
+
+외부 `godj-verification/hosted-full-pr-38346173948`에 원 metadata·로그·artifact zip·Git source·audit 도구와
+receipt를 보존한다. 수집 receipt `collection.json` SHA-256은
+`1e817add53dfb40ac043c7e77a32843da10497f54d770512381a990177c4288d`, 전체 audit는
+`edf4d77990d6b6e17c63948a3aa9184eb1f082c333fd039b79f6c4b02950cccc`, 원 로그 zip은
+`12de2db52a0ed3b629b9f826996c43546868c23d88cbb8bf12ddb8d8f83b6955`, source inventory는
+`d2314a35fdc8a9577aab65fa8cec7c00aebb309adde9f271ba777dfee4a51a59`다. 보존한 audit 도구 receipt는
+`25279d6a035a367e0ddb9d6e2e7b99059b6b8841a91a4b4b04778773094bb317`이다.
+Audit의 `declared_ci_scope_verified`/`new_required_execution_verified`/`pass`는 true이며 finding은 없다.
+이 결과는 source `7afe56f7`과 GDJ-0124의 선언된 범위다. 후속 source나 collection 집계·named annotation·
+Decimal/Duration 산술·나머지 기능 카탈로그의 완료로 전이하지 않는다.
 
 ## GDJ-0123 — 집계 결과 단계와 티켓 현황 비율
 

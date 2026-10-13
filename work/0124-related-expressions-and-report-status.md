@@ -1,6 +1,6 @@
 # GDJ-0124: 관계 값 표현식과 서비스 보고서 상태 조회
 
-- 상태: implementation in progress — 구현·새 source의 환경별 검증 미완료
+- 상태: completed — source `7afe56f73d615788d7aa7baa5e959a4ec27f6993`의 [전체 CI 38346173948](https://github.com/progresshans/godj/actions/runs/38346173948)와 원본 증거 대조 완료
 - 시작: 2026-10-13
 - 기준: `a5ef8ff6ea9accaea369c021a0e35eccae6f0804`
 - 근거: [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [Q-013](../docs/OPEN_QUESTIONS.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -32,11 +32,11 @@ Helpdesk의 서비스 보고서 완료 상태와 연결된 티켓의 닫힘 상�
 ## 완료 조건과 검증 위치
 
 - [x] AST·공통 compiler·SQLite/PostgreSQL·typed/dynamic runtime·생성 facade를 함께 연결한다.
-- [ ] 원본/결과 범위, 잘못된 모델·타입·metadata, NULL, reverse OneToOne/collection, 자원 예산, assignment 실패를 검증한다.
-- [ ] 고정 Django 외부 관찰과 양 DB의 실제 SQL 결과를 비교하고 backend 차이를 구분한다.
-- [ ] Helpdesk HTML/API·권한 부정 대조·snapshot/취소·독립 client·브라우저 흐름을 연결한다.
-- [ ] 로컬 포맷·최소 compile 확인 후 push하여 자동 전체 CI에서 영향 테스트·generated drift·DB·race·process·platform을 실행한다.
-- [ ] 같은 source의 필수 실행과 원본 증거를 대조하고 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 실행 상세를 기록한다.
+- [x] 원본/결과 범위, 잘못된 모델·타입·metadata, NULL, reverse OneToOne/collection, 자원 예산, assignment 실패를 검증한다.
+- [x] 고정 Django 외부 관찰과 양 DB의 실제 SQL 결과를 비교하고 backend 차이를 구분한다.
+- [x] Helpdesk HTML/API·권한 부정 대조·snapshot/취소·독립 client·브라우저 흐름을 연결한다.
+- [x] 로컬 포맷·최소 compile 확인 후 push하여 자동 전체 CI에서 영향 테스트·generated drift·DB·race·process·platform을 실행한다.
+- [x] 같은 source의 필수 실행과 원본 증거를 대조하고 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 실행 상세를 기록한다.
 
 Named annotation/dependency, collection/reverse aggregate의 더 넓은 의미, Decimal/Duration 산술,
 function/subquery/window 및 나머지 전체 목표는 기존 카탈로그 범위로 유지한다.
