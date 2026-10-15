@@ -175,7 +175,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath)
 	persistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		return err
 	}
@@ -217,6 +217,11 @@ func run() error {
 		return err
 	}
 	routes = append(routes, labelUsage.Routes()...)
+	costPreview, err := application.CostPreview(authentication)
+	if err != nil {
+		return err
+	}
+	routes = append(routes, costPreview.Routes()...)
 
 	app, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
@@ -261,6 +266,10 @@ func run() error {
 				return errors.New("summary browser appended a ticket audit event")
 			}
 			evidence[index] = map[string]any{"id": row.ID, "subject": row.Subject, "category": row.CategoryID, "closed": row.Closed, "priority": row.Priority, "audit": history}
+			evidence[index]["expected_cost"] = nil
+			if row.ExpectedCost != nil {
+				evidence[index]["expected_cost"] = row.ExpectedCost.String()
+			}
 		}
 		links, err := models.TicketLabelObjects.Using(runtime).OrderBy(models.TicketLabelFields.ID.Asc()).All(shutdown)
 		if err != nil {
@@ -292,7 +301,8 @@ func run() error {
 			reportEvidence[index] = map[string]any{"id": report.ID, "ticket": report.TicketID, "completed": report.Completed, "summary": report.Summary, "audit": history}
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
-			"summary_read_only_unchanged": summaryBefore != nil, "initial_summary_tickets": len(summaryBefore),
+			"cost_preview_read_only_unchanged": summaryBefore != nil,
+			"summary_read_only_unchanged":      summaryBefore != nil, "initial_summary_tickets": len(summaryBefore),
 			"report_status_read_only_unchanged": reportsBefore != nil, "initial_status_reports": len(reportsBefore), "committed_reports": reportEvidence,
 			"label_usage_read_only_unchanged": usageBefore.labels != nil, "initial_usage_labels": len(usageBefore.labels), "committed_labels": labelEvidence, "initial_usage_links": len(usageBefore.links)})
 	}

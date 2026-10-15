@@ -44,6 +44,14 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 		case query.FieldFloat:
 			operand = "godj_float_operand(" + operand + ")"
 		case query.FieldDecimal:
+			if _, computed := expression.Scalar(); computed {
+				if expression.Kind() == query.ResultSum {
+					function = "godj_decimal_result_sum"
+				} else {
+					function = "godj_decimal_result_avg"
+				}
+				break
+			}
 			digits, places, ok := field.DecimalPrecision()
 			if !ok {
 				return "", invalidPlan("decimal aggregate requires operand precision")

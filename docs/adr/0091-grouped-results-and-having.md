@@ -43,8 +43,8 @@ collection scalar/CASE operand는 여전히 별도 의미를 요구한다. 이 �
 
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
 별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 source와 single-valued 관계의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
-int64/float64 산술·CASE는 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
-Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. 계산된 Decimal/Duration의 SUM/AVG,
+int64/float64 산술·CASE와 GDJ-0126의 Decimal 계산식은 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
+Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. Decimal AVG는 정확한 Decimal이며 계산된 Duration의 SUM/AVG,
 일반 named annotation·subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.

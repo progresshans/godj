@@ -50,9 +50,9 @@ PostgreSQL은 native bigint overflow/zero-division 오류와 원 SQLSTATE를 보
 nullable 여부에 따라 저장되거나 NOT NULL 오류가 된다. Backend별로 관찰한 차이를 공통 성공으로 합치지 않는다.
 
 Decimal 상수는 선언된 precision/scale에 정확히 맞아야 한다. Decimal field 복사는 target이 source의 선언 범위를
-좁히지 않을 때만 허용한다. SQLite exact BLOB과 PostgreSQL NUMERIC에 공통으로 적용할 연산·결과 precision·rounding
-계약을 정하기 전에는 Decimal arithmetic을 명시적으로 거부한다. Float로 바꾸는 구현이나 native DB의 임의 반올림을
-정확한 Decimal 지원으로 계산하지 않는다. Temporal 산술·function/subquery는 남은 기능이다. 집계 뒤 계산은 ADR-0091의 명시적 결과 단계로 연결한다.
+좁히지 않을 때만 허용한다. GDJ-0126의 Decimal 계산식은 [ADR-0069](0069-exact-decimal-values-and-storage.md)의
+source·중간/result·target precision을 분리하고 양 DB의 native scale/zero division 차이를 명시한다.
+최종 assignment는 정확히 맞을 때만 저장하며 float 변환이나 native 반올림으로 초과 scale을 숨기지 않는다. Temporal 산술·function/subquery는 남은 기능이다. 집계 뒤 계산은 ADR-0091의 명시적 결과 단계로 연결한다.
 
 ## 조회 결과와 조건부 값
 
@@ -63,7 +63,7 @@ Decimal 상수는 선언된 precision/scale에 정확히 맞아야 한다. Decim
 
 `F`, `Value`, `NullValue`, 산술과 `Case(fallback, When(predicate, value)...)`는 typed projection에
 `Optional[V]`를 제공한다. `Numeric`과 산술 결과의 sealed numeric capability는 int64/float64의 SUM/AVG·MIN/MAX를
-연결한다. AVG의 반환형은 float64다. Dynamic `BindExpression`/`ProjectDynamic`과 생성 Query의
+연결한다. 이 두 kind의 AVG 반환형은 float64다. `orm.Decimal(operand)`의 정확한 산술과 집계는 AVG도 Decimal이다. Dynamic `BindExpression`/`ProjectDynamic`과 생성 Query의
 `Expression`/`ProjectExpressions`는 같은 AST에서 kind를 가진 `query.Value`를 반환한다.
 `BindPredicate`/생성 `ExpressionPredicate`도 metadata를 먼저 검증한다. 읽기에서 bare untyped NULL은 거부한다.
 
@@ -81,7 +81,7 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 결과 열 참조와 `Derive`의 명시적 후속 조회·재집계는 [ADR-0091](0091-grouped-results-and-having.md)을 따른다.
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
 일반 named annotation과 dependency/재바인딩 API, collection을 넘는 computed operand,
-subquery/window/function, Decimal·Duration 산술과 computed SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
+subquery/window/function, Duration/temporal 산술과 computed Duration SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 
 ## 단일 값 관계와 두 scalar 비교
@@ -157,5 +157,5 @@ commit/rollback unknown은 오래된 성공 cache를 게시하지 않도록 비�
 [서버 잠금 observer](../../conformance/runners/django/query_update_concurrency_reference.py)는 Go source·expected를 읽지
 않는다. 생성 소비자는 실제 양 DB의 행/count·오류/SQLSTATE·SQL 횟수·cache·부모 결과를 대조하고 명시적인
 [Go 차이](../DEVIATIONS.md#dev-0021--query-update의-정확한-정수와-명시적-변환)를 별도 assertion으로 검증한다.
-미지원 union·distinct-fields·projection update와 Decimal 연산을 Django parity로 계산하지 않는다.
+미지원 union·distinct-fields·projection update를 Django parity로 계산하지 않는다. Decimal은 GDJ-0126의 별도 native 관측과 명시적 deviation을 적용한다.
 구현·현재 source의 실제 실행·전체 플랫폼·Helpdesk 업무 완료는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에서 구분한다.

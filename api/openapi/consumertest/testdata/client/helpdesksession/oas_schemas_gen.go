@@ -37,6 +37,173 @@ func (s *CategorySummary) SetName(val string) {
 	s.Name = val
 }
 
+// Ref: #/components/schemas/CostPreview
+type CostPreview struct {
+	Category     CategorySummary          `json:"category"`
+	Page         int64                    `json:"page"`
+	PageSize     int64                    `json:"page_size"`
+	Factor       string                   `json:"factor"`
+	Delta        string                   `json:"delta"`
+	MinCost      NilString                `json:"min_cost"`
+	TotalTickets int64                    `json:"total_tickets"`
+	Results      []CostPreviewResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *CostPreview) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *CostPreview) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *CostPreview) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetFactor returns the value of Factor.
+func (s *CostPreview) GetFactor() string {
+	return s.Factor
+}
+
+// GetDelta returns the value of Delta.
+func (s *CostPreview) GetDelta() string {
+	return s.Delta
+}
+
+// GetMinCost returns the value of MinCost.
+func (s *CostPreview) GetMinCost() NilString {
+	return s.MinCost
+}
+
+// GetTotalTickets returns the value of TotalTickets.
+func (s *CostPreview) GetTotalTickets() int64 {
+	return s.TotalTickets
+}
+
+// GetResults returns the value of Results.
+func (s *CostPreview) GetResults() []CostPreviewResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *CostPreview) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *CostPreview) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *CostPreview) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetFactor sets the value of Factor.
+func (s *CostPreview) SetFactor(val string) {
+	s.Factor = val
+}
+
+// SetDelta sets the value of Delta.
+func (s *CostPreview) SetDelta(val string) {
+	s.Delta = val
+}
+
+// SetMinCost sets the value of MinCost.
+func (s *CostPreview) SetMinCost(val NilString) {
+	s.MinCost = val
+}
+
+// SetTotalTickets sets the value of TotalTickets.
+func (s *CostPreview) SetTotalTickets(val int64) {
+	s.TotalTickets = val
+}
+
+// SetResults sets the value of Results.
+func (s *CostPreview) SetResults(val []CostPreviewResultsItem) {
+	s.Results = val
+}
+
+// CostPreviewHeaders wraps CostPreview with response headers.
+type CostPreviewHeaders struct {
+	XGodjCsrftoken OptString
+	Response       CostPreview
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *CostPreviewHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *CostPreviewHeaders) GetResponse() CostPreview {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *CostPreviewHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *CostPreviewHeaders) SetResponse(val CostPreview) {
+	s.Response = val
+}
+
+func (*CostPreviewHeaders) helpdeskCostPreviewRes() {}
+
+type CostPreviewResultsItem struct {
+	ID           int64     `json:"id"`
+	Subject      string    `json:"subject"`
+	ExpectedCost NilString `json:"expected_cost"`
+	AdjustedCost NilString `json:"adjusted_cost"`
+}
+
+// GetID returns the value of ID.
+func (s *CostPreviewResultsItem) GetID() int64 {
+	return s.ID
+}
+
+// GetSubject returns the value of Subject.
+func (s *CostPreviewResultsItem) GetSubject() string {
+	return s.Subject
+}
+
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *CostPreviewResultsItem) GetExpectedCost() NilString {
+	return s.ExpectedCost
+}
+
+// GetAdjustedCost returns the value of AdjustedCost.
+func (s *CostPreviewResultsItem) GetAdjustedCost() NilString {
+	return s.AdjustedCost
+}
+
+// SetID sets the value of ID.
+func (s *CostPreviewResultsItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *CostPreviewResultsItem) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *CostPreviewResultsItem) SetExpectedCost(val NilString) {
+	s.ExpectedCost = val
+}
+
+// SetAdjustedCost sets the value of AdjustedCost.
+func (s *CostPreviewResultsItem) SetAdjustedCost(val NilString) {
+	s.AdjustedCost = val
+}
+
 type CsrfCookie struct {
 	APIKey string
 	Roles  []string
@@ -113,6 +280,7 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
+func (*GoDjAPIError) helpdeskCostPreviewRes()         {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
@@ -222,6 +390,30 @@ func (*GoDjAPIErrorHeaders) helpdeskTicketLabelDetailRes()   {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketLabelListRes()     {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()          {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketServiceReportRes() {}
+
+type HelpdeskCostPreviewBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskCostPreviewBadRequest) helpdeskCostPreviewRes() {}
+
+type HelpdeskCostPreviewInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskCostPreviewInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskCostPreviewInternalServerError) helpdeskCostPreviewRes() {}
+
+type HelpdeskCostPreviewNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskCostPreviewNotFound) helpdeskCostPreviewRes() {}
 
 type HelpdeskLabelCreateBadRequest GoDjAPIError
 

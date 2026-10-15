@@ -233,8 +233,8 @@ func validScalarField(field FieldRef) bool {
 		!strings.ContainsRune(field.Name(), 0) && !strings.ContainsRune(field.Column(), 0)
 }
 
-// Arithmetic combines same-kind signed integers or binary64 values. It does
-// not insert casts or coerce strings, booleans, decimals or temporal values.
+// Arithmetic combines same-kind signed integers, binary64 or exact Decimal
+// values. It does not insert casts or coerce mixed numeric or temporal kinds.
 // NULL adopts the other operand's numeric kind; two untyped NULLs fail closed.
 func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (ScalarExpression, error) {
 	if err := left.Validate(); err != nil {
@@ -250,14 +250,14 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 	if result == "" || left.node.result != "" && left.node.result != result || right.node.result != "" && right.node.result != result {
 		return ScalarExpression{}, invalidPlanError("arithmetic operands require the same explicit numeric kind")
 	}
-	if result != FieldInteger && result != FieldFloat {
-		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "arithmetic currently requires int64 or float64; Decimal and temporal arithmetic need an explicit precision contract"}
+	if result != FieldInteger && result != FieldFloat && result != FieldDecimal {
+		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "arithmetic requires int64, float64 or Decimal operands"}
 	}
 	switch operator {
 	case ArithmeticAdd, ArithmeticSubtract, ArithmeticMultiply, ArithmeticDivide:
 	case ArithmeticModulo:
-		if result != FieldInteger {
-			return ScalarExpression{}, invalidPlanError("remainder requires signed integer operands")
+		if result != FieldInteger && result != FieldDecimal {
+			return ScalarExpression{}, invalidPlanError("remainder requires signed integer or Decimal operands")
 		}
 	default:
 		return ScalarExpression{}, invalidPlanError("unknown arithmetic operator")
@@ -275,8 +275,8 @@ func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 	if err := value.Validate(); err != nil {
 		return ScalarExpression{}, err
 	}
-	if value.node.result != FieldInteger && value.node.result != FieldFloat {
-		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "numeric negation requires int64 or float64"}
+	if value.node.result != FieldInteger && value.node.result != FieldFloat && value.node.result != FieldDecimal {
+		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "numeric negation requires int64, float64 or Decimal"}
 	}
 	if value.node.depth >= MaximumScalarDepth || value.node.nodes >= MaximumScalarNodes {
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")

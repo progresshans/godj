@@ -74,7 +74,7 @@ func TestGeneratedQueryUpdate(t *testing.T) {
 		{"foreign_key_object", `_,_ = source.Update(ctx,orm.Assign(owners.QueryUpdateItemFields.GroupID,owners.QueryUpdateGroup{}))`, "does not match"},
 		{"foreign_key_required_null", `_ = orm.AssignNull(owners.QueryUpdatePeerFields.SourceID)`, "does not match orm.NullableReferenceField"},
 		{"boolean_arithmetic", `_ = orm.Add(orm.F(owners.QueryUpdateItemFields.Enabled),true)`, "ArithmeticNumber"},
-		{"decimal_arithmetic", `_ = orm.Add(orm.F(owners.QueryUpdateItemFields.Price),decimal.Decimal{})`, "ArithmeticNumber"},
+		{"decimal_mixed_float", `_ = orm.Decimal(orm.F(owners.QueryUpdateItemFields.Price)).Add(float64(1))`, "decimal.Decimal"},
 		{"float_remainder", `_ = orm.Remainder(orm.F(owners.QueryUpdateItemFields.Score),int64(2))`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {

@@ -100,6 +100,15 @@ func (ref ResultRef) Nullable() bool {
 	return ref.Valid() && ref.scope.data.shape.expressions[ref.index].ResultNullable()
 }
 
+// Expression exposes the immutable producer so a backend can retain direct
+// field validation across a result stage. It does not grant row-source scope.
+func (ref ResultRef) Expression() (ResultExpression, bool) {
+	if !ref.Valid() {
+		return ResultExpression{}, false
+	}
+	return ref.scope.data.shape.expressions[ref.index], true
+}
+
 // SelectedExpression refers to a completed result cell in a subsequent stage.
 // Row-source validation and assignments reject it, including inside CASE tests.
 func SelectedExpression(ref ResultRef) (ScalarExpression, error) {

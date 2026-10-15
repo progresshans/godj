@@ -6,6 +6,11 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Helpdesk 비용 미리보기의 `helpdesk_cost_preview`는 보존한 Ticket 응답을 표준 라이브러리 유리수로 계산해
+정확한 결과·NULL·음수/zero 배율·최소값·순서·페이지/총수를 실제 generated HTTP와 읽기 전용 역할에서 대조한다.
+`generated_cost_preview_wire`는 문자열 query·원본보다 큰 exact 결과·큰 int64·required nullable 출력·잘못된 응답과
+403/plain 500의 단일 요청을 검사한다. 원본 문서 여섯 profile과 고정 생성물을 함께 검증하며 실행 상태는 TEST_EVIDENCE를 따른다.
+
 Helpdesk 라벨 사용 현황의 `helpdesk_label_usage` receipt는 보존한 Ticket 응답의 라벨 ID·closed·numeric 값에서
 독립적으로 집계를 계산한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·기본값·끝난 페이지·NULL/0,
 조회 전용 권한과 query 거부를 실제 generated HTTP로 확인하고 조회 전후 Label·Ticket 응답을 비교한다.

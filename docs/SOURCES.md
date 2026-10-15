@@ -336,3 +336,11 @@ SQLite Decimal 평균의 division scale은 PostgreSQL 17.10
 기준으로 한다. [구현](../db/sqlite/decimal_aggregate.go)의 scale 규칙은 `derived=true`인 의미적 이식이며,
 Go `math/big`와 Decimal 문자열로 계산한다. PostgreSQL의 내부 객체·배열·division 코드를 제품에 포함하지 않는다.
 원본 copyright와 [PostgreSQL License](../LICENSE.postgresql)를 보존하며 [NOTICE](../NOTICE.md)에 변경 내용을 기록한다.
+
+GDJ-0126의 [Decimal expression 관찰기](../conformance/runners/django/decimal_expression_reference/observe.py)는
+같은 고정 Django 6.1의 public query API를 synthetic input으로 실행한다. 20개 module의 byte identity·Python/DB/driver
+버전과 observer/input/source digest, 각 transaction rollback 및 전체 native 컬럼 보존·정리를 기록한다.
+Django는 BSD-3-Clause이며 GoDj 소스·기대값을 참조 관찰기의 입력으로 사용하지 않는다.
+SQLite Decimal division의 `decimalDivisionScale`도 위 PostgreSQL 17.10 `select_div_scale`의 의미적 이식(derived=true)이다.
+Canonical BLOB의 두 operand scale을 사용하고 exact integer ratio를 half-away-from-zero로 한 번 반올림한다.
+PostgreSQL display scale을 보존하는 구현으로 주장하지 않는다. LICENSE.postgresql과 NOTICE의 출처·변경 경계를 유지한다.

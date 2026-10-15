@@ -21,6 +21,14 @@ func registerNumericAggregates() error {
 			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {
 				return &decimalAggregate{average: true}, nil
 			}}),
+		modernsqlite.RegisterFunction("godj_decimal_result_sum", &modernsqlite.FunctionImpl{NArgs: 1, Deterministic: true,
+			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {
+				return &decimalAggregate{computed: true}, nil
+			}}),
+		modernsqlite.RegisterFunction("godj_decimal_result_avg", &modernsqlite.FunctionImpl{NArgs: 1, Deterministic: true,
+			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {
+				return &decimalAggregate{computed: true, average: true}, nil
+			}}),
 		modernsqlite.RegisterDeterministicScalarFunction("godj_float_operand", 1, sqliteFloatOperand),
 		modernsqlite.RegisterDeterministicScalarFunction("godj_float_aggregate", 2, sqliteFloatAggregate),
 	)

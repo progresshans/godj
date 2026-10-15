@@ -152,8 +152,9 @@ func LessThanOrEqualExpressions[M, V any](left, right ScalarOperand[M, V]) Predi
 	return compareExpressions(query.LookupLessThanOrEqual, left, right)
 }
 
-// ArithmeticNumber excludes implicit numeric conversions and types whose
-// precision/duration arithmetic needs a separate contract.
+// ArithmeticNumber is the integer/binary64 domain, whose AVG is float64.
+// Exact Decimal arithmetic has the DecimalExpression capability; temporal
+// arithmetic still requires its own result-kind and rounding contract.
 type ArithmeticNumber interface{ int64 | float64 }
 
 func arithmeticOperands[M any, N ArithmeticNumber](operator query.ArithmeticOperator, left, right ScalarOperand[M, N]) NumericExpression[M, N] {

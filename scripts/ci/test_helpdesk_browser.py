@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from helpdesk_browser import LABEL_USAGE_CHECKS, verify_label_usage, REPORT_STATUS_CHECKS, SUMMARY_CHECKS, result_document, verify_committed, verify_report_status, verify_summary
+from helpdesk_browser import COST_PREVIEW_CHECKS, verify_cost_preview, LABEL_USAGE_CHECKS, verify_label_usage, REPORT_STATUS_CHECKS, SUMMARY_CHECKS, result_document, verify_committed, verify_report_status, verify_summary
 
 
 class BrowserEvidenceTest(unittest.TestCase):
@@ -19,8 +19,8 @@ class BrowserEvidenceTest(unittest.TestCase):
                 verify_summary(bad)
 
     def test_stored_result_requires_full_read_only_proof_and_no_audit(self):
-        result = {'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
-                  'committed_tickets': [{'id': i + 1, 'audit': []} for i in range(30)],
+        result = {'cost_preview_read_only_unchanged': True, 'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
+                  'committed_tickets': [{'id': i + 1, 'audit': [], 'expected_cost': {2: '0.1', 3: '0.2'}.get(i + 1)} for i in range(30)],
                   'committed_links': [{'ID': index + 1, 'TicketID': ticket, 'LabelID': label}
                                       for index, (ticket, label) in enumerate([(1, 1), (2, 1), (3, 1)] + [(1, label) for label in range(3, 27)])],
                   'label_usage_read_only_unchanged': True, 'initial_usage_labels': 26, 'initial_usage_links': 27,
@@ -28,7 +28,9 @@ class BrowserEvidenceTest(unittest.TestCase):
                   'report_status_read_only_unchanged': True, 'initial_status_reports': 30,
                   'committed_reports': [{'id': i + 1, 'ticket': i + 1, 'audit': []} for i in range(30)]}
         verify_committed(result)
-        for bad in ({}, dict(result, summary_read_only_unchanged=False),
+        for bad in ({}, dict(result, cost_preview_read_only_unchanged=False),
+                    dict(result, committed_tickets=[dict(row, expected_cost='0') for row in result['committed_tickets']]),
+                    dict(result, summary_read_only_unchanged=False),
                     dict(result, initial_summary_tickets=29),
                     dict(result, committed_tickets=result['committed_tickets'][:-1]),
                     dict(result, committed_links=[{'ticket': 1, 'label': 1}]),
@@ -66,6 +68,17 @@ class BrowserEvidenceTest(unittest.TestCase):
                     dict(result, cases=['foreign-' + str(i) for i in range(result['passed'])])):
             with self.subTest(result=bad), self.assertRaises(ValueError):
                 verify_label_usage(bad)
+
+
+    def test_cost_preview_requires_every_browser_check(self):
+        result = {'passed': len(COST_PREVIEW_CHECKS), 'cases': list(COST_PREVIEW_CHECKS)}
+        self.assertEqual(verify_cost_preview(result), result)
+        for bad in ({}, dict(result, passed=True), dict(result, passed=result['passed'] - 1),
+                    dict(result, cases=result['cases'][:-1]),
+                    dict(result, cases=[result['cases'][0]] * result['passed']),
+                    dict(result, cases=['foreign-' + str(i) for i in range(result['passed'])])):
+            with self.subTest(result=bad), self.assertRaises(ValueError):
+                verify_cost_preview(bad)
 
 
 if __name__ == '__main__':

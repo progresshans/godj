@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"math/big"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/progresshans/godj/db"
@@ -130,7 +131,7 @@ func (target decimalDestination) Scan(raw any) error {
 		default:
 			return fail(decimal.ErrInvalid)
 		}
-		value, err := decimal.Parse(text)
+		value, err := parseNumericResult(text)
 		if err != nil {
 			return fail(err)
 		}
@@ -148,4 +149,33 @@ func (target decimalDestination) Scan(raw any) error {
 	default:
 		return decimal.ErrInvalid
 	}
+}
+
+// Unconstrained NUMERIC arithmetic can retain up to 16383 fractional display
+// places, even when its canonical value is small. Strip only that redundant
+// fractional padding at this backend boundary. Public Decimal input limits
+// and the global coefficient/exponent domain remain unchanged.
+func parseNumericResult(text string) (decimal.Decimal, error) {
+	const maximumNativeDisplayBytes = decimal.MaxAdjustedExponent + 1 + 16383 + 2
+	if len(text) > maximumNativeDisplayBytes {
+		return decimal.Decimal{}, decimal.ErrRange
+	}
+	if len(text) > decimal.MaxInputBytes && strings.Contains(text, ".") {
+		start := 0
+		if text[0] == '-' {
+			start = 1
+		}
+		point := strings.IndexByte(text, '.')
+		if point <= start || point == len(text)-1 || strings.LastIndexByte(text, '.') != point {
+			return decimal.Decimal{}, decimal.ErrInvalid
+		}
+		for index := start; index < len(text); index++ {
+			if index != point && (text[index] < '0' || text[index] > '9') {
+				return decimal.Decimal{}, decimal.ErrInvalid
+			}
+		}
+		text = strings.TrimRight(text, "0")
+		text = strings.TrimSuffix(text, ".")
+	}
+	return decimal.Parse(text)
 }

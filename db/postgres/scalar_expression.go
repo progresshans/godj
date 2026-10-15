@@ -11,7 +11,7 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 	}
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{
 		ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder,
-		Literal: readScalarLiteral,
+		Literal: readScalarLiteral, Binary: compilePostgresBinary, Expression: wrapReadScalar,
 		Predicate: func(value query.Expression, arguments *[]any) (string, error) {
 			return compileScalarPredicate(value, source, arguments)
 		},

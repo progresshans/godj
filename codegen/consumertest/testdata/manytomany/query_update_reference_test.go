@@ -482,15 +482,30 @@ func TestQueryUpdateReference(t *testing.T) {
 						t.Fatal("implicit numeric coercion accepted", callErr)
 					}
 					t.Log("explicit Go deviation: numeric kinds require explicit conversion")
-				case "decimal_add", "decimal_multiply", "decimal_divide_by_zero", "decimal_overflow":
+				case "decimal_add", "decimal_divide_by_zero":
 					if native.Updates != 1 {
 						t.Fatal("native decimal observation lost")
 					}
-					wantError, wantCount, wantRows, wantUpdates, wantTransactions, compareNativeCause = "TypeError", nil, before, 0, 0, false
-					if !errors.Is(callErr, &query.Error{Code: query.CodeUnsupported}) {
-						t.Fatal("Decimal arithmetic escaped its precision boundary", callErr)
+				case "decimal_multiply", "decimal_overflow":
+					if native.Updates != 1 {
+						t.Fatal("native decimal observation lost")
 					}
-					t.Log("explicit unsupported Go surface: Decimal arithmetic awaits its exact precision contract")
+					if native.Case == "decimal_multiply" && (want.Count == nil || *want.Count != 3 || want.Error != "") {
+						t.Fatal("native Decimal rounding observation changed")
+					}
+					if native.Case == "decimal_overflow" {
+						if postgres && (want.Error != "DataError" || want.SQLState == nil || *want.SQLState != "22003") {
+							t.Fatal("native NUMERIC overflow observation changed")
+						}
+						if !postgres && (want.Count == nil || *want.Count != 3 || native.ReadError == nil || native.ReadError.Error != "InvalidOperation") {
+							t.Fatal("native SQLite out-of-precision storage observation changed")
+						}
+					}
+					wantError, wantCount, wantRows, compareNativeCause = "ValueError", nil, before, false
+					if postgres {
+						wantError = "DataError"
+					}
+					t.Log("explicit Go deviation: reject final Decimal values outside target precision atomically, without native rounding")
 				case "overflow_add", "overflow_subtract", "overflow_multiply", "overflow_negate", "overflow_divide":
 					if !postgres {
 						if want.Count == nil || *want.Count != 1 || native.Updates != 1 {

@@ -22,6 +22,9 @@ const invalidIntegerExpression = "godj: integer expression did not produce an in
 var scalarExpressionRegistrationError = errors.Join(
 	modernsqlite.RegisterDeterministicScalarFunction("godj_int64", 1, sqliteIntegerExpression),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_value", 3, sqliteDecimalExpression),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_result", 1, sqliteDecimalResult),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_binary", 3, sqliteDecimalBinary),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_negate", 1, sqliteDecimalNegate),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_mean", 1, sqliteDurationMean),
 )
 
@@ -51,7 +54,7 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 	}
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{
 		ParameterLimit: sqliteBulkParameters, Value: sqliteValue, Placeholder: func(int) string { return "?" },
-		Expression: wrapReadScalar,
+		Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Expression: wrapReadScalar,
 		Predicate: func(value query.Expression, arguments *[]any) (string, error) {
 			return compileScalarPredicate(value, source, arguments)
 		},
@@ -74,13 +77,30 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 
 func readScalarField(field query.FieldRef, column string) (string, error) {
 	if digits, places, decimal := field.DecimalPrecision(); decimal {
-		column = "godj_decimal_value(" + column + ", " + strconv.Itoa(digits) + ", " + strconv.Itoa(places) + ")"
+		return queryplan.ScalarSQL("godj_decimal_value(", column, ", ", strconv.Itoa(digits), ", ", strconv.Itoa(places), ")")
 	}
 	return column, nil
 }
 
+func compileAssignedDecimal(field query.FieldRef, statement string) (string, error) {
+	if field.Kind() == query.FieldDecimal {
+		return readScalarField(field, statement)
+	}
+	return statement, nil
+}
+
 func wrapReadScalar(expression query.ScalarExpression, statement string) (string, error) {
 	switch expression.ResultKind() {
+	case query.FieldDecimal:
+		if reference, selected := expression.ResultReference(); selected {
+			producer, _ := reference.Expression()
+			if producer.Kind() == query.ResultField {
+				field, _ := producer.Field()
+				return readScalarField(field, statement)
+			}
+			return queryplan.ScalarSQL("godj_decimal_result(", statement, ")")
+		}
+		return statement, nil
 	case query.FieldFloat:
 		return "godj_float_operand(" + statement + ")", nil
 	case query.FieldDuration:

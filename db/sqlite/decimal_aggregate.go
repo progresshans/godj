@@ -14,7 +14,7 @@ import (
 	modernsqlite "modernc.org/sqlite"
 )
 
-var errDecimalAggregateInput = errors.New("godj: decimal aggregate operand is not a canonical value in its declared precision")
+var errDecimalAggregateInput = errors.New("godj: decimal operand is not a canonical value in its declared precision")
 var errDecimalAggregateState = errors.New("godj: decimal aggregate state is inconsistent or exceeds its row bound")
 
 // One owned BLOB combines field precision with the canonical numeric key.
@@ -49,6 +49,7 @@ func sqliteDecimalAggregateInput(_ *modernsqlite.FunctionContext, arguments []dr
 
 type decimalAggregate struct {
 	average        bool
+	computed       bool
 	digits, places int
 	count          int64
 	sum            big.Int
@@ -73,6 +74,12 @@ func (a *decimalAggregate) add(arguments []driver.Value) error {
 	if arguments[0] == nil {
 		return nil
 	}
+	if a.count == math.MaxInt64 {
+		return errDecimalAggregateState
+	}
+	if a.computed {
+		return a.addComputed(arguments[0])
+	}
 	packed, ok := arguments[0].([]byte)
 	if !ok || len(packed) < 5 || len(packed) > decimal.MaxDigits+10 {
 		return errDecimalAggregateInput
@@ -83,7 +90,7 @@ func (a *decimalAggregate) add(arguments []driver.Value) error {
 	if err != nil || !value.Fits(digits, places) {
 		return errDecimalAggregateInput
 	}
-	if a.count == math.MaxInt64 || a.count != 0 && (a.digits != digits || a.places != places) {
+	if a.count != 0 && (a.digits != digits || a.places != places) {
 		return errDecimalAggregateState
 	}
 	var number big.Int
@@ -103,6 +110,28 @@ func (a *decimalAggregate) add(arguments []driver.Value) error {
 	a.sum.Add(&a.sum, &number)
 	a.count++
 	a.digits, a.places = digits, places
+	return nil
+}
+
+func (a *decimalAggregate) addComputed(raw driver.Value) error {
+	value, err := decodeDecimalExpression(raw)
+	if err != nil {
+		return err
+	}
+	places := max(a.places, -int(value.Exponent), 0)
+	if places > maximumCanonicalDecimalPlaces {
+		return errDecimalAggregateState
+	}
+	if places != a.places {
+		a.sum.Mul(&a.sum, decimalPower(places-a.places))
+	}
+	number := decimalCoefficient(value)
+	number.Mul(number, decimalPower(int(value.Exponent)+places))
+	// At most 1001 integer digits, 1999 fractional places and an int64
+	// count bound the exact state to 3019 digits before final decoding.
+	a.sum.Add(&a.sum, number)
+	a.places = places
+	a.count++
 	return nil
 }
 
@@ -139,7 +168,7 @@ func decimalPower(exponent int) *big.Int {
 }
 
 func decimalMean(sum *big.Int, count int64, places int) (decimal.Decimal, error) {
-	if count < 1 || places < 0 || places > decimal.MaxDigits {
+	if count < 1 || places < 0 || places > maximumCanonicalDecimalPlaces {
 		return decimal.Decimal{}, errDecimalAggregateState
 	}
 	if sum.Sign() == 0 {
@@ -148,17 +177,7 @@ func decimalMean(sum *big.Int, count int64, places int) (decimal.Decimal, error)
 	var magnitude big.Int
 	magnitude.Abs(sum)
 	scale := decimalMeanScale(magnitude.String(), places, count)
-	magnitude.Mul(&magnitude, decimalPower(scale-places))
-	denominator := big.NewInt(count)
-	var result, remainder big.Int
-	result.QuoRem(&magnitude, denominator, &remainder)
-	if remainder.Lsh(&remainder, 1).Cmp(denominator) >= 0 {
-		result.Add(&result, big.NewInt(1))
-	}
-	if sum.Sign() < 0 {
-		result.Neg(&result)
-	}
-	return decimal.New(result.String(), -int32(scale))
+	return roundedDecimalRatio(sum, big.NewInt(count), -places, scale)
 }
 
 // The division-scale rule follows PostgreSQL 17.10 select_div_scale in

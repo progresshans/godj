@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
+
+2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 작업 사본에서 구현·검증 묶음을 작성 중이다.
+이 source의 제품 테스트·native DB·독립 client HTTP·브라우저·Hosted 전체 검증은 아직 실행/완료되지 않았다.
+이전 GDJ-0125 source의 전체 성공을 새 코드의 PASS로 사용하지 않는다.
+
+작성한 범위는 공통 Decimal AST·typed capability·양 compiler·computed 집계·target 정밀도, 두 앱 생성 소비자,
+독립 Django 29개 관측과 native rollback/범위, Helpdesk 정확한 비용 필터/정렬/Page·권한·snapshot·출력,
+고정 OpenAPI client 두 receipt와 browser 22개 check다. 설계와 deviation은 ADR-0069/0090/0091·DEV-0016이 소유한다.
+Observer `8d5e641657f3343304126d7fad2b75738f952a4e071213312e2c7240d472cf37`, input `48ded8af1b0591fa3fbe693a5107609ee7d4c45fff11f146b7a4349371bbbe62`, source manifest `2aa5faf2b932737f78e89d85e6547aebc17676dff7b55a5e53acb382a0ca2079`를
+세 native consumer owner에서 실제 실행하고 source/runtime/필수 목록·원 events를 대조해야 한다.
+
+로컬은 다음 단계의 최소 normal compile과 생성만 수행했다. 제품 test body와 DB/HTTP/browser를 실행하지 않았다.
+- 핵심 compile `decimal-core-compile-641mraa7`, receipt `4443e89712becb77d7fea508f5f6bb32ab806c656fcc9080d7288cc49f68b7a8`.
+- 생성 소비자 부모·codegen 생성은 통과했다. fixture의 IR precision 선언 compile 오류를 고친 뒤 소비자 compile을 확인했다.
+  `decimal-consumer-compile-r17fxu43`, 수정 후 receipt `280333e025e85b40758be99f40e27ae928410b6135616508f6046e83a53fa0a4`.
+- Helpdesk/API/parameter/PostgreSQL와 갱신한 생성 소비자 compile `decimal-preview-compile-4xdkteet`,
+  receipt `f8defd3ca8a80603ac0a56b472d8dd3b3fd956082df541f9c4626e822f869b00`.
+- 실제 API adapter 문서 export와 고정 ogen 여섯 profile 생성 `decimal-openapi-generation-stuvy2ji`,
+  receipt `0c6c0acdaf984da19829463141457076af054797edf9e872cc8f05b10d5ec0b4`.
+  Helpdesk에 `/api/tickets/cost-preview/`와 `CostPreview` component만 추가됐고 기존 path/component·다른 다섯 profile은 동일했다.
+
+자료는 작업 디렉터리 밖 `godj-verification/`에 보존했다. 각 receipt의 작업 사본 hash가 그 단계의 범위다.
+SDK/browser/실패 테스트까지 연결한 뒤 `decimal-bundle-compile-3dfp7peu`에서 Helpdesk·OpenAPI 부모의 compile,
+독립 SDK와 browser fixture build를 확인했다. 첫 명령은 동일한 consumertest binary 이름이 겹쳐 실행 전에 거부되어
+출력 대상을 분리했다. 수정 후 receipt `a7d2b36112ae2d784570c4074bf8b92cc13e9d4b603824553e886b227d647d0b`다.
+일곱 compile-negative 프로그램도 실제 compiler가 거부했다. 두 diagnostic 기대 문자열을 실제 sealed-method 오류로 수정하여
+원 로그와 대조한 receipt는 `c1318b895df2ff46847cff1fa6f2ca63902afe5ae9efbe6985e684f2f1b1c6c5`다.
+NULL의 기존 kind 추론을 runtime fixture에서도 유지한 뒤 생성 소비자를 다시 compile했으며 receipt는
+`a729d143e79ab3c6aaeda0bc9e31d5b2edb570b3802ec7eb8164843829c75a0d`다.
+계산된 Decimal group key의 NULL/zero 구분도 작성하고 최소 compile을 확인했다. 마지막 fixture receipt는
+`59a72dbd8d8ad680957791c2e3ae77424bb81f4e74ed23fc8ffde7b827dba74b`다.
+여전히 제품 test body 실행 성공을 뜻하지 않는다. Push 뒤 전체 CI 및 같은 source 원본 audit가 남아 있다.
+
 ## GDJ-0125 — 컬렉션 집계와 라벨 사용 현황
 
 2026-10-13 KST, 기준 `31722acfa53c119cefe858e5dcb11e1a3f76e20e` 뒤 작업 사본의 구현 묶음을 작성했다.

@@ -98,3 +98,8 @@ JSON model/body는 [`api/input`](../input/README.md), 경로와 입력 결합은
 Cookie·반복/list header나 query 값, 추가 scalar와 자동 viewset은 현재 범위에 포함하지 않는다.
 [장기 의미](../../docs/adr/0058-model-derived-openapi-and-operation-ownership.md)와
 [환경별 검증](../../docs/status/TEST_EVIDENCE.md)을 구분한다.
+
+`CanonicalDecimal(maxDigits, decimalPlaces)`는 exact Decimal query/header 값을 제공한다. Decimal.String과 같은
+문자열만 받고 precision 초과를 반올림하지 않는다. 지수·plus·leading/trailing zero 별칭은 거부하며 음수 zero는 유지한다.
+Required/Optional/Default의 존재 정책, header byte 한도와 URL query 전체 검증은 기존과 같다. OpenAPI는 숫자 대신
+canonical string pattern·길이·maxDigits/decimalPlaces를 게시한다. 모델 Form의 원문 scale 입력 규칙과 별도 transport 계약이다.

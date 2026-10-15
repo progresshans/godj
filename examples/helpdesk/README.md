@@ -54,6 +54,21 @@ Typed 관계 operand·두 scalar 비교·CASE·결과 Page를 [같은 read servi
 API query enum과 응답은 OpenAPI·독립 generated client로 연결하며 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
+## 예상 비용 조정 미리보기
+
+`application.CostPreview(webAuth)`의 GET `/tickets/cost-preview/`와 API의 GET `/api/tickets/cost-preview/`는
+현재 Category의 `expected_cost * factor + delta`를 정확한 Decimal로 조회한다. `ViewTicket`을 입력 해석 전에 요구한다.
+`factor`는 최대 2개 정수 자리·4개 소수 자리(기본 1), `delta`는 12/2(기본 0), 선택 `min_cost`는 15/6이다.
+부호를 허용하며 exponent·plus·leading zero·소수점 뒤 trailing zero 별칭 없이 canonical 문자열을 받는다.
+`p`는 1..50001이고 raw query는 256 byte 이하이며 미지/중복/빈 매개변수를 거부한다.
+
+계산된 비용에 최소값 필터를 적용한 뒤 내림차순(NULL 마지막), 같은 값은 ID 오름차순으로 20개씩 반환한다.
+총수와 페이지는 하나의 statement이며 Category 조회까지 하나의 읽기 snapshot이다. 누락 비용은 배율이 0이어도
+NULL이고 실제 zero와 구분한다. 원본보다 세밀하거나 큰 계산 결과를 반올림하지 않으며 저장값·관계·audit를 바꾸지 않는다.
+HTML은 unset을 `Not set`, API는 모든 nullable 값을 명시적인 null로 표현한다. 실패 시 부분 결과를 게시하지 않는다.
+HTML 등록 시 `CostPreviewPath`도 login allowed-next와 Admin 추가 경로에 넣고 `costPreview.Routes()`를 연결한다.
+독립 client·브라우저·양 DB 검증의 실제 완료 여부는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 우선순위별 업무 요약
 
 `application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET

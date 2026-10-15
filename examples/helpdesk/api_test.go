@@ -205,7 +205,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, []auth.Permission) {
 	t.Helper()
 	switch name {
-	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary":
+	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary", "helpdesk:cost-preview":
 		return helpdesk.ViewTicket, nil
 	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
@@ -260,7 +260,7 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 15 || len(routes) != 33 || len(document.Paths["/api/labels/usage/"]) != 1 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 16 || len(routes) != 34 || len(document.Paths["/api/tickets/cost-preview/"]) != 1 || len(document.Paths["/api/labels/usage/"]) != 1 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
 		t.Fatal("Helpdesk document changed the declared operation surface")
 	}
 	for _, route := range routes {
@@ -285,6 +285,7 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 			t.Fatal("authentication denial is undocumented")
 		}
 	}
+	assertCostPreviewContracts(t, document)
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
@@ -537,7 +538,8 @@ type helpdeskDocumentOperation struct {
 }
 
 type helpdeskDocumentSchema struct {
-	Ref                  string `json:"$ref"`
+	DecimalPolicy        json.RawMessage `json:"x-godj-decimal"`
+	Ref                  string          `json:"$ref"`
 	Type                 string
 	Required             []string
 	Format               string

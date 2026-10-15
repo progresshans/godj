@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/query"
 )
@@ -77,6 +78,9 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 			result = "(" + result + ")::double precision"
 		}
 	}
+	if expression.OperandKind() == query.FieldDecimal && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
+		return decimalResultSQL(result)
+	}
 	return result, nil
 }
 
@@ -95,7 +99,11 @@ func numericAggregateOperand(field query.FieldRef, column string) (string, error
 		if !ok {
 			return "", invalidPlan("decimal aggregate requires source precision")
 		}
-		valid = column + " = trunc(" + column + ", " + strconv.Itoa(places) + ") AND abs(" + column + ") < '1e" + strconv.Itoa(digits-places) + "'::numeric"
+		var err error
+		valid, err = queryplan.ScalarSQL(column, " = trunc(", column, ", ", strconv.Itoa(places), ") AND abs(", column, ") < '1e", strconv.Itoa(digits-places), "'::numeric")
+		if err != nil {
+			return "", err
+		}
 		kind, diagnostic = "numeric", "godj_invalid_decimal_operand"
 	case query.FieldDuration:
 		valid = "EXTRACT(YEAR FROM " + column + ") = 0 AND EXTRACT(MONTH FROM " + column + ") = 0 AND " + column + " >= INTERVAL '" + strconv.Itoa(int(duration.MinDays)) + " days' AND " + column + " < INTERVAL '" + strconv.Itoa(int(duration.MaxDays)+1) + " days'"
@@ -103,5 +111,5 @@ func numericAggregateOperand(field query.FieldRef, column string) (string, error
 	default:
 		return "", invalidPlan("numeric aggregate has a nonnumeric operand")
 	}
-	return "CASE WHEN " + column + " IS NULL OR (" + valid + ") THEN " + column + " ELSE ('" + diagnostic + "' || left(" + column + "::text, 0))::" + kind + " END", nil
+	return guardedNumericSQL(column, valid, kind, diagnostic)
 }

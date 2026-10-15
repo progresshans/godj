@@ -5,9 +5,11 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api/parameters"
+	"github.com/progresshans/godj/decimal"
 )
 
 type apiQueries struct {
+	costPreview  parameters.Query[costPreviewQuery]
 	labelUsage   parameters.Query[labelUsageQuery]
 	summary      parameters.Query[ticketSummaryQuery]
 	reportStatus parameters.Query[serviceReportStatusQuery]
@@ -18,6 +20,15 @@ type apiQueries struct {
 func prepareAPIQueries() (apiQueries, error) {
 	var result apiQueries
 	var err error
+	result.costPreview, err = parameters.New(256,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, costPreviewMaximumPage), 1), func(query *costPreviewQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("factor", parameters.Default(parameters.CanonicalDecimal(6, 4), decimal.Decimal{Coefficient: "1"}), func(query *costPreviewQuery, value decimal.Decimal) { query.factor = value }, "Exact multiplier, up to 2 whole digits and 4 decimal places; defaults to 1."),
+		parameters.Field("delta", parameters.Default(parameters.CanonicalDecimal(14, 2), decimal.Decimal{}), func(query *costPreviewQuery, value decimal.Decimal) { query.delta = value }, "Exact adjustment, up to 12 whole digits and 2 decimal places; defaults to 0."),
+		parameters.Field("min_cost", parameters.Optional(parameters.CanonicalDecimal(21, 6)), func(query *costPreviewQuery, value *decimal.Decimal) { query.minimum = value }, "Optional minimum adjusted cost, up to 15 whole digits and 6 decimal places. Omission includes unset costs."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
 	result.summary, err = parameters.New(128,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, ticketSummaryMaximumPage), 1),
 			func(query *ticketSummaryQuery, value int64) { query.page = int(value) },

@@ -22,6 +22,23 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// HelpdeskCostPreview invokes helpdesk:cost-preview operation.
+	//
+	// Read-only preview of expected_cost * factor + delta for tickets in the application's category. Exact
+	// Decimal strings retain every result digit; no rounding or stored value changes occur. Missing costs
+	// remain null, including when factor is zero. factor defaults to 1 and accepts up to 6 digits with at
+	// most 4 decimal places; delta defaults to 0 and accepts up to 14 digits with at most 2 decimal
+	// places. Optional min_cost accepts up to 21 digits with at most 6 decimal places and filters adjusted
+	// values before pagination; omission includes null costs. Parameters use canonical Decimal strings
+	// without exponent, plus sign, leading zeros or fractional trailing zeros; negative zero is accepted.
+	// Results are ordered by adjusted_cost descending, nulls last, then ticket ID ascending. p is a
+	// canonical positive page number. Pages contain at most 20 tickets; total_tickets includes all matches
+	// before pagination, including empty and past-end pages. Category, count and rows share one read
+	// snapshot. ViewTicket is required before parsing or lookup. Unknown/duplicate parameters, malformed
+	// encoding, empty values and queries longer than 256 bytes are rejected.
+	//
+	// GET /api/tickets/cost-preview/
+	HelpdeskCostPreview(ctx context.Context, params HelpdeskCostPreviewParams) (HelpdeskCostPreviewRes, error)
 	// HelpdeskLabelCreate invokes helpdesk:label-create operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
@@ -459,6 +476,164 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// HelpdeskCostPreview invokes helpdesk:cost-preview operation.
+//
+// Read-only preview of expected_cost * factor + delta for tickets in the application's category. Exact
+// Decimal strings retain every result digit; no rounding or stored value changes occur. Missing costs
+// remain null, including when factor is zero. factor defaults to 1 and accepts up to 6 digits with at
+// most 4 decimal places; delta defaults to 0 and accepts up to 14 digits with at most 2 decimal
+// places. Optional min_cost accepts up to 21 digits with at most 6 decimal places and filters adjusted
+// values before pagination; omission includes null costs. Parameters use canonical Decimal strings
+// without exponent, plus sign, leading zeros or fractional trailing zeros; negative zero is accepted.
+// Results are ordered by adjusted_cost descending, nulls last, then ticket ID ascending. p is a
+// canonical positive page number. Pages contain at most 20 tickets; total_tickets includes all matches
+// before pagination, including empty and past-end pages. Category, count and rows share one read
+// snapshot. ViewTicket is required before parsing or lookup. Unknown/duplicate parameters, malformed
+// encoding, empty values and queries longer than 256 bytes are rejected.
+//
+// GET /api/tickets/cost-preview/
+func (c *Client) HelpdeskCostPreview(ctx context.Context, params HelpdeskCostPreviewParams) (HelpdeskCostPreviewRes, error) {
+	res, err := c.sendHelpdeskCostPreview(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskCostPreview(ctx context.Context, params HelpdeskCostPreviewParams) (res HelpdeskCostPreviewRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/cost-preview/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "factor" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "factor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Factor.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "delta" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "delta",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Delta.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "min_cost" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "min_cost",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinCost.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskCostPreviewOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskCostPreviewResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // HelpdeskLabelCreate invokes helpdesk:label-create operation.

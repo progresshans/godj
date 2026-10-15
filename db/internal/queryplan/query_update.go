@@ -20,6 +20,10 @@ type UpdateDialect struct {
 	Value                       func(query.Value) (any, error)
 	Placeholder                 func(int) string
 	Literal                     func(query.Value, query.FieldKind, string) (string, error)
+	FieldValue                  func(query.FieldRef, string) (string, error)
+	Assignment                  func(query.FieldRef, string) (string, error)
+	Binary                      func(query.ScalarExpression, string, string) (string, error)
+	Negate                      func(query.ScalarExpression, string) (string, error)
 	Expression                  func(query.ScalarExpression, string) (string, error)
 	Predicate                   func(query.Expression, func(query.FieldRef) (string, error), *[]any) (string, error)
 }
@@ -60,27 +64,35 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 	if dialect.ParameterLimit <= 0 || len(arguments) > dialect.ParameterLimit {
 		return "", nil, invalidPlan("query update predicate exceeds its parameter budget")
 	}
+	resolveField := func(field query.FieldRef) (string, error) {
+		column, err := dialect.QuoteIdentifier(field.Column())
+		if err != nil {
+			return "", err
+		}
+		if source.Alias != "" {
+			column = source.Alias + "." + column
+		}
+		return column, nil
+	}
 	scalarDialect := ScalarDialect{
 		ParameterLimit: dialect.ParameterLimit, Value: dialect.Value, Placeholder: dialect.Placeholder,
-		Literal: dialect.Literal, Expression: dialect.Expression,
+		Literal: dialect.Literal, Binary: dialect.Binary, Negate: dialect.Negate, Expression: dialect.Expression,
 		Field: func(field query.FieldRef) (string, error) {
-			column, err := dialect.QuoteIdentifier(field.Column())
-			if err != nil {
-				return "", err
+			column, err := resolveField(field)
+			if err != nil || dialect.FieldValue == nil {
+				return column, err
 			}
-			if source.Alias != "" {
-				column = source.Alias + "." + column
-			}
-			return column, nil
+			return dialect.FieldValue(field, column)
 		},
 	}
 	if dialect.Predicate != nil {
 		scalarDialect.Predicate = func(expression query.Expression, arguments *[]any) (string, error) {
-			return dialect.Predicate(expression, scalarDialect.Field, arguments)
+			return dialect.Predicate(expression, resolveField, arguments)
 		}
 	}
 	assignments := plan.Assignments()
 	clauses := make([]string, len(assignments))
+	clauseBytes := 0
 	for index, assignment := range assignments {
 		column, err := dialect.QuoteIdentifier(assignment.Field().Column())
 		if err != nil {
@@ -90,7 +102,17 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 		if err != nil {
 			return "", nil, err
 		}
+		if dialect.Assignment != nil {
+			value, err = dialect.Assignment(assignment.Field(), value)
+			if err != nil {
+				return "", nil, err
+			}
+		}
 		clauses[index] = column + " = " + value
+		clauseBytes += len(clauses[index]) + 2
+		if clauseBytes > 4<<20 {
+			return "", nil, invalidPlan("query update exceeds its SQL budget")
+		}
 	}
 	if len(assignments) == 0 {
 		return "", nil, nil
@@ -100,7 +122,8 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 		if source.Alias != "" {
 			statement += " AS " + source.Alias
 		}
-		return statement + " SET " + strings.Join(clauses, ", ") + source.Where, arguments, nil
+		statement, err = ScalarSQL(statement, " SET ", strings.Join(clauses, ", "), source.Where)
+		return statement, arguments, err
 	}
 	// Materialize membership before any assigned key changes. Preserve every
 	// collection filter identity and deduplicate joined matches inside SQL.
@@ -120,9 +143,10 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 	if err != nil {
 		return "", nil, err
 	}
-	return `WITH ` + scope + ` ("godj_update_key") AS MATERIALIZED (SELECT DISTINCT "godj_update_input".` + key + ` FROM (` +
-		source.Selection + `) AS "godj_update_input") ` + statement + " SET " + strings.Join(clauses, ", ") +
-		" WHERE " + key + ` IN (SELECT "godj_update_key" FROM ` + scope + ")", arguments, nil
+	statement, err = ScalarSQL(`WITH `, scope, ` ("godj_update_key") AS MATERIALIZED (SELECT DISTINCT "godj_update_input".`, key, ` FROM (`,
+		source.Selection, `) AS "godj_update_input") `, statement, " SET ", strings.Join(clauses, ", "),
+		" WHERE ", key, ` IN (SELECT "godj_update_key" FROM `, scope, ")")
+	return statement, arguments, err
 }
 
 func ExecuteQueryUpdate(ctx context.Context, executor BulkUpdateExecutor, plan query.QueryUpdatePlan, statement string, arguments []any, classify func(error) error) (int64, error) {

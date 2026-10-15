@@ -270,6 +270,15 @@ GDJ-0125의 컬렉션 집계도 같은 세 native owner에서 별도의
 부모의 모델·decoder compile-negative 5개를 요구한다. 원 reference와 `godj-collection-native.jsonl`을
 `collection-aggregate-reference/`에 함께 보존한다. Missing reference·잘린 event·미실행/skip은 성공이 아니다.
 
+GDJ-0126의 Decimal 계산식은 같은 세 native owner에서 [독립 observer](../conformance/runners/django/decimal_expression_reference/README.md)의
+양 DB 각 29개 사례와 현재 source hash/runtime/오류 목록·전체 컬럼 rollback/정리를 확인한다.
+생성 소비자는 양 DB reference/runtime 82개 child run/pass·skip 0과 compile-negative 7개를 요구하며
+`decimal-expression-reference/`의 원 JSON과 `godj-decimal-native.jsonl`을 같은 artifact에 보존한다.
+Helpdesk의 45개 티켓·외부 Category, exact 비용·NULL·계산 필터/순서/Page, 권한·15개 snapshot/cursor 실패와
+전체 저장/audit 보존은 기존 양 DB owner에 추가한다. 별도 output 실패는 prepared 응답의 부재를 검사한다.
+독립 OpenAPI client의 `helpdesk_cost_preview`, `generated_cost_preview_wire` receipt와 브라우저 22개 check,
+Ticket/Report/Label/연결/비용/audit의 최종 DB 대조도 필수다. 전체 원격 검증 완료는 TEST_EVIDENCE를 따른다.
+
 CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>-<shard>-<attempt>` artifact에 남긴다. 요청 응답 유실 후
 결과 보존·conditional no-overwrite·checksum 거부·version 고정 seek·서명 변조/만료와 actual HTTP admission을 검증한다.
 실행별 source와 결과는 TEST_EVIDENCE에 기록하며 MinIO 성공을 AWS 운영 account나 다른 S3 구현의 실행 증거로 대체하지 않는다.

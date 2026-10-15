@@ -67,6 +67,37 @@ Exact sum/count를 이 scale에서 한 번 half-away-from-zero로 반올림한�
 GoDj의 exact SQLite 저장/집계는 Django SQLite NUMERIC affinity가 잃은 자릿수를 재현하지 않는다.
 독립 Django native 관찰과 GoDj의 의도한 차이·실제 제품 검증은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
 
+## Decimal 계산식
+
+[GDJ-0126](../../work/0126-decimal-expressions-and-cost-preview.md)은 같은 Decimal kind의 `+`, `-`, `*`, `/`, `%`, 부호 반전을
+공통 scalar AST에 연결한다. 원본 field/관계/선택 결과의 선언 precision과 계산 중간값의 전역 domain을 분리한다.
+NULL을 0으로 만들지 않으며 다른 NULL operand나 후속 0 곱셈·조건으로 잘못된 physical 값과 중간 범위를 숨기지 않는다.
+SQLite는 statement 내부의 stateless 함수에서 canonical BLOB을 검증하고 `math/big`로 정확히 계산한다.
+Division은 canonical 두 operand의 scale과 위 PostgreSQL division-scale 규칙에서 정한 scale로 한 번 반올림한다.
+Remainder의 몫은 0 방향으로 잘라 나머지가 왼쪽 값의 부호를 따른다. SQLite의 zero division/remainder는 NULL이다.
+
+PostgreSQL은 native NUMERIC 연산·display scale·SQLSTATE를 유지한다. Scalar compiler의 내부 SELECT binding과 OFFSET 0으로
+operand/result를 검사하는 경계를 보존한다. 각 guard에 전체 하위 SQL을 반복해 크기가 지수적으로 늘지 않게 하며,
+NULL인 상대 operand가 native strict 연산을 접어도 non-null operand의 검증을 생략하지 않는다.
+이 compiler 내부 binding은 일반 subquery AST 지원을 뜻하지 않는다. Aggregate 결과 guard는 원 query level에 두어
+상수 집계의 row 소유권을 바꾸지 않는다. SQL/parameter/AST 자원 한도는 유지한다.
+
+SQLite BLOB은 PostgreSQL NUMERIC의 trailing display scale을 보존하지 않는다. 따라서 canonical `.1 / 3`과
+NUMERIC(1000,1000)의 같은 값은 division scale이 다를 수 있다. 이 차이는 독립 native 관측으로 기록한다.
+PostgreSQL 결과의 큰 display padding은 엄격한 native NUMERIC 문법을 확인한 뒤 소수점 뒤 trailing zero만 제거하여
+전역 Decimal로 decode한다. Public Decimal.Parse의 4096-byte 입력 정책은 넓히지 않는다.
+
+계산된 SUM/AVG는 source field precision으로 결과를 다시 제한하지 않는다. SQLite는 canonical variable scale의
+exact 합계를 invocation마다 소유하며 1000 digits·adjusted exponent 범위와 int64 count에서 최대 3019자리 상태로 제한한다.
+AVG의 scale은 canonical 기여값을 따르고, 기존 root field SUM/AVG의 선언 scale 의미는 유지한다.
+UPDATE는 각 source를 검사한 뒤 최종 target precision/scale에 정확히 맞는 경우만 저장한다. 직접 literal/field와
+CASE의 직접 branch 사전 검증은 유지하되, 계산 중간값의 일시적인 확장 후 정확한 축소는 허용한다.
+실패는 전체 statement/savepoint를 되돌리며 과거 native rounding 성공을 GoDj 성공으로 대체하지 않는다.
+
+Typed capability `orm.Decimal(operand)`의 SUM/AVG/MIN/MAX는 `Optional[decimal.Decimal]`이다.
+정수·Float AVG의 float64 반환과 구분하며 typed/dynamic·원본/관계/선택 결과가 같은 AST를 사용한다.
+설계 채택·현재 구현과 실제 환경별 검증은 별개이며 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
+
 ## 기존 값의 precision 변경
 
 Precision-only AlterField는 max_digits·decimal_places만 변경한다. Before/After는 각각 완전히 정규화되어야 하며

@@ -2,6 +2,19 @@
 
 package helpdesksession
 
+// HelpdeskCostPreviewParams is parameters of helpdesk:cost-preview operation.
+type HelpdeskCostPreviewParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Exact multiplier, up to 2 whole digits and 4 decimal places; defaults to 1.
+	Factor OptString `json:",omitempty,omitzero"`
+	// Exact adjustment, up to 12 whole digits and 2 decimal places; defaults to 0.
+	Delta OptString `json:",omitempty,omitzero"`
+	// Optional minimum adjusted cost, up to 15 whole digits and 6 decimal places. Omission includes unset
+	// costs.
+	MinCost OptString `json:",omitempty,omitzero"`
+}
+
 // HelpdeskLabelDeleteParams is parameters of helpdesk:label-delete operation.
 type HelpdeskLabelDeleteParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

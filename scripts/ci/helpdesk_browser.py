@@ -98,6 +98,42 @@ LABEL_USAGE_CHECKS = (
 )
 
 
+COST_PREVIEW_CHECKS = (
+    'cost preview navigation',
+    'cost preview first page and total',
+    'cost preview orders exact non-null costs first',
+    'cost preview distinguishes missing costs',
+    'cost preview second page preserves operands',
+    'cost preview has no false next page',
+    'cost preview operands reset page',
+    'cost preview retains more than two fractional digits',
+    'cost preview minimum filters computed values',
+    'cost preview minimum preserves operands',
+    'cost preview past-end page retains filtered total',
+    'cost preview previous link preserves minimum',
+    'cost preview clearing minimum preserves adjustment',
+    'cost preview API exact strings and ordering',
+    'cost preview API required null values',
+    'cost preview zero factor retains null exclusion and stable ties',
+    'malformed cost query rejected: /tickets/cost-preview/?factor=1.0',
+    'malformed cost query rejected: /api/tickets/cost-preview/?factor=100',
+    'malformed cost query rejected: /api/tickets/cost-preview/?delta=0.001',
+    'malformed cost query rejected: /api/tickets/cost-preview/?min_cost=',
+    'cost preview response is not cached',
+    'cost preview contains no write form',
+)
+
+
+def verify_cost_preview(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(COST_PREVIEW_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(COST_PREVIEW_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(COST_PREVIEW_CHECKS)):
+        raise ValueError('cost preview browser did not complete every declared check')
+    return result
+
+
 def verify_label_usage(result):
     cases = result.get('cases')
     if (type(result.get('passed')) is not int or result['passed'] != len(LABEL_USAGE_CHECKS)
@@ -152,6 +188,9 @@ def verify_committed(value):
             or any(row.get('audit') not in (None, []) for row in rows)
             or len({row['id'] for row in rows}) != 30):
         raise ValueError('summary browser did not preserve all rows, links and audit')
+    if (value.get('cost_preview_read_only_unchanged') is not True
+            or any('expected_cost' not in row or row['expected_cost'] != {2: '0.1', 3: '0.2'}.get(row['id']) for row in rows)):
+        raise ValueError('cost preview browser did not preserve every exact stored cost and NULL')
     reports = value.get('committed_reports')
     if (value.get('report_status_read_only_unchanged') is not True
             or value.get('initial_status_reports') != 30
@@ -194,7 +233,8 @@ def run(node_tools, output):
                'source_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip(),
                'probe_sha256': hashlib.sha256((FIXTURE / 'summary_probe.js').read_bytes()).hexdigest(),
                'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest(),
-               'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest()}
+               'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest(),
+               'cost_preview_probe_sha256': hashlib.sha256((FIXTURE / 'cost_preview_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -290,6 +330,11 @@ def run(node_tools, output):
             label_screenshot = output / 'label-usage-desktop.png'
             if not label_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or label_screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the label usage screenshot')
+            receipt['cost_preview'] = verify_cost_preview(result_document(browser('cost-preview', 'run-code', '--filename', str(FIXTURE / 'cost_preview_probe.js'))))
+            browser('cost-preview-screenshot', 'screenshot', '--filename=' + str(output / 'cost-preview-desktop.png'))
+            cost_screenshot = output / 'cost-preview-desktop.png'
+            if not cost_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or cost_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the cost preview screenshot')
 
         except Exception as error:
             failure = error

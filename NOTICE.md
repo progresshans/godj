@@ -175,3 +175,13 @@ records exact URLs and hashes for ten relevant modules at Django commit
 BSD 3-Clause terms are preserved in [LICENSE.django](LICENSE.django).
 The checked-in raw observations retain their observer/source hashes; product
 implementation and environment-specific verification are recorded separately.
+
+The [Decimal expression observer](conformance/runners/django/decimal_expression_reference/observe.py)
+also independently exercises the pinned Django public API, verifies twenty module
+identities, and retains native SQL and rollback/cleanup evidence. Django remains
+BSD-3-Clause, with its license in LICENSE.django.
+The SQLite `decimalDivisionScale` helper in `db/sqlite/decimal_expression.go`
+extends the PostgreSQL 17.10 `select_div_scale` semantic adaptation already used
+for averages (derived=true). It uses canonical operand scales and Go big integers,
+not PostgreSQL internal representations. PostgreSQL copyright and its license
+remain in LICENSE.postgresql; native trailing display scale is not reproduced.

@@ -6,6 +6,7 @@ package helpdesksession
 type OperationName = string
 
 const (
+	HelpdeskCostPreviewOperation             OperationName = "HelpdeskCostPreview"
 	HelpdeskLabelCreateOperation             OperationName = "HelpdeskLabelCreate"
 	HelpdeskLabelDeleteOperation             OperationName = "HelpdeskLabelDelete"
 	HelpdeskLabelDetailOperation             OperationName = "HelpdeskLabelDetail"

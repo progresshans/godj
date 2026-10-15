@@ -17,6 +17,8 @@ type ScalarDialect struct {
 	Value          func(query.Value) (any, error)
 	Placeholder    func(int) string
 	Literal        func(query.Value, query.FieldKind, string) (string, error)
+	Binary         func(query.ScalarExpression, string, string) (string, error)
+	Negate         func(query.ScalarExpression, string) (string, error)
 	Expression     func(query.ScalarExpression, string) (string, error)
 	Predicate      func(query.Expression, *[]any) (string, error)
 }
@@ -79,12 +81,24 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 				return "", err
 			}
 			statement = "(" + leftSQL + " " + string(operator) + " " + rightSQL + ")"
+			if dialect.Binary != nil {
+				statement, err = dialect.Binary(expression, leftSQL, rightSQL)
+				if err != nil {
+					return "", err
+				}
+			}
 		} else if value, ok := expression.Negated(); ok {
 			inner, err := render(value, expression.ResultKind())
 			if err != nil {
 				return "", err
 			}
 			statement = "(-" + inner + ")"
+			if dialect.Negate != nil {
+				statement, err = dialect.Negate(expression, inner)
+				if err != nil {
+					return "", err
+				}
+			}
 		} else if fallback, branches, ok := expression.Case(); ok {
 			if dialect.Predicate == nil {
 				return "", invalidPlan("scalar compiler does not provide conditional predicates")
@@ -101,6 +115,9 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 					return "", err
 				}
 				selected.WriteString(" WHEN " + condition + " THEN " + value)
+				if selected.Len() > 4<<20 {
+					return "", invalidPlan("scalar expression exceeds its SQL budget")
+				}
 			}
 			otherwise, err := render(fallback, expression.ResultKind())
 			if err != nil {
@@ -112,13 +129,29 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 			return "", invalidPlan("scalar expression has an unknown node")
 		}
 		if dialect.Expression != nil {
-			return dialect.Expression(expression, statement)
+			statement, err = dialect.Expression(expression, statement)
+			if err != nil {
+				return "", err
+			}
 		}
-		return statement, nil
+		return ScalarSQL(statement)
 	}
 	statement, err := render(expression, expected)
 	if err == nil && (len(*arguments) > dialect.ParameterLimit || len(statement) > 4<<20) {
 		err = invalidPlan("scalar expression exceeds its SQL or parameter budget")
 	}
 	return statement, err
+}
+
+// ScalarSQL bounds backend wrappers before repeated operands are copied into
+// a larger statement. Intermediate scalar nodes share the final SQL budget.
+func ScalarSQL(parts ...string) (string, error) {
+	size := 0
+	for _, part := range parts {
+		if len(part) > (4<<20)-size {
+			return "", invalidPlan("scalar expression exceeds its SQL budget")
+		}
+		size += len(part)
+	}
+	return strings.Join(parts, ""), nil
 }

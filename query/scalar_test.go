@@ -153,8 +153,9 @@ func TestScalarExpressionTypesOwnershipAndLimits(t *testing.T) {
 	if _, err := query.NewScalarAssignment(decimal, scalarField(t, narrow)); err != nil {
 		t.Fatal("exact widening rejected", err)
 	}
-	if _, err := query.Arithmetic(query.ArithmeticAdd, scalarField(t, decimal), scalarField(t, decimal)); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-		t.Fatal("Decimal arithmetic used a floating coercion", err)
+	decimalSum, err := query.Arithmetic(query.ArithmeticAdd, scalarField(t, decimal), scalarField(t, decimal))
+	if err != nil || decimalSum.ResultKind() != query.FieldDecimal || decimalSum.Fields()[0] != decimal || decimalSum.Fields()[1] != decimal {
+		t.Fatal("Decimal arithmetic changed its kind or source precision", err)
 	}
 }
 

@@ -17,7 +17,8 @@ func compileResultStage(plan, input query.Plan) (string, []any, error) {
 	}
 	if input.EmptyResult() {
 		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
-			ParameterLimit: sqliteBulkParameters, Value: sqliteValue, Placeholder: func(int) string { return "?" }, Expression: wrapReadScalar,
+			ParameterLimit: sqliteBulkParameters, Value: sqliteValue, Placeholder: func(int) string { return "?" },
+			Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Expression: wrapReadScalar,
 		})
 		if err != nil {
 			return "", nil, err
@@ -26,7 +27,7 @@ func compileResultStage(plan, input query.Plan) (string, []any, error) {
 	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
 		Scalar: queryplan.ScalarDialect{
 			ParameterLimit: sqliteBulkParameters, Value: sqliteValue,
-			Placeholder: func(int) string { return "?" }, Expression: wrapReadScalar,
+			Placeholder: func(int) string { return "?" }, Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Expression: wrapReadScalar,
 		},
 		Aggregate: func(value query.ResultExpression, operand, filter string) (string, int, error) {
 			statement, err := renderAggregate(value, operand, filter)
@@ -59,7 +60,8 @@ func compileResultPage(plan, input query.Plan) (string, []any, error) {
 	}
 	if input.EmptyResult() {
 		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
-			ParameterLimit: sqliteBulkParameters, Value: sqliteValue, Placeholder: func(int) string { return "?" }, Expression: wrapReadScalar,
+			ParameterLimit: sqliteBulkParameters, Value: sqliteValue, Placeholder: func(int) string { return "?" },
+			Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Expression: wrapReadScalar,
 		})
 		if err != nil {
 			return "", nil, err

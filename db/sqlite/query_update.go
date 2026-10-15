@@ -31,6 +31,8 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan) (string, []any, error) {
 		},
 		QuoteTable: quoteIdentifier, QuoteIdentifier: quoteIdentifier, ColumnKey: sqliteIdentifierKey,
 		Value: sqliteValue, Placeholder: func(index int) string { return "?" + strconv.Itoa(index) }, Expression: wrapSQLiteScalar,
+		FieldValue: compileAssignedDecimal, Assignment: compileAssignedDecimal,
+		Binary: compileSQLiteBinary, Negate: compileSQLiteNegate,
 		Predicate: func(expression query.Expression, resolve func(query.FieldRef) (string, error), arguments *[]any) (string, error) {
 			return compileScalarPredicate(expression, queryplan.ScalarSource{Plan: plan.Selection(), Field: resolve}, arguments)
 		},
@@ -44,6 +46,10 @@ func classifySQLiteQueryUpdate(ctx context.Context, err error) error {
 	var native *modernsqlite.Error
 	if errors.As(err, &native) && native.Code() == sqlite3.SQLITE_ERROR && strings.Contains(native.Error(), invalidIntegerExpression) {
 		return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "SQLite integer expression is outside the exact int64 domain", Cause: err}
+	}
+	if errors.As(err, &native) && native.Code() == sqlite3.SQLITE_ERROR &&
+		(strings.Contains(native.Error(), invalidDecimalExpression) || strings.Contains(native.Error(), errDecimalAggregateInput.Error())) {
+		return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "SQLite decimal expression is outside its exact value or declared field domain", Cause: err}
 	}
 	return classifySQLiteWriteError(ctx, "update", err)
 }
