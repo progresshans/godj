@@ -4,8 +4,8 @@
 현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
 GDJ-0126은 Decimal 산술과 computed SUM/AVG, source/result/target precision, 정확한 query parameter 및
-Helpdesk 비용 미리보기를 구현 중이다. 로컬 최소 compile과 생성 확인은 수행했으며 새 source의 실제 DB/HTTP·
-브라우저·원격 전체 검증은 아직 완료되지 않았다. 아래 코드 범위와 완료된 이전 source의 증거를 구분한다.
+Helpdesk 비용 미리보기를 연결하고 원격 실패를 수정했다. 새 source의 Decimal 양 DB·세 mode와 client·브라우저를 확인했으며
+원격 전체 플랫폼 통합은 아직 완료되지 않았다. 아래 코드 범위와 완료된 이전 source의 증거를 구분한다.
 
 GDJ-0125는 reverse/M2M collection field의 COUNT/MIN/MAX/SUM/AVG·조건부 집계와 공통 JOIN 해석을
 양 DB·typed/dynamic·생성 facade에 연결했다. Helpdesk 라벨 사용 현황은 빈 라벨을 보존하고 현재 Category의

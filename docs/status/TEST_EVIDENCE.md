@@ -6,8 +6,9 @@
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
 2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고
-source `366683f369dc4c1edb8ef824ae5e884ec4a6059e`로 push했다. 첫 원격 전체 CI에서 실패를 확인해 수정 중이다.
-제품 테스트·native DB·독립 client HTTP·브라우저·Hosted 전체 통합 검증은 아직 완료되지 않았다.
+source `366683f369dc4c1edb8ef824ae5e884ec4a6059e`로 push했다. 첫 원격 전체 CI에서 확인한 실패를 수정해
+`b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`로 push했다. 수정 source의 Decimal 양 DB 생성 소비자 세 mode,
+독립 client 세 mode·브라우저·Helpdesk 양 DB를 대조했으며 남은 환경·Hosted 전체 통합 검증은 아직 완료되지 않았다.
 이전 GDJ-0125 source의 전체 성공을 새 코드의 PASS로 사용하지 않는다.
 
 최초 묶음의 범위는 공통 Decimal AST·typed capability·양 compiler·computed 집계·target 정밀도, 두 앱 생성 소비자,
@@ -36,7 +37,7 @@ NULL의 기존 kind 추론을 runtime fixture에서도 유지한 뒤 생성 소�
 `a729d143e79ab3c6aaeda0bc9e31d5b2edb570b3802ec7eb8164843829c75a0d`다.
 계산된 Decimal group key의 NULL/zero 구분도 작성하고 최소 compile을 확인했다. 마지막 fixture receipt는
 `59a72dbd8d8ad680957791c2e3ae77424bb81f4e74ed23fc8ffde7b827dba74b`다.
-여전히 제품 test body 실행 성공을 뜻하지 않는다. Push 뒤 전체 CI 및 같은 source 원본 audit가 남아 있다.
+이 로컬 단계의 결과는 제품 test body 실행 성공을 뜻하지 않는다. 후속 원격 결과는 아래에 구분한다.
 
 ### 첫 원격 실패와 제한된 로컬 재현
 
@@ -88,7 +89,7 @@ Go의 실패 두 사례와 새 표기 대조만 재실행해 root/DB 포함 run/
 `reference-after-receipt.json` SHA-256은 `91af14331615d9db4b8dcf5296861fd10d37d8f7cbe8c0d0f3d7ea10e9762f32`다.
 소비자 parent의 최소 compile도 통과했다. 변경된 제품/검증 source 14개와 각 결과를 보존한 `repair-receipt.json`
 SHA-256은 `9ea131d3bfac7d10e86de59ed39e15e5dc1f8793c0e3af826ad795d215f844da`다.
-새 PostgreSQL 관측과 수정 source의 원격 전체 통합·브라우저·원본 대조는 아직 남아 있다.
+이 수정 단계에서는 새 PostgreSQL 관측과 수정 source의 원격 전체 통합·브라우저·원본 대조를 아직 실행하지 않았다.
 
 ### 최초 source의 별도 PostgreSQL Helpdesk 결과
 
@@ -99,6 +100,85 @@ skip 0으로 확인했다. Parent/package도 통과했고 원 event 전체에 fa
 `ci-38671034252-helpdesk-postgres-race/audit.json` SHA-256은
 `2cac07766e0ad44def291d719995c7b61909214a5a6ce29e0988e7c2f1eb97a3`다.
 이는 실패한 최초 source의 부분 증거이며 후속 수정 source의 전체 PASS로 사용하지 않는다.
+
+### 수정 source의 진행 중인 원격 검증
+
+Source `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`의 자동 PR 전체
+[CI 38675091247](https://github.com/progresshans/godj/actions/runs/38675091247), attempt 1은 아직 진행 중이다.
+Checkout `1535250843e82aaa897fb15912e8ab28e4032ee2`의 두 parent와 head를 확인했고, 실제 tree
+`3690e417cb34a07c631005c3fad58ff015ef26d4`가 구현 head의 tree와 같음을 GitHub commit API와 로그로 대조했다.
+`ci-38675091247-source-binding-and-plan.json` SHA-256은
+`a6c7b0f624feb0d2138a8b9c5ae4f65d84157b083cf76b82051ef99f9479b3f8`다.
+다음 결과는 같은 source에서 완료된 부분만을 뜻한다.
+
+- 브라우저: normal integration job `116226917685`, artifact `11946401211`의 run/head·ZIP size/digest·파일 hash와
+  실제 15개 명령/종료를 확인했다. 요약 30·보고서 19·라벨 21·비용 미리보기 22개 check와 전체 native 저장 보존,
+  audit 없음·브라우저/fixture 종료·DB 파일 정리를 대조했다. 변경된 비용 미리보기와 요약 PNG를 실제로 확인했으며
+  나머지 두 PNG는 앞서 확인한 결과와 byte가 동일했다. `ci-38675091247-browser/audit.json` SHA-256
+  `0b1b0b0cea34e87ba55a0d2bb83d084dafa7add21a0da9c4aacce8dfad89aaea`, `visual-review.json`
+  `ca14d858ecb9833a9a05db13acd10ce800936386cecf85037c63fbf91057518b`.
+- 독립 OpenAPI client: normal/cgo0/race integration job `116226917685`/`116226917688`/`116226917700`의 필터 없는 전체 package 실행과
+  uncached PASS를 확인했다. 같은 source의 parent는 여섯 profile 재생성/tree 비교, 실제 HTTP child 실행,
+  부모/자식의 필수 102개 check·race flag receipt와 DB readback을 요구하며 skip 경로가 없다.
+  Child receipt 자체는 별도 artifact에 남지 않으므로 package 실행과 이 필수 소스를 결합한 근거다.
+  `ci-38675091247-openapi-client/normal/audit.json` SHA-256
+  `6d7c0536e025fbb7448fa0b98a90e52c6a17a7b5f16f09c89adc58d18f3d055f`, `cgo0/audit.json`
+  `8e5eb3b195d5e9bdb95522b91dc4adb8a70f5ce40e2bfb9d87ae9fab52075dfe`, `race/audit.json`
+  `bd7bc668763eecaa88a57f7f80a121e98f0e5884c25059ae614f7463cc4b6f9c`.
+- PostgreSQL 17.10 Helpdesk race: job `116226917651`, artifact `11946327582`의 source와 원 Go events를 대조했다.
+  Shard의 필수 666개를 포함한 737개가 각각 한 번 run/pass했고 fail/skip은 없었다. 비용 미리보기의 독립 21개 목록,
+  정확한 값·권한/Category·실패 처리·전체 모델/관계/audit 보존과 실제 race 실행 flag를 확인했다.
+  `ci-38675091247-helpdesk-postgres-race/audit.json` SHA-256은
+  `9dcfea5075fb4c1c50df6933983babfeaa1ab59cfb7639c6225125177556e2a0`다.
+- Helpdesk normal/cgo0: 아래 Decimal native core artifact에서 SQLite/PostgreSQL 비용 미리보기의 각 21개 경로와
+  인증 구성·출력 실패 root 두 개, 총 44개 필수 경로의 run/pass를 각각 확인했다. 전체 원 events에 fail/skip이 없고
+  시작한 테스트와 완료 결과도 일치했다. `ci-38675091247-decimal-native/normal/helpdesk-cost-audit.json` SHA-256
+  `fd019b285cfd211230bccd98b9b19b148952ad82bf03dad166cca0e7eb168537`, `cgo0/helpdesk-cost-audit.json`
+  `8333dfdf7ad515541c8e70b27e7cee0be9add2b9bb9da89f047db46a94d8741b`.
+- Decimal 생성 소비자 normal/race/cgo0: 아래 job/artifact의 원본 child events와 독립 참조를 대조했다.
+  각 mode에서 SQLite/PostgreSQL 각각 30개 관측의 입력·observer·20개 upstream module·실행 runtime을 고정 source에 결합했다.
+  전체 저장 보존/정리와 예상한 native 오류 목록이 일치하며, mode마다 필수 child 84개 run/pass·skip 0과 compile-negative 7개를 확인했다.
+  수정한 SQLite 읽기 오류 분류, Decimal 정수/소수점 표기의 차이와 계산·precision·rollback 경계를 포함한다.
+
+| Decimal mode | Job / artifact | `ci-38675091247-decimal-native/<mode>/audit.json` SHA-256 |
+|---|---|---|
+| normal | `116226917772` / `11946766155` | `09d4dd978f93c5a2794447d42b1bd993e4722b0a2711f2bc129b8e9d1aa9a174` |
+| race | `116226917764` / `11946239375` | `4a90b263450cea83681635513c14484a91e7bbe6cc26e761d47a9160a48c5670` |
+| cgo0 | `116226917683` / `11947790444` | `833e4c01ec22670bdbba74593d1e115a55f46401d828ca8d4fe852d936986cf2` |
+
+원 child event hash는 각 audit에 보존했다. 세 mode의 native 참조 JSON도 byte가 같았다.
+SQLite SHA-256 `533b20c4ba502c79d433fbbc47d084e30f2dc0ba882769ce6897b29323cdc4d3`,
+PostgreSQL `96e640d6b65f210ab708fa8e11eb64762a46e866279cf9bf21af2d383e883602`다.
+
+PostgreSQL 9개 job의 source·mode·package·원 Go event 실행 목록도 대조했다. Core 필수 3,295개가 각 mode에서
+정확히 한 번 배정됐고 operator-target의 세 필수 항목도 각 mode에서 통과했다. 원 events의 18,585회 실행은
+각 coordinate 안에서 run/pass가 일치하며 중복·fail·skip이 없다. Job의 checkout, native PostgreSQL profile,
+원 ZIP digest와 추출한 모든 파일의 byte, 실행 plan과 source에서 확인한 package 목록을 함께 검증했다.
+로컬에서는 `go list`로 대상 목록만 확인했으며 제품 테스트 본문은 실행하지 않았다.
+`ci-38675091247-postgres-inventory/audit.json` SHA-256은
+`e3ecfee17bd8016d65eccfe2830874d5b44dc7179e674fac0b3a38daaf38f09e`다.
+이는 PostgreSQL 실행 목록의 증거이며 보조 서비스 수명·새 capture의 실제 소비와 전체 플랫폼 audit를 대체하지 않는다.
+
+S3 보조 서비스도 normal/core·race/core·race/core-consumers·cgo0/core의 네 owner에서 별도로 대조했다.
+같은 source의 고정 module/commit·dependency checksum·Go toolchain, buildinfo hash와 artifact envelope가 일치했다.
+각 child의 성공, child 실행 후 서버 생존, 서버 종료 코드 0, 두 프로세스의 회수와 graceful cleanup을 확인했다.
+로컬에서 서비스를 시작하거나 제품 테스트를 재실행하지 않았다. `ci-38675091247-s3-lifecycle/audit.json` SHA-256은
+`939d595994af9f27da5f004550135b0a5b25ff365779252c741b9ab6daa40cd8`다.
+
+Conformance job `116239607228`도 완료됐다. 같은 source의 3,598개 파일을 Git blob·mode와 대조한 사본에서
+system-state/operator source binding을 다시 계산했다. 현재 run의 성공한 producer가 만든 artifact
+`11946821145`/`11945986231`의 envelope·checksum·실제 checkout·source binding이 일치하고,
+consumer 로그가 그 artifact 두 개를 실제로 선택해 사용했음을 확인했다. 제품 suite 26개의 순서와 성공 결과도
+현재 `conformance/suites.json`과 일치했다. 선언된 32비트 Linux migration/project-check/runserver compile과
+관계 실행, 고정 oracle checksum·변경 없음 검사도 통과했다.
+`ci-38675091247-captures/audit.json` SHA-256은
+`ffc6b278d73ab23d2fe7f9b7392f71f89a40703d33e7c7c90bc6f3b7c1fd7dd2`다.
+
+Linux Python suite의 378개 중 정확한 Darwin profile에 배정된 네 검사는 의도한 skip이었다.
+같은 source의 job `116226917624` 원본 로그에서 그 네 이름이 각각 실행돼 통과했고 전체 378개도 skip 0임을 확인했다.
+`ci-38675091247-captures/exact-profile-audit.json` SHA-256은
+`994a9839d31db2e82414a394d5acae5457c77c124d6b8454089112c84d44255a`다.
+나머지 필수 환경과 최종 전체 집계를 확인하기 전에는 GDJ-0126 또는 현 source를 전체 PASS로 기록하지 않는다.
 
 ## GDJ-0125 — 컬렉션 집계와 라벨 사용 현황
 

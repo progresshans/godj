@@ -1,6 +1,6 @@
 # GDJ-0126: Decimal 계산식과 예상 비용 조정 미리보기
 
-- 상태: 계약 채택, 구현·검증 묶음 push, 원격 전체 검증·실패 수정 중
+- 상태: 계약 채택, 구현·원격 실패 수정 push, 전체 검증 중
 - 시작: 2026-10-15
 - 기준: `ebc9615d520406f5e50f42a6b5b08b8078b44d41`
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -56,10 +56,10 @@ Push 후 기존 자동 전체 CI owner에서 양 DB·세 mode·전체 플랫폼�
 
 ## 완료 조건
 
-- [ ] 공통 AST·양 compiler의 Decimal 계산/집계/assignment와 precision·source·자원·오류 경계를 연결한다.
-- [ ] Typed/dynamic·생성 facade·cross-app 소비자·compile-negative와 실패/rollback을 검증한다.
-- [ ] 고정 Django의 독립 관측, backend 차이와 GoDj exact SQLite deviation을 실제 결과로 구분한다.
-- [ ] Helpdesk의 비용 미리보기·권한·snapshot·HTML/API·독립 client·브라우저·저장 보존을 연결한다.
+- [x] 공통 AST·양 compiler의 Decimal 계산/집계/assignment와 precision·source·자원·오류 경계를 연결한다.
+- [x] Typed/dynamic·생성 facade·cross-app 소비자·compile-negative와 실패/rollback을 검증한다.
+- [x] 고정 Django의 독립 관측, backend 차이와 GoDj exact SQLite deviation을 실제 결과로 구분한다.
+- [x] Helpdesk의 비용 미리보기·권한·snapshot·HTML/API·독립 client·브라우저·저장 보존을 연결한다.
 - [ ] 같은 source의 필수 실행과 원본 증거를 대조하고 현행 지원/상태 문서를 갱신한다.
 
 Named annotation·collection computed operand·Duration/temporal 산술·function/subquery/window와 나머지 카탈로그는
