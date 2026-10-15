@@ -103,12 +103,14 @@ func testCollectionComputed(t *testing.T, backend collectionBackend, vendor stri
 		assertCollectionJSON(t, rows, want)
 		assertCollectionJSON(t, collectionRows(t, dynamic, "code", "amount"), want)
 		for _, enabled := range []bool{true, false} {
-			count := orm.CountRows[catalog.Label]().Where(target.Enabled.Exact(enabled)).Where(orm.LessThanExpressions(target.Amount, target.Detail().Bonus))
+			// Conditional COUNT names its contributing value. COUNT(*) FILTER
+			// remains rejected by the common aggregate contract.
+			count := orm.Count(target.ID).Where(target.Enabled.Exact(enabled)).Where(orm.LessThanExpressions(target.Amount, target.Detail().Bonus))
 			typed := namedCollectionAggregate(t, api.CatalogLabel, orm.Aggregate1(count, func(v int64) map[string]any { return map[string]any{"total": v} }))
-			dynamic := collectionGroup(t, api.CatalogLabel, orm.DynamicAggregateInput{Kind: query.ResultCountAll,
+			dynamic := collectionGroup(t, api.CatalogLabel, orm.DynamicAggregateInput{Kind: query.ResultCount, Field: "tickets__id",
 				Filter: []orm.LookupInput{{Key: "tickets__enabled", Value: enabled}}, Predicate: orm.DynamicF("tickets__amount").LessThan(orm.DynamicF("tickets__detail__bonus"))})
 			if !typed.Plan().Equal(dynamic.Plan()) {
-				t.Fatal("COUNT(*) lost the conjunction of field and computed FILTER")
+				t.Fatal("conditional COUNT lost the conjunction of field and computed FILTER")
 			}
 			want := `[{"code":"blue","total":0},{"code":"foreign","total":0},{"code":"none","total":0},{"code":"nullonly","total":0},{"code":"orphan","total":0},{"code":"red","total":0}]`
 			if enabled {

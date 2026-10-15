@@ -143,7 +143,8 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 PostgreSQL native NUMERIC와 SQLite exact BLOB의
 division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술과 일반 named annotation은 미지원이다.
-GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했으며 실제 원격 검증은 아직 전이다.
+GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 첫 source `c6e96c41`에서
+조건부 COUNT 소비자 실패를 수정했으며 후속 source의 전체 원격 검증은 아직 전이다.
 일반 행 projection·computed WHERE·정렬·UPDATE의 single-valued 경계는 유지한다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.

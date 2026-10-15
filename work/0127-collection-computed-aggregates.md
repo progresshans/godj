@@ -1,6 +1,6 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 구현·생성·소비자 준비 완료; 원격 실행 결과 검증 대기
+- 상태: 첫 원격 소비자 실패 수정; 후속 전체 원격 검증 대기
 - 시작: 2026-10-15
 - 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI·원본 증거 대조 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -48,7 +48,11 @@ Helpdesk 라벨 사용 현황의 factor/delta 입력·원래/조정 비용 합�
 실제 DB 검증 사례를 연결하고 compile-only로 확인했다. 브라우저 probe의 필수 검사를 28개로 확장했으며
 아직 실행 전이다. 독립 client의 티켓별 유리수 기대값·문자열 query·required nullable wire를 연결하고
 실제 API에서 여섯 OpenAPI profile과 고정 ogen 생성물을 갱신했다. Helpdesk profile만 변경됐으며
-독립 client 빌드를 compile-only로 확인했다. 같은 source의 원격 실행·원본 증거 대조가 남아 있다.
+독립 client 빌드를 compile-only로 확인했다. Source `c6e96c41fb981111a11d2a93914ee305b0c513a0`으로 push해
+[자동 전체 CI 38691196268](https://github.com/progresshans/godj/actions/runs/38691196268)가 시작됐다.
+첫 원격 실행의 조건부 COUNT 소비자가 현행 계약에서 거부하는 COUNT(*) FILTER를 요청한 실패를 재현했다.
+명시적인 연결 티켓 ID의 COUNT로 수정하고 같은 SQLite 실패 경로를 확인했다. 필드/계산식 FILTER의 결합과
+원래 기대값·저장 보존·필수 실행 목록을 유지했다. 수정 source의 전체 원격 실행·원본 증거 대조가 남아 있다.
 
 ## 완료 조건
 

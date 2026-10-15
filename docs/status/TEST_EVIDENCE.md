@@ -7,7 +7,7 @@
 
 2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한
 `e187619ebadc30ef86887f401184afb70b5e5b29`를 현재 브랜치의 `f754cc2c84833e8f9ff0bcc859eae52713635369`로 통합했다.
-현재는 로컬 생성·compile과 정적 검토까지만 완료했다. 이 묶음의 제품 테스트 본문·독립 Django 관측·실제 DB·HTTP·
+구현 준비 단계에서는 로컬 생성·compile과 정적 검토까지만 완료했다. 이 묶음의 제품 테스트 본문·독립 Django 관측·실제 DB·HTTP·
 브라우저·원격 CI는 이 준비 시점에 아직 실행 전이다. GDJ-0126의 전체 성공을 새 코드의 실행 증거로 사용하지 않는다.
 
 공통 불변 AST에서 구성과 행/집계 cardinality 검증을 나누고, collection 값·CASE·FILTER가 같은 최신 원본 JOIN
@@ -42,6 +42,49 @@ Required factor/delta·nullable adjusted_cost_total의 wire 거부와 기존 403
 새 원격 실행을 위한 별도 감사 도구는 49개 참조·130개 raw child·8개 부정 대조·브라우저 28개를 요구한다.
 기존 전체 job·PostgreSQL 원 event·capture·S3·Decimal 검사를 보존했고 기존 GDJ-0126 감사 도구는 수정하지 않았다.
 감사 도구의 정적 검토와 roster/hash 확인만 완료했으며 실제 새 artifact를 감사한 결과는 아직 없다.
+
+### Push와 자동 전체 CI 시작
+
+Source `c6e96c41fb981111a11d2a93914ee305b0c513a0`을 기존 Draft PR 1에 push했고,
+2026-10-15 06:14:00 UTC에 자동 [CI 38691196268](https://github.com/progresshans/godj/actions/runs/38691196268),
+attempt 1·pull_request가 시작됐다. Validation-plan job `116277248993`의 실제 checkout
+`a8948a327c26a42428ce51ec628e053cca229587`과 두 parent를 확인했다. Checkout과 구현 head의 tree는
+`5a4762e655ea6c4233f2f333c4646e09462d8e3e`로 동일하다. CI 완료나 새 native/client/browser 성공을 뜻하지 않는다.
+
+`ci-38691196268-source-binding-and-plan.json` SHA-256은
+`40be04b47ce7e1c0356ae3372c8abe897b5eed603c7788b3b32309c604e92bea`, 원본 validation-plan 로그는
+`9f013985b0f9c830786cc85f6a0edc34820464c2aed2a862dbca862e796e96fb`다.
+PR 설명은 이 source와 실행 대기 범위로 갱신했고 게시한 body를 다시 읽어 사본과 대조했다.
+`gdj0127-pr1-body-c6e96c41.md` SHA-256은
+`cca9a112716e4e6cd37dbb16c8f21603093e43a17e82caa339cfa69cf1364248`이다.
+이전 Decimal source `b66a5aad`의 전체 검증 완료와 이 source의 미완료 검증을 구분한다.
+
+### 첫 원격 소비자 실패와 조건부 COUNT 수정
+
+Source `c6e96c41`의 CI 38691196268에서 Linux arm64 normal/CGO0/race와 amd64 race의 네 relation job이
+`TestGeneratedCollectionAggregates`에서 실패했다. Job `116277300027`/`116277300036`/`116277300160`/`116277300292`의
+원본 로그·head와 실제 checkout `a8948a327c26a42428ce51ec628e053cca229587`을 대조했다. 모두 새 소비자의
+`computed_case_filter_and_nulls`가 `filtered count requires an explicit field`로 실패했다. 이 source는 전체 PASS가 아니다.
+
+새 검사는 `CountRows().Where(field).Where(computed)`와 dynamic `ResultCountAll`을 요청했다.
+현행 ADR-0091과 `TestGroupedResultBoundsAndUnsupportedShapes`는 조건부 COUNT에 명시적인 필드·값을 요구하며
+COUNT(*) FILTER를 거부한다. 해당 검사를 typed `Count(tickets.ID)`와 dynamic `ResultCount`의 `tickets__id`로 수정했다.
+두 조건의 AND·typed/dynamic plan identity, enabled true/false의 원래 기대값, 빈 관계·NULL·중복 연결과 저장 보존은 유지한다.
+필수 native 130개·compile-negative 8개·독립 참조 49개의 목록과 제품의 거부 계약은 변경하지 않았다.
+
+로컬 Go 1.26.5 darwin/arm64의 별도 생성 소비자 사본은 현재 주 작업 공간을 명시적으로 참조한다.
+앞으로 진행할 temporal 작업 공간의 변경을 섞지 않았다. 관측된 SQLite subtest만 선택해 같은 오류를 재현했고,
+수정 뒤 root/DB/subtest 3개가 각각 한 번 run/pass, fail/skip 0이며 최종 native 저장 비교도 통과했다.
+PostgreSQL·race·CGO0·전체 제품 테스트는 로컬에서 반복하지 않았다. 첫 준비 시도는 compile 전용 사본에 synthetic
+`input.json`이 없어 setup 단계에서 실패했으며 원본 `before.jsonl`을 보존했다. 입력을 복사한 실제 실패 재현은 `before2.jsonl`이다.
+
+증거 디렉터리는 `godj-verification/gdj0127-count-filter-repro-0tww3ctd`와 `ci-38691196268-failures`다.
+
+- 실패 재현 `before2-receipt.json`: `94f5096a2db392c788041cde3e7c38923fe7faaa5e5c0a377fbfb3aa3a7f8820`
+- 수정 검증 `after-receipt.json`: `d1c3f060fdfd1a963b69998dd5ccb7cd79ea7c4487e10d0f2f887d070efa84f6`
+- Job·source·로컬 재현 결합 `repair-receipt.json`: `4f73401ad887fd873e243aa5f05adf7b57af007c9234c5d7619d9e5085c5b4d1`
+
+수정 source의 자동 전체 CI와 필수 실행·원본 증거 대조는 아직 남아 있다.
 
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
