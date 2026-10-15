@@ -1,6 +1,6 @@
 # GDJ-0126: Decimal 계산식과 예상 비용 조정 미리보기
 
-- 상태: 계약 채택, 구현·원격 실패 수정 push, 전체 검증 중
+- 상태: 구현·소비자·같은 source의 전체 원격 검증 완료
 - 시작: 2026-10-15
 - 기준: `ebc9615d520406f5e50f42a6b5b08b8078b44d41`
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -9,7 +9,7 @@
 
 Helpdesk의 nullable 예상 비용에 배율과 가감액을 적용한 결과를 조회한다. 계산한 비용으로 필터·정렬·페이지를
 만들어야 하므로 한 페이지를 읽은 뒤 Go에서만 계산하면 전체 결과의 순서·총수와 일치하지 않는다.
-현재 공통 scalar AST는 정수·Float 산술만 허용한다. Decimal을 float로 바꾸지 않고 같은 조회·갱신 기반에 연결한다.
+작업 시작 당시 공통 scalar AST는 정수·Float 산술만 허용했다. Decimal을 float로 바꾸지 않고 같은 조회·갱신 기반에 연결한다.
 
 ## 계약
 
@@ -60,7 +60,11 @@ Push 후 기존 자동 전체 CI owner에서 양 DB·세 mode·전체 플랫폼�
 - [x] Typed/dynamic·생성 facade·cross-app 소비자·compile-negative와 실패/rollback을 검증한다.
 - [x] 고정 Django의 독립 관측, backend 차이와 GoDj exact SQLite deviation을 실제 결과로 구분한다.
 - [x] Helpdesk의 비용 미리보기·권한·snapshot·HTML/API·독립 client·브라우저·저장 보존을 연결한다.
-- [ ] 같은 source의 필수 실행과 원본 증거를 대조하고 현행 지원/상태 문서를 갱신한다.
+- [x] 같은 source의 필수 실행과 원본 증거를 대조하고 현행 지원/상태 문서를 갱신한다.
 
-Named annotation·collection computed operand·Duration/temporal 산술·function/subquery/window와 나머지 카탈로그는
-계속 전체 제품 목표로 유지한다. 이 작업의 완료로 그 범위를 완료 처리하지 않는다.
+Source `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`의 [전체 CI 38675091247](https://github.com/progresshans/godj/actions/runs/38675091247)와
+원본 실행·artifact·source 결합을 대조했다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+
+Collection computed operand는 후속 [GDJ-0127](0127-collection-computed-aggregates.md)에서 별도로 검증한다.
+Named annotation·Duration/temporal 산술·function/subquery/window와 나머지 카탈로그는 계속 전체 제품 목표로 유지한다.
+이 작업의 완료로 그 범위를 완료 처리하지 않는다.

@@ -8,7 +8,7 @@
 2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한
 `e187619ebadc30ef86887f401184afb70b5e5b29`를 현재 브랜치의 `f754cc2c84833e8f9ff0bcc859eae52713635369`로 통합했다.
 현재는 로컬 생성·compile과 정적 검토까지만 완료했다. 이 묶음의 제품 테스트 본문·독립 Django 관측·실제 DB·HTTP·
-브라우저·원격 CI는 아직 실행 전이다. 진행 중인 GDJ-0126의 성공한 부분을 새 코드의 실행 증거로 사용하지 않는다.
+브라우저·원격 CI는 이 준비 시점에 아직 실행 전이다. GDJ-0126의 전체 성공을 새 코드의 실행 증거로 사용하지 않는다.
 
 공통 불변 AST에서 구성과 행/집계 cardinality 검증을 나누고, collection 값·CASE·FILTER가 같은 최신 원본 JOIN
 occurrence를 참조하도록 양 compiler를 연결했다. Typed/dynamic source authority·선택 결과 scope·NULL·입력 손상과
@@ -48,7 +48,7 @@ Required factor/delta·nullable adjusted_cost_total의 wire 거부와 기존 403
 2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고
 source `366683f369dc4c1edb8ef824ae5e884ec4a6059e`로 push했다. 첫 원격 전체 CI에서 확인한 실패를 수정해
 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`로 push했다. 수정 source의 Decimal 양 DB 생성 소비자 세 mode,
-독립 client 세 mode·브라우저·Helpdesk 양 DB를 대조했으며 남은 환경·Hosted 전체 통합 검증은 아직 완료되지 않았다.
+독립 client 세 mode·브라우저·Helpdesk 양 DB와 전체 플랫폼 필수 실행·원본 증거 대조를 완료했다.
 이전 GDJ-0125 source의 전체 성공을 새 코드의 PASS로 사용하지 않는다.
 
 최초 묶음의 범위는 공통 Decimal AST·typed capability·양 compiler·computed 집계·target 정밀도, 두 앱 생성 소비자,
@@ -141,15 +141,15 @@ skip 0으로 확인했다. Parent/package도 통과했고 원 event 전체에 fa
 `2cac07766e0ad44def291d719995c7b61909214a5a6ce29e0988e7c2f1eb97a3`다.
 이는 실패한 최초 source의 부분 증거이며 후속 수정 source의 전체 PASS로 사용하지 않는다.
 
-### 수정 source의 진행 중인 원격 검증
+### 수정 source의 원격 검증
 
 Source `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`의 자동 PR 전체
-[CI 38675091247](https://github.com/progresshans/godj/actions/runs/38675091247), attempt 1은 아직 진행 중이다.
+[CI 38675091247](https://github.com/progresshans/godj/actions/runs/38675091247), attempt 1은 83개 job 모두 성공으로 종료됐다.
 Checkout `1535250843e82aaa897fb15912e8ab28e4032ee2`의 두 parent와 head를 확인했고, 실제 tree
 `3690e417cb34a07c631005c3fad58ff015ef26d4`가 구현 head의 tree와 같음을 GitHub commit API와 로그로 대조했다.
 `ci-38675091247-source-binding-and-plan.json` SHA-256은
 `a6c7b0f624feb0d2138a8b9c5ae4f65d84157b083cf76b82051ef99f9479b3f8`다.
-다음 결과는 같은 source에서 완료된 부분만을 뜻한다.
+다음은 전체 종료 전에 각각 완료한 같은 source의 부분 증거다. 최종 통합은 이 절 마지막에 별도로 기록한다.
 
 - 브라우저: normal integration job `116226917685`, artifact `11946401211`의 run/head·ZIP size/digest·파일 hash와
   실제 15개 명령/종료를 확인했다. 요약 30·보고서 19·라벨 21·비용 미리보기 22개 check와 전체 native 저장 보존,
@@ -218,7 +218,35 @@ Linux Python suite의 378개 중 정확한 Darwin profile에 배정된 네 검�
 같은 source의 job `116226917624` 원본 로그에서 그 네 이름이 각각 실행돼 통과했고 전체 378개도 skip 0임을 확인했다.
 `ci-38675091247-captures/exact-profile-audit.json` SHA-256은
 `994a9839d31db2e82414a394d5acae5457c77c124d6b8454089112c84d44255a`다.
-나머지 필수 환경과 최종 전체 집계를 확인하기 전에는 GDJ-0126 또는 현 source를 전체 PASS로 기록하지 않는다.
+
+### 수정 source의 전체 통합 완료
+
+2026-10-15 KST, CI 38675091247의 83개 job·8개 필수 owner와 최종 `full_platform_verified=true`를 대조했다.
+Linux/macOS의 amd64/arm64·normal/race/CGO0 12개 relation coordinate, 30개 relation job과 각 coordinate의
+93개 실제 consumer root 실행을 확인했다. 전체 88개 Go inventory report의 필수 실행과 no-skip 조건을 검사했다.
+마지막 Intel macOS race runtime도 49개 package·필수 2,403개를 포함한 8,657개 run/pass·skip 0,
+정확한 partition owner와 clean worktree를 확인했다. 성공 job 로그에 package별 raw event/Elapsed는 보존되지 않아
+이 작업의 가장 느린 package는 특정하지 않았다.
+
+별도 보존된 PostgreSQL 원 event는 9개 coordinate에서 총 18,585개 run/pass이며 fail/skip·중복이 없다.
+필수 경로는 현재 source의 3,295개 목록과 각 실행 plan을 대조했다. 앞서 확인한 Decimal 양 DB 관측 30개씩,
+세 mode별 native child 84개와 compile-negative 7개, Helpdesk·독립 client·브라우저 결과도 같은 source로 결합했다.
+새 system-state/operator capture의 producer·source binding·실제 소비, 제품 suite 26개와 S3 네 owner의
+실행·종료·정리를 전체 감사에서 다시 확인했다. 플랫폼별 의도한 Python 분배와 정확한 Darwin 전체 실행도 유지한다.
+
+증거는 `/Users/hanhyeonjin/Documents/Codex/2026-10-05/godj-verification/hosted-full-pr-38675091247`에 있다.
+명시적인 `git archive b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`의 3,598개 파일을 Git blob·mode와 대조했고,
+16개 artifact의 run/head·size/digest, 전체 로그와 source binding을 검사했다. 감사에 사용한 여덟 도구도 사본과 hash로 보존했다.
+로컬의 후속 GDJ-0127 source를 이 실행에 섞지 않았으며 제품 전체 테스트를 로컬에서 반복하지 않았다.
+
+- `audit.json`: `a85ea6b5dbf4a2d0a2883003cfea404e1579211b78d83c4e97d0797723a66166`, findings 0
+- `collection.json`: `127f58fbf6625649b5d5fe36fede6a11968e915ab060e63951fc9133fbb914e7`
+- `source-inventory.json`: `f2199fe5be35a583c7cfa3036fe80663cf252ff56fab939c238ce0efe7da11d0`
+- 원본 `logs.zip`: `802536ea7bfeee21f91db648eb6aec4882a7ccd56c9c4f9ad5fac9bc44ecb7ba`
+- `audit-tools/sha256.json`: `d0d069dd78a758f58204a710c0cf82d7b3a1a0e12cca5496f506c3711425b036`
+
+GDJ-0126의 구현·소비자·같은 source의 전체 통합 검증을 완료했다. GDJ-0127의 새 collection 계산식 실행과
+남은 기능 카탈로그 전체는 이 결과로 완료 처리하지 않는다.
 
 ## GDJ-0125 — 컬렉션 집계와 라벨 사용 현황
 

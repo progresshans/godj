@@ -139,7 +139,8 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 같은 source와 single-valued 관계의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
 계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
 계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. GDJ-0126은 exact Decimal 산술·계산식 SUM/AVG와
-최종 target 정밀도를 검사하는 UPDATE를 구현해 원격 검증 중이다. PostgreSQL native NUMERIC와 SQLite exact BLOB의
+최종 target 정밀도를 검사하는 UPDATE를 구현하고 source `b66a5aad`의 양 DB·세 mode·전체 플랫폼 통합과 원본 증거 대조를 완료했다.
+PostgreSQL native NUMERIC와 SQLite exact BLOB의
 division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술과 일반 named annotation은 미지원이다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했으며 실제 원격 검증은 아직 전이다.

@@ -1,8 +1,8 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 구현·생성·소비자 준비 완료; 원격 실행 검증 전
+- 상태: 구현·생성·소비자 준비 완료; 원격 실행 결과 검증 대기
 - 시작: 2026-10-15
-- 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI 검증은 별도로 진행 중)
+- 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI·원본 증거 대조 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
 
 ## 필요한 기반과 소비자
@@ -38,7 +38,7 @@ NULL·CASE·나눗셈·반올림과 FILTER가 보존된다. 집계나 페이지�
 취소/cache/session·물리 값 손상과 저장 보존을 검사한다. 기존 원격 실행 owner와 필수 inventory에 연결한다.
 
 로컬은 포맷·최소 compile과 관찰된 실패 재현에 사용한다. 전체 묶음 완성 후 push하고 자동 전체 CI의
-같은 source 실행과 원본 artifact를 대조한다. 진행 중인 GDJ-0126의 결과를 이 변경의 PASS로 승격하지 않는다.
+같은 source 실행과 원본 artifact를 대조한다. GDJ-0126의 전체 성공을 이 변경의 PASS로 승격하지 않는다.
 
 현재 공통 AST·양 compiler·typed/dynamic 집계와 생성 facade를 연결하고 실제 프로젝트 생성물을 갱신했다.
 컬렉션 참조 관측을 기존 30개에서 계산식 19개를 추가한 49개로 확장하고, 생성 소비자의 필수 실행을
