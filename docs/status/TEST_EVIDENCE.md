@@ -9,7 +9,8 @@
 Collection field의 COUNT/MIN/MAX/SUM/AVG와 FILTER를 집계 전용 AST·typed/dynamic·공통 JOIN resolver·양 DB compiler에
 연결했다. 원본 Filter의 마지막 materialized collection JOIN을 집계에서 사용하면서 HAVING/selected-result identity를 유지한다.
 일반 projection/group key/scalar/CASE/UPDATE는 single-valued 경계다. 설계는 [ADR-0091](../adr/0091-grouped-results-and-having.md)이 소유한다.
-새 source의 제품 테스트·DB·race·전체 플랫폼 통합은 아직 미완료다. 선행 `7afe56f7`의 PASS를 이전하지 않는다.
+Source `fceff454724fce732da5632a21921b5492361555`의 제품 테스트·양 DB·세 mode·브라우저·전체 플랫폼 통합과
+원본 증거 대조를 완료했다. 초기 작성·실패 재현과 같은 source의 최종 통합 결과를 아래에 구분한다.
 
 ### 작성한 기준과 필수 실행
 
@@ -24,7 +25,7 @@ Normal/core·CGO=0/core·race/core-consumers가 같은 실행에서 각 DB의 30
 5개를 요구한다. Native 원 events는 `godj-collection-native.jsonl`로 reference와 같은 artifact에 보존한다.
 별도의 Go-native 사례는 NULL·중복·독립/연속 Filter JOIN·typed/dynamic AST·숫자/ordered codec·scope/metadata/자원 거부·
 HAVING/Page/재집계·cache/cancel/session/cursor 오류를 다룬다. 기존 `reverse_counts`의 미지원 검사는 같은 고정 fixture와
-실제 Count/Distinct 결과 대조로 바꾸고 collection key와 source slice/distinct/eager/lock의 거부는 유지했다.
+실제 Count/Distinct 결과 대조로 바꾸고 collection key·source slice/eager/lock 거부와 전역 집계의 distinct source 제한은 유지했다.
 
 Helpdesk는 45개 current-category 라벨, 외부 Category 라벨/티켓과 의도적인 물리 cross-category 연결을 사용한다.
 빈 라벨·사용/미사용·숫자 null/0·페이지/총수, 두 view 권한과 query 거부, 15개 snapshot/cursor/취소 실패·nonfinite 출력 거부를
@@ -114,6 +115,62 @@ fail/skip 0이며 `repair-receipt.json` SHA-256 `1eba5b54733283da4902921b94ece83
 PostgreSQL race Helpdesk artifact `11801938401`에서도 라벨 사용 현황 21개 run/pass·skip 0을 원 event에서 대조했다.
 `ci-38376388864-helpdesk-postgres-race/audit.json` SHA-256 `72686fd8ab08ff263a46543f279a82a66bb197e28d62dcc1b829128b36620c4a`.
 이 부분 성공을 다음 수정 source의 통합 PASS로 이전하지 않는다.
+
+### 같은 source의 전체 원격 통합
+
+Source `fceff454724fce732da5632a21921b5492361555`의 자동
+[CI 38380836199](https://github.com/progresshans/godj/actions/runs/38380836199)는 pull_request/attempt 1이다.
+실제 checkout `47a0835bb4da19ec98d44a76e91166674c0a6482`의 부모·Git tree를 head와 대조했다.
+Tree는 `8375896516e4d9908b78ef342142a3bdaff2043e`이며 source binding receipt
+`ci-38380836199-source-binding-and-plan.json` SHA-256 `d7c3f2f10592d151975fd9b8f43755807c78011e5de0029b6679c0edccb5337d`다.
+CI는 2026-10-13에 완료했으며 2026-10-15 KST에 전체 원본 대조를 마쳤다. 83개 job과 8개 필수 owner가 성공했고
+`full_platform_verified=true`다. Linux/macOS의 amd64/arm64·normal/race/CGO0 12개 관계 실행 조합을 30개 job이
+분할하며 조합마다 현재 consumer root 92개를 정확히 한 번 소유한다. PostgreSQL core 필수 경로 3,242개, 88개 Go 실행
+inventory, 26개 제품 conformance suite와 cold-build·capture/source 결합·S3 service lifecycle을 대조했다.
+필수 실행과 source 결합의 누락이 없으며 native PostgreSQL 원 event의 fail/skip은 0이다. CI 도구 자체의 64개 검사도
+skip 없이 통과했고 브라우저의 누락·저장 보존·보고서/라벨 checklist 부정 대조를 포함한다.
+
+자료는 `godj-verification/hosted-full-pr-38380836199`에 보존했다. Git archive의 3,568개 파일을 현재 commit의
+blob·mode·전체 목록과 대조하고 16개 artifact의 run/head·size·GitHub digest와 실제 producer 로그를 검증했다.
+전체 `audit.json` SHA-256은 `f31b5d797c29a92345e2533f42df7cec3a49a883e02150edfaa0da282a6bf7f1`이며,
+원본 로그 ZIP은 `132bdad00d1f69803780b5068ab04c7f04995dc6aeeefd4d7a1159328036cf62`,
+source archive는 `e1719920ca4b167dba67c1a22427ec33bf5b1337d0cffbacd672f66649fb71fa`,
+source inventory는 `c95bbb83d738bb88dff44a2055702bc02de0b6225dde525528a9fa4cbcf0668c`다.
+수집·source binding·네 생성 소비자 대조를 포함한 검사 도구 7개를 같은 자료에 snapshot했다.
+`audit-tools/manifest.json` SHA-256은 `399065c06945e0bb7b0c4fd50f7c98b509b38bb75c760de5215c6add2a39cfcd`다.
+로컬에서는 이 원본 자료와 source를 검사했으며 전체 제품 테스트를 재실행하지 않았다.
+
+완료된 normal integration job `115241004748`과 browser artifact `11804295480`의 run/head·size·GitHub digest,
+실제 checkout·13개 명령과 각각의 종료·원 결과·모든 파일 hash를 확인했다. 요약 30·보고서 상태 19·라벨 사용 현황
+21개 check, Ticket/Report 각 30·Label 26·연결 27개 저장 보존·감사·cleanup을 해당 source의 원 결과로 검증했다.
+`ci-38380836199-browser/audit.json` SHA-256 `b501a43fcb61c696c46e1f46ceb445ab961dc594c610d7810ee45baa9ab09d08`.
+세 1440×1100 PNG는 앞서 시각 검토한 캡처와 byte 단위로 동일하며, 새 source artifact와의 결합을 별도로 확인했다.
+`visual-identity.json` SHA-256 `e6fb0c3c6d7e81763c3476fa3b0466efbe9da3caa5753817e0f16ea8f932da27`.
+
+PostgreSQL race Helpdesk job `115241005308`과 artifact `11804226338`도 동일한 source/checkout에서 완료했다.
+현재 source의 필수 목록과 원 Go event를 대조해 라벨 사용 현황의 권한·Category 격리·snapshot/cursor/취소·
+nonfinite 실패 21개를 각각 한 번 run/pass, skip 0으로 확인했다. Package와 상위 소비자도 PASS이며 artifact 전체에
+fail/skip이 없다. `ci-38380836199-helpdesk-postgres-race/audit.json` SHA-256
+`664d8158e15e7fd1b5da7747310b496403a32ab35e066cd62549d8f88a7b2edb`.
+
+Normal/core·CGO0/core·race/core-consumers의 native 생성 소비자도 완료했다. 모드마다 양 DB의 독립 참조 30개씩·오류 없음·
+저장 보존/정리, 현재 observer/input/upstream manifest hash와 고정 runtime을 대조했다. 각 생성 소비자의 원 event에는
+82개 필수 child가 한 번씩 run/pass하고 fail/skip이 없으며, 부모의 모델/decoder compile-negative 5개도 각각 한 번 통과했다.
+Decimal의 잘못된 기여 입력 거부·FILTER 제외·borrowed session 수명·Distinct JOIN 행 곱은 이 실행에 포함된다.
+독립 reference는 Linux x86_64, Python 3.14.3, Django 6.1, SQLite 3.50.4, psycopg 3.3.6, PostgreSQL 17.10이다.
+
+| 모드 | Job / artifact | `ci-38380836199-collection-native/<mode>/audit.json` SHA-256 |
+|---|---|---|
+| normal | 115241004875 / 11803933970 | `fa1e783492e40727d5f48a97c251fbe83c7cded5cb79e281e598345d5847c878` |
+| cgo0 | 115241004944 / 11803679371 | `c7370aec11df65e8a33afe8f7b72dda12792575f11bd50f34eb96c5f21235573` |
+| race | 115241005219 / 11804663141 | `3cefdc468dccc222e1a8ca1cbddd5fb9a149bf5df0bc1969282dacebc3525efe` |
+
+별도 원본 사본에서 child pass 누락·run 중복·예상 밖 skip·오래된 observer source를 넣은 네 경우를 모두 거부했다.
+상위 기록의 capture hash도 변조한 사본에 맞춰 바꿨으며, 목록·skip·현재 source 대조 자체가 거부함을 확인했다.
+제품 테스트를 다시 실행하지 않았고 원본 artifact는 보존했다. `audit-negative-controls/receipt.json` SHA-256
+`52ddbc4e8cee23b827b6adc2a254a904b67be634f04858eeb18c45d2d47cb1f4`.
+위 부분 감사 결과가 최종 전체 감사의 native 소비자·브라우저 결과와 같음을 대조했다.
+이 완료는 위 source의 GDJ-0125 구현·검증 범위이며, 이후 source나 나머지 기능 카탈로그의 완료로 이전하지 않는다.
 
 ## GDJ-0124 — 관계 값 표현식과 서비스 보고서 상태 조회
 

@@ -151,17 +151,20 @@ terminal COUNT의 0 한 행, Duration AVG의 native 비교와 마지막 decode�
 [결과 단계](adr/0091-grouped-results-and-having.md), 실제 실행은 Evidence를 따른다.
 Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter를 연결한다. Related/filtered aggregate는 unsliced·non-distinct 원본을 요구한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다.
-별도 그룹 결과는 scalar/finite single-valued 키, COUNT(*)/COUNT(field)/COUNT(DISTINCT field), root MIN/MAX와
-정수·Float·Decimal·Duration의 root/finite single-valued SUM/AVG(distinct 포함), 조건부 집계·선택 결과의 HAVING·정렬을 지원한다. NULL 키와 optional forward 행을 보존하고 원본 collection
-filter의 JOIN multiplicity·부정 EXISTS를 유지한다. Group Count는 현재 group slice를 세며 Page의 전체 그룹 수와
-행은 한 statement snapshot에서 읽는다. Collection 집계·일반 named annotation·JSON 그룹 키는
-미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은 [그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다.
+별도 그룹 결과는 scalar/finite single-valued 키, COUNT(*)와 root/related field의 COUNT/MIN/MAX,
+정수·Float·Decimal·Duration의 SUM/AVG, 명시적 DISTINCT·조건부 집계·선택 결과의 HAVING·정렬을 구현한다.
+GDJ-0125는 reverse FK·M2M을 포함한 collection 필드와 FILTER 경로도 같은 AST에 연결했다.
+NULL 키·빈 관계를 보존하고 원본 collection Filter의 마지막 materialized JOIN과 행 곱·부정 EXISTS를 유지한다.
+Grouped source의 Distinct는 집계 전 JOIN 행을 줄이지 않는다. Group Count는 현재 group slice를 세며
+Page의 전체 그룹 수와 행은 한 statement snapshot에서 읽는다. 일반 named annotation·JSON/collection 그룹 키와
+collection 계산식은 미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은
+[그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다. GDJ-0125 source `fceff454`의 양 DB·세 mode·전체 플랫폼 통합 검증을 완료했다.
 SUM/AVG의 빈 원본/모두 NULL 결과는 NULL이다. 정수 AVG는 Float이며 결과 종류를 원본 field metadata와 구분한다.
 SQLite 정수 SUM은 중간 int64 overflow도 거부하고 PostgreSQL은 넓은 native 결과를 마지막 bigint cast에서 검사한다.
 SQLite Decimal은 exact BLOB operand와 독립 aggregate 상태로 계산하고 PostgreSQL native NUMERIC와 같은 division scale을
 사용한다. 원본 precision과 전역 Decimal 결과 한도를 구분한다. Duration AVG의 SQLite binary64 계산/결과 half-even과
 PostgreSQL native INTERVAL/HAVING 차이를 유지한다. 각 backend의 잘못된 저장값·numeric failure를 조용히 NULL이나 float로
-바꾸지 않는다. 상세 범위는 [숫자 집계](adr/0091-grouped-results-and-having.md#숫자-합계와-평균), 현재 실행 범위는 Evidence를 따른다.
+바꾸지 않는다. Decimal MIN/MAX도 각 기여 입력의 physical 값과 선언 precision을 검사하고 FILTER로 제외한 행은 검사하지 않는다. 상세 범위는 [숫자 집계](adr/0091-grouped-results-and-having.md#숫자-합계와-평균), 현재 실행 범위는 Evidence를 따른다.
 유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
@@ -195,7 +198,7 @@ Raw QuerySet.Iterate의 graph 없는 callback은 configured prefetch를 계속 �
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.
 필터로 제외된 required target은 해당 관계 접근에서 missing 오류를 반환하며 부모 목록 조회는 성공한다. Nullable/reverse 부재는 bool로 구분한다.
-Collection value projection/ordering·collection aggregate는 미지원이다. 관련 값의 UPDATE assignment는 CASE 안에서도 거부한다.
+Collection value projection/ordering·collection 계산식은 미지원이다. Collection field aggregate는 위 GDJ-0125 구현·검증 상태를 따른다. 관련 값의 UPDATE assignment는 CASE 안에서도 거부한다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
