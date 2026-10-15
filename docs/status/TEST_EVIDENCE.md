@@ -3,6 +3,46 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0127 — 컬렉션 계산식 집계와 라벨별 조정 비용
+
+2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한
+`e187619ebadc30ef86887f401184afb70b5e5b29`를 현재 브랜치의 `f754cc2c84833e8f9ff0bcc859eae52713635369`로 통합했다.
+현재는 로컬 생성·compile과 정적 검토까지만 완료했다. 이 묶음의 제품 테스트 본문·독립 Django 관측·실제 DB·HTTP·
+브라우저·원격 CI는 아직 실행 전이다. 진행 중인 GDJ-0126의 성공한 부분을 새 코드의 실행 증거로 사용하지 않는다.
+
+공통 불변 AST에서 구성과 행/집계 cardinality 검증을 나누고, collection 값·CASE·FILTER가 같은 최신 원본 JOIN
+occurrence를 참조하도록 양 compiler를 연결했다. Typed/dynamic source authority·선택 결과 scope·NULL·입력 손상과
+자원 예산을 유지한다. 생성 facade v27과 일곱 프로젝트의 실제 생성물을 갱신했다. Helpdesk는 현재 Category와
+두 view 권한·같은 snapshot 안에서 각 present 비용에 factor/delta를 적용해 합산하며 원래 비용·저장/audit를 보존한다.
+
+독립 Django 관측은 기존 30개에 계산식 19개를 추가한 49개다. 부모와 같은 순서·source/runtime 결합을 요구한다.
+두 앱 생성 소비자의 필수 구성은 양 DB의 child run/pass 130개·skip 0과 compile-negative 8개다.
+Computed CASE/FILTER·두 leaf의 같은 행·독립 JOIN의 행 곱·NULL·result stage·source 거부·cache/cancel/session·
+손상 값/overflow와 rollback을 포함한다. 필수 실행 목록을 통과한 것으로 간주하지 않으며 실제 원격 결과를 따로 기록한다.
+
+로컬 Go 1.26.5 darwin/arm64에서 core·compiler·generator·부모 및 생성 native 소비자·Helpdesk의 최소 compile을 확인했다.
+추가한 compile-negative 세 프로그램의 실제 compiler 거부도 확인했다. 정적 검토 중 COUNT(*)의 유효한 computed FILTER를
+잘못 거부하도록 작성한 fixture를 고쳐, field FILTER와 computed FILTER의 AND를 typed/dynamic으로 대조하는 양성 사례와
+COUNT(*) operand 거부를 분리했다. 수정한 생성 소비자도 compile-only로 확인했다. 제품 test body는 실행하지 않았다.
+
+실제 API adapter의 여섯 OpenAPI profile을 export하고 고정 ogen으로 모두 재생성했다.
+Helpdesk 문서와 관련 생성 파일 다섯 개만 바뀌었고, 나머지 profile 및 go.mod/go.sum/ogen.yml은 byte가 같았다.
+독립 client는 보존한 티켓별 `math/big.Rat` 계산으로 원래/조정 합계·NULL·양수/음수/zero 배율을 비교하도록 확장했다.
+Required factor/delta·nullable adjusted_cost_total의 wire 거부와 기존 403/plain 500 단일 전송도 유지한다.
+독립 client 빌드는 통과했으며 실행 ledger는 기존 102개 필수 항목을 유지한다. 브라우저 필수 검사는 28개로 확장했다.
+이 client와 브라우저의 실제 실행 성공은 아직 주장하지 않는다.
+
+자료는 작업 디렉터리 밖 `godj-verification/`에 보존했다.
+- `gdj0127-openapi-update/prepared.json` SHA-256 `3490fef2bc598052b1f762f3f60bb435686f7ba1d534d99c1a0e40c6096d49ef`: 실제 여섯 profile 생성·독립 client compile-only.
+- `gdj0127-prepared-bundle.json` SHA-256 `e158a18e6c8bd995ceca429c9f7cb62b4f9315899be1182d6b748b5d930519fd`: 커밋 전 변경 170개 파일의 hash와 준비 범위.
+- `gdj0127-integration-prepared.json`: 통합한 170개 파일의 byte 동일성. 두 커밋의 차이는 이전 GDJ-0126의 증거 문서 네 개뿐이다.
+
+서로 다른 두 검토자가 core 의미와 Helpdesk/SDK/native inventory를 읽기 전용으로 검토했고 수정이 필요한 결함을 찾지 못했다.
+이는 정적 검토이며 실제 backend 평가 순서·오류·multiplicity·브라우저 결과를 증명하지 않는다.
+새 원격 실행을 위한 별도 감사 도구는 49개 참조·130개 raw child·8개 부정 대조·브라우저 28개를 요구한다.
+기존 전체 job·PostgreSQL 원 event·capture·S3·Decimal 검사를 보존했고 기존 GDJ-0126 감사 도구는 수정하지 않았다.
+감사 도구의 정적 검토와 roster/hash 확인만 완료했으며 실제 새 artifact를 감사한 결과는 아직 없다.
+
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
 2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고

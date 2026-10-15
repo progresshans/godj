@@ -1,6 +1,6 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 계약 채택, 구현 중; 실행 검증 전
+- 상태: 구현·생성·소비자 준비 완료; 원격 실행 검증 전
 - 시작: 2026-10-15
 - 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI 검증은 별도로 진행 중)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)

@@ -141,7 +141,9 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. GDJ-0126은 exact Decimal 산술·계산식 SUM/AVG와
 최종 target 정밀도를 검사하는 UPDATE를 구현해 원격 검증 중이다. PostgreSQL native NUMERIC와 SQLite exact BLOB의
 division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
-Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술, 일반 named annotation·collection computed operand는 미지원이다.
+Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술과 일반 named annotation은 미지원이다.
+GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했으며 실제 원격 검증은 아직 전이다.
+일반 행 projection·computed WHERE·정렬·UPDATE의 single-valued 경계는 유지한다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
 SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
@@ -158,8 +160,9 @@ Scalar COUNT/MIN/MAX/SUM/AVG와 현재 관계 filter를 연결한다. Related/fi
 GDJ-0125는 reverse FK·M2M을 포함한 collection 필드와 FILTER 경로도 같은 AST에 연결했다.
 NULL 키·빈 관계를 보존하고 원본 collection Filter의 마지막 materialized JOIN과 행 곱·부정 EXISTS를 유지한다.
 Grouped source의 Distinct는 집계 전 JOIN 행을 줄이지 않는다. Group Count는 현재 group slice를 세며
-Page의 전체 그룹 수와 행은 한 statement snapshot에서 읽는다. 일반 named annotation·JSON/collection 그룹 키와
-collection 계산식은 미지원이다. 원본 slice/eager/lock와 비키 ordering 등의 제한은
+Page의 전체 그룹 수와 행은 한 statement snapshot에서 읽는다. GDJ-0127의 collection 계산식도 같은 JOIN 행에서
+계산한 뒤 집계하며 source/stage·NULL·입력 검증을 유지한다. 일반 named annotation·JSON/collection 그룹 키는 미지원이다.
+원본 slice/eager/lock와 비키 ordering 등의 제한은
 [그룹 의미](adr/0091-grouped-results-and-having.md)를 따른다. GDJ-0125 source `fceff454`의 양 DB·세 mode·전체 플랫폼 통합 검증을 완료했다.
 SUM/AVG의 빈 원본/모두 NULL 결과는 NULL이다. 정수 AVG는 Float이며 결과 종류를 원본 field metadata와 구분한다.
 SQLite 정수 SUM은 중간 int64 overflow도 거부하고 PostgreSQL은 넓은 native 결과를 마지막 bigint cast에서 검사한다.
