@@ -38,7 +38,10 @@ func countScalarResult[M, V any](field ScalarField[M, V]) (query.ResultExpressio
 }
 
 func (value ScalarExpression[M, V]) countAggregateField(M) (query.ResultExpression, error) {
-	return countScalarResult(value)
+	if value.err != nil {
+		return query.ResultExpression{}, value.err
+	}
+	return query.ScalarAggregateResult(query.ResultCount, value.expression)
 }
 
 func (value FieldReference[M, V]) countAggregateField(M) (query.ResultExpression, error) {

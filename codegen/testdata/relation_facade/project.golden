@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
-const GoDjProjectRelationFacadeInputSHA256 = "c14154e3085b7dd27a5d496d1d80355d003bb6110ee134e0b58d9e73b6f67681"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
+const GoDjProjectRelationFacadeInputSHA256 = "6ad605c78704e356ba37fa8e9a598196d71c3d35210b21be301e765756fcfd00"
 
 type Backend interface {
 	db.Queryer
@@ -631,6 +631,13 @@ func (_query AuthorsAuthorQuery) Expression(_input orm.DynamicExpression) (orm.D
 		return orm.DynamicScalar[authors.Author]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _input)
+}
+
+func (_query AuthorsAuthorQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[authors.Author, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[authors.Author, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _kind, _input)
 }
 
 func (_query AuthorsAuthorQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
@@ -1595,6 +1602,13 @@ func (_query BlogPostQuery) Expression(_input orm.DynamicExpression) (orm.Dynami
 		return orm.DynamicScalar[blog.Post]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.BlogPost, _input)
+}
+
+func (_query BlogPostQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[blog.Post, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[blog.Post, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.BlogPost, _kind, _input)
 }
 
 func (_query BlogPostQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {

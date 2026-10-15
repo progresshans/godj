@@ -73,11 +73,6 @@ func WhenScalar(when Expression, value ScalarExpression) (ScalarWhen, error) {
 	if err := value.Validate(); err != nil {
 		return ScalarWhen{}, err
 	}
-	for _, path := range when.RelationPaths() {
-		if !path.SingleValued() {
-			return ScalarWhen{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "conditional scalar predicates require single-valued relations"}
-		}
-	}
 	return ScalarWhen{when: when, value: value}, nil
 }
 func (branch ScalarWhen) Predicate() Expression   { return branch.when }
@@ -175,10 +170,11 @@ func FieldExpression(field FieldRef) (ScalarExpression, error) {
 	return ScalarExpression{&scalarNode{kind: ScalarField, field: field, result: field.Kind(), nullable: field.Nullable(), depth: 1, nodes: 1}}, nil
 }
 
-// RelatedExpression selects a value through finite single-valued joins. The
-// route may include reverse OneToOne hops; collection multiplicity is rejected.
+// RelatedExpression preserves a finite value route. Collection operands may
+// be composed here, but only a completed aggregate can consume them. Row
+// projection, predicates, ordering and assignments validate their own context.
 func RelatedExpression(path RelationPath) (ScalarExpression, error) {
-	if err := path.validateValueSelection(); err != nil {
+	if err := path.validateAggregateSelection(); err != nil {
 		return ScalarExpression{}, err
 	}
 	nullable := path.Terminal().Nullable()
@@ -290,6 +286,30 @@ func (expression ScalarExpression) Validate() error {
 		return invalidPlanError("scalar expression is empty or exceeds its resource budget")
 	}
 	return nil // All node constructors validate their private immutable state.
+}
+
+func (expression ScalarExpression) validateTypedValue() error {
+	if err := expression.Validate(); err != nil {
+		return err
+	}
+	if expression.ResultKind() == "" {
+		return invalidPlanError("selected scalar requires an explicit result kind")
+	}
+	return nil
+}
+
+// ValidateRow checks value cardinality without manufacturing source authority.
+// The plan separately binds every original field, relation and selected cell.
+func (expression ScalarExpression) ValidateRow() error {
+	if err := expression.Validate(); err != nil {
+		return err
+	}
+	for _, path := range expression.RelationPaths() {
+		if !path.SingleValued() {
+			return groupUnsupported("row scalar values require single-valued relation paths")
+		}
+	}
+	return nil
 }
 
 func (expression ScalarExpression) Kind() ScalarKind {

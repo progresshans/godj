@@ -10,3 +10,7 @@ import (
 func TestCollectionAggregateCompilerKeepsFilterOccurrencesAndParameters(t *testing.T) {
 	querytest.CollectionAggregateCompiler(t, sqlite.Compile, false)
 }
+
+func TestCollectionComputedCompilerSharesValueCaseAndFilterRows(t *testing.T) {
+	querytest.CollectionComputedCompiler(t, sqlite.Compile)
+}

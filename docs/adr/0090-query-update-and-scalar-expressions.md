@@ -29,7 +29,7 @@ Manager와 생성 root/eager/prefetch facade는 같은 연산을 제공한다. �
 
 ## 불변 AST와 수치 의미
 
-`ScalarExpression`은 literal, source field, single-valued related field, selected result, binary arithmetic, negate, CASE의 private 불변 tree다. Boolean 조건 AST와
+`ScalarExpression`은 literal, source field, finite related field, selected result, binary arithmetic, negate, CASE의 private 불변 tree다. 관계의 행/집계 cardinality는 사용 문맥에서 검증한다. Boolean 조건 AST와
 별도 값 표현식이지만 typed/dynamic 경로마다 두 구현을 만들지 않는다. `ScalarAssignment`가 결과 kind를 target에
 결합하고 `QueryUpdatePlan`이 원 predicate·primary key·전체 source metadata와 assignment를 소유한다.
 깊이 64, assignment를 합친 전체 scalar node 1024, concrete source metadata와 backend parameter 예산을 검증한다.
@@ -56,7 +56,7 @@ source·중간/result·target precision을 분리하고 양 DB의 native scale/z
 
 ## 조회 결과와 조건부 값
 
-같은 scalar tree를 `ScalarResult`로 projection·조건·정렬·group key·aggregate operand에 연결한다.
+같은 scalar tree를 `ScalarResult`로 행 projection·조건·정렬·group key에, `ScalarAggregateResult`로 완료된 집계에 연결한다.
 계산 결과에 가짜 FieldRef를 만들지 않는다. 결과 kind·nullable과 모든 원본 leaf의 kind·nullable·Decimal precision을
 별도로 검증하며 CASE의 조건에만 사용한 field도 원 source와 일치해야 한다. 같은 read/write renderer가 tree를
 순회하고 각 backend가 physical codec·식별자·parameter·native 연산을 소유한다.
@@ -80,8 +80,9 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 
 결과 열 참조와 `Derive`의 명시적 후속 조회·재집계는 [ADR-0091](0091-grouped-results-and-having.md)을 따른다.
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
-일반 named annotation과 dependency/재바인딩 API, collection을 넘는 computed operand,
-subquery/window/function, Duration/temporal 산술과 computed Duration SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
+GDJ-0127의 collection computed operand는 같은 AST의 완료된 집계에서만 실행하며 [ADR-0091](0091-grouped-results-and-having.md)의
+cardinality·JOIN 계약을 따른다. 일반 행 projection·computed WHERE·정렬·UPDATE는 여전히 single-valued 값만 받는다.
+일반 named annotation과 dependency/재바인딩 API, subquery/window/function, Duration/temporal 산술과 computed Duration SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 
 ## 단일 값 관계와 두 scalar 비교
@@ -89,7 +90,7 @@ subquery/window/function, Duration/temporal 산술과 computed Duration SUM/AVG�
 GDJ-0124는 finite forward FK/OneToOne과 reverse OneToOne의 혼합 경로를 읽기 scalar operand로 사용한다.
 원본 모델과 실제 related terminal의 metadata를 구분하며 optional ancestor나 없는 reverse 객체는 NULL이다.
 같은 이름/종류의 root 필드를 만들어 related 값을 가장하지 않는다. Root table/key와 정규 경로를 소유한 plan이
-검증 주체이며 field 목록만으로 관계를 승인할 수 없다. Collection 경로는 다중 값 계약 전까지 거부한다.
+검증 주체이며 field 목록만으로 관계를 승인할 수 없다. Collection 경로는 GDJ-0127의 완료된 집계 문맥에서만 허용한다.
 
 Typed related field를 `AddExpressions`, `Case` 등에 직접 전달하고 `Scalar(related)`로 Optional projection·literal 비교·
 정렬을 만든다. `Numeric(related)`는 기존 int64/float64 집계 capability를 연결한다.

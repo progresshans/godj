@@ -361,4 +361,4 @@ func (_scan *userPermissionsLinkProjectionScan) Decode() (UserPermissionsLink, q
 
 type GoDjAppPart3_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94 struct{}
 
-var _ GoDjProjectSnapshot_a8f8fe6b8a3b05061f60915a9675a89df47304d35fbc1a27eef958931431fcee
+var _ GoDjProjectSnapshot_05ed574921e7727385a43e9340d3964ff316b42f2f6dc6be0ef2ffd3910ee58f

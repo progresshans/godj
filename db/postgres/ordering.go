@@ -43,7 +43,7 @@ func validateOrderings(plan query.Plan) error {
 
 func appendResultValue(statement *strings.Builder, expression query.ResultExpression, plan query.Plan, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments *[]any, ordering bool) error {
 	if scalar, present := expression.Scalar(); present {
-		value, err := compileReadScalar(scalar, queryplan.ScalarSource{Plan: plan, Alias: alias, Joins: joins}, arguments)
+		value, err := compileReadScalar(scalar, queryplan.ScalarSource{Plan: plan, Alias: alias, Joins: joins, Aggregate: expression.IsAggregate()}, arguments)
 		if err != nil {
 			return err
 		}

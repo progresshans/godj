@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"maps"
 	"os"
@@ -85,6 +86,25 @@ var collectionReferenceCases = []string{
 	"order_slice",
 	"page_past_end",
 	"derived_aggregate",
+	"computed_integer",
+	"computed_same_row",
+	"computed_float",
+	"computed_decimal",
+	"computed_distinct",
+	"computed_case",
+	"computed_case_comparison",
+	"computed_filter",
+	"computed_filter_comparison",
+	"computed_chained_filters",
+	"computed_chained_reversed",
+	"computed_root_exclusion",
+	"computed_independent_collections",
+	"computed_nested_collections",
+	"computed_optional_ancestor",
+	"computed_global",
+	"computed_empty_global",
+	"computed_having_page",
+	"computed_derived",
 }
 
 func TestGeneratedCollectionAggregates(t *testing.T) {
@@ -93,7 +113,7 @@ func TestGeneratedCollectionAggregates(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go"} {
+	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "computed_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "collectionaggregate", name))
 		if err != nil {
 			t.Fatal(err)
@@ -179,7 +199,7 @@ func TestGeneratedCollectionAggregates(t *testing.T) {
 			continue
 		}
 		required = append(required, "TestCollectionRuntime/"+vendor)
-		for _, name := range []string{"typed_dynamic_and_nullable_values", "join_multiplicity_filter_scopes_and_parameters", "result_identity_having_page_and_derived", "source_scope_invalid_metadata_and_bounds", "cache_context_and_cursor_failures", "borrowed_session_lifetime", "native_numeric_domains_and_failures", "ordered_field_codecs"} {
+		for _, name := range []string{"typed_dynamic_and_nullable_values", "join_multiplicity_filter_scopes_and_parameters", "result_identity_having_page_and_derived", "source_scope_invalid_metadata_and_bounds", "cache_context_and_cursor_failures", "borrowed_session_lifetime", "native_numeric_domains_and_failures", "ordered_field_codecs", "computed_typed_dynamic_scope_and_values", "computed_case_filter_and_nulls", "computed_read_lifetime_and_failures", "computed_physical_values_and_rollback", "computed_resource_limits"} {
 			required = append(required, "TestCollectionRuntime/"+vendor+"/"+name)
 		}
 		if references != "" {
@@ -189,20 +209,20 @@ func TestGeneratedCollectionAggregates(t *testing.T) {
 			}
 		}
 	}
-	output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestCollection(Reference|Runtime)$", "./consumer"))
-	if references != "" {
+	output := runStrictGeneratedCommandWithCapture(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestCollection(Reference|Runtime)$", "./consumer"), func(output []byte) error {
+		if references == "" {
+			return nil
+		}
 		// Retain the untruncated native child events alongside this owner's
-		// independent reference. A later audit can check each run/pass itself.
+		// independent reference, including failed executions.
 		file, err := os.OpenFile(filepath.Join(references, "godj-collection-native.jsonl"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 		_, writeErr := file.Write(output)
 		closeErr := file.Close()
-		if writeErr != nil || closeErr != nil {
-			t.Fatal("cannot preserve collection native events", writeErr, closeErr)
-		}
-	}
+		return errors.Join(writeErr, closeErr)
+	})
 	assertGeneratedConsumerTests(t, output, required...)
 	runs, passes := map[string]int{}, map[string]int{}
 	decoder := json.NewDecoder(bytes.NewReader(output))
@@ -240,6 +260,9 @@ func TestGeneratedCollectionAggregates(t *testing.T) {
 		{"foreign_min_model", `_ = orm.Min[records.Ticket](relations.CatalogLabel.Tickets.Code)`, "does not match"},
 		{"wrong_nullable_decoder", `_ = orm.Aggregate1(orm.Min(relations.CatalogLabel.Tickets.Amount),func(value int64)int64{return value})`, "does not match"},
 		{"boolean_minimum", `_ = orm.Min(relations.CatalogLabel.Tickets.Enabled)`, "does not match"},
+		{"computed_foreign_model", `_ = orm.Sum[records.Ticket](orm.Add(relations.CatalogLabel.Tickets.Amount,int64(1)))`, "does not match"},
+		{"computed_mixed_kind", `_ = orm.AddExpressions(relations.CatalogLabel.Tickets.Amount,relations.CatalogLabel.Tickets.Score)`, "does not match"},
+		{"computed_decimal_mean_decoder", `_ = orm.Aggregate1(orm.Avg(orm.Decimal(relations.CatalogLabel.Tickets.Price).Negate()),func(value orm.Optional[float64])orm.Optional[float64]{return value})`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {
 			program := "package invalid\nimport(\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/project\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ relations,_:=project.BindRelations(); _=relations; _=records.TicketFields;" + invalid.expression + "\n}\n"

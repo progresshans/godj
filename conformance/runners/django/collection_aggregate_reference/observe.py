@@ -90,7 +90,8 @@ def observe(vendor):
                            USE_I18N=False, DEFAULT_AUTO_FIELD='django.db.models.BigAutoField')
         django.setup()
         from django.db import connection, connections, models, transaction
-        from django.db.models import Avg, Count, Max, Min, Q, Sum
+        from django.db.models import Avg, Case, Count, F, Max, Min, Q, Sum, Value, When
+        from django.db.models.lookups import LessThan
         from django.test.utils import CaptureQueriesContext
 
         class Category(models.Model):
@@ -206,6 +207,38 @@ def observe(vendor):
         action('order_slice', lambda: list(grouped(total=Count('tickets__id')).order_by('-total', 'code')[1:4]))
         action('page_past_end', lambda: {'total': grouped(total=Count('tickets__id')).count(), 'rows': list(grouped(total=Count('tickets__id'))[50:52])})
         action('derived_aggregate', lambda: base.annotate(total=Count('tickets__id')).aggregate(amount=Sum('total'), maximum=Max('total')))
+        adjusted = F('tickets__amount') * 2 + 1
+        squared = F('tickets__amount') * F('tickets__amount')
+        score = F('tickets__score') * 1.5 - 0.25
+        price = F('tickets__price') * Decimal('1.25') + Decimal('0.25')
+        remainder = F('tickets__amount') % 3
+        conditional = Case(When(tickets__enabled=True, then=F('tickets__amount') + 3), default=Value(1))
+        comparison = LessThan(F('tickets__amount'), F('tickets__detail__bonus'))
+        compared = Case(When(comparison, then=F('tickets__amount') + F('tickets__detail__bonus')), default=Value(-1))
+        computed_groups = lambda source: list(source.values('code').annotate(total=Count(adjusted), amount=Sum(adjusted)).order_by('code'))
+        action('computed_integer', lambda: list(grouped(amount=Sum(adjusted), average=Avg(adjusted), minimum=Min(adjusted), maximum=Max(adjusted))))
+        action('computed_same_row', lambda: list(grouped(amount=Sum(squared), average=Avg(squared))))
+        action('computed_float', lambda: list(grouped(amount=Sum(score), average=Avg(score))))
+        action('computed_decimal', lambda: list(grouped(amount=Sum(price), average=Avg(price), minimum=Min(price), maximum=Max(price))))
+        action('computed_distinct', lambda: list(grouped(amount=Sum(remainder, distinct=True), average=Avg(remainder, distinct=True), total=Count(remainder, distinct=True))))
+        action('computed_case', lambda: list(grouped(amount=Sum(conditional), total=Count(conditional), minimum=Min(conditional), maximum=Max(conditional))))
+        action('computed_case_comparison', lambda: list(grouped(amount=Sum(compared), total=Count(compared))))
+        action('computed_filter', lambda: list(grouped(amount=Sum(adjusted, filter=Q(tickets__enabled=True, tickets__category__code='a')))))
+        action('computed_filter_comparison', lambda: list(grouped(amount=Sum(adjusted, filter=comparison))))
+        action('computed_chained_filters', lambda: computed_groups(base.filter(tickets__enabled=True).filter(tickets__amount__gt=0)))
+        action('computed_chained_reversed', lambda: computed_groups(base.filter(tickets__amount__gt=0).filter(tickets__enabled=True)))
+        action('computed_root_exclusion', lambda: computed_groups(base.exclude(tickets__enabled=True)))
+        independent = F('labels__id') + F('tickets__amount')
+        action('computed_independent_collections', lambda: list(Category.objects.values('code').annotate(amount=Sum(independent), unique=Sum(independent, distinct=True)).order_by('code')))
+        nested = F('tickets__labels__id') + F('tickets__amount')
+        action('computed_nested_collections', lambda: list(grouped(amount=Sum(nested), unique=Sum(nested, distinct=True))))
+        ancestor = F('category__tickets__amount') * 2 + 1
+        action('computed_optional_ancestor', lambda: list(grouped(total=Count(ancestor), amount=Sum(ancestor))))
+        action('computed_global', lambda: base.aggregate(total=Count(adjusted), amount=Sum(adjusted), average=Avg(adjusted)))
+        action('computed_empty_global', lambda: base.filter(pk__in=[]).aggregate(total=Count(adjusted), amount=Sum(adjusted), average=Avg(adjusted)))
+        positive = grouped(amount=Sum(adjusted)).filter(amount__gt=0)
+        action('computed_having_page', lambda: {'total': positive.count(), 'rows': list(positive[1:4])})
+        action('computed_derived', lambda: base.annotate(adjusted=Sum(adjusted)).aggregate(amount=Sum('adjusted'), maximum=Max('adjusted')))
         result = {'kind': 'django-collection-aggregate-reference-v1', 'backend': vendor, 'django_commit': sources['django_commit'],
                   'observer_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   'input_sha256': hashlib.sha256(input_bytes).hexdigest(), 'source_verification_sha256': hashlib.sha256(source_bytes).hexdigest(),

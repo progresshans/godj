@@ -80,6 +80,8 @@ LABEL_USAGE_CHECKS = (
     'label name is escaped',
     'unused label preserves zero counts and missing metrics',
     'outside category label remains private',
+    'default label cost adjustment',
+    'per-ticket adjusted label total',
     'remaining five label rows preserve filter',
     'usage filter resets page',
     'used filter removes empty relations',
@@ -90,11 +92,16 @@ LABEL_USAGE_CHECKS = (
     'previous label page preserves filter',
     'API label metrics and group total match',
     'API unused label keeps required null metrics',
+    'API per-ticket label cost adjustment',
+    'API zero factor preserves missing label cost',
     'malformed label usage query rejected: /labels/usage/?p=bad',
     'malformed label usage query rejected: /api/labels/usage/?usage=unknown',
     'malformed label usage query rejected: /api/labels/usage/?usage=used&usage=unused',
+    'malformed label usage query rejected: /labels/usage/?factor=1.00',
+    'malformed label usage query rejected: /api/labels/usage/?delta=0.001',
     'label usage response is not cached',
     'label usage page contains no write form',
+    'adjusted label totals visible for visual review',
 )
 
 

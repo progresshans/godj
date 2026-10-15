@@ -15,8 +15,8 @@ import (
 )
 
 // ScalarOperand is sealed to model- and value-specific field references and
-// scalar expressions, including single-valued related fields for reads. Row
-// assignments reject related values and predicates in the shared AST.
+// scalar expressions. Collection operands execute only inside aggregates;
+// ordinary reads and assignments retain their own cardinality boundaries.
 type ScalarOperand[M, V any] interface {
 	scalarOperand(M, V) (query.ScalarExpression, error)
 }

@@ -8,11 +8,7 @@ import (
 )
 
 func compileScalarPredicate(expression query.Expression, source queryplan.ScalarSource, arguments *[]any) (string, error) {
-	plan, err := query.NewPlan(source.Plan.Table(), source.Plan.SourceFields()).WithWhere(expression)
-	if err != nil {
-		return "", err
-	}
-	analysis, err := analyzeWhere(plan)
+	analysis, err := analyzePredicate(expression, source)
 	if err != nil {
 		return "", err
 	}

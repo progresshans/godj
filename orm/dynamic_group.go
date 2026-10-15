@@ -16,6 +16,9 @@ type DynamicAggregateInput struct {
 	Distinct   bool
 	Filter     []LookupInput
 	Expression DynamicExpression
+	// Predicate is a computed FILTER in the aggregate's joined-row context.
+	// It is ANDed with Filter's field lookups and retains scalar NULL semantics.
+	Predicate DynamicPredicate
 }
 
 // GroupRow owns both ordered containers; its scalar Values are immutable.
@@ -71,11 +74,11 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 				if input.Field != "" {
 					return zero, invalidResultBuilder("dynamic aggregate cannot combine a field name with an expression")
 				}
-				operand, bindErr := bindExpression(source, binding, input.Expression)
+				operand, bindErr := bindAggregateExpression(source, binding, input.Kind, input.Expression)
 				if bindErr != nil {
 					return zero, bindErr
 				}
-				value, err = query.AggregateResult(input.Kind, operand.expression)
+				value = operand.expression
 			} else {
 				value, err = dynamicAggregateField(source, binding, input.Kind, input.Field)
 			}
@@ -99,6 +102,23 @@ func groupValues[M any](source QuerySet[M], binding *BoundModel[M], keys []strin
 				return zero, err
 			}
 			value, err = value.WithFilter(predicate.expression)
+			if err != nil {
+				return zero, err
+			}
+		}
+		if input.Predicate.node != nil || input.Predicate.err != nil {
+			bound, err := dynamicExpressionBinding(source, binding)
+			if err != nil {
+				return zero, err
+			}
+			predicate, err := input.Predicate.bind(bound)
+			if err != nil {
+				return zero, err
+			}
+			if err := source.plan.ValidateAggregatePredicate(predicate); err != nil {
+				return zero, err
+			}
+			value, err = value.WithFilter(predicate)
 			if err != nil {
 				return zero, err
 			}

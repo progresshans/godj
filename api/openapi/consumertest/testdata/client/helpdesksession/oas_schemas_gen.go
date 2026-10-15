@@ -1769,6 +1769,8 @@ type LabelUsage struct {
 	Page        int64                   `json:"page"`
 	PageSize    int64                   `json:"page_size"`
 	Usage       string                  `json:"usage"`
+	Factor      string                  `json:"factor"`
+	Delta       string                  `json:"delta"`
 	TotalLabels int64                   `json:"total_labels"`
 	Results     []LabelUsageResultsItem `json:"results"`
 }
@@ -1791,6 +1793,16 @@ func (s *LabelUsage) GetPageSize() int64 {
 // GetUsage returns the value of Usage.
 func (s *LabelUsage) GetUsage() string {
 	return s.Usage
+}
+
+// GetFactor returns the value of Factor.
+func (s *LabelUsage) GetFactor() string {
+	return s.Factor
+}
+
+// GetDelta returns the value of Delta.
+func (s *LabelUsage) GetDelta() string {
+	return s.Delta
 }
 
 // GetTotalLabels returns the value of TotalLabels.
@@ -1821,6 +1833,16 @@ func (s *LabelUsage) SetPageSize(val int64) {
 // SetUsage sets the value of Usage.
 func (s *LabelUsage) SetUsage(val string) {
 	s.Usage = val
+}
+
+// SetFactor sets the value of Factor.
+func (s *LabelUsage) SetFactor(val string) {
+	s.Factor = val
+}
+
+// SetDelta sets the value of Delta.
+func (s *LabelUsage) SetDelta(val string) {
+	s.Delta = val
 }
 
 // SetTotalLabels sets the value of TotalLabels.
@@ -1868,6 +1890,7 @@ type LabelUsageResultsItem struct {
 	Open              int64      `json:"open"`
 	Closed            int64      `json:"closed"`
 	ExpectedCostTotal NilString  `json:"expected_cost_total"`
+	AdjustedCostTotal NilString  `json:"adjusted_cost_total"`
 	EffortAverage     NilFloat64 `json:"effort_average"`
 	ElapsedTotal      NilString  `json:"elapsed_total"`
 }
@@ -1900,6 +1923,11 @@ func (s *LabelUsageResultsItem) GetClosed() int64 {
 // GetExpectedCostTotal returns the value of ExpectedCostTotal.
 func (s *LabelUsageResultsItem) GetExpectedCostTotal() NilString {
 	return s.ExpectedCostTotal
+}
+
+// GetAdjustedCostTotal returns the value of AdjustedCostTotal.
+func (s *LabelUsageResultsItem) GetAdjustedCostTotal() NilString {
+	return s.AdjustedCostTotal
 }
 
 // GetEffortAverage returns the value of EffortAverage.
@@ -1940,6 +1968,11 @@ func (s *LabelUsageResultsItem) SetClosed(val int64) {
 // SetExpectedCostTotal sets the value of ExpectedCostTotal.
 func (s *LabelUsageResultsItem) SetExpectedCostTotal(val NilString) {
 	s.ExpectedCostTotal = val
+}
+
+// SetAdjustedCostTotal sets the value of AdjustedCostTotal.
+func (s *LabelUsageResultsItem) SetAdjustedCostTotal(val NilString) {
+	s.AdjustedCostTotal = val
 }
 
 // SetEffortAverage sets the value of EffortAverage.

@@ -84,24 +84,12 @@ func appendGroupedValue(statement *strings.Builder, expression query.ResultExpre
 		}
 	}
 	if filter, present := expression.Filter(); present {
-		filterPlan, err := query.NewPlan(plan.Table(), plan.SourceFields()).WithWhere(filter)
-		if err != nil {
-			return err
-		}
-		analysis, err := analyzeWhere(filterPlan, plan.SourceFields())
+		condition, err := compileScalarPredicate(filter, queryplan.ScalarSource{Plan: plan, Alias: "t0", Joins: prepared.ResultByKey, Aggregate: true}, arguments)
 		if err != nil {
 			return err
 		}
 		filterSQL.WriteString(" FILTER (WHERE ")
-		leaves := analysis.leaves
-		filterJoins := prepared
-		filterJoins.ByKey = prepared.ResultByKey
-		if err := appendWhereExpression(&filterSQL, analysis.expression, &leaves, groupedFieldResolver(filterJoins), groupedRHSField, queryplan.ScalarSource{Plan: filterPlan, Alias: "t0", Joins: prepared.ResultByKey}, arguments, false); err != nil {
-			return err
-		}
-		if len(leaves) != 0 {
-			return invalidPlan("aggregate filter has unused prepared leaves")
-		}
+		filterSQL.WriteString(condition)
 		filterSQL.WriteByte(')')
 	}
 	rendered, err := renderAggregate(expression, operand.String(), filterSQL.String(), true)

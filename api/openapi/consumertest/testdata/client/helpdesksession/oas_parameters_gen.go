@@ -56,6 +56,12 @@ type HelpdeskLabelUsageParams struct {
 	// Include all labels, labels with at least one in-category ticket, or labels without in-category
 	// tickets.
 	Usage OptHelpdeskLabelUsageUsage `json:",omitempty,omitzero"`
+	// Exact multiplier applied to each present ticket cost before summing; up to 2 whole digits and 4
+	// decimal places. Defaults to 1.
+	Factor OptString `json:",omitempty,omitzero"`
+	// Exact adjustment applied to each present ticket cost before summing; up to 12 whole digits and 2
+	// decimal places. Defaults to 0.
+	Delta OptString `json:",omitempty,omitzero"`
 }
 
 // HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.

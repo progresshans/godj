@@ -375,7 +375,6 @@ func observeCollection(t *testing.T, reader collectionBackend, name string) any 
 		check(t, err)
 		return row
 	default:
-		t.Fatal("unknown collection observation", name)
-		return nil
+		return observeComputedCollection(t, reader, name)
 	}
 }

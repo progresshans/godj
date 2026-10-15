@@ -234,7 +234,7 @@ func TestCollectionRuntime(t *testing.T) {
 			for _, inputs := range [][]orm.DynamicAggregateInput{
 				{{Kind: query.ResultCount, Field: "tickets__missing"}}, {{Kind: query.ResultCount, Field: "tickets__document"}}, {{Kind: query.ResultMin, Field: "tickets__enabled"}},
 				{{Kind: query.ResultCountAll, Field: "tickets__id"}}, {{Kind: query.ResultMin, Field: "tickets__amount", Distinct: true}},
-				{{Kind: query.ResultSum, Expression: orm.DynamicF("tickets__amount").Add(int64(1))}},
+				{{Kind: query.ResultSum, Expression: orm.DynamicF("tickets__amount").Add(float64(1))}},
 				{{Kind: query.ResultCount, Field: "tickets__id", Filter: []orm.LookupInput{{Key: "tickets__category__missing", Value: 1}}}},
 				make([]orm.DynamicAggregateInput, query.MaxAggregateExpressions+1),
 			} {
@@ -248,8 +248,8 @@ func TestCollectionRuntime(t *testing.T) {
 			if _, err := api.CatalogLabel.Expression(orm.DynamicF("tickets__amount")); err == nil {
 				t.Fatal("collection became a scalar expression")
 			}
-			if _, err := orm.AggregateQuery(catalog.LabelObjects.Using(probe), orm.Aggregate1(orm.Count(orm.Scalar(target.Amount)), func(n int64) int64 { return n })); err == nil {
-				t.Fatal("scalar wrapper bypassed collection cardinality")
+			if _, err := orm.SelectQuery(catalog.LabelObjects.Using(probe), orm.Project1(orm.Scalar(target.Amount), func(n orm.Optional[int64]) orm.Optional[int64] { return n })); err == nil {
+				t.Fatal("scalar wrapper escaped into collection row projection")
 			}
 			invalidField := orm.NewNullableIntegerField[catalog.Label](ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldInteger, Nullable: true})
 			if _, err := orm.AggregateQuery(catalog.LabelObjects.Using(probe).Filter(f.ID.In()), orm.Aggregate1(orm.Count(invalidField), func(n int64) int64 { return n })); err == nil {
@@ -557,6 +557,7 @@ func TestCollectionRuntime(t *testing.T) {
 				t.Fatal("missing/all-null ordered collection acquired a value")
 			}
 		})
+		testCollectionComputed(t, backend, vendor, physical, seed)
 		if !reflect.DeepEqual(before, collectionStorage(t, backend)) {
 			t.Fatal("collection observations changed storage")
 		}

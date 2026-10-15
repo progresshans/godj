@@ -239,7 +239,7 @@ type whereAnalysis struct {
 }
 
 type whereAnalyzer struct {
-	plan         query.Plan
+	source       queryplan.ScalarSource
 	sourceFields []query.FieldRef
 	visited      int
 	leaves       []whereLeaf
@@ -253,7 +253,16 @@ func analyzeWhere(plan query.Plan, sourceFields []query.FieldRef) (whereAnalysis
 	if !present {
 		return whereAnalysis{}, nil
 	}
-	analyzer := whereAnalyzer{plan: plan, sourceFields: sourceFields}
+	return analyzePredicate(expression, queryplan.ScalarSource{Plan: plan}, sourceFields)
+}
+
+// Value predicates share the Boolean compiler but retain their own scalar
+// context. In particular aggregate CASE/FILTER never becomes a row WHERE.
+func analyzePredicate(expression query.Expression, source queryplan.ScalarSource, sourceFields []query.FieldRef) (whereAnalysis, error) {
+	if err := source.ValidatePredicate(expression); err != nil {
+		return whereAnalysis{}, err
+	}
+	analyzer := whereAnalyzer{source: source, sourceFields: sourceFields}
 	hasRelations, err := analyzer.walk(expression, 1, true)
 	if err != nil {
 		return whereAnalysis{}, err
@@ -262,7 +271,7 @@ func analyzeWhere(plan query.Plan, sourceFields []query.FieldRef) (whereAnalysis
 		return whereAnalysis{}, invalidPlan("query expression relation metadata is malformed")
 	}
 	return whereAnalysis{
-		scalarSource: queryplan.ScalarSource{Plan: plan},
+		scalarSource: source,
 		expression:   expression,
 		present:      true,
 		hasRelations: hasRelations,
@@ -332,7 +341,7 @@ func (a *whereAnalyzer) walk(
 
 func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootConjunction bool) (whereLeaf, error) {
 	if scalar, present := condition.Scalar(); present {
-		if err := queryplan.ValidateScalarCondition(a.plan, condition); err != nil {
+		if err := a.source.ValidateCondition(condition); err != nil {
 			return whereLeaf{}, err
 		}
 		right, _ := condition.RHSScalar()
@@ -359,7 +368,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		return whereLeaf{inValues: values}, nil
 	}
-	if err := queryplan.RelationCondition(a.plan, condition, path, "PostgreSQL"); err != nil {
+	if err := queryplan.RelationCondition(a.source.Plan, condition, path, "PostgreSQL"); err != nil {
 		return whereLeaf{}, err
 	}
 	if !relationAtRootConjunction && !path.SingleValued() && len(path.PrimaryKeys()) == 0 {

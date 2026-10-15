@@ -30,6 +30,7 @@ type labelUsageItem struct {
 	Name                string
 	Total, Open, Closed int64
 	Cost                *string  `json:"expected_cost_total"`
+	Adjusted            *string  `json:"adjusted_cost_total"`
 	Effort              *float64 `json:"effort_average"`
 	Elapsed             *string  `json:"elapsed_total"`
 }
@@ -41,6 +42,8 @@ type labelUsageEnvelope struct {
 	Page     int64
 	PageSize int64 `json:"page_size"`
 	Usage    string
+	Factor   string
+	Delta    string
 	Total    int64 `json:"total_labels"`
 	Results  []labelUsageItem
 }
@@ -136,6 +139,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 			row.Total, row.Closed = 1, 1
 			row.Cost, row.Effort, row.Elapsed = pointer("0"), effort(0), pointer("00:00:00")
 		}
+		row.Adjusted = row.Cost
 		expected = append(expected, row)
 	}
 	privateLabel, err := models.LabelObjects.Create(ctx, runtime, models.NewLabelCreate("Private outside label", outside.ID))
@@ -177,7 +181,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 			t.Fatal(err)
 		}
 		for _, row := range raw.Results {
-			for _, field := range []string{"id", "name", "total", "open", "closed", "expected_cost_total", "effort_average", "elapsed_total"} {
+			for _, field := range []string{"id", "name", "total", "open", "closed", "expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total"} {
 				if _, exists := row[field]; !exists {
 					t.Fatal("label usage omitted required nullable output", field)
 				}
@@ -198,11 +202,47 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 				page := decode(client, fmt.Sprintf("?usage=%s&p=%d", usage, number))
 				start := min(len(filtered), (number-1)*20)
 				end := min(len(filtered), start+20)
-				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Usage != usage || page.Total != int64(len(filtered)) || page.Results == nil || !reflect.DeepEqual(page.Results, filtered[start:end]) {
+				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Usage != usage || page.Factor != "1" || page.Delta != "0" || page.Total != int64(len(filtered)) || page.Results == nil || !reflect.DeepEqual(page.Results, filtered[start:end]) {
 					t.Fatal("label usage differs", usage, number, page, filtered[start:end])
 				}
 				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.rowsets != 1 || backend.closed != 1 || *audits != 0 {
 					t.Fatal("label usage snapshot/count ownership", backend)
+				}
+			}
+		}
+	})
+	t.Run("adjusted_cost_totals_and_nulls", func(t *testing.T) {
+		for _, input := range []struct{ factor, delta, multiple, zero string }{
+			{"1.25", "0.1", "1250000000000.2125", "0.1"},
+			{"0", "0.1", "0.2", "0.1"},
+			{"-1.5", "-0.1", "-1500000000000.215", "-0.1"},
+		} {
+			wanted := append([]labelUsageItem(nil), expected...)
+			for index := range wanted {
+				switch index % 3 {
+				case 0:
+					wanted[index].Adjusted = pointer(input.multiple)
+				case 2:
+					wanted[index].Adjusted = pointer(input.zero)
+				}
+			}
+			for _, number := range []int{1, 2, 3, 50001} {
+				client, backend, audits := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+				page := decode(client, fmt.Sprintf("?factor=%s&delta=%s&p=%d", input.factor, input.delta, number))
+				start := min(len(wanted), (number-1)*20)
+				end := min(len(wanted), start+20)
+				if page.Factor != input.factor || page.Delta != input.delta || page.Total != 45 || !reflect.DeepEqual(page.Results, wanted[start:end]) {
+					t.Fatal("per-ticket adjusted total, missing value or category scope changed", input, number, page)
+				}
+				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.closed != 1 || *audits != 0 {
+					t.Fatal("adjusted costs changed read snapshot or audit ownership", backend)
+				}
+			}
+			client, _, _ := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+			response := client.request(http.MethodGet, helpdesk.LabelUsagePath+"?usage=used&factor="+input.factor+"&delta="+input.delta, "", false)
+			for _, fragment := range []string{"Adjusted cost total", `name="factor" inputmode="decimal" value="` + input.factor + `"`, `name="delta" inputmode="decimal" value="` + input.delta + `"`, "p=2&amp;usage=used&amp;factor=" + input.factor + "&amp;delta=" + input.delta, input.multiple} {
+				if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), fragment) {
+					t.Fatal("adjusted cost HTML lost input or page context", fragment, response.Code)
 				}
 			}
 		}
@@ -246,7 +286,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 				}
 			}
 			client, backend, _ := newClient(category.ID, "", auth.PrincipalAuthorizer{})
-			for _, suffix := range []string{"?p=0", "?p=50002", "?p=01", "?p=+1", "?p=", "?p=1&p=2", "?usage=", "?usage=Used", "?usage=unknown", "?usage=used&usage=used", "?usage=%00", "?usage=%FF", "?usage=%", "?category=1", "?p=1;usage=used", "?" + strings.Repeat("x", 129)} {
+			for _, suffix := range []string{"?p=0", "?p=50002", "?p=01", "?p=+1", "?p=", "?p=1&p=2", "?usage=", "?usage=Used", "?usage=unknown", "?usage=used&usage=used", "?usage=%00", "?usage=%FF", "?usage=%", "?category=1", "?p=1;usage=used", "?" + strings.Repeat("x", 129), "?factor=", "?factor=01", "?factor=1.00", "?factor=1e1", "?factor=%2B1", "?factor=1.23456", "?factor=100", "?factor=1&factor=1", "?factor=NaN", "?delta=", "?delta=0.001", "?delta=1000000000000", "?delta=1&delta=2", "?delta=%FF"} {
 				if response := client.request(http.MethodGet, path+suffix, "", false); response.Code != http.StatusBadRequest || backend.snapshots != 0 {
 					t.Fatal("invalid label usage reached data", path, suffix, response.Code)
 				}

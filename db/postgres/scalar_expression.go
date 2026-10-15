@@ -6,7 +6,7 @@ import (
 )
 
 func compileReadScalar(expression query.ScalarExpression, source queryplan.ScalarSource, arguments *[]any) (string, error) {
-	if err := source.Plan.ValidateScalar(expression); err != nil {
+	if err := source.Validate(expression); err != nil {
 		return "", err
 	}
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{

@@ -383,6 +383,23 @@ func Aggregate5[M, A, B, C, D, E, R any](first AggregateExpression[M, A], second
 	return result
 }
 
+func Aggregate6[M, A, B, C, D, E, F, R any](first AggregateExpression[M, A], second AggregateExpression[M, B], third AggregateExpression[M, C], fourth AggregateExpression[M, D], fifth AggregateExpression[M, E], sixth AggregateExpression[M, F], build func(A, B, C, D, E, F) R) Aggregate[M, R] {
+	result := Aggregate[M, R]{
+		expressions: []query.ResultExpression{first.expression, second.expression, third.expression, fourth.expression, fifth.expression, sixth.expression},
+		err:         firstError(first.err, second.err, third.err, fourth.err, fifth.err, sixth.err),
+	}
+	if build == nil && result.err == nil {
+		result.err = invalidResultBuilder("aggregate builder is nil")
+	}
+	result.newDecoder = func() resultDecoder[R] {
+		a, b, c, d, e, f := first.newCell(), second.newCell(), third.newCell(), fourth.newCell(), fifth.newCell(), sixth.newCell()
+		return resultDecoder[R]{destinations: []any{a.destination, b.destination, c.destination, d.destination, e.destination, f.destination},
+			decode: func() R { return build(a.value(), b.value(), c.value(), d.value(), e.value(), f.value()) },
+		}
+	}
+	return result
+}
+
 func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Projection[M, R]) ([]R, error) {
 	if err := source.validateTerminal(ctx); err != nil {
 		return nil, err

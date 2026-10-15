@@ -52,8 +52,14 @@ func TestRelatedScalarSourceAndCardinality(t *testing.T) {
 		}
 		selected, err := query.RelatedExpression(reverse)
 		if cardinality == ir.RelationOneToMany {
-			if err == nil {
-				t.Fatal("collection became a scalar value")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := query.ScalarResult(selected); err == nil {
+				t.Fatal("collection became a row scalar selection")
+			}
+			if err := plan.ValidateScalar(selected); err == nil {
+				t.Fatal("collection became a row scalar value")
 			}
 			continue
 		}

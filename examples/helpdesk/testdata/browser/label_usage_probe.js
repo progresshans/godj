@@ -9,13 +9,18 @@ async (page) => {
     check(await page.getByRole("heading", {name:"Label usage",exact:true}).count() === 1, "label usage navigation");
     check(await page.locator("tbody tr").count() === 20 && (await page.getByRole("main").innerText()).includes("25 labels. Page 1."), "twenty label rows and scoped total");
     const first = (await page.locator('tr[data-label-id="1"]').innerText()).replace(/\s+/g," ").trim();
-    check(first === "Desk & <one> 3 2 1 0.3 2 00:00:00.000003", "label collection metrics exclude missing values");
+    check(first === "Desk & <one> 3 2 1 0.3 0.3 2 00:00:00.000003", "label collection metrics exclude missing values");
     check(await page.locator("script, one").count() === 0 && first.includes("<one>"), "label name is escaped");
     const unused = (await page.locator('tr[data-label-id="2"]').innerText()).replace(/\s+/g," ").trim();
-    check(unused === "Spare __prefix__ 0 0 0 Not set Not set Not set", "unused label preserves zero counts and missing metrics");
+    check(unused === "Spare __prefix__ 0 0 0 Not set Not set Not set Not set", "unused label preserves zero counts and missing metrics");
     check(!(await page.getByRole("main").innerText()).includes("Private outside"), "outside category label remains private");
+    check(await page.getByLabel("Cost factor", {exact:true}).inputValue() === "1" && await page.getByLabel("Cost adjustment", {exact:true}).inputValue() === "0", "default label cost adjustment");
+    await page.getByLabel("Cost factor", {exact:true}).fill("1.25");
+    await page.getByLabel("Cost adjustment", {exact:true}).fill("0.1");
+    await page.getByRole("button", {name:"Apply filter",exact:true}).click();
+    check((await page.locator('tr[data-label-id="1"]').innerText()).replace(/\s+/g," ").trim() === "Desk & <one> 3 2 1 0.3 0.575 2 00:00:00.000003" && new URL(page.url()).searchParams.get("p") === null, "per-ticket adjusted label total");
     await page.getByRole("link", {name:"Next page",exact:true}).click();
-    check(await page.locator("tbody tr").count() === 5 && new URL(page.url()).searchParams.get("usage") === "all", "remaining five label rows preserve filter");
+    check(await page.locator("tbody tr").count() === 5 && new URL(page.url()).searchParams.get("usage") === "all" && new URL(page.url()).searchParams.get("factor") === "1.25" && new URL(page.url()).searchParams.get("delta") === "0.1", "remaining five label rows preserve filter");
     await page.getByLabel("Show", {exact:true}).selectOption("used");
     await page.getByRole("button", {name:"Apply filter",exact:true}).click();
     check(new URL(page.url()).searchParams.get("p") === null && new URL(page.url()).searchParams.get("usage") === "used", "usage filter resets page");
@@ -26,22 +31,30 @@ async (page) => {
     await page.getByLabel("Show", {exact:true}).selectOption("unused");
     await page.getByRole("button", {name:"Apply filter",exact:true}).click();
     check((await page.getByRole("main").innerText()).includes("1 labels. Page 1.") && await page.locator("tbody tr").count() === 1 && await page.locator('tr[data-label-id="2"]').count() === 1, "unused filter retains the empty label");
-    await page.goto(origin + "/labels/usage/?usage=unused&p=2");
+    await page.goto(origin + "/labels/usage/?usage=unused&p=2&factor=1.25&delta=0.1");
     check((await page.getByRole("main").innerText()).includes("1 labels. Page 2.") && (await page.locator("tbody").innerText()).includes("No labels on this page."), "past-end label page retains filtered total");
     await page.getByRole("link", {name:"Previous page",exact:true}).click();
-    check(new URL(page.url()).searchParams.get("usage") === "unused" && await page.locator('tr[data-label-id="2"]').count() === 1, "previous label page preserves filter");
+    check(new URL(page.url()).searchParams.get("usage") === "unused" && new URL(page.url()).searchParams.get("factor") === "1.25" && new URL(page.url()).searchParams.get("delta") === "0.1" && await page.locator('tr[data-label-id="2"]').count() === 1, "previous label page preserves filter");
     const response = await page.request.get(origin + "/api/labels/usage/");
     const value = await response.json();
     const row = value.results[0];
-    check(response.status() === 200 && value.total_labels === 25 && value.page === 1 && value.page_size === 20 && value.usage === "all" && value.results.length === 20 && row.id === 1 && row.total === 3 && row.open === 2 && row.closed === 1 && row.expected_cost_total === "0.3" && row.effort_average === 2 && row.elapsed_total === "00:00:00.000003", "API label metrics and group total match");
+    check(response.status() === 200 && value.total_labels === 25 && value.page === 1 && value.page_size === 20 && value.usage === "all" && value.factor === "1" && value.delta === "0" && value.results.length === 20 && row.id === 1 && row.total === 3 && row.open === 2 && row.closed === 1 && row.expected_cost_total === "0.3" && row.adjusted_cost_total === "0.3" && row.effort_average === 2 && row.elapsed_total === "00:00:00.000003", "API label metrics and group total match");
     const emptyResponse = await page.request.get(origin + "/api/labels/usage/?usage=unused");
     const empty = await emptyResponse.json();
-    check(emptyResponse.status() === 200 && empty.total_labels === 1 && empty.results.length === 1 && empty.results[0].id === 2 && empty.results[0].total === 0 && empty.results[0].expected_cost_total === null && empty.results[0].effort_average === null && empty.results[0].elapsed_total === null, "API unused label keeps required null metrics");
-    for (const path of ["/labels/usage/?p=bad", "/api/labels/usage/?usage=unknown", "/api/labels/usage/?usage=used&usage=unused"]) {
+    check(emptyResponse.status() === 200 && empty.total_labels === 1 && empty.results.length === 1 && empty.results[0].id === 2 && empty.results[0].total === 0 && empty.results[0].expected_cost_total === null && empty.results[0].adjusted_cost_total === null && empty.results[0].effort_average === null && empty.results[0].elapsed_total === null, "API unused label keeps required null metrics");
+    const adjustedResponse = await page.request.get(origin + "/api/labels/usage/?factor=1.25&delta=0.1");
+    const adjusted = await adjustedResponse.json();
+    check(adjustedResponse.status() === 200 && adjusted.factor === "1.25" && adjusted.delta === "0.1" && adjusted.total_labels === 25 && adjusted.results[0].adjusted_cost_total === "0.575" && adjusted.results[0].expected_cost_total === "0.3", "API per-ticket label cost adjustment");
+    const zeroResponse = await page.request.get(origin + "/api/labels/usage/?factor=0&delta=1");
+    const zero = await zeroResponse.json();
+    check(zeroResponse.status() === 200 && zero.results[0].adjusted_cost_total === "2" && zero.results[1].id === 2 && zero.results[1].adjusted_cost_total === null, "API zero factor preserves missing label cost");
+    for (const path of ["/labels/usage/?p=bad", "/api/labels/usage/?usage=unknown", "/api/labels/usage/?usage=used&usage=unused", "/labels/usage/?factor=1.00", "/api/labels/usage/?delta=0.001"]) {
         const failed = await page.request.get(origin + path);
         check(failed.status() === 400, "malformed label usage query rejected: " + path);
     }
     check(response.headers()["cache-control"] === "no-store", "label usage response is not cached");
     check(await page.locator('form[method="post"], input[name="csrfmiddlewaretoken"]').count() === 0, "label usage page contains no write form");
+    await page.goto(origin + "/labels/usage/?factor=1.25&delta=0.1");
+    check(await page.locator("tbody tr").count() === 20 && await page.getByRole("columnheader", {name:"Adjusted cost total",exact:true}).count() === 1, "adjusted label totals visible for visual review");
     return {passed:cases.length,cases};
 }

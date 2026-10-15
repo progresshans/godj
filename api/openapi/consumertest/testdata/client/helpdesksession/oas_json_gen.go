@@ -5458,6 +5458,14 @@ func (s *LabelUsage) encodeFields(e *jx.Encoder) {
 		e.Str(s.Usage)
 	}
 	{
+		e.FieldStart("factor")
+		e.Str(s.Factor)
+	}
+	{
+		e.FieldStart("delta")
+		e.Str(s.Delta)
+	}
+	{
 		e.FieldStart("total_labels")
 		e.Int64(s.TotalLabels)
 	}
@@ -5471,13 +5479,15 @@ func (s *LabelUsage) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLabelUsage = [6]string{
+var jsonFieldsNameOfLabelUsage = [8]string{
 	0: "category",
 	1: "page",
 	2: "page_size",
 	3: "usage",
-	4: "total_labels",
-	5: "results",
+	4: "factor",
+	5: "delta",
+	6: "total_labels",
+	7: "results",
 }
 
 // Decode decodes LabelUsage from json.
@@ -5535,8 +5545,32 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"usage\"")
 			}
-		case "total_labels":
+		case "factor":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Factor = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"factor\"")
+			}
+		case "delta":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Delta = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"delta\"")
+			}
+		case "total_labels":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int64()
 				s.TotalLabels = int64(v)
@@ -5548,7 +5582,7 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total_labels\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.Results = make([]LabelUsageResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5575,7 +5609,7 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5655,6 +5689,10 @@ func (s *LabelUsageResultsItem) encodeFields(e *jx.Encoder) {
 		s.ExpectedCostTotal.Encode(e)
 	}
 	{
+		e.FieldStart("adjusted_cost_total")
+		s.AdjustedCostTotal.Encode(e)
+	}
+	{
 		e.FieldStart("effort_average")
 		s.EffortAverage.Encode(e)
 	}
@@ -5664,15 +5702,16 @@ func (s *LabelUsageResultsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLabelUsageResultsItem = [8]string{
+var jsonFieldsNameOfLabelUsageResultsItem = [9]string{
 	0: "id",
 	1: "name",
 	2: "total",
 	3: "open",
 	4: "closed",
 	5: "expected_cost_total",
-	6: "effort_average",
-	7: "elapsed_total",
+	6: "adjusted_cost_total",
+	7: "effort_average",
+	8: "elapsed_total",
 }
 
 // Decode decodes LabelUsageResultsItem from json.
@@ -5680,7 +5719,7 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode LabelUsageResultsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -5754,8 +5793,18 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"expected_cost_total\"")
 			}
-		case "effort_average":
+		case "adjusted_cost_total":
 			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.AdjustedCostTotal.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"adjusted_cost_total\"")
+			}
+		case "effort_average":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.EffortAverage.Decode(d); err != nil {
 					return err
@@ -5765,7 +5814,7 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"effort_average\"")
 			}
 		case "elapsed_total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.ElapsedTotal.Decode(d); err != nil {
 					return err
@@ -5783,8 +5832,9 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

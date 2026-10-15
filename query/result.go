@@ -56,11 +56,11 @@ func FieldResult(field FieldRef) ResultExpression {
 // ScalarResult selects a value tree without manufacturing source metadata.
 // A bare untyped NULL has no decodable result kind and must be typed first.
 func ScalarResult(scalar ScalarExpression) (ResultExpression, error) {
-	if err := scalar.Validate(); err != nil {
+	if err := scalar.validateTypedValue(); err != nil {
 		return ResultExpression{}, err
 	}
-	if scalar.ResultKind() == "" {
-		return ResultExpression{}, invalidPlanError("selected scalar requires an explicit result kind")
+	if err := scalar.ValidateRow(); err != nil {
+		return ResultExpression{}, err
 	}
 	return ResultExpression{kind: ResultScalar, scalar: scalar}, nil
 }

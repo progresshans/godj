@@ -44,10 +44,10 @@ func (value NumericExpression[M, N]) scalarSumField(M, N) (query.ResultExpressio
 	return value.numericAggregateField(query.ResultSum)
 }
 func (value NumericExpression[M, N]) numericAggregateField(kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[N]], error) {
-	expression, _, err := value.scalarResultField(*new(M), Optional[N]{})
-	if err == nil {
-		expression, err = query.AggregateResult(kind, expression)
+	if value.err != nil {
+		return query.ResultExpression{}, nil, value.err
 	}
+	expression, err := query.ScalarAggregateResult(kind, value.expression)
 	if err != nil {
 		return query.ResultExpression{}, nil, err
 	}
@@ -55,10 +55,10 @@ func (value NumericExpression[M, N]) numericAggregateField(kind query.ResultExpr
 	return expression, factory, err
 }
 func (value NumericExpression[M, N]) scalarAvgField(M, float64) (query.ResultExpression, func() scalarCell[Optional[float64]], error) {
-	expression, _, err := value.scalarResultField(*new(M), Optional[N]{})
-	if err == nil {
-		expression, err = query.AvgResult(expression)
+	if value.err != nil {
+		return query.ResultExpression{}, nil, value.err
 	}
+	expression, err := query.ScalarAggregateResult(query.ResultAvg, value.expression)
 	return expression, optionalResultCell(nullableFloatResultCell), err
 }
 func (value NumericExpression[M, N]) scalarOrderedField(_ M, _ N, kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[N]], error) {

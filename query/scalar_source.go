@@ -6,6 +6,20 @@ import "slices"
 // plan, or binds selected cells to its owned result scope. A field list alone
 // cannot authorize relation traversal.
 func (p Plan) ValidateScalar(expression ScalarExpression) error {
+	if err := expression.ValidateRow(); err != nil {
+		return err
+	}
+	return p.validateScalarSource(expression, false)
+}
+
+// ValidateAggregateScalar binds values in an aggregate's joined-row context.
+// It preserves field and result-scope authority while allowing collection
+// paths; no bound occurrence from another query may enter this context.
+func (p Plan) ValidateAggregateScalar(expression ScalarExpression) error {
+	return p.validateScalarSource(expression, true)
+}
+
+func (p Plan) validateScalarSource(expression ScalarExpression, aggregate bool) error {
 	if p.derived != nil {
 		return expression.ValidateResultSource(p.derived.scope)
 	}
@@ -13,8 +27,15 @@ func (p Plan) ValidateScalar(expression ScalarExpression) error {
 		return err
 	}
 	for _, path := range expression.RelationPaths() {
-		if err := p.validateValueRelation(path); err != nil {
+		if err := p.validateRelationSource(path); err != nil {
 			return err
+		}
+		if aggregate {
+			if err := path.validateUnboundAggregateRoute(); err != nil {
+				return err
+			}
+		} else if !path.SingleValued() {
+			return groupUnsupported("scalar values require single-valued relation paths")
 		}
 	}
 	return nil

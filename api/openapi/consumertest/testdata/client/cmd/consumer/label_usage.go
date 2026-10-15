@@ -25,104 +25,133 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 		return fail("label usage source label records")
 	}
 	before := labels.Response
-	expected := make([]hs.LabelUsageResultsItem, 0, len(before.Items))
-	for _, label := range before.Items {
-		row := hs.LabelUsageResultsItem{ID: label.ID, Name: label.Name, ExpectedCostTotal: hs.NilString{Null: true}, EffortAverage: hs.NilFloat64{Null: true}, ElapsedTotal: hs.NilString{Null: true}}
-		cost := new(big.Rat)
-		elapsed := new(big.Int)
-		costPresent, elapsedPresent := false, false
-		effortCount := int64(0)
-		effortTotal := float64(0)
-		for _, ticket := range tickets {
-			if ticket.Category != category || !slices.Contains(ticket.Labels, label.ID) {
-				continue
-			}
-			row.Total++
-			if ticket.Closed {
-				row.Closed++
-			} else {
-				row.Open++
-			}
-			if !ticket.ExpectedCost.Null {
-				value, ok := new(big.Rat).SetString(ticket.ExpectedCost.Value)
-				if !ok {
-					return fail("label usage retained decimal input")
+	for _, adjustments := range []hs.HelpdeskLabelUsageParams{
+		{},
+		{Factor: hs.NewOptString("1.25"), Delta: hs.NewOptString("0.1")},
+		{Factor: hs.NewOptString("0"), Delta: hs.NewOptString("1")},
+		{Factor: hs.NewOptString("-1.5"), Delta: hs.NewOptString("-0.1")},
+	} {
+		factor, delta := "1", "0"
+		if adjustments.Factor.Set {
+			factor = adjustments.Factor.Value
+		}
+		if adjustments.Delta.Set {
+			delta = adjustments.Delta.Value
+		}
+		multiplier, factorOK := new(big.Rat).SetString(factor)
+		adjustment, deltaOK := new(big.Rat).SetString(delta)
+		if !factorOK || !deltaOK {
+			return fail("label usage independent adjustment input")
+		}
+		expected := make([]hs.LabelUsageResultsItem, 0, len(before.Items))
+		for _, label := range before.Items {
+			row := hs.LabelUsageResultsItem{ID: label.ID, Name: label.Name, ExpectedCostTotal: hs.NilString{Null: true}, AdjustedCostTotal: hs.NilString{Null: true}, EffortAverage: hs.NilFloat64{Null: true}, ElapsedTotal: hs.NilString{Null: true}}
+			cost := new(big.Rat)
+			adjustedCost := new(big.Rat)
+			elapsed := new(big.Int)
+			costPresent, elapsedPresent := false, false
+			effortCount := int64(0)
+			effortTotal := float64(0)
+			for _, ticket := range tickets {
+				if ticket.Category != category || !slices.Contains(ticket.Labels, label.ID) {
+					continue
 				}
-				cost.Add(cost, value)
-				costPresent = true
+				row.Total++
+				if ticket.Closed {
+					row.Closed++
+				} else {
+					row.Open++
+				}
+				if !ticket.ExpectedCost.Null {
+					value, ok := new(big.Rat).SetString(ticket.ExpectedCost.Value)
+					if !ok {
+						return fail("label usage retained decimal input")
+					}
+					cost.Add(cost, value)
+					adjusted := new(big.Rat).Mul(value, multiplier)
+					adjusted.Add(adjusted, adjustment)
+					adjustedCost.Add(adjustedCost, adjusted)
+					costPresent = true
+				}
+				if !ticket.Effort.Null {
+					effortTotal += ticket.Effort.Value
+					effortCount++
+				}
+				if !ticket.Elapsed.Null {
+					value, err := summaryDurationMicros(ticket.Elapsed.Value)
+					if err != nil {
+						return err
+					}
+					elapsed.Add(elapsed, value)
+					elapsedPresent = true
+				}
 			}
-			if !ticket.Effort.Null {
-				effortTotal += ticket.Effort.Value
-				effortCount++
+			if costPresent {
+				value := strings.TrimRight(strings.TrimRight(cost.FloatString(2), "0"), ".")
+				if value == "-0" {
+					value = "0"
+				}
+				row.ExpectedCostTotal = hs.NewNilString(value)
+				adjusted := strings.TrimRight(strings.TrimRight(adjustedCost.FloatString(6), "0"), ".")
+				if adjusted == "-0" {
+					adjusted = "0"
+				}
+				row.AdjustedCostTotal = hs.NewNilString(adjusted)
 			}
-			if !ticket.Elapsed.Null {
-				value, err := summaryDurationMicros(ticket.Elapsed.Value)
+			if effortCount > 0 {
+				row.EffortAverage = hs.NewNilFloat64(effortTotal / float64(effortCount))
+			}
+			if elapsedPresent {
+				value, err := summaryDurationText(elapsed)
 				if err != nil {
 					return err
 				}
-				elapsed.Add(elapsed, value)
-				elapsedPresent = true
+				row.ElapsedTotal = hs.NewNilString(value)
 			}
+			expected = append(expected, row)
 		}
-		if costPresent {
-			value := strings.TrimRight(strings.TrimRight(cost.FloatString(2), "0"), ".")
-			if value == "-0" {
-				value = "0"
-			}
-			row.ExpectedCostTotal = hs.NewNilString(value)
+		if expected[0].Total == 0 || expected[1].ID != unused.ID || expected[1].Total != 0 {
+			return fail("label usage linked and unused fixture diversity")
 		}
-		if effortCount > 0 {
-			row.EffortAverage = hs.NewNilFloat64(effortTotal / float64(effortCount))
-		}
-		if elapsedPresent {
-			value, err := summaryDurationText(elapsed)
-			if err != nil {
-				return err
-			}
-			row.ElapsedTotal = hs.NewNilString(value)
-		}
-		expected = append(expected, row)
-	}
-	if expected[0].Total == 0 || expected[1].ID != unused.ID || expected[1].Total != 0 {
-		return fail("label usage linked and unused fixture diversity")
-	}
-	for _, viewer := range []struct {
-		client    *hs.Client
-		transport *observedTransport
-		state     *sessionState
-	}{{client, transport, state}, {readOnly, readOnlyTransport, readOnlyState}} {
-		for _, usage := range []hs.OptHelpdeskLabelUsageUsage{{}, hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageAll), hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageUsed), hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageUnused)} {
-			name := "all"
-			if value, set := usage.Get(); set {
-				name = string(value)
-			}
-			filtered := make([]hs.LabelUsageResultsItem, 0)
-			for _, row := range expected {
-				if name == "all" || name == "used" && row.Total > 0 || name == "unused" && row.Total == 0 {
-					filtered = append(filtered, row)
+		for _, viewer := range []struct {
+			client    *hs.Client
+			transport *observedTransport
+			state     *sessionState
+		}{{client, transport, state}, {readOnly, readOnlyTransport, readOnlyState}} {
+			for _, usage := range []hs.OptHelpdeskLabelUsageUsage{{}, hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageAll), hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageUsed), hs.NewOptHelpdeskLabelUsageUsage(hs.HelpdeskLabelUsageUsageUnused)} {
+				name := "all"
+				if value, set := usage.Get(); set {
+					name = string(value)
 				}
-			}
-			for _, number := range []int64{1, 50001} {
-				params := hs.HelpdeskLabelUsageParams{Usage: usage}
-				if number != 1 {
-					params.P = hs.NewOptInt64(number)
+				filtered := make([]hs.LabelUsageResultsItem, 0)
+				for _, row := range expected {
+					if name == "all" || name == "used" && row.Total > 0 || name == "unused" && row.Total == 0 {
+						filtered = append(filtered, row)
+					}
 				}
-				response, err := viewer.client.HelpdeskLabelUsage(ctx, params)
-				page, ok := response.(*hs.LabelUsageHeaders)
-				wanted := filtered
-				if number != 1 {
-					wanted = make([]hs.LabelUsageResultsItem, 0)
-				}
-				if err != nil || !ok || viewer.transport.lastStatus() != http.StatusOK || !page.XGodjCsrftoken.Set || !viewer.state.ready(page.XGodjCsrftoken.Value) {
-					return fail("label usage generated read-only success and CSRF response")
-				}
-				if page.Response.Category.ID != category || page.Response.Category.Name != "Hardware & repairs" || page.Response.Page != number || page.Response.PageSize != 20 || page.Response.Usage != name || page.Response.TotalLabels != int64(len(filtered)) || !reflect.DeepEqual(page.Response.Results, wanted) {
-					return fail("label usage generated exact metrics, NULLs, filters and page total")
+				for _, number := range []int64{1, 50001} {
+					params := adjustments
+					params.Usage = usage
+					if number != 1 {
+						params.P = hs.NewOptInt64(number)
+					}
+					response, err := viewer.client.HelpdeskLabelUsage(ctx, params)
+					page, ok := response.(*hs.LabelUsageHeaders)
+					wanted := filtered
+					if number != 1 {
+						wanted = make([]hs.LabelUsageResultsItem, 0)
+					}
+					if err != nil || !ok || viewer.transport.lastStatus() != http.StatusOK || !page.XGodjCsrftoken.Set || !viewer.state.ready(page.XGodjCsrftoken.Value) {
+						return fail("label usage generated read-only success and CSRF response")
+					}
+					if page.Response.Category.ID != category || page.Response.Category.Name != "Hardware & repairs" || page.Response.Page != number || page.Response.PageSize != 20 || page.Response.Usage != name || page.Response.Factor != factor || page.Response.Delta != delta || page.Response.TotalLabels != int64(len(filtered)) || !reflect.DeepEqual(page.Response.Results, wanted) {
+						return fail("label usage generated exact per-ticket adjusted metrics, NULLs, filters and page total")
+					}
 				}
 			}
 		}
 	}
-	for _, params := range []hs.HelpdeskLabelUsageParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("")}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("invalid")}} {
+	for _, params := range []hs.HelpdeskLabelUsageParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("")}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("invalid")}, {Factor: hs.NewOptString("1.00")}, {Factor: hs.NewOptString("1e0")}, {Factor: hs.NewOptString("100")}, {Delta: hs.NewOptString("0.001")}} {
 		response, err := client.HelpdeskLabelUsage(ctx, params)
 		value, ok := response.(*hs.HelpdeskLabelUsageBadRequest)
 		if err != nil || !ok || transport.lastStatus() != http.StatusBadRequest || value.Response.Code != "validation_error" {

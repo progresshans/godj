@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
-const GoDjProjectRelationFacadeInputSHA256 = "32e83663bfc562f603cbfada9388045650a46679508d7fbcea316499a6fd7eb5"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
+const GoDjProjectRelationFacadeInputSHA256 = "034727920762193e8362908a65157646edbfbb03598795ea6880bf58871c28be"
 
 type Backend interface {
 	db.Queryer
@@ -631,6 +631,13 @@ func (_query AuthorsAuthorQuery) Expression(_input orm.DynamicExpression) (orm.D
 		return orm.DynamicScalar[authors.Author]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _input)
+}
+
+func (_query AuthorsAuthorQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[authors.Author, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[authors.Author, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.AuthorsAuthor, _kind, _input)
 }
 
 func (_query AuthorsAuthorQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
@@ -1595,6 +1602,13 @@ func (_query BlogPostQuery) Expression(_input orm.DynamicExpression) (orm.Dynami
 		return orm.DynamicScalar[blog.Post]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.BlogPost, _input)
+}
+
+func (_query BlogPostQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[blog.Post, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[blog.Post, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.BlogPost, _kind, _input)
 }
 
 func (_query BlogPostQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {
@@ -3104,4 +3118,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_b354d02917863720cb4ab869179bb1b51cb5d19ecc35ff3342750c5fc6a14a74
+var _ goDjProjectSnapshot_2ca7c9c9042082273df0b65261e94c9c88c05250247156ed5c8ddea52cba6417

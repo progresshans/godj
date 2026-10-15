@@ -83,6 +83,8 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("type Models struct {\n\tAuthorsAuthor AuthorsAuthorQuery\n\tBlogPost      BlogPostQuery\n}"),
 		[]byte("func Using(_backend Backend) (Models, error)"),
 		[]byte("func (_query BlogPostQuery) Distinct() BlogPostQuery"),
+		[]byte("func (_query BlogPostQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[blog.Post, query.Value], error)"),
+		[]byte("return orm.BindAggregateExpressionIn(_query.query, _query.state.models.BlogPost, _kind, _input)"),
 		[]byte("func (_query BlogPostQuery) Offset(_offset int) (BlogPostQuery, error)"),
 		[]byte("func (_query BlogPostQuery) Count(_ctx context.Context) (int64, error)"),
 		[]byte("func SelectBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _projection orm.Projection[blog.Post, R]) ([]R, error)"),

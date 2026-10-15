@@ -263,12 +263,16 @@ GDJ-0124의 관계 표현식은 normal/core·CGO=0/core·race/core-consumers에�
 Parent는 현재 observer/input/module manifest hash와 정확한 17개 reference 사례·52개 native child 실행·5개 compile-negative를 요구한다.
 Portable의 SQLite invariant 실행은 이 reference/native 양 DB 검증을 대신하지 않는다.
 
-GDJ-0125의 컬렉션 집계도 같은 세 native owner에서 별도의
+GDJ-0125·0127의 컬렉션 필드/계산식 집계도 같은 세 native owner에서 별도의
 [Django observer](../conformance/runners/django/collection_aggregate_reference/README.md)를 실행한다.
-역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용과 Distinct를 30개 사례로 대조한다.
-현재 observer/input/module manifest와 runtime pin을 확인하고, 양 DB의 reference/runtime 82개 child run/pass,
-부모의 모델·decoder compile-negative 5개를 요구한다. 원 reference와 `godj-collection-native.jsonl`을
+역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용과 Distinct,
+행별 숫자/Decimal·CASE·computed FILTER와 후속 결과 단계를 49개 사례로 대조한다.
+현재 observer/input/module manifest와 runtime pin을 확인하고, 양 DB의 reference/runtime 130개 child run/pass,
+부모의 모델·kind·decoder compile-negative 8개를 요구한다. 원 reference와 `godj-collection-native.jsonl`을
 `collection-aggregate-reference/`에 함께 보존한다. Missing reference·잘린 event·미실행/skip은 성공이 아니다.
+Helpdesk의 라벨별 조정 비용은 기존 양 DB의 권한·Category·snapshot·저장/audit 보존 검증에 추가한다.
+독립 client는 티켓별 유리수 계산과 required nullable wire, 브라우저는 28개 필수 검사를 소유한다.
+필수 실행 구성을 실제 PASS와 구분하며 source별 완료 상태는 TEST_EVIDENCE를 따른다.
 
 GDJ-0126의 Decimal 계산식은 같은 세 native owner에서 [독립 observer](../conformance/runners/django/decimal_expression_reference/README.md)의
 양 DB 각 30개 사례와 현재 source hash/runtime/오류 목록·전체 컬럼 rollback/정리를 확인한다.

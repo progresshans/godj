@@ -39,6 +39,13 @@ func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
 	if !ok {
 		return &sqliteWhereAnalysis{}, nil
 	}
+	return analyzePredicate(expression, queryplan.ScalarSource{Plan: plan})
+}
+
+func analyzePredicate(expression query.Expression, source queryplan.ScalarSource) (*sqliteWhereAnalysis, error) {
+	if err := source.ValidatePredicate(expression); err != nil {
+		return nil, err
+	}
 	analysis := &sqliteWhereAnalysis{}
 	visited := 0
 	root, hasRelations, err := analyzeWhereExpression(expression, 1, true, &visited, analysis)
@@ -48,7 +55,7 @@ func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
 	analysis.root = root
 	analysis.hasRelations = hasRelations
 	for _, leaf := range analysis.leaves {
-		leaf.scalarSource.Plan = plan
+		leaf.scalarSource = source
 	}
 	return analysis, nil
 }

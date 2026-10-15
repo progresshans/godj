@@ -13,8 +13,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
-const GoDjProjectRelationFacadeInputSHA256 = "8c8a822f449f9a378ce11b643620299163688cf3cff0714b86bbfd3a0dffbce3"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
+const GoDjProjectRelationFacadeInputSHA256 = "f24d6e8907b2c8356981c263856b58587bb48214dce49851a26721ce447d4aec"
 
 type Backend interface {
 	db.Queryer
@@ -634,6 +634,13 @@ func (_query IdentityGroupQuery) Expression(_input orm.DynamicExpression) (orm.D
 		return orm.DynamicScalar[identity.Group]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityGroup, _input)
+}
+
+func (_query IdentityGroupQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.Group, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.Group, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityGroup, _kind, _input)
 }
 
 func (_query IdentityGroupQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.Group], error) {
@@ -1744,6 +1751,13 @@ func (_query IdentityGroupPermissionsLinkQuery) Expression(_input orm.DynamicExp
 		return orm.DynamicScalar[identity.GroupPermissionsLink]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityGroupPermissionsLink, _input)
+}
+
+func (_query IdentityGroupPermissionsLinkQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.GroupPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.GroupPermissionsLink, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityGroupPermissionsLink, _kind, _input)
 }
 
 func (_query IdentityGroupPermissionsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.GroupPermissionsLink], error) {
@@ -3386,6 +3400,13 @@ func (_query IdentityPermissionQuery) Expression(_input orm.DynamicExpression) (
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityPermission, _input)
 }
 
+func (_query IdentityPermissionQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.Permission, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.Permission, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityPermission, _kind, _input)
+}
+
 func (_query IdentityPermissionQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.Permission], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[identity.Permission]{}, _err
@@ -4487,6 +4508,13 @@ func (_query IdentityUserQuery) Expression(_input orm.DynamicExpression) (orm.Dy
 		return orm.DynamicScalar[identity.User]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityUser, _input)
+}
+
+func (_query IdentityUserQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.User, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.User, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityUser, _kind, _input)
 }
 
 func (_query IdentityUserQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.User], error) {
@@ -5597,6 +5625,13 @@ func (_query IdentityUserGroupsLinkQuery) Expression(_input orm.DynamicExpressio
 		return orm.DynamicScalar[identity.UserGroupsLink]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityUserGroupsLink, _input)
+}
+
+func (_query IdentityUserGroupsLinkQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.UserGroupsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.UserGroupsLink, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityUserGroupsLink, _kind, _input)
 }
 
 func (_query IdentityUserGroupsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.UserGroupsLink], error) {
@@ -7248,6 +7283,13 @@ func (_query IdentityUserPermissionsLinkQuery) Expression(_input orm.DynamicExpr
 	return orm.BindExpressionIn(_query.query, _query.state.models.IdentityUserPermissionsLink, _input)
 }
 
+func (_query IdentityUserPermissionsLinkQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[identity.UserPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[identity.UserPermissionsLink, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.IdentityUserPermissionsLink, _kind, _input)
+}
+
 func (_query IdentityUserPermissionsLinkQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[identity.UserPermissionsLink], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[identity.UserPermissionsLink]{}, _err
@@ -8774,4 +8816,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a8f8fe6b8a3b05061f60915a9675a89df47304d35fbc1a27eef958931431fcee
+var _ goDjProjectSnapshot_05ed574921e7727385a43e9340d3964ff316b42f2f6dc6be0ef2ffd3910ee58f

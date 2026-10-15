@@ -147,14 +147,14 @@ func (c Condition) RHSScalar() (ScalarExpression, bool) {
 }
 
 func validateScalarCondition(condition Condition) error {
-	if _, err := ScalarResult(condition.scalar); err != nil {
+	if err := condition.scalar.validateTypedValue(); err != nil {
 		return err
 	}
 	if condition.field != (FieldRef{}) || condition.relationPath != nil || condition.jsonPath.Valid() || condition.rhs == nil {
 		return invalidPlanError("computed predicate has mixed field or right-hand-side metadata")
 	}
 	if right, present := condition.RHSScalar(); present {
-		if _, err := ScalarResult(right); err != nil {
+		if err := right.validateTypedValue(); err != nil {
 			return err
 		}
 		kind := condition.scalar.ResultKind()
@@ -686,18 +686,40 @@ func (p Plan) WithWhere(expression Expression) (Plan, error) {
 }
 
 func (p Plan) validateWhereSource(expression Expression) error {
-	return p.validateWhereNode(expression.node, true)
+	return p.validateWhereNode(expression.node, true, false)
 }
 
-func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction bool) error {
+// ValidatePredicate checks an existing row predicate without adding a filter
+// occurrence or mutating this plan. Compilers also use it for CASE conditions.
+func (p Plan) ValidatePredicate(expression Expression) error {
+	if err := expression.validate(); err != nil {
+		return err
+	}
+	return p.validateWhereSource(expression)
+}
+
+// ValidateAggregatePredicate checks CASE and FILTER against aggregate source
+// authority. This validates a value context, never creates an executable WHERE.
+func (p Plan) ValidateAggregatePredicate(expression Expression) error {
+	if err := validateAggregateFilter(expression); err != nil {
+		return err
+	}
+	return p.validateWhereNode(expression.node, true, true)
+}
+
+func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction, aggregate bool) error {
 	if node.kind == ExpressionLeaf {
 		condition := node.condition
 		if scalar, present := condition.Scalar(); present {
-			if err := p.ValidateScalar(scalar); err != nil {
+			validate := p.ValidateScalar
+			if aggregate {
+				validate = p.ValidateAggregateScalar
+			}
+			if err := validate(scalar); err != nil {
 				return err
 			}
 			if right, present := condition.RHSScalar(); present {
-				return p.ValidateScalar(right)
+				return validate(right)
 			}
 			return nil
 		}
@@ -742,7 +764,7 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 
 	childRelationAtRoot := relationAtRootConjunction && node.kind == ExpressionAnd
 	for _, child := range node.children {
-		if err := p.validateWhereNode(child.node, childRelationAtRoot); err != nil {
+		if err := p.validateWhereNode(child.node, childRelationAtRoot, aggregate); err != nil {
 			return err
 		}
 	}
@@ -856,11 +878,14 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 
 func (p Plan) validateResultSource(expression ResultExpression) error {
 	if filter, present := expression.Filter(); present {
-		if err := p.validateWhereNode(filter.node, true); err != nil {
+		if err := p.ValidateAggregatePredicate(filter); err != nil {
 			return err
 		}
 	}
 	if scalar, present := expression.Scalar(); present {
+		if expression.IsAggregate() {
+			return p.ValidateAggregateScalar(scalar)
+		}
 		return p.ValidateScalar(scalar)
 	}
 	if p.derived != nil {

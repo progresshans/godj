@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -303,7 +304,7 @@ func TestPostgresWhereAnalysisAcceptsMaximumTreeAndRejectsZero(t *testing.T) {
 	if _, _, err := compileConditions("godj_app", base, conditions...); err != nil {
 		t.Fatal(err)
 	}
-	analyzer := whereAnalyzer{plan: base, sourceFields: []query.FieldRef{id}}
+	analyzer := whereAnalyzer{source: queryplan.ScalarSource{Plan: base}, sourceFields: []query.FieldRef{id}}
 	if _, err := analyzer.walk(query.Expression{}, 1, true); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("zero expression error = %v, want query invalid_plan", err)
 	}
@@ -390,7 +391,7 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 			if expressionErr != nil {
 				t.Fatal(expressionErr)
 			}
-			analyzer := whereAnalyzer{plan: base, sourceFields: base.SourceFields()}
+			analyzer := whereAnalyzer{source: queryplan.ScalarSource{Plan: base}, sourceFields: base.SourceFields()}
 			_, analysisErr := analyzer.walk(expression, 1, true)
 			if !errors.Is(analysisErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Field: "name", Lookup: string(query.LookupExact)}) {
 				t.Fatalf("analysis error = %v, want backend unsupported", analysisErr)

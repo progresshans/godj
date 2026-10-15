@@ -10,6 +10,23 @@ type ScalarSource struct {
 	Alias string
 	Joins map[RelationKey]Join
 	Field func(query.FieldRef) (string, error)
+	// Aggregate binds value and CASE/FILTER routes to prepared aggregate joins.
+	// It never changes the source plan or authorizes a row WHERE expression.
+	Aggregate bool
+}
+
+func (source ScalarSource) Validate(value query.ScalarExpression) error {
+	if source.Aggregate {
+		return source.Plan.ValidateAggregateScalar(value)
+	}
+	return source.Plan.ValidateScalar(value)
+}
+
+func (source ScalarSource) ValidatePredicate(value query.Expression) error {
+	if source.Aggregate {
+		return source.Plan.ValidateAggregatePredicate(value)
+	}
+	return source.Plan.ValidatePredicate(value)
 }
 
 func (source ScalarSource) ResolveField(field query.FieldRef, quote func(string) (string, error), qualify func(string, string) (string, error)) (string, error) {

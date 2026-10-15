@@ -1,7 +1,7 @@
 # ADR-0091: 그룹 결과와 집계 참조
 
 - 상태: Accepted design — 그룹 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
-- 날짜: 2026-10-13
+- 날짜: 2026-10-15
 - 작업: [GDJ-0112](../../work/0112-grouped-aggregation-and-ticket-summary.md), [GDJ-0121](../../work/0121-numeric-aggregates-and-ticket-metrics.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md), [GDJ-0125](../../work/0125-collection-aggregates-and-label-usage.md)
 
 ## 문제와 기준
@@ -38,8 +38,9 @@ Field/aggregate·다른 모델의 조합은 typed API 또는 metadata preflight�
 reverse OneToOne의 혼합 경로를 같은 값 AST로 표현한다. 원본 collection join이 행을
 늘리는 multiplicity와 negated collection의 EXISTS 의미는 기존 query compiler를 유지한다. 조건부 aggregate의
 single-valued 경로는 전체 그룹을 제거하는 WHERE가 아니므로 그 자체로 optional join을 inner join으로 승격하지 않는다.
-GDJ-0125에서 collection field aggregate와 조건을 아래 계약으로 확장한다. Collection group key와 일반
-collection scalar/CASE operand는 여전히 별도 의미를 요구한다. 이 설계 채택과 구현·검증 상태는 구분한다.
+GDJ-0125에서 collection field aggregate와 조건을, GDJ-0127에서 집계 안의 collection scalar/CASE operand를
+아래 계약으로 확장한다. Collection group key와 일반 행 projection의 범위는 넓히지 않는다.
+이 설계 채택과 구현·검증 상태는 구분한다.
 
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
 별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 source와 single-valued 관계의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
@@ -57,8 +58,8 @@ GDJ-0125는 직접 related field의 MIN/MAX와 dynamic aggregate field 경로도
 
 라벨을 원본으로 연결 티켓의 지표를 읽을 때 빈 관계도 하나의 라벨 그룹으로 남긴다. 집계 전용 constructor와
 sealed typed capability가 finite reverse FK·ManyToMany를 포함한 필드 경로를 받는다. 행을 선택하는 scalar와
-group key의 cardinality 검증을 집계에 재사용하지 않는다. 반대로 collection field를 일반 projection·scalar
-산술·CASE·정렬·UPDATE 값에 전달하는 것은 허용하지 않는다. Root/target metadata·경로 연결·선택 결과 scope는 유지한다.
+group key의 cardinality 검증을 집계에 재사용하지 않는다. Collection field를 일반 projection·그룹 키·행 정렬·
+computed WHERE·UPDATE 값으로 실행하는 것은 허용하지 않는다. Root/target metadata·경로 연결·선택 결과 scope는 유지한다.
 
 COUNT(field)는 NULL 제외·empty 0, MIN/MAX/SUM/AVG는 empty/all-NULL에서 NULL이다. 기존 ordered scalar와
 숫자 kind·physical operand 검증·Decimal precision·Duration 반올림·typed Optional을 그대로 사용한다.
@@ -85,6 +86,31 @@ Typed `Count/Sum/Avg/Min/Max(relatedField)`와 project-bound dynamic group aggre
 원본 모델·관련 leaf·selected-result 열의 provenance와 context/cache/rows 정리는 기존 결과 query가 소유한다.
 양 DB의 독립 관찰과 generated consumer에서 빈 관계·nullable leaf·중복·조건·연속 Filter·복합 경로를 대조한 뒤
 검증 범위를 기록한다. 설계 문서만으로 현재 지원이나 Django parity를 주장하지 않는다.
+
+## 컬렉션 계산식 집계
+
+[GDJ-0127](../../work/0127-collection-computed-aggregates.md)은 이미 지원한 숫자 산술·CASE의 operand를 finite collection으로 확장한다.
+표현식 구성과 사용 문맥을 나눈다. `RelatedExpression`은 불변 경로를 보존하고 `ScalarAggregateResult`가 집계를 완성한다.
+`ScalarResult`·row source 검증은 collection을 거부한다. CASE의 조건에만 숨은 collection도 같은 경계를 적용한다.
+원본 행의 필드·관계와 명시적 결과 stage의 cell은 별도로 bind하며, 결과 stage 없이 중첩 집계를 만들지 않는다.
+별도 계산 AST나 source metadata를 발명하지 않으며 resource·kind·precision 검증도 공통 경로를 사용한다.
+
+값·CASE 조건·aggregate FILTER의 모든 collection 경로는 위의 최신 원본 JOIN occurrence 해석을 함께 사용한다.
+동일 경로의 두 leaf는 같은 관련 행을 참조하고, 다른 collection의 JOIN 행 곱은 유지한다.
+CASE나 FILTER의 참 여부로 optional JOIN을 승격하지 않는다. 집계 표현식에 다른 Filter가 미리 묶은 occurrence를
+넣을 수 없다. Compiler는 행 WHERE를 만드는 우회 없이 실제 plan authority에서 집계 조건을 검사하고 렌더링한다.
+NOT의 field NULL 보정과 computed comparison의 SQL 3값 의미는 기존 차이를 유지한다.
+
+SUM은 각 joined row의 값을 먼저 계산하고 집계한다. DISTINCT는 계산된 값에 적용한다. 빈 collection의 LEFT JOIN
+행에서 계산 결과가 NULL이면 제외하고, CASE가 명시적 fallback 값을 만들면 그 값은 실제 기여 값이다.
+FILTER에서 제외된 행과 선택되지 않은 CASE branch는 먼저 계산하지 않는다. 기여한 Decimal leaf의 손상은
+0 곱셈이나 후속 집계로 숨기지 않는다. Backend의 division·remainder·반올림 차이는 기존 산술 계약을 따른다.
+
+Typed `Numeric`·`Decimal`과 `Count`는 같은 collection scalar를 집계한다. 행용 dynamic `BindExpression`의 경계는
+유지하고 `BindAggregateExpression[In]`과 생성 Query의 `AggregateExpression`이 완료된 집계를 반환한다.
+`DynamicAggregateInput.Expression`도 이 경로를 사용한다. `Predicate`는 집계 문맥의 computed FILTER이고
+기존 `Filter` field lookup들과 AND로 결합한다. Dynamic 관계 이름은 sealed project binding을 요구한다.
+이 API는 생성물과 함께 관리한다. 설계 채택은 실행 PASS가 아니며 현재 구현·검증은 활성 work와 TEST_EVIDENCE로 구분한다.
 
 ## 복사·실행과 페이지
 
@@ -242,6 +268,11 @@ GDJ-0123 Helpdesk는 전체·열린 건수에서 닫힌 건수와 `open_basis_po
 
 GDJ-0125는 Label을 root로 묶어 빈 관계를 보존한다. Count·조건부 open Count·비용 Sum·노력 Avg·시간 Sum에 각각
 현재 Category의 Ticket 조건을 적용한다. 원본 Label의 Category 조건만으로 외부 연결의 존재나 수치를 공개하지 않는다.
+GDJ-0127은 기존 비용 합계와 함께 각 present 비용에 `factor`(6/4, 기본 1)·`delta`(14/2, 기본 0)를 적용한
+조정 합계를 제공한다. 이 집계에도 같은 Category FILTER를 적용한다. 비용이 없는 티켓에는 가감액을 적용하지 않고,
+배율이 0이어도 NULL은 0이 되지 않는다. 음수·0 배율을 허용하며 각 행의 정확한 Decimal 결과를 합산한다.
+HTML과 API는 같은 query codec과 snapshot을 사용하고 페이지 링크는 배율·가감액·usage를 보존한다.
+원래 비용·조정 비용의 NULL 여부가 다르면 결과를 게시하지 않는다. 저장 값이나 audit를 바꾸지 않는다.
 사용/미사용은 scoped Count의 HAVING이며 페이지 총수도 같은 필터 이후의 라벨 수다.
 두 view 권한·query 검증은 snapshot 시작 전에, Category와 group Page는 한 snapshot에서 처리한다.
 TicketSummary·ServiceReportStatus·LabelUsage는 같은 callback/cleanup 소유권 검사를 사용하며,

@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -529,6 +529,13 @@ func (_query %[1]s) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...s
 	fmt.Fprintf(output, "\t\treturn orm.DynamicScalar[%s]{}, _err\n", rawType)
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\treturn orm.BindExpressionIn(_query.query, _query.state.models.%s, _input)\n", model.surface)
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[%s, query.Value], error) {\n", model.queryType, rawType)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+	fmt.Fprintf(output, "\t\treturn orm.AggregateExpression[%s, query.Value]{}, _err\n", rawType)
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintf(output, "\treturn orm.BindAggregateExpressionIn(_query.query, _query.state.models.%s, _kind, _input)\n", model.surface)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[%s], error) {\n", model.queryType, rawType)

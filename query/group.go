@@ -39,9 +39,22 @@ func AggregateResult(kind ResultExpressionKind, operand ResultExpression) (Resul
 	return operand, nil
 }
 
+// ScalarAggregateResult completes an aggregate without treating its operand
+// as a row projection. Collection value and CASE paths remain in the same
+// immutable tree and are bound to one joined row by the aggregate compiler.
+func ScalarAggregateResult(kind ResultExpressionKind, scalar ScalarExpression) (ResultExpression, error) {
+	if err := scalar.validateTypedValue(); err != nil {
+		return ResultExpression{}, err
+	}
+	value := ResultExpression{kind: kind, scalar: scalar}
+	if err := value.validateAggregate(); err != nil {
+		return ResultExpression{}, err
+	}
+	return value, nil
+}
+
 // RelatedAggregateResult consumes the field values of a finite relation route.
-// A collection is legal only inside this completed aggregate, never as an
-// intermediate row value that could escape into projection, ordering or UPDATE.
+// A collection can execute only inside a completed aggregate.
 func RelatedAggregateResult(kind ResultExpressionKind, relation RelationPath) (ResultExpression, error) {
 	if err := relation.validateAggregateSelection(); err != nil {
 		return ResultExpression{}, err
@@ -104,8 +117,13 @@ func (e ResultExpression) validateAggregate() error {
 		return invalidPlanError("aggregate expression is invalid")
 	}
 	if e.scalar.node != nil {
-		if _, err := ScalarResult(e.scalar); err != nil {
+		if err := e.scalar.validateTypedValue(); err != nil {
 			return err
+		}
+		for _, path := range e.scalar.RelationPaths() {
+			if err := path.validateUnboundAggregateRoute(); err != nil {
+				return err
+			}
 		}
 		if e.field != (FieldRef{}) || e.relation != nil || e.path.Valid() {
 			return invalidPlanError("computed aggregate contains field or path metadata")
@@ -150,19 +168,11 @@ func validateAggregateFilter(e Expression) error {
 	if err := e.validate(); err != nil {
 		return err
 	}
-	if condition, leaf := e.Condition(); leaf {
-		if path, related := condition.RelationPath(); related {
-			if err := path.Validate(); err != nil {
-				return err
-			}
-			if err := path.validateUnboundAggregateRoute(); err != nil {
-				return err
-			}
+	for _, path := range e.RelationPaths() {
+		if err := path.Validate(); err != nil {
+			return err
 		}
-		return nil
-	}
-	for _, child := range e.Children() {
-		if err := validateAggregateFilter(child); err != nil {
+		if err := path.validateUnboundAggregateRoute(); err != nil {
 			return err
 		}
 	}

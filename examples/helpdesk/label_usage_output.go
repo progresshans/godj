@@ -19,6 +19,7 @@ func prepareLabelUsageOutput(category output.Shape[models.Category]) (output.Out
 		output.Field("open", count, func(row labelUsageRow) int64 { return row.open }),
 		output.Field("closed", count, func(row labelUsageRow) int64 { return row.total - row.open }),
 		output.Field("expected_cost_total", output.Nullable(output.Decimal()), func(row labelUsageRow) *decimal.Decimal { return summaryOptionalPointer(row.cost) }),
+		output.Field("adjusted_cost_total", output.Nullable(output.Decimal()), func(row labelUsageRow) *decimal.Decimal { return summaryOptionalPointer(row.adjusted) }),
 		output.Field("effort_average", output.Nullable(output.Float()), func(row labelUsageRow) *float64 { return summaryOptionalPointer(row.effort) }),
 		output.Field("elapsed_total", output.Nullable(output.Duration()), func(row labelUsageRow) *duration.Duration { return summaryOptionalPointer(row.elapsed) }),
 	)
@@ -27,6 +28,8 @@ func prepareLabelUsageOutput(category output.Shape[models.Category]) (output.Out
 		output.Field("page", output.Int64Range(1, labelUsageMaximumPage), func(page labelUsagePage) int64 { return int64(page.query.page) }),
 		output.Field("page_size", output.Int64Range(labelUsagePageSize, labelUsagePageSize), func(labelUsagePage) int64 { return labelUsagePageSize }),
 		output.Field("usage", output.String(), func(page labelUsagePage) string { return page.query.usage }),
+		output.Field("factor", output.Decimal(), func(page labelUsagePage) decimal.Decimal { return page.query.factor }),
+		output.Field("delta", output.Decimal(), func(page labelUsagePage) decimal.Decimal { return page.query.delta }),
 		output.Field("total_labels", count, func(page labelUsagePage) int64 { return page.labels.Total }),
 		output.Field("results", output.Array(row, 0, labelUsagePageSize), func(page labelUsagePage) []labelUsageRow { return page.labels.Rows }),
 	)), serializers.Limits{})

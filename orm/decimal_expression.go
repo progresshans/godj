@@ -67,10 +67,10 @@ func (value DecimalExpression[M]) Negate() DecimalExpression[M] {
 }
 
 func (value DecimalExpression[M]) aggregate(kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[decimal.Decimal]], error) {
-	expression, _, err := value.scalarResultField(*new(M), Optional[decimal.Decimal]{})
-	if err == nil {
-		expression, err = query.AggregateResult(kind, expression)
+	if value.err != nil {
+		return query.ResultExpression{}, nil, value.err
 	}
+	expression, err := query.ScalarAggregateResult(kind, value.expression)
 	return expression, optionalResultCell(nullableAggregateDecimalCell), err
 }
 func (value DecimalExpression[M]) scalarSumField(M, decimal.Decimal) (query.ResultExpression, func() scalarCell[Optional[decimal.Decimal]], error) {

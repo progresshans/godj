@@ -12,3 +12,9 @@ func TestCollectionAggregateCompilerKeepsFilterOccurrencesAndParameters(t *testi
 		return compilePlan("collection_owner", plan)
 	}, true)
 }
+
+func TestCollectionComputedCompilerSharesValueCaseAndFilterRows(t *testing.T) {
+	querytest.CollectionComputedCompiler(t, func(plan query.Plan) (string, []any, error) {
+		return compilePlan("collection_owner", plan)
+	})
+}

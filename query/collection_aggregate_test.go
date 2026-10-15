@@ -67,8 +67,15 @@ func TestCollectionAggregatesKeepRowCardinalityAndSourceAuthority(t *testing.T) 
 	if _, err := RelatedFieldResult(path); !errors.Is(err, &Error{Code: CodeUnsupported}) {
 		t.Fatal("collection became a row scalar selection", err)
 	}
-	if _, err := RelatedExpression(path); !errors.Is(err, &Error{Code: CodeUnsupported}) {
-		t.Fatal("collection became a scalar/CASE operand", err)
+	collection, err := RelatedExpression(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ScalarResult(collection); !errors.Is(err, &Error{Code: CodeUnsupported}) {
+		t.Fatal("collection escaped into a row scalar selection", err)
+	}
+	if err := NewPlan("owners", []FieldRef{id}).ValidateScalar(collection); !errors.Is(err, &Error{Code: CodeUnsupported}) {
+		t.Fatal("collection escaped into row scalar source validation", err)
 	}
 	for _, kind := range []ResultExpressionKind{ResultField, ResultScalar, ResultCountAll, "unknown"} {
 		if _, err := RelatedAggregateResult(kind, path); err == nil {

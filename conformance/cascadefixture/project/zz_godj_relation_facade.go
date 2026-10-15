@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v26"
-const GoDjProjectRelationFacadeInputSHA256 = "349ab5d5b15f28f18c9f943a7872a651d1f902c723bc5d1ee13beb5c9c4c47be"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
+const GoDjProjectRelationFacadeInputSHA256 = "e7849e3a8b5de5c6b013b4c91d06cc2f9a1f007ce993387ae3ba6ee19f3825d1"
 
 type Backend interface {
 	db.Queryer
@@ -652,6 +652,13 @@ func (_query DetailsChildQuery) Expression(_input orm.DynamicExpression) (orm.Dy
 		return orm.DynamicScalar[details.Child]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsChild, _input)
+}
+
+func (_query DetailsChildQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Child, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Child, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsChild, _kind, _input)
 }
 
 func (_query DetailsChildQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Child], error) {
@@ -2172,6 +2179,13 @@ func (_query DetailsDetailQuery) Expression(_input orm.DynamicExpression) (orm.D
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsDetail, _input)
 }
 
+func (_query DetailsDetailQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Detail, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Detail, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsDetail, _kind, _input)
+}
+
 func (_query DetailsDetailQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Detail], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[details.Detail]{}, _err
@@ -3613,6 +3627,13 @@ func (_query DetailsGrandchildQuery) Expression(_input orm.DynamicExpression) (o
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsGrandchild, _input)
 }
 
+func (_query DetailsGrandchildQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Grandchild, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Grandchild, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsGrandchild, _kind, _input)
+}
+
 func (_query DetailsGrandchildQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Grandchild], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[details.Grandchild]{}, _err
@@ -5031,6 +5052,13 @@ func (_query DetailsHiddenQuery) Expression(_input orm.DynamicExpression) (orm.D
 		return orm.DynamicScalar[details.Hidden]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsHidden, _input)
+}
+
+func (_query DetailsHiddenQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Hidden, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Hidden, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsHidden, _kind, _input)
 }
 
 func (_query DetailsHiddenQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Hidden], error) {
@@ -6454,6 +6482,13 @@ func (_query DetailsOverlapQuery) Expression(_input orm.DynamicExpression) (orm.
 		return orm.DynamicScalar[details.Overlap]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsOverlap, _input)
+}
+
+func (_query DetailsOverlapQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Overlap, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Overlap, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsOverlap, _kind, _input)
 }
 
 func (_query DetailsOverlapQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Overlap], error) {
@@ -8102,6 +8137,13 @@ func (_query DetailsProtectedQuery) Expression(_input orm.DynamicExpression) (or
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsProtected, _input)
 }
 
+func (_query DetailsProtectedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Protected, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Protected, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsProtected, _kind, _input)
+}
+
 func (_query DetailsProtectedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Protected], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[details.Protected]{}, _err
@@ -9522,6 +9564,13 @@ func (_query DetailsRequiredRightQuery) Expression(_input orm.DynamicExpression)
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsRequiredRight, _input)
 }
 
+func (_query DetailsRequiredRightQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.RequiredRight, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.RequiredRight, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsRequiredRight, _kind, _input)
+}
+
 func (_query DetailsRequiredRightQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.RequiredRight], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[details.RequiredRight]{}, _err
@@ -10940,6 +10989,13 @@ func (_query DetailsRightQuery) Expression(_input orm.DynamicExpression) (orm.Dy
 		return orm.DynamicScalar[details.Right]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsRight, _input)
+}
+
+func (_query DetailsRightQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Right, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Right, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsRight, _kind, _input)
 }
 
 func (_query DetailsRightQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Right], error) {
@@ -12363,6 +12419,13 @@ func (_query DetailsTwinQuery) Expression(_input orm.DynamicExpression) (orm.Dyn
 		return orm.DynamicScalar[details.Twin]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsTwin, _input)
+}
+
+func (_query DetailsTwinQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Twin, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Twin, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsTwin, _kind, _input)
 }
 
 func (_query DetailsTwinQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Twin], error) {
@@ -14011,6 +14074,13 @@ func (_query DetailsWatcherQuery) Expression(_input orm.DynamicExpression) (orm.
 	return orm.BindExpressionIn(_query.query, _query.state.models.DetailsWatcher, _input)
 }
 
+func (_query DetailsWatcherQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[details.Watcher, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[details.Watcher, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.DetailsWatcher, _kind, _input)
+}
+
 func (_query DetailsWatcherQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[details.Watcher], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[details.Watcher]{}, _err
@@ -15445,6 +15515,13 @@ func (_query ParentsLabelQuery) Expression(_input orm.DynamicExpression) (orm.Dy
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsLabel, _input)
 }
 
+func (_query ParentsLabelQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.Label, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.Label, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsLabel, _kind, _input)
+}
+
 func (_query ParentsLabelQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.Label], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[parents.Label]{}, _err
@@ -15922,6 +15999,13 @@ func (_query ParentsLeftQuery) Expression(_input orm.DynamicExpression) (orm.Dyn
 		return orm.DynamicScalar[parents.Left]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsLeft, _input)
+}
+
+func (_query ParentsLeftQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.Left, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.Left, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsLeft, _kind, _input)
 }
 
 func (_query ParentsLeftQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.Left], error) {
@@ -17369,6 +17453,13 @@ func (_query ParentsNodeQuery) Expression(_input orm.DynamicExpression) (orm.Dyn
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsNode, _input)
 }
 
+func (_query ParentsNodeQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.Node, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.Node, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsNode, _kind, _input)
+}
+
 func (_query ParentsNodeQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.Node], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[parents.Node]{}, _err
@@ -18814,6 +18905,13 @@ func (_query ParentsRequiredLeftQuery) Expression(_input orm.DynamicExpression) 
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsRequiredLeft, _input)
 }
 
+func (_query ParentsRequiredLeftQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.RequiredLeft, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.RequiredLeft, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsRequiredLeft, _kind, _input)
+}
+
 func (_query ParentsRequiredLeftQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.RequiredLeft], error) {
 	if _err := _query.validate(); _err != nil {
 		return orm.Predicate[parents.RequiredLeft]{}, _err
@@ -20233,6 +20331,13 @@ func (_query ParentsRootQuery) Expression(_input orm.DynamicExpression) (orm.Dyn
 		return orm.DynamicScalar[parents.Root]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsRoot, _input)
+}
+
+func (_query ParentsRootQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.Root, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.Root, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsRoot, _kind, _input)
 }
 
 func (_query ParentsRootQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.Root], error) {
@@ -21656,6 +21761,13 @@ func (_query ParentsRootLabelsQuery) Expression(_input orm.DynamicExpression) (o
 		return orm.DynamicScalar[parents.RootLabels]{}, _err
 	}
 	return orm.BindExpressionIn(_query.query, _query.state.models.ParentsRootLabels, _input)
+}
+
+func (_query ParentsRootLabelsQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[parents.RootLabels, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[parents.RootLabels, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.ParentsRootLabels, _kind, _input)
 }
 
 func (_query ParentsRootLabelsQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[parents.RootLabels], error) {
@@ -23294,4 +23406,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_5bd8166de6c1ffd43a0cd2f5d0b408acbed4b32f67e472e77f5006458ad7c5df
+var _ goDjProjectSnapshot_8b9411d1f7fb193872581af2484b70be39c76c30e35a18270e3545f25b14787a

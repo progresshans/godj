@@ -55,6 +55,8 @@ func prepareAPIQueries() (apiQueries, error) {
 	result.labelUsage, err = parameters.New(128,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, labelUsageMaximumPage), 1), func(query *labelUsageQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("usage", parameters.Default(parameters.StringChoices("all", "used", "unused"), "all"), func(query *labelUsageQuery, value string) { query.usage = value }, "Include all labels, labels with at least one in-category ticket, or labels without in-category tickets."),
+		parameters.Field("factor", parameters.Default(parameters.CanonicalDecimal(6, 4), decimal.Decimal{Coefficient: "1"}), func(query *labelUsageQuery, value decimal.Decimal) { query.factor = value }, "Exact multiplier applied to each present ticket cost before summing; up to 2 whole digits and 4 decimal places. Defaults to 1."),
+		parameters.Field("delta", parameters.Default(parameters.CanonicalDecimal(14, 2), decimal.Decimal{}), func(query *labelUsageQuery, value decimal.Decimal) { query.delta = value }, "Exact adjustment applied to each present ticket cost before summing; up to 12 whole digits and 2 decimal places. Defaults to 0."),
 	)
 	if err != nil {
 		return apiQueries{}, err

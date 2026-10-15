@@ -12,9 +12,10 @@ Helpdesk 비용 미리보기의 `helpdesk_cost_preview`는 보존한 Ticket 응�
 403/plain 500의 단일 요청을 검사한다. 원본 문서 여섯 profile과 고정 생성물을 함께 검증하며 실행 상태는 TEST_EVIDENCE를 따른다.
 
 Helpdesk 라벨 사용 현황의 `helpdesk_label_usage` receipt는 보존한 Ticket 응답의 라벨 ID·closed·numeric 값에서
-독립적으로 집계를 계산한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·기본값·끝난 페이지·NULL/0,
+독립적으로 집계를 계산한다. 각 present 비용에 factor/delta를 적용한 뒤 표준 라이브러리 유리수로 합산해
+기본값·양수/음수·zero 배율의 원래/조정 합계와 NULL을 대조한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·끝난 페이지·NULL/0,
 조회 전용 권한과 query 거부를 실제 generated HTTP로 확인하고 조회 전후 Label·Ticket 응답을 비교한다.
-`generated_label_usage_wire`는 exact int64·required nullable Decimal/Float/Duration·범위·잘못된 응답과
+`generated_label_usage_wire`는 exact Decimal query·int64·required factor/delta와 nullable Decimal/Float/Duration·범위·잘못된 응답과
 403/plain 500의 단일 전송을 검사한다. 두 권한의 개별 누락, 물리적인 외부 Category 연결과 snapshot/cursor 실패·audit 보존은
 Helpdesk 양 DB suite가 소유한다. 생성 코드만 있거나 synthetic wire가 성공한 것을 native 검증으로 계산하지 않는다.
 

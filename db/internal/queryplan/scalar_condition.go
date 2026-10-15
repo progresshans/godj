@@ -60,6 +60,10 @@ func AppendScalarCondition(statement *strings.Builder, condition query.Condition
 
 // ValidateScalarCondition checks both operands using the actual plan authority.
 func ValidateScalarCondition(plan query.Plan, condition query.Condition) error {
+	return (ScalarSource{Plan: plan}).ValidateCondition(condition)
+}
+
+func (source ScalarSource) ValidateCondition(condition query.Condition) error {
 	if _, err := query.NewExpression(condition); err != nil {
 		return err
 	}
@@ -67,11 +71,11 @@ func ValidateScalarCondition(plan query.Plan, condition query.Condition) error {
 	if !present {
 		return invalidPlan("computed comparison requires a scalar operand")
 	}
-	if err := plan.ValidateScalar(left); err != nil {
+	if err := source.Validate(left); err != nil {
 		return err
 	}
 	if right, present := condition.RHSScalar(); present {
-		return plan.ValidateScalar(right)
+		return source.Validate(right)
 	}
 	return nil
 }
