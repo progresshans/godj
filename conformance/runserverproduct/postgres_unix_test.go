@@ -199,12 +199,13 @@ func runGlobalPostgresArticleServerOnce(
 	}()
 
 	var address string
-	// The race harness still launches two ordinary cold child builds. This is a
-	// harness budget for constrained CI runners, not a product startup SLA.
-	readyTimer := time.NewTimer(3 * time.Minute)
+	preparationStarted := time.Now()
+	t.Logf("PostgreSQL runserver preparation started: budget=%s", runserverPreparationTimeout)
+	readyTimer := time.NewTimer(runserverPreparationTimeout)
 	defer readyTimer.Stop()
 	select {
 	case address = <-stdout.Ready():
+		t.Logf("PostgreSQL runserver preparation ready: %s", runserverPreparationProgress(environment, preparationStarted, time.Now()))
 		assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
 		if err := validateArticleReadinessAddress(address); err != nil {
 			t.Fatalf("invalid PostgreSQL Article readiness address %q: %v", address, err)
@@ -220,12 +221,12 @@ func runGlobalPostgresArticleServerOnce(
 	case waitErr := <-waited:
 		finished = true
 		assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
-		t.Fatalf("global PostgreSQL runserver exited before readiness: %v; stdout_bytes=%d stderr_bytes=%d", waitErr, len(stdout.String()), len(stderr.String()))
+		t.Fatalf("global PostgreSQL runserver exited before readiness: %v; preparation={%s} stdout_bytes=%d stderr_bytes=%d", waitErr, runserverPreparationProgress(environment, preparationStarted, time.Now()), len(stdout.String()), len(stderr.String()))
 	case <-readyTimer.C:
 		cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 		finished = true
 		assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
-		t.Fatalf("global PostgreSQL runserver readiness timed out: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
+		t.Fatalf("global PostgreSQL runserver readiness timed out: cleanup=%+v preparation={%s} stdout_bytes=%d stderr_bytes=%d", cleanup, runserverPreparationProgress(environment, preparationStarted, time.Now()), len(stdout.String()), len(stderr.String()))
 	}
 
 	body, requestErr := requestAdvancedArticlePage(address)

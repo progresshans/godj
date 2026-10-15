@@ -86,6 +86,62 @@ PostgreSQL·race·CGO0·전체 제품 테스트는 로컬에서 반복하지 않
 
 수정 source의 자동 전체 CI와 필수 실행·원본 증거 대조는 아직 남아 있다.
 
+### 실패 원본 보존과 수정 source의 전체 CI
+
+이후 이전 source의 Linux amd64 normal/CGO0 job `116277300155`/`116277300275`와 PostgreSQL race consumer
+job `116277299584`에서도 같은 조건부 COUNT 실패를 확인했다. PostgreSQL artifact `11953347564`의 run/head·ZIP
+size/digest를 확인하고 자식 원 event를 검사했다. 130개 child가 각각 한 번 시작해 125개 pass·5개 fail·skip 0으로
+종료했으며 package도 실패로 종료됐다. 실패는 양 DB의 `computed_case_filter_and_nulls`와 그 상위 runtime 테스트다.
+잘린 출력이나 미완료 child를 성공으로 계산하지 않았다.
+
+- Artifact ZIP SHA-256: `13f8a0192f8e3128da5e2f7522a30eda618311cd7654644801f32d4f5e6dd83d`
+- 원 `godj-collection-native.jsonl`: `eced988f526a4275a12889f6a57829f90490bb5ab61d8caaad73da0af7abd89e`
+- `ci-38691196268-failures/native-failure-audit.json`: `b38550b1b9e08b625b594303048ed91b59b48d7970b3bef592e7b5a452c02a1b`
+
+수정 source `080c677096ec082d5222283e7982b63d99579eb4`를 push했다. 새 push의 concurrency 정책에 따라 이전
+CI 38691196268은 success 47·failure 8·cancelled 28로 끝났으며 전체 결과는 cancelled다. 실패 8개에는
+조건부 COUNT로 실패한 제품 job 7개와 최종 CI 집계가 포함된다. 이 실행은 전체 PASS가 아니다.
+
+2026-10-15 06:47:22 UTC에 [자동 전체 CI 38694533865](https://github.com/progresshans/godj/actions/runs/38694533865),
+attempt 1·pull_request가 시작됐다. Validation-plan job `116288071857`의 checkout
+`b7fb8da952e2c8e857ac5f565cdf20a4b01feb2c`은 구현 head를 두 번째 parent로 가지며 실제 tree
+`f9c562c367f05009783db0f821da354cc6afbaa8`이 head와 동일하다.
+`ci-38694533865-source-binding-and-plan.json` SHA-256은
+`a2a931bd9fd4449afeb10d08c71e04872c789b69eef06c60393604361a04f718`, validation-plan 원 로그는
+`458c64734def0663c7bbe8472609b365e9cee4ebd805dfea72862d50305bfca4`다.
+PR body `gdj0127-pr1-body-080c6770.md` SHA-256
+`2409d630d30e340d7e1125f4af0ca9c3901e679f4f696ab2a5d41d921105f7f3`을 실제 게시 내용과 대조했다.
+새 source의 필수 원격 실행과 원본 증거 대조는 아직 완료되지 않았다.
+
+### 후속 CI의 준비 timeout·DNS 실패와 runserver 진단 보완
+
+Source `080c6770`의 CI 38694533865에서 macOS Intel CGO0/normal job `116288126488`/`116288126695`가
+`TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI`의 readiness 120초 제한으로 실패했다.
+실패 테스트의 전체 시간은 151.03/142.16초이며 직접·자손 process 회수는 강제 종료 없이 끝났다.
+원 로그에는 stdout 0·stderr 52 bytes만 있으므로 지연된 내부 단계나 제품 결함을 확정할 수 없다.
+같은 source의 macOS Intel race relation shard `116288127079`는 `go mod download all` 중
+`proxy.golang.org` DNS의 `no such host`/`i/o timeout`으로 실패했다. 이 shard는 제품 실행 성공의 증거가 아니다.
+세 job의 head와 실제 checkout `b7fb8da9`를 원 로그에 대조하고 저장했다. 전체 CI는 PASS가 아니다.
+
+Runserver readiness 이전에는 declaration/runtime 두 readonly 빌드와 generated-bundle 검사가 실행된다.
+기존 SQLite 2분·PostgreSQL 3분을 공통 5분의 준비 예산으로 정리했다. 실제 HTTP·인증·저장 보존·generation drift·
+shutdown/자손 회수·출력 한도는 그대로 검사한다. Go command audit에 시작 시각을 추가하고 준비 진단에는
+고정 phase 이름·시작 수·경과 시간만 표시한다. 시작 기록을 완료로 간주하거나 임의 argument·private 경로를 출력하지 않는다.
+누락/손상/과대 audit와 민감 argument의 부정 대조를 추가하고 product workflow의 필수 목록에 넣었다.
+
+로컬 Go 1.26.5 darwin/arm64·CGO0에서 관측된 인증 테스트 하나를 실행했으나 원래 코드도 1 run/pass·skip 0으로
+성공해 Intel CI의 timeout은 재현되지 않았다. 변경 후 같은 인증 테스트와 안전한 진단 테스트는 2 run/pass·fail/skip 0이다.
+준비 완료 로그는 5.883초·Go command 시작 6개·마지막 `identity_metadata`를 기록했고 기존 실제 인증/저장/cleanup
+검사도 완료했다. 이 로컬 결과는 Intel의 지연 원인 확정이나 예산 변경의 원격 성공을 뜻하지 않는다.
+PostgreSQL·race·전체 suite는 로컬에서 반복하지 않았다. DNS 실패를 숨기는 retry나 skip도 추가하지 않았다.
+
+- 원 코드 local receipt: `gdj0127-runserver-readiness-repro-keihcdsb/receipt.json`, SHA-256 `62aecf6895fc93f7ada98cd3c19a2a7428ffdec8b6a3bf01503d0a4d019808cf`
+- 변경 local receipt: `gdj0127-runserver-readiness-after-77uikvhp/receipt.json`, SHA-256 `55ea4b5375b5689c6d8ad0adade4ce11e2446fb54159293838d1bc1173d81bc1`
+- 세 실패 job·source·로컬 확인·변경 source hash 결합: `ci-38694533865-failures/readiness-repair-receipt.json`, SHA-256 `86283fb3380dab5f85bad4034221db3cb2831df4b89ec5aa422f6108b19df7e9`
+
+새 source의 자동 전체 CI에서 이 보완과 전체 기능을 검증해야 한다. 별도 temporal 작업 공간의 GDJ-0128 코드는
+이 실행·수정 묶음에 포함하지 않았다.
+
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
 2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고

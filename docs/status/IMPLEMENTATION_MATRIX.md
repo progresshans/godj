@@ -7,7 +7,9 @@ GDJ-0127은 collection 숫자·Decimal 계산식과 CASE/FILTER를 완료된 집
 값·조건은 같은 원본 collection JOIN occurrence를 사용하며 행 projection·WHERE·UPDATE 경계를 유지한다.
 Helpdesk 라벨별 조정 비용의 입력·HTML/API·고정 SDK·브라우저 검증 코드를 통합했다.
 로컬 생성·compile과 독립 정적 검토 뒤 source `c6e96c41`을 push했다. 첫 전체 CI에서 조건부 COUNT 소비자의
-잘못된 COUNT(*) 요청을 확인해 명시적인 티켓 ID 집계로 수정하고 해당 SQLite 실패를 재검증했다. 후속 source의 전체 검증은 남아 있다.
+잘못된 COUNT(*) 요청을 확인해 명시적인 티켓 ID 집계로 수정하고 해당 SQLite 실패를 재검증했다.
+수정 source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과 의존성 DNS 실패를 확인했다.
+준비 예산·안전한 단계 진단을 보완했으며 새 source의 전체 원격 검증이 필요하다.
 
 GDJ-0126은 Decimal 산술과 computed SUM/AVG, source/result/target precision, 정확한 query parameter 및
 Helpdesk 비용 미리보기를 연결하고 원격 실패를 수정했다. Source `b66a5aad`의 Decimal 양 DB·세 mode,

@@ -1,6 +1,6 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 첫 원격 소비자 실패 수정; 후속 전체 원격 검증 대기
+- 상태: 조건부 COUNT 수정 후 CI의 준비 timeout·DNS 실패 확인; runserver 준비 예산·진단 보완, 전체 검증 대기
 - 시작: 2026-10-15
 - 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI·원본 증거 대조 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -52,7 +52,11 @@ Helpdesk 라벨 사용 현황의 factor/delta 입력·원래/조정 비용 합�
 [자동 전체 CI 38691196268](https://github.com/progresshans/godj/actions/runs/38691196268)가 시작됐다.
 첫 원격 실행의 조건부 COUNT 소비자가 현행 계약에서 거부하는 COUNT(*) FILTER를 요청한 실패를 재현했다.
 명시적인 연결 티켓 ID의 COUNT로 수정하고 같은 SQLite 실패 경로를 확인했다. 필드/계산식 FILTER의 결합과
-원래 기대값·저장 보존·필수 실행 목록을 유지했다. 수정 source의 전체 원격 실행·원본 증거 대조가 남아 있다.
+원래 기대값·저장 보존·필수 실행 목록을 유지했다. 수정 source `080c677096ec082d5222283e7982b63d99579eb4`의
+[자동 전체 CI 38694533865](https://github.com/progresshans/godj/actions/runs/38694533865)가 시작됐으며
+macOS Intel의 runserver 준비 timeout 두 건과 relation shard의 의존성 DNS 실패를 확인했다.
+준비 예산과 민감 값을 제외한 단계 진단을 보완했고, 로컬 ARM CGO0에서 인증·진단 검사를 확인했다.
+이는 Intel 실패의 재현·해결 증거가 아니며 새 source의 전체 원격 실행·원본 증거 대조가 남아 있다.
 
 ## 완료 조건
 

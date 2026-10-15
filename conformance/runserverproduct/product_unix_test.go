@@ -63,7 +63,7 @@ func runAuditedGoCommand() int {
 	if realGo == "" || logPath == "" {
 		return 95
 	}
-	payload, err := json.Marshal(os.Args[1:])
+	payload, err := json.Marshal(runserverGoAuditRecord{Arguments: os.Args[1:], StartedAt: time.Now().UTC()})
 	if err != nil {
 		return 96
 	}
@@ -556,10 +556,13 @@ func runGlobalArticleServer(
 	}()
 
 	var address string
-	readyTimer := time.NewTimer(2 * time.Minute)
+	preparationStarted := time.Now()
+	t.Logf("runserver preparation started: budget=%s", runserverPreparationTimeout)
+	readyTimer := time.NewTimer(runserverPreparationTimeout)
 	defer readyTimer.Stop()
 	select {
 	case address = <-stdout.Ready():
+		t.Logf("runserver preparation ready: %s", runserverPreparationProgress(environment, preparationStarted, time.Now()))
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 		if err := validateArticleReadinessAddress(address); err != nil {
 			t.Fatalf("invalid Article readiness address %q: %v", address, err)
@@ -575,12 +578,12 @@ func runGlobalArticleServer(
 	case waitErr := <-waited:
 		finished = true
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
-		t.Fatalf("global runserver exited before readiness: %v; stdout_bytes=%d stderr_bytes=%d", waitErr, len(stdout.String()), len(stderr.String()))
+		t.Fatalf("global runserver exited before readiness: %v; preparation={%s} stdout_bytes=%d stderr_bytes=%d", waitErr, runserverPreparationProgress(environment, preparationStarted, time.Now()), len(stdout.String()), len(stderr.String()))
 	case <-readyTimer.C:
 		cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 		finished = true
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
-		t.Fatalf("global runserver readiness timed out: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
+		t.Fatalf("global runserver readiness timed out: cleanup=%+v preparation={%s} stdout_bytes=%d stderr_bytes=%d", cleanup, runserverPreparationProgress(environment, preparationStarted, time.Now()), len(stdout.String()), len(stderr.String()))
 	}
 
 	exerciseErr := exercise(address)
@@ -912,10 +915,11 @@ func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []st
 	lines := bytes.Split(bytes.TrimSpace(payload), []byte{'\n'})
 	buildIndex := 0
 	for index, line := range lines {
-		var arguments []string
-		if err := json.Unmarshal(line, &arguments); err != nil {
+		var record runserverGoAuditRecord
+		if err := json.Unmarshal(line, &record); err != nil || record.StartedAt.IsZero() {
 			t.Fatalf("decode runserver Go command audit %d: %v", index, err)
 		}
+		arguments := record.Arguments
 		// Reusable identity models resolve their package directory read-only.
 		// Only this exact metadata query is allowed alongside binary builds.
 		if reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}) {

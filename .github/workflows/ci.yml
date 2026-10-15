@@ -606,6 +606,7 @@ jobs:
             "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
             "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
             "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
+            "TestRunserverPreparationDiagnosticsExcludeArgumentsAndDistinguishUnavailableAudit"
           )
           required="$RUNNER_TEMP/runserver-required.txt"
           for test_name in "${runserver_required[@]}"; do
