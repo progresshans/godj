@@ -133,9 +133,9 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 		session.backend.queryCount.Add(1)
 		rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
 		if err != nil {
-			return nil, fmt.Errorf("execute SQLite transaction query: %w", err)
+			return nil, fmt.Errorf("execute SQLite transaction query: %w", classifySQLiteScalarError(err))
 		}
-		return rows, nil
+		return scalarQueryRows{rows}, nil
 	})
 }
 

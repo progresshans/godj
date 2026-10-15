@@ -1,6 +1,6 @@
 # GDJ-0126: Decimal 계산식과 예상 비용 조정 미리보기
 
-- 상태: 계약 채택, 구현·검증 묶음 작성, 원격 전체 검증 대기
+- 상태: 계약 채택, 구현·검증 묶음 push, 원격 전체 검증·실패 수정 중
 - 시작: 2026-10-15
 - 기준: `ebc9615d520406f5e50f42a6b5b08b8078b44d41`
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -26,6 +26,8 @@ Helpdesk의 nullable 예상 비용에 배율과 가감액을 적용한 결과를
   division-scale 규칙으로 한 번 half-away-from-zero 반올림한다. 저장/중간 NUMERIC의 trailing scale에 따른 PostgreSQL과의
   차이는 명시적으로 관찰하며 양 DB의 모든 결과가 같다고 주장하지 않는다. SQLite의 zero division/remainder는 NULL,
   PostgreSQL은 native 오류다. Django SQLite NUMERIC affinity와의 차이는 기존 exact Decimal deviation에 기록한다.
+  PostgreSQL Decimal literal도 NUMERIC으로 cast한다. 고정 Django의 정수 표기 Decimal끼리의 integer division과
+  소수점 표기를 별도로 관측하며, GoDj는 원문 표기로 Decimal 연산 종류를 바꾸지 않는다.
 - 계산된 Decimal의 SUM/AVG는 각 기여 값을 검증하고 정확한 상태를 집계 invocation마다 소유한다. SQLite는 canonical
   값의 scale을 사용하고 PostgreSQL은 native NUMERIC 결과 scale을 유지한다. 원본 field 집계의 기존 의미는 유지한다.
   DISTINCT·FILTER·empty/all-NULL·HAVING·결과 단계·페이지에도 같은 표현식 identity와 결과 domain을 사용한다.

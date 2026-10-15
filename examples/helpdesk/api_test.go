@@ -177,7 +177,8 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 33; index++ {
+	const expectedRoutes = 34
+	for index := 1; index <= expectedRoutes; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -188,7 +189,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		t.Fatal("typed endpoint accepted an undocumented authentication profile")
 	}
 	adapter, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{&helpdeskRecordingAuthentication{}}))
-	if err != nil || len(adapter.Routes()) != 33 {
+	if err != nil || len(adapter.Routes()) != expectedRoutes {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err != nil {

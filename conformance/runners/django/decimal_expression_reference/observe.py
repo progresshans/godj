@@ -195,6 +195,7 @@ def observe(vendor):
         action('update_null', lambda: update(amount=F('amount')+Value(None, output_field=models.DecimalField())))
         action('divide', lambda: rows(F('amount') / Decimal('3')))
         action('divide_integer', lambda: rows(Value(Decimal('100')) / Value(Decimal('3')), base.filter(code='a')))
+        action('divide_decimal_spelling', lambda: rows(Value(Decimal('100.0')) / Value(Decimal('3.0')), base.filter(code='a')))
         action('divide_native_scale', lambda: rows(F('wide') / Decimal('3'), base.filter(code='a')))
         action('remainder', lambda: rows(F('amount') % Decimal('0.3')))
         action('divide_zero', lambda: rows(F('amount') / Decimal('0'), base.filter(code='a')))

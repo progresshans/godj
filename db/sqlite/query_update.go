@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"strings"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/db/internal/txscope"
 	"github.com/progresshans/godj/query"
-	modernsqlite "modernc.org/sqlite"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var (
@@ -43,13 +40,8 @@ func classifySQLiteQueryUpdate(ctx context.Context, err error) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	var native *modernsqlite.Error
-	if errors.As(err, &native) && native.Code() == sqlite3.SQLITE_ERROR && strings.Contains(native.Error(), invalidIntegerExpression) {
-		return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "SQLite integer expression is outside the exact int64 domain", Cause: err}
-	}
-	if errors.As(err, &native) && native.Code() == sqlite3.SQLITE_ERROR &&
-		(strings.Contains(native.Error(), invalidDecimalExpression) || strings.Contains(native.Error(), errDecimalAggregateInput.Error())) {
-		return &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "SQLite decimal expression is outside its exact value or declared field domain", Cause: err}
+	if classified := classifySQLiteScalarError(err); errors.Is(classified, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue}) {
+		return classified
 	}
 	return classifySQLiteWriteError(ctx, "update", err)
 }

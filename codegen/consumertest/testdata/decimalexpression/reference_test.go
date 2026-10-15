@@ -73,14 +73,22 @@ func TestDecimalReference(t *testing.T) {
 				if record.Error != nil {
 					t.Fatal("unowned native Decimal observation error", record.Error)
 				}
+				if vendor == "postgres" && record.Name == "divide_integer" {
+					// Django/psycopg renders integral Decimal literals without a
+					// NUMERIC cast: PostgreSQL infers integer / integer. GoDj keeps
+					// the explicit Decimal kind regardless of its original spelling.
+					assertDecimalJSON(t, json.RawMessage(record.Result), `[{"code":"a","value":"33"}]`)
+					assertDecimalJSON(t, actual, `[{"code":"a","value":"33.3333333333333333"}]`)
+					return
+				}
 				if vendor == "sqlite" {
 					var expectedNative, expectedExact string
 					switch record.Name {
 					case "divide":
-						expectedNative = `[{"code":"a","value":"4.16666666666667"},{"code":"b","value":"-2.41666666666667"},{"code":"c","value":null},{"code":"d","value":"0"},{"code":"e","value":"4.16666666666667"},{"code":"f","value":"33"}]`
+						expectedNative = `[{"code":"a","value":"4.16666666666667"},{"code":"b","value":"-2.41666666666667"},{"code":"c","value":null},{"code":"d","value":"0"},{"code":"e","value":"4.16666666666667"},{"code":"f","value":"33.3333333333333"}]`
 						expectedExact = `[{"code":"a","value":"4.1666666666666667"},{"code":"b","value":"-2.4166666666666667"},{"code":"c","value":null},{"code":"d","value":"0"},{"code":"e","value":"4.1666666666666667"},{"code":"f","value":"33.3333333333333333"}]`
-					case "divide_integer":
-						expectedNative = `[{"code":"a","value":"33"}]`
+					case "divide_integer", "divide_decimal_spelling":
+						expectedNative = `[{"code":"a","value":"33.3333333333333"}]`
 						expectedExact = `[{"code":"a","value":"33.3333333333333333"}]`
 					case "divide_native_scale":
 						expectedNative = `[{"code":"a","value":"0.0` + strings.Repeat("3", 15) + `"}]`

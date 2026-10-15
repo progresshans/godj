@@ -88,12 +88,26 @@ func TestGeneratedResultCaptureRetainsCompleteEventsAndDetectsOverflow(t *testin
 
 func runStrictGeneratedCommand(t *testing.T, command *exec.Cmd) []byte {
 	t.Helper()
+	return runStrictGeneratedCommandWithCapture(t, command, nil)
+}
+
+// Retain a native consumer's original events before reporting execution
+// failure. Diagnostic redaction must not erase synthetic reference differences
+// from the separately owned CI artifact. Truncation still fails validation.
+func runStrictGeneratedCommandWithCapture(t *testing.T, command *exec.Cmd, retain func([]byte) error) []byte {
+	t.Helper()
 	var stdout generatedTestCapture
 	var stderr gobuild.Capture
 	command.Stdout, command.Stderr = &stdout, &stderr
 	command.WaitDelay = 5 * time.Second
-	if err := command.Run(); err != nil {
-		t.Fatalf("generated consumer: %v: %s", err, generatedFailureSummary(stdout.Bytes(), stderr.Bytes(), command.Env))
+	runErr := command.Run()
+	if retain != nil {
+		if err := retain(stdout.Bytes()); err != nil {
+			t.Fatal("cannot retain generated consumer events", err)
+		}
+	}
+	if runErr != nil {
+		t.Fatalf("generated consumer: %v: %s", runErr, generatedFailureSummary(stdout.Bytes(), stderr.Bytes(), command.Env))
 	}
 	if stdout.Len() != len(stdout.Bytes()) || stderr.Len() != len(stderr.Bytes()) || stderr.Len() != 0 {
 		t.Fatalf("generated consumer output was incomplete: stdout %d/%d bytes, stderr %d/%d bytes", len(stdout.Bytes()), stdout.Len(), len(stderr.Bytes()), stderr.Len())

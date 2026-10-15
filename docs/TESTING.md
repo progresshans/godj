@@ -271,9 +271,10 @@ GDJ-0125의 컬렉션 집계도 같은 세 native owner에서 별도의
 `collection-aggregate-reference/`에 함께 보존한다. Missing reference·잘린 event·미실행/skip은 성공이 아니다.
 
 GDJ-0126의 Decimal 계산식은 같은 세 native owner에서 [독립 observer](../conformance/runners/django/decimal_expression_reference/README.md)의
-양 DB 각 29개 사례와 현재 source hash/runtime/오류 목록·전체 컬럼 rollback/정리를 확인한다.
-생성 소비자는 양 DB reference/runtime 82개 child run/pass·skip 0과 compile-negative 7개를 요구하며
+양 DB 각 30개 사례와 현재 source hash/runtime/오류 목록·전체 컬럼 rollback/정리를 확인한다.
+생성 소비자는 양 DB reference/runtime 84개 child run/pass·skip 0과 compile-negative 7개를 요구하며
 `decimal-expression-reference/`의 원 JSON과 `godj-decimal-native.jsonl`을 같은 artifact에 보존한다.
+Native child 실행 실패에도 원 이벤트를 보존하며 stdout/stderr가 잘렸거나 실행이 빠진 경우 성공으로 처리하지 않는다.
 Helpdesk의 45개 티켓·외부 Category, exact 비용·NULL·계산 필터/순서/Page, 권한·15개 snapshot/cursor 실패와
 전체 저장/audit 보존은 기존 양 DB owner에 추가한다. 별도 output 실패는 prepared 응답의 부재를 검사한다.
 독립 OpenAPI client의 `helpdesk_cost_preview`, `generated_cost_preview_wire` receipt와 브라우저 22개 check,

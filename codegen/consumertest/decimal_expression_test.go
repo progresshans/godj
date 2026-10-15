@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"maps"
 	"os"
@@ -69,6 +70,7 @@ var decimalReferenceCases = []string{
 	"update_null",
 	"divide",
 	"divide_integer",
+	"divide_decimal_spelling",
 	"divide_native_scale",
 	"remainder",
 	"divide_zero",
@@ -195,20 +197,21 @@ func TestGeneratedDecimalExpressions(t *testing.T) {
 			}
 		}
 	}
-	output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestDecimal(Reference|Runtime)$", "./consumer"))
-	if references != "" {
+	output := runStrictGeneratedCommandWithCapture(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestDecimal(Reference|Runtime)$", "./consumer"), func(output []byte) error {
+		if references == "" {
+			return nil
+		}
 		// Retain the untruncated native child events alongside this owner's
-		// independent reference. A later audit can check each run/pass itself.
+		// independent reference, including failed executions. A later audit can
+		// check each run/pass or inspect the exact synthetic failure itself.
 		file, err := os.OpenFile(filepath.Join(references, "godj-decimal-native.jsonl"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 		_, writeErr := file.Write(output)
 		closeErr := file.Close()
-		if writeErr != nil || closeErr != nil {
-			t.Fatal("cannot preserve decimal native events", writeErr, closeErr)
-		}
-	}
+		return errors.Join(writeErr, closeErr)
+	})
 	assertGeneratedConsumerTests(t, output, required...)
 	runs, passes := map[string]int{}, map[string]int{}
 	decoder := json.NewDecoder(bytes.NewReader(output))

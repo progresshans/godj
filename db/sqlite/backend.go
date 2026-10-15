@@ -82,7 +82,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err != nil {
 		return nil, classifyQueryError(err, queryplan.SourceTable(plan))
 	}
-	return rows, nil
+	return scalarQueryRows{rows}, nil
 }
 
 func classifyQueryError(err error, table string) error {
@@ -94,7 +94,7 @@ func classifyQueryError(err error, table string) error {
 			Cause:    err,
 		}
 	}
-	return fmt.Errorf("execute SQLite query: %w", err)
+	return fmt.Errorf("execute SQLite query: %w", classifySQLiteScalarError(err))
 }
 
 func isSQLiteMissingTableError(err error, table string) bool {

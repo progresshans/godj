@@ -239,6 +239,9 @@ func observeDecimal(t *testing.T, reader db.Session, name string) (any, error) {
 	case "divide_integer":
 		base = base.Filter(f.Code.Exact("a"))
 		return rows(orm.Decimal(orm.Value[ledger.Entry](d("100"))).Divide(d("3")))
+	case "divide_decimal_spelling":
+		base = base.Filter(f.Code.Exact("a"))
+		return rows(orm.Decimal(orm.Value[ledger.Entry](d("100.0"))).Divide(d("3.0")))
 	case "divide_native_scale":
 		base = base.Filter(f.Code.Exact("a"))
 		return rows(orm.Decimal(orm.F(f.Wide)).Divide(d("3")))

@@ -476,7 +476,7 @@ func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.
 		}
 		rows, err := session.state.connection.QueryContext(ctx, statement, arguments...)
 		if err != nil {
-			return nil, fmt.Errorf("execute SQLite relation transaction query: %w", err)
+			return nil, fmt.Errorf("execute SQLite relation transaction query: %w", classifySQLiteScalarError(err))
 		}
 		if rows == nil {
 			return nil, inactiveRelationSessionError()
@@ -484,9 +484,9 @@ func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.
 		if owner, ok := session.state.connection.(interface {
 			WrapRows(db.Rows, *sql.Rows) db.Rows
 		}); ok {
-			return owner.WrapRows(rows, rows), nil
+			return scalarQueryRows{owner.WrapRows(rows, rows)}, nil
 		}
-		return rows, nil
+		return scalarQueryRows{rows}, nil
 	})
 }
 

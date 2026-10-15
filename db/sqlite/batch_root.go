@@ -94,7 +94,7 @@ func (scope *rootBatchScope) queryCompiled(ctx context.Context, statement string
 	if err != nil {
 		return nil, errors.Join(classifyQueryError(err, table), lease.Close())
 	}
-	return lease.Rows(rows), nil
+	return scalarQueryRows{lease.Rows(rows)}, nil
 }
 
 func (scope *rootBatchScope) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
@@ -120,7 +120,7 @@ func (scope *rootBatchScope) Query(ctx context.Context, plan query.Plan) (db.Row
 	if err != nil {
 		return nil, errors.Join(classifyQueryError(err, queryplan.SourceTable(plan)), lease.Close())
 	}
-	return lease.Rows(rows), nil
+	return scalarQueryRows{lease.Rows(rows)}, nil
 }
 
 func (scope *rootBatchScope) Insert(ctx context.Context, plan query.InsertPlan) (value int64, err error) {

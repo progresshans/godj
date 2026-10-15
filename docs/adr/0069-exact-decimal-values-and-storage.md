@@ -75,12 +75,18 @@ NULL을 0으로 만들지 않으며 다른 NULL operand나 후속 0 곱셈·조�
 SQLite는 statement 내부의 stateless 함수에서 canonical BLOB을 검증하고 `math/big`로 정확히 계산한다.
 Division은 canonical 두 operand의 scale과 위 PostgreSQL division-scale 규칙에서 정한 scale로 한 번 반올림한다.
 Remainder의 몫은 0 방향으로 잘라 나머지가 왼쪽 값의 부호를 따른다. SQLite의 zero division/remainder는 NULL이다.
+SQLite의 함수 오류는 조회 시작·행 순회·transaction/stream과 UPDATE에서 같은 `invalid_value`로 분류하며
+원본 driver 오류와 취소·cursor/lease 수명을 보존한다. 일반 SQL 오류의 identifier 문구를 함수 오류로 분류하지 않는다.
 
 PostgreSQL은 native NUMERIC 연산·display scale·SQLSTATE를 유지한다. Scalar compiler의 내부 SELECT binding과 OFFSET 0으로
 operand/result를 검사하는 경계를 보존한다. 각 guard에 전체 하위 SQL을 반복해 크기가 지수적으로 늘지 않게 하며,
 NULL인 상대 operand가 native strict 연산을 접어도 non-null operand의 검증을 생략하지 않는다.
 이 compiler 내부 binding은 일반 subquery AST 지원을 뜻하지 않는다. Aggregate 결과 guard는 원 query level에 두어
 상수 집계의 row 소유권을 바꾸지 않는다. SQL/parameter/AST 자원 한도는 유지한다.
+
+Decimal literal도 명시적으로 NUMERIC으로 cast한다. 고정 Django/psycopg가 정수 표기의 `Decimal('100')`·`Decimal('3')`을
+SQL `100 / 3`으로 보내 `33`을 얻는 동작과 다르다. GoDj는 두 Decimal의 몫 `33.3333333333333333`을 반환하며,
+원문이 `100.0`·`3.0`인지에 따라 정수 나눗셈으로 바뀌지 않는다. 이 차이는 DEV-0016의 명시적 selector로 유지한다.
 
 SQLite BLOB은 PostgreSQL NUMERIC의 trailing display scale을 보존하지 않는다. 따라서 canonical `.1 / 3`과
 NUMERIC(1000,1000)의 같은 값은 division scale이 다를 수 있다. 이 차이는 독립 native 관측으로 기록한다.

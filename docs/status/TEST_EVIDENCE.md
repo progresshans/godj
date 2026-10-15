@@ -5,15 +5,16 @@
 
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
-2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 작업 사본에서 구현·검증 묶음을 작성 중이다.
-이 source의 제품 테스트·native DB·독립 client HTTP·브라우저·Hosted 전체 검증은 아직 실행/완료되지 않았다.
+2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고
+source `366683f369dc4c1edb8ef824ae5e884ec4a6059e`로 push했다. 첫 원격 전체 CI에서 실패를 확인해 수정 중이다.
+제품 테스트·native DB·독립 client HTTP·브라우저·Hosted 전체 통합 검증은 아직 완료되지 않았다.
 이전 GDJ-0125 source의 전체 성공을 새 코드의 PASS로 사용하지 않는다.
 
-작성한 범위는 공통 Decimal AST·typed capability·양 compiler·computed 집계·target 정밀도, 두 앱 생성 소비자,
+최초 묶음의 범위는 공통 Decimal AST·typed capability·양 compiler·computed 집계·target 정밀도, 두 앱 생성 소비자,
 독립 Django 29개 관측과 native rollback/범위, Helpdesk 정확한 비용 필터/정렬/Page·권한·snapshot·출력,
 고정 OpenAPI client 두 receipt와 browser 22개 check다. 설계와 deviation은 ADR-0069/0090/0091·DEV-0016이 소유한다.
-Observer `8d5e641657f3343304126d7fad2b75738f952a4e071213312e2c7240d472cf37`, input `48ded8af1b0591fa3fbe693a5107609ee7d4c45fff11f146b7a4349371bbbe62`, source manifest `2aa5faf2b932737f78e89d85e6547aebc17676dff7b55a5e53acb382a0ca2079`를
-세 native consumer owner에서 실제 실행하고 source/runtime/필수 목록·원 events를 대조해야 한다.
+최초 observer는 `8d5e641657f3343304126d7fad2b75738f952a4e071213312e2c7240d472cf37`, input은 `48ded8af1b0591fa3fbe693a5107609ee7d4c45fff11f146b7a4349371bbbe62`, source manifest는 `2aa5faf2b932737f78e89d85e6547aebc17676dff7b55a5e53acb382a0ca2079`다.
+세 native consumer owner에서 실행한 뒤 발견한 차이와 후속 observer 변경은 아래에 구분한다.
 
 로컬은 다음 단계의 최소 normal compile과 생성만 수행했다. 제품 test body와 DB/HTTP/browser를 실행하지 않았다.
 - 핵심 compile `decimal-core-compile-641mraa7`, receipt `4443e89712becb77d7fea508f5f6bb32ab806c656fcc9080d7288cc49f68b7a8`.
@@ -36,6 +37,68 @@ NULL의 기존 kind 추론을 runtime fixture에서도 유지한 뒤 생성 소�
 계산된 Decimal group key의 NULL/zero 구분도 작성하고 최소 compile을 확인했다. 마지막 fixture receipt는
 `59a72dbd8d8ad680957791c2e3ae77424bb81f4e74ed23fc8ffde7b827dba74b`다.
 여전히 제품 test body 실행 성공을 뜻하지 않는다. Push 뒤 전체 CI 및 같은 source 원본 audit가 남아 있다.
+
+### 첫 원격 실패와 제한된 로컬 재현
+
+Source `366683f369dc4c1edb8ef824ae5e884ec4a6059e`의
+[CI 38671034252](https://github.com/progresshans/godj/actions/runs/38671034252)는 전체 PASS가 아니다.
+Portable normal/CGO0/race integration의 인증 구성 테스트가 새 경로를 추가한 뒤에도 33개 경로를 기대했다.
+실제 API·OpenAPI의 34개 경로 계약과 맞추고, 인증 실패·nil handler 주입도 마지막 경로까지 확인하도록 수정했다.
+인증·권한 구현이나 실패 조건을 완화하지 않았다.
+
+원본 job 116214338797/116214338879/116214338965 로그는 `godj-verification/ci-38671034252-failures/`에 보존했다.
+로컬 normal에서 해당 테스트 하나만 같은 실패로 재현한 뒤, 수정 후 run/pass 각 1·fail/skip 0을 확인했다.
+`decimal-auth-route-repair-22exnqff/after-receipt.json` SHA-256은
+`b69f6ca46e2c3bda3c995296dca866320124d3faaa08ed271556ea38ccd83a5e`다.
+이 결과는 새 source의 원격 전체 통합·실제 DB·client/browser 성공을 뜻하지 않는다.
+
+같은 source의 Linux 관계 소비자와 세 native owner에서 `TestGeneratedDecimalExpressions`도 실패했다.
+SQLite는 손상된 Decimal 입력을 거부했지만 조회 시작 오류를 일반 DB 오류로 반환해 `invalid_value` 분류를 잃었다.
+실패한 검사가 복구 코드에 도달하지 못해 뒤의 두 사례와 저장 전후 대조도 연쇄 실패했다.
+읽기 시작·Scan/Err/Close, 일반/관계/조정 transaction과 batch lease에 같은 scalar 오류 분류를 연결했다.
+원본 native cause·취소·기존 cursor/transaction/connection 수명은 유지한다. 같은 문구가 들어간 missing-table 오류를
+scalar 오류로 오인하는 경우도 실제 native 오류로 재현하고 함수 진단의 prefix·경계만 받도록 수정했다.
+
+자료 `decimal-read-error-repair-k73kq0p1`에서 기존 손상 값 사례의 수정 전 실패와 수정 후 통과를 보존했다.
+후속 두 사례까지 함께 실행한 local normal SQLite 결과는 root/DB 포함 run/pass 각 5·fail/skip 0이며,
+`runtime-repair-final-receipt.json` SHA-256은 `cb417479981b16c75ab3b194320bf2e101bf8b53eae6821aa5246a202af4a872`다.
+첫 행/늦은 순회·Decimal source/result·integer result·transaction/batch·native cause·lookalike 회귀는
+run/pass 각 11·fail/skip 0이며 `read-scopes-final-receipt.json` SHA-256은
+`1658c9accd8de9eef148191f04bdd10d7cb9379bb1384f8ff70da936fe0232a2`다.
+
+### 실제 참조 결과와 명시적 Decimal kind
+
+세 native owner의 29개 Django 관측 자체는 예상한 오류·저장 보존/정리 조건을 만족했다. Go 비교가 가진 세 기대가 달랐다.
+CGO0 artifact `11944479990`의 ZIP size·GitHub digest·run/head를 대조했으며 원 ZIP SHA-256은
+`9c498bf29d7b35fd9f44eff06b07ab12f995a19ba044c69e37f1b49c6da39b1c`다.
+양 native JSON은 `ci-38671034252-failures/cgo0-core/artifact/decimal-expression-reference/`에 보존했다.
+SQLite JSON SHA-256 `6dc820fd772957155cfe14ba01aa788c46c8550b0d6a46ea2e87d2ebaaf501f0`,
+PostgreSQL JSON `451abbc6e8048c62f97415e7bcf2a6a748d0eaad0dac0d324159f19d78104187`다.
+
+고정 Django SQLite의 SQL은 Decimal 상수를 REAL로 cast하므로 두 `100 / 3` 관측은 `33.3333333333333`이었다.
+두 native 기대값을 원본대로 수정했다. PostgreSQL은 정수 표기의 상수 둘을 SQL `100 / 3`으로 보내 `33`을 반환했다.
+GoDj는 명시적 Decimal kind를 NUMERIC으로 cast하는 계약을 유지하며 이 차이를 DEV-0016에 기록했다.
+원문 `100.0 / 3.0`을 별도 관측으로 추가해 두 표기의 결과를 대조한다. 관측은 30개, 필수 native child는 84개가 됐으며
+기존 사례·실패 조건을 삭제하거나 wildcard로 제외하지 않았다. 실패한 native child의 원 이벤트도 artifact에 먼저 보존하도록
+공통 strict capture를 확장했다. 출력 한도·stderr·미실행/skip 거부는 유지한다.
+
+새 observer SHA-256은 `f3f42526b4c735b294e7977943b793baea81130753e367e6b1c8659c2bcb3f9d`다.
+로컬 Python 3.14.3·Django 6.1·SQLite 3.50.4 darwin/arm64에서 30개 관측과 전체 저장 보존/정리를 확인했다.
+Go의 실패 두 사례와 새 표기 대조만 재실행해 root/DB 포함 run/pass 각 5·fail/skip 0을 확인했다.
+`reference-after-receipt.json` SHA-256은 `91af14331615d9db4b8dcf5296861fd10d37d8f7cbe8c0d0f3d7ea10e9762f32`다.
+소비자 parent의 최소 compile도 통과했다. 변경된 제품/검증 source 14개와 각 결과를 보존한 `repair-receipt.json`
+SHA-256은 `9ea131d3bfac7d10e86de59ed39e15e5dc1f8793c0e3af826ad795d215f844da`다.
+새 PostgreSQL 관측과 수정 source의 원격 전체 통합·브라우저·원본 대조는 아직 남아 있다.
+
+### 최초 source의 별도 PostgreSQL Helpdesk 결과
+
+Job `116214338541`, artifact `11943989948`의 PostgreSQL race Helpdesk는 같은 source에서 완료됐다.
+Run/head·checkout tree·ZIP size/digest와 원 Go event를 대조하여 비용 미리보기 21개 항목을 각각 한 번 run/pass,
+skip 0으로 확인했다. Parent/package도 통과했고 원 event 전체에 fail/skip이 없다. 실제 실행 shell의 race 선택과 flag도 확인했다.
+권한·Category 격리·정확한 계산/NULL·HTML escape·15개 snapshot/cursor 실패·전체 모델/관계/audit 보존을 포함한다.
+`ci-38671034252-helpdesk-postgres-race/audit.json` SHA-256은
+`2cac07766e0ad44def291d719995c7b61909214a5a6ce29e0988e7c2f1eb97a3`다.
+이는 실패한 최초 source의 부분 증거이며 후속 수정 source의 전체 PASS로 사용하지 않는다.
 
 ## GDJ-0125 — 컬렉션 집계와 라벨 사용 현황
 

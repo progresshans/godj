@@ -320,8 +320,13 @@ Reverse도 같은 정책을 적용하며 큰 새 값이 있으면 이력과 sche
 환경별로 전체 경로를 검증한 source만 완료로 기록한다. Native SQLite NUMERIC 채택이나 반올림 API를 추가할 때 이 정책과 migration 의미를 다시 검토한다.
 
 GDJ-0126은 [독립 Decimal expression observer](../conformance/runners/django/decimal_expression_reference/)의
-29개 사례에 이 정책을 확장한다. SQLite `divide`, `divide_integer`, `divide_native_scale`, `remainder`, `large_literal`은
-native NUMERIC의 integer/REAL 연산·15자리 변환을 보존한 원본과 GoDj exact BLOB 결과를 별도로 확인한다.
+30개 사례에 이 정책을 확장한다. SQLite `divide`, `divide_integer`, `divide_decimal_spelling`, `divide_native_scale`,
+`remainder`, `large_literal`은 native REAL 연산·15자리 변환을 보존한 원본과 GoDj exact BLOB 결과를 별도로 확인한다.
+고정 Django SQLite는 Decimal literal을 REAL로 cast하므로 `100 / 3`도 `33.3333333333333`이다.
+PostgreSQL의 `divide_integer`에서는 Django/psycopg가 `Decimal('100')`·`Decimal('3')`을 정수 표기 SQL로 보내
+native integer division 결과 `33`을 얻는다. GoDj는 상수의 원문 표기와 무관하게 명시적 Decimal kind를 NUMERIC으로
+cast하여 `33.3333333333333333`을 얻는다. `divide_decimal_spelling`은 Django의 `100.0 / 3.0`과도 비교한다.
+Canonical Decimal 값의 같은 의미를 지키기 위해 상수의 정수 표기만으로 연산 종류를 바꾸지 않는다.
 `update_rounding`·`update_overflow`는 양 DB에서 GoDj가 target precision을 검사하여 전체 UPDATE를 거부하는 사례다.
 PostgreSQL의 native NUMERIC dscale과 SQLite canonical operand scale에 따른 나눗셈 차이도 명시하며 공통 PASS로 합치지 않는다.
 다른 사례를 wildcard로 면제하지 않는다. 새 사례의 실제 실행 상태는 TEST_EVIDENCE가 소유한다.

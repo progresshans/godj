@@ -138,8 +138,10 @@ transient table과 파생 제약 이름까지 초기/최종 검증한다. 소유
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 같은 source와 single-valued 관계의 literal/F·int64/float64 산술·CASE를 projection·비교·정렬·그룹 키와 집계 operand에 연결한다.
 계산식의 원본 field metadata와 결과 kind/nullability를 구분하며 비교의 NOT는 SQL 3값 의미를 유지한다.
-계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. Decimal/Duration의 CASE 복사는 지원하지만
-해당 kind의 계산식 SUM/AVG·산술, 일반 named annotation·collection computed operand는 미지원이다.
+계산된 값의 COUNT/MIN/MAX와 int64/float64 SUM/AVG를 지원한다. GDJ-0126은 exact Decimal 산술·계산식 SUM/AVG와
+최종 target 정밀도를 검사하는 UPDATE를 구현해 원격 검증 중이다. PostgreSQL native NUMERIC와 SQLite exact BLOB의
+division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
+Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술, 일반 named annotation·collection computed operand는 미지원이다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
 SQLite의 각 integer 노드와 Decimal physical operand 검사, PostgreSQL native 오류/constant folding 차이를 유지한다.
