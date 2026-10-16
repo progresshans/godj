@@ -1,8 +1,8 @@
 # GDJ-0128: 시각·기간 계산식과 기한 변경 미리보기
 
-- 상태: 원격 fixture 오류 수정 후 접속 진단 보완 완료, 최신 source 전체 CI 준비
+- 상태: 완료 — source `012191bf`의 양 DB·세 mode·전체 통합 검증과 원본 증거 대조 완료
 - 시작: 2026-10-15
-- 기준: `c6e96c41fb981111a11d2a93914ee305b0c513a0` (GDJ-0127 수정 source의 전체 CI는 별도 진행 중)
+- 기준: `c6e96c41fb981111a11d2a93914ee305b0c513a0` (작업 시작 시점의 GDJ-0127 수정 source)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 값](../docs/adr/0061-datetime-field-and-canonical-instant-values.md), [기간 값](../docs/adr/0067-duration-model-range-and-number-input.md), [계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [집계와 결과 단계](../docs/adr/0091-grouped-results-and-having.md)
 
 ## 필요한 기반과 소비자
@@ -50,18 +50,15 @@ Canonical Duration·explicit-offset DateTime query/header codec, typed DateTime 
 HTML/API·독립 client·브라우저를 연결했다. 여섯 OpenAPI profile의 실제 export/generated drift도 검증한다.
 Client는 전체 모델 날짜 범위의 정수 기대값과 required nullable wire를, 브라우저는 명시적 기준 시각·윤일·페이지·실패를 확인한다.
 
-첫 원격 실행의 검증 코드가 PostgreSQL의 canonical Duration 반환과 고정 reference의 오류/Int4 타입을 잘못 가정했다.
-실패를 국소 재현해 수정하고 source `9657a87346a1e6d1b903a7e692d8ee36ac7e1cce`를 push했다.
-[자동 전체 CI 38841006796](https://github.com/progresshans/godj/actions/runs/38841006796)의 같은 source에서
-양 DB·세 mode temporal 생성 소비자·Helpdesk·독립 client와 normal 브라우저, 독립 관측의 원본 증거를 대조했다.
-실행 누락·skip·관측/저장 변조를 거부하는 감사기도 확인했다. 전체 플랫폼 실행·최종 집계와 전체 증거 감사는 진행 중이다.
-이전 source의 실패·국소 재현·환경별 raw/hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+원격 관측 대조에서 드러난 PostgreSQL canonical Duration 반환과 고정 reference의 오류/Int4 타입 가정을 수정했다.
+PostgreSQL physical-session 설정 거부의 진단 손실도 보완해, 고정 요구만 공개 진단에 투영하고 driver carrier와
+민감 값을 보관하지 않도록 했다. Native role-default의 실제 거부·오류 분류·연결 정리를 함께 검증했다.
 
-재현 과정에서 PostgreSQL physical-session 설정 거부가 일반적인 접속 실패로 바뀌는 진단 손실을 확인했다.
-비밀을 포함하지 않는 닫힌 설정 진단만 공개 오류에 투영하도록 로컬에서 보완하고, 실제 거부/정상 접속과 정리를 재현했다.
-기존 admission 조건은 유지하며 native role-default 경로의 진단·driver carrier 제거 검사도 보강했다.
-이 후속 변경은 위 source의 CI에 포함되지 않는다. 진단 root/child 13개를 원격 필수 목록에 연결했으며,
-완성된 변경 묶음의 push와 새 source의 자동 전체 CI가 남아 있다.
+최종 source `012191bfaa35faaad673c8a6d464cbd067b0b5a6`의
+[전체 CI 38851526864](https://github.com/progresshans/godj/actions/runs/38851526864)와 원본 증거 감사를 완료했다.
+양 DB·세 mode temporal 생성 소비자·Helpdesk·접속 진단·독립 client, normal 브라우저와 전체 플랫폼·capture 소비를
+같은 source에 대조했다. Runner 중단 뒤 재실행의 원 로그와 최초 성공의 재사용도 구분했다.
+이전 실패·부분 성공·국소 재현과 최종 환경별 raw/hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 
 ## 완료 조건
 
@@ -69,7 +66,7 @@ Client는 전체 모델 날짜 범위의 정수 기대값과 required nullable w
 - [x] Typed/dynamic·생성 facade 소비자·computed Duration 집계와 부정 대조·실패/rollback을 완성한다.
 - [x] 독립 양 DB 관측과 GoDj의 명시적 차이를 실제 결과로 기록한다.
 - [x] Helpdesk 기한 미리보기·typed parameter·HTML/API·client·브라우저를 연결한다.
-- [ ] 같은 source의 필수 전체 실행과 원본 증거를 대조하고 현행 문서를 갱신한다.
+- [x] 같은 source의 필수 전체 실행과 원본 증거를 대조하고 현행 문서를 갱신한다.
 
 Date/Time의 달력·시계 이동, Duration scaling/division, named annotation·function/subquery/window,
 timezone/locale와 나머지 기능 카탈로그는 계속 전체 제품 목표로 유지한다. 이 작업의 완료로 그 범위를 완료 처리하지 않는다.

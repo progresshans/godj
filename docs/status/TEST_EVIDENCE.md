@@ -5,6 +5,56 @@
 
 ## GDJ-0128 — 시각·기간 계산식 구현과 검증
 
+### GDJ-0127·0128 전체 통합 완료
+
+2026-10-16 KST, 제품·생성기·소비자·검증 source `012191bfaa35faaad673c8a6d464cbd067b0b5a6`의
+[전체 CI 38851526864](https://github.com/progresshans/godj/actions/runs/38851526864)가 attempt 2에서 completed/success로 종료됐다.
+89개 필수 작업과 8개 실행 owner의 실제 step·목록·최종 `full_platform_verified: true`를 원 로그와 대조했다.
+PR checkout `c4234ab56e45f6e63aa6acf7e9a078447cab7634`의 tree는 제출 source와 같은
+`1fe567b573734c868629c6462949980c3d7b9a94`다. GDJ-0127의 분할 보완과 GDJ-0128의 접속 진단 보완을 함께 포함한다.
+
+최초 실행의 runner 중단과 연쇄 집계 실패는 아래에 보존했다. 실제 재실행은 Linux ARM normal job
+`116850637994`와 최종 집계 job `116857466341` 두 개다. 두 회차의 API 행 178개를 모두 수집했고,
+기존 성공 87개는 새 job ID의 시각·runner·step과 원래 ID의 자료를 대조한 뒤 두 원 로그의 byte 일치까지 확인했다.
+이들을 새로 실행된 검사로 세지 않으며, 이름별 최신 결과의 실패를 이전 성공으로 대체하지 않는다.
+
+원 자료는 `/Users/hanhyeonjin/Documents/Codex/2026-10-05/godj-verification/hosted-full-pr-38851526864/`에 보존했다.
+Git archive의 3637개 파일을 commit의 blob·실행 bit·SHA-256과 대조했다. 16개 artifact 모두 GitHub digest·크기·run/source를
+확인했고, native event·capture envelope·실제 consumer 선택·reference 및 browser 원본에 해당 검사를 적용했다.
+선택된 89개 실제 실행의 원 로그와 나머지 API 행의 원 로그 89개를 따로 보존했다.
+`logs.zip`은 개별 job endpoint에서 받은 원 로그를 **로컬에서 묶은 ZIP**이며 GitHub가 제공한 run archive가 아니다.
+
+| 검증 범위 | 같은 source의 결과 |
+|---|---|
+| 전체 플랫폼 | Linux/macOS × amd64/arm64 × normal/race/CGO0의 12개 조합; relation 36개 job에서 각 조합의 생성 consumer root 94개를 중복·누락 없이 확인 |
+| 실행 목록·생성 | Go 실행 inventory 94개, source의 package 분할·필수 child·실제 step을 대조; 일곱 프로젝트의 `generate --check`가 각각 `status: clean`, 고정 Unicode와 checked-in relation 생성물 검사도 통과 |
+| 실제 PostgreSQL | 고정 17.10의 9개 event log; 각 mode의 core 필수 3392개와 별도 operator 필수 3개를 source의 owner와 대조, native 필수 skip 0 |
+| GDJ-0127 생성 소비자 | 각 mode에서 양 DB child 130개 각각 한 번 run/pass·skip 0, compile-negative 8개, 각 DB의 Django 관측 49개 대조 |
+| GDJ-0128 생성 소비자 | 각 mode에서 양 DB child 114개 각각 한 번 run/pass·skip 0, compile-negative 10개, 각 DB의 Django 관측 44개 대조 |
+| Helpdesk 기한 미리보기 | 각 mode의 필수 47개 run/pass·skip 0, 현재 인가·snapshot·입력·실패/부분 게시 거부·전체 저장 보존 대조 |
+| 접속 진단 | 각 mode의 진단 root/child 13개와 native 접속 root, 실제 설정 거부·driver carrier 비노출·연결 정리를 아래 profile 자료와 대조 |
+| 독립 client | 세 mode의 여섯 generated profile과 필수 source check 104개, 필터 없는 package 실행·HTTP·부모 저장 검사를 대조. 개별 성공 child 원 receipt 104개를 보관한 증거로 표현하지 않음 |
+| 브라우저 | Chromium 155.0.8059.12의 summary 30·report 19·label 28·cost 22·deadline 34개 검사, 원 화면·전체 필드/관계/audit 무변경·자원 정리 확인 |
+| capture·후속 실행 | 현재 source의 system-state/operator capture 생성·선택·소비와 26개 product conformance suite, 32비트 migration/project-check·runserver compile 및 relation 실행 확인 |
+| Python·CI 도구 | 네 compatibility version과 consumer의 suite 378개·소유된 skip 4개를 구분; 고정 Darwin owner는 378개 distinct `ok`·skip 0과 그 네 검사의 실제 실행 확인; CI 도구 66개·skip 0 |
+
+Portable conformance의 비대상 PostgreSQL skip과 platform runserver의 PostgreSQL 전용 skip은 실제 native owner의
+필수 실행으로 대조했다. Cold external CLI build와 native process·S3 서비스 build/수명·정리도 해당 owner의 원 자료로 확인했다.
+로컬에서는 소스·증거와 consumer binary의 발견 목록을 대조했으며 전체 제품 테스트를 원격 전체와 중복 실행하지 않았다.
+
+- 최종 audit: `audit.json`, SHA-256 `6f48303216adc72797fa253815d3acf44fb857d8850b9e91702bad2802452ea7`
+- 전체 수집 receipt: `collection.json`, SHA-256 `e0b964f077024cfcbc215515bdd1618f4c6f5247b694c226d9dab5ad4f94f23c`
+- 실행 회차·원 job 선택: `attempt-selection.json`, SHA-256 `0020879121254d2794ac7d078ba5f2c9f91abdb9761fc6e786b469adb83d89e5`
+- 원 로그 출처·hash: `logs-manifest.json`, SHA-256 `e82d1c2e0a66e47f5d1d54ec64a8e4315a863447a63cfc1d7821a6c32fc689ed`
+- 선택 원 로그의 로컬 ZIP: `logs.zip`, SHA-256 `02a5428d8ffb00ced63db6ca5eb3b3c1149cbf7935c2a3ddc516a57b755c7720`
+- Git source archive: `source.tar`, SHA-256 `ec073d7379e2649c81828366292963c8831c1c413012d92d9c295dbabd84eae8`
+- Source inventory: `source-inventory.json`, SHA-256 `ba19cb4d2bb3839bc23b41cbd95f2cc5d9f1ee20cffae8460bc34ba74a9ec490`
+
+Date/Time 이동·Duration scaling/division·일반 named annotation·function/subquery/window와 나머지 기능 카탈로그는
+계속 전체 제품의 완성 대상이다. 아래 준비·진행 중 표기는 각각의 source와 당시 실행 상태를 기록한 경과다.
+
+### 구현·검증 경과
+
 2026-10-15 KST, source `c6e96c41fb981111a11d2a93914ee305b0c513a0`에서 별도
 `feature/temporal-expressions` 작업 공간을 시작했다. 아래는 원격 제출 전 구현·검증 준비 단계의 기록이다.
 공통 AST의 DateTime/Duration 입력·결과 서명, numeric bare NULL의 불변 typed 정규화,
@@ -256,8 +306,8 @@ SQL/native replay/저장 증거 누락·cleanup 실패·Int4 범위 초과·잘�
 `ci-38841006796-evidence-negative-controls.json` SHA-256은
 `35e4ea341a97b68d5731328a755c70e8232103f766a5a5be5e0ea26b20030969`다. 이는 감사기 검증이며 추가 제품 실행으로 집계하지 않는다.
 
-현재 source의 나머지 전체 플랫폼 job·최종 집계 및 전체 원본 증거 감사는 진행 중이다. 위 부분 감사만으로 GDJ-0128이나
-전체 기능 카탈로그를 완료 처리하지 않는다.
+이 source의 전체 플랫폼 job·최종 집계는 후속 제품 변경 push로 취소됐다. 종료 상태는 아래에 기록한다.
+위 부분 감사만으로 GDJ-0128이나 전체 기능 카탈로그를 완료 처리하지 않는다.
 
 상태 복구·운영 명령 capture의 완료된 producer도 같은 run/source에서 수집했다. Source archive의 3637개 파일을
 Git blob·실행 bit·SHA-256 inventory와 대조하고 현재 소스에서 계산한 binding을 두 capture에 확인했다.
@@ -317,11 +367,172 @@ driver carrier는 보존하지 않으며 임의 `query.Error`를 일반적으로
 - 원격 실행 소유권 감사: `pg-profile-diagnostic-repro/execution-plan-receipt.json`, SHA-256 `7871e67ff0f4e66719ee0a95ad7fe770d56e56f7394a4e12193f74da262af7e0`; 기존 3379개를 같은 순서로 보존하고 새 13개의 실제 로컬 run/pass 이름·세 mode core owner를 대조했다.
 
 수정 전 파일은 Git `9657a873`과, 수정 후 파일은 재현 실행 당시 commit 전인 실제 작업 파일과 SHA-256으로 결합했다.
-현재 진행 중인 CI `38841006796`은 이 후속 변경을 포함하지 않는다. 완성된 제품 변경과 필수 목록을 함께 push하며,
+CI `38841006796`은 이 후속 변경을 포함하지 않는다. 완성된 제품 변경과 필수 목록을 함께 push했으며,
 새 자동 CI에서 고정 PostgreSQL 17.10·세 mode·전체 필수 실행을 새 source에 결합해야 한다.
 이전 run의 부분 성공을 이 후속 변경의 검증으로 전이하지 않는다.
 
+### 접속 진단 후속 source의 자동 CI
+
+제품 보완·필수 목록·직전 실행 기록을 `012191bfaa35faaad673c8a6d464cbd067b0b5a6`로 commit·push했다.
+제품 파일·검증 파일·필수 목록을 Git commit의 실제 bytes와 다시 대조해 로컬 재현 결과를 이 source에 결합했다.
+`make docs-check format-check`와 `git diff --check`를 통과했다. 새 필수 PostgreSQL 항목은 3392개이며 원래 3379개를
+삭제하거나 재배정하지 않았다. 세 mode의 core owner가 새 진단 root/child 13개와 기존 native role-default 검사를 실행한다.
+
+이 push로 이전 CI `38841006796`은 success 85·cancelled 3·failure 1, run conclusion cancelled로 종료됐다.
+취소된 실행은 macOS Intel normal shard 1/3·CGO0 shard 1/3과 macOS ARM race shard 2/3이다.
+실패 job은 최종 `CI result` 하나이며, 원 로그에서 `relation-product-matrix`의 cancelled 상태를 필수 실행 실패로 거부했다.
+전체 성공과 전체 증거 감사로 기록하지 않는다.
+
+- 이전 종료 상태: `ci-38841006796-terminal/receipt.json`, SHA-256 `7537039753179192e692da336dc08a52fe4f289be7712e9aecf2d50cc21d9e25`
+- 이전 최종 집계 로그 SHA-256: `4cb8403e9a8e4b27eafed2672e1667092fcdf52ea26407a97f4286ca7e91b20a`
+- 로컬 재현의 commit 결합: `pg-profile-diagnostic-repro/commit-binding-012191bf.json`, SHA-256 `6f4d284022c554826dcfd30549686fd8073e89f16b5bc5fd745f1984631681d2`
+
+2026-10-16 04:36:52 UTC에 [자동 전체 CI 38851526864](https://github.com/progresshans/godj/actions/runs/38851526864),
+attempt 1·pull_request가 시작됐다. 성공한 validation-plan job `116813951832`의 실제 checkout
+`c4234ab56e45f6e63aa6acf7e9a078447cab7634`는 base `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`와 위 head를
+parent로 가지며 tree `1fe567b573734c868629c6462949980c3d7b9a94`가 head와 같음을 원 로그·GitHub commit API로 대조했다.
+
+- Source binding: `ci-38851526864-source-binding-and-plan.json`, SHA-256 `9c2efb86105438e7a31da4fb796f3ff7f4fdd5ce94956f1b89ecab1c76e2d34d`
+- Validation-plan 원 로그 SHA-256: `10b923a23a9658f712fb3702b7df7c747cea307a9cfc6242b1d7a0b11679536c`
+- 게시 내용·head·Draft 상태 대조: `gdj0128-pr1-body-012191bf.md`, SHA-256 `c40815e17e8dfdbbb8615543b8c4be52ccad5e5816e3f5a176f5f0b4df6cb836`
+
+같은 source의 필수 DB·세 mode·전체 플랫폼 실행과 원본 artifact 감사는 진행 중이다. 이전 source의 성공과 현재 로컬
+국소 재현을 고정 Hosted 17.10 또는 새 전체 CI의 성공으로 옮기지 않는다.
+
+### 접속 진단 후속 source의 client·브라우저·race Helpdesk 부분 감사
+
+CI `38851526864`, source `012191bf`의 독립 client package를 normal·race·CGO0에서 각각 필터 없이 실행한 원 로그와
+현재 source의 필수 parent/child 검사 104개·여섯 profile 재생성·저장 보존·race 전달을 대조했다. Package 실행과
+필수 검사 선언/검증 코드를 확인한 범위다. 이 job은 raw child receipt를 별도 보존하지 않으므로 104개 raw child
+결과를 각각 재감사했다고 표현하지 않는다.
+
+| Mode | Job | `ci-38851526864-openapi-client/<mode>/audit.json` SHA-256 |
+|---|---|---|
+| normal | `116813994790` | `409a77380fc5d7d3c120863fef393173222f825e62059b31c64a27efd52f4f50` |
+| race | `116813994743` | `ca2d5209162df4b50618bf1020e2e32267b0557e986d9b1d2460378d8085e84c` |
+| CGO0 | `116813994733` | `25eb99b04df67075cbbff29e4c2e0350b0e2bc0cdd406490b9bdd00136eec73c` |
+
+같은 source의 normal integration/browser artifact `12025708049`에서 Chromium 155.0.8059.12의 summary 30개,
+report-status 19개, label-usage 28개, cost-preview 22개와 deadline-preview 34개의 검사·명령 종료·저장 보존·정리를
+대조했다. 현재 PNG 다섯 장은 앞서 확인한 `9657a873`의 PNG와 각각 byte 단위로 동일하다.
+
+- Browser audit: `ci-38851526864-browser/audit.json`, SHA-256 `87905190cf143ceebfa4fccec3da124d2770e41363e282d8ddc1d585a4b64819`
+- Artifact ZIP SHA-256: `ff640124657306724defc0668e7ceee65e9dbdabccd75a561a48b139adadf918`
+- 원 job 로그 SHA-256: `f62a63b607391a5a6b4756dcf37a7902a95f9c955036b43f877a60888ee09e3c`
+- 화면 byte 대조: `ci-38851526864-browser/visual-identity.json`, SHA-256 `b97711b4392849639114437d949d5d656908444949534f458acbc8ddc3d97182`
+
+Race의 Helpdesk PostgreSQL 전용 job `116813994478`, artifact `12025258758`에서도 기한 미리보기의 해당 owner 실행
+22개가 각각 한 번 run/pass, fail/skip 0임을 원본 event·현재 필수 목록과 대조했다.
+`ci-38851526864-deadline-native/race-core-helpdesk-postgres/audit.json` SHA-256은
+`32a1da6208ca72d01654b27ffae07860b39f485723100c0636b4f8a3d8c5743f`다. 후속 race core의 나머지 25개와
+normal/CGO0·temporal 소비자·접속 진단의 부분 감사는 아래에 기록한다.
+
+### 접속 진단 후속 source의 양 DB temporal·native 진단 부분 감사
+
+같은 source `012191bf`의 temporal 생성 소비자를 세 mode에서 다시 대조했다. 각 mode는 원본 child 114개가 각각
+한 번 run/pass, fail/skip 0이며 compile-negative 10개와 고정 Django의 SQLite/PostgreSQL 각 44개 관측도 확인했다.
+SQL·parameter/native 반환·오류 단계·저장 보존·cleanup과 현재 source/observer 결합을 검사했다.
+
+| Mode | Job / Artifact | `ci-38851526864-temporal-native/<mode>/audit.json` SHA-256 |
+|---|---|---|
+| normal | `116813994567` / `12026342944` | `388407867312ced5b53c400fcf6f1ce1db50a0f978c811e782330cfff94292b4` |
+| race | `116813994488` / `12026775522` | `3caceddbdc263421ecd776dff465db2f597a2f888266417c9d4c9df409af6ef8` |
+| CGO0 | `116813994556` / `12026755975` | `c700c9f3210f6136af8c66578a773cca097153f7bab0ca5f855b6d32dc91a3ca` |
+
+Helpdesk 기한 미리보기의 normal·CGO0 전체 47개도 각각 한 번 run/pass, fail/skip 0임을 확인했다.
+두 mode의 `ci-38851526864-deadline-native/<mode>-core/audit.json` SHA-256은 각각
+`57b9b6912ab53bed5b4e01764c7b5c85edb460452a8f56c05ada4c8c10ae959e`,
+`0989e4a2d2d25936a1ad7cf27aae5e9de2024a8a04277cd4486d63497bc0aceb`다.
+Race core job `116813994536`, artifact `12027086476`의 나머지 25개도 각 한 번 run/pass, fail/skip 0이다.
+해당 audit SHA-256은 `cd007b6e13048fae5f9b6c77a5cda0ea45903fb5257610d6ddc2c37644416faf`이며, race의 두 owner가
+47개 전체를 중복·누락 없이 소유함을 다시 대조했다. 세 mode의 전체 47개를 결합한
+`ci-38851526864-deadline-native/combined-audit.json` SHA-256은
+`17f56a7e9fa784866a335b6f842282097a471e2e90ddccee6e12d489e344c4fc`다.
+
+같은 core artifact에서 새 접속 진단 root/child 13개와 기존 native `TestPostgreSQLPhase1Integration` root의
+run/pass를 각각 한 번 확인했다. normal·race·CGO0마다 합계 14개이며 fail/skip은 없다. PostgreSQL 17.10 profile step,
+실제 필수 manifest·전체 raw event·package pass와 새 진단 제품/검증 파일의 Git bytes를 결합했다.
+Native root는 role-default의 실제 `Open` 거부·분류/요구값·driver carrier 비노출과 연결 정리를 검사한다.
+
+- normal profile audit: `ci-38851526864-postgres-profile/normal.json`, SHA-256 `c6d2d2d37e685a10bf0e6972026d07922c35177205eae226e658b9a8c29df026`
+- race profile audit: `ci-38851526864-postgres-profile/race.json`, SHA-256 `8d8acc6e32137a363379d6270b1f4239e9994817794983e0caec3482c6a5da97`
+- CGO0 profile audit: `ci-38851526864-postgres-profile/cgo0.json`, SHA-256 `3b092cf7a192c7fd3360bce189d6dc78e64187398a49458ebe1729985fc67ea1`
+
+이 결과는 세 mode의 새 접속 진단·temporal·Helpdesk 소비자에 한정한다. 전체 플랫폼·최종 집계는 아직 완료로 기록하지
+않으며 중단된 Linux ARM 실행도 별도 재검증이 필요하다.
+
+같은 source의 capture producer 두 개도 성공한 job·artifact envelope·source binding과 대조했다.
+Git archive의 3637개 파일을 blob·실행 bit·SHA-256 inventory와 확인했고, producer는 Go 1.26.5 linux/amd64다.
+`ci-38851526864-captures/prepared.json` SHA-256은
+`fcea9a0b93c619303e427230822b0baff52ec75287cc6d499d447cf21f51df67`이다.
+
+후속 consumer job `116825188017`도 같은 source·attempt 1에서 성공했다. 두 capture의 실제 선택·producer job·
+원본 envelope·payload와 Git source binding을 대조했고, 26개 product conformance suite가 source 순서대로
+각각 비교를 완료했다. 32비트 migration/project-check·runserver compile과 relation product 실행 step도 성공했다.
+이 owner의 Python suite는 378개 중 고정 Darwin owner가 담당하는 네 개만 skip했다.
+
+고정 Darwin job `116813994385`는 같은 source의 macOS 15.7.9 arm64·Go 1.26.5·Python 3.14.3·
+Django 6.1·SQLite 3.50.4에서 378개 test ID의 원본 `ok`를 각각 한 번 기록했고 skip은 0이다.
+위 네 개도 실제 통과했으며, 27개 oracle suite의 source 순서와 reference 파일 무변경 step을 확인했다.
+이 결과를 남은 macOS relation matrix의 성공으로 확대하지 않는다.
+
+- Capture consumer audit: `ci-38851526864-captures/audit.json`, SHA-256 `511d8474af3d39d1ffb8f300606995e535e550590a8a6891abd146d4fc30c6aa`
+- Consumer 원 로그: `ci-38851526864-captures/consumer-job.log`, SHA-256 `65f6eba7fcb4161db1d1a1af412e76ccbb401acd5b7423044f91a162bb36c674`
+- Exact profile audit: `ci-38851526864-exact-profile/audit.json`, SHA-256 `b8d88073b7a9c9c0dd5c9f4adf2042b188bef488767bb04ceb083a2889f7a1e9`
+- Exact profile 원 로그: `ci-38851526864-exact-profile/job.log`, SHA-256 `42dc691e3320a40905a86ba37f787076eb2ddf208bcee97f69aa584f2459dd76`
+
+### Linux ARM normal runner 중단
+
+같은 run의 `Relation product (ubuntu-24.04-arm, normal)` job `116813995079`가 failure로 종료됐다.
+원 로그의 checkout·source tree를 현재 source와 대조했다. 실행 step은 04:45:42 UTC에 시작했고,
+05:06:18 UTC에 exit code 143과 runner shutdown signal을 기록했다. 테스트의 assertion 실패 원인은 이 로그에서
+확인되지 않으며, 중단된 테스트를 성공으로 세지 않는다. 해당 좌표의 전체 결과는 재실행으로 확인해야 한다.
+
+- 원 로그: `ci-38851526864-failures/linux-arm-normal-relation.log`, SHA-256 `97fbb97ed6c1721647416e11d605bc470e217e129c83eb650a73c9743bfe315f`
+- 실패 job/source 결합: `ci-38851526864-failures/linux-arm-normal-relation-binding.json`, SHA-256 `88d4ff7c14139fcd82049fbe36c566d40dee55e2977e47d1d5a0b9b71bb49722`
+
+최초 실행은 2026-10-16 06:47 UTC에 89개 작업 중 87개 success·2개 failure로 종료됐다.
+추가 제품 실패는 없었으며, 최종 `CI result` job `116849808997`의 원 로그는
+`relation-product-matrix` 실패 때문에 전체 통합을 거부했음을 기록했다. 두 실패를 전체 성공으로 세지 않는다.
+모든 job의 source·attempt·terminal 상태와 PR의 현재 head를 대조하고, `gh run view`의 실제 database ID로
+중단된 Linux ARM job `116813995079`를 지정해 06:49 UTC에 같은 source에서 재실행을 요청했다.
+요청은 수락됐고 run attempt 2의 `in_progress`를 별도로 확인했다. 재실행 완료와 최종 전체 감사는 아직 남아 있다.
+
+- 최초 terminal receipt: `ci-38851526864-terminal-attempt-1/receipt.json`, SHA-256 `1c4e10c52891e3d43eb1bc588b9f7123d45844a2803e915242236aa07c72da53`
+- 최초 집계 원 로그: `ci-38851526864-terminal-attempt-1/aggregate.log`, SHA-256 `122ad06adee9aa0cae34c8a2a6ab29793e668d993bef32e314244a5b3d33db70`
+- 재실행 요청 receipt: `ci-38851526864-rerun-request.json`, SHA-256 `5b9a75d709100f3b787f17aac88fe34759732b153ae2bce297cc77df07b5d942`
+
+요청 직후 receipt의 API 관측은 attempt 1/queued인 전환 상태였다. 뒤이은 API 조회에서 같은 source의 attempt 2를
+확인했으며, 오래된 성공 결과의 재사용과 실제 새 실행을 분리해 아래 감사 조건을 적용한다.
+
+Attempt 2의 작업 목록은 페이지 크기 100에서 반복적으로 HTTP 502를 반환했다. 페이지 크기 10으로 전체 9페이지를
+모아 `total_count` 88과 중복 없는 88개 ID·이름·source·attempt를 대조했다. 87개 성공 행은 최초 실행과
+시각·runner·step이 같은 재사용 메타데이터이며, 새 Linux ARM normal job `116850637994`가 실제 검사 중이다.
+두 회차 전체 177개 API 행에서 최신 이름별 89개를 선택했고, 아직 남은 `CI result` failure는 attempt 1의 기록임을
+명시했다. 재사용한 성공의 두 ID에 대한 원 로그 byte 일치와 새 집계는 최종 감사에서 확인해야 한다.
+
+상태 관찰기와 최종 수집기의 작업 목록 페이지 크기를 10으로 바꾸고 구문 검사·전체 실제 페이지 대조를 완료했다.
+선택·원본 검증 로직과 21개 검사 파일은 앞선 검증과 byte-identical이다. 로컬 관찰기만 수정본으로 교체했으며
+원격 CI는 이미 진행 중인 attempt 2를 유지했다.
+
+- Attempt 2 시작 자료: `ci-38851526864-attempt-2-start/receipt.json`, SHA-256 `e767f028e098177b7b0a3626005234cb8c139e43a4ba7bcbab0ab2acc32c7d7b`
+- 페이지 수집 보완 감사: `ci-attempt-evidence-pagination-audit.json`, SHA-256 `ac0bc38f08a28918045109fe813636a45f582dfee39cb64ac286cd4b92650a9a`
+
+외부 수집기·감사기를 회차별 API 자료와 작업별 원 로그에 맞췄다. 각 이름의 최신 결과가 먼저 성공해야 하며,
+기존 성공을 새 job ID로 재표시한 행은 실행 시각·runner·step과 두 ID의 원 로그 bytes까지 같아야 원 실행을 사용한다.
+이전 실패 로그도 보존한다. 내려받은 개별 로그의 ZIP 묶음은 로컬 조립임을 명시하며 GitHub 원 archive로 표기하지 않는다.
+현재 지원하는 실제 재실행 범위는 relation 작업과 최종 집계다. 다른 artifact owner의 실제 재실행은 별도 처리를 요구하며
+조용히 이전 성공으로 대체하지 않는다.
+
+최신 실패/미완료 은폐·source/run/attempt 혼합·작업 누락/중복·로그 변조·다른 실행의 재사용을 거부하는 검사를 포함해
+감사 도구 21개 검사가 통과했다. 이전 run `37365281161`의 152개 API 행에서도 기존 76개 실행 계보와 일치했다.
+이는 도구의 회귀 확인이며 현재 source의 제품 검증 결과가 아니다. `ci-attempt-evidence-tooling-audit.json`
+SHA-256은 `9f02fe12d23fc90f0ec33d6b00fd74e6230f9a755dbb43588d3952f917ee68e5`다.
+
 ## GDJ-0127 — 컬렉션 계산식 집계와 라벨별 조정 비용
+
+최종 구현·전체 통합 검증은 source `012191bf`에서 완료했다. 환경·실행 회차·원본 증거는 상단의 GDJ-0127·0128
+전체 통합 기록을 따른다. 아래는 구현 준비와 이전 source의 실패·보완 경과다.
 
 2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한
 `e187619ebadc30ef86887f401184afb70b5e5b29`를 현재 브랜치의 `f754cc2c84833e8f9ff0bcc859eae52713635369`로 통합했다.

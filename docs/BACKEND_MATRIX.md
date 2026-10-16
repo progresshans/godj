@@ -144,13 +144,13 @@ PostgreSQL native NUMERIC와 SQLite exact BLOB의
 division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 GDJ-0128은 Duration ± Duration·부호 반전, DateTime ± Duration·Duration + DateTime·DateTime 차이와 computed Duration
 SUM/AVG를 구현했다. SQLite의 fractional 평균과 시각을 합친 뒤 최종 경계에서 반올림하고 PostgreSQL은 UTC 이동과
-원본/중간/최종 범위를 검사한다. 첫 원격 실행의 검증 코드 오류를 수정한 source `9657a873`의 양 DB·세 mode native
-소비자·관측을 대조했으며 전체 플랫폼 통합 검증은 진행 중이다. [실행 기록](status/TEST_EVIDENCE.md)을 따르고 고정 Django의
+원본/중간/최종 범위를 검사한다. 현재 source `012191bf`의 양 DB·세 mode native
+소비자·관측과 전체 플랫폼 통합 검증·원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따르고 고정 Django의
 평균 이동·범위 차이는 [DEV-0022](DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 기록한다.
 Date/Time 이동·Duration scaling/division·일반 named annotation은 별도 미완료 범위다.
-GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 첫 source `c6e96c41`에서
-조건부 COUNT 소비자 실패를 수정했다. Source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과
-의존성 DNS 실패를 확인해 준비 예산·진단을 보완했다. Source `d911b030`의 macOS ARM CGO0 누적 timeout을 확인해 relation 소비자 분할을 보완했다. 후속 수정 source `9657a873`의 자동 전체 CI에서 검증을 계속한다.
+GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 조건부 COUNT 소비자와
+runserver 준비·진단, macOS ARM relation 소비자 분할을 보완했으며 source `012191bf`의 양 DB·세 mode·전체 플랫폼에서
+필수 실행과 원본 증거 대조를 완료했다. 이전 실패와 보완의 실행 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 일반 행 projection·computed WHERE·정렬·UPDATE의 single-valued 경계는 유지한다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
@@ -246,8 +246,8 @@ In-memory DB의 Close 이후 복구 가능성을 durable file과 동일하게 �
 
 Physical session의 필수 설정을 거부할 때에는 backend `invalid_plan`과 위반한 설정의 이름·요구값을 보존한다.
 진단은 프레임워크가 소유한 고정 요구만 표현하며 실제 서버 설정값·URL·credential-bearing driver Config는 보관하지 않는다.
-임의 query 오류는 같은 redaction 예외로 취급하지 않는다. 이 후속 보완은 현재 로컬 재현까지 확인했으며,
-고정 Hosted PostgreSQL 17.10 검증은 후속 source에서 수행한다. 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+임의 query 오류는 같은 redaction 예외로 취급하지 않는다. 이 후속 보완은 source `012191bf`의 고정 Hosted PostgreSQL 17.10에서
+normal·race·CGO0의 필수 진단·native 접속 검사와 전체 CI 원본 증거까지 대조했다. 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 PostgreSQL source-bound actual은 해당 source·observer·환경에서 실제 실행한 증거다. SQLite local PASS나 옛 checked-in actual을
 현재 PostgreSQL 실행으로 대체하지 않는다. 테스트 실행과 증거 생성·소비 경계는 [TESTING](TESTING.md)를 따른다.

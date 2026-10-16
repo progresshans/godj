@@ -46,7 +46,7 @@
 
 ## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동
 
-- 상태: ADR-0090/0091의 계약 구현; 양 DB·세 mode의 독립 관측/native 비교를 확인했으며 전체 플랫폼 검증은 진행 중
+- 상태: ADR-0090/0091의 계약 구현; source `012191bf`의 양 DB·세 mode 독립 관측/native 비교와 전체 플랫폼 통합 검증 완료
 - 날짜: 2026-10-16
 - 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 temporal observer](../conformance/runners/django/temporal_expression_reference/), SQLite/PostgreSQL 17.10
 - 범위: [GDJ-0128](../work/0128-temporal-expressions-and-deadline-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.

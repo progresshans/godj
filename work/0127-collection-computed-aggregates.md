@@ -1,6 +1,6 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 조건부 COUNT 수정 후 준비 timeout·DNS 실패 확인; runserver 준비 예산·진단 보완 push, 새 자동 전체 CI 검증 중
+- 상태: 완료 — source `012191bf`의 양 DB·세 mode·전체 통합 검증과 원본 증거 대조 완료
 - 시작: 2026-10-15
 - 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI·원본 증거 대조 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -32,42 +32,28 @@ NULL·CASE·나눗셈·반올림과 FILTER가 보존된다. 집계나 페이지�
 
 ## 구현과 검증
 
-고정 Django 6.1의 독립 SQLite/PostgreSQL 관측으로 행별 계산 집계·NULL·CASE·DISTINCT·FILTER·JOIN 재사용을
-대조한다. GoDj exact SQLite Decimal의 차이는 기존 deviation을 적용하며 실제 관측 범위를 명시한다.
-구조가 다른 두 앱의 생성 소비자에서 typed/dynamic·cross-app·양 DB·세 mode·compile-negative·
-취소/cache/session·물리 값 손상과 저장 보존을 검사한다. 기존 원격 실행 owner와 필수 inventory에 연결한다.
+공통 AST·양 compiler·typed/dynamic 집계와 생성 facade를 연결하고 실제 프로젝트 생성물을 갱신했다.
+고정 Django 6.1의 독립 SQLite/PostgreSQL 관측 49개에서 행별 계산 집계·NULL·CASE·DISTINCT·FILTER·
+JOIN 재사용을 대조했다. Exact SQLite Decimal의 차이는 기존 deviation과 실제 관측에 연결한다.
+두 앱 생성 소비자의 양 DB child 130개와 compile-negative 8개, 취소/cache/session·물리 값 손상·저장 보존을
+normal·race·CGO0에서 확인했다. Helpdesk 라벨별 조정 비용의 HTML/API·독립 client·브라우저도 함께 검증했다.
 
-로컬은 포맷·최소 compile과 관찰된 실패 재현에 사용한다. 전체 묶음 완성 후 push하고 자동 전체 CI의
-같은 source 실행과 원본 artifact를 대조한다. GDJ-0126의 전체 성공을 이 변경의 PASS로 승격하지 않는다.
+조건부 COUNT 소비자를 명시적인 연결 티켓 ID 집계로 수정했다. Runserver 준비 예산·안전한 단계 진단과
+macOS ARM normal/CGO0의 runtime·세 consumer shard를 보완하면서 전체 발견 root·필수 child·no-skip 조건을 유지했다.
+실패 재현과 이전 source의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 
-현재 공통 AST·양 compiler·typed/dynamic 집계와 생성 facade를 연결하고 실제 프로젝트 생성물을 갱신했다.
-컬렉션 참조 관측을 기존 30개에서 계산식 19개를 추가한 49개로 확장하고, 생성 소비자의 필수 실행을
-양 DB owner에서 130개 child run/pass와 8개 compile-negative로 구성했다. 관측과 DB 테스트는 아직 실행 전이다.
-핵심·생성 소비자는 로컬 compile-only로 확인했으며 새 3개 부정 대조도 실제 compiler 거부를 확인했다.
-Helpdesk 라벨 사용 현황의 factor/delta 입력·원래/조정 비용 합계·required nullable API 출력·HTML과
-실제 DB 검증 사례를 연결하고 compile-only로 확인했다. 브라우저 probe의 필수 검사를 28개로 확장했으며
-아직 실행 전이다. 독립 client의 티켓별 유리수 기대값·문자열 query·required nullable wire를 연결하고
-실제 API에서 여섯 OpenAPI profile과 고정 ogen 생성물을 갱신했다. Helpdesk profile만 변경됐으며
-독립 client 빌드를 compile-only로 확인했다. Source `c6e96c41fb981111a11d2a93914ee305b0c513a0`으로 push해
-[자동 전체 CI 38691196268](https://github.com/progresshans/godj/actions/runs/38691196268)가 시작됐다.
-첫 원격 실행의 조건부 COUNT 소비자가 현행 계약에서 거부하는 COUNT(*) FILTER를 요청한 실패를 재현했다.
-명시적인 연결 티켓 ID의 COUNT로 수정하고 같은 SQLite 실패 경로를 확인했다. 필드/계산식 FILTER의 결합과
-원래 기대값·저장 보존·필수 실행 목록을 유지했다. 수정 source `080c677096ec082d5222283e7982b63d99579eb4`의
-[자동 전체 CI 38694533865](https://github.com/progresshans/godj/actions/runs/38694533865)가 시작됐으며
-macOS Intel의 runserver 준비 timeout 두 건과 relation shard의 의존성 DNS 실패를 확인했다.
-준비 예산과 민감 값을 제외한 단계 진단을 보완했고, 로컬 ARM CGO0에서 인증·진단 검사를 확인했다.
-이는 Intel 실패의 재현·해결 증거가 아니며 새 source의 전체 원격 실행·원본 증거 대조가 남아 있다.
-보완 source `d911b03045204a0f676991240b926c60f77c99d8`의
-[자동 전체 CI 38700011581](https://github.com/progresshans/godj/actions/runs/38700011581)는 macOS ARM CGO0 생성 소비자의
-누적 package timeout으로 실패했다. ARM normal/CGO0에도 기존 runtime owner·세 consumer shard를 적용하고
-필수 실행·package 한도·no-skip 검사를 유지한다. 보완 source의 자동 전체 실행과 원본 증거 확인이 남아 있다.
+GDJ-0128을 포함한 source `012191bfaa35faaad673c8a6d464cbd067b0b5a6`의
+[전체 CI 38851526864](https://github.com/progresshans/godj/actions/runs/38851526864)와 원본 증거 감사를 완료했다.
+Runner 중단 뒤의 재실행과 최초 성공의 실제 실행 계보를 구분하고, 전체 플랫폼·native DB·필수 실행·capture 소비와
+최종 집계를 대조했다. 로컬 전체 제품 테스트를 원격 전체와 중복 실행하지 않았다.
 
 ## 완료 조건
 
-- [ ] 공통 AST의 집계 cardinality·source authority와 양 compiler의 JOIN/CASE/FILTER를 연결한다.
-- [ ] Typed/dynamic·생성 facade와 두 앱의 native·부정 대조·실패/보존 검증을 연결한다.
-- [ ] 독립 Django 관측과 backend 차이를 실제 결과로 기록한다.
-- [ ] 라벨별 조정 비용의 HTML/API·권한·snapshot·client·브라우저를 연결한다.
-- [ ] 같은 source의 필수 전체 실행과 원본 증거를 대조하고 현행 문서에 반영한다.
+- [x] 공통 AST의 집계 cardinality·source authority와 양 compiler의 JOIN/CASE/FILTER를 연결한다.
+- [x] Typed/dynamic·생성 facade와 두 앱의 native·부정 대조·실패/보존 검증을 연결한다.
+- [x] 독립 Django 관측과 backend 차이를 실제 결과로 기록한다.
+- [x] 라벨별 조정 비용의 HTML/API·권한·snapshot·client·브라우저를 연결한다.
+- [x] 같은 source의 필수 전체 실행과 원본 증거를 대조하고 현행 문서에 반영한다.
 
-Named annotation·Duration/temporal 산술·function/subquery/window와 나머지 기능 카탈로그는 계속 전체 목표로 유지한다.
+기본 DateTime/Duration 산술은 [GDJ-0128](0128-temporal-expressions-and-deadline-preview.md)에서 확장했다.
+Date/Time 이동·Duration scaling/division·일반 named annotation·function/subquery/window와 나머지 카탈로그는 계속 전체 목표로 유지한다.
