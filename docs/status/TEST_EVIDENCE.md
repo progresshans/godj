@@ -53,6 +53,15 @@ Portable conformance의 비대상 PostgreSQL skip과 platform runserver의 Postg
 Date/Time 이동·Duration scaling/division·일반 named annotation·function/subquery/window와 나머지 기능 카탈로그는
 계속 전체 제품의 완성 대상이다. 아래 준비·진행 중 표기는 각각의 source와 당시 실행 상태를 기록한 경과다.
 
+### 사용 가이드의 현행 지원 범위 대조
+
+2026-10-16 KST, 완료 기록 commit `a5d13694` 뒤의 문서 점검에서 개발 경험 가이드·로드맵의 오래된 미완료 표기를
+현행 코드와 대조했다. Decimal/temporal·collection 집계, Identity Admin·일반 계정/password reset의 실제 구성,
+Helpdesk `APIConfig`와 transaction audit 요구, typed endpoint 및 여섯 독립 client profile을 안내에 반영했다.
+Account client의 실제 login Form·password/reset HTTP와 관리 client의 사전 준비 session도 구분했다.
+`make docs-check`의 Markdown 214개 파일 링크 검사와 `git diff --check`를 통과했다.
+이 수정은 문서에 한정하며 위 제품 source의 전체 CI 증거와 구분한다. 로컬 전체 제품 테스트는 중복 실행하지 않았다.
+
 ### 구현·검증 경과
 
 2026-10-15 KST, source `c6e96c41fb981111a11d2a93914ee305b0c513a0`에서 별도

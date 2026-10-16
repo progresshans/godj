@@ -68,7 +68,11 @@ Forward FK/OneToOne과 reverse OneToOne의 finite 혼합 경로를 허용한다.
 `DynamicF("ticket__closed")` 같은 경로를 해석한다. 예를 들어
 `ExpressionPredicate(orm.DynamicF("completed").Exact(orm.DynamicF("ticket__closed")))`는 위 typed 비교와 같은 AST다.
 Generic 함수에서는 `BindExpressionIn`/`BindPredicateIn`/`ProjectDynamicIn`에 source와 일치하는 `BoundModel`을 전달한다.
-Collection 값·JSON scalar 비교·named annotation·Decimal/Duration 산술은 아직 별도 범위다.
+`Decimal(operand)`는 정확한 Decimal 산술을, `DateTime(operand)`와 `Duration(operand)`는 시각 이동·시각 차이와
+기간 산술을 연결한다. Collection 경로의 값·계산식은 완료된 집계 안에서 사용하며 일반 행 projection·WHERE·UPDATE의
+operand로 사용하지 않는다. Dynamic 집계는 `BindAggregateExpressionIn` 또는 생성 query의 `AggregateExpression`을
+사용한다. JSON scalar 계산 비교·일반 named annotation·function/subquery/window·Date/Time 이동·Duration scaling/division은
+아직 지원하지 않는다. [Helpdesk 계산 조회](../examples/helpdesk/README.md)에서 실제 조립을 확인한다.
 설계와 실제 환경별 검증은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md)·[TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 ## 프로젝트 명령
@@ -123,7 +127,7 @@ go run ./examples/article/cmd/adoptoperator --inspect
 `SetPassword(ctx, actor, userID, expectedRevision, password)`로 관리자 비밀번호 교체를 수행한다. Actor는 호스트가 인증한
 Principal이어야 하며, 서비스가 저장된 현재 `godj_identity.change_user`와 deny overlay를 다시 확인한다. 대상의 revision을 명시하고,
 성공 때 반환하는 Profile에만 새 revision이 있다. Hash 생성은 DB 범위 밖에서 한 번, User 변경·대상 세션 폐기·감사는 같은 transaction이다.
-오류에는 성공 Profile이 없으며 unknown outcome을 자동 재시도하지 않는다. 자기 비밀번호 변경/reset과 관리 UI/API는 아직 연결하지 않았다.
+오류에는 성공 Profile이 없으며 unknown outcome을 자동 재시도하지 않는다.
 
 `CreateUser`에는 호스트가 선택한 불변 principal ID로 만든 `NewUserCreate`와 password를 별도로 전달한다.
 `User`/`Users`는 현재 조회 또는 변경 권한을 확인하고 공개 profile을 반환한다. 단일 조회에는 그룹·직접 권한 ID도 포함된다.
@@ -133,7 +137,15 @@ Profile·role·관계·감사는 하나의 transaction이며 비활성화는 대
 성공 결과는 ID·revision·삭제 건수다. 실패/unknown에는 성공 값을 반환하지 않는다.
 생성은 현재 `add_user`와 `change_user`를 모두 요구하고 모든 작업은 현재 grant와 deny overlay를 다시 확인한다.
 Group/Permission 관리 service와 관리 JSON API·OpenAPI·독립 Session/Bearer client도 연결했다.
-공통 Admin 기반을 실제 Identity Form/Admin에 연결하는 작업과 self-service/reset은 미완료다.
+[Identity Admin](../identity/admin/config.go)은 같은 Manager·현재 권한·revision·삭제 정책으로 User/Group/Permission의
+Form·관리 화면·비밀번호 명령을 구성한다. 호스트의 전체 관계 graph에서 얻은 삭제 정책과 비밀번호 정책을 명시한다.
+
+[일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON API를 제공한다.
+변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
+메일 reset은 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. Token을 서버 proof로 바꾼 뒤 현재 상태를
+재검사하고 비밀번호·session 폐기·proof 정리·audit를 함께 저장하며 자동 로그인하지 않는다.
+[Article 구성](../examples/article/internal/siteapp/siteapp.go)은 관리 화면/API와 일반 계정이 같은 저장 runtime과
+비밀번호 정책을 사용하게 연결한다. Custom user model·JWT/OAuth/OIDC 등의 추가 인증 provider는 남은 범위다.
 
 ## Form, Admin과 API
 
@@ -194,9 +206,11 @@ Model serializer를 이미 갖고 있다면 다음 공개 투영 API를 사용�
 | Partial 입력 | `openapi.RequestSchema(spec, serializers.ModePartial)` |
 | ModelEncoder 응답 | `openapi.ModelResponseSchema(spec)` |
 
-각 호출의 schema와 오류를 처리한다. `openapi.Operation`에 route·permission·query·body·response를 연결하고
-`openapi.New`로 문서를 검증한다. Handler를 같은 authentication·permission으로 보호하고 API middleware를 구성하는 책임은
-application에 있다. 문서를 만들었다고 handler에 인증이나 응답 검증이 자동 추가되지 않는다.
+각 호출의 schema와 오류를 처리한다. [Typed endpoint](../api/endpoint/README.md)의 `endpoint.New`는 같은 admission과
+typed 입력·출력에서 handler와 OpenAPI operation을 함께 만든다. `endpoint.Collect`로 operation/schema를 모으고
+`openapi.New`로 전체 문서를 검증한다. 수동 handler를 사용하는 경로는 `openapi.Operation`에 route·permission·query·
+body·response를 명시하고 같은 authentication·permission으로 handler를 보호한다. 실제 middleware 설치와
+transaction·응답 게시의 책임은 application이 유지한다.
 
 Full 입력의 `title`은 필수이고 생략한 `published`는 false다. PATCH는 생략한 값을 바꾸지 않으며 `summary:null`과
 `summary:""`를 구분한다. Read-only `id`는 입력 schema에서 빠진다. Trim 후 길이·빈 문자열 규칙은 `x-godj-normalization`에,
@@ -210,21 +224,26 @@ Session unsafe 요청은 session·CSRF cookie와 masked header를 함께 요구�
 JSON negotiation을 설치하는 application은 `api.NewJSONPolicy("/api/")`로 만든 같은 policy의 `Middleware()`와
 `openapi.Config.JSONPolicy`를 사용한다. Zero policy에는 406이 없다. 한 dynamic route 일부에만 적용되는 prefix는 거부한다.
 
-Helpdesk는 `application.API(authentication)`을 한 번 호출해 `Routes()`와 `OpenAPI()`를 얻는다.
-선택 category의 bare list·nested detail과 create만 설명하며, 입력에서 category/id를 받지 않는다. 기존 Helpdesk에는
-JSON negotiation middleware가 없으므로 Article의 406 정책을 그대로 붙이지 않는다.
+Helpdesk는 `application.API(helpdesk.APIConfig{Authentication: authentication, AppendAudit: appendAudit})`로
+`Routes()`와 `OpenAPI()`를 얻는다. `appendAudit`는 전달받은 transaction 안에서 기록하고 별도 commit을 하지 않는다.
+티켓 CRUD·bulk·우선순위 명령, Label·연결·보고서와 집계·비용/기한 미리보기를 같은 선언에 연결한다.
+현재 Category는 application이 소유하고 생성 입력에서 category/id를 받지 않는다. Helpdesk에는 기본 Accept negotiation
+정책이 없으며, [각 경로의 입력·권한·실패 계약](../examples/helpdesk/README.md)을 따른다.
 
 [실제 HTTP client 회귀](../examples/article/apiapp/openapi_test.go)는 문서와 생성·PATCH·HEAD의 응답을 대조한다.
 [외부 생성 client 회귀](../api/openapi/consumertest/README.md)는 별도 module의 고정 ogen v1.24.0 Go client로
-Article Bearer·Session과 Helpdesk Session을 검증한다. 생성물과 입력 문서·설정·lock의 일치도 필수다.
+Article Bearer·Session, Helpdesk Session, Identity Bearer·Session과 Account Session의 여섯 profile을 검증한다.
+생성물과 입력 문서·설정·lock의 일치도 필수다.
 
 ```sh
 make api-client-dependencies
 go test -count=1 ./api/openapi/consumertest
 ```
 
-Session은 실제 cookie·CSRF를 사용하며 parent fixture가 준비한 session에서 시작한다. SDK의 로그인 기능이나 임의 generator,
-다른 언어의 정수/nullable 동작까지 검증한 범위는 아니다. 문서/생성물 변경은 위 회귀의 README 갱신 절차를 따른다.
+Session은 실제 cookie·CSRF를 사용한다. Article/Helpdesk와 Identity 관리 client는 parent가 준비한 session에서 시작하고,
+Account client는 제품 login Form을 제출해 session을 만든 뒤 생성 password/reset API와 제품 logout을 사용한다.
+Reset 메일 조회는 fixture만 제공하며 제품 endpoint가 아니다. 임의 generator나 다른 언어의 정수/nullable 동작은
+별도 검증이 필요하다. 위 명령의 실행 위치·환경은 [검증 전략](TESTING.md)을, 문서/생성물 변경은 회귀 README의 갱신 절차를 따른다.
 
 ## PostgreSQL
 
