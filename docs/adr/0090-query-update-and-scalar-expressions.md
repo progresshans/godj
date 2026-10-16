@@ -73,6 +73,8 @@ DateTime은 UTC 연도 1..9999와 microsecond를 유지한다. SQLite의 정확�
 않는다. Fractional 기간을 시각에 적용할 때에는 정수 epoch microseconds와 binary64의 정확한 유리수 값을 합친 뒤
 그 DateTime 결과 경계에서 한 번 half-even으로 반올림한다. 원 epoch를 float로 변환하거나 기간을 미리 반올림하지 않는다.
 기간의 raw fractional 결과도 full normalized model의 최소/최대 정수 microseconds 사이에 있어야 한다.
+고정 Django의 SQLite 평균 이동과 native 범위 초과에 대한 의도적 차이는
+[DEV-0022](../DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에서 분류한다.
 
 양쪽 operand를 검증한 뒤 NULL을 전파하며 손상 값·범위 밖의 중간값을 상쇄하거나 NULL로 숨기지 않는다. 선택되지 않은
 CASE branch와 FILTER 제외 행은 실행하지 않는다. 조회·같은 행 UPDATE는 같은 검사 경로를 사용하며 target과 source

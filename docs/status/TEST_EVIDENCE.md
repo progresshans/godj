@@ -3,7 +3,7 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0128 — 시각·기간 계산식 기반 준비
+## GDJ-0128 — 시각·기간 계산식 구현과 검증
 
 2026-10-15 KST, source `c6e96c41fb981111a11d2a93914ee305b0c513a0`에서 별도
 `feature/temporal-expressions` 작업 공간을 시작했다. 아래는 원격 제출 전 구현·검증 준비 단계의 기록이다.
@@ -100,6 +100,107 @@ PostgreSQL 필수 목록은 3379개이며 세 mode·여섯 core 좌표의 고유
 
 선행 수정 `9edc6b56`의 macOS ARM relation 분할을 이 작업 공간에도 동일하게 반영했다. 제품·생성 소비자·HTTP·client·browser
 코드 묶음을 통합해 자동 전체 CI에서 검증한다. 새 source의 실제 DB/관측·세 mode·실패/저장 보존·브라우저·전체 CI와 원본 증거 감사가 남아 있다.
+
+
+### 통합 source와 첫 자동 전체 CI
+
+준비 묶음을 feature commit `943dcde6ce47718686d2f87ef3f9f1cf91cb85dd`로 기록하고 주 브랜치의
+`458fb20449267f09dd87c20ef4318b11893a1b90`로 통합·push했다. 문서 충돌에서는 최신 GDJ-0127 원본 기록을 보존했다.
+두 commit의 차이는 구현 행렬의 현행 상태 두 곳뿐이며 모든 제품·검증 코드 byte가 같음을 확인했다.
+`gdj0128-integration-458fb204.json` SHA-256은 `5f4eb65c7fb5d804d092598632524ae9662e11f3e914a72f7aea9b4ad4aa4fbd`다.
+여섯 profile의 schema와 생성 파일 71개도 기존 실제 재생성 receipt의 각 hash와 대조했다. 새 재생성이나 runtime 실행은 아니다.
+최종 `make docs-check format-check`는 Markdown 214개 링크와 Go 포맷을 확인했다.
+
+2026-10-16 01:51:16 UTC에 [자동 전체 CI 38837344321](https://github.com/progresshans/godj/actions/runs/38837344321),
+attempt 1·pull_request가 시작됐다. Validation-plan job `116769694353`의 checkout은
+`c5e1e630c9c0004583b29f11407f348d907fc903`이며 두 번째 parent가 구현 head다.
+Tree `2b45401b3ab18ba632bf29f681ddeb911ff90f31`가 head와 같음을 GitHub commit API·원 로그에서 대조했다.
+
+- Source binding: `ci-38837344321-source-binding-and-plan.json`, SHA-256 `cd6c3578e57cfcabf8b2376f096c11bb9c8dd242ec9805ee72c711ebc83b5c05`
+- Validation-plan 원 로그 SHA-256: `e4b254f6ea7ef4c9e891d3cc2896707bef489a95a91418a9eb5f1f380c51621e`
+- 게시한 PR body: `gdj0128-pr1-body-458fb204.md`, SHA-256 `832a18c45a06bc064299a3b99d50ff32777ece0434ec3659bfb9f9cb6844f35e`
+
+이 push로 이전 source `9edc6b56`의 CI 38835004030은 success 49·cancelled 39·failure 1의 89개 job으로 종료됐다.
+Failure 1개는 취소된 owner를 확인한 최종 집계이며 conclusion은 cancelled다. 전체 PASS로 사용하지 않는다.
+현재 source의 실제 양 DB·독립 관측·세 mode·client/browser·89개 job과 원본 증거 감사는 진행 중이며 완료를 주장하지 않는다.
+
+### 같은 source의 독립 client·브라우저 부분 검증
+
+CI 38837344321의 완료된 normal integration job `116769728922`, CGO0 integration job `116769728944`와
+race integration job `116769728895`를 source `458fb204`·checkout `c5e1e630`·동일 tree에 결합해 원 로그로 대조했다. 세 job 모두 무필터
+`api/openapi/consumertest` package 실행에 성공했다. 실제 부모가 여섯 profile의 schema/generated tree,
+현재 부모·자식의 필수 104개 항목, race mode와 저장 보존을 검사하도록 구성되어 있고 skip 우회가 없음을 확인했다.
+개별 성공 child receipt는 portable artifact에 따로 보존되지 않으므로 이를 104개 raw child event의 직접 감사로 표현하지 않는다.
+
+- normal audit: `ci-38837344321-openapi-client/normal/audit.json`, SHA-256 `ac34eb83856e310aa7b9ec06535e0b77a9f130feb7773b8d71a432ed2185f871`
+- CGO0 audit: `ci-38837344321-openapi-client/cgo0/audit.json`, SHA-256 `369832f3261db745eeb54f4564ffcab01764136b46e325d5b2b890752991b403`
+- race audit: `ci-38837344321-openapi-client/race/audit.json`, SHA-256 `d270035c77a30468fb32f8d09505be5b90ee5b5838571a3fc4fe071ec8697bcd`
+
+Normal job의 browser artifact `12020395899`는 run/head·ZIP 크기/digest·원본 probe/fixture/lock source와 대조했다.
+Chromium `155.0.8059.12`의 summary 30·report status 19·label usage 28·cost preview 22·deadline preview 34개
+필수 검사를 각각 확인했다. 명시적 기준 시각·UTC/submicrosecond 입력·윤일·NULL·정확한 기한/기간·필터/페이지·
+잘못된 입력·계산 overflow의 전체 실패와 저장 기한/NULL·전체 앱 데이터 보존, cleanup이 통과했다.
+다섯 실제 PNG를 열어 표·필터·페이지 결과를 확인했다. 새 deadline 화면은 윤일 경계의 두 원래 기한에 +1마이크로초를
+적용하고 기준 시각 대비 -1/+1마이크로초, 미설정 기한을 표시했다. 나머지 네 화면의 표시·escaped text도 확인했다.
+
+- Browser audit: `ci-38837344321-browser/audit.json`, SHA-256 `e947799df8c03caa0663fadb1d48af0902e6f29e2d27d07387a1e0fc623a26cb`
+- Artifact ZIP SHA-256: `9f82ac6eeabf84c6498331f0fe73db18d69b8c4036fc4c2f06fde7fefb6843f0`
+- Raw normal job SHA-256: `02f099ef0c6cda9b6f562cf7b1db376251c3c36036af4325d26aa496c8d70a32`
+- Browser receipt SHA-256: `978d42ca351842834564701d3bf58d9a03d88c7fa07c6389a7647a88f8a19eee`
+- Deadline PNG SHA-256: `0f5d4ba43ff3e3b93935d982582599ef396bdb4413988e0ff86663ab4dc81b20`
+
+이는 완료된 세 integration job과 normal browser의 부분 증거다. 양 DB temporal native 원 event·고정 Django 관측,
+전체 플랫폼과 모든 필수 job의 terminal 성공·원본 증거 감사는 아직 남아 있다.
+
+### 첫 원격 temporal 실패와 검증 코드 수정
+
+Source `458fb204`의 normal PostgreSQL core job `116769728654`, CGO0 core job `116769728603`와 race consumer job `116769728598`에서
+새 temporal 검증이 실패했다. 원 job의 head·checkout과 artifact run/head·ZIP 크기/digest를 확인했다.
+Normal artifact `12020640929`의 생성 소비자 원 event는 run 114·pass 106·fail 8·skip 0이다.
+실패 leaf는 SQLite 날짜 overflow 세 개와 PostgreSQL 부호 반전 두 개이며 상위 실패 세 개를 포함한다.
+Race artifact `12020586336`과 CGO0 artifact `12021086520`도 같은 114·106·8·0 및 같은 실패 leaf를 확인했다.
+이 결과와 이미 성공한 세 mode client·normal browser를 구분하며 source 전체 PASS로 사용하지 않는다.
+
+- Normal 원 job SHA-256: `c4f80f366fb99b03ae039c2e8197100511e9a2f600e9c6f1c4693e5b10b50a84`
+- Normal artifact ZIP SHA-256: `ba3edaa9d81ec565e0770bf179b45c1668e9752dbd507361e3032ed38dde01b3`
+- Normal native child JSONL SHA-256: `65ea0b803a794bbe49a4bb89e771d6383291de3737b971a1e1392aa033592814`
+- Race 원 job SHA-256: `fbf4a920b3897cf1d69196bfda5eda01a6d5b05c563dc3982a24d58974b5a8c0`
+- Race artifact ZIP SHA-256: `232126fdb28ead042b3d4d0aff2de61126a7eb15faa2ea34c45411ea0374b91b`
+- CGO0 원 job SHA-256: `04dbc30967fe276ee04af951cb0efb83f4726fdcafed266416ae26fcc4a7f3ac`
+- CGO0 artifact ZIP SHA-256: `eb3bdd92e03deba093bc1b2473852ee209680c82cb2083c47e9f99eff130ec8c`
+
+`internal/queryupdatetest/temporal.go`는 PostgreSQL의 `*any` Duration 반환을 모델 struct로 잘못 비교했다.
+기존 backend의 canonical 문자열 반환 계약에 맞춰 exact/평균 기대값의 형식을 바로잡고 값 자체는 유지했다.
+부모 `testing.T`를 캡처해 하위 실패를 잘못 종료하던 helper는 실행 중인 child를 전달받도록 정리했다.
+독립 reference 비교는 고정 Python/SQLite 날짜 overflow의 실제 `DataError`·SQL 단계와 psycopg의 `Int4`를 검사한다.
+`Int4`는 PostgreSQL에서만 허용하며 non-null 정수·signed 32-bit 범위를 검증한다. Observer 원본·44개 관측·114개 native
+목록·10개 compile-negative·3379개 PostgreSQL 필수 목록과 계산/저장 보존 조건은 바꾸지 않았다.
+
+Normal job의 독립 Django 관측은 양 DB 각각 44개를 원 SQL·parameter/native replay·변환 오류·저장/cleanup과 대조했다.
+Runtime은 Linux x86_64·Python 3.14.3·Django 6.1·SQLite 3.50.4 및 PostgreSQL 17.10·psycopg 3.3.6이다.
+빈 IN의 `empty_aggregate`는 양 DB에서 SQL을 생략하고 NULL 집계/건수 0을 반환한다. 감사기는 이 정확한 경우만
+SQL 생략으로 인정하고 저장 증거를 계속 요구한다. `Int4`의 정수 범위와 잘못된 빈 집계 결과를 포함한 검사기 6개 테스트도 통과했다.
+관측 receipt `ci-38837344321-failures/independent-reference-audit.json` SHA-256은
+`b87f4102e7749fa9aea9181144a4eefb3682f448624888b33d0a34c64f73a054`다. 이는 독립 관측 provenance이며 실패한 GoDj 비교 전체의 PASS가 아니다.
+이미 채택한 평균 이동·정확한 범위/rollback 차이는 [DEV-0022](../DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 분류했다.
+
+별도 완료된 race Helpdesk PostgreSQL job `116769728575`·artifact `12020615399`에서는 기한 미리보기 22개
+root/child가 각각 한 번 run/pass했고 skip 0이며 해당 owner의 필수 목록도 확인했다.
+`ci-38837344321-deadline-native/race-core-helpdesk-postgres/audit.json` SHA-256은
+`f0daa7ff54834a0cb4c9c971804f8c72151cd9a43717e48a2bf3cf8d8c333796`다. 다른 owner 또는 전체 CI 성공을 뜻하지 않는다.
+
+로컬 Go 1.26.5 darwin/arm64·격리 PostgreSQL 17.5에서 관측된 실패 경로만 재현했다. 원격 Django JSON은 그대로
+사용했으며 observer나 전체 제품 suite를 로컬에서 다시 실행하지 않았다. 첫 `before`는 임시 서버의 fsync 설정 때문에
+기존 물리 session 검증에서 거부됐고 로그를 보존했다. fsync를 켠 `before2`에서 실제 세 종류의 실패를 다시 확인했다.
+수정 뒤 PostgreSQL backend root/child 18개, SQLite reference의 root/child 5개, PostgreSQL reference의 root/child 4개가
+각각 한 번 run/pass했고 fail/skip 0이다. 종료 시 소유한 PostgreSQL process와 임시 데이터 디렉터리를 정리했다.
+
+- 실제 실패 재현 `gdj0128-native-failure-repro/before2/receipt.json`: `8133bbd9dfde428c2a0e34c90ad7393afffa61a94466c25a4b155be09b3d5124`
+- 수정 검증 `gdj0128-native-failure-repro/after/receipt.json`: `df6ffb53b59de19246d3f80439f31531cca8d9d5404a4031aa3ee12348a7a95e`
+- Source·원 실패·수정 결과 결합 `gdj0128-native-failure-repro/repair-receipt.json`: `1933994d556003fcd6acca49b70c0cf45a8e8c77d9ed62e287bd4494f867386d`
+
+로컬 PostgreSQL 17.5의 국소 재현을 고정 Hosted 17.10 검증으로 옮기지 않는다. 수정 source의 자동 전체 CI와 필수
+실행·원본 증거 감사를 다시 수행해야 한다.
 
 ## GDJ-0127 — 컬렉션 계산식 집계와 라벨별 조정 비용
 
@@ -286,7 +387,7 @@ Validation-plan job `116762039584`의 실제 checkout `4e68af3f4762fa3a0f53cf4fd
 - Validation-plan 원 로그 SHA-256: `2caa773b009408f723af478cbdab466883e1dbe819cec70d5d2521cbba10564e`
 - 게시한 PR body: `gdj0127-pr1-body-9edc6b56.md`, SHA-256 `9e93c1846dccd0e537dcc8ddb5dc978ca5f51714e78bcad5918e9bce873a70b7`
 
-전체 종료·89개 job의 필수 실행·원본 artifact 감사는 아직 남아 있다. 이 실행에는 GDJ-0128이 포함되지 않는다.
+이 실행은 후속 GDJ-0128 source의 push로 대체돼 취소됐다. 최종 상태는 위 GDJ-0128 기록을 따르며 전체 PASS로 사용하지 않는다.
 
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 

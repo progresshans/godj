@@ -1,6 +1,6 @@
 # GDJ-0128: 시각·기간 계산식과 기한 변경 미리보기
 
-- 상태: 제품·소비자·검증 코드 연결, 원격 실행 검증 전
+- 상태: 첫 원격 검증의 fixture 오류 수정·국소 재현 완료, 수정 source 전체 CI 제출 준비
 - 시작: 2026-10-15
 - 기준: `c6e96c41fb981111a11d2a93914ee305b0c513a0` (GDJ-0127 수정 source의 전체 CI는 별도 진행 중)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 값](../docs/adr/0061-datetime-field-and-canonical-instant-values.md), [기간 값](../docs/adr/0067-duration-model-range-and-number-input.md), [계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [집계와 결과 단계](../docs/adr/0091-grouped-results-and-having.md)
@@ -39,7 +39,7 @@ Helpdesk 티켓의 원래 기한과 기간만큼 이동한 기한, 명시적인 
 ## 구현과 검증
 
 고정 Django 6.1의 독립 SQLite/PostgreSQL 관측은 SQL·parameter/native 반환 종류·변환 결과·오류와 저장 보존을 기록한다.
-SQLite의 fractional AVG를 temporal 식에 넣는 동작은 아직 source 조사만 했으며 실행 결과로 확정하지 않는다.
+SQLite의 fractional AVG 이동과 양 DB의 범위 오류를 실제 고정 관측으로 확인하고 [DEV-0022](../docs/DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 차이를 기록했다.
 Timestamp/Duration 함수와 parser의 실제 upstream module을 source manifest에 포함하고 의도한 차이는 실제 관측 후 명시한다.
 PostgreSQL 17의 [시각 함수](https://www.postgresql.org/docs/17/functions-datetime.html)와
 [특수 시각 값](https://www.postgresql.org/docs/17/datatype-datetime.html)을 확인했다. INTERVAL의 infinity와
@@ -62,6 +62,16 @@ HTML/API를 작성했다. 현재 문서 여섯 profile을 export하고 고정 cl
 새 경로의 native HTTP·인가/저장 실패, 독립 client의 큰 날짜 범위·반올림 없는 정수 기대값·required nullable wire와
 브라우저의 명시적 기준 시각·윤일·페이지 검증 코드를 연결했다. 원본 로그·현재 source·필수 목록의 감사도 준비했다.
 최소 compile과 검사기의 부정 대조까지만 확인했으며 실제 DB/HTTP·client/browser 실행은 원격에서 검증해야 한다.
+
+
+준비 묶음을 feature `943dcde6`에서 주 브랜치의 source `458fb20449267f09dd87c20ef4318b11893a1b90`로 통합·push했다.
+[자동 전체 CI 38837344321](https://github.com/progresshans/godj/actions/runs/38837344321)와 같은 source의 원본 증거 감사를 진행한다.
+이전 부분 compile·다른 source의 실행을 이 묶음의 runtime 성공으로 사용하지 않는다.
+이후 같은 source의 세 mode 독립 client 실행과 normal 브라우저 artifact·실제 화면을 대조했다.
+양 DB temporal 소비자·독립 관측 및 전체 CI의 원본 증거 감사는 아직 남아 있다.
+환경별 원 로그·hash·검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+첫 원격 실행에서 기간 반환 형식과 고정 reference의 오류/매개변수 타입을 잘못 가정한 검증 코드를 수정했다.
+실패 경로를 로컬에서 재현하고 수정 뒤 해당 경로를 확인했다. 고정 PostgreSQL 17.10·세 mode·전체 플랫폼은 수정 source로 다시 검증한다.
 
 ## 완료 조건
 

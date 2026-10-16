@@ -44,6 +44,32 @@
 
 ## 원장
 
+## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동
+
+- 상태: ADR-0090/0091의 계약 구현; 독립 관측과 일부 native 비교를 확인했으며 전체 source 검증은 진행 중
+- 날짜: 2026-10-16
+- 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 temporal observer](../conformance/runners/django/temporal_expression_reference/), SQLite/PostgreSQL 17.10
+- 범위: [GDJ-0128](../work/0128-temporal-expressions-and-deadline-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
+
+SQLite의 Duration 평균은 REAL이다. 고정 Django에서 nonzero 평균을 DateTime에 더하면 `mean_fractional_shift`,
+`mean_integral_shift`, `mean_reverse_shift`의 시각 결과가 NULL이고 `mean_zero_shift`는 SQL 실행 중 OperationalError다.
+GoDj는 평균의 fractional microseconds를 유지하며 정확한 정수 시각과 합친 뒤 DateTime 결과 경계에서 한 번 half-even으로
+반올림한다. NULL 평균은 NULL을 유지한다. 평균을 먼저 모델 Duration으로 반올림하거나 시각을 float로 바꾸는 대안은
+마이크로초와 큰 연도 범위의 정확성을 잃으므로 채택하지 않는다. PostgreSQL은 native INTERVAL 평균을 유지한다.
+
+SQLite의 `duration_int64_overflow`와 `update_duration_overflow`는 native INTEGER를 REAL로 승격해 `2^63`을
+조회하거나 저장한다. GoDj는 exact Duration operand의 int64 표현 한계를 statement 안에서 검사해 오류와 전체 rollback을
+요구한다. 전체 normalized Duration 모델 범위를 int64로 축소하는 결정은 아니며 PostgreSQL의 넓은 INTERVAL 범위와 구분한다.
+
+PostgreSQL은 연도 10000의 timestamp와 모델 상한 밖 interval을 계산·저장할 수 있지만 고정 Python 변환이 뒤에서 실패한다.
+`update_datetime_overflow`의 원 관측은 UPDATE가 여섯 행에 도달한 뒤 조회 변환에서 실패한 사실을 보존한다.
+GoDj는 원본·중간·최종 DateTime/Duration의 모델 범위를 statement 안에서 검사한다. 조회의 부분 결과와 범위 밖 UPDATE를
+게시하지 않고 저장을 보존한다. SQLite 날짜 overflow의 native DataError와 PostgreSQL 변환 DataError를 같은 단계로 바꾸지 않는다.
+
+기존 저장 형식이나 유효한 모델 값을 migration하지 않는다. 손상 값·NULL·상쇄·CASE/FILTER·transaction과 취소의 검사는
+계속 요구한다. 비교 테스트는 위 사례의 양쪽 결과·native 타입·오류 단계·저장 상태를 각각 검사하며 다른 mismatch를 면제하지
+않는다. Upstream의 평균 이동 또는 범위 정책이 바뀌면 고정 reference와 이 차이를 함께 재검토한다.
+
 
 ## DEV-0021 — Query update의 정확한 정수와 명시적 변환
 

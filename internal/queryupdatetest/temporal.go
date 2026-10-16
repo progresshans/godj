@@ -29,7 +29,7 @@ func CheckTemporal(t *testing.T, backend interface {
 	otherSpan := query.NewFieldRef("other_span", "other_span", query.FieldDuration, true)
 	marker := query.NewFieldRef("marker", "marker", query.FieldInteger, false)
 	source := query.NewPlan(name, []query.FieldRef{ID, at, otherAt, span, otherSpan, marker})
-	exec := func(statement string) {
+	exec := func(t *testing.T, statement string) {
 		t.Helper()
 		if _, err := database.ExecContext(ctx, statement); err != nil {
 			t.Fatal(err)
@@ -51,12 +51,13 @@ func CheckTemporal(t *testing.T, backend interface {
 	if postgres {
 		timeType, durationType = "TIMESTAMPTZ", "INTERVAL"
 	}
-	exec("CREATE TABLE " + table + " (id BIGINT PRIMARY KEY, at " + timeType + ", other_at " + timeType + ", span " + durationType + ", other_span " + durationType + ", marker BIGINT NOT NULL CHECK(marker >= 0))")
-	reset := func() {
-		exec("DELETE FROM " + table)
-		exec("INSERT INTO " + table + " VALUES (1," + stamp("9999-01-01 00:00:00.000001") + "," + stamp("0001-01-01 00:00:00.000000") + "," + period("2") + "," + period("3") + ",0),(2,NULL,NULL,NULL,NULL,0)")
+	exec(t, "CREATE TABLE "+table+" (id BIGINT PRIMARY KEY, at "+timeType+", other_at "+timeType+", span "+durationType+", other_span "+durationType+", marker BIGINT NOT NULL CHECK(marker >= 0))")
+	reset := func(t *testing.T) {
+		t.Helper()
+		exec(t, "DELETE FROM "+table)
+		exec(t, "INSERT INTO "+table+" VALUES (1,"+stamp("9999-01-01 00:00:00.000001")+","+stamp("0001-01-01 00:00:00.000000")+","+period("2")+","+period("3")+",0),(2,NULL,NULL,NULL,NULL,0)")
 	}
-	snapshot := func() [][]any {
+	snapshot := func(t *testing.T) [][]any {
 		t.Helper()
 		rows, err := database.QueryContext(ctx, "SELECT id,CAST(at AS TEXT),CAST(other_at AS TEXT),CAST(span AS TEXT),CAST(other_span AS TEXT),marker FROM "+table+" ORDER BY id")
 		if err != nil {
@@ -76,7 +77,7 @@ func CheckTemporal(t *testing.T, backend interface {
 		}
 		return values
 	}
-	project := func(plan query.Plan, expressions ...query.ScalarExpression) query.Plan {
+	project := func(t *testing.T, plan query.Plan, expressions ...query.ScalarExpression) query.Plan {
 		t.Helper()
 		values := make([]query.ResultExpression, len(expressions))
 		for index, expression := range expressions {
@@ -122,7 +123,7 @@ func CheckTemporal(t *testing.T, backend interface {
 		}
 		return values, nil
 	}
-	instant := func(raw any, expected string) {
+	instant := func(t *testing.T, raw any, expected string) {
 		t.Helper()
 		want, err := time.Parse("2006-01-02 15:04:05.000000", expected)
 		if err != nil {
@@ -137,61 +138,61 @@ func CheckTemporal(t *testing.T, backend interface {
 			t.Fatal("canonical instant changed", raw, expected)
 		}
 	}
-	elapsed := func(raw any, micros int64) {
+	elapsed := func(t *testing.T, raw any, micros int64) {
 		t.Helper()
 		var want any = micros
 		if postgres {
-			want = duration.FromMicroseconds(micros)
+			want = duration.FromMicroseconds(micros).String()
 		}
 		if raw != want {
-			t.Fatal("native exact Duration changed", raw, want)
+			t.Fatalf("native exact Duration changed: got %T(%v), want %T(%v)", raw, raw, want, want)
 		}
 	}
-	add := func(left, right query.ScalarExpression) query.ScalarExpression {
+	add := func(t *testing.T, left, right query.ScalarExpression) query.ScalarExpression {
 		return Arithmetic(t, query.ArithmeticAdd, left, right)
 	}
-	subtract := func(left, right query.ScalarExpression) query.ScalarExpression {
+	subtract := func(t *testing.T, left, right query.ScalarExpression) query.ScalarExpression {
 		return Arithmetic(t, query.ArithmeticSubtract, left, right)
 	}
 	one := Literal(t, query.Duration(duration.FromMicroseconds(1)))
-	shift := add(Field(t, at), Field(t, span))
-	difference := subtract(Field(t, at), Field(t, otherAt))
+	shift := add(t, Field(t, at), Field(t, span))
+	difference := subtract(t, Field(t, at), Field(t, otherAt))
 	ordered := source.WithOrderings(query.NewOrdering(ID, query.Ascending))
 
 	t.Run("native_reads_and_same_row_assignment", func(t *testing.T) {
-		reset()
-		before := snapshot()
+		reset(t)
+		before := snapshot(t)
 		negative, err := query.NegateScalar(Field(t, span))
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows, err := read(backend, project(ordered, shift, add(one, Field(t, at)), difference, add(Field(t, span), Field(t, otherSpan)), negative))
+		rows, err := read(backend, project(t, ordered, shift, add(t, one, Field(t, at)), difference, add(t, Field(t, span), Field(t, otherSpan)), negative))
 		if err != nil || len(rows) != 2 {
 			t.Fatal("temporal projection failed", rows, err)
 		}
-		instant(rows[0][0], "9999-01-01 00:00:00.000003")
-		instant(rows[0][1], "9999-01-01 00:00:00.000002")
-		elapsed(rows[0][2], 315506361600000001)
-		elapsed(rows[0][3], 5)
-		elapsed(rows[0][4], -2)
+		instant(t, rows[0][0], "9999-01-01 00:00:00.000003")
+		instant(t, rows[0][1], "9999-01-01 00:00:00.000002")
+		elapsed(t, rows[0][2], 315506361600000001)
+		elapsed(t, rows[0][3], 5)
+		elapsed(t, rows[0][4], -2)
 		for _, value := range rows[1] {
 			if value != nil {
 				t.Fatal("NULL became a zero temporal value", value)
 			}
 		}
-		if !reflect.DeepEqual(before, snapshot()) {
+		if !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("read changed native storage")
 		}
 		count, err := backend.QueryUpdate(ctx, Plan(t, source, Assignment(t, at, shift), Assignment(t, span, difference)))
 		if err != nil || count != 2 {
 			t.Fatal("temporal assignment failed", count, err)
 		}
-		rows, err = read(backend, project(ordered, Field(t, at), Field(t, span)))
+		rows, err = read(backend, project(t, ordered, Field(t, at), Field(t, span)))
 		if err != nil || len(rows) != 2 {
 			t.Fatal(err)
 		}
-		instant(rows[0][0], "9999-01-01 00:00:00.000003")
-		elapsed(rows[0][1], 315506361600000001) // Both assignments use original row values.
+		instant(t, rows[0][0], "9999-01-01 00:00:00.000003")
+		elapsed(t, rows[0][1], 315506361600000001) // Both assignments use original row values.
 	})
 
 	type failure struct {
@@ -212,52 +213,52 @@ func CheckTemporal(t *testing.T, backend interface {
 		badTime, badPeriod, periodMaximum = "TIMESTAMPTZ 'infinity'", "INTERVAL '1 month'", "INTERVAL '999999999 days 23:59:59.999999'"
 	}
 	failures := []failure{
-		{"bad_datetime_with_null", "at=" + badTime, at, add(Field(t, at), nullDuration)},
-		{"bad_duration_with_null", "span=" + badPeriod, at, add(nullTime, Field(t, span))},
-		{"bad_datetime_difference", "at=" + badTime, span, subtract(Field(t, at), nullTime)},
-		{"bad_duration_sum", "span=" + badPeriod, span, add(nullDuration, Field(t, span))},
-		{"datetime_intermediate_range", "at=" + stamp("9999-12-31 23:59:59.999999"), at, subtract(add(Field(t, at), one), one)},
-		{"duration_intermediate_range", "span=" + periodMaximum, span, subtract(add(Field(t, span), one), one)},
+		{"bad_datetime_with_null", "at=" + badTime, at, add(t, Field(t, at), nullDuration)},
+		{"bad_duration_with_null", "span=" + badPeriod, at, add(t, nullTime, Field(t, span))},
+		{"bad_datetime_difference", "at=" + badTime, span, subtract(t, Field(t, at), nullTime)},
+		{"bad_duration_sum", "span=" + badPeriod, span, add(t, nullDuration, Field(t, span))},
+		{"datetime_intermediate_range", "at=" + stamp("9999-12-31 23:59:59.999999"), at, subtract(t, add(t, Field(t, at), one), one)},
+		{"duration_intermediate_range", "span=" + periodMaximum, span, subtract(t, add(t, Field(t, span), one), one)},
 	}
 	if postgres {
 		for _, test := range []struct{ name, value string }{{"year", "1 year"}, {"too_large", "1000000000 days"}, {"too_small", "-999999999 days -1 microsecond"}, {"infinity", "infinity"}} {
-			failures = append(failures, failure{"duration_" + test.name, "span=INTERVAL '" + test.value + "'", span, add(Field(t, span), nullDuration)})
+			failures = append(failures, failure{"duration_" + test.name, "span=INTERVAL '" + test.value + "'", span, add(t, Field(t, span), nullDuration)})
 		}
-		failures = append(failures, failure{"datetime_year_range", "at=TIMESTAMPTZ '10000-01-01 00:00:00+00'", at, add(Field(t, at), nullDuration)})
+		failures = append(failures, failure{"datetime_year_range", "at=TIMESTAMPTZ '10000-01-01 00:00:00+00'", at, add(t, Field(t, at), nullDuration)})
 	} else {
-		failures = append(failures, failure{"duration_real_storage", "span=0.5", span, add(Field(t, span), nullDuration)})
+		failures = append(failures, failure{"duration_real_storage", "span=0.5", span, add(t, Field(t, span), nullDuration)})
 	}
 	for _, test := range failures {
 		t.Run(test.name, func(t *testing.T) {
-			reset()
-			exec("UPDATE " + table + " SET " + test.mutation + " WHERE id=2")
-			before := snapshot()
-			if values, err := read(backend, project(ordered, test.expression)); err == nil || values != nil {
+			reset(t)
+			exec(t, "UPDATE "+table+" SET "+test.mutation+" WHERE id=2")
+			before := snapshot(t)
+			if values, err := read(backend, project(t, ordered, test.expression)); err == nil || values != nil {
 				t.Fatal("invalid source or intermediate was hidden", values, err)
 			} else {
 				assertNative(t, err)
 			}
-			plan := Plan(t, source, Assignment(t, marker, add(Field(t, marker), Literal(t, query.Integer(1)))), Assignment(t, test.target, test.expression))
+			plan := Plan(t, source, Assignment(t, marker, add(t, Field(t, marker), Literal(t, query.Integer(1)))), Assignment(t, test.target, test.expression))
 			if count, err := backend.QueryUpdate(ctx, plan); err == nil || count != 0 {
 				t.Fatal("invalid UPDATE reported success", count, err)
 			} else {
 				assertNative(t, err)
 			}
-			if !reflect.DeepEqual(before, snapshot()) {
+			if !reflect.DeepEqual(before, snapshot(t)) {
 				t.Fatal("failing read or later UPDATE row changed storage")
 			}
 		})
 	}
 
 	t.Run("case_and_filter_exclude_unexecuted_corruption", func(t *testing.T) {
-		reset()
-		exec("UPDATE " + table + " SET span=" + badPeriod + " WHERE id=2")
-		before := snapshot()
+		reset(t)
+		exec(t, "UPDATE "+table+" SET span="+badPeriod+" WHERE id=2")
+		before := snapshot(t)
 		condition, err := query.NewExpression(query.NewCondition(ID, query.LookupExact, query.Integer(1)))
 		if err != nil {
 			t.Fatal(err)
 		}
-		branch, err := query.WhenScalar(condition, add(Field(t, span), one))
+		branch, err := query.WhenScalar(condition, add(t, Field(t, span), one))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -265,12 +266,12 @@ func CheckTemporal(t *testing.T, backend interface {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rows, err := read(backend, project(ordered, selected))
+		rows, err := read(backend, project(t, ordered, selected))
 		if err != nil || len(rows) != 2 || rows[1][0] != nil {
 			t.Fatal("unexecuted CASE branch was evaluated", rows, err)
 		}
-		elapsed(rows[0][0], 3)
-		aggregate, err := query.ScalarAggregateResult(query.ResultSum, add(Field(t, span), one))
+		elapsed(t, rows[0][0], 3)
+		aggregate, err := query.ScalarAggregateResult(query.ResultSum, add(t, Field(t, span), one))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -290,16 +291,16 @@ func CheckTemporal(t *testing.T, backend interface {
 		if err != nil || len(rows) != 1 {
 			t.Fatal("FILTER evaluated excluded data", rows, err)
 		}
-		elapsed(rows[0][0], 3)
-		if !reflect.DeepEqual(before, snapshot()) {
+		elapsed(t, rows[0][0], 3)
+		if !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("conditional reads changed storage")
 		}
 	})
 
 	t.Run("transaction_and_cancellation_rollback", func(t *testing.T) {
-		reset()
-		before := snapshot()
-		plan := Plan(t, source, Assignment(t, at, shift), Assignment(t, span, add(Field(t, span), one)))
+		reset(t)
+		before := snapshot(t)
+		plan := Plan(t, source, Assignment(t, at, shift), Assignment(t, span, add(t, Field(t, span), one)))
 		sentinel := errors.New("temporal rollback")
 		var escaped db.QueryUpdater
 		err := backend.Atomic(ctx, func(session db.Session) error {
@@ -309,7 +310,7 @@ func CheckTemporal(t *testing.T, backend interface {
 			}
 			return sentinel
 		})
-		if !errors.Is(err, sentinel) || !reflect.DeepEqual(before, snapshot()) {
+		if !errors.Is(err, sentinel) || !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("transaction rollback lost temporal values", err)
 		}
 		if count, err := escaped.QueryUpdate(ctx, plan); err == nil || count != 0 {
@@ -317,16 +318,16 @@ func CheckTemporal(t *testing.T, backend interface {
 		}
 		canceled, cancel := context.WithCancel(ctx)
 		cancel()
-		if count, err := backend.QueryUpdate(canceled, plan); !errors.Is(err, context.Canceled) || count != 0 || !reflect.DeepEqual(before, snapshot()) {
+		if count, err := backend.QueryUpdate(canceled, plan); !errors.Is(err, context.Canceled) || count != 0 || !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("canceled temporal update changed storage", count, err)
 		}
 	})
 
 	t.Run("native_mean_survives_stages_and_reaggregation", func(t *testing.T) {
-		reset()
-		exec("UPDATE " + table + " SET span=" + period("0") + " WHERE id=1")
-		exec("UPDATE " + table + " SET span=" + period("1") + " WHERE id=2")
-		before := snapshot()
+		reset(t)
+		exec(t, "UPDATE "+table+" SET span="+period("0")+" WHERE id=1")
+		exec(t, "UPDATE "+table+" SET span="+period("1")+" WHERE id=2")
+		before := snapshot(t)
 		average, err := query.AvgResult(query.FieldResult(span))
 		if err != nil {
 			t.Fatal(err)
@@ -351,12 +352,12 @@ func CheckTemporal(t *testing.T, backend interface {
 		if err != nil {
 			t.Fatal(err)
 		}
-		negative, err := query.NegateScalar(add(mean, one))
+		negative, err := query.NegateScalar(add(t, mean, one))
 		if err != nil {
 			t.Fatal(err)
 		}
 		far := Literal(t, query.DateTime(time.Date(9999, 1, 1, 0, 0, 0, 1000, time.UTC)))
-		rows, err := read(backend, project(stage, negative, add(far, mean), add(mean, far)))
+		rows, err := read(backend, project(t, stage, negative, add(t, far, mean), add(t, mean, far)))
 		if err != nil || len(rows) != 1 {
 			t.Fatal("native mean was rounded or rejected before arithmetic", rows, err)
 		}
@@ -370,13 +371,13 @@ func CheckTemporal(t *testing.T, backend interface {
 			if err := database.QueryRowContext(ctx, "SELECT CAST(EXTRACT(EPOCH FROM -(AVG(span) + INTERVAL '1 microsecond')) * 1000000 AS BIGINT), TIMESTAMPTZ '9999-01-01 00:00:00.000001+00' + AVG(span) FROM "+table).Scan(&micros, &shifted); err != nil {
 				t.Fatal(err)
 			}
-			expected, wantTime = duration.FromMicroseconds(micros), shifted.UTC().Format("2006-01-02 15:04:05.000000")
+			expected, wantTime = duration.FromMicroseconds(micros).String(), shifted.UTC().Format("2006-01-02 15:04:05.000000")
 		}
 		if rows[0][0] != expected {
 			t.Fatal("native mean arithmetic changed precision", rows[0][0], expected)
 		}
-		instant(rows[0][1], wantTime)
-		instant(rows[0][2], wantTime)
+		instant(t, rows[0][1], wantTime)
+		instant(t, rows[0][2], wantTime)
 		for _, kind := range []query.ResultExpressionKind{query.ResultSum, query.ResultAvg, query.ResultMin, query.ResultMax} {
 			aggregate, err := query.ScalarAggregateResult(kind, negative)
 			if err != nil {
@@ -401,16 +402,16 @@ func CheckTemporal(t *testing.T, backend interface {
 				t.Fatal("reaggregation lost native Duration precision", kind, rows, err)
 			}
 		}
-		if !reflect.DeepEqual(before, snapshot()) {
+		if !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("staged temporal reads changed native data")
 		}
 	})
 
 	t.Run("constant_aggregate_owns_input_rows", func(t *testing.T) {
-		reset()
+		reset(t)
 		// The two source rows both contribute even though the computed
 		// operand contains only literals and PostgreSQL's scalar guard SELECTs.
-		aggregate, err := query.ScalarAggregateResult(query.ResultSum, add(one, one))
+		aggregate, err := query.ScalarAggregateResult(query.ResultSum, add(t, one, one))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -426,14 +427,14 @@ func CheckTemporal(t *testing.T, backend interface {
 		if err != nil || len(rows) != 1 {
 			t.Fatal("constant aggregate lost its input", rows, err)
 		}
-		elapsed(rows[0][0], 4)
+		elapsed(t, rows[0][0], 4)
 	})
 
 	t.Run("aggregate_range_precedes_having", func(t *testing.T) {
-		reset()
-		exec("UPDATE " + table + " SET span=" + periodMaximum + " WHERE id=1")
-		exec("UPDATE " + table + " SET span=" + period("1") + " WHERE id=2")
-		before := snapshot()
+		reset(t)
+		exec(t, "UPDATE "+table+" SET span="+periodMaximum+" WHERE id=1")
+		exec(t, "UPDATE "+table+" SET span="+period("1")+" WHERE id=2")
+		before := snapshot(t)
 		aggregate, err := query.ScalarAggregateResult(query.ResultSum, Field(t, span))
 		if err != nil {
 			t.Fatal(err)
@@ -459,7 +460,7 @@ func CheckTemporal(t *testing.T, backend interface {
 		} else {
 			assertNative(t, err)
 		}
-		if !reflect.DeepEqual(before, snapshot()) {
+		if !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("failed aggregate changed native storage")
 		}
 	})

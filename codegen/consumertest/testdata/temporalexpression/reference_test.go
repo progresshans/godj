@@ -149,6 +149,15 @@ func TestTemporalReference(t *testing.T) {
 						t.Fatal("empty captured temporal SQL")
 					}
 					for _, parameter := range statement.Parameters {
+						// Pinned psycopg preserves the Int4 wrapper for Django's
+						// negation multiplier. Keep its native identity and range.
+						if parameter.Type == "Int4" {
+							var value *int32
+							if vendor != "postgres" || json.Unmarshal(parameter.Value, &value) != nil || value == nil {
+								t.Fatal("invalid native PostgreSQL Int4 parameter")
+							}
+							continue
+						}
 						if !slices.Contains([]string{"int", "float", "str", "NoneType", "bool", "datetime", "timedelta", "bytes"}, parameter.Type) {
 							t.Fatal("temporal parameter has no closed native type", parameter.Type)
 						}
@@ -172,7 +181,7 @@ func TestTemporalReference(t *testing.T) {
 					nativeTemporalError(t, vendor, failure, "22007")
 					assertTemporalJSON(t, actual, "null")
 					if vendor == "sqlite" {
-						requireTemporalReferenceError(t, record, "sql", "OperationalError")
+						requireTemporalReferenceError(t, record, "sql", "DataError")
 					} else {
 						requireTemporalReferenceError(t, record, "conversion", "DataError")
 					}
@@ -232,7 +241,7 @@ func TestTemporalReference(t *testing.T) {
 					nativeTemporalError(t, vendor, failure, "22007")
 					assertTemporalJSON(t, actual, "null")
 					if vendor == "sqlite" {
-						requireTemporalReferenceError(t, record, "sql", "OperationalError")
+						requireTemporalReferenceError(t, record, "sql", "DataError")
 					} else {
 						requireTemporalReferenceError(t, record, "conversion", "DataError")
 						if len(record.Statements) != 2 || record.Statements[0].Rowcount != 6 || !strings.HasPrefix(record.Statements[0].SQL, "UPDATE") {
