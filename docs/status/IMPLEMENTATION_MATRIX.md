@@ -9,7 +9,8 @@ Helpdesk 라벨별 조정 비용의 입력·HTML/API·고정 SDK·브라우저 �
 로컬 생성·compile과 독립 정적 검토 뒤 source `c6e96c41`을 push했다. 첫 전체 CI에서 조건부 COUNT 소비자의
 잘못된 COUNT(*) 요청을 확인해 명시적인 티켓 ID 집계로 수정하고 해당 SQLite 실패를 재검증했다.
 수정 source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과 의존성 DNS 실패를 확인했다.
-준비 예산·안전한 단계 진단을 보완했으며 새 source의 전체 원격 검증이 필요하다.
+준비 예산·안전한 단계 진단을 보완한 source `d911b030`의 전체 CI는 macOS ARM CGO0 생성 소비자의 누적 timeout으로 실패했다.
+같은 플랫폼의 normal/CGO0 분할을 보완하며 필수 실행과 전체 원격 검증을 유지한다.
 
 GDJ-0126은 Decimal 산술과 computed SUM/AVG, source/result/target precision, 정확한 query parameter 및
 Helpdesk 비용 미리보기를 연결하고 원격 실패를 수정했다. Source `b66a5aad`의 Decimal 양 DB·세 mode,

@@ -145,7 +145,7 @@ division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-
 Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술과 일반 named annotation은 미지원이다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 첫 source `c6e96c41`에서
 조건부 COUNT 소비자 실패를 수정했다. Source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과
-의존성 DNS 실패를 확인해 준비 예산·진단을 보완했으며, 새 source의 전체 원격 검증이 남아 있다.
+의존성 DNS 실패를 확인해 준비 예산·진단을 보완했다. Source `d911b030`의 macOS ARM CGO0 누적 timeout을 확인해 relation 소비자 분할을 보완 중이며 전체 원격 검증이 남아 있다.
 일반 행 projection·computed WHERE·정렬·UPDATE의 single-valued 경계는 유지한다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.

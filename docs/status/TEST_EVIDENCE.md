@@ -142,6 +142,43 @@ PostgreSQL·race·전체 suite는 로컬에서 반복하지 않았다. DNS 실�
 새 source의 자동 전체 CI에서 이 보완과 전체 기능을 검증해야 한다. 별도 temporal 작업 공간의 GDJ-0128 코드는
 이 실행·수정 묶음에 포함하지 않았다.
 
+보완 source `d911b03045204a0f676991240b926c60f77c99d8`을 push했고 2026-10-15 07:37:34 UTC에
+[자동 전체 CI 38700011581](https://github.com/progresshans/godj/actions/runs/38700011581), attempt 1·pull_request가 시작됐다.
+이 push로 이전 CI 38694533865는 success 60·failure 4·cancelled 19의 83개 job으로 종료됐다.
+Failure 4개는 위 세 실패와 최종 CI 집계이며 전체 conclusion은 cancelled다. 이 source를 전체 PASS로 사용하지 않는다.
+
+새 validation-plan job `116305838323`의 실제 checkout은 `720105cdd4bde026d43fc542d00b2181e21fd905`다.
+두 번째 parent가 구현 head이며 tree `4a288d6ef5edd6ab3ae2f94e8227a1a9cffa4764`는 head와 동일하다.
+`ci-38700011581-source-binding-and-plan.json` SHA-256은
+`0b91a909f1db554bbf24425a482ed1b8677ded0c893c5efbef91c879f9405fa5`, validation-plan 원 로그는
+`9dd44980a0108e882f82a7039aeb91be36cd586e49c85ef520659709852114fb`다.
+PR body `gdj0127-pr1-body-d911b030.md` SHA-256
+`7a906c2c0ceea87fb8bc2d746c63a818048eecb856503092ce04b28774dce51f`를 실제 게시 내용과 대조했다.
+이 실행은 83개 job 중 success 81·failure 2로 종료됐다. Failure는 macOS ARM CGO0 relation job
+`116305883276`과 최종 집계다. 전체 CI PASS로 사용하지 않는다.
+
+### macOS ARM relation 소비자 누적 timeout과 분할 보완
+
+2026-10-16 KST 확인: source `d911b030`·attempt 1의 실패 job 원 로그에서
+`panic: test timed out after 35m0s`와 `TestGeneratedURLConsumer (2s)`를 확인했다.
+Package 전체가 2,100.052초에 종료됐으며 URL 개별 동작의 장시간 정지를 입증하는 로그는 아니다.
+같은 실행의 ARM normal job은 약 31.37분이었다. Job success 자체를 내부 필수 실행·artifact 감사 완료로 간주하지 않는다.
+
+macOS Intel에 적용된 기존 분할을 ARM normal/CGO0에도 적용한다. 실제 test binary의 전체 root를 세 consumer job에
+정확히 한 번 배정하고 모든 child를 같은 owner에 둔다. 일반 relation package·checker는 별도 runtime job이 맡는다.
+기존 normal/CGO0 job 45분·package 35분, 필수 실행·no-skip·실제 package 집합 검사는 유지한다.
+전체 workflow 계획은 83개에서 89개 job으로 늘어나며 실행 범위는 줄이지 않는다.
+
+- 실패 job 원 로그: `ci-38700011581-failure/relation-macos26-cgo0.log`
+- 원 로그 SHA-256: `7f588fbd6ad622f2749c4b2d2e03d14b489e1b05e5a9c592a9ee0379ce2b431a`
+- 같은 디렉터리에 원 `run.json`·`jobs.json`을 보존했다. Head와 checkout의 관계는 위 source binding을 따른다.
+
+로컬 `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_relation_shards test_workflow`는 11 tests PASS다.
+이 검사는 모든 OS/arch/mode의 root·필수 child가 정확히 한 번 배정되는지, runtime owner가 하나인지,
+누락·중복·잘못된 owner·skip·잘린 실행을 거부하는지 확인한다. 최소 실행 계획과 문서 diff도 확인했다.
+실제 Go 소비자 전체는 로컬에서 반복하지 않았다. 보완 source의 자동 전체 CI와 원본 실행 대조는 남아 있다.
+별도 GDJ-0128 temporal 구현은 이 수정 묶음에 포함하지 않는다.
+
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 
 2026-10-15 KST, 기준 `ebc9615d520406f5e50f42a6b5b08b8078b44d41` 뒤 구현·검증 묶음을 작성하고

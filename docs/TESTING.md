@@ -115,7 +115,7 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표와 macOS Intel normal/CGO0는
+관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표와 macOS Intel/ARM normal/CGO0는
 독립 generated module의 합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
 normal/CGO0와 Linux race는 45분·package 35분을 유지한다.
 macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.

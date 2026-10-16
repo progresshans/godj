@@ -1,6 +1,6 @@
 # GDJ-0127: 컬렉션 계산식 집계와 라벨별 조정 비용
 
-- 상태: 조건부 COUNT 수정 후 CI의 준비 timeout·DNS 실패 확인; runserver 준비 예산·진단 보완, 전체 검증 대기
+- 상태: 조건부 COUNT 수정 후 준비 timeout·DNS 실패 확인; runserver 준비 예산·진단 보완 push, 새 자동 전체 CI 검증 중
 - 시작: 2026-10-15
 - 기준: `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b` (GDJ-0126의 전체 CI·원본 증거 대조 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [ADR-0090](../docs/adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](../docs/adr/0091-grouped-results-and-having.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md)
@@ -57,6 +57,10 @@ Helpdesk 라벨 사용 현황의 factor/delta 입력·원래/조정 비용 합�
 macOS Intel의 runserver 준비 timeout 두 건과 relation shard의 의존성 DNS 실패를 확인했다.
 준비 예산과 민감 값을 제외한 단계 진단을 보완했고, 로컬 ARM CGO0에서 인증·진단 검사를 확인했다.
 이는 Intel 실패의 재현·해결 증거가 아니며 새 source의 전체 원격 실행·원본 증거 대조가 남아 있다.
+보완 source `d911b03045204a0f676991240b926c60f77c99d8`의
+[자동 전체 CI 38700011581](https://github.com/progresshans/godj/actions/runs/38700011581)는 macOS ARM CGO0 생성 소비자의
+누적 package timeout으로 실패했다. ARM normal/CGO0에도 기존 runtime owner·세 consumer shard를 적용하고
+필수 실행·package 한도·no-skip 검사를 유지한다. 보완 source의 자동 전체 실행과 원본 증거 확인이 남아 있다.
 
 ## 완료 조건
 
