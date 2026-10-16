@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0129 — 날짜·시각 추출과 기한별 업무 조회
+
+2026-10-16 KST, 기준 `7f42e7473ea85851b60685bff6c3d533aef5c158` 위의 미커밋 작업 사본에서 함수 AST·typed/dynamic
+날짜/시계 capability·양 DB compiler와 입력 값 검사를 작성했다. 함수 안의 source·관계 cardinality·result scope와
+resource 한도, 실제 DB의 날짜/시계 손상·NULL·선택 CASE/FILTER·UPDATE/rollback·session timezone 검증 코드를 추가했다.
+Date/Time의 공통 모델/typed 출력과 canonical query/header를 연결하고, Helpdesk의 UTC 날짜별 전체·열린·지연 건수·
+최초/최종 기한 시계, 명시적 기준 시각·날짜 범위·페이지의 HTML/API를 작성했다. 실제 동작 검증은 아직 하지 않았다.
+
+로컬 Go 1.26.5 darwin/arm64에서 `go test -c -trimpath`로 최소 compile만 확인했다. 테스트 binary를 실행하지 않았으며
+DB·HTTP·client·브라우저·Django 관측을 실행한 결과가 아니다. 각 receipt는 해당 시점의 변경 Go source hash를 보존한다.
+
+- 공통 기반 query·orm·queryplan·양 backend compile: `gdj0129-foundation-compile-gg5vxmwx/receipt.json`,
+  SHA-256 `93f203ccdc6da5c21df10e1e59a28521f3401844f788b993e5091d82a3c56ed1`.
+- Helpdesk·parameter/output·양 backend와 새 native 검증 코드 compile: `gdj0129-calendar-api-compile-bkz54bqb/receipt.json`,
+  SHA-256 `ab0281a5acd3c7a76d3b29c47a542889e122906bbb7d35a3c4fde4036185094c`.
+
+자료의 공통 디렉터리는 `/Users/hanhyeonjin/Documents/Codex/2026-10-05/godj-verification/`다.
+독립 calendar observer·합성 입력과 고정 Django module 28개의 manifest도 작성하고 Python 문법만 확인했다.
+두 앱의 generated consumer·55개 독립 Django 비교·Helpdesk 양 DB HTTP의 43개 날짜/NULL group·인가/실패/저장 보존,
+독립 OpenAPI client의 실제 HTTP 및 합성 wire·브라우저 31개 검사 코드를 작성했다. 필수 relation 64개·PostgreSQL core
+67개 실행과 세 native consumer owner의 독립 관측/원본 artifact, 브라우저 실행/스크린샷/저장 보존 확인을 CI에 연결했다.
+이 등록은 실제 실행 결과가 아니며 새 source의 전체 원격 CI·필수 실행·원본 증거 확인은 아직 남아 있다.
+
+추가 로컬 확인도 compile/generation/static 범위다. Generated 소비자의 첫 compile에서 기존 API와 다른 `Exclude`와
+`AddExpression` 호출을 발견해 각각 `Filter(Not(...))`·`AddExpressions`로 고쳤다. Parent와 두 앱 생성 자체는 성공했다.
+실패 원본은 `gdj0129-calendar-consumer-compile-8thybfhb/receipt.json`에 보존한다.
+
+- 수정한 generated consumer(관측 비교 코드 포함)와 Helpdesk compile: `gdj0129-calendar-consumer-helpdesk-compile-3drfd8gy/receipt.json`,
+  SHA-256 `70b52e61d06eac067a5ca1bc1576f26156857b509700b6936c7b2deca4eb2932`.
+- 여섯 현재 API schema export와 고정 ogen으로 Helpdesk client 재생성: `gdj0129-calendar-openapi-generation-cfxmd0f3/receipt.json`,
+  SHA-256 `3d984c27fb74be5ebc9a669fcd9af8fd2d220bab726aa25952c180aab649164a`.
+  다른 다섯 profile·기존 Helpdesk operation/schema와 lock 파일은 byte/구조 비교에서 보존됐다. 새 endpoint/schema 하나와
+  Helpdesk generated 파일 10개만 바뀌었다. Export용 임시 memory backend 구성은 실제 DB/HTTP 기능 검증으로 계산하지 않는다.
+- 최종 제품/HTTP/부모 테스트 compile, 별도 client와 browser fixture build, 문서 링크·diff 확인:
+  `gdj0129-calendar-bundle-compile-ufwncd1e/receipt.json`, SHA-256 `6e34333cd25922e77cb03eab2b0ed049be5c40d21c484e61cf4b77e1a73e58a9`.
+  같은 이름의 두 consumertest binary를 한 출력 폴더에 쓰려던 선행 command는 compile 전 충돌로 실패했고
+  `gdj0129-calendar-final-compile-wp2adk8d/receipt.json`에 보존했다. 이미 compile한 codegen parent를 중복하지 않고
+  수정한 OpenAPI parent를 포함한 대상만 compile했다. 테스트/fixture/client binary는 실행하지 않았다.
+
+Python AST와 browser probe JavaScript 문법도 확인했다. Manifest의 source-level 소유권 감사는 relation 2,611개,
+PostgreSQL 3,459개 필수 항목의 세 mode/여섯 core 좌표에 대해 성공했다. 이는 test run/pass 대조를 대신하지 않는다.
+
 ## GDJ-0128 — 시각·기간 계산식 구현과 검증
 
 ### GDJ-0127·0128 전체 통합 완료

@@ -147,7 +147,10 @@ SUM/AVG를 구현했다. SQLite의 fractional 평균과 시각을 합친 뒤 최
 원본/중간/최종 범위를 검사한다. 현재 source `012191bf`의 양 DB·세 mode native
 소비자·관측과 전체 플랫폼 통합 검증·원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따르고 고정 Django의
 평균 이동·범위 차이는 [DEV-0022](DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 기록한다.
-Date/Time 이동·Duration scaling/division·일반 named annotation은 별도 미완료 범위다.
+GDJ-0129는 UTC Date/Time 추출과 달력/시계 part의 함수 AST·typed/dynamic·양 backend 구현 및 생성/HTTP 소비자를
+작성했다. SQLite의 canonical storage class와 PostgreSQL의 finite Date/DateTime·24:00 제외 Time 입력을 추출 전에
+검사한다. 새 코드의 native·Django 비교·전체 플랫폼 검증은 아직 미완료이며 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+Date/Time 이동·Duration scaling/division·일반 named annotation과 나머지 함수는 별도 미완료 범위다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 조건부 COUNT 소비자와
 runserver 준비·진단, macOS ARM relation 소비자 분할을 보완했으며 source `012191bf`의 양 DB·세 mode·전체 플랫폼에서
 필수 실행과 원본 증거 대조를 완료했다. 이전 실패와 보완의 실행 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.

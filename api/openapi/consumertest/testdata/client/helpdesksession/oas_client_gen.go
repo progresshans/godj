@@ -39,6 +39,25 @@ type Invoker interface {
 	//
 	// GET /api/tickets/cost-preview/
 	HelpdeskCostPreview(ctx context.Context, params HelpdeskCostPreviewParams) (HelpdeskCostPreviewRes, error)
+	// HelpdeskDeadlineCalendar invokes helpdesk:deadline-calendar operation.
+	//
+	// Read-only daily deadline groups in the application's current category. date is the UTC Gregorian
+	// day; first_due_time and last_due_time are its earliest and latest UTC clocks with microsecond
+	// precision. total counts all tickets, open counts closed=false, and overdue counts only open tickets
+	// with due_at strictly before the required explicit as_of instant. Deadlines equal to as_of are not
+	// overdue. Missing deadlines form one null-date group with null clocks and zero overdue; this group is
+	// last and is excluded by any date bound. Optional from_date and until_date are inclusive canonical
+	// YYYY-MM-DD dates in years 0001..9999. They apply to groups before counting and pagination; from_date
+	// must not follow until_date. as_of requires complete RFC 3339 text and an explicit offset and is
+	// normalized to UTC microseconds; the server clock is never substituted. p is a canonical positive
+	// page number, page_size is 20, and total_groups remains available on an empty page. Category, groups
+	// and total share one read snapshot. ViewTicket precedes parsing and all model reads.
+	// Unknown/duplicate parameters, empty values, malformed encoding and raw queries longer than 512 bytes
+	// are rejected. Invalid native temporal data fails the whole response. Tickets, relations, reports and
+	// audit remain unchanged.
+	//
+	// GET /api/tickets/deadline-calendar/
+	HelpdeskDeadlineCalendar(ctx context.Context, params HelpdeskDeadlineCalendarParams) (HelpdeskDeadlineCalendarRes, error)
 	// HelpdeskDeadlinePreview invokes helpdesk:deadline-preview operation.
 	//
 	// Read-only preview of due_at + shift and adjusted_due_at - as_of for tickets in the application's
@@ -654,6 +673,163 @@ func (c *Client) sendHelpdeskCostPreview(ctx context.Context, params HelpdeskCos
 	}()
 
 	result, err := decodeHelpdeskCostPreviewResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskDeadlineCalendar invokes helpdesk:deadline-calendar operation.
+//
+// Read-only daily deadline groups in the application's current category. date is the UTC Gregorian
+// day; first_due_time and last_due_time are its earliest and latest UTC clocks with microsecond
+// precision. total counts all tickets, open counts closed=false, and overdue counts only open tickets
+// with due_at strictly before the required explicit as_of instant. Deadlines equal to as_of are not
+// overdue. Missing deadlines form one null-date group with null clocks and zero overdue; this group is
+// last and is excluded by any date bound. Optional from_date and until_date are inclusive canonical
+// YYYY-MM-DD dates in years 0001..9999. They apply to groups before counting and pagination; from_date
+// must not follow until_date. as_of requires complete RFC 3339 text and an explicit offset and is
+// normalized to UTC microseconds; the server clock is never substituted. p is a canonical positive
+// page number, page_size is 20, and total_groups remains available on an empty page. Category, groups
+// and total share one read snapshot. ViewTicket precedes parsing and all model reads.
+// Unknown/duplicate parameters, empty values, malformed encoding and raw queries longer than 512 bytes
+// are rejected. Invalid native temporal data fails the whole response. Tickets, relations, reports and
+// audit remain unchanged.
+//
+// GET /api/tickets/deadline-calendar/
+func (c *Client) HelpdeskDeadlineCalendar(ctx context.Context, params HelpdeskDeadlineCalendarParams) (HelpdeskDeadlineCalendarRes, error) {
+	res, err := c.sendHelpdeskDeadlineCalendar(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskDeadlineCalendar(ctx context.Context, params HelpdeskDeadlineCalendarParams) (res HelpdeskDeadlineCalendarRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/deadline-calendar/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "as_of" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "as_of",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(params.AsOf.Format("2006-01-02T15:04:05.999999999Z07:00"))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "from_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "from_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.FromDate.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "until_date" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "until_date",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.UntilDate.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskDeadlineCalendarOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskDeadlineCalendarResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

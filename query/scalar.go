@@ -23,6 +23,7 @@ const (
 	ScalarCase
 	ScalarSelected
 	ScalarRelated
+	ScalarFunction
 )
 
 type ArithmeticOperator string
@@ -57,6 +58,8 @@ type scalarNode struct {
 	durationMean bool
 	relation     RelationPath
 	hasRelations bool
+	function     FunctionKind
+	arguments    []ScalarExpression
 }
 
 // ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
@@ -211,6 +214,10 @@ func (expression ScalarExpression) RelationPaths() []RelationPath {
 			visit(right)
 		} else if child, ok := value.Negated(); ok {
 			visit(child)
+		} else if _, arguments, ok := value.Function(); ok {
+			for _, argument := range arguments {
+				visit(argument)
+			}
 		} else if fallback, branches, ok := value.Case(); ok {
 			visit(fallback)
 			for _, branch := range branches {
@@ -377,7 +384,8 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) &&
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) && left.function == right.function &&
+		slices.EqualFunc(left.arguments, right.arguments, ScalarExpression.Equal) &&
 		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
 		return a.when.Equal(b.when) && a.value.Equal(b.value)
 	})
@@ -417,6 +425,10 @@ func (expression ScalarExpression) Fields() []FieldRef {
 			visit(right)
 		} else if child, ok := value.Negated(); ok {
 			visit(child)
+		} else if _, arguments, ok := value.Function(); ok {
+			for _, argument := range arguments {
+				visit(argument)
+			}
 		} else if fallback, branches, ok := value.Case(); ok {
 			visit(fallback)
 			for _, branch := range branches {
@@ -449,6 +461,13 @@ func (expression ScalarExpression) validateSource(fields map[string]FieldRef) er
 	}
 	if value, ok := expression.Negated(); ok {
 		return value.validateSource(fields)
+	}
+	if _, arguments, ok := expression.Function(); ok {
+		for _, argument := range arguments {
+			if err := argument.validateSource(fields); err != nil {
+				return err
+			}
+		}
 	}
 	if fallback, branches, ok := expression.Case(); ok {
 		if err := fallback.validateSource(fields); err != nil {

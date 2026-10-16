@@ -19,6 +19,7 @@ type ScalarDialect struct {
 	Literal        func(query.Value, query.FieldKind, string) (string, error)
 	Binary         func(query.ScalarExpression, string, string) (string, error)
 	Negate         func(query.ScalarExpression, string) (string, error)
+	Function       func(query.ScalarExpression, []string) (string, error)
 	Expression     func(query.ScalarExpression, string) (string, error)
 	Predicate      func(query.Expression, *[]any) (string, error)
 }
@@ -104,6 +105,21 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 				if err != nil {
 					return "", err
 				}
+			}
+		} else if _, inputs, ok := expression.Function(); ok {
+			if dialect.Function == nil {
+				return "", invalidPlan("scalar compiler does not provide functions")
+			}
+			operands := make([]string, len(inputs))
+			for index, input := range inputs {
+				operands[index], err = render(input, input.ResultKind())
+				if err != nil {
+					return "", err
+				}
+			}
+			statement, err = dialect.Function(expression, operands)
+			if err != nil {
+				return "", err
 			}
 		} else if fallback, branches, ok := expression.Case(); ok {
 			if dialect.Predicate == nil {

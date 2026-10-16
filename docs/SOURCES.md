@@ -344,3 +344,13 @@ Django는 BSD-3-Clause이며 GoDj 소스·기대값을 참조 관찰기의 입�
 SQLite Decimal division의 `decimalDivisionScale`도 위 PostgreSQL 17.10 `select_div_scale`의 의미적 이식(derived=true)이다.
 Canonical BLOB의 두 operand scale을 사용하고 exact integer ratio를 half-away-from-zero로 한 번 반올림한다.
 PostgreSQL display scale을 보존하는 구현으로 주장하지 않는다. LICENSE.postgresql과 NOTICE의 출처·변경 경계를 유지한다.
+
+## UTC calendar extraction 참조
+
+[Calendar extraction observer](../conformance/runners/django/calendar_extraction_reference/README.md)는 고정 Django 6.1
+commit `fe0a859f537d4238cf49fca39073513206f83122`의
+[datetime functions](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/datetime.py),
+PostgreSQL operations와 SQLite functions를 포함한 28개 module의 byte/hash를 검사한다. Django의 BSD-3-Clause를 따르며
+GoDj 입력과 독립된 합성 fixture로 UTC TruncDate/TruncTime·Extract part·관계·집계·UPDATE·손상 source를 55개 관측한다.
+SQL/parameter·원시 driver type/value·conversion 오류·전체 물리 열과 rollback/namespace cleanup을 보존한다.
+이 참조의 준비와 실제 실행·차이 분류는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 구분해 따른다.

@@ -6,6 +6,12 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Helpdesk 날짜별 기한 집계의 `helpdesk_deadline_calendar`는 보존한 Ticket 응답을 표준 라이브러리로 묶어
+UTC 날짜·open/overdue·최초/최종 clock·NULL·inclusive range·page/total을 두 역할의 실제 generated HTTP와 대조한다.
+`generated_deadline_calendar_wire`는 날짜와 offset-bearing instant의 별도 query 형식, 정확한 int64·microsecond clock,
+required nullable 값·오류 응답·단일 요청을 검사한다. Calendar domain의 서버 검사와 generated schema 검사의 범위를
+구분하며, 기존 여섯 profile 재생성·독립 build·HTTP 실행은 같은 부모 검증에서 요구한다.
+
 Helpdesk 비용 미리보기의 `helpdesk_cost_preview`는 보존한 Ticket 응답을 표준 라이브러리 유리수로 계산해
 정확한 결과·NULL·음수/zero 배율·최소값·순서·페이지/총수를 실제 generated HTTP와 읽기 전용 역할에서 대조한다.
 `generated_cost_preview_wire`는 문자열 query·원본보다 큰 exact 결과·큰 int64·required nullable 출력·잘못된 응답과

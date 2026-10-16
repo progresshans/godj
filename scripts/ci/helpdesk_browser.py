@@ -170,6 +170,51 @@ DEADLINE_PREVIEW_CHECKS = (
 )
 
 
+DEADLINE_CALENDAR_CHECKS = (
+    'deadline calendar navigation',
+    'deadline calendar entry requires an explicit reference',
+    'deadline calendar first page and scoped group total',
+    'deadline calendar normalizes the explicit reference to UTC microseconds',
+    'deadline calendar overdue open count and last microsecond clock',
+    'deadline calendar closed tickets are never overdue',
+    'deadline calendar unset group retains NULL clocks and zero overdue',
+    'deadline calendar has no false next page',
+    'deadline calendar inclusive range resets page and excludes NULLs',
+    'deadline calendar past-end page retains the filtered total',
+    'deadline calendar previous page preserves reference and both bounds',
+    'deadline calendar reference form retains the date range',
+    'deadline calendar clear range retains the reference',
+    'deadline calendar API envelope and date ordering match the page',
+    'deadline calendar API exact counts and required nullable clocks',
+    'deadline calendar equal reference is not overdue',
+    'deadline calendar inclusive equal date bounds retain one day',
+    'deadline calendar last allowed page preserves a single date bound',
+    'deadline calendar rejects missing API reference',
+    'deadline calendar rejects missing HTML reference',
+    'deadline calendar rejects an empty date bound',
+    'deadline calendar rejects an invalid leap date',
+    'deadline calendar rejects a noncanonical date',
+    'deadline calendar rejects reversed HTML date range',
+    'deadline calendar rejects reversed API date range',
+    'deadline calendar rejects duplicate reference',
+    'deadline calendar rejects a supplied category',
+    'deadline calendar response is private and uncached',
+    'deadline calendar contains no write form',
+    'deadline calendar reset does not choose the current time',
+    'deadline calendar exact values visible for visual review',
+)
+
+
+def verify_deadline_calendar(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(DEADLINE_CALENDAR_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(DEADLINE_CALENDAR_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(DEADLINE_CALENDAR_CHECKS)):
+        raise ValueError('deadline calendar browser did not complete every declared check')
+    return result
+
+
 def verify_deadline_preview(result):
     cases = result.get('cases')
     if (type(result.get('passed')) is not int or result['passed'] != len(DEADLINE_PREVIEW_CHECKS)
@@ -248,7 +293,8 @@ def verify_committed(value):
             or any('expected_cost' not in row or row['expected_cost'] != {2: '0.1', 3: '0.2'}.get(row['id']) for row in rows)):
         raise ValueError('cost preview browser did not preserve every exact stored cost and NULL')
     due_at = {2: '2024-02-28T23:59:59.999999Z', 3: '2024-02-29T00:00:00.000001Z'}
-    if (value.get('deadline_preview_read_only_unchanged') is not True
+    if (value.get('deadline_calendar_read_only_unchanged') is not True
+            or value.get('deadline_preview_read_only_unchanged') is not True
             or any('due_at' not in row or row['due_at'] != due_at.get(row['id']) for row in rows)):
         raise ValueError('deadline preview browser did not preserve every stored microsecond and NULL')
     reports = value.get('committed_reports')
@@ -295,7 +341,8 @@ def run(node_tools, output):
                'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest(),
                'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest(),
                'cost_preview_probe_sha256': hashlib.sha256((FIXTURE / 'cost_preview_probe.js').read_bytes()).hexdigest(),
-               'deadline_preview_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_preview_probe.js').read_bytes()).hexdigest()}
+               'deadline_preview_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_preview_probe.js').read_bytes()).hexdigest(),
+               'deadline_calendar_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_calendar_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -401,6 +448,12 @@ def run(node_tools, output):
             deadline_screenshot = output / 'deadline-preview-desktop.png'
             if not deadline_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or deadline_screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the deadline preview screenshot')
+
+            receipt['deadline_calendar'] = verify_deadline_calendar(result_document(browser('deadline-calendar', 'run-code', '--filename', str(FIXTURE / 'deadline_calendar_probe.js'))))
+            browser('deadline-calendar-screenshot', 'screenshot', '--filename=' + str(output / 'deadline-calendar-desktop.png'))
+            calendar_screenshot = output / 'deadline-calendar-desktop.png'
+            if not calendar_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or calendar_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the deadline calendar screenshot')
 
         except Exception as error:
             failure = error

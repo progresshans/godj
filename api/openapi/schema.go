@@ -479,31 +479,9 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	case serializers.FieldDuration:
 		schema = Duration()
 	case serializers.FieldTime:
-		var err error
-		policy, policyErr := serializers.NewObject(
-			serializers.MemberOf("timezone", serializers.String("none")),
-			serializers.MemberOf("precision", serializers.String("microsecond")),
-			serializers.MemberOf("inputOffset", serializers.String("discard-preserving-clock")),
-			serializers.MemberOf("subMicrosecond", serializers.String("truncate")),
-		)
-		if policyErr != nil {
-			return Schema{}, policyErr
-		}
-		schema, err = schemaAnnotate(String(),
-			serializers.MemberOf("pattern", serializers.String(`^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{6})?$`)),
-			serializers.MemberOf("minLength", serializers.Integer(8)),
-			serializers.MemberOf("maxLength", serializers.Integer(15)),
-			serializers.MemberOf("x-godj-time", policy.Value()),
-		)
-		if err != nil {
-			return Schema{}, err
-		}
+		schema = Time()
 	case serializers.FieldDate:
-		var err error
-		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date")))
-		if err != nil {
-			return Schema{}, err
-		}
+		schema = Date()
 	case serializers.FieldDateTime:
 		schema = DateTime()
 	case serializers.FieldBoolean:

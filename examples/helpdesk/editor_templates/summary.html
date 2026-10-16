@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ticket summary</title></head>
-<body><main><h1>Ticket summary</h1><p><a href="/tickets/cost-preview/">Preview expected cost adjustments</a> · <a href="/tickets/deadline-preview/">Preview deadline shifts</a></p><p>Category: {{ category }}</p>
+<body><main><h1>Ticket summary</h1><p><a href="/tickets/cost-preview/">Preview expected cost adjustments</a> · <a href="/tickets/deadline-preview/">Preview deadline shifts</a> · <a href="/tickets/deadline-calendar/">Deadline calendar</a></p><p>Category: {{ category }}</p>
 <p><a href="/tickets/edit/">Edit tickets</a> · <a href="/admin/tickets/">Ticket details</a> · <a href="/labels/usage/">Label usage</a></p>
 <form method="get" action="/tickets/summary/"><label>Minimum open tickets <input type="number" name="min_open" min="0" step="1" value="{{ min_open }}"></label> <label>Minimum open rate (basis points) <input type="number" name="min_open_basis_points" min="0" max="10000" step="1" value="{{ min_open_basis_points }}"></label> <button type="submit">Apply filter</button> <a href="/tickets/summary/">Clear filter</a></form>
 <p>100 basis points equals 1%. Open rate is shown to two decimal places, rounded down.</p>

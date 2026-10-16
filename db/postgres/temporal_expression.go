@@ -22,8 +22,15 @@ func temporalResultSQL(kind query.FieldKind, statement string) (string, error) {
 			" >= INTERVAL '", strconv.Itoa(int(duration.MinDays)), " days' AND ", statement,
 			" < INTERVAL '", strconv.Itoa(int(duration.MaxDays)+1), " days'")
 		sqlType, diagnostic = "interval", "godj_invalid_duration_operand"
+	case query.FieldDate:
+		valid, err = queryplan.ScalarSQL("isfinite(", statement, ") AND ", statement,
+			" >= DATE '0001-01-01' AND ", statement, " < DATE '10000-01-01'")
+		sqlType, diagnostic = "date", "godj_invalid_date_value"
+	case query.FieldTime:
+		valid, err = queryplan.ScalarSQL(statement, " >= TIME '00:00:00' AND ", statement, " < TIME '24:00:00'")
+		sqlType, diagnostic = "time without time zone", "godj_invalid_time_value"
 	default:
-		return "", invalidPlan("temporal value guard requires DateTime or Duration")
+		return "", invalidPlan("temporal value guard requires a calendar, clock, instant or duration")
 	}
 	if err != nil {
 		return "", err

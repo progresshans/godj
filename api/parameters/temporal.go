@@ -4,9 +4,35 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/temporal"
 )
+
+// CanonicalDate accepts exactly YYYY-MM-DD in the model's Gregorian domain.
+// It performs no trimming, clock truncation or time-zone conversion.
+func CanonicalDate() Codec[calendar.Date] {
+	return Codec[calendar.Date]{
+		schema: openapi.QueryDate, headerSchema: openapi.HeaderDate,
+		decode: func(raw string) (calendar.Date, bool) {
+			value, err := calendar.Parse(raw)
+			return value, err == nil
+		},
+	}
+}
+
+// CanonicalTime accepts the model's exact clock spelling and microseconds.
+// Midnight is present; offsets, 24:00 and fractional aliases are rejected.
+func CanonicalTime() Codec[clock.Time] {
+	return Codec[clock.Time]{
+		schema: openapi.QueryTime, headerSchema: openapi.HeaderTime,
+		decode: func(raw string) (clock.Time, bool) {
+			value, err := clock.Parse(raw)
+			return value, err == nil
+		},
+	}
+}
 
 // CanonicalDuration accepts normalized model text, including the full day
 // range. Backend-specific storage ranges remain a separate execution boundary.

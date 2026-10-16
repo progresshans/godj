@@ -2,7 +2,7 @@
 
 - 상태: Accepted design — 공통 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
 - 날짜: 2026-10-13
-- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md), [GDJ-0128](../../work/0128-temporal-expressions-and-deadline-preview.md)
+- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md), [GDJ-0128](../../work/0128-temporal-expressions-and-deadline-preview.md), [GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)
 
 ## 입력과 공개 API
 
@@ -81,6 +81,30 @@ CASE branch와 FILTER 제외 행은 실행하지 않는다. 조회·같은 행 U
 의미·statement rollback·원래 오류의 소유권을 유지한다. 이 계약의 채택, 작성한 코드와 실제 환경별 검증은 활성 work와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에서 구분한다.
 
+## UTC 날짜와 시계 추출
+
+[GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)은 닫힌 unary `FunctionExpression`을 같은 scalar AST에
+추가한다. `DateTime(...).Date()/Time()`은 UTC Date/Time을, Date/DateTime의 `Year/ISOYear/Quarter/Month/Week/WeekDay/ISOWeekDay/Day`와
+Time/DateTime의 `Hour/Minute/Second`는 int64 part를 반환한다. `Week`는 ISO week, `WeekDay`는 Sunday=1,
+`ISOWeekDay`는 Monday=1이며 Second는 소수 초를 버린다. Typed `Date`/`Time` capability는 불가능한 part를 제공하지 않고
+Dynamic은 binding에서 같은 서명을 검사한다. 일반 SQL 함수 이름·SQL 문자열이나 암묵 temporal 변환은 받지 않는다.
+
+원 operand의 kind·field metadata·관계 cardinality·result scope와 깊이/node 한도를 그대로 유지한다. Typed NULL은
+결과에 전파하며 nullable Date/Time은 자정/연도 1과 구분한다. 함수 결과는 projection·WHERE·정렬·group/HAVING·
+COUNT/MIN/MAX와 숫자 SUM/AVG·명시적 후속 결과·같은 행 UPDATE에서 같은 compiler를 사용한다.
+Collection은 완료된 집계 안에만, selected result는 자신의 후속 stage에만 허용한다.
+
+작은 정수나 날짜를 추출하기 전에 실제 operand 전체를 검사한다. SQLite의 storage class·canonical Date/Time/DateTime과
+PostgreSQL의 finite instant/date·연도 1..9999·00:00 이상 24:00 미만 clock 범위를 확인한다. 손상 값과 잘못된
+중간 시각은 후속 필터나 NULL/작은 결과로 감추지 않는다. 실행되지 않은 CASE branch와 FILTER 제외 행은 평가하지 않는다.
+PostgreSQL은 checked operand를 한 번 바인딩하고 UTC로 추출하며 session timezone을 변경하지 않는다. Numeric-to-integer
+반올림 때문에 59.999999초가 60이 되지 않도록 Second의 소수 부분을 먼저 버린다.
+
+기존 모델의 Date/Time output schema를 computed typed output과 공유하고 canonical query/header 입력은 별도의 엄격한
+spelling 정책을 가진다. 일반 timezone/locale 선택·truncation·Date/Time 이동은 미완료다.
+고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
+상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분하며 기존 source의 PASS를 전이하지 않는다.
+
 ## 조회 결과와 조건부 값
 
 같은 scalar tree를 `ScalarResult`로 행 projection·조건·정렬·group key에, `ScalarAggregateResult`로 완료된 집계에 연결한다.
@@ -109,7 +133,7 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
 GDJ-0127의 collection computed operand는 같은 AST의 완료된 집계에서만 실행하며 [ADR-0091](0091-grouped-results-and-having.md)의
 cardinality·JOIN 계약을 따른다. 일반 행 projection·computed WHERE·정렬·UPDATE는 여전히 single-valued 값만 받는다.
-일반 named annotation과 dependency/재바인딩 API, subquery/window/function은 아직 포함하지 않는다. GDJ-0128의
+일반 named annotation과 dependency/재바인딩 API, subquery/window와 위에 열거하지 않은 function은 아직 포함하지 않는다. GDJ-0128의
 시각·기간 계산과 computed Duration SUM/AVG는 위 계약을 따르며, 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 

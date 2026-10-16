@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Deadline preview</title></head>
 <body><main><h1>Deadline preview</h1>
-<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/edit/">Ticket editor</a></p>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/deadline-calendar/">Deadline calendar</a> · <a href="/tickets/edit/">Ticket editor</a></p>
 <p>Preview a shift to ticket deadlines and the time remaining from a reference time you choose. Stored tickets stay unchanged. Missing deadlines remain unset.</p>
 <form id="deadline-adjustment" method="get" action="/tickets/deadline-preview/">
 <label for="deadline-reference">Reference time</label> <input id="deadline-reference" name="as_of" value="{{ as_of }}" maxlength="64" required aria-describedby="deadline-reference-help">

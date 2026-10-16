@@ -163,6 +163,13 @@ func (expression ScalarExpression) ValidateResultSource(scope ResultScope) error
 	if child, present := expression.Negated(); present {
 		return child.ValidateResultSource(scope)
 	}
+	if _, arguments, present := expression.Function(); present {
+		for _, argument := range arguments {
+			if err := argument.ValidateResultSource(scope); err != nil {
+				return err
+			}
+		}
+	}
 	if fallback, branches, present := expression.Case(); present {
 		if err := fallback.ValidateResultSource(scope); err != nil {
 			return err

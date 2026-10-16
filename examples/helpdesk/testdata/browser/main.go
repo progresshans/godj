@@ -177,7 +177,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath)
 	persistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return err
@@ -186,7 +186,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		return err
 	}
@@ -229,6 +229,11 @@ func run() error {
 		return err
 	}
 	routes = append(routes, deadlinePreview.Routes()...)
+	deadlineCalendar, err := application.DeadlineCalendar(authentication)
+	if err != nil {
+		return err
+	}
+	routes = append(routes, deadlineCalendar.Routes()...)
 
 	app, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
@@ -312,9 +317,10 @@ func run() error {
 			reportEvidence[index] = map[string]any{"id": report.ID, "ticket": report.TicketID, "completed": report.Completed, "summary": report.Summary, "audit": history}
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
-			"deadline_preview_read_only_unchanged": summaryBefore != nil,
-			"cost_preview_read_only_unchanged":     summaryBefore != nil,
-			"summary_read_only_unchanged":          summaryBefore != nil, "initial_summary_tickets": len(summaryBefore),
+			"deadline_calendar_read_only_unchanged": summaryBefore != nil,
+			"deadline_preview_read_only_unchanged":  summaryBefore != nil,
+			"cost_preview_read_only_unchanged":      summaryBefore != nil,
+			"summary_read_only_unchanged":           summaryBefore != nil, "initial_summary_tickets": len(summaryBefore),
 			"report_status_read_only_unchanged": reportsBefore != nil, "initial_status_reports": len(reportsBefore), "committed_reports": reportEvidence,
 			"label_usage_read_only_unchanged": usageBefore.labels != nil, "initial_usage_labels": len(usageBefore.labels), "committed_labels": labelEvidence, "initial_usage_links": len(usageBefore.links)})
 	}

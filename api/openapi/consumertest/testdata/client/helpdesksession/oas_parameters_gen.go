@@ -19,6 +19,19 @@ type HelpdeskCostPreviewParams struct {
 	MinCost OptString `json:",omitempty,omitzero"`
 }
 
+// HelpdeskDeadlineCalendarParams is parameters of helpdesk:deadline-calendar operation.
+type HelpdeskDeadlineCalendarParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Explicit reference instant for counting overdue open tickets; normalized to UTC microseconds.
+	AsOf time.Time
+	// Optional inclusive first UTC calendar date, exactly YYYY-MM-DD. Excludes unset deadlines.
+	FromDate OptDate `json:",omitempty,omitzero"`
+	// Optional inclusive last UTC calendar date, exactly YYYY-MM-DD; must not precede from_date. Excludes
+	// unset deadlines.
+	UntilDate OptDate `json:",omitempty,omitzero"`
+}
+
 // HelpdeskDeadlinePreviewParams is parameters of helpdesk:deadline-preview operation.
 type HelpdeskDeadlinePreviewParams struct {
 	// Page number; canonical positive decimal integer.

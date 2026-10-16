@@ -84,6 +84,24 @@ HTML의 매개변수 없는 첫 화면은 기준 시각 입력 form만 표시하
 `DeadlinePreviewPath`를 login allowed-next·Admin 추가 경로에 넣고 `deadlinePreview.Routes()`를 등록한다.
 구현과 실제 양 DB·client·브라우저 검증 상태는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 구분해 따른다.
 
+## UTC 날짜별 기한 집계
+
+`application.DeadlineCalendar(webAuth)`의 GET `/tickets/deadline-calendar/`와 API GET `/api/tickets/deadline-calendar/`는
+현재 Category의 기한을 UTC 날짜별로 묶는다. 날짜마다 `total`·`open`·`overdue`와 최초/최종 UTC clock을 반환한다.
+`open`은 closed=false, `overdue`는 열린 티켓 중 due_at < as_of이며 기준 시각과 같은 기한은 지연에 포함하지 않는다.
+NULL 기한은 날짜와 시계가 모두 null이고 overdue=0인 별도 마지막 group이다.
+
+`as_of`는 필수 explicit-offset RFC 3339이며 UTC microsecond로 정규화한다. 선택 `from_date`·`until_date`는
+정확한 `YYYY-MM-DD`, 연도 0001..9999의 inclusive bound다. 역순 범위는 400이고 어느 한 bound만 있어도 NULL 기한은
+제외한다. HTML range form은 두 날짜를 함께 받으며 API는 한쪽만 지정할 수 있다. `p`는 1..50001, page_size는 20,
+raw query는 512 bytes 이하이며 잘못된/중복/알 수 없는 입력은 조회 전에 거부한다.
+
+빈 HTML 진입은 form만 표시하고 DB나 서버 시각을 사용하지 않는다. ViewTicket 뒤에 Category·group·총수를 같은
+읽기 snapshot에서 얻는다. 범위·기준 시각은 응답과 페이지 링크에 유지하며 날짜/시계 손상은 부분 결과 없이 실패한다.
+Ticket의 모든 저장 열·관계·Report·audit를 보존한다. `DeadlineCalendarPath`를 login allowed-next와 Admin 추가 경로에
+넣고 `deadlineCalendar.Routes()`를 등록한다. [GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)의
+구현은 작성됐으며 실제 양 DB·client·브라우저 검증은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 우선순위별 업무 요약
 
 `application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET

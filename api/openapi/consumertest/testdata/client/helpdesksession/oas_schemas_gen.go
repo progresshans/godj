@@ -254,6 +254,195 @@ func (s *CsrfHeader) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Ref: #/components/schemas/DeadlineCalendar
+type DeadlineCalendar struct {
+	Category    CategorySummary               `json:"category"`
+	Page        int64                         `json:"page"`
+	PageSize    int64                         `json:"page_size"`
+	AsOf        time.Time                     `json:"as_of"`
+	FromDate    NilDate                       `json:"from_date"`
+	UntilDate   NilDate                       `json:"until_date"`
+	TotalGroups int64                         `json:"total_groups"`
+	Results     []DeadlineCalendarResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *DeadlineCalendar) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *DeadlineCalendar) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *DeadlineCalendar) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetAsOf returns the value of AsOf.
+func (s *DeadlineCalendar) GetAsOf() time.Time {
+	return s.AsOf
+}
+
+// GetFromDate returns the value of FromDate.
+func (s *DeadlineCalendar) GetFromDate() NilDate {
+	return s.FromDate
+}
+
+// GetUntilDate returns the value of UntilDate.
+func (s *DeadlineCalendar) GetUntilDate() NilDate {
+	return s.UntilDate
+}
+
+// GetTotalGroups returns the value of TotalGroups.
+func (s *DeadlineCalendar) GetTotalGroups() int64 {
+	return s.TotalGroups
+}
+
+// GetResults returns the value of Results.
+func (s *DeadlineCalendar) GetResults() []DeadlineCalendarResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *DeadlineCalendar) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *DeadlineCalendar) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *DeadlineCalendar) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetAsOf sets the value of AsOf.
+func (s *DeadlineCalendar) SetAsOf(val time.Time) {
+	s.AsOf = val
+}
+
+// SetFromDate sets the value of FromDate.
+func (s *DeadlineCalendar) SetFromDate(val NilDate) {
+	s.FromDate = val
+}
+
+// SetUntilDate sets the value of UntilDate.
+func (s *DeadlineCalendar) SetUntilDate(val NilDate) {
+	s.UntilDate = val
+}
+
+// SetTotalGroups sets the value of TotalGroups.
+func (s *DeadlineCalendar) SetTotalGroups(val int64) {
+	s.TotalGroups = val
+}
+
+// SetResults sets the value of Results.
+func (s *DeadlineCalendar) SetResults(val []DeadlineCalendarResultsItem) {
+	s.Results = val
+}
+
+// DeadlineCalendarHeaders wraps DeadlineCalendar with response headers.
+type DeadlineCalendarHeaders struct {
+	XGodjCsrftoken OptString
+	Response       DeadlineCalendar
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *DeadlineCalendarHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *DeadlineCalendarHeaders) GetResponse() DeadlineCalendar {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *DeadlineCalendarHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *DeadlineCalendarHeaders) SetResponse(val DeadlineCalendar) {
+	s.Response = val
+}
+
+func (*DeadlineCalendarHeaders) helpdeskDeadlineCalendarRes() {}
+
+type DeadlineCalendarResultsItem struct {
+	Date         NilDate   `json:"date"`
+	Total        int64     `json:"total"`
+	Open         int64     `json:"open"`
+	Overdue      int64     `json:"overdue"`
+	FirstDueTime NilString `json:"first_due_time"`
+	LastDueTime  NilString `json:"last_due_time"`
+}
+
+// GetDate returns the value of Date.
+func (s *DeadlineCalendarResultsItem) GetDate() NilDate {
+	return s.Date
+}
+
+// GetTotal returns the value of Total.
+func (s *DeadlineCalendarResultsItem) GetTotal() int64 {
+	return s.Total
+}
+
+// GetOpen returns the value of Open.
+func (s *DeadlineCalendarResultsItem) GetOpen() int64 {
+	return s.Open
+}
+
+// GetOverdue returns the value of Overdue.
+func (s *DeadlineCalendarResultsItem) GetOverdue() int64 {
+	return s.Overdue
+}
+
+// GetFirstDueTime returns the value of FirstDueTime.
+func (s *DeadlineCalendarResultsItem) GetFirstDueTime() NilString {
+	return s.FirstDueTime
+}
+
+// GetLastDueTime returns the value of LastDueTime.
+func (s *DeadlineCalendarResultsItem) GetLastDueTime() NilString {
+	return s.LastDueTime
+}
+
+// SetDate sets the value of Date.
+func (s *DeadlineCalendarResultsItem) SetDate(val NilDate) {
+	s.Date = val
+}
+
+// SetTotal sets the value of Total.
+func (s *DeadlineCalendarResultsItem) SetTotal(val int64) {
+	s.Total = val
+}
+
+// SetOpen sets the value of Open.
+func (s *DeadlineCalendarResultsItem) SetOpen(val int64) {
+	s.Open = val
+}
+
+// SetOverdue sets the value of Overdue.
+func (s *DeadlineCalendarResultsItem) SetOverdue(val int64) {
+	s.Overdue = val
+}
+
+// SetFirstDueTime sets the value of FirstDueTime.
+func (s *DeadlineCalendarResultsItem) SetFirstDueTime(val NilString) {
+	s.FirstDueTime = val
+}
+
+// SetLastDueTime sets the value of LastDueTime.
+func (s *DeadlineCalendarResultsItem) SetLastDueTime(val NilString) {
+	s.LastDueTime = val
+}
+
 // Ref: #/components/schemas/DeadlinePreview
 type DeadlinePreview struct {
 	Category     CategorySummary              `json:"category"`
@@ -459,6 +648,7 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 }
 
 func (*GoDjAPIError) helpdeskCostPreviewRes()         {}
+func (*GoDjAPIError) helpdeskDeadlineCalendarRes()    {}
 func (*GoDjAPIError) helpdeskDeadlinePreviewRes()     {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
@@ -593,6 +783,30 @@ func (*HelpdeskCostPreviewInternalServerError) helpdeskCostPreviewRes() {}
 type HelpdeskCostPreviewNotFound GoDjAPIErrorHeaders
 
 func (*HelpdeskCostPreviewNotFound) helpdeskCostPreviewRes() {}
+
+type HelpdeskDeadlineCalendarBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlineCalendarBadRequest) helpdeskDeadlineCalendarRes() {}
+
+type HelpdeskDeadlineCalendarInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskDeadlineCalendarInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskDeadlineCalendarInternalServerError) helpdeskDeadlineCalendarRes() {}
+
+type HelpdeskDeadlineCalendarNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlineCalendarNotFound) helpdeskDeadlineCalendarRes() {}
 
 type HelpdeskDeadlinePreviewBadRequest GoDjAPIErrorHeaders
 
@@ -2616,6 +2830,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDate returns new OptDate with value set to v.
+func NewOptDate(v time.Time) OptDate {
+	return OptDate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDate is optional time.Time.
+type OptDate struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDate was set.
+func (o OptDate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDate) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDate) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDate) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDate) Or(d time.Time) time.Time {
 	if v, ok := o.Get(); ok {
 		return v
 	}

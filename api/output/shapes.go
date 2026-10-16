@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/serializers"
@@ -50,6 +52,18 @@ func Duration() Shape[duration.Duration] {
 func DateTime() Shape[time.Time] {
 	return Shape[time.Time]{node: &node{schema: openapi.DateTime()}, project: func(value time.Time) (serializers.Projection, error) {
 		return serializers.ValueProjection(serializers.DateTime(value)), nil
+	}}
+}
+
+func Date() Shape[calendar.Date] {
+	return Shape[calendar.Date]{node: &node{schema: openapi.Date()}, project: func(value calendar.Date) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.Date(value)), nil
+	}}
+}
+
+func Time() Shape[clock.Time] {
+	return Shape[clock.Time]{node: &node{schema: openapi.Time()}, project: func(value clock.Time) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.Time(value)), nil
 	}}
 }
 

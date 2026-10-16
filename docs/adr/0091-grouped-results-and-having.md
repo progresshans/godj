@@ -207,6 +207,15 @@ Low→Normal, Normal→Urgent이며 Urgent와 legacy int64 값은 보존한다. 
 `raise_to_priority`·`raise_to_label`·`would_change`를 API와 HTML의 After raise 열에 게시한다.
 이 값은 해당 읽기 snapshot의 미리보기다. 나중의 실제 명령은 자기 transaction의 현재 행으로 정책을 다시 적용한다.
 
+## Helpdesk 날짜별 기한 집계
+
+GDJ-0129는 `DateTime(F(DueAt)).Date()`를 UTC group key로 사용한다. CountRows·closed=false의 조건부 Count·
+명시적 기준 시각보다 이른 열린 티켓의 Count와 추출한 UTC Time의 Min/Max를 같은 group에서 계산한다.
+NULL 기한은 NULL 날짜/시계와 overdue=0인 별도 마지막 group이다. inclusive Date bound는 HAVING으로 적용하고
+필터 이후 총수와 20개 페이지를 한 statement로 구한다. 기여한 원본 시각의 범위 오류는 HAVING 뒤로 숨기지 않는다.
+Category 조회와 그룹 페이지는 같은 read snapshot이며 ViewTicket·입력 검증을 먼저 수행한다.
+입력·HTML/API·독립 generated client·브라우저의 실행 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
+
 ## 결과 열과 후속 조회 단계
 
 후속 조회는 모델 FieldRef와 구분된 결과 scope를 사용한다. Scope는 선택한 scalar 결과의 순서·kind·NULL을

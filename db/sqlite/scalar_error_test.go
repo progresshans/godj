@@ -169,7 +169,7 @@ func TestSQLiteScalarReadErrorsRetainClassificationAndNativeCause(t *testing.T) 
 }
 
 func TestSQLiteScalarErrorClassificationRejectsUnstructuredLookalikes(t *testing.T) {
-	for _, err := range []error{nil, context.Canceled, errors.New(invalidIntegerExpression), errors.New(invalidDecimalExpression), errors.New(invalidTemporalExpression), errors.New(errDecimalAggregateInput.Error())} {
+	for _, err := range []error{nil, context.Canceled, errors.New(invalidIntegerExpression), errors.New(invalidDecimalExpression), errors.New(invalidTemporalExpression), errCalendarOperand, errors.New(errDecimalAggregateInput.Error())} {
 		if got := classifySQLiteScalarError(err); got != err {
 			t.Fatal("unstructured text was classified or cancellation was replaced", got)
 		}
@@ -183,7 +183,7 @@ func TestSQLiteScalarErrorClassificationRejectsUnstructuredLookalikes(t *testing
 			t.Error(err)
 		}
 	})
-	for _, message := range []string{invalidIntegerExpression, invalidDecimalExpression, invalidTemporalExpression, errDecimalAggregateInput.Error()} {
+	for _, message := range []string{invalidIntegerExpression, invalidDecimalExpression, invalidTemporalExpression, errCalendarOperand.Error(), errDecimalAggregateInput.Error()} {
 		name, err := quoteIdentifier(message)
 		if err != nil {
 			t.Fatal(err)

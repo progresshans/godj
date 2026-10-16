@@ -1047,6 +1047,17 @@ jobs:
               --vendor "$vendor" --output "$RUNNER_TEMP/temporal-expression-reference/django61-$vendor.json"
           done
 
+      - name: Observe independent Django calendar extraction on both native databases
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
+        run: |
+          for vendor in sqlite postgres; do
+            uv run --project conformance/reference/related-expressions --frozen python \
+              conformance/runners/django/calendar_extraction_reference/observe.py \
+              --vendor "$vendor" --output "$RUNNER_TEMP/calendar-extraction-reference/django61-$vendor.json"
+          done
+
       - name: Assert exact PostgreSQL service profile
         env:
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
@@ -1069,6 +1080,7 @@ jobs:
           GODJ_COLLECTION_AGGREGATE_REFERENCE_DIR: ${{ runner.temp }}/collection-aggregate-reference
           GODJ_DECIMAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/decimal-expression-reference
           GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
+          GODJ_CALENDAR_EXTRACTION_REFERENCE_DIR: ${{ runner.temp }}/calendar-extraction-reference
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
@@ -1259,6 +1271,7 @@ jobs:
             ${{ runner.temp }}/collection-aggregate-reference/
             ${{ runner.temp }}/decimal-expression-reference/
             ${{ runner.temp }}/temporal-expression-reference/
+            ${{ runner.temp }}/calendar-extraction-reference/
           if-no-files-found: error
           retention-days: 90
 

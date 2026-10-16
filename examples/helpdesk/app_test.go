@@ -563,6 +563,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("label_usage", func(t *testing.T) { verifyHelpdeskLabelUsage(t, ctx, runtime, client) })
 	t.Run("cost_preview", func(t *testing.T) { verifyHelpdeskCostPreview(t, ctx, runtime, client) })
 	t.Run("deadline_preview", func(t *testing.T) { verifyHelpdeskDeadlinePreview(t, ctx, runtime, client, native) })
+	t.Run("deadline_calendar", func(t *testing.T) { verifyHelpdeskDeadlineCalendar(t, ctx, runtime, client, native) })
 	t.Run("ticket_priority_raise", func(t *testing.T) {
 		verifyHelpdeskPriorityRaise(t, ctx, runtime, client)
 		t.Run("concurrent", func(t *testing.T) {
@@ -717,7 +718,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath)
 	loginPersistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		t.Fatal(err)
@@ -726,7 +727,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -780,6 +781,11 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 		t.Fatal(err)
 	}
 	routes = append(routes, deadlinePreview.Routes()...)
+	deadlineCalendar, err := application.DeadlineCalendar(webAuth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes = append(routes, deadlineCalendar.Routes()...)
 
 	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {

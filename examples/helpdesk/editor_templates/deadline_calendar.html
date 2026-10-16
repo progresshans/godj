@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Deadline calendar</title></head>
+<body><main><h1>Deadline calendar</h1>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/deadline-preview/">Deadline preview</a> · <a href="/tickets/edit/">Ticket editor</a></p>
+<p>See ticket deadlines by UTC date. Overdue means an open ticket whose deadline is before the reference time you choose. Stored tickets stay unchanged.</p>
+<form id="calendar-reference-form" method="get" action="/tickets/deadline-calendar/">
+<label for="calendar-reference">Reference time</label> <input id="calendar-reference" name="as_of" value="{{ as_of }}" maxlength="64" required aria-describedby="calendar-reference-help">
+<span id="calendar-reference-help">Include a timezone offset, for example 2026-10-16T09:00:00+09:00. Dates and clocks below use UTC.</span>
+{% if has_from %}<input type="hidden" name="from_date" value="{{ from }}">{% endif %}
+{% if has_until %}<input type="hidden" name="until_date" value="{{ until }}">{% endif %}
+<button type="submit">Show deadline calendar</button> <a href="/tickets/deadline-calendar/">Choose another reference time</a>
+</form>
+{% if has_calendar %}
+<p>Category: {{ category }}. Reference time: <time>{{ as_of }}</time>.</p>
+<form id="calendar-range" method="get" action="/tickets/deadline-calendar/">
+<input type="hidden" name="as_of" value="{{ as_of }}">
+<label for="calendar-from">From date</label> <input id="calendar-from" name="from_date" value="{{ from }}" placeholder="YYYY-MM-DD" maxlength="10" required>
+<label for="calendar-until">Until date</label> <input id="calendar-until" name="until_date" value="{{ until }}" placeholder="YYYY-MM-DD" maxlength="10" required>
+<button type="submit">Filter dates</button> {% if has_range %}<a href="{{ clear_range }}">Clear date range</a>{% endif %}
+</form>
+<p>{{ total }} deadline groups. Page {{ page }}.</p>
+<table><caption>UTC deadline dates, earliest first; unset deadlines last</caption><thead><tr><th scope="col">Date</th><th scope="col">All tickets</th><th scope="col">Open</th><th scope="col">Overdue open</th><th scope="col">First deadline time</th><th scope="col">Last deadline time</th></tr></thead><tbody>
+{% for row in rows %}<tr data-deadline-date="{{ row.key }}"><th scope="row">{{ row.date }}</th><td>{{ row.total }}</td><td>{{ row.open }}</td><td>{{ row.overdue }}</td><td>{{ row.first }}</td><td>{{ row.last }}</td></tr>{% empty %}<tr><td colspan="6">No deadline groups on this page.</td></tr>{% endfor %}
+</tbody></table>
+<nav aria-label="Deadline calendar pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+{% else %}<p>Enter a reference time to load the calendar.</p>{% endif %}
+</main></body></html>

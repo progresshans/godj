@@ -116,6 +116,7 @@ func GetRolesForCsrfHeader(operation string) []string {
 // operationRolesSessionAuth is a private map storing roles per operation.
 var operationRolesSessionAuth = map[string][]string{
 	HelpdeskCostPreviewOperation:             []string{},
+	HelpdeskDeadlineCalendarOperation:        []string{},
 	HelpdeskDeadlinePreviewOperation:         []string{},
 	HelpdeskLabelCreateOperation:             []string{},
 	HelpdeskLabelDeleteOperation:             []string{},

@@ -24,6 +24,7 @@ type UpdateDialect struct {
 	Assignment                  func(query.FieldRef, string) (string, error)
 	Binary                      func(query.ScalarExpression, string, string) (string, error)
 	Negate                      func(query.ScalarExpression, string) (string, error)
+	Function                    func(query.ScalarExpression, []string) (string, error)
 	Expression                  func(query.ScalarExpression, string) (string, error)
 	Predicate                   func(query.Expression, func(query.FieldRef) (string, error), *[]any) (string, error)
 }
@@ -76,7 +77,7 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 	}
 	scalarDialect := ScalarDialect{
 		ParameterLimit: dialect.ParameterLimit, Value: dialect.Value, Placeholder: dialect.Placeholder,
-		Literal: dialect.Literal, Binary: dialect.Binary, Negate: dialect.Negate, Expression: dialect.Expression,
+		Literal: dialect.Literal, Binary: dialect.Binary, Negate: dialect.Negate, Function: dialect.Function, Expression: dialect.Expression,
 		Field: func(field query.FieldRef) (string, error) {
 			column, err := resolveField(field)
 			if err != nil || dialect.FieldValue == nil {

@@ -21,6 +21,7 @@ type dynamicScalarNode struct {
 	operator     query.ArithmeticOperator
 	left, right  DynamicExpression
 	negate       bool
+	function     query.FunctionKind
 	depth, nodes int
 	branches     []DynamicWhenExpression
 	result       query.FieldKind
@@ -99,6 +100,13 @@ func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExp
 		return query.ScalarExpression{}, err
 	}
 	node := expression.node
+	if node.function != 0 {
+		argument, err := node.left.bind(source)
+		if err != nil {
+			return query.ScalarExpression{}, err
+		}
+		return query.FunctionExpression(node.function, argument)
+	}
 	if len(node.branches) > 0 {
 		fallback, err := node.left.bind(source)
 		if err != nil {

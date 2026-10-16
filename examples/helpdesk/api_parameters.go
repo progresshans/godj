@@ -6,23 +6,34 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api/parameters"
+	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 )
 
 type apiQueries struct {
-	deadlinePreview parameters.Query[deadlinePreviewQuery]
-	costPreview     parameters.Query[costPreviewQuery]
-	labelUsage      parameters.Query[labelUsageQuery]
-	summary         parameters.Query[ticketSummaryQuery]
-	reportStatus    parameters.Query[serviceReportStatusQuery]
-	labels          parameters.Query[admin.ListRequest]
-	links           parameters.Query[admin.ListRequest]
+	deadlineCalendar parameters.Query[deadlineCalendarQuery]
+	deadlinePreview  parameters.Query[deadlinePreviewQuery]
+	costPreview      parameters.Query[costPreviewQuery]
+	labelUsage       parameters.Query[labelUsageQuery]
+	summary          parameters.Query[ticketSummaryQuery]
+	reportStatus     parameters.Query[serviceReportStatusQuery]
+	labels           parameters.Query[admin.ListRequest]
+	links            parameters.Query[admin.ListRequest]
 }
 
 func prepareAPIQueries() (apiQueries, error) {
 	var result apiQueries
 	var err error
+	result.deadlineCalendar, err = parameters.New(512,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, deadlineCalendarMaximumPage), 1), func(query *deadlineCalendarQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("as_of", parameters.Required(parameters.RFC3339DateTime(64)), func(query *deadlineCalendarQuery, value time.Time) { query.asOf = value }, "Explicit reference instant for counting overdue open tickets; normalized to UTC microseconds."),
+		parameters.Field("from_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.from = value }, "Optional inclusive first UTC calendar date, exactly YYYY-MM-DD. Excludes unset deadlines."),
+		parameters.Field("until_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.until = value }, "Optional inclusive last UTC calendar date, exactly YYYY-MM-DD; must not precede from_date. Excludes unset deadlines."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
 	result.deadlinePreview, err = parameters.New(512,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, deadlinePreviewMaximumPage), 1), func(query *deadlinePreviewQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("as_of", parameters.Required(parameters.RFC3339DateTime(64)), func(query *deadlinePreviewQuery, value time.Time) { query.asOf = value }, "Explicit reference time with complete clock and offset; normalized to UTC microseconds."),
