@@ -230,8 +230,26 @@ func TestDerivedRuntime(t *testing.T) {
 				}
 				bound, err := next.Expression(orm.DynamicColumn(0))
 				check(t, err)
-				if _, err := orm.AggregateResults(next, orm.Aggregate1(bound.Sum(), func(v query.Value) query.Value { return v })); err == nil {
-					t.Fatal("duration expression SUM silently changed precision contract")
+				// Computed Duration SUM now retains its input's native mean
+				// provenance. A second result stage must still compare SQLite's
+				// fractional value before the final model decoder rounds it.
+				summed, err := orm.AggregateResults(next, orm.Aggregate1(bound.Sum(), func(v query.Value) query.Value { return v }))
+				check(t, err)
+				sum, err := summed.One(t.Context())
+				check(t, err)
+				if !sum.Equal(query.Duration(duration.FromMicroseconds(4))) {
+					t.Fatal("duration reaggregation lost its final model value", sum)
+				}
+				afterSum, err := orm.Derive(summed)
+				check(t, err)
+				boundSum, err := afterSum.Expression(orm.DynamicColumn(0))
+				check(t, err)
+				sumRows, err := orm.SelectResults(afterSum, orm.Project1(boundSum, func(v query.Value) query.Value { return v }))
+				check(t, err)
+				sumFiltered, err := sumRows.Filter(boundSum.GreaterThanOrEqual(duration.FromMicroseconds(4))).All(t.Context())
+				check(t, err)
+				if len(sumFiltered) != want {
+					t.Fatal("duration SUM rounded a native mean before its subsequent predicate", sumFiltered, vendor)
 				}
 			})
 		})

@@ -128,7 +128,7 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 }
 
 // RequiresDurationRounding preserves native duration averages across result
-// references and CASE branches. They are rounded only at the final decoder;
+// references, CASE and Duration arithmetic. They round at the final decoder;
 // ordinary model duration fields retain their strict physical value contract.
 func (expression ScalarExpression) RequiresDurationRounding() bool {
 	return expression.node != nil && expression.node.result == FieldDuration && expression.node.durationMean
@@ -229,9 +229,9 @@ func validScalarField(field FieldRef) bool {
 		!strings.ContainsRune(field.Name(), 0) && !strings.ContainsRune(field.Column(), 0)
 }
 
-// Arithmetic combines same-kind signed integers, binary64 or exact Decimal
-// values. It does not insert casts or coerce mixed numeric or temporal kinds.
-// NULL adopts the other operand's numeric kind; two untyped NULLs fail closed.
+// Arithmetic preserves the operand kinds independently of the result kind.
+// Numeric values require one kind; temporal values use explicit signatures.
+// An untyped NULL can adopt a numeric kind without mutating the shared input.
 func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (ScalarExpression, error) {
 	if err := left.Validate(); err != nil {
 		return ScalarExpression{}, err
@@ -239,24 +239,27 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 	if err := right.Validate(); err != nil {
 		return ScalarExpression{}, err
 	}
-	result := left.node.result
-	if result == "" {
-		result = right.node.result
-	}
-	if result == "" || left.node.result != "" && left.node.result != result || right.node.result != "" && right.node.result != result {
-		return ScalarExpression{}, invalidPlanError("arithmetic operands require the same explicit numeric kind")
-	}
-	if result != FieldInteger && result != FieldFloat && result != FieldDecimal {
-		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "arithmetic requires int64, float64 or Decimal operands"}
-	}
-	switch operator {
-	case ArithmeticAdd, ArithmeticSubtract, ArithmeticMultiply, ArithmeticDivide:
-	case ArithmeticModulo:
-		if result != FieldInteger && result != FieldDecimal {
-			return ScalarExpression{}, invalidPlanError("remainder requires signed integer or Decimal operands")
+	if left.ResultKind() == "" || right.ResultKind() == "" {
+		kind := left.ResultKind()
+		if kind == "" {
+			kind = right.ResultKind()
 		}
-	default:
-		return ScalarExpression{}, invalidPlanError("unknown arithmetic operator")
+		if !arithmeticNumericKind(kind) {
+			return ScalarExpression{}, invalidPlanError("temporal arithmetic and two NULL operands require explicit operand kinds")
+		}
+		typed, err := NullExpression(kind)
+		if err != nil {
+			return ScalarExpression{}, err
+		}
+		if left.ResultKind() == "" {
+			left = typed
+		} else {
+			right = typed
+		}
+	}
+	result, err := arithmeticResultKind(operator, left.ResultKind(), right.ResultKind())
+	if err != nil {
+		return ScalarExpression{}, err
 	}
 	depth, nodes := 1+max(left.node.depth, right.node.depth), 1+left.node.nodes+right.node.nodes
 	if depth > MaximumScalarDepth || nodes > MaximumScalarNodes {
@@ -264,21 +267,24 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarBinary, operator: operator, left: left, right: right, result: result,
 		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo,
-		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth()), hasRelations: left.HasRelations() || right.HasRelations()}}, nil
+		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth()),
+		durationMean: result == FieldDuration && (left.RequiresDurationRounding() || right.RequiresDurationRounding()),
+		hasRelations: left.HasRelations() || right.HasRelations()}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 	if err := value.Validate(); err != nil {
 		return ScalarExpression{}, err
 	}
-	if value.node.result != FieldInteger && value.node.result != FieldFloat && value.node.result != FieldDecimal {
-		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "numeric negation requires int64, float64 or Decimal"}
+	if !arithmeticNumericKind(value.ResultKind()) && value.ResultKind() != FieldDuration {
+		return ScalarExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "negation requires int64, float64, Decimal or Duration"}
 	}
 	if value.node.depth >= MaximumScalarDepth || value.node.nodes >= MaximumScalarNodes {
 		return ScalarExpression{}, invalidPlanError("scalar expression exceeds its depth or node budget")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarNegate, left: value, result: value.node.result, nullable: value.node.nullable,
-		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth(), hasRelations: value.HasRelations()}}, nil
+		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth(),
+		durationMean: value.RequiresDurationRounding(), hasRelations: value.HasRelations()}}, nil
 }
 
 func (expression ScalarExpression) Validate() error {

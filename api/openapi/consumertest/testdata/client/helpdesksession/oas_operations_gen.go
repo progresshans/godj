@@ -7,6 +7,7 @@ type OperationName = string
 
 const (
 	HelpdeskCostPreviewOperation             OperationName = "HelpdeskCostPreview"
+	HelpdeskDeadlinePreviewOperation         OperationName = "HelpdeskDeadlinePreview"
 	HelpdeskLabelCreateOperation             OperationName = "HelpdeskLabelCreate"
 	HelpdeskLabelDeleteOperation             OperationName = "HelpdeskLabelDelete"
 	HelpdeskLabelDetailOperation             OperationName = "HelpdeskLabelDetail"

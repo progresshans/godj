@@ -26,7 +26,8 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 	}
 	field, _ := expression.Field()
 	numeric := expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg
-	if (expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax) && expression.OperandKind() == query.FieldDecimal {
+	temporalOperand := expression.OperandKind() == query.FieldDateTime || expression.OperandKind() == query.FieldDuration
+	if (expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax) && expression.OperandKind() == query.FieldDecimal || temporalOperand {
 		if _, computed := expression.Scalar(); !computed {
 			// Validate every contributing physical value. Checking only the
 			// selected extremum can hide corrupt rows behind a valid value.
@@ -39,8 +40,14 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 	}
 	if numeric {
 		switch expression.OperandKind() {
-		case query.FieldInteger, query.FieldDuration:
+		case query.FieldInteger:
 			operand = "godj_int64(" + operand + ")"
+		case query.FieldDuration:
+			if scalar, computed := expression.Scalar(); computed && scalar.RequiresDurationRounding() {
+				operand = "godj_duration_mean(" + operand + ")"
+			} else {
+				operand = "godj_int64(" + operand + ")"
+			}
 		case query.FieldFloat:
 			operand = "godj_float_operand(" + operand + ")"
 		case query.FieldDecimal:
@@ -78,6 +85,16 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 		// arithmetic failure from a legitimate empty/all-NULL aggregate. A
 		// filtered call emits its bound arguments twice, in this same order.
 		result = "godj_float_aggregate(" + result + ", COUNT(" + operand + ")" + filter + ")"
+	}
+	switch expression.ResultValueKind() {
+	case query.FieldDateTime:
+		result = "godj_datetime_value(" + result + ")"
+	case query.FieldDuration:
+		if expression.RequiresDurationRounding() {
+			result = "godj_duration_mean(" + result + ")"
+		} else {
+			result = "godj_int64(" + result + ")"
+		}
 	}
 	return result, nil
 }

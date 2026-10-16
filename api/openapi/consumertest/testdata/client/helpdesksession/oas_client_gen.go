@@ -39,6 +39,25 @@ type Invoker interface {
 	//
 	// GET /api/tickets/cost-preview/
 	HelpdeskCostPreview(ctx context.Context, params HelpdeskCostPreviewParams) (HelpdeskCostPreviewRes, error)
+	// HelpdeskDeadlinePreview invokes helpdesk:deadline-preview operation.
+	//
+	// Read-only preview of due_at + shift and adjusted_due_at - as_of for tickets in the application's
+	// category. as_of is required RFC 3339 text with an explicit offset and complete clock; it is
+	// normalized to UTC microseconds, truncating additional fractional digits. No server clock is
+	// substituted. shift defaults to 00:00:00. shift and optional min_remaining use canonical normalized
+	// Duration strings: an optional nonzero signed day count followed by HH:MM:SS and six fractional
+	// digits when nonzero. Model day bounds are -999999999 through 999999999. min_remaining filters
+	// computed remaining durations before counting and pagination; omission includes unset deadlines.
+	// Missing due_at stays null in every computed result, including a zero shift. Results are ordered by
+	// remaining duration ascending, nulls last, then ticket ID. p is a canonical positive page number; at
+	// most 20 rows are returned, and total_tickets includes all matches before pagination. as_of, shift
+	// and min_remaining are returned explicitly. Category, count and rows share one read snapshot.
+	// ViewTicket precedes parsing and lookup. Unknown/duplicate parameters, malformed encoding, empty
+	// values and raw queries longer than 512 bytes are rejected. A valid input whose native arithmetic
+	// exceeds its backend or model range fails the whole response without changing stored data.
+	//
+	// GET /api/tickets/deadline-preview/
+	HelpdeskDeadlinePreview(ctx context.Context, params HelpdeskDeadlinePreviewParams) (HelpdeskDeadlinePreviewRes, error)
 	// HelpdeskLabelCreate invokes helpdesk:label-create operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
@@ -635,6 +654,163 @@ func (c *Client) sendHelpdeskCostPreview(ctx context.Context, params HelpdeskCos
 	}()
 
 	result, err := decodeHelpdeskCostPreviewResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskDeadlinePreview invokes helpdesk:deadline-preview operation.
+//
+// Read-only preview of due_at + shift and adjusted_due_at - as_of for tickets in the application's
+// category. as_of is required RFC 3339 text with an explicit offset and complete clock; it is
+// normalized to UTC microseconds, truncating additional fractional digits. No server clock is
+// substituted. shift defaults to 00:00:00. shift and optional min_remaining use canonical normalized
+// Duration strings: an optional nonzero signed day count followed by HH:MM:SS and six fractional
+// digits when nonzero. Model day bounds are -999999999 through 999999999. min_remaining filters
+// computed remaining durations before counting and pagination; omission includes unset deadlines.
+// Missing due_at stays null in every computed result, including a zero shift. Results are ordered by
+// remaining duration ascending, nulls last, then ticket ID. p is a canonical positive page number; at
+// most 20 rows are returned, and total_tickets includes all matches before pagination. as_of, shift
+// and min_remaining are returned explicitly. Category, count and rows share one read snapshot.
+// ViewTicket precedes parsing and lookup. Unknown/duplicate parameters, malformed encoding, empty
+// values and raw queries longer than 512 bytes are rejected. A valid input whose native arithmetic
+// exceeds its backend or model range fails the whole response without changing stored data.
+//
+// GET /api/tickets/deadline-preview/
+func (c *Client) HelpdeskDeadlinePreview(ctx context.Context, params HelpdeskDeadlinePreviewParams) (HelpdeskDeadlinePreviewRes, error) {
+	res, err := c.sendHelpdeskDeadlinePreview(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskDeadlinePreview(ctx context.Context, params HelpdeskDeadlinePreviewParams) (res HelpdeskDeadlinePreviewRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/deadline-preview/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "as_of" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "as_of",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(params.AsOf.Format("2006-01-02T15:04:05.999999999Z07:00"))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "shift" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "shift",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Shift.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "min_remaining" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "min_remaining",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinRemaining.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskDeadlinePreviewOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskDeadlinePreviewResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

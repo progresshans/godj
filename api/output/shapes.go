@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"slices"
+	"time"
 
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/decimal"
@@ -43,6 +44,12 @@ func Decimal() Shape[decimal.Decimal] {
 func Duration() Shape[duration.Duration] {
 	return Shape[duration.Duration]{node: &node{schema: openapi.Duration()}, project: func(value duration.Duration) (serializers.Projection, error) {
 		return serializers.ValueProjection(serializers.Duration(value)), nil
+	}}
+}
+
+func DateTime() Shape[time.Time] {
+	return Shape[time.Time]{node: &node{schema: openapi.DateTime()}, project: func(value time.Time) (serializers.Projection, error) {
+		return serializers.ValueProjection(serializers.DateTime(value)), nil
 	}}
 }
 

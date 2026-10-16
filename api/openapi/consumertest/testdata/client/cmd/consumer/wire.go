@@ -52,6 +52,9 @@ func checkGeneratedWire(ctx context.Context) error {
 	if err := checkGeneratedCostPreviewWire(ctx); err != nil {
 		return err
 	}
+	if err := checkGeneratedDeadlinePreviewWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedLabelUsageWire(ctx); err != nil {
 		return err
 	}

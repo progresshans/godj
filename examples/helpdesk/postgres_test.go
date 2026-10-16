@@ -57,5 +57,5 @@ func TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance(t *testing.T) {
 		}
 		label, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Collection large key", categoryID))
 		return label.ID, err
-	})
+	}, postgresDeadlineNative(connection, schema))
 }

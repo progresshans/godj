@@ -177,7 +177,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	const expectedRoutes = 34
+	const expectedRoutes = 35
 	for index := 1; index <= expectedRoutes; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
@@ -206,7 +206,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, []auth.Permission) {
 	t.Helper()
 	switch name {
-	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary", "helpdesk:cost-preview":
+	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary", "helpdesk:cost-preview", "helpdesk:deadline-preview":
 		return helpdesk.ViewTicket, nil
 	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}
@@ -261,7 +261,7 @@ func permissionStrings(values []auth.Permission) []string {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 16 || len(routes) != 34 || len(document.Paths["/api/tickets/cost-preview/"]) != 1 || len(document.Paths["/api/labels/usage/"]) != 1 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 17 || len(routes) != 35 || len(document.Paths["/api/tickets/deadline-preview/"]) != 1 || len(document.Paths["/api/tickets/cost-preview/"]) != 1 || len(document.Paths["/api/labels/usage/"]) != 1 || len(document.Paths["/api/service-reports/status/"]) != 1 || len(document.Paths["/api/tickets/summary/"]) != 1 || len(document.Paths["/api/tickets/raise-priority/"]) != 1 || len(document.Paths["/api/tickets/bulk/"]) != 2 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 4 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 2 || len(document.Paths["/api/labels/"]) != 2 || len(document.Paths["/api/labels/{id}/"]) != 4 || len(document.Paths["/api/ticket-labels/"]) != 2 || len(document.Paths["/api/ticket-labels/{id}/"]) != 4 {
 		t.Fatal("Helpdesk document changed the declared operation surface")
 	}
 	for _, route := range routes {
@@ -287,6 +287,7 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 		}
 	}
 	assertCostPreviewContracts(t, document)
+	assertDeadlinePreviewContracts(t, document)
 	assertServiceReportContracts(t, document)
 	assertLabelContracts(t, document)
 	assertTicketLabelContracts(t, document)
@@ -553,6 +554,9 @@ type helpdeskDocumentOperation struct {
 }
 
 type helpdeskDocumentSchema struct {
+	TimeFormat           string          `json:"x-ogen-time-format"`
+	InputOffset          string          `json:"x-godj-input-offset"`
+	DurationPolicy       string          `json:"x-godj-duration"`
 	DecimalPolicy        json.RawMessage `json:"x-godj-decimal"`
 	Ref                  string          `json:"$ref"`
 	Type                 string

@@ -2,24 +2,36 @@ package helpdesk
 
 import (
 	"math"
+	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api/parameters"
 	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 )
 
 type apiQueries struct {
-	costPreview  parameters.Query[costPreviewQuery]
-	labelUsage   parameters.Query[labelUsageQuery]
-	summary      parameters.Query[ticketSummaryQuery]
-	reportStatus parameters.Query[serviceReportStatusQuery]
-	labels       parameters.Query[admin.ListRequest]
-	links        parameters.Query[admin.ListRequest]
+	deadlinePreview parameters.Query[deadlinePreviewQuery]
+	costPreview     parameters.Query[costPreviewQuery]
+	labelUsage      parameters.Query[labelUsageQuery]
+	summary         parameters.Query[ticketSummaryQuery]
+	reportStatus    parameters.Query[serviceReportStatusQuery]
+	labels          parameters.Query[admin.ListRequest]
+	links           parameters.Query[admin.ListRequest]
 }
 
 func prepareAPIQueries() (apiQueries, error) {
 	var result apiQueries
 	var err error
+	result.deadlinePreview, err = parameters.New(512,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, deadlinePreviewMaximumPage), 1), func(query *deadlinePreviewQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("as_of", parameters.Required(parameters.RFC3339DateTime(64)), func(query *deadlinePreviewQuery, value time.Time) { query.asOf = value }, "Explicit reference time with complete clock and offset; normalized to UTC microseconds."),
+		parameters.Field("shift", parameters.Default(parameters.CanonicalDuration(), duration.Duration{}), func(query *deadlinePreviewQuery, value duration.Duration) { query.shift = value }, "Normalized elapsed shift added to each present deadline; defaults to zero."),
+		parameters.Field("min_remaining", parameters.Optional(parameters.CanonicalDuration()), func(query *deadlinePreviewQuery, value *duration.Duration) { query.minimum = value }, "Optional minimum adjusted deadline minus reference time. Omission includes unset deadlines."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
 	result.costPreview, err = parameters.New(256,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, costPreviewMaximumPage), 1), func(query *costPreviewQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("factor", parameters.Default(parameters.CanonicalDecimal(6, 4), decimal.Decimal{Coefficient: "1"}), func(query *costPreviewQuery, value decimal.Decimal) { query.factor = value }, "Exact multiplier, up to 2 whole digits and 4 decimal places; defaults to 1."),

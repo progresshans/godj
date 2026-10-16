@@ -3,6 +3,104 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0128 — 시각·기간 계산식 기반 준비
+
+2026-10-15 KST, source `c6e96c41fb981111a11d2a93914ee305b0c513a0`에서 별도
+`feature/temporal-expressions` 작업 공간을 시작했다. 아래는 원격 제출 전 구현·검증 준비 단계의 기록이다.
+공통 AST의 DateTime/Duration 입력·결과 서명, numeric bare NULL의 불변 typed 정규화,
+혼합 temporal literal의 자체 kind 보존과 Duration 평균 출처를 산술·부호 반전·집계로 전달하는 코드를 작성했다.
+Typed DateTime/Duration capability와 해당 타입·NULL·정밀도 계약의 검증 코드도 작성했다.
+양 DB의 temporal 조회/UPDATE·집계 실행과 원본·중간/최종 범위 검사를 작성했다. 이 변경을 runtime 지원 완료로 주장하지 않는다.
+
+로컬 Go 1.26.5 darwin/arm64에서 `go test -c -trimpath`로 query·db/internal/queryplan·orm의 최소 compile만 확인했다.
+출력은 `/Users/hanhyeonjin/Documents/Codex/2026-10-05/godj-verification/gdj0128-foundation-compile-3jl59evr`이며
+`receipt.json` SHA-256은 `58ef8e8cfcb926e53b6f025648f8523fa15346a1a789be79d73c47cbcfa455c7`다. 새 테스트 본문·DB·HTTP·관측·원격 CI를 실행한 결과는 아니다.
+기준 source의 별도 collection 소비자 실패 수정 `080c6770` 중 해당 fixture 파일만 동일 byte로 반영했다.
+이 수정의 재현과 새 전체 CI는 주 작업 공간의 GDJ-0127 기록이 소유하며 temporal 결과로 전이하지 않는다.
+
+SQLite에는 canonical DateTime text·정확한 int64 기간과 AVG에서 유래한 fractional microseconds를 구분하는
+stateless 함수를 연결했다. 큰 날짜 차이를 int64 microseconds로 계산하고, fractional 기간과 시각은 정확한 유리수로
+합친 뒤 DateTime 경계에서 half-even 처리한다. PostgreSQL에는 유한한 시각·month/year 없는 기간·모델 범위 검사와
+UTC 기준 이동을 연결했다. NULL 양쪽의 검사·선택된 CASE/FILTER만 평가·집계의 원 query 소유권도 코드에 반영했다.
+실제 DB 검증 코드는 손상/NULL·중간 상쇄·후반 UPDATE 실패·rollback/취소·기간 평균 재집계·HAVING·세션 DST를 포함한다.
+필수 실행 manifest에 SQLite/query 19개와 PostgreSQL 19개 항목을 추가했다. 이 숫자는 작성한 필수 목록이며 PASS 수가 아니다.
+
+로컬에서 양 backend를 포함한 query·db/internal/queryplan·orm·db/sqlite·db/postgres를 `go test -c -trimpath`로
+compile만 확인했다. 첫 runtime 기반 compile receipt는
+`gdj0128-temporal-runtime-compile-vdtgaxkr/receipt.json` SHA-256
+`7b741b47c938736ffaff6ab30b659dcb3a5a0268cb755fd0d5ceba51b3f4d71a`다.
+평균 재집계·HAVING·세션 DST 테스트까지 작성한 후의 compile receipt는
+`gdj0128-temporal-contract-compile-zh_j4xr4/receipt.json` SHA-256
+`d3b29c705c19290752bbb10ea261fd38ea1b21578a695cd01c2ea021d1255577`다.
+두 receipt 모두 source hash가 있는 미커밋 작업 사본을 대상으로 하며 테스트 본문·DB·독립 참조·HTTP 실행은 하지 않았다.
+이후 두 앱 생성 소비자의 44개 관측 연산·10개 runtime 그룹·10개 compile-negative 프로그램을 작성했다.
+같은 parent에서 양 DB reference와 runtime을 실행할 때의 필수 원본 child event 수는 114개다. 이 수는 실행 목록이며 PASS 수가 아니다.
+독립 observer는 고정 Django module 27개의 bytes/hash와 Python·Django·psycopg·PostgreSQL·UTC profile을 검사한다.
+SQL·parameter·native replay·변환 오류 단계·rollback 직전 native storage class 및 최종 storage/namespace 보존을 기록한다.
+observer SHA-256 `561517e2b9cb68932ea8b95388c2d83f0fc84fe1a9ef1a1c391f4bd810cb6a7d`,
+input `13f160270617276b5945dcf900301def4984eb26ad0a70b253f578ecfeac8929`,
+source manifest `7602ec853f6803948082489a07ee99c5408e991211185910583fdb805faec114`다.
+Python syntax와 source inventory만 정적으로 확인했으며 observer 본문·DB를 실행한 결과는 없다.
+Native 평균 이동·range/error의 비교 조건은 upstream source에 근거한 예상이며 실제 차이는 원격 관측 후 확정한다.
+
+생성한 temporal 소비자·변경한 derived Duration SUM 소비자·SQLite package를 `go test -trimpath -run '^$'`로 compile했다.
+10개의 잘못된 typed 프로그램은 모두 의도한 compiler 진단으로 거부됐다. 테스트 본문을 실행한 것은 아니다.
+Source 파일 hash와 compiler 출력을 보존한 `gdj0128-consumer-compile/receipt.json` SHA-256은
+`3f452af510c1b28dbb2bf340629a624e12c02ec6c76ebfccb145e5a19da638d3`다. 이후의 HTTP/parameter 변경은 이 receipt의 범위가 아니다.
+새 parent와 10개 compile-negative를 relation/PostgreSQL 필수 목록에, reference 실행·원본 로그를 기존 세 PostgreSQL
+소비자 owner의 workflow/artifact에 연결했다. 기존 derived 평균 검사도 재집계 이후 native precision을 유지하는 검증으로 바꿨다.
+SQLite 좁은 기간 표현 오류에는 `duration.ErrMicrosecondRange` cause를 보존하고 기존 range 검사에 그 조건을 추가했다.
+
+Canonical Duration·explicit-offset DateTime query/header codec, 모델과 같은 typed DateTime output을 작성했다.
+Helpdesk의 기한 미리보기는 명시적 `as_of`·기본 zero `shift`·선택 `min_remaining`과 현재 Category를 사용한다.
+HTML 진입 form은 DB를 읽지 않고 기준 시각을 요구하며, 실제 미리보기·페이지 링크·API에 그 시각을 유지한다.
+새 출력·인가 구성·OpenAPI 계약 검사를 작성했고 일반 생성/compile까지만 확인했다.
+Source `d911b030`의 runserver 준비 예산·안전한 진단·CI 필수 항목·TESTING 보완도 byte 단위로 반영했다.
+
+실제 API adapter로 여섯 OpenAPI profile을 export하고 고정 ogen으로 다시 생성했다. Helpdesk schema와 생성 파일 10개만
+변경됐으며 나머지 다섯 profile·go.mod/go.sum/ogen.yml은 byte가 같았다. 독립 client 빌드는 통과했고 HTTP 실행은 하지 않았다.
+`gdj0128-openapi-update/receipt.json` SHA-256은 `0911ee9cdeabcdf210b9875e7b896ea588d39ee4edeb6a51cdce3b37d53c9f0b`다.
+추가한 reference output-kind 검사를 포함한 생성 소비자, API parameter/OpenAPI/output, Helpdesk와 browser fixture package의
+최소 compile도 통과했다. `gdj0128-consumer-compile/current-receipt.json` SHA-256은
+`ff8a64e12f24b4989a864ff3da27d545b46e101ca90d6cbbafabdd6026168c41`이며 모두 `-run '^$'`로 test body를 실행하지 않았다.
+PostgreSQL 필수 목록 3334개를 세 mode·여섯 core 좌표에 중복/누락 없이 나누는 정적 audit도 확인했다. 실제 3334개 PASS의 증거가 아니다.
+이후의 native HTTP·독립 client·브라우저 검증 코드와 검사기 보완은 아래 단계이며 위 compile receipt의 범위와 구분한다.
+
+### HTTP·독립 client·브라우저 실행 준비
+
+2026-10-16 KST, 양 DB의 Helpdesk 소비자에 deadline preview root와 각각 21개 child를 추가했다.
+45개 티켓의 NULL·음수/zero·연도 1..9999·마이크로초·필터/페이지·범위 밖 Category, ViewTicket 사전 인가,
+명시적 기준 시각과 페이지 보존, 15가지 snapshot/cursor 수명·정리/취소 실패를 검증하도록 작성했다.
+Native DateTime 손상·계산 overflow는 전체 500 응답과 물리 저장 보존을 요구한다. SQLite는 모든 앱 table의
+storage class와 원문을, PostgreSQL은 별도 control connection에서 모든 열을 snapshot한다. Label·Link·Report·audit도 대조한다.
+
+독립 client는 저장된 API 결과로 `UnixMicro`·`math/big.Int` 기대값을 계산한다. 두 역할의 0·음수·양수 shift와
+필터/페이지·NULL, 실제 DateTime 양 끝의 overflow·단일 HTTP 요청, 입력 오류와 required nullable wire를 검사한다.
+성공 이동의 준비에는 생성 PATCH로 경계 티켓 두 개만 잠시 안쪽으로 옮긴다. GET 전후 전체 열을 비교하고 생성 PATCH로
+원래 두 극값을 복원한다. 이 fixture 준비/복원은 미리보기의 저장 변경으로 취급하지 않으며 부모의 기존 극값 보존 검사를 유지한다.
+부모와 자식이 요구하는 완료 항목은 104개다. 실제 클라이언트 실행은 아직 하지 않았다.
+
+브라우저 fixture의 기존 30개 티켓 중 두 기한을 윤일 경계의 마이크로초 값으로 준비했다. 34개 필수 검사는 입력 form,
+UTC 기준 시각·음수/zero/day shift, 정확한 날짜/기간 문자열, 필터·페이지·입력 거부·전체 계산 실패를 포함한다.
+종료 후 원래 기한/NULL·전체 티켓 열·관계·보고서·audit와 DB cleanup을 별도로 대조한다. Raw probe·receipt·screenshot은
+기존 browser artifact에 포함하며 실제 브라우저 실행·화면 확인은 원격 source의 evidence에서 수행한다.
+
+새 독립 client command, 부모 OpenAPI 소비자, Helpdesk와 browser fixture를 `go test -trimpath -run '^$'`로 최소 compile했다.
+새 Go 테스트 본문·DB·HTTP·client/browser 흐름은 실행하지 않았다. JavaScript syntax와 필수 목록을 정적으로 확인했다.
+`test_helpdesk_browser`의 6개 Python 검사기 테스트는 통과했다. 이는 누락·중복·다른 검사명·저장 기한/NULL 변조 거부의
+단위 검증이며 브라우저 제품 실행의 PASS가 아니다.
+
+`gdj0128-hosted-full-pr-collect.py`/`gdj0128-hosted-full-pr-audit.py`, `temporal-consumer-audit.py`,
+`deadline-consumer-audit.py`에 기존 전체 source/archive/owner 증거와 새 항목을 연결했다. Temporal 원본 child 114개,
+각 DB 참조 44개·compile-negative 10개, Helpdesk 원본 47개 실행(양 DB preview 44개와 출력/인가/계약 root 3개),
+독립 client 104개 필수 항목·API unit package·브라우저 34개를 요구한다. Portable job은 개별 성공 child receipt를 보존하지
+않으므로 전체 package의 무필터 실행 성공과 현재 필수 검증 코드 확인이라는 증거 범위를 기록한다.
+감사기의 5개 합성 부정 대조 테스트는 통과했으나 실제 새 CI artifact 감사는 아직 전이다.
+PostgreSQL 필수 목록은 3379개이며 세 mode·여섯 core 좌표의 고유 소유권 정적 검사를 확인했다. 실행 PASS 수가 아니다.
+
+선행 수정 `9edc6b56`의 macOS ARM relation 분할을 이 작업 공간에도 동일하게 반영했다. 제품·생성 소비자·HTTP·client·browser
+코드 묶음을 통합해 자동 전체 CI에서 검증한다. 새 source의 실제 DB/관측·세 mode·실패/저장 보존·브라우저·전체 CI와 원본 증거 감사가 남아 있다.
+
 ## GDJ-0127 — 컬렉션 계산식 집계와 라벨별 조정 비용
 
 2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한
@@ -178,6 +276,17 @@ macOS Intel에 적용된 기존 분할을 ARM normal/CGO0에도 적용한다. �
 누락·중복·잘못된 owner·skip·잘린 실행을 거부하는지 확인한다. 최소 실행 계획과 문서 diff도 확인했다.
 실제 Go 소비자 전체는 로컬에서 반복하지 않았다. 보완 source의 자동 전체 CI와 원본 실행 대조는 남아 있다.
 별도 GDJ-0128 temporal 구현은 이 수정 묶음에 포함하지 않는다.
+
+분할 보완 source `9edc6b56f90e6f15d702213a08fb02bf560999d4`을 push했고 2026-10-16 01:25:08 UTC에
+[자동 전체 CI 38835004030](https://github.com/progresshans/godj/actions/runs/38835004030), attempt 1·pull_request가 시작됐다.
+Validation-plan job `116762039584`의 실제 checkout `4e68af3f4762fa3a0f53cf4fd1d6a8003b663802`의 두 번째 parent가
+구현 head이며 tree `8398589c4b1ed388af11f9a93d0f39f630d1a2ff`가 head와 같음을 GitHub commit API와 원 로그에서 대조했다.
+
+- Source binding: `ci-38835004030-source-binding-and-plan.json`, SHA-256 `1b622188acc67cc9e7d65f7060327fbd893ec0fc59e0d550a8c558a60d16f340`
+- Validation-plan 원 로그 SHA-256: `2caa773b009408f723af478cbdab466883e1dbe819cec70d5d2521cbba10564e`
+- 게시한 PR body: `gdj0127-pr1-body-9edc6b56.md`, SHA-256 `9e93c1846dccd0e537dcc8ddb5dc978ca5f51714e78bcad5918e9bce873a70b7`
+
+전체 종료·89개 job의 필수 실행·원본 artifact 감사는 아직 남아 있다. 이 실행에는 GDJ-0128이 포함되지 않는다.
 
 ## GDJ-0126 — Decimal 계산식과 예상 비용 조정 미리보기
 

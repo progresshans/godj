@@ -994,7 +994,7 @@ jobs:
           check-latest: false
           cache: true
 
-      - name: Set up pinned Django relation, collection and Decimal reference runtime
+      - name: Set up pinned Django expression reference runtime
         if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
@@ -1036,6 +1036,17 @@ jobs:
               --vendor "$vendor" --output "$RUNNER_TEMP/decimal-expression-reference/django61-$vendor.json"
           done
 
+      - name: Observe independent Django temporal expressions on both native databases
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
+        run: |
+          for vendor in sqlite postgres; do
+            uv run --project conformance/reference/related-expressions --frozen python \
+              conformance/runners/django/temporal_expression_reference/observe.py \
+              --vendor "$vendor" --output "$RUNNER_TEMP/temporal-expression-reference/django61-$vendor.json"
+          done
+
       - name: Assert exact PostgreSQL service profile
         env:
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
@@ -1057,6 +1068,7 @@ jobs:
           GODJ_RELATED_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/related-expression-reference
           GODJ_COLLECTION_AGGREGATE_REFERENCE_DIR: ${{ runner.temp }}/collection-aggregate-reference
           GODJ_DECIMAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/decimal-expression-reference
+          GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
@@ -1246,6 +1258,7 @@ jobs:
             ${{ runner.temp }}/related-expression-reference/
             ${{ runner.temp }}/collection-aggregate-reference/
             ${{ runner.temp }}/decimal-expression-reference/
+            ${{ runner.temp }}/temporal-expression-reference/
           if-no-files-found: error
           retention-days: 90
 

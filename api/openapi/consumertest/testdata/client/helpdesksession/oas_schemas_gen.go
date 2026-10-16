@@ -254,6 +254,184 @@ func (s *CsrfHeader) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Ref: #/components/schemas/DeadlinePreview
+type DeadlinePreview struct {
+	Category     CategorySummary              `json:"category"`
+	Page         int64                        `json:"page"`
+	PageSize     int64                        `json:"page_size"`
+	AsOf         time.Time                    `json:"as_of"`
+	Shift        string                       `json:"shift"`
+	MinRemaining NilString                    `json:"min_remaining"`
+	TotalTickets int64                        `json:"total_tickets"`
+	Results      []DeadlinePreviewResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *DeadlinePreview) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *DeadlinePreview) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *DeadlinePreview) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetAsOf returns the value of AsOf.
+func (s *DeadlinePreview) GetAsOf() time.Time {
+	return s.AsOf
+}
+
+// GetShift returns the value of Shift.
+func (s *DeadlinePreview) GetShift() string {
+	return s.Shift
+}
+
+// GetMinRemaining returns the value of MinRemaining.
+func (s *DeadlinePreview) GetMinRemaining() NilString {
+	return s.MinRemaining
+}
+
+// GetTotalTickets returns the value of TotalTickets.
+func (s *DeadlinePreview) GetTotalTickets() int64 {
+	return s.TotalTickets
+}
+
+// GetResults returns the value of Results.
+func (s *DeadlinePreview) GetResults() []DeadlinePreviewResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *DeadlinePreview) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *DeadlinePreview) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *DeadlinePreview) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetAsOf sets the value of AsOf.
+func (s *DeadlinePreview) SetAsOf(val time.Time) {
+	s.AsOf = val
+}
+
+// SetShift sets the value of Shift.
+func (s *DeadlinePreview) SetShift(val string) {
+	s.Shift = val
+}
+
+// SetMinRemaining sets the value of MinRemaining.
+func (s *DeadlinePreview) SetMinRemaining(val NilString) {
+	s.MinRemaining = val
+}
+
+// SetTotalTickets sets the value of TotalTickets.
+func (s *DeadlinePreview) SetTotalTickets(val int64) {
+	s.TotalTickets = val
+}
+
+// SetResults sets the value of Results.
+func (s *DeadlinePreview) SetResults(val []DeadlinePreviewResultsItem) {
+	s.Results = val
+}
+
+// DeadlinePreviewHeaders wraps DeadlinePreview with response headers.
+type DeadlinePreviewHeaders struct {
+	XGodjCsrftoken OptString
+	Response       DeadlinePreview
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *DeadlinePreviewHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *DeadlinePreviewHeaders) GetResponse() DeadlinePreview {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *DeadlinePreviewHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *DeadlinePreviewHeaders) SetResponse(val DeadlinePreview) {
+	s.Response = val
+}
+
+func (*DeadlinePreviewHeaders) helpdeskDeadlinePreviewRes() {}
+
+type DeadlinePreviewResultsItem struct {
+	ID            int64       `json:"id"`
+	Subject       string      `json:"subject"`
+	DueAt         NilDateTime `json:"due_at"`
+	AdjustedDueAt NilDateTime `json:"adjusted_due_at"`
+	Remaining     NilString   `json:"remaining"`
+}
+
+// GetID returns the value of ID.
+func (s *DeadlinePreviewResultsItem) GetID() int64 {
+	return s.ID
+}
+
+// GetSubject returns the value of Subject.
+func (s *DeadlinePreviewResultsItem) GetSubject() string {
+	return s.Subject
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *DeadlinePreviewResultsItem) GetDueAt() NilDateTime {
+	return s.DueAt
+}
+
+// GetAdjustedDueAt returns the value of AdjustedDueAt.
+func (s *DeadlinePreviewResultsItem) GetAdjustedDueAt() NilDateTime {
+	return s.AdjustedDueAt
+}
+
+// GetRemaining returns the value of Remaining.
+func (s *DeadlinePreviewResultsItem) GetRemaining() NilString {
+	return s.Remaining
+}
+
+// SetID sets the value of ID.
+func (s *DeadlinePreviewResultsItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *DeadlinePreviewResultsItem) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *DeadlinePreviewResultsItem) SetDueAt(val NilDateTime) {
+	s.DueAt = val
+}
+
+// SetAdjustedDueAt sets the value of AdjustedDueAt.
+func (s *DeadlinePreviewResultsItem) SetAdjustedDueAt(val NilDateTime) {
+	s.AdjustedDueAt = val
+}
+
+// SetRemaining sets the value of Remaining.
+func (s *DeadlinePreviewResultsItem) SetRemaining(val NilString) {
+	s.Remaining = val
+}
+
 // Ref: #/components/schemas/GoDjAPIError
 type GoDjAPIError struct {
 	Code   string                   `json:"code"`
@@ -281,6 +459,7 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 }
 
 func (*GoDjAPIError) helpdeskCostPreviewRes()         {}
+func (*GoDjAPIError) helpdeskDeadlinePreviewRes()     {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
@@ -414,6 +593,30 @@ func (*HelpdeskCostPreviewInternalServerError) helpdeskCostPreviewRes() {}
 type HelpdeskCostPreviewNotFound GoDjAPIErrorHeaders
 
 func (*HelpdeskCostPreviewNotFound) helpdeskCostPreviewRes() {}
+
+type HelpdeskDeadlinePreviewBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlinePreviewBadRequest) helpdeskDeadlinePreviewRes() {}
+
+type HelpdeskDeadlinePreviewInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskDeadlinePreviewInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskDeadlinePreviewInternalServerError) helpdeskDeadlinePreviewRes() {}
+
+type HelpdeskDeadlinePreviewNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlinePreviewNotFound) helpdeskDeadlinePreviewRes() {}
 
 type HelpdeskLabelCreateBadRequest GoDjAPIError
 

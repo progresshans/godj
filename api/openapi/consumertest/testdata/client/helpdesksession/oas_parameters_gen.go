@@ -2,6 +2,10 @@
 
 package helpdesksession
 
+import (
+	"time"
+)
+
 // HelpdeskCostPreviewParams is parameters of helpdesk:cost-preview operation.
 type HelpdeskCostPreviewParams struct {
 	// Page number; canonical positive decimal integer.
@@ -13,6 +17,18 @@ type HelpdeskCostPreviewParams struct {
 	// Optional minimum adjusted cost, up to 15 whole digits and 6 decimal places. Omission includes unset
 	// costs.
 	MinCost OptString `json:",omitempty,omitzero"`
+}
+
+// HelpdeskDeadlinePreviewParams is parameters of helpdesk:deadline-preview operation.
+type HelpdeskDeadlinePreviewParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Explicit reference time with complete clock and offset; normalized to UTC microseconds.
+	AsOf time.Time
+	// Normalized elapsed shift added to each present deadline; defaults to zero.
+	Shift OptString `json:",omitempty,omitzero"`
+	// Optional minimum adjusted deadline minus reference time. Omission includes unset deadlines.
+	MinRemaining OptString `json:",omitempty,omitzero"`
 }
 
 // HelpdeskLabelDeleteParams is parameters of helpdesk:label-delete operation.

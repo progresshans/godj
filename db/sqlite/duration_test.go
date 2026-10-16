@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"errors"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -35,11 +36,11 @@ func TestSQLiteDurationRangeAndSQLArguments(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := Compile(plan); err == nil {
-			t.Fatal("SQLite predicate narrowed model value")
+		if _, _, err := Compile(plan); !errors.Is(err, duration.ErrMicrosecondRange) || !errors.Is(err, &query.Error{Code: query.CodeInvalidValue}) {
+			t.Fatal("SQLite predicate narrowed model value or lost its range cause", err)
 		}
-		if _, _, err := CompileInsert(query.NewInsertPlanReturningKey("records", []query.Assignment{query.NewAssignment(field, query.Duration(elapsed))}, id)); err == nil {
-			t.Fatal("SQLite write narrowed model value")
+		if _, _, err := CompileInsert(query.NewInsertPlanReturningKey("records", []query.Assignment{query.NewAssignment(field, query.Duration(elapsed))}, id)); !errors.Is(err, duration.ErrMicrosecondRange) || !errors.Is(err, &query.Error{Code: query.CodeInvalidValue}) {
+			t.Fatal("SQLite write narrowed model value or lost its range cause", err)
 		}
 	}
 	ddl, err := compileMigrationColumn(ir.Field{Name: "elapsed", GoName: "Elapsed", Column: "elapsed", Kind: ir.FieldDuration, Nullable: true})

@@ -23,7 +23,7 @@ func sqliteValue(value query.Value) (any, error) {
 	if elapsed, ok := value.Duration(); ok {
 		micros, err := elapsed.TotalMicroseconds()
 		if err != nil {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "duration exceeds SQLite signed int64 microseconds"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "duration exceeds SQLite signed int64 microseconds", Cause: err}
 		}
 		return micros, nil
 	}

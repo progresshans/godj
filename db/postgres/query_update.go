@@ -28,7 +28,7 @@ func compileQueryUpdate(schema string, plan query.QueryUpdatePlan) (string, []an
 			return compileScalarPredicate(expression, queryplan.ScalarSource{Plan: plan.Selection(), Field: resolve}, arguments)
 		},
 		Literal: readScalarLiteral, Binary: compilePostgresBinary, Expression: wrapReadScalar,
-		FieldValue: compileAssignedDecimal, Assignment: compileAssignedDecimal,
+		FieldValue: readScalarField, Assignment: compileAssignedScalar,
 	})
 }
 

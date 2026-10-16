@@ -222,6 +222,10 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	deadlinePreview, err := a.deadlinePreviewEndpoint(authentication)
+	if err != nil {
+		return nil, err
+	}
 	labelUsage, err := a.labelUsageEndpoint(authentication)
 	if err != nil {
 		return nil, err
@@ -242,7 +246,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
-	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, reportStatus, labelUsage, costPreview, labelEnsure, labelUpdate, labelPatch, labelDelete}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
+	typedOperations, typedSchemas, err := endpoint.Collect([]endpoint.Endpoint{create, bulk, summary, reportStatus, labelUsage, costPreview, deadlinePreview, labelEnsure, labelUpdate, labelPatch, labelDelete}, a.responses.ticket.Declaration(), a.responses.detail.Declaration())
 	if err != nil {
 		return nil, err
 	}

@@ -131,6 +131,55 @@ COST_PREVIEW_CHECKS = (
 )
 
 
+
+DEADLINE_PREVIEW_CHECKS = (
+    'deadline preview navigation',
+    'deadline preview entry requires an explicit reference',
+    'deadline preview first page and scoped total',
+    'deadline preview offset normalizes to explicit UTC microseconds',
+    'deadline preview one microsecond crosses the leap-day boundary',
+    'deadline preview positive remaining microsecond is exact',
+    'deadline preview distinguishes all nullable outputs',
+    'deadline preview second page retains reference and shift',
+    'deadline preview has no false next page',
+    'deadline preview submitted operands reset the page',
+    'deadline preview minimum filters computed values and NULLs',
+    'deadline preview minimum retains reference and shift',
+    'deadline preview past-end retains filtered total',
+    'deadline preview previous link retains every operand',
+    'deadline preview clearing minimum preserves the reference',
+    'deadline preview API preserves exact temporal strings and order',
+    'deadline preview API retains required nullable values',
+    'deadline preview default zero shift preserves actual zero and excludes NULL',
+    'deadline preview negative shift retains floor-normalized microseconds',
+    'deadline preview full-day shift crosses leap February',
+    'deadline preview last allowed page retains total and reference',
+    'deadline preview rejects missing API reference',
+    'deadline preview rejects missing HTML reference',
+    'deadline preview rejects invalid calendar dates',
+    'deadline preview rejects empty duration',
+    'deadline preview rejects duplicate reference',
+    'deadline preview rejects unknown input',
+    'deadline preview rejects noncanonical duration',
+    'deadline preview valid range overflow fails the entire API',
+    'deadline preview valid range overflow fails the entire HTML',
+    'deadline preview response is private and uncached',
+    'deadline preview contains no write form',
+    'deadline preview reset does not substitute the current time',
+    'deadline preview exact values visible for visual review',
+)
+
+
+def verify_deadline_preview(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(DEADLINE_PREVIEW_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(DEADLINE_PREVIEW_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(DEADLINE_PREVIEW_CHECKS)):
+        raise ValueError('deadline preview browser did not complete every declared check')
+    return result
+
+
 def verify_cost_preview(result):
     cases = result.get('cases')
     if (type(result.get('passed')) is not int or result['passed'] != len(COST_PREVIEW_CHECKS)
@@ -198,6 +247,10 @@ def verify_committed(value):
     if (value.get('cost_preview_read_only_unchanged') is not True
             or any('expected_cost' not in row or row['expected_cost'] != {2: '0.1', 3: '0.2'}.get(row['id']) for row in rows)):
         raise ValueError('cost preview browser did not preserve every exact stored cost and NULL')
+    due_at = {2: '2024-02-28T23:59:59.999999Z', 3: '2024-02-29T00:00:00.000001Z'}
+    if (value.get('deadline_preview_read_only_unchanged') is not True
+            or any('due_at' not in row or row['due_at'] != due_at.get(row['id']) for row in rows)):
+        raise ValueError('deadline preview browser did not preserve every stored microsecond and NULL')
     reports = value.get('committed_reports')
     if (value.get('report_status_read_only_unchanged') is not True
             or value.get('initial_status_reports') != 30
@@ -241,7 +294,8 @@ def run(node_tools, output):
                'probe_sha256': hashlib.sha256((FIXTURE / 'summary_probe.js').read_bytes()).hexdigest(),
                'report_status_probe_sha256': hashlib.sha256((FIXTURE / 'report_status_probe.js').read_bytes()).hexdigest(),
                'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest(),
-               'cost_preview_probe_sha256': hashlib.sha256((FIXTURE / 'cost_preview_probe.js').read_bytes()).hexdigest()}
+               'cost_preview_probe_sha256': hashlib.sha256((FIXTURE / 'cost_preview_probe.js').read_bytes()).hexdigest(),
+               'deadline_preview_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_preview_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -342,6 +396,11 @@ def run(node_tools, output):
             cost_screenshot = output / 'cost-preview-desktop.png'
             if not cost_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or cost_screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the cost preview screenshot')
+            receipt['deadline_preview'] = verify_deadline_preview(result_document(browser('deadline-preview', 'run-code', '--filename', str(FIXTURE / 'deadline_preview_probe.js'))))
+            browser('deadline-preview-screenshot', 'screenshot', '--filename=' + str(output / 'deadline-preview-desktop.png'))
+            deadline_screenshot = output / 'deadline-preview-desktop.png'
+            if not deadline_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or deadline_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the deadline preview screenshot')
 
         except Exception as error:
             failure = error

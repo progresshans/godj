@@ -46,7 +46,16 @@ func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFi
 	ctx, cancel := context.WithTimeout(t.Context(), helpdeskConsumerTimeout)
 	defer cancel()
 	dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "helpdesk.sqlite3")) + "?mode=rwc&_busy_timeout=5000"
-	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) }, insertLargeCollectionLabel)
+	connection, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	runPublicHelpdeskConsumer(t, ctx, func(ctx context.Context) (helpdeskBackend, error) { return sqlite.Open(ctx, dsn) }, insertLargeCollectionLabel, sqliteDeadlineNative(connection))
 }
 
 type helpdeskBackend interface {
@@ -84,7 +93,7 @@ func (deny helpdeskDeniedPermissions) Allowed(ctx context.Context, principal aut
 	return (auth.PrincipalAuthorizer{}).Allowed(ctx, principal, permission)
 }
 
-func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error), seedLargeLabel func(context.Context, db.Mutator, int64) (int64, error)) {
+func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error), seedLargeLabel func(context.Context, db.Mutator, int64) (int64, error), native deadlineNative) {
 	t.Helper()
 	backend, err := open(ctx)
 	if err != nil {
@@ -553,6 +562,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("service_report_status", func(t *testing.T) { verifyHelpdeskServiceReportStatus(t, ctx, runtime, client) })
 	t.Run("label_usage", func(t *testing.T) { verifyHelpdeskLabelUsage(t, ctx, runtime, client) })
 	t.Run("cost_preview", func(t *testing.T) { verifyHelpdeskCostPreview(t, ctx, runtime, client) })
+	t.Run("deadline_preview", func(t *testing.T) { verifyHelpdeskDeadlinePreview(t, ctx, runtime, client, native) })
 	t.Run("ticket_priority_raise", func(t *testing.T) {
 		verifyHelpdeskPriorityRaise(t, ctx, runtime, client)
 		t.Run("concurrent", func(t *testing.T) {
@@ -707,7 +717,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath)
 	loginPersistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		t.Fatal(err)
@@ -716,7 +726,7 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 	if err != nil {
 		t.Fatal(err)
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: webAuth, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -765,6 +775,11 @@ func helpdeskHTTPRegistry(t *testing.T, application *helpdesk.Application, regis
 		t.Fatal(err)
 	}
 	routes = append(routes, costPreview.Routes()...)
+	deadlinePreview, err := application.DeadlinePreview(webAuth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes = append(routes, deadlinePreview.Routes()...)
 
 	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {

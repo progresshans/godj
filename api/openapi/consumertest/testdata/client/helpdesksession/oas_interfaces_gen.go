@@ -5,6 +5,10 @@ type HelpdeskCostPreviewRes interface {
 	helpdeskCostPreviewRes()
 }
 
+type HelpdeskDeadlinePreviewRes interface {
+	helpdeskDeadlinePreviewRes()
+}
+
 type HelpdeskLabelCreateRes interface {
 	helpdeskLabelCreateRes()
 }

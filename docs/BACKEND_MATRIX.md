@@ -142,10 +142,13 @@ Scalar comparison·Boolean composition·same-model field reference와 projection
 최종 target 정밀도를 검사하는 UPDATE를 구현하고 source `b66a5aad`의 양 DB·세 mode·전체 플랫폼 통합과 원본 증거 대조를 완료했다.
 PostgreSQL native NUMERIC와 SQLite exact BLOB의
 division scale·zero division 차이는 [Decimal 의미](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
-Duration의 CASE 복사는 지원하지만 계산식 SUM/AVG·산술과 일반 named annotation은 미지원이다.
+GDJ-0128은 Duration ± Duration·부호 반전, DateTime ± Duration·Duration + DateTime·DateTime 차이와 computed Duration
+SUM/AVG를 구현했다. SQLite의 fractional 평균과 시각을 합친 뒤 최종 경계에서 반올림하고 PostgreSQL은 UTC 이동과
+원본/중간/최종 범위를 검사한다. 실제 양 DB·세 mode 검증은 아직 전이며 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+Date/Time 이동·Duration scaling/division·일반 named annotation은 별도 미완료 범위다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 첫 source `c6e96c41`에서
 조건부 COUNT 소비자 실패를 수정했다. Source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과
-의존성 DNS 실패를 확인해 준비 예산·진단을 보완했다. Source `d911b030`의 macOS ARM CGO0 누적 timeout을 확인해 relation 소비자 분할을 보완 중이며 전체 원격 검증이 남아 있다.
+의존성 DNS 실패를 확인해 준비 예산·진단을 보완했다. Source `d911b030`의 macOS ARM CGO0 누적 timeout을 확인해 relation 소비자 분할을 보완했다. Source `9edc6b56`의 자동 전체 CI 검증이 남아 있다.
 일반 행 projection·computed WHERE·정렬·UPDATE의 single-valued 경계는 유지한다.
 Forward FK/OneToOne·reverse OneToOne 혼합 operand와 양쪽 scalar 비교는 GDJ-0124에서 구현했고,
 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합과 원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따른다.

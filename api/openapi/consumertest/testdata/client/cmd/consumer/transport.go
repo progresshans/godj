@@ -104,14 +104,18 @@ func (source helpdeskSessionSource) CsrfHeader(context.Context, hs.OperationName
 }
 
 type observedTransport struct {
-	base    *http.Transport
-	state   *sessionState
-	mu      sync.Mutex
-	status  int
-	csrfSet bool
+	base     *http.Transport
+	state    *sessionState
+	mu       sync.Mutex
+	status   int
+	csrfSet  bool
+	requests int
 }
 
 func (transport *observedTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	transport.mu.Lock()
+	transport.requests++
+	transport.mu.Unlock()
 	if transport.state != nil {
 		counts := make(map[string]int)
 		for _, cookie := range request.Cookies() {
@@ -145,6 +149,11 @@ func (transport *observedTransport) RoundTrip(request *http.Request) (*http.Resp
 		response.Body.Close()
 		return nil, fail("report status private response policy")
 	}
+	if request.URL.Path == "/api/tickets/deadline-preview/" && response.StatusCode == http.StatusOK &&
+		(response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("Referrer-Policy") != "same-origin") {
+		response.Body.Close()
+		return nil, fail("deadline preview private response policy")
+	}
 	transport.mu.Lock()
 	transport.status = response.StatusCode
 	transport.mu.Unlock()
@@ -166,6 +175,12 @@ func (transport *observedTransport) lastStatus() int {
 	transport.mu.Lock()
 	defer transport.mu.Unlock()
 	return transport.status
+}
+
+func (transport *observedTransport) requestCount() int {
+	transport.mu.Lock()
+	defer transport.mu.Unlock()
+	return transport.requests
 }
 
 func (transport *observedTransport) capturedCSRF() bool {

@@ -69,6 +69,21 @@ HTML은 unset을 `Not set`, API는 모든 nullable 값을 명시적인 null로 �
 HTML 등록 시 `CostPreviewPath`도 login allowed-next와 Admin 추가 경로에 넣고 `costPreview.Routes()`를 연결한다.
 독립 client·브라우저·양 DB 검증의 실제 완료 여부는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
+## 기한 변경 미리보기
+
+`application.DeadlinePreview(webAuth)`의 GET `/tickets/deadline-preview/`와 API GET `/api/tickets/deadline-preview/`는
+현재 Category의 `due_at + shift`와 그 결과에서 명시적 `as_of`를 뺀 남은 기간을 조회한다. `ViewTicket`을 파싱 전에 요구한다.
+`as_of`는 offset을 가진 RFC 3339 입력이며 최대 64 bytes다. UTC microsecond로 정규화하고 서버 시각을 대신 넣지 않는다.
+HTML의 매개변수 없는 첫 화면은 기준 시각 입력 form만 표시하며 DB를 조회하지 않는다. API에서 `as_of` 생략은 400이다.
+
+`shift`는 기본 `00:00:00`, 선택 `min_remaining`은 최소 남은 기간이다. 두 값은 전체 모델 범위의 canonical Duration
+문자열이고 `p`는 1..50001, 전체 raw query는 512 bytes 이하이다. 필터를 적용한 뒤 남은 기간 오름차순·NULL 마지막·ID
+오름차순으로 20개씩 조회한다. Category·총수·페이지는 같은 읽기 snapshot을 사용한다. 기준 시각과 shift·최소값은
+응답과 다음/이전/최소값 해제 링크에 유지한다. NULL 기한은 zero shift에서도 NULL이며 저장값·관계·audit를 바꾸지 않는다.
+정상 입력이라도 native 표현이나 계산 결과 범위를 넘으면 전체 요청이 실패하며 부분 결과를 게시하지 않는다.
+`DeadlinePreviewPath`를 login allowed-next·Admin 추가 경로에 넣고 `deadlinePreview.Routes()`를 등록한다.
+구현과 실제 양 DB·client·브라우저 검증 상태는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 구분해 따른다.
+
 ## 우선순위별 업무 요약
 
 `application.TicketSummary(webAuth)`는 GET `/tickets/summary/` 화면을 제공하며 API 구성에는 GET

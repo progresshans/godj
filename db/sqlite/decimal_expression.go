@@ -185,12 +185,17 @@ func decimalDivisionScale(left, right decimal.Decimal) int {
 }
 
 func compileSQLiteBinary(expression query.ScalarExpression, left, right string) (string, error) {
-	operator, _, _, valid := expression.Binary()
+	operator, leftOperand, rightOperand, valid := expression.Binary()
 	if !valid {
 		return "", invalidPlan("binary scalar compiler requires a binary node")
 	}
 	if expression.ResultKind() == query.FieldDecimal {
 		return "godj_decimal_binary('" + string(operator) + "', " + left + ", " + right + ")", nil
+	}
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+		// Keep rendered operands in traversal order: read placeholders are
+		// anonymous, including the reversed Duration + DateTime signature.
+		return "godj_temporal_binary('" + string(operator) + "', '" + sqliteTemporalKind(leftOperand) + "', '" + sqliteTemporalKind(rightOperand) + "', " + left + ", " + right + ")", nil
 	}
 	return "(" + left + " " + string(operator) + " " + right + ")", nil
 }
@@ -198,6 +203,9 @@ func compileSQLiteBinary(expression query.ScalarExpression, left, right string) 
 func compileSQLiteNegate(expression query.ScalarExpression, value string) (string, error) {
 	if expression.ResultKind() == query.FieldDecimal {
 		return "godj_decimal_negate(" + value + ")", nil
+	}
+	if expression.ResultKind() == query.FieldDuration {
+		return "godj_temporal_negate('" + sqliteTemporalKind(expression) + "', " + value + ")", nil
 	}
 	return "(-" + value + ")", nil
 }

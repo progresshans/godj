@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/db/internal/queryplan"
-	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/query"
 )
 
@@ -29,10 +28,15 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	}
 	field, _ := expression.Field()
 	ordered := expression.Kind() == query.ResultMin || expression.Kind() == query.ResultMax
-	if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg || ordered && expression.OperandKind() == query.FieldDecimal {
+	temporalOperand := expression.OperandKind() == query.FieldDateTime || expression.OperandKind() == query.FieldDuration
+	if expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg || ordered && expression.OperandKind() == query.FieldDecimal || temporalOperand {
 		var err error
 		if _, computed := expression.Scalar(); !computed {
-			operand, err = numericAggregateOperand(field, operand)
+			if temporalOperand {
+				operand, err = readScalarField(field, operand)
+			} else {
+				operand, err = numericAggregateOperand(field, operand)
+			}
 		}
 		if err != nil {
 			return "", err
@@ -81,6 +85,11 @@ func renderAggregate(expression query.ResultExpression, operand, filter string, 
 	if expression.OperandKind() == query.FieldDecimal && (expression.Kind() == query.ResultSum || expression.Kind() == query.ResultAvg) {
 		return decimalResultSQL(result)
 	}
+	if expression.ResultValueKind() == query.FieldDateTime || expression.ResultValueKind() == query.FieldDuration {
+		// Keep the completed aggregate at its owning query level. A nested
+		// SELECT here would incorrectly aggregate constant computed operands.
+		return temporalResultSQL(expression.ResultValueKind(), result)
+	}
 	return result, nil
 }
 
@@ -106,10 +115,9 @@ func numericAggregateOperand(field query.FieldRef, column string) (string, error
 		}
 		kind, diagnostic = "numeric", "godj_invalid_decimal_operand"
 	case query.FieldDuration:
-		valid = "EXTRACT(YEAR FROM " + column + ") = 0 AND EXTRACT(MONTH FROM " + column + ") = 0 AND " + column + " >= INTERVAL '" + strconv.Itoa(int(duration.MinDays)) + " days' AND " + column + " < INTERVAL '" + strconv.Itoa(int(duration.MaxDays)+1) + " days'"
-		kind, diagnostic = "interval", "godj_invalid_duration_operand"
+		return temporalResultSQL(query.FieldDuration, column)
 	default:
 		return "", invalidPlan("numeric aggregate has a nonnumeric operand")
 	}
-	return guardedNumericSQL(column, valid, kind, diagnostic)
+	return guardedScalarSQL(column, valid, kind, diagnostic)
 }

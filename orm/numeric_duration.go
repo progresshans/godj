@@ -7,8 +7,9 @@ import (
 	"github.com/progresshans/godj/duration"
 )
 
-// Only AVG admits SQLite's native binary64 microseconds. Source-field and
-// SUM/MIN/MAX scanners keep their strict integer/canonical native contract.
+// AVG and expressions derived from it admit SQLite's native binary64
+// microseconds. Source fields and aggregates over exact operands retain their
+// strict integer/canonical native contract.
 // Round at the result boundary: SQLite HAVING must compare the native mean,
 // not the rounded model value. A rounded mean can exceed int64 microseconds
 // while still fitting the model's full normalized day domain.

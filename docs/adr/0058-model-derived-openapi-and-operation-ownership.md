@@ -98,6 +98,13 @@ runtime 변환과 OpenAPI parameter를 함께 준비한다. Canonical int64와 �
 Setter는 순수하고 DTO 포인터를 보관하지 않는다. 반환 DTO·Optional 값과 parameter slice는 각 호출자가 소유한다.
 순수 parsing에 I/O를 추가하지 않고 실제 request/body·context·인가·DB/transaction 수명은 해당 업무 owner에 남긴다.
 
+GDJ-0128은 같은 닫힌 codec에 canonical Duration과 explicit-offset RFC 3339 DateTime을 추가한다.
+Duration 입력은 전체 normalized 모델 범위이며 backend 표현 범위를 이유로 축소하지 않는다. DateTime은 calendar와
+UTC 연도 경계를 검사하고 float 없이 microsecond로 truncate한다. Default는 이미 UTC microsecond로 정규화된 Go 값만
+허용해 생략 값과 입력 변환·schema 사이의 차이를 막는다. Query/header 각각의 값 예산과 전체 query 예산을 유지한다.
+Computed `output.DateTime()`은 모델 DateTime serializer와 같은 schema·정규화를 사용하며 nullable/required 의미와
+후반 값 실패 시 전체 응답 미게시 조건을 유지한다. 실행 증거는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
+
 Helpdesk 요약은 기존 canonical 정수·진단 순서·snapshot을, Label/티켓–Label 목록은 기존 digits·default·전체 query 오류와
 count/items 별도 읽기를 유지한다. 인증 이후 parsing 순서와 Category/관계 scope도 유지한다. Ticket 본문 검색의 raw-segment
 parser는 오류/semicolon 의미가 달라 이 연결에 포함하지 않는다. Endpoint·경로·header는 아래 GDJ-0116/0117/0119에서

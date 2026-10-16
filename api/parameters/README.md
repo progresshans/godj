@@ -1,7 +1,7 @@
 # Typed query와 header 입력
 
 하나의 선언이 URL query 또는 HTTP header의 변환과 OpenAPI parameter를 소유한다. `api/parameters`는
-reflect/tag 추론이나 임의 decoder/schema 쌍 없이 현재 필요한 int64와 문자열을 지원한다.
+reflect/tag 추론이나 임의 decoder/schema 쌍 없이 int64·문자열·Decimal·Duration·DateTime을 지원한다.
 인가·CSRF·대상 범위·DB/context·오류 응답은 handler가 소유한다.
 
 ## Query
@@ -34,6 +34,9 @@ input, diagnostics, err := query.Parse(request.HTTP().URL.RawQuery)
 | `String(maxBytes, allowEmpty)` | trim하지 않는 UTF-8. Byte 길이를 제한하고 NUL을 거부한다. Query는 URL decoding 뒤, header는 원 field text를 검사한다. |
 | `StringChoices(values...)` | 닫힌 문자열 집합의 exact 값만 받는다. 선언 slice를 복사하고 중복·잘못된 UTF-8·NUL·빈 집합을 거부한다. 빈 문자열은 집합에 명시했을 때만 값이며 부재와 다르다. 같은 집합과 검증된 default를 OpenAPI enum에 사용한다. |
 | `Required(codec)` | 생략은 `required`. 빈 값의 허용 여부는 codec이 정한다. |
+| `CanonicalDecimal(maxDigits, decimalPlaces)` | 선언 precision 안의 정확한 Decimal 문자열. exponent·plus·leading/trailing zero 별칭과 반올림을 허용하지 않는다. |
+| `CanonicalDuration()` | 전체 모델 day 범위의 `[days ]HH:MM:SS[.ffffff]`. Zero day와 zero 소수초는 생략하고, nonzero 소수초는 여섯 자리다. Backend의 좁은 저장 범위를 입력 모델 범위로 사용하지 않는다. |
+| `RFC3339DateTime(maxBytes)` | 20..1 MiB의 값 예산. 완전한 clock·명시적 offset을 요구하고 UTC 연도 1..9999의 microsecond 값으로 정규화한다. 여섯 자리 뒤 소수초는 truncate한다. 기본값은 location·monotonic 정보 없이 이미 UTC microsecond로 정규화되어야 한다. |
 | `Default(codec, value)` | 생략한 때만 검증된 기본값을 사용한다. 같은 값이 schema `default`가 된다. |
 | `Optional(codec)` | `*T`로 부재를 표현한다. nil·명시적 0·명시적 빈 문자열을 구분한다. JSON null 변환은 없다. |
 
@@ -51,6 +54,10 @@ input, diagnostics, err := query.Parse(request.HTTP().URL.RawQuery)
 Setter는 순수하고 동시 호출에 안전해야 하며 DTO 포인터를 외부에 보관하면 안 된다. 초기화한 `Query`는 공유할 수 있지만
 결과 DTO와 Optional 포인터는 요청마다 따로 소유한다. 디코딩 문자열은 전체 원본 query의 backing string을 보관하지 않는다.
 `Parameters()`의 slice도 분리되며 안의 schema는 불변이다. 순수하고 제한된 parsing에는 I/O나 context 수명을 추가하지 않는다.
+
+DateTime offset의 `+`는 query에서 `%2B`로 인코딩한다. `url.Values.Encode()`가 이 경계를 처리하며 header는 URL
+decoding을 하지 않는다. Duration은 float나 Go nanosecond `time.Duration`으로 경유하지 않는다. Temporal header는
+같은 codec과 개별 header byte 예산을 함께 적용하며 기본값도 그 예산에 들어가야 한다.
 
 정수 범위·default는 일반 JSON Schema에, URL 정수 표기는 `x-godj-query-integer`에 나타난다. 문자열의 `maxLength`는
 필요한 code-point 상한이고 더 엄격한 UTF-8 byte 제한은 `x-godj-max-bytes`, NUL 금지는 `x-godj-no-nul`에 나타난다.

@@ -138,9 +138,6 @@ func (e ResultExpression) validateAggregate() error {
 		return invalidPlanError("MIN/MAX require an ordered scalar field")
 	}
 	if e.kind == ResultSum || e.kind == ResultAvg {
-		if e.scalar.node != nil && e.OperandKind() != FieldInteger && e.OperandKind() != FieldFloat && e.OperandKind() != FieldDecimal {
-			return groupUnsupported("computed SUM/AVG require int64, float64 or Decimal; Duration expression aggregation requires its own precision contract")
-		}
 		switch e.OperandKind() {
 		case FieldInteger, FieldFloat, FieldDecimal, FieldDuration:
 		default:

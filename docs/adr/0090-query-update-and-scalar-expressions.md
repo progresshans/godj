@@ -2,7 +2,7 @@
 
 - 상태: Accepted design — 공통 기반 구현; 환경별 검증과 업무 연결은 TEST_EVIDENCE/활성 work가 소유
 - 날짜: 2026-10-13
-- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md)
+- 작업: [GDJ-0111](../../work/0111-query-update-and-writable-expressions.md), [GDJ-0122](../../work/0122-computed-results-and-priority-preview.md), [GDJ-0123](../../work/0123-derived-results-and-ticket-ratios.md), [GDJ-0124](../../work/0124-related-expressions-and-report-status.md), [GDJ-0128](../../work/0128-temporal-expressions-and-deadline-preview.md)
 
 ## 입력과 공개 API
 
@@ -52,7 +52,32 @@ nullable 여부에 따라 저장되거나 NOT NULL 오류가 된다. Backend별�
 Decimal 상수는 선언된 precision/scale에 정확히 맞아야 한다. Decimal field 복사는 target이 source의 선언 범위를
 좁히지 않을 때만 허용한다. GDJ-0126의 Decimal 계산식은 [ADR-0069](0069-exact-decimal-values-and-storage.md)의
 source·중간/result·target precision을 분리하고 양 DB의 native scale/zero division 차이를 명시한다.
-최종 assignment는 정확히 맞을 때만 저장하며 float 변환이나 native 반올림으로 초과 scale을 숨기지 않는다. Temporal 산술·function/subquery는 남은 기능이다. 집계 뒤 계산은 ADR-0091의 명시적 결과 단계로 연결한다.
+최종 assignment는 정확히 맞을 때만 저장하며 float 변환이나 native 반올림으로 초과 scale을 숨기지 않는다.
+DateTime/Duration 산술은 아래 GDJ-0128 계약을 따른다. 집계 뒤 계산은 ADR-0091의 명시적 결과 단계로 연결한다.
+
+## 시각과 기간 계산
+
+[GDJ-0128](../../work/0128-temporal-expressions-and-deadline-preview.md)은 Duration ± Duration·부호 반전,
+DateTime ± Duration·Duration + DateTime·DateTime − DateTime을 같은 AST에 연결한다. 각 operand의 kind와
+결과 kind를 구분하며 temporal NULL은 명시적인 타입을 요구한다. Numeric bare NULL은 상대 숫자 kind로 새 node를
+만들고 원본은 보존한다. `orm.DateTime`/`orm.Duration`은 각 값 타입의 sealed capability를 제공한다.
+Date/Time 이동·Duration scaling/division·일반 function/subquery는 별도 미완료 범위다.
+
+DateTime은 UTC 연도 1..9999와 microsecond를 유지한다. SQLite의 정확한 기간 연산은 int64 microseconds 범위를
+확인하며 날짜 차이에 Go `time.Duration`이나 Julian-day float를 사용하지 않는다. Stateless SQLite 함수가 statement
+안에서 canonical 시각 text·기간 storage class와 중간 결과를 검사한다. PostgreSQL은 month/year 없는 유한 INTERVAL과
+전체 모델 day 범위를 검사하고, 시각 이동을 UTC timestamp에서 수행해 caller의 세션 timezone/DST 설정에 의존하지 않는다.
+세션 설정을 변경하지 않으며 native 원인과 SQLSTATE를 보존한다.
+
+기간 평균의 SQLite fractional microseconds는 후속 산술·부호 반전·집계에 그대로 전달한다. 일반 field는 REAL을 받지
+않는다. Fractional 기간을 시각에 적용할 때에는 정수 epoch microseconds와 binary64의 정확한 유리수 값을 합친 뒤
+그 DateTime 결과 경계에서 한 번 half-even으로 반올림한다. 원 epoch를 float로 변환하거나 기간을 미리 반올림하지 않는다.
+기간의 raw fractional 결과도 full normalized model의 최소/최대 정수 microseconds 사이에 있어야 한다.
+
+양쪽 operand를 검증한 뒤 NULL을 전파하며 손상 값·범위 밖의 중간값을 상쇄하거나 NULL로 숨기지 않는다. 선택되지 않은
+CASE branch와 FILTER 제외 행은 실행하지 않는다. 조회·같은 행 UPDATE는 같은 검사 경로를 사용하며 target과 source
+의미·statement rollback·원래 오류의 소유권을 유지한다. 이 계약의 채택, 작성한 코드와 실제 환경별 검증은 활성 work와
+[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에서 구분한다.
 
 ## 조회 결과와 조건부 값
 
@@ -82,7 +107,8 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
 GDJ-0127의 collection computed operand는 같은 AST의 완료된 집계에서만 실행하며 [ADR-0091](0091-grouped-results-and-having.md)의
 cardinality·JOIN 계약을 따른다. 일반 행 projection·computed WHERE·정렬·UPDATE는 여전히 single-valued 값만 받는다.
-일반 named annotation과 dependency/재바인딩 API, subquery/window/function, Duration/temporal 산술과 computed Duration SUM/AVG는 아직 포함하지 않는다. 독립 관찰의 지원 범위와
+일반 named annotation과 dependency/재바인딩 API, subquery/window/function은 아직 포함하지 않는다. GDJ-0128의
+시각·기간 계산과 computed Duration SUM/AVG는 위 계약을 따르며, 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 
 ## 단일 값 관계와 두 scalar 비교

@@ -19,10 +19,10 @@ func decimalResultSQL(statement string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return guardedNumericSQL(statement, valid, "numeric", "godj_invalid_decimal_result")
+	return guardedScalarSQL(statement, valid, "numeric", "godj_invalid_decimal_result")
 }
 
-func guardedNumericSQL(statement, valid, kind, diagnostic string) (string, error) {
+func guardedScalarSQL(statement, valid, kind, diagnostic string) (string, error) {
 	return queryplan.ScalarSQL("CASE WHEN ", statement, " IS NULL OR (", valid, ") THEN ", statement,
 		" ELSE ('", diagnostic, "' || left(", statement, "::text, 0))::", kind, " END")
 }
@@ -46,6 +46,9 @@ func compilePostgresBinary(expression query.ScalarExpression, left, right string
 	if !valid {
 		return "", invalidPlan("binary scalar compiler requires a binary node")
 	}
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+		return compilePostgresTemporalBinary(expression, left, right)
+	}
 	if expression.ResultKind() != query.FieldDecimal {
 		return queryplan.ScalarSQL("(", left, " ", string(operator), " ", right, ")")
 	}
@@ -60,14 +63,16 @@ func compilePostgresBinary(expression query.ScalarExpression, left, right string
 		left, ` AS "left", `, right, ` AS "right" OFFSET 0) AS "godj_decimal_operands")`)
 }
 
-func compileAssignedDecimal(field query.FieldRef, statement string) (string, error) {
-	if field.Kind() == query.FieldDecimal {
-		return numericAggregateOperand(field, statement)
-	}
-	return statement, nil
-}
-
 func wrapReadScalar(expression query.ScalarExpression, statement string) (string, error) {
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+		if _, selected := expression.ResultReference(); selected {
+			return temporalResultSQL(expression.ResultKind(), statement)
+		}
+		if expression.Kind() == query.ScalarBinary || expression.Kind() == query.ScalarNegate {
+			return temporalScalarResultSQL(expression.ResultKind(), statement)
+		}
+		return statement, nil // Fields, literals and chosen CASE branches own their checks.
+	}
 	if expression.ResultKind() != query.FieldDecimal {
 		return statement, nil
 	}

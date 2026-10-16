@@ -261,6 +261,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err := checkHelpdeskCostPreview(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
 		return err
 	}
+	if err := checkHelpdeskDeadlinePreview(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+		return err
+	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

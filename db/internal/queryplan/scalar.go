@@ -32,6 +32,12 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 	}
 	var render func(query.ScalarExpression, query.FieldKind) (string, error)
 	render = func(expression query.ScalarExpression, expected query.FieldKind) (string, error) {
+		// A parent's output domain is only a fallback for an untyped NULL.
+		// DateTime - DateTime, for example, returns Duration without changing
+		// either operand's explicit NULL/literal type to INTERVAL.
+		if expression.ResultKind() != "" {
+			expected = expression.ResultKind()
+		}
 		var statement string
 		var err error
 		if value, ok := expression.Literal(); ok {

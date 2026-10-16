@@ -45,7 +45,8 @@ GDJ-0125에서 collection field aggregate와 조건을, GDJ-0127에서 집계 �
 일반 scalar codec의 동등/정렬·scan 의미를 재사용한다. JSON key/path의 동등 관계와 aggregate operand는
 별도 계약이 필요하므로 아직 명시적으로 거부한다. 같은 source와 single-valued 관계의 scalar tree는 계산된 키와 COUNT/MIN/MAX operand로,
 int64/float64 산술·CASE와 GDJ-0126의 Decimal 계산식은 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
-Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. Decimal AVG는 정확한 Decimal이며 계산된 Duration의 SUM/AVG,
+Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. Decimal AVG는 정확한 Decimal이다.
+GDJ-0128의 computed Duration SUM/AVG는 아래 native 정밀도 계약을 따른다.
 일반 named annotation·subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
@@ -164,11 +165,19 @@ SQLite는 numeric storage class만 operand로 받고 native SUM/AVG를 사용한
 
 Duration은 microsecond 결과와 half-even 평균을 사용한다. SQLite는 signed int64 operand와 native SUM/AVG를 사용하고,
 AVG의 binary64 결과만 전용 result scanner에서 half-even으로 반올림해 전체 모델 day 범위를 검사한다.
-원본 field와 SUM/MIN/MAX scanner가 float를 받도록 넓히지 않는다. 최대 int64 microseconds의 단일 평균이 native
+원본 field와 exact operand의 SUM/MIN/MAX scanner가 float를 받도록 넓히지 않는다. 최대 int64 microseconds의 단일 평균이 native
 binary64 반올림으로 `2^63`이 되어도 유효한 Duration으로 반환한다. PostgreSQL은 native INTERVAL 집계를 사용한다.
 HAVING은 각 DB의 native 결과를 비교한다. SQLite의 평균 `1.5µs`는 반환 시 `2µs`지만 `>=2µs` HAVING에는
 포함되지 않고 PostgreSQL의 native INTERVAL 평균은 포함된다. 이 실제 Django 차이를 SQL 안의 추가 반올림으로 지우지 않는다.
 SQLite의 Duration literal/storage int64 제한과 전역 모델/result day 범위를 구분한다.
+
+GDJ-0128은 computed Duration의 SUM/AVG·MIN/MAX에도 operand의 평균 출처를 보존한다. SQLite AVG에서 유래한
+fractional microseconds는 산술·CASE·부호 반전·재집계에서 유지하고 최종 Duration scanner에서 반올림한다.
+CASE가 exact branch를 선택하면 원 int64 연산의 정확성·overflow 검사를 유지한다. DateTime 결과로 바뀌는 경계의
+half-even과 UTC 이동은 [ADR-0090](0090-query-update-and-scalar-expressions.md)이 소유한다.
+기여 temporal operand와 완료된 집계의 모델 범위를 statement 안에서 검사하며 NULL·상쇄·후속 HAVING으로 숨기지 않는다.
+FILTER 제외 행은 검사 대상에 넣지 않는다. PostgreSQL의 guard가 literal 집계를 다른 SELECT의 행에 귀속시키지 않도록
+집계의 원 query level을 유지한다. 이 확장의 실행 완료 여부는 GDJ-0128과 TEST_EVIDENCE를 따른다.
 PostgreSQL은 각 operand의 month 부재와 정규화된 모델 day 범위를 확인한다. 서로 취소되는 외부 month 값도
 정상 합계로 숨기지 않고 native statement에서 거부한다.
 
@@ -251,8 +260,8 @@ DISTINCT/group 결과에 미선택 정렬을 몰래 추가하거나 정렬 열�
 정적으로 빈 projection/group은 다음 단계의 빈 원본이다. 빈 원본의 aggregate는 COUNT 0/나머지 NULL 한 행이므로
 다음 단계에서도 그 한 행을 보존한다. Backend는 전체 원 plan을 검증한 뒤 빈 입력을 같은 scalar 종류의 합성 SQL로
 바꾸며, 접힌 빈 원본의 쓰지 않는 산술이나 table I/O를 되살리지 않는다. 실제 I/O가 필요한 빈 결과는 DB가 실행한다.
-Duration AVG의 SQLite fractional microseconds는 결과 참조·CASE·후속 비교에서도 유지하고 최종 scanner에서만
-half-even 반올림한다. 일반 Duration field/SUM의 int64 storage 검증을 넓히지 않는다.
+Duration AVG의 SQLite fractional microseconds는 결과 참조·CASE·후속 비교와 GDJ-0128의 산술·재집계에서도 유지하고
+최종 Duration scanner에서 half-even 반올림한다. 일반 Duration field와 exact SUM의 int64 storage 검증을 넓히지 않는다.
 
 GDJ-0123 Helpdesk는 전체·열린 건수에서 닫힌 건수와 `open_basis_points = (10000 * open) / total`을 DB에서 계산한다.
 총수가 양수인 CASE branch에서 계산하며 정수 산술의 중간 overflow 오류를 유지한다. API는 required int64

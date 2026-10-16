@@ -15,6 +15,7 @@ Django timedelta의 전체 모델 범위를 SQLite의 int64 microsecond 한도�
 좁은 저장 표현의 overflow를 별도 error로 반환한다. PostgreSQL은 native INTERVAL의 day와 microsecond에 분리해 전달하며,
 SQLite는 BIGINT microseconds로 전달한다. DB의 parameter compiler가 저장 범위를 검사하므로 큰 모델 값을 truncate하거나 float로 저장하지 않는다.
 정상 모델이 해당 backend 범위를 벗어나면 SQL statement를 실행하기 전에 실패한다. Application transaction의 시작과는 별개다.
+SQLite의 값 오류는 `duration.ErrMicrosecondRange` cause도 보존해 backend 표현 한도와 잘못된 모델 값을 구분한다.
 
 pgx database/sql이 interval을 text로 반환하므로 PostgreSQL backend는 물리 연결마다 IntervalStyle=postgres를 설정·검증한다.
 Duration 결과가 포함될 때만 interval column을 찾아 backend-owned scanner로 정규화한 뒤 ORM에 전달한다. 음수 day와 양수 clock,
@@ -58,4 +59,6 @@ pgx v5.10.0 interval 및 database/sql adapter(MIT)를 참조했다. [기준 출�
 [독립 runner](../../conformance/runners/django/duration_reference.py)는 기대 fixture나 Go 코드를 읽지 않는다.
 Model 67·Form 106·serializer 272·실제 JSON 숫자 15, SQLite add/reopen/update/reverse·query/relation 각 9와 int64 저장 경계를 보존한다.
 실제 source·환경·실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 기록한다.
-Duration 산술·DateTime/Date 간 연산·일반 validators·추가 backend와 전체 프레임워크의 완성을 이 필드의 연결만으로 선언하지 않는다.
+Duration 산술과 DateTime 간 연산은 [GDJ-0128](../../work/0128-temporal-expressions-and-deadline-preview.md)·
+[ADR-0090](0090-query-update-and-scalar-expressions.md)의 별도 계약과 실행 증거를 따른다.
+Date/Time 이동·일반 validators·추가 backend와 전체 프레임워크의 완성을 이 필드의 연결만으로 선언하지 않는다.

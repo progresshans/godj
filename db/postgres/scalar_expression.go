@@ -33,10 +33,20 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 }
 
 func readScalarField(field query.FieldRef, column string) (string, error) {
-	if field.Kind() == query.FieldDecimal || field.Kind() == query.FieldDuration {
+	if field.Kind() == query.FieldDecimal {
 		return numericAggregateOperand(field, column)
 	}
+	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration {
+		return temporalResultSQL(field.Kind(), column)
+	}
 	return column, nil
+}
+
+func compileAssignedScalar(field query.FieldRef, statement string) (string, error) {
+	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration {
+		return temporalScalarResultSQL(field.Kind(), statement)
+	}
+	return readScalarField(field, statement)
 }
 
 // Standalone parameters have no source column from which PostgreSQL can infer

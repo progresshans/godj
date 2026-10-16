@@ -21,15 +21,16 @@ type labelEnsureResponse struct {
 }
 
 type apiOutputs struct {
-	costPreview  output.Output[costPreviewPage]
-	labelUsage   output.Output[labelUsagePage]
-	label        output.Output[models.Label]
-	ticket       output.Output[ticketRecord]
-	ticketBulk   output.Output[[]ticketRecord]
-	detail       output.Output[ticketDetailResponse]
-	summary      output.Output[ticketSummaryPage]
-	reportStatus output.Output[serviceReportStatusPage]
-	labelEnsure  output.Output[labelEnsureResponse]
+	deadlinePreview output.Output[deadlinePreviewPage]
+	costPreview     output.Output[costPreviewPage]
+	labelUsage      output.Output[labelUsagePage]
+	label           output.Output[models.Label]
+	ticket          output.Output[ticketRecord]
+	ticketBulk      output.Output[[]ticketRecord]
+	detail          output.Output[ticketDetailResponse]
+	summary         output.Output[ticketSummaryPage]
+	reportStatus    output.Output[serviceReportStatusPage]
+	labelEnsure     output.Output[labelEnsureResponse]
 }
 
 func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEncoder serializers.ModelEncoder[models.Label]) (apiOutputs, error) {
@@ -86,6 +87,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		return apiOutputs{}, err
 	}
 	if result.costPreview, err = prepareCostPreviewOutput(category); err != nil {
+		return apiOutputs{}, err
+	}
+	if result.deadlinePreview, err = prepareDeadlinePreviewOutput(category); err != nil {
 		return apiOutputs{}, err
 	}
 	if result.labelUsage, err = prepareLabelUsageOutput(category); err != nil {

@@ -3,7 +3,6 @@ package sqlite
 import (
 	"database/sql/driver"
 	"errors"
-	"math"
 	"strconv"
 
 	"github.com/progresshans/godj/db/internal/queryplan"
@@ -26,6 +25,9 @@ var scalarExpressionRegistrationError = errors.Join(
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_binary", 3, sqliteDecimalBinary),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_negate", 1, sqliteDecimalNegate),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_mean", 1, sqliteDurationMean),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_datetime_value", 1, sqliteDateTimeExpression),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_binary", 5, sqliteTemporalBinary),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_negate", 2, sqliteTemporalNegate),
 )
 
 func sqliteIntegerExpression(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
@@ -42,6 +44,15 @@ func sqliteIntegerExpression(_ *modernsqlite.FunctionContext, arguments []driver
 }
 
 func wrapSQLiteScalar(expression query.ScalarExpression, statement string) (string, error) {
+	switch expression.ResultKind() {
+	case query.FieldDateTime:
+		return queryplan.ScalarSQL("godj_datetime_value(", statement, ")")
+	case query.FieldDuration:
+		if expression.RequiresDurationRounding() {
+			return queryplan.ScalarSQL("godj_duration_mean(", statement, ")")
+		}
+		return queryplan.ScalarSQL("godj_int64(", statement, ")")
+	}
 	if expression.ResultKind() == query.FieldInteger && expression.Kind() != query.ScalarLiteral {
 		return "godj_int64(" + statement + ")", nil
 	}
@@ -79,14 +90,13 @@ func readScalarField(field query.FieldRef, column string) (string, error) {
 	if digits, places, decimal := field.DecimalPrecision(); decimal {
 		return queryplan.ScalarSQL("godj_decimal_value(", column, ", ", strconv.Itoa(digits), ", ", strconv.Itoa(places), ")")
 	}
-	return column, nil
-}
-
-func compileAssignedDecimal(field query.FieldRef, statement string) (string, error) {
-	if field.Kind() == query.FieldDecimal {
-		return readScalarField(field, statement)
+	switch field.Kind() {
+	case query.FieldDateTime:
+		return queryplan.ScalarSQL("godj_datetime_value(", column, ")")
+	case query.FieldDuration:
+		return queryplan.ScalarSQL("godj_int64(", column, ")")
 	}
-	return statement, nil
+	return column, nil
 }
 
 func wrapReadScalar(expression query.ScalarExpression, statement string) (string, error) {
@@ -103,28 +113,9 @@ func wrapReadScalar(expression query.ScalarExpression, statement string) (string
 		return statement, nil
 	case query.FieldFloat:
 		return "godj_float_operand(" + statement + ")", nil
-	case query.FieldDuration:
-		if expression.RequiresDurationRounding() {
-			return "godj_duration_mean(" + statement + ")", nil
-		}
-		return "godj_int64(" + statement + ")", nil
 	default:
 		return wrapSQLiteScalar(expression, statement)
 	}
-}
-
-func sqliteDurationMean(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
-	if len(arguments) == 1 {
-		switch value := arguments[0].(type) {
-		case nil, int64:
-			return value, nil
-		case float64:
-			if !math.IsInf(value, 0) && !math.IsNaN(value) {
-				return value, nil
-			}
-		}
-	}
-	return nil, errors.New("godj: duration average result requires finite native microseconds")
 }
 
 func sqliteDecimalExpression(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
