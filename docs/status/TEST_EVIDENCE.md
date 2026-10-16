@@ -202,6 +202,125 @@ root/child가 각각 한 번 run/pass했고 skip 0이며 해당 owner의 필수 
 로컬 PostgreSQL 17.5의 국소 재현을 고정 Hosted 17.10 검증으로 옮기지 않는다. 수정 source의 자동 전체 CI와 필수
 실행·원본 증거 감사를 다시 수행해야 한다.
 
+### 수정 source의 자동 CI와 양 DB·세 mode 부분 감사
+
+검증 코드 보완·관측 차이 분류·직전 부분 증거를 source `9657a87346a1e6d1b903a7e692d8ee36ac7e1cce`로 commit·push했다.
+`make docs-check format-check`와 `git diff --check`를 통과했다. 2026-10-16 02:33:04 UTC에
+[자동 전체 CI 38841006796](https://github.com/progresshans/godj/actions/runs/38841006796), attempt 1·pull_request가 시작됐다.
+Validation-plan job `116781223817`의 실제 checkout `3660974beaf2a4e48abee8dc466914c8488c9a2f`는 이 head를
+두 번째 parent로 가지며 tree `ce246306c91919973a7bc386ff4b62794a26c088`가 head와 같음을 GitHub 원 로그·commit API로 확인했다.
+
+- Source binding: `ci-38841006796-source-binding-and-plan.json`, SHA-256 `5954ad9f1c85f1ddbd29b830796171e8cd3f79968df8b8d25ea6fcb782f02702`
+- Validation-plan 원 로그 SHA-256: `15889c630d04b05f864e40b474a56dc2bb34d4a72e5f7bfb0b0adee1655599b6`
+- 실제 게시 내용과 대조한 PR body: `gdj0128-pr1-body-9657a873.md`, SHA-256 `85bc39d72859558e362133946d3d0eee8f51007c5f9f4a57cefee6dd08277b34`
+
+이 push로 이전 CI 38837344321은 89개 job 중 success 56·failure 4·cancelled 29, conclusion cancelled로 종료됐다.
+Failure는 위 PostgreSQL owner 세 개와 최종 집계다. 취소·실패를 새 source의 실행 성공으로 옮기지 않는다.
+
+수정 source의 temporal 소비자는 normal·race·CGO0에서 원본 child 114개가 각각 한 번 run/pass, fail/skip 0이다.
+각 mode의 compile-negative 10개와 고정 Django의 SQLite/PostgreSQL 각 44개 관측을 원본 event·SQL·parameter·native
+반환·오류 단계·저장 보존·cleanup, 현재 observer/input/upstream source hash와 대조했다. 두 DB의 empty aggregate SQL
+생략은 정확한 NULL 집계/건수 0과 저장 증거를 확인했다. 이는 아래 완료된 native owner의 범위이며 전체 CI 완료는 아니다.
+
+| Mode | Native job | Artifact | `ci-38841006796-temporal-native/<mode>/audit.json` SHA-256 |
+|---|---|---|---|
+| normal | `116781271973` | `12021892960` | `df738058ecc5958370edb595cc397dc029a44075e2f78fb5fad3d5ab6df05f7b` |
+| race | `116781271799` | `12021917532` | `08de05a1b47db881dbd5e877415e4caa9a4b7a364f5607ba9dc2d32a4be8dfac` |
+| CGO0 | `116781271950` | `12022287004` | `248ab432dde5a27d76e24a88e52d602f42b045718bd40f61f95d6472ad03672b` |
+
+Helpdesk의 양 DB deadline preview·인가/출력/API 계약 47개도 세 mode마다 run/pass 47·skip 0을 확인했다.
+Race는 core job `116781271798`·artifact `12022696504`의 25개와 PostgreSQL Helpdesk job `116781271902`·
+artifact `12020904476`의 22개를 합쳐 중복/누락 없이 대조했다. Native 저장·범위 오류·snapshot/cursor 실패 검사도 포함한다.
+`ci-38841006796-deadline-native/combined-audit.json` SHA-256은
+`c0719078d01b5727bbf38a7b7b104c3480dfe5b653a6df1301951878060a8e2e`다.
+
+같은 source의 세 integration job에서 독립 OpenAPI client package의 무필터 실행과 현재 필수 104개 항목·여섯 profile,
+부모의 receipt·mode·저장 보존 검사 구성을 확인했다. 개별 성공 child receipt가 별도로 보존되지 않는 portable 증거 한계는 유지한다.
+
+- normal job `116781272014`: `ci-38841006796-openapi-client/normal/audit.json`, SHA-256 `ec3e3868f0ac6b541390440762318c1290928d837ca4b324e4b021c80af37fac`
+- CGO0 job `116781272006`: `ci-38841006796-openapi-client/cgo0/audit.json`, SHA-256 `c798ab3cbdd1939fcade128665ac8e7fa5f6acace5e7b383940c09fee52b8ea0`
+- race job `116781272044`: `ci-38841006796-openapi-client/race/audit.json`, SHA-256 `f46c53ae11e6b3ed82e70944076a12e0fcac85182be6ba47cd649c06d25f8788`
+
+Normal browser artifact `12021209473`도 새 run/source에 결합해 기존 30·19·28·22개와 deadline 34개 필수 검사,
+저장 기한/NULL·전체 앱 데이터 보존·cleanup을 확인했다. 새 PNG 다섯 개는 앞서 실제 열어 확인한 화면과 byte가 같았다.
+
+- Browser audit: `ci-38841006796-browser/audit.json`, SHA-256 `b74e0b4bc2e67bc720654b7bea80913c9641a6bbfd124d96a0865c4772191b30`
+- ZIP SHA-256: `7021cd3f799702c7a2f3d8c389a802325c9058a9cce559d7dd6d56efed3a2256`
+- Browser receipt SHA-256: `4c567af077bf96fcf456ddaaeb75c83c2a950fb7abcaf3597c288b2d792f8977`
+- 화면 byte 대조: `ci-38841006796-browser/visual-identity.json`, SHA-256 `c07f7ca9de62fc7e45ecb6350a26a60627dfa0ec961d5503cb845ac0097caf1a`
+
+실제 native artifact의 사본에서 event 누락·중복·skip/fail·다른 identity·잘린 로그·stale observer·관측 누락·
+SQL/native replay/저장 증거 누락·cleanup 실패·Int4 범위 초과·잘못된 빈 집계를 변조한 16개 대조가 모두 거부됐다.
+사본의 parent digest는 다시 계산해 단순 checksum 불일치만으로 거부된 것으로 세지 않았으며, 같은 의미의 재인코딩은 통과했다.
+실제 browser 결과의 검사 누락/중복/다른 이름과 저장 보존 flag·microsecond·NULL 변조 여섯 개도 거부됐다.
+`ci-38841006796-evidence-negative-controls.json` SHA-256은
+`35e4ea341a97b68d5731328a755c70e8232103f766a5a5be5e0ea26b20030969`다. 이는 감사기 검증이며 추가 제품 실행으로 집계하지 않는다.
+
+현재 source의 나머지 전체 플랫폼 job·최종 집계 및 전체 원본 증거 감사는 진행 중이다. 위 부분 감사만으로 GDJ-0128이나
+전체 기능 카탈로그를 완료 처리하지 않는다.
+
+상태 복구·운영 명령 capture의 완료된 producer도 같은 run/source에서 수집했다. Source archive의 3637개 파일을
+Git blob·실행 bit·SHA-256 inventory와 대조하고 현재 소스에서 계산한 binding을 두 capture에 확인했다.
+System-state artifact `12022866003`은 normal core job `116781271973`, operator artifact `12021273469`는
+normal operator-target job `116781271959`의 성공 실행에 결합했다. ZIP digest·원본 checkout·capture envelope와
+Go 1.26.5 linux/amd64 producer profile을 확인했다. 후속 conformance consumer job `116791006649`의 결과는
+producer 검증과 구분해 아래에 기록한다.
+
+- Capture 준비 receipt: `ci-38841006796-captures/prepared.json`, SHA-256 `badf957db957a82ca3657bf67dadd85fef8c9148d7e9b838f09f190b33c24b92`
+- Source inventory SHA-256: `9e2bb52e2b8c2ddf676a9c7041921cd08781facb97fc8c03e42de814a7b96fa3`
+- System-state capture SHA-256: `7bc50c975179deeacbc7b09fd9b8a0d372e5788b4e65896aea0a5ed6258d33c8`
+- Operator capture SHA-256: `1aba4051d3f42d6644cd5397871f5a2923d45b413e1aa0b84490c4b81f7aed4f`
+
+후속 consumer job `116791006649`의 완료 성공과 같은 checkout·원 로그를 대조했다. 현재 source가 선언한 제품
+conformance suite 26개의 실행 순서·각 결과, 같은 run의 성공한 producer 선택과 두 capture 검증, 저장된 Django/DRF
+oracle checksum·원본 비변경을 확인했다. Linux 32비트 migration definition/project-check·runserver compile과 relation
+제품 실행의 필수 step도 모두 성공했다. Python 결과는 378개·skip 4개이며, 네 항목은 별도 exact profile owner가 소유하는
+정확한 목록과 일치한다. 이 consumer에서 네 항목이 실행됐다고 표시하지 않으며 별도 owner의 실행은 아래에 구분한다.
+`ci-38841006796-captures/audit.json` SHA-256은
+`a03194c34f14e725114e87c396a966ac7121c3689a83eeb3c5f678202036406a`다. 로컬 제품 실행을 추가한 결과가 아니다.
+
+같은 source의 exact Darwin owner job `116781271755`도 원본 checkout·필수 step·실제 명령·전체 로그를 대조했다.
+macOS 15.7.9 arm64, Go 1.26.5, Python 3.14.3, Django 6.1, SQLite 3.50.4에서 Python 378개의 서로 다른
+테스트가 각각 한 번 `ok`로 완료됐으며 skip은 0개다. 위 consumer가 제외한 네 가지 byte determinism·manifest
+순서·서로 다른 hash seed 프로세스 검사가 모두 이 실제 통과 목록에 포함된다. Oracle 27개 suite의 순서와 저장된
+reference의 비변경도 확인했다. 이 결과를 아직 진행 중인 macOS 관계 제품 matrix의 완료로 해석하지 않는다.
+
+- Exact profile audit: `ci-38841006796-exact-profile/audit.json`, SHA-256 `1c8a9b3eef6cd31782657787a16fd778863406facf392d63f61b8cfb983b8be1`
+- Exact profile 원 로그: `ci-38841006796-exact-profile/job.log`, SHA-256 `eee622ea6ddf907920fc72c553e8675b4ce2cfb3d7f0a09274f999644ff6f114`
+
+### 재현 과정에서 드러난 PostgreSQL 접속 진단 손실 보완
+
+`9657a873`의 접속 코드에서도 격리된 local PostgreSQL 17.5의 `fsync=off`를 거부한 뒤 `Open`이
+`ping PostgreSQL database: PostgreSQL connection failed`만 반환했다. 거부 자체와 unpublished session 정리는
+정상이었지만 원래 backend `invalid_plan`과 수정할 설정을 호출자에게 전달하지 못했다.
+
+Physical-session 검사는 실패한 필수 설정의 bit만 보관하는 비공개 오류를 반환하도록 보완했다.
+접속 redaction은 그 오류만 고정된 설정 이름·요구값의 새 `query.Error`로 투영한다. 실제 서버 값·credential·원래
+driver carrier는 보존하지 않으며 임의 `query.Error`를 일반적으로 통과시키지 않는다. 기존 12개 admission 조건은 유지했다.
+기존 mandatory native `TestPostgreSQLPhase1Integration`의 role-default 거부에도 분류·요구값·driver carrier 비노출
+검사를 추가했다. 이 native role-default 보강은 아직 원격 실행 전이다.
+진단 root/child 13개도 PostgreSQL 필수 목록에 추가해 normal·race·CGO0 각각 core owner가 실행하고 원 로그로 검증하도록 했다.
+기존 필수 항목은 모두 유지한다. Portable core의 전체 package 실행도 계속 적용된다.
+
+같은 probe를 수정 전·후 각각 Go 1.26.5 darwin/arm64와 별도 Homebrew PostgreSQL 17.5에서 실행했다.
+각 실행은 소유한 임시 DB·loopback port를 사용하고 종료 후 process·directory를 정리했다. `fsync=off` 접속 4회는
+수정 전 새 진단 기대값에 실패했고, 수정 후에는 모두 `backend_error/invalid_plan`·`requires fsync=on`을 보존했다.
+`fsync=on`의 정상 접속/닫기 4회는 전·후 모두 성공했다. 독립 연결의 `pg_stat_activity`에서 각 경우 남은 대상 연결은 0개다.
+
+12개 설정의 공개 진단·복수 위반·임의 query 오류 배제·query/migration/revision의 credential carrier 제거를 확인하는
+관련 단위 root/child 18개도 각각 한 번 실행·통과했다. 실패·skip은 없다. 로컬 전체 제품/DB suite를 실행한 결과는 아니다.
+
+- 재현 script: `reproduce-pg-profile-diagnostic.py`, probe: `pg-profile-diagnostic-probe.go`
+- 수정 전 receipt: `pg-profile-diagnostic-repro/before/receipt.json`, SHA-256 `69bf27aa56fef2d649d8c46091ddf56284a300b88f67e20e0a692c79fed22a7c`
+- 수정 후 receipt: `pg-profile-diagnostic-repro/after/receipt.json`, SHA-256 `fa8f082cccc59b50b0294c2c009d600fc268ef7382675e1356b6397018ddd7c6`
+- Source·probe 동일성/실행 감사: `pg-profile-diagnostic-repro/repair-receipt.json`, SHA-256 `22a994ed2553e3df9ca314f05b6acd9ea6b00bc714948fdf9434cf882e5da18c`
+- 원격 실행 소유권 감사: `pg-profile-diagnostic-repro/execution-plan-receipt.json`, SHA-256 `7871e67ff0f4e66719ee0a95ad7fe770d56e56f7394a4e12193f74da262af7e0`; 기존 3379개를 같은 순서로 보존하고 새 13개의 실제 로컬 run/pass 이름·세 mode core owner를 대조했다.
+
+수정 전 파일은 Git `9657a873`과, 수정 후 파일은 재현 실행 당시 commit 전인 실제 작업 파일과 SHA-256으로 결합했다.
+현재 진행 중인 CI `38841006796`은 이 후속 변경을 포함하지 않는다. 완성된 제품 변경과 필수 목록을 함께 push하며,
+새 자동 CI에서 고정 PostgreSQL 17.10·세 mode·전체 필수 실행을 새 source에 결합해야 한다.
+이전 run의 부분 성공을 이 후속 변경의 검증으로 전이하지 않는다.
+
 ## GDJ-0127 — 컬렉션 계산식 집계와 라벨별 조정 비용
 
 2026-10-15 KST, 기준 `b66a5aade96a2bb1124c0dbdc0f9edcf122fe70b`에서 별도 작업 공간으로 구현한

@@ -1,6 +1,6 @@
 # GDJ-0128: 시각·기간 계산식과 기한 변경 미리보기
 
-- 상태: 첫 원격 검증의 fixture 오류 수정·국소 재현 완료, 수정 source 전체 CI 제출 준비
+- 상태: 원격 fixture 오류 수정 후 접속 진단 보완 완료, 최신 source 전체 CI 준비
 - 시작: 2026-10-15
 - 기준: `c6e96c41fb981111a11d2a93914ee305b0c513a0` (GDJ-0127 수정 source의 전체 CI는 별도 진행 중)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 값](../docs/adr/0061-datetime-field-and-canonical-instant-values.md), [기간 값](../docs/adr/0067-duration-model-range-and-number-input.md), [계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [집계와 결과 단계](../docs/adr/0091-grouped-results-and-having.md)
@@ -38,47 +38,37 @@ Helpdesk 티켓의 원래 기한과 기간만큼 이동한 기한, 명시적인 
 
 ## 구현과 검증
 
-고정 Django 6.1의 독립 SQLite/PostgreSQL 관측은 SQL·parameter/native 반환 종류·변환 결과·오류와 저장 보존을 기록한다.
-SQLite의 fractional AVG 이동과 양 DB의 범위 오류를 실제 고정 관측으로 확인하고 [DEV-0022](../docs/DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 차이를 기록했다.
-Timestamp/Duration 함수와 parser의 실제 upstream module을 source manifest에 포함하고 의도한 차이는 실제 관측 후 명시한다.
-PostgreSQL 17의 [시각 함수](https://www.postgresql.org/docs/17/functions-datetime.html)와
-[특수 시각 값](https://www.postgresql.org/docs/17/datatype-datetime.html)을 확인했다. INTERVAL의 infinity와
-`isfinite` 및 세션 timezone에 따른 native 이동을 source 근거로 삼으며, 이는 실제 pinned DB 실행 증거와 구분한다.
-두 앱 생성 소비자에서 typed/dynamic·cross-app·양 DB·세 mode·compile-negative와 수명/실패/범위를 검증한다.
-로컬은 포맷·최소 compile·관측된 실패 재현에 사용하고, 완성한 제품·생성 소비자·HTTP 묶음을 push해 자동 전체 CI에서 실행한다.
+공통 AST·typed capability·양 DB 조회/UPDATE·집계와 두 앱 생성 소비자를 연결했다. 큰 날짜 차이·NULL/손상 값·
+중간 범위·CASE/FILTER·statement/transaction rollback·평균 재집계·HAVING·세션 DST를 native 환경에서 검사한다.
 
-공통 AST·typed capability와 양 DB의 temporal 조회/UPDATE·집계 경로를 작성했다. SQLite는 canonical text·정수 범위·
-평균에서 유래한 fractional microseconds를 구분하며 PostgreSQL은 원본·중간/최종 값과 UTC 이동을 검사한다.
-큰 날짜 차이·혼합 NULL/손상 값·중간 범위·CASE/FILTER·statement/transaction rollback·평균 재집계·HAVING·세션 DST의
-실제 DB 테스트 코드를 준비했다. 로컬은 최소 compile만 수행했으며 테스트 본문·DB·생성 소비자 실행은 아직 전이다.
+고정 Django 6.1의 독립 SQLite/PostgreSQL 관측은 SQL·parameter/native 반환·변환 오류 단계와 저장 보존을 기록한다.
+Timestamp/Duration의 upstream module 27개를 source manifest에 결합했다. 실제 평균 이동·범위 오류의 차이는
+[DEV-0022](../docs/DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 분류했다. Native 구현의
+정수→REAL 승격이나 변환 실패를 GoDj 성공으로 바꾸지 않고 별도 기대값과 저장 상태를 확인한다.
 
-두 앱 생성 소비자와 44개 독립 관측 case를 작성하고 기존 세 PostgreSQL 소비자 owner의 CI step·artifact 안에 연결했다.
-원본 SQL/parameter·raw 반환·변환 오류 단계·rollback 직전 storage class와 cleanup을 보존한다. 소수 평균 이동·native overflow의
-예상 차이는 고정 source에서 도출한 검증 조건이며 실제 양 DB 실행으로 아직 확인하지 않았다. 생성 모듈은 최소 compile했고
-잘못된 타입/모델/결과·assignment의 10개 프로그램은 의도한 compiler 거부를 확인했다. 테스트 본문은 실행하지 않았다.
+Canonical Duration·explicit-offset DateTime query/header codec, typed DateTime output과 Helpdesk 기한 미리보기
+HTML/API·독립 client·브라우저를 연결했다. 여섯 OpenAPI profile의 실제 export/generated drift도 검증한다.
+Client는 전체 모델 날짜 범위의 정수 기대값과 required nullable wire를, 브라우저는 명시적 기준 시각·윤일·페이지·실패를 확인한다.
 
-Canonical Duration·explicit-offset DateTime의 공통 query/header codec, typed DateTime output과 Helpdesk 기한 미리보기
-HTML/API를 작성했다. 현재 문서 여섯 profile을 export하고 고정 client를 재생성했다. Source 구성과 빌드 확인이며
-새 경로의 native HTTP·인가/저장 실패, 독립 client의 큰 날짜 범위·반올림 없는 정수 기대값·required nullable wire와
-브라우저의 명시적 기준 시각·윤일·페이지 검증 코드를 연결했다. 원본 로그·현재 source·필수 목록의 감사도 준비했다.
-최소 compile과 검사기의 부정 대조까지만 확인했으며 실제 DB/HTTP·client/browser 실행은 원격에서 검증해야 한다.
+첫 원격 실행의 검증 코드가 PostgreSQL의 canonical Duration 반환과 고정 reference의 오류/Int4 타입을 잘못 가정했다.
+실패를 국소 재현해 수정하고 source `9657a87346a1e6d1b903a7e692d8ee36ac7e1cce`를 push했다.
+[자동 전체 CI 38841006796](https://github.com/progresshans/godj/actions/runs/38841006796)의 같은 source에서
+양 DB·세 mode temporal 생성 소비자·Helpdesk·독립 client와 normal 브라우저, 독립 관측의 원본 증거를 대조했다.
+실행 누락·skip·관측/저장 변조를 거부하는 감사기도 확인했다. 전체 플랫폼 실행·최종 집계와 전체 증거 감사는 진행 중이다.
+이전 source의 실패·국소 재현·환경별 raw/hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 
-
-준비 묶음을 feature `943dcde6`에서 주 브랜치의 source `458fb20449267f09dd87c20ef4318b11893a1b90`로 통합·push했다.
-[자동 전체 CI 38837344321](https://github.com/progresshans/godj/actions/runs/38837344321)와 같은 source의 원본 증거 감사를 진행한다.
-이전 부분 compile·다른 source의 실행을 이 묶음의 runtime 성공으로 사용하지 않는다.
-이후 같은 source의 세 mode 독립 client 실행과 normal 브라우저 artifact·실제 화면을 대조했다.
-양 DB temporal 소비자·독립 관측 및 전체 CI의 원본 증거 감사는 아직 남아 있다.
-환경별 원 로그·hash·검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
-첫 원격 실행에서 기간 반환 형식과 고정 reference의 오류/매개변수 타입을 잘못 가정한 검증 코드를 수정했다.
-실패 경로를 로컬에서 재현하고 수정 뒤 해당 경로를 확인했다. 고정 PostgreSQL 17.10·세 mode·전체 플랫폼은 수정 source로 다시 검증한다.
+재현 과정에서 PostgreSQL physical-session 설정 거부가 일반적인 접속 실패로 바뀌는 진단 손실을 확인했다.
+비밀을 포함하지 않는 닫힌 설정 진단만 공개 오류에 투영하도록 로컬에서 보완하고, 실제 거부/정상 접속과 정리를 재현했다.
+기존 admission 조건은 유지하며 native role-default 경로의 진단·driver carrier 제거 검사도 보강했다.
+이 후속 변경은 위 source의 CI에 포함되지 않는다. 진단 root/child 13개를 원격 필수 목록에 연결했으며,
+완성된 변경 묶음의 push와 새 source의 자동 전체 CI가 남아 있다.
 
 ## 완료 조건
 
-- [ ] 공통 AST의 operand/result kind·NULL·source·정밀도 계약과 양 DB의 조회/UPDATE를 연결한다.
-- [ ] Typed/dynamic·생성 facade 소비자·computed Duration 집계와 부정 대조·실패/rollback을 완성한다.
-- [ ] 독립 양 DB 관측과 GoDj의 명시적 차이를 실제 결과로 기록한다.
-- [ ] Helpdesk 기한 미리보기·typed parameter·HTML/API·client·브라우저를 연결한다.
+- [x] 공통 AST의 operand/result kind·NULL·source·정밀도 계약과 양 DB의 조회/UPDATE를 연결한다.
+- [x] Typed/dynamic·생성 facade 소비자·computed Duration 집계와 부정 대조·실패/rollback을 완성한다.
+- [x] 독립 양 DB 관측과 GoDj의 명시적 차이를 실제 결과로 기록한다.
+- [x] Helpdesk 기한 미리보기·typed parameter·HTML/API·client·브라우저를 연결한다.
 - [ ] 같은 source의 필수 전체 실행과 원본 증거를 대조하고 현행 문서를 갱신한다.
 
 Date/Time의 달력·시계 이동, Duration scaling/division, named annotation·function/subquery/window,

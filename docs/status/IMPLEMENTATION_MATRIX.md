@@ -8,7 +8,8 @@ GDJ-0128은 typed/dynamic 공통 AST의 DateTime/Duration 산술과 양 DB 조�
 작성했다. NULL·큰 날짜 차이·평균 정밀도·손상/범위 오류·rollback과 저장/인가 경계를 검증하도록 구성했으며,
 최소 compile과 검증 도구의 단위 확인 뒤 source `458fb204`를 push했다. 같은 source의 세 mode 독립 client와
 normal 브라우저의 원본 로그·artifact·화면을 대조했다. 양 DB 관측 대조에서 드러난 검증 코드의 반환 형식·오류/타입 가정을
-수정하고 실패 경로를 국소 재현했다. 수정 source의 양 DB·세 mode·전체 CI 감사는 남아 있다.
+수정하고 실패 경로를 국소 재현했다. 수정 source `9657a873`의 양 DB·세 mode native 소비자·Helpdesk·client와
+normal browser·독립 관측을 대조했다. 전체 플랫폼 실행·전체 CI 감사는 진행 중이다.
 
 GDJ-0127은 collection 숫자·Decimal 계산식과 CASE/FILTER를 완료된 집계 문맥에 연결했다.
 값·조건은 같은 원본 collection JOIN occurrence를 사용하며 행 projection·WHERE·UPDATE 경계를 유지한다.
@@ -17,7 +18,7 @@ Helpdesk 라벨별 조정 비용의 입력·HTML/API·고정 SDK·브라우저 �
 잘못된 COUNT(*) 요청을 확인해 명시적인 티켓 ID 집계로 수정하고 해당 SQLite 실패를 재검증했다.
 수정 source `080c6770`의 전체 CI에서 macOS Intel runserver 준비 timeout과 의존성 DNS 실패를 확인했다.
 준비 예산·안전한 단계 진단을 보완한 source `d911b030`의 전체 CI는 macOS ARM CGO0 생성 소비자의 누적 timeout으로 실패했다.
-같은 플랫폼의 normal/CGO0 분할을 보완했고, GDJ-0128 통합 source `458fb204`에서 전체 검증을 계속한다.
+같은 플랫폼의 normal/CGO0 분할을 보완했고, GDJ-0128 수정 source `9657a873`에서 전체 검증을 계속한다.
 
 GDJ-0126은 Decimal 산술과 computed SUM/AVG, source/result/target precision, 정확한 query parameter 및
 Helpdesk 비용 미리보기를 연결하고 원격 실패를 수정했다. Source `b66a5aad`의 Decimal 양 DB·세 mode,

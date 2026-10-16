@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
@@ -145,8 +146,13 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			_ = driftedBackend.Close()
 			t.Fatalf("drifted role attempt %d published a backend", attempt)
 		}
-		if openErr == nil {
-			t.Fatalf("drifted role attempt %d error = nil", attempt)
+		if !errors.Is(openErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) ||
+			!strings.Contains(openErr.Error(), "session_replication_role=origin") {
+			t.Fatalf("drifted role attempt %d lost its profile diagnostic: %v", attempt, openErr)
+		}
+		var connectError *pgconn.ConnectError
+		if errors.As(openErr, &connectError) {
+			t.Fatalf("drifted role attempt %d retained a credential-bearing driver carrier", attempt)
 		}
 		for _, secret := range []string{role, rolePassword, driftedRoleURL} {
 			if strings.Contains(openErr.Error(), secret) {

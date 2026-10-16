@@ -395,6 +395,75 @@ func TestConfigValidationAndConnectionErrorRedaction(t *testing.T) {
 	}
 }
 
+func TestPhysicalSessionProfileDiagnostics(t *testing.T) {
+	t.Parallel()
+	current := serverProfile{
+		timezone: "UTC", searchPath: "pg_catalog", clientEncoding: "UTF8",
+		standardConformingStrings: "on", synchronousCommit: "on",
+		defaultTransactionLevel: "read committed", defaultTransactionReadOnly: "off",
+		defaultTransactionDeferrable: "off", fsync: "on", fullPageWrites: "on",
+		sessionReplicationRole: "origin", intervalStyle: "postgres",
+	}
+	if err := validatePostgresPhysicalSessionProfile(current); err != nil {
+		t.Fatalf("current physical session profile: %v", err)
+	}
+	for _, test := range []struct {
+		name, requirement string
+		change            func(*serverProfile)
+	}{
+		{"timezone", "TimeZone=UTC", func(p *serverProfile) { p.timezone = "secret_timezone" }},
+		{"search_path", "search_path=pg_catalog", func(p *serverProfile) { p.searchPath = "secret_schema" }},
+		{"encoding", "client_encoding=UTF8", func(p *serverProfile) { p.clientEncoding = "LATIN1" }},
+		{"strings", "standard_conforming_strings=on", func(p *serverProfile) { p.standardConformingStrings = "off" }},
+		{"commit", "synchronous_commit=on", func(p *serverProfile) { p.synchronousCommit = "off" }},
+		{"isolation", "default_transaction_isolation=read committed", func(p *serverProfile) { p.defaultTransactionLevel = "serializable" }},
+		{"read_only", "default_transaction_read_only=off", func(p *serverProfile) { p.defaultTransactionReadOnly = "on" }},
+		{"deferrable", "default_transaction_deferrable=off", func(p *serverProfile) { p.defaultTransactionDeferrable = "on" }},
+		{"fsync", "fsync=on", func(p *serverProfile) { p.fsync = "off" }},
+		{"full_page_writes", "full_page_writes=on", func(p *serverProfile) { p.fullPageWrites = "off" }},
+		{"replication_role", "session_replication_role=origin", func(p *serverProfile) { p.sessionReplicationRole = "replica" }},
+		{"interval_style", "IntervalStyle=postgres", func(p *serverProfile) { p.intervalStyle = "iso_8601" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			profile := current
+			test.change(&profile)
+			failure := validatePostgresPhysicalSessionProfile(profile)
+			if !errors.Is(failure, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+				t.Fatalf("profile drift lost its classification: %v", failure)
+			}
+			carrier := &postgresConnectErrorCarrier{connect: &pgconn.ConnectError{Config: &pgconn.Config{
+				User: "secret_user", Database: "secret_database", Password: "secret_password",
+			}}}
+			joined := errors.Join(carrier, failure, errors.New("secret_close_error"))
+			for _, public := range []error{
+				redactConnectionError(joined),
+				classifyDatabaseError(context.Background(), "acquire", "godj_app", "", joined),
+			} {
+				var diagnostic *query.Error
+				if !errors.As(public, &diagnostic) || diagnostic.Category != query.CategoryBackend || diagnostic.Code != query.CodeInvalidPlan ||
+					diagnostic.Cause != nil || diagnostic.Detail != "PostgreSQL physical session is outside the current runtime profile: requires "+test.requirement {
+					t.Fatalf("profile diagnostic = %v", public)
+				}
+				var retained *pgconn.ConnectError
+				if strings.Contains(public.Error(), "secret_") || errors.As(public, &retained) || errors.Is(public, carrier) {
+					t.Fatalf("profile diagnostic retained private connection material: %v", public)
+				}
+			}
+		})
+	}
+	// Arbitrary query errors can also contain secrets; only the private closed
+	// profile failure is eligible for projection through connection redaction.
+	unowned := &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "secret_schema", Cause: errors.New("secret_password")}
+	if public := redactConnectionError(unowned); errors.Is(public, unowned) || strings.Contains(public.Error(), "secret_") {
+		t.Fatalf("unowned query error survived connection redaction: %v", public)
+	}
+	current.fsync, current.fullPageWrites = "off", "off"
+	public := redactConnectionError(validatePostgresPhysicalSessionProfile(current))
+	if !strings.Contains(public.Error(), "requires fsync=on, full_page_writes=on") {
+		t.Fatalf("multiple physical profile failures were lost: %v", public)
+	}
+}
+
 func TestCurrentConnectionConfigOverridesEveryRequiredRuntimeParameter(t *testing.T) {
 	t.Parallel()
 

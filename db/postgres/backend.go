@@ -198,9 +198,7 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 	if connection == nil {
 		return backendInvalid("PostgreSQL physical session is nil")
 	}
-	var timezone, searchPath, clientEncoding, standardConformingStrings, synchronousCommit, intervalStyle string
-	var defaultTransactionLevel, defaultTransactionReadOnly, defaultTransactionDeferrable string
-	var fsync, fullPageWrites, replicationRole string
+	var profile serverProfile
 	if err := connection.QueryRow(
 		ctx,
 		`SELECT current_setting('TimeZone'), current_setting('search_path'), `+
@@ -210,30 +208,81 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 			`current_setting('fsync'), current_setting('full_page_writes'), `+
 			`current_setting('session_replication_role'), current_setting('IntervalStyle')`,
 	).Scan(
-		&timezone,
-		&searchPath,
-		&clientEncoding,
-		&standardConformingStrings,
-		&synchronousCommit,
-		&defaultTransactionLevel,
-		&defaultTransactionReadOnly,
-		&defaultTransactionDeferrable,
-		&fsync,
-		&fullPageWrites,
-		&replicationRole,
-		&intervalStyle,
+		&profile.timezone,
+		&profile.searchPath,
+		&profile.clientEncoding,
+		&profile.standardConformingStrings,
+		&profile.synchronousCommit,
+		&profile.defaultTransactionLevel,
+		&profile.defaultTransactionReadOnly,
+		&profile.defaultTransactionDeferrable,
+		&profile.fsync,
+		&profile.fullPageWrites,
+		&profile.sessionReplicationRole,
+		&profile.intervalStyle,
 	); err != nil {
 		return fmt.Errorf("validate PostgreSQL physical session: %w", err)
 	}
-	if timezone != "UTC" || searchPath != "pg_catalog" || clientEncoding != "UTF8" ||
-		standardConformingStrings != "on" || synchronousCommit != "on" ||
-		defaultTransactionLevel != "read committed" || defaultTransactionReadOnly != "off" ||
-		defaultTransactionDeferrable != "off" || fsync != "on" || fullPageWrites != "on" ||
-		replicationRole != "origin" || intervalStyle != "postgres" {
-		return backendInvalid("PostgreSQL physical session is outside the current runtime profile")
+	return validatePostgresPhysicalSessionProfile(profile)
+}
+
+type postgresSessionRequirement struct {
+	name, want, actual string
+}
+
+func postgresPhysicalSessionRequirements(profile serverProfile) [12]postgresSessionRequirement {
+	return [12]postgresSessionRequirement{
+		{"TimeZone", "UTC", profile.timezone},
+		{"search_path", "pg_catalog", profile.searchPath},
+		{"client_encoding", "UTF8", profile.clientEncoding},
+		{"standard_conforming_strings", "on", profile.standardConformingStrings},
+		{"synchronous_commit", "on", profile.synchronousCommit},
+		{"default_transaction_isolation", "read committed", profile.defaultTransactionLevel},
+		{"default_transaction_read_only", "off", profile.defaultTransactionReadOnly},
+		{"default_transaction_deferrable", "off", profile.defaultTransactionDeferrable},
+		{"fsync", "on", profile.fsync},
+		{"full_page_writes", "on", profile.fullPageWrites},
+		{"session_replication_role", "origin", profile.sessionReplicationRole},
+		{"IntervalStyle", "postgres", profile.intervalStyle},
+	}
+}
+
+func validatePostgresPhysicalSessionProfile(profile serverProfile) error {
+	var rejected postgresPhysicalSessionProfileError
+	for index, requirement := range postgresPhysicalSessionRequirements(profile) {
+		if requirement.actual != requirement.want {
+			rejected |= 1 << index
+		}
+	}
+	if rejected != 0 {
+		return rejected
 	}
 	return nil
 }
+
+// This closed diagnostic retains only which framework-owned requirements
+// failed, never values read from the server or a credential-bearing carrier.
+type postgresPhysicalSessionProfileError uint16
+
+func (failure postgresPhysicalSessionProfileError) publicError() *query.Error {
+	requirements := postgresPhysicalSessionRequirements(serverProfile{})
+	detail := "PostgreSQL physical session is outside the current runtime profile"
+	if failure != 0 && failure&^postgresPhysicalSessionProfileError((1<<len(requirements))-1) == 0 {
+		var wanted []string
+		for index, requirement := range requirements {
+			if failure&(1<<index) != 0 {
+				wanted = append(wanted, requirement.name+"="+requirement.want)
+			}
+		}
+		detail += ": requires " + strings.Join(wanted, ", ")
+	}
+	return backendInvalid(detail)
+}
+
+func (failure postgresPhysicalSessionProfileError) Error() string {
+	return failure.publicError().Error()
+}
+func (failure postgresPhysicalSessionProfileError) Unwrap() error { return failure.publicError() }
 
 func validateConfig(config Config) error {
 	if strings.TrimSpace(config.URL) == "" {
@@ -409,9 +458,13 @@ func backendInvalid(detail string) *query.Error {
 	return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: detail}
 }
 
-// redactConnectionError preserves structured PostgreSQL errors while avoiding
-// accidental publication of arbitrary URL-bearing driver diagnostics.
+// redactConnectionError preserves closed profile diagnostics and PostgreSQL
+// SQLSTATE without retaining arbitrary URL-bearing driver errors or Config.
 func redactConnectionError(err error) error {
+	var profileFailure postgresPhysicalSessionProfileError
+	if errors.As(err, &profileFailure) {
+		return profileFailure.publicError()
+	}
 	var structured interface{ SQLState() string }
 	if errors.As(err, &structured) {
 		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
