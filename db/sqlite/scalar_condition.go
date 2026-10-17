@@ -7,6 +7,28 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
+func sqliteComparisonValue(condition query.Condition, leftSQL, rightSQL string) (string, string, error) {
+	left, _ := condition.Scalar()
+	right, _ := condition.RHSScalar()
+	if left.RequiresDurationFraction() || right.RequiresDurationFraction() {
+		var err error
+		leftSQL, err = queryplan.ScalarSQL("godj_duration_fraction(", leftSQL, ")")
+		if err != nil {
+			return "", "", err
+		}
+		rightSQL, err = queryplan.ScalarSQL("godj_duration_fraction(", rightSQL, ")")
+		return leftSQL, rightSQL, err
+	}
+	return leftSQL, rightSQL, nil
+}
+
+func sqliteGroupComparisonLiteral(expression query.ResultExpression, statement string) (string, error) {
+	if expression.RequiresDurationFraction() {
+		return queryplan.ScalarSQL("godj_duration_fraction(", statement, ")")
+	}
+	return statement, nil
+}
+
 func compileScalarPredicate(expression query.Expression, source queryplan.ScalarSource, arguments *[]any) (string, error) {
 	analysis, err := analyzePredicate(expression, source)
 	if err != nil {

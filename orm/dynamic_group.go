@@ -293,7 +293,9 @@ func dynamicGroupDecoder(expressions []query.ResultExpression) (func() resultDec
 		case query.FieldTime:
 			factories[index] = dynamicGroupCell(nullableTimeResultCell, nullable)
 		case query.FieldDuration:
-			if expression.RequiresDurationRounding() {
+			if expression.RequiresDurationFraction() {
+				factories[index] = dynamicGroupCell(nullableFractionalDurationCell, nullable)
+			} else if expression.RequiresDurationRounding() {
 				factories[index] = dynamicGroupCell(nullableAggregateDurationCell, nullable)
 			} else {
 				factories[index] = dynamicGroupCell(nullableDurationResultCell, nullable)

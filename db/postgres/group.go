@@ -56,14 +56,18 @@ func compileGrouped(schema string, plan query.Plan) (string, []any, error) {
 			statement.WriteString(strconv.Itoa(index + 1))
 		}
 	}
-	result, err := queryplan.FinishGroups(statement.String(), plan, func(value query.Value) (string, error) {
+	completed, err := finishPostgresAggregates(statement.String(), plan.ResultShape().Expressions())
+	if err != nil {
+		return "", nil, err
+	}
+	result, err := queryplan.FinishGroups(completed, plan, func(value query.Value) (string, error) {
 		argument, err := postgresValue(value)
 		if err != nil {
 			return "", err
 		}
 		arguments = append(arguments, argument)
 		return placeholder(len(arguments)), nil
-	}, func(sql *strings.Builder) error { appendPagination(sql, &arguments, plan); return nil })
+	}, postgresGroupComparisonLiteral, func(sql *strings.Builder) error { appendPagination(sql, &arguments, plan); return nil })
 	if err != nil {
 		return "", nil, err
 	}

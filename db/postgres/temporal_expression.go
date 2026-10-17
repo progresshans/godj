@@ -52,6 +52,9 @@ func compilePostgresTemporalBinary(expression query.ScalarExpression, left, righ
 	if !valid {
 		return "", invalidPlan("temporal compiler requires a binary node")
 	}
+	if expression.RequiresDurationFraction() || leftOperand.RequiresDurationFraction() || rightOperand.RequiresDurationFraction() {
+		return compilePostgresFractionBinary(expression, left, right)
+	}
 	const l, r = `"godj_temporal_operands"."left"`, `"godj_temporal_operands"."right"`
 	operation := "(" + l + " " + string(operator) + " " + r + ")"
 	if expression.ResultKind() == query.FieldDateTime {
@@ -67,6 +70,19 @@ func compilePostgresTemporalBinary(expression query.ScalarExpression, left, righ
 	sqlType := "interval"
 	if expression.ResultKind() == query.FieldDateTime {
 		sqlType = "timestamp with time zone"
+	} else if expression.ResultKind() == query.FieldFloat {
+		if operator != query.ArithmeticDivide || leftOperand.ResultKind() != query.FieldDuration || rightOperand.ResultKind() != query.FieldDuration {
+			return "", invalidPlan("temporal Float requires a ratio of durations")
+		}
+		// EXTRACT returns exact NUMERIC, unlike date_part's binary64. Valid
+		// periods have integer microseconds with magnitude below 10^20.
+		// Keep 100 decimal places before the final binary64 conversion: the
+		// closest non-tie to a binary64 midpoint is farther than 2^-187 for
+		// these bounded integer ratios, and exact ties need at most 67 places.
+		// Thus neither operand loses its low bits and double rounding cannot
+		// change the result. Native numeric division retains SQLSTATE 22012.
+		operation = "((EXTRACT(EPOCH FROM " + l + ") * 1000000)::numeric(120,100) / (EXTRACT(EPOCH FROM " + r + ") * 1000000))::double precision"
+		sqlType = "double precision"
 	}
 	// Unlike native strict arithmetic, the NULL arm consumes both checked
 	// operands. Text is used only to force evaluation across their different

@@ -17,16 +17,18 @@ func compileResultStage(schema string, plan, input query.Plan) (string, []any, e
 	}
 	if input.EmptyResult() {
 		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
-			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Function: compilePostgresFunction, Expression: wrapReadScalar,
+			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
 		})
 		if err != nil {
 			return "", nil, err
 		}
 	}
 	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
+		ComparisonValue: postgresComparisonValue, GroupComparisonLiteral: postgresGroupComparisonLiteral,
+		CompleteAggregates: finishPostgresAggregates,
 		Scalar: queryplan.ScalarDialect{
 			ParameterLimit: postgresBulkParameters, Value: postgresValue,
-			Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Function: compilePostgresFunction, Expression: wrapReadScalar,
+			Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
 		},
 		Aggregate: func(value query.ResultExpression, operand, filter string) (string, int, error) {
 			statement, err := renderAggregate(value, operand, filter, true)
@@ -49,7 +51,7 @@ func compileResultPage(schema string, plan, input query.Plan) (string, []any, er
 	}
 	if input.EmptyResult() {
 		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
-			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Function: compilePostgresFunction, Expression: wrapReadScalar,
+			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
 		})
 		if err != nil {
 			return "", nil, err

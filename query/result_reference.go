@@ -117,7 +117,8 @@ func SelectedExpression(ref ResultRef) (ScalarExpression, error) {
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarSelected, reference: ref, result: ref.ResultKind(),
 		nullable: ref.Nullable(), depth: 1, nodes: 1, resultDepth: ref.scope.Depth(),
-		durationMean: ref.scope.data.shape.expressions[ref.index].RequiresDurationRounding()}}, nil
+		durationMean:     ref.scope.data.shape.expressions[ref.index].RequiresDurationRounding(),
+		durationFraction: ref.scope.data.shape.expressions[ref.index].RequiresDurationFraction()}}, nil
 }
 func (expression ScalarExpression) ResultReference() (ResultRef, bool) {
 	if expression.Kind() != ScalarSelected {

@@ -21,10 +21,11 @@ type UpdateDialect struct {
 	Placeholder                 func(int) string
 	Literal                     func(query.Value, query.FieldKind, string) (string, error)
 	FieldValue                  func(query.FieldRef, string) (string, error)
-	Assignment                  func(query.FieldRef, string) (string, error)
+	Assignment                  func(query.FieldRef, query.ScalarExpression, string) (string, error)
 	Binary                      func(query.ScalarExpression, string, string) (string, error)
 	Negate                      func(query.ScalarExpression, string) (string, error)
 	Function                    func(query.ScalarExpression, []string) (string, error)
+	CaseArm                     func(query.ScalarExpression, query.ScalarExpression, string) (string, error)
 	Expression                  func(query.ScalarExpression, string) (string, error)
 	Predicate                   func(query.Expression, func(query.FieldRef) (string, error), *[]any) (string, error)
 }
@@ -77,7 +78,7 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 	}
 	scalarDialect := ScalarDialect{
 		ParameterLimit: dialect.ParameterLimit, Value: dialect.Value, Placeholder: dialect.Placeholder,
-		Literal: dialect.Literal, Binary: dialect.Binary, Negate: dialect.Negate, Function: dialect.Function, Expression: dialect.Expression,
+		Literal: dialect.Literal, Binary: dialect.Binary, Negate: dialect.Negate, Function: dialect.Function, CaseArm: dialect.CaseArm, Expression: dialect.Expression,
 		Field: func(field query.FieldRef) (string, error) {
 			column, err := resolveField(field)
 			if err != nil || dialect.FieldValue == nil {
@@ -104,7 +105,7 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan, dialect UpdateDialect) (stri
 			return "", nil, err
 		}
 		if dialect.Assignment != nil {
-			value, err = dialect.Assignment(assignment.Field(), value)
+			value, err = dialect.Assignment(assignment.Field(), assignment.Expression(), value)
 			if err != nil {
 				return "", nil, err
 			}

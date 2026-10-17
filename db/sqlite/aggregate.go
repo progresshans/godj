@@ -43,7 +43,14 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 		case query.FieldInteger:
 			operand = "godj_int64(" + operand + ")"
 		case query.FieldDuration:
-			if scalar, computed := expression.Scalar(); computed && scalar.RequiresDurationRounding() {
+			if expression.RequiresDurationFraction() {
+				operand = "godj_duration_fraction(" + operand + ")"
+				if expression.Kind() == query.ResultSum {
+					function = "godj_duration_fraction_sum"
+				} else {
+					function = "godj_duration_fraction_avg"
+				}
+			} else if scalar, computed := expression.Scalar(); computed && scalar.RequiresDurationRounding() {
 				operand = "godj_duration_mean(" + operand + ")"
 			} else {
 				operand = "godj_int64(" + operand + ")"
@@ -90,7 +97,9 @@ func renderAggregate(expression query.ResultExpression, operand, filter string) 
 	case query.FieldDateTime:
 		result = "godj_datetime_value(" + result + ")"
 	case query.FieldDuration:
-		if expression.RequiresDurationRounding() {
+		if expression.RequiresDurationFraction() {
+			result = "godj_duration_fraction(" + result + ")"
+		} else if expression.RequiresDurationRounding() {
 			result = "godj_duration_mean(" + result + ")"
 		} else {
 			result = "godj_int64(" + result + ")"

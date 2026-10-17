@@ -27,6 +27,14 @@ func TestTemporalNativeValuesPreserveMicrosecondsAndBoundaryRounding(t *testing.
 		{"null_datetime", "+", "datetime", "duration", nil, int64(0), nil},
 		{"null_duration", "+", "datetime", "duration", "2026-10-15 00:00:00.000000", nil, nil},
 		{"present_zero", "+", "duration", "duration", int64(0), int64(0), int64(0)},
+		{"ratio_fraction", "/", "duration", "duration", int64(2), int64(3), float64(2.0 / 3.0)},
+		{"ratio_negative", "/", "duration", "duration", int64(3), int64(-2), float64(-1.5)},
+		{"ratio_large_low_bits", "/", "duration", "duration", int64(9007199254740995), int64(9007199254740993), math.Nextafter(1, 2)},
+		{"ratio_even_tie", "/", "duration", "duration", int64(9007199254740993), int64(9007199254740992), float64(1)},
+		{"ratio_native_mean", "/", "duration_mean", "duration_mean", float64(1.5), float64(0.5), float64(3)},
+		{"ratio_zero", "/", "duration", "duration", int64(0), int64(-2), float64(0)},
+		{"ratio_null", "/", "duration", "duration", int64(1), nil, nil},
+		{"ratio_null_zero", "/", "duration", "duration", nil, int64(0), nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := sqliteTemporalBinary(nil, []driver.Value{test.operator, test.leftKind, test.rightKind, test.left, test.right})
@@ -53,7 +61,10 @@ func TestTemporalNativeValuesRejectCorruptionAndInvalidIntermediates(t *testing.
 	}
 	for _, operands := range [][]driver.Value{
 		{}, {"+", "duration", "duration", int64(1)},
-		{"/", "duration", "duration", int64(1), int64(1)},
+		{"/", "datetime", "duration", "2000-01-01 00:00:00.000000", int64(1)},
+		{"/", "duration", "duration", int64(1), int64(0)},
+		{"/", "duration", "duration", nil, float64(1)},
+		{"/", "duration_mean", "duration_mean", float64(5e19), math.SmallestNonzeroFloat64},
 		{"-", "duration", "datetime", int64(1), nil},
 		{"+", "datetime", "datetime", nil, nil},
 		{"+", "duration", "duration", nil, float64(1)},

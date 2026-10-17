@@ -164,6 +164,9 @@ func computedCell[V any](expression query.ResultExpression, nullable bool) (func
 	case decimal.Decimal:
 		return convertComputedCell[decimal.Decimal, V](nullableAggregateDecimalCell, nullable), nil
 	case duration.Duration:
+		if expression.RequiresDurationFraction() {
+			return convertComputedCell[duration.Duration, V](nullableFractionalDurationCell, nullable), nil
+		}
 		if expression.RequiresDurationRounding() {
 			return convertComputedCell[duration.Duration, V](nullableAggregateDurationCell, nullable), nil
 		}

@@ -20,6 +20,8 @@ type ScalarDialect struct {
 	Binary         func(query.ScalarExpression, string, string) (string, error)
 	Negate         func(query.ScalarExpression, string) (string, error)
 	Function       func(query.ScalarExpression, []string) (string, error)
+	CaseArm        func(query.ScalarExpression, query.ScalarExpression, string) (string, error)
+	EmptyValue     func(query.ResultExpression, string) (string, error)
 	Expression     func(query.ScalarExpression, string) (string, error)
 	Predicate      func(query.Expression, *[]any) (string, error)
 }
@@ -136,6 +138,12 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 				if err != nil {
 					return "", err
 				}
+				if dialect.CaseArm != nil {
+					value, err = dialect.CaseArm(expression, branch.Value(), value)
+					if err != nil {
+						return "", err
+					}
+				}
 				selected.WriteString(" WHEN " + condition + " THEN " + value)
 				if selected.Len() > 4<<20 {
 					return "", invalidPlan("scalar expression exceeds its SQL budget")
@@ -144,6 +152,12 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 			otherwise, err := render(fallback, expression.ResultKind())
 			if err != nil {
 				return "", err
+			}
+			if dialect.CaseArm != nil {
+				otherwise, err = dialect.CaseArm(expression, fallback, otherwise)
+				if err != nil {
+					return "", err
+				}
 			}
 			selected.WriteString(" ELSE " + otherwise + " END")
 			statement = "(" + selected.String() + ")"

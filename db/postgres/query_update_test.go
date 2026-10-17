@@ -32,6 +32,26 @@ func TestPostgresTemporalReadsAndUpdates(t *testing.T) {
 		}
 	})
 }
+
+func TestPostgresDurationRatios(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	queryupdatetest.CheckDurationRatios(t, backend, backend.database, func(name string) string {
+		quoted, err := quoteTable(namespace, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return quoted
+	}, true, func(t *testing.T, err error, state string) {
+		t.Helper()
+		var native *pgconn.PgError
+		if !errors.As(err, &native) || native.Code != state {
+			t.Fatal("ratio failure lost its native SQLSTATE", state, err)
+		}
+	})
+}
+
 func TestPostgresNativeQueryUpdateAndExpressions(t *testing.T) {
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)

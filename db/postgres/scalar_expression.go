@@ -11,7 +11,7 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 	}
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{
 		ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder,
-		Literal: readScalarLiteral, Binary: compilePostgresBinary, Function: compilePostgresFunction, Expression: wrapReadScalar,
+		Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, Function: compilePostgresFunction, CaseArm: compilePostgresCaseArm, Expression: wrapReadScalar,
 		Predicate: func(value query.Expression, arguments *[]any) (string, error) {
 			return compileScalarPredicate(value, source, arguments)
 		},
@@ -42,7 +42,14 @@ func readScalarField(field query.FieldRef, column string) (string, error) {
 	return column, nil
 }
 
-func compileAssignedScalar(field query.FieldRef, statement string) (string, error) {
+func compileAssignedScalar(field query.FieldRef, expression query.ScalarExpression, statement string) (string, error) {
+	if expression.RequiresDurationFraction() {
+		var err error
+		statement, err = postgresStoreFractionSQL(statement)
+		if err != nil {
+			return "", err
+		}
+	}
 	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration {
 		return temporalScalarResultSQL(field.Kind(), statement)
 	}

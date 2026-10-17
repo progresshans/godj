@@ -51,6 +51,12 @@ func temporalReferenceFields(name string) map[string]string {
 		return map[string]string{"total": "DurationField", "average": "DurationField"}
 	case "derived_duration":
 		return map[string]string{"total": "DurationField", "maximum": "DurationField"}
+	case "fraction_sum", "fraction_distinct_sum":
+		return map[string]string{"total": "DurationField"}
+	case "duration_ratio":
+		return map[string]string{"value": "FloatField"}
+	case "scale_integer", "scale_integer_reverse", "scale_divide_restore", "scale_half_final", "scale_float_tie", "scale_decimal_tie", "scale_zero_divisor":
+		return map[string]string{"value": "DurationField"}
 	case "collection_duration":
 		return map[string]string{"total": "DurationField", "present": "IntegerField"}
 	case "mean_fractional_shift", "mean_integral_shift", "mean_zero_shift", "mean_null_shift", "mean_reverse_shift":
@@ -120,12 +126,13 @@ func temporalNativeFloat(t *testing.T, record temporalReferenceCase, column int,
 // owner. Successful parity compares converted values. Each intended difference
 // also checks the native type, SQL/error stage, and both implementations' result.
 func TestTemporalReference(t *testing.T) {
+	t.Run("scaling_reference_integrity", testDurationScalingReferenceIntegrity)
 	withTemporalBackends(t, func(t *testing.T, backend temporalBackend, vendor string, physical temporalPhysical) {
 		data, err := os.ReadFile("django61-" + vendor + ".json")
 		check(t, err)
 		var reference struct{ Cases []temporalReferenceCase }
 		check(t, json.Unmarshal(data, &reference))
-		if len(reference.Cases) != 44 {
+		if len(reference.Cases) != 55 {
 			t.Fatal("independent temporal inventory incomplete")
 		}
 		seedTemporal(t, backend)
@@ -149,6 +156,13 @@ func TestTemporalReference(t *testing.T) {
 						t.Fatal("empty captured temporal SQL")
 					}
 					for _, parameter := range statement.Parameters {
+						if parameter.Type == "Decimal" {
+							var value string
+							if record.Name != "scale_decimal_tie" || json.Unmarshal(parameter.Value, &value) != nil || value != "0.1" {
+								t.Fatal("unexpected native Decimal factor", record.Name)
+							}
+							continue
+						}
 						// Pinned psycopg preserves the Int4 wrapper for Django's
 						// negation multiplier. Keep its native identity and range.
 						if parameter.Type == "Int4" {
@@ -174,6 +188,17 @@ func TestTemporalReference(t *testing.T) {
 				rollbackTemporal(t, backend, func(session db.Session) { actual, failure = observeTemporal(t, session, record.Name) })
 				if physical.Snapshot() != before {
 					t.Fatal("GoDj temporal observation changed native storage")
+				}
+				expected, fails, owned, err := durationScalingReference(vendor, record)
+				if owned {
+					check(t, err)
+					if fails {
+						nativeTemporalError(t, vendor, failure, "22012")
+					} else {
+						check(t, failure)
+					}
+					assertTemporalJSON(t, actual, expected)
+					return
 				}
 
 				switch record.Name {

@@ -6,6 +6,7 @@ boundary; native storage and namespace cleanup are checked independently.
 """
 import argparse
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import hashlib
 import json
 import locale
@@ -44,6 +45,8 @@ def native(value):
         record.update(days=value.days, seconds=value.seconds, microseconds=value.microseconds)
     elif isinstance(value, float):
         record.update(value=repr(value), binary64=value.hex())
+    elif isinstance(value, Decimal):
+        record['value'] = str(value)
     elif isinstance(value, (tuple, list)):
         record['value'] = [native(item) for item in value]
     elif isinstance(value, bytes):
@@ -309,6 +312,24 @@ def observe(vendor):
         action('mean_reaggregate', lambda: aggregate(mean_source(), total=Sum('period'), average=Avg('period')), setup=lambda: mean_setup((1, 2)))
         action('update_datetime_overflow', lambda: update(finish=F('finish')+tick), setup=lambda: Event.objects.filter(code='f').update(finish=last), replay=False)
         action('update_duration_overflow', lambda: update(span=F('span')+tick), setup=lambda: Event.objects.filter(code='f').update(span=timedelta(microseconds=2**63-1)), replay=False)
+
+        # Django requires explicit output metadata for these mixed units. The
+        # wrapper declares the result type; it does not replace native numeric
+        # operators or copy GoDj's rational implementation into the observer.
+        duration_expression = lambda expression: ExpressionWrapper(expression, output_field=models.DurationField())
+        half = duration_expression(F('span') / 2)
+        restored = duration_expression(duration_expression(F('span') / 3) * 3)
+        action('scale_integer', lambda: rows(duration_expression(F('span') * 2)))
+        action('scale_integer_reverse', lambda: rows(duration_expression(2 * F('span'))))
+        action('scale_divide_restore', lambda: rows(restored))
+        action('scale_half_final', lambda: rows(half))
+        action('scale_float_tie', lambda: rows(duration_expression(Value(timedelta(microseconds=5)) * Value(0.1)), base.filter(code='a')))
+        action('scale_decimal_tie', lambda: rows(duration_expression(Value(timedelta(microseconds=5)) * Value(Decimal('0.1'))), base.filter(code='a')))
+        action('fraction_sum', lambda: aggregate(base.filter(code__in=['a', 'e']), total=Sum(half)))
+        action('fraction_distinct_sum', lambda: aggregate(base.filter(code__in=['a', 'e']), total=Sum(half, distinct=True)))
+        action('fraction_shift', lambda: rows(F('finish') + half, base.filter(code='a')))
+        action('scale_zero_divisor', lambda: rows(duration_expression(F('span') / 0), base.filter(code='a')))
+        action('duration_ratio', lambda: rows(ExpressionWrapper(F('span') / F('other'), output_field=models.FloatField())))
 
         result = {'kind': 'django-temporal-expression-reference-v1', 'backend': vendor, 'django_commit': sources['django_commit'],
                   'observer_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

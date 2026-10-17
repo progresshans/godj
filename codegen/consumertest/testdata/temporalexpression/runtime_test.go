@@ -166,7 +166,7 @@ func TestTemporalRuntime(t *testing.T) {
 			for _, input := range []orm.DynamicExpression{
 				orm.DynamicF("span").Add(int64(1)), orm.DynamicF("span").Add(float64(1)), orm.DynamicF("span").Add(time.Second),
 				orm.DynamicF("span").Add("00:00:00.000001"), orm.DynamicF("finish").Add(orm.DynamicF("start")),
-				orm.DynamicF("span").Subtract(orm.DynamicF("finish")), orm.DynamicF("span").Multiply(int64(2)),
+				orm.DynamicF("span").Subtract(orm.DynamicF("finish")), orm.DynamicF("span").Multiply(orm.DynamicF("other")),
 				orm.DynamicF("span").Add(nil), orm.DynamicF("finish").Add(nil),
 			} {
 				if _, err := api.RecordsEvent.Expression(input); err == nil {
@@ -556,6 +556,7 @@ func TestTemporalRuntime(t *testing.T) {
 			check(t, err)
 			assertTemporalJSON(t, rows, `[{"code":"a","value":"2024-02-29T00:00:00.000009Z"}]`)
 		})
+		checkDurationScaling(t, backend, vendor, physical)
 		if nativeBefore != physical.Snapshot() || !reflect.DeepEqual(before, temporalStorage(t, backend)) {
 			t.Fatal("temporal runtime changed native stored columns or model values")
 		}

@@ -9,7 +9,8 @@ import (
 // AppendScalarCondition retains SQL NULL under NOT. Its caller owns Boolean
 // connectors; this leaf never borrows field lookup compensation semantics.
 func AppendScalarCondition(statement *strings.Builder, condition query.Condition,
-	render func(query.ScalarExpression) (string, error), parameter func(query.Value) (string, error)) error {
+	render func(query.ScalarExpression) (string, error), parameter func(query.Value) (string, error),
+	normalize func(query.Condition, string, string) (string, string, error)) error {
 	scalar, present := condition.Scalar()
 	if !present {
 		return invalidPlan("computed comparison requires a scalar operand")
@@ -21,8 +22,8 @@ func AppendScalarCondition(statement *strings.Builder, condition query.Condition
 	if err != nil {
 		return err
 	}
-	statement.WriteString(value)
 	if condition.Lookup() == query.LookupIsNull {
+		statement.WriteString(value)
 		isNull, _ := condition.Value().Boolean()
 		if isNull {
 			statement.WriteString(" IS NULL")
@@ -31,17 +32,18 @@ func AppendScalarCondition(statement *strings.Builder, condition query.Condition
 		}
 		return nil
 	}
+	var operator string
 	switch condition.Lookup() {
 	case query.LookupExact:
-		statement.WriteString(" = ")
+		operator = " = "
 	case query.LookupGreaterThan:
-		statement.WriteString(" > ")
+		operator = " > "
 	case query.LookupGreaterThanOrEqual:
-		statement.WriteString(" >= ")
+		operator = " >= "
 	case query.LookupLessThan:
-		statement.WriteString(" < ")
+		operator = " < "
 	case query.LookupLessThanOrEqual:
-		statement.WriteString(" <= ")
+		operator = " <= "
 	default:
 		return invalidPlan("computed comparison lookup is unsupported")
 	}
@@ -54,7 +56,13 @@ func AppendScalarCondition(statement *strings.Builder, condition query.Condition
 	if err != nil {
 		return err
 	}
-	statement.WriteString(right)
+	if normalize != nil {
+		value, right, err = normalize(condition, value, right)
+		if err != nil {
+			return err
+		}
+	}
+	statement.WriteString(value + operator + right)
 	return nil
 }
 

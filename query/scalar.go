@@ -44,22 +44,23 @@ const (
 type ScalarExpression struct{ node *scalarNode }
 
 type scalarNode struct {
-	kind         ScalarKind
-	value        Value
-	field        FieldRef
-	operator     ArithmeticOperator
-	left, right  ScalarExpression
-	result       FieldKind
-	nullable     bool
-	depth, nodes int
-	branches     []ScalarWhen
-	reference    ResultRef
-	resultDepth  int
-	durationMean bool
-	relation     RelationPath
-	hasRelations bool
-	function     FunctionKind
-	arguments    []ScalarExpression
+	kind             ScalarKind
+	value            Value
+	field            FieldRef
+	operator         ArithmeticOperator
+	left, right      ScalarExpression
+	result           FieldKind
+	nullable         bool
+	depth, nodes     int
+	branches         []ScalarWhen
+	reference        ResultRef
+	resultDepth      int
+	durationMean     bool
+	durationFraction bool
+	relation         RelationPath
+	hasRelations     bool
+	function         FunctionKind
+	arguments        []ScalarExpression
 }
 
 // ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
@@ -95,6 +96,7 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 	depth, nodes := fallback.Depth()+1, fallback.NodeCount()+1
 	resultDepth := fallback.resultReferenceDepth()
 	durationMean := fallback.RequiresDurationRounding()
+	durationFraction := fallback.RequiresDurationFraction()
 	hasRelations := fallback.HasRelations()
 	for _, branch := range branches {
 		if _, err := WhenScalar(branch.when, branch.value); err != nil {
@@ -112,6 +114,7 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		nodes += branch.when.node.nodes + branch.value.NodeCount()
 		resultDepth = max(resultDepth, branch.value.resultReferenceDepth())
 		durationMean = durationMean || branch.value.RequiresDurationRounding()
+		durationFraction = durationFraction || branch.value.RequiresDurationFraction()
 		hasRelations = hasRelations || branch.value.HasRelations() || branch.when.HasRelations()
 		for _, condition := range expressionConditions(branch.when) {
 			resultDepth = max(resultDepth, condition.scalar.resultReferenceDepth())
@@ -127,14 +130,21 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		return ScalarExpression{}, invalidPlanError("conditional scalar has no explicit result kind")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarCase, result: result, nullable: nullable, left: fallback,
-		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, hasRelations: hasRelations}}, nil
+		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, durationFraction: durationFraction, hasRelations: hasRelations}}, nil
 }
 
 // RequiresDurationRounding preserves native duration averages across result
 // references, CASE and Duration arithmetic. They round at the final decoder;
 // ordinary model duration fields retain their strict physical value contract.
 func (expression ScalarExpression) RequiresDurationRounding() bool {
-	return expression.node != nil && expression.node.result == FieldDuration && expression.node.durationMean
+	return expression.node != nil && expression.node.result == FieldDuration && (expression.node.durationMean || expression.node.durationFraction)
+}
+
+// RequiresDurationFraction identifies exact scaling and values derived from it.
+// Native AVG provenance remains separate: a backend must not mistake an ordinary
+// Duration field for a fractional query result or round a selected fraction.
+func (expression ScalarExpression) RequiresDurationFraction() bool {
+	return expression.node != nil && expression.node.result == FieldDuration && expression.node.durationFraction
 }
 
 func (expression ScalarExpression) Case() (ScalarExpression, []ScalarWhen, bool) {
@@ -275,8 +285,9 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 	return ScalarExpression{&scalarNode{kind: ScalarBinary, operator: operator, left: left, right: right, result: result,
 		nullable: left.node.nullable || right.node.nullable || result == FieldFloat || operator == ArithmeticDivide || operator == ArithmeticModulo,
 		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth()),
-		durationMean: result == FieldDuration && (left.RequiresDurationRounding() || right.RequiresDurationRounding()),
-		hasRelations: left.HasRelations() || right.HasRelations()}}, nil
+		durationMean:     result == FieldDuration && (left.RequiresDurationRounding() || right.RequiresDurationRounding()),
+		durationFraction: result == FieldDuration && (operator == ArithmeticMultiply || operator == ArithmeticDivide || left.RequiresDurationFraction() || right.RequiresDurationFraction()),
+		hasRelations:     left.HasRelations() || right.HasRelations()}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
@@ -291,7 +302,7 @@ func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarNegate, left: value, result: value.node.result, nullable: value.node.nullable,
 		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth(),
-		durationMean: value.RequiresDurationRounding(), hasRelations: value.HasRelations()}}, nil
+		durationMean: value.RequiresDurationRounding(), durationFraction: value.RequiresDurationFraction(), hasRelations: value.HasRelations()}}, nil
 }
 
 func (expression ScalarExpression) Validate() error {

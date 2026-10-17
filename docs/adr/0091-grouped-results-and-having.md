@@ -171,6 +171,13 @@ HAVING은 각 DB의 native 결과를 비교한다. SQLite의 평균 `1.5µs`는 
 포함되지 않고 PostgreSQL의 native INTERVAL 평균은 포함된다. 이 실제 Django 차이를 SQL 안의 추가 반올림으로 지우지 않는다.
 SQLite의 Duration literal/storage int64 제한과 전역 모델/result day 범위를 구분한다.
 
+GDJ-0131의 scaling에서 유래한 Duration은 정확한 분수 출처를 따로 보존한다. 기여 값마다 모델 범위를 검사하고
+SUM/AVG는 분수 누적 결과에서 모델 범위를 확인한다. 누적 상태는 개별 Duration 결과가 아니므로 최종 평균과 상쇄를
+중간 마이크로초 반올림으로 바꾸지 않는다. 비교·HAVING·MIN/MAX·정렬은 정확한 수치 순서를 사용하고 같은 기약분수는
+DISTINCT·GROUP BY에서 같은 값이다. 결과 단계나 CASE를 지나도 분모를 잃지 않는다. 최종 읽기/쓰기 반올림은 ADR-0090을
+따른다. 기존 native AVG만 포함한 경로의 backend 차이를 이 신규 집계 경로의 추가로 지우지 않는다.
+계약 채택과 backend 구현·실제 실행 완료는 GDJ-0131 및 TEST_EVIDENCE에서 구분한다.
+
 GDJ-0128은 computed Duration의 SUM/AVG·MIN/MAX에도 operand의 평균 출처를 보존한다. SQLite AVG에서 유래한
 fractional microseconds는 산술·CASE·부호 반전·재집계에서 유지하고 최종 Duration scanner에서 반올림한다.
 CASE가 exact branch를 선택하면 원 int64 연산의 정확성·overflow 검사를 유지한다. DateTime 결과로 바뀌는 경계의
@@ -281,6 +288,12 @@ GDJ-0123 Helpdesk는 전체·열린 건수에서 닫힌 건수와 `open_basis_po
 
 단계별 compiler·공개 ORM·소비자의 구현과 검증 상태는 [CURRENT](../status/CURRENT.md)와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
+
+분수 Duration의 SUM/AVG는 각 기여 값과 최종 결과의 모델 범위를 검사하되 누적 상태 자체를 개별 Duration으로
+취급하지 않는다. 큰 중간 합의 상쇄와 평균을 보존한다. PostgreSQL은 원 aggregate query level에서 FILTER/DISTINCT를
+적용한 key 배열을 만들고, 다음 projection에서 정확한 분수를 합산한 뒤 HAVING·후속 stage에 넘긴다.
+상수 operand를 내부 SELECT의 한 행으로 집계하지 않는다. MIN/MAX는 canonical key의 순서, COUNT는 같은 값의
+동일성을 사용한다. 빈 source와 모두 NULL인 기여의 합/평균은 NULL이며 원 행의 multiplicity를 유지한다.
 
 ## Helpdesk 라벨 사용 현황
 

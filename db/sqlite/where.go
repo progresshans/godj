@@ -233,7 +233,7 @@ func appendWhereNode(
 				}
 				*arguments = append(*arguments, argument)
 				return "?", nil
-			})
+			}, sqliteComparisonValue)
 		}
 		if node.existsPrefix != "" {
 			if !oddNegation {

@@ -12,6 +12,14 @@ var numericAggregateRegistrationError = registerNumericAggregates()
 
 func registerNumericAggregates() error {
 	return errors.Join(
+		modernsqlite.RegisterFunction("godj_duration_fraction_sum", &modernsqlite.FunctionImpl{NArgs: 1, Deterministic: true,
+			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {
+				return &durationFractionAggregate{}, nil
+			}}),
+		modernsqlite.RegisterFunction("godj_duration_fraction_avg", &modernsqlite.FunctionImpl{NArgs: 1, Deterministic: true,
+			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {
+				return &durationFractionAggregate{average: true}, nil
+			}}),
 		modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_aggregate_input", 3, sqliteDecimalAggregateInput),
 		modernsqlite.RegisterFunction("godj_decimal_sum", &modernsqlite.FunctionImpl{NArgs: 1, Deterministic: true,
 			MakeAggregate: func(modernsqlite.FunctionContext) (modernsqlite.AggregateFunction, error) {

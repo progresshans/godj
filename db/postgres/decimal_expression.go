@@ -42,11 +42,12 @@ func decimalScalarResultSQL(statement string) (string, error) {
 }
 
 func compilePostgresBinary(expression query.ScalarExpression, left, right string) (string, error) {
-	operator, _, _, valid := expression.Binary()
+	operator, leftOperand, rightOperand, valid := expression.Binary()
 	if !valid {
 		return "", invalidPlan("binary scalar compiler requires a binary node")
 	}
-	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration ||
+		leftOperand.ResultKind() == query.FieldDuration || rightOperand.ResultKind() == query.FieldDuration {
 		return compilePostgresTemporalBinary(expression, left, right)
 	}
 	if expression.ResultKind() != query.FieldDecimal {
@@ -64,6 +65,16 @@ func compilePostgresBinary(expression query.ScalarExpression, left, right string
 }
 
 func wrapReadScalar(expression query.ScalarExpression, statement string) (string, error) {
+	if expression.RequiresDurationFraction() {
+		if _, selected := expression.ResultReference(); selected {
+			pair, err := postgresDurationFractionPairSQL(statement)
+			if err != nil {
+				return "", err
+			}
+			return postgresDurationFractionKeySQL(pair)
+		}
+		return statement, nil // Arithmetic and chosen CASE arms produce checked keys.
+	}
 	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
 		if _, selected := expression.ResultReference(); selected {
 			return temporalResultSQL(expression.ResultKind(), statement)

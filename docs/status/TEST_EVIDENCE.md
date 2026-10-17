@@ -3,7 +3,130 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0131 — 기간 배율·나눗셈의 기반 작성
+
+2026-10-18 KST, `e09a963417d76481d5598285908dabed7aa3669f`에서 시작한 별도 미커밋 작업 사본에
+Duration과 Integer/Float/Decimal의 배율·나눗셈, Duration 사이의 Float 비율 타입 서명을 작성했다.
+Typed `ScaleDuration`/`DivideDuration`과 expression overload, Duration의 `Ratio`를 같은 AST에 연결하고
+operand 타입·순서·typed NULL·지원하지 않는 단위 조합의 검증 코드를 작성했다.
+
+`query`와 `orm`을 `go test -c -trimpath`로 compile했다. 두 binary를 실행하지 않았으며 테스트 본문·DB·HTTP·
+생성 소비자·실제 배율 결과를 확인한 것이 아니다. Backend와 중간 정밀도/반올림 의미는 아직 미완료다.
+공통 검증 디렉터리의 `gdj0131-signatures-compile-9dvhe3k5/receipt.json`, SHA-256
+`a63e6767c6395ca12e80984a6cb15b95ea0e578162111abfd1689cb87f455a96`에 작업 공간·기준 source·변경 hash·명령과 원 로그를 보존했다.
+GDJ-0130의 진행 중인 원격 결과와 이 미완료 작업 사본을 구분한다.
+
+이후 GDJ-0130의 DATE scan·CASE/집계 비교 수정 `7b108501c51826758d49839f4d7fed3dd254cdb4`를 기준에 통합했다.
+미커밋 파일을 보존한 뒤 문서를 병합했고, GDJ-0131의 Go source 네 개가 통합 전과 byte 단위로 같은지 확인했다.
+`gdj0131-base-integration-9j3ju_8v/receipt.json`, SHA-256
+`dc89b387ef26dcdf1bd7dc3976862f055ee11214f3d7ad9eda195b156f871b65`에 이전/새 기준·보존본·파일 hash를 기록했다.
+이는 코드 통합·문서 검사이며 새 runtime 실행 결과가 아니다.
+
+Duration 비율의 SQLite/PG dispatch와 backend 경로를 작성했다. SQLite는 검증된 원 int64/AVG 숫자의
+유리수 비율을 마지막에 Float으로 바꾸며, PostgreSQL은 원 INTERVAL의 정확한 NUMERIC microseconds를 사용한다.
+실제 양 DB용 검사에는 큰 값의 하위 비트·NULL/zero·선택된 결과·CASE/FILTER·네 집계·같은 행 대입·
+transaction rollback·취소·늦은 오류의 부분 결과 거부·전체 저장 보존과 PG 전체 모델 범위를 포함했다.
+검사 코드를 작성한 상태이며 아직 실행한 것이 아니다.
+
+`query`, `orm`, `db/sqlite`, `db/postgres`를 `go test -c -trimpath`로 compile했다. 네 test binary를 실행하지 않았다.
+`gdj0131-ratio-foundation-compile-oz8956ih/receipt.json`, SHA-256
+`4ee442fd3eed10c4ee3f3e6ee251df550a246bfd9c6efa5b0401eaa791dfd7e1`에 새 Go source 12개·필수 목록 두 개의 hash와
+명령·원 로그를 보존했다. Relation 필수 목록에는 30개, PostgreSQL에는 7개 이름을 추가했으며 이 등록은 실행 증거가 아니다.
+기간 배율·숫자 나눗셈의 중간 정밀도 정책, 생성 소비자·독립 native 비교와 Helpdesk 연결은 여전히 미완료다.
+
+후속 native replay 수정 `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`도 기준에 통합했다. 위 compile의 Go source
+12개·필수 목록 두 개가 byte 단위로 유지됨을 확인했으며, 테스트를 다시 실행한 증거는 아니다.
+`gdj0131-replay-base-integration-uc576bvs/receipt.json`, SHA-256
+`b4325cf436dffe36b9c3a842a98253e7d2eb846fb063fdd4575286424a064e49`에 보존본·병합 결과·새 기준을 기록했다.
+
+### 정확한 분수 계산과 SQLite 연결의 compile checkpoint
+
+같은 미커밋 작업 사본에서 최종 읽기/쓰기까지 분수 microseconds를 유지하는 계약을 채택했다.
+공통 `internal/durationcalc`의 불변 계산 값·Integer/Float/Decimal 배율·half-even·전체 모델 범위·집계 상태와
+수치 순서를 보존하는 canonical query key를 작성했다. SQLite의 산술·CASE·selected result·비교/HAVING·
+정렬·DISTINCT·집계·최종 UPDATE, typed/dynamic ORM의 별도 scanner에 연결했다.
+일반 Duration field의 INTEGER 검사와 기존 native AVG 경로를 유지한다. PostgreSQL의 새 분수 경로는 아직
+미지원 오류를 반환하며 native INTERVAL/Float 곱셈으로 대신하지 않는다.
+
+작성한 검사에는 `1µs ÷ 2 × 2`, `1µs ÷ 3 × 3`, 2^53보다 큰 홀수, ±1000 Decimal exponent,
+Float 0.1/Decimal 0.1의 구분, half-even·전체 모델 범위·반올림 전 오류·native AVG·비율 overflow,
+분수의 byte 정렬·동일 값 key·잘린/변조 key·driver buffer 소유권·빈 집계/상쇄를 포함했다.
+SQLite native 검사는 후속 선택과 명시 정렬·predicate·그룹/HAVING·DISTINCT·동일 행 대입·transaction/statement
+rollback·취소·지연 CASE/FILTER·NULL 옆 손상 operand·일반 모델 BLOB의 query key 위장을 검증하도록 작성했다.
+**이 검사를 실행한 증거는 아니다.** Relation 필수 목록의 신규 8개 이름을 등록했다. 계산 패키지는 기존 core
+package discovery의 실행 대상이며 relation 패키지로 중복 소유시키지 않았다.
+
+`query`, `orm`, `db/internal/queryplan`, `db/sqlite`, `db/postgres`, `internal/durationcalc`의 여섯 test binary를
+`go test -c -trimpath`로 compile해 exit 0을 확인했다. 38개 Go 파일·필수 목록 두 개의 hash, 명령·원 로그는
+`gdj0131-exact-fraction-compile-ddnrb5z5/receipt.json`, SHA-256
+`d58e135df246b24b0faad2766e7bbbbc8b46bb018cad53cdb61bcd2b8c01b96e`에 있다.
+
+이후 key의 계수를 SQL NUMERIC에서도 정확히 표현할 수 있는 canonical decimal digits로 바꾸고,
+native 테스트의 후속 stage 정렬과 subtest 실패 소유권을 명시했다. 바뀐 Go 파일이 세 개뿐임을 이전 receipt와 대조한
+뒤 `internal/durationcalc`, `orm`, `db/sqlite`를 다시 compile해 exit 0을 확인했다.
+최종 hash와 원 로그는 `gdj0131-fraction-key-compile-hzzafged/receipt.json`, SHA-256
+`64fac37dc36c71c9c8c4466b81b0b05f76e54fe399f24f55f38b0c8afca0a200`에 있다.
+두 compile 모두 test binary를 실행하지 않았다. 실제 DB·race·CGO0·process·생성 소비자·독립 reference·HTTP/client·
+브라우저와 이 변경의 Hosted 실행은 남아 있다. GDJ-0130의 다른 source 실행을 이 작업의 검증으로 전이하지 않는다.
+
+### PostgreSQL 분수 key helper의 compile checkpoint
+
+NUMERIC 정수 pair와 canonical 분수 query key를 왕복하는 SQL helper를 작성했다. 연분수 계수·분자·분모를
+Float/int64로 줄이지 않으며, byte 길이만 int8send로 인코딩한다. Decoder는 header·부호·길이·ASCII 계수·종료 위치·
+기약 표현·전체 모델 범위를 확인한다. 입력은 각 helper에서 한 번 결합한다. 기존 비율 이외의 산술·CASE·집계
+compiler에는 아직 연결하지 않았으며 PostgreSQL의 배율 지원 완료를 뜻하지 않는다.
+
+작성한 native 검사는 세부 사례 세 개와 root다. 정상/음수/0·2^53 초과·전체 모델 범위·큰 분모, 독립 고정 byte fixture,
+native ORDER BY/DISTINCT와 NULL·범위 초과·손상 pair/key·실패 뒤 연결 재사용을 확인하도록 했다.
+PostgreSQL 필수 목록에 네 이름을 추가했다. 이 테스트는 실행하지 않았다.
+`go test -c -trimpath ./db/postgres`의 exit 0을 확인했으며 helper·테스트·필수 목록 hash와 명령·원 로그는
+`gdj0131-postgres-fraction-codec-compile-umd5xyzy/receipt.json`, SHA-256
+`62baff3784d4690a79d17a25d6126c9a68dcfc5baccddbd17138a02634b5fbfa`에 보존했다.
+SQL parser·native 실행 성공의 증거는 아니다.
+
+### PostgreSQL compiler·생성 소비자·독립 비교의 compile checkpoint
+
+같은 `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` 기반에서 PG 분수 helper를 산술·CASE·부호 반전·비교/HAVING·
+selected result·빈 입력·집계·UPDATE에 연결했다. 공통 순회는 CASE 각 분기의 변환과 비교 양쪽의 원 metadata를 넘기며,
+PG SUM/AVG는 원 source에서 ARRAY_AGG를 완료한 뒤 외부 projection에서 분수를 합산한다. 고정 소수 자릿수 대신
+정확한 significand 반올림을 사용하는 분수 Float 비율, 전체 범위 INTERVAL 저장과 DateTime 합의 최종 반올림을 작성했다.
+
+새 SQL 경로와 양 backend의 공통 native 검사를 작성한 뒤 `db/internal/queryplan`, `db/sqlite`, `db/postgres`를
+`go test -c -trimpath`로 compile했다. Receipt는 `gdj0131-postgres-fraction-integration-compile-gom4dtag/receipt.json`,
+SHA-256 `e655bd7ad580e5023feb693875fe451a987a4606bac74043e344536a13c23694`다. Native 실행은 하지 않았다.
+
+그 뒤 공통 검사를 상수 집계의 행 귀속·MIN/MAX/AVG·빈 후속 입력·전체 모델 범위 상쇄·DateTime 합의 half-even으로
+확장했다. 기존 SQLite 검사를 같은 공통 harness로 옮기고 PG에 연결했으며 손상 storage class/INTERVAL의 부정 검사를 유지했다.
+구조가 다른 planning/records 두 앱에 typed/dynamic·후속 분수·page·집계/collection·Float/Decimal 구분·same-row UPDATE·
+savepoint·cache·context/cursor 검사를 추가했다. 기존 기간 곱셈 거부 한 건은 새 유효 서명에 맞게 기간×기간 거부로 바꿨다.
+
+- `db/sqlite`, `db/postgres`, `codegen/consumertest`와 현재 Schema IR에서 새로 생성한 별도 module의 `consumer`를
+  `go test -c -trimpath`로 compile해 exit 0을 확인했다.
+- Boolean·time.Duration·DateTime 배율, 다른 모델의 배율, 잘못된 결과 DTO와 비율 대입의 새 여섯 프로그램은
+  각각 실제 compile 실패와 의도한 타입 진단을 확인했다. 테스트 본문 실행과 구분한다.
+- Go source 56개·필수 목록 두 개의 hash, 실제 생성 Go 파일과 명령·원 로그는
+  `gdj0131-fraction-generated-compile-q28k6bxi/receipt.json`, SHA-256
+  `eaa9112a22acca66a11eb4ed8839adbee0ad75870e62a91605c719528cdec05e`에 보존했다.
+
+독립 Django 관측을 44개에서 55개로 확장하고 원 native replay와 변환 결과를 각각 비교하도록 작성했다.
+Decimal parameter의 원 타입/값을 기록하며, 새 비교 규칙의 13개 변조 거부 검사를 작성했다. 이 관측과 검사는 실행하지 않았다.
+Observer는 Python AST syntax만 확인했고, 두 consumer test binary를 다시 compile해 exit 0을 확인했다.
+이전 compile에서 제품 코드·생성 model/facade가 유지됨을 hash로 대조했으며 다른 결과를 새 실행으로 세지 않았다.
+`gdj0131-fraction-reference-compile-ch9lujf1/receipt.json`, SHA-256
+`842a6de9399dfc9aef51f01f330f2f4a5f8c711c435361d0f72fdded28a1cee8`에 현재 source와 template hash를 보존했다.
+
+이 checkpoint는 SQL parser·SQLite/PG runtime·Django 실행·race·CGO0·process·전체 platform 검증이 아니다.
+Helpdesk의 조정 시간·HTML/API/OpenAPI/client·브라우저는 아직 연결하지 않았다. 전체 CI에 기반 묶음을 제출하며,
+그 결과를 확인하기 전 실제 지원 완료나 GDJ-0131 완료를 주장하지 않는다.
+
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
+
+후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의
+[CI 39074001761](https://github.com/progresshans/godj/actions/runs/39074001761)는 진행 중이다.
+PR checkout `e1e4a0cd040ba21edbb9e64ee207d2b5adc0877e`의 두 parent와 tree
+`85a4e318146a1bc36025c4f37603a93c01abbcd4`가 제출 source에 결합됨을 plan 원 로그와 Git 객체로 확인했다.
+`ci-39074001761-source-binding-and-plan.json` SHA-256은
+`a388641fb2b50a01d96d76cd7480f360f6c943b6f16a77adda7fc5d7c2684a4c`다. 이 source의 전체 성공은 아직 주장하지 않는다.
 
 ### 후속 scalar replay에 남은 변환 가정 보완
 
@@ -37,6 +160,10 @@ root 두 개를 포함한 137개 run/pass·skip 0과 변조 자료 42건의 거�
 - 실패 재현: `gdj0130-calendar-scalar-replay-repair-0upeyxdq/before-receipt.json`, SHA-256
   `582d219291ad933cdfaedf0c43017a74bb51c7b91b147fc423d3910e8aabca70`; 수정 확인 `after-receipt.json`, SHA-256
   `47d810a6ef6d4a07d8bc1663c4fc484fc2b666564473a6bb8dc5a7e64f795949`.
+- CGO0 core `117510015463`과 최종 gate `117517574416`의 원 로그, artifact `12115997054`도 보존했다.
+  CGO0도 같은 두 scalar replay 사례에서 실패했으며 해당 실행은 후속 push로 최종 cancelled가 되었다.
+  `ci-39071423504-failed-native-o37i13_y/terminal-additional/receipt.json`, SHA-256
+  `5290fee68a68997d96c752e07038e6aa8a15083edcccba98a17be6c6012a00b9`에 범위를 기록했다.
 
 ### 두 번째 원격 실패: DATE scan과 바깥 expression 변환
 
