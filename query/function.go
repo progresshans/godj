@@ -4,7 +4,7 @@ import "slices"
 
 // FunctionKind is a closed semantic operation, not a SQL function name. The
 // common AST owns arity and input/output domains; each backend owns execution.
-// Calendar extraction from an instant uses the model's UTC representation.
+// Calendar functions on an instant use the model's UTC representation.
 type FunctionKind uint8
 
 const (
@@ -21,6 +21,14 @@ const (
 	FunctionHour
 	FunctionMinute
 	FunctionSecond
+	FunctionTruncYear
+	FunctionTruncQuarter
+	FunctionTruncMonth
+	FunctionTruncWeek
+	FunctionTruncDay
+	FunctionTruncHour
+	FunctionTruncMinute
+	FunctionTruncSecond
 )
 
 // FunctionExpression snapshots the ordered argument container. Expressions
@@ -30,7 +38,7 @@ func FunctionExpression(function FunctionKind, arguments ...ScalarExpression) (S
 	// Every currently supported function is unary. Check arity before copying
 	// or traversing an arbitrarily large caller-provided argument list.
 	if len(arguments) != 1 {
-		return ScalarExpression{}, invalidPlanError("calendar extraction requires exactly one operand")
+		return ScalarExpression{}, invalidPlanError("calendar function requires exactly one operand")
 	}
 	argument := arguments[0]
 	if err := argument.Validate(); err != nil {
@@ -67,6 +75,14 @@ func functionResultKind(function FunctionKind, input FieldKind) (FieldKind, erro
 	case FunctionHour, FunctionMinute, FunctionSecond:
 		if input == FieldTime || input == FieldDateTime {
 			return FieldInteger, nil
+		}
+	case FunctionTruncYear, FunctionTruncQuarter, FunctionTruncMonth, FunctionTruncWeek, FunctionTruncDay:
+		if input == FieldDate || input == FieldDateTime {
+			return input, nil
+		}
+	case FunctionTruncHour, FunctionTruncMinute, FunctionTruncSecond:
+		if input == FieldTime || input == FieldDateTime {
+			return input, nil
 		}
 	default:
 		return "", invalidPlanError("unknown scalar function")

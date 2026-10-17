@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
@@ -14,13 +13,34 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 	reference := time.Date(2024, 2, 29, 9, 0, 0, 1999, time.FixedZone("caller", 9*3600))
 	from := time.Date(2024, 2, 28, 23, 59, 59, 0, time.FixedZone("date keeps local components", 14*3600))
 	until := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC)
-	for _, params := range []hs.HelpdeskDeadlineCalendarParams{
+	cases := []hs.HelpdeskDeadlineCalendarParams{
 		{AsOf: reference}, {AsOf: time.Time{}}, {AsOf: time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)},
 		{AsOf: reference, FromDate: hs.NewOptDate(from), UntilDate: hs.NewOptDate(until)},
 		{AsOf: reference, FromDate: hs.NewOptDate(until), UntilDate: hs.NewOptDate(until)},
 		{AsOf: reference, FromDate: hs.NewOptDate(from)}, {AsOf: reference, UntilDate: hs.NewOptDate(until)},
 		{AsOf: reference, FromDate: hs.NewOptDate(time.Date(9000, 1, 1, 0, 0, 0, 0, time.UTC)), UntilDate: hs.NewOptDate(time.Date(9000, 12, 31, 0, 0, 0, 0, time.UTC))},
-	} {
+	}
+	for _, period := range []hs.HelpdeskDeadlineCalendarPeriod{hs.HelpdeskDeadlineCalendarPeriodDay, hs.HelpdeskDeadlineCalendarPeriodWeek, hs.HelpdeskDeadlineCalendarPeriodMonth, hs.HelpdeskDeadlineCalendarPeriodQuarter, hs.HelpdeskDeadlineCalendarPeriodYear} {
+		for _, bounds := range [][2]string{{"", ""}, {"0001-01-01", "9999-12-31"}, {"2024-01-01", "2024-03-01"}, {"2024-02-01", "2024-02-01"}, {"2024-02-28", "2024-02-29"}, {"9000-01-01", "9000-12-31"}, {"2024-02-01", ""}, {"", "2024-02-29"}} {
+			params := hs.HelpdeskDeadlineCalendarParams{AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod(period)}
+			if bounds[0] != "" {
+				date, err := time.Parse("2006-01-02", bounds[0])
+				if err != nil {
+					return err
+				}
+				params.FromDate = hs.NewOptDate(date)
+			}
+			if bounds[1] != "" {
+				date, err := time.Parse("2006-01-02", bounds[1])
+				if err != nil {
+					return err
+				}
+				params.UntilDate = hs.NewOptDate(date)
+			}
+			cases = append(cases, params)
+		}
+	}
+	for _, params := range cases {
 		want := expectedDeadlineCalendar(params, tickets)
 		for _, viewer := range []struct {
 			client    *hs.Client
@@ -45,19 +65,20 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 				value := page.Response
 				start := min(len(want), int(number-1)*20)
 				end := min(len(want), start+20)
-				if value.Category.ID != category || value.Category.Name != "Hardware & repairs" || value.Page != number || value.PageSize != 20 || !value.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || value.AsOf.Location() != time.UTC || value.TotalGroups != int64(len(want)) || len(value.Results) != end-start || !calendarBoundMatches(value.FromDate, params.FromDate) || !calendarBoundMatches(value.UntilDate, params.UntilDate) {
+				if value.Category.ID != category || value.Category.Name != "Hardware & repairs" || value.Page != number || value.PageSize != 20 || value.Period != hs.DeadlineCalendarPeriod(params.Period.Or(hs.HelpdeskDeadlineCalendarPeriodDay)) || !value.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || value.AsOf.Location() != time.UTC || value.TotalGroups != int64(len(want)) || len(value.Results) != end-start || !calendarBoundMatches(value.FromDate, params.FromDate) || !calendarBoundMatches(value.UntilDate, params.UntilDate) {
 					return fail("calendar generated date range, UTC reference and total/page envelope")
 				}
 				for index, want := range want[start:end] {
 					got := value.Results[index]
-					if got.Date.Null != want.Date.Null || !want.Date.Null && !got.Date.Value.Equal(want.Date.Value) || got.Total != want.Total || got.Open != want.Open || got.Overdue != want.Overdue || got.FirstDueTime != want.FirstDueTime || got.LastDueTime != want.LastDueTime {
-						return fail("calendar independent grouped counts, nullable date and exact clocks")
+					if got.PeriodStart.Null != want.PeriodStart.Null || !want.PeriodStart.Null && !got.PeriodStart.Value.Equal(want.PeriodStart.Value) || got.Total != want.Total || got.Open != want.Open || got.Overdue != want.Overdue || !calendarInstantMatches(got.FirstDueAt, want.FirstDueAt) || !calendarInstantMatches(got.LastDueAt, want.LastDueAt) {
+						return fail("calendar independent period groups, nullable start and full deadline instants")
 					}
 				}
 			}
 		}
 	}
 	for _, params := range []hs.HelpdeskDeadlineCalendarParams{
+		{AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("hour")}, {AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("")}, {AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("Month")},
 		{AsOf: reference, P: hs.NewOptInt64(0)}, {AsOf: reference, P: hs.NewOptInt64(50002)},
 		{AsOf: reference, FromDate: hs.NewOptDate(until), UntilDate: hs.NewOptDate(from)},
 		{AsOf: reference, FromDate: hs.NewOptDate(time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC))},
@@ -74,6 +95,10 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 	return requireHelpdeskTickets(ctx, client, transport, state, tickets...)
 }
 
+func calendarInstantMatches(actual, expected hs.NilDateTime) bool {
+	return actual.Null == expected.Null && (expected.Null || actual.Value.Equal(expected.Value) && actual.Value.Location() == time.UTC && actual.Value.Nanosecond()%1000 == 0)
+}
+
 func calendarBoundMatches(actual hs.NilDate, request hs.OptDate) bool {
 	return actual.Null == !request.Set && (!request.Set || actual.Value.Format("2006-01-02") == request.Value.Format("2006-01-02"))
 }
@@ -85,25 +110,33 @@ func expectedDeadlineCalendar(params hs.HelpdeskDeadlineCalendarParams, tickets 
 	for _, ticket := range tickets {
 		key := "~"
 		var day time.Time
-		clock := ""
 		if !ticket.DueAt.Null {
 			at := ticket.DueAt.Value.UTC()
-			key = at.Format("2006-01-02")
 			day = time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
-			clock = strings.TrimSuffix(at.Format("15:04:05.000000"), ".000000")
+			switch params.Period.Or(hs.HelpdeskDeadlineCalendarPeriodDay) {
+			case hs.HelpdeskDeadlineCalendarPeriodWeek:
+				day = day.AddDate(0, 0, -int((day.Weekday()+6)%7))
+			case hs.HelpdeskDeadlineCalendarPeriodMonth:
+				day = time.Date(day.Year(), day.Month(), 1, 0, 0, 0, 0, time.UTC)
+			case hs.HelpdeskDeadlineCalendarPeriodQuarter:
+				day = time.Date(day.Year(), (day.Month()-1)/3*3+1, 1, 0, 0, 0, 0, time.UTC)
+			case hs.HelpdeskDeadlineCalendarPeriodYear:
+				day = time.Date(day.Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
+			}
+			key = day.Format("2006-01-02")
 		}
 		if params.FromDate.Set && (ticket.DueAt.Null || key < params.FromDate.Value.Format("2006-01-02")) || params.UntilDate.Set && (ticket.DueAt.Null || key > params.UntilDate.Value.Format("2006-01-02")) {
 			continue
 		}
 		row, exists := grouped[key]
 		if !exists {
-			row.Date = hs.NilDate{Null: true}
-			row.FirstDueTime = hs.NilString{Null: true}
-			row.LastDueTime = hs.NilString{Null: true}
+			row.PeriodStart = hs.NilDate{Null: true}
+			row.FirstDueAt = hs.NilDateTime{Null: true}
+			row.LastDueAt = hs.NilDateTime{Null: true}
 			if !ticket.DueAt.Null {
-				row.Date = hs.NewNilDate(day)
-				row.FirstDueTime = hs.NewNilString(clock)
-				row.LastDueTime = hs.NewNilString(clock)
+				row.PeriodStart = hs.NewNilDate(day)
+				row.FirstDueAt = hs.NewNilDateTime(ticket.DueAt.Value.UTC())
+				row.LastDueAt = hs.NewNilDateTime(ticket.DueAt.Value.UTC())
 			}
 		}
 		row.Total++
@@ -114,11 +147,11 @@ func expectedDeadlineCalendar(params hs.HelpdeskDeadlineCalendarParams, tickets 
 			}
 		}
 		if !ticket.DueAt.Null {
-			if clock < row.FirstDueTime.Value {
-				row.FirstDueTime = hs.NewNilString(clock)
+			if ticket.DueAt.Value.Before(row.FirstDueAt.Value) {
+				row.FirstDueAt = hs.NewNilDateTime(ticket.DueAt.Value.UTC())
 			}
-			if clock > row.LastDueTime.Value {
-				row.LastDueTime = hs.NewNilString(clock)
+			if ticket.DueAt.Value.After(row.LastDueAt.Value) {
+				row.LastDueAt = hs.NewNilDateTime(ticket.DueAt.Value.UTC())
 			}
 		}
 		grouped[key] = row

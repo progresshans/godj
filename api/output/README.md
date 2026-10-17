@@ -34,6 +34,8 @@ if err != nil {
 모든 객체 필드는 필수다. `Nullable`의 nil은 `null`, non-nil은 원래 타입의 값이며 필드를 생략하지 않는다.
 `Array`의 nil slice는 `[]`다. 정수는 exact int64이고 범위는 양 끝을 포함한다. 배열 길이 범위도 같은 방식으로
 실제 출력과 schema에 적용한다. String·Boolean은 입력 trimming·default·choices를 적용하지 않는다.
+명시적인 `StringChoices("day", "week", ...)`는 허용 문자열을 소유하고 같은 OpenAPI enum과 실제 출력에 적용한다.
+빈 목록·중복·잘못된 UTF-8 선언은 초기화에서, 선언에 없는 출력은 응답 게시 전에 거부한다. 선택값으로 명시한 빈 문자열은 허용한다.
 
 `Float()`는 finite binary64 JSON 숫자이며 ORM의 NaN/Infinity를 이 출력 경계에서 거부한다.
 `Decimal()`은 원본 field precision과 독립된 전역 Decimal의 canonical 문자열을 출력한다. OpenAPI는

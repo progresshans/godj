@@ -102,8 +102,22 @@ PostgreSQL은 checked operand를 한 번 바인딩하고 UTC로 추출하며 ses
 
 기존 모델의 Date/Time output schema를 computed typed output과 공유하고 canonical query/header 입력은 별도의 엄격한
 spelling 정책을 가진다. 일반 timezone/locale 선택·truncation·Date/Time 이동은 미완료다.
-고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
+고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측과 [DEV-0023](../DEVIATIONS.md#dev-0023--calendar-추출의-원본-값-검사와-불가능한-서명-거부)으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분하며 기존 source의 PASS를 전이하지 않는다.
+
+## 타입을 유지하는 구간 시작
+
+[GDJ-0130](../../work/0130-calendar-truncation-and-period-groups.md)은 같은 unary 함수 AST에
+`TruncYear/Quarter/Month/Week/Day/Hour/Minute/Second`를 연결한다. DateTime은 모든 단위를 UTC로 계산하고
+DateTime을 반환한다. Date는 연·분기·월·주·일을, Time은 시·분·초를 지원하며 각각 Date/Time을 반환한다.
+주 시작은 월요일이다. 작은 구성요소를 0 또는 월/일의 1로 바꾸며, 초 절삭은 microsecond를 버리고 반올림하지 않는다.
+타입이 바뀌는 기존 `.Date()`/`.Time()`와 구분하며 typed NULL과 원본 domain·source·scope를 유지한다.
+
+각 실제 operand 전체를 먼저 검사한다. 잘못된 입력이나 범위 밖 중간값을 유효한 구간으로 줄여 숨기지 않는다.
+PostgreSQL은 Date를 timezone 없는 timestamp로, Time을 interval로 명시 변환하고 결과를 원 타입으로 돌린다.
+DateTime은 UTC timestamp에서 계산한 뒤 UTC instant로 반환한다. 호출자의 세션 timezone을 바꾸지 않는다.
+SQLite는 같은 canonical 입력 검사 뒤 Gregorian 날짜·시계 구성요소를 statement 안에서 계산한다.
+이 설계의 채택과 구현·환경별 검증은 [활성 작업](../../work/0130-calendar-truncation-and-period-groups.md)에서 구분한다.
 
 ## 조회 결과와 조건부 값
 

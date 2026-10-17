@@ -28,8 +28,9 @@ func prepareAPIQueries() (apiQueries, error) {
 	result.deadlineCalendar, err = parameters.New(512,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, deadlineCalendarMaximumPage), 1), func(query *deadlineCalendarQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("as_of", parameters.Required(parameters.RFC3339DateTime(64)), func(query *deadlineCalendarQuery, value time.Time) { query.asOf = value }, "Explicit reference instant for counting overdue open tickets; normalized to UTC microseconds."),
-		parameters.Field("from_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.from = value }, "Optional inclusive first UTC calendar date, exactly YYYY-MM-DD. Excludes unset deadlines."),
-		parameters.Field("until_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.until = value }, "Optional inclusive last UTC calendar date, exactly YYYY-MM-DD; must not precede from_date. Excludes unset deadlines."),
+		parameters.Field("period", parameters.Default(parameters.StringChoices(deadlineCalendarPeriods()...), "day"), func(query *deadlineCalendarQuery, value string) { query.period = value }, "Calendar period: day, week, month, quarter or year; defaults to day. Weeks begin on Monday; all periods use UTC."),
+		parameters.Field("from_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.from = value }, "Optional inclusive first period start date, exactly YYYY-MM-DD. Excludes unset deadlines."),
+		parameters.Field("until_date", parameters.Optional(parameters.CanonicalDate()), func(query *deadlineCalendarQuery, value *calendar.Date) { query.until = value }, "Optional inclusive last period start date, exactly YYYY-MM-DD; must not precede from_date. Excludes unset deadlines."),
 	)
 	if err != nil {
 		return apiQueries{}, err

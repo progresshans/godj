@@ -44,6 +44,44 @@
 
 ## 원장
 
+## DEV-0023 — Calendar 추출의 원본 값 검사와 불가능한 서명 거부
+
+- 상태: ADR-0090/0091의 계약 구현; source `153cf765`의 normal·race·CGO0 양 DB 독립 관측/native 비교 확인, 전체 플랫폼은 검증 중
+- 날짜: 2026-10-18
+- 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 calendar observer](../conformance/runners/django/calendar_extraction_reference/), SQLite/PostgreSQL 17.10
+- 범위: [GDJ-0129](../work/0129-calendar-extraction-and-deadline-groups.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
+
+Date/Time/DateTime의 모델 범위는 추출 뒤에도 유지한다. 작은 정수 결과만 검사하면 범위 밖 연도의 month나
+24:00의 hour가 정상 값처럼 게시될 수 있으므로, GoDj는 실제 기여 operand 전체를 statement 안에서 검사한다.
+이것은 기존 canonical 모델 도메인을 유지하는 결정이며, 불일치한 정상 값이나 아직 구현하지 않은 함수를 면제하지 않는다.
+
+고정 Django의 독립 관측은 다음 차이를 기록한다. PostgreSQL의 연도 10000·BC·24:00은 DB가 표현할 수 있는 값이지만
+현재 GoDj 모델 도메인에는 포함되지 않는다.
+
+| 관측 사례 | Django SQLite | Django PostgreSQL | GoDj 계약 |
+|---|---|---|---|
+| `invalid_date_storage`, `invalid_datetime_storage` | 잘못된 날짜의 month가 NULL | 연도 10000의 month가 1 | 원본 도메인 오류로 전체 조회 거부 |
+| `outside_date_storage` | 연도 0000의 year가 NULL | BC 1년의 year가 -1 | 원본 도메인 오류로 전체 조회 거부 |
+| `infinite_datetime_storage` | year가 NULL | native numeric Infinity 뒤 정수 변환에서 OverflowError | 추출 전에 원본 도메인 오류로 거부 |
+| `clock_24_storage` | hour가 NULL | hour가 24 | 24:00을 모델 clock으로 받아들이지 않고 거부 |
+
+SQLite는 `query/invalid_value`와 native 원인을, PostgreSQL은 guard에서 발생한 native SQLSTATE `22007`을 보존한다.
+조회에서 부분 결과를 게시하지 않고, UPDATE의 실패는 statement 전체를 되돌린다. 유효한 값이나 기존 저장 형식을
+migration하지 않으며 비정규 외부 데이터를 자동 교정하지 않는다. 실제로 선택되지 않은 CASE branch와 aggregate FILTER로
+제외된 operand는 평가하지 않는다. `unselected_corrupt_date`와 `filtered_corrupt_date`는 양쪽의 정상 결과를 그대로 비교한다.
+반면 이미 기여한 잘못된 시각은 결과 HAVING·pagination 뒤로 숨기지 않는다.
+
+`invalid_time_year`는 Django SQLite에서 SQL 실행 중 OperationalError, PostgreSQL에서 NotSupportedError/`0A000`이다.
+GoDj의 공통 AST는 Time에 calendar part를 요구하는 불가능한 서명을 I/O 전에 `query/unsupported`로 거부하며 typed
+capability는 그 조합을 제공하지 않는다. `invalid_date_hour`와 `invalid_duration_year`도 고정 Django의 expression 단계
+ValueError와 GoDj의 사전 거부를 각각 검사한다. 이 항목은 Django가 지원하는 다른 Duration 추출 등을 완료로 분류하지 않는다.
+
+Native numeric의 scale은 의미 차이가 아니다. `59.000000`과 변환된 정수 59는 정확히 대조하되 fractional 값·Infinity·
+범위 초과를 반올림해 통과시키지 않는다. 원시 SQL/parameter/type·변환 단계·저장 상태를 함께 보존하며 일반 timezone/locale,
+Date/Time 이동은 별도 미완료 범위다. GDJ-0130의 타입별 truncation은 같은 원본 도메인 검사로 구현 중이며,
+새 관측 사례의 native 결과·오류 차이는 아직 실행하지 않았다. 위 source의 55개 관측 성공을 확장된 95개 사례의
+증거로 사용하지 않는다. 모델 도메인이나 upstream 의미를 바꾸면 독립 관측과 이 기록을 함께 재검토한다.
+
 ## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동
 
 - 상태: ADR-0090/0091의 계약 구현; source `012191bf`의 양 DB·세 mode 독립 관측/native 비교와 전체 플랫폼 통합 검증 완료

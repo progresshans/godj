@@ -10,6 +10,7 @@ import (
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 )
 
@@ -198,6 +199,66 @@ func CheckCalendar(t *testing.T, backend interface {
 		}
 	})
 
+	t.Run("truncated_values_and_updates", func(t *testing.T) {
+		reset(t)
+		before := snapshot(t)
+		var values []query.ScalarExpression
+		for _, kind := range []query.FunctionKind{query.FunctionTruncYear, query.FunctionTruncQuarter, query.FunctionTruncMonth, query.FunctionTruncWeek, query.FunctionTruncDay, query.FunctionTruncHour, query.FunctionTruncMinute, query.FunctionTruncSecond} {
+			values = append(values, function(t, kind, atValue))
+		}
+		for _, kind := range []query.FunctionKind{query.FunctionTruncYear, query.FunctionTruncQuarter, query.FunctionTruncMonth, query.FunctionTruncWeek, query.FunctionTruncDay} {
+			values = append(values, function(t, kind, dayValue))
+		}
+		for _, kind := range []query.FunctionKind{query.FunctionTruncHour, query.FunctionTruncMinute, query.FunctionTruncSecond} {
+			values = append(values, function(t, kind, wallValue))
+		}
+		rows, err := read(backend, project(t, ordered, values...))
+		if err != nil || len(rows) != 3 {
+			t.Fatal("calendar truncation failed", rows, err)
+		}
+		for index := range 8 {
+			if postgres {
+				instant, ok := rows[0][index].(time.Time)
+				if !ok {
+					t.Fatal("truncated instant lost its native type", rows[0][index])
+				}
+				rows[0][index] = instant.UTC().Format(temporal.SQLiteLayout)
+			}
+		}
+		for index := 8; index < 13; index++ {
+			rows[0][index] = dateText(t, rows[0][index])
+		}
+		want := []any{"2021-01-01 00:00:00.000000", "2021-01-01 00:00:00.000000", "2021-01-01 00:00:00.000000", "2020-12-28 00:00:00.000000", "2021-01-01 00:00:00.000000", "2021-01-01 23:00:00.000000", "2021-01-01 23:59:00.000000", "2021-01-01 23:59:59.000000",
+			"2000-01-01", "2000-01-01", "2000-01-01", "1999-12-27", "2000-01-01", "12:00:00", "12:34:00", "12:34:56"}
+		if !reflect.DeepEqual(rows[0], want) || !reflect.DeepEqual(before, snapshot(t)) {
+			t.Fatal("truncation changed native domains, boundaries or storage", rows[0], want)
+		}
+		for _, value := range rows[1] {
+			if value != nil {
+				t.Fatal("NULL truncation became a calendar zero", value)
+			}
+		}
+		update := Plan(t, source, Assignment(t, at, values[3]), Assignment(t, day, values[11]), Assignment(t, wall, values[15]), Assignment(t, part, year))
+		sentinel := errors.New("truncation rollback")
+		err = backend.Atomic(ctx, func(session db.Session) error {
+			if count, err := session.(db.QueryUpdater).QueryUpdate(ctx, update); err != nil || count != 3 {
+				t.Fatal("truncated assignment failed", count, err)
+			}
+			stored, err := read(session, project(t, ordered, function(t, query.FunctionDate, atValue), dayValue, wallValue, Field(t, part)))
+			if err != nil || len(stored) != 3 {
+				t.Fatal("truncated write could not be read", stored, err)
+			}
+			stored[0][0], stored[0][1] = dateText(t, stored[0][0]), dateText(t, stored[0][1])
+			if !reflect.DeepEqual(stored[0], []any{"2020-12-28", "1999-12-27", "12:34:56", int64(2000)}) || !reflect.DeepEqual(stored[1], []any{nil, nil, nil, nil}) {
+				t.Fatal("truncated write changed original-row assignment or NULL semantics", stored)
+			}
+			return sentinel
+		})
+		if !errors.Is(err, sentinel) || !reflect.DeepEqual(before, snapshot(t)) {
+			t.Fatal("truncated assignments escaped rollback", err)
+		}
+	})
+
 	badInstant, badDate, badTime := "'2026-02-30 00:00:00.000000'", "'1900-02-29'", "'24:00:00'"
 	if postgres {
 		badInstant, badDate, badTime = "TIMESTAMPTZ 'infinity'", "DATE '10000-01-01'", "TIME '24:00:00'"
@@ -205,10 +266,14 @@ func CheckCalendar(t *testing.T, backend interface {
 	for _, test := range []struct {
 		name, column, invalid string
 		value                 query.ScalarExpression
+		target                query.FieldRef
 	}{
-		{"invalid_datetime", "at", badInstant, function(t, query.FunctionYear, atValue)},
-		{"invalid_date", "day", badDate, year},
-		{"invalid_clock", "wall", badTime, second},
+		{"invalid_datetime", "at", badInstant, function(t, query.FunctionYear, atValue), part},
+		{"invalid_date", "day", badDate, year, part},
+		{"invalid_clock", "wall", badTime, second, part},
+		{"truncated_invalid_datetime", "at", badInstant, function(t, query.FunctionTruncYear, atValue), at},
+		{"truncated_invalid_date", "day", badDate, function(t, query.FunctionTruncDay, dayValue), day},
+		{"truncated_invalid_clock", "wall", badTime, function(t, query.FunctionTruncHour, wallValue), wall},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reset(t)
@@ -220,7 +285,7 @@ func CheckCalendar(t *testing.T, backend interface {
 				assertNative(t, err)
 			}
 			increment := Arithmetic(t, query.ArithmeticAdd, Field(t, marker), Literal(t, query.Integer(1)))
-			update := Plan(t, source, Assignment(t, marker, increment), Assignment(t, part, test.value))
+			update := Plan(t, source, Assignment(t, marker, increment), Assignment(t, test.target, test.value))
 			if count, err := backend.QueryUpdate(ctx, update); err == nil || count != 0 {
 				t.Fatal("late invalid operand left partial assignments", count, err)
 			} else {

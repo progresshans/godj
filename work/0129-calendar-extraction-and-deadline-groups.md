@@ -1,6 +1,6 @@
 # GDJ-0129: 날짜·시각 추출과 기한별 업무 조회
 
-- 상태: 검증 중 — 제품 묶음 제출, 첫 전체 CI의 테스트 구성 오류 수정과 재검증 진행
+- 상태: 전체 통합 검증 중 — 구현 연결과 생성 ORM의 양 DB 대조 완료; 환경별 범위는 TEST_EVIDENCE 참조
 - 시작: 2026-10-16
 - 기준: `7f42e7473ea85851b60685bff6c3d533aef5c158` (제품 source `012191bf`의 전체 검증과 문서 반영 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [QuerySet 기능](../docs/CAPABILITY_CATALOG.md), [시각·계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [그룹 결과](../docs/adr/0091-grouped-results-and-having.md)
@@ -8,7 +8,7 @@
 ## 필요한 기반과 소비자
 
 Helpdesk의 현재 Category에서 기한을 UTC 날짜별로 묶어 전체·열린·지연 티켓 수와 최초/최종 기한을 조회한다.
-현재 계산식은 DateTime을 이동하고 차이를 구할 수 있으나 날짜를 추출해 그룹 키로 사용할 수 없다.
+DateTime의 UTC 날짜·시간을 추출하고 이를 DB 그룹 키와 집계에 사용할 수 있도록 공통 함수 AST를 확장한다.
 조회한 페이지를 Go에서 다시 묶지 않고 공통 Query AST의 함수·그룹·필터·총수·페이지로 처리한다.
 기준 시각과 선택 날짜 범위는 입력과 페이지에 유지하며 ViewTicket·한 읽기 snapshot·전체 저장 보존을 요구한다.
 
@@ -34,10 +34,10 @@ Helpdesk의 현재 Category에서 기한을 UTC 날짜별로 묶어 전체·열�
 
 ## 완료 조건
 
-- [ ] 함수 AST·signature·source/cardinality와 양 backend의 물리 값 검사·조회/UPDATE를 연결한다.
-- [ ] Typed/dynamic·생성 소비자·후속 결과/집계와 compile 부정 대조·실패/rollback을 연결한다.
-- [ ] 고정 Django의 독립 양 DB 관측과 GoDj 차이를 실제 결과로 대조한다.
-- [ ] Helpdesk 날짜별 기한 조회·canonical 입력·typed 출력·HTML/API·client·브라우저를 연결한다.
+- [x] 함수 AST·signature·source/cardinality와 양 backend의 물리 값 검사·조회/UPDATE를 연결한다.
+- [x] Typed/dynamic·생성 소비자·후속 결과/집계와 compile 부정 대조·실패/rollback을 연결한다.
+- [x] 고정 Django의 독립 양 DB 관측과 GoDj 차이를 실제 결과로 대조한다.
+- [x] Helpdesk 날짜별 기한 조회·canonical 입력·typed 출력·HTML/API·client·브라우저를 연결한다.
 - [ ] 같은 source의 필수 전체 실행과 원본 증거를 확인하고 현행 문서에 반영한다.
 
 일반 timezone/locale 선택·달력/시계 이동·truncation·Duration scaling/division·나머지 함수와 named annotation·

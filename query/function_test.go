@@ -37,12 +37,24 @@ func TestCalendarFunctionSignaturesAndImmutableArguments(t *testing.T) {
 		{"hour", query.FunctionHour, []query.FieldKind{query.FieldDateTime, query.FieldTime}, query.FieldInteger},
 		{"minute", query.FunctionMinute, []query.FieldKind{query.FieldDateTime, query.FieldTime}, query.FieldInteger},
 		{"second", query.FunctionSecond, []query.FieldKind{query.FieldDateTime, query.FieldTime}, query.FieldInteger},
+		{"trunc_year", query.FunctionTruncYear, []query.FieldKind{query.FieldDateTime, query.FieldDate}, ""},
+		{"trunc_quarter", query.FunctionTruncQuarter, []query.FieldKind{query.FieldDateTime, query.FieldDate}, ""},
+		{"trunc_month", query.FunctionTruncMonth, []query.FieldKind{query.FieldDateTime, query.FieldDate}, ""},
+		{"trunc_week", query.FunctionTruncWeek, []query.FieldKind{query.FieldDateTime, query.FieldDate}, ""},
+		{"trunc_day", query.FunctionTruncDay, []query.FieldKind{query.FieldDateTime, query.FieldDate}, ""},
+		{"trunc_hour", query.FunctionTruncHour, []query.FieldKind{query.FieldDateTime, query.FieldTime}, ""},
+		{"trunc_minute", query.FunctionTruncMinute, []query.FieldKind{query.FieldDateTime, query.FieldTime}, ""},
+		{"trunc_second", query.FunctionTruncSecond, []query.FieldKind{query.FieldDateTime, query.FieldTime}, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			for _, kind := range []query.FieldKind{query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration, query.FieldInteger, query.FieldString, query.FieldJSON} {
 				allowed := false
 				for _, input := range test.kinds {
 					allowed = allowed || kind == input
+				}
+				resultKind := test.result
+				if resultKind == "" {
+					resultKind = kind
 				}
 				for _, nullable := range []bool{false, true} {
 					field := query.NewFieldRef("original", "original", kind, nullable)
@@ -58,7 +70,7 @@ func TestCalendarFunctionSignaturesAndImmutableArguments(t *testing.T) {
 						}
 						continue
 					}
-					if err != nil || value.Kind() != query.ScalarFunction || value.ResultKind() != test.result || value.Nullable() != nullable {
+					if err != nil || value.Kind() != query.ScalarFunction || value.ResultKind() != resultKind || value.Nullable() != nullable {
 						t.Fatal("function changed result/null domain", kind, err)
 					}
 					arguments[0] = query.ScalarExpression{}
@@ -77,7 +89,7 @@ func TestCalendarFunctionSignaturesAndImmutableArguments(t *testing.T) {
 				}
 				if allowed {
 					null := calendarFunction(t, test.function, temporalNull(t, kind))
-					if !null.Nullable() || null.ResultKind() != test.result || len(null.Fields()) != 0 {
+					if !null.Nullable() || null.ResultKind() != resultKind || len(null.Fields()) != 0 {
 						t.Fatal("typed NULL acquired a value or source field")
 					}
 				}

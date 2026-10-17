@@ -517,6 +517,10 @@ func (s *DeadlineCalendar) encodeFields(e *jx.Encoder) {
 		json.EncodeTimeFormat(e, s.AsOf, "2006-01-02T15:04:05.999999999Z07:00")
 	}
 	{
+		e.FieldStart("period")
+		s.Period.Encode(e)
+	}
+	{
 		e.FieldStart("from_date")
 		s.FromDate.Encode(e, json.EncodeDate)
 	}
@@ -538,15 +542,16 @@ func (s *DeadlineCalendar) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDeadlineCalendar = [8]string{
+var jsonFieldsNameOfDeadlineCalendar = [9]string{
 	0: "category",
 	1: "page",
 	2: "page_size",
 	3: "as_of",
-	4: "from_date",
-	5: "until_date",
-	6: "total_groups",
-	7: "results",
+	4: "period",
+	5: "from_date",
+	6: "until_date",
+	7: "total_groups",
+	8: "results",
 }
 
 // Decode decodes DeadlineCalendar from json.
@@ -554,7 +559,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode DeadlineCalendar to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -604,8 +609,18 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"as_of\"")
 			}
-		case "from_date":
+		case "period":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Period.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"period\"")
+			}
+		case "from_date":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.FromDate.Decode(d, json.DecodeDate); err != nil {
 					return err
@@ -615,7 +630,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"from_date\"")
 			}
 		case "until_date":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.UntilDate.Decode(d, json.DecodeDate); err != nil {
 					return err
@@ -625,7 +640,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"until_date\"")
 			}
 		case "total_groups":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int64()
 				s.TotalGroups = int64(v)
@@ -637,7 +652,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total_groups\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Results = make([]DeadlineCalendarResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -663,8 +678,9 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -710,6 +726,52 @@ func (s *DeadlineCalendar) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes DeadlineCalendarPeriod as json.
+func (s DeadlineCalendarPeriod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes DeadlineCalendarPeriod from json.
+func (s *DeadlineCalendarPeriod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DeadlineCalendarPeriod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch DeadlineCalendarPeriod(v) {
+	case DeadlineCalendarPeriodDay:
+		*s = DeadlineCalendarPeriodDay
+	case DeadlineCalendarPeriodWeek:
+		*s = DeadlineCalendarPeriodWeek
+	case DeadlineCalendarPeriodMonth:
+		*s = DeadlineCalendarPeriodMonth
+	case DeadlineCalendarPeriodQuarter:
+		*s = DeadlineCalendarPeriodQuarter
+	case DeadlineCalendarPeriodYear:
+		*s = DeadlineCalendarPeriodYear
+	default:
+		*s = DeadlineCalendarPeriod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s DeadlineCalendarPeriod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DeadlineCalendarPeriod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *DeadlineCalendarResultsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -720,8 +782,8 @@ func (s *DeadlineCalendarResultsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *DeadlineCalendarResultsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("date")
-		s.Date.Encode(e, json.EncodeDate)
+		e.FieldStart("period_start")
+		s.PeriodStart.Encode(e, json.EncodeDate)
 	}
 	{
 		e.FieldStart("total")
@@ -736,22 +798,22 @@ func (s *DeadlineCalendarResultsItem) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Overdue)
 	}
 	{
-		e.FieldStart("first_due_time")
-		s.FirstDueTime.Encode(e)
+		e.FieldStart("first_due_at")
+		s.FirstDueAt.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
 	}
 	{
-		e.FieldStart("last_due_time")
-		s.LastDueTime.Encode(e)
+		e.FieldStart("last_due_at")
+		s.LastDueAt.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
 	}
 }
 
 var jsonFieldsNameOfDeadlineCalendarResultsItem = [6]string{
-	0: "date",
+	0: "period_start",
 	1: "total",
 	2: "open",
 	3: "overdue",
-	4: "first_due_time",
-	5: "last_due_time",
+	4: "first_due_at",
+	5: "last_due_at",
 }
 
 // Decode decodes DeadlineCalendarResultsItem from json.
@@ -763,15 +825,15 @@ func (s *DeadlineCalendarResultsItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "date":
+		case "period_start":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.Date.Decode(d, json.DecodeDate); err != nil {
+				if err := s.PeriodStart.Decode(d, json.DecodeDate); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"date\"")
+				return errors.Wrap(err, "decode field \"period_start\"")
 			}
 		case "total":
 			requiredBitSet[0] |= 1 << 1
@@ -809,25 +871,25 @@ func (s *DeadlineCalendarResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"overdue\"")
 			}
-		case "first_due_time":
+		case "first_due_at":
 			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
-				if err := s.FirstDueTime.Decode(d); err != nil {
+				if err := s.FirstDueAt.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_due_time\"")
+				return errors.Wrap(err, "decode field \"first_due_at\"")
 			}
-		case "last_due_time":
+		case "last_due_at":
 			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				if err := s.LastDueTime.Decode(d); err != nil {
+				if err := s.LastDueAt.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_due_time\"")
+				return errors.Wrap(err, "decode field \"last_due_at\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

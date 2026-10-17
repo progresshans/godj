@@ -9,11 +9,12 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 )
 
-var errCalendarOperand = errors.New("godj: calendar extraction requires a canonical date, clock or UTC instant")
+var errCalendarOperand = errors.New("godj: calendar function requires a canonical date, clock or UTC instant")
 
 func compileSQLiteFunction(expression query.ScalarExpression, operands []string) (string, error) {
 	function, inputs, ok := expression.Function()
@@ -34,7 +35,7 @@ func sqliteCalendarFunction(_ *modernsqlite.FunctionContext, arguments []driver.
 	}
 	code, codeOK := arguments[0].(int64)
 	kind, kindOK := arguments[1].(string)
-	if !codeOK || !kindOK || code < int64(query.FunctionDate) || code > int64(query.FunctionSecond) {
+	if !codeOK || !kindOK || code < int64(query.FunctionDate) || code > int64(query.FunctionTruncSecond) {
 		return nil, errCalendarOperand
 	}
 	function := query.FunctionKind(code)
@@ -43,7 +44,8 @@ func sqliteCalendarFunction(_ *modernsqlite.FunctionContext, arguments []driver.
 		if kind != string(query.FieldDateTime) {
 			return nil, errCalendarOperand
 		}
-	case query.FunctionHour, query.FunctionMinute, query.FunctionSecond:
+	case query.FunctionHour, query.FunctionMinute, query.FunctionSecond,
+		query.FunctionTruncHour, query.FunctionTruncMinute, query.FunctionTruncSecond:
 		if kind != string(query.FieldDateTime) && kind != string(query.FieldTime) {
 			return nil, errCalendarOperand
 		}
@@ -86,6 +88,9 @@ func sqliteCalendarFunction(_ *modernsqlite.FunctionContext, arguments []driver.
 		}
 		wall = value
 	}
+	if function >= query.FunctionTruncYear && function <= query.FunctionTruncSecond {
+		return sqliteCalendarTruncation(function, query.FieldKind(kind), date, wall)
+	}
 	switch function {
 	case query.FunctionDate:
 		return date.String(), nil
@@ -120,6 +125,57 @@ func sqliteCalendarFunction(_ *modernsqlite.FunctionContext, arguments []driver.
 		return int64(day.Weekday()) + 1, nil
 	case query.FunctionISOWeekDay:
 		return int64((day.Weekday()+6)%7) + 1, nil
+	default:
+		return nil, errCalendarOperand
+	}
+}
+
+// The complete physical operand has already been validated. Truncation
+// changes calendar components; it never represents a Gregorian date as a
+// floating-point epoch or normalizes an invalid input through time.Date.
+func sqliteCalendarTruncation(function query.FunctionKind, kind query.FieldKind, date calendar.Date, wall clock.Time) (driver.Value, error) {
+	switch function {
+	case query.FunctionTruncYear:
+		date.Month, date.Day = time.January, 1
+		wall = clock.Time{}
+	case query.FunctionTruncQuarter:
+		date.Month, date.Day = (date.Month-1)/3*3+1, 1
+		wall = clock.Time{}
+	case query.FunctionTruncMonth:
+		date.Day = 1
+		wall = clock.Time{}
+	case query.FunctionTruncWeek:
+		day := time.Date(date.Year, date.Month, date.Day, 0, 0, 0, 0, time.UTC)
+		day = day.AddDate(0, 0, -int((day.Weekday()+6)%7))
+		date.Year, date.Month, date.Day = day.Date()
+		wall = clock.Time{}
+	case query.FunctionTruncDay:
+		wall = clock.Time{}
+	case query.FunctionTruncHour:
+		wall.Minute, wall.Second, wall.Microsecond = 0, 0, 0
+	case query.FunctionTruncMinute:
+		wall.Second, wall.Microsecond = 0, 0
+	case query.FunctionTruncSecond:
+		wall.Microsecond = 0
+	default:
+		return nil, errCalendarOperand
+	}
+	switch kind {
+	case query.FieldDateTime:
+		if !date.Valid() || !wall.Valid() {
+			return nil, errCalendarOperand
+		}
+		return time.Date(date.Year, date.Month, date.Day, wall.Hour, wall.Minute, wall.Second, wall.Microsecond*1000, time.UTC).Format(temporal.SQLiteLayout), nil
+	case query.FieldDate:
+		if !date.Valid() {
+			return nil, errCalendarOperand
+		}
+		return date.String(), nil
+	case query.FieldTime:
+		if !wall.Valid() {
+			return nil, errCalendarOperand
+		}
+		return wall.String(), nil
 	default:
 		return nil, errCalendarOperand
 	}

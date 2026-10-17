@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,9 @@ func pointerCalendar[T calendarValue](value *T) any {
 func dynamicCalendar(value query.Value) any {
 	if value.IsNull() {
 		return nil
+	}
+	if value, ok := value.DateTime(); ok {
+		return wireCalendar(value)
 	}
 	if value, ok := value.Date(); ok {
 		return value.String()
@@ -191,6 +195,9 @@ func calendarParts(at orm.DateTimeExpression[records.Event], day orm.DateExpress
 // caller owns preparation and rollback, including raw corrupted storage.
 func observeCalendar(t *testing.T, reader db.Session, name string) (any, error) {
 	t.Helper()
+	if strings.HasPrefix(name, "trunc_") || strings.HasPrefix(name, "update_truncated_") || strings.HasPrefix(name, "invalid_trunc_") {
+		return observeCalendarTruncation(t, reader, name)
+	}
 	f := records.EventFields
 	base := records.EventObjects.Using(reader).OrderBy(f.Code.Asc())
 	at, day, wallValue := orm.DateTime(orm.F(f.At)), orm.Date(orm.F(f.Day)), orm.Time(orm.F(f.Wall))

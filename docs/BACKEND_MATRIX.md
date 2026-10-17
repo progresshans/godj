@@ -147,9 +147,14 @@ SUM/AVG를 구현했다. SQLite의 fractional 평균과 시각을 합친 뒤 최
 원본/중간/최종 범위를 검사한다. 현재 source `012191bf`의 양 DB·세 mode native
 소비자·관측과 전체 플랫폼 통합 검증·원본 증거 대조를 완료했다. [실행 기록](status/TEST_EVIDENCE.md)을 따르고 고정 Django의
 평균 이동·범위 차이는 [DEV-0022](DEVIATIONS.md#dev-0022--temporal-계산의-정확한-범위와-평균-이동)에 기록한다.
-GDJ-0129는 UTC Date/Time 추출과 달력/시계 part의 함수 AST·typed/dynamic·양 backend 구현 및 생성/HTTP 소비자를
-작성했다. SQLite의 canonical storage class와 PostgreSQL의 finite Date/DateTime·24:00 제외 Time 입력을 추출 전에
-검사한다. 새 코드의 native·Django 비교·전체 플랫폼 검증은 아직 미완료이며 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+GDJ-0129는 UTC Date/Time 추출과 달력/시계 part의 함수 AST·typed/dynamic·양 backend 및 생성/HTTP 소비자를
+구현했다. SQLite의 canonical storage class와 PostgreSQL의 finite Date/DateTime·24:00 제외 Time 입력을 추출 전에
+검사한다. Source `153cf765`의 생성 ORM·독립 Django 비교·Helpdesk 양 DB 실행은 세 mode에서 확인했으며,
+같은 source의 전체 플랫폼 통합은 진행 중이다. 환경별 범위는 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+GDJ-0130 구현 사본은 타입을 유지하는 TruncYear/Quarter/Month/Week/Day/Hour/Minute/Second를 같은 AST에 연결한다.
+PostgreSQL은 Date의 timestamp·Time의 interval 입력 타입과 DateTime의 UTC 변환을 명시하고,
+SQLite는 원본 전체를 검사한 뒤 Gregorian 구성요소를 절삭한다. 월요일 주 시작과 작은 구성요소의 제거를 따르며
+기존 Date()/Time() cast와 구분한다. 최소 compile을 확인했지만 이 확장의 실제 양 DB·독립 관측은 아직 미검증이다.
 Date/Time 이동·Duration scaling/division·일반 named annotation과 나머지 함수는 별도 미완료 범위다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 조건부 COUNT 소비자와
 runserver 준비·진단, macOS ARM relation 소비자 분할을 보완했으며 source `012191bf`의 양 DB·세 mode·전체 플랫폼에서

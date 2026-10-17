@@ -351,6 +351,7 @@ PostgreSQL display scale을 보존하는 구현으로 주장하지 않는다. LI
 commit `fe0a859f537d4238cf49fca39073513206f83122`의
 [datetime functions](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/datetime.py),
 PostgreSQL operations와 SQLite functions를 포함한 28개 module의 byte/hash를 검사한다. Django의 BSD-3-Clause를 따르며
-GoDj 입력과 독립된 합성 fixture로 UTC TruncDate/TruncTime·Extract part·관계·집계·UPDATE·손상 source를 55개 관측한다.
+GoDj 입력과 독립된 합성 fixture로 UTC TruncDate/TruncTime·Extract part·타입을 유지하는 TruncYear..Second·관계·집계·UPDATE·
+손상 source의 95개 관측 사례를 정의한다. 새 Trunc 확장의 실제 실행은 아직 확인 중이다.
 SQL/parameter·원시 driver type/value·conversion 오류·전체 물리 열과 rollback/namespace cleanup을 보존한다.
 이 참조의 준비와 실제 실행·차이 분류는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 구분해 따른다.

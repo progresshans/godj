@@ -1,4 +1,4 @@
-"""Independent pinned Django calendar extraction observations (BSD-3-Clause).
+"""Independent pinned Django calendar function observations (BSD-3-Clause).
 
 Only synthetic inputs and upstream module identities are inputs. GoDj code,
 expected results and product receipts are not read. Each case owns a rollback
@@ -131,7 +131,8 @@ def observe(vendor):
         from django.db.models.functions import (
             ExtractDay, ExtractHour, ExtractIsoWeekDay, ExtractIsoYear, ExtractMinute,
             ExtractMonth, ExtractQuarter, ExtractSecond, ExtractWeek, ExtractWeekDay,
-            ExtractYear, TruncDate, TruncTime,
+            ExtractYear, TruncDate, TruncTime, TruncYear, TruncQuarter, TruncMonth,
+            TruncWeek, TruncDay, TruncHour, TruncMinute, TruncSecond,
         )
 
         class Schedule(models.Model):
@@ -351,6 +352,61 @@ def observe(vendor):
         action('unselected_corrupt_date', lambda: scalar(Case(When(code='never', then=ExtractYear('day')), default=Value(0))), setup=lambda: corrupt('day', bad_date))
         action('filtered_corrupt_date', lambda: aggregated(Event.objects.all(), years=Sum(ExtractYear('day'), filter=~Q(code='a'))), setup=lambda: corrupt('day', bad_date))
 
+        calendar_units = [('year', TruncYear), ('quarter', TruncQuarter), ('month', TruncMonth),
+                          ('week', TruncWeek), ('day', TruncDay)]
+        clock_units = [('hour', TruncHour), ('minute', TruncMinute), ('second', TruncSecond)]
+        for name, function in calendar_units + clock_units:
+            action('trunc_datetime_' + name, lambda function=function: scalar(function('at', tzinfo=timezone.utc)))
+        for name, function in calendar_units:
+            action('trunc_date_' + name, lambda function=function: scalar(function('day')))
+        for name, function in clock_units:
+            action('trunc_time_' + name, lambda function=function: scalar(function('wall')))
+        action('trunc_date_after_shift', lambda: scalar(TruncMonth(TruncDate(F('at') + Value(timedelta(microseconds=1)), tzinfo=timezone.utc)), base.exclude(code='h')))
+        action('trunc_clock_from_instant', lambda: scalar(TruncMinute(TruncTime('at', tzinfo=timezone.utc))))
+        for name, function in [('month', TruncMonth), ('week', TruncWeek)]:
+            action('trunc_group_' + name, lambda function=function: selected(Event.objects.values(
+                value=function(TruncDate('at', tzinfo=timezone.utc))).annotate(
+                    total=Count('id'), first=Min('at'), last=Max('at'),
+                ).order_by(F('value').asc(nulls_last=True))))
+        action('trunc_filter_month', lambda: selected(base.annotate(value=TruncMonth(TruncDate('at', tzinfo=timezone.utc))).filter(value=date(2021, 1, 1)).values('code', 'value')))
+        action('trunc_distinct_month', lambda: selected(Event.objects.annotate(value=TruncMonth(TruncDate('at', tzinfo=timezone.utc))).values('value').order_by(F('value').asc(nulls_last=True)).distinct()))
+        action('trunc_aggregate', lambda: aggregated(Event.objects.all(), first=Min(TruncWeek('day')),
+               last=Max(TruncDay('at', tzinfo=timezone.utc)), count=Count(TruncHour('wall'))))
+        action('trunc_filtered_aggregate', lambda: aggregated(Event.objects.all(), first=Min(TruncMonth('day'), filter=Q(enabled=True)), last=Max(TruncMinute('wall'), filter=Q(enabled=True))))
+        action('trunc_related', lambda: selected(base.annotate(
+            anchor=TruncMonth('schedule__anchor', tzinfo=timezone.utc), schedule_day=TruncWeek('schedule__day'),
+            detail_at=TruncSecond('detail__at', tzinfo=timezone.utc), detail_time=TruncHour('detail__wall'),
+        ).values('code', 'anchor', 'schedule_day', 'detail_at', 'detail_time')))
+        action('trunc_collection', lambda: selected(Schedule.objects.values('code').annotate(
+            first=Min(TruncMonth('events__at', tzinfo=timezone.utc)),
+            months=Count(TruncMonth('events__day'), distinct=True),
+            last=Max(TruncHour('events__wall'), filter=Q(events__enabled=True)),
+        ).order_by('code')))
+        action('trunc_case_time', lambda: scalar(Case(When(enabled=True, then=TruncHour('wall')), default=TruncSecond('wall'))))
+        action('trunc_case_date', lambda: scalar(Case(When(enabled=True, then=TruncMonth('day')), default=TruncWeek('day'))))
+
+        def update_truncated(filtered):
+            source = Event.objects.all()
+            if filtered:
+                source = source.annotate(period=TruncMonth(TruncDate('at', tzinfo=timezone.utc))).filter(period=date(2021, 1, 1))
+                changed = source.update(at=TruncDay('at', tzinfo=timezone.utc), day=TruncYear('day'))
+            else:
+                changed = source.update(at=TruncHour('at', tzinfo=timezone.utc), day=TruncWeek('day'), wall=TruncMinute('wall'), part=ExtractDay('day'))
+            return {'changed': changed, 'rows': list(base.values('code', 'at', 'day', 'wall', 'part'))}
+
+        action('update_truncated_calendar', lambda: update_truncated(False), replay=False)
+        action('update_truncated_filtered', lambda: update_truncated(True), replay=False)
+        action('invalid_trunc_date_hour', lambda: scalar(TruncHour('day')))
+        action('invalid_trunc_time_year', lambda: scalar(TruncYear('wall')))
+        action('invalid_trunc_duration_day', lambda: scalar(TruncDay(Value(timedelta(days=1)))))
+        action('trunc_invalid_date_storage', lambda: scalar(TruncDay('day')), setup=lambda: corrupt('day', bad_date))
+        action('trunc_outside_date_storage', lambda: scalar(TruncDay('day')), setup=lambda: corrupt('day', outside_date))
+        action('trunc_invalid_datetime_storage', lambda: scalar(TruncYear('at', tzinfo=timezone.utc)), setup=lambda: corrupt('at', bad_instant))
+        action('trunc_infinite_datetime_storage', lambda: scalar(TruncYear('at', tzinfo=timezone.utc)), setup=lambda: corrupt('at', infinite))
+        action('trunc_clock_24_storage', lambda: scalar(TruncHour('wall')), setup=lambda: corrupt('wall', bad_clock))
+        action('trunc_unselected_corrupt_date', lambda: scalar(Case(When(code='never', then=TruncYear('day')), default=Value(date(2000, 1, 1)))), setup=lambda: corrupt('day', bad_date))
+        action('trunc_filtered_corrupt_date', lambda: aggregated(Event.objects.all(), first=Min(TruncMonth('day'), filter=~Q(code='a'))), setup=lambda: corrupt('day', bad_date))
+
         assert physical() == before
         with connection.schema_editor() as editor:
             for model in reversed(owned_models):
@@ -394,9 +450,12 @@ if __name__ == '__main__':
         json.dump(document, output, ensure_ascii=False, indent=2, allow_nan=False)
         output.write('\n')
     names = [case['name'] for case in document['cases']]
-    assert len(names) == len(set(names)) == 55
+    assert len(names) == len(set(names)) == 95
     assert document['storage_unchanged'] and document['storage_cleaned']
-    allowed_errors = {'invalid_date_hour', 'invalid_time_year', 'invalid_duration_year', 'infinite_datetime_storage'}
+    allowed_errors = {'invalid_date_hour', 'invalid_time_year', 'invalid_duration_year', 'infinite_datetime_storage',
+                      'invalid_trunc_date_hour', 'invalid_trunc_time_year', 'invalid_trunc_duration_day',
+                      'trunc_invalid_date_storage', 'trunc_outside_date_storage',
+                      'trunc_invalid_datetime_storage', 'trunc_infinite_datetime_storage'}
     unexpected = {case['name']: case['error'] for case in document['cases'] if 'error' in case and case['name'] not in allowed_errors}
     assert not unexpected, json.dumps(unexpected, ensure_ascii=False, sort_keys=True)
     print(json.dumps({'backend': arguments.vendor, 'cases': len(names), 'sha256': hashlib.sha256(arguments.output.read_bytes()).hexdigest()}))

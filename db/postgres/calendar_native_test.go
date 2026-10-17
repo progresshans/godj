@@ -52,13 +52,31 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 	part := query.NewFieldRef("part", "part", query.FieldInteger, true)
 	source := query.NewPlan(name, []query.FieldRef{queryupdatetest.ID, at, day, wall, part})
 	value := queryupdatetest.Field(t, at)
-	functions := make([]query.ScalarExpression, 4)
+	functions := make([]query.ScalarExpression, 7)
 	selections := make([]query.ResultExpression, len(functions))
 	for index, function := range []query.FunctionKind{query.FunctionDate, query.FunctionTime, query.FunctionYear, query.FunctionSecond} {
 		functions[index], err = query.FunctionExpression(function, value)
 		if err != nil {
 			t.Fatal(err)
 		}
+		selections[index], err = query.ScalarResult(functions[index])
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	functions[4], err = query.FunctionExpression(query.FunctionTruncDay, value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	functions[5], err = query.FunctionExpression(query.FunctionTruncWeek, functions[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	functions[6], err = query.FunctionExpression(query.FunctionTruncMinute, functions[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 4; index < len(functions); index++ {
 		selections[index], err = query.ScalarResult(functions[index])
 		if err != nil {
 			t.Fatal(err)
@@ -87,7 +105,9 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 		var date time.Time
 		var clock string
 		var year, second int64
-		if err := rows.Scan(&date, &clock, &year, &second); err != nil {
+		var truncatedInstant, truncatedDate time.Time
+		var truncatedClock string
+		if err := rows.Scan(&date, &clock, &year, &second, &truncatedInstant, &truncatedDate, &truncatedClock); err != nil {
 			return errors.Join(err, rows.Close())
 		}
 		if rows.Next() {
@@ -98,6 +118,9 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 		}
 		if date.Format("2006-01-02") != "2021-01-01" || clock != "00:30:59.999999" || year != 2021 || second != 59 {
 			t.Fatal("calendar extraction used session-local components", date, clock, year, second)
+		}
+		if truncatedInstant.UTC().Format(time.RFC3339Nano) != "2021-01-01T00:00:00Z" || truncatedDate.Format("2006-01-02") != "2020-12-28" || truncatedClock != "00:30:00" {
+			t.Fatal("truncation used the session-local calendar or changed its result domain", truncatedInstant, truncatedDate, truncatedClock)
 		}
 		update := queryupdatetest.Plan(t, source, queryupdatetest.Assignment(t, day, functions[0]), queryupdatetest.Assignment(t, wall, functions[1]), queryupdatetest.Assignment(t, part, functions[2]))
 		if count, err := session.QueryUpdate(t.Context(), update); err != nil || count != 1 {
@@ -110,6 +133,17 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 		}
 		if storedDate != "2021-01-01" || storedClock != clock || storedYear != year || zone != "America/New_York" {
 			t.Fatal("calendar write changed its domain or the caller's zone", storedDate, storedClock, storedYear, zone)
+		}
+		truncatedUpdate := queryupdatetest.Plan(t, source, queryupdatetest.Assignment(t, at, functions[4]), queryupdatetest.Assignment(t, day, functions[5]), queryupdatetest.Assignment(t, wall, functions[6]))
+		if count, err := session.QueryUpdate(t.Context(), truncatedUpdate); err != nil || count != 1 {
+			t.Fatal("truncation write failed in an altered session", count, err)
+		}
+		var storedInstant time.Time
+		if err := session.transaction.QueryRowContext(t.Context(), "SELECT at,day::text,wall::text,current_setting('TimeZone') FROM "+table).Scan(&storedInstant, &storedDate, &storedClock, &zone); err != nil {
+			return err
+		}
+		if !storedInstant.Equal(truncatedInstant) || storedDate != "2020-12-28" || storedClock != "00:30:00" || zone != "America/New_York" {
+			t.Fatal("truncation write changed the caller's zone or lost the UTC period", storedInstant, storedDate, storedClock, zone)
 		}
 		return nil
 	})

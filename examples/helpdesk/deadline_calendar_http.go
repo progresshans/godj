@@ -63,7 +63,7 @@ func (page *DeadlineCalendar) get(request *web.Request, actor auth.Principal) (w
 func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalendarPage) (web.Response, error) {
 	rows := []templates.Value{}
 	category, asOf, from, until, previous, next, clear := "", "", "", "", "", "", ""
-	input := deadlineCalendarQuery{page: 1}
+	input := deadlineCalendarQuery{page: 1, period: "day"}
 	total := int64(0)
 	if result != nil {
 		input = result.query
@@ -76,17 +76,17 @@ func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalen
 		}
 		for _, row := range result.groups.Rows {
 			key, date, first, last := "unset", "Not set", "Not set", "Not set"
-			if value, present := row.day.Get(); present {
+			if value, present := row.start.Get(); present {
 				key, date = value.String(), value.String()
 			}
 			if value, present := row.first.Get(); present {
-				first = value.String()
+				first = temporal.Format(value)
 			}
 			if value, present := row.last.Get(); present {
-				last = value.String()
+				last = temporal.Format(value)
 			}
 			value, err := templates.Object(map[string]templates.Value{
-				"key": templates.String(key), "date": templates.String(date), "total": templates.Integer(row.total),
+				"key": templates.String(key), "start": templates.String(date), "total": templates.Integer(row.total),
 				"open": templates.Integer(row.open), "overdue": templates.Integer(row.overdue),
 				"first": templates.String(first), "last": templates.String(last),
 			})
@@ -96,7 +96,7 @@ func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalen
 			rows = append(rows, value)
 		}
 		link := func(number int, withRange bool) string {
-			values := url.Values{"p": {strconv.Itoa(number)}, "as_of": {asOf}}
+			values := url.Values{"p": {strconv.Itoa(number)}, "as_of": {asOf}, "period": {input.period}}
 			if withRange && input.from != nil {
 				values.Set("from_date", from)
 			}
@@ -113,9 +113,21 @@ func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalen
 			next = link(input.page+1, true)
 		}
 	}
+	periods := make([]templates.Value, 0, 5)
+	labels := map[string]string{"day": "Day", "week": "Week (Monday)", "month": "Month", "quarter": "Quarter", "year": "Year"}
+	for _, period := range deadlineCalendarPeriods() {
+		option, err := templates.Object(map[string]templates.Value{
+			"value": templates.String(period), "label": templates.String(labels[period]), "selected": templates.Bool(input.period == period),
+		})
+		if err != nil {
+			return web.Response{}, err
+		}
+		periods = append(periods, option)
+	}
 	values, err := templates.NewContext(map[string]templates.Value{
 		"has_calendar": templates.Bool(result != nil), "category": templates.String(category), "rows": templates.List(rows...),
 		"as_of": templates.String(asOf), "from": templates.String(from), "until": templates.String(until),
+		"period": templates.String(input.period), "periods": templates.List(periods...),
 		"has_from": templates.Bool(input.from != nil), "has_until": templates.Bool(input.until != nil),
 		"has_range": templates.Bool(input.from != nil || input.until != nil), "clear_range": templates.String(clear),
 		"total": templates.Integer(total), "page": templates.Integer(int64(input.page)), "previous": templates.String(previous), "next": templates.String(next),

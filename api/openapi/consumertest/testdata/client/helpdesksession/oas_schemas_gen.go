@@ -260,6 +260,7 @@ type DeadlineCalendar struct {
 	Page        int64                         `json:"page"`
 	PageSize    int64                         `json:"page_size"`
 	AsOf        time.Time                     `json:"as_of"`
+	Period      DeadlineCalendarPeriod        `json:"period"`
 	FromDate    NilDate                       `json:"from_date"`
 	UntilDate   NilDate                       `json:"until_date"`
 	TotalGroups int64                         `json:"total_groups"`
@@ -284,6 +285,11 @@ func (s *DeadlineCalendar) GetPageSize() int64 {
 // GetAsOf returns the value of AsOf.
 func (s *DeadlineCalendar) GetAsOf() time.Time {
 	return s.AsOf
+}
+
+// GetPeriod returns the value of Period.
+func (s *DeadlineCalendar) GetPeriod() DeadlineCalendarPeriod {
+	return s.Period
 }
 
 // GetFromDate returns the value of FromDate.
@@ -324,6 +330,11 @@ func (s *DeadlineCalendar) SetPageSize(val int64) {
 // SetAsOf sets the value of AsOf.
 func (s *DeadlineCalendar) SetAsOf(val time.Time) {
 	s.AsOf = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *DeadlineCalendar) SetPeriod(val DeadlineCalendarPeriod) {
+	s.Period = val
 }
 
 // SetFromDate sets the value of FromDate.
@@ -374,18 +385,80 @@ func (s *DeadlineCalendarHeaders) SetResponse(val DeadlineCalendar) {
 
 func (*DeadlineCalendarHeaders) helpdeskDeadlineCalendarRes() {}
 
-type DeadlineCalendarResultsItem struct {
-	Date         NilDate   `json:"date"`
-	Total        int64     `json:"total"`
-	Open         int64     `json:"open"`
-	Overdue      int64     `json:"overdue"`
-	FirstDueTime NilString `json:"first_due_time"`
-	LastDueTime  NilString `json:"last_due_time"`
+type DeadlineCalendarPeriod string
+
+const (
+	DeadlineCalendarPeriodDay     DeadlineCalendarPeriod = "day"
+	DeadlineCalendarPeriodWeek    DeadlineCalendarPeriod = "week"
+	DeadlineCalendarPeriodMonth   DeadlineCalendarPeriod = "month"
+	DeadlineCalendarPeriodQuarter DeadlineCalendarPeriod = "quarter"
+	DeadlineCalendarPeriodYear    DeadlineCalendarPeriod = "year"
+)
+
+// AllValues returns all DeadlineCalendarPeriod values.
+func (DeadlineCalendarPeriod) AllValues() []DeadlineCalendarPeriod {
+	return []DeadlineCalendarPeriod{
+		DeadlineCalendarPeriodDay,
+		DeadlineCalendarPeriodWeek,
+		DeadlineCalendarPeriodMonth,
+		DeadlineCalendarPeriodQuarter,
+		DeadlineCalendarPeriodYear,
+	}
 }
 
-// GetDate returns the value of Date.
-func (s *DeadlineCalendarResultsItem) GetDate() NilDate {
-	return s.Date
+// MarshalText implements encoding.TextMarshaler.
+func (s DeadlineCalendarPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case DeadlineCalendarPeriodDay:
+		return []byte(s), nil
+	case DeadlineCalendarPeriodWeek:
+		return []byte(s), nil
+	case DeadlineCalendarPeriodMonth:
+		return []byte(s), nil
+	case DeadlineCalendarPeriodQuarter:
+		return []byte(s), nil
+	case DeadlineCalendarPeriodYear:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DeadlineCalendarPeriod) UnmarshalText(data []byte) error {
+	switch DeadlineCalendarPeriod(data) {
+	case DeadlineCalendarPeriodDay:
+		*s = DeadlineCalendarPeriodDay
+		return nil
+	case DeadlineCalendarPeriodWeek:
+		*s = DeadlineCalendarPeriodWeek
+		return nil
+	case DeadlineCalendarPeriodMonth:
+		*s = DeadlineCalendarPeriodMonth
+		return nil
+	case DeadlineCalendarPeriodQuarter:
+		*s = DeadlineCalendarPeriodQuarter
+		return nil
+	case DeadlineCalendarPeriodYear:
+		*s = DeadlineCalendarPeriodYear
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DeadlineCalendarResultsItem struct {
+	PeriodStart NilDate     `json:"period_start"`
+	Total       int64       `json:"total"`
+	Open        int64       `json:"open"`
+	Overdue     int64       `json:"overdue"`
+	FirstDueAt  NilDateTime `json:"first_due_at"`
+	LastDueAt   NilDateTime `json:"last_due_at"`
+}
+
+// GetPeriodStart returns the value of PeriodStart.
+func (s *DeadlineCalendarResultsItem) GetPeriodStart() NilDate {
+	return s.PeriodStart
 }
 
 // GetTotal returns the value of Total.
@@ -403,19 +476,19 @@ func (s *DeadlineCalendarResultsItem) GetOverdue() int64 {
 	return s.Overdue
 }
 
-// GetFirstDueTime returns the value of FirstDueTime.
-func (s *DeadlineCalendarResultsItem) GetFirstDueTime() NilString {
-	return s.FirstDueTime
+// GetFirstDueAt returns the value of FirstDueAt.
+func (s *DeadlineCalendarResultsItem) GetFirstDueAt() NilDateTime {
+	return s.FirstDueAt
 }
 
-// GetLastDueTime returns the value of LastDueTime.
-func (s *DeadlineCalendarResultsItem) GetLastDueTime() NilString {
-	return s.LastDueTime
+// GetLastDueAt returns the value of LastDueAt.
+func (s *DeadlineCalendarResultsItem) GetLastDueAt() NilDateTime {
+	return s.LastDueAt
 }
 
-// SetDate sets the value of Date.
-func (s *DeadlineCalendarResultsItem) SetDate(val NilDate) {
-	s.Date = val
+// SetPeriodStart sets the value of PeriodStart.
+func (s *DeadlineCalendarResultsItem) SetPeriodStart(val NilDate) {
+	s.PeriodStart = val
 }
 
 // SetTotal sets the value of Total.
@@ -433,14 +506,14 @@ func (s *DeadlineCalendarResultsItem) SetOverdue(val int64) {
 	s.Overdue = val
 }
 
-// SetFirstDueTime sets the value of FirstDueTime.
-func (s *DeadlineCalendarResultsItem) SetFirstDueTime(val NilString) {
-	s.FirstDueTime = val
+// SetFirstDueAt sets the value of FirstDueAt.
+func (s *DeadlineCalendarResultsItem) SetFirstDueAt(val NilDateTime) {
+	s.FirstDueAt = val
 }
 
-// SetLastDueTime sets the value of LastDueTime.
-func (s *DeadlineCalendarResultsItem) SetLastDueTime(val NilString) {
-	s.LastDueTime = val
+// SetLastDueAt sets the value of LastDueAt.
+func (s *DeadlineCalendarResultsItem) SetLastDueAt(val NilDateTime) {
+	s.LastDueAt = val
 }
 
 // Ref: #/components/schemas/DeadlinePreview
@@ -807,6 +880,68 @@ func (*HelpdeskDeadlineCalendarInternalServerError) helpdeskDeadlineCalendarRes(
 type HelpdeskDeadlineCalendarNotFound GoDjAPIErrorHeaders
 
 func (*HelpdeskDeadlineCalendarNotFound) helpdeskDeadlineCalendarRes() {}
+
+type HelpdeskDeadlineCalendarPeriod string
+
+const (
+	HelpdeskDeadlineCalendarPeriodDay     HelpdeskDeadlineCalendarPeriod = "day"
+	HelpdeskDeadlineCalendarPeriodWeek    HelpdeskDeadlineCalendarPeriod = "week"
+	HelpdeskDeadlineCalendarPeriodMonth   HelpdeskDeadlineCalendarPeriod = "month"
+	HelpdeskDeadlineCalendarPeriodQuarter HelpdeskDeadlineCalendarPeriod = "quarter"
+	HelpdeskDeadlineCalendarPeriodYear    HelpdeskDeadlineCalendarPeriod = "year"
+)
+
+// AllValues returns all HelpdeskDeadlineCalendarPeriod values.
+func (HelpdeskDeadlineCalendarPeriod) AllValues() []HelpdeskDeadlineCalendarPeriod {
+	return []HelpdeskDeadlineCalendarPeriod{
+		HelpdeskDeadlineCalendarPeriodDay,
+		HelpdeskDeadlineCalendarPeriodWeek,
+		HelpdeskDeadlineCalendarPeriodMonth,
+		HelpdeskDeadlineCalendarPeriodQuarter,
+		HelpdeskDeadlineCalendarPeriodYear,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HelpdeskDeadlineCalendarPeriod) MarshalText() ([]byte, error) {
+	switch s {
+	case HelpdeskDeadlineCalendarPeriodDay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarPeriodWeek:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarPeriodMonth:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarPeriodQuarter:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarPeriodYear:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HelpdeskDeadlineCalendarPeriod) UnmarshalText(data []byte) error {
+	switch HelpdeskDeadlineCalendarPeriod(data) {
+	case HelpdeskDeadlineCalendarPeriodDay:
+		*s = HelpdeskDeadlineCalendarPeriodDay
+		return nil
+	case HelpdeskDeadlineCalendarPeriodWeek:
+		*s = HelpdeskDeadlineCalendarPeriodWeek
+		return nil
+	case HelpdeskDeadlineCalendarPeriodMonth:
+		*s = HelpdeskDeadlineCalendarPeriodMonth
+		return nil
+	case HelpdeskDeadlineCalendarPeriodQuarter:
+		*s = HelpdeskDeadlineCalendarPeriodQuarter
+		return nil
+	case HelpdeskDeadlineCalendarPeriodYear:
+		*s = HelpdeskDeadlineCalendarPeriodYear
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type HelpdeskDeadlinePreviewBadRequest GoDjAPIErrorHeaders
 
@@ -2876,6 +3011,52 @@ func (o OptDate) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDate) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHelpdeskDeadlineCalendarPeriod returns new OptHelpdeskDeadlineCalendarPeriod with value set to v.
+func NewOptHelpdeskDeadlineCalendarPeriod(v HelpdeskDeadlineCalendarPeriod) OptHelpdeskDeadlineCalendarPeriod {
+	return OptHelpdeskDeadlineCalendarPeriod{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHelpdeskDeadlineCalendarPeriod is optional HelpdeskDeadlineCalendarPeriod.
+type OptHelpdeskDeadlineCalendarPeriod struct {
+	Value HelpdeskDeadlineCalendarPeriod
+	Set   bool
+}
+
+// IsSet returns true if OptHelpdeskDeadlineCalendarPeriod was set.
+func (o OptHelpdeskDeadlineCalendarPeriod) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHelpdeskDeadlineCalendarPeriod) Reset() {
+	var v HelpdeskDeadlineCalendarPeriod
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHelpdeskDeadlineCalendarPeriod) SetTo(v HelpdeskDeadlineCalendarPeriod) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHelpdeskDeadlineCalendarPeriod) Get() (v HelpdeskDeadlineCalendarPeriod, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHelpdeskDeadlineCalendarPeriod) Or(d HelpdeskDeadlineCalendarPeriod) HelpdeskDeadlineCalendarPeriod {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -56,3 +56,30 @@ func (expression DynamicExpression) Minute() DynamicExpression {
 func (expression DynamicExpression) Second() DynamicExpression {
 	return expression.calendar(query.FunctionSecond)
 }
+
+// Trunc methods preserve the bound input type. Calendar units require Date or
+// DateTime; clock units require Time or DateTime. Instants always use UTC.
+func (expression DynamicExpression) TruncYear() DynamicExpression {
+	return expression.calendar(query.FunctionTruncYear)
+}
+func (expression DynamicExpression) TruncQuarter() DynamicExpression {
+	return expression.calendar(query.FunctionTruncQuarter)
+}
+func (expression DynamicExpression) TruncMonth() DynamicExpression {
+	return expression.calendar(query.FunctionTruncMonth)
+}
+func (expression DynamicExpression) TruncWeek() DynamicExpression {
+	return expression.calendar(query.FunctionTruncWeek)
+}
+func (expression DynamicExpression) TruncDay() DynamicExpression {
+	return expression.calendar(query.FunctionTruncDay)
+}
+func (expression DynamicExpression) TruncHour() DynamicExpression {
+	return expression.calendar(query.FunctionTruncHour)
+}
+func (expression DynamicExpression) TruncMinute() DynamicExpression {
+	return expression.calendar(query.FunctionTruncMinute)
+}
+func (expression DynamicExpression) TruncSecond() DynamicExpression {
+	return expression.calendar(query.FunctionTruncSecond)
+}

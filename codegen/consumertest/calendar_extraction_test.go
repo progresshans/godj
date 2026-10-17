@@ -106,6 +106,46 @@ var calendarReferenceCases = []string{
 	"clock_24_storage",
 	"unselected_corrupt_date",
 	"filtered_corrupt_date",
+	"trunc_datetime_year",
+	"trunc_datetime_quarter",
+	"trunc_datetime_month",
+	"trunc_datetime_week",
+	"trunc_datetime_day",
+	"trunc_datetime_hour",
+	"trunc_datetime_minute",
+	"trunc_datetime_second",
+	"trunc_date_year",
+	"trunc_date_quarter",
+	"trunc_date_month",
+	"trunc_date_week",
+	"trunc_date_day",
+	"trunc_time_hour",
+	"trunc_time_minute",
+	"trunc_time_second",
+	"trunc_date_after_shift",
+	"trunc_clock_from_instant",
+	"trunc_group_month",
+	"trunc_group_week",
+	"trunc_filter_month",
+	"trunc_distinct_month",
+	"trunc_aggregate",
+	"trunc_filtered_aggregate",
+	"trunc_related",
+	"trunc_collection",
+	"trunc_case_time",
+	"trunc_case_date",
+	"update_truncated_calendar",
+	"update_truncated_filtered",
+	"invalid_trunc_date_hour",
+	"invalid_trunc_time_year",
+	"invalid_trunc_duration_day",
+	"trunc_invalid_date_storage",
+	"trunc_outside_date_storage",
+	"trunc_invalid_datetime_storage",
+	"trunc_infinite_datetime_storage",
+	"trunc_clock_24_storage",
+	"trunc_unselected_corrupt_date",
+	"trunc_filtered_corrupt_date",
 }
 
 func TestGeneratedCalendarExtraction(t *testing.T) {
@@ -114,7 +154,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go"} {
+	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "truncation_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "calendarextraction", name))
 		if err != nil {
 			t.Fatal(err)
@@ -183,7 +223,8 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 				if !record.Unchanged {
 					t.Fatal("independent calendar case changed storage", vendor, record.Name)
 				}
-				if record.Error != nil && !slices.Contains([]string{"invalid_date_hour", "invalid_time_year", "invalid_duration_year", "infinite_datetime_storage"}, record.Name) {
+				if record.Error != nil && !slices.Contains([]string{"invalid_date_hour", "invalid_time_year", "invalid_duration_year", "infinite_datetime_storage",
+					"invalid_trunc_date_hour", "invalid_trunc_time_year", "invalid_trunc_duration_day", "trunc_invalid_date_storage", "trunc_outside_date_storage", "trunc_invalid_datetime_storage", "trunc_infinite_datetime_storage"}, record.Name) {
 					t.Fatal("unowned independent calendar error", vendor, record.Name, record.Error)
 				}
 				names = append(names, record.Name)
@@ -204,7 +245,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 			continue
 		}
 		required = append(required, "TestCalendarRuntime/"+vendor)
-		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets"} {
+		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "truncated_typed_dynamic_and_boundaries", "truncated_groups_relations_and_stages", "truncated_updates_and_failures"} {
 			required = append(required, "TestCalendarRuntime/"+vendor+"/"+name)
 		}
 		if references != "" {
@@ -270,6 +311,12 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		{"foreign_date_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.DateTime(orm.F(planning.ScheduleFields.Anchor)).Date())`, "does not match"},
 		{"foreign_part_comparison", `_ = orm.ExactExpressions(orm.Date(orm.F(records.EventFields.Day)).Year(),orm.Date(orm.F(planning.ScheduleFields.Day)).Year())`, "does not match"},
 		{"numeric_calendar", `_ = orm.Numeric(orm.F(records.EventFields.Day))`, "ArithmeticNumber"},
+		{"date_clock_trunc", `_ = orm.Date(orm.F(records.EventFields.Day)).TruncHour()`, "TruncHour undefined"},
+		{"time_calendar_trunc", `_ = orm.Time(orm.F(records.EventFields.Wall)).TruncYear()`, "TruncYear undefined"},
+		{"duration_trunc", `_ = orm.Duration(orm.Value[records.Event](duration.Duration{})).TruncDay()`, "TruncDay undefined"},
+		{"wrong_trunc_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).TruncMonth(),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
+		{"wrong_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.At,orm.Date(orm.F(records.EventFields.Day)).TruncMonth())`, "does not match"},
+		{"foreign_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.Date(orm.F(planning.ScheduleFields.Day)).TruncMonth())`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {
 			program := "package invalid\nimport(\"time\";\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/planning\";\"github.com/progresshans/godj/duration\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ _=records.EventFields; _=planning.ScheduleFields; _=time.Time{}; _=duration.Duration{};" + invalid.expression + "\n}\n"

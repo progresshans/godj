@@ -20,6 +20,19 @@ func String() Shape[string] {
 	}}
 }
 
+// StringChoices owns a nonempty, distinct string domain shared by projection
+// and OpenAPI. An invalid value fails before any response is published.
+func StringChoices(values ...string) Shape[string] {
+	values = slices.Clone(values)
+	schema, err := openapi.EnumStrings(values...)
+	return Shape[string]{node: &node{schema: schema, err: err}, project: func(value string) (serializers.Projection, error) {
+		if !slices.Contains(values, value) {
+			return serializers.Projection{}, invalidValue("string", "output is outside the declared choices")
+		}
+		return serializers.ValueProjection(serializers.String(value)), nil
+	}}
+}
+
 func Boolean() Shape[bool] {
 	return Shape[bool]{node: &node{schema: openapi.Boolean()}, project: func(value bool) (serializers.Projection, error) {
 		return serializers.ValueProjection(serializers.Boolean(value)), nil

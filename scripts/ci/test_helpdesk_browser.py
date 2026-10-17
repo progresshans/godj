@@ -114,6 +114,12 @@ class BrowserEvidenceTest(unittest.TestCase):
                     dict(result, cases=[None] + result['cases'][1:])):
             with self.subTest(result=bad), self.assertRaises(ValueError):
                 verify_deadline_calendar(bad)
+        # Every period/form/error assertion is mandatory, including when the
+        # old daily-only receipt still has a plausible positive count.
+        for missing in DEADLINE_CALENDAR_CHECKS:
+            cases = [name for name in DEADLINE_CALENDAR_CHECKS if name != missing]
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                verify_deadline_calendar({'passed': len(cases), 'cases': cases})
 
 
 

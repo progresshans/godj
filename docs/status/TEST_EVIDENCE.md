@@ -3,7 +3,110 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
+
+### 구현 중인 작업 사본과 최소 compile
+
+2026-10-18 KST, `153cf765` 위의 미커밋 작업 사본에서 타입을 유지하는 여덟 Trunc 함수와
+typed/dynamic·SQLite/PostgreSQL 경로, 생성 소비자와 고정 Django 95개 관측 사례를 작성했다.
+참조 모듈 28개의 byte/hash가 고정 manifest와 일치함을 확인했으며 이는 source 확인이고 DB 실행이 아니다.
+Helpdesk의 구간 선택·구간 시작일 범위·전체 UTC 최초/최종 기한과 같은 enum의 output/OpenAPI를 연결했다.
+독립 client는 보관한 티켓 응답으로 모든 기간의 기대값을 계산하며 browser probe는 43개 필수 검사를 정의한다.
+
+- 기반 최소 compile: `query`, `orm`, `db/sqlite`, `db/postgres`, `codegen/consumertest`에 `go test -trimpath -run '^$'`.
+  `gdj0130-calendar-foundation-compile-ixvn_99w/receipt.json`, SHA-256
+  `6418ebc4c97599295da046967d59730da65a599c1ae183b9027e22637ba801c8`에 그 시점의 변경 source hash와 원 로그를 기록했다.
+- 생성 소비자 compile: 현재 project 정의로 새 module을 생성하고 수정한 runtime/reference fixture를 `go test -c`로 확인했다.
+  `gdj0130-calendar-consumer-compile-ctc0bdgs/receipt.json`, SHA-256
+  `deefd83fb51a160f99fcc0573e49fb474e654be76a54fd608490b2ee5855e4b5`에 정의·생성기·입력 source와 명령을 기록했다.
+
+- API 출력·Helpdesk 최소 compile: `go test -trimpath -run '^$' ./api/output ./examples/helpdesk`를 확인했다.
+  이어서 실제 설정의 스키마를 내보내고 고정 ogen으로 여섯 profile을 재생성했다. Helpdesk 스키마와 생성 파일 5개만
+  변경됐으며 나머지 5개 profile·go.mod·go.sum·ogen.yml은 byte 단위로 동일하다.
+  `gdj0130-api-client-i45g3q39/receipt.json`, SHA-256 `a7e05cea62fe8c380164a88ee8d6e0c4fe1f36724121ae8b43205e67af72c066`.
+- 갱신한 독립 client의 `go build -trimpath`도 확인했다. 새 schema와 기간별 HTTP/wire 검사 source를 포함한
+  `gdj0130-api-client-i45g3q39/consumer-compile-receipt.json`, SHA-256
+  `5d7a4805f67f99ccf53ac16fa28de2b2c069786d6dfa5f69f49516bd7aa18b9d`에 source·로그·잠금 파일 대조를 보존했다.
+- OpenAPI 부모 package도 `go test -trimpath -run '^$' ./api/openapi/consumertest`로 compile했다.
+  `gdj0130-api-client-i45g3q39/openapi-parent-compile-receipt.json`, SHA-256
+  `84ee8b9a9c25c612d0a48b03ab202bc1f67e466505ed629d8a99765328ea37d0`에 입력과 원 로그를 보존했다.
+- JS/Python 문법·필수 목록의 실행 소유자·local 문서 링크를 정적으로 대조했다. Relation 필수 목록 2,651개,
+  PostgreSQL 3,471개와 browser 43개 이름의 일치, 변경 문서의 local 링크 599개를 확인했다.
+  `gdj0130-api-client-i45g3q39/static-review.json`, SHA-256
+  `7b30c0929fde4f8da86b5ab50e94a889e63b28674af04b5d75c2f99e3a84be1d`는 그 검사 시점의 source hash를 포함한다.
+
+위 compile은 테스트 본문·DB·HTTP를 실행하지 않았다. 스키마 export는 격리된 메모리 SQLite의 설정만 구성하며
+migration·업무 조회·서버를 실행하지 않는다. 실제 양 DB·독립 Django 95개 사례·client·브라우저·원격 통합은
+남아 있으며 GDJ-0129 결과와 구분한다.
+
 ## GDJ-0129 — 날짜·시각 추출과 기한별 업무 조회
+
+### 수정 source의 검증 진행
+
+Source `153cf7652578db28fbad7bc9fae4bf107109cfce`의
+[CI 39055628082](https://github.com/progresshans/godj/actions/runs/39055628082)가 진행 중이다. PR checkout
+`e2323e354e8c56859fee2ab7c374b7060bf260e1`의 tree `c31c3e39ec13f7b45f40faa54870b699bc04e5eb`가 제출 source와
+같고 두 parent가 base/head인지 validation-plan 원 로그와 GitHub commit 자료로 확인했다.
+생성 ORM의 양 DB 비교는 normal·race·CGO0에서 확인했으며 전체 필수 실행과 플랫폼 통합은 아직 검증 중이다.
+
+Attempt 1의 macOS Intel normal 명령 제품 job `117463206216`은 targeted migrate의 외부 프로젝트 `go mod tidy`에서
+`github.com/stretchr/testify@v1.3.0`의 module 문서를 받다가 `proxy.golang.org` DNS lookup timeout으로 실패했다.
+Operator 15개 실행은 통과했지만 targeted migrate의 업무 child 실행 전 준비가 중단됐으며 최종 command gate도 실패했다.
+원 로그 37,037 byte와 metadata는 `ci-39055628082-failed-macos-command-normal/`에 보존했다.
+원 로그 SHA-256은 `878fb31855587edf10f92484a81db328198bf8e12a9c6ef27ee379709124bef0`다.
+다른 job은 계속 실행 중이며 종료 뒤 같은 source의 실패 job을 재실행해 필수 실행을 확인해야 한다.
+
+생성 calendar ORM 소비자의 세 mode owner는 성공했다. 각 원 job log·Git source·artifact와 실제 inner JSONL을
+대조해 mode마다 SQLite/PostgreSQL 필수 test 136개가 각각 한 번 run/pass·skip 0이고 compile-negative 9개도 실행된 것을 확인했다.
+각 DB의 독립 Django 55개 관측은 observer/input/module hash, 고정 runtime, SQL/parameter/native type·변환 오류와
+전체 저장 보존·정리를 함께 대조했다. 잘못된 함수 서명·native 손상 값의 의도적 차이는 DEV-0023의 범위로만 검사한다.
+자료는 `ci-39055628082-calendar-native/MODE/`에 있다. 이 결과는 생성 소비자의 세 mode·양 DB 범위이며 전체 플랫폼 완료가 아니다.
+
+| Mode | Job | `audit.json` SHA-256 |
+|---|---|---|
+| normal | `117463206021` | `dda39545495edfe6e536ed5e8e1dd78c432cc4b85b83a38ef4b6dd6e1d137063` |
+| race | `117463206042` | `7d1475634d5e36e28f680c06749f34c50ee2b6bb1dc2ca505d7ab99e343568ee` |
+| CGO0 | `117463206016` | `b5d2a759d554d486bde825eee8011280e4e0697ebd02427d6d53ea14fda08576` |
+
+현재 source의 normal integration/browser job `117463206199`은 성공했다. 원 job log·artifact digest·파일별 hash·
+probe source와 결과를 대조해 calendar 31개와 기존 summary 30·report 19·label 28·cost 22·deadline 34개 검사를 확인했다.
+전체 저장 보존과 browser/fixture/DB 정리도 확인했으며 calendar 원 화면의 날짜·시계·NULL group·범위 입력 표시를 검토했다.
+이 결과는 해당 owner의 범위이며 PostgreSQL·다른 mode·전체 플랫폼 성공을 뜻하지 않는다.
+
+- 자료: 공통 검증 디렉터리의 `ci-39055628082-browser/`
+- 부분 audit: `audit.json`, SHA-256 `8f50220d16f6de3c8b3707d2e332e7b41144d4a4ac4dfe109754d202595e2cb0`
+- Artifact `12110135126` ZIP: SHA-256 `654ba562299d298b0609d633ec0d4e2e0cb02e07131b302cf1912e682edbc059`
+- 원 job log: SHA-256 `729c3582ddf1d7fcbc74d2bb6874c748b8150a10e53f96990476e94b7a224971`
+
+Helpdesk 날짜별 조회는 세 mode에서 각각 필수 47개 run/pass·skip 0을 확인했다. Race에서는 core owner
+`117463206065`의 SQLite·공통 contract 25개와 PostgreSQL owner `117463206011`의 22개를 원 job log·artifact·
+실제 package 종료·필수 목록과 대조했다. 두 owner의 원 event를 합쳐 중복·누락 없이 전체 47개가 실행된 것을 확인했다.
+43개 날짜/NULL group의 범위·페이지·건수와 인가, 다른 Category 제외, native 손상 값·snapshot/cursor 실패,
+모든 모델/관계/audit 보존을 해당 테스트가 검사한다. 자료는 `ci-39055628082-calendar-deadline-native/`다.
+
+| Mode / owner | 검증 자료 | SHA-256 |
+|---|---|---|
+| normal | `normal-core/audit.json` | `75d7f11ef1f76ea625df473b4a019080f5c1cb9e46e70d3893739026a294b25c` |
+| race core | `race-core/audit.json` | `aa1be030b5a0bcf437ef59761afc131548675ef85eab540d05bed2ee4542ddae` |
+| race PostgreSQL | `race-core-helpdesk-postgres/audit.json` | `f917c00fb7d2bdfcc8a94b433ca956b0e1832986e7674a2f726caa0a6349e432` |
+| race 전체 47개 | `race-combined.json` | `e61b3897a4249d0776fc494f43f0b8603e3df0a7cc5dad38d3f4be647fb86739` |
+| CGO0 | `cgo0-core/audit.json` | `91a7ea2abf932a46830af11b2efe1251994bf8d2eb8a9a338218d90d811e7fe4` |
+
+독립 OpenAPI client의 normal·race·CGO0 integration도 같은 source에서 성공했다. 각 원 로그의 필터 없는 전체 package
+실행, 여섯 generated profile과 부모/자식의 동일한 필수 106개 목록, 성공 receipt·race 표기·generated drift·저장 보존
+검사 연결을 대조했다. 이 job은 개별 성공 child receipt를 따로 보존하지 않으므로 원 receipt 106개를 수집한 것으로
+표현하지 않는다. 자료는 `ci-39055628082-openapi-client/`다.
+
+| Mode | Job | `MODE/audit.json` SHA-256 |
+|---|---|---|
+| normal | `117463206199` | `0e3a7b52b7ae02399fe0a780d52e6c3ce4b5b301f34c2786883ab4f6f2b56f85` |
+| race | `117463206179` | `c34c94d2ca1b4b1d16b256d905d092ba1c9be2306867280ccf26ea910b7f2ed3` |
+| CGO0 | `117463206113` | `a7eb2bb999c438737ba36f360f2a3a1eee02faa24c383b0ab88f7f14173199ea` |
+
+직전 `873c699f`의 CI 39055196153은 새 push로 cancelled됐다. 그전에 Ubuntu amd64 race project-check job
+`117462015428`은 외부 프로젝트 dependency 준비 중 `golang.org/x/tools@v0.49.0`의 Go proxy TLS handshake timeout으로
+실패했다. 원 로그 30,394 byte와 metadata를 `ci-39055196153-failed-project-check/`에 보존했고 원 로그 SHA-256은
+`8f136c3c12b55b0d806865d77384f86c655d74b197255789ea4345c75ed50de3`다. 제품 assertion 실패나 성공으로 바꾸지 않는다.
 
 ### 첫 전체 CI 실패와 수정
 

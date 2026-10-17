@@ -416,6 +416,17 @@ func (s *DeadlineCalendar) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.Period.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "period",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
@@ -501,6 +512,23 @@ func (s *DeadlineCalendarHeaders) Validate() error {
 	return nil
 }
 
+func (s DeadlineCalendarPeriod) Validate() error {
+	switch s {
+	case "day":
+		return nil
+	case "week":
+		return nil
+	case "month":
+		return nil
+	case "quarter":
+		return nil
+	case "year":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *DeadlineCalendarResultsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -567,66 +595,6 @@ func (s *DeadlineCalendarResultsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "overdue",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.FirstDueTime.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     8,
-					MinLengthSet:  true,
-					MaxLength:     15,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         regexMap["^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{6})?$"],
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "first_due_time",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.LastDueTime.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     8,
-					MinLengthSet:  true,
-					MaxLength:     15,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         regexMap["^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{6})?$"],
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "last_due_time",
 			Error: err,
 		})
 	}
@@ -1013,6 +981,23 @@ func (s *HelpdeskDeadlineCalendarNotFound) Validate() error {
 		return err
 	}
 	return nil
+}
+
+func (s HelpdeskDeadlineCalendarPeriod) Validate() error {
+	switch s {
+	case "day":
+		return nil
+	case "week":
+		return nil
+	case "month":
+		return nil
+	case "quarter":
+		return nil
+	case "year":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *HelpdeskDeadlinePreviewBadRequest) Validate() error {
