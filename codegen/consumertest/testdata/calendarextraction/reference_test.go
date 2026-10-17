@@ -202,9 +202,9 @@ func validateCalendarScalarReplay(t *testing.T, vendor string, record calendarRe
 				nativeType = "datetime"
 			}
 			if kind == "DateField" && strings.HasPrefix(record.Name, "trunc_") {
-				// Django's date_trunc SQL returns a native timestamp and its
-				// DateField converter takes the date. GoDj explicitly casts the
-				// SQL result to Date; compare the observed public domain.
+				// Direct Trunc converts this native timestamp to Date. An
+				// enclosing CASE keeps the timestamp instead; the replay below
+				// checks that actual conversion before the model comparison.
 				nativeType = "datetime"
 			}
 		} else if kind == "IntegerField" {
@@ -245,7 +245,14 @@ func validateCalendarScalarReplay(t *testing.T, vendor string, record calendarRe
 			if err != nil || value.Format(layout) != text || offset != 0 || value.Hour() != 0 || value.Minute() != 0 || value.Second() != 0 || value.Nanosecond() != 0 {
 				t.Fatal("native truncated Date acquired a clock or non-UTC offset", record.Name, raw, err)
 			}
-			data, err := json.Marshal(value.Format("2006-01-02"))
+			convertedLayout := "2006-01-02"
+			if vendor == "postgres" && slices.Contains([]string{"trunc_case_date", "trunc_unselected_corrupt_date"}, record.Name) {
+				if !raw.Aware {
+					t.Fatal("wrapped Date lost its native timezone", record.Name, index)
+				}
+				convertedLayout = "2006-01-02T15:04:05.000000Z"
+			}
+			data, err := json.Marshal(value.Format(convertedLayout))
 			check(t, err)
 			if !jsonEqual(data, want) {
 				t.Fatal("truncated Date conversion changed its day", record.Name, index)

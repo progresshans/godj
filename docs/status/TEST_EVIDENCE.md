@@ -5,6 +5,39 @@
 
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
+### 후속 scalar replay에 남은 변환 가정 보완
+
+Source `7b108501c51826758d49839f4d7fed3dd254cdb4`의
+[CI 39071423504](https://github.com/progresshans/godj/actions/runs/39071423504)에서 normal core `117510015390`과
+race core-consumers `117510015491`이 생성 소비자의 `trunc_case_date`·`trunc_unselected_corrupt_date`에서 실패했다.
+PR checkout `5b98c7c38d664a6c0b5d4f08546414767e8b7fa2`의 tree `475b442d716e153bfd2e3c891080e139d9efcbb8`가
+제출 source와 같고 base/head parent가 맞음을 plan 원 로그와 GitHub 자료로 대조했다.
+`ci-39071423504-source-binding-and-plan.json` SHA-256은
+`47d2d0f950f306625ba934c1d972708093035abcc0c2102277307af7f72ef753`이다.
+
+여섯 사례의 모델 도메인 비교와 부정 대조는 통과했지만, 그 뒤의 `validateCalendarScalarReplay`가
+DateField의 모든 Trunc 결과를 날짜 문자열로 변환한다고 가정했다. CASE가 보존하는 aware UTC 자정 datetime을
+원시 값과 다시 대조하는 단계에서 이 두 사례만 실패했다. 앞선 로컬 재현은 정규화 비교를 확인했지만 이 후속 검사를
+함께 호출하지 않아 누락을 찾지 못했다. 관측 자료나 제품 계산의 값이 달라진 실패는 아니다.
+
+후속 검사도 이 두 PostgreSQL CASE에 한해 원래 aware UTC datetime과 정확한 변환 결과를 대조하도록 수정했다.
+원시 타입·offset·Date의 자정·NULL·code/순서 검사를 유지하고, 나머지 직접 Trunc의 Date 변환 가정은 바꾸지 않는다.
+제품 runtime·관측기·기존 42개 변조 거부 검사와 실제 필수 목록을 그대로 유지했다.
+
+같은 현재 artifact에서 성공한 단일 값 관측 129개를 추출해 후속 검사를 모두 실행하고, 여섯 CASE/집계 비교와
+기존 변조 검사를 함께 호출했다. 수정 전 CI와 같은 두 실패를 재현했으며, 동일 probe·fixture·명령으로 수정 후
+root 두 개를 포함한 137개 run/pass·skip 0과 변조 자료 42건의 거부를 확인했다. 생성 소비자 module을 compile한 뒤
+보존된 자료만 검증했으며 DB/HTTP·GoDj 제품 runtime을 실행한 증거는 아니다. 수정 source의 실제 전체 CI는 남아 있다.
+
+- 원 job 로그와 source metadata: `ci-39071423504-failed-native-o37i13_y/receipt.json`, SHA-256
+  `d7c356ccd630ae6589092dc69006f57b8bbe20be0ddfbd15fb27414877917ead`.
+- Race artifact `12116410183`의 source·GitHub digest·크기·파일 hash 대조: 같은 디렉터리의 `native-race/receipt.json`,
+  SHA-256 `a6aa6cc3d8516b14a43885fac5d613e55c1149933936265ff90f3d63e4fab1bd`.
+  원 ZIP SHA-256은 `49737b8c312ae83f9bdbe882ca166aa83aa99b17ee0b03978e0d9d5ca644ac6e`다.
+- 실패 재현: `gdj0130-calendar-scalar-replay-repair-0upeyxdq/before-receipt.json`, SHA-256
+  `582d219291ad933cdfaedf0c43017a74bb51c7b91b147fc423d3910e8aabca70`; 수정 확인 `after-receipt.json`, SHA-256
+  `47d810a6ef6d4a07d8bc1663c4fc484fc2b666564473a6bb8dc5a7e64f795949`.
+
 ### 두 번째 원격 실패: DATE scan과 바깥 expression 변환
 
 수정 source `e09a963417d76481d5598285908dabed7aa3669f`의
