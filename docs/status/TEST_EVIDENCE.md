@@ -5,6 +5,55 @@
 
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
+### 두 번째 원격 실패: DATE scan과 바깥 expression 변환
+
+수정 source `e09a963417d76481d5598285908dabed7aa3669f`의
+[CI 39068592833](https://github.com/progresshans/godj/actions/runs/39068592833)에서 독립 관측 단계는 통과했으나,
+SQLite relation runtime의 DATE 열 비교와 native 생성 소비자의 PostgreSQL 비교가 실패했다.
+PR checkout `b38b10e822c9e0cce70b8d5b1da2ee51a7cbeafa`의 tree `079bfcf1f462cf5332032f18a1eeb247f6f416e1`가
+제출 source와 같고 두 parent가 base/head인지 plan 원 로그와 GitHub 자료를 대조했다.
+`ci-39068592833-source-binding-and-plan.json` SHA-256은
+`272da8d9d5fd1160d5ec80b3dababedb06dd0a96379ee00a6193fd39a2acd05f`다. 이 실행의 전체 성공을 주장하지 않는다.
+
+SQLite `TestSQLiteCalendarFunctionsAndUpdates/truncated_values_and_updates`는 계산한 Date의 문자열과 달리
+직접 읽은 DATE 열이 `time.Time`으로 decode되는 것을 반영하지 못했다. 값은 맞지만 문자열과 직접 비교했다.
+계산식/선언된 열의 native 타입을 구분해 검사하고, 날짜 범위·UTC 자정·NULL을 확인한 뒤 전체 세 행을 대조하도록 했다.
+같은 행의 원본 대입·윤일·갱신 수·transaction rollback과 전체 물리 저장 snapshot 검사는 유지한다.
+
+로컬에서 같은 단일 SQLite subtest의 실패를 먼저 재현한 뒤 수정 후 root/child 2개 run/pass·package pass·skip 0을 확인했다.
+다른 SQLite suite·race·CGO0나 PostgreSQL을 실행한 증거는 아니다.
+`gdj0130-calendar-native-date-scan-repair-asjole18/before-receipt.json` SHA-256은
+`dd3345fcdfd3740d894714a32d9a4a26e4f105bdf2b999178eadd3e646fe570b`, `after-receipt.json`은
+`5beeb833d8beaa0d824fa54b368ad374047eaa371cb9a8f3471e77e51b859f18`이다. 명령·이전/수정 source·원 로그를 함께 보존했다.
+
+Native CGO0 core job `117501677019`의 원 로그와 artifact `12115301579`에서 생성 소비자의 세 불일치를 확인했다.
+`trunc_case_date`, `trunc_unselected_corrupt_date`, `trunc_filtered_corrupt_date`는 DateField 선언에도
+원시/변환 결과가 aware UTC 자정 datetime으로 남았다. CASE와 MIN의 outer converter가 안쪽 Trunc converter를
+이어받지 않는 것을 고정 Django 28개 module의 byte/hash 및 연결 없는 expression converter 재현으로 확인했다.
+이 차이를 명시한 여섯 사례에서만 SQL/typed parameter·native 타입/offset/정확한 값·Date 자정·NULL·열/행을
+검사한 후 새 복사본을 GoDj 모델 도메인과 비교한다. 원 관측과 제품 계산·오류/저장 계약은 바꾸지 않는다.
+
+보존된 PostgreSQL 원시 자료와 독립 SQLite 기대값으로 세 비교 실패를 재현했다. 수정 후 여섯 사례와 root의
+7개 run/pass·skip 0, 잘못된 native 타입·offset·parameter·Date clock·NULL 등 변조 자료 42건의 거부를 확인했다.
+이 비교 재현은 DB나 HTTP를 열지 않았으며 수정 source의 실제 native 재실행을 대신하지 않는다.
+
+- 실패 원 로그/metadata: `ci-39068592833-failed-calendar-date-logs-8ne8tzsc/receipt.json`, SHA-256
+  `e518a4993edcd13ce5c01ad066c47fb0d10a7f02ae2be5792bb448701ac14dac`.
+- CGO0 원 artifact의 GitHub digest·source·크기와 파일 hash 대조: 같은 디렉터리의 `native-cgo0/receipt.json`, SHA-256
+  `09fc32bf4fa9b6b9b7f603d5467a8fed595f6af8db065beb72ab3b93a89b3eae`.
+  원 ZIP은 `3172bc95425c8be01931f2ab3b4f4cdbbb3c01c86456935562db18f2092ec699`, 잘리지 않은 inner event는
+  `79adbc0b0c5658a8a2a19522da43d1f63828e65ec21c38347b4af908ab0d64c4`다.
+- Race native owner `117501677070`의 artifact `12114958027`에서도 같은 세 비교 실패를 확인했다.
+  추가 Linux amd64 CGO0 relation 실패와 원 로그·artifact를 보존한 같은 디렉터리의 `additional/receipt.json`, SHA-256
+  `3eeec41670cfa027668628f445881b5dc8185c69abc61c8e1dcef5f11e9edb0d`에 범위를 기록했다.
+- 비교 재현: `gdj0130-calendar-outer-expression-repair-10pqk7s_/before-receipt.json`, SHA-256
+  `4ca9f6fe8663be92fed379603725d6a3f30fd9c65643851080a6daf5768e7b74`; `after-receipt.json`, SHA-256
+  `8e59319c3016f15aed65ee9decbb39fb72fd1357798768438548bc54da0de9db`.
+- 고정 converter 재현: 같은 디렉터리의 `pinned-converter-replay.json`, SHA-256
+  `2ddaec1d4ef4c6b86fb823d31f31774e538ef6ddecc901d6c5d6974a14b8f7bc`.
+
+수정 묶음을 push해 실제 양 DB·세 mode·소비자·전체 플랫폼을 다시 검증한다. 필수 사례나 실패 검사를 제거하지 않았다.
+
 ### 첫 원격 관측 실패와 반환 타입 비교 보완
 
 제출 source `c1993ce606caf46f1d0700ba9a10cfd32008183f`의

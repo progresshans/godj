@@ -82,10 +82,11 @@ Date/Time 이동은 별도 미완료 범위다. GDJ-0130의 타입별 truncation
 아래 관측기의 변환 보완을 포함한 실제 비교는 검증 중이다. 위 source의 55개 관측 성공을 확장된 95개 사례의
 완료 증거로 사용하지 않는다. 모델 도메인이나 upstream 의미를 바꾸면 독립 관측과 이 기록을 함께 재검토한다.
 
-### Trunc 집계의 반환 타입
+### Trunc를 감싼 식의 반환 타입
 
-고정 Django의 PostgreSQL `Min/Max`는 안쪽 `Trunc`의 expression converter를 이어받지 않는다.
+고정 Django의 PostgreSQL `Case`와 `Min/Max`는 안쪽 `Trunc`의 expression converter를 이어받지 않는다.
 `Min(TruncWeek(Date))`와 필터가 있는 `Min(TruncMonth(Date))`는 DateField 선언에도 UTC 자정 datetime을 반환한다.
+`Case`로 감싼 Date 절삭과 선택되지 않은 절삭을 포함한 Date literal도 SQL의 결과 타입에 따라 UTC 자정 datetime으로 남는다.
 명시적 `tzinfo=UTC`의 `Max(TruncDay(DateTime))`와 collection `Min(TruncMonth(DateTime))`는 offset 없는 datetime을
 반환한다. PostgreSQL의 `AT TIME ZONE UTC` 뒤 wall timestamp와 일치하며, SQLite는 backend의 field converter가
 Date와 aware DateTime으로 변환한다. [고정 expression converter](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/expressions.py)와
@@ -93,8 +94,9 @@ Date와 aware DateTime으로 변환한다. [고정 expression converter](https:/
 
 관측기는 offset 없는 결과에 UTC를 붙이거나 이를 자체 오류로 바꾸지 않고 그대로 직렬화한다. GoDj는 모델의
 Date와 UTC DateTime 결과 도메인을 유지한다. 소비자 비교는 `trunc_aggregate`, `trunc_filtered_aggregate`,
-`trunc_collection`의 PostgreSQL 결과에서만 이 차이를 처리한다. SQL의 명시적 timezone parameter, 원시 타입·offset
-유무·정확한 값과 Date의 자정 여부, NULL·code·count·clock을 먼저 대조한다. 임의 timezone, 사라진 정밀도·열·행,
+`trunc_collection`, `trunc_case_date`, `trunc_unselected_corrupt_date`, `trunc_filtered_corrupt_date`의 PostgreSQL
+결과에서만 이 차이를 처리한다. SQL의 명시적 timezone과 parameter 타입/값, 원시 타입·offset 유무·정확한 값과
+Date의 자정 여부, NULL·code·count·clock·전체 행 수를 먼저 대조한다. 임의 timezone, 사라진 정밀도·열·행,
 다른 값이나 손상된 원본을 날짜 절삭이나 offset 보충으로 정상화하지 않는다. 이 비교 정책은 다른 사례의 불일치를 면제하지 않는다.
 
 ## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동

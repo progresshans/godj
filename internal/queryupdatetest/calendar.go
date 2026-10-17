@@ -134,13 +134,21 @@ func CheckCalendar(t *testing.T, backend interface {
 		}
 		return values, nil
 	}
-	dateText := func(t *testing.T, raw any) any {
+	dateText := func(t *testing.T, raw any, nativeDate bool) any {
 		t.Helper()
-		if !postgres || raw == nil {
+		if raw == nil {
 			return raw
 		}
+		if !nativeDate {
+			text, ok := raw.(string)
+			if !ok {
+				t.Fatal("computed SQLite Date lost its text representation", raw)
+			}
+			return text
+		}
 		date, ok := raw.(time.Time)
-		if !ok || date.Hour() != 0 || date.Minute() != 0 || date.Second() != 0 || date.Nanosecond() != 0 {
+		_, offset := date.Zone()
+		if !ok || date.Year() < 1 || date.Year() > 9999 || date.Hour() != 0 || date.Minute() != 0 || date.Second() != 0 || date.Nanosecond() != 0 || offset != 0 {
 			t.Fatal("native Date acquired a clock", raw)
 		}
 		return date.Format("2006-01-02")
@@ -169,7 +177,7 @@ func CheckCalendar(t *testing.T, backend interface {
 		if err != nil || len(rows) != 3 {
 			t.Fatal("calendar functions failed", rows, err)
 		}
-		rows[0][0] = dateText(t, rows[0][0])
+		rows[0][0] = dateText(t, rows[0][0], postgres)
 		want := []any{"2021-01-01", "23:59:59.999999", int64(2021), int64(2020), int64(1), int64(1), int64(53), int64(6), int64(5), int64(1), int64(23), int64(59), int64(59),
 			int64(2000), int64(1999), int64(1), int64(1), int64(52), int64(7), int64(6), int64(1), int64(12), int64(34), int64(56)}
 		if !reflect.DeepEqual(rows[0], want) {
@@ -180,7 +188,7 @@ func CheckCalendar(t *testing.T, backend interface {
 				t.Fatal("NULL became a zero calendar value", value)
 			}
 		}
-		if dateText(t, rows[2][0]) != "2000-02-29" || rows[2][1] != "00:00:00.000001" || !reflect.DeepEqual(before, snapshot(t)) {
+		if dateText(t, rows[2][0], postgres) != "2000-02-29" || rows[2][1] != "00:00:00.000001" || !reflect.DeepEqual(before, snapshot(t)) {
 			t.Fatal("extraction lost microseconds/leap day or changed stored rows", rows[2])
 		}
 	})
@@ -226,7 +234,7 @@ func CheckCalendar(t *testing.T, backend interface {
 			}
 		}
 		for index := 8; index < 13; index++ {
-			rows[0][index] = dateText(t, rows[0][index])
+			rows[0][index] = dateText(t, rows[0][index], postgres)
 		}
 		want := []any{"2021-01-01 00:00:00.000000", "2021-01-01 00:00:00.000000", "2021-01-01 00:00:00.000000", "2020-12-28 00:00:00.000000", "2021-01-01 00:00:00.000000", "2021-01-01 23:00:00.000000", "2021-01-01 23:59:00.000000", "2021-01-01 23:59:59.000000",
 			"2000-01-01", "2000-01-01", "2000-01-01", "1999-12-27", "2000-01-01", "12:00:00", "12:34:00", "12:34:56"}
@@ -248,8 +256,13 @@ func CheckCalendar(t *testing.T, backend interface {
 			if err != nil || len(stored) != 3 {
 				t.Fatal("truncated write could not be read", stored, err)
 			}
-			stored[0][0], stored[0][1] = dateText(t, stored[0][0]), dateText(t, stored[0][1])
-			if !reflect.DeepEqual(stored[0], []any{"2020-12-28", "1999-12-27", "12:34:56", int64(2000)}) || !reflect.DeepEqual(stored[1], []any{nil, nil, nil, nil}) {
+			for _, row := range stored {
+				// A declared DATE column is decoded as time.Time by both
+				// drivers; SQLite's computed date expression returns text.
+				row[0], row[1] = dateText(t, row[0], postgres), dateText(t, row[1], true)
+			}
+			want := [][]any{{"2020-12-28", "1999-12-27", "12:34:56", int64(2000)}, {nil, nil, nil, nil}, {"2000-02-28", "2400-02-28", "00:00:00", int64(2400)}}
+			if !reflect.DeepEqual(stored, want) {
 				t.Fatal("truncated write changed original-row assignment or NULL semantics", stored)
 			}
 			return sentinel

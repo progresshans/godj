@@ -1,6 +1,6 @@
 # GDJ-0130: 달력 구간 계산과 기간별 기한 조회
 
-- 상태: 구현 묶음과 첫 CI의 관측 비교 보완 완료, 수정 source의 실제 동작·전체 통합 미검증
+- 상태: 구현 묶음과 원격 실패의 DATE scan·CASE/집계 비교 보완 완료, 수정 source의 실제 동작·전체 통합 미검증
 - 시작: 2026-10-18
 - 기준: `153cf7652578db28fbad7bc9fae4bf107109cfce`
 - 근거: [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [함수 AST](../docs/adr/0090-query-update-and-scalar-expressions.md)
@@ -25,7 +25,7 @@ Helpdesk의 날짜별 기한 조회를 일·주·월·분기·연 단위로 확�
 - PostgreSQL은 입력 타입과 UTC를 명시해 Date/Time이나 DateTime 절삭이 세션 timezone에 의존하지 않게 한다.
   SQLite는 statement 안의 결정적 함수로 Gregorian 날짜와 microsecond clock을 계산한다. 원 epoch를 float로 바꾸지 않는다.
   고정 Django 6.1의 실제 양 DB 관측에서 정상 값·원시 SQL/type·변환 오류·저장 보존과 의도적 차이를 대조한다.
-  PostgreSQL의 Trunc 집계가 보존하는 aware/naive datetime 차이는 [DEV-0023](../docs/DEVIATIONS.md#trunc-집계의-반환-타입)의
+  PostgreSQL의 Trunc를 감싼 CASE/집계가 보존하는 aware/naive datetime 차이는 [DEV-0023](../docs/DEVIATIONS.md#trunc를-감싼-식의-반환-타입)의
   명시적 UTC·native 타입/값 검사로만 비교하며 원 관측 결과에 timezone을 붙이거나 다른 오류를 면제하지 않는다.
 - Helpdesk는 `period=day|week|month|quarter|year`를 받고 생략 시 day를 사용한다. 범위는 구간 시작일의 inclusive
   `from_date`/`until_date`이며, 부분 기간 포함 여부를 추측하지 않는다. NULL 기한은 마지막 별도 그룹이고 범위 지정 시 제외한다.

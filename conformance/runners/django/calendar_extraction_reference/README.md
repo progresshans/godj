@@ -14,11 +14,12 @@ complete native comparison remains pending until recorded in the current evidenc
 Invalid native values and impossible signatures record the real Django result/error; GoDj's stricter source validation
 must be compared explicitly rather than replacing that reference with a preferred result.
 
-PostgreSQL MIN/MAX do not inherit the inner Trunc expression converter. A Date aggregate can retain an aware midnight
-datetime, while an explicitly UTC DateTime aggregate can retain a naive wall datetime. Serialization preserves that
-distinction: naive datetimes have no offset suffix, aware datetimes use UTC, and dates remain dates. The consumer checks
-the raw type, exact value, UTC query parameters and the narrow declared aggregate differences in DEV-0023; the observer
-does not add an offset or replace these valid upstream results with a serializer assertion.
+PostgreSQL CASE and MIN/MAX do not inherit the inner Trunc expression converter. A wrapped Date can retain an aware midnight
+datetime, including a CASE with an unselected Trunc branch and a Date literal. An explicitly UTC DateTime aggregate can
+retain a naive wall datetime. Serialization preserves that distinction: naive datetimes have no offset suffix, aware
+datetimes use UTC, and dates remain dates. The consumer checks the raw type, exact value, typed UTC/query parameters,
+complete rows and the declared CASE/aggregate differences in DEV-0023; the observer does not add an offset or replace
+these valid upstream results with a serializer assertion.
 
 The three native generated-consumer owners in CI prepare the pinned runtime and run both vendors before consuming
 these documents. An observer document is evidence only when its source/input/module hashes, runtime, complete cases,

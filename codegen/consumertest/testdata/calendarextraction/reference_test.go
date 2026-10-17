@@ -282,36 +282,59 @@ func jsonEqual(a, b json.RawMessage) bool {
 	return json.Unmarshal(a, &first) == nil && json.Unmarshal(b, &second) == nil && reflect.DeepEqual(first, second)
 }
 
-// PostgreSQL's aggregate converter doesn't inherit the inner Trunc converter:
+// PostgreSQL's outer CASE/aggregate converter doesn't inherit the Trunc converter:
 // truncated Date stays an aware midnight datetime, and truncated DateTime stays
 // a naive UTC-wall datetime. Keep those observations intact and adapt only the
-// three explicit UTC-profile cases, after checking their independent raw rows.
+// declared UTC-profile cases, after checking their independent raw rows.
 func calendarTruncationReferenceResult(vendor string, record calendarReferenceCase) (json.RawMessage, error) {
-	if vendor != "postgres" || !slices.Contains([]string{"trunc_aggregate", "trunc_filtered_aggregate", "trunc_collection"}, record.Name) {
+	if vendor != "postgres" {
+		return record.Result, nil
+	}
+	type parameter struct{ kind, value string }
+	var columns []string
+	var parameters []parameter
+	zones, rowCount, rowset := 0, 1, false
+	switch record.Name {
+	case "trunc_aggregate":
+		columns = []string{"first", "last", "count"}
+		parameters = []parameter{{"str", "week"}, {"str", "day"}, {"str", "UTC"}, {"str", "hour"}}
+		zones = 1
+	case "trunc_filtered_aggregate":
+		columns = []string{"first", "last"}
+		parameters = []parameter{{"str", "month"}, {"str", "minute"}}
+	case "trunc_collection":
+		columns = []string{"code", "first", "months", "last"}
+		parameters = []parameter{{"str", "month"}, {"str", "UTC"}, {"str", "month"}, {"str", "hour"}}
+		zones, rowCount, rowset = 1, 4, true
+	case "trunc_case_date":
+		columns = []string{"code", "value"}
+		parameters = []parameter{{"str", "month"}, {"str", "week"}}
+		rowCount, rowset = 11, true
+	case "trunc_unselected_corrupt_date":
+		columns = []string{"code", "value"}
+		parameters = []parameter{{"str", "never"}, {"str", "year"}, {"date", "2000-01-01"}}
+		rowCount, rowset = 11, true
+	case "trunc_filtered_corrupt_date":
+		columns = []string{"first"}
+		parameters = []parameter{{"str", "month"}, {"str", "a"}}
+	default:
 		return record.Result, nil
 	}
 	if record.Error != nil || len(record.Statements) != 1 || !maps.Equal(record.Fields, calendarReferenceFields(record.Name)) {
-		return nil, errors.New("truncated aggregate lacks its successful field/SQL contract")
-	}
-	columns, parameters := []string{"first", "last", "count"}, []string{"week", "day", "UTC", "hour"}
-	zones := 1
-	if record.Name == "trunc_filtered_aggregate" {
-		columns, parameters, zones = []string{"first", "last"}, []string{"month", "minute"}, 0
-	} else if record.Name == "trunc_collection" {
-		columns, parameters = []string{"code", "first", "months", "last"}, []string{"month", "UTC", "month", "hour"}
+		return nil, errors.New("wrapped Trunc lacks its successful field/SQL contract")
 	}
 	statement := record.Statements[0]
 	if statement.Error != nil || statement.NativeError != nil || len(statement.Parameters) != len(parameters) || strings.Count(statement.SQL, "AT TIME ZONE %s") != zones {
-		return nil, errors.New("truncated aggregate changed its explicit UTC query")
+		return nil, errors.New("wrapped Trunc changed its explicit UTC query")
 	}
 	for index, want := range parameters {
-		data, _ := json.Marshal(want)
-		if statement.Parameters[index].Type != "str" || !jsonEqual(statement.Parameters[index].Value, data) {
-			return nil, errors.New("truncated aggregate parameter differs")
+		data, _ := json.Marshal(want.value)
+		if statement.Parameters[index].Type != want.kind || statement.Parameters[index].Aware || !jsonEqual(statement.Parameters[index].Value, data) {
+			return nil, errors.New("wrapped Trunc parameter differs")
 		}
 	}
 	var rows []map[string]json.RawMessage
-	if record.Name == "trunc_collection" {
+	if rowset {
 		if err := json.Unmarshal(record.Result, &rows); err != nil {
 			return nil, err
 		}
@@ -322,8 +345,8 @@ func calendarTruncationReferenceResult(vendor string, record calendarReferenceCa
 		}
 		rows = []map[string]json.RawMessage{row}
 	}
-	if len(rows) == 0 || len(rows) != len(statement.Rows) {
-		return nil, errors.New("truncated aggregate native row count differs")
+	if len(rows) != rowCount || len(statement.Rows) != rowCount || statement.Rowcount != int64(rowCount) {
+		return nil, errors.New("wrapped Trunc native row count differs")
 	}
 	for index, row := range rows {
 		if len(row) != len(columns) || len(statement.Rows[index]) != len(columns) {
@@ -393,7 +416,7 @@ func calendarTruncationReferenceResult(vendor string, record calendarReferenceCa
 			}
 		}
 	}
-	if record.Name == "trunc_collection" {
+	if rowset {
 		return json.Marshal(rows)
 	}
 	return json.Marshal(rows[0])
@@ -401,7 +424,14 @@ func calendarTruncationReferenceResult(vendor string, record calendarReferenceCa
 
 func checkCalendarTruncationReferenceGuards(t *testing.T, vendor string, record calendarReferenceCase) {
 	t.Helper()
-	if vendor != "postgres" || record.Name != "trunc_aggregate" {
+	if vendor != "postgres" {
+		return
+	}
+	if slices.Contains([]string{"trunc_case_date", "trunc_unselected_corrupt_date", "trunc_filtered_corrupt_date"}, record.Name) {
+		checkCalendarWrappedDateReferenceGuards(t, record)
+		return
+	}
+	if record.Name != "trunc_aggregate" {
 		return
 	}
 	original, err := json.Marshal(record)
@@ -435,6 +465,66 @@ func checkCalendarTruncationReferenceGuards(t *testing.T, vendor string, record 
 			t.Fatal("truncated aggregate comparison accepted corrupted evidence:", name)
 		}
 	}
+	t.Log("calendar truncation comparison guards rejected 9 altered records")
+}
+
+func checkCalendarWrappedDateReferenceGuards(t *testing.T, record calendarReferenceCase) {
+	t.Helper()
+	column, name, rowset := 1, "value", true
+	if record.Name == "trunc_filtered_corrupt_date" {
+		column, name, rowset = 0, "first", false
+	}
+	setResult := func(record *calendarReferenceCase, value json.RawMessage) {
+		if rowset {
+			var rows []map[string]json.RawMessage
+			check(t, json.Unmarshal(record.Result, &rows))
+			rows[0][name] = value
+			data, err := json.Marshal(rows)
+			check(t, err)
+			record.Result = data
+		} else {
+			var row map[string]json.RawMessage
+			check(t, json.Unmarshal(record.Result, &row))
+			row[name] = value
+			data, err := json.Marshal(row)
+			check(t, err)
+			record.Result = data
+		}
+	}
+	mutations := map[string]func(*calendarReferenceCase){
+		"missing native row": func(record *calendarReferenceCase) { record.Statements[0].Rows = nil },
+		"wrong rowcount":     func(record *calendarReferenceCase) { record.Statements[0].Rowcount++ },
+		"native kind":        func(record *calendarReferenceCase) { record.Statements[0].Rows[0][column].Type = "date" },
+		"lost native offset": func(record *calendarReferenceCase) { record.Statements[0].Rows[0][column].Aware = false },
+		"non-UTC native offset": func(record *calendarReferenceCase) {
+			raw := &record.Statements[0].Rows[0][column]
+			raw.Value = json.RawMessage(strings.Replace(string(raw.Value), "+00:00", "+09:00", 1))
+		},
+		"parameter kind": func(record *calendarReferenceCase) { record.Statements[0].Parameters[0].Type = "date" },
+		"parameter value": func(record *calendarReferenceCase) {
+			record.Statements[0].Parameters[0].Value = json.RawMessage(`"different"`)
+		},
+		"wrong output kind": func(record *calendarReferenceCase) { record.Fields[name] = "DateTimeField" },
+		"changed converted value": func(record *calendarReferenceCase) {
+			setResult(record, json.RawMessage(`"1988-02-29T00:00:00.000000Z"`))
+		},
+		"lost NULL identity": func(record *calendarReferenceCase) { setResult(record, json.RawMessage(`null`)) },
+		"Date contains a clock": func(record *calendarReferenceCase) {
+			record.Statements[0].Rows[0][column].Value = json.RawMessage(`"2000-01-01T12:00:00.000000+00:00"`)
+			setResult(record, json.RawMessage(`"2000-01-01T12:00:00.000000Z"`))
+		},
+	}
+	original, err := json.Marshal(record)
+	check(t, err)
+	for name, corrupt := range mutations {
+		var changed calendarReferenceCase
+		check(t, json.Unmarshal(original, &changed))
+		corrupt(&changed)
+		if _, err := calendarTruncationReferenceResult("postgres", changed); err == nil {
+			t.Fatal("wrapped Date comparison accepted corrupted evidence:", name)
+		}
+	}
+	t.Logf("calendar truncation comparison guards rejected %d altered records", len(mutations))
 }
 
 func verifyCalendarTruncationDifference(t *testing.T, vendor string, record calendarReferenceCase, value any, failure error) bool {
