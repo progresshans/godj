@@ -308,8 +308,8 @@ def observe(vendor):
         action('related_parts', lambda: selected(base.annotate(
             anchor=TruncDate('schedule__anchor', tzinfo=timezone.utc),
             schedule_year=ExtractIsoYear('schedule__day'), schedule_second=ExtractSecond('schedule__wall'),
-            detail=TruncDate('detail__at', tzinfo=timezone.utc), detail_day=ExtractWeekDay('detail__day'),
-        ).values('code', 'anchor', 'schedule_year', 'schedule_second', 'detail', 'detail_day')))
+            detail_date=TruncDate('detail__at', tzinfo=timezone.utc), detail_day=ExtractWeekDay('detail__day'),
+        ).values('code', 'anchor', 'schedule_year', 'schedule_second', 'detail_date', 'detail_day')))
         action('collection_years', lambda: selected(Schedule.objects.values('code').annotate(
             years=Sum(ExtractYear('events__at', tzinfo=timezone.utc)),
             opened=Sum(ExtractYear('events__at', tzinfo=timezone.utc), filter=Q(events__enabled=True)),

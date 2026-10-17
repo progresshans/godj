@@ -60,7 +60,7 @@ func calendarReferenceFields(name string) map[string]string {
 	case "filtered_aggregate":
 		return map[string]string{"years": "IntegerField", "dates": "IntegerField"}
 	case "related_parts":
-		return map[string]string{"anchor": "DateField", "schedule_year": "IntegerField", "schedule_second": "IntegerField", "detail": "DateField", "detail_day": "IntegerField"}
+		return map[string]string{"anchor": "DateField", "schedule_year": "IntegerField", "schedule_second": "IntegerField", "detail_date": "DateField", "detail_day": "IntegerField"}
 	case "collection_years":
 		return map[string]string{"years": "IntegerField", "opened": "IntegerField", "first": "DateField"}
 	case "literal_aggregate", "filtered_corrupt_date":

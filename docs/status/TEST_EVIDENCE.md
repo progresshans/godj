@@ -5,6 +5,32 @@
 
 ## GDJ-0129 — 날짜·시각 추출과 기한별 업무 조회
 
+### 첫 전체 CI 실패와 수정
+
+2026-10-18 KST, source `6d97eec38dcdcdda057c7bd370e1964065861bf6`의
+[CI 38877148664](https://github.com/progresshans/godj/actions/runs/38877148664), attempt 1을 확인했다.
+89개 job의 상태는 성공 71·실패 17·skip 1이며 전체 검증 성공이 아니다. 실패한 17개 원 로그를 잘림 없이 보존했다.
+
+- 세 PostgreSQL consumer owner는 선행 SQLite Django 관측의 `related_parts`에서 중단됐다. `detail` annotation이
+  같은 이름의 역방향 관계와 충돌했다. 출력 이름을 `detail_date`로 바꾸고 Go 비교 결과·출력 field 계약도 맞췄다.
+  실제 관계 `detail`과 경로는 보존했다. 이 실패 이후의 PostgreSQL native consumer 실행을 검증된 것으로 세지 않는다.
+- 12개 relation runtime 좌표에서 `TestCalendarFunctionsKeepSourceCardinalityAndResultScope`가 같은 원인으로 실패했다.
+  Nullable DateTime terminal에 이전 단일 reverse 경로 생성기를 적용한 테스트 구성을, primary key metadata를 가진
+  `NewRelationChain`으로 고쳤다. Collection 집계 전용 cardinality·source·scope·불변 복사 검사는 유지한다.
+- macOS Intel race command job은 targeted migrate의 `go mod tidy` 중 `proxy.golang.org` DNS lookup timeout으로
+  실패했다. 관련 제품 코드는 바꾸지 않고 새 전체 CI에서 해당 실행을 다시 확인한다.
+- 최종 CI 집계도 실패했고 reference/capture 검증은 선행 owner 실패로 skip됐다. 성공한 나머지 job을 포함한
+  전체 원본·필수 실행 감사는 완료되지 않았다.
+
+원 자료는 공통 검증 디렉터리의 `ci-38877148664-current/`에 있다. `failed-logs.json`의 SHA-256은
+`75d29efd0f5de182e273f6b127e35a204fa730edef9fa7b7e65f92d6183ea0d2`이며 각 원 로그의 byte 수와 hash를 기록한다.
+수정 후 로컬은 해당 Query AST 테스트 하나만 재현 실행해 run/pass·skip 0을 확인하고 Python AST·gofmt를 검사했다.
+`gdj0129-calendar-ci-repair-gye37182/receipt.json`, SHA-256
+`cdf0572cbaa1ade1ae299063b202595bd9aafae8834b68ba0048b3553c1f694a`에 변경 source hash와 원 JSONL을 보존한다.
+Django·실제 DB·HTTP·client·브라우저의 수정 결과와 같은 source의 전체 CI는 아직 미검증이다.
+
+### 구현과 최소 compile 준비
+
 2026-10-16 KST, 기준 `7f42e7473ea85851b60685bff6c3d533aef5c158` 위의 미커밋 작업 사본에서 함수 AST·typed/dynamic
 날짜/시계 capability·양 DB compiler와 입력 값 검사를 작성했다. 함수 안의 source·관계 cardinality·result scope와
 resource 한도, 실제 DB의 날짜/시계 손상·NULL·선택 CASE/FILTER·UPDATE/rollback·session timezone 검증 코드를 추가했다.

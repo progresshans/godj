@@ -145,7 +145,11 @@ func TestCalendarFunctionsKeepSourceCardinalityAndResultScope(t *testing.T) {
 	}
 	root := ir.ModelIdentity{AppLabel: "app", ModelName: "schedule"}
 	target := ir.ModelIdentity{AppLabel: "app", ModelName: "event"}
-	path, err := query.NewReverseRelationPath(target, "events", "schedule", "schedule_id", root, "schedules", "id", "events", false, at, ir.RelationOneToMany)
+	reverse, err := query.NewReverseRelationPath(target, "events", "schedule", "schedule_id", root, "schedules", "id", "events", false, id, ir.RelationOneToMany)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := query.NewRelationChain(reverse.Hops(), []query.FieldRef{id, id}, at, query.RelationTerminalRelatedField)
 	if err != nil {
 		t.Fatal(err)
 	}

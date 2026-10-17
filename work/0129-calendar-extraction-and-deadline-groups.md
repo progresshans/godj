@@ -1,6 +1,6 @@
 # GDJ-0129: 날짜·시각 추출과 기한별 업무 조회
 
-- 상태: 구현 중 — 계약과 제품 묶음 준비, 새 소스의 실제 실행은 미검증
+- 상태: 검증 중 — 제품 묶음 제출, 첫 전체 CI의 테스트 구성 오류 수정과 재검증 진행
 - 시작: 2026-10-16
 - 기준: `7f42e7473ea85851b60685bff6c3d533aef5c158` (제품 source `012191bf`의 전체 검증과 문서 반영 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [QuerySet 기능](../docs/CAPABILITY_CATALOG.md), [시각·계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [그룹 결과](../docs/adr/0091-grouped-results-and-having.md)

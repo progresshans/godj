@@ -258,7 +258,7 @@ func observeCalendar(t *testing.T, reader db.Session, name string) (any, error) 
 		}
 		schedule, detail := relations.RecordsEvent.Schedule, relations.RecordsEvent.Detail
 		selection := orm.Project5(orm.DateTime(schedule.Anchor).Date(), orm.Date(schedule.Day).ISOYear(), orm.Time(schedule.Wall).Second(), orm.DateTime(detail.At).Date(), orm.Date(detail.Day).WeekDay(), func(anchor orm.Optional[calendar.Date], year, second orm.Optional[int64], detail orm.Optional[calendar.Date], day orm.Optional[int64]) map[string]any {
-			return map[string]any{"anchor": optionalCalendar(anchor), "schedule_year": optionalCalendar(year), "schedule_second": optionalCalendar(second), "detail": optionalCalendar(detail), "detail_day": optionalCalendar(day)}
+			return map[string]any{"anchor": optionalCalendar(anchor), "schedule_year": optionalCalendar(year), "schedule_second": optionalCalendar(second), "detail_date": optionalCalendar(detail), "detail_day": optionalCalendar(day)}
 		})
 		return orm.SelectInto(t.Context(), base, orm.CombineProjections(orm.Project1(f.Code, func(code string) string { return code }), selection, func(code string, value map[string]any) map[string]any { value["code"] = code; return value }))
 	case "collection_years":
