@@ -82,11 +82,12 @@ Schema IR의 선언에서 생성한 field/facade를 새 generic API로 소비한
 
 고정 Django 관측에 배율·나눗셈·분수 합계·Float/Decimal 경계·DateTime 이동·0 나눗셈·기간 비율 11개를 추가했다.
 기존 44개와 함께 원 SQL·parameter·native replay·변환 결과·실패 단계·전체 저장 보존을 비교하도록 작성했다.
-분수의 중간 표현과 반올림 계약 차이는 양 구현의 값과 native 타입/오류를 각각 검사한다. 새 관측과 변조 거부 검사는
-아직 실행하지 않았다. 소스 검토에서 예상한 차이를 실제 native 관측 완료로 쓰지 않는다.
+분수의 중간 표현과 반올림 계약 차이는 양 구현의 값과 native 타입/오류를 각각 검사한다. 첫 CI에서 독립 SQLite 55개
+관측 뒤 완료 검사의 이전 count가 실패했다. 원본 대조·변조 거부와 완료 검사 수정을 확인했으며 실제 제품과 PG 관측은
+미검증이다. 상세 source와 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 
-다음은 현재 기반의 실제 양 DB 검증과 Helpdesk의 소요 시간 조정이다. 구현 묶음은 전체 CI에 제출하되 GDJ-0130의
-다른 source 검증과 분리한다. 라벨별 HTML/API·OpenAPI/client·브라우저와 전체 목표는 그대로 완료 대상이다.
+다음은 현재 기반의 실제 양 DB 검증과 Helpdesk의 소요 시간 조정이다. [Draft PR #2](https://github.com/progresshans/godj/pull/2)의 전체 CI에서
+검증하며 GDJ-0130의 다른 source 실행과 구분한다. 라벨별 HTML/API·OpenAPI/client·브라우저와 전체 목표는 그대로 완료 대상이다.
 
 구현 근거는 PostgreSQL의 [NUMERIC div/mod/gcd](https://www.postgresql.org/docs/17/functions-math.html),
 [bytea 인코딩](https://www.postgresql.org/docs/17/functions-binarystring.html),

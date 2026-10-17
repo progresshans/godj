@@ -367,13 +367,13 @@ if __name__ == '__main__':
     args.output.write_text(json.dumps(document, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2) + '\n')
     assert document['storage_unchanged'] and document['storage_cleaned'], 'temporal observer changed storage or failed cleanup'
     names = [case['name'] for case in document['cases']]
-    assert len(names) == len(set(names)) == 44
+    assert len(names) == len(set(names)) == 55
     # These cases intentionally observe native range/precision differences.
     # Their exact result, error stage, SQLSTATE and native values remain in the
     # raw document and are checked by the separate consuming comparison.
     boundary = {'datetime_upper_overflow', 'datetime_lower_overflow', 'duration_full_model_literal', 'duration_model_overflow',
                 'mean_fractional_shift', 'mean_integral_shift', 'mean_zero_shift', 'mean_null_shift', 'mean_reverse_shift',
-                'update_datetime_overflow', 'update_duration_overflow'}
+                'update_datetime_overflow', 'update_duration_overflow', 'scale_zero_divisor', 'duration_ratio'}
     unexpected = {case['name']: case['error'] for case in document['cases'] if 'error' in case and case['name'] not in boundary}
     assert not unexpected, json.dumps(unexpected, ensure_ascii=False, sort_keys=True)
     print(json.dumps({'backend': args.vendor, 'cases': len(names), 'sha256': hashlib.sha256(args.output.read_bytes()).hexdigest()}))

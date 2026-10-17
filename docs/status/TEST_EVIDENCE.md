@@ -119,6 +119,43 @@ Observer는 Python AST syntax만 확인했고, 두 consumer test binary를 다�
 Helpdesk의 조정 시간·HTML/API/OpenAPI/client·브라우저는 아직 연결하지 않았다. 전체 CI에 기반 묶음을 제출하며,
 그 결과를 확인하기 전 실제 지원 완료나 GDJ-0131 완료를 주장하지 않는다.
 
+### 첫 원격 제출과 관측 완료 검사 수정
+
+기반 source `6a74bd03f0121a2ec7278d4269137af41ab396f0`를 [Draft PR #2](https://github.com/progresshans/godj/pull/2)에
+제출했다. Base는 PR #1의 `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`이며, 기존 GDJ-0130 CI와 독립적으로
+[CI 39078959255](https://github.com/progresshans/godj/actions/runs/39078959255)가 자동 시작됐다.
+PR checkout `b424f72ad844dd67139f8a915b9f39f5f2be6998`의 두 parent와 tree
+`c14677d178863b54778ba685d93bccbd6434c43c`를 제출 source·run event·plan job `117531817618`의 원 로그와 대조했다.
+Binding receipt `ci-39078959255-source-binding-and-plan.json` SHA-256은
+`049ae301bd66f9caff9516dd4955390d14ac8e7f4eb26ff5d15debd278509ad2`다.
+
+PostgreSQL normal/core `117531845044`, race/core-consumers `117531845102`, CGO0/core `117531845104`는
+독립 SQLite 관측 뒤 observer의 완료 검사에서 실패했다. 관측은 55개로 늘었지만 마지막 검사가 44개를 요구했고,
+새로운 0 나눗셈·기간 비율 오류도 기존 boundary 목록에 추가되지 않았다. 첫 count assertion이 실패해 뒤의 목록 검사는
+실행되지 않았다. 제품 PostgreSQL 실행이나 생성 소비자의 실패로 표현하지 않는다.
+
+세 모드의 원 job 로그와 실패 artifact를 모두 보존하고 run/source·GitHub digest·크기·압축 경로·파일 hash를 확인했다.
+각 artifact에 고정 Django/SQLite의 55개 원 관측·native replay·변환·저장 보존·cleanup 기록이 있으며 PG 관측은 없다.
+새 11개 기록의 값·타입은 작성한 대조 규칙과 일치했다. 이 자료는 해당 실패 source의 독립 SQLite 관측이며
+수정 source의 native 제품 성공이나 전체 CI 성공이 아니다.
+
+- 로그 receipt: `ci-39078959255-failed-initial-jk2l1qiu/receipt.json`, SHA-256
+  `37020f4c11d80986d7fdffa06ebcb5b4643a4ed4082bbd90110900f56185a6cd`.
+- Artifact `12117604781`(normal), `12117599903`(race), `12117799188`(CGO0)의 원본과 목록:
+  같은 디렉터리의 `artifacts/receipt.json`, SHA-256
+  `d2b2e06dabbf58f2c19c0f77904d5f967dfe6228631e16255125537bcb7f31d4`.
+
+완료 검사를 정확히 55개와 새 boundary에 맞췄으며 관측 함수의 AST는 그대로 유지했다.
+같은 원 자료에 기존 footer를 적용해 실패를 재현하고 수정 footer의 성공, 누락·중복·저장/cleanup 실패·미소유 오류
+5건의 거부를 확인했다. `gdj0131-observer-completion-repair-emqt28vl/receipt.json` SHA-256은
+`75db10dc0678851137f1433de5f15aba9f811588ddf1f8a780e2bfe95ecbc28f`다.
+
+별도 생성 module에서 저장된 새 11개 원본만 대조하고 13개 변조 거부 검사를 실행했다. 두 root를 포함해 13개
+run/pass·skip 0이며, DB/GoDj query/독립 observer를 다시 실행하지 않았다.
+`gdj0131-captured-reference-replay-nywf5wy5/receipt.json`, SHA-256
+`d56188ce2aa8f980ab376a4b2f6b6cd4d5e47aa0329091458fba194872998d1e`에 정확한 명령·원 이벤트를 보존했다.
+후속 source를 push해 전체 CI에서 새 관측과 실제 제품 경로를 다시 검증한다.
+
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
 후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의
