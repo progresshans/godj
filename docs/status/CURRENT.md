@@ -21,7 +21,7 @@ API/HTML·기간 선택·브라우저 검증 코드를 연결했으며 실제 �
 
 GDJ-0131은 최종 읽기/쓰기까지 정확한 분수를 유지하는 Duration 배율·나눗셈·비율을
 양 backend와 생성 소비자에 연결했다. 최소 compile과 새 타입 오용 거부를 확인했으며 독립 Django 비교 코드도 작성했다.
-[Draft PR #2](https://github.com/progresshans/godj/pull/2)의 첫 CI에서 독립 SQLite 관측 뒤 완료 검사 누락을 확인해 수정했다.
+[Draft PR #2](https://github.com/progresshans/godj/pull/2)의 첫 CI에서 관측 완료 검사와 새 계산 패키지의 source 결합 누락을 확인해 수정했다.
 실제 제품 DB 실행·PG 관측과 Helpdesk 연결은 미완료다. 후속 source의 전체 CI를 확인하며
 지원·환경별 검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 

@@ -156,6 +156,26 @@ run/pass·skip 0이며, DB/GoDj query/독립 observer를 다시 실행하지 않
 `d56188ce2aa8f980ab376a4b2f6b6cd4d5e47aa0329091458fba194872998d1e`에 정확한 명령·원 이벤트를 보존했다.
 후속 source를 push해 전체 CI에서 새 관측과 실제 제품 경로를 다시 검증한다.
 
+### 같은 첫 실행의 새 native 의존성 결합 보완
+
+같은 `6a74bd03` 실행의 Portable Go normal/conformance `117531845205`에서도 실패를 확인했다.
+두 attestation의 `TestSourceBindingOwnsNativeProductDependencies`가 새 `internal/durationcalc`의
+세 제품 파일과 디렉터리 symlink 보호 경로의 source 결합 누락을 검출했다. 실제 dependency closure 검사는 유지했다.
+원 job metadata·로그는 위 실패 디렉터리의 `portable/receipt.json`에 있으며 SHA-256은
+`c7c412e6039e163027207a86172664a1803dedfccdc66d5285546247a7df28ba`다.
+
+System-state와 project-operator-product source inventory에 이 계산 패키지를 명시적으로 추가했다.
+`value.go`·`key.go`·`aggregate.go` 각각의 변경이 기존 binding을 무효화하는 검사도 양 경로에 연결했다.
+같은 두 dependency 검사를 로컬에서 실행해 수정 전 CI와 같은 두 실패, 수정 후 두 PASS를 확인했다.
+새 변경 무효화 사례만 실행해 부모 두 개를 포함한 8 run/pass·skip 0도 확인했다. 기존 형식·파일 경계·symlink 거부를
+넓혀 우회시키거나 native 의존성 누락 검사를 제거하지 않았다. DB/native product runtime의 검증은 아니다.
+
+`gdj0131-duration-source-binding-repair-f2ll9qpb/receipt.json`, SHA-256
+`841cd8c205c5674019d818dea9a30d82d4b45057f2236d766ea599978f0ae1c9`에 명령·수정 전후 원 이벤트와 네 Go 파일 hash를
+보존했다. 관측 완료 검사 수정 source `89dc3028b819c107fd5ce450b19003f4f9c61bc6`의
+[CI 39079352095](https://github.com/progresshans/godj/actions/runs/39079352095)는 이 의존성 수정을 포함하지 않는다.
+새 묶음의 전체 CI를 다시 확인한다. 이전 source의 일부 성공이나 취소를 현재 전체 PASS로 계산하지 않는다.
+
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
 후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의
