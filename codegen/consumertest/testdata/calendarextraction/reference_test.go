@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"math/big"
 	"os"
 	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -182,9 +182,14 @@ func validateCalendarScalarReplay(t *testing.T, vendor string, record calendarRe
 		if nativeType == "Decimal" {
 			var text string
 			check(t, json.Unmarshal(raw.Value, &text))
-			value, err := strconv.ParseInt(text, 10, 64)
-			check(t, err)
-			if !jsonEqual(json.RawMessage(strconv.FormatInt(value, 10)), want) {
+			// EXTRACT(SECOND) retains numeric scale even after DATE_TRUNC,
+			// so an integral native value can be written as "59.000000".
+			// Compare its exact value without rounding a fractional result.
+			value, ok := new(big.Rat).SetString(text)
+			if !ok || !value.IsInt() || !value.Num().IsInt64() {
+				t.Fatal("native calendar Decimal is not an exact int64", record.Name, index, text)
+			}
+			if !jsonEqual(json.RawMessage(value.Num().String()), want) {
 				t.Fatal("numeric calendar conversion changed", record.Name, index)
 			}
 		} else if nativeType == "time" {

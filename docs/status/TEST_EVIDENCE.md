@@ -29,6 +29,27 @@
 `cdf0572cbaa1ade1ae299063b202595bd9aafae8834b68ba0048b3553c1f694a`에 변경 source hash와 원 JSONL을 보존한다.
 Django·실제 DB·HTTP·client·브라우저의 수정 결과와 같은 source의 전체 CI는 아직 미검증이다.
 
+### 원시 numeric 결과 대조 보완
+
+후속 source `45ae4393a556b5b6832d89df2ee113f456ec505b`의
+[CI 39054442016](https://github.com/progresshans/godj/actions/runs/39054442016)에서 세 native consumer owner 모두
+독립 calendar observer의 SQLite·PostgreSQL 실행 단계를 통과했다. 이 관측 시점에는 전체 CI와 GoDj 비교가 진행 중이므로
+새 source의 전체 성공이나 55개 비교 완료로 계산하지 않는다.
+
+비교 코드를 검토하며 PostgreSQL `EXTRACT(SECOND)`의 integral numeric도 `59.000000`처럼 scale을 유지한다는
+[공식 동작](https://www.postgresql.org/docs/17/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT)을 확인했다.
+고정 Django의 `DATE_TRUNC`는 소수 초를 없애지만 native numeric의 표기를 정수 문자열로 바꾸지 않는다.
+기존 Go 비교기의 `ParseInt`가 이 값을 거부하는 것을 실제 helper의 격리 실행으로 재현했다.
+`math/big.Rat`로 정확한 값이 int64 정수임을 검사한 뒤 변환 결과와 비교하도록 고쳤으며 반올림·float 변환은 하지 않는다.
+
+기존 helper의 실패 1개, 수정 helper의 정상 값 3개와 거부 대조 4개를 원 JSONL로 보존했다. `59.000000`·`0.000000`·
+`-1`은 일치하고 `59.000001`·int64 초과·Infinity·기대와 다른 정수 값은 거부한다. 이 격리 검사는 실제 DB 실행이 아니다.
+`gdj0129-calendar-replay-repro-o0ha89x3/receipt.json`, SHA-256
+`d4f1b301c7e9eb85518365049cc11a81d1a2fa67864cf06f88f398181329be96`에 이전/수정 source hash와 각 결과를 기록했다.
+수정 reference를 포함한 생성 소비자 compile receipt는 `gdj0129-calendar-native-replay-compile-902pnoeb/receipt.json`,
+SHA-256 `30d5b4be59678e918b3ad4d1fdfce671f8d016916035e4d55d1b2e11da92cb1b`다. 제품 코드와 독립 observer는 바꾸지 않았다.
+수정 묶음을 push해 전체 CI를 갱신하고 같은 source의 실제 비교·필수 실행·원본 자료를 확인한다.
+
 ### 구현과 최소 compile 준비
 
 2026-10-16 KST, 기준 `7f42e7473ea85851b60685bff6c3d533aef5c158` 위의 미커밋 작업 사본에서 함수 AST·typed/dynamic
