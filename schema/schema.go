@@ -3,7 +3,19 @@
 // model packages.
 package schema
 
-import "github.com/progresshans/godj/schema/ir"
+import (
+	"github.com/progresshans/godj/binaryvalue"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uuid"
+	"time"
+)
 
 type Definition struct {
 	AppLabel string
@@ -11,21 +23,48 @@ type Definition struct {
 }
 
 type Model struct {
-	Name    string
-	GoName  string
-	DBTable string
-	Fields  []Field
+	Name              string
+	GoName            string
+	DBTable           string
+	Fields            []Field
+	UniqueConstraints []UniqueConstraint
+	ManyToMany        []ManyToManyField
 }
 
+// UniqueConstraint names a model-level constraint over logical field names.
+// Fields retain their order; SQL NULLs remain distinct. A declaration's name
+// identifies its migration ownership within the model, not a raw SQL name.
+type UniqueConstraint = ir.UniqueConstraint
+
 type Field struct {
-	Name      string
-	GoName    string
-	Column    string
-	Kind      ir.FieldKind
-	Nullable  bool
-	MaxLength int
-	Default   *ir.ScalarDefault
+	WidthField   string
+	HeightField  string
+	Name         string
+	GoName       string
+	Column       string
+	Kind         ir.FieldKind
+	Nullable     bool
+	Blank        bool
+	NonEditable  bool
+	Unique       bool
+	DBIndex      bool
+	AllowUnicode bool
+	MaxLength    int
+	Decimal      *ir.DecimalSpec
+	Default      *ir.Scalar
+	Choices      []ir.Choice
+	Relation     *ir.ForeignKeyRelation
 }
+
+type ModelTarget = ir.ModelIdentity
+type ReverseRelation = ir.ReverseRelation
+type DeletePolicy = ir.DeletePolicy
+
+const (
+	Protect = ir.DeleteProtect
+	SetNull = ir.DeleteSetNull
+	Cascade = ir.DeleteCascade
+)
 
 type FieldOption func(*Field)
 
@@ -35,6 +74,38 @@ func Nullable() FieldOption {
 	}
 }
 
+// Blank permits empty model input independently of SQL NULL storage.
+func Blank() FieldOption {
+	return func(field *Field) { field.Blank = true }
+}
+
+// Editable controls model-derived Form/Admin and serializer input. It does not
+// restrict server-side ORM writes. BinaryField defaults to non-editable.
+func Editable(enabled bool) FieldOption {
+	return func(field *Field) { field.NonEditable = !enabled }
+}
+
+// Unique requires table-wide uniqueness for non-NULL stored values. A primary
+// key already has this property and does not receive a second constraint.
+// Migration execution requires the backend's UniqueConstraints capability.
+func Unique() FieldOption {
+	return func(field *Field) {
+		field.Unique = true
+	}
+}
+
+// DBIndex declares a non-unique index on this stored column. Primary keys and
+// column uniqueness already supply an index, so no redundant index is created.
+func DBIndex(enabled bool) FieldOption {
+	return func(field *Field) { field.DBIndex = enabled }
+}
+
+// AllowUnicode permits pinned Unicode letters and numbers in Slug input.
+// It never lowercases, normalizes or generates a stored slug.
+func AllowUnicode(enabled bool) FieldOption {
+	return func(field *Field) { field.AllowUnicode = enabled }
+}
+
 func Column(name string) FieldOption {
 	return func(field *Field) {
 		field.Column = name
@@ -42,27 +113,170 @@ func Column(name string) FieldOption {
 }
 
 // Default records an explicitly typed application default. Exact scalar
-// types keep the declaration surface small for the M2 field subset while
-// preserving false and empty string as present values in Schema IR v2.
+// types keep defaults explicit while preserving zero, false and empty string
+// as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID | jsonvalue.Value | binaryvalue.Value
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
 	return func(field *Field) {
 		switch typed := any(value).(type) {
+		case binaryvalue.Value:
+			field.Default = &ir.Scalar{Kind: ir.ScalarBinary, Binary: "!"}
+			if typed.Valid() {
+				field.Default.Binary = typed.Base64()
+			}
 		case string:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
+		case jsonvalue.Value:
+			field.Default = &ir.Scalar{Kind: ir.ScalarJSON}
+			if canonical, err := typed.Canonical(); err == nil {
+				field.Default.JSON = canonical.Text
+			}
+		case uuid.UUID:
+			field.Default = &ir.Scalar{Kind: ir.ScalarUUID, UUID: typed.String()}
+		case decimal.Decimal:
+			field.Default = &ir.Scalar{Kind: ir.ScalarDecimal}
+			if typed.Valid() {
+				field.Default.Decimal = typed.String()
+			}
+		case duration.Duration:
+			field.Default = &ir.Scalar{Kind: ir.ScalarDuration}
+			if typed.Valid() {
+				field.Default.Duration = typed.String()
+			}
+		case clock.Time:
+			field.Default = &ir.Scalar{Kind: ir.ScalarTime}
+			if typed.Valid() {
+				field.Default.Time = typed.String()
+			}
+		case calendar.Date:
+			field.Default = &ir.Scalar{Kind: ir.ScalarDate}
+			if typed.Valid() {
+				field.Default.Date = typed.String()
+			}
+		case time.Time:
+			canonical, err := temporal.Canonical(typed)
+			field.Default = &ir.Scalar{Kind: ir.ScalarDateTime}
+			if err == nil {
+				field.Default.DateTime = temporal.Format(canonical)
+			}
+		case float64:
+			field.Default = &ir.Scalar{Kind: ir.ScalarFloat, FloatBits: floatvalue.Bits(typed)}
 		case int64:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: typed}
 		}
 	}
 }
 
 func CharField(name, goName string, maxLength int, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldChar, maxLength, options)
+}
+
+// EmailField stores a bounded string with email input semantics. Its default
+// length is 254 characters. ORM storage does not implicitly run form validators.
+func EmailField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldEmail, 254, options)
+}
+
+// URLField stores a bounded string with URL input semantics. Its default
+// maximum is 200 characters; ordinary ORM writes preserve the supplied text.
+func URLField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldURL, 200, options)
+}
+
+// SlugField stores a case-preserving string with slug input semantics, a
+// default 50-character limit and a default column index. ORM writes do not
+// implicitly validate slug syntax. DBIndex(false) disables the index.
+func SlugField(name, goName string, options ...FieldOption) Field {
+	defaults := append([]FieldOption{DBIndex(true)}, options...)
+	return newField(name, goName, ir.FieldSlug, 50, defaults)
+}
+
+// FileField stores a storage-relative name, never an upload or an open file.
+// The default limit is 100 Unicode characters. Storage selection and naming
+// are explicit runtime operations; model writes never perform hidden file I/O.
+func FileField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldFile, 100, options)
+}
+
+// ImageField stores a storage name and selects verified image form input.
+// ImageDimensions declares optional integer fields owned by image preparation.
+func ImageField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldImage, 100, options)
+}
+func ImageDimensions(widthField, heightField string) FieldOption {
+	return func(field *Field) { field.WidthField, field.HeightField = widthField, heightField }
+}
+
+// MaxLength overrides a bounded string's character limit or Binary's decoded
+// byte input limit. Binary permits zero for no declared input length limit.
+// Normalization rejects this option on kinds without a length declaration.
+func MaxLength(limit int) FieldOption {
+	return func(field *Field) { field.MaxLength = limit }
+}
+
+// TextField stores a Unicode string without a declared storage length limit.
+// HTTP and form input budgets remain explicit application choices.
+func TextField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldText, 0, options)
+}
+
+// DecimalField stores finite exact values within an explicit precision/scale.
+func DecimalField(name, goName string, maxDigits, decimalPlaces int, options ...FieldOption) Field {
+	field := Field{Name: name, GoName: goName, Kind: ir.FieldDecimal, Decimal: &ir.DecimalSpec{MaxDigits: maxDigits, DecimalPlaces: decimalPlaces}}
+	for _, option := range options {
+		if option != nil {
+			option(&field)
+		}
+	}
+	return field
+}
+
+// UUIDField stores one exact 128-bit UUID; the zero UUID is a present value.
+func UUIDField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldUUID, 0, options)
+}
+
+// BinaryField stores owned bytes, with an optional byte input length limit.
+// It is non-editable by default; Editable(true) enables explicit base64 input.
+func BinaryField(name, goName string, options ...FieldOption) Field {
+	defaults := append([]FieldOption{Editable(false)}, options...)
+	return newField(name, goName, ir.FieldBinary, 0, defaults)
+}
+
+// JSONField stores an independently owned JSON document. JSON null is a
+// present document; Nullable permits the separate SQL NULL model state.
+func JSONField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldJSON, 0, options)
+}
+
+// FloatField stores a binary64 value. Each backend owns its storage limits.
+func FloatField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldFloat, 0, options)
+}
+
+// DurationField stores a normalized elapsed value with microsecond precision.
+func DurationField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldDuration, 0, options)
+}
+
+// TimeField stores microsecond clock components without a date or time zone.
+func TimeField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldTime, 0, options)
+}
+
+// DateField stores a Gregorian calendar day without a clock or time zone.
+func DateField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldDate, 0, options)
+}
+
+// DateTimeField stores an instant as UTC microseconds; zero time is a value.
+func DateTimeField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldDateTime, 0, options)
 }
 
 func BooleanField(name, goName string, options ...FieldOption) Field {
@@ -73,34 +287,114 @@ func AutoField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldAuto, 0, options)
 }
 
+// IntegerField stores a signed 64-bit integer, independently of the Go target
+// architecture. Unlike AutoField, it is an ordinary writable, optionally
+// nullable scalar and may have an explicit int64 application default.
+func IntegerField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldInteger, 0, options)
+}
+
+func Target(appLabel, modelName string) ModelTarget {
+	return ModelTarget{AppLabel: appLabel, ModelName: modelName}
+}
+
+func RelatedName(name string) ReverseRelation {
+	return ReverseRelation{Name: name}
+}
+
+func NoReverse() ReverseRelation {
+	return ReverseRelation{Disabled: true}
+}
+
+func ForeignKey(
+	name, goName string,
+	target ModelTarget,
+	reverse ReverseRelation,
+	onDelete DeletePolicy,
+	options ...FieldOption,
+) Field {
+	field := Field{
+		Name:   name,
+		GoName: goName,
+		Column: name + "_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      target,
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     reverse,
+			OnDelete:    onDelete,
+		},
+	}
+	for _, option := range options {
+		if option != nil {
+			option(&field)
+		}
+	}
+	return field
+}
+
+// OneToOne declares a foreign key with a distinct, single-object reverse
+// relation. A zero reverse declaration defaults to the source model name;
+// NoReverse disables it. The normalized IR always enforces column uniqueness.
+func OneToOne(
+	name, goName string,
+	target ModelTarget,
+	reverse ReverseRelation,
+	onDelete DeletePolicy,
+	options ...FieldOption,
+) Field {
+	field := ForeignKey(name, goName, target, reverse, onDelete, options...)
+	if field.Relation != nil {
+		field.Relation.Cardinality = ir.RelationOneToOne
+	}
+	field.Unique = true
+	return field
+}
+
 func Build(definition Definition) (ir.Schema, error) {
 	result := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      definition.AppLabel,
 		Models:        make([]ir.Model, len(definition.Models)),
 	}
 	for modelIndex, model := range definition.Models {
 		result.Models[modelIndex] = ir.Model{
-			Name:    model.Name,
-			GoName:  model.GoName,
-			DBTable: model.DBTable,
-			Fields:  make([]ir.Field, len(model.Fields)),
+			Name:              model.Name,
+			GoName:            model.GoName,
+			DBTable:           model.DBTable,
+			Fields:            make([]ir.Field, len(model.Fields)),
+			UniqueConstraints: model.UniqueConstraints,
+			ManyToMany:        model.ManyToMany,
 		}
 		for fieldIndex, field := range model.Fields {
-			var defaultValue *ir.ScalarDefault
+			var defaultValue *ir.Scalar
 			if field.Default != nil {
 				copy := *field.Default
 				defaultValue = &copy
 			}
+			var relation *ir.ForeignKeyRelation
+			if field.Relation != nil {
+				copy := *field.Relation
+				relation = &copy
+			}
 			result.Models[modelIndex].Fields[fieldIndex] = ir.Field{
-				Name:       field.Name,
-				GoName:     field.GoName,
-				Column:     field.Column,
-				Kind:       field.Kind,
-				PrimaryKey: field.Kind == ir.FieldAuto,
-				Nullable:   field.Nullable,
-				MaxLength:  field.MaxLength,
-				Default:    defaultValue,
+				Name:         field.Name,
+				GoName:       field.GoName,
+				Column:       field.Column,
+				Kind:         field.Kind,
+				PrimaryKey:   field.Kind == ir.FieldAuto,
+				Nullable:     field.Nullable,
+				Blank:        field.Blank,
+				NonEditable:  field.NonEditable,
+				Unique:       field.Unique,
+				DBIndex:      field.DBIndex,
+				AllowUnicode: field.AllowUnicode,
+				MaxLength:    field.MaxLength,
+				WidthField:   field.WidthField, HeightField: field.HeightField,
+				Decimal:  field.Decimal,
+				Default:  defaultValue,
+				Choices:  field.Choices,
+				Relation: relation,
 			}
 		}
 	}

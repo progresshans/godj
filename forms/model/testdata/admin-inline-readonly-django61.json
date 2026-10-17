@@ -1,0 +1,448 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "source_sha256": "7526be63d08ff1338acc3e78e56171683bcdc697d32ce4af1de17aff8f328a48",
+  "backend": "sqlite",
+  "storage_unchanged": true,
+  "cleanup_empty": true,
+  "cases": [
+    {
+      "name": "unbound",
+      "bound": false,
+      "can_add": false,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ]
+      },
+      "valid": false,
+      "rows": [
+        {
+          "valid": false,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "omitted",
+      "bound": true,
+      "can_add": false,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "forged",
+      "bound": true,
+      "can_add": false,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-0-name": [
+          "forged"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "repeated",
+      "bound": true,
+      "can_add": false,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-0-name": [
+          "forged",
+          "again"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "narrow_initial",
+      "bound": true,
+      "can_add": false,
+      "can_delete": false,
+      "narrow": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "add",
+      "bound": true,
+      "can_add": true,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-1-name": [
+          "new"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        },
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "new",
+          "changed": true,
+          "cleaned_name": "new"
+        }
+      ],
+      "clean_calls": [
+        "new"
+      ],
+      "non_form_errors": [],
+      "save_names": [
+        "new"
+      ],
+      "deleted_ids": []
+    },
+    {
+      "name": "duplicate_current",
+      "bound": true,
+      "can_add": true,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-1-name": [
+          "kept"
+        ]
+      },
+      "valid": false,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        },
+        {
+          "valid": false,
+          "errors": {
+            "__all__": [
+              "unique_together"
+            ]
+          },
+          "candidate_name": "kept",
+          "changed": true,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [
+        "kept"
+      ],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "invalid_extra",
+      "bound": true,
+      "can_add": true,
+      "can_delete": false,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-1-name": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ]
+      },
+      "valid": false,
+      "rows": [
+        {
+          "valid": true,
+          "errors": {},
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": "kept"
+        },
+        {
+          "valid": false,
+          "errors": {
+            "name": [
+              "max_length"
+            ]
+          },
+          "candidate_name": "",
+          "changed": true,
+          "cleaned_name": null
+        }
+      ],
+      "clean_calls": [
+        ""
+      ],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    },
+    {
+      "name": "delete",
+      "bound": true,
+      "can_add": false,
+      "can_delete": true,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-0-DELETE": [
+          "on"
+        ]
+      },
+      "valid": true,
+      "rows": [
+        {
+          "valid": false,
+          "errors": {
+            "name": [
+              "required"
+            ]
+          },
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": null
+        }
+      ],
+      "clean_calls": [
+        "kept"
+      ],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": [
+        10
+      ]
+    },
+    {
+      "name": "replace_deleted",
+      "bound": true,
+      "can_add": true,
+      "can_delete": true,
+      "narrow": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "1"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-0-DELETE": [
+          "on"
+        ],
+        "items-1-name": [
+          "kept"
+        ]
+      },
+      "valid": false,
+      "rows": [
+        {
+          "valid": false,
+          "errors": {
+            "name": [
+              "required"
+            ]
+          },
+          "candidate_name": "kept",
+          "changed": false,
+          "cleaned_name": null
+        },
+        {
+          "valid": false,
+          "errors": {
+            "__all__": [
+              "unique_together"
+            ]
+          },
+          "candidate_name": "kept",
+          "changed": true,
+          "cleaned_name": "kept"
+        }
+      ],
+      "clean_calls": [
+        "kept",
+        "kept"
+      ],
+      "non_form_errors": [],
+      "save_names": [],
+      "deleted_ids": []
+    }
+  ]
+}

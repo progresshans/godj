@@ -1,0 +1,409 @@
+package serializers
+
+import (
+	"context"
+	"github.com/progresshans/godj/binaryvalue"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uuid"
+)
+
+// ModelField explicitly selects a field for a JSON representation. Storage
+// kind, nullability, length and default come from Schema IR; exposure and API
+// required/empty policy remain application choices. Auto keys are read-only.
+type ModelField struct {
+	Name       string
+	ReadOnly   bool
+	Optional   bool
+	AllowEmpty bool
+}
+
+// ModelEncoder binds an immutable serializer allowlist to owned model metadata.
+// The caller supplies only a model value when encoding each row. The reader
+// receives a detached field, so it cannot change subsequent projections.
+type ModelEncoder[M any] struct {
+	spec       Spec
+	fields     []ir.Field
+	read       func(M, ir.Field) (query.Value, bool)
+	many       map[string]ir.ManyToManyField
+	readMany   func(M, ir.ManyToManyField) ([]int64, bool)
+	modelNames map[string]struct{}
+	computed   map[string]func(M) (Value, bool)
+}
+
+func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (query.Value, bool), related ...func(M, ir.ManyToManyField) ([]int64, bool)) (ModelEncoder[M], error) {
+	if !spec.valid || read == nil {
+		return ModelEncoder[M]{}, invalidConfig("model", "invalid projection")
+	}
+	byName := make(map[string]ir.Field, len(model.Fields))
+	for _, field := range model.Fields {
+		if _, duplicate := byName[field.Name]; duplicate {
+			return ModelEncoder[M]{}, invalidConfig("model", "duplicate field")
+		}
+		byName[field.Name] = field
+	}
+	many, err := modelCollections(model, byName)
+	if err != nil {
+		return ModelEncoder[M]{}, err
+	}
+	if len(related) > 1 || len(related) == 1 && related[0] == nil {
+		return ModelEncoder[M]{}, invalidConfig("model.collections", "invalid collection reader")
+	}
+	var readMany func(M, ir.ManyToManyField) ([]int64, bool)
+	if len(related) == 1 {
+		readMany = related[0]
+	}
+	fields := make([]ir.Field, len(spec.fields))
+	for index, field := range spec.fields {
+		if _, collection := many[field.name]; collection {
+			if field.kind != FieldIntegerList || field.nullable || readMany == nil {
+				return ModelEncoder[M]{}, invalidConfig("model."+field.name, "collection requires an integer list and explicit reader")
+			}
+			continue
+		}
+		metadata, found := byName[field.name]
+		if !found {
+			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "unknown field")
+		}
+		if metadata.NonEditable && !field.readOnly {
+			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "non-editable model field requires read-only projection")
+		}
+		if field.kind == FieldDecimal || metadata.Kind == ir.FieldDecimal {
+			if field.kind != FieldDecimal || metadata.Kind != ir.FieldDecimal || metadata.Decimal == nil || field.decimalDigits != metadata.Decimal.MaxDigits || field.decimalPlaces != metadata.Decimal.DecimalPlaces {
+				return ModelEncoder[M]{}, invalidConfig("model."+field.name, "decimal precision does not match model metadata")
+			}
+		}
+		fields[index] = metadata.Clone()
+	}
+	names := make(map[string]struct{}, len(byName)+len(many))
+	for name := range byName {
+		names[name] = struct{}{}
+	}
+	for name := range many {
+		names[name] = struct{}{}
+	}
+	return ModelEncoder[M]{spec: spec, fields: fields, read: read, many: many, readMany: readMany, modelNames: names}, nil
+}
+
+// Encode validates output types, nullability and lengths without applying
+// input trimming/defaults or retaining the model and its mutable pointers.
+func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
+	if encoder.read == nil {
+		return Value{}, invalidConfig("model", "invalid projection")
+	}
+	members := make([]Member, 0, len(encoder.spec.fields))
+	for index, field := range encoder.spec.fields {
+		converted, err := encoder.encodeField(value, index)
+		if err != nil {
+			return Value{}, err
+		}
+		members = append(members, MemberOf(field.name, converted))
+	}
+	object, err := NewObject(members...)
+	if err != nil {
+		return Value{}, err
+	}
+	return object.Value(), nil
+}
+
+// Project binds a stable model value to lazy, validated output. It retains the
+// same allowlist and conversion as Encode. Collection values are visited only
+// after the shared response budget admits their length, without copying them.
+func (encoder ModelEncoder[M]) Project(value M) Projection {
+	if encoder.read == nil {
+		return Projection{}
+	}
+	return ObjectProjection(len(encoder.spec.fields), func(_ context.Context, index int) (string, Projection, error) {
+		field := encoder.spec.fields[index]
+		if collection, found := encoder.many[field.name]; found {
+			keys, present := encoder.readMany(value, collection.Clone())
+			if !present {
+				return field.name, Projection{}, invalidValue(field.name, "missing collection value")
+			}
+			return field.name, ArrayProjection(len(keys), func(_ context.Context, item int) (Projection, error) {
+				return ValueProjection(Integer(keys[item])), nil
+			}), nil
+		}
+		converted, err := encoder.encodeField(value, index)
+		return field.name, ValueProjection(converted), err
+	})
+}
+
+func (encoder ModelEncoder[M]) encodeField(value M, index int) (Value, error) {
+	field := encoder.spec.fields[index]
+	if read, computed := encoder.computed[field.name]; computed {
+		computed, present := read(value)
+		if !present {
+			return Value{}, invalidValue(field.name, "missing computed value")
+		}
+		converted, err := computedOutputValue(field, computed)
+		if err != nil {
+			return Value{}, err
+		}
+		return converted, nil
+	}
+	metadata := encoder.fields[index]
+	if collection, found := encoder.many[field.name]; found {
+		keys, present := encoder.readMany(value, collection.Clone())
+		if !present {
+			return Value{}, invalidValue(field.name, "missing collection value")
+		}
+		return Integers(keys...), nil
+	}
+	scalar, found := encoder.read(value, metadata.Clone())
+	if !found {
+		return Value{}, invalidValue(field.name, "missing model value")
+	}
+	var converted Value
+	switch scalar.Kind() {
+	case query.ValueNull:
+		converted = Null()
+	case query.ValueString:
+		text, _ := scalar.String()
+		converted = String(text)
+	case query.ValueBoolean:
+		boolean, _ := scalar.Boolean()
+		converted = Boolean(boolean)
+	case query.ValueJSON:
+		document, _ := scalar.JSON()
+		converted = JSON(document)
+	case query.ValueBinary:
+		data, ok := scalar.Binary()
+		if !ok {
+			return Value{}, invalidValue(field.name, "invalid binary model value")
+		}
+		converted = Binary(data)
+	case query.ValueUUID:
+		identifier, _ := scalar.UUID()
+		converted = UUID(identifier)
+	case query.ValueDecimal:
+		number, _ := scalar.Decimal()
+		var err error
+		converted, err = decimalOutput(number, field.decimalDigits, field.decimalPlaces)
+		if err != nil {
+			return Value{}, invalidValue(field.name, "decimal model value exceeds field precision or scale")
+		}
+	case query.ValueFloat:
+		number, _ := scalar.Float()
+		converted = Float(number)
+	case query.ValueDuration:
+		instant, _ := scalar.Duration()
+		converted = Duration(instant)
+	case query.ValueTime:
+		instant, _ := scalar.Time()
+		converted = Time(instant)
+	case query.ValueDate:
+		instant, _ := scalar.Date()
+		converted = Date(instant)
+	case query.ValueDateTime:
+		instant, _ := scalar.DateTime()
+		converted = DateTime(instant)
+	case query.ValueInteger:
+		integer, _ := scalar.Integer()
+		converted = Integer(integer)
+	default:
+		return Value{}, invalidValue(field.name, "invalid scalar")
+	}
+	var err error
+	converted, err = outputValue(field, converted)
+	if err != nil {
+		return Value{}, err
+	}
+	return converted, nil
+}
+
+// FromModel creates a serializer from an explicit allowlist. It never discovers
+// or exposes new fields automatically, accesses model values, or performs I/O.
+func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
+	dimensions, err := ir.ImageDimensionOwners(model)
+	if err != nil {
+		return Spec{}, invalidConfig("model", "invalid image dimension ownership")
+	}
+	byName := make(map[string]ir.Field, len(model.Fields))
+	for _, field := range model.Fields {
+		if _, exists := byName[field.Name]; exists {
+			return Spec{}, invalidConfig("model."+field.Name, "duplicate model field")
+		}
+		byName[field.Name] = field
+	}
+	many, err := modelCollections(model, byName)
+	if err != nil {
+		return Spec{}, err
+	}
+	fields := make([]Field, 0, len(selected))
+	for _, selection := range selected {
+		if _, collection := many[selection.Name]; collection {
+			options := []FieldOption{}
+			if selection.ReadOnly {
+				options = append(options, WithReadOnly())
+			}
+			if selection.Optional {
+				options = append(options, WithRequired(false))
+			}
+			if selection.AllowEmpty {
+				return Spec{}, invalidConfig("model."+selection.Name, "string-only option applied to a collection")
+			}
+			field, err := IntegerListField(selection.Name, options...)
+			if err != nil {
+				return Spec{}, err
+			}
+			fields = append(fields, field)
+			continue
+		}
+		field, found := byName[selection.Name]
+		if !found {
+			return Spec{}, invalidConfig("model."+selection.Name, "unknown model field")
+		}
+		if err := ir.ValidateChoices(field); err != nil {
+			return Spec{}, invalidConfig("model."+selection.Name, "invalid model choices")
+		}
+		if (field.Kind.IsFile() || dimensions[field.Name] != "") && !selection.ReadOnly {
+			return Spec{}, invalidConfig("model."+selection.Name, "file references and image dimensions require read-only JSON projection; uploads use explicit file input")
+		}
+		options := []FieldOption{}
+		if field.Choices != nil {
+			choices := make([]Choice, len(field.Choices))
+			for index, choice := range field.Choices {
+				value := String(choice.Value.String)
+				if choice.Value.Kind == ir.ScalarInteger {
+					value = Integer(choice.Value.Integer)
+				}
+				choices[index] = Choice{Value: value, Label: choice.Label}
+			}
+			options = append(options, WithChoices(choices...))
+		}
+		if selection.ReadOnly || field.PrimaryKey || field.NonEditable {
+			options = append(options, WithReadOnly())
+		}
+		if selection.Optional {
+			options = append(options, WithRequired(false))
+		}
+		if field.Nullable {
+			options = append(options, WithNullable())
+		}
+		if selection.AllowEmpty {
+			options = append(options, WithAllowEmpty())
+		}
+		if field.Default != nil && !selection.ReadOnly && !field.PrimaryKey && !field.NonEditable {
+			switch field.Default.Kind {
+			case ir.ScalarString:
+				options = append(options, WithDefault(String(field.Default.String)))
+			case ir.ScalarBoolean:
+				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarJSON:
+				document, err := jsonvalue.Parse([]byte(field.Default.JSON))
+				if err != nil || document.Text != field.Default.JSON {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid JSON default")
+				}
+				options = append(options, WithDefault(JSON(document)))
+			case ir.ScalarBinary:
+				value, err := binaryvalue.Parse(field.Default.Binary)
+				if err != nil || value.Base64() != field.Default.Binary {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid binary default")
+				}
+				options = append(options, WithDefault(Binary(value)))
+			case ir.ScalarUUID:
+				identifier, err := uuid.Parse(field.Default.UUID)
+				if err != nil || identifier.String() != field.Default.UUID {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid UUID default")
+				}
+				options = append(options, WithDefault(UUID(identifier)))
+			case ir.ScalarDecimal:
+				number, err := decimal.Parse(field.Default.Decimal)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid decimal default")
+				}
+				options = append(options, WithDefault(Decimal(number)))
+			case ir.ScalarFloat:
+				instant, err := floatvalue.FromBits(field.Default.FloatBits)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid float default")
+				}
+				options = append(options, WithDefault(Float(instant)))
+			case ir.ScalarDuration:
+				instant, err := duration.Parse(field.Default.Duration)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid duration default")
+				}
+				options = append(options, WithDefault(Duration(instant)))
+			case ir.ScalarTime:
+				instant, err := clock.Parse(field.Default.Time)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid time default")
+				}
+				options = append(options, WithDefault(Time(instant)))
+			case ir.ScalarDate:
+				instant, err := calendar.Parse(field.Default.Date)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid date default")
+				}
+				options = append(options, WithDefault(Date(instant)))
+			case ir.ScalarDateTime:
+				instant, err := temporal.ParseCanonical(field.Default.DateTime)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid datetime default")
+				}
+				options = append(options, WithDefault(DateTime(instant)))
+			case ir.ScalarInteger:
+				options = append(options, WithDefault(Integer(field.Default.Integer)))
+			default:
+				return Spec{}, invalidConfig("model."+field.Name, "unsupported model default")
+			}
+		}
+		var projected Field
+		var err error
+		switch field.Kind {
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
+			options = append(options, WithMaxLength(field.MaxLength))
+			if field.Kind == ir.FieldEmail && field.Choices == nil {
+				projected, err = EmailField(field.Name, options...)
+			} else if field.Kind == ir.FieldURL && field.Choices == nil {
+				projected, err = URLField(field.Name, options...)
+			} else if field.Kind == ir.FieldSlug && field.Choices == nil {
+				projected, err = SlugField(field.Name, append(options, WithAllowUnicode(field.AllowUnicode))...)
+			} else {
+				projected, err = StringField(field.Name, options...)
+			}
+		case ir.FieldJSON:
+			projected, err = JSONField(field.Name, options...)
+		case ir.FieldBinary:
+			options = append(options, WithMaxLength(field.MaxLength))
+			projected, err = BinaryField(field.Name, options...)
+		case ir.FieldUUID:
+			projected, err = UUIDField(field.Name, options...)
+		case ir.FieldDecimal:
+			if field.Decimal == nil || !field.Decimal.Valid() {
+				return Spec{}, invalidConfig("model."+field.Name, "invalid decimal precision")
+			}
+			projected, err = DecimalField(field.Name, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, options...)
+		case ir.FieldFloat:
+			projected, err = FloatField(field.Name, options...)
+		case ir.FieldDuration:
+			projected, err = DurationField(field.Name, options...)
+		case ir.FieldTime:
+			projected, err = TimeField(field.Name, options...)
+		case ir.FieldDate:
+			projected, err = DateField(field.Name, options...)
+		case ir.FieldDateTime:
+			projected, err = DateTimeField(field.Name, options...)
+		case ir.FieldBoolean:
+			projected, err = BooleanField(field.Name, options...)
+		case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
+			projected, err = IntegerField(field.Name, options...)
+		default:
+			return Spec{}, invalidConfig("model."+field.Name, "unsupported model field")
+		}
+		if err != nil {
+			return Spec{}, err
+		}
+		fields = append(fields, projected)
+	}
+	return NewSpec(fields)
+}

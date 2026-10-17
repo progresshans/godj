@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Article.Title}} — {{.ProjectName}}</title>
+  <link rel="canonical" href="{{.Article.URL}}">
+</head>
+<body>
+  <main>
+    <article data-article-id="{{.Article.ID}}">
+      <h1>{{.Article.Title}}</h1>
+      {{with .Article.Summary}}<p class="summary">{{.}}</p>{{else}}<p class="summary summary-null" aria-label="No summary"></p>{{end}}
+    </article>
+    <a href="{{.ListURL}}">All articles</a>
+  </main>
+</body>
+</html>

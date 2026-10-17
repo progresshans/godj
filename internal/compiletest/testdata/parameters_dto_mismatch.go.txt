@@ -1,0 +1,7 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+type row struct { Page int64 }
+type other struct { Page int64 }
+var _, _ = parameters.New[row](128, parameters.Field("page", parameters.Required(parameters.CanonicalInt64(1, 100)), func(value *other, field int64) { value.Page = field }, ""))

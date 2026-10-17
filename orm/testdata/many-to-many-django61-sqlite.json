@@ -1,0 +1,2268 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "observations": {
+    "add_and_reverse": {
+      "return": null,
+      "reverse_a": [
+        "first",
+        "second"
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "a"
+          ],
+          [
+            "first",
+            "b"
+          ],
+          [
+            "second",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "cache_failed_add": {
+      "after": [
+        "a",
+        "b",
+        "c"
+      ],
+      "before": [
+        "a",
+        "b"
+      ],
+      "error": "ValueError"
+    },
+    "cache_mutation": {
+      "before": [
+        "a"
+      ],
+      "current": [
+        "a",
+        "b"
+      ],
+      "held_query": [
+        "a"
+      ],
+      "held_query_clone": [
+        "a",
+        "b"
+      ],
+      "other_snapshot": [
+        "a"
+      ]
+    },
+    "clear": {
+      "labels": [
+        "a",
+        "b",
+        "c"
+      ],
+      "links": [
+        [
+          "second",
+          "a"
+        ]
+      ],
+      "owners": [
+        "first",
+        "second"
+      ]
+    },
+    "concurrent_duplicate_add": {
+      "errors": [
+        null,
+        null
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "declaration": {
+      "column": null,
+      "concrete": false,
+      "owner_fields": [
+        "id",
+        "name"
+      ],
+      "pair": [
+        [
+          "owner",
+          "label"
+        ]
+      ],
+      "physical_fields": [
+        "id",
+        "owner",
+        "label"
+      ],
+      "policies": [
+        "CASCADE",
+        "CASCADE"
+      ]
+    },
+    "explicit_through_conflicts": {
+      "callable_evaluations": 2,
+      "existing_token": 10,
+      "other_unique_error": "IntegrityError",
+      "rows": [
+        [
+          "a",
+          10
+        ]
+      ]
+    },
+    "explicit_through_set": {
+      "retained_identity": true,
+      "rows": [
+        [
+          "a",
+          10
+        ],
+        [
+          "b",
+          30
+        ]
+      ]
+    },
+    "explicit_zero": {
+      "links": 1,
+      "members": [
+        "zero-label"
+      ],
+      "owner": 0,
+      "target": 0
+    },
+    "incoming_link_policy": {
+      "cascade_count": 0,
+      "clear_error": "ProtectedError",
+      "endpoint_count": 3,
+      "optional_null": true,
+      "protected_link_count": 2,
+      "remaining": [
+        "b"
+      ]
+    },
+    "migration_add": {
+      "endpoints_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "through_table": "m2m_history_owner_labels"
+    },
+    "migration_reapply": {
+      "endpoints_preserved": true,
+      "members": []
+    },
+    "migration_rename": {
+      "endpoints_preserved": true,
+      "link_identity_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "new_table": "m2m_history_owner_tags",
+      "old_table_absent": true
+    },
+    "migration_rename_reverse": {
+      "link_identity_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "renamed_table_absent": true
+    },
+    "migration_reverse": {
+      "endpoints_preserved": true,
+      "through_absent": true
+    },
+    "missing_target": {
+      "error": "IntegrityError",
+      "rows_preserved": true
+    },
+    "nullable_duplicates": {
+      "after_clear": [
+        7
+      ],
+      "after_remove": [
+        6,
+        7
+      ],
+      "after_reverse_clear_count": 0,
+      "before": [
+        "a",
+        "a"
+      ],
+      "distinct": [
+        "a"
+      ],
+      "set_retained_all_ids": true
+    },
+    "prefetch_cache": {
+      "after_add": [
+        "a",
+        "b",
+        "c"
+      ],
+      "duplicate_snapshot": [
+        "a",
+        "b"
+      ],
+      "held_snapshot": [
+        "a",
+        "b"
+      ],
+      "other_owner": [
+        "b"
+      ],
+      "refined": [
+        "a"
+      ]
+    },
+    "prefetch_custom_single": {
+      "nullable_filtered": {
+        "batch_queries": 2,
+        "members": [
+          "first",
+          null,
+          null
+        ],
+        "warm_queries": 0
+      },
+      "required_eager_custom_children": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "second",
+            [
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 3
+      },
+      "required_eager_explicit_children": {
+        "batch_queries": 2,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "second",
+            [
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "required_filtered": {
+        "batch_queries": 3,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          {
+            "error": "RelatedObjectDoesNotExist"
+          }
+        ],
+        "warm_queries": 0
+      },
+      "required_join_duplicates": {
+        "batch_queries": 2,
+        "members": [
+          "first",
+          "first",
+          "second"
+        ],
+        "warm_queries": 0
+      },
+      "required_named_slice": {
+        "batch_queries": 1,
+        "error": "TypeError"
+      },
+      "required_slice": {
+        "batch_queries": 1,
+        "error": "TypeError"
+      },
+      "reverse_filtered": {
+        "batch_queries": 2,
+        "members": [
+          {
+            "error": "RelatedObjectDoesNotExist"
+          },
+          "visible"
+        ],
+        "warm_queries": 0
+      },
+      "target_eager": {
+        "batch_queries": 2,
+        "members": [
+          [
+            1,
+            "first"
+          ],
+          null,
+          null
+        ],
+        "warm_queries": 0
+      }
+    },
+    "prefetch_eager_child": {
+      "batch_queries": 2,
+      "members": [
+        [
+          "first",
+          [
+            [
+              2,
+              "b"
+            ],
+            [
+              1,
+              "a"
+            ]
+          ]
+        ],
+        [
+          "second",
+          [
+            [
+              3,
+              "b"
+            ]
+          ]
+        ]
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_eager_owner": {
+      "batch_queries": 2,
+      "members": [
+        [
+          1,
+          "first",
+          [
+            "a",
+            "b"
+          ]
+        ],
+        [
+          2,
+          "first",
+          [
+            "a",
+            "b"
+          ]
+        ],
+        [
+          3,
+          "second",
+          [
+            "b"
+          ]
+        ]
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_filtered": {
+      "batch_queries": 2,
+      "members": [
+        [
+          [
+            "c",
+            [
+              "first"
+            ]
+          ],
+          [
+            "a",
+            [
+              "first"
+            ]
+          ]
+        ],
+        [],
+        [
+          [
+            "c",
+            [
+              "first"
+            ]
+          ],
+          [
+            "a",
+            [
+              "first"
+            ]
+          ]
+        ],
+        []
+      ],
+      "refined": [
+        [
+          "a",
+          [
+            "first"
+          ]
+        ]
+      ],
+      "refined_queries": 2,
+      "warm_queries": 0
+    },
+    "prefetch_filtered_cache": {
+      "after_noop_add": [
+        "a",
+        "b",
+        "c"
+      ],
+      "duplicate": [
+        "c",
+        "a"
+      ],
+      "held": [
+        "c",
+        "a"
+      ],
+      "queries": 1
+    },
+    "prefetch_filtered_relation": {
+      "distinct_owners": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "excluded_owner": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a"
+          ],
+          []
+        ],
+        "warm_queries": 0
+      },
+      "owner_either": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "owner_second": {
+        "batch_queries": 1,
+        "members": [
+          [],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "successive_only_first": {
+        "batch_queries": 1,
+        "members": [
+          []
+        ],
+        "warm_queries": 0
+      },
+      "successive_only_second": {
+        "batch_queries": 1,
+        "members": [
+          []
+        ],
+        "warm_queries": 0
+      },
+      "successive_owners": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0
+      }
+    },
+    "prefetch_membership": [
+      [
+        "a",
+        "b"
+      ],
+      [],
+      [
+        "b"
+      ],
+      [
+        "a",
+        "b"
+      ]
+    ],
+    "prefetch_nested": {
+      "batch_queries": 3,
+      "members": [
+        [
+          [
+            "a",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            ]
+          ],
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ],
+          [
+            "c",
+            [
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          [
+            "a",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            ]
+          ],
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        []
+      ],
+      "refined": [
+        [
+          "b",
+          [
+            [
+              "first",
+              [
+                "a",
+                "b"
+              ]
+            ],
+            [
+              "second",
+              [
+                "b",
+                "c"
+              ]
+            ]
+          ]
+        ]
+      ],
+      "refined_queries": 4,
+      "warm_queries": 0
+    },
+    "prefetch_nullable": {
+      "batch_queries": 2,
+      "forward": [
+        [],
+        [
+          "a",
+          "a",
+          "b"
+        ],
+        []
+      ],
+      "reverse": [
+        [
+          "mixed",
+          "mixed"
+        ],
+        [
+          "mixed"
+        ],
+        []
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_order_conflicts": {
+      "filtered_first": [
+        [
+          "a",
+          [
+            "first"
+          ]
+        ]
+      ],
+      "queries": 3,
+      "redefined": "ValueError"
+    },
+    "prefetch_queries": {
+      "after_mutation": 1,
+      "batch": 1,
+      "empty": 0,
+      "refined": 1,
+      "warm": 0
+    },
+    "prefetch_self": {
+      "batch_queries": 3,
+      "followers": [
+        [
+          "z"
+        ],
+        [
+          "x"
+        ],
+        []
+      ],
+      "follows": [
+        [
+          "y"
+        ],
+        [],
+        [
+          "x"
+        ]
+      ],
+      "friends": [
+        [
+          "x",
+          "y"
+        ],
+        [
+          "x"
+        ],
+        []
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_slices": {
+      "beyond": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "descending": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "c",
+            "b"
+          ],
+          [
+            "d",
+            "c"
+          ],
+          [
+            "c",
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "distinct_duplicates": {
+        "batch_queries": 1,
+        "members": [
+          "a",
+          "a"
+        ]
+      },
+      "empty": {
+        "batch_queries": 0,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 0
+      },
+      "empty_batch": {
+        "batch_queries": 0,
+        "manager_queries": 0,
+        "managers": [],
+        "members": [],
+        "warm_queries": 0,
+        "window_queries": 0
+      },
+      "head": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "a"
+          ],
+          [
+            "b"
+          ],
+          [
+            "a"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "manager_error": {
+        "error": "TypeError",
+        "queries": 1
+      },
+      "middle": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "b",
+            "c"
+          ],
+          [
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "nested": {
+        "batch_queries": 2,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            [
+              "b",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          [
+            [
+              "c",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          [
+            [
+              "b",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "reverse_eager": {
+        "batch_queries": 1,
+        "members": [
+          [
+            [
+              2,
+              "b"
+            ]
+          ],
+          [
+            [
+              5,
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "reverse_manager_error": {
+        "error": "TypeError",
+        "queries": 1
+      },
+      "scope_head": {
+        "batch_queries": 1,
+        "manager_queries": 2,
+        "managers": [
+          [
+            "b"
+          ],
+          [
+            "a",
+            "b"
+          ]
+        ],
+        "members": [
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "scope_tail": {
+        "batch_queries": 1,
+        "manager_queries": 2,
+        "managers": [
+          [
+            "b"
+          ],
+          [
+            "a",
+            "b"
+          ]
+        ],
+        "members": [
+          [
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "tail": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "c",
+            "d"
+          ],
+          [
+            "d",
+            "e"
+          ],
+          [
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      }
+    },
+    "prefetch_stream": {
+      "callback_error": {
+        "error": "RuntimeError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "chunk_1": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 5
+      },
+      "chunk_2": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "chunk_3": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "chunk_8": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "early_stop": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "invalid_missing": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "invalid_negative": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "invalid_zero": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "nested_filtered": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ],
+              [
+                "a",
+                [
+                  "owner-0"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 3,
+        "members": [
+          [
+            "owner-0",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ],
+              [
+                "a",
+                [
+                  "owner-0"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 4
+      },
+      "owner_scope_1": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            []
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 5
+      },
+      "owner_scope_2": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 3
+      },
+      "transaction": {
+        "count_after_close": 4,
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "warm_cache": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 0,
+        "held": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "members": [
+          [
+            "owner-0",
+            [
+              "a-new",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      }
+    },
+    "query_boolean_order": {
+      "double_not_pair": [],
+      "negative_first": [],
+      "negative_same_field": [],
+      "or_negative_first": [
+        "empty",
+        "first"
+      ],
+      "positive_first": [
+        "first"
+      ],
+      "successive_negative": [],
+      "successive_positive": []
+    },
+    "query_boolean_presence": {
+      "absent": [
+        "empty"
+      ],
+      "double_not": [
+        "first"
+      ],
+      "empty_membership": [],
+      "empty_or_root": [
+        "empty"
+      ],
+      "exclude_field_null": [],
+      "field_null": [
+        "empty",
+        "first",
+        "second"
+      ],
+      "not_a": [
+        "empty",
+        "second"
+      ],
+      "not_and": [
+        "empty",
+        "second"
+      ],
+      "not_or": [
+        "empty"
+      ],
+      "or_members": [
+        "first",
+        "first",
+        "second"
+      ],
+      "or_negative": [
+        "empty",
+        "first"
+      ],
+      "or_root": [
+        "empty",
+        "first"
+      ],
+      "positive_and_negative": [
+        "first"
+      ],
+      "present": [
+        "first",
+        "first",
+        "second"
+      ]
+    },
+    "query_filter_scopes": {
+      "reused_predicate": [
+        "first"
+      ],
+      "reverse_successive": [
+        "b"
+      ],
+      "same_filter": [],
+      "same_member_fields": [
+        "first"
+      ],
+      "successive_filters": [
+        "first"
+      ],
+      "successive_membership": [
+        "first",
+        "first",
+        "first",
+        "first",
+        "second"
+      ],
+      "three_collections": [
+        "first",
+        "first",
+        "second"
+      ],
+      "two_collections": [
+        "first",
+        "first",
+        "second"
+      ]
+    },
+    "query_manager_scopes": {
+      "direct": [],
+      "distinct_first": [
+        "b"
+      ],
+      "empty_first": [
+        "b"
+      ],
+      "manager_all": [],
+      "or_root": [
+        "a"
+      ],
+      "ordered": [
+        "b"
+      ],
+      "query_clone": [
+        "b"
+      ],
+      "scalar_first": [
+        "b"
+      ],
+      "successive": [
+        "b"
+      ]
+    },
+    "query_multiplicity": {
+      "count": 3,
+      "distinct": [
+        "first",
+        "second"
+      ],
+      "names": [
+        "first",
+        "first",
+        "second"
+      ],
+      "reverse": [
+        "a",
+        "b",
+        "b"
+      ]
+    },
+    "query_nullable_links": {
+      "absent": [
+        "loose-empty",
+        "loose-mixed",
+        "loose-null",
+        "loose-null"
+      ],
+      "distinct": [
+        "loose-mixed"
+      ],
+      "exclude_a": [
+        "loose-empty",
+        "loose-null"
+      ],
+      "exclude_null": [],
+      "field_null": [
+        "loose-empty",
+        "loose-mixed",
+        "loose-mixed",
+        "loose-null",
+        "loose-null"
+      ],
+      "field_present": [
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "members": [
+        "loose-mixed",
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "present": [
+        "loose-mixed",
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "reverse_absent": [
+        "a",
+        "c"
+      ],
+      "shared_through_predicate": [],
+      "successive_through_predicate": [
+        "loose-mixed",
+        "loose-mixed"
+      ]
+    },
+    "remove": {
+      "reverse_a": [
+        "second"
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "second",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "self_directed": {
+      "links": 2,
+      "x": [
+        "x",
+        "y"
+      ],
+      "y": [],
+      "y_followers": [
+        "x"
+      ]
+    },
+    "self_symmetric": {
+      "links": 3,
+      "x": [
+        "x",
+        "y"
+      ],
+      "y": [
+        "x"
+      ]
+    },
+    "self_symmetric_remove": {
+      "links": 1,
+      "x": [
+        "x"
+      ],
+      "y": []
+    },
+    "set_clear": {
+      "retained_identity": false,
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "first",
+            "c"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "set_delta": {
+      "retained_identity": true,
+      "return": null,
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "first",
+            "c"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "set_empty": {
+      "labels": [
+        "a",
+        "b",
+        "c"
+      ],
+      "links": [],
+      "owners": [
+        "first",
+        "second"
+      ]
+    },
+    "set_iterable_failure": {
+      "error": "ValueError",
+      "rows_preserved": true
+    },
+    "set_late_failure": {
+      "delete_executed": true,
+      "error": "DatabaseError",
+      "rows_preserved": true
+    },
+    "signals_add_duplicate_reverse": [
+      {
+        "action": "pre_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": [
+          "b"
+        ]
+      },
+      {
+        "action": "post_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": [
+          "b"
+        ]
+      },
+      {
+        "action": "pre_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": []
+      },
+      {
+        "action": "post_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": []
+      },
+      {
+        "action": "pre_add",
+        "owner": "b",
+        "reverse": true,
+        "targets": [
+          "second"
+        ]
+      },
+      {
+        "action": "post_add",
+        "owner": "b",
+        "reverse": true,
+        "targets": [
+          "second"
+        ]
+      }
+    ],
+    "signals_clear": [
+      {
+        "action": "pre_clear",
+        "owner": "first",
+        "reverse": false,
+        "targets": null
+      },
+      {
+        "action": "post_clear",
+        "owner": "first",
+        "reverse": false,
+        "targets": null
+      }
+    ],
+    "signals_rollback": {
+      "error": "DatabaseError",
+      "events": [
+        {
+          "action": "pre_remove",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "a"
+          ]
+        },
+        {
+          "action": "post_remove",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "a"
+          ]
+        },
+        {
+          "action": "pre_add",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "c"
+          ]
+        }
+      ],
+      "rows_preserved": true
+    },
+    "unsaved_inputs": {
+      "add_target": "ValueError",
+      "owner": "ValueError",
+      "remove_target": null,
+      "rows_preserved": true,
+      "wrong_model": "TypeError"
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "ManyRelatedManager": "9b8ff28fb6c66b034b98b39e6242c720584d539851c8203db8363d069bf54d9c",
+    "ManyToManyField": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+    "Model": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "QuerySet": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6"
+  }
+}

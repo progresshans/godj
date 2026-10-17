@@ -34,6 +34,7 @@ def configure_django() -> None:
         INSTALLED_APPS=[
             "conformance.runners.django.migration_fixture.apps.GoDjMigrationFixtureConfig",
             "conformance.runners.django.migration_failure_fixture.apps.GoDjMigrationFailureFixtureConfig",
+            "conformance.runners.django.migration_relation_fixture.apps.GoDjMigrationRelationFixtureConfig",
         ],
         LANGUAGE_CODE="en-us",
         SECRET_KEY="godj-conformance-not-a-secret",
@@ -64,6 +65,7 @@ class Article(models.Model):
     title = models.CharField(max_length=200)
     published = models.BooleanField(default=False)
     summary = models.CharField(max_length=200, null=True)
+    slug = models.SlugField(max_length=50, allow_unicode=True, null=True, blank=True, unique=True)
 
     class Meta:
         app_label = "godj_conformance"

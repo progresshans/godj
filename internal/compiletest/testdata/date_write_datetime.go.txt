@@ -1,0 +1,8 @@
+package consumer
+
+import (
+"github.com/progresshans/godj/examples/helpdesk/models"
+"time"
+)
+
+var _ = models.NewTicketCreate("date",1).WithServiceOn(time.Time{})

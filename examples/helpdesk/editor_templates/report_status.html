@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Service report statuses</title></head>
+<body><main><h1>Service report statuses</h1><p>Category: {{ category }}</p>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/admin/service-reports/">Service reports</a></p>
+<p>Report completion and ticket closure track separate work. A difference does not necessarily mean either status is wrong.</p>
+<form method="get" action="/service-reports/status/"><label for="report-comparison">Show</label> <select id="report-comparison" name="comparison"><option value="all"{% if comparison_all %} selected{% endif %}>All reports</option><option value="same"{% if comparison_same %} selected{% endif %}>Same status</option><option value="different"{% if comparison_different %} selected{% endif %}>Different status</option></select> <button type="submit">Apply filter</button> <a href="/service-reports/status/">Clear filter</a></form>
+<p>{{ total }} reports. Page {{ page }}.</p>
+<table><caption>Report and ticket statuses, ordered by report ID</caption><thead><tr><th scope="col">Report</th><th scope="col">Ticket</th><th scope="col">Summary</th><th scope="col">Report status</th><th scope="col">Ticket status</th><th scope="col">Comparison</th></tr></thead><tbody>
+{% for row in rows %}<tr><th scope="row">{{ row.id }}</th><td>{{ row.ticket }}</td><td>{{ row.summary }}</td><td>{% if row.completed %}Complete{% else %}Incomplete{% endif %}</td><td>{% if row.ticket_closed %}Closed{% else %}Open{% endif %}</td><td>{% if row.matched %}Same{% else %}Different{% endif %}</td></tr>{% empty %}<tr><td colspan="6">No reports on this page.</td></tr>{% endfor %}
+</tbody></table>
+<nav aria-label="Report status pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+</main></body></html>

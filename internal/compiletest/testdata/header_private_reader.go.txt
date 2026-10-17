@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+var wrong = parameters.Header[int64]{decode: func(string, bool) (int64, string) { return 0, "" }}

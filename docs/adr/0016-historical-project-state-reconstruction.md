@@ -1,5 +1,9 @@
 # ADR-0016: Historical ProjectState는 loaded migration definition을 dependency order로 replay해 재구성한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0016-historical-project-state-reconstruction.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0015, GDJ-0016, MIG-037..MIG-046, Q-012
@@ -143,11 +147,12 @@ loaded []Migration
 - Restart orchestrator가 durable applied identity에 맞는 `before ProjectState`를 DB I/O
   없이 구할 수 있습니다.
 - Historical schema가 current generated code와 live database drift에서 분리됩니다.
-- Full migration definition을 deep-copy/replay하므로 identity-only Planner보다 memory·CPU
-  비용이 커집니다. Cache가 필요하다면 immutable result ownership과 version key를 별도
-  ADR/benchmark으로 입증해야 합니다.
-- Existing `Operation` interface가 package-sealed이므로 현재 built-in은 deep-copy할 수
-  있지만 data migration callback/plugin ABI는 아직 표현하지 못합니다.
+- Raw migration definition 입력은 deep-copy하고 replay하므로 identity-only Planner보다 memory·CPU 비용이 큽니다.
+  GDJ-0065의 `LoadedDefinitionSet.Reconstructor`는 loader가 소유한 graph를 재사용하며 resource·chronology·readiness
+  검사는 수행합니다. Writer invocation 안에서 검증된 최초 historical state를 Detect와 snapshot이 공유합니다.
+  변경된 candidate와 durable prefix는 다른 입력이므로 strict load/replay를 유지합니다. 전역 result cache는 없습니다.
+- `Operation`의 실제 dynamic type은 현재 built-in과 그 non-nil 포인터로 제한합니다. Embedding wrapper도 거부하므로
+  deep-copy할 수 있으며 data migration callback/plugin ABI는 표현하지 않습니다.
 - Same-app leaf accessor를 포함한 graph kernel을 Planner와 공유하고 Planner의 public
   behavior/order는 바꾸지 않았습니다.
 - GDJ-0016은 `StateReconstructor`와 tagged request를 구현하고 MIG-037..046을 10
@@ -171,29 +176,3 @@ loaded []Migration
 - Replacement/squash/merge/fake/fake-initial, optimizer와 conflict resolution
 - Unmigrated app/`real_apps`, cross-app relation rendering과 historical model registry
 - PostgreSQL/MySQL/MariaDB/Oracle, multi-DB router와 alias registry
-
-## 검증
-
-- MIG-037..046 exact Django observation으로 empty/before/after/intermediate/latest state 잠금
-- Cross-app dependency, multiple target/shared dependency와 unrelated applied branch 검증
-- Unknown applied identity가 result applied observation에는 남고 ProjectState에는 생성되지
-  않는지 검증
-- Live database를 의도적으로 비우거나 다르게 두고 state replay 결과와 DB
-  before/after 불변을 동시 검증
-- Definition/operation/input/output mutation, permutation과 repeated/concurrent reconstruction gate
-- State replay 실패에서 backend/recorder call 0인 fault-injection gate
-- Planner/reconstructor graph validation/order 동치와 기존 MIG-005..036 회귀
-- Two-process random-hashseed oracle/actual byte identity, eighth-set global uniqueness와 56
-  ordered cross-binding 거부
-- Static fixture ordered 10 mismatch, unknown scenario exit 2/no output과 payload semantic mutation gate
-- Full/race/CGO=0/vet, portable/exact Python과 Markdown/link validation
-
-GDJ-0016은 tagged request, deep-copy ownership, Planner graph 재사용, zero-value/error 경계와
-external package compile gate를 통과했습니다. 두 독립 Go actual은 각각 89,867 bytes,
-SHA-256 `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
-byte-identical하고 locked Django oracle과 protocol 의미상 10개 0-diff입니다. Locked
-oracle/static/SHA256SUMS는 변경하지 않았고 static fixture는 ordered 10 mismatch를
-유지했습니다. `make check`, full/race/CGO=0/vet와 독립 product/conformance 감사에서
-P0–P3 finding은 없었습니다. 상세 실행 증거는
-[EVID-20260808-015](../status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
-기록합니다.

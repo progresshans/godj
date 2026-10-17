@@ -1,0 +1,64 @@
+{
+  "format_version": 2,
+  "profile_id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0007",
+  "contracts": [
+    {
+      "id": "API-001",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "[10].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "parse_error"},
+          "product": {"type": "string", "value": "request_too_large"}
+        },
+        {
+          "dimension": "result",
+          "path": "[10].response.status",
+          "operation": "replace",
+          "reference": {"type": "int", "value": "400"},
+          "product": {"type": "int", "value": "413"}
+        }
+      ]
+    },
+    {
+      "id": "API-003",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "unsafe_attempts[0].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "permission_denied"},
+          "product": {"type": "string", "value": "csrf_rejected"}
+        },
+        {
+          "dimension": "result",
+          "path": "unsafe_attempts[1].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "permission_denied"},
+          "product": {"type": "string", "value": "csrf_rejected"}
+        },
+        {
+          "dimension": "result",
+          "path": "unsafe_attempts[2].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "permission_denied"},
+          "product": {"type": "string", "value": "csrf_rejected"}
+        }
+      ]
+    },
+    {
+      "id": "API-010",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "missing_csrf.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "permission_denied"},
+          "product": {"type": "string", "value": "csrf_rejected"}
+        }
+      ]
+    }
+  ]
+}

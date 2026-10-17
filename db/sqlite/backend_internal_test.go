@@ -3,17 +3,24 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 )
 
+var backendQueryTestSequence atomic.Uint64
+
 func TestBackendQueryClassifiesOnlyThePlanMissingTable(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	backend, err := OpenMemory(ctx, "missing-query-table-"+t.Name())
+	backend, err := OpenMemory(
+		ctx,
+		fmt.Sprintf("missing-query-table-%s-%d", t.Name(), backendQueryTestSequence.Add(1)),
+	)
 	if err != nil {
 		t.Fatalf("OpenMemory() error = %v", err)
 	}
