@@ -22,18 +22,20 @@ const (
 )
 
 type labelUsageQuery struct {
-	page          int
-	usage         string
-	factor, delta decimal.Decimal
+	page                          int
+	usage                         string
+	factor, delta                 decimal.Decimal
+	elapsedFactor, elapsedDivisor decimal.Decimal
 }
 type labelUsageRow struct {
-	id          int64
-	name        string
-	total, open int64
-	cost        orm.Optional[decimal.Decimal]
-	adjusted    orm.Optional[decimal.Decimal]
-	effort      orm.Optional[float64]
-	elapsed     orm.Optional[duration.Duration]
+	id              int64
+	name            string
+	total, open     int64
+	cost            orm.Optional[decimal.Decimal]
+	adjusted        orm.Optional[decimal.Decimal]
+	effort          orm.Optional[float64]
+	elapsed         orm.Optional[duration.Duration]
+	adjustedElapsed orm.Optional[duration.Duration]
 }
 type labelUsagePage struct {
 	category models.Category
@@ -63,7 +65,8 @@ func (a *Application) labelUsageInSnapshot(ctx context.Context, reader db.Querye
 	if nilFormReader(reader) {
 		return zero, errors.New("helpdesk: nil label usage reader")
 	}
-	if input.page < 1 || input.page > labelUsageMaximumPage || input.usage != "all" && input.usage != "used" && input.usage != "unused" || !input.factor.Fits(6, 4) || !input.delta.Fits(14, 2) {
+	divisorSign, divisorErr := input.elapsedDivisor.Compare(decimal.Decimal{})
+	if input.page < 1 || input.page > labelUsageMaximumPage || input.usage != "all" && input.usage != "used" && input.usage != "unused" || !input.factor.Fits(6, 4) || !input.delta.Fits(14, 2) || !input.elapsedFactor.Fits(6, 4) || !input.elapsedDivisor.Fits(6, 4) || divisorErr != nil || divisorSign <= 0 {
 		return zero, errors.New("helpdesk: label usage input was not validated")
 	}
 	category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(ctx)
@@ -83,11 +86,17 @@ func (a *Application) labelUsageInSnapshot(ctx context.Context, reader db.Querye
 	opened := orm.Count(tickets.ID).Where(orm.And(scope, tickets.Closed.Exact(false)))
 	cost, effort, elapsed := orm.Sum(tickets.ExpectedCost).Where(scope), orm.Avg(tickets.Effort).Where(scope), orm.Sum(tickets.Elapsed).Where(scope)
 	adjusted := orm.Sum(orm.Decimal(tickets.ExpectedCost).Multiply(input.factor).Add(input.delta)).Where(scope)
+	adjustedElapsed := orm.Sum(orm.DivideDuration(orm.ScaleDuration(tickets.Elapsed, input.elapsedFactor), input.elapsedDivisor)).Where(scope)
+	metrics := orm.Aggregate6(total, opened, cost, effort, elapsed, adjusted, func(total, open int64, cost orm.Optional[decimal.Decimal], effort orm.Optional[float64], elapsed orm.Optional[duration.Duration], adjusted orm.Optional[decimal.Decimal]) labelUsageRow {
+		return labelUsageRow{total: total, open: open, cost: cost, effort: effort, elapsed: elapsed, adjusted: adjusted}
+	})
+	metrics = orm.CombineAggregates(metrics, orm.Aggregate1(adjustedElapsed, func(value orm.Optional[duration.Duration]) orm.Optional[duration.Duration] { return value }), func(row labelUsageRow, elapsed orm.Optional[duration.Duration]) labelUsageRow {
+		row.adjustedElapsed = elapsed
+		return row
+	})
 	grouped, err := orm.GroupBy(models.LabelObjects.Using(reader).Filter(fields.CategoryID.Exact(a.categoryID)),
 		orm.Project2(fields.ID, fields.Name, func(id int64, name string) labelUsageRow { return labelUsageRow{id: id, name: name} }),
-		orm.Aggregate6(total, opened, cost, effort, elapsed, adjusted, func(total, open int64, cost orm.Optional[decimal.Decimal], effort orm.Optional[float64], elapsed orm.Optional[duration.Duration], adjusted orm.Optional[decimal.Decimal]) labelUsageRow {
-			return labelUsageRow{total: total, open: open, cost: cost, effort: effort, elapsed: elapsed, adjusted: adjusted}
-		}), func(key, row labelUsageRow) labelUsageRow { row.id, row.name = key.id, key.name; return row })
+		metrics, func(key, row labelUsageRow) labelUsageRow { row.id, row.name = key.id, key.name; return row })
 	if err != nil {
 		return zero, err
 	}
@@ -103,7 +112,7 @@ func (a *Application) labelUsageInSnapshot(ctx context.Context, reader db.Querye
 	}
 	for _, row := range page.Rows {
 		effort, present := row.effort.Get()
-		if row.id <= 0 || row.total < 0 || row.open < 0 || row.open > row.total || row.cost.Valid() != row.adjusted.Valid() || present && (math.IsNaN(effort) || math.IsInf(effort, 0)) || row.total == 0 && (row.cost.Valid() || row.adjusted.Valid() || row.effort.Valid() || row.elapsed.Valid()) {
+		if row.id <= 0 || row.total < 0 || row.open < 0 || row.open > row.total || row.cost.Valid() != row.adjusted.Valid() || row.elapsed.Valid() != row.adjustedElapsed.Valid() || present && (math.IsNaN(effort) || math.IsInf(effort, 0)) || row.total == 0 && (row.cost.Valid() || row.adjusted.Valid() || row.effort.Valid() || row.elapsed.Valid() || row.adjustedElapsed.Valid()) {
 			return zero, errors.New("helpdesk: inconsistent label usage result")
 		}
 	}

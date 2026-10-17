@@ -176,6 +176,40 @@ System-state와 project-operator-product source inventory에 이 계산 패키�
 [CI 39079352095](https://github.com/progresshans/godj/actions/runs/39079352095)는 이 의존성 수정을 포함하지 않는다.
 새 묶음의 전체 CI를 다시 확인한다. 이전 source의 일부 성공이나 취소를 현재 전체 PASS로 계산하지 않는다.
 
+### 후속 기반 실행의 source 결합
+
+수정 source `ad31b9adc8978dfc6271671c243e168de973e842`의
+[CI 39079612416](https://github.com/progresshans/godj/actions/runs/39079612416)가 시작됐다.
+Plan job `117533981994`의 원 checkout은 `4e36d2f1276325ea09d326e101ec01b6bc2eaa1b`이며 두 parent가
+base `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`와 이 source다. Merge/head tree
+`822c9e2f969492f459561232ad208645f1803bd5`가 같고 event·attempt·모든 job의 source를 대조했다.
+`ci-39079612416-source-binding-and-plan.json` SHA-256은
+`0dd4b91823946b405a667db4f6f6a7522012739ee7ed1dd1a0d03a15d4e17f67`이다.
+이는 source 결합이며 해당 실행의 전체 성공 판정이 아니다.
+
+### Helpdesk 조정 시간의 입출력·생성 client compile checkpoint
+
+위 source의 후속 작업 사본에서 라벨별 `adjusted_elapsed_total`과 canonical Decimal(6,4)의
+`elapsed_factor`·양수 `elapsed_divisor`를 HTML/API에 연결했다. 기존 여섯 지표와 같은 aggregate stage로 합성하며
+모든 collection 집계의 Category FILTER·snapshot·인가·NULL/zero와 저장 보존 계약을 유지한다.
+공통 양수 Decimal query/header codec과 OpenAPI 문법을 함께 추가했다. 최종 합계의 half-even, 중간 범위 초과·
+0 divisor 사전 거부·독립 client의 유리수 비교·browser 페이지 입력 보존을 검사하도록 작성했다.
+
+최소 compile에서 처음 소비자가 존재하지 않는 메서드를 사용한 것을 확인해 기존 typed 함수
+`ScaleDuration`/`DivideDuration`으로 바로잡았다. `api/parameters`와 수정한 `examples/helpdesk`의 test binary,
+새 schema에서 생성한 독립 client executable은 compile exit 0이다. 테스트 본문·client HTTP를 실행하지 않았다.
+여섯 실제 API profile을 export하고 고정 ogen으로 새 디렉터리에 생성했다. 다섯 profile과 의존성 lock/config는
+byte 단위로 같으며 Helpdesk schema 한 개·생성 Go 여섯 개만 변경됐다. JavaScript와 Python 검사 코드는 syntax만 확인했다.
+
+- 원 로그·명령·수정 전/후 hash: `gdj0131-helpdesk-generation-n212t2vc/receipt.json`, SHA-256
+  `d4e8cc5960515a16598c12eb7d3db22b98967035f72cde5a699598bb53349fc5`.
+- 저장된 생성물과 이전 파일 보존·반영 기록: 같은 디렉터리의 `integration-receipt.json`, SHA-256
+  `b37d83beae53ce94c1d945670d9070ca6088ec3bfe1f36a7141527ce9f58ac4e`.
+
+양 DB의 Helpdesk 필수 목록에 새 leaf 두 개를 두 root에 등록했고, 라벨 browser의 필수 검사를 28개에서 37개로
+확장했다. 등록·생성·compile은 실행 증거가 아니다. 실제 DB·native 실패·HTTP/client·브라우저·race·CGO0·전체 platform과
+필수 실행/원본 대조는 이 변경을 포함한 후속 source의 전체 CI에서 확인한다.
+
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
 후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의

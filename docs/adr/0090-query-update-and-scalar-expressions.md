@@ -109,6 +109,14 @@ binary64로 변환하며 유한 범위 초과를 Infinity로 게시하지 않는
 비율은 정확한 정수 계산으로 Float significand를 반올림한다. Decimal 근사나 임의로 고정한 소수 자릿수로 분수 비율을
 대체하지 않는다. DB의 NUMERIC 자원 한계를 넘으면 native 오류를 반환하며 정밀도를 낮춘 fallback으로 성공시키지 않는다.
 
+Helpdesk 라벨별 조정 시간은 같은 collection의 각 present Duration을 배율로 곱하고 양수 divisor로 나눈 뒤 합산한다.
+`elapsed_factor`와 `elapsed_divisor`는 canonical Decimal(6,4), 기본 1이다. Factor는 음수·±0을 허용하지만
+divisor는 0과 음수를 거부한다. 공통 `CanonicalPositiveDecimal` query/header codec과 OpenAPI의 동일한 문자열
+문법이 양수 제한을 소유한다. 사용자 입력을 Float으로 바꾸거나 DB의 0 나눗셈 오류로 검증을 미루지 않는다.
+HTML/API는 `adjusted_elapsed_total`과 두 입력을 제공하고, 최종 합계만 half-even 반올림한다. 모든 집계는 같은
+Category FILTER·읽기 snapshot에 속하며 NULL과 실제 0, 빈 라벨, 기존 권한과 전체 저장 상태를 유지한다.
+이 소비자의 코드·schema 작성과 환경별 실행 완료는 TEST_EVIDENCE에서 구분한다.
+
 ## UTC 날짜와 시계 추출
 
 [GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)은 닫힌 unary `FunctionExpression`을 같은 scalar AST에

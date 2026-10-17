@@ -2317,14 +2317,16 @@ func (s *LabelUpdate) SetName(val string) {
 
 // Ref: #/components/schemas/LabelUsage
 type LabelUsage struct {
-	Category    CategorySummary         `json:"category"`
-	Page        int64                   `json:"page"`
-	PageSize    int64                   `json:"page_size"`
-	Usage       string                  `json:"usage"`
-	Factor      string                  `json:"factor"`
-	Delta       string                  `json:"delta"`
-	TotalLabels int64                   `json:"total_labels"`
-	Results     []LabelUsageResultsItem `json:"results"`
+	Category       CategorySummary         `json:"category"`
+	Page           int64                   `json:"page"`
+	PageSize       int64                   `json:"page_size"`
+	Usage          string                  `json:"usage"`
+	Factor         string                  `json:"factor"`
+	Delta          string                  `json:"delta"`
+	ElapsedFactor  string                  `json:"elapsed_factor"`
+	ElapsedDivisor string                  `json:"elapsed_divisor"`
+	TotalLabels    int64                   `json:"total_labels"`
+	Results        []LabelUsageResultsItem `json:"results"`
 }
 
 // GetCategory returns the value of Category.
@@ -2355,6 +2357,16 @@ func (s *LabelUsage) GetFactor() string {
 // GetDelta returns the value of Delta.
 func (s *LabelUsage) GetDelta() string {
 	return s.Delta
+}
+
+// GetElapsedFactor returns the value of ElapsedFactor.
+func (s *LabelUsage) GetElapsedFactor() string {
+	return s.ElapsedFactor
+}
+
+// GetElapsedDivisor returns the value of ElapsedDivisor.
+func (s *LabelUsage) GetElapsedDivisor() string {
+	return s.ElapsedDivisor
 }
 
 // GetTotalLabels returns the value of TotalLabels.
@@ -2397,6 +2409,16 @@ func (s *LabelUsage) SetDelta(val string) {
 	s.Delta = val
 }
 
+// SetElapsedFactor sets the value of ElapsedFactor.
+func (s *LabelUsage) SetElapsedFactor(val string) {
+	s.ElapsedFactor = val
+}
+
+// SetElapsedDivisor sets the value of ElapsedDivisor.
+func (s *LabelUsage) SetElapsedDivisor(val string) {
+	s.ElapsedDivisor = val
+}
+
 // SetTotalLabels sets the value of TotalLabels.
 func (s *LabelUsage) SetTotalLabels(val int64) {
 	s.TotalLabels = val
@@ -2436,15 +2458,16 @@ func (s *LabelUsageHeaders) SetResponse(val LabelUsage) {
 func (*LabelUsageHeaders) helpdeskLabelUsageRes() {}
 
 type LabelUsageResultsItem struct {
-	ID                int64      `json:"id"`
-	Name              string     `json:"name"`
-	Total             int64      `json:"total"`
-	Open              int64      `json:"open"`
-	Closed            int64      `json:"closed"`
-	ExpectedCostTotal NilString  `json:"expected_cost_total"`
-	AdjustedCostTotal NilString  `json:"adjusted_cost_total"`
-	EffortAverage     NilFloat64 `json:"effort_average"`
-	ElapsedTotal      NilString  `json:"elapsed_total"`
+	ID                   int64      `json:"id"`
+	Name                 string     `json:"name"`
+	Total                int64      `json:"total"`
+	Open                 int64      `json:"open"`
+	Closed               int64      `json:"closed"`
+	ExpectedCostTotal    NilString  `json:"expected_cost_total"`
+	AdjustedCostTotal    NilString  `json:"adjusted_cost_total"`
+	EffortAverage        NilFloat64 `json:"effort_average"`
+	ElapsedTotal         NilString  `json:"elapsed_total"`
+	AdjustedElapsedTotal NilString  `json:"adjusted_elapsed_total"`
 }
 
 // GetID returns the value of ID.
@@ -2492,6 +2515,11 @@ func (s *LabelUsageResultsItem) GetElapsedTotal() NilString {
 	return s.ElapsedTotal
 }
 
+// GetAdjustedElapsedTotal returns the value of AdjustedElapsedTotal.
+func (s *LabelUsageResultsItem) GetAdjustedElapsedTotal() NilString {
+	return s.AdjustedElapsedTotal
+}
+
 // SetID sets the value of ID.
 func (s *LabelUsageResultsItem) SetID(val int64) {
 	s.ID = val
@@ -2535,6 +2563,11 @@ func (s *LabelUsageResultsItem) SetEffortAverage(val NilFloat64) {
 // SetElapsedTotal sets the value of ElapsedTotal.
 func (s *LabelUsageResultsItem) SetElapsedTotal(val NilString) {
 	s.ElapsedTotal = val
+}
+
+// SetAdjustedElapsedTotal sets the value of AdjustedElapsedTotal.
+func (s *LabelUsageResultsItem) SetAdjustedElapsedTotal(val NilString) {
+	s.AdjustedElapsedTotal = val
 }
 
 // NewNilBool returns new NilBool with value set to v.

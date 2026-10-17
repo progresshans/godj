@@ -19,17 +19,27 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 
 `usage=all|used|unused`는 기본값 `all`이며 used는 현재 Category의 연결 티켓이 1개 이상인 라벨이다.
 `p`는 기본 1, 정규 decimal 1..50001이다. Query는 128 byte 이하의 닫힌 입력이며 중복·빈 값·잘못된 encoding·
-선택값·페이지를 거부한다. 응답의 `category`, `page`, `page_size`, `usage`, `total_labels`, `results`는 required다.
+선택값·페이지를 거부한다. 응답의 `category`, `page`, `page_size`, `usage`, `factor`, `delta`,
+`elapsed_factor`, `elapsed_divisor`, `total_labels`, `results`는 required다.
 20건 페이지와 총 라벨 수는 한 집계 statement에서 읽고 Category와 같은 snapshot을 사용한다.
 
-각 행은 `id`, `name`, `total`, `open`, `closed`, `expected_cost_total`, `effort_average`, `elapsed_total`을 가진다.
-마지막 세 값은 required nullable이며 값이 있는 티켓만 합계/평균에 참여한다. 빈 관계와 모두 NULL인 지표는 null,
+각 행은 `id`, `name`, `total`, `open`, `closed`, `expected_cost_total`, `adjusted_cost_total`,
+`effort_average`, `elapsed_total`, `adjusted_elapsed_total`을 가진다.
+다섯 numeric 지표는 required nullable이며 값이 있는 티켓만 합계/평균에 참여한다. 빈 관계와 모두 NULL인 지표는 null,
 실제 0은 0이다. 비용·시간은 canonical 문자열이다. Open은 닫히지 않은 티켓 수, closed는 total-open이다.
 Category가 없으면 404, 읽기/정리/출력 실패에는 부분 결과를 게시하지 않으며 HTML/JSON은 `no-store`다.
 읽기는 Ticket·Label·TicketLabel·ServiceReport와 audit를 변경하지 않는다.
 
+`factor`(기본 1, whole 2/scale 4)와 `delta`(기본 0, whole 12/scale 2)는 present 비용마다
+`expected_cost × factor + delta`를 계산한 뒤 합산한다. `elapsed_factor`와 `elapsed_divisor`는 기본 1,
+whole 2/scale 4의 canonical Decimal이며 divisor는 양수여야 한다. 배율에는 음수와 ±0을 허용한다.
+Present 시간마다 `elapsed × elapsed_factor ÷ elapsed_divisor`를 계산하고 정확한 분수를 합산한 뒤
+최종 합계에서만 microsecond half-even 반올림한다. 예를 들어 1µs와 2µs를 각각 2로 나눈 합계는 2µs다.
+중간 Duration이 모델 범위를 벗어나거나 최종 출력이 불가능하면 응답 전체가 실패한다.
+두 조정은 같은 collection scope와 snapshot을 사용하고, 0 배율에서도 없는 값을 0으로 만들지 않는다.
+
 [공통 읽기 service](label_usage.go)의 typed collection aggregate·FILTER·HAVING·Page를 화면과 API가 함께 사용한다.
-OpenAPI·독립 SDK·브라우저와 환경별 실행 상태는 [GDJ-0125](../../work/0125-collection-aggregates-and-label-usage.md)와
+OpenAPI·독립 SDK·브라우저와 새 조정 시간의 실행 상태는 [GDJ-0131](../../work/0131-duration-scaling-and-label-time-preview.md)와
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
 ## 보고서와 티켓 상태 비교

@@ -33,7 +33,7 @@ UUID 별칭 중복 거부와 전체 rollback, 수정 후 함께 commit된 scalar
 
 전체 CI의 `Portable Go (normal, integration)`은 `tools/package-lock.json`에 고정한 Playwright CLI와 해당
 Chromium으로 별도 `GODJ_BROWSER_SUMMARY=1` fixture를 실행한다. `login_probe.js`로 실제 로그인한 뒤
-`summary_probe.js` 30개, `report_status_probe.js` 19개, `label_usage_probe.js` 21개 check를 수행한다.
+`summary_probe.js` 30개, `report_status_probe.js` 19개, `label_usage_probe.js` 37개 check를 수행한다.
 라벨 사용 현황은 탐색·20건 페이지·all/used/unused·빈 관계의 0/NULL·Category 범위·정확한 숫자 지표·입력 거부를 다룬다.
 CLI exit code가 0이어도 tool error, 누락/중복 result와 불완전한 check 목록은 실패다.
 

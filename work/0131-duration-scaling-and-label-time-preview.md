@@ -1,6 +1,6 @@
 # GDJ-0131: 기간 배율·나눗셈과 라벨별 소요 시간 미리보기
 
-- 상태: 양 backend·생성 소비자·독립 비교 코드의 최소 compile 확인; 실제 native 검증과 Helpdesk 연결 미완료
+- 상태: 양 backend·생성 소비자·독립 비교 코드의 원격 검증 중; Helpdesk 조정 시간과 입출력·독립 client·브라우저 연결 작성
 - 시작: 2026-10-18
 - 기준: `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` — GDJ-0130의 원격 검증은 해당 source에서 계속 진행
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [선택 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 계산식](../docs/adr/0090-query-update-and-scalar-expressions.md)
@@ -31,8 +31,9 @@ Helpdesk 라벨 사용 현황에서 저장된 소요 시간을 배율·분할 �
   각 Duration 연산의 원 범위 검사는 반올림보다 먼저 적용한다. 기존 native AVG provenance를 새 분수 출처와 구분한다.
   이 계약의 채택은 양 backend 지원이나 실제 실행 완료가 아니다. 고정 Django의 원본 SQL/type·변환과 대조하고
   확인한 차이를 현행 ADR/DEVIATIONS에 기록한다. 유효한 큰 값이나 정밀도를 줄여 backend 구현에 맞추지 않는다.
-- Helpdesk의 조정 시간은 각 기여 ticket에서 계산한 뒤 합산한다. 현재 권한·Category·빈 라벨·NULL/zero 구분·
-  날짜/시간과 무관한 기존 필드·전체 저장 상태를 유지한다. 입력 범위와 단계별 반올림 의미를 확정한 뒤 화면/API에 명시한다.
+- Helpdesk의 조정 시간은 각 기여 ticket에서 계산한 뒤 합산한다. `elapsed_factor`와 `elapsed_divisor`는
+  canonical Decimal(6,4), 기본 1이며 divisor는 양수만 허용한다. 최종 합계에서만 microsecond half-even 반올림한다.
+  현재 권한·Category·빈 라벨·NULL/zero 구분·날짜/시간과 무관한 기존 필드·전체 저장 상태를 유지한다.
 
 ## 완료 조건
 
@@ -86,7 +87,13 @@ Schema IR의 선언에서 생성한 field/facade를 새 generic API로 소비한
 관측 뒤 완료 검사의 이전 count가 실패했다. 원본 대조·변조 거부와 완료 검사 수정, 새 계산 패키지의 source 결합 보완을 확인했으며 실제 제품과 PG 관측은
 미검증이다. 상세 source와 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 
-다음은 현재 기반의 실제 양 DB 검증과 Helpdesk의 소요 시간 조정이다. [Draft PR #2](https://github.com/progresshans/godj/pull/2)의 전체 CI에서
+Helpdesk의 `adjusted_elapsed_total`을 기존 여섯 지표와 `CombineAggregates`로 합성하고 모든 집계에 같은 Category
+FILTER를 적용했다. 같은 query 선언을 HTML/API에서 사용하며 공통 양수 Decimal codec과 OpenAPI 문법을 추가했다.
+페이지 링크는 비용/시간 입력을 모두 보존한다. 독립 client는 보존한 응답에서 분수를 합산해 최종 half-even을 계산하며,
+브라우저와 양 DB 검사에 중간 반올림 차이·음수/±0·NULL·외부 Category·0 divisor 거부·범위 초과와 저장 보존을 작성했다.
+작성한 검사와 생성물의 compile은 실제 HTTP/DB/브라우저 실행의 성공을 뜻하지 않는다.
+
+다음은 현재 기반과 Helpdesk 소요 시간 조정의 실제 양 DB 검증이다. [Draft PR #2](https://github.com/progresshans/godj/pull/2)의 전체 CI에서
 검증하며 GDJ-0130의 다른 source 실행과 구분한다. 라벨별 HTML/API·OpenAPI/client·브라우저와 전체 목표는 그대로 완료 대상이다.
 
 구현 근거는 PostgreSQL의 [NUMERIC div/mod/gcd](https://www.postgresql.org/docs/17/functions-math.html),
