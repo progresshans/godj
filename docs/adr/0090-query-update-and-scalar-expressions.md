@@ -117,6 +117,9 @@ DateTime을 반환한다. Date는 연·분기·월·주·일을, Time은 시·�
 PostgreSQL은 Date를 timezone 없는 timestamp로, Time을 interval로 명시 변환하고 결과를 원 타입으로 돌린다.
 DateTime은 UTC timestamp에서 계산한 뒤 UTC instant로 반환한다. 호출자의 세션 timezone을 바꾸지 않는다.
 SQLite는 같은 canonical 입력 검사 뒤 Gregorian 날짜·시계 구성요소를 statement 안에서 계산한다.
+고정 Django PostgreSQL의 Trunc 집계에서 Python 반환 타입이 유지되지 않는 차이는
+[DEV-0023](../DEVIATIONS.md#trunc-집계의-반환-타입)에 원본 그대로 기록하고, 명시적 UTC·native 타입/값을 확인해 비교한다.
+GoDj의 Date/Time/UTC DateTime 결과 도메인은 집계 뒤에도 유지한다.
 이 설계의 채택과 구현·환경별 검증은 [활성 작업](../../work/0130-calendar-truncation-and-period-groups.md)에서 구분한다.
 
 ## 조회 결과와 조건부 값

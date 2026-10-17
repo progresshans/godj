@@ -25,7 +25,11 @@ def canonical(value):
     if value is None or isinstance(value, (str, bool, int, float)):
         return value
     if isinstance(value, datetime):
-        assert value.tzinfo is not None, 'converted DateTime lost its offset'
+        # PostgreSQL MIN/MAX don't inherit an inner Trunc expression's
+        # converter. Preserve the returned wall timestamp without inventing
+        # an offset; the consumer compares this explicit upstream difference.
+        if value.tzinfo is None:
+            return value.isoformat(timespec='microseconds')
         return value.astimezone(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
     if isinstance(value, date):
         return value.isoformat()

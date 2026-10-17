@@ -46,10 +46,10 @@
 
 ## DEV-0023 — Calendar 추출의 원본 값 검사와 불가능한 서명 거부
 
-- 상태: ADR-0090/0091의 계약 구현; source `153cf765`의 normal·race·CGO0 양 DB 독립 관측/native 비교 확인, 전체 플랫폼은 검증 중
+- 상태: source `153cf765`의 normal·race·CGO0 양 DB 독립 관측/native 비교와 전체 플랫폼 완료; GDJ-0130의 확장 비교는 검증 중
 - 날짜: 2026-10-18
 - 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 calendar observer](../conformance/runners/django/calendar_extraction_reference/), SQLite/PostgreSQL 17.10
-- 범위: [GDJ-0129](../work/0129-calendar-extraction-and-deadline-groups.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
+- 범위: [GDJ-0129](../work/0129-calendar-extraction-and-deadline-groups.md), [GDJ-0130](../work/0130-calendar-truncation-and-period-groups.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
 
 Date/Time/DateTime의 모델 범위는 추출 뒤에도 유지한다. 작은 정수 결과만 검사하면 범위 밖 연도의 month나
 24:00의 hour가 정상 값처럼 게시될 수 있으므로, GoDj는 실제 기여 operand 전체를 statement 안에서 검사한다.
@@ -78,9 +78,24 @@ ValueError와 GoDj의 사전 거부를 각각 검사한다. 이 항목은 Django
 
 Native numeric의 scale은 의미 차이가 아니다. `59.000000`과 변환된 정수 59는 정확히 대조하되 fractional 값·Infinity·
 범위 초과를 반올림해 통과시키지 않는다. 원시 SQL/parameter/type·변환 단계·저장 상태를 함께 보존하며 일반 timezone/locale,
-Date/Time 이동은 별도 미완료 범위다. GDJ-0130의 타입별 truncation은 같은 원본 도메인 검사로 구현 중이며,
-새 관측 사례의 native 결과·오류 차이는 아직 실행하지 않았다. 위 source의 55개 관측 성공을 확장된 95개 사례의
-증거로 사용하지 않는다. 모델 도메인이나 upstream 의미를 바꾸면 독립 관측과 이 기록을 함께 재검토한다.
+Date/Time 이동은 별도 미완료 범위다. GDJ-0130의 타입별 truncation은 같은 원본 도메인 검사로 구현했으며,
+아래 관측기의 변환 보완을 포함한 실제 비교는 검증 중이다. 위 source의 55개 관측 성공을 확장된 95개 사례의
+완료 증거로 사용하지 않는다. 모델 도메인이나 upstream 의미를 바꾸면 독립 관측과 이 기록을 함께 재검토한다.
+
+### Trunc 집계의 반환 타입
+
+고정 Django의 PostgreSQL `Min/Max`는 안쪽 `Trunc`의 expression converter를 이어받지 않는다.
+`Min(TruncWeek(Date))`와 필터가 있는 `Min(TruncMonth(Date))`는 DateField 선언에도 UTC 자정 datetime을 반환한다.
+명시적 `tzinfo=UTC`의 `Max(TruncDay(DateTime))`와 collection `Min(TruncMonth(DateTime))`는 offset 없는 datetime을
+반환한다. PostgreSQL의 `AT TIME ZONE UTC` 뒤 wall timestamp와 일치하며, SQLite는 backend의 field converter가
+Date와 aware DateTime으로 변환한다. [고정 expression converter](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/expressions.py)와
+[Trunc converter](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/datetime.py), 실제 SQL/native 관측을 함께 확인했다.
+
+관측기는 offset 없는 결과에 UTC를 붙이거나 이를 자체 오류로 바꾸지 않고 그대로 직렬화한다. GoDj는 모델의
+Date와 UTC DateTime 결과 도메인을 유지한다. 소비자 비교는 `trunc_aggregate`, `trunc_filtered_aggregate`,
+`trunc_collection`의 PostgreSQL 결과에서만 이 차이를 처리한다. SQL의 명시적 timezone parameter, 원시 타입·offset
+유무·정확한 값과 Date의 자정 여부, NULL·code·count·clock을 먼저 대조한다. 임의 timezone, 사라진 정밀도·열·행,
+다른 값이나 손상된 원본을 날짜 절삭이나 offset 보충으로 정상화하지 않는다. 이 비교 정책은 다른 사례의 불일치를 면제하지 않는다.
 
 ## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동
 

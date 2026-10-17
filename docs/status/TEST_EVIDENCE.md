@@ -5,6 +5,39 @@
 
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
+### 첫 원격 관측 실패와 반환 타입 비교 보완
+
+제출 source `c1993ce606caf46f1d0700ba9a10cfd32008183f`의
+[CI 39067514208](https://github.com/progresshans/godj/actions/runs/39067514208)에서 세 native consumer owner가
+독립 Django calendar 관측 단계에서 실패했다. PR checkout `2e7ba45e30b6acfa5aca19c5815eff6edabb14ec`의 tree
+`f1d77cc2970b1244beb7b886ff56571800971743`가 제출 source와 같고 base/head parent가 맞음을 먼저 확인했다.
+이 실패 이후의 GoDj native 소비자 비교나 전체 통합을 성공으로 세지 않는다.
+
+세 owner의 SQLite 관측은 95개 사례를 기록했고 PostgreSQL도 원시 SQL/type·변환 오류·전체 저장 보존과 정리를
+포함한 95개 자료를 남겼다. PostgreSQL `trunc_aggregate`·`trunc_collection`은 Django가 반환한 offset 없는 datetime을
+관측기의 `canonical` 함수가 거부해 `AssertionError: converted DateTime lost its offset`로 끝났다.
+`trunc_filtered_aggregate`의 DateField 결과도 UTC 자정 datetime으로 남았다. 고정 Django의 outer aggregate는
+안쪽 Trunc converter를 이어받지 않는 것을 원본 및 byte/hash가 일치하는 upstream module과 대조했다.
+S3 build/lifecycle artifact 게시 실패는 선행 관측 실패로 build가 실행되지 않아 발생한 후속 실패다.
+
+원 자료는 공통 검증 디렉터리의 `ci-39067514208-failed-calendar-observer/`에 있다. 세 job
+`117498164450`·`117498164463`·`117498164581`의 잘리지 않은 원 로그와 source metadata를 보존했다.
+`failed-logs.json` SHA-256은 `ff8cb3d189f9477f4bdd6bf930688aa7a84cfb5910e5b4cac3cfa80ca3948e3e`다.
+각 artifact의 source·GitHub digest·byte 수와 추출 파일 hash를 대조한 `artifacts.json` SHA-256은
+`8454cabe0bb02194101ff59c7102fe3385da636459790c7c3a65f743c42486e0`다.
+
+관측기가 naive datetime을 offset 없이 보존하도록 수정하고, 소비자 비교에서 세 PostgreSQL 집계 사례의
+SQL/UTC parameter·native 타입/offset/정확한 값·Date 자정·NULL·나머지 열을 대조하도록 했다.
+Date와 UTC DateTime의 GoDj 제품 계약을 유지하며 범위 오류나 다른 사례의 불일치를 허용하지 않는다.
+
+로컬은 보존된 native 값과 고정 Django의 expression converter·관측 직렬화만 재현했다. 기존 직렬화의 두 실패를
+재현하고 수정 직렬화·세 비교 사례를 확인했다. 생성 소비자의 최소 compile 뒤 국소 비교 검사에서 root와
+세 case의 4개 run/pass·skip 0, 변조된 원본/offset/UTC parameter/Date clock 등을 거부하는 부정 대조 9개를 확인했다.
+직렬화의 도메인 경계를 검사하는 Python unit 2개도 통과했다. DB 연결·HTTP·전체 제품 테스트는 실행하지 않았다.
+`gdj0130-calendar-converter-repair-xv1fijty/receipt.json`, SHA-256
+`95a36e5690f0f0f12415ede80593faf8c8bf997b3f69d12892b3c45c901d9123`에 이전/수정 source·원 관측·재현 명령·로그를 보존했다.
+이 재현은 수정 observer의 실제 양 DB 재실행을 대신하지 않는다. 수정 묶음을 push해 전체 CI에서 확인한다.
+
 ### 구현 source와 최소 compile
 
 제품·생성기·소비자 변경 묶음을 `6a05456f09ce24b8639855e7487f80966919ef0f`로 커밋했다.
