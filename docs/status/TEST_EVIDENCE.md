@@ -50,6 +50,32 @@ Django·실제 DB·HTTP·client·브라우저의 수정 결과와 같은 source�
 SHA-256 `30d5b4be59678e918b3ad4d1fdfce671f8d016916035e4d55d1b2e11da92cb1b`다. 제품 코드와 독립 observer는 바꾸지 않았다.
 수정 묶음을 push해 전체 CI를 갱신하고 같은 source의 실제 비교·필수 실행·원본 자료를 확인한다.
 
+### Native 원본의 session 구성 실패와 부분 브라우저 결과
+
+`873c699f`를 push하면서 직전 `45ae4393`의 CI 39054442016은 cancelled로 종료됐다. 종료 전 세 consumer owner가
+올린 양 DB 관측 자료를 GitHub artifact의 source·digest·byte 수와 대조해 `ci-39054442016-native-inspection/`에 보존했다.
+PostgreSQL 원본에서도 `datetime_second`의 native 값이 `Decimal("59.000000")`인 것을 확인했다.
+Race consumer의 inner JSONL은 136개 test run·124개 pass·12개 fail을 기록하며 package 실패는 별도다.
+실패는 세 PostgreSQL numeric 표기 비교, 양 DB 각 세 invalid signature 사례와 그 상위 root다. 전체 성공이 아니다.
+Normal/CGO0의 중단된 event log도 보존하며 package 종료가 없는 실행을 PASS로 계산하지 않는다.
+
+Invalid signature 세 사례는 caller-owned transaction의 `db.Session`을 루트용 `project.Using`에 넘겨
+함수 서명 검사 전 backend 구성 오류로 끝났다. `project.UsingSession`으로 결합해 기존 session 수명·권한 경계를 유지했다.
+Expected `query/unsupported` 검사와 NULL 결과·저장 보존을 그대로 둔다. 실패 원본 inner JSONL의 SHA-256은
+`af3918577b5cb34ba6eaf9ce31ae7e88b41625ec6cd6b67050b95eb89124ed9a`다.
+
+로컬에서는 retained SQLite reference의 observer hash가 현재 소스와 같은지 확인하고, 실제 생성 소비자의 해당 세 사례만
+수정 전/후로 실행했다. 이전 코드는 세 사례와 두 상위 test가 실패했고 수정 후에는 다섯 run/pass·skip 0이었다.
+각 사례의 전체 모델/관계 저장 보존과 임시 SQLite 자원 정리도 기존 검사에 포함된다. PostgreSQL과 전체 소비자를 로컬에서
+반복하지 않았다. `gdj0129-calendar-session-repair-3hc22om6/receipt.json`, SHA-256
+`e815e4e22c3ecd1fb437032eb638c206c47be98d802e5ede622824cb9839059a`에 두 source·reference hash와 원 JSONL을 기록했다.
+
+직전 `45ae4393`의 normal integration/browser job `117459452803`은 취소 전에 성공했다. PR checkout/tree·원 job log·
+artifact digest와 전체 파일 hash를 대조하고 calendar 31개 검사·기존 다섯 probe·전체 저장 보존·browser/fixture/DB 정리를
+확인했다. Calendar 원 화면도 열어 UTC 날짜·시계·NULL group·날짜 범위 입력 표시를 확인했다.
+`ci-39054442016-browser/audit.json`, SHA-256 `ba9dab16b4c2b30d489537f04c8e2648f04043cb418835d37689110b4539faf9`는
+이 source의 부분 범위만 증명한다. 수정 source의 전체 검증으로 전이하지 않는다.
+
 ### 구현과 최소 compile 준비
 
 2026-10-16 KST, 기준 `7f42e7473ea85851b60685bff6c3d533aef5c158` 위의 미커밋 작업 사본에서 함수 AST·typed/dynamic

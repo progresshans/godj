@@ -317,7 +317,7 @@ func observeCalendar(t *testing.T, reader db.Session, name string) (any, error) 
 		}
 		return map[string]any{"changed": count, "rows": rows}, nil
 	case "invalid_date_hour", "invalid_time_year", "invalid_duration_year":
-		api, err := project.Using(reader)
+		api, err := project.UsingSession(reader)
 		if err != nil {
 			return nil, err
 		}

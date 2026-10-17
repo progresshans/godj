@@ -12,8 +12,8 @@ GDJ-0129의 함수 AST·typed/dynamic·양 DB·생성 소비자와 Helpdesk HTML
 Source `6d97eec3`의 [전체 CI 38877148664](https://github.com/progresshans/godj/actions/runs/38877148664)는 실패했다.
 독립 관측의 출력 이름 충돌과 Query AST 테스트의 관계 경로 구성을 고쳤다.
 후속 `45ae4393`의 [CI 39054442016](https://github.com/progresshans/godj/actions/runs/39054442016)에서
-세 native consumer owner의 양 DB 관측 단계가 통과했다. 원시 numeric의 scale을 보존한 정수 비교도 보완했으며
-수정 source의 전체 검증은 남아 있다.
+세 native consumer owner의 양 DB 관측 단계가 통과했다. 원시 numeric의 scale을 보존한 정수 비교와
+transaction 안의 부정 사례가 사용하는 session 결합도 고쳤다. 수정 source의 전체 검증은 남아 있다.
 위 GDJ-0127·0128 source의 전체 성공을 새 변경에 전이하지 않는다.
 현재 외부 입력이 필요한 blocker는 없다.
 
