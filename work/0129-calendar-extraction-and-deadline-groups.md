@@ -1,6 +1,6 @@
 # GDJ-0129: 날짜·시각 추출과 기한별 업무 조회
 
-- 상태: 전체 통합 검증 중 — 구현 연결과 생성 ORM의 양 DB 대조 완료; 환경별 범위는 TEST_EVIDENCE 참조
+- 상태: 완료 — source `153cf765`의 양 DB·세 mode·전체 플랫폼 필수 실행과 원본 대조 완료; 환경별 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 참조
 - 시작: 2026-10-16
 - 기준: `7f42e7473ea85851b60685bff6c3d533aef5c158` (제품 source `012191bf`의 전체 검증과 문서 반영 완료)
 - 근거: [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [QuerySet 기능](../docs/CAPABILITY_CATALOG.md), [시각·계산식](../docs/adr/0090-query-update-and-scalar-expressions.md), [그룹 결과](../docs/adr/0091-grouped-results-and-having.md)
@@ -38,7 +38,8 @@ DateTime의 UTC 날짜·시간을 추출하고 이를 DB 그룹 키와 집계에
 - [x] Typed/dynamic·생성 소비자·후속 결과/집계와 compile 부정 대조·실패/rollback을 연결한다.
 - [x] 고정 Django의 독립 양 DB 관측과 GoDj 차이를 실제 결과로 대조한다.
 - [x] Helpdesk 날짜별 기한 조회·canonical 입력·typed 출력·HTML/API·client·브라우저를 연결한다.
-- [ ] 같은 source의 필수 전체 실행과 원본 증거를 확인하고 현행 문서에 반영한다.
+- [x] 같은 source의 필수 전체 실행과 원본 증거를 확인하고 현행 문서에 반영한다.
 
-일반 timezone/locale 선택·달력/시계 이동·truncation·Duration scaling/division·나머지 함수와 named annotation·
+타입별 truncation과 기간별 조회는 [GDJ-0130](0130-calendar-truncation-and-period-groups.md)에서 구현·검증한다.
+일반 timezone/locale 선택·달력/시계 이동·Duration scaling/division·나머지 함수와 named annotation·
 subquery/window·전체 카탈로그는 계속 완성 대상이다. 이 작업은 그 전체 범위를 완료로 처리하지 않는다.

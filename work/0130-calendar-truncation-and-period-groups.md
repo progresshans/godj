@@ -1,6 +1,6 @@
 # GDJ-0130: 달력 구간 계산과 기간별 기한 조회
 
-- 상태: 변경 묶음 작성·검토 중, 실제 동작 미검증 — GDJ-0129의 전체 통합은 별도 source에서 진행 중
+- 상태: 구현 묶음 완료, 실제 동작·전체 통합 미검증 — 제품·생성기·소비자 source `6a05456f`
 - 시작: 2026-10-18
 - 기준: `153cf7652578db28fbad7bc9fae4bf107109cfce`
 - 근거: [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [함수 AST](../docs/adr/0090-query-update-and-scalar-expressions.md)

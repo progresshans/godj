@@ -5,7 +5,10 @@
 
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
-### 구현 중인 작업 사본과 최소 compile
+### 구현 source와 최소 compile
+
+제품·생성기·소비자 변경 묶음을 `6a05456f09ce24b8639855e7487f80966919ef0f`로 커밋했다.
+아래는 커밋 전 작업 사본의 최소 compile·재생성 기록이며 실제 동작·원격 통합은 아직 미검증이다.
 
 2026-10-18 KST, `153cf765` 위의 미커밋 작업 사본에서 타입을 유지하는 여덟 Trunc 함수와
 typed/dynamic·SQLite/PostgreSQL 경로, 생성 소비자와 고정 Django 95개 관측 사례를 작성했다.
@@ -41,20 +44,77 @@ migration·업무 조회·서버를 실행하지 않는다. 실제 양 DB·독�
 
 ## GDJ-0129 — 날짜·시각 추출과 기한별 업무 조회
 
-### 수정 source의 검증 진행
+### 전체 통합 완료
+
+2026-10-18 KST, 제품·생성기·소비자 source `153cf7652578db28fbad7bc9fae4bf107109cfce`의
+[전체 CI 39055628082](https://github.com/progresshans/godj/actions/runs/39055628082)가 attempt 2에서 completed/success로 종료됐다.
+89개 필수 job·8개 실행 owner의 실제 step·필수 목록·최종 `full_platform_verified: true`와 원본 자료를 대조했다.
+PR checkout `e2323e354e8c56859fee2ab7c374b7060bf260e1`의 tree
+`c31c3e39ec13f7b45f40faa54870b699bc04e5eb`는 제출 source와 같으며 base/head parent도 확인했다.
+
+최초 DNS 실패와 재실행 요청은 아래에 보존했다. 실제 새 실행은 macOS Intel normal 명령 job `117492179320`과
+최종 gate `117496907948` 두 개다. 재실행 명령 job의 operator 15개·targeted migrate 33개가 각각 한 번
+run/pass·skip 0이고 두 제품 gate·clean worktree 검사를 통과했다. 두 회차의 API 행 178개를 모두 수집했고,
+기존 성공 87개는 새 job ID의 시각·runner·step과 원래 ID의 자료, 원 로그 bytes의 일치까지 확인했다.
+재사용 기록을 새 실행으로 세지 않으며 최신 실패를 이전 성공으로 대체하지 않는다.
+
+원 자료는 `/Users/hanhyeonjin/Documents/Codex/2026-10-05/godj-verification/hosted-full-pr-39055628082/`에 있다.
+Git archive의 3,669개 파일을 commit의 blob·실행 bit·SHA-256과 대조했다. 16개 artifact 모두 GitHub digest·크기·run/source를
+확인하고 native event·capture envelope·실제 consumer 선택·reference·browser 원본과 결합했다.
+선택한 89개 실제 실행과 나머지 API 행 89개의 원 로그를 별도로 보존했다. `logs.zip`은 개별 job endpoint의 원 로그를
+로컬에서 묶은 ZIP이며 GitHub가 제공한 run archive가 아니다.
+
+| 검증 범위 | 같은 source의 결과 |
+|---|---|
+| 전체 플랫폼 | Linux/macOS × amd64/arm64 × normal/race/CGO0의 12개 조합; relation 36개 job에서 각 조합의 생성 consumer root 95개를 중복·누락 없이 확인 |
+| 실행 목록·생성 | Go inventory 94개, source의 package 분할·필수 child·실제 step 대조; 일곱 프로젝트의 `generate --check`, 고정 Unicode와 checked-in relation 생성물 검사 통과 |
+| 실제 PostgreSQL | 고정 17.10의 9개 event log; 각 mode의 core 필수 3,459개와 별도 operator 필수 3개를 실행 owner와 대조, 필수 skip 0 |
+| Calendar 생성 소비자 | 각 mode에서 양 DB 필수 136개 각각 한 번 run/pass·skip 0, compile-negative 9개와 각 DB의 독립 Django 55개 관측 대조 |
+| Helpdesk 날짜별 조회 | 각 mode의 필수 47개 run/pass·skip 0; 현재 Category·인가·snapshot·입력/페이지·실패/부분 응답 거부·전체 저장 보존 대조 |
+| 독립 client | 세 mode의 여섯 generated profile과 필수 source check 106개, 필터 없는 package 실행·HTTP·부모 저장 검사 대조. 개별 성공 child 원 receipt 106개를 보관한 증거로 표현하지 않음 |
+| 브라우저 | Chromium 155.0.8059.12의 calendar 31·summary 30·report 19·label 28·cost 22·deadline 34개 검사와 원 화면·전체 저장 보존·자원 정리 확인 |
+| Capture·후속 실행 | 같은 source의 system-state/operator capture 생성·선택·소비와 26개 product conformance suite, 32비트 migration/project-check·runserver compile 및 relation 실행 확인 |
+| Python·CI 도구 | 네 compatibility version과 consumer의 suite 378개·소유된 skip 4개를 구분; Darwin owner의 378개 distinct `ok`·skip 0과 그 네 검사의 실제 실행 확인; CI 도구 67개·skip 0 |
+
+Portable conformance와 platform runserver의 PostgreSQL 전용 skip은 실제 native owner의 필수 실행으로 대조했다.
+기존 collection·Decimal·temporal·기한 미리보기와 cold external CLI build, native process·S3 서비스 수명·정리도
+전체 감사에 포함했다. 로컬 전체 제품 테스트를 원격 전체와 중복 실행하지 않았다.
+
+- 최종 audit: `audit.json`, SHA-256 `425fce7a40d7831dba831ff7ff89e242d66f5f87f78bbd9b3b4244c703be06f1`
+- 전체 수집: `collection.json`, SHA-256 `566b336dfec0e09e07cd56ecde3896c13f5f41a60ef070038390bc556a945524`
+- 회차·실제 실행 선택: `attempt-selection.json`, SHA-256 `89e07d34061e86c390cca556527e5ed639205006a71749ec45c25f4071ec8c95`
+- 원 로그 출처·hash: `logs-manifest.json`, SHA-256 `d0f350ef9552faf9377118c5d014690f9cef250d06844a81f24f34a9f5e48056`
+- 선택 원 로그의 로컬 ZIP: `logs.zip`, SHA-256 `72cdf6159668ebd852bc658a031542a4ed19d4c94757eaeb159e5a557d7bb494`
+- Git source archive: `source.tar`, SHA-256 `4dd737ffd712451b8f272bfd2fdec614c2706af778608bca23f2b4538809e839`
+- Source inventory: `source-inventory.json`, SHA-256 `f8a94841a62ee68d4c7a4fcbccdda71cfa7badc599fd3b37b44684cd12420cd4`
+
+이 결과를 GDJ-0130의 구간 계산·기간별 조회 source에 전이하지 않는다. 일반 timezone/locale·Date/Time 이동·
+Duration scaling/division·named annotation·나머지 function/subquery/window와 전체 카탈로그는 계속 완성 대상이다.
+
+### 전체 감사 전의 재실행과 부분 검증 경과
 
 Source `153cf7652578db28fbad7bc9fae4bf107109cfce`의
-[CI 39055628082](https://github.com/progresshans/godj/actions/runs/39055628082)가 진행 중이다. PR checkout
+[CI 39055628082](https://github.com/progresshans/godj/actions/runs/39055628082) 초기 검증에서 PR checkout
 `e2323e354e8c56859fee2ab7c374b7060bf260e1`의 tree `c31c3e39ec13f7b45f40faa54870b699bc04e5eb`가 제출 source와
 같고 두 parent가 base/head인지 validation-plan 원 로그와 GitHub commit 자료로 확인했다.
-생성 ORM의 양 DB 비교는 normal·race·CGO0에서 확인했으며 전체 필수 실행과 플랫폼 통합은 아직 검증 중이다.
+생성 ORM의 양 DB 비교를 normal·race·CGO0에서 먼저 확인했으며 이 시점에는 전체 필수 실행과 플랫폼 통합이 검증 전이었다.
 
 Attempt 1의 macOS Intel normal 명령 제품 job `117463206216`은 targeted migrate의 외부 프로젝트 `go mod tidy`에서
 `github.com/stretchr/testify@v1.3.0`의 module 문서를 받다가 `proxy.golang.org` DNS lookup timeout으로 실패했다.
 Operator 15개 실행은 통과했지만 targeted migrate의 업무 child 실행 전 준비가 중단됐으며 최종 command gate도 실패했다.
 원 로그 37,037 byte와 metadata는 `ci-39055628082-failed-macos-command-normal/`에 보존했다.
 원 로그 SHA-256은 `878fb31855587edf10f92484a81db328198bf8e12a9c6ef27ee379709124bef0`다.
-다른 job은 계속 실행 중이며 종료 뒤 같은 source의 실패 job을 재실행해 필수 실행을 확인해야 한다.
+Attempt 1은 87개 success와 이 명령 job·최종 gate의 failure 2개로 종료됐다. 최종 gate `117492044871`의 원 로그는
+`command-product-matrix` 실패만 보고했으며 SHA-256은 `57d757df810ba15da75e236985601f4fc3f911441ee2978f35fd16e991e5bcfa`다.
+같은 source·종료 상태·두 실패 원본을 재확인한 뒤 `gh run rerun 39055628082 --failed`를 한 번 요청했다.
+요청은 exit 0으로 처리됐고 attempt 2의 명령 job `117492179320` 실행을 확인했다. 이 관측 시점에는 성공 전이었다.
+요청·상태 자료는 `ci-39055628082-retry-audit-control/`에 있으며 `rerun-result.json`의 SHA-256은
+`ebfb3efba29e475efe10c5901f00bc943f82b6ccb6f3258593a0150e5f07d77f`다.
+
+재실행 뒤 GitHub의 latest/100개 목록 조회는 HTTP 502를 반환해 attempt별 10개 페이지를 모두 읽는 방식으로
+관측을 전환했다. CI를 취소하거나 재실행 명령을 반복하지 않았다. GitHub의 재사용 성공 기록은 실제 재실행과
+구분하고 실행 metadata와 원 로그 bytes를 대조했다. 명령 재실행의 필수 inventory와 모든 artifact·
+source·플랫폼 원본 대조를 마치기 전까지 전체 검증을 미완료로 유지했으며 최종 결과는 위 완료 기록을 따른다.
 
 생성 calendar ORM 소비자의 세 mode owner는 성공했다. 각 원 job log·Git source·artifact와 실제 inner JSONL을
 대조해 mode마다 SQLite/PostgreSQL 필수 test 136개가 각각 한 번 run/pass·skip 0이고 compile-negative 9개도 실행된 것을 확인했다.
