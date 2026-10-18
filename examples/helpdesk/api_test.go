@@ -177,7 +177,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(helpdeskAPIConfig(&helpdeskRecordingAuthentication{})); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	const expectedRoutes = 36
+	const expectedRoutes = 37
 	for index := 1; index <= expectedRoutes; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(helpdeskAPIConfig(helpdeskDescribedAuthentication{recording})); result != nil || err == nil || len(recording.permissions) != index {
@@ -206,7 +206,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 func helpdeskExpectedAuthorization(t *testing.T, name string) (auth.Permission, []auth.Permission) {
 	t.Helper()
 	switch name {
-	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary", "helpdesk:cost-preview", "helpdesk:deadline-preview", "helpdesk:deadline-calendar":
+	case "helpdesk:ticket-list", "helpdesk:ticket-detail", "helpdesk:ticket-summary", "helpdesk:cost-preview", "helpdesk:deadline-preview", "helpdesk:deadline-calendar", "helpdesk:service-preview":
 		return helpdesk.ViewTicket, nil
 	case "helpdesk:ticket-create", "helpdesk:ticket-bulk-create":
 		return helpdesk.AddTicket, []auth.Permission{helpdesk.ViewLabel}

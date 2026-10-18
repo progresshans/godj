@@ -23,6 +23,12 @@ func checkHelpdeskServicePreview(ctx context.Context, client, readOnly *hs.Clien
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
+		// A safe error response can issue a new CSRF cookie. Obtain its
+		// matching header before restoration instead of retrying a write.
+		if _, err := helpdeskList(cleanup, client, transport, state); err != nil {
+			result = errors.Join(result, err)
+			return
+		}
 		for _, index := range attempted {
 			result = errors.Join(result, patchServiceFixture(cleanup, client, transport, tickets[index]))
 		}
@@ -162,6 +168,9 @@ func checkHelpdeskServicePreview(ctx context.Context, client, readOnly *hs.Clien
 		if err := checkFailure(hs.HelpdeskServicePreviewParams{P: hs.NewOptInt64(number), Shift: hs.NewOptString("3652059 00:00:00")}); err != nil {
 			return err
 		}
+	}
+	if err := requireHelpdeskTickets(ctx, client, transport, state, prepared...); err != nil {
+		return err
 	}
 	// Finish is a selected result rather than the ordering expression. Select
 	// its row when testing that a valid but unrepresentable finish fails.
