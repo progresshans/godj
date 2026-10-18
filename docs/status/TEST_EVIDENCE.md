@@ -153,6 +153,29 @@ Normal/CGO0의 10분, Portable package의 25분·PostgreSQL core package의 18�
 수정한 race build의 `go test -race -run '^$' -vet=off ./examples/helpdesk`는 exit 0이었다.
 이는 test body를 실행하지 않은 compile 확인이며, gofmt·221개 Markdown 링크·diff 검사도 통과했다.
 
+누적 race 예산 수정은 `446a577d9ce5bfdbd1fe80706b383d3ab36b8ff5`로 제출했다.
+[CI 39157384040](https://github.com/progresshans/godj/actions/runs/39157384040)의 plan job 원본에서 checkout
+`920f8956a1f16c943ca0ddf4c6432711812fbc23`과 제출 source가 tree `077d181555dd98e49f049ff76e0d0bfbe089d329`를
+공유함을 확인했다. 이전 `95afb7d2` 실행은 후속 push로 취소 종료했으며 전체 성공으로 수용하지 않는다.
+
+취소 종료 때 보존된 이전 race core-consumers artifact `12146539549`에는 이미 실패한 native calendar 결과가 있었다.
+원 child event의 959개 경로 중 401개 pass·558개 fail을 확인했고, 518개 직접 진단은 모두 savepoint session을
+root용 `project.Using`에 전달한 동일한 비교 소비자 오류였다. 독립 IANA/Django의 양 DB 각각 316개 관측은
+출처·물리 SQL 값·변환·실패를 별도로 대조했지만, 이 관측의 정상 생산은 Go 비교 성공을 뜻하지 않는다.
+원본·정확한 source 사본·진단은 `gdj0133-95-calendar-diagnostic`에 보존했다.
+
+- 같은 디렉터리의 `artifact.zip`: SHA-256 `18b183db4c097301f36d46746468c593b5e97ed6865d404cadda003368769472`
+- `files/calendar-extraction-reference/godj-calendar-native.jsonl`: SHA-256 `7729222ce86e0a26df2e9615591c9a15cf34ba9e8862ebb6a2282501aec36d10`
+
+비교 소비자가 빌린 savepoint의 수명에 맞는 `project.UsingSession`을 호출하도록 수정했다. 생성 API의 root/session
+소유권 검사는 그대로다. 현재 생성기로 만든 외부 앱의 UTC SQLite `date`·`trunc_hour` 두 연산에서 수정 전 같은 오류를
+재현하고 수정 후 기존 typed/dynamic·native 변환·14개 기록 변조 거부·rollback/전체 저장 보존 검사의 통과를 확인했다.
+이 로컬 실행은 두 연산의 실패 재현 범위이며 PostgreSQL·전체 관측·전체 race 실행은 후속 원격 CI에서 검증한다.
+
+- `gdj0133-session-repro-v3yspl9l/before.log`: SHA-256 `a1b6cf00f1889e07b093e5f81af7bb5b2e37a3c06339b7d94374832221ad0649`
+- 같은 디렉터리의 `after.log`: SHA-256 `5478c3d3f93e2db60e34e8eb703828b9c32a9edffc5c1625e11318f524b2b6c5`
+- source/관측 hash와 두 leaf·parent의 원 event 대조: `source-before.json`, `source-after.json`, `before.json`, `after.json`
+
 이 기록은 구현·수정과 부분 실행의 검증 상태이며, GDJ-0133의 전체 검증이나 프레임워크 전체의 완료를 뜻하지 않는다.
 
 ## GDJ-0131·0132 — 같은 source의 전체 통합 검증 완료

@@ -222,7 +222,7 @@ func readZonedScalar[T calendarValue](t *testing.T, session db.Session, vendor s
 		return err
 	})
 	secondError := db.WithSavepoint(t.Context(), session, func(reader db.Session) error {
-		api, err := project.Using(reader)
+		api, err := project.UsingSession(reader)
 		if err != nil {
 			return err
 		}
