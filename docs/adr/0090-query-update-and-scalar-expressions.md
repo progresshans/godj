@@ -323,6 +323,13 @@ SQLite는 같은 표를 binary search하고 PostgreSQL은 bound numeric/integer 
 PostgreSQL의 epoch 계산은 numeric이며 초 단위 정수 offset만 interval에 곱하므로 instant를 binary64로 변환하지 않는다.
 함수 parameter도 원래 statement의 parameter 예산과 순서에 포함한다.
 
+독립 참조는 공식 IANA 2025c source를 같은 `backzone/zone.tab` 정책으로 별도 컴파일한다.
+제품 ZIP을 읽지 않으며 archive·생성 source·598개 파일·빌드 receipt와 Python/Django source를 결합한다.
+Python ZoneInfo의 전체 이름 관측과 Django의 양 DB 쿼리를 구분한다. Django가 쓰는 PostgreSQL native 데이터도
+관측 fixture의 실제 offset이 일치해야 비교하며 다른 배포 정책을 제품 의미 차이로 면제하지 않는다.
+SELECT와 UPDATE에서 같은 UTC instant를 유지하는 결정과 원본 도메인 차이는
+[DEV-0023](../DEVIATIONS.md#명시적-시간대의-변환-범위와-update)에 기록한다.
+
 Helpdesk의 `time_zone`은 공통 `parameters.TimeZone()`와 `output.TimeZone()`의 불변 typed 값이다.
 입력·출력은 같은 pinned 전체 enum과 데이터 version/hash를 게시한다. 부재만 명시적 UTC 기본값을 사용하며
 빈/중복/알 수 없는 이름은 admission 이후, DB lookup 이전에 거부한다. `as_of`와 최초/최종 기한은 UTC instant를

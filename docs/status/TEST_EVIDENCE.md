@@ -44,10 +44,42 @@ normal/CGO0 integration이 실패했다. 두 원본 로그의 실패는 새 zone
 나머지 zoned 항목이나 아직 진행 중인 다른 job을 PASS로 수용하지 않는다. 원본은
 `gdj0133-ff2-normal-integration.log`, `gdj0133-ff2-cgo0-integration.log`로 보존했다.
 
-독립 관측 생산 경로도 작성했다. 별도 upstream Python tzdata 2025.3 wheel의 SHA-256과 598개 이름/alias를 확인해
-dependency lock과 파일별 source binding을 고정했다. 11개 fixture × 28개 함수/관계/쓰기 관측과 8개 실패 관측,
-598개 zone × 15개 provider 시각을 정의했다. 관측·source 변조 부정 대조의 Python syntax와 문서 링크는 확인했으나
-관측 실행과 Go 생성 소비자의 비교는 아직 완료하지 않았다. 기존 UTC 관측 118개를 대체하지 않는다.
+`2e110cfb533086decc450a2c4ff9656a30f0c2b5`에는 링크 기대 정정과 Python tzdata 2025.3 기반 독립 관측을 제출했다.
+[CI 39151244903](https://github.com/progresshans/godj/actions/runs/39151244903)의 race core-consumers가 성공 종료했고,
+보존한 artifact에서 양 DB 각각 316개 관측(11 fixture × 28 + 실패 8)과 598개 zone × 15개 provider 시각을 확인했다.
+기존 UTC 118개 비교와 runtime 21묶음의 child root는 각각 2.68초·4.29초에 통과했다. 새 시간대 관측과 Go 결과의
+비교는 이 source에 아직 연결되지 않아 이 성공을 시간대 동등성으로 수용하지 않는다.
+
+IANA version과 이름 목록만 같아서는 과거 규칙이 같지 않았다. Python wheel과 Go 고정 archive의 598개 파일 중
+95개가 backzone 정책 때문에 달랐다. 따라서 wheel을 동등한 기준으로 쓰지 않고 공식 `tzcode2025c`·`tzdata2025c`를
+`PACKRATDATA=backzone`, `PACKRATLIST=zone.tab`, `posix_only`로 독립 빌드하는 경로로 바꿨다.
+로컬 source 준비에서 생성한 598개 TZif의 bytes가 제품 archive와 전부 일치했으며 query runtime 실행으로 계산하지 않는다.
+Archive의 SHA-256은 각각 `697ebe6625444aef5080f58e49d03424bbb52e08bf483d3ddb5acf10cbd15740`,
+`4aa79e4effee53fc4029ffe5f6ebe97937282ebcdf386d5d2da91ce84142f957`이고, compiled `tzdata.zi`는
+`7aaadaae8fcd324ba1c2e4243336050bcb0ad5fce1d46404893ae7a8011e4f3b`다. 원본·build log는
+`gdj0133-iana-reference-build`에 보존했다. CI 준비기는 archive·파일별 hash·전체 이름·build receipt를 확인한 뒤
+관측에 제공하며, source/receipt/provider/native SQL·타입·값·변환·물리 저장과 실패 경계를 Go 생성 소비자에 연결했다.
+기존 UTC 관측을 유지하고 새 child 675개와 출처/기록 변조 부정 대조를 필수 실행으로 요구한다. 이 새 경로의 실제 실행은 미완료다.
+
+같은 `2e110cfb` 실행에서 PostgreSQL race core의 `truncated_utc_underflow`가 실제 제품 오류를 드러냈다.
+Seoul의 유효한 1년 지역 절삭을 UTC로 돌렸을 때 연도 0 결과가 SQL 밖으로 나왔다. 원본/지역 값만 검사하던
+PostgreSQL compiler에 역변환 결과의 전체 UTC 범위 검사도 추가했다. 기존 query/UPDATE·부분 쓰기/rollback 검사를
+그대로 다시 실행하며 검사 기대를 완화하지 않는다. 원본은 `gdj0133-2e-race-core.log`에 있다.
+
+Portable race integration은 Helpdesk의 누적 15분 context가 만료되어 ticket priority의 후반부 검사가 연쇄 실패했다.
+원본 `gdj0133-2e-race-integration.log`에는 데이터 경쟁 보고가 없다. 새 지역별 fixture가 공용 DB에 남아 후속 전체
+저장 검사를 계속 늘리는 수명을 정리했다. 각 fixture의 모든 저장/인가/실패 검사를 끝낸 뒤 생성한 ID만 같은 transaction으로
+삭제하고, 기존 전체 native 행이 byte 단위로 그대로인지 확인한다. 누적 timeout·개별 실패/경합 deadline은 유지한다.
+이 수정 뒤 race 실행이 끝나기 전에는 해소로 기록하지 않는다.
+
+최종 로컬 checkpoint는 base `2e110cfb`와 변경한 비문서 파일 전체의 hash를 결합한다.
+소비자 parent·PostgreSQL·Helpdesk를 compile하고, 현재 생성기로 만든 planning/records의 외부 module에서
+기존 reference와 새 zoned reference를 포함해 `-run '^$'`로 compile했다(exit 0).
+제품/DB/HTTP 테스트 본문과 비교기는 실행하지 않았다. 실행 전후 source hash 일치, 세 Python 파일 syntax,
+221개 Markdown 링크 및 diff 검사를 확인했다. Workflow와 전체 테스트 검증은 원격에 남아 있다.
+
+- `gdj0133-zoned-compile-qgs83wqr/source.json`: SHA-256 `2a6239594680a2d98bde0b270713db0a58e39b927b69f02963631cd5350990a7`
+- 같은 디렉터리의 `compile.log`: SHA-256 `541d487bc61ef54a2b4f206c6c1ad1474ec8fb9d5cef2f2f75e95c2935d73c30`
 
 이 기록은 compile/수정 진행 상태이며, GDJ-0133의 실제 실행이나 전체 프레임워크의 완료를 뜻하지 않는다.
 

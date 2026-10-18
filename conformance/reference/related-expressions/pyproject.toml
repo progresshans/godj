@@ -8,7 +8,6 @@ dependencies = [
     "Django==6.1",
     "psycopg[binary]==3.3.6",
     "sqlparse==0.5.5",
-    "tzdata==2025.3",
 ]
 
 [tool.uv]

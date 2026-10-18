@@ -1,4 +1,4 @@
-"""Pinned Django/ZoneInfo observations using an independent Python tzdata build.
+"""Pinned Django/ZoneInfo observations using an independent IANA source build.
 
 No GoDj source, embedded data, expected results or product receipts are read.
 The UTC observer's value/error encoders are shared, and their source is bound
@@ -12,7 +12,7 @@ import importlib.util
 import json
 import locale
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import platform
 import sqlite3
 import sys
@@ -34,26 +34,10 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def verify_zone_data(root, source):
-    """Reject a missing, changed or differently inventoried installed dataset."""
-    if source['kind'] != 'independent-python-tzdata-source-v1':
-        raise ValueError('unexpected timezone source contract')
-    names = source['names']
-    if names != sorted(set(names)) or len(names) != 598 or 'UTC' not in names:
-        raise ValueError('timezone name inventory differs')
-    if digest(('\n'.join(names) + '\n').encode()) != source['names_sha256']:
-        raise ValueError('timezone name inventory checksum differs')
-    for name, identity in source['files'].items():
-        path = PurePosixPath(name)
-        if path.is_absolute() or '..' in path.parts or str(path) != name or '\\' in name:
-            raise ValueError('timezone source contains an invalid path')
-        value = (root / name).read_bytes()
-        if len(value) != identity['bytes'] or digest(value) != identity['sha256']:
-            raise ValueError('installed timezone bytes differ: ' + name)
-    actual = sorted(str(path.relative_to(root / 'zoneinfo')) for path in (root / 'zoneinfo').rglob('*')
-                    if path.is_file() and path.read_bytes().startswith(b'TZif'))
-    if actual != names or set(source['files']) != {'__init__.py', 'zones', 'zoneinfo/tzdata.zi'} | {'zoneinfo/' + name for name in names}:
-        raise ValueError('installed timezone file inventory differs')
+_data_spec = importlib.util.spec_from_file_location('zoned_reference_data', DIRECTORY / 'prepare_data.py')
+_data = importlib.util.module_from_spec(_data_spec)
+_data_spec.loader.exec_module(_data)
+verify_zone_data = _data.verify_files
 
 
 def provider_observations(inputs, source):
@@ -76,9 +60,8 @@ def provider_observations(inputs, source):
     return values
 
 
-def observe(vendor):
+def observe(vendor, data_directory):
     import django
-    import tzdata
     from django.apps import AppConfig
     from django.conf import settings
 
@@ -90,10 +73,19 @@ def observe(vendor):
     assert django.get_version() == '6.1' and platform.python_version() == '3.14.3'
     data_bytes = (DIRECTORY / 'data-source.json').read_bytes()
     data_source = json.loads(data_bytes)
-    assert tzdata.__version__ == data_source['package_version'] == '2025.3'
-    assert tzdata.IANA_VERSION == data_source['iana_version'] == '2025c'
-    data_root = Path(tzdata.__file__).resolve().parent
-    verify_zone_data(data_root, data_source)
+    assert data_source['iana_version'] == '2025c'
+    data_root = data_directory.resolve()
+    receipt_bytes = (data_root / 'build.json').read_bytes()
+    receipt = json.loads(receipt_bytes)
+    prepare_hash = digest((DIRECTORY / 'prepare_data.py').read_bytes())
+    assert receipt['kind'] == 'independent-iana-build-v1' and receipt['complete'] is True
+    assert receipt['iana_version'] == '2025c' and receipt['build'] == data_source['build']
+    assert receipt['data_source_sha256'] == digest(data_bytes) and receipt['prepare_sha256'] == prepare_hash
+    assert receipt['archives'] == {name: value['sha256'] for name, value in data_source['archives'].items()}
+    assert receipt['files'] == 598 and receipt['names_sha256'] == data_source['names_sha256']
+    assert receipt['tzdata_zi_sha256'] == data_source['tzdata_zi']['sha256'] == digest((data_root / 'tzdata.zi').read_bytes())
+    assert receipt['compiler'] and len(bytes.fromhex(receipt['zic_binary_sha256'])) == 32
+    verify_zone_data(data_root / 'zoneinfo', data_source)
     zoneinfo.reset_tzpath([str(data_root / 'zoneinfo')])
     zoneinfo.ZoneInfo.clear_cache()
     assert zoneinfo.TZPATH == (str(data_root / 'zoneinfo'),)
@@ -109,7 +101,7 @@ def observe(vendor):
     runtime = {'python': platform.python_version(), 'django': django.get_version(), 'platform': platform.system(),
                'machine': platform.machine(), 'sqlite': sqlite3.sqlite_version,
                'locale': locale.setlocale(locale.LC_ALL), 'timezone': 'UTC',
-               'tzdata': tzdata.__version__, 'iana': tzdata.IANA_VERSION,
+               'data_profile': 'backzone/zone.tab', 'iana': '2025c',
                'zoneinfo_module_sha256': digest(Path(zoneinfo.__file__).read_bytes())}
     control, namespace, result = None, None, None
     namespace_created = False
@@ -201,7 +193,10 @@ def observe(vendor):
                             expressions.extend(['typeof(' + column + ')', 'quote(' + column + ')'])
                         else:
                             expressions.extend(['pg_typeof(' + column + ')::text', column + '::text'])
-                    cursor.execute('SELECT ' + ','.join(expressions) + ' FROM ' + connection.ops.quote_name(model._meta.db_table) + ' ORDER BY id')
+                    table = connection.ops.quote_name(model._meta.db_table)
+                    # PostgreSQL must sort the underlying integer key, not the
+                    # selected id::text column's output alias.
+                    cursor.execute('SELECT ' + ','.join(expressions) + ' FROM ' + table + ' ORDER BY ' + table + '.id')
                     snapshot.append([list(row) for row in cursor.fetchall()])
             return snapshot
 
@@ -394,6 +389,7 @@ def observe(vendor):
                   'observer_sha256': digest(Path(__file__).read_bytes()),
                   'shared_observer_sha256': digest((SHARED / 'observe.py').read_bytes()),
                   'input_sha256': digest(input_bytes), 'data_source_sha256': digest(data_bytes),
+                  'prepare_sha256': prepare_hash, 'build_receipt_sha256': digest(receipt_bytes), 'build_receipt': receipt,
                   'source_verification_sha256': digest(source_bytes),
                   'provider': provider, 'native_zone_probes': probes, 'cases': cases, 'storage_unchanged': True}
     finally:
@@ -420,8 +416,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--vendor', required=True, choices=['sqlite', 'postgres'])
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--data-directory', required=True, type=Path)
     arguments = parser.parse_args()
-    document = observe(arguments.vendor)
+    document = observe(arguments.vendor, arguments.data_directory)
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     with arguments.output.open('x', encoding='utf-8') as output:
         json.dump(document, output, ensure_ascii=False, indent=2, allow_nan=False)

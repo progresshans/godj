@@ -16,7 +16,8 @@ GDJ-0132의 Date/Time 산술과 서비스 일정 미리보기를 공통 AST·양
 
 GDJ-0133은 UTC에 고정된 기한 달력에 명시적인 업무 시간대를 연결한다. 고정 IANA 데이터·불변 값·공통 AST와
 양 backend의 지역별 추출/절삭과 생성 소비자·Helpdesk HTML/API/client·브라우저 검증 경로를 작성했다.
-독립 관측과 현재 source의 실제 실행 대조는 아직 미완료다.
+공식 IANA 독립 빌드와 Django/native 비교를 연결했으며, 원격에서 확인한 역변환 범위 오류와 fixture 수명을 수정했다.
+현재 source의 실제 실행 대조는 아직 미완료다.
 
 ## 다음 행동
 

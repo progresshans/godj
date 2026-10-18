@@ -1052,13 +1052,18 @@ jobs:
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
+          python3 conformance/runners/django/zoned_calendar_reference/prepare_data.py \
+            --output "$RUNNER_TEMP/zoned-calendar-data"
+          mkdir -p "$RUNNER_TEMP/calendar-extraction-reference"
+          cp "$RUNNER_TEMP/zoned-calendar-data/build.json" "$RUNNER_TEMP/calendar-extraction-reference/zoned-build.json"
           for vendor in sqlite postgres; do
             uv run --project conformance/reference/related-expressions --frozen python \
               conformance/runners/django/calendar_extraction_reference/observe.py \
               --vendor "$vendor" --output "$RUNNER_TEMP/calendar-extraction-reference/django61-$vendor.json"
             uv run --project conformance/reference/related-expressions --frozen python \
               conformance/runners/django/zoned_calendar_reference/observe.py \
-              --vendor "$vendor" --output "$RUNNER_TEMP/calendar-extraction-reference/zoned-django61-$vendor.json"
+              --vendor "$vendor" --data-directory "$RUNNER_TEMP/zoned-calendar-data" \
+              --output "$RUNNER_TEMP/calendar-extraction-reference/zoned-django61-$vendor.json"
           done
 
       - name: Assert exact PostgreSQL service profile
@@ -1275,6 +1280,8 @@ jobs:
             ${{ runner.temp }}/decimal-expression-reference/
             ${{ runner.temp }}/temporal-expression-reference/
             ${{ runner.temp }}/calendar-extraction-reference/
+            ${{ runner.temp }}/zoned-calendar-data/build.json
+            ${{ runner.temp }}/zoned-calendar-data/build.log
           if-no-files-found: error
           retention-days: 90
 

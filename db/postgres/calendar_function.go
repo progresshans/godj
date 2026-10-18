@@ -116,7 +116,14 @@ func compilePostgresCalendarTruncation(function query.FunctionKind, kind query.F
 			if err != nil {
 				return "", err
 			}
-			return queryplan.ScalarSQL("(", instant, " AT TIME ZONE 'UTC')")
+			result, err := queryplan.ScalarSQL("(", instant, " AT TIME ZONE 'UTC')")
+			if err != nil {
+				return "", err
+			}
+			// A valid civil truncation can convert back before year 1 in a
+			// positive-offset zone. Enforce the instant domain in SQL before
+			// projection, grouping or assignment can expose that result.
+			return temporalScalarResultSQL(query.FieldDateTime, result)
 		}
 		// The caller has already converted the checked instant to a UTC
 		// timestamp. Give the result its instant domain without consulting

@@ -168,6 +168,25 @@ Date와 UTC DateTime 결과 도메인을 유지한다. 소비자 비교는 `trun
 Date의 자정 여부, NULL·code·count·clock·전체 행 수를 먼저 대조한다. 임의 timezone, 사라진 정밀도·열·행,
 다른 값이나 손상된 원본을 날짜 절삭이나 offset 보충으로 정상화하지 않는다. 이 비교 정책은 다른 사례의 불일치를 면제하지 않는다.
 
+### 명시적 시간대의 변환 범위와 UPDATE
+
+GDJ-0133은 이 원본 도메인 정책을 명시적인 지역 변환에도 적용한다. 원 UTC instant, 변환된 지역 civil value와
+절삭 뒤 UTC instant 모두 1..9999 범위여야 한다. PostgreSQL의 범위 밖 연도에서 작은 month/year를 추출하거나
+SQLite의 손상 시각에서 NULL을 얻는 동작을 유효한 모델 결과로 받아들이지 않는다. CASE/FILTER에서 실제로
+선택되지 않은 operand는 기존 지연 평가를 유지한다.
+
+지역 `TruncHour`의 SELECT는 Django의 ZoneInfo `fold=0` converter를 거치지만 SQL UPDATE 대입은 그 converter를
+거치지 않는다. Django의 절삭 wall timestamp가 UTC connection에서 UTC 시각으로 저장되는 관측과 달리 GoDj는
+SELECT와 UPDATE에 같은 선언된 UTC instant를 사용한다. 이를 전체 parity로 집계하지 않는다. 비교기는 원 Django
+UPDATE의 native SQL·전체 저장 열·결과·원 행의 year를 먼저 확인하고, Go UPDATE의 at 값만 독립 SELECT 절삭
+관측과 비교한다. 원본 UPDATE 기록을 덮어쓰거나 임의 timestamp를 정규화해 통과시키지 않는다.
+
+모델 저장 형식과 기존 UTC 함수는 바뀌지 않는다. 조회한 절삭 값과 대입한 절삭 값이 같은 instant를 의미하도록 하는
+기존 typed 계약을 유지하며, 업무 시간대의 날짜 경계에서 저장 시각이 의도와 달라지는 대안을 채택하지 않는다.
+이 확장과 실패의 실제 환경별 비교는 아직 검증 중이고, 위 UTC 범위의 기존 완료 증거를 전이하지 않는다.
+독립 원본과 검증 상태는 [observer](../conformance/runners/django/zoned_calendar_reference/README.md),
+[GDJ-0133](../work/0133-named-timezones-and-local-deadline-calendar.md), [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
 ## DEV-0022 — Temporal 계산의 정확한 범위와 평균 이동
 
 - 상태: ADR-0090/0091의 계약 구현; source `012191bf`의 양 DB·세 mode 독립 관측/native 비교와 전체 플랫폼 통합 검증 완료

@@ -20,11 +20,12 @@ import (
 // the preview. Session tables can change during authenticated reads and are not
 // application data; durable object audit is checked separately through Runtime.
 type deadlineNative struct {
-	snapshot            func(context.Context) (string, error)
-	setDueAt            func(context.Context, int64, time.Time) error
-	corruptDueAt        func(context.Context, int64) error
-	setServiceValues    func(context.Context, int64, *calendar.Date, *clock.Time, *duration.Duration) error
-	corruptServiceValue func(context.Context, int64, string) error
+	snapshot               func(context.Context) (string, error)
+	setDueAt               func(context.Context, int64, time.Time) error
+	corruptDueAt           func(context.Context, int64) error
+	setServiceValues       func(context.Context, int64, *calendar.Date, *clock.Time, *duration.Duration) error
+	corruptServiceValue    func(context.Context, int64, string) error
+	removeCalendarFixtures func(context.Context, [2]int64, []int64) error
 }
 
 func (native deadlineNative) Snapshot(t *testing.T) string {
@@ -38,6 +39,42 @@ func (native deadlineNative) Snapshot(t *testing.T) string {
 
 func sqliteDeadlineNative(connection *sql.DB) deadlineNative {
 	return deadlineNative{
+		removeCalendarFixtures: func(ctx context.Context, categories [2]int64, tickets []int64) (result error) {
+			tx, err := connection.BeginTx(ctx, nil)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+					result = errors.Join(result, err)
+				}
+			}()
+			for _, id := range tickets {
+				deleted, err := tx.ExecContext(ctx, "DELETE FROM helpdesk_ticket WHERE id=? AND category_id IN (?,?)", id, categories[0], categories[1])
+				if err != nil {
+					return err
+				}
+				count, err := deleted.RowsAffected()
+				if err != nil {
+					return err
+				}
+				if count != 1 {
+					return errors.New("owned calendar ticket cleanup count differs")
+				}
+			}
+			deleted, err := tx.ExecContext(ctx, "DELETE FROM helpdesk_category WHERE id IN (?,?)", categories[0], categories[1])
+			if err != nil {
+				return err
+			}
+			count, err := deleted.RowsAffected()
+			if err != nil {
+				return err
+			}
+			if count != 2 {
+				return errors.New("owned calendar category cleanup count differs")
+			}
+			return tx.Commit()
+		},
 		snapshot: func(ctx context.Context) (string, error) {
 			tables, err := connection.QueryContext(ctx, "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'helpdesk_%' ORDER BY name")
 			if err != nil {
@@ -137,6 +174,34 @@ func sqliteDeadlineNative(connection *sql.DB) deadlineNative {
 func postgresDeadlineNative(connection *pgx.Conn, namespace string) deadlineNative {
 	ticket := pgx.Identifier{namespace, "helpdesk_ticket"}.Sanitize()
 	return deadlineNative{
+		removeCalendarFixtures: func(ctx context.Context, categories [2]int64, tickets []int64) (result error) {
+			tx, err := connection.Begin(ctx)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+					result = errors.Join(result, err)
+				}
+			}()
+			for _, id := range tickets {
+				deleted, err := tx.Exec(ctx, "DELETE FROM "+ticket+" WHERE id=$1 AND category_id IN ($2,$3)", id, categories[0], categories[1])
+				if err != nil {
+					return err
+				}
+				if deleted.RowsAffected() != 1 {
+					return errors.New("owned calendar ticket cleanup count differs")
+				}
+			}
+			deleted, err := tx.Exec(ctx, "DELETE FROM "+pgx.Identifier{namespace, "helpdesk_category"}.Sanitize()+" WHERE id IN ($1,$2)", categories[0], categories[1])
+			if err != nil {
+				return err
+			}
+			if deleted.RowsAffected() != 2 {
+				return errors.New("owned calendar category cleanup count differs")
+			}
+			return tx.Commit(ctx)
+		},
 		snapshot: func(ctx context.Context) (string, error) {
 			tables, err := connection.Query(ctx, "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname=$1 AND tablename LIKE 'helpdesk_%' ORDER BY tablename", namespace)
 			if err != nil {

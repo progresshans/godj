@@ -264,6 +264,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 	required := []string{"TestCalendarRuntime"}
 	if references != "" {
 		required = append(required, "TestCalendarReference")
+		required = append(required, prepareZonedCalendarReference(t, root, references)...)
 	}
 	for _, vendor := range []string{"sqlite", "postgres"} {
 		if vendor == "postgres" && strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) == "" && os.Getenv("GODJ_REQUIRE_POSTGRES") != "1" {
@@ -280,7 +281,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 			}
 		}
 	}
-	output := runStrictGeneratedCommandWithCapture(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^TestCalendar(Reference|Runtime)$", "./consumer"), func(output []byte) error {
+	output := runStrictGeneratedCommandWithCapture(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-timeout=5m", "-run", "^(TestCalendar(Reference|Runtime)|TestZonedCalendarReference)$", "./consumer"), func(output []byte) error {
 		if references == "" {
 			return nil
 		}

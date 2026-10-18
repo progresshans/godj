@@ -56,6 +56,7 @@ func verifyHelpdeskZonedDeadlineCalendar(t *testing.T, ctx context.Context, runt
 		}},
 	} {
 		t.Run(strings.ReplaceAll(fixture.zone, "/", "_"), func(t *testing.T) {
+			originalStorage := native.Snapshot(t)
 			category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Zoned calendar "+fixture.zone))
 			if err != nil {
 				t.Fatal(err)
@@ -64,6 +65,22 @@ func verifyHelpdeskZonedDeadlineCalendar(t *testing.T, ctx context.Context, runt
 			if err != nil {
 				t.Fatal(err)
 			}
+			var ownedTickets []int64
+			t.Cleanup(func() {
+				// Remove only this fixture after its storage assertions. Keeping
+				// synthetic rows in the shared suite amplifies every later full
+				// storage snapshot, especially under the race detector.
+				work, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+				defer cancel()
+				if err := native.removeCalendarFixtures(work, [2]int64{category.ID, outside.ID}, ownedTickets); err != nil {
+					t.Error(err)
+					return
+				}
+				after, err := native.snapshot(work)
+				if err != nil || after != originalStorage {
+					t.Error("calendar fixture cleanup changed preexisting native storage", err)
+				}
+			})
 			reference := time.Date(2024, 3, 10, 7, 0, 0, 0, time.UTC)
 			inputs := slices.Clone(fixture.instants)
 			// Every period, including year, has a second nonempty database page.
@@ -83,6 +100,7 @@ func verifyHelpdeskZonedDeadlineCalendar(t *testing.T, ctx context.Context, runt
 					t.Fatal(err)
 				}
 				tickets = append(tickets, ticket)
+				ownedTickets = append(ownedTickets, ticket.ID)
 				row := daily[pair[1]]
 				row.Start, row.Total = new(pair[1]), row.Total+1
 				instant := at.Format("2006-01-02T15:04:05.000000Z")
@@ -105,10 +123,12 @@ func verifyHelpdeskZonedDeadlineCalendar(t *testing.T, ctx context.Context, runt
 				t.Fatal(err)
 			}
 			tickets = append(tickets, unset)
+			ownedTickets = append(ownedTickets, unset.ID)
 			private, err := models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Foreign zoned ticket", outside.ID).WithDueAt(reference))
 			if err != nil {
 				t.Fatal(err)
 			}
+			ownedTickets = append(ownedTickets, private.ID)
 			days := slices.Collect(maps.Values(daily))
 			slices.SortFunc(days, func(a, b deadlineCalendarItem) int { return strings.Compare(*a.Start, *b.Start) })
 			days = append(days, deadlineCalendarItem{Total: 1, Open: 1})

@@ -351,10 +351,14 @@ PostgreSQL display scale을 보존하는 구현으로 주장하지 않는다. LI
 ## 명시적 시간대의 독립 데이터와 native 관측
 
 [Named timezone observer](../conformance/runners/django/zoned_calendar_reference/README.md)는
-Python Software Foundation의 [tzdata 2025.3](https://pypi.org/project/tzdata/2025.3/)을 별도 reference 환경에 고정한다.
-IANA 2025c 전체 이름/alias 598개와 wheel·개별 파일 hash는
+공식 [tzcode2025c](https://data.iana.org/time-zones/releases/tzcode2025c.tar.gz)와
+[tzdata2025c](https://data.iana.org/time-zones/releases/tzdata2025c.tar.gz)를 별도로 빌드한다.
+`posix_only`, `PACKRATDATA=backzone`, `PACKRATLIST=zone.tab`으로 전체 과거 규칙을 유지하며
+IANA 2025c 전체 이름/alias 598개와 archive·컴파일된 source·개별 파일 hash 및 빌드 옵션은
 [data-source.json](../conformance/runners/django/zoned_calendar_reference/data-source.json)에 있다.
-Apache-2.0 패키지와 public-domain IANA 데이터를 사용하며 제품의 Go archive나 예상값을 관측 입력으로 읽지 않는다.
+IANA 배포 원본의 LICENSE와 public-domain notice를 보존하며 제품의 Go archive나 예상값을 관측 입력으로 읽지 않는다.
+같은 버전의 Python wheel은 다른 backzone 정책으로 95개 파일이 달라 동등한 데이터 기준으로 사용하지 않는다.
+관측은 별도 빌드 receipt와 source hash를 검사한 뒤 해당 경로만 Python ZoneInfo에 제공한다.
 Python ZoneInfo provider 관측과 Django의 실제 양 DB 쿼리 관측은 별도로 기록한다. PostgreSQL native 규칙의
 실제 offset도 같은 fixture 시각에서 대조한다. 관측 정의·생성 소비자의 비교·최종 실행 수용은 별개다.
 

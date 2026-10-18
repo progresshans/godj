@@ -1,10 +1,17 @@
 # Explicit timezone reference
 
-This observer uses pinned Django 6.1 and Python 3.14.3 with Python's independently distributed `tzdata==2025.3`
-(IANA 2025c). The dependency lock binds its wheel; `data-source.json` additionally binds every installed TZif file,
-the complete 598-name/alias inventory and package identity. It does not read the GoDj timezone archive, implementation,
-expected results or runtime receipts. The existing UTC observer's value/error encoders and upstream module fingerprints
-are shared as explicit, separately hashed inputs. The UTC observer's 118 cases remain unchanged.
+This observer uses pinned Django 6.1 and Python 3.14.3 with an independent build of the official IANA 2025c
+`tzcode` and `tzdata` release archives. `prepare_data.py` checks both archive hashes, compiles `posix_only` with
+`PACKRATDATA=backzone`, `PACKRATLIST=zone.tab`, `CFLAGS=-DSTD_INSPIRED` and `AWK=awk`, and verifies all 598 TZif
+files plus the compiled `tzdata.zi` source against `data-source.json`. The complete build receipt, log, source identities,
+compiler identity and output file hashes remain bound to the observation. Existing output directories are never replaced.
+Python ZoneInfo reads only this verified directory. Neither preparation nor observation reads the GoDj timezone archive,
+implementation, expected results or runtime receipts. The existing UTC observer's encoders and upstream module fingerprints
+are explicit, separately hashed inputs. Its 118 cases remain unchanged.
+
+An IANA release number alone does not identify historical rules: Python's `tzdata==2025.3` wheel uses a different
+backzone policy and 95 of its 598 TZif files differ from the product profile. That wheel is not used as an equivalent
+data oracle. The independent official-source build retains the full historical policy; differences are not waived.
 
 The new input defines 11 timezone fixtures, 21 DateTime extraction/truncation functions and 7 composition, filter,
 group, relation, collection and update cases per fixture. Eight separate boundary/corruption cases preserve the actual
@@ -24,12 +31,15 @@ offset and resulting instant, including missing local times. Direct Django conve
 observed separately: an UPDATE of a naive truncated wall value may store it under the database connection's UTC zone.
 The consumer must verify this explicit upstream difference, not call the results equal or overwrite the observation.
 
-Run through the frozen `conformance/reference/related-expressions` environment. The native CI owner records both
+Prepare the data with `python3 prepare_data.py --output <new-directory>`, then run the observer through the frozen
+`conformance/reference/related-expressions` environment with `--data-directory <new-directory>`. The native CI owner records both
 `zoned-django61-sqlite.json` and `zoned-django61-postgres.json` alongside the existing calendar reference artifacts.
 Source binding, negative controls and native consumer comparisons remain required; current execution/acceptance status
 belongs to [TEST_EVIDENCE](../../../../docs/status/TEST_EVIDENCE.md).
 
-Sources: [Python tzdata 2025.3](https://pypi.org/project/tzdata/2025.3/),
-[pinned Python data source](https://github.com/python/tzdata/tree/d14cebc1f27c90ca244dac9f12327fffc14d5cf9),
+Sources: [IANA tzcode 2025c](https://data.iana.org/time-zones/releases/tzcode2025c.tar.gz),
+[IANA tzdata 2025c](https://data.iana.org/time-zones/releases/tzdata2025c.tar.gz),
+[Go's documented IANA build policy](https://github.com/golang/go/blob/c19862e5f8415b4f24b189d065ed739517c548ba/lib/time/update.bash),
 [Django DateTime functions](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/datetime.py).
-Python tzdata is Apache-2.0 with public-domain IANA data; Django is BSD-3-Clause. Neither dependency is copied into a GoDj binary.
+IANA's release archives retain their own LICENSE and public-domain notice; Django is BSD-3-Clause.
+The development build and Python/Django implementation are not copied into a GoDj binary.
