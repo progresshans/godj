@@ -175,6 +175,7 @@ func verifyHelpdeskZonedDeadlineCalendar(t *testing.T, ctx context.Context, runt
 				query.Set("from_date", "0001-01-01")
 				query.Set("until_date", "9999-12-31")
 				response := client.request(http.MethodGet, helpdesk.DeadlineCalendarPath+"?"+query.Encode(), "", false)
+				query.Set("as_of", "2024-03-10T07:00:00.000000Z")
 				query.Set("p", "1")
 				previous := `href="` + helpdesk.DeadlineCalendarPath + "?" + strings.ReplaceAll(query.Encode(), "&", "&amp;") + `">Previous page</a>`
 				query.Del("from_date")

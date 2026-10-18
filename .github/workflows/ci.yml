@@ -1056,6 +1056,9 @@ jobs:
             uv run --project conformance/reference/related-expressions --frozen python \
               conformance/runners/django/calendar_extraction_reference/observe.py \
               --vendor "$vendor" --output "$RUNNER_TEMP/calendar-extraction-reference/django61-$vendor.json"
+            uv run --project conformance/reference/related-expressions --frozen python \
+              conformance/runners/django/zoned_calendar_reference/observe.py \
+              --vendor "$vendor" --output "$RUNNER_TEMP/calendar-extraction-reference/zoned-django61-$vendor.json"
           done
 
       - name: Assert exact PostgreSQL service profile

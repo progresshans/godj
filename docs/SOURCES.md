@@ -348,6 +348,16 @@ SQLite Decimal division의 `decimalDivisionScale`도 위 PostgreSQL 17.10 `selec
 Canonical BLOB의 두 operand scale을 사용하고 exact integer ratio를 half-away-from-zero로 한 번 반올림한다.
 PostgreSQL display scale을 보존하는 구현으로 주장하지 않는다. LICENSE.postgresql과 NOTICE의 출처·변경 경계를 유지한다.
 
+## 명시적 시간대의 독립 데이터와 native 관측
+
+[Named timezone observer](../conformance/runners/django/zoned_calendar_reference/README.md)는
+Python Software Foundation의 [tzdata 2025.3](https://pypi.org/project/tzdata/2025.3/)을 별도 reference 환경에 고정한다.
+IANA 2025c 전체 이름/alias 598개와 wheel·개별 파일 hash는
+[data-source.json](../conformance/runners/django/zoned_calendar_reference/data-source.json)에 있다.
+Apache-2.0 패키지와 public-domain IANA 데이터를 사용하며 제품의 Go archive나 예상값을 관측 입력으로 읽지 않는다.
+Python ZoneInfo provider 관측과 Django의 실제 양 DB 쿼리 관측은 별도로 기록한다. PostgreSQL native 규칙의
+실제 offset도 같은 fixture 시각에서 대조한다. 관측 정의·생성 소비자의 비교·최종 실행 수용은 별개다.
+
 ## UTC calendar extraction 참조
 
 [Calendar extraction observer](../conformance/runners/django/calendar_extraction_reference/README.md)는 고정 Django 6.1

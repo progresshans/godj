@@ -12,6 +12,14 @@ GoDj's catalog, immutable values and TZif/recurrence implementation are
 independently written from RFC 9636. Public Location copies use Go's standard
 `time.LoadLocationFromTZData`; no Go timezone implementation is copied.
 
+The independent named-timezone observer installs Python `tzdata` 2025.3
+(IANA 2025c) only in its development reference environment. That package is
+Apache-2.0 with public-domain IANA data. Its release URL, wheel hash and
+individual installed-file hashes are recorded in
+`conformance/runners/django/zoned_calendar_reference/data-source.json`.
+It is a separate upstream build, is not copied from GoDj's embedded archive,
+and is not included in a GoDj binary or generated application.
+
 ## PostgreSQL numeric division scale
 
 The division-scale rule in `db/sqlite/decimal_aggregate.go` is adapted from
