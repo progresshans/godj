@@ -65,7 +65,7 @@ func TestCalendarNativeExtractionValues(t *testing.T) {
 		{"trunc_time_null", query.FunctionTruncSecond, query.FieldTime, nil, nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := sqliteCalendarFunction(nil, []driver.Value{int64(test.function), string(test.kind), test.input})
+			got, err := sqliteCalendarFunction(nil, []driver.Value{int64(test.function), string(test.kind), test.input, ""})
 			if err != nil || got != test.want {
 				t.Fatalf("got %T(%v), want %T(%v): %v", got, got, test.want, test.want, err)
 			}
@@ -99,20 +99,20 @@ func TestCalendarNativeExtractionRejectsInvalidPhysicalInputs(t *testing.T) {
 				functions[1] = query.FunctionTruncHour
 			}
 			for _, function := range functions {
-				if _, err := sqliteCalendarFunction(nil, []driver.Value{int64(function), string(test.kind), input}); err == nil {
+				if _, err := sqliteCalendarFunction(nil, []driver.Value{int64(function), string(test.kind), input, ""}); err == nil {
 					t.Fatal("calendar function hid an invalid temporal operand", function, test.kind, input)
 				}
 			}
 		}
 	}
 	for _, arguments := range [][]driver.Value{
-		nil, {int64(query.FunctionYear), "date"}, {int64(query.FunctionYear), "date", nil, nil},
-		{int64(0), "date", nil}, {int64(256) + int64(query.FunctionYear), "date", nil},
-		{"3", "date", nil}, {int64(query.FunctionYear), "time", nil}, {int64(query.FunctionHour), "date", nil},
-		{int64(query.FunctionDate), "date", nil}, {int64(query.FunctionTime), "time", nil},
-		{int64(query.FunctionYear), "duration", nil}, {int64(query.FunctionMonth), "json", nil},
-		{int64(query.FunctionTruncHour), "date", nil}, {int64(query.FunctionTruncYear), "time", nil},
-		{int64(query.FunctionTruncSecond), "duration", nil}, {int64(query.FunctionTruncDay), "integer", nil},
+		nil, {int64(query.FunctionYear), "date"}, {int64(query.FunctionYear), "date", nil, "", nil},
+		{int64(0), "date", nil, ""}, {int64(256) + int64(query.FunctionYear), "date", nil, ""},
+		{"3", "date", nil, ""}, {int64(query.FunctionYear), "time", nil, ""}, {int64(query.FunctionHour), "date", nil, ""},
+		{int64(query.FunctionDate), "date", nil, ""}, {int64(query.FunctionTime), "time", nil, ""},
+		{int64(query.FunctionYear), "duration", nil, ""}, {int64(query.FunctionMonth), "json", nil, ""},
+		{int64(query.FunctionTruncHour), "date", nil, ""}, {int64(query.FunctionTruncYear), "time", nil, ""},
+		{int64(query.FunctionTruncSecond), "duration", nil, ""}, {int64(query.FunctionTruncDay), "integer", nil, ""},
 	} {
 		if _, err := sqliteCalendarFunction(nil, arguments); err == nil {
 			t.Fatal("invalid function signature reached NULL propagation", arguments)

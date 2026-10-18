@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/timezone"
 )
 
 const (
@@ -60,6 +62,7 @@ type scalarNode struct {
 	relation         RelationPath
 	hasRelations     bool
 	function         FunctionKind
+	zone             timezone.Zone
 	arguments        []ScalarExpression
 }
 
@@ -396,7 +399,7 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) && left.function == right.function &&
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) && left.function == right.function && left.zone == right.zone &&
 		slices.EqualFunc(left.arguments, right.arguments, ScalarExpression.Equal) &&
 		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
 		return a.when.Equal(b.when) && a.value.Equal(b.value)

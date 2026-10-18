@@ -30,7 +30,7 @@ var scalarExpressionRegistrationError = errors.Join(
 	modernsqlite.RegisterDeterministicScalarFunction("godj_datetime_value", 1, sqliteDateTimeExpression),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_binary", 5, sqliteTemporalBinary),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_negate", 2, sqliteTemporalNegate),
-	modernsqlite.RegisterDeterministicScalarFunction("godj_calendar_function", 3, sqliteCalendarFunction),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_calendar_function", 4, sqliteCalendarFunction),
 )
 
 func sqliteIntegerExpression(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {

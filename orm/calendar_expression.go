@@ -30,7 +30,10 @@ func functionOperand[M, Result, Input any](function query.FunctionKind, operand 
 	if err != nil {
 		return ScalarExpression[M, Result]{err: err}
 	}
-	expression, err := query.FunctionExpression(function, argument)
+	return typedFunctionResult[M, Result](query.FunctionExpression(function, argument))
+}
+
+func typedFunctionResult[M, Result any](expression query.ScalarExpression, err error) ScalarExpression[M, Result] {
 	if err == nil && expression.ResultKind() != scalarKind[Result]() {
 		err = invalidResultBuilder("function result differs from its typed domain")
 	}

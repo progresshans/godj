@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/queryupdatetest"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/timezone"
 )
 
 func TestPostgresCalendarFunctionsAndUpdates(t *testing.T) {
@@ -20,6 +21,25 @@ func TestPostgresCalendarFunctionsAndUpdates(t *testing.T) {
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
 	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
 	queryupdatetest.CheckCalendar(t, backend, backend.database, func(name string) string {
+		quoted, err := quoteTable(namespace, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return quoted
+	}, true, func(t *testing.T, err error) {
+		t.Helper()
+		var native *pgconn.PgError
+		if !errors.As(err, &native) || !strings.HasPrefix(native.Code, "22") {
+			t.Fatal("calendar failure lost its native data-exception SQLSTATE", err)
+		}
+	})
+}
+
+func TestPostgresZonedCalendarFunctionsAndUpdates(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	queryupdatetest.CheckZonedCalendar(t, backend, backend.database, func(name string) string {
 		quoted, err := quoteTable(namespace, name)
 		if err != nil {
 			t.Fatal(err)
@@ -158,7 +178,7 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 	part := query.NewFieldRef("part", "part", query.FieldInteger, true)
 	source := query.NewPlan(name, []query.FieldRef{queryupdatetest.ID, at, day, wall, part})
 	value := queryupdatetest.Field(t, at)
-	functions := make([]query.ScalarExpression, 7)
+	functions := make([]query.ScalarExpression, 10)
 	selections := make([]query.ResultExpression, len(functions))
 	for index, function := range []query.FunctionKind{query.FunctionDate, query.FunctionTime, query.FunctionYear, query.FunctionSecond} {
 		functions[index], err = query.FunctionExpression(function, value)
@@ -181,6 +201,16 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 	functions[6], err = query.FunctionExpression(query.FunctionTruncMinute, functions[1])
 	if err != nil {
 		t.Fatal(err)
+	}
+	seoul, err := timezone.Parse("Asia/Seoul")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, function := range []query.FunctionKind{query.FunctionDate, query.FunctionTruncDay, query.FunctionHour} {
+		functions[7+index], err = query.FunctionExpressionInZone(function, seoul, value)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	for index := 4; index < len(functions); index++ {
 		selections[index], err = query.ScalarResult(functions[index])
@@ -213,7 +243,9 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 		var year, second int64
 		var truncatedInstant, truncatedDate time.Time
 		var truncatedClock string
-		if err := rows.Scan(&date, &clock, &year, &second, &truncatedInstant, &truncatedDate, &truncatedClock); err != nil {
+		var localDate, localStart time.Time
+		var localHour int64
+		if err := rows.Scan(&date, &clock, &year, &second, &truncatedInstant, &truncatedDate, &truncatedClock, &localDate, &localStart, &localHour); err != nil {
 			return errors.Join(err, rows.Close())
 		}
 		if rows.Next() {
@@ -227,6 +259,9 @@ func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {
 		}
 		if truncatedInstant.UTC().Format(time.RFC3339Nano) != "2021-01-01T00:00:00Z" || truncatedDate.Format("2006-01-02") != "2020-12-28" || truncatedClock != "00:30:00" {
 			t.Fatal("truncation used the session-local calendar or changed its result domain", truncatedInstant, truncatedDate, truncatedClock)
+		}
+		if localDate.Format("2006-01-02") != "2021-01-01" || localStart.UTC().Format(time.RFC3339Nano) != "2020-12-31T15:00:00Z" || localHour != 9 {
+			t.Fatal("explicit zone was replaced by the session timezone", localDate, localStart, localHour)
 		}
 		update := queryupdatetest.Plan(t, source, queryupdatetest.Assignment(t, day, functions[0]), queryupdatetest.Assignment(t, wall, functions[1]), queryupdatetest.Assignment(t, part, functions[2]))
 		if count, err := session.QueryUpdate(t.Context(), update); err != nil || count != 1 {

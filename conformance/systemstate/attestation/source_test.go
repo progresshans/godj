@@ -74,6 +74,10 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"timezone/zone.go",
+		"internal/zonerules/catalog.go",
+		"internal/zonerules/zoneinfo.zip",
+		"internal/zonerules/source.json",
 		"internal/urlinput/url.go",
 		"uploads/multipart.go",
 		"storage/filesystem.go",
@@ -162,8 +166,9 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 		t.Fatalf("compute baseline source binding: %v", err)
 	}
 	mutations := map[string][]byte{
-		"docs/status/TEST_EVIDENCE.md": []byte("changed evidence\n"),
-		"work/0046.md":                 []byte("changed work\n"),
+		"internal/zonerules/unrelated.zip": []byte("unrelated archive\n"),
+		"docs/status/TEST_EVIDENCE.md":     []byte("changed evidence\n"),
+		"work/0046.md":                     []byte("changed work\n"),
 		"conformance/systemstate/attestation/testdata/postgresql-17.10-two-process-v1.json": []byte("changed capture codec fixture\n"),
 		"conformance/oracles/profile/system-state.json":                                     []byte("changed oracle\n"),
 		"conformance/fixtures/godj-system-state-not-implemented.json":                       []byte("changed fixture\n"),
@@ -183,6 +188,12 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 
 func TestSourceScopeIncludesLiveRestartTestsButExcludesOrdinaryTests(t *testing.T) {
 	tests := map[string]bool{
+		"timezone/zone.go":                                         true,
+		"timezone/zone_test.go":                                    false,
+		"internal/zonerules/catalog.go":                            true,
+		"internal/zonerules/zoneinfo.zip":                          true,
+		"internal/zonerules/source.json":                           true,
+		"internal/zonerules/unrelated.zip":                         false,
 		"storage/filesystem.go":                                    true,
 		"storage/filesystem_test.go":                               false,
 		"uploads/multipart.go":                                     true,

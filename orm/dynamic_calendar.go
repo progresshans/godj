@@ -1,16 +1,28 @@
 package orm
 
-import "github.com/progresshans/godj/query"
+import (
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/timezone"
+)
 
 func (expression DynamicExpression) calendar(function query.FunctionKind) DynamicExpression {
+	return expression.calendarInZone(function, timezone.Zone{}, false)
+}
+
+func (expression DynamicExpression) calendarInZone(function query.FunctionKind, zone timezone.Zone, explicit bool) DynamicExpression {
 	if err := expression.validate(); err != nil {
 		return DynamicExpression{err: err}
+	}
+	if explicit {
+		if err := zone.Validate(); err != nil {
+			return DynamicExpression{err: &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidValue, Detail: "calendar function requires a valid explicit time zone", Cause: err}}
+		}
 	}
 	if expression.node.depth >= query.MaximumScalarDepth || expression.node.nodes >= query.MaximumScalarNodes {
 		return DynamicExpression{err: invalidWritePlan("dynamic function exceeds its resource budget")}
 	}
 	return DynamicExpression{node: &dynamicScalarNode{
-		function: function, left: expression, depth: expression.node.depth + 1, nodes: expression.node.nodes + 1,
+		function: function, zone: zone, left: expression, depth: expression.node.depth + 1, nodes: expression.node.nodes + 1,
 	}}
 }
 

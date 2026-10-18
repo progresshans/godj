@@ -1,5 +1,17 @@
 # Third-party notices
 
+## IANA time zone data
+
+`internal/zonerules/zoneinfo.zip` contains the public-domain IANA Time Zone
+Database 2025c, distributed by Go 1.26.5. Its bytes match
+`lib/time/zoneinfo.zip` at Go commit
+`c19862e5f8415b4f24b189d065ed739517c548ba`; the archive hash, version, file
+inventory and upstream build source are recorded in
+`internal/zonerules/source.json`. The IANA database is in the public domain.
+GoDj's catalog, immutable values and TZif/recurrence implementation are
+independently written from RFC 9636. Public Location copies use Go's standard
+`time.LoadLocationFromTZData`; no Go timezone implementation is copied.
+
 ## PostgreSQL numeric division scale
 
 The division-scale rule in `db/sqlite/decimal_aggregate.go` is adapted from

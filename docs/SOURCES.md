@@ -66,6 +66,9 @@ reverse/M2M aggregate·FILTER·JOIN 재사용·HAVING·재집계를 독립 synth
 
 ## Go와 DB
 
+- 명시적 시간대의 IANA 2025c 데이터 출처와 hash는 [고정 데이터 기록](../internal/zonerules/source.json)이 소유한다.
+  Go 1.26.5의 고정 archive를 포함하며 [TZif RFC 9636](https://www.rfc-editor.org/rfc/rfc9636.html)을 따라 전환표/recurrence를
+  직접 구현했다. [PostgreSQL width_bucket](https://www.postgresql.org/docs/17/functions-math.html)은 이 전환표를 SQL 내부에서 조회한다.
 - [Go specification](https://go.dev/ref/spec), [context](https://pkg.go.dev/context), [database/sql](https://pkg.go.dev/database/sql)
 - [Go testing](https://pkg.go.dev/testing), [Go command](https://pkg.go.dev/cmd/go)
 - [RFC 9110 HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-13): conditional 우선순위·validator·Range/HEAD/206/304/412/416 기준.

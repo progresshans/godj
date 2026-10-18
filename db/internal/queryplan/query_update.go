@@ -24,7 +24,7 @@ type UpdateDialect struct {
 	Assignment                  func(query.FieldRef, query.ScalarExpression, string) (string, error)
 	Binary                      func(query.ScalarExpression, string, string) (string, error)
 	Negate                      func(query.ScalarExpression, string) (string, error)
-	Function                    func(query.ScalarExpression, []string) (string, error)
+	Function                    FunctionCompiler
 	CaseArm                     func(query.ScalarExpression, query.ScalarExpression, string) (string, error)
 	Expression                  func(query.ScalarExpression, string) (string, error)
 	Predicate                   func(query.Expression, func(query.FieldRef) (string, error), *[]any) (string, error)

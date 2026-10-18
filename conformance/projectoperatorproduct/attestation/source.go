@@ -13,6 +13,8 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"internal/zonerules/zoneinfo.zip":                            {},
+	"internal/zonerules/source.json":                             {},
 	"admin/site_assets/inlines.js":                               {},
 	"identity/data/common-passwords.txt.gz":                      {},
 	"scripts/conformance.py":                                     {},
@@ -41,6 +43,8 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"timezone/",
+	"internal/zonerules/",
 	"uploads/",
 	"storage/",
 	"decimal/",

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/timezone"
 )
 
 // DynamicExpression is a bounded immutable unresolved input. Binding names to
@@ -22,6 +23,7 @@ type dynamicScalarNode struct {
 	left, right  DynamicExpression
 	negate       bool
 	function     query.FunctionKind
+	zone         timezone.Zone
 	depth, nodes int
 	branches     []DynamicWhenExpression
 	result       query.FieldKind
@@ -104,6 +106,9 @@ func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExp
 		argument, err := node.left.bind(source)
 		if err != nil {
 			return query.ScalarExpression{}, err
+		}
+		if node.zone.Name() != "" {
+			return query.FunctionExpressionInZone(node.function, node.zone, argument)
 		}
 		return query.FunctionExpression(node.function, argument)
 	}

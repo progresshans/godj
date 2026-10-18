@@ -34,6 +34,10 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"timezone/zone.go",
+		"internal/zonerules/catalog.go",
+		"internal/zonerules/zoneinfo.zip",
+		"internal/zonerules/source.json",
 		"internal/urlinput/url.go",
 		"uploads/multipart.go",
 		"storage/filesystem.go",
@@ -170,8 +174,9 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 		t.Fatal(err)
 	}
 	mutations := map[string][]byte{
-		"docs/status/TEST_EVIDENCE.md": []byte("changed evidence\n"),
-		"work/0055.md":                 []byte("changed work\n"),
+		"internal/zonerules/unrelated.zip": []byte("unrelated archive\n"),
+		"docs/status/TEST_EVIDENCE.md":     []byte("changed evidence\n"),
+		"work/0055.md":                     []byte("changed work\n"),
 		"conformance/projectoperatorproduct/attestation/testdata/postgresql-17.10-sqlite-external-operator-v1.json": []byte("capture codec fixture\n"),
 		"conformance/projectoperatorproduct/attestation/checked_size_test.go":                                       []byte("package attestation\n"),
 		"conformance/oracles/profile/system-state.json":                                                             []byte("oracle\n"),
@@ -195,18 +200,24 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 
 func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 	tests := map[string]bool{
-		"storage/filesystem.go":          true,
-		"storage/filesystem_test.go":     false,
-		"uploads/multipart.go":           true,
-		"uploads/multipart_test.go":      false,
-		"admin/site_assets/inlines.js":   true,
-		"admin/testdata/browser/main.go": false,
-		".github/workflows/ci.yml":       true,
-		"Makefile":                       true,
-		"go.mod":                         true,
-		"go.sum":                         true,
-		"cmd/godj/main_unix.go":          true,
-		"cmd/godj/main_test.go":          false,
+		"timezone/zone.go":                                                         true,
+		"timezone/zone_test.go":                                                    false,
+		"internal/zonerules/catalog.go":                                            true,
+		"internal/zonerules/zoneinfo.zip":                                          true,
+		"internal/zonerules/source.json":                                           true,
+		"internal/zonerules/unrelated.zip":                                         false,
+		"storage/filesystem.go":                                                    true,
+		"storage/filesystem_test.go":                                               false,
+		"uploads/multipart.go":                                                     true,
+		"uploads/multipart_test.go":                                                false,
+		"admin/site_assets/inlines.js":                                             true,
+		"admin/testdata/browser/main.go":                                           false,
+		".github/workflows/ci.yml":                                                 true,
+		"Makefile":                                                                 true,
+		"go.mod":                                                                   true,
+		"go.sum":                                                                   true,
+		"cmd/godj/main_unix.go":                                                    true,
+		"cmd/godj/main_test.go":                                                    false,
 		"internal/projectcheck/createsuperuser_run_unix.go":                        true,
 		"internal/projectcheck/createsuperuser_run_unix_test.go":                   false,
 		"internal/projectgenerate/candidate.go":                                    true,

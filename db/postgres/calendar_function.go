@@ -5,7 +5,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func compilePostgresFunction(expression query.ScalarExpression, operands []string) (string, error) {
+func compilePostgresFunction(expression query.ScalarExpression, operands []string, bind queryplan.ScalarParameterBinder) (string, error) {
 	function, inputs, ok := expression.Function()
 	if !ok || len(inputs) != 1 || len(operands) != 1 {
 		return "", invalidPlan("calendar compiler requires one validated function operand")
@@ -16,7 +16,17 @@ func compilePostgresFunction(expression query.ScalarExpression, operands []strin
 	if err != nil {
 		return "", err
 	}
-	if inputs[0].ResultKind() == query.FieldDateTime {
+	var zone *postgresZoneTable
+	if explicit, present := expression.FunctionZone(); present {
+		zone, err = postgresZoneParameters(explicit, function >= query.FunctionTruncYear, bind)
+		if err != nil {
+			return "", err
+		}
+		operand, err = postgresZonedCivilSQL(operand, zone)
+		if err != nil {
+			return "", err
+		}
+	} else if inputs[0].ResultKind() == query.FieldDateTime {
 		operand, err = queryplan.ScalarSQL("(", operand, " AT TIME ZONE 'UTC')")
 		if err != nil {
 			return "", err
@@ -29,7 +39,7 @@ func compilePostgresFunction(expression query.ScalarExpression, operands []strin
 		return queryplan.ScalarSQL("(", operand, ")::time without time zone")
 	}
 	if function >= query.FunctionTruncYear && function <= query.FunctionTruncSecond {
-		return compilePostgresCalendarTruncation(function, inputs[0].ResultKind(), operand)
+		return compilePostgresCalendarTruncation(function, inputs[0].ResultKind(), operand, zone)
 	}
 	var part string
 	switch function {
@@ -73,7 +83,7 @@ func compilePostgresFunction(expression query.ScalarExpression, operands []strin
 	return queryplan.ScalarSQL("(", value, ")::bigint")
 }
 
-func compilePostgresCalendarTruncation(function query.FunctionKind, kind query.FieldKind, checked string) (string, error) {
+func compilePostgresCalendarTruncation(function query.FunctionKind, kind query.FieldKind, checked string, zone *postgresZoneTable) (string, error) {
 	var unit, inputSuffix, resultSuffix string
 	switch function {
 	case query.FunctionTruncYear:
@@ -97,6 +107,17 @@ func compilePostgresCalendarTruncation(function query.FunctionKind, kind query.F
 	}
 	switch kind {
 	case query.FieldDateTime:
+		if zone != nil {
+			truncated, err := queryplan.ScalarSQL("DATE_TRUNC('", unit, "', (", checked, "))")
+			if err != nil {
+				return "", err
+			}
+			instant, err := postgresZoneShiftSQL(truncated, zone, true)
+			if err != nil {
+				return "", err
+			}
+			return queryplan.ScalarSQL("(", instant, " AT TIME ZONE 'UTC')")
+		}
 		// The caller has already converted the checked instant to a UTC
 		// timestamp. Give the result its instant domain without consulting
 		// the session's TimeZone setting.

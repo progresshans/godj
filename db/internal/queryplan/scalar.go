@@ -9,6 +9,9 @@ import (
 // ScalarDialect keeps physical values and numeric execution in the backend.
 // The shared traversal owns the immutable grammar and parameter order for
 // reads and writes alike. Field must resolve the original source metadata.
+type ScalarParameterBinder func(query.Value) (string, error)
+type FunctionCompiler func(query.ScalarExpression, []string, ScalarParameterBinder) (string, error)
+
 type ScalarDialect struct {
 	ParameterLimit int
 	Field          func(query.FieldRef) (string, error)
@@ -19,7 +22,7 @@ type ScalarDialect struct {
 	Literal        func(query.Value, query.FieldKind, string) (string, error)
 	Binary         func(query.ScalarExpression, string, string) (string, error)
 	Negate         func(query.ScalarExpression, string) (string, error)
-	Function       func(query.ScalarExpression, []string) (string, error)
+	Function       FunctionCompiler
 	CaseArm        func(query.ScalarExpression, query.ScalarExpression, string) (string, error)
 	EmptyValue     func(query.ResultExpression, string) (string, error)
 	Expression     func(query.ScalarExpression, string) (string, error)
@@ -33,6 +36,17 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 	if arguments == nil || dialect.ParameterLimit <= 0 || len(*arguments) > dialect.ParameterLimit || dialect.Field == nil || dialect.Value == nil || dialect.Placeholder == nil {
 		return "", invalidPlan("scalar compiler has an invalid dialect or parameter budget")
 	}
+	bindParameter := func(value query.Value) (string, error) {
+		if len(*arguments) >= dialect.ParameterLimit {
+			return "", invalidPlan("scalar expression exceeds its parameter budget")
+		}
+		argument, err := dialect.Value(value)
+		if err != nil {
+			return "", err
+		}
+		*arguments = append(*arguments, argument)
+		return dialect.Placeholder(len(*arguments)), nil
+	}
 	var render func(query.ScalarExpression, query.FieldKind) (string, error)
 	render = func(expression query.ScalarExpression, expected query.FieldKind) (string, error) {
 		// A parent's output domain is only a fallback for an untyped NULL.
@@ -44,15 +58,10 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 		var statement string
 		var err error
 		if value, ok := expression.Literal(); ok {
-			if len(*arguments) >= dialect.ParameterLimit {
-				return "", invalidPlan("scalar expression exceeds its parameter budget")
-			}
-			argument, err := dialect.Value(value)
+			statement, err = bindParameter(value)
 			if err != nil {
 				return "", err
 			}
-			*arguments = append(*arguments, argument)
-			statement = dialect.Placeholder(len(*arguments))
 			if dialect.Literal != nil {
 				statement, err = dialect.Literal(value, expected, statement)
 				if err != nil {
@@ -119,7 +128,7 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 					return "", err
 				}
 			}
-			statement, err = dialect.Function(expression, operands)
+			statement, err = dialect.Function(expression, operands, bindParameter)
 			if err != nil {
 				return "", err
 			}

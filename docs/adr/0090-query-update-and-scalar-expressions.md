@@ -168,7 +168,7 @@ PostgreSQL은 checked operand를 한 번 바인딩하고 UTC로 추출하며 ses
 반올림 때문에 59.999999초가 60이 되지 않도록 Second의 소수 부분을 먼저 버린다.
 
 기존 모델의 Date/Time output schema를 computed typed output과 공유하고 canonical query/header 입력은 별도의 엄격한
-spelling 정책을 가진다. 일반 timezone/locale 선택은 미완료다. Truncation과 Date/Time 이동은 아래 및 GDJ-0132 계약을 따른다.
+spelling 정책을 가진다. 명시적 timezone은 아래 GDJ-0133 계약으로 구현 중이며 locale 선택은 미완료다. Truncation과 Date/Time 이동은 아래 및 GDJ-0132 계약을 따른다.
 고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측과 [DEV-0023](../DEVIATIONS.md#dev-0023--calendar-추출의-원본-값-검사와-불가능한-서명-거부)으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분하며 기존 source의 PASS를 전이하지 않는다.
 
@@ -296,3 +296,37 @@ commit/rollback unknown은 오래된 성공 cache를 게시하지 않도록 비�
 [Go 차이](../DEVIATIONS.md#dev-0021--query-update의-정확한-정수와-명시적-변환)를 별도 assertion으로 검증한다.
 미지원 union·distinct-fields·projection update를 Django parity로 계산하지 않는다. Decimal은 GDJ-0126의 별도 native 관측과 명시적 deviation을 적용한다.
 구현·현재 source의 실제 실행·전체 플랫폼·Helpdesk 업무 완료는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에서 구분한다.
+
+
+## 명시적 IANA 시간대와 지역 달력
+
+[GDJ-0133](../../work/0133-named-timezones-and-local-deadline-calendar.md)의 설계는 timezone을 불변 expression metadata로 둔다.
+`timezone.Parse`가 고정 데이터 이름을 검증하고 `DateTime(...).InZone(zone)`는 Date/Time·각 part·Trunc 함수를 제공한다.
+Dynamic도 같은 DateTime 서명을 binding에서 검사한다. Zone 자체는 scalar가 아니며 생략한 함수는 UTC를 유지한다.
+절삭 결과는 UTC instant다. 그 결과에 적용할 다음 지역 달력 연산은 다시 명시해야 한다.
+
+Process `TZ`/`ZONEINFO`, `time.Local`, DB session timezone과 서버에 설치된 timezone database는 규칙의 입력이 아니다.
+고정 IANA archive의 모든 이름/alias를 지원 대상으로 두며 ZIP/hash/출처와 runtime package를 source binding에 포함한다.
+공개 Location은 복사본이고, 이름 목록·marshal 결과 변경은 공유 catalog나 기존 query에 영향을 주지 않는다.
+
+DateTime을 지역 civil components로 변환한 다음 추출/절삭한다. 원본 UTC instant와 변환된 지역 civil value 모두 전체
+1..9999 범위를 검사한다. 절삭한 지역 시각은 `fold=0`으로 해석한다. 중복 시각은 전환 전 offset인 더 이른 instant,
+존재하지 않는 시각도 전환 전 offset을 사용한다. 그 UTC 결과의 모델 범위도 검사하며 오류를 작은 part나 NULL로 숨기지 않는다.
+이는 고정 Django의 `convert_trunc_expression` → `make_aware` → `ZoneInfo` 기본 fold 정책을 참조한 GoDj의 query 의미다.
+서버 native 역변환의 overlap 선택에 맡기지 않고, SELECT 이후의 client 변환이나 row 재분류도 하지 않는다.
+
+UTC 전환 `t`, 전후 offset `a`/`b`의 fold=0 지역 경계는 `t + max(a,b)`다. 고정 데이터의 이 경계를 정렬 검증하고
+상한이 있는 immutable 전환표를 만든다. 과거 전환을 모두 보존하며 마지막 명시 전환 이후의 POSIX recurrence는
+Gregorian 400년 주기로 표현한다. 현재 데이터의 마지막 명시 전환은 2087년이며 2400년까지의 역사와 그 뒤 한 주기를
+보존해 미래를 9999년까지 같은 규칙으로 계산한다. 새 데이터가 이 경계나 예산·단조성을 위반하면 명시적으로 실패한다.
+SQLite는 같은 표를 binary search하고 PostgreSQL은 bound numeric/integer 배열과 `width_bucket`을 사용한다.
+PostgreSQL의 epoch 계산은 numeric이며 초 단위 정수 offset만 interval에 곱하므로 instant를 binary64로 변환하지 않는다.
+함수 parameter도 원래 statement의 parameter 예산과 순서에 포함한다.
+
+설계 채택과 구현·환경별 검증은 별개다. 현재 구현과 미완료 소비자/독립 관측은 작업 기록, 실제 실행은
+[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다. Localized naive 입력·표시 locale·일반 wall-time 산술·사용자 설정 저장은
+이 query 기능의 완료로 간주하지 않는다. Python 객체·SQL 문자열을 복제하지 않고 외부 결과와 실패 의미를 비교한다.
+
+출처: [고정 Django converter](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/base/operations.py),
+[make_aware](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/utils/timezone.py),
+[ZoneInfo fold](https://docs.python.org/3/library/zoneinfo.html#using-zoneinfo), [TZif RFC 9636](https://www.rfc-editor.org/rfc/rfc9636.html).
