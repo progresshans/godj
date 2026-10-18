@@ -1,6 +1,6 @@
 # GDJ-0131: 기간 배율·나눗셈과 라벨별 소요 시간 미리보기
 
-- 상태: 양 backend·생성 소비자·독립 비교 코드의 원격 검증 중; Helpdesk 조정 시간과 입출력·독립 client·브라우저 연결 작성
+- 상태: 기반·Helpdesk 소비자 구현, CI의 Float 분류·scanner 검사·독립 비교 세션 오류 보완; 수정 source의 전체 재검증 대상
 - 시작: 2026-10-18
 - 기준: `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` — GDJ-0130의 원격 검증은 해당 source에서 계속 진행
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [선택 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 계산식](../docs/adr/0090-query-update-and-scalar-expressions.md)
@@ -66,7 +66,8 @@ Date/Time 이동·timezone/locale·named annotation·나머지 function/subquery
 SQLite의 산술·후속 결과·비교/HAVING·정렬·집계·UPDATE와 별도 ORM scanner를 작성했다. 원 native AVG만 포함한
 기존 식은 기존 backend 의미를 유지하며, scaling에서 기여한 실제 AVG 값을 정확한 분수로 넘긴다.
 신규 분수 집계는 기여 값의 범위를 확인하고 최종 SUM/AVG에서 모델 범위를 검사한다. 누적 상태를 개별 Duration으로
-반올림하지 않는다. 이 경로의 실제 native 테스트·부정 대조·생성 소비자·process 검증은 아직 실행하지 않았다.
+반올림하지 않는다. 이 경로의 실제 native 테스트·부정 대조·생성 소비자·process 검증은 source·환경별로
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에서 구분하며 전체 완료 전이다.
 
 PostgreSQL의 NUMERIC pair·canonical key를 산술·CASE·비교/HAVING·selected result·빈 입력·
 MIN/MAX/COUNT·SUM/AVG와 최종 UPDATE에 연결했다. Float 배율은 `float8send`의 실제 IEEE 비트에서 분수를 만들며,
@@ -78,20 +79,22 @@ DB helper 설치나 session 설정 변경은 추가하지 않았다.
 
 양 DB의 공통 native 검사, PG binary64/반올림 경계와 구조가 다른 두 생성 앱의 typed/dynamic·선택 결과·그룹·
 collection·same-row UPDATE·savepoint·cache/context/cursor 검사를 작성했다. 새 타입 오용 여섯 건은 실제 compile 거부를
-확인했다. 생성 소비자의 test binary는 compile했지만 실행하지 않았다. 생성기 출력 ABI를 바꿀 필요는 없었으며 같은
+확인했다. 생성 소비자의 compile 뒤 원격 실행에서 발견한 비교 fixture의 세션 생성자 오용을 수정했다. 생성기 출력 ABI를 바꿀 필요는 없었으며 같은
 Schema IR의 선언에서 생성한 field/facade를 새 generic API로 소비한다.
 
 고정 Django 관측에 배율·나눗셈·분수 합계·Float/Decimal 경계·DateTime 이동·0 나눗셈·기간 비율 11개를 추가했다.
 기존 44개와 함께 원 SQL·parameter·native replay·변환 결과·실패 단계·전체 저장 보존을 비교하도록 작성했다.
 분수의 중간 표현과 반올림 계약 차이는 양 구현의 값과 native 타입/오류를 각각 검사한다. 첫 CI에서 독립 SQLite 55개
-관측 뒤 완료 검사의 이전 count가 실패했다. 원본 대조·변조 거부와 완료 검사 수정, 새 계산 패키지의 source 결합 보완을 확인했으며 실제 제품과 PG 관측은
-미검증이다. 상세 source와 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
+관측 뒤 완료 검사의 이전 count가 실패했다. 원본 대조·변조 거부와 완료 검사 수정, 새 계산 패키지의 source 결합을 보완했다.
+후속 양 DB 관측을 대조하고 확인한 차이를 [DEV-0024](../docs/DEVIATIONS.md#dev-0024--기간-배율의-정확한-중간값과-최종-반올림)에 기록했다.
+실제 제품의 환경별 검증과 수정 후 전체 실행은 미완료이며 상세 source와 범위는 TEST_EVIDENCE를 따른다.
 
 Helpdesk의 `adjusted_elapsed_total`을 기존 여섯 지표와 `CombineAggregates`로 합성하고 모든 집계에 같은 Category
 FILTER를 적용했다. 같은 query 선언을 HTML/API에서 사용하며 공통 양수 Decimal codec과 OpenAPI 문법을 추가했다.
 페이지 링크는 비용/시간 입력을 모두 보존한다. 독립 client는 보존한 응답에서 분수를 합산해 최종 half-even을 계산하며,
 브라우저와 양 DB 검사에 중간 반올림 차이·음수/±0·NULL·외부 Category·0 divisor 거부·범위 초과와 저장 보존을 작성했다.
-작성한 검사와 생성물의 compile은 실제 HTTP/DB/브라우저 실행의 성공을 뜻하지 않는다.
+Source `d1370569`의 Chromium·SQLite client normal/CGO0·PostgreSQL Helpdesk race를 확인했으나 같은 CI에서
+기반과 독립 비교의 실패가 있었다. 수정 전후 집중 재현을 확인했으며 부분 성공을 수정 source의 전체 성공으로 전이하지 않는다.
 
 다음은 현재 기반과 Helpdesk 소요 시간 조정의 실제 양 DB 검증이다. [Draft PR #2](https://github.com/progresshans/godj/pull/2)의 전체 CI에서
 검증하며 GDJ-0130의 다른 source 실행과 구분한다. 라벨별 HTML/API·OpenAPI/client·브라우저와 전체 목표는 그대로 완료 대상이다.

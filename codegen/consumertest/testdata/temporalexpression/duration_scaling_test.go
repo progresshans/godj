@@ -29,7 +29,7 @@ func observeDurationScaling(t *testing.T, reader db.Session, name string) (any, 
 	case "scale_integer":
 		expression = orm.ScaleDuration(span, int64(2))
 	case "scale_integer_reverse":
-		api, err := project.Using(reader)
+		api, err := project.UsingSession(reader)
 		if err != nil {
 			return nil, err
 		}

@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 갱신: 2026-10-18
-- 현재: [GDJ-0130 기간별 기한 조회](../../work/0130-calendar-truncation-and-period-groups.md)의 원격 검증과 [GDJ-0131 기간 배율·라벨별 조정 시간](../../work/0131-duration-scaling-and-label-time-preview.md)의 전체 검증 준비
+- 현재: [GDJ-0130 기간별 기한 조회](../../work/0130-calendar-truncation-and-period-groups.md)의 원격 검증과 [GDJ-0131 기간 배율·라벨별 조정 시간](../../work/0131-duration-scaling-and-label-time-preview.md)의 CI 실패 보완·재검증
 - GDJ-0130 제품·생성기·소비자 source: `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` — 원격 검증 미완료
 - 최근 전체 검증 source: `153cf7652578db28fbad7bc9fae4bf107109cfce`
 - 최근 전체 통합: [CI 39055628082](https://github.com/progresshans/godj/actions/runs/39055628082), attempt 2의 필수 실행·원본 증거 대조 완료
@@ -23,8 +23,11 @@ GDJ-0131은 최종 읽기/쓰기까지 정확한 분수를 유지하는 Duration
 양 backend와 생성 소비자에 연결했다. 최소 compile과 새 타입 오용 거부를 확인했으며 독립 Django 비교 코드도 작성했다.
 [Draft PR #2](https://github.com/progresshans/godj/pull/2)의 첫 CI에서 관측 완료 검사와 새 계산 패키지의 source 결합 누락을 확인해 수정했다.
 Helpdesk에는 배율·양수 분할 값과 최종 반올림한 조정 시간 합계를 연결했다. 공통 입력 검증·HTML/API·OpenAPI와
-독립 client·브라우저 검사를 확장했으며 schema 재생성과 최소 compile을 확인했다. 실제 새 제품 DB·HTTP·브라우저
-검증은 미완료다. 후속 source의 전체 CI를 확인하며 지원·환경별 검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
+독립 client·브라우저 검사를 확장했으며 schema 재생성과 최소 compile을 확인했다. Source `d1370569`의 Chromium
+라벨 검사·SQLite client normal/CGO0와 PostgreSQL Helpdesk race를 확인했다. 같은 CI에서 SQLite Float 오류 분류 누락과
+ORM scanner 테스트·독립 비교의 세션 생성자 오용이 드러났다. 원 실패와 수정 후 집중 검사를 대조했으며,
+수정 source의 양 DB 기반·생성 소비자·세 mode·전체 플랫폼을 다시 검증한다.
+지원·환경별 검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 ## 다음 행동
 

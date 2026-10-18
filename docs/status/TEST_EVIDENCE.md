@@ -210,6 +210,115 @@ byte 단위로 같으며 Helpdesk schema 한 개·생성 Go 여섯 개만 변경
 확장했다. 등록·생성·compile은 실행 증거가 아니다. 실제 DB·native 실패·HTTP/client·브라우저·race·CGO0·전체 platform과
 필수 실행/원본 대조는 이 변경을 포함한 후속 source의 전체 CI에서 확인한다.
 
+### 취소된 기반 실행의 독립 관측과 부분 native 결과
+
+위 `ad31b9ad` 실행은 Helpdesk 묶음의 새 push로 취소됐다. 취소 전에 게시된 PostgreSQL normal/core,
+CGO0/core, race/core, race/core-consumers의 artifact 네 개를 run/head·GitHub digest·크기·압축 경로·파일 hash와
+대조해 보존했다. 전체 job/필수 실행을 완료하지 않았으므로 이 실행을 전체 성공으로 계산하지 않는다.
+
+원 Go 이벤트에서 `db/postgres`의 Duration scaling/fraction/ratio 관련 이름은 normal과 CGO0에서 각 24 run/pass,
+race에서 17 run/pass이며 이 이름들의 fail/skip은 0이다. 이 부분에 포함된 결과와 아직 실행되지 않은 생성 temporal
+소비자를 구분한다. 끊긴 package나 전체 mode의 성공, 후속 `d1370569`의 성공으로 전이하지 않는다.
+원 파일·명령은 `ci-39079612416-cancelled-core-jzv61iva/receipt.json`, SHA-256
+`fa81f63ed85899a24458b81faadf7ea087e3d2e225f384bbd3e181337dda5c6e`에 있으며, 정확한 실행 이름과 원 이벤트 hash는
+같은 디렉터리의 `partial-native-inspection.json`, SHA-256
+`03ed473d64179bb118d439e9d85c3315ad37959dee612285185b73f195f7c9fc`에 보존했다.
+
+Normal/core·CGO0/core·race/core-consumers에는 Django의 SQLite/PostgreSQL 관측이 각각 55개씩 있다.
+고정 commit·observer/input/source-verification hash·원 사례 순서·Python/DB/platform/timezone/locale과 저장 보존·
+정리를 대조했다. 새 PostgreSQL 값·native carrier·0 나눗셈 `22012`, interval/interval의 `42883`도 원본 그대로
+보존하며 [DEV-0024](../DEVIATIONS.md#dev-0024--기간-배율의-정확한-중간값과-최종-반올림)의 비교 범위를 명시했다.
+`reference-provenance-inspection.json` SHA-256은
+`7f312ae5148f8c0d2126189a04be9058bf6c919462bb42f633135b8fe294f2f5`,
+새 PG 사례의 값·타입 요약 `postgres-inspection.json`은
+`a7f1055bf4135f6ca8d9456fd40ab565a3e6f2862ab18ff9fc0fdbac25991e25`다.
+이는 독립 관측 자료의 대조이며 Go 생성 소비자의 완료를 뜻하지 않는다.
+
+### Helpdesk 제출 source와 실제 Chromium 검사
+
+제품·생성물·소비자 source `d1370569f42bfb69d30d1c58ecf35002666b1958`의
+[CI 39080526627](https://github.com/progresshans/godj/actions/runs/39080526627)에서 아래 부분 검증과 세 실패 원인을 확인했다.
+Plan job `117536639993`의 checkout `eb38645d7c46f4c63e4b15d784a0e8d5d612e31f`는 base `0ce12980`와 이
+source를 parent로 가지며 merge/head tree `e06d8ab8f7f480c2ee9e5d91955220e1a1b04101`가 같다.
+`ci-39080526627-source-binding-and-plan.json` SHA-256은
+`bef7533566713a5261e110658f611cfaafbe7c31a2b996f320cbe38096a9148c`다.
+
+완료된 Portable normal/integration job `117536667107`의 browser artifact `12119026065`를 별도로 대조했다.
+원 job 로그의 checkout·필수 browser 단계·깨끗한 worktree와 artifact의 run/head·GitHub digest·크기, receipt의
+source/tree·probe/명령 로그/파일 hash가 일치한다. Chromium `155.0.8059.12`에서 요약 30·보고서 19·라벨 37·비용 22·
+기한 미리보기 34·달력 43개 검사를 완료했다. 선언된 명령은 모두 정상 종료했고, native SQLite의 티켓·라벨·관계·audit
+보존과 browser/fixture process 종료·DB 제거를 확인했다. Desktop 화면에서 배율/분할 입력, 원래 3µs와 조정 2µs,
+NULL 표시, 아홉 열과 페이지 링크가 보이는 것도 확인했다. 다른 viewport의 표시를 검증했다고 하지 않는다.
+
+- 원 artifact·job 로그와 검사: `ci-39080526627-browser-umrkoju0/audit-receipt.json`, SHA-256
+  `9caf4780145dcb33f1c74a74b50e62e5a7d182f82ede05c8e996a53787b17ddb`.
+- 화면 확인: 같은 디렉터리의 `visual-inspection.json`, SHA-256
+  `14102eb864e7f65df650926127467aa2545e6ab8db357959460c5849037d7776`.
+
+이 결과는 해당 source의 완료된 browser owner와 SQLite 소비자 범위다. 양 DB 전체 native·생성 temporal 소비자,
+세 mode·전체 플랫폼·최종 CI gate와 필수 실행 원본 대조는 계속 진행한다. 전체 성공으로 승격하지 않는다.
+
+같은 source의 Portable normal/core-vet `117536667020`·normal/integration `117536667107`,
+CGO0/core `117536667005`·CGO0/integration `117536667093`의 완료 원 로그도 별도로 대조했다.
+각 job의 event/source/attempt·checkout·필수 단계와 깨끗한 worktree를 확인하고, 해당 Git source에서 추출한
+package·Makefile·필수 client receipt·생성 profile·진입점·skip/필터 부재를 대조했다.
+`api/parameters`, `internal/durationcalc`, `api/openapi/consumertest`의 전체 실행이 두 mode에서 성공했다.
+독립 client는 SQLite fixture를 사용하며 여섯 profile 재생성과 106개 필수 receipt를 요구하는 실제 HTTP 경로다.
+이 job 로그는 개별 성공 child receipt/단위 test 이벤트를 모두 별도 보존하지 않으므로,
+전체 unfiltered package 성공과 의무 검사를 source로 확인한 범위로 기록한다.
+`ci-39080526627-api-consumers-zrvu4q0x/audit-receipt.json` SHA-256은
+`1fc158024c8fbfade8899709419a40c1569762dbba2a5f2a7270147e188d430b`다. Race·PostgreSQL 소비자나 전체 CI 성공으로 전이하지 않는다.
+
+같은 source의 PostgreSQL race/core-helpdesk-postgres job `117536666995`와 artifact `12118434238`도 완료됐다.
+원 job의 checkout·정확한 PostgreSQL profile 확인·필수 실행·로그 게시·worktree·container 종료 단계를 대조했다.
+Git source의 3,505개 PostgreSQL sentinel에서 이 owner에 배정한 714개가 보존된 plan/required/package 목록 및
+원 로그의 plan과 일치한다. 원 Go JSON 이벤트는 785 run/pass·fail/skip 0이며 모든 시작이 한 번씩 종료됐다.
+이 중 `label_usage`와 하위 23개 검사가 포함되고, 새 최종 합계 반올림·NULL/zero·범위 오류/저장 보존 두 leaf도
+실제로 통과했다. Package 완료와 cursor/인가/읽기 snapshot을 포함한 기존 검사를 함께 확인했다.
+`ci-39080526627-helpdesk-postgres-race-_zc80fhh/audit-receipt.json` SHA-256은
+`dbce216a1c08c1a2bbb0fb7b662933ba259d39e910ea831cfdaf4987275f91dd`다.
+이는 PostgreSQL Helpdesk race owner의 완료이며 다른 mode/owner와 전체 CI의 검증은 계속 남아 있다.
+
+### Float 오류 분류와 scanner·독립 비교 실패 보완
+
+위 source의 Linux ARM64 race/runtime job `117536667488`에서 SQLite 손상 Float operand의 native 오류가
+`field_error/invalid_value`로 분류되지 않는 제품 결함과, computed cell이 `groupValueScanner`로 감싸는 기존 구조를
+무시한 scanner 테스트의 구체 타입 가정이 실패했다. 원 job/source/attempt와 raw log를 보존했다.
+`ci-39080526627-failed-runtime-ju5s02wm/receipt.json` SHA-256은
+`380bf03432889c27a21c61d9b8b4bf23a98acbc7e7b6aa1706b6c0b757f6f3a5`다.
+ARM64 normal/CGO0·Linux AMD64 race의 같은 두 실패와 PostgreSQL race/core-consumers `117536666937`의
+별도 실패를 원 로그로 대조했다. `ci-39080526627-new-failures-8uu8pf_5/receipt.json` SHA-256은
+`367e5a4c741ecfd60935528dab4392059b5aa01927a42545c3d139d580b9a8a3`다.
+
+SQLite는 native `SQLITE_ERROR`의 정확한 Float 진단 prefix에 같은 query 분류를 붙이며 원 driver 원인을 보존한다.
+초기 실행·후속 row iteration·일반/관계 transaction·batch와 callback에서 분류·원인·부분 결과 거부·연결 회수를 검사한다.
+단순 문자열이나 같은 문구의 table 이름으로 분류를 위조하지 못하는 부정 대조도 추가했다. 새 Float 경로의 두 leaf를
+CI 필수 목록에 등록했다. ORM 테스트는 실제 fractional key의 최종 값과 Optional 존재 여부, 손상/untagged 값 실패,
+nullable NULL과 required NULL 거부, 이전에 게시한 값의 소유권을 확인하도록 수정했다. 제품의 scanner 선택은 바꾸지 않았다.
+
+로컬 darwin/arm64에서 기존 SQLite 실패 leaf와 computed scanner test가 수정 전 각각 실패하는 것을 보존했다.
+수정 후 SQLite Duration scaling·scalar 오류 분류·부정 대조의 23개와 ORM scanner 두 개가 각각 한 번씩 run/pass했고
+skip/fail 없이 package가 완료됐다. Nullable NULL 검사는 유효한 이전 값이 있던 상태에서도 다시 확인했다.
+`gdj0131-runtime-repair-ulj82n6j`의 증거는 다음과 같다.
+
+- 수정 전 `before-receipt.json`: `8824411cf6b5630847b309a047c2174b108cf0a89adac79f62dc9e592c112cc7`.
+- SQLite 수정 후와 최초 ORM 검사 `after-receipt.json`: `d314cfbce9dfb5c96cc67ec84cff4d636c1718141ce61ba714c71449a3813ba9`.
+- 원 이벤트의 이름별 run/pass·skip/fail·package 완료 대조 `after-event-audit.json`: `6dd972d6f36af4f6403e44968d81ce05d61d0b24c8cf59203ce54f8d905cf7d9`.
+- 최종 ORM 검사와 현재 네 source hash `final-receipt.json`: `0d25702e96ed2b5a57b81258feb6fa28cd85a7183b6bebd6de3aa1b529908bd1`.
+
+PostgreSQL consumer job의 원 artifact `12119166873`은 양 DB의 `scale_integer_reverse`에서만 비교 leaf가 실패했음을
+보여준다. Rollback transaction을 일반 `project.Using`에 넘겨 기존 수명 검증에서 거부됐으므로 `UsingSession`으로
+고쳤다. 수명 검증이나 기대값은 완화하지 않았다. Artifact의 head/run·GitHub digest·크기와 양 DB 55개 관측의
+observer/input/source hash를 현재 파일과 대조한 뒤, 실제 현행 생성기로 두 앱을 생성했다.
+보존된 SQLite 관측을 사용해 같은 leaf의 수정 전 실패와 수정 후 성공을 비교했다. 수정 후에는 기존 session/cache 및
+scaling savepoint 검사도 함께 실행해 parent 포함 7개 run/pass·skip/fail 0과 package 완료를 확인했다.
+
+`gdj0131-session-binding-repair-05aqe45z`의 `before-receipt.json` SHA-256은
+`ef590e9a21841ad14e2de2b3b47488d6e74dc712aa37bd9c6c55f3353becd446`, `after-receipt.json`은
+`f28660f6ff8ee3579f8992c5843c1fc9a0c7dfcf62c75cccacef3348ea327835`다. 수정 전후 생성물은 동일하고 비교 fixture 한 줄만
+달라진다. 이 로컬 재현은 새로운 PostgreSQL 또는 Django 실행이 아니며, 양 DB·세 mode·플랫폼 전체 검증을 대신하지 않는다.
+앞의 부분 성공은 `d1370569`에만 귀속한다. 이번 제품·검사 수정과 DEV-0024를 같은 변경 묶음으로 제출하고 전체 CI를 다시 대조한다.
+
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
 후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의

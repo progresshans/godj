@@ -62,7 +62,43 @@ func TestComputedDurationScalingUsesItsFractionalScanner(t *testing.T) {
 		t.Fatal(err)
 	}
 	cell := factory()
-	if _, ok := cell.destination.(*fractionalDurationScanner); !ok {
-		t.Fatalf("computed Duration selected another decoder: %T", cell.destination)
+	fraction, err := durationcalc.FromMicroseconds(1).Divide(durationcalc.IntegerFactor(3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := scanGroupValue(cell.destination, fraction.Key()); err != nil {
+		t.Fatal("computed Duration could not decode its fractional result", err)
+	}
+	retained := cell.value()
+	if value, present := retained.Get(); !present || value != duration.FromMicroseconds(0) {
+		t.Fatal("computed fractional zero lost its presence or final rounding", value, present)
+	}
+	for _, invalid := range []any{[]byte("invalid"), int64(1)} {
+		if err := scanGroupValue(cell.destination, fraction.Key()); err != nil {
+			t.Fatal(err)
+		}
+		if err := scanGroupValue(cell.destination, invalid); !errors.Is(err, durationcalc.ErrKey) || cell.value().Valid() {
+			t.Fatal("failed computed scan exposed the previous result", cell.value(), err)
+		}
+	}
+	if err := scanGroupValue(cell.destination, fraction.Key()); err != nil {
+		t.Fatal(err)
+	}
+	if err := scanGroupValue(cell.destination, nil); err != nil || cell.value().Valid() {
+		t.Fatal("computed NULL became a zero Duration", cell.value(), err)
+	}
+	if value, present := retained.Get(); !present || value != duration.FromMicroseconds(0) {
+		t.Fatal("later scans changed the previously published result", value, present)
+	}
+	requiredFactory, err := computedCell[duration.Duration](result, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := requiredFactory()
+	if err := scanGroupValue(required.destination, fraction.Key()); err != nil {
+		t.Fatal(err)
+	}
+	if err := scanGroupValue(required.destination, nil); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || required.value().Valid() {
+		t.Fatal("required computed result accepted NULL or exposed its previous value", required.value(), err)
 	}
 }

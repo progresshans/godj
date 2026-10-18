@@ -102,6 +102,8 @@ binary64로 변환하며 유한 범위 초과를 Infinity로 게시하지 않는
 새 분수 출처는 기존 native AVG 출처와 구분한다. 단지 새 기능을 추가했다는 이유로 기존 backend의 AVG를 다시
 계산하거나 모든 Duration field의 물리 검사를 넓히지 않는다. 이 계약의 채택과 작성한 코드, 양 backend의 실제 실행,
 독립 Django 비교·소비자 완료는 별개이며 활성 work와 TEST_EVIDENCE가 현재 구현·검증 범위를 소유한다.
+고정 Django와 달라지는 배율·합계·시각 이동·기간 비율의 값과 오류는
+[DEV-0024](../DEVIATIONS.md#dev-0024--기간-배율의-정확한-중간값과-최종-반올림)에 관측 사례별로 한정한다.
 
 분수의 내부 query key는 기약분수의 동일성과 수치 순서를 byte 비교로 보존한다. 일반 모델 Duration의 저장 표현은
 이 key를 받지 않는다. PostgreSQL은 NUMERIC pair를 산술 상태로, BYTEA key를 query 결과로 사용하며 CASE의 각
