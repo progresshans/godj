@@ -101,7 +101,16 @@ func TestRunserverProductCleanupHelper(t *testing.T) {
 		if err := child.Start(); err != nil {
 			os.Exit(91)
 		}
-		if err := os.WriteFile(os.Getenv(runserverHarnessReadyEnv), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+		// File existence is the parent's readiness signal. Publish only after
+		// writing the complete PID; WriteFile on the final path briefly exposes
+		// an empty file between creation and its first write.
+		ready := os.Getenv(runserverHarnessReadyEnv)
+		pending := ready + ".pending" // One writer owns this test's fresh directory.
+		err := os.WriteFile(pending, []byte(strconv.Itoa(child.Process.Pid)), 0o600)
+		if err == nil {
+			err = os.Rename(pending, ready)
+		}
+		if err != nil {
 			_ = child.Process.Kill()
 			os.Exit(92)
 		}
