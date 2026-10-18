@@ -35,6 +35,8 @@ func classifySQLiteScalarError(err error) error {
 	switch {
 	case matches(invalidIntegerExpression):
 		detail = "SQLite integer expression is outside the exact int64 domain"
+	case matches(errFloatAggregate.Error()):
+		detail = "SQLite float expression requires native numeric values and a non-NaN result"
 	case matches(invalidDecimalExpression), matches(errDecimalAggregateInput.Error()):
 		detail = "SQLite decimal expression is outside its exact value or declared field domain"
 	case matches(invalidTemporalExpression), matches(errCalendarOperand.Error()):

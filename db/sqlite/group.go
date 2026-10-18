@@ -71,7 +71,7 @@ func compileGrouped(plan query.Plan) (string, []any, error) {
 		}
 		arguments = append(arguments, argument)
 		return "?", nil
-	}, func(sql *strings.Builder) error { arguments = appendPagination(sql, arguments, plan); return nil })
+	}, sqliteGroupComparisonLiteral, func(sql *strings.Builder) error { arguments = appendPagination(sql, arguments, plan); return nil })
 	if err != nil {
 		return "", nil, err
 	}

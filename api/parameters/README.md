@@ -35,6 +35,7 @@ input, diagnostics, err := query.Parse(request.HTTP().URL.RawQuery)
 | `StringChoices(values...)` | 닫힌 문자열 집합의 exact 값만 받는다. 선언 slice를 복사하고 중복·잘못된 UTF-8·NUL·빈 집합을 거부한다. 빈 문자열은 집합에 명시했을 때만 값이며 부재와 다르다. 같은 집합과 검증된 default를 OpenAPI enum에 사용한다. |
 | `Required(codec)` | 생략은 `required`. 빈 값의 허용 여부는 codec이 정한다. |
 | `CanonicalDecimal(maxDigits, decimalPlaces)` | 선언 precision 안의 정확한 Decimal 문자열. exponent·plus·leading/trailing zero 별칭과 반올림을 허용하지 않는다. |
+| `CanonicalPositiveDecimal(maxDigits, decimalPlaces)` | 같은 canonical Decimal 문법과 precision에 양수 조건을 더한다. 0·음수 zero·음수를 거부하며, scale이 허용하면 1보다 작은 양수도 받는다. |
 | `CanonicalDuration()` | 전체 모델 day 범위의 `[days ]HH:MM:SS[.ffffff]`. Zero day와 zero 소수초는 생략하고, nonzero 소수초는 여섯 자리다. Backend의 좁은 저장 범위를 입력 모델 범위로 사용하지 않는다. |
 | `RFC3339DateTime(maxBytes)` | 20..1 MiB의 값 예산. 완전한 clock·명시적 offset을 요구하고 UTC 연도 1..9999의 microsecond 값으로 정규화한다. 여섯 자리 뒤 소수초는 truncate한다. 기본값은 location·monotonic 정보 없이 이미 UTC microsecond로 정규화되어야 한다. |
 | `Default(codec, value)` | 생략한 때만 검증된 기본값을 사용한다. 같은 값이 schema `default`가 된다. |
@@ -110,3 +111,8 @@ Cookie·반복/list header나 query 값, 추가 scalar와 자동 viewset은 현�
 문자열만 받고 precision 초과를 반올림하지 않는다. 지수·plus·leading/trailing zero 별칭은 거부하며 음수 zero는 유지한다.
 Required/Optional/Default의 존재 정책, header byte 한도와 URL query 전체 검증은 기존과 같다. OpenAPI는 숫자 대신
 canonical string pattern·길이·maxDigits/decimalPlaces를 게시한다. 모델 Form의 원문 scale 입력 규칙과 별도 transport 계약이다.
+
+`CanonicalPositiveDecimal`은 같은 query/header 존재 정책에 값이 0보다 커야 한다는 조건을 추가한다.
+양수 제한은 서버 parser와 OpenAPI 문자열 문법 양쪽에 적용하며, 유효하지 않은 default는 초기화 단계에서 거부한다.
+양수 표기가 하나도 들어가지 않는 header byte 예산도 구성 오류다. Helpdesk 라벨별 조정 시간의 `elapsed_divisor`가
+이 codec을 사용하므로 0 나눗셈 입력은 DB에 도달하기 전에 진단한다.

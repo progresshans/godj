@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/orm"
 )
@@ -21,6 +22,7 @@ func TestLabelUsageOutputFailureDoesNotPublishRows(t *testing.T) {
 	for _, invalid := range []labelUsageRow{
 		{id: 2, name: "bad original", cost: orm.Some(decimal.Decimal{Coefficient: "invalid"})},
 		{id: 2, name: "bad adjusted", adjusted: orm.Some(decimal.Decimal{Coefficient: "invalid"})},
+		{id: 2, name: "bad adjusted elapsed", adjustedElapsed: orm.Some(duration.Duration{Days: duration.MaxDays + 1})},
 		{id: 2, name: "bad\x00label"},
 	} {
 		page := labelUsagePage{query: labelUsageQuery{page: 1, usage: "all", factor: decimal.Decimal{Coefficient: "1"}}, labels: orm.ResultPage[labelUsageRow]{Total: 2, Rows: []labelUsageRow{valid, invalid}}}

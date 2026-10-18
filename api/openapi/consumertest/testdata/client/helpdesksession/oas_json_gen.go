@@ -6301,6 +6301,14 @@ func (s *LabelUsage) encodeFields(e *jx.Encoder) {
 		e.Str(s.Delta)
 	}
 	{
+		e.FieldStart("elapsed_factor")
+		e.Str(s.ElapsedFactor)
+	}
+	{
+		e.FieldStart("elapsed_divisor")
+		e.Str(s.ElapsedDivisor)
+	}
+	{
 		e.FieldStart("total_labels")
 		e.Int64(s.TotalLabels)
 	}
@@ -6314,15 +6322,17 @@ func (s *LabelUsage) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLabelUsage = [8]string{
+var jsonFieldsNameOfLabelUsage = [10]string{
 	0: "category",
 	1: "page",
 	2: "page_size",
 	3: "usage",
 	4: "factor",
 	5: "delta",
-	6: "total_labels",
-	7: "results",
+	6: "elapsed_factor",
+	7: "elapsed_divisor",
+	8: "total_labels",
+	9: "results",
 }
 
 // Decode decodes LabelUsage from json.
@@ -6330,7 +6340,7 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode LabelUsage to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -6404,8 +6414,32 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"delta\"")
 			}
-		case "total_labels":
+		case "elapsed_factor":
 			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.ElapsedFactor = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed_factor\"")
+			}
+		case "elapsed_divisor":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.ElapsedDivisor = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed_divisor\"")
+			}
+		case "total_labels":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int64()
 				s.TotalLabels = int64(v)
@@ -6417,7 +6451,7 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total_labels\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Results = make([]LabelUsageResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -6443,8 +6477,9 @@ func (s *LabelUsage) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -6535,9 +6570,13 @@ func (s *LabelUsageResultsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("elapsed_total")
 		s.ElapsedTotal.Encode(e)
 	}
+	{
+		e.FieldStart("adjusted_elapsed_total")
+		s.AdjustedElapsedTotal.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfLabelUsageResultsItem = [9]string{
+var jsonFieldsNameOfLabelUsageResultsItem = [10]string{
 	0: "id",
 	1: "name",
 	2: "total",
@@ -6547,6 +6586,7 @@ var jsonFieldsNameOfLabelUsageResultsItem = [9]string{
 	6: "adjusted_cost_total",
 	7: "effort_average",
 	8: "elapsed_total",
+	9: "adjusted_elapsed_total",
 }
 
 // Decode decodes LabelUsageResultsItem from json.
@@ -6658,6 +6698,16 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"elapsed_total\"")
 			}
+		case "adjusted_elapsed_total":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.AdjustedElapsedTotal.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"adjusted_elapsed_total\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -6669,7 +6719,7 @@ func (s *LabelUsageResultsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

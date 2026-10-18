@@ -25,6 +25,7 @@ func compileResultStage(plan, input query.Plan) (string, []any, error) {
 		}
 	}
 	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
+		ComparisonValue: sqliteComparisonValue, GroupComparisonLiteral: sqliteGroupComparisonLiteral,
 		Scalar: queryplan.ScalarDialect{
 			ParameterLimit: sqliteBulkParameters, Value: sqliteValue,
 			Placeholder: func(int) string { return "?" }, Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Function: compileSQLiteFunction, Expression: wrapReadScalar,

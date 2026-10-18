@@ -25,6 +25,8 @@ var scalarExpressionRegistrationError = errors.Join(
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_binary", 3, sqliteDecimalBinary),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_decimal_negate", 1, sqliteDecimalNegate),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_mean", 1, sqliteDurationMean),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_fraction", 1, sqliteDurationFraction),
+	modernsqlite.RegisterDeterministicScalarFunction("godj_duration_store", 1, sqliteDurationStore),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_datetime_value", 1, sqliteDateTimeExpression),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_binary", 5, sqliteTemporalBinary),
 	modernsqlite.RegisterDeterministicScalarFunction("godj_temporal_negate", 2, sqliteTemporalNegate),
@@ -49,6 +51,9 @@ func wrapSQLiteScalar(expression query.ScalarExpression, statement string) (stri
 	case query.FieldDateTime:
 		return queryplan.ScalarSQL("godj_datetime_value(", statement, ")")
 	case query.FieldDuration:
+		if expression.RequiresDurationFraction() {
+			return queryplan.ScalarSQL("godj_duration_fraction(", statement, ")")
+		}
 		if expression.RequiresDurationRounding() {
 			return queryplan.ScalarSQL("godj_duration_mean(", statement, ")")
 		}

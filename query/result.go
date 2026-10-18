@@ -172,6 +172,10 @@ func (e ResultExpression) RequiresDurationRounding() bool {
 	return e.ResultValueKind() == FieldDuration && (e.kind == ResultAvg || e.scalar.RequiresDurationRounding())
 }
 
+func (e ResultExpression) RequiresDurationFraction() bool {
+	return e.ResultValueKind() == FieldDuration && e.scalar.RequiresDurationFraction()
+}
+
 func (e ResultExpression) Equal(other ResultExpression) bool {
 	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) || e.distinct != other.distinct || !e.filter.Equal(other.filter) || !e.scalar.Equal(other.scalar) {
 		return false

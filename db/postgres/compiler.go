@@ -156,10 +156,19 @@ func compileAggregate(
 	}
 	_, limited := plan.Limit()
 	_, offset := plan.Offset()
+	var statement string
+	var arguments []any
+	var err error
 	if !plan.Distinct() && !limited && !offset {
-		return compileDirectAggregate(schema, plan, expressions, sourceFields, where)
+		statement, arguments, err = compileDirectAggregate(schema, plan, expressions, sourceFields, where)
+	} else {
+		statement, arguments, err = compileDerivedAggregate(schema, plan, expressions, sourceFields, where)
 	}
-	return compileDerivedAggregate(schema, plan, expressions, sourceFields, where)
+	if err != nil {
+		return "", nil, err
+	}
+	statement, err = finishPostgresAggregates(statement, expressions)
+	return statement, arguments, err
 }
 
 func compileDerivedAggregate(
@@ -547,7 +556,7 @@ func appendWhereExpression(
 				}
 				*arguments = append(*arguments, argument)
 				return readScalarLiteral(value, query.FieldKind(value.Kind()), placeholder(len(*arguments)))
-			}); err != nil {
+			}, postgresComparisonValue); err != nil {
 				return err
 			}
 			break

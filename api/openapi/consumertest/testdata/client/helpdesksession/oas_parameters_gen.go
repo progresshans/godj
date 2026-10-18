@@ -94,6 +94,13 @@ type HelpdeskLabelUsageParams struct {
 	// Exact adjustment applied to each present ticket cost before summing; up to 12 whole digits and 2
 	// decimal places. Defaults to 0.
 	Delta OptString `json:",omitempty,omitzero"`
+	// Exact elapsed-time multiplier, up to 2 whole digits and 4 decimal places; defaults to 1. Each
+	// present elapsed time is multiplied then divided before summing; only the final total is rounded to
+	// the nearest microsecond, with ties to even.
+	ElapsedFactor OptString `json:",omitempty,omitzero"`
+	// Exact positive elapsed-time divisor, up to 2 whole digits and 4 decimal places; defaults to 1. Zero
+	// and negative values are rejected.
+	ElapsedDivisor OptString `json:",omitempty,omitzero"`
 }
 
 // HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.

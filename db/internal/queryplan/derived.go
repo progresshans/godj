@@ -12,10 +12,13 @@ import (
 // keys and pagination to the backend. SQL structure and reference ownership
 // are shared. Aggregate returns how often its operand/filter arguments occur.
 type DerivedDialect struct {
-	Scalar     ScalarDialect
-	Aggregate  func(query.ResultExpression, string, string) (string, int, error)
-	OrderValue func(query.FieldKind, string) string
-	Pagination func(*strings.Builder, *[]any, query.Plan) error
+	Scalar                 ScalarDialect
+	Aggregate              func(query.ResultExpression, string, string) (string, int, error)
+	CompleteAggregates     func(string, []query.ResultExpression) (string, error)
+	OrderValue             func(query.FieldKind, string) string
+	ComparisonValue        func(query.Condition, string, string) (string, string, error)
+	GroupComparisonLiteral func(query.ResultExpression, string) (string, error)
+	Pagination             func(*strings.Builder, *[]any, query.Plan) error
 }
 
 // SourceTable retains the physical root used by backend error classification.
@@ -113,7 +116,7 @@ func CompileDerived(plan query.Plan, input string, inputArguments []any, dialect
 	}
 	predicate = func(value query.Expression) (string, error) {
 		var statement strings.Builder
-		if err := appendDerivedPredicate(&statement, value, scalar, parameter); err != nil {
+		if err := appendDerivedPredicate(&statement, value, scalar, parameter, dialect.ComparisonValue); err != nil {
 			return "", err
 		}
 		return statement.String(), nil
@@ -197,10 +200,18 @@ func CompileDerived(plan query.Plan, input string, inputArguments []any, dialect
 			statement.WriteString(strconv.Itoa(index + 1))
 		}
 	}
+	if dialect.CompleteAggregates != nil {
+		completed, err := dialect.CompleteAggregates(statement.String(), selected)
+		if err != nil {
+			return "", nil, err
+		}
+		statement.Reset()
+		statement.WriteString(completed)
+	}
 	var output string
 	if shape.Kind() == query.ResultGrouped {
 		var err error
-		output, err = FinishGroups(statement.String(), plan, parameter, func(sql *strings.Builder) error {
+		output, err = FinishGroups(statement.String(), plan, parameter, dialect.GroupComparisonLiteral, func(sql *strings.Builder) error {
 			return dialect.Pagination(sql, &arguments, plan)
 		})
 		if err != nil {
@@ -240,10 +251,10 @@ func CompileDerived(plan query.Plan, input string, inputArguments []any, dialect
 }
 
 func appendDerivedPredicate(statement *strings.Builder, expression query.Expression,
-	render func(query.ScalarExpression) (string, error), parameter func(query.Value) (string, error)) error {
+	render func(query.ScalarExpression) (string, error), parameter func(query.Value) (string, error), normalize func(query.Condition, string, string) (string, string, error)) error {
 	statement.WriteByte('(')
 	if condition, leaf := expression.Condition(); leaf {
-		if err := AppendScalarCondition(statement, condition, render, parameter); err != nil {
+		if err := AppendScalarCondition(statement, condition, render, parameter, normalize); err != nil {
 			return err
 		}
 	} else {
@@ -254,7 +265,7 @@ func appendDerivedPredicate(statement *strings.Builder, expression query.Express
 				return invalidPlan("derived NOT requires one predicate")
 			}
 			statement.WriteString("NOT ")
-			if err := appendDerivedPredicate(statement, children[0], render, parameter); err != nil {
+			if err := appendDerivedPredicate(statement, children[0], render, parameter, normalize); err != nil {
 				return err
 			}
 		case query.ExpressionAnd, query.ExpressionOr:
@@ -269,7 +280,7 @@ func appendDerivedPredicate(statement *strings.Builder, expression query.Express
 						statement.WriteString(" OR ")
 					}
 				}
-				if err := appendDerivedPredicate(statement, child, render, parameter); err != nil {
+				if err := appendDerivedPredicate(statement, child, render, parameter, normalize); err != nil {
 					return err
 				}
 			}

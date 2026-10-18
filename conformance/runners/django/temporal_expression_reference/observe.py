@@ -6,6 +6,7 @@ boundary; native storage and namespace cleanup are checked independently.
 """
 import argparse
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import hashlib
 import json
 import locale
@@ -44,6 +45,8 @@ def native(value):
         record.update(days=value.days, seconds=value.seconds, microseconds=value.microseconds)
     elif isinstance(value, float):
         record.update(value=repr(value), binary64=value.hex())
+    elif isinstance(value, Decimal):
+        record['value'] = str(value)
     elif isinstance(value, (tuple, list)):
         record['value'] = [native(item) for item in value]
     elif isinstance(value, bytes):
@@ -310,6 +313,24 @@ def observe(vendor):
         action('update_datetime_overflow', lambda: update(finish=F('finish')+tick), setup=lambda: Event.objects.filter(code='f').update(finish=last), replay=False)
         action('update_duration_overflow', lambda: update(span=F('span')+tick), setup=lambda: Event.objects.filter(code='f').update(span=timedelta(microseconds=2**63-1)), replay=False)
 
+        # Django requires explicit output metadata for these mixed units. The
+        # wrapper declares the result type; it does not replace native numeric
+        # operators or copy GoDj's rational implementation into the observer.
+        duration_expression = lambda expression: ExpressionWrapper(expression, output_field=models.DurationField())
+        half = duration_expression(F('span') / 2)
+        restored = duration_expression(duration_expression(F('span') / 3) * 3)
+        action('scale_integer', lambda: rows(duration_expression(F('span') * 2)))
+        action('scale_integer_reverse', lambda: rows(duration_expression(2 * F('span'))))
+        action('scale_divide_restore', lambda: rows(restored))
+        action('scale_half_final', lambda: rows(half))
+        action('scale_float_tie', lambda: rows(duration_expression(Value(timedelta(microseconds=5)) * Value(0.1)), base.filter(code='a')))
+        action('scale_decimal_tie', lambda: rows(duration_expression(Value(timedelta(microseconds=5)) * Value(Decimal('0.1'))), base.filter(code='a')))
+        action('fraction_sum', lambda: aggregate(base.filter(code__in=['a', 'e']), total=Sum(half)))
+        action('fraction_distinct_sum', lambda: aggregate(base.filter(code__in=['a', 'e']), total=Sum(half, distinct=True)))
+        action('fraction_shift', lambda: rows(F('finish') + half, base.filter(code='a')))
+        action('scale_zero_divisor', lambda: rows(duration_expression(F('span') / 0), base.filter(code='a')))
+        action('duration_ratio', lambda: rows(ExpressionWrapper(F('span') / F('other'), output_field=models.FloatField())))
+
         result = {'kind': 'django-temporal-expression-reference-v1', 'backend': vendor, 'django_commit': sources['django_commit'],
                   'observer_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   'input_sha256': hashlib.sha256(input_bytes).hexdigest(), 'source_verification_sha256': hashlib.sha256(source_bytes).hexdigest(),
@@ -346,13 +367,13 @@ if __name__ == '__main__':
     args.output.write_text(json.dumps(document, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2) + '\n')
     assert document['storage_unchanged'] and document['storage_cleaned'], 'temporal observer changed storage or failed cleanup'
     names = [case['name'] for case in document['cases']]
-    assert len(names) == len(set(names)) == 44
+    assert len(names) == len(set(names)) == 55
     # These cases intentionally observe native range/precision differences.
     # Their exact result, error stage, SQLSTATE and native values remain in the
     # raw document and are checked by the separate consuming comparison.
     boundary = {'datetime_upper_overflow', 'datetime_lower_overflow', 'duration_full_model_literal', 'duration_model_overflow',
                 'mean_fractional_shift', 'mean_integral_shift', 'mean_zero_shift', 'mean_null_shift', 'mean_reverse_shift',
-                'update_datetime_overflow', 'update_duration_overflow'}
+                'update_datetime_overflow', 'update_duration_overflow', 'scale_zero_divisor', 'duration_ratio'}
     unexpected = {case['name']: case['error'] for case in document['cases'] if 'error' in case and case['name'] not in boundary}
     assert not unexpected, json.dumps(unexpected, ensure_ascii=False, sort_keys=True)
     print(json.dumps({'backend': args.vendor, 'cases': len(names), 'sha256': hashlib.sha256(args.output.read_bytes()).hexdigest()}))

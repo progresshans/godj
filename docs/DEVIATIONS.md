@@ -44,6 +44,45 @@
 
 ## 원장
 
+## DEV-0024 — 기간 배율의 정확한 중간값과 최종 반올림
+
+- 상태: ADR-0090의 계약 구현; 독립 양 DB 관측과 일부 PostgreSQL native 확인, 현재 source의 전체 검증은 진행 중
+- 날짜: 2026-10-18
+- 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 temporal observer](../conformance/runners/django/temporal_expression_reference/), SQLite/PostgreSQL 17.10
+- 범위: [GDJ-0131](../work/0131-duration-scaling-and-label-time-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md#기간-배율과-중간-정밀도). Source·환경별 실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
+
+GoDj는 Duration과 정수·Decimal의 정확한 값, Float의 실제 binary64 값으로 분수 microseconds를 계산한다.
+선택된 결과·CASE·비교·정렬·그룹·집계와 후속 산술은 분수를 유지하고 최종 Duration 읽기/쓰기에서 half-even으로
+반올림한다. DateTime 이동은 정수 epoch와 분수 기간의 합을 반올림하며, 기간 사이의 비율은 정확한 나눗셈 결과를
+마지막에 finite binary64로 변환한다. 이것은 고정 Django의 backend별 산술을 그대로 재현하는 정책과 다르다.
+
+독립 관측에서 확인한 차이와 새 비교 코드가 요구하는 결과는 아래와 같다. 값이 다른 사례는 parity로 집계하지 않는다.
+
+| 관측 사례 | Django SQLite | Django PostgreSQL | GoDj 계약 |
+|---|---|---|---|
+| `scale_divide_restore`의 1µs ÷ 3 × 3 | 최종 1µs | INTERVAL 단계에서 반올림되어 최종 0µs | 중간 분수를 유지해 1µs |
+| `scale_float_tie`의 5µs × Float 0.1 | native REAL 0.5, 최종 0µs | native INTERVAL 0µs | binary64 0.1의 정확한 값이 만든 0.5µs 초과 결과를 1µs로 반올림 |
+| `fraction_sum`의 두 1µs ÷ 2 합계 | 최종 1µs | 각 INTERVAL이 0µs이므로 합계 0µs | 두 분수를 합친 뒤 최종 1µs |
+| `fraction_shift`의 기준 시각 .000001 + 1µs ÷ 2 | NULL | .000001 | 정확한 합 .0000015를 .000002로 반올림 |
+| `duration_ratio`의 1µs ÷ 2µs | INTEGER 나눗셈으로 0 | interval/interval 연산자가 없어 SQLSTATE `42883` | 무차원 Float 0.5 |
+
+위 사례에서도 NULL·행 순서·원래 parameter 타입과 값·SQL replay·변환 단계·저장 보존을 그대로 확인한다.
+`scale_decimal_tie`의 Decimal 0.1은 정확히 0.5µs이므로 양 구현의 최종 0µs를 요구한다.
+`fraction_distinct_sum`은 동일한 분수 기여를 DISTINCT로 하나만 남겨 최종 0µs를 요구하며,
+그 native 중간값이 SQLite REAL 0.5와 PostgreSQL INTERVAL 0이라는 사실도 보존한다.
+0 divisor의 native 오류를 성공으로 바꾸거나 이 목록 밖의 값 차이를 허용하는 wildcard 비교는 추가하지 않는다.
+새 비교는 [닫힌 native/변환 검사](../codegen/consumertest/testdata/temporalexpression/duration_scaling_reference_test.go)가 소유한다.
+
+중간값마다 반올림하는 대안은 나눗셈 뒤 복원이나 작은 기여의 합을 잃고, 모든 숫자를 Float으로 바꾸는 대안은 큰 정수와
+Decimal의 원래 값을 잃으므로 채택하지 않는다. 각 Duration operand와 연산 결과의 전체 모델 범위 검사는 반올림보다
+먼저 수행한다. 범위 밖 값을 뒤의 0 배율·상쇄·NULL로 감추지 않으며, 조회 오류는 부분 결과를 게시하지 않고 UPDATE
+오류는 statement 전체를 되돌린다. 실제 선택되지 않은 CASE와 FILTER로 제외된 기여는 기존처럼 평가하지 않는다.
+
+기존 모델의 저장 형식과 유효한 데이터는 바꾸지 않는다. SQLite 저장의 int64 제한, PostgreSQL의 INTERVAL 표현과
+query 내부의 정확한 분수 표현은 서로 다른 경계다. Native AVG만 사용하는 기존 계산의 backend 의미도 유지한다.
+이 계약을 Helpdesk의 조정 시간 합계에 사용하지만 입력·조회 권한·읽기 snapshot·저장/audit 보존은 완화하지 않는다.
+Upstream 산술이나 GoDj의 반올림 정책을 바꿀 때에는 양쪽의 원 관측·비교 코드·소비자 계약과 이 기록을 함께 재검토한다.
+
 ## DEV-0023 — Calendar 추출의 원본 값 검사와 불가능한 서명 거부
 
 - 상태: source `153cf765`의 normal·race·CGO0 양 DB 독립 관측/native 비교와 전체 플랫폼 완료; GDJ-0130의 확장 비교는 검증 중

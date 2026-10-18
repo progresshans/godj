@@ -13,7 +13,7 @@ import (
 )
 
 func TestSQLiteScalarReadErrorsRetainClassificationAndNativeCause(t *testing.T) {
-	for _, failure := range []string{"decimal_source", "decimal_result", "integer_result"} {
+	for _, failure := range []string{"decimal_source", "decimal_result", "integer_result", "float_source"} {
 		t.Run(failure, func(t *testing.T) {
 			backend, err := OpenMemory(t.Context(), t.Name())
 			if err != nil {
@@ -24,24 +24,31 @@ func TestSQLiteScalarReadErrorsRetainClassificationAndNativeCause(t *testing.T) 
 					t.Error(err)
 				}
 			})
-			if _, err := backend.ExecContext(t.Context(), `CREATE TABLE scalar_error_values(id INTEGER PRIMARY KEY, amount BLOB, whole INTEGER)`); err != nil {
+			if _, err := backend.ExecContext(t.Context(), `CREATE TABLE scalar_error_values(id INTEGER PRIMARY KEY, amount BLOB, whole INTEGER, floating REAL)`); err != nil {
 				t.Fatal(err)
 			}
 			var bad any = expressionDecimalKey(t, "12.5")
 			if failure == "decimal_source" {
 				bad = "not-a-decimal"
 			}
-			if _, err := backend.ExecContext(t.Context(), `INSERT INTO scalar_error_values VALUES(1, ?, 0), (2, ?, ?)`, expressionDecimalKey(t, "0"), bad, int64(math.MaxInt64)); err != nil {
+			var badFloat any = float64(1)
+			if failure == "float_source" {
+				badFloat = "not-a-float"
+			}
+			if _, err := backend.ExecContext(t.Context(), `INSERT INTO scalar_error_values VALUES(1, ?, 0, 0.0), (2, ?, ?, ?)`, expressionDecimalKey(t, "0"), bad, int64(math.MaxInt64), badFloat); err != nil {
 				t.Fatal(err)
 			}
 			id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 			amount := query.NewDecimalFieldRef("amount", "amount", false, 14, 2)
 			whole := query.NewFieldRef("whole", "whole", query.FieldInteger, false)
+			floating := query.NewFieldRef("floating", "floating", query.FieldFloat, false)
 			field, literal, operator := amount, query.Decimal(decimal.Decimal{}), query.ArithmeticAdd
 			if failure == "decimal_result" {
 				literal, operator = query.Decimal(decimal.Decimal{Coefficient: "1", Exponent: 1000}), query.ArithmeticMultiply
 			} else if failure == "integer_result" {
 				field, literal = whole, query.Integer(1)
+			} else if failure == "float_source" {
+				field, literal = floating, query.Float(0)
 			}
 			left, err := query.FieldExpression(field)
 			if err != nil {
@@ -63,7 +70,7 @@ func TestSQLiteScalarReadErrorsRetainClassificationAndNativeCause(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			base := query.NewPlan("scalar_error_values", []query.FieldRef{id, amount, whole}).WithOrderings(query.NewOrdering(id, query.Ascending))
+			base := query.NewPlan("scalar_error_values", []query.FieldRef{id, amount, whole, floating}).WithOrderings(query.NewOrdering(id, query.Ascending))
 			late, err := base.WithResultShape(shape)
 			if err != nil {
 				t.Fatal(err)
@@ -169,7 +176,7 @@ func TestSQLiteScalarReadErrorsRetainClassificationAndNativeCause(t *testing.T) 
 }
 
 func TestSQLiteScalarErrorClassificationRejectsUnstructuredLookalikes(t *testing.T) {
-	for _, err := range []error{nil, context.Canceled, errors.New(invalidIntegerExpression), errors.New(invalidDecimalExpression), errors.New(invalidTemporalExpression), errCalendarOperand, errors.New(errDecimalAggregateInput.Error())} {
+	for _, err := range []error{nil, context.Canceled, errors.New(invalidIntegerExpression), errors.New(invalidDecimalExpression), errors.New(invalidTemporalExpression), errCalendarOperand, errors.New(errDecimalAggregateInput.Error()), errFloatAggregate} {
 		if got := classifySQLiteScalarError(err); got != err {
 			t.Fatal("unstructured text was classified or cancellation was replaced", got)
 		}
@@ -183,7 +190,7 @@ func TestSQLiteScalarErrorClassificationRejectsUnstructuredLookalikes(t *testing
 			t.Error(err)
 		}
 	})
-	for _, message := range []string{invalidIntegerExpression, invalidDecimalExpression, invalidTemporalExpression, errCalendarOperand.Error(), errDecimalAggregateInput.Error()} {
+	for _, message := range []string{invalidIntegerExpression, invalidDecimalExpression, invalidTemporalExpression, errCalendarOperand.Error(), errDecimalAggregateInput.Error(), errFloatAggregate.Error()} {
 		name, err := quoteIdentifier(message)
 		if err != nil {
 			t.Fatal(err)

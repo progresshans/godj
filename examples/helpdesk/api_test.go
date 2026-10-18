@@ -294,20 +294,20 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	assertTicketLabelContracts(t, document)
 	usage := document.Paths["/api/labels/usage/"]["get"]
 	usageSchema := document.Components.Schemas["LabelUsage"]
-	if usage.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelUsage" || len(usage.Parameters) != 4 || usage.Parameters[0].Name != "p" || usage.Parameters[1].Name != "usage" || usageSchema.AdditionalProperties || !slices.Equal(usageSchema.Required, []string{"category", "page", "page_size", "usage", "factor", "delta", "total_labels", "results"}) {
+	if usage.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/LabelUsage" || len(usage.Parameters) != 6 || usage.Parameters[0].Name != "p" || usage.Parameters[1].Name != "usage" || usageSchema.AdditionalProperties || !slices.Equal(usageSchema.Required, []string{"category", "page", "page_size", "usage", "factor", "delta", "elapsed_factor", "elapsed_divisor", "total_labels", "results"}) {
 		t.Fatal("label usage operation lost closed page contract")
 	}
 	if string(usage.Parameters[0].Schema.Default) != "1" || string(usage.Parameters[1].Schema.Default) != `"all"` || string(usage.Parameters[1].Schema.Enum) != `["all","used","unused"]` || usage.Parameters[0].Schema.QueryInteger != "canonical-decimal" || usage.Parameters[1].Required || usage.Parameters[1].AllowEmptyValue {
 		t.Fatal("label usage query lost enum/default/omission")
 	}
-	for index, name := range []string{"factor", "delta"} {
+	for index, name := range []string{"factor", "delta", "elapsed_factor", "elapsed_divisor"} {
 		parameter := usage.Parameters[index+2]
 		var policy struct {
 			MaxDigits      int
 			DecimalPlaces  int
 			Representation string
 		}
-		if parameter.Name != name || parameter.Required || parameter.AllowEmptyValue || parameter.Schema.Type != "string" || parameter.Schema.Pattern == "" || parameter.Schema.MinLength != 1 || parameter.Schema.MaxLength != []int{8, 16}[index] || string(parameter.Schema.Default) != []string{`"1"`, `"0"`}[index] || json.Unmarshal(parameter.Schema.DecimalPolicy, &policy) != nil || policy.MaxDigits != []int{6, 14}[index] || policy.DecimalPlaces != []int{4, 2}[index] || policy.Representation != "canonical-decimal-string" {
+		if parameter.Name != name || parameter.Required || parameter.AllowEmptyValue || parameter.Schema.Type != "string" || parameter.Schema.Pattern == "" || parameter.Schema.MinLength != 1 || parameter.Schema.MaxLength != []int{8, 16, 8, 7}[index] || string(parameter.Schema.Default) != []string{`"1"`, `"0"`, `"1"`, `"1"`}[index] || json.Unmarshal(parameter.Schema.DecimalPolicy, &policy) != nil || policy.MaxDigits != []int{6, 14, 6, 6}[index] || policy.DecimalPlaces != []int{4, 2, 4, 4}[index] || policy.Representation != "canonical-decimal-string" {
 			t.Fatal("label usage adjustment lost exact parameter/default policy", name, parameter)
 		}
 		if usageSchema.Properties[name].Type != "string" || usageSchema.Properties[name].Pattern == "" {
@@ -315,10 +315,10 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 		}
 	}
 	usageRows := usageSchema.Properties["results"]
-	if usageRows.Type != "array" || usageRows.MaxItems != 20 || usageRows.Items == nil || usageRows.Items.AdditionalProperties || !slices.Equal(usageRows.Items.Required, []string{"id", "name", "total", "open", "closed", "expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total"}) {
+	if usageRows.Type != "array" || usageRows.MaxItems != 20 || usageRows.Items == nil || usageRows.Items.AdditionalProperties || !slices.Equal(usageRows.Items.Required, []string{"id", "name", "total", "open", "closed", "expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total", "adjusted_elapsed_total"}) {
 		t.Fatal("label usage result lost required bounded rows")
 	}
-	for _, name := range []string{"expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total"} {
+	for _, name := range []string{"expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total", "adjusted_elapsed_total"} {
 		if len(usageRows.Items.Properties[name].AnyOf) != 2 {
 			t.Fatal("label usage numeric nullability", name)
 		}

@@ -81,6 +81,44 @@ CASE branch와 FILTER 제외 행은 실행하지 않는다. 조회·같은 행 U
 의미·statement rollback·원래 오류의 소유권을 유지한다. 이 계약의 채택, 작성한 코드와 실제 환경별 검증은 활성 work와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에서 구분한다.
 
+## 기간 배율과 중간 정밀도
+
+[GDJ-0131](../../work/0131-duration-scaling-and-label-time-preview.md)의 `Duration × Number`, `Number × Duration`,
+`Duration ÷ Number`는 Duration이며 `Duration ÷ Duration`은 Float이다. Number는 int64·finite binary64·canonical
+Decimal의 원 domain을 유지한다. 모든 operand를 Float으로 바꾸면 큰 정수의 낮은 비트와 정확한 Decimal을 잃으므로
+기간 배율의 중간값은 정확한 분수 microseconds로 유지한다. Float 배율은 그 binary64의 실제 값을 사용한다.
+예를 들어 5µs에 Decimal 0.1을 곱한 0.5µs와 Float 0.1을 곱한 값은 같은 half-even 결과라고 가정하지 않는다.
+
+반올림은 최종 Duration 읽기/쓰기에서 half-even으로 수행한다. `1µs ÷ 2 × 2`와 `1µs ÷ 3 × 3`은 1µs이며,
+selected result·CASE·부호 반전·비교·정렬·그룹·집계는 중간 분수를 유지한다. DateTime 이동은 정수 epoch와 기간의
+정확한 합을 그 DateTime 경계에서 반올림한다. Float 비율은 두 기간을 미리 Float으로 바꾸지 않고 나눗셈 결과에서
+binary64로 변환하며 유한 범위 초과를 Infinity로 게시하지 않는다.
+
+각 Duration operand와 연산 결과는 반올림 전에도 전체 모델의 최소/최대 microseconds 사이여야 한다.
+손상·범위 초과 중간값을 NULL이나 뒤의 0 배율·상쇄로 숨기지 않는다. NULL 전파 전 기여 operand를 검사하며,
+평가하지 않는 CASE/FILTER는 기존 지연 평가를 유지한다. 모델 Duration의 SQLite storage/literal int64 제한과
+계산 결과의 전체 모델 범위는 구분한다. 쓰기는 최종 정수 microseconds의 SQLite 저장 범위를 추가로 확인한다.
+
+새 분수 출처는 기존 native AVG 출처와 구분한다. 단지 새 기능을 추가했다는 이유로 기존 backend의 AVG를 다시
+계산하거나 모든 Duration field의 물리 검사를 넓히지 않는다. 이 계약의 채택과 작성한 코드, 양 backend의 실제 실행,
+독립 Django 비교·소비자 완료는 별개이며 활성 work와 TEST_EVIDENCE가 현재 구현·검증 범위를 소유한다.
+고정 Django와 달라지는 배율·합계·시각 이동·기간 비율의 값과 오류는
+[DEV-0024](../DEVIATIONS.md#dev-0024--기간-배율의-정확한-중간값과-최종-반올림)에 관측 사례별로 한정한다.
+
+분수의 내부 query key는 기약분수의 동일성과 수치 순서를 byte 비교로 보존한다. 일반 모델 Duration의 저장 표현은
+이 key를 받지 않는다. PostgreSQL은 NUMERIC pair를 산술 상태로, BYTEA key를 query 결과로 사용하며 CASE의 각
+분기·비교의 양쪽·정적으로 빈 입력도 producer의 물리 타입을 유지한다. Float 배율은 실제 binary64 비트에서 해석하고,
+비율은 정확한 정수 계산으로 Float significand를 반올림한다. Decimal 근사나 임의로 고정한 소수 자릿수로 분수 비율을
+대체하지 않는다. DB의 NUMERIC 자원 한계를 넘으면 native 오류를 반환하며 정밀도를 낮춘 fallback으로 성공시키지 않는다.
+
+Helpdesk 라벨별 조정 시간은 같은 collection의 각 present Duration을 배율로 곱하고 양수 divisor로 나눈 뒤 합산한다.
+`elapsed_factor`와 `elapsed_divisor`는 canonical Decimal(6,4), 기본 1이다. Factor는 음수·±0을 허용하지만
+divisor는 0과 음수를 거부한다. 공통 `CanonicalPositiveDecimal` query/header codec과 OpenAPI의 동일한 문자열
+문법이 양수 제한을 소유한다. 사용자 입력을 Float으로 바꾸거나 DB의 0 나눗셈 오류로 검증을 미루지 않는다.
+HTML/API는 `adjusted_elapsed_total`과 두 입력을 제공하고, 최종 합계만 half-even 반올림한다. 모든 집계는 같은
+Category FILTER·읽기 snapshot에 속하며 NULL과 실제 0, 빈 라벨, 기존 권한과 전체 저장 상태를 유지한다.
+이 소비자의 코드·schema 작성과 환경별 실행 완료는 TEST_EVIDENCE에서 구분한다.
+
 ## UTC 날짜와 시계 추출
 
 [GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)은 닫힌 unary `FunctionExpression`을 같은 scalar AST에

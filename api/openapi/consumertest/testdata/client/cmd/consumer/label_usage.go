@@ -30,25 +30,39 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 		{Factor: hs.NewOptString("1.25"), Delta: hs.NewOptString("0.1")},
 		{Factor: hs.NewOptString("0"), Delta: hs.NewOptString("1")},
 		{Factor: hs.NewOptString("-1.5"), Delta: hs.NewOptString("-0.1")},
+		{ElapsedFactor: hs.NewOptString("1"), ElapsedDivisor: hs.NewOptString("2")},
+		{ElapsedFactor: hs.NewOptString("0.1"), ElapsedDivisor: hs.NewOptString("0.3")},
+		{ElapsedFactor: hs.NewOptString("-1"), ElapsedDivisor: hs.NewOptString("2")},
+		{ElapsedFactor: hs.NewOptString("0"), ElapsedDivisor: hs.NewOptString("0.0001")},
+		{ElapsedFactor: hs.NewOptString("-0"), ElapsedDivisor: hs.NewOptString("99.9999")},
 	} {
-		factor, delta := "1", "0"
+		factor, delta, elapsedFactor, elapsedDivisor := "1", "0", "1", "1"
 		if adjustments.Factor.Set {
 			factor = adjustments.Factor.Value
 		}
 		if adjustments.Delta.Set {
 			delta = adjustments.Delta.Value
 		}
+		if adjustments.ElapsedFactor.Set {
+			elapsedFactor = adjustments.ElapsedFactor.Value
+		}
+		if adjustments.ElapsedDivisor.Set {
+			elapsedDivisor = adjustments.ElapsedDivisor.Value
+		}
 		multiplier, factorOK := new(big.Rat).SetString(factor)
 		adjustment, deltaOK := new(big.Rat).SetString(delta)
-		if !factorOK || !deltaOK {
+		timeFactor, timeFactorOK := new(big.Rat).SetString(elapsedFactor)
+		timeDivisor, timeDivisorOK := new(big.Rat).SetString(elapsedDivisor)
+		if !factorOK || !deltaOK || !timeFactorOK || !timeDivisorOK || timeDivisor.Sign() <= 0 {
 			return fail("label usage independent adjustment input")
 		}
 		expected := make([]hs.LabelUsageResultsItem, 0, len(before.Items))
 		for _, label := range before.Items {
-			row := hs.LabelUsageResultsItem{ID: label.ID, Name: label.Name, ExpectedCostTotal: hs.NilString{Null: true}, AdjustedCostTotal: hs.NilString{Null: true}, EffortAverage: hs.NilFloat64{Null: true}, ElapsedTotal: hs.NilString{Null: true}}
+			row := hs.LabelUsageResultsItem{ID: label.ID, Name: label.Name, ExpectedCostTotal: hs.NilString{Null: true}, AdjustedCostTotal: hs.NilString{Null: true}, EffortAverage: hs.NilFloat64{Null: true}, ElapsedTotal: hs.NilString{Null: true}, AdjustedElapsedTotal: hs.NilString{Null: true}}
 			cost := new(big.Rat)
 			adjustedCost := new(big.Rat)
 			elapsed := new(big.Int)
+			adjustedElapsed := new(big.Rat)
 			costPresent, elapsedPresent := false, false
 			effortCount := int64(0)
 			effortTotal := float64(0)
@@ -83,6 +97,9 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 						return err
 					}
 					elapsed.Add(elapsed, value)
+					adjusted := new(big.Rat).Mul(new(big.Rat).SetInt(value), timeFactor)
+					adjusted.Quo(adjusted, timeDivisor)
+					adjustedElapsed.Add(adjustedElapsed, adjusted)
 					elapsedPresent = true
 				}
 			}
@@ -107,6 +124,11 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 					return err
 				}
 				row.ElapsedTotal = hs.NewNilString(value)
+				adjusted, err := summaryDurationText(labelUsageRoundedMicros(adjustedElapsed))
+				if err != nil {
+					return err
+				}
+				row.AdjustedElapsedTotal = hs.NewNilString(adjusted)
 			}
 			expected = append(expected, row)
 		}
@@ -144,14 +166,14 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 					if err != nil || !ok || viewer.transport.lastStatus() != http.StatusOK || !page.XGodjCsrftoken.Set || !viewer.state.ready(page.XGodjCsrftoken.Value) {
 						return fail("label usage generated read-only success and CSRF response")
 					}
-					if page.Response.Category.ID != category || page.Response.Category.Name != "Hardware & repairs" || page.Response.Page != number || page.Response.PageSize != 20 || page.Response.Usage != name || page.Response.Factor != factor || page.Response.Delta != delta || page.Response.TotalLabels != int64(len(filtered)) || !reflect.DeepEqual(page.Response.Results, wanted) {
+					if page.Response.Category.ID != category || page.Response.Category.Name != "Hardware & repairs" || page.Response.Page != number || page.Response.PageSize != 20 || page.Response.Usage != name || page.Response.Factor != factor || page.Response.Delta != delta || page.Response.ElapsedFactor != elapsedFactor || page.Response.ElapsedDivisor != elapsedDivisor || page.Response.TotalLabels != int64(len(filtered)) || !reflect.DeepEqual(page.Response.Results, wanted) {
 						return fail("label usage generated exact per-ticket adjusted metrics, NULLs, filters and page total")
 					}
 				}
 			}
 		}
 	}
-	for _, params := range []hs.HelpdeskLabelUsageParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("")}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("invalid")}, {Factor: hs.NewOptString("1.00")}, {Factor: hs.NewOptString("1e0")}, {Factor: hs.NewOptString("100")}, {Delta: hs.NewOptString("0.001")}} {
+	for _, params := range []hs.HelpdeskLabelUsageParams{{P: hs.NewOptInt64(0)}, {P: hs.NewOptInt64(50002)}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("")}, {Usage: hs.NewOptHelpdeskLabelUsageUsage("invalid")}, {Factor: hs.NewOptString("1.00")}, {Factor: hs.NewOptString("1e0")}, {Factor: hs.NewOptString("100")}, {Delta: hs.NewOptString("0.001")}, {ElapsedFactor: hs.NewOptString("1.00")}, {ElapsedFactor: hs.NewOptString("100")}, {ElapsedDivisor: hs.NewOptString("0")}, {ElapsedDivisor: hs.NewOptString("-0")}, {ElapsedDivisor: hs.NewOptString("-1")}, {ElapsedDivisor: hs.NewOptString("0.00001")}} {
 		response, err := client.HelpdeskLabelUsage(ctx, params)
 		value, ok := response.(*hs.HelpdeskLabelUsageBadRequest)
 		if err != nil || !ok || transport.lastStatus() != http.StatusBadRequest || value.Response.Code != "validation_error" {
@@ -171,4 +193,20 @@ func checkHelpdeskLabelUsage(ctx context.Context, client, readOnly *hs.Client, t
 		return fail("label usage unused fixture cleanup")
 	}
 	return nil
+}
+
+// The external consumer has no GoDj dependency; round its independent rational
+// total directly, including negative ties, before formatting the duration.
+func labelUsageRoundedMicros(value *big.Rat) *big.Int {
+	abs := new(big.Int).Abs(value.Num())
+	quotient, remainder := new(big.Int), new(big.Int)
+	quotient.QuoRem(abs, value.Denom(), remainder)
+	comparison := new(big.Int).Lsh(remainder, 1).Cmp(value.Denom())
+	if comparison > 0 || comparison == 0 && quotient.Bit(0) != 0 {
+		quotient.Add(quotient, big.NewInt(1))
+	}
+	if value.Sign() < 0 {
+		quotient.Neg(quotient)
+	}
+	return quotient
 }

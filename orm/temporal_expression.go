@@ -3,6 +3,7 @@ package orm
 import (
 	"time"
 
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/query"
 )
@@ -17,12 +18,34 @@ type DurationExpression[M any] struct {
 	ScalarExpression[M, duration.Duration]
 }
 
+// DurationFactor retains the factor's model domain rather than converting an
+// integer or exact Decimal into binary64 before the backend sees it.
+type DurationFactor interface {
+	int64 | float64 | decimal.Decimal
+}
+
 func DateTime[M any](operand ScalarOperand[M, time.Time]) DateTimeExpression[M] {
 	return DateTimeExpression[M]{Scalar(operand)}
 }
 
 func Duration[M any](operand ScalarOperand[M, duration.Duration]) DurationExpression[M] {
 	return DurationExpression[M]{Scalar(operand)}
+}
+
+func ScaleDuration[M any, N DurationFactor](value ScalarOperand[M, duration.Duration], factor N) DurationExpression[M] {
+	return ScaleDurationExpressions(value, Value[M](factor))
+}
+
+func ScaleDurationExpressions[M any, N DurationFactor](value ScalarOperand[M, duration.Duration], factor ScalarOperand[M, N]) DurationExpression[M] {
+	return DurationExpression[M]{temporalOperands[M, duration.Duration](query.ArithmeticMultiply, value, factor)}
+}
+
+func DivideDuration[M any, N DurationFactor](value ScalarOperand[M, duration.Duration], divisor N) DurationExpression[M] {
+	return DivideDurationExpressions(value, Value[M](divisor))
+}
+
+func DivideDurationExpressions[M any, N DurationFactor](value ScalarOperand[M, duration.Duration], divisor ScalarOperand[M, N]) DurationExpression[M] {
+	return DurationExpression[M]{temporalOperands[M, duration.Duration](query.ArithmeticDivide, value, divisor)}
 }
 
 func temporalOperands[M, Result, Left, Right any](operator query.ArithmeticOperator, left ScalarOperand[M, Left], right ScalarOperand[M, Right]) ScalarExpression[M, Result] {
@@ -84,6 +107,14 @@ func (value DurationExpression[M]) Negate() DurationExpression[M] {
 	}
 	expression, err := query.NegateScalar(value.expression)
 	return DurationExpression[M]{ScalarExpression[M, duration.Duration]{expression: expression, err: err}}
+}
+
+func (value DurationExpression[M]) Ratio(right duration.Duration) NumericExpression[M, float64] {
+	return value.RatioExpression(Value[M](right))
+}
+
+func (value DurationExpression[M]) RatioExpression(right ScalarOperand[M, duration.Duration]) NumericExpression[M, float64] {
+	return NumericExpression[M, float64]{temporalOperands[M, float64](query.ArithmeticDivide, value, right)}
 }
 
 func (value DurationExpression[M]) aggregate(kind query.ResultExpressionKind) (query.ResultExpression, func() scalarCell[Optional[duration.Duration]], error) {

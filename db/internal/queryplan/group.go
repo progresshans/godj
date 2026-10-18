@@ -88,6 +88,7 @@ func GroupConditionAlias(condition query.Condition, joins map[RelationKey]Join) 
 // are computed once and parameter traversal is deterministic.
 // Page uses the same grouped CTE for count and rows, including an empty page.
 func FinishGroups(base string, plan query.Plan, placeholder func(query.Value) (string, error),
+	normalize func(query.ResultExpression, string) (string, error),
 	page func(*strings.Builder) error) (string, error) {
 	shape := plan.ResultShape()
 	if shape.Kind() != query.ResultGrouped {
@@ -100,7 +101,7 @@ func FinishGroups(base string, plan query.Plan, placeholder func(query.Value) (s
 	filtered.WriteString(" FROM (" + base + `) AS "godj_group_values"`)
 	if having, present := shape.GroupHaving(); present {
 		filtered.WriteString(" WHERE ")
-		if err := appendGroupPredicate(&filtered, having, expressions, placeholder, false); err != nil {
+		if err := appendGroupPredicate(&filtered, having, expressions, placeholder, normalize, false); err != nil {
 			return "", err
 		}
 	}
@@ -164,7 +165,7 @@ func appendGroupOrderings(statement *strings.Builder, shape query.ResultShape, p
 	}
 }
 func appendGroupPredicate(statement *strings.Builder, expression query.GroupExpression, selected []query.ResultExpression,
-	placeholder func(query.Value) (string, error), negated bool) error {
+	placeholder func(query.Value) (string, error), normalize func(query.ResultExpression, string) (string, error), negated bool) error {
 	statement.WriteByte('(')
 	if value, lookup, literal, leaf := expression.Leaf(); leaf {
 		column := `"c` + strconv.Itoa(ExpressionIndex(selected, value)) + `"`
@@ -195,6 +196,12 @@ func appendGroupPredicate(statement *strings.Builder, expression query.GroupExpr
 			if err != nil {
 				return err
 			}
+			if normalize != nil {
+				parameter, err = normalize(value, parameter)
+				if err != nil {
+					return err
+				}
+			}
 			statement.WriteString(parameter)
 			if !value.IsAggregate() && negated {
 				field, _ := value.Field()
@@ -209,7 +216,7 @@ func appendGroupPredicate(statement *strings.Builder, expression query.GroupExpr
 		switch expression.Kind() {
 		case query.ExpressionNot:
 			statement.WriteString("NOT ")
-			if err := appendGroupPredicate(statement, children[0], selected, placeholder, !negated); err != nil {
+			if err := appendGroupPredicate(statement, children[0], selected, placeholder, normalize, !negated); err != nil {
 				return err
 			}
 		case query.ExpressionAnd, query.ExpressionOr:
@@ -221,7 +228,7 @@ func appendGroupPredicate(statement *strings.Builder, expression query.GroupExpr
 						statement.WriteString(" OR ")
 					}
 				}
-				if err := appendGroupPredicate(statement, child, selected, placeholder, negated); err != nil {
+				if err := appendGroupPredicate(statement, child, selected, placeholder, normalize, negated); err != nil {
 					return err
 				}
 			}

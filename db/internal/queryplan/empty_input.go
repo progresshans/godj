@@ -43,6 +43,12 @@ func CompileEmptyInput(shape query.ResultShape, dialect ScalarDialect) (string, 
 		if err != nil {
 			return "", nil, err
 		}
+		if dialect.EmptyValue != nil {
+			rendered, err = dialect.EmptyValue(expression, rendered)
+			if err != nil {
+				return "", nil, err
+			}
+		}
 		statement.WriteString(rendered + ` AS "c` + strconv.Itoa(index) + `"`)
 	}
 	if !single {

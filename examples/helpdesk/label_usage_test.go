@@ -33,19 +33,22 @@ type labelUsageItem struct {
 	Adjusted            *string  `json:"adjusted_cost_total"`
 	Effort              *float64 `json:"effort_average"`
 	Elapsed             *string  `json:"elapsed_total"`
+	AdjustedElapsed     *string  `json:"adjusted_elapsed_total"`
 }
 type labelUsageEnvelope struct {
 	Category struct {
 		ID   int64
 		Name string
 	}
-	Page     int64
-	PageSize int64 `json:"page_size"`
-	Usage    string
-	Factor   string
-	Delta    string
-	Total    int64 `json:"total_labels"`
-	Results  []labelUsageItem
+	Page           int64
+	PageSize       int64 `json:"page_size"`
+	Usage          string
+	Factor         string
+	Delta          string
+	ElapsedFactor  string `json:"elapsed_factor"`
+	ElapsedDivisor string `json:"elapsed_divisor"`
+	Total          int64  `json:"total_labels"`
+	Results        []labelUsageItem
 }
 
 func TestLabelUsageRequiresUsableAuthentication(t *testing.T) {
@@ -82,7 +85,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 		micros  int64
 		metrics bool
 	}{
-		{"Retained open", false, "999999999999.99", 1, 1, true}, {"Retained closed", true, "0.02", 3, -1, true},
+		{"Retained open", false, "999999999999.99", 1, 1, true}, {"Retained closed", true, "0.02", 3, 2, true},
 		{"Retained missing metrics", false, "", 0, 0, false}, {"Retained zero metrics", true, "0", 0, 0, true},
 	} {
 		input := models.NewTicketCreate(row.subject, category.ID).WithClosed(row.closed).WithExternalPayload(document)
@@ -133,13 +136,19 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 				link(ticket.ID, label.ID)
 			}
 			row.Total, row.Open, row.Closed = 3, 2, 1
-			row.Cost, row.Effort, row.Elapsed = pointer("1000000000000.01"), effort(2), pointer("00:00:00")
+			row.Cost, row.Effort, row.Elapsed = pointer("1000000000000.01"), effort(2), pointer("00:00:00.000003")
+		case 1:
+			if index == 4 {
+				link(tickets[2].ID, label.ID)
+				row.Total, row.Open = 1, 1
+			}
 		case 2:
 			link(tickets[3].ID, label.ID)
 			row.Total, row.Closed = 1, 1
 			row.Cost, row.Effort, row.Elapsed = pointer("0"), effort(0), pointer("00:00:00")
 		}
 		row.Adjusted = row.Cost
+		row.AdjustedElapsed = row.Elapsed
 		expected = append(expected, row)
 	}
 	privateLabel, err := models.LabelObjects.Create(ctx, runtime, models.NewLabelCreate("Private outside label", outside.ID))
@@ -181,7 +190,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 			t.Fatal(err)
 		}
 		for _, row := range raw.Results {
-			for _, field := range []string{"id", "name", "total", "open", "closed", "expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total"} {
+			for _, field := range []string{"id", "name", "total", "open", "closed", "expected_cost_total", "adjusted_cost_total", "effort_average", "elapsed_total", "adjusted_elapsed_total"} {
 				if _, exists := row[field]; !exists {
 					t.Fatal("label usage omitted required nullable output", field)
 				}
@@ -202,11 +211,47 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 				page := decode(client, fmt.Sprintf("?usage=%s&p=%d", usage, number))
 				start := min(len(filtered), (number-1)*20)
 				end := min(len(filtered), start+20)
-				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Usage != usage || page.Factor != "1" || page.Delta != "0" || page.Total != int64(len(filtered)) || page.Results == nil || !reflect.DeepEqual(page.Results, filtered[start:end]) {
+				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Usage != usage || page.Factor != "1" || page.Delta != "0" || page.ElapsedFactor != "1" || page.ElapsedDivisor != "1" || page.Total != int64(len(filtered)) || page.Results == nil || !reflect.DeepEqual(page.Results, filtered[start:end]) {
 					t.Fatal("label usage differs", usage, number, page, filtered[start:end])
 				}
 				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.rowsets != 1 || backend.closed != 1 || *audits != 0 {
 					t.Fatal("label usage snapshot/count ownership", backend)
+				}
+			}
+		}
+	})
+	t.Run("adjusted_elapsed_fraction_totals_and_nulls", func(t *testing.T) {
+		for _, input := range []struct {
+			factor, divisor string
+			micros          int64
+		}{
+			{"1", "2", 2}, {"0.5", "1", 2}, {"0.1", "0.3", 1},
+			{"-1", "2", -2}, {"0", "0.0001", 0}, {"-0", "99.9999", 0},
+			{"99.9999", "0.0001", 2999997},
+		} {
+			wanted := append([]labelUsageItem(nil), expected...)
+			for index := range wanted {
+				if index%3 == 0 {
+					wanted[index].AdjustedElapsed = pointer(duration.FromMicroseconds(input.micros).String())
+				}
+			}
+			for _, number := range []int{1, 2, 3, 50001} {
+				client, backend, audits := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+				page := decode(client, fmt.Sprintf("?elapsed_factor=%s&elapsed_divisor=%s&p=%d", input.factor, input.divisor, number))
+				start := min(len(wanted), (number-1)*20)
+				end := min(len(wanted), start+20)
+				if page.ElapsedFactor != input.factor || page.ElapsedDivisor != input.divisor || page.Total != 45 || !reflect.DeepEqual(page.Results, wanted[start:end]) {
+					t.Fatal("elapsed fractions rounded before summing, lost NULLs or leaked another category", input, number, page, wanted[start:end])
+				}
+				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.closed != 1 || *audits != 0 {
+					t.Fatal("elapsed preview changed read ownership", backend)
+				}
+			}
+			client, _, _ := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+			response := client.request(http.MethodGet, helpdesk.LabelUsagePath+"?usage=used&elapsed_factor="+input.factor+"&elapsed_divisor="+input.divisor, "", false)
+			for _, fragment := range []string{"Adjusted elapsed total", `name="elapsed_factor" inputmode="decimal" value="` + input.factor + `"`, `name="elapsed_divisor" inputmode="decimal" value="` + input.divisor + `"`, "p=2&amp;usage=used&amp;factor=1&amp;delta=0&amp;elapsed_factor=" + input.factor + "&amp;elapsed_divisor=" + input.divisor, duration.FromMicroseconds(input.micros).String(), "ties round to the even microsecond"} {
+				if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), fragment) {
+					t.Fatal("elapsed HTML lost precision or page context", fragment, response.Code)
 				}
 			}
 		}
@@ -268,7 +313,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 		for _, path := range []string{helpdesk.LabelUsagePath, "/api/labels/usage/"} {
 			for _, permission := range []auth.Permission{helpdesk.ViewLabel, helpdesk.ViewTicket} {
 				client, backend, _ := newClient(category.ID, "", helpdeskDeniedPermissions{permission})
-				if response := client.request(http.MethodGet, path+"?usage=bad", "", false); response.Code != http.StatusForbidden || backend.snapshots != 0 {
+				if response := client.request(http.MethodGet, path+"?elapsed_divisor=0", "", false); response.Code != http.StatusForbidden || backend.snapshots != 0 {
 					t.Fatal("label usage missing permission reached parsing or data", permission, path, response.Code)
 				}
 				if permission == helpdesk.ViewTicket {
@@ -281,7 +326,7 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 				if strings.HasPrefix(path, "/api/") {
 					want = http.StatusForbidden
 				}
-				if response := client.request(http.MethodGet, path+"?usage=bad", "", false); response.Code != want || backend.snapshots != 0 {
+				if response := client.request(http.MethodGet, path+"?elapsed_divisor=0", "", false); response.Code != want || backend.snapshots != 0 {
 					t.Fatal("anonymous label usage reached data", response.Code)
 				}
 			}
@@ -289,6 +334,42 @@ func verifyHelpdeskLabelUsage(t *testing.T, ctx context.Context, runtime *system
 			for _, suffix := range []string{"?p=0", "?p=50002", "?p=01", "?p=+1", "?p=", "?p=1&p=2", "?usage=", "?usage=Used", "?usage=unknown", "?usage=used&usage=used", "?usage=%00", "?usage=%FF", "?usage=%", "?category=1", "?p=1;usage=used", "?" + strings.Repeat("x", 129), "?factor=", "?factor=01", "?factor=1.00", "?factor=1e1", "?factor=%2B1", "?factor=1.23456", "?factor=100", "?factor=1&factor=1", "?factor=NaN", "?delta=", "?delta=0.001", "?delta=1000000000000", "?delta=1&delta=2", "?delta=%FF"} {
 				if response := client.request(http.MethodGet, path+suffix, "", false); response.Code != http.StatusBadRequest || backend.snapshots != 0 {
 					t.Fatal("invalid label usage reached data", path, suffix, response.Code)
+				}
+			}
+			for _, name := range []string{"elapsed_factor", "elapsed_divisor"} {
+				for _, raw := range []string{"", "01", "1.0", "1e0", "%2B1", "0.00001", "100", "NaN", "%FF", "1%0A", "1&" + name + "=2"} {
+					if response := client.request(http.MethodGet, path+"?"+name+"="+raw, "", false); response.Code != http.StatusBadRequest || backend.snapshots != 0 {
+						t.Fatal("invalid elapsed input reached data", path, name, raw, response.Code)
+					}
+				}
+			}
+			for _, raw := range []string{"0", "-0", "-1", "-0.0001"} {
+				if response := client.request(http.MethodGet, path+"?elapsed_divisor="+raw, "", false); response.Code != http.StatusBadRequest || backend.snapshots != 0 {
+					t.Fatal("nonpositive divisor reached data", path, raw, response.Code)
+				}
+			}
+		}
+	})
+	t.Run("elapsed_native_overflow_preserves_storage", func(t *testing.T) {
+		large, err := models.TicketObjects.Patch(ctx, runtime, tickets[0], models.TicketPatch{}.WithElapsed(duration.FromMicroseconds(1<<62)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if _, err := models.TicketObjects.Patch(ctx, runtime, large, models.TicketPatch{}.WithElapsed(*tickets[0].Elapsed)); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		for _, path := range []string{helpdesk.LabelUsagePath, "/api/labels/usage/"} {
+			for _, suffix := range []string{"?elapsed_divisor=0.0001", "?elapsed_factor=99.9999&elapsed_divisor=99.9999"} {
+				client, backend, audits := newClient(category.ID, "", auth.PrincipalAuthorizer{})
+				response := client.request(http.MethodGet, path+suffix, "", false)
+				if response.Code != http.StatusInternalServerError || strings.Contains(response.Body.String(), "total_labels") || strings.Contains(response.Body.String(), "Label &lt;script&gt;") || backend.snapshots != 1 || backend.closed != backend.rowsets || *audits != 0 {
+					t.Fatal("invalid elapsed computation published a prefix or leaked cursor", path, suffix, response.Code, backend)
+				}
+				stored, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(large.ID)).Get(ctx)
+				if err != nil || !reflect.DeepEqual(stored, large) {
+					t.Fatal("elapsed overflow changed stored ticket", err)
 				}
 			}
 		}

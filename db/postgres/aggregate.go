@@ -9,6 +9,9 @@ import (
 )
 
 func renderAggregate(expression query.ResultExpression, operand, filter string, grouped bool) (string, error) {
+	if scalar, present := expression.Scalar(); present && scalar.RequiresDurationFraction() {
+		return renderPostgresFractionAggregate(expression, operand, filter)
+	}
 	var function string
 	switch expression.Kind() {
 	case query.ResultCountAll:

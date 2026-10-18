@@ -28,7 +28,12 @@ func CompileQueryUpdate(plan query.QueryUpdatePlan) (string, []any, error) {
 		},
 		QuoteTable: quoteIdentifier, QuoteIdentifier: quoteIdentifier, ColumnKey: sqliteIdentifierKey,
 		Value: sqliteValue, Placeholder: func(index int) string { return "?" + strconv.Itoa(index) }, Expression: wrapSQLiteScalar,
-		FieldValue: readScalarField, Assignment: readScalarField,
+		FieldValue: readScalarField, Assignment: func(field query.FieldRef, _ query.ScalarExpression, statement string) (string, error) {
+			if field.Kind() == query.FieldDuration {
+				return queryplan.ScalarSQL("godj_duration_store(", statement, ")")
+			}
+			return readScalarField(field, statement)
+		},
 		Binary: compileSQLiteBinary, Negate: compileSQLiteNegate, Function: compileSQLiteFunction,
 		Predicate: func(expression query.Expression, resolve func(query.FieldRef) (string, error), arguments *[]any) (string, error) {
 			return compileScalarPredicate(expression, queryplan.ScalarSource{Plan: plan.Selection(), Field: resolve}, arguments)

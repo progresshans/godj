@@ -161,8 +161,15 @@ type Invoker interface {
 	// every result digit without changing stored values. factor defaults to 1 and accepts up to 2 whole
 	// digits and 4 decimal places; delta defaults to 0 and accepts up to 12 whole digits and 2 decimal
 	// places. Missing costs stay null even when factor is zero, and delta is never applied to missing
-	// costs. Parameters use canonical Decimal strings without exponent, plus sign, leading zeros or
-	// fractional trailing zeros; negative zero is accepted. Missing numeric values, including empty
+	// costs. adjusted_elapsed_total sums elapsed * elapsed_factor / elapsed_divisor for each ticket with
+	// elapsed time. Exact fractions are retained through each calculation and the sum, then the final
+	// total is rounded to the nearest microsecond with ties to even. Each intermediate Duration must
+	// remain within the full model range; any invalid or unrepresentable result fails the whole response.
+	// elapsed_factor and elapsed_divisor default to 1, each allowing up to 2 whole digits and 4 decimal
+	// places. The divisor must be strictly positive; the factor may be zero or negative. Missing elapsed
+	// times stay null, including with a zero factor. Stored elapsed times are unchanged. Parameters use
+	// canonical Decimal strings without exponent, plus sign, leading zeros or fractional trailing zeros;
+	// negative zero is accepted except for elapsed_divisor. Missing numeric values, including empty
 	// relationships, are null. usage accepts all, used or unused, defaulting to all; used means at least
 	// one in-category ticket. p is a canonical positive page number. Pages contain at most 20 labels;
 	// total_labels counts matching labels before pagination, including empty and past-end pages. Category,
@@ -1839,8 +1846,15 @@ func (c *Client) sendHelpdeskLabelUpdate(ctx context.Context, request *LabelUpda
 // every result digit without changing stored values. factor defaults to 1 and accepts up to 2 whole
 // digits and 4 decimal places; delta defaults to 0 and accepts up to 12 whole digits and 2 decimal
 // places. Missing costs stay null even when factor is zero, and delta is never applied to missing
-// costs. Parameters use canonical Decimal strings without exponent, plus sign, leading zeros or
-// fractional trailing zeros; negative zero is accepted. Missing numeric values, including empty
+// costs. adjusted_elapsed_total sums elapsed * elapsed_factor / elapsed_divisor for each ticket with
+// elapsed time. Exact fractions are retained through each calculation and the sum, then the final
+// total is rounded to the nearest microsecond with ties to even. Each intermediate Duration must
+// remain within the full model range; any invalid or unrepresentable result fails the whole response.
+// elapsed_factor and elapsed_divisor default to 1, each allowing up to 2 whole digits and 4 decimal
+// places. The divisor must be strictly positive; the factor may be zero or negative. Missing elapsed
+// times stay null, including with a zero factor. Stored elapsed times are unchanged. Parameters use
+// canonical Decimal strings without exponent, plus sign, leading zeros or fractional trailing zeros;
+// negative zero is accepted except for elapsed_divisor. Missing numeric values, including empty
 // relationships, are null. usage accepts all, used or unused, defaulting to all; used means at least
 // one in-category ticket. p is a canonical positive page number. Pages contain at most 20 labels;
 // total_labels counts matching labels before pagination, including empty and past-end pages. Category,
@@ -1923,6 +1937,40 @@ func (c *Client) sendHelpdeskLabelUsage(ctx context.Context, params HelpdeskLabe
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Delta.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "elapsed_factor" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "elapsed_factor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ElapsedFactor.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "elapsed_divisor" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "elapsed_divisor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ElapsedDivisor.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil

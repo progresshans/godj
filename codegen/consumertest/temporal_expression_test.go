@@ -94,6 +94,17 @@ var temporalReferenceCases = []string{
 	"mean_reaggregate",
 	"update_datetime_overflow",
 	"update_duration_overflow",
+	"scale_integer",
+	"scale_integer_reverse",
+	"scale_divide_restore",
+	"scale_half_final",
+	"scale_float_tie",
+	"scale_decimal_tie",
+	"fraction_sum",
+	"fraction_distinct_sum",
+	"fraction_shift",
+	"scale_zero_divisor",
+	"duration_ratio",
 }
 
 func TestGeneratedTemporalExpressions(t *testing.T) {
@@ -102,7 +113,7 @@ func TestGeneratedTemporalExpressions(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go"} {
+	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "duration_scaling_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "temporalexpression", name))
 		if err != nil {
 			t.Fatal(err)
@@ -130,11 +141,13 @@ func TestGeneratedTemporalExpressions(t *testing.T) {
 		t.Fatal("native consumer owner lacks its current Django reference")
 	}
 	if references != "" {
-		data, err := os.ReadFile(filepath.Join("testdata", "temporalexpression", "reference_test.go"))
-		if err != nil {
-			t.Fatal(err)
+		for _, name := range []string{"reference_test.go", "duration_scaling_reference_test.go"} {
+			data, err := os.ReadFile(filepath.Join("testdata", "temporalexpression", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/"+name, data)
 		}
-		writeGeneratedTestFile(t, root, "consumer/reference_test.go", data)
 		for _, vendor := range []string{"sqlite", "postgres"} {
 			data, err := os.ReadFile(filepath.Join(references, "django61-"+vendor+".json"))
 			if err != nil {
@@ -172,8 +185,9 @@ func TestGeneratedTemporalExpressions(t *testing.T) {
 					t.Fatal("independent temporal case changed storage", vendor, record.Name)
 				}
 				if record.Error != nil {
-					boundary := []string{"datetime_upper_overflow", "datetime_lower_overflow", "duration_full_model_literal", "duration_model_overflow", "mean_zero_shift", "update_datetime_overflow", "update_duration_overflow"}
-					if !slices.Contains(boundary, record.Name) || !slices.Contains([]string{"DataError", "OperationalError", "OverflowError"}, record.Error.Type) {
+					boundary := []string{"datetime_upper_overflow", "datetime_lower_overflow", "duration_full_model_literal", "duration_model_overflow", "mean_zero_shift", "update_datetime_overflow", "update_duration_overflow", "scale_zero_divisor"}
+					ratioOperator := vendor == "postgres" && record.Name == "duration_ratio" && record.Error.Type == "ProgrammingError"
+					if !ratioOperator && (!slices.Contains(boundary, record.Name) || !slices.Contains([]string{"DataError", "OperationalError", "OverflowError"}, record.Error.Type)) {
 						t.Fatal("unowned independent temporal error", vendor, record.Name, record.Error)
 					}
 				}
@@ -188,14 +202,14 @@ func TestGeneratedTemporalExpressions(t *testing.T) {
 	}
 	required := []string{"TestTemporalRuntime"}
 	if references != "" {
-		required = append(required, "TestTemporalReference")
+		required = append(required, "TestTemporalReference", "TestTemporalReference/scaling_reference_integrity")
 	}
 	for _, vendor := range []string{"sqlite", "postgres"} {
 		if vendor == "postgres" && strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) == "" && os.Getenv("GODJ_REQUIRE_POSTGRES") != "1" {
 			continue
 		}
 		required = append(required, "TestTemporalRuntime/"+vendor)
-		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "native_mean_and_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets"} {
+		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "native_mean_and_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "typed_dynamic_duration_scaling", "selected_fraction_stages_and_page", "fraction_groups_distinct_and_collections", "factor_domains_and_boundary_rounding", "scaling_assignment_savepoint_and_cache", "fraction_authority_context_and_cursor_failures"} {
 			required = append(required, "TestTemporalRuntime/"+vendor+"/"+name)
 		}
 		if references != "" {
@@ -262,6 +276,12 @@ func TestGeneratedTemporalExpressions(t *testing.T) {
 		{"wrong_temporal_assignment", `_ = orm.AssignExpression(records.EventFields.Finish,orm.Duration(orm.F(records.EventFields.Span)))`, "does not match"},
 		{"foreign_temporal_assignment", `_ = orm.AssignExpression(records.EventFields.Finish,orm.DateTime(orm.F(planning.ScheduleFields.Anchor)))`, "does not match"},
 		{"numeric_duration", `_ = orm.Numeric(orm.F(records.EventFields.Span))`, "ArithmeticNumber"},
+		{"boolean_duration_factor", `_ = orm.ScaleDuration(orm.F(records.EventFields.Span),true)`, "DurationFactor"},
+		{"nanosecond_duration_factor", `_ = orm.ScaleDuration(orm.F(records.EventFields.Span),time.Second)`, "DurationFactor"},
+		{"instant_duration_factor", `_ = orm.ScaleDurationExpressions(orm.F(records.EventFields.Span),orm.F(records.EventFields.Finish))`, "DurationFactor"},
+		{"foreign_duration_factor", `_ = orm.ScaleDurationExpressions(orm.F(records.EventFields.Span),orm.F(planning.ScheduleFields.ID))`, "does not match"},
+		{"wrong_scaled_projection", `_ = orm.Project1(orm.ScaleDuration(orm.F(records.EventFields.Span),int64(2)),func(value orm.Optional[float64])float64{return 0})`, "does not match"},
+		{"wrong_ratio_assignment", `_ = orm.AssignExpression(records.EventFields.Span,orm.Duration(orm.F(records.EventFields.Span)).Ratio(duration.FromMicroseconds(1)))`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {
 			program := "package invalid\nimport(\"time\";\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/planning\";\"github.com/progresshans/godj/duration\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ _=records.EventFields; _=planning.ScheduleFields; _=time.Time{}; _=duration.Duration{};" + invalid.expression + "\n}\n"

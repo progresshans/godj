@@ -21,9 +21,11 @@ Helpdesk 비용 미리보기의 `helpdesk_cost_preview`는 보존한 Ticket 응�
 
 Helpdesk 라벨 사용 현황의 `helpdesk_label_usage` receipt는 보존한 Ticket 응답의 라벨 ID·closed·numeric 값에서
 독립적으로 집계를 계산한다. 각 present 비용에 factor/delta를 적용한 뒤 표준 라이브러리 유리수로 합산해
-기본값·양수/음수·zero 배율의 원래/조정 합계와 NULL을 대조한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·끝난 페이지·NULL/0,
+기본값·양수/음수·zero 배율의 원래/조정 합계와 NULL을 대조한다. present 시간에는 별도 elapsed 배율/양수 divisor를
+적용하고 정확한 분수 합계를 독립적으로 half-even 반올림한다. 중간 반올림과 최종 반올림을 구분하며 Decimal 0.1/0.3,
+음수·±0·기본값과 required nullable 조정 시간을 대조한다. 별도의 사용하지 않은 라벨을 함께 준비해 all/used/unused·끝난 페이지·NULL/0,
 조회 전용 권한과 query 거부를 실제 generated HTTP로 확인하고 조회 전후 Label·Ticket 응답을 비교한다.
-`generated_label_usage_wire`는 exact Decimal query·int64·required factor/delta와 nullable Decimal/Float/Duration·범위·잘못된 응답과
+`generated_label_usage_wire`는 exact Decimal query·int64·required 비용/시간 배율과 divisor, nullable Decimal/Float/Duration·범위·잘못된 응답과
 403/plain 500의 단일 전송을 검사한다. 두 권한의 개별 누락, 물리적인 외부 Category 연결과 snapshot/cursor 실패·audit 보존은
 Helpdesk 양 DB suite가 소유한다. 생성 코드만 있거나 synthetic wire가 성공한 것을 native 검증으로 계산하지 않는다.
 

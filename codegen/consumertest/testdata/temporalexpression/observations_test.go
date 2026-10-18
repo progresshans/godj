@@ -343,6 +343,8 @@ func observeTemporal(t *testing.T, reader db.Session, name string) (any, error) 
 			return nil, err
 		}
 		return update(orm.AssignExpression(f.Span, span.Add(tick)))
+	case "scale_integer", "scale_integer_reverse", "scale_divide_restore", "scale_half_final", "scale_float_tie", "scale_decimal_tie", "fraction_sum", "fraction_distinct_sum", "fraction_shift", "scale_zero_divisor", "duration_ratio":
+		return observeDurationScaling(t, reader, name)
 	default:
 		return nil, fmt.Errorf("unknown temporal observation %q", name)
 	}

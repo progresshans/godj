@@ -192,7 +192,8 @@ func compileSQLiteBinary(expression query.ScalarExpression, left, right string) 
 	if expression.ResultKind() == query.FieldDecimal {
 		return "godj_decimal_binary('" + string(operator) + "', " + left + ", " + right + ")", nil
 	}
-	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration ||
+		leftOperand.ResultKind() == query.FieldDuration || rightOperand.ResultKind() == query.FieldDuration {
 		// Keep rendered operands in traversal order: read placeholders are
 		// anonymous, including the reversed Duration + DateTime signature.
 		return "godj_temporal_binary('" + string(operator) + "', '" + sqliteTemporalKind(leftOperand) + "', '" + sqliteTemporalKind(rightOperand) + "', " + left + ", " + right + ")", nil

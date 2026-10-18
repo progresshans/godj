@@ -3,7 +3,16 @@
 코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
 현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
-GDJ-0130 source `6a05456f`는 타입을 유지하는 여덟 Trunc 함수와 Helpdesk 일·주·월·분기·연 조회를 연결했다.
+GDJ-0131 source `d1370569`는 Duration과 Integer/Float/Decimal의 배율·나눗셈과 Duration 사이의 Float 비율을
+양 backend의 같은 AST에 연결했다. 선택 결과·비교·정렬·CASE·집계·쓰기까지 분수를 유지하며 최종 Duration 경계에서
+half-even 반올림한다. Helpdesk 라벨별 시간 조정의 HTML/API·양수 Decimal 입력·OpenAPI/독립 client·브라우저 검사를
+작성하고 최소 compile·schema 재생성을 확인했다. 같은 source의 Chromium 라벨 검사·SQLite client normal/CGO0와
+PostgreSQL Helpdesk race를 확인했다. 같은 CI의 Float 오류 분류 누락과 scanner/세션 비교 테스트 실패를 보완하고
+집중 재현을 대조했으며, 수정 source의 양 DB 기반·생성 소비자·세 mode와 전체 통합은 재검증 대상이다.
+고정 Django와의 차이는 [DEV-0024](../DEVIATIONS.md#dev-0024--기간-배율의-정확한-중간값과-최종-반올림),
+이전 source의 일부 성공과 현재 실행 범위는 TEST_EVIDENCE에서 구분한다.
+
+GDJ-0130 source `0ce12980`는 타입을 유지하는 여덟 Trunc 함수와 Helpdesk 일·주·월·분기·연 조회를 연결했다.
 구간 시작일 범위, 전체 최초/최종 기한, enum 출력과 OpenAPI/client·브라우저를 작성했다. 기반·생성 ORM·Helpdesk·
 독립 client의 최소 compile을 확인했으며 새 의미의 실제 DB·Django 관측·HTTP·브라우저·원격 통합은 아직 미검증이다.
 
