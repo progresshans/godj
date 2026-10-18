@@ -43,6 +43,10 @@ def unpack(raw, destination):
             if target.exists() and target.read_bytes() != value:
                 raise ValueError('timezone source archives disagree on an overlapping file')
             target.write_bytes(value)
+            # IANA's Makefile uses release timestamps to keep its version
+            # file. Fresh extraction times can mark an unchanged release as
+            # "2025c-dirty", changing the generated source and binary identity.
+            os.utime(target, (member.mtime, member.mtime))
 
 
 def verify_files(root, source):
@@ -101,11 +105,13 @@ def prepare(output):
         completed = subprocess.run(command, cwd=work, env=environment, stdout=log, stderr=subprocess.STDOUT, timeout=120)
     if completed.returncode:
         raise RuntimeError('independent IANA compilation failed; complete build.log retained')
-    verify_files(output / 'zoneinfo', source)
     packed = (work / 'tzdata.zi').read_bytes()
-    if len(packed) != source['tzdata_zi']['bytes'] or digest(packed) != source['tzdata_zi']['sha256']:
-        raise ValueError('compiled IANA source differs from the pinned build policy')
     shutil.copyfile(work / 'tzdata.zi', output / 'tzdata.zi')
+    verify_files(output / 'zoneinfo', source)
+    if (work / 'version').read_text().strip() != '2025c':
+        raise ValueError('IANA build changed the verified release version')
+    if len(packed) != source['tzdata_zi']['bytes'] or digest(packed) != source['tzdata_zi']['sha256']:
+        raise ValueError('compiled IANA source differs from the pinned build policy: ' + digest(packed))
     compiler = subprocess.check_output(['cc', '--version'], env=environment, timeout=10)
     receipt = {'kind': 'independent-iana-build-v1', 'iana_version': '2025c', 'build': BUILD,
                'data_source_sha256': digest(source_bytes), 'prepare_sha256': digest(Path(__file__).read_bytes()),

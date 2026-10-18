@@ -81,6 +81,22 @@ Portable race integration은 Helpdesk의 누적 15분 context가 만료되어 ti
 - `gdj0133-zoned-compile-qgs83wqr/source.json`: SHA-256 `2a6239594680a2d98bde0b270713db0a58e39b927b69f02963631cd5350990a7`
 - 같은 디렉터리의 `compile.log`: SHA-256 `541d487bc61ef54a2b4f206c6c1ad1474ec8fb9d5cef2f2f75e95c2935d73c30`
 
+이 묶음은 `a6b23822666ef7e0444d5c679410da6d0bf63d77`로 제출했으며, 이전 `2e110cfb` CI는 취소 종료했다.
+[CI 39153856937](https://github.com/progresshans/godj/actions/runs/39153856937)의 독립 데이터 준비에서 새 실패가 드러났다.
+Race core-consumers 원본 로그 `gdj0133-a6-race-core-consumers.log`와 artifact의 `build.log`를 확인했다.
+598개 TZif 파일 검사는 통과했지만, 수동 안전 추출이 archive의 수정 시각을 보존하지 않아 IANA Makefile이
+그대로인 source를 `2025c-dirty`로 재표기했고 `tzdata.zi`의 고정 hash가 달라졌다. 이 단계 뒤 Django/Go 비교는 실행되지 않았다.
+
+로컬에서는 source bytes를 그대로 둔 채 dependency 수정 시각만 앞당겨 같은 재표기를 재현했다.
+`gdj0133-iana-repro-before/timestamp-repro.json`은 정상 compiled source `7aaadaae…`에서
+`e14ef456627a4611a701cc99bab7a770c24d306bc2e270820f650e0e3aed17e9`로 바뀐 경위를 보존한다.
+추출 시 release의 mtime을 유지하고 빌드 뒤에도 version을 재검사하도록 수정했다. Checksum 조건을 변경하지 않았으며
+실패한 compiled source도 artifact에 보존하도록 했다. 수정한 준비기를 새 디렉터리에서 실행해 598개 파일·compiled source와
+release version이 모두 일치함을 확인했다. 이는 CI 준비 실패의 로컬 재현/수정 확인이고 제품 query runtime 성공이 아니다.
+
+- `gdj0133-iana-repro-after/build.json`: SHA-256 `fce44b6f04aefb32102fc8e2b75c54e8a34dc19d6131c071e7935e9b5e977d2b`
+- 같은 디렉터리의 `build.log`: SHA-256 `b48401c64c826d6926f7675724ccdac0b5bc9793d5f2f360cf3e2f0e85442849`
+
 이 기록은 compile/수정 진행 상태이며, GDJ-0133의 실제 실행이나 전체 프레임워크의 완료를 뜻하지 않는다.
 
 ## GDJ-0131·0132 — 같은 source의 전체 통합 검증 완료

@@ -1282,6 +1282,7 @@ jobs:
             ${{ runner.temp }}/calendar-extraction-reference/
             ${{ runner.temp }}/zoned-calendar-data/build.json
             ${{ runner.temp }}/zoned-calendar-data/build.log
+            ${{ runner.temp }}/zoned-calendar-data/tzdata.zi
           if-no-files-found: error
           retention-days: 90
 
