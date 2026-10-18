@@ -22,6 +22,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
@@ -135,7 +136,9 @@ func run() error {
 	var reportsBefore []models.ServiceReport
 	var usageBefore labelUsageSnapshot
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
-		if err = seedServicePreview(ctx, runtime); err != nil {
+		if err = runtime.Atomic(ctx, func(session db.Session) error {
+			return seedServicePreview(ctx, session)
+		}); err != nil {
 			return err
 		}
 		summaryBefore, err = models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)

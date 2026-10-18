@@ -6,16 +6,17 @@ import (
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/systemstate"
 )
 
-// These writes prepare the disposable database before any read-only snapshot
-// or browser request. Existing summary/cost/deadline fixtures retain their data.
-func seedServicePreview(ctx context.Context, runtime *systemstate.Runtime) error {
-	rows, err := models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
+// These writes use the borrowed transaction session to prepare the disposable
+// database before any read-only snapshot or browser request. Existing
+// summary/cost/deadline fixtures retain their data.
+func seedServicePreview(ctx context.Context, session db.Session) error {
+	rows, err := models.TicketObjects.Using(session).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func seedServicePreview(ctx context.Context, runtime *systemstate.Runtime) error
 		if row.ID == 30 {
 			assignments = append(assignments, orm.Assign(fields.Elapsed, duration.Duration{}))
 		}
-		count, err := models.TicketObjects.Using(runtime).Filter(fields.ID.Exact(row.ID)).Update(ctx, assignments...)
+		count, err := models.TicketObjects.Using(session).Filter(fields.ID.Exact(row.ID)).Update(ctx, assignments...)
 		if err != nil {
 			return err
 		}
