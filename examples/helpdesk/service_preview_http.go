@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/internal/temporal"
@@ -79,10 +80,18 @@ func (page *ServicePreview) get(request *web.Request, actor auth.Principal) (web
 		if value, ok := row.slack.Get(); ok {
 			slack = value.String()
 		}
+		dueDate, dueClock, _ := strings.Cut(due, "T")
+		startDate, startClock, _ := strings.Cut(start, "T")
+		adjustedDate, adjustedClock, _ := strings.Cut(adjusted, "T")
+		finishDate, finishClock, _ := strings.Cut(finish, "T")
 		value, err := templates.Object(map[string]templates.Value{
 			"id": templates.Integer(row.id), "subject": templates.String(ticketEditorDisplay(row.subject)),
 			"day": templates.String(day), "clock": templates.String(wall), "elapsed": templates.String(elapsed), "due": templates.String(due),
 			"start": templates.String(start), "adjusted": templates.String(adjusted), "finish": templates.String(finish), "slack": templates.String(slack),
+			"due_date": templates.String(dueDate), "due_clock": templates.String(dueClock),
+			"start_date": templates.String(startDate), "start_clock": templates.String(startClock),
+			"adjusted_date": templates.String(adjustedDate), "adjusted_clock": templates.String(adjustedClock),
+			"finish_date": templates.String(finishDate), "finish_clock": templates.String(finishClock),
 		})
 		if err != nil {
 			return web.Response{}, err

@@ -342,13 +342,13 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		{"wrong_trunc_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).TruncMonth(),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
 		{"wrong_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.At,orm.Date(orm.F(records.EventFields.Day)).TruncMonth())`, "does not match"},
 		{"foreign_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.Date(orm.F(planning.ScheduleFields.Day)).TruncMonth())`, "does not match"},
-		{"date_add_clock", `_ = orm.Date(orm.F(records.EventFields.Day)).AddExpression(orm.Time(orm.F(records.EventFields.Wall)))`, "does not match"},
-		{"clock_add_date", `_ = orm.Time(orm.F(records.EventFields.Wall)).AddExpression(orm.Date(orm.F(records.EventFields.Day)))`, "does not match"},
+		{"date_add_clock", `_ = orm.Date(orm.F(records.EventFields.Day)).AddExpression(orm.Time(orm.F(records.EventFields.Wall)))`, "wrong type for method scalarOperand"},
+		{"clock_add_date", `_ = orm.Time(orm.F(records.EventFields.Wall)).AddExpression(orm.Date(orm.F(records.EventFields.Day)))`, "wrong type for method scalarOperand"},
 		{"date_shift_integer", `_ = orm.Date(orm.F(records.EventFields.Day)).Add(int64(1))`, "cannot use"},
 		{"date_shift_date_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.Date(orm.F(records.EventFields.Day)).Add(duration.Duration{}))`, "does not match"},
 		{"clock_difference_clock_assignment", `_ = orm.AssignExpression(records.EventFields.Wall,orm.Time(orm.F(records.EventFields.Wall)).DifferenceExpression(orm.F(records.EventFields.Wall)))`, "does not match"},
-		{"foreign_calendar_operand", `_ = orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(planning.ScheduleFields.Day))`, "does not match"},
-		{"foreign_clock_operand", `_ = orm.Time(orm.F(records.EventFields.Wall)).DifferenceExpression(orm.F(planning.ScheduleFields.Wall))`, "does not match"},
+		{"foreign_calendar_operand", `_ = orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(planning.ScheduleFields.Day))`, "wrong type for method scalarOperand"},
+		{"foreign_clock_operand", `_ = orm.Time(orm.F(records.EventFields.Wall)).DifferenceExpression(orm.F(planning.ScheduleFields.Wall))`, "wrong type for method scalarOperand"},
 		{"date_difference_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(records.EventFields.Day)),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {

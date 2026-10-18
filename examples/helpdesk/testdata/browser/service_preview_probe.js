@@ -83,6 +83,44 @@ async (page) => {
     check(await page.locator('form[method="post"], input[name="csrfmiddlewaretoken"]').count() === 0, "service preview contains no write form");
     await page.getByRole("link", {name: "Reset preview", exact: true}).click();
     check(new URL(page.url()).search === "" && await page.getByLabel("Shift", {exact: true}).inputValue() === "00:00:00" && await page.getByLabel("Earliest adjusted start", {exact: true}).inputValue() === "" && await page.locator("tbody tr").count() === 20, "service preview reset restores explicit zero shift");
-    check(await page.getByRole("region", {name: "Service schedule results", exact: true}).count() === 1 && await page.getByRole("columnheader").count() === 9 && await page.locator('tr[data-ticket-id="2"]').count() === 1, "service preview complete schedule visible for visual review");
+    const inspect = async () => await page.locator('tr[data-ticket-id="2"]').evaluate(row => {
+        const cells = Array.from(row.children);
+        const expected = [
+            [1, "2024-02-28"], [2, "23:59:59.999999"], [3, "00:00:00.000001"],
+            [4, "23:59:59.999999Z"], [5, "23:59:59.999999Z"],
+            [6, "23:59:59.999999Z"], [7, "00:00:00.000000Z"], [8, "23:59:59.999999"],
+        ];
+        const parts = expected.map(([index, token]) => {
+            const cell = cells[index];
+            const start = cell.textContent.indexOf(token);
+            if (start < 0) return {column: index, intact: false, missing: true};
+            const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+            const range = document.createRange();
+            let offset = 0, started = false, ended = false;
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                const next = offset + node.textContent.length;
+                if (!started && start < next) { range.setStart(node, start - offset); started = true; }
+                if (started && start + token.length <= next) { range.setEnd(node, start + token.length - offset); ended = true; break; }
+                offset = next;
+            }
+            if (!started || !ended) return {column: index, intact: false, missing: true};
+            const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
+            const bounds = cell.getBoundingClientRect();
+            const lines = new Set(rects.map(rect => Math.round(rect.top))).size;
+            const contained = rects.length > 0 && rects.every(rect => rect.left >= bounds.left && rect.right <= bounds.right);
+            return {column: index, intact: lines === 1 && contained, lines, contained};
+        });
+        return {parts, page_contained: document.documentElement.scrollWidth <= window.innerWidth};
+    });
+    const viewport = page.viewportSize();
+    if (!viewport || viewport.width !== 1440 || viewport.height !== 1100) throw new Error("expected desktop fixture viewport");
+    const desktop = await inspect();
+    let narrow;
+    try {
+        await page.setViewportSize({width: 390, height: 844});
+        narrow = await inspect();
+    } finally { await page.setViewportSize(viewport); }
+    const readable = [desktop, narrow].every(size => size.page_contained && size.parts.every(part => part.intact));
+    check(readable && await page.getByRole("region", {name: "Service schedule results", exact: true}).count() === 1 && await page.getByRole("columnheader").count() === 9 && await page.locator('tr[data-ticket-id="2"]').count() === 1, "service preview complete schedule visible for visual review");
     return {passed: cases.length, cases};
 }

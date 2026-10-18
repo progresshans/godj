@@ -133,9 +133,10 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, durationFraction: durationFraction, hasRelations: hasRelations}}, nil
 }
 
-// RequiresDurationRounding preserves native duration averages across result
-// references, CASE and Duration arithmetic. They round at the final decoder;
-// ordinary model duration fields retain their strict physical value contract.
+// RequiresDurationRounding identifies native duration averages and exact
+// fractional results that round at the final decoder. Result references, CASE
+// and Duration arithmetic retain this requirement; ordinary model fields keep
+// their strict physical value contract.
 func (expression ScalarExpression) RequiresDurationRounding() bool {
 	return expression.node != nil && expression.node.result == FieldDuration && (expression.node.durationMean || expression.node.durationFraction)
 }

@@ -25,8 +25,8 @@ func TestCalendarArithmeticRetainsExplicitDomainsAndPrecision(t *testing.T) {
 	instant := scalarLiteral(t, query.DateTime(time.Date(2000, 2, 29, 0, 0, 0, 0, time.UTC)))
 	period := scalarLiteral(t, query.Duration(duration.FromMicroseconds(1)))
 	fraction, err := query.Arithmetic(query.ArithmeticDivide, period, scalarLiteral(t, query.Integer(2)))
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || !fraction.RequiresDurationFraction() || !fraction.RequiresDurationRounding() {
+		t.Fatal("fractional Duration lost its final rounding contract", err)
 	}
 	for _, test := range []struct {
 		name        string
@@ -71,8 +71,10 @@ func TestCalendarArithmeticRetainsExplicitDomainsAndPrecision(t *testing.T) {
 			t.Fatal("unsupported calendar arithmetic inferred a date or unit", test)
 		}
 	}
-	if !fraction.RequiresDurationFraction() || fraction.RequiresDurationRounding() {
-		t.Fatal("reusing a fractional period mutated its provenance")
+	unchanged, err := query.Arithmetic(query.ArithmeticDivide,
+		scalarLiteral(t, query.Duration(duration.FromMicroseconds(1))), scalarLiteral(t, query.Integer(2)))
+	if err != nil || !fraction.Equal(unchanged) || !fraction.RequiresDurationFraction() || !fraction.RequiresDurationRounding() {
+		t.Fatal("reusing a fractional period mutated its expression or provenance", err)
 	}
 }
 
