@@ -24,6 +24,7 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/timezone"
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -42,6 +43,7 @@ type deadlineCalendarEnvelope struct {
 	PageSize int64  `json:"page_size"`
 	AsOf     string `json:"as_of"`
 	Period   string
+	TimeZone string  `json:"time_zone"`
 	From     *string `json:"from_date"`
 	Until    *string `json:"until_date"`
 	Total    int64   `json:"total_groups"`
@@ -106,6 +108,7 @@ func expectedDeadlinePeriods(t *testing.T, daily []deadlineCalendarItem, period 
 }
 
 func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *systemstate.Runtime, authenticated *helpdeskClient, native deadlineNative) {
+	t.Run("zoned_calendar", func(t *testing.T) { verifyHelpdeskZonedDeadlineCalendar(t, ctx, runtime, authenticated, native) })
 	category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Calendar <script>& category"))
 	if err != nil {
 		t.Fatal(err)
@@ -231,7 +234,7 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 		if err := json.Unmarshal(response.Body.Bytes(), &raw); err != nil {
 			t.Fatal(err)
 		}
-		for _, name := range []string{"category", "page", "page_size", "as_of", "period", "from_date", "until_date", "total_groups", "results"} {
+		for _, name := range []string{"category", "page", "page_size", "as_of", "period", "time_zone", "from_date", "until_date", "total_groups", "results"} {
 			if _, ok := raw[name]; !ok {
 				t.Fatal("calendar omitted response field", name)
 			}
@@ -263,7 +266,7 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 				page := decode(t, client, queryText(number, bounds[0], bounds[1]))
 				start := min(len(want), (number-1)*20)
 				end := min(len(want), start+20)
-				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Period != "day" || page.AsOf != "2024-02-29T12:34:56.000001Z" || !reflect.DeepEqual(page.From, bounds[0]) || !reflect.DeepEqual(page.Until, bounds[1]) || page.Total != int64(len(want)) || page.Results == nil || !reflect.DeepEqual(page.Results, want[start:end]) {
+				if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Page != int64(number) || page.PageSize != 20 || page.Period != "day" || page.TimeZone != "UTC" || page.AsOf != "2024-02-29T12:34:56.000001Z" || !reflect.DeepEqual(page.From, bounds[0]) || !reflect.DeepEqual(page.Until, bounds[1]) || page.Total != int64(len(want)) || page.Results == nil || !reflect.DeepEqual(page.Results, want[start:end]) {
 					t.Fatal("calendar values/counts/range/order/page differ", number, page, want[start:end])
 				}
 				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.rowsets != 1 || backend.closed != 1 || *audits != 0 {
@@ -302,7 +305,7 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 					page := decode(t, client, queryText(number, bounds[0], bounds[1])+"&period="+period)
 					start := min(len(want), (number-1)*20)
 					end := min(len(want), start+20)
-					if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Period != period || page.Page != int64(number) || page.PageSize != 20 || page.AsOf != "2024-02-29T12:34:56.000001Z" || !reflect.DeepEqual(page.From, bounds[0]) || !reflect.DeepEqual(page.Until, bounds[1]) || page.Total != int64(len(want)) || page.Results == nil || !reflect.DeepEqual(page.Results, want[start:end]) {
+					if page.Category.ID != category.ID || page.Category.Name != category.Name || page.Period != period || page.TimeZone != "UTC" || page.Page != int64(number) || page.PageSize != 20 || page.AsOf != "2024-02-29T12:34:56.000001Z" || !reflect.DeepEqual(page.From, bounds[0]) || !reflect.DeepEqual(page.Until, bounds[1]) || page.Total != int64(len(want)) || page.Results == nil || !reflect.DeepEqual(page.Results, want[start:end]) {
 						t.Fatal("period groups, complete deadlines or start bounds differ", period, number, page, want[start:end])
 					}
 					if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.rowsets != 1 || backend.closed != 1 || *audits != 0 {
@@ -320,7 +323,7 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 		}
 		response := client.request(http.MethodGet, helpdesk.DeadlineCalendarPath+queryText(1, new("0001-01-01"), new("9999-12-31")), "", false)
 		body := response.Body.String()
-		next := url.Values{"p": {"2"}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "from_date": {"0001-01-01"}, "until_date": {"9999-12-31"}, "period": {"day"}}
+		next := url.Values{"p": {"2"}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "from_date": {"0001-01-01"}, "until_date": {"9999-12-31"}, "period": {"day"}, "time_zone": {"UTC"}}
 		for _, text := range []string{"Calendar &lt;script&gt;&amp; category", `name="as_of" value="2024-02-29T12:34:56.000001Z"`, `data-deadline-period="0001-01-01"`, strings.ReplaceAll(next.Encode(), "&", "&amp;"), "Clear date range"} {
 			if !strings.Contains(body, text) {
 				t.Fatal("calendar HTML lost escaping/reference/range", text, body)
@@ -341,9 +344,9 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 				if number == 2 {
 					pageNumber, label = "1", "Previous page"
 				}
-				values := url.Values{"p": {pageNumber}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "period": {period}, "from_date": {"0001-01-01"}, "until_date": {"9999-12-31"}}
+				values := url.Values{"p": {pageNumber}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "period": {period}, "time_zone": {"UTC"}, "from_date": {"0001-01-01"}, "until_date": {"9999-12-31"}}
 				pageLink := `href="` + helpdesk.DeadlineCalendarPath + "?" + strings.ReplaceAll(values.Encode(), "&", "&amp;") + `">` + label + `</a>`
-				clear := url.Values{"p": {"1"}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "period": {period}}
+				clear := url.Values{"p": {"1"}, "as_of": {"2024-02-29T12:34:56.000001Z"}, "period": {period}, "time_zone": {"UTC"}}
 				clearLink := `href="` + helpdesk.DeadlineCalendarPath + "?" + strings.ReplaceAll(clear.Encode(), "&", "&amp;") + `">Clear date range</a>`
 				for _, text := range []string{`value="` + period + `" selected`, `type="hidden" name="period" value="` + period + `"`, `type="hidden" name="from_date" value="0001-01-01"`, `type="hidden" name="until_date" value="9999-12-31"`, pageLink, clearLink} {
 					if response.Code != 200 || !strings.Contains(body, text) {
@@ -376,6 +379,11 @@ func verifyHelpdeskDeadlineCalendar(t *testing.T, ctx context.Context, runtime *
 			for _, invalid := range []string{"", "Day", "hour", "week+", "%00", "%FF", "%", "day&period=week"} {
 				if response := client.request(http.MethodGet, path+queryText(1, nil, nil)+"&period="+invalid, "", false); response.Code != 400 || backend.snapshots != 0 {
 					t.Fatal("invalid period read data", path, invalid, response.Code)
+				}
+			}
+			for _, invalid := range []string{"", "Local", "utc", "Asia/seoul", "Mars/Olympus", "+09:00", "../UTC", "UTC%00", "UTC%0A", "%FF", "%", "UTC&time_zone=UTC"} {
+				if response := client.request(http.MethodGet, path+queryText(1, nil, nil)+"&time_zone="+invalid, "", false); response.Code != 400 || backend.snapshots != 0 {
+					t.Fatal("invalid timezone read data", path, invalid, response.Code)
 				}
 			}
 			if strings.HasPrefix(path, "/api/") {
@@ -519,10 +527,10 @@ func assertDeadlineCalendarContracts(t *testing.T, document helpdeskDocument) {
 	t.Helper()
 	operation := document.Paths["/api/tickets/deadline-calendar/"]["get"]
 	schema := document.Components.Schemas["DeadlineCalendar"]
-	if operation.Responses["200"].Content["application/json"].Schema.Ref != "#/components/schemas/DeadlineCalendar" || len(operation.Parameters) != 5 || schema.AdditionalProperties || !slices.Equal(schema.Required, []string{"category", "page", "page_size", "as_of", "period", "from_date", "until_date", "total_groups", "results"}) {
+	if operation.Responses["200"].Content["application/json"].Schema.Ref != "#/components/schemas/DeadlineCalendar" || len(operation.Parameters) != 6 || schema.AdditionalProperties || !slices.Equal(schema.Required, []string{"category", "page", "page_size", "as_of", "period", "time_zone", "from_date", "until_date", "total_groups", "results"}) {
 		t.Fatal("calendar closed page contract changed")
 	}
-	for index, name := range []string{"p", "as_of", "period", "from_date", "until_date"} {
+	for index, name := range []string{"p", "as_of", "period", "time_zone", "from_date", "until_date"} {
 		parameter := operation.Parameters[index]
 		if parameter.Name != name || parameter.Required != (name == "as_of") || parameter.AllowEmptyValue {
 			t.Fatal("calendar parameter presence differs", name)
@@ -536,7 +544,21 @@ func assertDeadlineCalendarContracts(t *testing.T, document helpdeskDocument) {
 	if string(operation.Parameters[2].Schema.Enum) != choices || string(operation.Parameters[2].Schema.Default) != `"day"` || string(schema.Properties["period"].Enum) != choices || schema.Properties["period"].Type != "string" {
 		t.Fatal("period input/output choice domains differ")
 	}
-	for _, index := range []int{3, 4} {
+	names, err := timezone.Names()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inputNames, outputNames []string
+	if err := json.Unmarshal(operation.Parameters[3].Schema.Enum, &inputNames); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(schema.Properties["time_zone"].Enum, &outputNames); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(names, inputNames) || !slices.Equal(names, outputNames) || string(operation.Parameters[3].Schema.Default) != `"UTC"` {
+		t.Fatal("timezone input/output lost the full pinned name domain or default")
+	}
+	for _, index := range []int{4, 5} {
 		day := operation.Parameters[index].Schema
 		if day.Type != "string" || day.Format != "date" || day.MinLength != 10 || day.MaxLength != 10 || day.MaxBytes != 10 || day.Pattern == "" || len(day.Default) != 0 {
 			t.Fatal("calendar bound lost canonical Date meaning", index)

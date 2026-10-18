@@ -44,6 +44,8 @@ if err != nil {
 모델 serializer와 같은 연도 1..9999·sub-microsecond truncate 정책과 OpenAPI schema를 사용한다. Go zero time은 연도 1의
 정상 instant이고 NULL이 아니다. 이 shape들은 모두 `Nullable`과 결합할 수 있고,
 잘못된 값이 포함되면 prepared 응답 전체를 실패시켜 일부 필드만 게시하지 않는다.
+`TimeZone()`은 `timezone.Zone`의 정확한 이름/alias를 출력한다. Zero Zone은 UTC나 null로 대체하지 않으며
+응답 게시 전에 실패한다. 전체 pinned name enum과 IANA version/hash는 입력과 같은 OpenAPI 선언을 사용한다.
 추가 primitive가 필요한 모델은 `output.Model(encoder)`로 기존 `serializers.ModelEncoder`를 연결한다.
 이 연결은 encoder가 소유한 동일한 Spec에서 schema를 얻으므로 별도 Spec이나 임의 schema를 붙일 수 없다.
 모델 필드 허용 목록·NULL·길이·Decimal/JSON 등 기존 codec·명시적 computed field의 의미를 보존한다.

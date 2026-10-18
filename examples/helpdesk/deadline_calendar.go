@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/timezone"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 type deadlineCalendarQuery struct {
 	page        int
 	period      string
+	zone        timezone.Zone
 	asOf        time.Time
 	from, until *calendar.Date
 }
@@ -58,9 +60,11 @@ func deadlineCalendarKey(period string, day orm.DateExpression[models.Ticket]) (
 	}
 }
 
-// These bounds validate a returned business row. The database owns grouping,
-// filtering and pagination; this never regroups a partial result in memory.
-func deadlineCalendarBounds(period string, start calendar.Date) (time.Time, time.Time, bool) {
+// These UTC-shaped values represent civil dates, not real instants. The end
+// may be year 10000 as an exclusive sentinel. Local midnight need not exist and
+// a day need not last 24 hours. The database owns grouping and pagination;
+// this only validates returned rows and never regroups a partial result.
+func deadlineCalendarDateBounds(period string, start calendar.Date) (time.Time, time.Time, bool) {
 	if !start.Valid() {
 		return time.Time{}, time.Time{}, false
 	}
@@ -97,9 +101,13 @@ func (a *Application) readDeadlineCalendar(ctx context.Context, actor auth.Princ
 	if err != nil || reference != input.asOf || input.page < 1 || input.page > deadlineCalendarMaximumPage || !input.validRange() {
 		return zero, errors.New("helpdesk: deadline calendar input was not validated")
 	}
+	location, err := input.zone.Location()
+	if err != nil {
+		return zero, errors.New("helpdesk: deadline calendar timezone was not validated")
+	}
 	fields := models.TicketFields
 	instant := orm.DateTime(orm.F(fields.DueAt))
-	periodStart, err := deadlineCalendarKey(input.period, instant.Date())
+	periodStart, err := deadlineCalendarKey(input.period, instant.InZone(input.zone).Date())
 	if err != nil {
 		return zero, err
 	}
@@ -152,10 +160,18 @@ func (a *Application) readDeadlineCalendar(ctx context.Context, actor auth.Princ
 				return zero, errors.New("helpdesk: inconsistent deadline calendar result")
 			}
 			if dated {
-				begin, end, aligned := deadlineCalendarBounds(input.period, start)
+				begin, end, aligned := deadlineCalendarDateBounds(input.period, start)
 				canonicalFirst, firstError := temporal.Canonical(first)
 				canonicalLast, lastError := temporal.Canonical(last)
-				if !aligned || firstError != nil || lastError != nil || canonicalFirst != first || canonicalLast != last || first.Before(begin) || last.Before(first) || !last.Before(end) {
+				localDate := func(instant time.Time) (time.Time, bool) {
+					local := instant.In(location)
+					day := calendar.Date{Year: local.Year(), Month: local.Month(), Day: local.Day()}
+					return time.Date(day.Year, day.Month, day.Day, 0, 0, 0, 0, time.UTC), day.Valid()
+				}
+				firstDay, firstValid := localDate(first)
+				lastDay, lastValid := localDate(last)
+				if !aligned || firstError != nil || lastError != nil || canonicalFirst != first || canonicalLast != last ||
+					!firstValid || !lastValid || last.Before(first) || firstDay.Before(begin) || !firstDay.Before(end) || lastDay.Before(begin) || !lastDay.Before(end) {
 					return zero, errors.New("helpdesk: deadline instants do not belong to their calendar period")
 				}
 			}

@@ -120,10 +120,12 @@ HTML의 매개변수 없는 첫 화면은 기준 시각 입력 form만 표시하
 `DeadlinePreviewPath`를 login allowed-next·Admin 추가 경로에 넣고 `deadlinePreview.Routes()`를 등록한다.
 구현과 실제 양 DB·client·브라우저 검증 상태는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 구분해 따른다.
 
-## UTC 기간별 기한 집계
+## 업무 시간대별 기간 기한 집계
 
 `application.DeadlineCalendar(webAuth)`의 GET `/tickets/deadline-calendar/`와 API GET `/api/tickets/deadline-calendar/`는
 현재 Category의 기한을 `period=day|week|month|quarter|year`로 묶는다. 생략 시 day이며 주는 월요일부터 시작한다.
+`time_zone`은 고정 IANA 데이터의 명시적 이름/alias이며 기본값은 UTC다. `period_start`와 날짜 bound는 선택한
+시간대의 지역 날짜로 계산한다. NULL·잘못된 이름·`Local`·임의 offset은 시간대 이름으로 받지 않는다.
 각 구간의 `period_start`는 시작 Date이고 `total`·`open`·`overdue`, 실제 `first_due_at`·`last_due_at`는 전체 UTC DateTime이다.
 `open`은 closed=false, `overdue`는 열린 티켓 중 due_at < as_of이며 기준 시각과 같은 기한은 지연에 포함하지 않는다.
 NULL 기한은 시작일과 최초/최종 시각이 모두 null이고 overdue=0인 별도 마지막 group이다.
@@ -135,10 +137,13 @@ NULL 기한은 시작일과 최초/최종 시각이 모두 null이고 overdue=0�
 `p`는 1..50001, page_size는 20, raw query는 512 bytes 이하이며 잘못된/중복/알 수 없는 입력은 조회 전에 거부한다.
 
 빈 HTML 진입은 form만 표시하고 DB나 서버 시각을 사용하지 않는다. ViewTicket 뒤에 Category·group·총수를 같은
-읽기 snapshot에서 얻는다. 기간·범위·기준 시각은 응답과 페이지 링크에 유지하며 원본 기한 손상은 부분 결과 없이 실패한다.
+읽기 snapshot에서 얻는다. 기간·시간대·범위·기준 시각은 응답과 페이지 링크에 유지한다. 원본 기한 손상이나
+지역 날짜가 연도 1..9999를 벗어나는 변환은 전체 응답을 실패시킨다. 이후 날짜 bound로 숨기지 않는다.
+DB가 지역별 그룹·전체 총수·페이지를 계산하고, 응답의 실제 최초/최종 기한은 UTC로 유지한다. 검증에는 지역 날짜를
+사용하므로 DST 하루 길이를 24시간으로 가정하거나 존재하지 않는 local midnight를 만들지 않는다.
 Ticket의 모든 저장 열·관계·Report·audit를 보존한다. `DeadlineCalendarPath`를 login allowed-next와 Admin 추가 경로에
-넣고 `deadlineCalendar.Routes()`를 등록한다. [GDJ-0130](../../work/0130-calendar-truncation-and-period-groups.md)의
-기간 확장은 구현 사본이며 실제 양 DB·client·브라우저 검증은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+넣고 `deadlineCalendar.Routes()`를 등록한다. [GDJ-0133](../../work/0133-named-timezones-and-local-deadline-calendar.md)의
+시간대 확장은 구현 중이며 실제 양 DB·client·브라우저 검증은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
 ## 우선순위별 업무 요약
 

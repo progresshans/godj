@@ -14,14 +14,14 @@ import (
 )
 
 func checkGeneratedDeadlineCalendarWire(ctx context.Context) error {
-	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"as_of":"2024-02-29T00:00:00.000001Z","period":"month","from_date":"0001-01-01","until_date":"9999-12-31","total_groups":9223372036854775807,"results":[{"period_start":"0001-01-01","total":9223372036854775807,"open":9007199254740993,"overdue":1,"first_due_at":"0001-01-01T00:00:00.000000Z","last_due_at":"0001-01-31T23:59:59.999999Z"},{"period_start":"9999-12-01","total":1,"open":1,"overdue":0,"first_due_at":"9999-12-31T00:00:00.000001Z","last_due_at":"9999-12-31T23:59:59.999999Z"},{"period_start":null,"total":1,"open":0,"overdue":0,"first_due_at":null,"last_due_at":null}]}`
-	params := hs.HelpdeskDeadlineCalendarParams{P: hs.NewOptInt64(50001), Period: hs.NewOptHelpdeskDeadlineCalendarPeriod(hs.HelpdeskDeadlineCalendarPeriodMonth), AsOf: time.Date(2024, 2, 29, 9, 0, 0, 1999, time.FixedZone("caller", 9*3600)), FromDate: hs.NewOptDate(time.Date(1, 1, 1, 23, 59, 59, 0, time.FixedZone("calendar", 14*3600))), UntilDate: hs.NewOptDate(time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC))}
+	const body = `{"category":{"id":9223372036854775807,"name":"wire"},"page":50001,"page_size":20,"as_of":"2024-02-29T00:00:00.000001Z","period":"month","time_zone":"Asia/Seoul","from_date":"0001-01-01","until_date":"9999-12-31","total_groups":9223372036854775807,"results":[{"period_start":"0001-01-01","total":9223372036854775807,"open":9007199254740993,"overdue":1,"first_due_at":"0001-01-01T00:00:00.000000Z","last_due_at":"0001-01-31T23:59:59.999999Z"},{"period_start":"9999-12-01","total":1,"open":1,"overdue":0,"first_due_at":"9999-12-31T00:00:00.000001Z","last_due_at":"9999-12-31T23:59:59.999999Z"},{"period_start":null,"total":1,"open":0,"overdue":0,"first_due_at":null,"last_due_at":null}]}`
+	params := hs.HelpdeskDeadlineCalendarParams{TimeZone: hs.NewOptHelpdeskDeadlineCalendarTimeZone("Asia/Seoul"), P: hs.NewOptInt64(50001), Period: hs.NewOptHelpdeskDeadlineCalendarPeriod(hs.HelpdeskDeadlineCalendarPeriodMonth), AsOf: time.Date(2024, 2, 29, 9, 0, 0, 1999, time.FixedZone("caller", 9*3600)), FromDate: hs.NewOptDate(time.Date(1, 1, 1, 23, 59, 59, 0, time.FixedZone("calendar", 14*3600))), UntilDate: hs.NewOptDate(time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC))}
 	calls := 0
 	client := func(status int, payload string) (*hs.Client, error) {
 		return hs.NewClient("https://probe.invalid", wireHelpdeskSecurity{}, hs.WithClient(&http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 			calls++
 			values := request.URL.Query()
-			if request.Method != http.MethodGet || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/tickets/deadline-calendar/" || len(values) != 5 || values.Get("period") != "month" || values.Get("p") != "50001" || values.Get("as_of") != "2024-02-29T09:00:00.000001999+09:00" || values.Get("from_date") != "0001-01-01" || values.Get("until_date") != "9999-12-31" || !strings.Contains(request.URL.RawQuery, "%2B09") {
+			if request.Method != http.MethodGet || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/tickets/deadline-calendar/" || len(values) != 6 || values.Get("time_zone") != "Asia/Seoul" || values.Get("period") != "month" || values.Get("p") != "50001" || values.Get("as_of") != "2024-02-29T09:00:00.000001999+09:00" || values.Get("from_date") != "0001-01-01" || values.Get("until_date") != "9999-12-31" || !strings.Contains(request.URL.RawQuery, "%2B09") {
 				return nil, fail("calendar query separated dates from offset-bearing instant")
 			}
 			for _, values := range values {
@@ -42,7 +42,7 @@ func checkGeneratedDeadlineCalendarWire(ctx context.Context) error {
 	}
 	response, err := valid.HelpdeskDeadlineCalendar(ctx, params)
 	page, ok := response.(*hs.DeadlineCalendarHeaders)
-	if err != nil || !ok || calls != 1 || page.Response.Category.ID != 9223372036854775807 || page.Response.Page != 50001 || page.Response.PageSize != 20 || page.Response.Period != hs.DeadlineCalendarPeriodMonth || page.Response.TotalGroups != 9223372036854775807 || !page.Response.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || page.Response.FromDate.Null || !page.Response.FromDate.Value.IsZero() || page.Response.UntilDate.Null || page.Response.UntilDate.Value.Format("2006-01-02") != "9999-12-31" || len(page.Response.Results) != 3 {
+	if err != nil || !ok || calls != 1 || page.Response.Category.ID != 9223372036854775807 || page.Response.Page != 50001 || page.Response.PageSize != 20 || page.Response.Period != hs.DeadlineCalendarPeriodMonth || page.Response.TimeZone != "Asia/Seoul" || page.Response.TotalGroups != 9223372036854775807 || !page.Response.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || page.Response.FromDate.Null || !page.Response.FromDate.Value.IsZero() || page.Response.UntilDate.Null || page.Response.UntilDate.Value.Format("2006-01-02") != "9999-12-31" || len(page.Response.Results) != 3 {
 		return fail("calendar wire retained exact integer/date/instant envelope")
 	}
 	first, last, missing := page.Response.Results[0], page.Response.Results[1], page.Response.Results[2]
@@ -68,7 +68,7 @@ func checkGeneratedDeadlineCalendarWire(ctx context.Context) error {
 		bounds  bool
 	}
 	invalid := []invalidResponse{{`{}`, false}, {`null`, false}, {body + `true`, false}}
-	for _, field := range []string{`"category":{"id":9223372036854775807,"name":"wire"},`, `"page":50001,`, `"page_size":20,`, `"as_of":"2024-02-29T00:00:00.000001Z",`, `"period":"month",`, `"from_date":"0001-01-01",`, `"until_date":"9999-12-31",`, `"total_groups":9223372036854775807,`, `"period_start":"0001-01-01",`, `"total":9223372036854775807,`, `"open":9007199254740993,`, `"overdue":1,`, `"first_due_at":"0001-01-01T00:00:00.000000Z",`, `,"last_due_at":"0001-01-31T23:59:59.999999Z"`, `"period_start":null,`, `"first_due_at":null,`, `,"last_due_at":null`} {
+	for _, field := range []string{`"category":{"id":9223372036854775807,"name":"wire"},`, `"page":50001,`, `"page_size":20,`, `"as_of":"2024-02-29T00:00:00.000001Z",`, `"period":"month",`, `"time_zone":"Asia/Seoul",`, `"from_date":"0001-01-01",`, `"until_date":"9999-12-31",`, `"total_groups":9223372036854775807,`, `"period_start":"0001-01-01",`, `"total":9223372036854775807,`, `"open":9007199254740993,`, `"overdue":1,`, `"first_due_at":"0001-01-01T00:00:00.000000Z",`, `,"last_due_at":"0001-01-31T23:59:59.999999Z"`, `"period_start":null,`, `"first_due_at":null,`, `,"last_due_at":null`} {
 		invalid = append(invalid, invalidResponse{strings.Replace(body, field, "", 1), false})
 	}
 	for _, change := range []struct {
@@ -79,6 +79,9 @@ func checkGeneratedDeadlineCalendarWire(ctx context.Context) error {
 		{`"page":50001`, `"page":50002`, true}, {`"page_size":20`, `"page_size":21`, true}, {`"total_groups":9223372036854775807`, `"total_groups":-1`, true}, {`"total":9223372036854775807`, `"total":0`, true}, {`"overdue":1`, `"overdue":-1`, true},
 		{`"as_of":"2024-02-29T00:00:00.000001Z"`, `"as_of":null`, false},
 		{`"period_start":"0001-01-01"`, `"period_start":"2023-02-29"`, false}, {`"period_start":"0001-01-01"`, `"period_start":"2024-02-29T00:00:00Z"`, false}, {`"period_start":"0001-01-01"`, `"period_start":1`, false},
+		{`"time_zone":"Asia/Seoul"`, `"time_zone":null`, false}, {`"time_zone":"Asia/Seoul"`, `"time_zone":1`, false},
+		{`"time_zone":"Asia/Seoul"`, `"time_zone":""`, true}, {`"time_zone":"Asia/Seoul"`, `"time_zone":"Local"`, true},
+		{`"time_zone":"Asia/Seoul"`, `"time_zone":"Asia/seoul"`, true}, {`"time_zone":"Asia/Seoul"`, `"time_zone":"../UTC"`, true},
 		{`"period":"month"`, `"period":null`, false}, {`"period":"month"`, `"period":1`, false},
 		{`"period":"month"`, `"period":"hour"`, true}, {`"period":"month"`, `"period":"Month"`, true}, {`"period":"month"`, `"period":""`, true},
 		{`"first_due_at":"0001-01-01T00:00:00.000000Z"`, `"first_due_at":0`, false},

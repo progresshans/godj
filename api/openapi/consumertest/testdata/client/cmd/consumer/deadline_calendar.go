@@ -41,7 +41,7 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 		}
 	}
 	for _, params := range cases {
-		want := expectedDeadlineCalendar(params, tickets)
+		want := expectedDeadlineCalendar(params, tickets, nil)
 		for _, viewer := range []struct {
 			client    *hs.Client
 			transport *observedTransport
@@ -65,7 +65,7 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 				value := page.Response
 				start := min(len(want), int(number-1)*20)
 				end := min(len(want), start+20)
-				if value.Category.ID != category || value.Category.Name != "Hardware & repairs" || value.Page != number || value.PageSize != 20 || value.Period != hs.DeadlineCalendarPeriod(params.Period.Or(hs.HelpdeskDeadlineCalendarPeriodDay)) || !value.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || value.AsOf.Location() != time.UTC || value.TotalGroups != int64(len(want)) || len(value.Results) != end-start || !calendarBoundMatches(value.FromDate, params.FromDate) || !calendarBoundMatches(value.UntilDate, params.UntilDate) {
+				if value.Category.ID != category || value.Category.Name != "Hardware & repairs" || value.Page != number || value.PageSize != 20 || value.TimeZone != hs.DeadlineCalendarTimeZoneUTC || value.Period != hs.DeadlineCalendarPeriod(params.Period.Or(hs.HelpdeskDeadlineCalendarPeriodDay)) || !value.AsOf.Equal(params.AsOf.UTC().Truncate(time.Microsecond)) || value.AsOf.Location() != time.UTC || value.TotalGroups != int64(len(want)) || len(value.Results) != end-start || !calendarBoundMatches(value.FromDate, params.FromDate) || !calendarBoundMatches(value.UntilDate, params.UntilDate) {
 					return fail("calendar generated date range, UTC reference and total/page envelope")
 				}
 				for index, want := range want[start:end] {
@@ -79,6 +79,10 @@ func checkHelpdeskDeadlineCalendar(ctx context.Context, client, readOnly *hs.Cli
 	}
 	for _, params := range []hs.HelpdeskDeadlineCalendarParams{
 		{AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("hour")}, {AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("")}, {AsOf: reference, Period: hs.NewOptHelpdeskDeadlineCalendarPeriod("Month")},
+		{AsOf: reference, TimeZone: hs.NewOptHelpdeskDeadlineCalendarTimeZone("")},
+		{AsOf: reference, TimeZone: hs.NewOptHelpdeskDeadlineCalendarTimeZone("Local")},
+		{AsOf: reference, TimeZone: hs.NewOptHelpdeskDeadlineCalendarTimeZone("Asia/seoul")},
+		{AsOf: reference, TimeZone: hs.NewOptHelpdeskDeadlineCalendarTimeZone("../UTC")},
 		{AsOf: reference, P: hs.NewOptInt64(0)}, {AsOf: reference, P: hs.NewOptInt64(50002)},
 		{AsOf: reference, FromDate: hs.NewOptDate(until), UntilDate: hs.NewOptDate(from)},
 		{AsOf: reference, FromDate: hs.NewOptDate(time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC))},
@@ -105,13 +109,17 @@ func calendarBoundMatches(actual hs.NilDate, request hs.OptDate) bool {
 
 // Group retained Ticket responses with the standard library. No framework
 // imports, ORM helpers or calendar endpoint responses enter this expectation.
-func expectedDeadlineCalendar(params hs.HelpdeskDeadlineCalendarParams, tickets []hs.Ticket) []hs.DeadlineCalendarResultsItem {
+// A zoned fixture supplies independent literal local dates for the same rows.
+func expectedDeadlineCalendar(params hs.HelpdeskDeadlineCalendarParams, tickets []hs.Ticket, localDates []time.Time) []hs.DeadlineCalendarResultsItem {
 	grouped := map[string]hs.DeadlineCalendarResultsItem{}
-	for _, ticket := range tickets {
+	for index, ticket := range tickets {
 		key := "~"
 		var day time.Time
 		if !ticket.DueAt.Null {
 			at := ticket.DueAt.Value.UTC()
+			if localDates != nil {
+				at = localDates[index]
+			}
 			day = time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
 			switch params.Period.Or(hs.HelpdeskDeadlineCalendarPeriodDay) {
 			case hs.HelpdeskDeadlineCalendarPeriodWeek:

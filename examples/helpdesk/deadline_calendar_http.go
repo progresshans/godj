@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/timezone"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -63,7 +64,7 @@ func (page *DeadlineCalendar) get(request *web.Request, actor auth.Principal) (w
 func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalendarPage) (web.Response, error) {
 	rows := []templates.Value{}
 	category, asOf, from, until, previous, next, clear := "", "", "", "", "", "", ""
-	input := deadlineCalendarQuery{page: 1, period: "day"}
+	input := deadlineCalendarQuery{page: 1, period: "day", zone: timezone.UTC()}
 	total := int64(0)
 	if result != nil {
 		input = result.query
@@ -96,7 +97,7 @@ func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalen
 			rows = append(rows, value)
 		}
 		link := func(number int, withRange bool) string {
-			values := url.Values{"p": {strconv.Itoa(number)}, "as_of": {asOf}, "period": {input.period}}
+			values := url.Values{"p": {strconv.Itoa(number)}, "as_of": {asOf}, "period": {input.period}, "time_zone": {input.zone.Name()}}
 			if withRange && input.from != nil {
 				values.Set("from_date", from)
 			}
@@ -128,6 +129,7 @@ func (page *DeadlineCalendar) render(request *web.Request, result *deadlineCalen
 		"has_calendar": templates.Bool(result != nil), "category": templates.String(category), "rows": templates.List(rows...),
 		"as_of": templates.String(asOf), "from": templates.String(from), "until": templates.String(until),
 		"period": templates.String(input.period), "periods": templates.List(periods...),
+		"time_zone": templates.String(input.zone.Name()), "zone_name_maximum": templates.Integer(timezone.MaximumNameBytes),
 		"has_from": templates.Bool(input.from != nil), "has_until": templates.Bool(input.until != nil),
 		"has_range": templates.Bool(input.from != nil || input.until != nil), "clear_range": templates.String(clear),
 		"total": templates.Integer(total), "page": templates.Integer(int64(input.page)), "previous": templates.String(previous), "next": templates.String(next),

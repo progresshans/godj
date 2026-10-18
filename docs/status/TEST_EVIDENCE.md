@@ -3,26 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0133 — 고정 시간대 기반과 생성 소비자 진행 중
+## GDJ-0133 — 시간대 기반·생성 소비자·Helpdesk 진행 중
 
 2026-10-19 KST, `71aed8eb843c95409d51bd2c3dc8ba9cce7e56ee`에 IANA 2025c·불변 Zone·공통 AST·typed/dynamic API와
 양 backend의 전환표 기반 추출/절삭, native 실패/rollback 검증을 제출했다. [Draft PR #3](https://github.com/progresshans/godj/pull/3)의
-자동 [CI 39147685846](https://github.com/progresshans/godj/actions/runs/39147685846)은 아직 전체 성공으로 수용하지 않았다.
+자동 [CI 39147685846](https://github.com/progresshans/godj/actions/runs/39147685846)은 후속 push로 취소 종료했다.
 최초 확인한 normal/CGO0 integration 실패의 실제 원인은 격리된 생성 검증 모듈의 의존성 링크 목록에서 새 `timezone` package가
 빠진 것이다. `TestRelationDeleteProductNamespaceCollisionAndRecoveryPreserveGeneratedTargets`의 복구 테스트가 의도한
-injected cleanup 오류에 도달하기 전에 `-mod=readonly` import 오류로 종료했다. 목록을 수정했으며 재실행 성공은 미확인이다.
+injected cleanup 오류에 도달하기 전에 `-mod=readonly` import 오류로 종료했다. 목록 수정과 생성 소비자는 `44510b826c75189601514299cfb4034908985b26`으로 제출했다.
+같은 source의 [CI 39148637379](https://github.com/progresshans/godj/actions/runs/39148637379)는 진행 중이며 전체 성공은 미확인이다.
 
 구조가 다른 planning/records 생성 앱에 시간대별 typed/dynamic 동일 AST·DST·관계/collection FILTER·group/page·후속 결과·
-scope·UPDATE/rollback·cache/context/cursor 검증 네 묶음과 compile 부정 대조 일곱 개를 추가했다. 독립 Django 시간대 관측과
-Helpdesk 입출력/client/browser는 아직 미완료다.
+scope·UPDATE/rollback·cache/context/cursor 검증 네 묶음과 compile 부정 대조 일곱 개를 추가했다. 독립 Django 시간대 관측은 아직 미완료다. Helpdesk에는 공통 TimeZone 입력/출력과 전체 IANA enum·지역 Date 기준의 DB
+group/page·UTC 원본 instant 검증·HTML 선택 유지 및 native DST/domain/실패 검증을 작성했다. 실제 API 선언으로
+문서와 고정 ogen Helpdesk client를 재생성했고, 다른 다섯 profile 문서는 byte 단위로 유지됨을 확인했다.
+Client의 literal 지역 날짜·alias/DST·조회 전후 저장/복원과 브라우저의 시간대·범위·페이지 유지 검사를 작성했다.
+이 Helpdesk 변경의 실제 DB/HTTP/client/browser 실행은 원격 검증 전이며 코드 존재를 PASS로 계산하지 않는다.
 
-로컬에서는 영향 package의 `go test -run '^$' -vet=off`와 포맷·Markdown 링크 검사만 수행했다. 별도 compile checkpoint는
+로컬 검증은 영향 package의 `go test -run '^$' -vet=off`와 포맷·Markdown 링크 검사로 제한했다. 별도 compile checkpoint는
 현재 선언/생성기로 만든 두 앱과 현재 소비자 runtime 코드를 외부 module에서 `go test -mod=mod -vet=off -run '^$' ./consumer`로
 compile했다(exit 0). 제품 테스트 본문·DB/HTTP·생성 소비자 runtime은 실행하지 않았다. 이 체크포인트는 위 commit과
 수정한 소비자/의존성 목록/필수 실행 목록의 hash에 결합한다.
 
 - `gdj0133-generated-compile-qpswq_am/source.json`: SHA-256 `5baed5f50022178b8982cadb8f4f180c89e31342a43534cbc6ae18b13aa25944`
 - 같은 디렉터리의 compile 로그: SHA-256 `83b37512b4bca267eff407f08c6a39d844208a39024b106ebd6e28d50a14974e`
+
+Helpdesk 묶음의 source checkpoint는 base `44510b82`와 변경한 모든 비문서 파일의 hash를 보유한다.
+`timezone`, `api/openapi`, `api/output`, `api/parameters`, `examples/helpdesk`, `api/openapi/consumertest`의 compile-only와
+외부 client module의 offline `go build ./cmd/consumer`가 모두 exit 0이었다. 실행 전후 source hash도 일치했다.
+OpenAPI export는 격리 메모리 backend로 adapter/schema만 구성했고 서버·migration·업무 요청을 실행하지 않았다.
+브라우저 JS·CI Python의 syntax와 220개 Markdown 문서의 링크도 확인했다. 이 결과는 runtime PASS가 아니다.
+
+- `gdj0133-openapi-9NUYF4/compile-source.json`: SHA-256 `5aa9f532de608b9afce8de54377f4411abce87738d8ae9b26ca3b9f41cc070a3`
+- 같은 디렉터리의 `compile.log`: SHA-256 `02be646df83ddb713682b6b30d1f332bcdc279ac595d65a3632a080ab515fc0d`
 
 이 기록은 compile/수정 진행 상태이며, GDJ-0133의 실제 실행이나 전체 프레임워크의 완료를 뜻하지 않는다.
 

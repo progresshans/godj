@@ -521,6 +521,10 @@ func (s *DeadlineCalendar) encodeFields(e *jx.Encoder) {
 		s.Period.Encode(e)
 	}
 	{
+		e.FieldStart("time_zone")
+		s.TimeZone.Encode(e)
+	}
+	{
 		e.FieldStart("from_date")
 		s.FromDate.Encode(e, json.EncodeDate)
 	}
@@ -542,16 +546,17 @@ func (s *DeadlineCalendar) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDeadlineCalendar = [9]string{
+var jsonFieldsNameOfDeadlineCalendar = [10]string{
 	0: "category",
 	1: "page",
 	2: "page_size",
 	3: "as_of",
 	4: "period",
-	5: "from_date",
-	6: "until_date",
-	7: "total_groups",
-	8: "results",
+	5: "time_zone",
+	6: "from_date",
+	7: "until_date",
+	8: "total_groups",
+	9: "results",
 }
 
 // Decode decodes DeadlineCalendar from json.
@@ -619,8 +624,18 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"period\"")
 			}
-		case "from_date":
+		case "time_zone":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.TimeZone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"time_zone\"")
+			}
+		case "from_date":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.FromDate.Decode(d, json.DecodeDate); err != nil {
 					return err
@@ -630,7 +645,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"from_date\"")
 			}
 		case "until_date":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.UntilDate.Decode(d, json.DecodeDate); err != nil {
 					return err
@@ -640,7 +655,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"until_date\"")
 			}
 		case "total_groups":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int64()
 				s.TotalGroups = int64(v)
@@ -652,7 +667,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total_groups\"")
 			}
 		case "results":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Results = make([]DeadlineCalendarResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -680,7 +695,7 @@ func (s *DeadlineCalendar) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -943,6 +958,1238 @@ func (s *DeadlineCalendarResultsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *DeadlineCalendarResultsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes DeadlineCalendarTimeZone as json.
+func (s DeadlineCalendarTimeZone) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes DeadlineCalendarTimeZone from json.
+func (s *DeadlineCalendarTimeZone) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DeadlineCalendarTimeZone to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch DeadlineCalendarTimeZone(v) {
+	case DeadlineCalendarTimeZoneAfricaSlashAbidjan:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAbidjan
+	case DeadlineCalendarTimeZoneAfricaSlashAccra:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAccra
+	case DeadlineCalendarTimeZoneAfricaSlashAddisAbaba:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAddisAbaba
+	case DeadlineCalendarTimeZoneAfricaSlashAlgiers:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAlgiers
+	case DeadlineCalendarTimeZoneAfricaSlashAsmara:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAsmara
+	case DeadlineCalendarTimeZoneAfricaSlashAsmera:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAsmera
+	case DeadlineCalendarTimeZoneAfricaSlashBamako:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBamako
+	case DeadlineCalendarTimeZoneAfricaSlashBangui:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBangui
+	case DeadlineCalendarTimeZoneAfricaSlashBanjul:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBanjul
+	case DeadlineCalendarTimeZoneAfricaSlashBissau:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBissau
+	case DeadlineCalendarTimeZoneAfricaSlashBlantyre:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBlantyre
+	case DeadlineCalendarTimeZoneAfricaSlashBrazzaville:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBrazzaville
+	case DeadlineCalendarTimeZoneAfricaSlashBujumbura:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBujumbura
+	case DeadlineCalendarTimeZoneAfricaSlashCairo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCairo
+	case DeadlineCalendarTimeZoneAfricaSlashCasablanca:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCasablanca
+	case DeadlineCalendarTimeZoneAfricaSlashCeuta:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCeuta
+	case DeadlineCalendarTimeZoneAfricaSlashConakry:
+		*s = DeadlineCalendarTimeZoneAfricaSlashConakry
+	case DeadlineCalendarTimeZoneAfricaSlashDakar:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDakar
+	case DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam
+	case DeadlineCalendarTimeZoneAfricaSlashDjibouti:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDjibouti
+	case DeadlineCalendarTimeZoneAfricaSlashDouala:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDouala
+	case DeadlineCalendarTimeZoneAfricaSlashElAaiun:
+		*s = DeadlineCalendarTimeZoneAfricaSlashElAaiun
+	case DeadlineCalendarTimeZoneAfricaSlashFreetown:
+		*s = DeadlineCalendarTimeZoneAfricaSlashFreetown
+	case DeadlineCalendarTimeZoneAfricaSlashGaborone:
+		*s = DeadlineCalendarTimeZoneAfricaSlashGaborone
+	case DeadlineCalendarTimeZoneAfricaSlashHarare:
+		*s = DeadlineCalendarTimeZoneAfricaSlashHarare
+	case DeadlineCalendarTimeZoneAfricaSlashJohannesburg:
+		*s = DeadlineCalendarTimeZoneAfricaSlashJohannesburg
+	case DeadlineCalendarTimeZoneAfricaSlashJuba:
+		*s = DeadlineCalendarTimeZoneAfricaSlashJuba
+	case DeadlineCalendarTimeZoneAfricaSlashKampala:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKampala
+	case DeadlineCalendarTimeZoneAfricaSlashKhartoum:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKhartoum
+	case DeadlineCalendarTimeZoneAfricaSlashKigali:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKigali
+	case DeadlineCalendarTimeZoneAfricaSlashKinshasa:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKinshasa
+	case DeadlineCalendarTimeZoneAfricaSlashLagos:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLagos
+	case DeadlineCalendarTimeZoneAfricaSlashLibreville:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLibreville
+	case DeadlineCalendarTimeZoneAfricaSlashLome:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLome
+	case DeadlineCalendarTimeZoneAfricaSlashLuanda:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLuanda
+	case DeadlineCalendarTimeZoneAfricaSlashLubumbashi:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLubumbashi
+	case DeadlineCalendarTimeZoneAfricaSlashLusaka:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLusaka
+	case DeadlineCalendarTimeZoneAfricaSlashMalabo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMalabo
+	case DeadlineCalendarTimeZoneAfricaSlashMaputo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMaputo
+	case DeadlineCalendarTimeZoneAfricaSlashMaseru:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMaseru
+	case DeadlineCalendarTimeZoneAfricaSlashMbabane:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMbabane
+	case DeadlineCalendarTimeZoneAfricaSlashMogadishu:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMogadishu
+	case DeadlineCalendarTimeZoneAfricaSlashMonrovia:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMonrovia
+	case DeadlineCalendarTimeZoneAfricaSlashNairobi:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNairobi
+	case DeadlineCalendarTimeZoneAfricaSlashNdjamena:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNdjamena
+	case DeadlineCalendarTimeZoneAfricaSlashNiamey:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNiamey
+	case DeadlineCalendarTimeZoneAfricaSlashNouakchott:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNouakchott
+	case DeadlineCalendarTimeZoneAfricaSlashOuagadougou:
+		*s = DeadlineCalendarTimeZoneAfricaSlashOuagadougou
+	case DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo
+	case DeadlineCalendarTimeZoneAfricaSlashSaoTome:
+		*s = DeadlineCalendarTimeZoneAfricaSlashSaoTome
+	case DeadlineCalendarTimeZoneAfricaSlashTimbuktu:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTimbuktu
+	case DeadlineCalendarTimeZoneAfricaSlashTripoli:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTripoli
+	case DeadlineCalendarTimeZoneAfricaSlashTunis:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTunis
+	case DeadlineCalendarTimeZoneAfricaSlashWindhoek:
+		*s = DeadlineCalendarTimeZoneAfricaSlashWindhoek
+	case DeadlineCalendarTimeZoneAmericaSlashAdak:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAdak
+	case DeadlineCalendarTimeZoneAmericaSlashAnchorage:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAnchorage
+	case DeadlineCalendarTimeZoneAmericaSlashAnguilla:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAnguilla
+	case DeadlineCalendarTimeZoneAmericaSlashAntigua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAntigua
+	case DeadlineCalendarTimeZoneAmericaSlashAraguaina:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAraguaina
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia
+	case DeadlineCalendarTimeZoneAmericaSlashAruba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAruba
+	case DeadlineCalendarTimeZoneAmericaSlashAsuncion:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAsuncion
+	case DeadlineCalendarTimeZoneAmericaSlashAtikokan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAtikokan
+	case DeadlineCalendarTimeZoneAmericaSlashAtka:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAtka
+	case DeadlineCalendarTimeZoneAmericaSlashBahia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBahia
+	case DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas
+	case DeadlineCalendarTimeZoneAmericaSlashBarbados:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBarbados
+	case DeadlineCalendarTimeZoneAmericaSlashBelem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBelem
+	case DeadlineCalendarTimeZoneAmericaSlashBelize:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBelize
+	case DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon
+	case DeadlineCalendarTimeZoneAmericaSlashBoaVista:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBoaVista
+	case DeadlineCalendarTimeZoneAmericaSlashBogota:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBogota
+	case DeadlineCalendarTimeZoneAmericaSlashBoise:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBoise
+	case DeadlineCalendarTimeZoneAmericaSlashBuenosAires:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBuenosAires
+	case DeadlineCalendarTimeZoneAmericaSlashCambridgeBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCambridgeBay
+	case DeadlineCalendarTimeZoneAmericaSlashCampoGrande:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCampoGrande
+	case DeadlineCalendarTimeZoneAmericaSlashCancun:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCancun
+	case DeadlineCalendarTimeZoneAmericaSlashCaracas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCaracas
+	case DeadlineCalendarTimeZoneAmericaSlashCatamarca:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCatamarca
+	case DeadlineCalendarTimeZoneAmericaSlashCayenne:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCayenne
+	case DeadlineCalendarTimeZoneAmericaSlashCayman:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCayman
+	case DeadlineCalendarTimeZoneAmericaSlashChicago:
+		*s = DeadlineCalendarTimeZoneAmericaSlashChicago
+	case DeadlineCalendarTimeZoneAmericaSlashChihuahua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashChihuahua
+	case DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez
+	case DeadlineCalendarTimeZoneAmericaSlashCoralHarbour:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCoralHarbour
+	case DeadlineCalendarTimeZoneAmericaSlashCordoba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCordoba
+	case DeadlineCalendarTimeZoneAmericaSlashCostaRica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCostaRica
+	case DeadlineCalendarTimeZoneAmericaSlashCoyhaique:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCoyhaique
+	case DeadlineCalendarTimeZoneAmericaSlashCreston:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCreston
+	case DeadlineCalendarTimeZoneAmericaSlashCuiaba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCuiaba
+	case DeadlineCalendarTimeZoneAmericaSlashCuracao:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCuracao
+	case DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn
+	case DeadlineCalendarTimeZoneAmericaSlashDawson:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDawson
+	case DeadlineCalendarTimeZoneAmericaSlashDawsonCreek:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDawsonCreek
+	case DeadlineCalendarTimeZoneAmericaSlashDenver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDenver
+	case DeadlineCalendarTimeZoneAmericaSlashDetroit:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDetroit
+	case DeadlineCalendarTimeZoneAmericaSlashDominica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDominica
+	case DeadlineCalendarTimeZoneAmericaSlashEdmonton:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEdmonton
+	case DeadlineCalendarTimeZoneAmericaSlashEirunepe:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEirunepe
+	case DeadlineCalendarTimeZoneAmericaSlashElSalvador:
+		*s = DeadlineCalendarTimeZoneAmericaSlashElSalvador
+	case DeadlineCalendarTimeZoneAmericaSlashEnsenada:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEnsenada
+	case DeadlineCalendarTimeZoneAmericaSlashFortNelson:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortNelson
+	case DeadlineCalendarTimeZoneAmericaSlashFortWayne:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortWayne
+	case DeadlineCalendarTimeZoneAmericaSlashFortaleza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortaleza
+	case DeadlineCalendarTimeZoneAmericaSlashGlaceBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGlaceBay
+	case DeadlineCalendarTimeZoneAmericaSlashGodthab:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGodthab
+	case DeadlineCalendarTimeZoneAmericaSlashGooseBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGooseBay
+	case DeadlineCalendarTimeZoneAmericaSlashGrandTurk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGrandTurk
+	case DeadlineCalendarTimeZoneAmericaSlashGrenada:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGrenada
+	case DeadlineCalendarTimeZoneAmericaSlashGuadeloupe:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuadeloupe
+	case DeadlineCalendarTimeZoneAmericaSlashGuatemala:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuatemala
+	case DeadlineCalendarTimeZoneAmericaSlashGuayaquil:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuayaquil
+	case DeadlineCalendarTimeZoneAmericaSlashGuyana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuyana
+	case DeadlineCalendarTimeZoneAmericaSlashHalifax:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHalifax
+	case DeadlineCalendarTimeZoneAmericaSlashHavana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHavana
+	case DeadlineCalendarTimeZoneAmericaSlashHermosillo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHermosillo
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac
+	case DeadlineCalendarTimeZoneAmericaSlashIndianapolis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianapolis
+	case DeadlineCalendarTimeZoneAmericaSlashInuvik:
+		*s = DeadlineCalendarTimeZoneAmericaSlashInuvik
+	case DeadlineCalendarTimeZoneAmericaSlashIqaluit:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIqaluit
+	case DeadlineCalendarTimeZoneAmericaSlashJamaica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJamaica
+	case DeadlineCalendarTimeZoneAmericaSlashJujuy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJujuy
+	case DeadlineCalendarTimeZoneAmericaSlashJuneau:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJuneau
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello
+	case DeadlineCalendarTimeZoneAmericaSlashKnoxIN:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKnoxIN
+	case DeadlineCalendarTimeZoneAmericaSlashKralendijk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKralendijk
+	case DeadlineCalendarTimeZoneAmericaSlashLaPaz:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLaPaz
+	case DeadlineCalendarTimeZoneAmericaSlashLima:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLima
+	case DeadlineCalendarTimeZoneAmericaSlashLosAngeles:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLosAngeles
+	case DeadlineCalendarTimeZoneAmericaSlashLouisville:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLouisville
+	case DeadlineCalendarTimeZoneAmericaSlashLowerPrinces:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLowerPrinces
+	case DeadlineCalendarTimeZoneAmericaSlashMaceio:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMaceio
+	case DeadlineCalendarTimeZoneAmericaSlashManagua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashManagua
+	case DeadlineCalendarTimeZoneAmericaSlashManaus:
+		*s = DeadlineCalendarTimeZoneAmericaSlashManaus
+	case DeadlineCalendarTimeZoneAmericaSlashMarigot:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMarigot
+	case DeadlineCalendarTimeZoneAmericaSlashMartinique:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMartinique
+	case DeadlineCalendarTimeZoneAmericaSlashMatamoros:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMatamoros
+	case DeadlineCalendarTimeZoneAmericaSlashMazatlan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMazatlan
+	case DeadlineCalendarTimeZoneAmericaSlashMendoza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMendoza
+	case DeadlineCalendarTimeZoneAmericaSlashMenominee:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMenominee
+	case DeadlineCalendarTimeZoneAmericaSlashMerida:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMerida
+	case DeadlineCalendarTimeZoneAmericaSlashMetlakatla:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMetlakatla
+	case DeadlineCalendarTimeZoneAmericaSlashMexicoCity:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMexicoCity
+	case DeadlineCalendarTimeZoneAmericaSlashMiquelon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMiquelon
+	case DeadlineCalendarTimeZoneAmericaSlashMoncton:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMoncton
+	case DeadlineCalendarTimeZoneAmericaSlashMonterrey:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMonterrey
+	case DeadlineCalendarTimeZoneAmericaSlashMontevideo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontevideo
+	case DeadlineCalendarTimeZoneAmericaSlashMontreal:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontreal
+	case DeadlineCalendarTimeZoneAmericaSlashMontserrat:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontserrat
+	case DeadlineCalendarTimeZoneAmericaSlashNassau:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNassau
+	case DeadlineCalendarTimeZoneAmericaSlashNewYork:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNewYork
+	case DeadlineCalendarTimeZoneAmericaSlashNipigon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNipigon
+	case DeadlineCalendarTimeZoneAmericaSlashNome:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNome
+	case DeadlineCalendarTimeZoneAmericaSlashNoronha:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNoronha
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem
+	case DeadlineCalendarTimeZoneAmericaSlashNuuk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNuuk
+	case DeadlineCalendarTimeZoneAmericaSlashOjinaga:
+		*s = DeadlineCalendarTimeZoneAmericaSlashOjinaga
+	case DeadlineCalendarTimeZoneAmericaSlashPanama:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPanama
+	case DeadlineCalendarTimeZoneAmericaSlashPangnirtung:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPangnirtung
+	case DeadlineCalendarTimeZoneAmericaSlashParamaribo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashParamaribo
+	case DeadlineCalendarTimeZoneAmericaSlashPhoenix:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPhoenix
+	case DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince
+	case DeadlineCalendarTimeZoneAmericaSlashPortOfSpain:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortOfSpain
+	case DeadlineCalendarTimeZoneAmericaSlashPortoAcre:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortoAcre
+	case DeadlineCalendarTimeZoneAmericaSlashPortoVelho:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortoVelho
+	case DeadlineCalendarTimeZoneAmericaSlashPuertoRico:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPuertoRico
+	case DeadlineCalendarTimeZoneAmericaSlashPuntaArenas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPuntaArenas
+	case DeadlineCalendarTimeZoneAmericaSlashRainyRiver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRainyRiver
+	case DeadlineCalendarTimeZoneAmericaSlashRankinInlet:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRankinInlet
+	case DeadlineCalendarTimeZoneAmericaSlashRecife:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRecife
+	case DeadlineCalendarTimeZoneAmericaSlashRegina:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRegina
+	case DeadlineCalendarTimeZoneAmericaSlashResolute:
+		*s = DeadlineCalendarTimeZoneAmericaSlashResolute
+	case DeadlineCalendarTimeZoneAmericaSlashRioBranco:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRioBranco
+	case DeadlineCalendarTimeZoneAmericaSlashRosario:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRosario
+	case DeadlineCalendarTimeZoneAmericaSlashSantaIsabel:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantaIsabel
+	case DeadlineCalendarTimeZoneAmericaSlashSantarem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantarem
+	case DeadlineCalendarTimeZoneAmericaSlashSantiago:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantiago
+	case DeadlineCalendarTimeZoneAmericaSlashSantoDomingo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantoDomingo
+	case DeadlineCalendarTimeZoneAmericaSlashSaoPaulo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSaoPaulo
+	case DeadlineCalendarTimeZoneAmericaSlashScoresbysund:
+		*s = DeadlineCalendarTimeZoneAmericaSlashScoresbysund
+	case DeadlineCalendarTimeZoneAmericaSlashShiprock:
+		*s = DeadlineCalendarTimeZoneAmericaSlashShiprock
+	case DeadlineCalendarTimeZoneAmericaSlashSitka:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSitka
+	case DeadlineCalendarTimeZoneAmericaSlashStBarthelemy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStBarthelemy
+	case DeadlineCalendarTimeZoneAmericaSlashStJohns:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStJohns
+	case DeadlineCalendarTimeZoneAmericaSlashStKitts:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStKitts
+	case DeadlineCalendarTimeZoneAmericaSlashStLucia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStLucia
+	case DeadlineCalendarTimeZoneAmericaSlashStThomas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStThomas
+	case DeadlineCalendarTimeZoneAmericaSlashStVincent:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStVincent
+	case DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent
+	case DeadlineCalendarTimeZoneAmericaSlashTegucigalpa:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTegucigalpa
+	case DeadlineCalendarTimeZoneAmericaSlashThule:
+		*s = DeadlineCalendarTimeZoneAmericaSlashThule
+	case DeadlineCalendarTimeZoneAmericaSlashThunderBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashThunderBay
+	case DeadlineCalendarTimeZoneAmericaSlashTijuana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTijuana
+	case DeadlineCalendarTimeZoneAmericaSlashToronto:
+		*s = DeadlineCalendarTimeZoneAmericaSlashToronto
+	case DeadlineCalendarTimeZoneAmericaSlashTortola:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTortola
+	case DeadlineCalendarTimeZoneAmericaSlashVancouver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashVancouver
+	case DeadlineCalendarTimeZoneAmericaSlashVirgin:
+		*s = DeadlineCalendarTimeZoneAmericaSlashVirgin
+	case DeadlineCalendarTimeZoneAmericaSlashWhitehorse:
+		*s = DeadlineCalendarTimeZoneAmericaSlashWhitehorse
+	case DeadlineCalendarTimeZoneAmericaSlashWinnipeg:
+		*s = DeadlineCalendarTimeZoneAmericaSlashWinnipeg
+	case DeadlineCalendarTimeZoneAmericaSlashYakutat:
+		*s = DeadlineCalendarTimeZoneAmericaSlashYakutat
+	case DeadlineCalendarTimeZoneAmericaSlashYellowknife:
+		*s = DeadlineCalendarTimeZoneAmericaSlashYellowknife
+	case DeadlineCalendarTimeZoneAntarcticaSlashCasey:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashCasey
+	case DeadlineCalendarTimeZoneAntarcticaSlashDavis:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashDavis
+	case DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville
+	case DeadlineCalendarTimeZoneAntarcticaSlashMacquarie:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMacquarie
+	case DeadlineCalendarTimeZoneAntarcticaSlashMawson:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMawson
+	case DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo
+	case DeadlineCalendarTimeZoneAntarcticaSlashPalmer:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashPalmer
+	case DeadlineCalendarTimeZoneAntarcticaSlashRothera:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashRothera
+	case DeadlineCalendarTimeZoneAntarcticaSlashSouthPole:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashSouthPole
+	case DeadlineCalendarTimeZoneAntarcticaSlashSyowa:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashSyowa
+	case DeadlineCalendarTimeZoneAntarcticaSlashTroll:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashTroll
+	case DeadlineCalendarTimeZoneAntarcticaSlashVostok:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashVostok
+	case DeadlineCalendarTimeZoneArcticSlashLongyearbyen:
+		*s = DeadlineCalendarTimeZoneArcticSlashLongyearbyen
+	case DeadlineCalendarTimeZoneAsiaSlashAden:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAden
+	case DeadlineCalendarTimeZoneAsiaSlashAlmaty:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAlmaty
+	case DeadlineCalendarTimeZoneAsiaSlashAmman:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAmman
+	case DeadlineCalendarTimeZoneAsiaSlashAnadyr:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAnadyr
+	case DeadlineCalendarTimeZoneAsiaSlashAqtau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAqtau
+	case DeadlineCalendarTimeZoneAsiaSlashAqtobe:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAqtobe
+	case DeadlineCalendarTimeZoneAsiaSlashAshgabat:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAshgabat
+	case DeadlineCalendarTimeZoneAsiaSlashAshkhabad:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAshkhabad
+	case DeadlineCalendarTimeZoneAsiaSlashAtyrau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAtyrau
+	case DeadlineCalendarTimeZoneAsiaSlashBaghdad:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBaghdad
+	case DeadlineCalendarTimeZoneAsiaSlashBahrain:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBahrain
+	case DeadlineCalendarTimeZoneAsiaSlashBaku:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBaku
+	case DeadlineCalendarTimeZoneAsiaSlashBangkok:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBangkok
+	case DeadlineCalendarTimeZoneAsiaSlashBarnaul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBarnaul
+	case DeadlineCalendarTimeZoneAsiaSlashBeirut:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBeirut
+	case DeadlineCalendarTimeZoneAsiaSlashBishkek:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBishkek
+	case DeadlineCalendarTimeZoneAsiaSlashBrunei:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBrunei
+	case DeadlineCalendarTimeZoneAsiaSlashCalcutta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashCalcutta
+	case DeadlineCalendarTimeZoneAsiaSlashChita:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChita
+	case DeadlineCalendarTimeZoneAsiaSlashChoibalsan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChoibalsan
+	case DeadlineCalendarTimeZoneAsiaSlashChongqing:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChongqing
+	case DeadlineCalendarTimeZoneAsiaSlashChungking:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChungking
+	case DeadlineCalendarTimeZoneAsiaSlashColombo:
+		*s = DeadlineCalendarTimeZoneAsiaSlashColombo
+	case DeadlineCalendarTimeZoneAsiaSlashDacca:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDacca
+	case DeadlineCalendarTimeZoneAsiaSlashDamascus:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDamascus
+	case DeadlineCalendarTimeZoneAsiaSlashDhaka:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDhaka
+	case DeadlineCalendarTimeZoneAsiaSlashDili:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDili
+	case DeadlineCalendarTimeZoneAsiaSlashDubai:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDubai
+	case DeadlineCalendarTimeZoneAsiaSlashDushanbe:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDushanbe
+	case DeadlineCalendarTimeZoneAsiaSlashFamagusta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashFamagusta
+	case DeadlineCalendarTimeZoneAsiaSlashGaza:
+		*s = DeadlineCalendarTimeZoneAsiaSlashGaza
+	case DeadlineCalendarTimeZoneAsiaSlashHarbin:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHarbin
+	case DeadlineCalendarTimeZoneAsiaSlashHebron:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHebron
+	case DeadlineCalendarTimeZoneAsiaSlashHoChiMinh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHoChiMinh
+	case DeadlineCalendarTimeZoneAsiaSlashHongKong:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHongKong
+	case DeadlineCalendarTimeZoneAsiaSlashHovd:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHovd
+	case DeadlineCalendarTimeZoneAsiaSlashIrkutsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashIrkutsk
+	case DeadlineCalendarTimeZoneAsiaSlashIstanbul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashIstanbul
+	case DeadlineCalendarTimeZoneAsiaSlashJakarta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJakarta
+	case DeadlineCalendarTimeZoneAsiaSlashJayapura:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJayapura
+	case DeadlineCalendarTimeZoneAsiaSlashJerusalem:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJerusalem
+	case DeadlineCalendarTimeZoneAsiaSlashKabul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKabul
+	case DeadlineCalendarTimeZoneAsiaSlashKamchatka:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKamchatka
+	case DeadlineCalendarTimeZoneAsiaSlashKarachi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKarachi
+	case DeadlineCalendarTimeZoneAsiaSlashKashgar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKashgar
+	case DeadlineCalendarTimeZoneAsiaSlashKathmandu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKathmandu
+	case DeadlineCalendarTimeZoneAsiaSlashKatmandu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKatmandu
+	case DeadlineCalendarTimeZoneAsiaSlashKhandyga:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKhandyga
+	case DeadlineCalendarTimeZoneAsiaSlashKolkata:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKolkata
+	case DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk
+	case DeadlineCalendarTimeZoneAsiaSlashKualaLumpur:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKualaLumpur
+	case DeadlineCalendarTimeZoneAsiaSlashKuching:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKuching
+	case DeadlineCalendarTimeZoneAsiaSlashKuwait:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKuwait
+	case DeadlineCalendarTimeZoneAsiaSlashMacao:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMacao
+	case DeadlineCalendarTimeZoneAsiaSlashMacau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMacau
+	case DeadlineCalendarTimeZoneAsiaSlashMagadan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMagadan
+	case DeadlineCalendarTimeZoneAsiaSlashMakassar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMakassar
+	case DeadlineCalendarTimeZoneAsiaSlashManila:
+		*s = DeadlineCalendarTimeZoneAsiaSlashManila
+	case DeadlineCalendarTimeZoneAsiaSlashMuscat:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMuscat
+	case DeadlineCalendarTimeZoneAsiaSlashNicosia:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNicosia
+	case DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk
+	case DeadlineCalendarTimeZoneAsiaSlashNovosibirsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNovosibirsk
+	case DeadlineCalendarTimeZoneAsiaSlashOmsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashOmsk
+	case DeadlineCalendarTimeZoneAsiaSlashOral:
+		*s = DeadlineCalendarTimeZoneAsiaSlashOral
+	case DeadlineCalendarTimeZoneAsiaSlashPhnomPenh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPhnomPenh
+	case DeadlineCalendarTimeZoneAsiaSlashPontianak:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPontianak
+	case DeadlineCalendarTimeZoneAsiaSlashPyongyang:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPyongyang
+	case DeadlineCalendarTimeZoneAsiaSlashQatar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQatar
+	case DeadlineCalendarTimeZoneAsiaSlashQostanay:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQostanay
+	case DeadlineCalendarTimeZoneAsiaSlashQyzylorda:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQyzylorda
+	case DeadlineCalendarTimeZoneAsiaSlashRangoon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashRangoon
+	case DeadlineCalendarTimeZoneAsiaSlashRiyadh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashRiyadh
+	case DeadlineCalendarTimeZoneAsiaSlashSaigon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSaigon
+	case DeadlineCalendarTimeZoneAsiaSlashSakhalin:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSakhalin
+	case DeadlineCalendarTimeZoneAsiaSlashSamarkand:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSamarkand
+	case DeadlineCalendarTimeZoneAsiaSlashSeoul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSeoul
+	case DeadlineCalendarTimeZoneAsiaSlashShanghai:
+		*s = DeadlineCalendarTimeZoneAsiaSlashShanghai
+	case DeadlineCalendarTimeZoneAsiaSlashSingapore:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSingapore
+	case DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk
+	case DeadlineCalendarTimeZoneAsiaSlashTaipei:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTaipei
+	case DeadlineCalendarTimeZoneAsiaSlashTashkent:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTashkent
+	case DeadlineCalendarTimeZoneAsiaSlashTbilisi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTbilisi
+	case DeadlineCalendarTimeZoneAsiaSlashTehran:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTehran
+	case DeadlineCalendarTimeZoneAsiaSlashTelAviv:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTelAviv
+	case DeadlineCalendarTimeZoneAsiaSlashThimbu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashThimbu
+	case DeadlineCalendarTimeZoneAsiaSlashThimphu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashThimphu
+	case DeadlineCalendarTimeZoneAsiaSlashTokyo:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTokyo
+	case DeadlineCalendarTimeZoneAsiaSlashTomsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTomsk
+	case DeadlineCalendarTimeZoneAsiaSlashUjungPandang:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUjungPandang
+	case DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar
+	case DeadlineCalendarTimeZoneAsiaSlashUlanBator:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUlanBator
+	case DeadlineCalendarTimeZoneAsiaSlashUrumqi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUrumqi
+	case DeadlineCalendarTimeZoneAsiaSlashUstMinusNera:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUstMinusNera
+	case DeadlineCalendarTimeZoneAsiaSlashVientiane:
+		*s = DeadlineCalendarTimeZoneAsiaSlashVientiane
+	case DeadlineCalendarTimeZoneAsiaSlashVladivostok:
+		*s = DeadlineCalendarTimeZoneAsiaSlashVladivostok
+	case DeadlineCalendarTimeZoneAsiaSlashYakutsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYakutsk
+	case DeadlineCalendarTimeZoneAsiaSlashYangon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYangon
+	case DeadlineCalendarTimeZoneAsiaSlashYekaterinburg:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYekaterinburg
+	case DeadlineCalendarTimeZoneAsiaSlashYerevan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYerevan
+	case DeadlineCalendarTimeZoneAtlanticSlashAzores:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashAzores
+	case DeadlineCalendarTimeZoneAtlanticSlashBermuda:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashBermuda
+	case DeadlineCalendarTimeZoneAtlanticSlashCanary:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashCanary
+	case DeadlineCalendarTimeZoneAtlanticSlashCapeVerde:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashCapeVerde
+	case DeadlineCalendarTimeZoneAtlanticSlashFaeroe:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashFaeroe
+	case DeadlineCalendarTimeZoneAtlanticSlashFaroe:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashFaroe
+	case DeadlineCalendarTimeZoneAtlanticSlashJanMayen:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashJanMayen
+	case DeadlineCalendarTimeZoneAtlanticSlashMadeira:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashMadeira
+	case DeadlineCalendarTimeZoneAtlanticSlashReykjavik:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashReykjavik
+	case DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia
+	case DeadlineCalendarTimeZoneAtlanticSlashStHelena:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashStHelena
+	case DeadlineCalendarTimeZoneAtlanticSlashStanley:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashStanley
+	case DeadlineCalendarTimeZoneAustraliaSlashACT:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashACT
+	case DeadlineCalendarTimeZoneAustraliaSlashAdelaide:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashAdelaide
+	case DeadlineCalendarTimeZoneAustraliaSlashBrisbane:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashBrisbane
+	case DeadlineCalendarTimeZoneAustraliaSlashBrokenHill:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashBrokenHill
+	case DeadlineCalendarTimeZoneAustraliaSlashCanberra:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashCanberra
+	case DeadlineCalendarTimeZoneAustraliaSlashCurrie:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashCurrie
+	case DeadlineCalendarTimeZoneAustraliaSlashDarwin:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashDarwin
+	case DeadlineCalendarTimeZoneAustraliaSlashEucla:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashEucla
+	case DeadlineCalendarTimeZoneAustraliaSlashHobart:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashHobart
+	case DeadlineCalendarTimeZoneAustraliaSlashLHI:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLHI
+	case DeadlineCalendarTimeZoneAustraliaSlashLindeman:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLindeman
+	case DeadlineCalendarTimeZoneAustraliaSlashLordHowe:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLordHowe
+	case DeadlineCalendarTimeZoneAustraliaSlashMelbourne:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashMelbourne
+	case DeadlineCalendarTimeZoneAustraliaSlashNSW:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashNSW
+	case DeadlineCalendarTimeZoneAustraliaSlashNorth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashNorth
+	case DeadlineCalendarTimeZoneAustraliaSlashPerth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashPerth
+	case DeadlineCalendarTimeZoneAustraliaSlashQueensland:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashQueensland
+	case DeadlineCalendarTimeZoneAustraliaSlashSouth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashSouth
+	case DeadlineCalendarTimeZoneAustraliaSlashSydney:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashSydney
+	case DeadlineCalendarTimeZoneAustraliaSlashTasmania:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashTasmania
+	case DeadlineCalendarTimeZoneAustraliaSlashVictoria:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashVictoria
+	case DeadlineCalendarTimeZoneAustraliaSlashWest:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashWest
+	case DeadlineCalendarTimeZoneAustraliaSlashYancowinna:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashYancowinna
+	case DeadlineCalendarTimeZoneBrazilSlashAcre:
+		*s = DeadlineCalendarTimeZoneBrazilSlashAcre
+	case DeadlineCalendarTimeZoneBrazilSlashDeNoronha:
+		*s = DeadlineCalendarTimeZoneBrazilSlashDeNoronha
+	case DeadlineCalendarTimeZoneBrazilSlashEast:
+		*s = DeadlineCalendarTimeZoneBrazilSlashEast
+	case DeadlineCalendarTimeZoneBrazilSlashWest:
+		*s = DeadlineCalendarTimeZoneBrazilSlashWest
+	case DeadlineCalendarTimeZoneCET:
+		*s = DeadlineCalendarTimeZoneCET
+	case DeadlineCalendarTimeZoneCST6CDT:
+		*s = DeadlineCalendarTimeZoneCST6CDT
+	case DeadlineCalendarTimeZoneCanadaSlashAtlantic:
+		*s = DeadlineCalendarTimeZoneCanadaSlashAtlantic
+	case DeadlineCalendarTimeZoneCanadaSlashCentral:
+		*s = DeadlineCalendarTimeZoneCanadaSlashCentral
+	case DeadlineCalendarTimeZoneCanadaSlashEastern:
+		*s = DeadlineCalendarTimeZoneCanadaSlashEastern
+	case DeadlineCalendarTimeZoneCanadaSlashMountain:
+		*s = DeadlineCalendarTimeZoneCanadaSlashMountain
+	case DeadlineCalendarTimeZoneCanadaSlashNewfoundland:
+		*s = DeadlineCalendarTimeZoneCanadaSlashNewfoundland
+	case DeadlineCalendarTimeZoneCanadaSlashPacific:
+		*s = DeadlineCalendarTimeZoneCanadaSlashPacific
+	case DeadlineCalendarTimeZoneCanadaSlashSaskatchewan:
+		*s = DeadlineCalendarTimeZoneCanadaSlashSaskatchewan
+	case DeadlineCalendarTimeZoneCanadaSlashYukon:
+		*s = DeadlineCalendarTimeZoneCanadaSlashYukon
+	case DeadlineCalendarTimeZoneChileSlashContinental:
+		*s = DeadlineCalendarTimeZoneChileSlashContinental
+	case DeadlineCalendarTimeZoneChileSlashEasterIsland:
+		*s = DeadlineCalendarTimeZoneChileSlashEasterIsland
+	case DeadlineCalendarTimeZoneCuba:
+		*s = DeadlineCalendarTimeZoneCuba
+	case DeadlineCalendarTimeZoneEET:
+		*s = DeadlineCalendarTimeZoneEET
+	case DeadlineCalendarTimeZoneEST:
+		*s = DeadlineCalendarTimeZoneEST
+	case DeadlineCalendarTimeZoneEST5EDT:
+		*s = DeadlineCalendarTimeZoneEST5EDT
+	case DeadlineCalendarTimeZoneEgypt:
+		*s = DeadlineCalendarTimeZoneEgypt
+	case DeadlineCalendarTimeZoneEire:
+		*s = DeadlineCalendarTimeZoneEire
+	case DeadlineCalendarTimeZoneEtcSlashGMT:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMT
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus0
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus1:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus1
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus10:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus10
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus11:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus11
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus12:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus12
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus2:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus2
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus3:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus3
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus4:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus4
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus5:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus5
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus6:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus6
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus7:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus7
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus8:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus8
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus9:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus9
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus0
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus1:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus1
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus10:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus10
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus11:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus11
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus12:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus12
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus13:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus13
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus14:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus14
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus2:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus2
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus3:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus3
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus4:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus4
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus5:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus5
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus6:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus6
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus7:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus7
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus8:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus8
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus9:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus9
+	case DeadlineCalendarTimeZoneEtcSlashGMT0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMT0
+	case DeadlineCalendarTimeZoneEtcSlashGreenwich:
+		*s = DeadlineCalendarTimeZoneEtcSlashGreenwich
+	case DeadlineCalendarTimeZoneEtcSlashUCT:
+		*s = DeadlineCalendarTimeZoneEtcSlashUCT
+	case DeadlineCalendarTimeZoneEtcSlashUTC:
+		*s = DeadlineCalendarTimeZoneEtcSlashUTC
+	case DeadlineCalendarTimeZoneEtcSlashUniversal:
+		*s = DeadlineCalendarTimeZoneEtcSlashUniversal
+	case DeadlineCalendarTimeZoneEtcSlashZulu:
+		*s = DeadlineCalendarTimeZoneEtcSlashZulu
+	case DeadlineCalendarTimeZoneEuropeSlashAmsterdam:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAmsterdam
+	case DeadlineCalendarTimeZoneEuropeSlashAndorra:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAndorra
+	case DeadlineCalendarTimeZoneEuropeSlashAstrakhan:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAstrakhan
+	case DeadlineCalendarTimeZoneEuropeSlashAthens:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAthens
+	case DeadlineCalendarTimeZoneEuropeSlashBelfast:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBelfast
+	case DeadlineCalendarTimeZoneEuropeSlashBelgrade:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBelgrade
+	case DeadlineCalendarTimeZoneEuropeSlashBerlin:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBerlin
+	case DeadlineCalendarTimeZoneEuropeSlashBratislava:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBratislava
+	case DeadlineCalendarTimeZoneEuropeSlashBrussels:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBrussels
+	case DeadlineCalendarTimeZoneEuropeSlashBucharest:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBucharest
+	case DeadlineCalendarTimeZoneEuropeSlashBudapest:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBudapest
+	case DeadlineCalendarTimeZoneEuropeSlashBusingen:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBusingen
+	case DeadlineCalendarTimeZoneEuropeSlashChisinau:
+		*s = DeadlineCalendarTimeZoneEuropeSlashChisinau
+	case DeadlineCalendarTimeZoneEuropeSlashCopenhagen:
+		*s = DeadlineCalendarTimeZoneEuropeSlashCopenhagen
+	case DeadlineCalendarTimeZoneEuropeSlashDublin:
+		*s = DeadlineCalendarTimeZoneEuropeSlashDublin
+	case DeadlineCalendarTimeZoneEuropeSlashGibraltar:
+		*s = DeadlineCalendarTimeZoneEuropeSlashGibraltar
+	case DeadlineCalendarTimeZoneEuropeSlashGuernsey:
+		*s = DeadlineCalendarTimeZoneEuropeSlashGuernsey
+	case DeadlineCalendarTimeZoneEuropeSlashHelsinki:
+		*s = DeadlineCalendarTimeZoneEuropeSlashHelsinki
+	case DeadlineCalendarTimeZoneEuropeSlashIsleOfMan:
+		*s = DeadlineCalendarTimeZoneEuropeSlashIsleOfMan
+	case DeadlineCalendarTimeZoneEuropeSlashIstanbul:
+		*s = DeadlineCalendarTimeZoneEuropeSlashIstanbul
+	case DeadlineCalendarTimeZoneEuropeSlashJersey:
+		*s = DeadlineCalendarTimeZoneEuropeSlashJersey
+	case DeadlineCalendarTimeZoneEuropeSlashKaliningrad:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKaliningrad
+	case DeadlineCalendarTimeZoneEuropeSlashKiev:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKiev
+	case DeadlineCalendarTimeZoneEuropeSlashKirov:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKirov
+	case DeadlineCalendarTimeZoneEuropeSlashKyiv:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKyiv
+	case DeadlineCalendarTimeZoneEuropeSlashLisbon:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLisbon
+	case DeadlineCalendarTimeZoneEuropeSlashLjubljana:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLjubljana
+	case DeadlineCalendarTimeZoneEuropeSlashLondon:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLondon
+	case DeadlineCalendarTimeZoneEuropeSlashLuxembourg:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLuxembourg
+	case DeadlineCalendarTimeZoneEuropeSlashMadrid:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMadrid
+	case DeadlineCalendarTimeZoneEuropeSlashMalta:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMalta
+	case DeadlineCalendarTimeZoneEuropeSlashMariehamn:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMariehamn
+	case DeadlineCalendarTimeZoneEuropeSlashMinsk:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMinsk
+	case DeadlineCalendarTimeZoneEuropeSlashMonaco:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMonaco
+	case DeadlineCalendarTimeZoneEuropeSlashMoscow:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMoscow
+	case DeadlineCalendarTimeZoneEuropeSlashNicosia:
+		*s = DeadlineCalendarTimeZoneEuropeSlashNicosia
+	case DeadlineCalendarTimeZoneEuropeSlashOslo:
+		*s = DeadlineCalendarTimeZoneEuropeSlashOslo
+	case DeadlineCalendarTimeZoneEuropeSlashParis:
+		*s = DeadlineCalendarTimeZoneEuropeSlashParis
+	case DeadlineCalendarTimeZoneEuropeSlashPodgorica:
+		*s = DeadlineCalendarTimeZoneEuropeSlashPodgorica
+	case DeadlineCalendarTimeZoneEuropeSlashPrague:
+		*s = DeadlineCalendarTimeZoneEuropeSlashPrague
+	case DeadlineCalendarTimeZoneEuropeSlashRiga:
+		*s = DeadlineCalendarTimeZoneEuropeSlashRiga
+	case DeadlineCalendarTimeZoneEuropeSlashRome:
+		*s = DeadlineCalendarTimeZoneEuropeSlashRome
+	case DeadlineCalendarTimeZoneEuropeSlashSamara:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSamara
+	case DeadlineCalendarTimeZoneEuropeSlashSanMarino:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSanMarino
+	case DeadlineCalendarTimeZoneEuropeSlashSarajevo:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSarajevo
+	case DeadlineCalendarTimeZoneEuropeSlashSaratov:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSaratov
+	case DeadlineCalendarTimeZoneEuropeSlashSimferopol:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSimferopol
+	case DeadlineCalendarTimeZoneEuropeSlashSkopje:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSkopje
+	case DeadlineCalendarTimeZoneEuropeSlashSofia:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSofia
+	case DeadlineCalendarTimeZoneEuropeSlashStockholm:
+		*s = DeadlineCalendarTimeZoneEuropeSlashStockholm
+	case DeadlineCalendarTimeZoneEuropeSlashTallinn:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTallinn
+	case DeadlineCalendarTimeZoneEuropeSlashTirane:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTirane
+	case DeadlineCalendarTimeZoneEuropeSlashTiraspol:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTiraspol
+	case DeadlineCalendarTimeZoneEuropeSlashUlyanovsk:
+		*s = DeadlineCalendarTimeZoneEuropeSlashUlyanovsk
+	case DeadlineCalendarTimeZoneEuropeSlashUzhgorod:
+		*s = DeadlineCalendarTimeZoneEuropeSlashUzhgorod
+	case DeadlineCalendarTimeZoneEuropeSlashVaduz:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVaduz
+	case DeadlineCalendarTimeZoneEuropeSlashVatican:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVatican
+	case DeadlineCalendarTimeZoneEuropeSlashVienna:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVienna
+	case DeadlineCalendarTimeZoneEuropeSlashVilnius:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVilnius
+	case DeadlineCalendarTimeZoneEuropeSlashVolgograd:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVolgograd
+	case DeadlineCalendarTimeZoneEuropeSlashWarsaw:
+		*s = DeadlineCalendarTimeZoneEuropeSlashWarsaw
+	case DeadlineCalendarTimeZoneEuropeSlashZagreb:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZagreb
+	case DeadlineCalendarTimeZoneEuropeSlashZaporozhye:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZaporozhye
+	case DeadlineCalendarTimeZoneEuropeSlashZurich:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZurich
+	case DeadlineCalendarTimeZoneFactory:
+		*s = DeadlineCalendarTimeZoneFactory
+	case DeadlineCalendarTimeZoneGB:
+		*s = DeadlineCalendarTimeZoneGB
+	case DeadlineCalendarTimeZoneGBMinusEire:
+		*s = DeadlineCalendarTimeZoneGBMinusEire
+	case DeadlineCalendarTimeZoneGMT:
+		*s = DeadlineCalendarTimeZoneGMT
+	case DeadlineCalendarTimeZoneGMTPlus0:
+		*s = DeadlineCalendarTimeZoneGMTPlus0
+	case DeadlineCalendarTimeZoneGMTMinus0:
+		*s = DeadlineCalendarTimeZoneGMTMinus0
+	case DeadlineCalendarTimeZoneGMT0:
+		*s = DeadlineCalendarTimeZoneGMT0
+	case DeadlineCalendarTimeZoneGreenwich:
+		*s = DeadlineCalendarTimeZoneGreenwich
+	case DeadlineCalendarTimeZoneHST:
+		*s = DeadlineCalendarTimeZoneHST
+	case DeadlineCalendarTimeZoneHongkong:
+		*s = DeadlineCalendarTimeZoneHongkong
+	case DeadlineCalendarTimeZoneIceland:
+		*s = DeadlineCalendarTimeZoneIceland
+	case DeadlineCalendarTimeZoneIndianSlashAntananarivo:
+		*s = DeadlineCalendarTimeZoneIndianSlashAntananarivo
+	case DeadlineCalendarTimeZoneIndianSlashChagos:
+		*s = DeadlineCalendarTimeZoneIndianSlashChagos
+	case DeadlineCalendarTimeZoneIndianSlashChristmas:
+		*s = DeadlineCalendarTimeZoneIndianSlashChristmas
+	case DeadlineCalendarTimeZoneIndianSlashCocos:
+		*s = DeadlineCalendarTimeZoneIndianSlashCocos
+	case DeadlineCalendarTimeZoneIndianSlashComoro:
+		*s = DeadlineCalendarTimeZoneIndianSlashComoro
+	case DeadlineCalendarTimeZoneIndianSlashKerguelen:
+		*s = DeadlineCalendarTimeZoneIndianSlashKerguelen
+	case DeadlineCalendarTimeZoneIndianSlashMahe:
+		*s = DeadlineCalendarTimeZoneIndianSlashMahe
+	case DeadlineCalendarTimeZoneIndianSlashMaldives:
+		*s = DeadlineCalendarTimeZoneIndianSlashMaldives
+	case DeadlineCalendarTimeZoneIndianSlashMauritius:
+		*s = DeadlineCalendarTimeZoneIndianSlashMauritius
+	case DeadlineCalendarTimeZoneIndianSlashMayotte:
+		*s = DeadlineCalendarTimeZoneIndianSlashMayotte
+	case DeadlineCalendarTimeZoneIndianSlashReunion:
+		*s = DeadlineCalendarTimeZoneIndianSlashReunion
+	case DeadlineCalendarTimeZoneIran:
+		*s = DeadlineCalendarTimeZoneIran
+	case DeadlineCalendarTimeZoneIsrael:
+		*s = DeadlineCalendarTimeZoneIsrael
+	case DeadlineCalendarTimeZoneJamaica:
+		*s = DeadlineCalendarTimeZoneJamaica
+	case DeadlineCalendarTimeZoneJapan:
+		*s = DeadlineCalendarTimeZoneJapan
+	case DeadlineCalendarTimeZoneKwajalein:
+		*s = DeadlineCalendarTimeZoneKwajalein
+	case DeadlineCalendarTimeZoneLibya:
+		*s = DeadlineCalendarTimeZoneLibya
+	case DeadlineCalendarTimeZoneMET:
+		*s = DeadlineCalendarTimeZoneMET
+	case DeadlineCalendarTimeZoneMST:
+		*s = DeadlineCalendarTimeZoneMST
+	case DeadlineCalendarTimeZoneMST7MDT:
+		*s = DeadlineCalendarTimeZoneMST7MDT
+	case DeadlineCalendarTimeZoneMexicoSlashBajaNorte:
+		*s = DeadlineCalendarTimeZoneMexicoSlashBajaNorte
+	case DeadlineCalendarTimeZoneMexicoSlashBajaSur:
+		*s = DeadlineCalendarTimeZoneMexicoSlashBajaSur
+	case DeadlineCalendarTimeZoneMexicoSlashGeneral:
+		*s = DeadlineCalendarTimeZoneMexicoSlashGeneral
+	case DeadlineCalendarTimeZoneNZ:
+		*s = DeadlineCalendarTimeZoneNZ
+	case DeadlineCalendarTimeZoneNZMinusCHAT:
+		*s = DeadlineCalendarTimeZoneNZMinusCHAT
+	case DeadlineCalendarTimeZoneNavajo:
+		*s = DeadlineCalendarTimeZoneNavajo
+	case DeadlineCalendarTimeZonePRC:
+		*s = DeadlineCalendarTimeZonePRC
+	case DeadlineCalendarTimeZonePST8PDT:
+		*s = DeadlineCalendarTimeZonePST8PDT
+	case DeadlineCalendarTimeZonePacificSlashApia:
+		*s = DeadlineCalendarTimeZonePacificSlashApia
+	case DeadlineCalendarTimeZonePacificSlashAuckland:
+		*s = DeadlineCalendarTimeZonePacificSlashAuckland
+	case DeadlineCalendarTimeZonePacificSlashBougainville:
+		*s = DeadlineCalendarTimeZonePacificSlashBougainville
+	case DeadlineCalendarTimeZonePacificSlashChatham:
+		*s = DeadlineCalendarTimeZonePacificSlashChatham
+	case DeadlineCalendarTimeZonePacificSlashChuuk:
+		*s = DeadlineCalendarTimeZonePacificSlashChuuk
+	case DeadlineCalendarTimeZonePacificSlashEaster:
+		*s = DeadlineCalendarTimeZonePacificSlashEaster
+	case DeadlineCalendarTimeZonePacificSlashEfate:
+		*s = DeadlineCalendarTimeZonePacificSlashEfate
+	case DeadlineCalendarTimeZonePacificSlashEnderbury:
+		*s = DeadlineCalendarTimeZonePacificSlashEnderbury
+	case DeadlineCalendarTimeZonePacificSlashFakaofo:
+		*s = DeadlineCalendarTimeZonePacificSlashFakaofo
+	case DeadlineCalendarTimeZonePacificSlashFiji:
+		*s = DeadlineCalendarTimeZonePacificSlashFiji
+	case DeadlineCalendarTimeZonePacificSlashFunafuti:
+		*s = DeadlineCalendarTimeZonePacificSlashFunafuti
+	case DeadlineCalendarTimeZonePacificSlashGalapagos:
+		*s = DeadlineCalendarTimeZonePacificSlashGalapagos
+	case DeadlineCalendarTimeZonePacificSlashGambier:
+		*s = DeadlineCalendarTimeZonePacificSlashGambier
+	case DeadlineCalendarTimeZonePacificSlashGuadalcanal:
+		*s = DeadlineCalendarTimeZonePacificSlashGuadalcanal
+	case DeadlineCalendarTimeZonePacificSlashGuam:
+		*s = DeadlineCalendarTimeZonePacificSlashGuam
+	case DeadlineCalendarTimeZonePacificSlashHonolulu:
+		*s = DeadlineCalendarTimeZonePacificSlashHonolulu
+	case DeadlineCalendarTimeZonePacificSlashJohnston:
+		*s = DeadlineCalendarTimeZonePacificSlashJohnston
+	case DeadlineCalendarTimeZonePacificSlashKanton:
+		*s = DeadlineCalendarTimeZonePacificSlashKanton
+	case DeadlineCalendarTimeZonePacificSlashKiritimati:
+		*s = DeadlineCalendarTimeZonePacificSlashKiritimati
+	case DeadlineCalendarTimeZonePacificSlashKosrae:
+		*s = DeadlineCalendarTimeZonePacificSlashKosrae
+	case DeadlineCalendarTimeZonePacificSlashKwajalein:
+		*s = DeadlineCalendarTimeZonePacificSlashKwajalein
+	case DeadlineCalendarTimeZonePacificSlashMajuro:
+		*s = DeadlineCalendarTimeZonePacificSlashMajuro
+	case DeadlineCalendarTimeZonePacificSlashMarquesas:
+		*s = DeadlineCalendarTimeZonePacificSlashMarquesas
+	case DeadlineCalendarTimeZonePacificSlashMidway:
+		*s = DeadlineCalendarTimeZonePacificSlashMidway
+	case DeadlineCalendarTimeZonePacificSlashNauru:
+		*s = DeadlineCalendarTimeZonePacificSlashNauru
+	case DeadlineCalendarTimeZonePacificSlashNiue:
+		*s = DeadlineCalendarTimeZonePacificSlashNiue
+	case DeadlineCalendarTimeZonePacificSlashNorfolk:
+		*s = DeadlineCalendarTimeZonePacificSlashNorfolk
+	case DeadlineCalendarTimeZonePacificSlashNoumea:
+		*s = DeadlineCalendarTimeZonePacificSlashNoumea
+	case DeadlineCalendarTimeZonePacificSlashPagoPago:
+		*s = DeadlineCalendarTimeZonePacificSlashPagoPago
+	case DeadlineCalendarTimeZonePacificSlashPalau:
+		*s = DeadlineCalendarTimeZonePacificSlashPalau
+	case DeadlineCalendarTimeZonePacificSlashPitcairn:
+		*s = DeadlineCalendarTimeZonePacificSlashPitcairn
+	case DeadlineCalendarTimeZonePacificSlashPohnpei:
+		*s = DeadlineCalendarTimeZonePacificSlashPohnpei
+	case DeadlineCalendarTimeZonePacificSlashPonape:
+		*s = DeadlineCalendarTimeZonePacificSlashPonape
+	case DeadlineCalendarTimeZonePacificSlashPortMoresby:
+		*s = DeadlineCalendarTimeZonePacificSlashPortMoresby
+	case DeadlineCalendarTimeZonePacificSlashRarotonga:
+		*s = DeadlineCalendarTimeZonePacificSlashRarotonga
+	case DeadlineCalendarTimeZonePacificSlashSaipan:
+		*s = DeadlineCalendarTimeZonePacificSlashSaipan
+	case DeadlineCalendarTimeZonePacificSlashSamoa:
+		*s = DeadlineCalendarTimeZonePacificSlashSamoa
+	case DeadlineCalendarTimeZonePacificSlashTahiti:
+		*s = DeadlineCalendarTimeZonePacificSlashTahiti
+	case DeadlineCalendarTimeZonePacificSlashTarawa:
+		*s = DeadlineCalendarTimeZonePacificSlashTarawa
+	case DeadlineCalendarTimeZonePacificSlashTongatapu:
+		*s = DeadlineCalendarTimeZonePacificSlashTongatapu
+	case DeadlineCalendarTimeZonePacificSlashTruk:
+		*s = DeadlineCalendarTimeZonePacificSlashTruk
+	case DeadlineCalendarTimeZonePacificSlashWake:
+		*s = DeadlineCalendarTimeZonePacificSlashWake
+	case DeadlineCalendarTimeZonePacificSlashWallis:
+		*s = DeadlineCalendarTimeZonePacificSlashWallis
+	case DeadlineCalendarTimeZonePacificSlashYap:
+		*s = DeadlineCalendarTimeZonePacificSlashYap
+	case DeadlineCalendarTimeZonePoland:
+		*s = DeadlineCalendarTimeZonePoland
+	case DeadlineCalendarTimeZonePortugal:
+		*s = DeadlineCalendarTimeZonePortugal
+	case DeadlineCalendarTimeZoneROC:
+		*s = DeadlineCalendarTimeZoneROC
+	case DeadlineCalendarTimeZoneROK:
+		*s = DeadlineCalendarTimeZoneROK
+	case DeadlineCalendarTimeZoneSingapore:
+		*s = DeadlineCalendarTimeZoneSingapore
+	case DeadlineCalendarTimeZoneTurkey:
+		*s = DeadlineCalendarTimeZoneTurkey
+	case DeadlineCalendarTimeZoneUCT:
+		*s = DeadlineCalendarTimeZoneUCT
+	case DeadlineCalendarTimeZoneUSSlashAlaska:
+		*s = DeadlineCalendarTimeZoneUSSlashAlaska
+	case DeadlineCalendarTimeZoneUSSlashAleutian:
+		*s = DeadlineCalendarTimeZoneUSSlashAleutian
+	case DeadlineCalendarTimeZoneUSSlashArizona:
+		*s = DeadlineCalendarTimeZoneUSSlashArizona
+	case DeadlineCalendarTimeZoneUSSlashCentral:
+		*s = DeadlineCalendarTimeZoneUSSlashCentral
+	case DeadlineCalendarTimeZoneUSSlashEastMinusIndiana:
+		*s = DeadlineCalendarTimeZoneUSSlashEastMinusIndiana
+	case DeadlineCalendarTimeZoneUSSlashEastern:
+		*s = DeadlineCalendarTimeZoneUSSlashEastern
+	case DeadlineCalendarTimeZoneUSSlashHawaii:
+		*s = DeadlineCalendarTimeZoneUSSlashHawaii
+	case DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke:
+		*s = DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke
+	case DeadlineCalendarTimeZoneUSSlashMichigan:
+		*s = DeadlineCalendarTimeZoneUSSlashMichigan
+	case DeadlineCalendarTimeZoneUSSlashMountain:
+		*s = DeadlineCalendarTimeZoneUSSlashMountain
+	case DeadlineCalendarTimeZoneUSSlashPacific:
+		*s = DeadlineCalendarTimeZoneUSSlashPacific
+	case DeadlineCalendarTimeZoneUSSlashSamoa:
+		*s = DeadlineCalendarTimeZoneUSSlashSamoa
+	case DeadlineCalendarTimeZoneUTC:
+		*s = DeadlineCalendarTimeZoneUTC
+	case DeadlineCalendarTimeZoneUniversal:
+		*s = DeadlineCalendarTimeZoneUniversal
+	case DeadlineCalendarTimeZoneWMinusSU:
+		*s = DeadlineCalendarTimeZoneWMinusSU
+	case DeadlineCalendarTimeZoneWET:
+		*s = DeadlineCalendarTimeZoneWET
+	case DeadlineCalendarTimeZoneZulu:
+		*s = DeadlineCalendarTimeZoneZulu
+	default:
+		*s = DeadlineCalendarTimeZone(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s DeadlineCalendarTimeZone) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DeadlineCalendarTimeZone) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

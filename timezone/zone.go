@@ -4,6 +4,7 @@ package timezone
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/progresshans/godj/internal/zonerules"
@@ -11,6 +12,7 @@ import (
 
 const (
 	DataVersion      = zonerules.Version
+	DataSHA256       = zonerules.SHA256
 	MaximumNameBytes = zonerules.MaximumNameBytes
 )
 
@@ -24,7 +26,8 @@ func Parse(name string) (Zone, error) {
 	if _, err := zonerules.Borrow(name); err != nil {
 		return Zone{}, err
 	}
-	return Zone{name: name}, nil
+	// A short parameter must not keep its entire request backing string alive.
+	return Zone{name: strings.Clone(name)}, nil
 }
 
 func UTC() Zone { return Zone{name: "UTC"} }

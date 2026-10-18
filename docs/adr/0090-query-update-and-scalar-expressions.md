@@ -323,6 +323,13 @@ SQLite는 같은 표를 binary search하고 PostgreSQL은 bound numeric/integer 
 PostgreSQL의 epoch 계산은 numeric이며 초 단위 정수 offset만 interval에 곱하므로 instant를 binary64로 변환하지 않는다.
 함수 parameter도 원래 statement의 parameter 예산과 순서에 포함한다.
 
+Helpdesk의 `time_zone`은 공통 `parameters.TimeZone()`와 `output.TimeZone()`의 불변 typed 값이다.
+입력·출력은 같은 pinned 전체 enum과 데이터 version/hash를 게시한다. 부재만 명시적 UTC 기본값을 사용하며
+빈/중복/알 수 없는 이름은 admission 이후, DB lookup 이전에 거부한다. `as_of`와 최초/최종 기한은 UTC instant를
+유지하고, group key·기간과 bound는 지역 Date를 사용한다. DB grouping과 snapshot/page를 유지하며 app에서
+재분류하지 않는다. 반환한 기간 소속은 지역 civil date로 검증한다. Local midnight 생성이나 24시간짜리 하루를
+가정하지 않고, 9999년 마지막 기간의 exclusive end는 검증 안에서만 사용하는 year 10000 civil sentinel이다.
+
 설계 채택과 구현·환경별 검증은 별개다. 현재 구현과 미완료 소비자/독립 관측은 작업 기록, 실제 실행은
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다. Localized naive 입력·표시 locale·일반 wall-time 산술·사용자 설정 저장은
 이 query 기능의 완료로 간주하지 않는다. Python 객체·SQL 문자열을 복제하지 않고 외부 결과와 실패 의미를 비교한다.

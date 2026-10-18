@@ -25,9 +25,12 @@ type HelpdeskDeadlineCalendarParams struct {
 	P OptInt64 `json:",omitempty,omitzero"`
 	// Explicit reference instant for counting overdue open tickets; normalized to UTC microseconds.
 	AsOf time.Time
-	// Calendar period: day, week, month, quarter or year; defaults to day. Weeks begin on Monday; all
-	// periods use UTC.
+	// Calendar period: day, week, month, quarter or year; defaults to day. Weeks begin on Monday; periods
+	// use time_zone.
 	Period OptHelpdeskDeadlineCalendarPeriod `json:",omitempty,omitzero"`
+	// Exact IANA name or alias from the declared pinned database; defaults to UTC. Sets the calendar dates
+	// used for grouping and period-start bounds. Reference and deadline instants remain UTC.
+	TimeZone OptHelpdeskDeadlineCalendarTimeZone `json:",omitempty,omitzero"`
 	// Optional inclusive first period start date, exactly YYYY-MM-DD. Excludes unset deadlines.
 	FromDate OptDate `json:",omitempty,omitzero"`
 	// Optional inclusive last period start date, exactly YYYY-MM-DD; must not precede from_date. Excludes

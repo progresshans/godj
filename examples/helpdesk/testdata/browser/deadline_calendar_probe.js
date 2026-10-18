@@ -39,7 +39,7 @@ async (page) => {
     check(values.get("as_of") === canonical && values.get("period") === "day" && values.get("from_date") === null && values.get("until_date") === null && await page.locator("tbody tr").count() === 3, "deadline calendar clear range retains the reference");
     const response = await page.request.get(route({as_of: input}, true));
     const result = await response.json();
-    check(response.status() === 200 && result.category.name === "Browser category" && result.as_of === canonical && result.period === "day" && result.page === 1 && result.page_size === 20 && result.total_groups === 3 && result.from_date === null && result.until_date === null && result.results.map(row => row.period_start).join(",") === "2024-02-28,2024-02-29,", "deadline calendar API envelope and date ordering match the page");
+    check(response.status() === 200 && result.category.name === "Browser category" && result.as_of === canonical && result.period === "day" && result.time_zone === "UTC" && result.page === 1 && result.page_size === 20 && result.total_groups === 3 && result.from_date === null && result.until_date === null && result.results.map(row => row.period_start).join(",") === "2024-02-28,2024-02-29,", "deadline calendar API envelope and date ordering match the page");
     check(JSON.stringify(result.results) === JSON.stringify([
         {period_start: "2024-02-28", total: 1, open: 1, overdue: 1, first_due_at: "2024-02-28T23:59:59.999999Z", last_due_at: "2024-02-28T23:59:59.999999Z"},
         {period_start: "2024-02-29", total: 1, open: 0, overdue: 0, first_due_at: "2024-02-29T00:00:00.000001Z", last_due_at: "2024-02-29T00:00:00.000001Z"},
@@ -84,6 +84,36 @@ async (page) => {
         ];
         check(new URL(page.url()).searchParams.get("period") === period && await page.getByLabel("Group by", {exact: true}).inputValue() === period && await page.locator("tbody tr").count() === 2 && await rowText(start) === start + " 2 1 1 2024-02-28T23:59:59.999999Z 2024-02-29T00:00:00.000001Z" && await rowText("unset") === "Not set 28 26 0 Not set Not set" && periodResponse.status() === 200 && periodResult.period === period && periodResult.total_groups === 2 && periodResult.as_of === canonical && JSON.stringify(periodResult.results) === JSON.stringify(expected), "deadline calendar " + period + " HTML and API exact periods and complete deadlines");
     }
+    check(await page.getByLabel("Calendar time zone", {exact: true}).inputValue() === "UTC", "deadline calendar defaults to explicit UTC");
+    await page.getByLabel("Group by", {exact: true}).selectOption("day");
+    await page.getByLabel("Calendar time zone", {exact: true}).fill("Asia/Seoul");
+    await page.getByRole("button", {name: "Show deadline calendar", exact: true}).click();
+    const localRow = "2024-02-29 2 1 1 2024-02-28T23:59:59.999999Z 2024-02-29T00:00:00.000001Z";
+    values = new URL(page.url()).searchParams;
+    check(values.get("time_zone") === "Asia/Seoul" && values.get("period") === "day" && values.get("p") === null && await rowText("2024-02-29") === localRow && await page.locator("tbody tr").count() === 2 && (await page.locator("caption").innerText()).startsWith("Asia/Seoul"), "deadline calendar local zone combines dates while preserving UTC instants");
+    await page.getByLabel("From period start", {exact: true}).fill("2024-02-29");
+    await page.getByLabel("Until period start", {exact: true}).fill("2024-02-29");
+    await page.getByRole("button", {name: "Filter periods", exact: true}).click();
+    values = new URL(page.url()).searchParams;
+    check(values.get("time_zone") === "Asia/Seoul" && values.get("p") === null && await rowText("2024-02-29") === localRow && await page.locator("tbody tr").count() === 1, "deadline calendar range form retains zone and local date membership");
+    await page.goto(route({as_of: canonical, time_zone: "Asia/Seoul", period: "day", from_date: "2024-02-29", until_date: "2024-02-29", p: "2"}));
+    await page.getByRole("link", {name: "Previous page", exact: true}).click();
+    values = new URL(page.url()).searchParams;
+    check(values.get("time_zone") === "Asia/Seoul" && values.get("p") === "1" && values.get("as_of") === canonical && values.get("period") === "day" && values.get("from_date") === "2024-02-29" && values.get("until_date") === "2024-02-29" && await rowText("2024-02-29") === localRow, "deadline calendar page links preserve the entire zoned query");
+    await page.getByLabel("Group by", {exact: true}).selectOption("month");
+    await page.getByRole("button", {name: "Show deadline calendar", exact: true}).click();
+    values = new URL(page.url()).searchParams;
+    check(values.get("time_zone") === "Asia/Seoul" && values.get("period") === "month" && values.get("from_date") === "2024-02-29" && (await page.getByRole("main").innerText()).includes("0 deadline groups. Page 1."), "deadline calendar period form preserves zone and start bounds");
+    await page.getByRole("link", {name: "Clear date range", exact: true}).click();
+    values = new URL(page.url()).searchParams;
+    check(values.get("time_zone") === "Asia/Seoul" && values.get("period") === "month" && values.get("as_of") === canonical && values.get("from_date") === null && values.get("until_date") === null && await rowText("2024-02-01") === monthRow, "deadline calendar clear range preserves zone period and reference");
+    await page.getByLabel("Group by", {exact: true}).selectOption("day");
+    await page.getByLabel("Calendar time zone", {exact: true}).fill("America/New_York");
+    await page.getByRole("button", {name: "Show deadline calendar", exact: true}).click();
+    check(await rowText("2024-02-28") === localRow.replace("2024-02-29 2", "2024-02-28 2") && await page.locator("tbody tr").count() === 2, "deadline calendar switching zones moves the business day");
+    const aliasResponse = await page.request.get(route({as_of: input, time_zone: "US/Eastern"}, true));
+    const aliasResult = await aliasResponse.json();
+    check(aliasResponse.status() === 200 && aliasResult.time_zone === "US/Eastern" && aliasResult.as_of === canonical && aliasResult.total_groups === 2 && aliasResult.results[0].period_start === "2024-02-28" && aliasResult.results[0].total === 2 && aliasResult.results[0].first_due_at === "2024-02-28T23:59:59.999999Z" && aliasResult.results[0].last_due_at === "2024-02-29T00:00:00.000001Z" && aliasResult.results[1].period_start === null, "deadline calendar API preserves aliases and exact local groups");
     for (const [path, name] of [
         [origin + "/api/tickets/deadline-calendar/", "deadline calendar rejects missing API reference"],
         [route({p: "1"}), "deadline calendar rejects missing HTML reference"],
@@ -96,6 +126,10 @@ async (page) => {
         [route({as_of: input, period: "hour"}, true), "deadline calendar rejects an unsupported API period"],
         [route({as_of: input, period: "Month"}), "deadline calendar rejects a noncanonical HTML period"],
         [route({as_of: input, period: "day"}, true) + "&period=month", "deadline calendar rejects duplicate periods"],
+        [route({as_of: input, time_zone: ""}, true), "deadline calendar rejects an empty zone"],
+        [route({as_of: input, time_zone: "Local"}), "deadline calendar rejects an ambient zone"],
+        [route({as_of: input, time_zone: "Asia/seoul"}, true), "deadline calendar rejects an unknown zone spelling"],
+        [route({as_of: input, time_zone: "UTC"}, true) + "&time_zone=UTC", "deadline calendar rejects duplicate zones"],
         [route({as_of: input, category: "2"}, true), "deadline calendar rejects a supplied category"],
     ]) {
         const rejected = await page.request.get(path);
@@ -104,7 +138,7 @@ async (page) => {
     check(response.headers()["cache-control"] === "no-store" && response.headers()["referrer-policy"] === "same-origin", "deadline calendar response is private and uncached");
     check(await page.locator('form[method="post"], input[name="csrfmiddlewaretoken"]').count() === 0, "deadline calendar contains no write form");
     await page.getByRole("link", {name: "Choose another reference time", exact: true}).click();
-    check(await page.getByLabel("Reference time", {exact: true}).inputValue() === "" && await page.getByLabel("Group by", {exact: true}).inputValue() === "day" && await page.locator("table").count() === 0, "deadline calendar reset does not choose the current time");
+    check(await page.getByLabel("Reference time", {exact: true}).inputValue() === "" && await page.getByLabel("Group by", {exact: true}).inputValue() === "day" && await page.getByLabel("Calendar time zone", {exact: true}).inputValue() === "UTC" && await page.locator("table").count() === 0, "deadline calendar reset does not choose the current time");
     await page.goto(route({as_of: input, period: "month"}));
     check(await rowText("2024-02-01") === monthRow && await page.locator('tr[data-deadline-period="unset"]').count() === 1, "deadline calendar exact values visible for visual review");
     return {passed: cases.length, cases};

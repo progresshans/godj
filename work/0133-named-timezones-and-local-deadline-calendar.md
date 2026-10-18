@@ -1,6 +1,6 @@
 # GDJ-0133: 명시적인 시간대와 업무 지역별 기한 달력
 
-- 상태: 고정 데이터·값·AST·typed/dynamic API와 양 backend 경로 작성; 생성 소비자·Helpdesk·독립 관측·실제 검증 미완료
+- 상태: 고정 데이터·AST·양 backend·생성 소비자·Helpdesk 입출력/client/browser 경로 작성; 독립 관측·실제 검증 미완료
 - 시작: 2026-10-19
 - 기준: `c0c61979cc7bcf5787f5de4cc8fecb120e4288ea` — 문서 변경 commit; 제품 source `c12b5c0f`의 전체 통합 검증 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [로드맵](../docs/ROADMAP.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md)
@@ -63,8 +63,9 @@ naive 시간 입력·일반 wall-time 산술은 이 조회와 별도로 남아 �
 
 구조가 다른 생성 앱의 typed/dynamic·관계/collection·group/page·후속 scope·갱신/rollback·cache/context/cursor 검증과
 컴파일 부정 대조를 작성했다. 최소 compile과 첫 원격 실행에서 확인한 생성 fixture 의존성 누락은
-[실행 기록](../docs/status/TEST_EVIDENCE.md)에 구분했다. 독립 Django/native 비교·Helpdesk와 원격 실제 실행은 계속 구현·검증
-대상이며, 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
+[실행 기록](../docs/status/TEST_EVIDENCE.md)에 구분했다. Helpdesk에는 공통 TimeZone codec/shape·전체 이름 enum·지역 Date grouping과 검증·선택값을 유지하는 HTML/API를
+연결했다. 재생성한 독립 client와 실제 브라우저 probe에 시간대·alias·범위·페이지·오류 경로를 작성했다.
+독립 Django/native 비교와 원격 실제 실행은 계속 구현·검증 대상이며, 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
 
 아직 timezone 쿼리·서비스의 검증 완료를 주장하지 않는다. 세부 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가
 소유하며, named annotation·나머지 function/subquery/window와 전체 카탈로그의 나머지 기반/기능도 계속 완성 대상이다.

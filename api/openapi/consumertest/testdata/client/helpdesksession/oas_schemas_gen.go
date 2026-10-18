@@ -261,6 +261,7 @@ type DeadlineCalendar struct {
 	PageSize    int64                         `json:"page_size"`
 	AsOf        time.Time                     `json:"as_of"`
 	Period      DeadlineCalendarPeriod        `json:"period"`
+	TimeZone    DeadlineCalendarTimeZone      `json:"time_zone"`
 	FromDate    NilDate                       `json:"from_date"`
 	UntilDate   NilDate                       `json:"until_date"`
 	TotalGroups int64                         `json:"total_groups"`
@@ -290,6 +291,11 @@ func (s *DeadlineCalendar) GetAsOf() time.Time {
 // GetPeriod returns the value of Period.
 func (s *DeadlineCalendar) GetPeriod() DeadlineCalendarPeriod {
 	return s.Period
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *DeadlineCalendar) GetTimeZone() DeadlineCalendarTimeZone {
+	return s.TimeZone
 }
 
 // GetFromDate returns the value of FromDate.
@@ -335,6 +341,11 @@ func (s *DeadlineCalendar) SetAsOf(val time.Time) {
 // SetPeriod sets the value of Period.
 func (s *DeadlineCalendar) SetPeriod(val DeadlineCalendarPeriod) {
 	s.Period = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *DeadlineCalendar) SetTimeZone(val DeadlineCalendarTimeZone) {
+	s.TimeZone = val
 }
 
 // SetFromDate sets the value of FromDate.
@@ -514,6 +525,4219 @@ func (s *DeadlineCalendarResultsItem) SetFirstDueAt(val NilDateTime) {
 // SetLastDueAt sets the value of LastDueAt.
 func (s *DeadlineCalendarResultsItem) SetLastDueAt(val NilDateTime) {
 	s.LastDueAt = val
+}
+
+type DeadlineCalendarTimeZone string
+
+const (
+	DeadlineCalendarTimeZoneAfricaSlashAbidjan                       DeadlineCalendarTimeZone = "Africa/Abidjan"
+	DeadlineCalendarTimeZoneAfricaSlashAccra                         DeadlineCalendarTimeZone = "Africa/Accra"
+	DeadlineCalendarTimeZoneAfricaSlashAddisAbaba                    DeadlineCalendarTimeZone = "Africa/Addis_Ababa"
+	DeadlineCalendarTimeZoneAfricaSlashAlgiers                       DeadlineCalendarTimeZone = "Africa/Algiers"
+	DeadlineCalendarTimeZoneAfricaSlashAsmara                        DeadlineCalendarTimeZone = "Africa/Asmara"
+	DeadlineCalendarTimeZoneAfricaSlashAsmera                        DeadlineCalendarTimeZone = "Africa/Asmera"
+	DeadlineCalendarTimeZoneAfricaSlashBamako                        DeadlineCalendarTimeZone = "Africa/Bamako"
+	DeadlineCalendarTimeZoneAfricaSlashBangui                        DeadlineCalendarTimeZone = "Africa/Bangui"
+	DeadlineCalendarTimeZoneAfricaSlashBanjul                        DeadlineCalendarTimeZone = "Africa/Banjul"
+	DeadlineCalendarTimeZoneAfricaSlashBissau                        DeadlineCalendarTimeZone = "Africa/Bissau"
+	DeadlineCalendarTimeZoneAfricaSlashBlantyre                      DeadlineCalendarTimeZone = "Africa/Blantyre"
+	DeadlineCalendarTimeZoneAfricaSlashBrazzaville                   DeadlineCalendarTimeZone = "Africa/Brazzaville"
+	DeadlineCalendarTimeZoneAfricaSlashBujumbura                     DeadlineCalendarTimeZone = "Africa/Bujumbura"
+	DeadlineCalendarTimeZoneAfricaSlashCairo                         DeadlineCalendarTimeZone = "Africa/Cairo"
+	DeadlineCalendarTimeZoneAfricaSlashCasablanca                    DeadlineCalendarTimeZone = "Africa/Casablanca"
+	DeadlineCalendarTimeZoneAfricaSlashCeuta                         DeadlineCalendarTimeZone = "Africa/Ceuta"
+	DeadlineCalendarTimeZoneAfricaSlashConakry                       DeadlineCalendarTimeZone = "Africa/Conakry"
+	DeadlineCalendarTimeZoneAfricaSlashDakar                         DeadlineCalendarTimeZone = "Africa/Dakar"
+	DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam                   DeadlineCalendarTimeZone = "Africa/Dar_es_Salaam"
+	DeadlineCalendarTimeZoneAfricaSlashDjibouti                      DeadlineCalendarTimeZone = "Africa/Djibouti"
+	DeadlineCalendarTimeZoneAfricaSlashDouala                        DeadlineCalendarTimeZone = "Africa/Douala"
+	DeadlineCalendarTimeZoneAfricaSlashElAaiun                       DeadlineCalendarTimeZone = "Africa/El_Aaiun"
+	DeadlineCalendarTimeZoneAfricaSlashFreetown                      DeadlineCalendarTimeZone = "Africa/Freetown"
+	DeadlineCalendarTimeZoneAfricaSlashGaborone                      DeadlineCalendarTimeZone = "Africa/Gaborone"
+	DeadlineCalendarTimeZoneAfricaSlashHarare                        DeadlineCalendarTimeZone = "Africa/Harare"
+	DeadlineCalendarTimeZoneAfricaSlashJohannesburg                  DeadlineCalendarTimeZone = "Africa/Johannesburg"
+	DeadlineCalendarTimeZoneAfricaSlashJuba                          DeadlineCalendarTimeZone = "Africa/Juba"
+	DeadlineCalendarTimeZoneAfricaSlashKampala                       DeadlineCalendarTimeZone = "Africa/Kampala"
+	DeadlineCalendarTimeZoneAfricaSlashKhartoum                      DeadlineCalendarTimeZone = "Africa/Khartoum"
+	DeadlineCalendarTimeZoneAfricaSlashKigali                        DeadlineCalendarTimeZone = "Africa/Kigali"
+	DeadlineCalendarTimeZoneAfricaSlashKinshasa                      DeadlineCalendarTimeZone = "Africa/Kinshasa"
+	DeadlineCalendarTimeZoneAfricaSlashLagos                         DeadlineCalendarTimeZone = "Africa/Lagos"
+	DeadlineCalendarTimeZoneAfricaSlashLibreville                    DeadlineCalendarTimeZone = "Africa/Libreville"
+	DeadlineCalendarTimeZoneAfricaSlashLome                          DeadlineCalendarTimeZone = "Africa/Lome"
+	DeadlineCalendarTimeZoneAfricaSlashLuanda                        DeadlineCalendarTimeZone = "Africa/Luanda"
+	DeadlineCalendarTimeZoneAfricaSlashLubumbashi                    DeadlineCalendarTimeZone = "Africa/Lubumbashi"
+	DeadlineCalendarTimeZoneAfricaSlashLusaka                        DeadlineCalendarTimeZone = "Africa/Lusaka"
+	DeadlineCalendarTimeZoneAfricaSlashMalabo                        DeadlineCalendarTimeZone = "Africa/Malabo"
+	DeadlineCalendarTimeZoneAfricaSlashMaputo                        DeadlineCalendarTimeZone = "Africa/Maputo"
+	DeadlineCalendarTimeZoneAfricaSlashMaseru                        DeadlineCalendarTimeZone = "Africa/Maseru"
+	DeadlineCalendarTimeZoneAfricaSlashMbabane                       DeadlineCalendarTimeZone = "Africa/Mbabane"
+	DeadlineCalendarTimeZoneAfricaSlashMogadishu                     DeadlineCalendarTimeZone = "Africa/Mogadishu"
+	DeadlineCalendarTimeZoneAfricaSlashMonrovia                      DeadlineCalendarTimeZone = "Africa/Monrovia"
+	DeadlineCalendarTimeZoneAfricaSlashNairobi                       DeadlineCalendarTimeZone = "Africa/Nairobi"
+	DeadlineCalendarTimeZoneAfricaSlashNdjamena                      DeadlineCalendarTimeZone = "Africa/Ndjamena"
+	DeadlineCalendarTimeZoneAfricaSlashNiamey                        DeadlineCalendarTimeZone = "Africa/Niamey"
+	DeadlineCalendarTimeZoneAfricaSlashNouakchott                    DeadlineCalendarTimeZone = "Africa/Nouakchott"
+	DeadlineCalendarTimeZoneAfricaSlashOuagadougou                   DeadlineCalendarTimeZone = "Africa/Ouagadougou"
+	DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo                DeadlineCalendarTimeZone = "Africa/Porto-Novo"
+	DeadlineCalendarTimeZoneAfricaSlashSaoTome                       DeadlineCalendarTimeZone = "Africa/Sao_Tome"
+	DeadlineCalendarTimeZoneAfricaSlashTimbuktu                      DeadlineCalendarTimeZone = "Africa/Timbuktu"
+	DeadlineCalendarTimeZoneAfricaSlashTripoli                       DeadlineCalendarTimeZone = "Africa/Tripoli"
+	DeadlineCalendarTimeZoneAfricaSlashTunis                         DeadlineCalendarTimeZone = "Africa/Tunis"
+	DeadlineCalendarTimeZoneAfricaSlashWindhoek                      DeadlineCalendarTimeZone = "Africa/Windhoek"
+	DeadlineCalendarTimeZoneAmericaSlashAdak                         DeadlineCalendarTimeZone = "America/Adak"
+	DeadlineCalendarTimeZoneAmericaSlashAnchorage                    DeadlineCalendarTimeZone = "America/Anchorage"
+	DeadlineCalendarTimeZoneAmericaSlashAnguilla                     DeadlineCalendarTimeZone = "America/Anguilla"
+	DeadlineCalendarTimeZoneAmericaSlashAntigua                      DeadlineCalendarTimeZone = "America/Antigua"
+	DeadlineCalendarTimeZoneAmericaSlashAraguaina                    DeadlineCalendarTimeZone = "America/Araguaina"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires    DeadlineCalendarTimeZone = "America/Argentina/Buenos_Aires"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca      DeadlineCalendarTimeZone = "America/Argentina/Catamarca"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia DeadlineCalendarTimeZone = "America/Argentina/ComodRivadavia"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba        DeadlineCalendarTimeZone = "America/Argentina/Cordoba"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy          DeadlineCalendarTimeZone = "America/Argentina/Jujuy"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja        DeadlineCalendarTimeZone = "America/Argentina/La_Rioja"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza        DeadlineCalendarTimeZone = "America/Argentina/Mendoza"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos    DeadlineCalendarTimeZone = "America/Argentina/Rio_Gallegos"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta          DeadlineCalendarTimeZone = "America/Argentina/Salta"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan        DeadlineCalendarTimeZone = "America/Argentina/San_Juan"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis        DeadlineCalendarTimeZone = "America/Argentina/San_Luis"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman        DeadlineCalendarTimeZone = "America/Argentina/Tucuman"
+	DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia        DeadlineCalendarTimeZone = "America/Argentina/Ushuaia"
+	DeadlineCalendarTimeZoneAmericaSlashAruba                        DeadlineCalendarTimeZone = "America/Aruba"
+	DeadlineCalendarTimeZoneAmericaSlashAsuncion                     DeadlineCalendarTimeZone = "America/Asuncion"
+	DeadlineCalendarTimeZoneAmericaSlashAtikokan                     DeadlineCalendarTimeZone = "America/Atikokan"
+	DeadlineCalendarTimeZoneAmericaSlashAtka                         DeadlineCalendarTimeZone = "America/Atka"
+	DeadlineCalendarTimeZoneAmericaSlashBahia                        DeadlineCalendarTimeZone = "America/Bahia"
+	DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas                DeadlineCalendarTimeZone = "America/Bahia_Banderas"
+	DeadlineCalendarTimeZoneAmericaSlashBarbados                     DeadlineCalendarTimeZone = "America/Barbados"
+	DeadlineCalendarTimeZoneAmericaSlashBelem                        DeadlineCalendarTimeZone = "America/Belem"
+	DeadlineCalendarTimeZoneAmericaSlashBelize                       DeadlineCalendarTimeZone = "America/Belize"
+	DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon             DeadlineCalendarTimeZone = "America/Blanc-Sablon"
+	DeadlineCalendarTimeZoneAmericaSlashBoaVista                     DeadlineCalendarTimeZone = "America/Boa_Vista"
+	DeadlineCalendarTimeZoneAmericaSlashBogota                       DeadlineCalendarTimeZone = "America/Bogota"
+	DeadlineCalendarTimeZoneAmericaSlashBoise                        DeadlineCalendarTimeZone = "America/Boise"
+	DeadlineCalendarTimeZoneAmericaSlashBuenosAires                  DeadlineCalendarTimeZone = "America/Buenos_Aires"
+	DeadlineCalendarTimeZoneAmericaSlashCambridgeBay                 DeadlineCalendarTimeZone = "America/Cambridge_Bay"
+	DeadlineCalendarTimeZoneAmericaSlashCampoGrande                  DeadlineCalendarTimeZone = "America/Campo_Grande"
+	DeadlineCalendarTimeZoneAmericaSlashCancun                       DeadlineCalendarTimeZone = "America/Cancun"
+	DeadlineCalendarTimeZoneAmericaSlashCaracas                      DeadlineCalendarTimeZone = "America/Caracas"
+	DeadlineCalendarTimeZoneAmericaSlashCatamarca                    DeadlineCalendarTimeZone = "America/Catamarca"
+	DeadlineCalendarTimeZoneAmericaSlashCayenne                      DeadlineCalendarTimeZone = "America/Cayenne"
+	DeadlineCalendarTimeZoneAmericaSlashCayman                       DeadlineCalendarTimeZone = "America/Cayman"
+	DeadlineCalendarTimeZoneAmericaSlashChicago                      DeadlineCalendarTimeZone = "America/Chicago"
+	DeadlineCalendarTimeZoneAmericaSlashChihuahua                    DeadlineCalendarTimeZone = "America/Chihuahua"
+	DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez                 DeadlineCalendarTimeZone = "America/Ciudad_Juarez"
+	DeadlineCalendarTimeZoneAmericaSlashCoralHarbour                 DeadlineCalendarTimeZone = "America/Coral_Harbour"
+	DeadlineCalendarTimeZoneAmericaSlashCordoba                      DeadlineCalendarTimeZone = "America/Cordoba"
+	DeadlineCalendarTimeZoneAmericaSlashCostaRica                    DeadlineCalendarTimeZone = "America/Costa_Rica"
+	DeadlineCalendarTimeZoneAmericaSlashCoyhaique                    DeadlineCalendarTimeZone = "America/Coyhaique"
+	DeadlineCalendarTimeZoneAmericaSlashCreston                      DeadlineCalendarTimeZone = "America/Creston"
+	DeadlineCalendarTimeZoneAmericaSlashCuiaba                       DeadlineCalendarTimeZone = "America/Cuiaba"
+	DeadlineCalendarTimeZoneAmericaSlashCuracao                      DeadlineCalendarTimeZone = "America/Curacao"
+	DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn                 DeadlineCalendarTimeZone = "America/Danmarkshavn"
+	DeadlineCalendarTimeZoneAmericaSlashDawson                       DeadlineCalendarTimeZone = "America/Dawson"
+	DeadlineCalendarTimeZoneAmericaSlashDawsonCreek                  DeadlineCalendarTimeZone = "America/Dawson_Creek"
+	DeadlineCalendarTimeZoneAmericaSlashDenver                       DeadlineCalendarTimeZone = "America/Denver"
+	DeadlineCalendarTimeZoneAmericaSlashDetroit                      DeadlineCalendarTimeZone = "America/Detroit"
+	DeadlineCalendarTimeZoneAmericaSlashDominica                     DeadlineCalendarTimeZone = "America/Dominica"
+	DeadlineCalendarTimeZoneAmericaSlashEdmonton                     DeadlineCalendarTimeZone = "America/Edmonton"
+	DeadlineCalendarTimeZoneAmericaSlashEirunepe                     DeadlineCalendarTimeZone = "America/Eirunepe"
+	DeadlineCalendarTimeZoneAmericaSlashElSalvador                   DeadlineCalendarTimeZone = "America/El_Salvador"
+	DeadlineCalendarTimeZoneAmericaSlashEnsenada                     DeadlineCalendarTimeZone = "America/Ensenada"
+	DeadlineCalendarTimeZoneAmericaSlashFortNelson                   DeadlineCalendarTimeZone = "America/Fort_Nelson"
+	DeadlineCalendarTimeZoneAmericaSlashFortWayne                    DeadlineCalendarTimeZone = "America/Fort_Wayne"
+	DeadlineCalendarTimeZoneAmericaSlashFortaleza                    DeadlineCalendarTimeZone = "America/Fortaleza"
+	DeadlineCalendarTimeZoneAmericaSlashGlaceBay                     DeadlineCalendarTimeZone = "America/Glace_Bay"
+	DeadlineCalendarTimeZoneAmericaSlashGodthab                      DeadlineCalendarTimeZone = "America/Godthab"
+	DeadlineCalendarTimeZoneAmericaSlashGooseBay                     DeadlineCalendarTimeZone = "America/Goose_Bay"
+	DeadlineCalendarTimeZoneAmericaSlashGrandTurk                    DeadlineCalendarTimeZone = "America/Grand_Turk"
+	DeadlineCalendarTimeZoneAmericaSlashGrenada                      DeadlineCalendarTimeZone = "America/Grenada"
+	DeadlineCalendarTimeZoneAmericaSlashGuadeloupe                   DeadlineCalendarTimeZone = "America/Guadeloupe"
+	DeadlineCalendarTimeZoneAmericaSlashGuatemala                    DeadlineCalendarTimeZone = "America/Guatemala"
+	DeadlineCalendarTimeZoneAmericaSlashGuayaquil                    DeadlineCalendarTimeZone = "America/Guayaquil"
+	DeadlineCalendarTimeZoneAmericaSlashGuyana                       DeadlineCalendarTimeZone = "America/Guyana"
+	DeadlineCalendarTimeZoneAmericaSlashHalifax                      DeadlineCalendarTimeZone = "America/Halifax"
+	DeadlineCalendarTimeZoneAmericaSlashHavana                       DeadlineCalendarTimeZone = "America/Havana"
+	DeadlineCalendarTimeZoneAmericaSlashHermosillo                   DeadlineCalendarTimeZone = "America/Hermosillo"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis     DeadlineCalendarTimeZone = "America/Indiana/Indianapolis"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox             DeadlineCalendarTimeZone = "America/Indiana/Knox"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo          DeadlineCalendarTimeZone = "America/Indiana/Marengo"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg       DeadlineCalendarTimeZone = "America/Indiana/Petersburg"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity         DeadlineCalendarTimeZone = "America/Indiana/Tell_City"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay            DeadlineCalendarTimeZone = "America/Indiana/Vevay"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes        DeadlineCalendarTimeZone = "America/Indiana/Vincennes"
+	DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac          DeadlineCalendarTimeZone = "America/Indiana/Winamac"
+	DeadlineCalendarTimeZoneAmericaSlashIndianapolis                 DeadlineCalendarTimeZone = "America/Indianapolis"
+	DeadlineCalendarTimeZoneAmericaSlashInuvik                       DeadlineCalendarTimeZone = "America/Inuvik"
+	DeadlineCalendarTimeZoneAmericaSlashIqaluit                      DeadlineCalendarTimeZone = "America/Iqaluit"
+	DeadlineCalendarTimeZoneAmericaSlashJamaica                      DeadlineCalendarTimeZone = "America/Jamaica"
+	DeadlineCalendarTimeZoneAmericaSlashJujuy                        DeadlineCalendarTimeZone = "America/Jujuy"
+	DeadlineCalendarTimeZoneAmericaSlashJuneau                       DeadlineCalendarTimeZone = "America/Juneau"
+	DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville      DeadlineCalendarTimeZone = "America/Kentucky/Louisville"
+	DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello      DeadlineCalendarTimeZone = "America/Kentucky/Monticello"
+	DeadlineCalendarTimeZoneAmericaSlashKnoxIN                       DeadlineCalendarTimeZone = "America/Knox_IN"
+	DeadlineCalendarTimeZoneAmericaSlashKralendijk                   DeadlineCalendarTimeZone = "America/Kralendijk"
+	DeadlineCalendarTimeZoneAmericaSlashLaPaz                        DeadlineCalendarTimeZone = "America/La_Paz"
+	DeadlineCalendarTimeZoneAmericaSlashLima                         DeadlineCalendarTimeZone = "America/Lima"
+	DeadlineCalendarTimeZoneAmericaSlashLosAngeles                   DeadlineCalendarTimeZone = "America/Los_Angeles"
+	DeadlineCalendarTimeZoneAmericaSlashLouisville                   DeadlineCalendarTimeZone = "America/Louisville"
+	DeadlineCalendarTimeZoneAmericaSlashLowerPrinces                 DeadlineCalendarTimeZone = "America/Lower_Princes"
+	DeadlineCalendarTimeZoneAmericaSlashMaceio                       DeadlineCalendarTimeZone = "America/Maceio"
+	DeadlineCalendarTimeZoneAmericaSlashManagua                      DeadlineCalendarTimeZone = "America/Managua"
+	DeadlineCalendarTimeZoneAmericaSlashManaus                       DeadlineCalendarTimeZone = "America/Manaus"
+	DeadlineCalendarTimeZoneAmericaSlashMarigot                      DeadlineCalendarTimeZone = "America/Marigot"
+	DeadlineCalendarTimeZoneAmericaSlashMartinique                   DeadlineCalendarTimeZone = "America/Martinique"
+	DeadlineCalendarTimeZoneAmericaSlashMatamoros                    DeadlineCalendarTimeZone = "America/Matamoros"
+	DeadlineCalendarTimeZoneAmericaSlashMazatlan                     DeadlineCalendarTimeZone = "America/Mazatlan"
+	DeadlineCalendarTimeZoneAmericaSlashMendoza                      DeadlineCalendarTimeZone = "America/Mendoza"
+	DeadlineCalendarTimeZoneAmericaSlashMenominee                    DeadlineCalendarTimeZone = "America/Menominee"
+	DeadlineCalendarTimeZoneAmericaSlashMerida                       DeadlineCalendarTimeZone = "America/Merida"
+	DeadlineCalendarTimeZoneAmericaSlashMetlakatla                   DeadlineCalendarTimeZone = "America/Metlakatla"
+	DeadlineCalendarTimeZoneAmericaSlashMexicoCity                   DeadlineCalendarTimeZone = "America/Mexico_City"
+	DeadlineCalendarTimeZoneAmericaSlashMiquelon                     DeadlineCalendarTimeZone = "America/Miquelon"
+	DeadlineCalendarTimeZoneAmericaSlashMoncton                      DeadlineCalendarTimeZone = "America/Moncton"
+	DeadlineCalendarTimeZoneAmericaSlashMonterrey                    DeadlineCalendarTimeZone = "America/Monterrey"
+	DeadlineCalendarTimeZoneAmericaSlashMontevideo                   DeadlineCalendarTimeZone = "America/Montevideo"
+	DeadlineCalendarTimeZoneAmericaSlashMontreal                     DeadlineCalendarTimeZone = "America/Montreal"
+	DeadlineCalendarTimeZoneAmericaSlashMontserrat                   DeadlineCalendarTimeZone = "America/Montserrat"
+	DeadlineCalendarTimeZoneAmericaSlashNassau                       DeadlineCalendarTimeZone = "America/Nassau"
+	DeadlineCalendarTimeZoneAmericaSlashNewYork                      DeadlineCalendarTimeZone = "America/New_York"
+	DeadlineCalendarTimeZoneAmericaSlashNipigon                      DeadlineCalendarTimeZone = "America/Nipigon"
+	DeadlineCalendarTimeZoneAmericaSlashNome                         DeadlineCalendarTimeZone = "America/Nome"
+	DeadlineCalendarTimeZoneAmericaSlashNoronha                      DeadlineCalendarTimeZone = "America/Noronha"
+	DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah       DeadlineCalendarTimeZone = "America/North_Dakota/Beulah"
+	DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter       DeadlineCalendarTimeZone = "America/North_Dakota/Center"
+	DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem     DeadlineCalendarTimeZone = "America/North_Dakota/New_Salem"
+	DeadlineCalendarTimeZoneAmericaSlashNuuk                         DeadlineCalendarTimeZone = "America/Nuuk"
+	DeadlineCalendarTimeZoneAmericaSlashOjinaga                      DeadlineCalendarTimeZone = "America/Ojinaga"
+	DeadlineCalendarTimeZoneAmericaSlashPanama                       DeadlineCalendarTimeZone = "America/Panama"
+	DeadlineCalendarTimeZoneAmericaSlashPangnirtung                  DeadlineCalendarTimeZone = "America/Pangnirtung"
+	DeadlineCalendarTimeZoneAmericaSlashParamaribo                   DeadlineCalendarTimeZone = "America/Paramaribo"
+	DeadlineCalendarTimeZoneAmericaSlashPhoenix                      DeadlineCalendarTimeZone = "America/Phoenix"
+	DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince       DeadlineCalendarTimeZone = "America/Port-au-Prince"
+	DeadlineCalendarTimeZoneAmericaSlashPortOfSpain                  DeadlineCalendarTimeZone = "America/Port_of_Spain"
+	DeadlineCalendarTimeZoneAmericaSlashPortoAcre                    DeadlineCalendarTimeZone = "America/Porto_Acre"
+	DeadlineCalendarTimeZoneAmericaSlashPortoVelho                   DeadlineCalendarTimeZone = "America/Porto_Velho"
+	DeadlineCalendarTimeZoneAmericaSlashPuertoRico                   DeadlineCalendarTimeZone = "America/Puerto_Rico"
+	DeadlineCalendarTimeZoneAmericaSlashPuntaArenas                  DeadlineCalendarTimeZone = "America/Punta_Arenas"
+	DeadlineCalendarTimeZoneAmericaSlashRainyRiver                   DeadlineCalendarTimeZone = "America/Rainy_River"
+	DeadlineCalendarTimeZoneAmericaSlashRankinInlet                  DeadlineCalendarTimeZone = "America/Rankin_Inlet"
+	DeadlineCalendarTimeZoneAmericaSlashRecife                       DeadlineCalendarTimeZone = "America/Recife"
+	DeadlineCalendarTimeZoneAmericaSlashRegina                       DeadlineCalendarTimeZone = "America/Regina"
+	DeadlineCalendarTimeZoneAmericaSlashResolute                     DeadlineCalendarTimeZone = "America/Resolute"
+	DeadlineCalendarTimeZoneAmericaSlashRioBranco                    DeadlineCalendarTimeZone = "America/Rio_Branco"
+	DeadlineCalendarTimeZoneAmericaSlashRosario                      DeadlineCalendarTimeZone = "America/Rosario"
+	DeadlineCalendarTimeZoneAmericaSlashSantaIsabel                  DeadlineCalendarTimeZone = "America/Santa_Isabel"
+	DeadlineCalendarTimeZoneAmericaSlashSantarem                     DeadlineCalendarTimeZone = "America/Santarem"
+	DeadlineCalendarTimeZoneAmericaSlashSantiago                     DeadlineCalendarTimeZone = "America/Santiago"
+	DeadlineCalendarTimeZoneAmericaSlashSantoDomingo                 DeadlineCalendarTimeZone = "America/Santo_Domingo"
+	DeadlineCalendarTimeZoneAmericaSlashSaoPaulo                     DeadlineCalendarTimeZone = "America/Sao_Paulo"
+	DeadlineCalendarTimeZoneAmericaSlashScoresbysund                 DeadlineCalendarTimeZone = "America/Scoresbysund"
+	DeadlineCalendarTimeZoneAmericaSlashShiprock                     DeadlineCalendarTimeZone = "America/Shiprock"
+	DeadlineCalendarTimeZoneAmericaSlashSitka                        DeadlineCalendarTimeZone = "America/Sitka"
+	DeadlineCalendarTimeZoneAmericaSlashStBarthelemy                 DeadlineCalendarTimeZone = "America/St_Barthelemy"
+	DeadlineCalendarTimeZoneAmericaSlashStJohns                      DeadlineCalendarTimeZone = "America/St_Johns"
+	DeadlineCalendarTimeZoneAmericaSlashStKitts                      DeadlineCalendarTimeZone = "America/St_Kitts"
+	DeadlineCalendarTimeZoneAmericaSlashStLucia                      DeadlineCalendarTimeZone = "America/St_Lucia"
+	DeadlineCalendarTimeZoneAmericaSlashStThomas                     DeadlineCalendarTimeZone = "America/St_Thomas"
+	DeadlineCalendarTimeZoneAmericaSlashStVincent                    DeadlineCalendarTimeZone = "America/St_Vincent"
+	DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent                 DeadlineCalendarTimeZone = "America/Swift_Current"
+	DeadlineCalendarTimeZoneAmericaSlashTegucigalpa                  DeadlineCalendarTimeZone = "America/Tegucigalpa"
+	DeadlineCalendarTimeZoneAmericaSlashThule                        DeadlineCalendarTimeZone = "America/Thule"
+	DeadlineCalendarTimeZoneAmericaSlashThunderBay                   DeadlineCalendarTimeZone = "America/Thunder_Bay"
+	DeadlineCalendarTimeZoneAmericaSlashTijuana                      DeadlineCalendarTimeZone = "America/Tijuana"
+	DeadlineCalendarTimeZoneAmericaSlashToronto                      DeadlineCalendarTimeZone = "America/Toronto"
+	DeadlineCalendarTimeZoneAmericaSlashTortola                      DeadlineCalendarTimeZone = "America/Tortola"
+	DeadlineCalendarTimeZoneAmericaSlashVancouver                    DeadlineCalendarTimeZone = "America/Vancouver"
+	DeadlineCalendarTimeZoneAmericaSlashVirgin                       DeadlineCalendarTimeZone = "America/Virgin"
+	DeadlineCalendarTimeZoneAmericaSlashWhitehorse                   DeadlineCalendarTimeZone = "America/Whitehorse"
+	DeadlineCalendarTimeZoneAmericaSlashWinnipeg                     DeadlineCalendarTimeZone = "America/Winnipeg"
+	DeadlineCalendarTimeZoneAmericaSlashYakutat                      DeadlineCalendarTimeZone = "America/Yakutat"
+	DeadlineCalendarTimeZoneAmericaSlashYellowknife                  DeadlineCalendarTimeZone = "America/Yellowknife"
+	DeadlineCalendarTimeZoneAntarcticaSlashCasey                     DeadlineCalendarTimeZone = "Antarctica/Casey"
+	DeadlineCalendarTimeZoneAntarcticaSlashDavis                     DeadlineCalendarTimeZone = "Antarctica/Davis"
+	DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville            DeadlineCalendarTimeZone = "Antarctica/DumontDUrville"
+	DeadlineCalendarTimeZoneAntarcticaSlashMacquarie                 DeadlineCalendarTimeZone = "Antarctica/Macquarie"
+	DeadlineCalendarTimeZoneAntarcticaSlashMawson                    DeadlineCalendarTimeZone = "Antarctica/Mawson"
+	DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo                   DeadlineCalendarTimeZone = "Antarctica/McMurdo"
+	DeadlineCalendarTimeZoneAntarcticaSlashPalmer                    DeadlineCalendarTimeZone = "Antarctica/Palmer"
+	DeadlineCalendarTimeZoneAntarcticaSlashRothera                   DeadlineCalendarTimeZone = "Antarctica/Rothera"
+	DeadlineCalendarTimeZoneAntarcticaSlashSouthPole                 DeadlineCalendarTimeZone = "Antarctica/South_Pole"
+	DeadlineCalendarTimeZoneAntarcticaSlashSyowa                     DeadlineCalendarTimeZone = "Antarctica/Syowa"
+	DeadlineCalendarTimeZoneAntarcticaSlashTroll                     DeadlineCalendarTimeZone = "Antarctica/Troll"
+	DeadlineCalendarTimeZoneAntarcticaSlashVostok                    DeadlineCalendarTimeZone = "Antarctica/Vostok"
+	DeadlineCalendarTimeZoneArcticSlashLongyearbyen                  DeadlineCalendarTimeZone = "Arctic/Longyearbyen"
+	DeadlineCalendarTimeZoneAsiaSlashAden                            DeadlineCalendarTimeZone = "Asia/Aden"
+	DeadlineCalendarTimeZoneAsiaSlashAlmaty                          DeadlineCalendarTimeZone = "Asia/Almaty"
+	DeadlineCalendarTimeZoneAsiaSlashAmman                           DeadlineCalendarTimeZone = "Asia/Amman"
+	DeadlineCalendarTimeZoneAsiaSlashAnadyr                          DeadlineCalendarTimeZone = "Asia/Anadyr"
+	DeadlineCalendarTimeZoneAsiaSlashAqtau                           DeadlineCalendarTimeZone = "Asia/Aqtau"
+	DeadlineCalendarTimeZoneAsiaSlashAqtobe                          DeadlineCalendarTimeZone = "Asia/Aqtobe"
+	DeadlineCalendarTimeZoneAsiaSlashAshgabat                        DeadlineCalendarTimeZone = "Asia/Ashgabat"
+	DeadlineCalendarTimeZoneAsiaSlashAshkhabad                       DeadlineCalendarTimeZone = "Asia/Ashkhabad"
+	DeadlineCalendarTimeZoneAsiaSlashAtyrau                          DeadlineCalendarTimeZone = "Asia/Atyrau"
+	DeadlineCalendarTimeZoneAsiaSlashBaghdad                         DeadlineCalendarTimeZone = "Asia/Baghdad"
+	DeadlineCalendarTimeZoneAsiaSlashBahrain                         DeadlineCalendarTimeZone = "Asia/Bahrain"
+	DeadlineCalendarTimeZoneAsiaSlashBaku                            DeadlineCalendarTimeZone = "Asia/Baku"
+	DeadlineCalendarTimeZoneAsiaSlashBangkok                         DeadlineCalendarTimeZone = "Asia/Bangkok"
+	DeadlineCalendarTimeZoneAsiaSlashBarnaul                         DeadlineCalendarTimeZone = "Asia/Barnaul"
+	DeadlineCalendarTimeZoneAsiaSlashBeirut                          DeadlineCalendarTimeZone = "Asia/Beirut"
+	DeadlineCalendarTimeZoneAsiaSlashBishkek                         DeadlineCalendarTimeZone = "Asia/Bishkek"
+	DeadlineCalendarTimeZoneAsiaSlashBrunei                          DeadlineCalendarTimeZone = "Asia/Brunei"
+	DeadlineCalendarTimeZoneAsiaSlashCalcutta                        DeadlineCalendarTimeZone = "Asia/Calcutta"
+	DeadlineCalendarTimeZoneAsiaSlashChita                           DeadlineCalendarTimeZone = "Asia/Chita"
+	DeadlineCalendarTimeZoneAsiaSlashChoibalsan                      DeadlineCalendarTimeZone = "Asia/Choibalsan"
+	DeadlineCalendarTimeZoneAsiaSlashChongqing                       DeadlineCalendarTimeZone = "Asia/Chongqing"
+	DeadlineCalendarTimeZoneAsiaSlashChungking                       DeadlineCalendarTimeZone = "Asia/Chungking"
+	DeadlineCalendarTimeZoneAsiaSlashColombo                         DeadlineCalendarTimeZone = "Asia/Colombo"
+	DeadlineCalendarTimeZoneAsiaSlashDacca                           DeadlineCalendarTimeZone = "Asia/Dacca"
+	DeadlineCalendarTimeZoneAsiaSlashDamascus                        DeadlineCalendarTimeZone = "Asia/Damascus"
+	DeadlineCalendarTimeZoneAsiaSlashDhaka                           DeadlineCalendarTimeZone = "Asia/Dhaka"
+	DeadlineCalendarTimeZoneAsiaSlashDili                            DeadlineCalendarTimeZone = "Asia/Dili"
+	DeadlineCalendarTimeZoneAsiaSlashDubai                           DeadlineCalendarTimeZone = "Asia/Dubai"
+	DeadlineCalendarTimeZoneAsiaSlashDushanbe                        DeadlineCalendarTimeZone = "Asia/Dushanbe"
+	DeadlineCalendarTimeZoneAsiaSlashFamagusta                       DeadlineCalendarTimeZone = "Asia/Famagusta"
+	DeadlineCalendarTimeZoneAsiaSlashGaza                            DeadlineCalendarTimeZone = "Asia/Gaza"
+	DeadlineCalendarTimeZoneAsiaSlashHarbin                          DeadlineCalendarTimeZone = "Asia/Harbin"
+	DeadlineCalendarTimeZoneAsiaSlashHebron                          DeadlineCalendarTimeZone = "Asia/Hebron"
+	DeadlineCalendarTimeZoneAsiaSlashHoChiMinh                       DeadlineCalendarTimeZone = "Asia/Ho_Chi_Minh"
+	DeadlineCalendarTimeZoneAsiaSlashHongKong                        DeadlineCalendarTimeZone = "Asia/Hong_Kong"
+	DeadlineCalendarTimeZoneAsiaSlashHovd                            DeadlineCalendarTimeZone = "Asia/Hovd"
+	DeadlineCalendarTimeZoneAsiaSlashIrkutsk                         DeadlineCalendarTimeZone = "Asia/Irkutsk"
+	DeadlineCalendarTimeZoneAsiaSlashIstanbul                        DeadlineCalendarTimeZone = "Asia/Istanbul"
+	DeadlineCalendarTimeZoneAsiaSlashJakarta                         DeadlineCalendarTimeZone = "Asia/Jakarta"
+	DeadlineCalendarTimeZoneAsiaSlashJayapura                        DeadlineCalendarTimeZone = "Asia/Jayapura"
+	DeadlineCalendarTimeZoneAsiaSlashJerusalem                       DeadlineCalendarTimeZone = "Asia/Jerusalem"
+	DeadlineCalendarTimeZoneAsiaSlashKabul                           DeadlineCalendarTimeZone = "Asia/Kabul"
+	DeadlineCalendarTimeZoneAsiaSlashKamchatka                       DeadlineCalendarTimeZone = "Asia/Kamchatka"
+	DeadlineCalendarTimeZoneAsiaSlashKarachi                         DeadlineCalendarTimeZone = "Asia/Karachi"
+	DeadlineCalendarTimeZoneAsiaSlashKashgar                         DeadlineCalendarTimeZone = "Asia/Kashgar"
+	DeadlineCalendarTimeZoneAsiaSlashKathmandu                       DeadlineCalendarTimeZone = "Asia/Kathmandu"
+	DeadlineCalendarTimeZoneAsiaSlashKatmandu                        DeadlineCalendarTimeZone = "Asia/Katmandu"
+	DeadlineCalendarTimeZoneAsiaSlashKhandyga                        DeadlineCalendarTimeZone = "Asia/Khandyga"
+	DeadlineCalendarTimeZoneAsiaSlashKolkata                         DeadlineCalendarTimeZone = "Asia/Kolkata"
+	DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk                     DeadlineCalendarTimeZone = "Asia/Krasnoyarsk"
+	DeadlineCalendarTimeZoneAsiaSlashKualaLumpur                     DeadlineCalendarTimeZone = "Asia/Kuala_Lumpur"
+	DeadlineCalendarTimeZoneAsiaSlashKuching                         DeadlineCalendarTimeZone = "Asia/Kuching"
+	DeadlineCalendarTimeZoneAsiaSlashKuwait                          DeadlineCalendarTimeZone = "Asia/Kuwait"
+	DeadlineCalendarTimeZoneAsiaSlashMacao                           DeadlineCalendarTimeZone = "Asia/Macao"
+	DeadlineCalendarTimeZoneAsiaSlashMacau                           DeadlineCalendarTimeZone = "Asia/Macau"
+	DeadlineCalendarTimeZoneAsiaSlashMagadan                         DeadlineCalendarTimeZone = "Asia/Magadan"
+	DeadlineCalendarTimeZoneAsiaSlashMakassar                        DeadlineCalendarTimeZone = "Asia/Makassar"
+	DeadlineCalendarTimeZoneAsiaSlashManila                          DeadlineCalendarTimeZone = "Asia/Manila"
+	DeadlineCalendarTimeZoneAsiaSlashMuscat                          DeadlineCalendarTimeZone = "Asia/Muscat"
+	DeadlineCalendarTimeZoneAsiaSlashNicosia                         DeadlineCalendarTimeZone = "Asia/Nicosia"
+	DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk                    DeadlineCalendarTimeZone = "Asia/Novokuznetsk"
+	DeadlineCalendarTimeZoneAsiaSlashNovosibirsk                     DeadlineCalendarTimeZone = "Asia/Novosibirsk"
+	DeadlineCalendarTimeZoneAsiaSlashOmsk                            DeadlineCalendarTimeZone = "Asia/Omsk"
+	DeadlineCalendarTimeZoneAsiaSlashOral                            DeadlineCalendarTimeZone = "Asia/Oral"
+	DeadlineCalendarTimeZoneAsiaSlashPhnomPenh                       DeadlineCalendarTimeZone = "Asia/Phnom_Penh"
+	DeadlineCalendarTimeZoneAsiaSlashPontianak                       DeadlineCalendarTimeZone = "Asia/Pontianak"
+	DeadlineCalendarTimeZoneAsiaSlashPyongyang                       DeadlineCalendarTimeZone = "Asia/Pyongyang"
+	DeadlineCalendarTimeZoneAsiaSlashQatar                           DeadlineCalendarTimeZone = "Asia/Qatar"
+	DeadlineCalendarTimeZoneAsiaSlashQostanay                        DeadlineCalendarTimeZone = "Asia/Qostanay"
+	DeadlineCalendarTimeZoneAsiaSlashQyzylorda                       DeadlineCalendarTimeZone = "Asia/Qyzylorda"
+	DeadlineCalendarTimeZoneAsiaSlashRangoon                         DeadlineCalendarTimeZone = "Asia/Rangoon"
+	DeadlineCalendarTimeZoneAsiaSlashRiyadh                          DeadlineCalendarTimeZone = "Asia/Riyadh"
+	DeadlineCalendarTimeZoneAsiaSlashSaigon                          DeadlineCalendarTimeZone = "Asia/Saigon"
+	DeadlineCalendarTimeZoneAsiaSlashSakhalin                        DeadlineCalendarTimeZone = "Asia/Sakhalin"
+	DeadlineCalendarTimeZoneAsiaSlashSamarkand                       DeadlineCalendarTimeZone = "Asia/Samarkand"
+	DeadlineCalendarTimeZoneAsiaSlashSeoul                           DeadlineCalendarTimeZone = "Asia/Seoul"
+	DeadlineCalendarTimeZoneAsiaSlashShanghai                        DeadlineCalendarTimeZone = "Asia/Shanghai"
+	DeadlineCalendarTimeZoneAsiaSlashSingapore                       DeadlineCalendarTimeZone = "Asia/Singapore"
+	DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk                   DeadlineCalendarTimeZone = "Asia/Srednekolymsk"
+	DeadlineCalendarTimeZoneAsiaSlashTaipei                          DeadlineCalendarTimeZone = "Asia/Taipei"
+	DeadlineCalendarTimeZoneAsiaSlashTashkent                        DeadlineCalendarTimeZone = "Asia/Tashkent"
+	DeadlineCalendarTimeZoneAsiaSlashTbilisi                         DeadlineCalendarTimeZone = "Asia/Tbilisi"
+	DeadlineCalendarTimeZoneAsiaSlashTehran                          DeadlineCalendarTimeZone = "Asia/Tehran"
+	DeadlineCalendarTimeZoneAsiaSlashTelAviv                         DeadlineCalendarTimeZone = "Asia/Tel_Aviv"
+	DeadlineCalendarTimeZoneAsiaSlashThimbu                          DeadlineCalendarTimeZone = "Asia/Thimbu"
+	DeadlineCalendarTimeZoneAsiaSlashThimphu                         DeadlineCalendarTimeZone = "Asia/Thimphu"
+	DeadlineCalendarTimeZoneAsiaSlashTokyo                           DeadlineCalendarTimeZone = "Asia/Tokyo"
+	DeadlineCalendarTimeZoneAsiaSlashTomsk                           DeadlineCalendarTimeZone = "Asia/Tomsk"
+	DeadlineCalendarTimeZoneAsiaSlashUjungPandang                    DeadlineCalendarTimeZone = "Asia/Ujung_Pandang"
+	DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar                     DeadlineCalendarTimeZone = "Asia/Ulaanbaatar"
+	DeadlineCalendarTimeZoneAsiaSlashUlanBator                       DeadlineCalendarTimeZone = "Asia/Ulan_Bator"
+	DeadlineCalendarTimeZoneAsiaSlashUrumqi                          DeadlineCalendarTimeZone = "Asia/Urumqi"
+	DeadlineCalendarTimeZoneAsiaSlashUstMinusNera                    DeadlineCalendarTimeZone = "Asia/Ust-Nera"
+	DeadlineCalendarTimeZoneAsiaSlashVientiane                       DeadlineCalendarTimeZone = "Asia/Vientiane"
+	DeadlineCalendarTimeZoneAsiaSlashVladivostok                     DeadlineCalendarTimeZone = "Asia/Vladivostok"
+	DeadlineCalendarTimeZoneAsiaSlashYakutsk                         DeadlineCalendarTimeZone = "Asia/Yakutsk"
+	DeadlineCalendarTimeZoneAsiaSlashYangon                          DeadlineCalendarTimeZone = "Asia/Yangon"
+	DeadlineCalendarTimeZoneAsiaSlashYekaterinburg                   DeadlineCalendarTimeZone = "Asia/Yekaterinburg"
+	DeadlineCalendarTimeZoneAsiaSlashYerevan                         DeadlineCalendarTimeZone = "Asia/Yerevan"
+	DeadlineCalendarTimeZoneAtlanticSlashAzores                      DeadlineCalendarTimeZone = "Atlantic/Azores"
+	DeadlineCalendarTimeZoneAtlanticSlashBermuda                     DeadlineCalendarTimeZone = "Atlantic/Bermuda"
+	DeadlineCalendarTimeZoneAtlanticSlashCanary                      DeadlineCalendarTimeZone = "Atlantic/Canary"
+	DeadlineCalendarTimeZoneAtlanticSlashCapeVerde                   DeadlineCalendarTimeZone = "Atlantic/Cape_Verde"
+	DeadlineCalendarTimeZoneAtlanticSlashFaeroe                      DeadlineCalendarTimeZone = "Atlantic/Faeroe"
+	DeadlineCalendarTimeZoneAtlanticSlashFaroe                       DeadlineCalendarTimeZone = "Atlantic/Faroe"
+	DeadlineCalendarTimeZoneAtlanticSlashJanMayen                    DeadlineCalendarTimeZone = "Atlantic/Jan_Mayen"
+	DeadlineCalendarTimeZoneAtlanticSlashMadeira                     DeadlineCalendarTimeZone = "Atlantic/Madeira"
+	DeadlineCalendarTimeZoneAtlanticSlashReykjavik                   DeadlineCalendarTimeZone = "Atlantic/Reykjavik"
+	DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia                DeadlineCalendarTimeZone = "Atlantic/South_Georgia"
+	DeadlineCalendarTimeZoneAtlanticSlashStHelena                    DeadlineCalendarTimeZone = "Atlantic/St_Helena"
+	DeadlineCalendarTimeZoneAtlanticSlashStanley                     DeadlineCalendarTimeZone = "Atlantic/Stanley"
+	DeadlineCalendarTimeZoneAustraliaSlashACT                        DeadlineCalendarTimeZone = "Australia/ACT"
+	DeadlineCalendarTimeZoneAustraliaSlashAdelaide                   DeadlineCalendarTimeZone = "Australia/Adelaide"
+	DeadlineCalendarTimeZoneAustraliaSlashBrisbane                   DeadlineCalendarTimeZone = "Australia/Brisbane"
+	DeadlineCalendarTimeZoneAustraliaSlashBrokenHill                 DeadlineCalendarTimeZone = "Australia/Broken_Hill"
+	DeadlineCalendarTimeZoneAustraliaSlashCanberra                   DeadlineCalendarTimeZone = "Australia/Canberra"
+	DeadlineCalendarTimeZoneAustraliaSlashCurrie                     DeadlineCalendarTimeZone = "Australia/Currie"
+	DeadlineCalendarTimeZoneAustraliaSlashDarwin                     DeadlineCalendarTimeZone = "Australia/Darwin"
+	DeadlineCalendarTimeZoneAustraliaSlashEucla                      DeadlineCalendarTimeZone = "Australia/Eucla"
+	DeadlineCalendarTimeZoneAustraliaSlashHobart                     DeadlineCalendarTimeZone = "Australia/Hobart"
+	DeadlineCalendarTimeZoneAustraliaSlashLHI                        DeadlineCalendarTimeZone = "Australia/LHI"
+	DeadlineCalendarTimeZoneAustraliaSlashLindeman                   DeadlineCalendarTimeZone = "Australia/Lindeman"
+	DeadlineCalendarTimeZoneAustraliaSlashLordHowe                   DeadlineCalendarTimeZone = "Australia/Lord_Howe"
+	DeadlineCalendarTimeZoneAustraliaSlashMelbourne                  DeadlineCalendarTimeZone = "Australia/Melbourne"
+	DeadlineCalendarTimeZoneAustraliaSlashNSW                        DeadlineCalendarTimeZone = "Australia/NSW"
+	DeadlineCalendarTimeZoneAustraliaSlashNorth                      DeadlineCalendarTimeZone = "Australia/North"
+	DeadlineCalendarTimeZoneAustraliaSlashPerth                      DeadlineCalendarTimeZone = "Australia/Perth"
+	DeadlineCalendarTimeZoneAustraliaSlashQueensland                 DeadlineCalendarTimeZone = "Australia/Queensland"
+	DeadlineCalendarTimeZoneAustraliaSlashSouth                      DeadlineCalendarTimeZone = "Australia/South"
+	DeadlineCalendarTimeZoneAustraliaSlashSydney                     DeadlineCalendarTimeZone = "Australia/Sydney"
+	DeadlineCalendarTimeZoneAustraliaSlashTasmania                   DeadlineCalendarTimeZone = "Australia/Tasmania"
+	DeadlineCalendarTimeZoneAustraliaSlashVictoria                   DeadlineCalendarTimeZone = "Australia/Victoria"
+	DeadlineCalendarTimeZoneAustraliaSlashWest                       DeadlineCalendarTimeZone = "Australia/West"
+	DeadlineCalendarTimeZoneAustraliaSlashYancowinna                 DeadlineCalendarTimeZone = "Australia/Yancowinna"
+	DeadlineCalendarTimeZoneBrazilSlashAcre                          DeadlineCalendarTimeZone = "Brazil/Acre"
+	DeadlineCalendarTimeZoneBrazilSlashDeNoronha                     DeadlineCalendarTimeZone = "Brazil/DeNoronha"
+	DeadlineCalendarTimeZoneBrazilSlashEast                          DeadlineCalendarTimeZone = "Brazil/East"
+	DeadlineCalendarTimeZoneBrazilSlashWest                          DeadlineCalendarTimeZone = "Brazil/West"
+	DeadlineCalendarTimeZoneCET                                      DeadlineCalendarTimeZone = "CET"
+	DeadlineCalendarTimeZoneCST6CDT                                  DeadlineCalendarTimeZone = "CST6CDT"
+	DeadlineCalendarTimeZoneCanadaSlashAtlantic                      DeadlineCalendarTimeZone = "Canada/Atlantic"
+	DeadlineCalendarTimeZoneCanadaSlashCentral                       DeadlineCalendarTimeZone = "Canada/Central"
+	DeadlineCalendarTimeZoneCanadaSlashEastern                       DeadlineCalendarTimeZone = "Canada/Eastern"
+	DeadlineCalendarTimeZoneCanadaSlashMountain                      DeadlineCalendarTimeZone = "Canada/Mountain"
+	DeadlineCalendarTimeZoneCanadaSlashNewfoundland                  DeadlineCalendarTimeZone = "Canada/Newfoundland"
+	DeadlineCalendarTimeZoneCanadaSlashPacific                       DeadlineCalendarTimeZone = "Canada/Pacific"
+	DeadlineCalendarTimeZoneCanadaSlashSaskatchewan                  DeadlineCalendarTimeZone = "Canada/Saskatchewan"
+	DeadlineCalendarTimeZoneCanadaSlashYukon                         DeadlineCalendarTimeZone = "Canada/Yukon"
+	DeadlineCalendarTimeZoneChileSlashContinental                    DeadlineCalendarTimeZone = "Chile/Continental"
+	DeadlineCalendarTimeZoneChileSlashEasterIsland                   DeadlineCalendarTimeZone = "Chile/EasterIsland"
+	DeadlineCalendarTimeZoneCuba                                     DeadlineCalendarTimeZone = "Cuba"
+	DeadlineCalendarTimeZoneEET                                      DeadlineCalendarTimeZone = "EET"
+	DeadlineCalendarTimeZoneEST                                      DeadlineCalendarTimeZone = "EST"
+	DeadlineCalendarTimeZoneEST5EDT                                  DeadlineCalendarTimeZone = "EST5EDT"
+	DeadlineCalendarTimeZoneEgypt                                    DeadlineCalendarTimeZone = "Egypt"
+	DeadlineCalendarTimeZoneEire                                     DeadlineCalendarTimeZone = "Eire"
+	DeadlineCalendarTimeZoneEtcSlashGMT                              DeadlineCalendarTimeZone = "Etc/GMT"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus0                         DeadlineCalendarTimeZone = "Etc/GMT+0"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus1                         DeadlineCalendarTimeZone = "Etc/GMT+1"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus10                        DeadlineCalendarTimeZone = "Etc/GMT+10"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus11                        DeadlineCalendarTimeZone = "Etc/GMT+11"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus12                        DeadlineCalendarTimeZone = "Etc/GMT+12"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus2                         DeadlineCalendarTimeZone = "Etc/GMT+2"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus3                         DeadlineCalendarTimeZone = "Etc/GMT+3"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus4                         DeadlineCalendarTimeZone = "Etc/GMT+4"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus5                         DeadlineCalendarTimeZone = "Etc/GMT+5"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus6                         DeadlineCalendarTimeZone = "Etc/GMT+6"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus7                         DeadlineCalendarTimeZone = "Etc/GMT+7"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus8                         DeadlineCalendarTimeZone = "Etc/GMT+8"
+	DeadlineCalendarTimeZoneEtcSlashGMTPlus9                         DeadlineCalendarTimeZone = "Etc/GMT+9"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus0                        DeadlineCalendarTimeZone = "Etc/GMT-0"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus1                        DeadlineCalendarTimeZone = "Etc/GMT-1"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus10                       DeadlineCalendarTimeZone = "Etc/GMT-10"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus11                       DeadlineCalendarTimeZone = "Etc/GMT-11"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus12                       DeadlineCalendarTimeZone = "Etc/GMT-12"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus13                       DeadlineCalendarTimeZone = "Etc/GMT-13"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus14                       DeadlineCalendarTimeZone = "Etc/GMT-14"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus2                        DeadlineCalendarTimeZone = "Etc/GMT-2"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus3                        DeadlineCalendarTimeZone = "Etc/GMT-3"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus4                        DeadlineCalendarTimeZone = "Etc/GMT-4"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus5                        DeadlineCalendarTimeZone = "Etc/GMT-5"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus6                        DeadlineCalendarTimeZone = "Etc/GMT-6"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus7                        DeadlineCalendarTimeZone = "Etc/GMT-7"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus8                        DeadlineCalendarTimeZone = "Etc/GMT-8"
+	DeadlineCalendarTimeZoneEtcSlashGMTMinus9                        DeadlineCalendarTimeZone = "Etc/GMT-9"
+	DeadlineCalendarTimeZoneEtcSlashGMT0                             DeadlineCalendarTimeZone = "Etc/GMT0"
+	DeadlineCalendarTimeZoneEtcSlashGreenwich                        DeadlineCalendarTimeZone = "Etc/Greenwich"
+	DeadlineCalendarTimeZoneEtcSlashUCT                              DeadlineCalendarTimeZone = "Etc/UCT"
+	DeadlineCalendarTimeZoneEtcSlashUTC                              DeadlineCalendarTimeZone = "Etc/UTC"
+	DeadlineCalendarTimeZoneEtcSlashUniversal                        DeadlineCalendarTimeZone = "Etc/Universal"
+	DeadlineCalendarTimeZoneEtcSlashZulu                             DeadlineCalendarTimeZone = "Etc/Zulu"
+	DeadlineCalendarTimeZoneEuropeSlashAmsterdam                     DeadlineCalendarTimeZone = "Europe/Amsterdam"
+	DeadlineCalendarTimeZoneEuropeSlashAndorra                       DeadlineCalendarTimeZone = "Europe/Andorra"
+	DeadlineCalendarTimeZoneEuropeSlashAstrakhan                     DeadlineCalendarTimeZone = "Europe/Astrakhan"
+	DeadlineCalendarTimeZoneEuropeSlashAthens                        DeadlineCalendarTimeZone = "Europe/Athens"
+	DeadlineCalendarTimeZoneEuropeSlashBelfast                       DeadlineCalendarTimeZone = "Europe/Belfast"
+	DeadlineCalendarTimeZoneEuropeSlashBelgrade                      DeadlineCalendarTimeZone = "Europe/Belgrade"
+	DeadlineCalendarTimeZoneEuropeSlashBerlin                        DeadlineCalendarTimeZone = "Europe/Berlin"
+	DeadlineCalendarTimeZoneEuropeSlashBratislava                    DeadlineCalendarTimeZone = "Europe/Bratislava"
+	DeadlineCalendarTimeZoneEuropeSlashBrussels                      DeadlineCalendarTimeZone = "Europe/Brussels"
+	DeadlineCalendarTimeZoneEuropeSlashBucharest                     DeadlineCalendarTimeZone = "Europe/Bucharest"
+	DeadlineCalendarTimeZoneEuropeSlashBudapest                      DeadlineCalendarTimeZone = "Europe/Budapest"
+	DeadlineCalendarTimeZoneEuropeSlashBusingen                      DeadlineCalendarTimeZone = "Europe/Busingen"
+	DeadlineCalendarTimeZoneEuropeSlashChisinau                      DeadlineCalendarTimeZone = "Europe/Chisinau"
+	DeadlineCalendarTimeZoneEuropeSlashCopenhagen                    DeadlineCalendarTimeZone = "Europe/Copenhagen"
+	DeadlineCalendarTimeZoneEuropeSlashDublin                        DeadlineCalendarTimeZone = "Europe/Dublin"
+	DeadlineCalendarTimeZoneEuropeSlashGibraltar                     DeadlineCalendarTimeZone = "Europe/Gibraltar"
+	DeadlineCalendarTimeZoneEuropeSlashGuernsey                      DeadlineCalendarTimeZone = "Europe/Guernsey"
+	DeadlineCalendarTimeZoneEuropeSlashHelsinki                      DeadlineCalendarTimeZone = "Europe/Helsinki"
+	DeadlineCalendarTimeZoneEuropeSlashIsleOfMan                     DeadlineCalendarTimeZone = "Europe/Isle_of_Man"
+	DeadlineCalendarTimeZoneEuropeSlashIstanbul                      DeadlineCalendarTimeZone = "Europe/Istanbul"
+	DeadlineCalendarTimeZoneEuropeSlashJersey                        DeadlineCalendarTimeZone = "Europe/Jersey"
+	DeadlineCalendarTimeZoneEuropeSlashKaliningrad                   DeadlineCalendarTimeZone = "Europe/Kaliningrad"
+	DeadlineCalendarTimeZoneEuropeSlashKiev                          DeadlineCalendarTimeZone = "Europe/Kiev"
+	DeadlineCalendarTimeZoneEuropeSlashKirov                         DeadlineCalendarTimeZone = "Europe/Kirov"
+	DeadlineCalendarTimeZoneEuropeSlashKyiv                          DeadlineCalendarTimeZone = "Europe/Kyiv"
+	DeadlineCalendarTimeZoneEuropeSlashLisbon                        DeadlineCalendarTimeZone = "Europe/Lisbon"
+	DeadlineCalendarTimeZoneEuropeSlashLjubljana                     DeadlineCalendarTimeZone = "Europe/Ljubljana"
+	DeadlineCalendarTimeZoneEuropeSlashLondon                        DeadlineCalendarTimeZone = "Europe/London"
+	DeadlineCalendarTimeZoneEuropeSlashLuxembourg                    DeadlineCalendarTimeZone = "Europe/Luxembourg"
+	DeadlineCalendarTimeZoneEuropeSlashMadrid                        DeadlineCalendarTimeZone = "Europe/Madrid"
+	DeadlineCalendarTimeZoneEuropeSlashMalta                         DeadlineCalendarTimeZone = "Europe/Malta"
+	DeadlineCalendarTimeZoneEuropeSlashMariehamn                     DeadlineCalendarTimeZone = "Europe/Mariehamn"
+	DeadlineCalendarTimeZoneEuropeSlashMinsk                         DeadlineCalendarTimeZone = "Europe/Minsk"
+	DeadlineCalendarTimeZoneEuropeSlashMonaco                        DeadlineCalendarTimeZone = "Europe/Monaco"
+	DeadlineCalendarTimeZoneEuropeSlashMoscow                        DeadlineCalendarTimeZone = "Europe/Moscow"
+	DeadlineCalendarTimeZoneEuropeSlashNicosia                       DeadlineCalendarTimeZone = "Europe/Nicosia"
+	DeadlineCalendarTimeZoneEuropeSlashOslo                          DeadlineCalendarTimeZone = "Europe/Oslo"
+	DeadlineCalendarTimeZoneEuropeSlashParis                         DeadlineCalendarTimeZone = "Europe/Paris"
+	DeadlineCalendarTimeZoneEuropeSlashPodgorica                     DeadlineCalendarTimeZone = "Europe/Podgorica"
+	DeadlineCalendarTimeZoneEuropeSlashPrague                        DeadlineCalendarTimeZone = "Europe/Prague"
+	DeadlineCalendarTimeZoneEuropeSlashRiga                          DeadlineCalendarTimeZone = "Europe/Riga"
+	DeadlineCalendarTimeZoneEuropeSlashRome                          DeadlineCalendarTimeZone = "Europe/Rome"
+	DeadlineCalendarTimeZoneEuropeSlashSamara                        DeadlineCalendarTimeZone = "Europe/Samara"
+	DeadlineCalendarTimeZoneEuropeSlashSanMarino                     DeadlineCalendarTimeZone = "Europe/San_Marino"
+	DeadlineCalendarTimeZoneEuropeSlashSarajevo                      DeadlineCalendarTimeZone = "Europe/Sarajevo"
+	DeadlineCalendarTimeZoneEuropeSlashSaratov                       DeadlineCalendarTimeZone = "Europe/Saratov"
+	DeadlineCalendarTimeZoneEuropeSlashSimferopol                    DeadlineCalendarTimeZone = "Europe/Simferopol"
+	DeadlineCalendarTimeZoneEuropeSlashSkopje                        DeadlineCalendarTimeZone = "Europe/Skopje"
+	DeadlineCalendarTimeZoneEuropeSlashSofia                         DeadlineCalendarTimeZone = "Europe/Sofia"
+	DeadlineCalendarTimeZoneEuropeSlashStockholm                     DeadlineCalendarTimeZone = "Europe/Stockholm"
+	DeadlineCalendarTimeZoneEuropeSlashTallinn                       DeadlineCalendarTimeZone = "Europe/Tallinn"
+	DeadlineCalendarTimeZoneEuropeSlashTirane                        DeadlineCalendarTimeZone = "Europe/Tirane"
+	DeadlineCalendarTimeZoneEuropeSlashTiraspol                      DeadlineCalendarTimeZone = "Europe/Tiraspol"
+	DeadlineCalendarTimeZoneEuropeSlashUlyanovsk                     DeadlineCalendarTimeZone = "Europe/Ulyanovsk"
+	DeadlineCalendarTimeZoneEuropeSlashUzhgorod                      DeadlineCalendarTimeZone = "Europe/Uzhgorod"
+	DeadlineCalendarTimeZoneEuropeSlashVaduz                         DeadlineCalendarTimeZone = "Europe/Vaduz"
+	DeadlineCalendarTimeZoneEuropeSlashVatican                       DeadlineCalendarTimeZone = "Europe/Vatican"
+	DeadlineCalendarTimeZoneEuropeSlashVienna                        DeadlineCalendarTimeZone = "Europe/Vienna"
+	DeadlineCalendarTimeZoneEuropeSlashVilnius                       DeadlineCalendarTimeZone = "Europe/Vilnius"
+	DeadlineCalendarTimeZoneEuropeSlashVolgograd                     DeadlineCalendarTimeZone = "Europe/Volgograd"
+	DeadlineCalendarTimeZoneEuropeSlashWarsaw                        DeadlineCalendarTimeZone = "Europe/Warsaw"
+	DeadlineCalendarTimeZoneEuropeSlashZagreb                        DeadlineCalendarTimeZone = "Europe/Zagreb"
+	DeadlineCalendarTimeZoneEuropeSlashZaporozhye                    DeadlineCalendarTimeZone = "Europe/Zaporozhye"
+	DeadlineCalendarTimeZoneEuropeSlashZurich                        DeadlineCalendarTimeZone = "Europe/Zurich"
+	DeadlineCalendarTimeZoneFactory                                  DeadlineCalendarTimeZone = "Factory"
+	DeadlineCalendarTimeZoneGB                                       DeadlineCalendarTimeZone = "GB"
+	DeadlineCalendarTimeZoneGBMinusEire                              DeadlineCalendarTimeZone = "GB-Eire"
+	DeadlineCalendarTimeZoneGMT                                      DeadlineCalendarTimeZone = "GMT"
+	DeadlineCalendarTimeZoneGMTPlus0                                 DeadlineCalendarTimeZone = "GMT+0"
+	DeadlineCalendarTimeZoneGMTMinus0                                DeadlineCalendarTimeZone = "GMT-0"
+	DeadlineCalendarTimeZoneGMT0                                     DeadlineCalendarTimeZone = "GMT0"
+	DeadlineCalendarTimeZoneGreenwich                                DeadlineCalendarTimeZone = "Greenwich"
+	DeadlineCalendarTimeZoneHST                                      DeadlineCalendarTimeZone = "HST"
+	DeadlineCalendarTimeZoneHongkong                                 DeadlineCalendarTimeZone = "Hongkong"
+	DeadlineCalendarTimeZoneIceland                                  DeadlineCalendarTimeZone = "Iceland"
+	DeadlineCalendarTimeZoneIndianSlashAntananarivo                  DeadlineCalendarTimeZone = "Indian/Antananarivo"
+	DeadlineCalendarTimeZoneIndianSlashChagos                        DeadlineCalendarTimeZone = "Indian/Chagos"
+	DeadlineCalendarTimeZoneIndianSlashChristmas                     DeadlineCalendarTimeZone = "Indian/Christmas"
+	DeadlineCalendarTimeZoneIndianSlashCocos                         DeadlineCalendarTimeZone = "Indian/Cocos"
+	DeadlineCalendarTimeZoneIndianSlashComoro                        DeadlineCalendarTimeZone = "Indian/Comoro"
+	DeadlineCalendarTimeZoneIndianSlashKerguelen                     DeadlineCalendarTimeZone = "Indian/Kerguelen"
+	DeadlineCalendarTimeZoneIndianSlashMahe                          DeadlineCalendarTimeZone = "Indian/Mahe"
+	DeadlineCalendarTimeZoneIndianSlashMaldives                      DeadlineCalendarTimeZone = "Indian/Maldives"
+	DeadlineCalendarTimeZoneIndianSlashMauritius                     DeadlineCalendarTimeZone = "Indian/Mauritius"
+	DeadlineCalendarTimeZoneIndianSlashMayotte                       DeadlineCalendarTimeZone = "Indian/Mayotte"
+	DeadlineCalendarTimeZoneIndianSlashReunion                       DeadlineCalendarTimeZone = "Indian/Reunion"
+	DeadlineCalendarTimeZoneIran                                     DeadlineCalendarTimeZone = "Iran"
+	DeadlineCalendarTimeZoneIsrael                                   DeadlineCalendarTimeZone = "Israel"
+	DeadlineCalendarTimeZoneJamaica                                  DeadlineCalendarTimeZone = "Jamaica"
+	DeadlineCalendarTimeZoneJapan                                    DeadlineCalendarTimeZone = "Japan"
+	DeadlineCalendarTimeZoneKwajalein                                DeadlineCalendarTimeZone = "Kwajalein"
+	DeadlineCalendarTimeZoneLibya                                    DeadlineCalendarTimeZone = "Libya"
+	DeadlineCalendarTimeZoneMET                                      DeadlineCalendarTimeZone = "MET"
+	DeadlineCalendarTimeZoneMST                                      DeadlineCalendarTimeZone = "MST"
+	DeadlineCalendarTimeZoneMST7MDT                                  DeadlineCalendarTimeZone = "MST7MDT"
+	DeadlineCalendarTimeZoneMexicoSlashBajaNorte                     DeadlineCalendarTimeZone = "Mexico/BajaNorte"
+	DeadlineCalendarTimeZoneMexicoSlashBajaSur                       DeadlineCalendarTimeZone = "Mexico/BajaSur"
+	DeadlineCalendarTimeZoneMexicoSlashGeneral                       DeadlineCalendarTimeZone = "Mexico/General"
+	DeadlineCalendarTimeZoneNZ                                       DeadlineCalendarTimeZone = "NZ"
+	DeadlineCalendarTimeZoneNZMinusCHAT                              DeadlineCalendarTimeZone = "NZ-CHAT"
+	DeadlineCalendarTimeZoneNavajo                                   DeadlineCalendarTimeZone = "Navajo"
+	DeadlineCalendarTimeZonePRC                                      DeadlineCalendarTimeZone = "PRC"
+	DeadlineCalendarTimeZonePST8PDT                                  DeadlineCalendarTimeZone = "PST8PDT"
+	DeadlineCalendarTimeZonePacificSlashApia                         DeadlineCalendarTimeZone = "Pacific/Apia"
+	DeadlineCalendarTimeZonePacificSlashAuckland                     DeadlineCalendarTimeZone = "Pacific/Auckland"
+	DeadlineCalendarTimeZonePacificSlashBougainville                 DeadlineCalendarTimeZone = "Pacific/Bougainville"
+	DeadlineCalendarTimeZonePacificSlashChatham                      DeadlineCalendarTimeZone = "Pacific/Chatham"
+	DeadlineCalendarTimeZonePacificSlashChuuk                        DeadlineCalendarTimeZone = "Pacific/Chuuk"
+	DeadlineCalendarTimeZonePacificSlashEaster                       DeadlineCalendarTimeZone = "Pacific/Easter"
+	DeadlineCalendarTimeZonePacificSlashEfate                        DeadlineCalendarTimeZone = "Pacific/Efate"
+	DeadlineCalendarTimeZonePacificSlashEnderbury                    DeadlineCalendarTimeZone = "Pacific/Enderbury"
+	DeadlineCalendarTimeZonePacificSlashFakaofo                      DeadlineCalendarTimeZone = "Pacific/Fakaofo"
+	DeadlineCalendarTimeZonePacificSlashFiji                         DeadlineCalendarTimeZone = "Pacific/Fiji"
+	DeadlineCalendarTimeZonePacificSlashFunafuti                     DeadlineCalendarTimeZone = "Pacific/Funafuti"
+	DeadlineCalendarTimeZonePacificSlashGalapagos                    DeadlineCalendarTimeZone = "Pacific/Galapagos"
+	DeadlineCalendarTimeZonePacificSlashGambier                      DeadlineCalendarTimeZone = "Pacific/Gambier"
+	DeadlineCalendarTimeZonePacificSlashGuadalcanal                  DeadlineCalendarTimeZone = "Pacific/Guadalcanal"
+	DeadlineCalendarTimeZonePacificSlashGuam                         DeadlineCalendarTimeZone = "Pacific/Guam"
+	DeadlineCalendarTimeZonePacificSlashHonolulu                     DeadlineCalendarTimeZone = "Pacific/Honolulu"
+	DeadlineCalendarTimeZonePacificSlashJohnston                     DeadlineCalendarTimeZone = "Pacific/Johnston"
+	DeadlineCalendarTimeZonePacificSlashKanton                       DeadlineCalendarTimeZone = "Pacific/Kanton"
+	DeadlineCalendarTimeZonePacificSlashKiritimati                   DeadlineCalendarTimeZone = "Pacific/Kiritimati"
+	DeadlineCalendarTimeZonePacificSlashKosrae                       DeadlineCalendarTimeZone = "Pacific/Kosrae"
+	DeadlineCalendarTimeZonePacificSlashKwajalein                    DeadlineCalendarTimeZone = "Pacific/Kwajalein"
+	DeadlineCalendarTimeZonePacificSlashMajuro                       DeadlineCalendarTimeZone = "Pacific/Majuro"
+	DeadlineCalendarTimeZonePacificSlashMarquesas                    DeadlineCalendarTimeZone = "Pacific/Marquesas"
+	DeadlineCalendarTimeZonePacificSlashMidway                       DeadlineCalendarTimeZone = "Pacific/Midway"
+	DeadlineCalendarTimeZonePacificSlashNauru                        DeadlineCalendarTimeZone = "Pacific/Nauru"
+	DeadlineCalendarTimeZonePacificSlashNiue                         DeadlineCalendarTimeZone = "Pacific/Niue"
+	DeadlineCalendarTimeZonePacificSlashNorfolk                      DeadlineCalendarTimeZone = "Pacific/Norfolk"
+	DeadlineCalendarTimeZonePacificSlashNoumea                       DeadlineCalendarTimeZone = "Pacific/Noumea"
+	DeadlineCalendarTimeZonePacificSlashPagoPago                     DeadlineCalendarTimeZone = "Pacific/Pago_Pago"
+	DeadlineCalendarTimeZonePacificSlashPalau                        DeadlineCalendarTimeZone = "Pacific/Palau"
+	DeadlineCalendarTimeZonePacificSlashPitcairn                     DeadlineCalendarTimeZone = "Pacific/Pitcairn"
+	DeadlineCalendarTimeZonePacificSlashPohnpei                      DeadlineCalendarTimeZone = "Pacific/Pohnpei"
+	DeadlineCalendarTimeZonePacificSlashPonape                       DeadlineCalendarTimeZone = "Pacific/Ponape"
+	DeadlineCalendarTimeZonePacificSlashPortMoresby                  DeadlineCalendarTimeZone = "Pacific/Port_Moresby"
+	DeadlineCalendarTimeZonePacificSlashRarotonga                    DeadlineCalendarTimeZone = "Pacific/Rarotonga"
+	DeadlineCalendarTimeZonePacificSlashSaipan                       DeadlineCalendarTimeZone = "Pacific/Saipan"
+	DeadlineCalendarTimeZonePacificSlashSamoa                        DeadlineCalendarTimeZone = "Pacific/Samoa"
+	DeadlineCalendarTimeZonePacificSlashTahiti                       DeadlineCalendarTimeZone = "Pacific/Tahiti"
+	DeadlineCalendarTimeZonePacificSlashTarawa                       DeadlineCalendarTimeZone = "Pacific/Tarawa"
+	DeadlineCalendarTimeZonePacificSlashTongatapu                    DeadlineCalendarTimeZone = "Pacific/Tongatapu"
+	DeadlineCalendarTimeZonePacificSlashTruk                         DeadlineCalendarTimeZone = "Pacific/Truk"
+	DeadlineCalendarTimeZonePacificSlashWake                         DeadlineCalendarTimeZone = "Pacific/Wake"
+	DeadlineCalendarTimeZonePacificSlashWallis                       DeadlineCalendarTimeZone = "Pacific/Wallis"
+	DeadlineCalendarTimeZonePacificSlashYap                          DeadlineCalendarTimeZone = "Pacific/Yap"
+	DeadlineCalendarTimeZonePoland                                   DeadlineCalendarTimeZone = "Poland"
+	DeadlineCalendarTimeZonePortugal                                 DeadlineCalendarTimeZone = "Portugal"
+	DeadlineCalendarTimeZoneROC                                      DeadlineCalendarTimeZone = "ROC"
+	DeadlineCalendarTimeZoneROK                                      DeadlineCalendarTimeZone = "ROK"
+	DeadlineCalendarTimeZoneSingapore                                DeadlineCalendarTimeZone = "Singapore"
+	DeadlineCalendarTimeZoneTurkey                                   DeadlineCalendarTimeZone = "Turkey"
+	DeadlineCalendarTimeZoneUCT                                      DeadlineCalendarTimeZone = "UCT"
+	DeadlineCalendarTimeZoneUSSlashAlaska                            DeadlineCalendarTimeZone = "US/Alaska"
+	DeadlineCalendarTimeZoneUSSlashAleutian                          DeadlineCalendarTimeZone = "US/Aleutian"
+	DeadlineCalendarTimeZoneUSSlashArizona                           DeadlineCalendarTimeZone = "US/Arizona"
+	DeadlineCalendarTimeZoneUSSlashCentral                           DeadlineCalendarTimeZone = "US/Central"
+	DeadlineCalendarTimeZoneUSSlashEastMinusIndiana                  DeadlineCalendarTimeZone = "US/East-Indiana"
+	DeadlineCalendarTimeZoneUSSlashEastern                           DeadlineCalendarTimeZone = "US/Eastern"
+	DeadlineCalendarTimeZoneUSSlashHawaii                            DeadlineCalendarTimeZone = "US/Hawaii"
+	DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke                DeadlineCalendarTimeZone = "US/Indiana-Starke"
+	DeadlineCalendarTimeZoneUSSlashMichigan                          DeadlineCalendarTimeZone = "US/Michigan"
+	DeadlineCalendarTimeZoneUSSlashMountain                          DeadlineCalendarTimeZone = "US/Mountain"
+	DeadlineCalendarTimeZoneUSSlashPacific                           DeadlineCalendarTimeZone = "US/Pacific"
+	DeadlineCalendarTimeZoneUSSlashSamoa                             DeadlineCalendarTimeZone = "US/Samoa"
+	DeadlineCalendarTimeZoneUTC                                      DeadlineCalendarTimeZone = "UTC"
+	DeadlineCalendarTimeZoneUniversal                                DeadlineCalendarTimeZone = "Universal"
+	DeadlineCalendarTimeZoneWMinusSU                                 DeadlineCalendarTimeZone = "W-SU"
+	DeadlineCalendarTimeZoneWET                                      DeadlineCalendarTimeZone = "WET"
+	DeadlineCalendarTimeZoneZulu                                     DeadlineCalendarTimeZone = "Zulu"
+)
+
+// AllValues returns all DeadlineCalendarTimeZone values.
+func (DeadlineCalendarTimeZone) AllValues() []DeadlineCalendarTimeZone {
+	return []DeadlineCalendarTimeZone{
+		DeadlineCalendarTimeZoneAfricaSlashAbidjan,
+		DeadlineCalendarTimeZoneAfricaSlashAccra,
+		DeadlineCalendarTimeZoneAfricaSlashAddisAbaba,
+		DeadlineCalendarTimeZoneAfricaSlashAlgiers,
+		DeadlineCalendarTimeZoneAfricaSlashAsmara,
+		DeadlineCalendarTimeZoneAfricaSlashAsmera,
+		DeadlineCalendarTimeZoneAfricaSlashBamako,
+		DeadlineCalendarTimeZoneAfricaSlashBangui,
+		DeadlineCalendarTimeZoneAfricaSlashBanjul,
+		DeadlineCalendarTimeZoneAfricaSlashBissau,
+		DeadlineCalendarTimeZoneAfricaSlashBlantyre,
+		DeadlineCalendarTimeZoneAfricaSlashBrazzaville,
+		DeadlineCalendarTimeZoneAfricaSlashBujumbura,
+		DeadlineCalendarTimeZoneAfricaSlashCairo,
+		DeadlineCalendarTimeZoneAfricaSlashCasablanca,
+		DeadlineCalendarTimeZoneAfricaSlashCeuta,
+		DeadlineCalendarTimeZoneAfricaSlashConakry,
+		DeadlineCalendarTimeZoneAfricaSlashDakar,
+		DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam,
+		DeadlineCalendarTimeZoneAfricaSlashDjibouti,
+		DeadlineCalendarTimeZoneAfricaSlashDouala,
+		DeadlineCalendarTimeZoneAfricaSlashElAaiun,
+		DeadlineCalendarTimeZoneAfricaSlashFreetown,
+		DeadlineCalendarTimeZoneAfricaSlashGaborone,
+		DeadlineCalendarTimeZoneAfricaSlashHarare,
+		DeadlineCalendarTimeZoneAfricaSlashJohannesburg,
+		DeadlineCalendarTimeZoneAfricaSlashJuba,
+		DeadlineCalendarTimeZoneAfricaSlashKampala,
+		DeadlineCalendarTimeZoneAfricaSlashKhartoum,
+		DeadlineCalendarTimeZoneAfricaSlashKigali,
+		DeadlineCalendarTimeZoneAfricaSlashKinshasa,
+		DeadlineCalendarTimeZoneAfricaSlashLagos,
+		DeadlineCalendarTimeZoneAfricaSlashLibreville,
+		DeadlineCalendarTimeZoneAfricaSlashLome,
+		DeadlineCalendarTimeZoneAfricaSlashLuanda,
+		DeadlineCalendarTimeZoneAfricaSlashLubumbashi,
+		DeadlineCalendarTimeZoneAfricaSlashLusaka,
+		DeadlineCalendarTimeZoneAfricaSlashMalabo,
+		DeadlineCalendarTimeZoneAfricaSlashMaputo,
+		DeadlineCalendarTimeZoneAfricaSlashMaseru,
+		DeadlineCalendarTimeZoneAfricaSlashMbabane,
+		DeadlineCalendarTimeZoneAfricaSlashMogadishu,
+		DeadlineCalendarTimeZoneAfricaSlashMonrovia,
+		DeadlineCalendarTimeZoneAfricaSlashNairobi,
+		DeadlineCalendarTimeZoneAfricaSlashNdjamena,
+		DeadlineCalendarTimeZoneAfricaSlashNiamey,
+		DeadlineCalendarTimeZoneAfricaSlashNouakchott,
+		DeadlineCalendarTimeZoneAfricaSlashOuagadougou,
+		DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo,
+		DeadlineCalendarTimeZoneAfricaSlashSaoTome,
+		DeadlineCalendarTimeZoneAfricaSlashTimbuktu,
+		DeadlineCalendarTimeZoneAfricaSlashTripoli,
+		DeadlineCalendarTimeZoneAfricaSlashTunis,
+		DeadlineCalendarTimeZoneAfricaSlashWindhoek,
+		DeadlineCalendarTimeZoneAmericaSlashAdak,
+		DeadlineCalendarTimeZoneAmericaSlashAnchorage,
+		DeadlineCalendarTimeZoneAmericaSlashAnguilla,
+		DeadlineCalendarTimeZoneAmericaSlashAntigua,
+		DeadlineCalendarTimeZoneAmericaSlashAraguaina,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman,
+		DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia,
+		DeadlineCalendarTimeZoneAmericaSlashAruba,
+		DeadlineCalendarTimeZoneAmericaSlashAsuncion,
+		DeadlineCalendarTimeZoneAmericaSlashAtikokan,
+		DeadlineCalendarTimeZoneAmericaSlashAtka,
+		DeadlineCalendarTimeZoneAmericaSlashBahia,
+		DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas,
+		DeadlineCalendarTimeZoneAmericaSlashBarbados,
+		DeadlineCalendarTimeZoneAmericaSlashBelem,
+		DeadlineCalendarTimeZoneAmericaSlashBelize,
+		DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon,
+		DeadlineCalendarTimeZoneAmericaSlashBoaVista,
+		DeadlineCalendarTimeZoneAmericaSlashBogota,
+		DeadlineCalendarTimeZoneAmericaSlashBoise,
+		DeadlineCalendarTimeZoneAmericaSlashBuenosAires,
+		DeadlineCalendarTimeZoneAmericaSlashCambridgeBay,
+		DeadlineCalendarTimeZoneAmericaSlashCampoGrande,
+		DeadlineCalendarTimeZoneAmericaSlashCancun,
+		DeadlineCalendarTimeZoneAmericaSlashCaracas,
+		DeadlineCalendarTimeZoneAmericaSlashCatamarca,
+		DeadlineCalendarTimeZoneAmericaSlashCayenne,
+		DeadlineCalendarTimeZoneAmericaSlashCayman,
+		DeadlineCalendarTimeZoneAmericaSlashChicago,
+		DeadlineCalendarTimeZoneAmericaSlashChihuahua,
+		DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez,
+		DeadlineCalendarTimeZoneAmericaSlashCoralHarbour,
+		DeadlineCalendarTimeZoneAmericaSlashCordoba,
+		DeadlineCalendarTimeZoneAmericaSlashCostaRica,
+		DeadlineCalendarTimeZoneAmericaSlashCoyhaique,
+		DeadlineCalendarTimeZoneAmericaSlashCreston,
+		DeadlineCalendarTimeZoneAmericaSlashCuiaba,
+		DeadlineCalendarTimeZoneAmericaSlashCuracao,
+		DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn,
+		DeadlineCalendarTimeZoneAmericaSlashDawson,
+		DeadlineCalendarTimeZoneAmericaSlashDawsonCreek,
+		DeadlineCalendarTimeZoneAmericaSlashDenver,
+		DeadlineCalendarTimeZoneAmericaSlashDetroit,
+		DeadlineCalendarTimeZoneAmericaSlashDominica,
+		DeadlineCalendarTimeZoneAmericaSlashEdmonton,
+		DeadlineCalendarTimeZoneAmericaSlashEirunepe,
+		DeadlineCalendarTimeZoneAmericaSlashElSalvador,
+		DeadlineCalendarTimeZoneAmericaSlashEnsenada,
+		DeadlineCalendarTimeZoneAmericaSlashFortNelson,
+		DeadlineCalendarTimeZoneAmericaSlashFortWayne,
+		DeadlineCalendarTimeZoneAmericaSlashFortaleza,
+		DeadlineCalendarTimeZoneAmericaSlashGlaceBay,
+		DeadlineCalendarTimeZoneAmericaSlashGodthab,
+		DeadlineCalendarTimeZoneAmericaSlashGooseBay,
+		DeadlineCalendarTimeZoneAmericaSlashGrandTurk,
+		DeadlineCalendarTimeZoneAmericaSlashGrenada,
+		DeadlineCalendarTimeZoneAmericaSlashGuadeloupe,
+		DeadlineCalendarTimeZoneAmericaSlashGuatemala,
+		DeadlineCalendarTimeZoneAmericaSlashGuayaquil,
+		DeadlineCalendarTimeZoneAmericaSlashGuyana,
+		DeadlineCalendarTimeZoneAmericaSlashHalifax,
+		DeadlineCalendarTimeZoneAmericaSlashHavana,
+		DeadlineCalendarTimeZoneAmericaSlashHermosillo,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes,
+		DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac,
+		DeadlineCalendarTimeZoneAmericaSlashIndianapolis,
+		DeadlineCalendarTimeZoneAmericaSlashInuvik,
+		DeadlineCalendarTimeZoneAmericaSlashIqaluit,
+		DeadlineCalendarTimeZoneAmericaSlashJamaica,
+		DeadlineCalendarTimeZoneAmericaSlashJujuy,
+		DeadlineCalendarTimeZoneAmericaSlashJuneau,
+		DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville,
+		DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello,
+		DeadlineCalendarTimeZoneAmericaSlashKnoxIN,
+		DeadlineCalendarTimeZoneAmericaSlashKralendijk,
+		DeadlineCalendarTimeZoneAmericaSlashLaPaz,
+		DeadlineCalendarTimeZoneAmericaSlashLima,
+		DeadlineCalendarTimeZoneAmericaSlashLosAngeles,
+		DeadlineCalendarTimeZoneAmericaSlashLouisville,
+		DeadlineCalendarTimeZoneAmericaSlashLowerPrinces,
+		DeadlineCalendarTimeZoneAmericaSlashMaceio,
+		DeadlineCalendarTimeZoneAmericaSlashManagua,
+		DeadlineCalendarTimeZoneAmericaSlashManaus,
+		DeadlineCalendarTimeZoneAmericaSlashMarigot,
+		DeadlineCalendarTimeZoneAmericaSlashMartinique,
+		DeadlineCalendarTimeZoneAmericaSlashMatamoros,
+		DeadlineCalendarTimeZoneAmericaSlashMazatlan,
+		DeadlineCalendarTimeZoneAmericaSlashMendoza,
+		DeadlineCalendarTimeZoneAmericaSlashMenominee,
+		DeadlineCalendarTimeZoneAmericaSlashMerida,
+		DeadlineCalendarTimeZoneAmericaSlashMetlakatla,
+		DeadlineCalendarTimeZoneAmericaSlashMexicoCity,
+		DeadlineCalendarTimeZoneAmericaSlashMiquelon,
+		DeadlineCalendarTimeZoneAmericaSlashMoncton,
+		DeadlineCalendarTimeZoneAmericaSlashMonterrey,
+		DeadlineCalendarTimeZoneAmericaSlashMontevideo,
+		DeadlineCalendarTimeZoneAmericaSlashMontreal,
+		DeadlineCalendarTimeZoneAmericaSlashMontserrat,
+		DeadlineCalendarTimeZoneAmericaSlashNassau,
+		DeadlineCalendarTimeZoneAmericaSlashNewYork,
+		DeadlineCalendarTimeZoneAmericaSlashNipigon,
+		DeadlineCalendarTimeZoneAmericaSlashNome,
+		DeadlineCalendarTimeZoneAmericaSlashNoronha,
+		DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah,
+		DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter,
+		DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem,
+		DeadlineCalendarTimeZoneAmericaSlashNuuk,
+		DeadlineCalendarTimeZoneAmericaSlashOjinaga,
+		DeadlineCalendarTimeZoneAmericaSlashPanama,
+		DeadlineCalendarTimeZoneAmericaSlashPangnirtung,
+		DeadlineCalendarTimeZoneAmericaSlashParamaribo,
+		DeadlineCalendarTimeZoneAmericaSlashPhoenix,
+		DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince,
+		DeadlineCalendarTimeZoneAmericaSlashPortOfSpain,
+		DeadlineCalendarTimeZoneAmericaSlashPortoAcre,
+		DeadlineCalendarTimeZoneAmericaSlashPortoVelho,
+		DeadlineCalendarTimeZoneAmericaSlashPuertoRico,
+		DeadlineCalendarTimeZoneAmericaSlashPuntaArenas,
+		DeadlineCalendarTimeZoneAmericaSlashRainyRiver,
+		DeadlineCalendarTimeZoneAmericaSlashRankinInlet,
+		DeadlineCalendarTimeZoneAmericaSlashRecife,
+		DeadlineCalendarTimeZoneAmericaSlashRegina,
+		DeadlineCalendarTimeZoneAmericaSlashResolute,
+		DeadlineCalendarTimeZoneAmericaSlashRioBranco,
+		DeadlineCalendarTimeZoneAmericaSlashRosario,
+		DeadlineCalendarTimeZoneAmericaSlashSantaIsabel,
+		DeadlineCalendarTimeZoneAmericaSlashSantarem,
+		DeadlineCalendarTimeZoneAmericaSlashSantiago,
+		DeadlineCalendarTimeZoneAmericaSlashSantoDomingo,
+		DeadlineCalendarTimeZoneAmericaSlashSaoPaulo,
+		DeadlineCalendarTimeZoneAmericaSlashScoresbysund,
+		DeadlineCalendarTimeZoneAmericaSlashShiprock,
+		DeadlineCalendarTimeZoneAmericaSlashSitka,
+		DeadlineCalendarTimeZoneAmericaSlashStBarthelemy,
+		DeadlineCalendarTimeZoneAmericaSlashStJohns,
+		DeadlineCalendarTimeZoneAmericaSlashStKitts,
+		DeadlineCalendarTimeZoneAmericaSlashStLucia,
+		DeadlineCalendarTimeZoneAmericaSlashStThomas,
+		DeadlineCalendarTimeZoneAmericaSlashStVincent,
+		DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent,
+		DeadlineCalendarTimeZoneAmericaSlashTegucigalpa,
+		DeadlineCalendarTimeZoneAmericaSlashThule,
+		DeadlineCalendarTimeZoneAmericaSlashThunderBay,
+		DeadlineCalendarTimeZoneAmericaSlashTijuana,
+		DeadlineCalendarTimeZoneAmericaSlashToronto,
+		DeadlineCalendarTimeZoneAmericaSlashTortola,
+		DeadlineCalendarTimeZoneAmericaSlashVancouver,
+		DeadlineCalendarTimeZoneAmericaSlashVirgin,
+		DeadlineCalendarTimeZoneAmericaSlashWhitehorse,
+		DeadlineCalendarTimeZoneAmericaSlashWinnipeg,
+		DeadlineCalendarTimeZoneAmericaSlashYakutat,
+		DeadlineCalendarTimeZoneAmericaSlashYellowknife,
+		DeadlineCalendarTimeZoneAntarcticaSlashCasey,
+		DeadlineCalendarTimeZoneAntarcticaSlashDavis,
+		DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville,
+		DeadlineCalendarTimeZoneAntarcticaSlashMacquarie,
+		DeadlineCalendarTimeZoneAntarcticaSlashMawson,
+		DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo,
+		DeadlineCalendarTimeZoneAntarcticaSlashPalmer,
+		DeadlineCalendarTimeZoneAntarcticaSlashRothera,
+		DeadlineCalendarTimeZoneAntarcticaSlashSouthPole,
+		DeadlineCalendarTimeZoneAntarcticaSlashSyowa,
+		DeadlineCalendarTimeZoneAntarcticaSlashTroll,
+		DeadlineCalendarTimeZoneAntarcticaSlashVostok,
+		DeadlineCalendarTimeZoneArcticSlashLongyearbyen,
+		DeadlineCalendarTimeZoneAsiaSlashAden,
+		DeadlineCalendarTimeZoneAsiaSlashAlmaty,
+		DeadlineCalendarTimeZoneAsiaSlashAmman,
+		DeadlineCalendarTimeZoneAsiaSlashAnadyr,
+		DeadlineCalendarTimeZoneAsiaSlashAqtau,
+		DeadlineCalendarTimeZoneAsiaSlashAqtobe,
+		DeadlineCalendarTimeZoneAsiaSlashAshgabat,
+		DeadlineCalendarTimeZoneAsiaSlashAshkhabad,
+		DeadlineCalendarTimeZoneAsiaSlashAtyrau,
+		DeadlineCalendarTimeZoneAsiaSlashBaghdad,
+		DeadlineCalendarTimeZoneAsiaSlashBahrain,
+		DeadlineCalendarTimeZoneAsiaSlashBaku,
+		DeadlineCalendarTimeZoneAsiaSlashBangkok,
+		DeadlineCalendarTimeZoneAsiaSlashBarnaul,
+		DeadlineCalendarTimeZoneAsiaSlashBeirut,
+		DeadlineCalendarTimeZoneAsiaSlashBishkek,
+		DeadlineCalendarTimeZoneAsiaSlashBrunei,
+		DeadlineCalendarTimeZoneAsiaSlashCalcutta,
+		DeadlineCalendarTimeZoneAsiaSlashChita,
+		DeadlineCalendarTimeZoneAsiaSlashChoibalsan,
+		DeadlineCalendarTimeZoneAsiaSlashChongqing,
+		DeadlineCalendarTimeZoneAsiaSlashChungking,
+		DeadlineCalendarTimeZoneAsiaSlashColombo,
+		DeadlineCalendarTimeZoneAsiaSlashDacca,
+		DeadlineCalendarTimeZoneAsiaSlashDamascus,
+		DeadlineCalendarTimeZoneAsiaSlashDhaka,
+		DeadlineCalendarTimeZoneAsiaSlashDili,
+		DeadlineCalendarTimeZoneAsiaSlashDubai,
+		DeadlineCalendarTimeZoneAsiaSlashDushanbe,
+		DeadlineCalendarTimeZoneAsiaSlashFamagusta,
+		DeadlineCalendarTimeZoneAsiaSlashGaza,
+		DeadlineCalendarTimeZoneAsiaSlashHarbin,
+		DeadlineCalendarTimeZoneAsiaSlashHebron,
+		DeadlineCalendarTimeZoneAsiaSlashHoChiMinh,
+		DeadlineCalendarTimeZoneAsiaSlashHongKong,
+		DeadlineCalendarTimeZoneAsiaSlashHovd,
+		DeadlineCalendarTimeZoneAsiaSlashIrkutsk,
+		DeadlineCalendarTimeZoneAsiaSlashIstanbul,
+		DeadlineCalendarTimeZoneAsiaSlashJakarta,
+		DeadlineCalendarTimeZoneAsiaSlashJayapura,
+		DeadlineCalendarTimeZoneAsiaSlashJerusalem,
+		DeadlineCalendarTimeZoneAsiaSlashKabul,
+		DeadlineCalendarTimeZoneAsiaSlashKamchatka,
+		DeadlineCalendarTimeZoneAsiaSlashKarachi,
+		DeadlineCalendarTimeZoneAsiaSlashKashgar,
+		DeadlineCalendarTimeZoneAsiaSlashKathmandu,
+		DeadlineCalendarTimeZoneAsiaSlashKatmandu,
+		DeadlineCalendarTimeZoneAsiaSlashKhandyga,
+		DeadlineCalendarTimeZoneAsiaSlashKolkata,
+		DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk,
+		DeadlineCalendarTimeZoneAsiaSlashKualaLumpur,
+		DeadlineCalendarTimeZoneAsiaSlashKuching,
+		DeadlineCalendarTimeZoneAsiaSlashKuwait,
+		DeadlineCalendarTimeZoneAsiaSlashMacao,
+		DeadlineCalendarTimeZoneAsiaSlashMacau,
+		DeadlineCalendarTimeZoneAsiaSlashMagadan,
+		DeadlineCalendarTimeZoneAsiaSlashMakassar,
+		DeadlineCalendarTimeZoneAsiaSlashManila,
+		DeadlineCalendarTimeZoneAsiaSlashMuscat,
+		DeadlineCalendarTimeZoneAsiaSlashNicosia,
+		DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk,
+		DeadlineCalendarTimeZoneAsiaSlashNovosibirsk,
+		DeadlineCalendarTimeZoneAsiaSlashOmsk,
+		DeadlineCalendarTimeZoneAsiaSlashOral,
+		DeadlineCalendarTimeZoneAsiaSlashPhnomPenh,
+		DeadlineCalendarTimeZoneAsiaSlashPontianak,
+		DeadlineCalendarTimeZoneAsiaSlashPyongyang,
+		DeadlineCalendarTimeZoneAsiaSlashQatar,
+		DeadlineCalendarTimeZoneAsiaSlashQostanay,
+		DeadlineCalendarTimeZoneAsiaSlashQyzylorda,
+		DeadlineCalendarTimeZoneAsiaSlashRangoon,
+		DeadlineCalendarTimeZoneAsiaSlashRiyadh,
+		DeadlineCalendarTimeZoneAsiaSlashSaigon,
+		DeadlineCalendarTimeZoneAsiaSlashSakhalin,
+		DeadlineCalendarTimeZoneAsiaSlashSamarkand,
+		DeadlineCalendarTimeZoneAsiaSlashSeoul,
+		DeadlineCalendarTimeZoneAsiaSlashShanghai,
+		DeadlineCalendarTimeZoneAsiaSlashSingapore,
+		DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk,
+		DeadlineCalendarTimeZoneAsiaSlashTaipei,
+		DeadlineCalendarTimeZoneAsiaSlashTashkent,
+		DeadlineCalendarTimeZoneAsiaSlashTbilisi,
+		DeadlineCalendarTimeZoneAsiaSlashTehran,
+		DeadlineCalendarTimeZoneAsiaSlashTelAviv,
+		DeadlineCalendarTimeZoneAsiaSlashThimbu,
+		DeadlineCalendarTimeZoneAsiaSlashThimphu,
+		DeadlineCalendarTimeZoneAsiaSlashTokyo,
+		DeadlineCalendarTimeZoneAsiaSlashTomsk,
+		DeadlineCalendarTimeZoneAsiaSlashUjungPandang,
+		DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar,
+		DeadlineCalendarTimeZoneAsiaSlashUlanBator,
+		DeadlineCalendarTimeZoneAsiaSlashUrumqi,
+		DeadlineCalendarTimeZoneAsiaSlashUstMinusNera,
+		DeadlineCalendarTimeZoneAsiaSlashVientiane,
+		DeadlineCalendarTimeZoneAsiaSlashVladivostok,
+		DeadlineCalendarTimeZoneAsiaSlashYakutsk,
+		DeadlineCalendarTimeZoneAsiaSlashYangon,
+		DeadlineCalendarTimeZoneAsiaSlashYekaterinburg,
+		DeadlineCalendarTimeZoneAsiaSlashYerevan,
+		DeadlineCalendarTimeZoneAtlanticSlashAzores,
+		DeadlineCalendarTimeZoneAtlanticSlashBermuda,
+		DeadlineCalendarTimeZoneAtlanticSlashCanary,
+		DeadlineCalendarTimeZoneAtlanticSlashCapeVerde,
+		DeadlineCalendarTimeZoneAtlanticSlashFaeroe,
+		DeadlineCalendarTimeZoneAtlanticSlashFaroe,
+		DeadlineCalendarTimeZoneAtlanticSlashJanMayen,
+		DeadlineCalendarTimeZoneAtlanticSlashMadeira,
+		DeadlineCalendarTimeZoneAtlanticSlashReykjavik,
+		DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia,
+		DeadlineCalendarTimeZoneAtlanticSlashStHelena,
+		DeadlineCalendarTimeZoneAtlanticSlashStanley,
+		DeadlineCalendarTimeZoneAustraliaSlashACT,
+		DeadlineCalendarTimeZoneAustraliaSlashAdelaide,
+		DeadlineCalendarTimeZoneAustraliaSlashBrisbane,
+		DeadlineCalendarTimeZoneAustraliaSlashBrokenHill,
+		DeadlineCalendarTimeZoneAustraliaSlashCanberra,
+		DeadlineCalendarTimeZoneAustraliaSlashCurrie,
+		DeadlineCalendarTimeZoneAustraliaSlashDarwin,
+		DeadlineCalendarTimeZoneAustraliaSlashEucla,
+		DeadlineCalendarTimeZoneAustraliaSlashHobart,
+		DeadlineCalendarTimeZoneAustraliaSlashLHI,
+		DeadlineCalendarTimeZoneAustraliaSlashLindeman,
+		DeadlineCalendarTimeZoneAustraliaSlashLordHowe,
+		DeadlineCalendarTimeZoneAustraliaSlashMelbourne,
+		DeadlineCalendarTimeZoneAustraliaSlashNSW,
+		DeadlineCalendarTimeZoneAustraliaSlashNorth,
+		DeadlineCalendarTimeZoneAustraliaSlashPerth,
+		DeadlineCalendarTimeZoneAustraliaSlashQueensland,
+		DeadlineCalendarTimeZoneAustraliaSlashSouth,
+		DeadlineCalendarTimeZoneAustraliaSlashSydney,
+		DeadlineCalendarTimeZoneAustraliaSlashTasmania,
+		DeadlineCalendarTimeZoneAustraliaSlashVictoria,
+		DeadlineCalendarTimeZoneAustraliaSlashWest,
+		DeadlineCalendarTimeZoneAustraliaSlashYancowinna,
+		DeadlineCalendarTimeZoneBrazilSlashAcre,
+		DeadlineCalendarTimeZoneBrazilSlashDeNoronha,
+		DeadlineCalendarTimeZoneBrazilSlashEast,
+		DeadlineCalendarTimeZoneBrazilSlashWest,
+		DeadlineCalendarTimeZoneCET,
+		DeadlineCalendarTimeZoneCST6CDT,
+		DeadlineCalendarTimeZoneCanadaSlashAtlantic,
+		DeadlineCalendarTimeZoneCanadaSlashCentral,
+		DeadlineCalendarTimeZoneCanadaSlashEastern,
+		DeadlineCalendarTimeZoneCanadaSlashMountain,
+		DeadlineCalendarTimeZoneCanadaSlashNewfoundland,
+		DeadlineCalendarTimeZoneCanadaSlashPacific,
+		DeadlineCalendarTimeZoneCanadaSlashSaskatchewan,
+		DeadlineCalendarTimeZoneCanadaSlashYukon,
+		DeadlineCalendarTimeZoneChileSlashContinental,
+		DeadlineCalendarTimeZoneChileSlashEasterIsland,
+		DeadlineCalendarTimeZoneCuba,
+		DeadlineCalendarTimeZoneEET,
+		DeadlineCalendarTimeZoneEST,
+		DeadlineCalendarTimeZoneEST5EDT,
+		DeadlineCalendarTimeZoneEgypt,
+		DeadlineCalendarTimeZoneEire,
+		DeadlineCalendarTimeZoneEtcSlashGMT,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus0,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus1,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus10,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus11,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus12,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus2,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus3,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus4,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus5,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus6,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus7,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus8,
+		DeadlineCalendarTimeZoneEtcSlashGMTPlus9,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus0,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus1,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus10,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus11,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus12,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus13,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus14,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus2,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus3,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus4,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus5,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus6,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus7,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus8,
+		DeadlineCalendarTimeZoneEtcSlashGMTMinus9,
+		DeadlineCalendarTimeZoneEtcSlashGMT0,
+		DeadlineCalendarTimeZoneEtcSlashGreenwich,
+		DeadlineCalendarTimeZoneEtcSlashUCT,
+		DeadlineCalendarTimeZoneEtcSlashUTC,
+		DeadlineCalendarTimeZoneEtcSlashUniversal,
+		DeadlineCalendarTimeZoneEtcSlashZulu,
+		DeadlineCalendarTimeZoneEuropeSlashAmsterdam,
+		DeadlineCalendarTimeZoneEuropeSlashAndorra,
+		DeadlineCalendarTimeZoneEuropeSlashAstrakhan,
+		DeadlineCalendarTimeZoneEuropeSlashAthens,
+		DeadlineCalendarTimeZoneEuropeSlashBelfast,
+		DeadlineCalendarTimeZoneEuropeSlashBelgrade,
+		DeadlineCalendarTimeZoneEuropeSlashBerlin,
+		DeadlineCalendarTimeZoneEuropeSlashBratislava,
+		DeadlineCalendarTimeZoneEuropeSlashBrussels,
+		DeadlineCalendarTimeZoneEuropeSlashBucharest,
+		DeadlineCalendarTimeZoneEuropeSlashBudapest,
+		DeadlineCalendarTimeZoneEuropeSlashBusingen,
+		DeadlineCalendarTimeZoneEuropeSlashChisinau,
+		DeadlineCalendarTimeZoneEuropeSlashCopenhagen,
+		DeadlineCalendarTimeZoneEuropeSlashDublin,
+		DeadlineCalendarTimeZoneEuropeSlashGibraltar,
+		DeadlineCalendarTimeZoneEuropeSlashGuernsey,
+		DeadlineCalendarTimeZoneEuropeSlashHelsinki,
+		DeadlineCalendarTimeZoneEuropeSlashIsleOfMan,
+		DeadlineCalendarTimeZoneEuropeSlashIstanbul,
+		DeadlineCalendarTimeZoneEuropeSlashJersey,
+		DeadlineCalendarTimeZoneEuropeSlashKaliningrad,
+		DeadlineCalendarTimeZoneEuropeSlashKiev,
+		DeadlineCalendarTimeZoneEuropeSlashKirov,
+		DeadlineCalendarTimeZoneEuropeSlashKyiv,
+		DeadlineCalendarTimeZoneEuropeSlashLisbon,
+		DeadlineCalendarTimeZoneEuropeSlashLjubljana,
+		DeadlineCalendarTimeZoneEuropeSlashLondon,
+		DeadlineCalendarTimeZoneEuropeSlashLuxembourg,
+		DeadlineCalendarTimeZoneEuropeSlashMadrid,
+		DeadlineCalendarTimeZoneEuropeSlashMalta,
+		DeadlineCalendarTimeZoneEuropeSlashMariehamn,
+		DeadlineCalendarTimeZoneEuropeSlashMinsk,
+		DeadlineCalendarTimeZoneEuropeSlashMonaco,
+		DeadlineCalendarTimeZoneEuropeSlashMoscow,
+		DeadlineCalendarTimeZoneEuropeSlashNicosia,
+		DeadlineCalendarTimeZoneEuropeSlashOslo,
+		DeadlineCalendarTimeZoneEuropeSlashParis,
+		DeadlineCalendarTimeZoneEuropeSlashPodgorica,
+		DeadlineCalendarTimeZoneEuropeSlashPrague,
+		DeadlineCalendarTimeZoneEuropeSlashRiga,
+		DeadlineCalendarTimeZoneEuropeSlashRome,
+		DeadlineCalendarTimeZoneEuropeSlashSamara,
+		DeadlineCalendarTimeZoneEuropeSlashSanMarino,
+		DeadlineCalendarTimeZoneEuropeSlashSarajevo,
+		DeadlineCalendarTimeZoneEuropeSlashSaratov,
+		DeadlineCalendarTimeZoneEuropeSlashSimferopol,
+		DeadlineCalendarTimeZoneEuropeSlashSkopje,
+		DeadlineCalendarTimeZoneEuropeSlashSofia,
+		DeadlineCalendarTimeZoneEuropeSlashStockholm,
+		DeadlineCalendarTimeZoneEuropeSlashTallinn,
+		DeadlineCalendarTimeZoneEuropeSlashTirane,
+		DeadlineCalendarTimeZoneEuropeSlashTiraspol,
+		DeadlineCalendarTimeZoneEuropeSlashUlyanovsk,
+		DeadlineCalendarTimeZoneEuropeSlashUzhgorod,
+		DeadlineCalendarTimeZoneEuropeSlashVaduz,
+		DeadlineCalendarTimeZoneEuropeSlashVatican,
+		DeadlineCalendarTimeZoneEuropeSlashVienna,
+		DeadlineCalendarTimeZoneEuropeSlashVilnius,
+		DeadlineCalendarTimeZoneEuropeSlashVolgograd,
+		DeadlineCalendarTimeZoneEuropeSlashWarsaw,
+		DeadlineCalendarTimeZoneEuropeSlashZagreb,
+		DeadlineCalendarTimeZoneEuropeSlashZaporozhye,
+		DeadlineCalendarTimeZoneEuropeSlashZurich,
+		DeadlineCalendarTimeZoneFactory,
+		DeadlineCalendarTimeZoneGB,
+		DeadlineCalendarTimeZoneGBMinusEire,
+		DeadlineCalendarTimeZoneGMT,
+		DeadlineCalendarTimeZoneGMTPlus0,
+		DeadlineCalendarTimeZoneGMTMinus0,
+		DeadlineCalendarTimeZoneGMT0,
+		DeadlineCalendarTimeZoneGreenwich,
+		DeadlineCalendarTimeZoneHST,
+		DeadlineCalendarTimeZoneHongkong,
+		DeadlineCalendarTimeZoneIceland,
+		DeadlineCalendarTimeZoneIndianSlashAntananarivo,
+		DeadlineCalendarTimeZoneIndianSlashChagos,
+		DeadlineCalendarTimeZoneIndianSlashChristmas,
+		DeadlineCalendarTimeZoneIndianSlashCocos,
+		DeadlineCalendarTimeZoneIndianSlashComoro,
+		DeadlineCalendarTimeZoneIndianSlashKerguelen,
+		DeadlineCalendarTimeZoneIndianSlashMahe,
+		DeadlineCalendarTimeZoneIndianSlashMaldives,
+		DeadlineCalendarTimeZoneIndianSlashMauritius,
+		DeadlineCalendarTimeZoneIndianSlashMayotte,
+		DeadlineCalendarTimeZoneIndianSlashReunion,
+		DeadlineCalendarTimeZoneIran,
+		DeadlineCalendarTimeZoneIsrael,
+		DeadlineCalendarTimeZoneJamaica,
+		DeadlineCalendarTimeZoneJapan,
+		DeadlineCalendarTimeZoneKwajalein,
+		DeadlineCalendarTimeZoneLibya,
+		DeadlineCalendarTimeZoneMET,
+		DeadlineCalendarTimeZoneMST,
+		DeadlineCalendarTimeZoneMST7MDT,
+		DeadlineCalendarTimeZoneMexicoSlashBajaNorte,
+		DeadlineCalendarTimeZoneMexicoSlashBajaSur,
+		DeadlineCalendarTimeZoneMexicoSlashGeneral,
+		DeadlineCalendarTimeZoneNZ,
+		DeadlineCalendarTimeZoneNZMinusCHAT,
+		DeadlineCalendarTimeZoneNavajo,
+		DeadlineCalendarTimeZonePRC,
+		DeadlineCalendarTimeZonePST8PDT,
+		DeadlineCalendarTimeZonePacificSlashApia,
+		DeadlineCalendarTimeZonePacificSlashAuckland,
+		DeadlineCalendarTimeZonePacificSlashBougainville,
+		DeadlineCalendarTimeZonePacificSlashChatham,
+		DeadlineCalendarTimeZonePacificSlashChuuk,
+		DeadlineCalendarTimeZonePacificSlashEaster,
+		DeadlineCalendarTimeZonePacificSlashEfate,
+		DeadlineCalendarTimeZonePacificSlashEnderbury,
+		DeadlineCalendarTimeZonePacificSlashFakaofo,
+		DeadlineCalendarTimeZonePacificSlashFiji,
+		DeadlineCalendarTimeZonePacificSlashFunafuti,
+		DeadlineCalendarTimeZonePacificSlashGalapagos,
+		DeadlineCalendarTimeZonePacificSlashGambier,
+		DeadlineCalendarTimeZonePacificSlashGuadalcanal,
+		DeadlineCalendarTimeZonePacificSlashGuam,
+		DeadlineCalendarTimeZonePacificSlashHonolulu,
+		DeadlineCalendarTimeZonePacificSlashJohnston,
+		DeadlineCalendarTimeZonePacificSlashKanton,
+		DeadlineCalendarTimeZonePacificSlashKiritimati,
+		DeadlineCalendarTimeZonePacificSlashKosrae,
+		DeadlineCalendarTimeZonePacificSlashKwajalein,
+		DeadlineCalendarTimeZonePacificSlashMajuro,
+		DeadlineCalendarTimeZonePacificSlashMarquesas,
+		DeadlineCalendarTimeZonePacificSlashMidway,
+		DeadlineCalendarTimeZonePacificSlashNauru,
+		DeadlineCalendarTimeZonePacificSlashNiue,
+		DeadlineCalendarTimeZonePacificSlashNorfolk,
+		DeadlineCalendarTimeZonePacificSlashNoumea,
+		DeadlineCalendarTimeZonePacificSlashPagoPago,
+		DeadlineCalendarTimeZonePacificSlashPalau,
+		DeadlineCalendarTimeZonePacificSlashPitcairn,
+		DeadlineCalendarTimeZonePacificSlashPohnpei,
+		DeadlineCalendarTimeZonePacificSlashPonape,
+		DeadlineCalendarTimeZonePacificSlashPortMoresby,
+		DeadlineCalendarTimeZonePacificSlashRarotonga,
+		DeadlineCalendarTimeZonePacificSlashSaipan,
+		DeadlineCalendarTimeZonePacificSlashSamoa,
+		DeadlineCalendarTimeZonePacificSlashTahiti,
+		DeadlineCalendarTimeZonePacificSlashTarawa,
+		DeadlineCalendarTimeZonePacificSlashTongatapu,
+		DeadlineCalendarTimeZonePacificSlashTruk,
+		DeadlineCalendarTimeZonePacificSlashWake,
+		DeadlineCalendarTimeZonePacificSlashWallis,
+		DeadlineCalendarTimeZonePacificSlashYap,
+		DeadlineCalendarTimeZonePoland,
+		DeadlineCalendarTimeZonePortugal,
+		DeadlineCalendarTimeZoneROC,
+		DeadlineCalendarTimeZoneROK,
+		DeadlineCalendarTimeZoneSingapore,
+		DeadlineCalendarTimeZoneTurkey,
+		DeadlineCalendarTimeZoneUCT,
+		DeadlineCalendarTimeZoneUSSlashAlaska,
+		DeadlineCalendarTimeZoneUSSlashAleutian,
+		DeadlineCalendarTimeZoneUSSlashArizona,
+		DeadlineCalendarTimeZoneUSSlashCentral,
+		DeadlineCalendarTimeZoneUSSlashEastMinusIndiana,
+		DeadlineCalendarTimeZoneUSSlashEastern,
+		DeadlineCalendarTimeZoneUSSlashHawaii,
+		DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke,
+		DeadlineCalendarTimeZoneUSSlashMichigan,
+		DeadlineCalendarTimeZoneUSSlashMountain,
+		DeadlineCalendarTimeZoneUSSlashPacific,
+		DeadlineCalendarTimeZoneUSSlashSamoa,
+		DeadlineCalendarTimeZoneUTC,
+		DeadlineCalendarTimeZoneUniversal,
+		DeadlineCalendarTimeZoneWMinusSU,
+		DeadlineCalendarTimeZoneWET,
+		DeadlineCalendarTimeZoneZulu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DeadlineCalendarTimeZone) MarshalText() ([]byte, error) {
+	switch s {
+	case DeadlineCalendarTimeZoneAfricaSlashAbidjan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashAccra:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashAddisAbaba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashAlgiers:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashAsmara:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashAsmera:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBamako:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBangui:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBanjul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBissau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBlantyre:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBrazzaville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashBujumbura:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashCairo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashCasablanca:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashCeuta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashConakry:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashDakar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashDjibouti:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashDouala:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashElAaiun:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashFreetown:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashGaborone:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashHarare:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashJohannesburg:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashJuba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashKampala:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashKhartoum:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashKigali:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashKinshasa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLagos:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLibreville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLome:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLuanda:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLubumbashi:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashLusaka:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMalabo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMaputo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMaseru:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMbabane:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMogadishu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashMonrovia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashNairobi:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashNdjamena:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashNiamey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashNouakchott:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashOuagadougou:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashSaoTome:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashTimbuktu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashTripoli:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashTunis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAfricaSlashWindhoek:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAdak:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAnchorage:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAnguilla:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAntigua:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAraguaina:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAruba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAsuncion:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAtikokan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashAtka:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBahia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBarbados:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBelem:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBelize:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBoaVista:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBogota:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBoise:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashBuenosAires:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCambridgeBay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCampoGrande:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCancun:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCaracas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCatamarca:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCayenne:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCayman:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashChicago:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashChihuahua:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCoralHarbour:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCordoba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCostaRica:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCoyhaique:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCreston:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCuiaba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashCuracao:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDawson:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDawsonCreek:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDenver:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDetroit:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashDominica:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashEdmonton:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashEirunepe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashElSalvador:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashEnsenada:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortNelson:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortWayne:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortaleza:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGlaceBay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGodthab:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGooseBay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGrandTurk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGrenada:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuadeloupe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuatemala:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuayaquil:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuyana:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashHalifax:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashHavana:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashHermosillo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianapolis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashInuvik:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashIqaluit:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashJamaica:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashJujuy:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashJuneau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashKnoxIN:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashKralendijk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashLaPaz:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashLima:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashLosAngeles:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashLouisville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashLowerPrinces:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMaceio:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashManagua:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashManaus:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMarigot:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMartinique:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMatamoros:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMazatlan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMendoza:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMenominee:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMerida:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMetlakatla:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMexicoCity:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMiquelon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMoncton:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMonterrey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontevideo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontreal:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontserrat:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNassau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNewYork:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNipigon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNome:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNoronha:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashNuuk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashOjinaga:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPanama:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPangnirtung:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashParamaribo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPhoenix:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortOfSpain:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortoAcre:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortoVelho:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPuertoRico:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashPuntaArenas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRainyRiver:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRankinInlet:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRecife:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRegina:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashResolute:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRioBranco:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashRosario:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantaIsabel:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantarem:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantiago:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantoDomingo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSaoPaulo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashScoresbysund:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashShiprock:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSitka:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStBarthelemy:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStJohns:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStKitts:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStLucia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStThomas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashStVincent:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashTegucigalpa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashThule:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashThunderBay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashTijuana:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashToronto:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashTortola:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashVancouver:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashVirgin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashWhitehorse:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashWinnipeg:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashYakutat:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAmericaSlashYellowknife:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashCasey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashDavis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMacquarie:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMawson:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashPalmer:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashRothera:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashSouthPole:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashSyowa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashTroll:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashVostok:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneArcticSlashLongyearbyen:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAden:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAlmaty:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAmman:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAnadyr:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAqtau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAqtobe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAshgabat:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAshkhabad:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashAtyrau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBaghdad:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBahrain:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBaku:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBangkok:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBarnaul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBeirut:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBishkek:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashBrunei:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashCalcutta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashChita:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashChoibalsan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashChongqing:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashChungking:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashColombo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDacca:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDamascus:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDhaka:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDili:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDubai:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashDushanbe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashFamagusta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashGaza:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashHarbin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashHebron:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashHoChiMinh:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashHongKong:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashHovd:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashIrkutsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashIstanbul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashJakarta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashJayapura:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashJerusalem:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKabul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKamchatka:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKarachi:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKashgar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKathmandu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKatmandu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKhandyga:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKolkata:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKualaLumpur:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKuching:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashKuwait:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashMacao:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashMacau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashMagadan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashMakassar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashManila:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashMuscat:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashNicosia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashNovosibirsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashOmsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashOral:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashPhnomPenh:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashPontianak:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashPyongyang:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashQatar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashQostanay:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashQyzylorda:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashRangoon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashRiyadh:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSaigon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSakhalin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSamarkand:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSeoul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashShanghai:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSingapore:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTaipei:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTashkent:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTbilisi:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTehran:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTelAviv:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashThimbu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashThimphu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTokyo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashTomsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashUjungPandang:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashUlanBator:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashUrumqi:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashUstMinusNera:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashVientiane:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashVladivostok:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashYakutsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashYangon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashYekaterinburg:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAsiaSlashYerevan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashAzores:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashBermuda:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashCanary:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashCapeVerde:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashFaeroe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashFaroe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashJanMayen:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashMadeira:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashReykjavik:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashStHelena:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAtlanticSlashStanley:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashACT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashAdelaide:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashBrisbane:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashBrokenHill:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashCanberra:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashCurrie:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashDarwin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashEucla:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashHobart:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLHI:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLindeman:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLordHowe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashMelbourne:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashNSW:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashNorth:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashPerth:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashQueensland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashSouth:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashSydney:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashTasmania:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashVictoria:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashWest:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneAustraliaSlashYancowinna:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneBrazilSlashAcre:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneBrazilSlashDeNoronha:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneBrazilSlashEast:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneBrazilSlashWest:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCET:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCST6CDT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashAtlantic:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashCentral:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashEastern:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashMountain:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashNewfoundland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashPacific:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashSaskatchewan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCanadaSlashYukon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneChileSlashContinental:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneChileSlashEasterIsland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneCuba:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEET:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEST:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEST5EDT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEgypt:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEire:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus1:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus10:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus11:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus12:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus2:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus3:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus4:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus5:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus6:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus7:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus8:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus9:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus1:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus10:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus11:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus12:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus13:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus14:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus2:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus3:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus4:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus5:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus6:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus7:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus8:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus9:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGMT0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashGreenwich:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashUCT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashUTC:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashUniversal:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEtcSlashZulu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashAmsterdam:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashAndorra:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashAstrakhan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashAthens:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBelfast:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBelgrade:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBerlin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBratislava:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBrussels:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBucharest:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBudapest:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashBusingen:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashChisinau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashCopenhagen:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashDublin:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashGibraltar:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashGuernsey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashHelsinki:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashIsleOfMan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashIstanbul:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashJersey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashKaliningrad:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashKiev:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashKirov:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashKyiv:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashLisbon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashLjubljana:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashLondon:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashLuxembourg:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMadrid:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMalta:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMariehamn:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMinsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMonaco:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashMoscow:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashNicosia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashOslo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashParis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashPodgorica:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashPrague:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashRiga:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashRome:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSamara:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSanMarino:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSarajevo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSaratov:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSimferopol:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSkopje:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashSofia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashStockholm:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashTallinn:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashTirane:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashTiraspol:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashUlyanovsk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashUzhgorod:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashVaduz:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashVatican:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashVienna:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashVilnius:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashVolgograd:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashWarsaw:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashZagreb:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashZaporozhye:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneEuropeSlashZurich:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneFactory:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGB:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGBMinusEire:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGMT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGMTPlus0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGMTMinus0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGMT0:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneGreenwich:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneHST:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneHongkong:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIceland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashAntananarivo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashChagos:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashChristmas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashCocos:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashComoro:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashKerguelen:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashMahe:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashMaldives:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashMauritius:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashMayotte:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIndianSlashReunion:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIran:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneIsrael:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneJamaica:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneJapan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneKwajalein:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneLibya:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMET:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMST:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMST7MDT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMexicoSlashBajaNorte:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMexicoSlashBajaSur:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneMexicoSlashGeneral:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneNZ:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneNZMinusCHAT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneNavajo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePRC:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePST8PDT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashApia:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashAuckland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashBougainville:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashChatham:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashChuuk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashEaster:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashEfate:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashEnderbury:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashFakaofo:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashFiji:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashFunafuti:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashGalapagos:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashGambier:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashGuadalcanal:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashGuam:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashHonolulu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashJohnston:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashKanton:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashKiritimati:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashKosrae:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashKwajalein:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashMajuro:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashMarquesas:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashMidway:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashNauru:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashNiue:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashNorfolk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashNoumea:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPagoPago:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPalau:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPitcairn:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPohnpei:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPonape:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashPortMoresby:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashRarotonga:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashSaipan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashSamoa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashTahiti:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashTarawa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashTongatapu:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashTruk:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashWake:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashWallis:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePacificSlashYap:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePoland:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZonePortugal:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneROC:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneROK:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneSingapore:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneTurkey:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUCT:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashAlaska:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashAleutian:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashArizona:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashCentral:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashEastMinusIndiana:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashEastern:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashHawaii:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashMichigan:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashMountain:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashPacific:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUSSlashSamoa:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUTC:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneUniversal:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneWMinusSU:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneWET:
+		return []byte(s), nil
+	case DeadlineCalendarTimeZoneZulu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DeadlineCalendarTimeZone) UnmarshalText(data []byte) error {
+	switch DeadlineCalendarTimeZone(data) {
+	case DeadlineCalendarTimeZoneAfricaSlashAbidjan:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAbidjan
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashAccra:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAccra
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashAddisAbaba:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAddisAbaba
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashAlgiers:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAlgiers
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashAsmara:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAsmara
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashAsmera:
+		*s = DeadlineCalendarTimeZoneAfricaSlashAsmera
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBamako:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBamako
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBangui:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBangui
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBanjul:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBanjul
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBissau:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBissau
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBlantyre:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBlantyre
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBrazzaville:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBrazzaville
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashBujumbura:
+		*s = DeadlineCalendarTimeZoneAfricaSlashBujumbura
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashCairo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCairo
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashCasablanca:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCasablanca
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashCeuta:
+		*s = DeadlineCalendarTimeZoneAfricaSlashCeuta
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashConakry:
+		*s = DeadlineCalendarTimeZoneAfricaSlashConakry
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashDakar:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDakar
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDarEsSalaam
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashDjibouti:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDjibouti
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashDouala:
+		*s = DeadlineCalendarTimeZoneAfricaSlashDouala
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashElAaiun:
+		*s = DeadlineCalendarTimeZoneAfricaSlashElAaiun
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashFreetown:
+		*s = DeadlineCalendarTimeZoneAfricaSlashFreetown
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashGaborone:
+		*s = DeadlineCalendarTimeZoneAfricaSlashGaborone
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashHarare:
+		*s = DeadlineCalendarTimeZoneAfricaSlashHarare
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashJohannesburg:
+		*s = DeadlineCalendarTimeZoneAfricaSlashJohannesburg
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashJuba:
+		*s = DeadlineCalendarTimeZoneAfricaSlashJuba
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashKampala:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKampala
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashKhartoum:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKhartoum
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashKigali:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKigali
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashKinshasa:
+		*s = DeadlineCalendarTimeZoneAfricaSlashKinshasa
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLagos:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLagos
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLibreville:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLibreville
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLome:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLome
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLuanda:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLuanda
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLubumbashi:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLubumbashi
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashLusaka:
+		*s = DeadlineCalendarTimeZoneAfricaSlashLusaka
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMalabo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMalabo
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMaputo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMaputo
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMaseru:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMaseru
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMbabane:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMbabane
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMogadishu:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMogadishu
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashMonrovia:
+		*s = DeadlineCalendarTimeZoneAfricaSlashMonrovia
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashNairobi:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNairobi
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashNdjamena:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNdjamena
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashNiamey:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNiamey
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashNouakchott:
+		*s = DeadlineCalendarTimeZoneAfricaSlashNouakchott
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashOuagadougou:
+		*s = DeadlineCalendarTimeZoneAfricaSlashOuagadougou
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo:
+		*s = DeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashSaoTome:
+		*s = DeadlineCalendarTimeZoneAfricaSlashSaoTome
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashTimbuktu:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTimbuktu
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashTripoli:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTripoli
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashTunis:
+		*s = DeadlineCalendarTimeZoneAfricaSlashTunis
+		return nil
+	case DeadlineCalendarTimeZoneAfricaSlashWindhoek:
+		*s = DeadlineCalendarTimeZoneAfricaSlashWindhoek
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAdak:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAdak
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAnchorage:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAnchorage
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAnguilla:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAnguilla
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAntigua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAntigua
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAraguaina:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAraguaina
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAruba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAruba
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAsuncion:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAsuncion
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAtikokan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAtikokan
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashAtka:
+		*s = DeadlineCalendarTimeZoneAmericaSlashAtka
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBahia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBahia
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBahiaBanderas
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBarbados:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBarbados
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBelem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBelem
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBelize:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBelize
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBoaVista:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBoaVista
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBogota:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBogota
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBoise:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBoise
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashBuenosAires:
+		*s = DeadlineCalendarTimeZoneAmericaSlashBuenosAires
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCambridgeBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCambridgeBay
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCampoGrande:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCampoGrande
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCancun:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCancun
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCaracas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCaracas
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCatamarca:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCatamarca
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCayenne:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCayenne
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCayman:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCayman
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashChicago:
+		*s = DeadlineCalendarTimeZoneAmericaSlashChicago
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashChihuahua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashChihuahua
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCiudadJuarez
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCoralHarbour:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCoralHarbour
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCordoba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCordoba
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCostaRica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCostaRica
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCoyhaique:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCoyhaique
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCreston:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCreston
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCuiaba:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCuiaba
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashCuracao:
+		*s = DeadlineCalendarTimeZoneAmericaSlashCuracao
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDanmarkshavn
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDawson:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDawson
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDawsonCreek:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDawsonCreek
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDenver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDenver
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDetroit:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDetroit
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashDominica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashDominica
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashEdmonton:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEdmonton
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashEirunepe:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEirunepe
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashElSalvador:
+		*s = DeadlineCalendarTimeZoneAmericaSlashElSalvador
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashEnsenada:
+		*s = DeadlineCalendarTimeZoneAmericaSlashEnsenada
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortNelson:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortNelson
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortWayne:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortWayne
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashFortaleza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashFortaleza
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGlaceBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGlaceBay
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGodthab:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGodthab
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGooseBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGooseBay
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGrandTurk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGrandTurk
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGrenada:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGrenada
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuadeloupe:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuadeloupe
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuatemala:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuatemala
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuayaquil:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuayaquil
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashGuyana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashGuyana
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashHalifax:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHalifax
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashHavana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHavana
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashHermosillo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashHermosillo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIndianapolis:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIndianapolis
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashInuvik:
+		*s = DeadlineCalendarTimeZoneAmericaSlashInuvik
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashIqaluit:
+		*s = DeadlineCalendarTimeZoneAmericaSlashIqaluit
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashJamaica:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJamaica
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashJujuy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJujuy
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashJuneau:
+		*s = DeadlineCalendarTimeZoneAmericaSlashJuneau
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashKnoxIN:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKnoxIN
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashKralendijk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashKralendijk
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashLaPaz:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLaPaz
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashLima:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLima
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashLosAngeles:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLosAngeles
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashLouisville:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLouisville
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashLowerPrinces:
+		*s = DeadlineCalendarTimeZoneAmericaSlashLowerPrinces
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMaceio:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMaceio
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashManagua:
+		*s = DeadlineCalendarTimeZoneAmericaSlashManagua
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashManaus:
+		*s = DeadlineCalendarTimeZoneAmericaSlashManaus
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMarigot:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMarigot
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMartinique:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMartinique
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMatamoros:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMatamoros
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMazatlan:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMazatlan
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMendoza:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMendoza
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMenominee:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMenominee
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMerida:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMerida
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMetlakatla:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMetlakatla
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMexicoCity:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMexicoCity
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMiquelon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMiquelon
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMoncton:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMoncton
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMonterrey:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMonterrey
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontevideo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontevideo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontreal:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontreal
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashMontserrat:
+		*s = DeadlineCalendarTimeZoneAmericaSlashMontserrat
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNassau:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNassau
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNewYork:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNewYork
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNipigon:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNipigon
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNome:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNome
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNoronha:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNoronha
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashNuuk:
+		*s = DeadlineCalendarTimeZoneAmericaSlashNuuk
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashOjinaga:
+		*s = DeadlineCalendarTimeZoneAmericaSlashOjinaga
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPanama:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPanama
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPangnirtung:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPangnirtung
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashParamaribo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashParamaribo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPhoenix:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPhoenix
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortOfSpain:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortOfSpain
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortoAcre:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortoAcre
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPortoVelho:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPortoVelho
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPuertoRico:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPuertoRico
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashPuntaArenas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashPuntaArenas
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRainyRiver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRainyRiver
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRankinInlet:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRankinInlet
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRecife:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRecife
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRegina:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRegina
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashResolute:
+		*s = DeadlineCalendarTimeZoneAmericaSlashResolute
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRioBranco:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRioBranco
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashRosario:
+		*s = DeadlineCalendarTimeZoneAmericaSlashRosario
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantaIsabel:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantaIsabel
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantarem:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantarem
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantiago:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantiago
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSantoDomingo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSantoDomingo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSaoPaulo:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSaoPaulo
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashScoresbysund:
+		*s = DeadlineCalendarTimeZoneAmericaSlashScoresbysund
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashShiprock:
+		*s = DeadlineCalendarTimeZoneAmericaSlashShiprock
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSitka:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSitka
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStBarthelemy:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStBarthelemy
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStJohns:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStJohns
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStKitts:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStKitts
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStLucia:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStLucia
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStThomas:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStThomas
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashStVincent:
+		*s = DeadlineCalendarTimeZoneAmericaSlashStVincent
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent:
+		*s = DeadlineCalendarTimeZoneAmericaSlashSwiftCurrent
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashTegucigalpa:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTegucigalpa
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashThule:
+		*s = DeadlineCalendarTimeZoneAmericaSlashThule
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashThunderBay:
+		*s = DeadlineCalendarTimeZoneAmericaSlashThunderBay
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashTijuana:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTijuana
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashToronto:
+		*s = DeadlineCalendarTimeZoneAmericaSlashToronto
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashTortola:
+		*s = DeadlineCalendarTimeZoneAmericaSlashTortola
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashVancouver:
+		*s = DeadlineCalendarTimeZoneAmericaSlashVancouver
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashVirgin:
+		*s = DeadlineCalendarTimeZoneAmericaSlashVirgin
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashWhitehorse:
+		*s = DeadlineCalendarTimeZoneAmericaSlashWhitehorse
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashWinnipeg:
+		*s = DeadlineCalendarTimeZoneAmericaSlashWinnipeg
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashYakutat:
+		*s = DeadlineCalendarTimeZoneAmericaSlashYakutat
+		return nil
+	case DeadlineCalendarTimeZoneAmericaSlashYellowknife:
+		*s = DeadlineCalendarTimeZoneAmericaSlashYellowknife
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashCasey:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashCasey
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashDavis:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashDavis
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMacquarie:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMacquarie
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMawson:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMawson
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashMcMurdo
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashPalmer:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashPalmer
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashRothera:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashRothera
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashSouthPole:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashSouthPole
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashSyowa:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashSyowa
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashTroll:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashTroll
+		return nil
+	case DeadlineCalendarTimeZoneAntarcticaSlashVostok:
+		*s = DeadlineCalendarTimeZoneAntarcticaSlashVostok
+		return nil
+	case DeadlineCalendarTimeZoneArcticSlashLongyearbyen:
+		*s = DeadlineCalendarTimeZoneArcticSlashLongyearbyen
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAden:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAden
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAlmaty:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAlmaty
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAmman:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAmman
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAnadyr:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAnadyr
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAqtau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAqtau
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAqtobe:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAqtobe
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAshgabat:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAshgabat
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAshkhabad:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAshkhabad
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashAtyrau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashAtyrau
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBaghdad:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBaghdad
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBahrain:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBahrain
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBaku:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBaku
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBangkok:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBangkok
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBarnaul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBarnaul
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBeirut:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBeirut
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBishkek:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBishkek
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashBrunei:
+		*s = DeadlineCalendarTimeZoneAsiaSlashBrunei
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashCalcutta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashCalcutta
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashChita:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChita
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashChoibalsan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChoibalsan
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashChongqing:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChongqing
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashChungking:
+		*s = DeadlineCalendarTimeZoneAsiaSlashChungking
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashColombo:
+		*s = DeadlineCalendarTimeZoneAsiaSlashColombo
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDacca:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDacca
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDamascus:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDamascus
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDhaka:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDhaka
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDili:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDili
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDubai:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDubai
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashDushanbe:
+		*s = DeadlineCalendarTimeZoneAsiaSlashDushanbe
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashFamagusta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashFamagusta
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashGaza:
+		*s = DeadlineCalendarTimeZoneAsiaSlashGaza
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashHarbin:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHarbin
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashHebron:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHebron
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashHoChiMinh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHoChiMinh
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashHongKong:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHongKong
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashHovd:
+		*s = DeadlineCalendarTimeZoneAsiaSlashHovd
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashIrkutsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashIrkutsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashIstanbul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashIstanbul
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashJakarta:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJakarta
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashJayapura:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJayapura
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashJerusalem:
+		*s = DeadlineCalendarTimeZoneAsiaSlashJerusalem
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKabul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKabul
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKamchatka:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKamchatka
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKarachi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKarachi
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKashgar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKashgar
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKathmandu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKathmandu
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKatmandu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKatmandu
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKhandyga:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKhandyga
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKolkata:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKolkata
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKualaLumpur:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKualaLumpur
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKuching:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKuching
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashKuwait:
+		*s = DeadlineCalendarTimeZoneAsiaSlashKuwait
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashMacao:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMacao
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashMacau:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMacau
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashMagadan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMagadan
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashMakassar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMakassar
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashManila:
+		*s = DeadlineCalendarTimeZoneAsiaSlashManila
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashMuscat:
+		*s = DeadlineCalendarTimeZoneAsiaSlashMuscat
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashNicosia:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNicosia
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNovokuznetsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashNovosibirsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashNovosibirsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashOmsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashOmsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashOral:
+		*s = DeadlineCalendarTimeZoneAsiaSlashOral
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashPhnomPenh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPhnomPenh
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashPontianak:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPontianak
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashPyongyang:
+		*s = DeadlineCalendarTimeZoneAsiaSlashPyongyang
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashQatar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQatar
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashQostanay:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQostanay
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashQyzylorda:
+		*s = DeadlineCalendarTimeZoneAsiaSlashQyzylorda
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashRangoon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashRangoon
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashRiyadh:
+		*s = DeadlineCalendarTimeZoneAsiaSlashRiyadh
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSaigon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSaigon
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSakhalin:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSakhalin
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSamarkand:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSamarkand
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSeoul:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSeoul
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashShanghai:
+		*s = DeadlineCalendarTimeZoneAsiaSlashShanghai
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSingapore:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSingapore
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashSrednekolymsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTaipei:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTaipei
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTashkent:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTashkent
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTbilisi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTbilisi
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTehran:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTehran
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTelAviv:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTelAviv
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashThimbu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashThimbu
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashThimphu:
+		*s = DeadlineCalendarTimeZoneAsiaSlashThimphu
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTokyo:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTokyo
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashTomsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashTomsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashUjungPandang:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUjungPandang
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUlaanbaatar
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashUlanBator:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUlanBator
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashUrumqi:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUrumqi
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashUstMinusNera:
+		*s = DeadlineCalendarTimeZoneAsiaSlashUstMinusNera
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashVientiane:
+		*s = DeadlineCalendarTimeZoneAsiaSlashVientiane
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashVladivostok:
+		*s = DeadlineCalendarTimeZoneAsiaSlashVladivostok
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashYakutsk:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYakutsk
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashYangon:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYangon
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashYekaterinburg:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYekaterinburg
+		return nil
+	case DeadlineCalendarTimeZoneAsiaSlashYerevan:
+		*s = DeadlineCalendarTimeZoneAsiaSlashYerevan
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashAzores:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashAzores
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashBermuda:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashBermuda
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashCanary:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashCanary
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashCapeVerde:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashCapeVerde
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashFaeroe:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashFaeroe
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashFaroe:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashFaroe
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashJanMayen:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashJanMayen
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashMadeira:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashMadeira
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashReykjavik:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashReykjavik
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashStHelena:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashStHelena
+		return nil
+	case DeadlineCalendarTimeZoneAtlanticSlashStanley:
+		*s = DeadlineCalendarTimeZoneAtlanticSlashStanley
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashACT:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashACT
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashAdelaide:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashAdelaide
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashBrisbane:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashBrisbane
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashBrokenHill:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashBrokenHill
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashCanberra:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashCanberra
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashCurrie:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashCurrie
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashDarwin:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashDarwin
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashEucla:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashEucla
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashHobart:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashHobart
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLHI:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLHI
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLindeman:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLindeman
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashLordHowe:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashLordHowe
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashMelbourne:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashMelbourne
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashNSW:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashNSW
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashNorth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashNorth
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashPerth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashPerth
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashQueensland:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashQueensland
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashSouth:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashSouth
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashSydney:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashSydney
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashTasmania:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashTasmania
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashVictoria:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashVictoria
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashWest:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashWest
+		return nil
+	case DeadlineCalendarTimeZoneAustraliaSlashYancowinna:
+		*s = DeadlineCalendarTimeZoneAustraliaSlashYancowinna
+		return nil
+	case DeadlineCalendarTimeZoneBrazilSlashAcre:
+		*s = DeadlineCalendarTimeZoneBrazilSlashAcre
+		return nil
+	case DeadlineCalendarTimeZoneBrazilSlashDeNoronha:
+		*s = DeadlineCalendarTimeZoneBrazilSlashDeNoronha
+		return nil
+	case DeadlineCalendarTimeZoneBrazilSlashEast:
+		*s = DeadlineCalendarTimeZoneBrazilSlashEast
+		return nil
+	case DeadlineCalendarTimeZoneBrazilSlashWest:
+		*s = DeadlineCalendarTimeZoneBrazilSlashWest
+		return nil
+	case DeadlineCalendarTimeZoneCET:
+		*s = DeadlineCalendarTimeZoneCET
+		return nil
+	case DeadlineCalendarTimeZoneCST6CDT:
+		*s = DeadlineCalendarTimeZoneCST6CDT
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashAtlantic:
+		*s = DeadlineCalendarTimeZoneCanadaSlashAtlantic
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashCentral:
+		*s = DeadlineCalendarTimeZoneCanadaSlashCentral
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashEastern:
+		*s = DeadlineCalendarTimeZoneCanadaSlashEastern
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashMountain:
+		*s = DeadlineCalendarTimeZoneCanadaSlashMountain
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashNewfoundland:
+		*s = DeadlineCalendarTimeZoneCanadaSlashNewfoundland
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashPacific:
+		*s = DeadlineCalendarTimeZoneCanadaSlashPacific
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashSaskatchewan:
+		*s = DeadlineCalendarTimeZoneCanadaSlashSaskatchewan
+		return nil
+	case DeadlineCalendarTimeZoneCanadaSlashYukon:
+		*s = DeadlineCalendarTimeZoneCanadaSlashYukon
+		return nil
+	case DeadlineCalendarTimeZoneChileSlashContinental:
+		*s = DeadlineCalendarTimeZoneChileSlashContinental
+		return nil
+	case DeadlineCalendarTimeZoneChileSlashEasterIsland:
+		*s = DeadlineCalendarTimeZoneChileSlashEasterIsland
+		return nil
+	case DeadlineCalendarTimeZoneCuba:
+		*s = DeadlineCalendarTimeZoneCuba
+		return nil
+	case DeadlineCalendarTimeZoneEET:
+		*s = DeadlineCalendarTimeZoneEET
+		return nil
+	case DeadlineCalendarTimeZoneEST:
+		*s = DeadlineCalendarTimeZoneEST
+		return nil
+	case DeadlineCalendarTimeZoneEST5EDT:
+		*s = DeadlineCalendarTimeZoneEST5EDT
+		return nil
+	case DeadlineCalendarTimeZoneEgypt:
+		*s = DeadlineCalendarTimeZoneEgypt
+		return nil
+	case DeadlineCalendarTimeZoneEire:
+		*s = DeadlineCalendarTimeZoneEire
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMT:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMT
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus0
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus1:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus1
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus10:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus10
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus11:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus11
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus12:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus12
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus2:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus2
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus3:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus3
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus4:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus4
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus5:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus5
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus6:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus6
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus7:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus7
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus8:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus8
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTPlus9:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTPlus9
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus0
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus1:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus1
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus10:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus10
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus11:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus11
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus12:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus12
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus13:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus13
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus14:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus14
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus2:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus2
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus3:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus3
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus4:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus4
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus5:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus5
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus6:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus6
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus7:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus7
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus8:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus8
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMTMinus9:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMTMinus9
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGMT0:
+		*s = DeadlineCalendarTimeZoneEtcSlashGMT0
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashGreenwich:
+		*s = DeadlineCalendarTimeZoneEtcSlashGreenwich
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashUCT:
+		*s = DeadlineCalendarTimeZoneEtcSlashUCT
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashUTC:
+		*s = DeadlineCalendarTimeZoneEtcSlashUTC
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashUniversal:
+		*s = DeadlineCalendarTimeZoneEtcSlashUniversal
+		return nil
+	case DeadlineCalendarTimeZoneEtcSlashZulu:
+		*s = DeadlineCalendarTimeZoneEtcSlashZulu
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashAmsterdam:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAmsterdam
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashAndorra:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAndorra
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashAstrakhan:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAstrakhan
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashAthens:
+		*s = DeadlineCalendarTimeZoneEuropeSlashAthens
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBelfast:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBelfast
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBelgrade:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBelgrade
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBerlin:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBerlin
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBratislava:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBratislava
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBrussels:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBrussels
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBucharest:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBucharest
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBudapest:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBudapest
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashBusingen:
+		*s = DeadlineCalendarTimeZoneEuropeSlashBusingen
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashChisinau:
+		*s = DeadlineCalendarTimeZoneEuropeSlashChisinau
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashCopenhagen:
+		*s = DeadlineCalendarTimeZoneEuropeSlashCopenhagen
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashDublin:
+		*s = DeadlineCalendarTimeZoneEuropeSlashDublin
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashGibraltar:
+		*s = DeadlineCalendarTimeZoneEuropeSlashGibraltar
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashGuernsey:
+		*s = DeadlineCalendarTimeZoneEuropeSlashGuernsey
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashHelsinki:
+		*s = DeadlineCalendarTimeZoneEuropeSlashHelsinki
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashIsleOfMan:
+		*s = DeadlineCalendarTimeZoneEuropeSlashIsleOfMan
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashIstanbul:
+		*s = DeadlineCalendarTimeZoneEuropeSlashIstanbul
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashJersey:
+		*s = DeadlineCalendarTimeZoneEuropeSlashJersey
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashKaliningrad:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKaliningrad
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashKiev:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKiev
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashKirov:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKirov
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashKyiv:
+		*s = DeadlineCalendarTimeZoneEuropeSlashKyiv
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashLisbon:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLisbon
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashLjubljana:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLjubljana
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashLondon:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLondon
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashLuxembourg:
+		*s = DeadlineCalendarTimeZoneEuropeSlashLuxembourg
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMadrid:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMadrid
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMalta:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMalta
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMariehamn:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMariehamn
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMinsk:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMinsk
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMonaco:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMonaco
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashMoscow:
+		*s = DeadlineCalendarTimeZoneEuropeSlashMoscow
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashNicosia:
+		*s = DeadlineCalendarTimeZoneEuropeSlashNicosia
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashOslo:
+		*s = DeadlineCalendarTimeZoneEuropeSlashOslo
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashParis:
+		*s = DeadlineCalendarTimeZoneEuropeSlashParis
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashPodgorica:
+		*s = DeadlineCalendarTimeZoneEuropeSlashPodgorica
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashPrague:
+		*s = DeadlineCalendarTimeZoneEuropeSlashPrague
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashRiga:
+		*s = DeadlineCalendarTimeZoneEuropeSlashRiga
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashRome:
+		*s = DeadlineCalendarTimeZoneEuropeSlashRome
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSamara:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSamara
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSanMarino:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSanMarino
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSarajevo:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSarajevo
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSaratov:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSaratov
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSimferopol:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSimferopol
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSkopje:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSkopje
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashSofia:
+		*s = DeadlineCalendarTimeZoneEuropeSlashSofia
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashStockholm:
+		*s = DeadlineCalendarTimeZoneEuropeSlashStockholm
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashTallinn:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTallinn
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashTirane:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTirane
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashTiraspol:
+		*s = DeadlineCalendarTimeZoneEuropeSlashTiraspol
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashUlyanovsk:
+		*s = DeadlineCalendarTimeZoneEuropeSlashUlyanovsk
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashUzhgorod:
+		*s = DeadlineCalendarTimeZoneEuropeSlashUzhgorod
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashVaduz:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVaduz
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashVatican:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVatican
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashVienna:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVienna
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashVilnius:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVilnius
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashVolgograd:
+		*s = DeadlineCalendarTimeZoneEuropeSlashVolgograd
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashWarsaw:
+		*s = DeadlineCalendarTimeZoneEuropeSlashWarsaw
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashZagreb:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZagreb
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashZaporozhye:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZaporozhye
+		return nil
+	case DeadlineCalendarTimeZoneEuropeSlashZurich:
+		*s = DeadlineCalendarTimeZoneEuropeSlashZurich
+		return nil
+	case DeadlineCalendarTimeZoneFactory:
+		*s = DeadlineCalendarTimeZoneFactory
+		return nil
+	case DeadlineCalendarTimeZoneGB:
+		*s = DeadlineCalendarTimeZoneGB
+		return nil
+	case DeadlineCalendarTimeZoneGBMinusEire:
+		*s = DeadlineCalendarTimeZoneGBMinusEire
+		return nil
+	case DeadlineCalendarTimeZoneGMT:
+		*s = DeadlineCalendarTimeZoneGMT
+		return nil
+	case DeadlineCalendarTimeZoneGMTPlus0:
+		*s = DeadlineCalendarTimeZoneGMTPlus0
+		return nil
+	case DeadlineCalendarTimeZoneGMTMinus0:
+		*s = DeadlineCalendarTimeZoneGMTMinus0
+		return nil
+	case DeadlineCalendarTimeZoneGMT0:
+		*s = DeadlineCalendarTimeZoneGMT0
+		return nil
+	case DeadlineCalendarTimeZoneGreenwich:
+		*s = DeadlineCalendarTimeZoneGreenwich
+		return nil
+	case DeadlineCalendarTimeZoneHST:
+		*s = DeadlineCalendarTimeZoneHST
+		return nil
+	case DeadlineCalendarTimeZoneHongkong:
+		*s = DeadlineCalendarTimeZoneHongkong
+		return nil
+	case DeadlineCalendarTimeZoneIceland:
+		*s = DeadlineCalendarTimeZoneIceland
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashAntananarivo:
+		*s = DeadlineCalendarTimeZoneIndianSlashAntananarivo
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashChagos:
+		*s = DeadlineCalendarTimeZoneIndianSlashChagos
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashChristmas:
+		*s = DeadlineCalendarTimeZoneIndianSlashChristmas
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashCocos:
+		*s = DeadlineCalendarTimeZoneIndianSlashCocos
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashComoro:
+		*s = DeadlineCalendarTimeZoneIndianSlashComoro
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashKerguelen:
+		*s = DeadlineCalendarTimeZoneIndianSlashKerguelen
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashMahe:
+		*s = DeadlineCalendarTimeZoneIndianSlashMahe
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashMaldives:
+		*s = DeadlineCalendarTimeZoneIndianSlashMaldives
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashMauritius:
+		*s = DeadlineCalendarTimeZoneIndianSlashMauritius
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashMayotte:
+		*s = DeadlineCalendarTimeZoneIndianSlashMayotte
+		return nil
+	case DeadlineCalendarTimeZoneIndianSlashReunion:
+		*s = DeadlineCalendarTimeZoneIndianSlashReunion
+		return nil
+	case DeadlineCalendarTimeZoneIran:
+		*s = DeadlineCalendarTimeZoneIran
+		return nil
+	case DeadlineCalendarTimeZoneIsrael:
+		*s = DeadlineCalendarTimeZoneIsrael
+		return nil
+	case DeadlineCalendarTimeZoneJamaica:
+		*s = DeadlineCalendarTimeZoneJamaica
+		return nil
+	case DeadlineCalendarTimeZoneJapan:
+		*s = DeadlineCalendarTimeZoneJapan
+		return nil
+	case DeadlineCalendarTimeZoneKwajalein:
+		*s = DeadlineCalendarTimeZoneKwajalein
+		return nil
+	case DeadlineCalendarTimeZoneLibya:
+		*s = DeadlineCalendarTimeZoneLibya
+		return nil
+	case DeadlineCalendarTimeZoneMET:
+		*s = DeadlineCalendarTimeZoneMET
+		return nil
+	case DeadlineCalendarTimeZoneMST:
+		*s = DeadlineCalendarTimeZoneMST
+		return nil
+	case DeadlineCalendarTimeZoneMST7MDT:
+		*s = DeadlineCalendarTimeZoneMST7MDT
+		return nil
+	case DeadlineCalendarTimeZoneMexicoSlashBajaNorte:
+		*s = DeadlineCalendarTimeZoneMexicoSlashBajaNorte
+		return nil
+	case DeadlineCalendarTimeZoneMexicoSlashBajaSur:
+		*s = DeadlineCalendarTimeZoneMexicoSlashBajaSur
+		return nil
+	case DeadlineCalendarTimeZoneMexicoSlashGeneral:
+		*s = DeadlineCalendarTimeZoneMexicoSlashGeneral
+		return nil
+	case DeadlineCalendarTimeZoneNZ:
+		*s = DeadlineCalendarTimeZoneNZ
+		return nil
+	case DeadlineCalendarTimeZoneNZMinusCHAT:
+		*s = DeadlineCalendarTimeZoneNZMinusCHAT
+		return nil
+	case DeadlineCalendarTimeZoneNavajo:
+		*s = DeadlineCalendarTimeZoneNavajo
+		return nil
+	case DeadlineCalendarTimeZonePRC:
+		*s = DeadlineCalendarTimeZonePRC
+		return nil
+	case DeadlineCalendarTimeZonePST8PDT:
+		*s = DeadlineCalendarTimeZonePST8PDT
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashApia:
+		*s = DeadlineCalendarTimeZonePacificSlashApia
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashAuckland:
+		*s = DeadlineCalendarTimeZonePacificSlashAuckland
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashBougainville:
+		*s = DeadlineCalendarTimeZonePacificSlashBougainville
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashChatham:
+		*s = DeadlineCalendarTimeZonePacificSlashChatham
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashChuuk:
+		*s = DeadlineCalendarTimeZonePacificSlashChuuk
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashEaster:
+		*s = DeadlineCalendarTimeZonePacificSlashEaster
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashEfate:
+		*s = DeadlineCalendarTimeZonePacificSlashEfate
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashEnderbury:
+		*s = DeadlineCalendarTimeZonePacificSlashEnderbury
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashFakaofo:
+		*s = DeadlineCalendarTimeZonePacificSlashFakaofo
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashFiji:
+		*s = DeadlineCalendarTimeZonePacificSlashFiji
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashFunafuti:
+		*s = DeadlineCalendarTimeZonePacificSlashFunafuti
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashGalapagos:
+		*s = DeadlineCalendarTimeZonePacificSlashGalapagos
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashGambier:
+		*s = DeadlineCalendarTimeZonePacificSlashGambier
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashGuadalcanal:
+		*s = DeadlineCalendarTimeZonePacificSlashGuadalcanal
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashGuam:
+		*s = DeadlineCalendarTimeZonePacificSlashGuam
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashHonolulu:
+		*s = DeadlineCalendarTimeZonePacificSlashHonolulu
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashJohnston:
+		*s = DeadlineCalendarTimeZonePacificSlashJohnston
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashKanton:
+		*s = DeadlineCalendarTimeZonePacificSlashKanton
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashKiritimati:
+		*s = DeadlineCalendarTimeZonePacificSlashKiritimati
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashKosrae:
+		*s = DeadlineCalendarTimeZonePacificSlashKosrae
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashKwajalein:
+		*s = DeadlineCalendarTimeZonePacificSlashKwajalein
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashMajuro:
+		*s = DeadlineCalendarTimeZonePacificSlashMajuro
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashMarquesas:
+		*s = DeadlineCalendarTimeZonePacificSlashMarquesas
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashMidway:
+		*s = DeadlineCalendarTimeZonePacificSlashMidway
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashNauru:
+		*s = DeadlineCalendarTimeZonePacificSlashNauru
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashNiue:
+		*s = DeadlineCalendarTimeZonePacificSlashNiue
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashNorfolk:
+		*s = DeadlineCalendarTimeZonePacificSlashNorfolk
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashNoumea:
+		*s = DeadlineCalendarTimeZonePacificSlashNoumea
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPagoPago:
+		*s = DeadlineCalendarTimeZonePacificSlashPagoPago
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPalau:
+		*s = DeadlineCalendarTimeZonePacificSlashPalau
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPitcairn:
+		*s = DeadlineCalendarTimeZonePacificSlashPitcairn
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPohnpei:
+		*s = DeadlineCalendarTimeZonePacificSlashPohnpei
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPonape:
+		*s = DeadlineCalendarTimeZonePacificSlashPonape
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashPortMoresby:
+		*s = DeadlineCalendarTimeZonePacificSlashPortMoresby
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashRarotonga:
+		*s = DeadlineCalendarTimeZonePacificSlashRarotonga
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashSaipan:
+		*s = DeadlineCalendarTimeZonePacificSlashSaipan
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashSamoa:
+		*s = DeadlineCalendarTimeZonePacificSlashSamoa
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashTahiti:
+		*s = DeadlineCalendarTimeZonePacificSlashTahiti
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashTarawa:
+		*s = DeadlineCalendarTimeZonePacificSlashTarawa
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashTongatapu:
+		*s = DeadlineCalendarTimeZonePacificSlashTongatapu
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashTruk:
+		*s = DeadlineCalendarTimeZonePacificSlashTruk
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashWake:
+		*s = DeadlineCalendarTimeZonePacificSlashWake
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashWallis:
+		*s = DeadlineCalendarTimeZonePacificSlashWallis
+		return nil
+	case DeadlineCalendarTimeZonePacificSlashYap:
+		*s = DeadlineCalendarTimeZonePacificSlashYap
+		return nil
+	case DeadlineCalendarTimeZonePoland:
+		*s = DeadlineCalendarTimeZonePoland
+		return nil
+	case DeadlineCalendarTimeZonePortugal:
+		*s = DeadlineCalendarTimeZonePortugal
+		return nil
+	case DeadlineCalendarTimeZoneROC:
+		*s = DeadlineCalendarTimeZoneROC
+		return nil
+	case DeadlineCalendarTimeZoneROK:
+		*s = DeadlineCalendarTimeZoneROK
+		return nil
+	case DeadlineCalendarTimeZoneSingapore:
+		*s = DeadlineCalendarTimeZoneSingapore
+		return nil
+	case DeadlineCalendarTimeZoneTurkey:
+		*s = DeadlineCalendarTimeZoneTurkey
+		return nil
+	case DeadlineCalendarTimeZoneUCT:
+		*s = DeadlineCalendarTimeZoneUCT
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashAlaska:
+		*s = DeadlineCalendarTimeZoneUSSlashAlaska
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashAleutian:
+		*s = DeadlineCalendarTimeZoneUSSlashAleutian
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashArizona:
+		*s = DeadlineCalendarTimeZoneUSSlashArizona
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashCentral:
+		*s = DeadlineCalendarTimeZoneUSSlashCentral
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashEastMinusIndiana:
+		*s = DeadlineCalendarTimeZoneUSSlashEastMinusIndiana
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashEastern:
+		*s = DeadlineCalendarTimeZoneUSSlashEastern
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashHawaii:
+		*s = DeadlineCalendarTimeZoneUSSlashHawaii
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke:
+		*s = DeadlineCalendarTimeZoneUSSlashIndianaMinusStarke
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashMichigan:
+		*s = DeadlineCalendarTimeZoneUSSlashMichigan
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashMountain:
+		*s = DeadlineCalendarTimeZoneUSSlashMountain
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashPacific:
+		*s = DeadlineCalendarTimeZoneUSSlashPacific
+		return nil
+	case DeadlineCalendarTimeZoneUSSlashSamoa:
+		*s = DeadlineCalendarTimeZoneUSSlashSamoa
+		return nil
+	case DeadlineCalendarTimeZoneUTC:
+		*s = DeadlineCalendarTimeZoneUTC
+		return nil
+	case DeadlineCalendarTimeZoneUniversal:
+		*s = DeadlineCalendarTimeZoneUniversal
+		return nil
+	case DeadlineCalendarTimeZoneWMinusSU:
+		*s = DeadlineCalendarTimeZoneWMinusSU
+		return nil
+	case DeadlineCalendarTimeZoneWET:
+		*s = DeadlineCalendarTimeZoneWET
+		return nil
+	case DeadlineCalendarTimeZoneZulu:
+		*s = DeadlineCalendarTimeZoneZulu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/DeadlinePreview
@@ -938,6 +5162,4219 @@ func (s *HelpdeskDeadlineCalendarPeriod) UnmarshalText(data []byte) error {
 		return nil
 	case HelpdeskDeadlineCalendarPeriodYear:
 		*s = HelpdeskDeadlineCalendarPeriodYear
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HelpdeskDeadlineCalendarTimeZone string
+
+const (
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAbidjan                       HelpdeskDeadlineCalendarTimeZone = "Africa/Abidjan"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAccra                         HelpdeskDeadlineCalendarTimeZone = "Africa/Accra"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAddisAbaba                    HelpdeskDeadlineCalendarTimeZone = "Africa/Addis_Ababa"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAlgiers                       HelpdeskDeadlineCalendarTimeZone = "Africa/Algiers"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmara                        HelpdeskDeadlineCalendarTimeZone = "Africa/Asmara"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmera                        HelpdeskDeadlineCalendarTimeZone = "Africa/Asmera"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBamako                        HelpdeskDeadlineCalendarTimeZone = "Africa/Bamako"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBangui                        HelpdeskDeadlineCalendarTimeZone = "Africa/Bangui"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBanjul                        HelpdeskDeadlineCalendarTimeZone = "Africa/Banjul"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBissau                        HelpdeskDeadlineCalendarTimeZone = "Africa/Bissau"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBlantyre                      HelpdeskDeadlineCalendarTimeZone = "Africa/Blantyre"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBrazzaville                   HelpdeskDeadlineCalendarTimeZone = "Africa/Brazzaville"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashBujumbura                     HelpdeskDeadlineCalendarTimeZone = "Africa/Bujumbura"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashCairo                         HelpdeskDeadlineCalendarTimeZone = "Africa/Cairo"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashCasablanca                    HelpdeskDeadlineCalendarTimeZone = "Africa/Casablanca"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashCeuta                         HelpdeskDeadlineCalendarTimeZone = "Africa/Ceuta"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashConakry                       HelpdeskDeadlineCalendarTimeZone = "Africa/Conakry"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashDakar                         HelpdeskDeadlineCalendarTimeZone = "Africa/Dakar"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashDarEsSalaam                   HelpdeskDeadlineCalendarTimeZone = "Africa/Dar_es_Salaam"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashDjibouti                      HelpdeskDeadlineCalendarTimeZone = "Africa/Djibouti"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashDouala                        HelpdeskDeadlineCalendarTimeZone = "Africa/Douala"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashElAaiun                       HelpdeskDeadlineCalendarTimeZone = "Africa/El_Aaiun"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashFreetown                      HelpdeskDeadlineCalendarTimeZone = "Africa/Freetown"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashGaborone                      HelpdeskDeadlineCalendarTimeZone = "Africa/Gaborone"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashHarare                        HelpdeskDeadlineCalendarTimeZone = "Africa/Harare"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashJohannesburg                  HelpdeskDeadlineCalendarTimeZone = "Africa/Johannesburg"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashJuba                          HelpdeskDeadlineCalendarTimeZone = "Africa/Juba"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashKampala                       HelpdeskDeadlineCalendarTimeZone = "Africa/Kampala"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashKhartoum                      HelpdeskDeadlineCalendarTimeZone = "Africa/Khartoum"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashKigali                        HelpdeskDeadlineCalendarTimeZone = "Africa/Kigali"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashKinshasa                      HelpdeskDeadlineCalendarTimeZone = "Africa/Kinshasa"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLagos                         HelpdeskDeadlineCalendarTimeZone = "Africa/Lagos"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLibreville                    HelpdeskDeadlineCalendarTimeZone = "Africa/Libreville"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLome                          HelpdeskDeadlineCalendarTimeZone = "Africa/Lome"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLuanda                        HelpdeskDeadlineCalendarTimeZone = "Africa/Luanda"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLubumbashi                    HelpdeskDeadlineCalendarTimeZone = "Africa/Lubumbashi"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashLusaka                        HelpdeskDeadlineCalendarTimeZone = "Africa/Lusaka"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMalabo                        HelpdeskDeadlineCalendarTimeZone = "Africa/Malabo"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaputo                        HelpdeskDeadlineCalendarTimeZone = "Africa/Maputo"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaseru                        HelpdeskDeadlineCalendarTimeZone = "Africa/Maseru"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMbabane                       HelpdeskDeadlineCalendarTimeZone = "Africa/Mbabane"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMogadishu                     HelpdeskDeadlineCalendarTimeZone = "Africa/Mogadishu"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashMonrovia                      HelpdeskDeadlineCalendarTimeZone = "Africa/Monrovia"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashNairobi                       HelpdeskDeadlineCalendarTimeZone = "Africa/Nairobi"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashNdjamena                      HelpdeskDeadlineCalendarTimeZone = "Africa/Ndjamena"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashNiamey                        HelpdeskDeadlineCalendarTimeZone = "Africa/Niamey"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashNouakchott                    HelpdeskDeadlineCalendarTimeZone = "Africa/Nouakchott"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashOuagadougou                   HelpdeskDeadlineCalendarTimeZone = "Africa/Ouagadougou"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo                HelpdeskDeadlineCalendarTimeZone = "Africa/Porto-Novo"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashSaoTome                       HelpdeskDeadlineCalendarTimeZone = "Africa/Sao_Tome"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashTimbuktu                      HelpdeskDeadlineCalendarTimeZone = "Africa/Timbuktu"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashTripoli                       HelpdeskDeadlineCalendarTimeZone = "Africa/Tripoli"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashTunis                         HelpdeskDeadlineCalendarTimeZone = "Africa/Tunis"
+	HelpdeskDeadlineCalendarTimeZoneAfricaSlashWindhoek                      HelpdeskDeadlineCalendarTimeZone = "Africa/Windhoek"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAdak                         HelpdeskDeadlineCalendarTimeZone = "America/Adak"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnchorage                    HelpdeskDeadlineCalendarTimeZone = "America/Anchorage"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnguilla                     HelpdeskDeadlineCalendarTimeZone = "America/Anguilla"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAntigua                      HelpdeskDeadlineCalendarTimeZone = "America/Antigua"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAraguaina                    HelpdeskDeadlineCalendarTimeZone = "America/Araguaina"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires    HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Buenos_Aires"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca      HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Catamarca"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia HelpdeskDeadlineCalendarTimeZone = "America/Argentina/ComodRivadavia"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Cordoba"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy          HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Jujuy"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/La_Rioja"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Mendoza"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos    HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Rio_Gallegos"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta          HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Salta"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/San_Juan"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/San_Luis"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Tucuman"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia        HelpdeskDeadlineCalendarTimeZone = "America/Argentina/Ushuaia"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAruba                        HelpdeskDeadlineCalendarTimeZone = "America/Aruba"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAsuncion                     HelpdeskDeadlineCalendarTimeZone = "America/Asuncion"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtikokan                     HelpdeskDeadlineCalendarTimeZone = "America/Atikokan"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtka                         HelpdeskDeadlineCalendarTimeZone = "America/Atka"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahia                        HelpdeskDeadlineCalendarTimeZone = "America/Bahia"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahiaBanderas                HelpdeskDeadlineCalendarTimeZone = "America/Bahia_Banderas"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBarbados                     HelpdeskDeadlineCalendarTimeZone = "America/Barbados"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelem                        HelpdeskDeadlineCalendarTimeZone = "America/Belem"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelize                       HelpdeskDeadlineCalendarTimeZone = "America/Belize"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon             HelpdeskDeadlineCalendarTimeZone = "America/Blanc-Sablon"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoaVista                     HelpdeskDeadlineCalendarTimeZone = "America/Boa_Vista"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBogota                       HelpdeskDeadlineCalendarTimeZone = "America/Bogota"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoise                        HelpdeskDeadlineCalendarTimeZone = "America/Boise"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashBuenosAires                  HelpdeskDeadlineCalendarTimeZone = "America/Buenos_Aires"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCambridgeBay                 HelpdeskDeadlineCalendarTimeZone = "America/Cambridge_Bay"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCampoGrande                  HelpdeskDeadlineCalendarTimeZone = "America/Campo_Grande"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCancun                       HelpdeskDeadlineCalendarTimeZone = "America/Cancun"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCaracas                      HelpdeskDeadlineCalendarTimeZone = "America/Caracas"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCatamarca                    HelpdeskDeadlineCalendarTimeZone = "America/Catamarca"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayenne                      HelpdeskDeadlineCalendarTimeZone = "America/Cayenne"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayman                       HelpdeskDeadlineCalendarTimeZone = "America/Cayman"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashChicago                      HelpdeskDeadlineCalendarTimeZone = "America/Chicago"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashChihuahua                    HelpdeskDeadlineCalendarTimeZone = "America/Chihuahua"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCiudadJuarez                 HelpdeskDeadlineCalendarTimeZone = "America/Ciudad_Juarez"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoralHarbour                 HelpdeskDeadlineCalendarTimeZone = "America/Coral_Harbour"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCordoba                      HelpdeskDeadlineCalendarTimeZone = "America/Cordoba"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCostaRica                    HelpdeskDeadlineCalendarTimeZone = "America/Costa_Rica"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoyhaique                    HelpdeskDeadlineCalendarTimeZone = "America/Coyhaique"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCreston                      HelpdeskDeadlineCalendarTimeZone = "America/Creston"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuiaba                       HelpdeskDeadlineCalendarTimeZone = "America/Cuiaba"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuracao                      HelpdeskDeadlineCalendarTimeZone = "America/Curacao"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDanmarkshavn                 HelpdeskDeadlineCalendarTimeZone = "America/Danmarkshavn"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawson                       HelpdeskDeadlineCalendarTimeZone = "America/Dawson"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawsonCreek                  HelpdeskDeadlineCalendarTimeZone = "America/Dawson_Creek"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDenver                       HelpdeskDeadlineCalendarTimeZone = "America/Denver"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDetroit                      HelpdeskDeadlineCalendarTimeZone = "America/Detroit"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashDominica                     HelpdeskDeadlineCalendarTimeZone = "America/Dominica"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashEdmonton                     HelpdeskDeadlineCalendarTimeZone = "America/Edmonton"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashEirunepe                     HelpdeskDeadlineCalendarTimeZone = "America/Eirunepe"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashElSalvador                   HelpdeskDeadlineCalendarTimeZone = "America/El_Salvador"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashEnsenada                     HelpdeskDeadlineCalendarTimeZone = "America/Ensenada"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortNelson                   HelpdeskDeadlineCalendarTimeZone = "America/Fort_Nelson"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortWayne                    HelpdeskDeadlineCalendarTimeZone = "America/Fort_Wayne"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortaleza                    HelpdeskDeadlineCalendarTimeZone = "America/Fortaleza"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGlaceBay                     HelpdeskDeadlineCalendarTimeZone = "America/Glace_Bay"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGodthab                      HelpdeskDeadlineCalendarTimeZone = "America/Godthab"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGooseBay                     HelpdeskDeadlineCalendarTimeZone = "America/Goose_Bay"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrandTurk                    HelpdeskDeadlineCalendarTimeZone = "America/Grand_Turk"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrenada                      HelpdeskDeadlineCalendarTimeZone = "America/Grenada"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuadeloupe                   HelpdeskDeadlineCalendarTimeZone = "America/Guadeloupe"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuatemala                    HelpdeskDeadlineCalendarTimeZone = "America/Guatemala"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuayaquil                    HelpdeskDeadlineCalendarTimeZone = "America/Guayaquil"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuyana                       HelpdeskDeadlineCalendarTimeZone = "America/Guyana"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashHalifax                      HelpdeskDeadlineCalendarTimeZone = "America/Halifax"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashHavana                       HelpdeskDeadlineCalendarTimeZone = "America/Havana"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashHermosillo                   HelpdeskDeadlineCalendarTimeZone = "America/Hermosillo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis     HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Indianapolis"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox             HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Knox"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo          HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Marengo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg       HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Petersburg"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity         HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Tell_City"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay            HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Vevay"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes        HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Vincennes"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac          HelpdeskDeadlineCalendarTimeZone = "America/Indiana/Winamac"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianapolis                 HelpdeskDeadlineCalendarTimeZone = "America/Indianapolis"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashInuvik                       HelpdeskDeadlineCalendarTimeZone = "America/Inuvik"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashIqaluit                      HelpdeskDeadlineCalendarTimeZone = "America/Iqaluit"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashJamaica                      HelpdeskDeadlineCalendarTimeZone = "America/Jamaica"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashJujuy                        HelpdeskDeadlineCalendarTimeZone = "America/Jujuy"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashJuneau                       HelpdeskDeadlineCalendarTimeZone = "America/Juneau"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville      HelpdeskDeadlineCalendarTimeZone = "America/Kentucky/Louisville"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello      HelpdeskDeadlineCalendarTimeZone = "America/Kentucky/Monticello"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashKnoxIN                       HelpdeskDeadlineCalendarTimeZone = "America/Knox_IN"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashKralendijk                   HelpdeskDeadlineCalendarTimeZone = "America/Kralendijk"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashLaPaz                        HelpdeskDeadlineCalendarTimeZone = "America/La_Paz"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashLima                         HelpdeskDeadlineCalendarTimeZone = "America/Lima"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashLosAngeles                   HelpdeskDeadlineCalendarTimeZone = "America/Los_Angeles"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashLouisville                   HelpdeskDeadlineCalendarTimeZone = "America/Louisville"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashLowerPrinces                 HelpdeskDeadlineCalendarTimeZone = "America/Lower_Princes"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMaceio                       HelpdeskDeadlineCalendarTimeZone = "America/Maceio"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashManagua                      HelpdeskDeadlineCalendarTimeZone = "America/Managua"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashManaus                       HelpdeskDeadlineCalendarTimeZone = "America/Manaus"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMarigot                      HelpdeskDeadlineCalendarTimeZone = "America/Marigot"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMartinique                   HelpdeskDeadlineCalendarTimeZone = "America/Martinique"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMatamoros                    HelpdeskDeadlineCalendarTimeZone = "America/Matamoros"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMazatlan                     HelpdeskDeadlineCalendarTimeZone = "America/Mazatlan"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMendoza                      HelpdeskDeadlineCalendarTimeZone = "America/Mendoza"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMenominee                    HelpdeskDeadlineCalendarTimeZone = "America/Menominee"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMerida                       HelpdeskDeadlineCalendarTimeZone = "America/Merida"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMetlakatla                   HelpdeskDeadlineCalendarTimeZone = "America/Metlakatla"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMexicoCity                   HelpdeskDeadlineCalendarTimeZone = "America/Mexico_City"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMiquelon                     HelpdeskDeadlineCalendarTimeZone = "America/Miquelon"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMoncton                      HelpdeskDeadlineCalendarTimeZone = "America/Moncton"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMonterrey                    HelpdeskDeadlineCalendarTimeZone = "America/Monterrey"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontevideo                   HelpdeskDeadlineCalendarTimeZone = "America/Montevideo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontreal                     HelpdeskDeadlineCalendarTimeZone = "America/Montreal"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontserrat                   HelpdeskDeadlineCalendarTimeZone = "America/Montserrat"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNassau                       HelpdeskDeadlineCalendarTimeZone = "America/Nassau"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNewYork                      HelpdeskDeadlineCalendarTimeZone = "America/New_York"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNipigon                      HelpdeskDeadlineCalendarTimeZone = "America/Nipigon"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNome                         HelpdeskDeadlineCalendarTimeZone = "America/Nome"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNoronha                      HelpdeskDeadlineCalendarTimeZone = "America/Noronha"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah       HelpdeskDeadlineCalendarTimeZone = "America/North_Dakota/Beulah"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter       HelpdeskDeadlineCalendarTimeZone = "America/North_Dakota/Center"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem     HelpdeskDeadlineCalendarTimeZone = "America/North_Dakota/New_Salem"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashNuuk                         HelpdeskDeadlineCalendarTimeZone = "America/Nuuk"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashOjinaga                      HelpdeskDeadlineCalendarTimeZone = "America/Ojinaga"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPanama                       HelpdeskDeadlineCalendarTimeZone = "America/Panama"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPangnirtung                  HelpdeskDeadlineCalendarTimeZone = "America/Pangnirtung"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashParamaribo                   HelpdeskDeadlineCalendarTimeZone = "America/Paramaribo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPhoenix                      HelpdeskDeadlineCalendarTimeZone = "America/Phoenix"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince       HelpdeskDeadlineCalendarTimeZone = "America/Port-au-Prince"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortOfSpain                  HelpdeskDeadlineCalendarTimeZone = "America/Port_of_Spain"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoAcre                    HelpdeskDeadlineCalendarTimeZone = "America/Porto_Acre"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoVelho                   HelpdeskDeadlineCalendarTimeZone = "America/Porto_Velho"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuertoRico                   HelpdeskDeadlineCalendarTimeZone = "America/Puerto_Rico"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuntaArenas                  HelpdeskDeadlineCalendarTimeZone = "America/Punta_Arenas"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRainyRiver                   HelpdeskDeadlineCalendarTimeZone = "America/Rainy_River"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRankinInlet                  HelpdeskDeadlineCalendarTimeZone = "America/Rankin_Inlet"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRecife                       HelpdeskDeadlineCalendarTimeZone = "America/Recife"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRegina                       HelpdeskDeadlineCalendarTimeZone = "America/Regina"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashResolute                     HelpdeskDeadlineCalendarTimeZone = "America/Resolute"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRioBranco                    HelpdeskDeadlineCalendarTimeZone = "America/Rio_Branco"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashRosario                      HelpdeskDeadlineCalendarTimeZone = "America/Rosario"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantaIsabel                  HelpdeskDeadlineCalendarTimeZone = "America/Santa_Isabel"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantarem                     HelpdeskDeadlineCalendarTimeZone = "America/Santarem"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantiago                     HelpdeskDeadlineCalendarTimeZone = "America/Santiago"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantoDomingo                 HelpdeskDeadlineCalendarTimeZone = "America/Santo_Domingo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSaoPaulo                     HelpdeskDeadlineCalendarTimeZone = "America/Sao_Paulo"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashScoresbysund                 HelpdeskDeadlineCalendarTimeZone = "America/Scoresbysund"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashShiprock                     HelpdeskDeadlineCalendarTimeZone = "America/Shiprock"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSitka                        HelpdeskDeadlineCalendarTimeZone = "America/Sitka"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStBarthelemy                 HelpdeskDeadlineCalendarTimeZone = "America/St_Barthelemy"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStJohns                      HelpdeskDeadlineCalendarTimeZone = "America/St_Johns"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStKitts                      HelpdeskDeadlineCalendarTimeZone = "America/St_Kitts"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStLucia                      HelpdeskDeadlineCalendarTimeZone = "America/St_Lucia"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStThomas                     HelpdeskDeadlineCalendarTimeZone = "America/St_Thomas"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashStVincent                    HelpdeskDeadlineCalendarTimeZone = "America/St_Vincent"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashSwiftCurrent                 HelpdeskDeadlineCalendarTimeZone = "America/Swift_Current"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashTegucigalpa                  HelpdeskDeadlineCalendarTimeZone = "America/Tegucigalpa"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashThule                        HelpdeskDeadlineCalendarTimeZone = "America/Thule"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashThunderBay                   HelpdeskDeadlineCalendarTimeZone = "America/Thunder_Bay"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashTijuana                      HelpdeskDeadlineCalendarTimeZone = "America/Tijuana"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashToronto                      HelpdeskDeadlineCalendarTimeZone = "America/Toronto"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashTortola                      HelpdeskDeadlineCalendarTimeZone = "America/Tortola"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashVancouver                    HelpdeskDeadlineCalendarTimeZone = "America/Vancouver"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashVirgin                       HelpdeskDeadlineCalendarTimeZone = "America/Virgin"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashWhitehorse                   HelpdeskDeadlineCalendarTimeZone = "America/Whitehorse"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashWinnipeg                     HelpdeskDeadlineCalendarTimeZone = "America/Winnipeg"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashYakutat                      HelpdeskDeadlineCalendarTimeZone = "America/Yakutat"
+	HelpdeskDeadlineCalendarTimeZoneAmericaSlashYellowknife                  HelpdeskDeadlineCalendarTimeZone = "America/Yellowknife"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashCasey                     HelpdeskDeadlineCalendarTimeZone = "Antarctica/Casey"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDavis                     HelpdeskDeadlineCalendarTimeZone = "Antarctica/Davis"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville            HelpdeskDeadlineCalendarTimeZone = "Antarctica/DumontDUrville"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMacquarie                 HelpdeskDeadlineCalendarTimeZone = "Antarctica/Macquarie"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMawson                    HelpdeskDeadlineCalendarTimeZone = "Antarctica/Mawson"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMcMurdo                   HelpdeskDeadlineCalendarTimeZone = "Antarctica/McMurdo"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashPalmer                    HelpdeskDeadlineCalendarTimeZone = "Antarctica/Palmer"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashRothera                   HelpdeskDeadlineCalendarTimeZone = "Antarctica/Rothera"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSouthPole                 HelpdeskDeadlineCalendarTimeZone = "Antarctica/South_Pole"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSyowa                     HelpdeskDeadlineCalendarTimeZone = "Antarctica/Syowa"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashTroll                     HelpdeskDeadlineCalendarTimeZone = "Antarctica/Troll"
+	HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashVostok                    HelpdeskDeadlineCalendarTimeZone = "Antarctica/Vostok"
+	HelpdeskDeadlineCalendarTimeZoneArcticSlashLongyearbyen                  HelpdeskDeadlineCalendarTimeZone = "Arctic/Longyearbyen"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAden                            HelpdeskDeadlineCalendarTimeZone = "Asia/Aden"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAlmaty                          HelpdeskDeadlineCalendarTimeZone = "Asia/Almaty"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAmman                           HelpdeskDeadlineCalendarTimeZone = "Asia/Amman"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAnadyr                          HelpdeskDeadlineCalendarTimeZone = "Asia/Anadyr"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtau                           HelpdeskDeadlineCalendarTimeZone = "Asia/Aqtau"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtobe                          HelpdeskDeadlineCalendarTimeZone = "Asia/Aqtobe"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshgabat                        HelpdeskDeadlineCalendarTimeZone = "Asia/Ashgabat"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshkhabad                       HelpdeskDeadlineCalendarTimeZone = "Asia/Ashkhabad"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashAtyrau                          HelpdeskDeadlineCalendarTimeZone = "Asia/Atyrau"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaghdad                         HelpdeskDeadlineCalendarTimeZone = "Asia/Baghdad"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBahrain                         HelpdeskDeadlineCalendarTimeZone = "Asia/Bahrain"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaku                            HelpdeskDeadlineCalendarTimeZone = "Asia/Baku"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBangkok                         HelpdeskDeadlineCalendarTimeZone = "Asia/Bangkok"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBarnaul                         HelpdeskDeadlineCalendarTimeZone = "Asia/Barnaul"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBeirut                          HelpdeskDeadlineCalendarTimeZone = "Asia/Beirut"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBishkek                         HelpdeskDeadlineCalendarTimeZone = "Asia/Bishkek"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashBrunei                          HelpdeskDeadlineCalendarTimeZone = "Asia/Brunei"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashCalcutta                        HelpdeskDeadlineCalendarTimeZone = "Asia/Calcutta"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashChita                           HelpdeskDeadlineCalendarTimeZone = "Asia/Chita"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashChoibalsan                      HelpdeskDeadlineCalendarTimeZone = "Asia/Choibalsan"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashChongqing                       HelpdeskDeadlineCalendarTimeZone = "Asia/Chongqing"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashChungking                       HelpdeskDeadlineCalendarTimeZone = "Asia/Chungking"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashColombo                         HelpdeskDeadlineCalendarTimeZone = "Asia/Colombo"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDacca                           HelpdeskDeadlineCalendarTimeZone = "Asia/Dacca"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDamascus                        HelpdeskDeadlineCalendarTimeZone = "Asia/Damascus"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDhaka                           HelpdeskDeadlineCalendarTimeZone = "Asia/Dhaka"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDili                            HelpdeskDeadlineCalendarTimeZone = "Asia/Dili"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDubai                           HelpdeskDeadlineCalendarTimeZone = "Asia/Dubai"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashDushanbe                        HelpdeskDeadlineCalendarTimeZone = "Asia/Dushanbe"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashFamagusta                       HelpdeskDeadlineCalendarTimeZone = "Asia/Famagusta"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashGaza                            HelpdeskDeadlineCalendarTimeZone = "Asia/Gaza"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashHarbin                          HelpdeskDeadlineCalendarTimeZone = "Asia/Harbin"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashHebron                          HelpdeskDeadlineCalendarTimeZone = "Asia/Hebron"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashHoChiMinh                       HelpdeskDeadlineCalendarTimeZone = "Asia/Ho_Chi_Minh"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashHongKong                        HelpdeskDeadlineCalendarTimeZone = "Asia/Hong_Kong"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashHovd                            HelpdeskDeadlineCalendarTimeZone = "Asia/Hovd"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashIrkutsk                         HelpdeskDeadlineCalendarTimeZone = "Asia/Irkutsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashIstanbul                        HelpdeskDeadlineCalendarTimeZone = "Asia/Istanbul"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashJakarta                         HelpdeskDeadlineCalendarTimeZone = "Asia/Jakarta"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashJayapura                        HelpdeskDeadlineCalendarTimeZone = "Asia/Jayapura"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashJerusalem                       HelpdeskDeadlineCalendarTimeZone = "Asia/Jerusalem"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKabul                           HelpdeskDeadlineCalendarTimeZone = "Asia/Kabul"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKamchatka                       HelpdeskDeadlineCalendarTimeZone = "Asia/Kamchatka"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKarachi                         HelpdeskDeadlineCalendarTimeZone = "Asia/Karachi"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKashgar                         HelpdeskDeadlineCalendarTimeZone = "Asia/Kashgar"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKathmandu                       HelpdeskDeadlineCalendarTimeZone = "Asia/Kathmandu"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKatmandu                        HelpdeskDeadlineCalendarTimeZone = "Asia/Katmandu"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKhandyga                        HelpdeskDeadlineCalendarTimeZone = "Asia/Khandyga"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKolkata                         HelpdeskDeadlineCalendarTimeZone = "Asia/Kolkata"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk                     HelpdeskDeadlineCalendarTimeZone = "Asia/Krasnoyarsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKualaLumpur                     HelpdeskDeadlineCalendarTimeZone = "Asia/Kuala_Lumpur"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuching                         HelpdeskDeadlineCalendarTimeZone = "Asia/Kuching"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuwait                          HelpdeskDeadlineCalendarTimeZone = "Asia/Kuwait"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacao                           HelpdeskDeadlineCalendarTimeZone = "Asia/Macao"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacau                           HelpdeskDeadlineCalendarTimeZone = "Asia/Macau"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashMagadan                         HelpdeskDeadlineCalendarTimeZone = "Asia/Magadan"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashMakassar                        HelpdeskDeadlineCalendarTimeZone = "Asia/Makassar"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashManila                          HelpdeskDeadlineCalendarTimeZone = "Asia/Manila"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashMuscat                          HelpdeskDeadlineCalendarTimeZone = "Asia/Muscat"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashNicosia                         HelpdeskDeadlineCalendarTimeZone = "Asia/Nicosia"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovokuznetsk                    HelpdeskDeadlineCalendarTimeZone = "Asia/Novokuznetsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovosibirsk                     HelpdeskDeadlineCalendarTimeZone = "Asia/Novosibirsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashOmsk                            HelpdeskDeadlineCalendarTimeZone = "Asia/Omsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashOral                            HelpdeskDeadlineCalendarTimeZone = "Asia/Oral"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashPhnomPenh                       HelpdeskDeadlineCalendarTimeZone = "Asia/Phnom_Penh"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashPontianak                       HelpdeskDeadlineCalendarTimeZone = "Asia/Pontianak"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashPyongyang                       HelpdeskDeadlineCalendarTimeZone = "Asia/Pyongyang"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashQatar                           HelpdeskDeadlineCalendarTimeZone = "Asia/Qatar"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashQostanay                        HelpdeskDeadlineCalendarTimeZone = "Asia/Qostanay"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashQyzylorda                       HelpdeskDeadlineCalendarTimeZone = "Asia/Qyzylorda"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashRangoon                         HelpdeskDeadlineCalendarTimeZone = "Asia/Rangoon"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashRiyadh                          HelpdeskDeadlineCalendarTimeZone = "Asia/Riyadh"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSaigon                          HelpdeskDeadlineCalendarTimeZone = "Asia/Saigon"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSakhalin                        HelpdeskDeadlineCalendarTimeZone = "Asia/Sakhalin"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSamarkand                       HelpdeskDeadlineCalendarTimeZone = "Asia/Samarkand"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSeoul                           HelpdeskDeadlineCalendarTimeZone = "Asia/Seoul"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashShanghai                        HelpdeskDeadlineCalendarTimeZone = "Asia/Shanghai"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSingapore                       HelpdeskDeadlineCalendarTimeZone = "Asia/Singapore"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashSrednekolymsk                   HelpdeskDeadlineCalendarTimeZone = "Asia/Srednekolymsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTaipei                          HelpdeskDeadlineCalendarTimeZone = "Asia/Taipei"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTashkent                        HelpdeskDeadlineCalendarTimeZone = "Asia/Tashkent"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTbilisi                         HelpdeskDeadlineCalendarTimeZone = "Asia/Tbilisi"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTehran                          HelpdeskDeadlineCalendarTimeZone = "Asia/Tehran"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTelAviv                         HelpdeskDeadlineCalendarTimeZone = "Asia/Tel_Aviv"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimbu                          HelpdeskDeadlineCalendarTimeZone = "Asia/Thimbu"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimphu                         HelpdeskDeadlineCalendarTimeZone = "Asia/Thimphu"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTokyo                           HelpdeskDeadlineCalendarTimeZone = "Asia/Tokyo"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashTomsk                           HelpdeskDeadlineCalendarTimeZone = "Asia/Tomsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashUjungPandang                    HelpdeskDeadlineCalendarTimeZone = "Asia/Ujung_Pandang"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlaanbaatar                     HelpdeskDeadlineCalendarTimeZone = "Asia/Ulaanbaatar"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlanBator                       HelpdeskDeadlineCalendarTimeZone = "Asia/Ulan_Bator"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashUrumqi                          HelpdeskDeadlineCalendarTimeZone = "Asia/Urumqi"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashUstMinusNera                    HelpdeskDeadlineCalendarTimeZone = "Asia/Ust-Nera"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashVientiane                       HelpdeskDeadlineCalendarTimeZone = "Asia/Vientiane"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashVladivostok                     HelpdeskDeadlineCalendarTimeZone = "Asia/Vladivostok"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashYakutsk                         HelpdeskDeadlineCalendarTimeZone = "Asia/Yakutsk"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashYangon                          HelpdeskDeadlineCalendarTimeZone = "Asia/Yangon"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashYekaterinburg                   HelpdeskDeadlineCalendarTimeZone = "Asia/Yekaterinburg"
+	HelpdeskDeadlineCalendarTimeZoneAsiaSlashYerevan                         HelpdeskDeadlineCalendarTimeZone = "Asia/Yerevan"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashAzores                      HelpdeskDeadlineCalendarTimeZone = "Atlantic/Azores"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashBermuda                     HelpdeskDeadlineCalendarTimeZone = "Atlantic/Bermuda"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCanary                      HelpdeskDeadlineCalendarTimeZone = "Atlantic/Canary"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCapeVerde                   HelpdeskDeadlineCalendarTimeZone = "Atlantic/Cape_Verde"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaeroe                      HelpdeskDeadlineCalendarTimeZone = "Atlantic/Faeroe"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaroe                       HelpdeskDeadlineCalendarTimeZone = "Atlantic/Faroe"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashJanMayen                    HelpdeskDeadlineCalendarTimeZone = "Atlantic/Jan_Mayen"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashMadeira                     HelpdeskDeadlineCalendarTimeZone = "Atlantic/Madeira"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashReykjavik                   HelpdeskDeadlineCalendarTimeZone = "Atlantic/Reykjavik"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia                HelpdeskDeadlineCalendarTimeZone = "Atlantic/South_Georgia"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStHelena                    HelpdeskDeadlineCalendarTimeZone = "Atlantic/St_Helena"
+	HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStanley                     HelpdeskDeadlineCalendarTimeZone = "Atlantic/Stanley"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashACT                        HelpdeskDeadlineCalendarTimeZone = "Australia/ACT"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashAdelaide                   HelpdeskDeadlineCalendarTimeZone = "Australia/Adelaide"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrisbane                   HelpdeskDeadlineCalendarTimeZone = "Australia/Brisbane"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrokenHill                 HelpdeskDeadlineCalendarTimeZone = "Australia/Broken_Hill"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCanberra                   HelpdeskDeadlineCalendarTimeZone = "Australia/Canberra"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCurrie                     HelpdeskDeadlineCalendarTimeZone = "Australia/Currie"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashDarwin                     HelpdeskDeadlineCalendarTimeZone = "Australia/Darwin"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashEucla                      HelpdeskDeadlineCalendarTimeZone = "Australia/Eucla"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashHobart                     HelpdeskDeadlineCalendarTimeZone = "Australia/Hobart"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLHI                        HelpdeskDeadlineCalendarTimeZone = "Australia/LHI"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLindeman                   HelpdeskDeadlineCalendarTimeZone = "Australia/Lindeman"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLordHowe                   HelpdeskDeadlineCalendarTimeZone = "Australia/Lord_Howe"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashMelbourne                  HelpdeskDeadlineCalendarTimeZone = "Australia/Melbourne"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNSW                        HelpdeskDeadlineCalendarTimeZone = "Australia/NSW"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNorth                      HelpdeskDeadlineCalendarTimeZone = "Australia/North"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashPerth                      HelpdeskDeadlineCalendarTimeZone = "Australia/Perth"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashQueensland                 HelpdeskDeadlineCalendarTimeZone = "Australia/Queensland"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSouth                      HelpdeskDeadlineCalendarTimeZone = "Australia/South"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSydney                     HelpdeskDeadlineCalendarTimeZone = "Australia/Sydney"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashTasmania                   HelpdeskDeadlineCalendarTimeZone = "Australia/Tasmania"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashVictoria                   HelpdeskDeadlineCalendarTimeZone = "Australia/Victoria"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashWest                       HelpdeskDeadlineCalendarTimeZone = "Australia/West"
+	HelpdeskDeadlineCalendarTimeZoneAustraliaSlashYancowinna                 HelpdeskDeadlineCalendarTimeZone = "Australia/Yancowinna"
+	HelpdeskDeadlineCalendarTimeZoneBrazilSlashAcre                          HelpdeskDeadlineCalendarTimeZone = "Brazil/Acre"
+	HelpdeskDeadlineCalendarTimeZoneBrazilSlashDeNoronha                     HelpdeskDeadlineCalendarTimeZone = "Brazil/DeNoronha"
+	HelpdeskDeadlineCalendarTimeZoneBrazilSlashEast                          HelpdeskDeadlineCalendarTimeZone = "Brazil/East"
+	HelpdeskDeadlineCalendarTimeZoneBrazilSlashWest                          HelpdeskDeadlineCalendarTimeZone = "Brazil/West"
+	HelpdeskDeadlineCalendarTimeZoneCET                                      HelpdeskDeadlineCalendarTimeZone = "CET"
+	HelpdeskDeadlineCalendarTimeZoneCST6CDT                                  HelpdeskDeadlineCalendarTimeZone = "CST6CDT"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashAtlantic                      HelpdeskDeadlineCalendarTimeZone = "Canada/Atlantic"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashCentral                       HelpdeskDeadlineCalendarTimeZone = "Canada/Central"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashEastern                       HelpdeskDeadlineCalendarTimeZone = "Canada/Eastern"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashMountain                      HelpdeskDeadlineCalendarTimeZone = "Canada/Mountain"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashNewfoundland                  HelpdeskDeadlineCalendarTimeZone = "Canada/Newfoundland"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashPacific                       HelpdeskDeadlineCalendarTimeZone = "Canada/Pacific"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashSaskatchewan                  HelpdeskDeadlineCalendarTimeZone = "Canada/Saskatchewan"
+	HelpdeskDeadlineCalendarTimeZoneCanadaSlashYukon                         HelpdeskDeadlineCalendarTimeZone = "Canada/Yukon"
+	HelpdeskDeadlineCalendarTimeZoneChileSlashContinental                    HelpdeskDeadlineCalendarTimeZone = "Chile/Continental"
+	HelpdeskDeadlineCalendarTimeZoneChileSlashEasterIsland                   HelpdeskDeadlineCalendarTimeZone = "Chile/EasterIsland"
+	HelpdeskDeadlineCalendarTimeZoneCuba                                     HelpdeskDeadlineCalendarTimeZone = "Cuba"
+	HelpdeskDeadlineCalendarTimeZoneEET                                      HelpdeskDeadlineCalendarTimeZone = "EET"
+	HelpdeskDeadlineCalendarTimeZoneEST                                      HelpdeskDeadlineCalendarTimeZone = "EST"
+	HelpdeskDeadlineCalendarTimeZoneEST5EDT                                  HelpdeskDeadlineCalendarTimeZone = "EST5EDT"
+	HelpdeskDeadlineCalendarTimeZoneEgypt                                    HelpdeskDeadlineCalendarTimeZone = "Egypt"
+	HelpdeskDeadlineCalendarTimeZoneEire                                     HelpdeskDeadlineCalendarTimeZone = "Eire"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT                              HelpdeskDeadlineCalendarTimeZone = "Etc/GMT"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus0                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+0"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus1                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+1"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus10                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+10"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus11                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+11"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus12                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+12"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus2                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+2"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus3                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+3"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus4                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+4"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus5                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+5"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus6                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+6"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus7                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+7"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus8                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+8"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus9                         HelpdeskDeadlineCalendarTimeZone = "Etc/GMT+9"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus0                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-0"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus1                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-1"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus10                       HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-10"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus11                       HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-11"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus12                       HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-12"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus13                       HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-13"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus14                       HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-14"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus2                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-2"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus3                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-3"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus4                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-4"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus5                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-5"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus6                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-6"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus7                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-7"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus8                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-8"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus9                        HelpdeskDeadlineCalendarTimeZone = "Etc/GMT-9"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT0                             HelpdeskDeadlineCalendarTimeZone = "Etc/GMT0"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashGreenwich                        HelpdeskDeadlineCalendarTimeZone = "Etc/Greenwich"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashUCT                              HelpdeskDeadlineCalendarTimeZone = "Etc/UCT"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashUTC                              HelpdeskDeadlineCalendarTimeZone = "Etc/UTC"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashUniversal                        HelpdeskDeadlineCalendarTimeZone = "Etc/Universal"
+	HelpdeskDeadlineCalendarTimeZoneEtcSlashZulu                             HelpdeskDeadlineCalendarTimeZone = "Etc/Zulu"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashAmsterdam                     HelpdeskDeadlineCalendarTimeZone = "Europe/Amsterdam"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashAndorra                       HelpdeskDeadlineCalendarTimeZone = "Europe/Andorra"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashAstrakhan                     HelpdeskDeadlineCalendarTimeZone = "Europe/Astrakhan"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashAthens                        HelpdeskDeadlineCalendarTimeZone = "Europe/Athens"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelfast                       HelpdeskDeadlineCalendarTimeZone = "Europe/Belfast"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelgrade                      HelpdeskDeadlineCalendarTimeZone = "Europe/Belgrade"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBerlin                        HelpdeskDeadlineCalendarTimeZone = "Europe/Berlin"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBratislava                    HelpdeskDeadlineCalendarTimeZone = "Europe/Bratislava"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBrussels                      HelpdeskDeadlineCalendarTimeZone = "Europe/Brussels"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBucharest                     HelpdeskDeadlineCalendarTimeZone = "Europe/Bucharest"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBudapest                      HelpdeskDeadlineCalendarTimeZone = "Europe/Budapest"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashBusingen                      HelpdeskDeadlineCalendarTimeZone = "Europe/Busingen"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashChisinau                      HelpdeskDeadlineCalendarTimeZone = "Europe/Chisinau"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashCopenhagen                    HelpdeskDeadlineCalendarTimeZone = "Europe/Copenhagen"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashDublin                        HelpdeskDeadlineCalendarTimeZone = "Europe/Dublin"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashGibraltar                     HelpdeskDeadlineCalendarTimeZone = "Europe/Gibraltar"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashGuernsey                      HelpdeskDeadlineCalendarTimeZone = "Europe/Guernsey"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashHelsinki                      HelpdeskDeadlineCalendarTimeZone = "Europe/Helsinki"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashIsleOfMan                     HelpdeskDeadlineCalendarTimeZone = "Europe/Isle_of_Man"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashIstanbul                      HelpdeskDeadlineCalendarTimeZone = "Europe/Istanbul"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashJersey                        HelpdeskDeadlineCalendarTimeZone = "Europe/Jersey"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashKaliningrad                   HelpdeskDeadlineCalendarTimeZone = "Europe/Kaliningrad"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashKiev                          HelpdeskDeadlineCalendarTimeZone = "Europe/Kiev"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashKirov                         HelpdeskDeadlineCalendarTimeZone = "Europe/Kirov"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashKyiv                          HelpdeskDeadlineCalendarTimeZone = "Europe/Kyiv"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashLisbon                        HelpdeskDeadlineCalendarTimeZone = "Europe/Lisbon"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashLjubljana                     HelpdeskDeadlineCalendarTimeZone = "Europe/Ljubljana"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashLondon                        HelpdeskDeadlineCalendarTimeZone = "Europe/London"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashLuxembourg                    HelpdeskDeadlineCalendarTimeZone = "Europe/Luxembourg"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMadrid                        HelpdeskDeadlineCalendarTimeZone = "Europe/Madrid"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMalta                         HelpdeskDeadlineCalendarTimeZone = "Europe/Malta"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMariehamn                     HelpdeskDeadlineCalendarTimeZone = "Europe/Mariehamn"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMinsk                         HelpdeskDeadlineCalendarTimeZone = "Europe/Minsk"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMonaco                        HelpdeskDeadlineCalendarTimeZone = "Europe/Monaco"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashMoscow                        HelpdeskDeadlineCalendarTimeZone = "Europe/Moscow"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashNicosia                       HelpdeskDeadlineCalendarTimeZone = "Europe/Nicosia"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashOslo                          HelpdeskDeadlineCalendarTimeZone = "Europe/Oslo"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashParis                         HelpdeskDeadlineCalendarTimeZone = "Europe/Paris"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashPodgorica                     HelpdeskDeadlineCalendarTimeZone = "Europe/Podgorica"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashPrague                        HelpdeskDeadlineCalendarTimeZone = "Europe/Prague"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashRiga                          HelpdeskDeadlineCalendarTimeZone = "Europe/Riga"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashRome                          HelpdeskDeadlineCalendarTimeZone = "Europe/Rome"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSamara                        HelpdeskDeadlineCalendarTimeZone = "Europe/Samara"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSanMarino                     HelpdeskDeadlineCalendarTimeZone = "Europe/San_Marino"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSarajevo                      HelpdeskDeadlineCalendarTimeZone = "Europe/Sarajevo"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSaratov                       HelpdeskDeadlineCalendarTimeZone = "Europe/Saratov"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSimferopol                    HelpdeskDeadlineCalendarTimeZone = "Europe/Simferopol"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSkopje                        HelpdeskDeadlineCalendarTimeZone = "Europe/Skopje"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashSofia                         HelpdeskDeadlineCalendarTimeZone = "Europe/Sofia"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashStockholm                     HelpdeskDeadlineCalendarTimeZone = "Europe/Stockholm"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashTallinn                       HelpdeskDeadlineCalendarTimeZone = "Europe/Tallinn"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashTirane                        HelpdeskDeadlineCalendarTimeZone = "Europe/Tirane"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashTiraspol                      HelpdeskDeadlineCalendarTimeZone = "Europe/Tiraspol"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashUlyanovsk                     HelpdeskDeadlineCalendarTimeZone = "Europe/Ulyanovsk"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashUzhgorod                      HelpdeskDeadlineCalendarTimeZone = "Europe/Uzhgorod"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashVaduz                         HelpdeskDeadlineCalendarTimeZone = "Europe/Vaduz"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashVatican                       HelpdeskDeadlineCalendarTimeZone = "Europe/Vatican"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashVienna                        HelpdeskDeadlineCalendarTimeZone = "Europe/Vienna"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashVilnius                       HelpdeskDeadlineCalendarTimeZone = "Europe/Vilnius"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashVolgograd                     HelpdeskDeadlineCalendarTimeZone = "Europe/Volgograd"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashWarsaw                        HelpdeskDeadlineCalendarTimeZone = "Europe/Warsaw"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashZagreb                        HelpdeskDeadlineCalendarTimeZone = "Europe/Zagreb"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashZaporozhye                    HelpdeskDeadlineCalendarTimeZone = "Europe/Zaporozhye"
+	HelpdeskDeadlineCalendarTimeZoneEuropeSlashZurich                        HelpdeskDeadlineCalendarTimeZone = "Europe/Zurich"
+	HelpdeskDeadlineCalendarTimeZoneFactory                                  HelpdeskDeadlineCalendarTimeZone = "Factory"
+	HelpdeskDeadlineCalendarTimeZoneGB                                       HelpdeskDeadlineCalendarTimeZone = "GB"
+	HelpdeskDeadlineCalendarTimeZoneGBMinusEire                              HelpdeskDeadlineCalendarTimeZone = "GB-Eire"
+	HelpdeskDeadlineCalendarTimeZoneGMT                                      HelpdeskDeadlineCalendarTimeZone = "GMT"
+	HelpdeskDeadlineCalendarTimeZoneGMTPlus0                                 HelpdeskDeadlineCalendarTimeZone = "GMT+0"
+	HelpdeskDeadlineCalendarTimeZoneGMTMinus0                                HelpdeskDeadlineCalendarTimeZone = "GMT-0"
+	HelpdeskDeadlineCalendarTimeZoneGMT0                                     HelpdeskDeadlineCalendarTimeZone = "GMT0"
+	HelpdeskDeadlineCalendarTimeZoneGreenwich                                HelpdeskDeadlineCalendarTimeZone = "Greenwich"
+	HelpdeskDeadlineCalendarTimeZoneHST                                      HelpdeskDeadlineCalendarTimeZone = "HST"
+	HelpdeskDeadlineCalendarTimeZoneHongkong                                 HelpdeskDeadlineCalendarTimeZone = "Hongkong"
+	HelpdeskDeadlineCalendarTimeZoneIceland                                  HelpdeskDeadlineCalendarTimeZone = "Iceland"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashAntananarivo                  HelpdeskDeadlineCalendarTimeZone = "Indian/Antananarivo"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashChagos                        HelpdeskDeadlineCalendarTimeZone = "Indian/Chagos"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashChristmas                     HelpdeskDeadlineCalendarTimeZone = "Indian/Christmas"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashCocos                         HelpdeskDeadlineCalendarTimeZone = "Indian/Cocos"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashComoro                        HelpdeskDeadlineCalendarTimeZone = "Indian/Comoro"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashKerguelen                     HelpdeskDeadlineCalendarTimeZone = "Indian/Kerguelen"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashMahe                          HelpdeskDeadlineCalendarTimeZone = "Indian/Mahe"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashMaldives                      HelpdeskDeadlineCalendarTimeZone = "Indian/Maldives"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashMauritius                     HelpdeskDeadlineCalendarTimeZone = "Indian/Mauritius"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashMayotte                       HelpdeskDeadlineCalendarTimeZone = "Indian/Mayotte"
+	HelpdeskDeadlineCalendarTimeZoneIndianSlashReunion                       HelpdeskDeadlineCalendarTimeZone = "Indian/Reunion"
+	HelpdeskDeadlineCalendarTimeZoneIran                                     HelpdeskDeadlineCalendarTimeZone = "Iran"
+	HelpdeskDeadlineCalendarTimeZoneIsrael                                   HelpdeskDeadlineCalendarTimeZone = "Israel"
+	HelpdeskDeadlineCalendarTimeZoneJamaica                                  HelpdeskDeadlineCalendarTimeZone = "Jamaica"
+	HelpdeskDeadlineCalendarTimeZoneJapan                                    HelpdeskDeadlineCalendarTimeZone = "Japan"
+	HelpdeskDeadlineCalendarTimeZoneKwajalein                                HelpdeskDeadlineCalendarTimeZone = "Kwajalein"
+	HelpdeskDeadlineCalendarTimeZoneLibya                                    HelpdeskDeadlineCalendarTimeZone = "Libya"
+	HelpdeskDeadlineCalendarTimeZoneMET                                      HelpdeskDeadlineCalendarTimeZone = "MET"
+	HelpdeskDeadlineCalendarTimeZoneMST                                      HelpdeskDeadlineCalendarTimeZone = "MST"
+	HelpdeskDeadlineCalendarTimeZoneMST7MDT                                  HelpdeskDeadlineCalendarTimeZone = "MST7MDT"
+	HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaNorte                     HelpdeskDeadlineCalendarTimeZone = "Mexico/BajaNorte"
+	HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaSur                       HelpdeskDeadlineCalendarTimeZone = "Mexico/BajaSur"
+	HelpdeskDeadlineCalendarTimeZoneMexicoSlashGeneral                       HelpdeskDeadlineCalendarTimeZone = "Mexico/General"
+	HelpdeskDeadlineCalendarTimeZoneNZ                                       HelpdeskDeadlineCalendarTimeZone = "NZ"
+	HelpdeskDeadlineCalendarTimeZoneNZMinusCHAT                              HelpdeskDeadlineCalendarTimeZone = "NZ-CHAT"
+	HelpdeskDeadlineCalendarTimeZoneNavajo                                   HelpdeskDeadlineCalendarTimeZone = "Navajo"
+	HelpdeskDeadlineCalendarTimeZonePRC                                      HelpdeskDeadlineCalendarTimeZone = "PRC"
+	HelpdeskDeadlineCalendarTimeZonePST8PDT                                  HelpdeskDeadlineCalendarTimeZone = "PST8PDT"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashApia                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Apia"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashAuckland                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Auckland"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashBougainville                 HelpdeskDeadlineCalendarTimeZone = "Pacific/Bougainville"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashChatham                      HelpdeskDeadlineCalendarTimeZone = "Pacific/Chatham"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashChuuk                        HelpdeskDeadlineCalendarTimeZone = "Pacific/Chuuk"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashEaster                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Easter"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashEfate                        HelpdeskDeadlineCalendarTimeZone = "Pacific/Efate"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashEnderbury                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Enderbury"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashFakaofo                      HelpdeskDeadlineCalendarTimeZone = "Pacific/Fakaofo"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashFiji                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Fiji"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashFunafuti                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Funafuti"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashGalapagos                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Galapagos"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashGambier                      HelpdeskDeadlineCalendarTimeZone = "Pacific/Gambier"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashGuadalcanal                  HelpdeskDeadlineCalendarTimeZone = "Pacific/Guadalcanal"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashGuam                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Guam"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashHonolulu                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Honolulu"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashJohnston                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Johnston"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashKanton                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Kanton"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashKiritimati                   HelpdeskDeadlineCalendarTimeZone = "Pacific/Kiritimati"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashKosrae                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Kosrae"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashKwajalein                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Kwajalein"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashMajuro                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Majuro"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashMarquesas                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Marquesas"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashMidway                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Midway"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashNauru                        HelpdeskDeadlineCalendarTimeZone = "Pacific/Nauru"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashNiue                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Niue"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashNorfolk                      HelpdeskDeadlineCalendarTimeZone = "Pacific/Norfolk"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashNoumea                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Noumea"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPagoPago                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Pago_Pago"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPalau                        HelpdeskDeadlineCalendarTimeZone = "Pacific/Palau"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPitcairn                     HelpdeskDeadlineCalendarTimeZone = "Pacific/Pitcairn"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPohnpei                      HelpdeskDeadlineCalendarTimeZone = "Pacific/Pohnpei"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPonape                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Ponape"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashPortMoresby                  HelpdeskDeadlineCalendarTimeZone = "Pacific/Port_Moresby"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashRarotonga                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Rarotonga"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashSaipan                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Saipan"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashSamoa                        HelpdeskDeadlineCalendarTimeZone = "Pacific/Samoa"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashTahiti                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Tahiti"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashTarawa                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Tarawa"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashTongatapu                    HelpdeskDeadlineCalendarTimeZone = "Pacific/Tongatapu"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashTruk                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Truk"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashWake                         HelpdeskDeadlineCalendarTimeZone = "Pacific/Wake"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashWallis                       HelpdeskDeadlineCalendarTimeZone = "Pacific/Wallis"
+	HelpdeskDeadlineCalendarTimeZonePacificSlashYap                          HelpdeskDeadlineCalendarTimeZone = "Pacific/Yap"
+	HelpdeskDeadlineCalendarTimeZonePoland                                   HelpdeskDeadlineCalendarTimeZone = "Poland"
+	HelpdeskDeadlineCalendarTimeZonePortugal                                 HelpdeskDeadlineCalendarTimeZone = "Portugal"
+	HelpdeskDeadlineCalendarTimeZoneROC                                      HelpdeskDeadlineCalendarTimeZone = "ROC"
+	HelpdeskDeadlineCalendarTimeZoneROK                                      HelpdeskDeadlineCalendarTimeZone = "ROK"
+	HelpdeskDeadlineCalendarTimeZoneSingapore                                HelpdeskDeadlineCalendarTimeZone = "Singapore"
+	HelpdeskDeadlineCalendarTimeZoneTurkey                                   HelpdeskDeadlineCalendarTimeZone = "Turkey"
+	HelpdeskDeadlineCalendarTimeZoneUCT                                      HelpdeskDeadlineCalendarTimeZone = "UCT"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashAlaska                            HelpdeskDeadlineCalendarTimeZone = "US/Alaska"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashAleutian                          HelpdeskDeadlineCalendarTimeZone = "US/Aleutian"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashArizona                           HelpdeskDeadlineCalendarTimeZone = "US/Arizona"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashCentral                           HelpdeskDeadlineCalendarTimeZone = "US/Central"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashEastMinusIndiana                  HelpdeskDeadlineCalendarTimeZone = "US/East-Indiana"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashEastern                           HelpdeskDeadlineCalendarTimeZone = "US/Eastern"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashHawaii                            HelpdeskDeadlineCalendarTimeZone = "US/Hawaii"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashIndianaMinusStarke                HelpdeskDeadlineCalendarTimeZone = "US/Indiana-Starke"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashMichigan                          HelpdeskDeadlineCalendarTimeZone = "US/Michigan"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashMountain                          HelpdeskDeadlineCalendarTimeZone = "US/Mountain"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashPacific                           HelpdeskDeadlineCalendarTimeZone = "US/Pacific"
+	HelpdeskDeadlineCalendarTimeZoneUSSlashSamoa                             HelpdeskDeadlineCalendarTimeZone = "US/Samoa"
+	HelpdeskDeadlineCalendarTimeZoneUTC                                      HelpdeskDeadlineCalendarTimeZone = "UTC"
+	HelpdeskDeadlineCalendarTimeZoneUniversal                                HelpdeskDeadlineCalendarTimeZone = "Universal"
+	HelpdeskDeadlineCalendarTimeZoneWMinusSU                                 HelpdeskDeadlineCalendarTimeZone = "W-SU"
+	HelpdeskDeadlineCalendarTimeZoneWET                                      HelpdeskDeadlineCalendarTimeZone = "WET"
+	HelpdeskDeadlineCalendarTimeZoneZulu                                     HelpdeskDeadlineCalendarTimeZone = "Zulu"
+)
+
+// AllValues returns all HelpdeskDeadlineCalendarTimeZone values.
+func (HelpdeskDeadlineCalendarTimeZone) AllValues() []HelpdeskDeadlineCalendarTimeZone {
+	return []HelpdeskDeadlineCalendarTimeZone{
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAbidjan,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAccra,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAddisAbaba,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAlgiers,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmara,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmera,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBamako,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBangui,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBanjul,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBissau,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBlantyre,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBrazzaville,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashBujumbura,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashCairo,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashCasablanca,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashCeuta,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashConakry,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashDakar,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashDarEsSalaam,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashDjibouti,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashDouala,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashElAaiun,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashFreetown,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashGaborone,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashHarare,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashJohannesburg,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashJuba,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashKampala,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashKhartoum,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashKigali,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashKinshasa,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLagos,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLibreville,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLome,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLuanda,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLubumbashi,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashLusaka,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMalabo,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaputo,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaseru,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMbabane,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMogadishu,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashMonrovia,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashNairobi,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashNdjamena,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashNiamey,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashNouakchott,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashOuagadougou,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashSaoTome,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashTimbuktu,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashTripoli,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashTunis,
+		HelpdeskDeadlineCalendarTimeZoneAfricaSlashWindhoek,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAdak,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnchorage,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnguilla,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAntigua,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAraguaina,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAruba,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAsuncion,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtikokan,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtka,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahia,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahiaBanderas,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBarbados,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelem,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelize,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoaVista,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBogota,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoise,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashBuenosAires,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCambridgeBay,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCampoGrande,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCancun,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCaracas,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCatamarca,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayenne,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayman,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashChicago,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashChihuahua,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCiudadJuarez,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoralHarbour,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCordoba,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCostaRica,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoyhaique,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCreston,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuiaba,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuracao,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDanmarkshavn,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawson,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawsonCreek,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDenver,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDetroit,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashDominica,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashEdmonton,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashEirunepe,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashElSalvador,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashEnsenada,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortNelson,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortWayne,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortaleza,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGlaceBay,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGodthab,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGooseBay,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrandTurk,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrenada,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuadeloupe,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuatemala,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuayaquil,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuyana,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashHalifax,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashHavana,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashHermosillo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianapolis,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashInuvik,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashIqaluit,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashJamaica,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashJujuy,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashJuneau,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashKnoxIN,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashKralendijk,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashLaPaz,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashLima,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashLosAngeles,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashLouisville,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashLowerPrinces,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMaceio,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashManagua,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashManaus,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMarigot,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMartinique,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMatamoros,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMazatlan,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMendoza,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMenominee,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMerida,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMetlakatla,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMexicoCity,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMiquelon,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMoncton,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMonterrey,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontevideo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontreal,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontserrat,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNassau,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNewYork,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNipigon,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNome,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNoronha,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashNuuk,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashOjinaga,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPanama,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPangnirtung,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashParamaribo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPhoenix,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortOfSpain,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoAcre,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoVelho,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuertoRico,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuntaArenas,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRainyRiver,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRankinInlet,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRecife,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRegina,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashResolute,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRioBranco,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashRosario,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantaIsabel,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantarem,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantiago,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantoDomingo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSaoPaulo,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashScoresbysund,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashShiprock,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSitka,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStBarthelemy,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStJohns,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStKitts,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStLucia,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStThomas,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashStVincent,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashSwiftCurrent,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashTegucigalpa,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashThule,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashThunderBay,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashTijuana,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashToronto,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashTortola,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashVancouver,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashVirgin,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashWhitehorse,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashWinnipeg,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashYakutat,
+		HelpdeskDeadlineCalendarTimeZoneAmericaSlashYellowknife,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashCasey,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDavis,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMacquarie,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMawson,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMcMurdo,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashPalmer,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashRothera,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSouthPole,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSyowa,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashTroll,
+		HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashVostok,
+		HelpdeskDeadlineCalendarTimeZoneArcticSlashLongyearbyen,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAden,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAlmaty,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAmman,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAnadyr,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtau,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtobe,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshgabat,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshkhabad,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashAtyrau,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaghdad,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBahrain,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaku,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBangkok,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBarnaul,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBeirut,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBishkek,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashBrunei,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashCalcutta,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashChita,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashChoibalsan,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashChongqing,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashChungking,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashColombo,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDacca,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDamascus,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDhaka,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDili,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDubai,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashDushanbe,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashFamagusta,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashGaza,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashHarbin,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashHebron,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashHoChiMinh,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashHongKong,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashHovd,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashIrkutsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashIstanbul,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashJakarta,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashJayapura,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashJerusalem,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKabul,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKamchatka,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKarachi,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKashgar,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKathmandu,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKatmandu,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKhandyga,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKolkata,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKualaLumpur,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuching,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuwait,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacao,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacau,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashMagadan,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashMakassar,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashManila,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashMuscat,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashNicosia,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovokuznetsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovosibirsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashOmsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashOral,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashPhnomPenh,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashPontianak,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashPyongyang,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashQatar,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashQostanay,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashQyzylorda,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashRangoon,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashRiyadh,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSaigon,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSakhalin,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSamarkand,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSeoul,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashShanghai,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSingapore,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashSrednekolymsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTaipei,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTashkent,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTbilisi,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTehran,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTelAviv,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimbu,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimphu,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTokyo,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashTomsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashUjungPandang,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlaanbaatar,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlanBator,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashUrumqi,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashUstMinusNera,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashVientiane,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashVladivostok,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashYakutsk,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashYangon,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashYekaterinburg,
+		HelpdeskDeadlineCalendarTimeZoneAsiaSlashYerevan,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashAzores,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashBermuda,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCanary,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCapeVerde,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaeroe,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaroe,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashJanMayen,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashMadeira,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashReykjavik,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStHelena,
+		HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStanley,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashACT,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashAdelaide,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrisbane,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrokenHill,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCanberra,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCurrie,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashDarwin,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashEucla,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashHobart,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLHI,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLindeman,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLordHowe,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashMelbourne,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNSW,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNorth,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashPerth,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashQueensland,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSouth,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSydney,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashTasmania,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashVictoria,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashWest,
+		HelpdeskDeadlineCalendarTimeZoneAustraliaSlashYancowinna,
+		HelpdeskDeadlineCalendarTimeZoneBrazilSlashAcre,
+		HelpdeskDeadlineCalendarTimeZoneBrazilSlashDeNoronha,
+		HelpdeskDeadlineCalendarTimeZoneBrazilSlashEast,
+		HelpdeskDeadlineCalendarTimeZoneBrazilSlashWest,
+		HelpdeskDeadlineCalendarTimeZoneCET,
+		HelpdeskDeadlineCalendarTimeZoneCST6CDT,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashAtlantic,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashCentral,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashEastern,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashMountain,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashNewfoundland,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashPacific,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashSaskatchewan,
+		HelpdeskDeadlineCalendarTimeZoneCanadaSlashYukon,
+		HelpdeskDeadlineCalendarTimeZoneChileSlashContinental,
+		HelpdeskDeadlineCalendarTimeZoneChileSlashEasterIsland,
+		HelpdeskDeadlineCalendarTimeZoneCuba,
+		HelpdeskDeadlineCalendarTimeZoneEET,
+		HelpdeskDeadlineCalendarTimeZoneEST,
+		HelpdeskDeadlineCalendarTimeZoneEST5EDT,
+		HelpdeskDeadlineCalendarTimeZoneEgypt,
+		HelpdeskDeadlineCalendarTimeZoneEire,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus0,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus1,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus10,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus11,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus12,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus2,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus3,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus4,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus5,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus6,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus7,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus8,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus9,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus0,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus1,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus10,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus11,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus12,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus13,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus14,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus2,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus3,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus4,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus5,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus6,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus7,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus8,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus9,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT0,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashGreenwich,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashUCT,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashUTC,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashUniversal,
+		HelpdeskDeadlineCalendarTimeZoneEtcSlashZulu,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashAmsterdam,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashAndorra,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashAstrakhan,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashAthens,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelfast,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelgrade,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBerlin,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBratislava,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBrussels,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBucharest,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBudapest,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashBusingen,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashChisinau,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashCopenhagen,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashDublin,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashGibraltar,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashGuernsey,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashHelsinki,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashIsleOfMan,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashIstanbul,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashJersey,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashKaliningrad,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashKiev,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashKirov,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashKyiv,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashLisbon,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashLjubljana,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashLondon,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashLuxembourg,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMadrid,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMalta,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMariehamn,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMinsk,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMonaco,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashMoscow,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashNicosia,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashOslo,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashParis,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashPodgorica,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashPrague,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashRiga,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashRome,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSamara,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSanMarino,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSarajevo,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSaratov,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSimferopol,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSkopje,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashSofia,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashStockholm,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashTallinn,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashTirane,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashTiraspol,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashUlyanovsk,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashUzhgorod,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashVaduz,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashVatican,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashVienna,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashVilnius,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashVolgograd,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashWarsaw,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashZagreb,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashZaporozhye,
+		HelpdeskDeadlineCalendarTimeZoneEuropeSlashZurich,
+		HelpdeskDeadlineCalendarTimeZoneFactory,
+		HelpdeskDeadlineCalendarTimeZoneGB,
+		HelpdeskDeadlineCalendarTimeZoneGBMinusEire,
+		HelpdeskDeadlineCalendarTimeZoneGMT,
+		HelpdeskDeadlineCalendarTimeZoneGMTPlus0,
+		HelpdeskDeadlineCalendarTimeZoneGMTMinus0,
+		HelpdeskDeadlineCalendarTimeZoneGMT0,
+		HelpdeskDeadlineCalendarTimeZoneGreenwich,
+		HelpdeskDeadlineCalendarTimeZoneHST,
+		HelpdeskDeadlineCalendarTimeZoneHongkong,
+		HelpdeskDeadlineCalendarTimeZoneIceland,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashAntananarivo,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashChagos,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashChristmas,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashCocos,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashComoro,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashKerguelen,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashMahe,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashMaldives,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashMauritius,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashMayotte,
+		HelpdeskDeadlineCalendarTimeZoneIndianSlashReunion,
+		HelpdeskDeadlineCalendarTimeZoneIran,
+		HelpdeskDeadlineCalendarTimeZoneIsrael,
+		HelpdeskDeadlineCalendarTimeZoneJamaica,
+		HelpdeskDeadlineCalendarTimeZoneJapan,
+		HelpdeskDeadlineCalendarTimeZoneKwajalein,
+		HelpdeskDeadlineCalendarTimeZoneLibya,
+		HelpdeskDeadlineCalendarTimeZoneMET,
+		HelpdeskDeadlineCalendarTimeZoneMST,
+		HelpdeskDeadlineCalendarTimeZoneMST7MDT,
+		HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaNorte,
+		HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaSur,
+		HelpdeskDeadlineCalendarTimeZoneMexicoSlashGeneral,
+		HelpdeskDeadlineCalendarTimeZoneNZ,
+		HelpdeskDeadlineCalendarTimeZoneNZMinusCHAT,
+		HelpdeskDeadlineCalendarTimeZoneNavajo,
+		HelpdeskDeadlineCalendarTimeZonePRC,
+		HelpdeskDeadlineCalendarTimeZonePST8PDT,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashApia,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashAuckland,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashBougainville,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashChatham,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashChuuk,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashEaster,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashEfate,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashEnderbury,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashFakaofo,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashFiji,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashFunafuti,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashGalapagos,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashGambier,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashGuadalcanal,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashGuam,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashHonolulu,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashJohnston,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashKanton,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashKiritimati,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashKosrae,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashKwajalein,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashMajuro,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashMarquesas,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashMidway,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashNauru,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashNiue,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashNorfolk,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashNoumea,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPagoPago,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPalau,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPitcairn,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPohnpei,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPonape,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashPortMoresby,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashRarotonga,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashSaipan,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashSamoa,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashTahiti,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashTarawa,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashTongatapu,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashTruk,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashWake,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashWallis,
+		HelpdeskDeadlineCalendarTimeZonePacificSlashYap,
+		HelpdeskDeadlineCalendarTimeZonePoland,
+		HelpdeskDeadlineCalendarTimeZonePortugal,
+		HelpdeskDeadlineCalendarTimeZoneROC,
+		HelpdeskDeadlineCalendarTimeZoneROK,
+		HelpdeskDeadlineCalendarTimeZoneSingapore,
+		HelpdeskDeadlineCalendarTimeZoneTurkey,
+		HelpdeskDeadlineCalendarTimeZoneUCT,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashAlaska,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashAleutian,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashArizona,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashCentral,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashEastMinusIndiana,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashEastern,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashHawaii,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashIndianaMinusStarke,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashMichigan,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashMountain,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashPacific,
+		HelpdeskDeadlineCalendarTimeZoneUSSlashSamoa,
+		HelpdeskDeadlineCalendarTimeZoneUTC,
+		HelpdeskDeadlineCalendarTimeZoneUniversal,
+		HelpdeskDeadlineCalendarTimeZoneWMinusSU,
+		HelpdeskDeadlineCalendarTimeZoneWET,
+		HelpdeskDeadlineCalendarTimeZoneZulu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HelpdeskDeadlineCalendarTimeZone) MarshalText() ([]byte, error) {
+	switch s {
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAbidjan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAccra:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAddisAbaba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAlgiers:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmara:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmera:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBamako:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBangui:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBanjul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBissau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBlantyre:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBrazzaville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBujumbura:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCairo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCasablanca:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCeuta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashConakry:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDakar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDarEsSalaam:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDjibouti:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDouala:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashElAaiun:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashFreetown:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashGaborone:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashHarare:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashJohannesburg:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashJuba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKampala:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKhartoum:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKigali:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKinshasa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLagos:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLibreville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLome:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLuanda:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLubumbashi:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLusaka:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMalabo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaputo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaseru:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMbabane:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMogadishu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMonrovia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNairobi:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNdjamena:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNiamey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNouakchott:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashOuagadougou:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashSaoTome:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTimbuktu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTripoli:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTunis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashWindhoek:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAdak:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnchorage:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnguilla:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAntigua:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAraguaina:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAruba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAsuncion:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtikokan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtka:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahiaBanderas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBarbados:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelem:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelize:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoaVista:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBogota:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoise:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBuenosAires:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCambridgeBay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCampoGrande:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCancun:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCaracas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCatamarca:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayenne:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayman:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashChicago:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashChihuahua:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCiudadJuarez:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoralHarbour:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCordoba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCostaRica:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoyhaique:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCreston:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuiaba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuracao:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDanmarkshavn:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawson:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawsonCreek:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDenver:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDetroit:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDominica:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEdmonton:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEirunepe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashElSalvador:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEnsenada:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortNelson:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortWayne:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortaleza:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGlaceBay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGodthab:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGooseBay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrandTurk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrenada:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuadeloupe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuatemala:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuayaquil:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuyana:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHalifax:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHavana:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHermosillo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianapolis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashInuvik:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIqaluit:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJamaica:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJujuy:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJuneau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKnoxIN:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKralendijk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLaPaz:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLima:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLosAngeles:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLouisville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLowerPrinces:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMaceio:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashManagua:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashManaus:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMarigot:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMartinique:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMatamoros:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMazatlan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMendoza:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMenominee:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMerida:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMetlakatla:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMexicoCity:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMiquelon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMoncton:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMonterrey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontevideo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontreal:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontserrat:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNassau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNewYork:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNipigon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNome:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNoronha:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNuuk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashOjinaga:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPanama:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPangnirtung:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashParamaribo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPhoenix:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortOfSpain:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoAcre:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoVelho:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuertoRico:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuntaArenas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRainyRiver:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRankinInlet:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRecife:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRegina:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashResolute:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRioBranco:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRosario:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantaIsabel:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantarem:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantiago:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantoDomingo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSaoPaulo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashScoresbysund:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashShiprock:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSitka:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStBarthelemy:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStJohns:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStKitts:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStLucia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStThomas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStVincent:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSwiftCurrent:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTegucigalpa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashThule:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashThunderBay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTijuana:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashToronto:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTortola:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashVancouver:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashVirgin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashWhitehorse:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashWinnipeg:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashYakutat:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashYellowknife:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashCasey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDavis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMacquarie:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMawson:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMcMurdo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashPalmer:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashRothera:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSouthPole:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSyowa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashTroll:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashVostok:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneArcticSlashLongyearbyen:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAden:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAlmaty:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAmman:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAnadyr:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtobe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshgabat:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshkhabad:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAtyrau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaghdad:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBahrain:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaku:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBangkok:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBarnaul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBeirut:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBishkek:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBrunei:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashCalcutta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChita:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChoibalsan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChongqing:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChungking:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashColombo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDacca:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDamascus:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDhaka:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDili:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDubai:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDushanbe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashFamagusta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashGaza:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHarbin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHebron:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHoChiMinh:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHongKong:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHovd:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashIrkutsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashIstanbul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJakarta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJayapura:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJerusalem:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKabul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKamchatka:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKarachi:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKashgar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKathmandu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKatmandu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKhandyga:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKolkata:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKualaLumpur:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuching:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuwait:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacao:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMagadan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMakassar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashManila:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMuscat:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNicosia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovokuznetsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovosibirsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashOmsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashOral:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPhnomPenh:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPontianak:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPyongyang:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQatar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQostanay:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQyzylorda:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashRangoon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashRiyadh:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSaigon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSakhalin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSamarkand:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSeoul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashShanghai:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSingapore:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSrednekolymsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTaipei:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTashkent:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTbilisi:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTehran:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTelAviv:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimbu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimphu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTokyo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTomsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUjungPandang:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlaanbaatar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlanBator:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUrumqi:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUstMinusNera:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashVientiane:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashVladivostok:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYakutsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYangon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYekaterinburg:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYerevan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashAzores:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashBermuda:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCanary:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCapeVerde:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaeroe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaroe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashJanMayen:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashMadeira:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashReykjavik:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStHelena:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStanley:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashACT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashAdelaide:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrisbane:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrokenHill:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCanberra:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCurrie:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashDarwin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashEucla:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashHobart:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLHI:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLindeman:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLordHowe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashMelbourne:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNSW:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNorth:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashPerth:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashQueensland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSouth:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSydney:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashTasmania:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashVictoria:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashWest:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashYancowinna:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashAcre:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashDeNoronha:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashEast:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashWest:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCET:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCST6CDT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashAtlantic:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashCentral:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashEastern:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashMountain:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashNewfoundland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashPacific:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashSaskatchewan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashYukon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneChileSlashContinental:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneChileSlashEasterIsland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneCuba:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEET:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEST:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEST5EDT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEgypt:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEire:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus1:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus10:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus11:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus12:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus2:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus3:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus4:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus5:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus6:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus7:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus8:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus9:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus1:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus10:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus11:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus12:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus13:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus14:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus2:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus3:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus4:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus5:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus6:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus7:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus8:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus9:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGreenwich:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUCT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUTC:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUniversal:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashZulu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAmsterdam:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAndorra:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAstrakhan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAthens:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelfast:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelgrade:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBerlin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBratislava:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBrussels:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBucharest:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBudapest:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBusingen:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashChisinau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashCopenhagen:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashDublin:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashGibraltar:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashGuernsey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashHelsinki:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashIsleOfMan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashIstanbul:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashJersey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKaliningrad:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKiev:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKirov:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKyiv:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLisbon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLjubljana:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLondon:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLuxembourg:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMadrid:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMalta:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMariehamn:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMinsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMonaco:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMoscow:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashNicosia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashOslo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashParis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashPodgorica:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashPrague:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashRiga:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashRome:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSamara:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSanMarino:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSarajevo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSaratov:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSimferopol:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSkopje:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSofia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashStockholm:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTallinn:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTirane:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTiraspol:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashUlyanovsk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashUzhgorod:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVaduz:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVatican:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVienna:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVilnius:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVolgograd:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashWarsaw:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZagreb:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZaporozhye:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZurich:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneFactory:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGB:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGBMinusEire:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGMT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGMTPlus0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGMTMinus0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGMT0:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneGreenwich:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneHST:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneHongkong:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIceland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashAntananarivo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashChagos:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashChristmas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashCocos:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashComoro:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashKerguelen:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMahe:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMaldives:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMauritius:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMayotte:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashReunion:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIran:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneIsrael:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneJamaica:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneJapan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneKwajalein:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneLibya:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMET:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMST:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMST7MDT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaNorte:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaSur:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashGeneral:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneNZ:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneNZMinusCHAT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneNavajo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePRC:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePST8PDT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashApia:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashAuckland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashBougainville:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashChatham:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashChuuk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEaster:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEfate:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEnderbury:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFakaofo:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFiji:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFunafuti:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGalapagos:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGambier:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGuadalcanal:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGuam:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashHonolulu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashJohnston:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKanton:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKiritimati:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKosrae:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKwajalein:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMajuro:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMarquesas:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMidway:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNauru:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNiue:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNorfolk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNoumea:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPagoPago:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPalau:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPitcairn:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPohnpei:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPonape:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPortMoresby:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashRarotonga:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashSaipan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashSamoa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTahiti:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTarawa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTongatapu:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTruk:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashWake:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashWallis:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashYap:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePoland:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZonePortugal:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneROC:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneROK:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneSingapore:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneTurkey:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUCT:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashAlaska:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashAleutian:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashArizona:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashCentral:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashEastMinusIndiana:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashEastern:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashHawaii:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashIndianaMinusStarke:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashMichigan:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashMountain:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashPacific:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashSamoa:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUTC:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneUniversal:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneWMinusSU:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneWET:
+		return []byte(s), nil
+	case HelpdeskDeadlineCalendarTimeZoneZulu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HelpdeskDeadlineCalendarTimeZone) UnmarshalText(data []byte) error {
+	switch HelpdeskDeadlineCalendarTimeZone(data) {
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAbidjan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAbidjan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAccra:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAccra
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAddisAbaba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAddisAbaba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAlgiers:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAlgiers
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmara:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmara
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmera:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashAsmera
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBamako:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBamako
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBangui:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBangui
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBanjul:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBanjul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBissau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBissau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBlantyre:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBlantyre
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBrazzaville:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBrazzaville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashBujumbura:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashBujumbura
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCairo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashCairo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCasablanca:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashCasablanca
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashCeuta:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashCeuta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashConakry:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashConakry
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDakar:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashDakar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDarEsSalaam:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashDarEsSalaam
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDjibouti:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashDjibouti
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashDouala:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashDouala
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashElAaiun:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashElAaiun
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashFreetown:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashFreetown
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashGaborone:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashGaborone
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashHarare:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashHarare
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashJohannesburg:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashJohannesburg
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashJuba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashJuba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKampala:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashKampala
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKhartoum:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashKhartoum
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKigali:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashKigali
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashKinshasa:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashKinshasa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLagos:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLagos
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLibreville:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLibreville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLome:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLome
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLuanda:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLuanda
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLubumbashi:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLubumbashi
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashLusaka:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashLusaka
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMalabo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMalabo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaputo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaputo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaseru:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMaseru
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMbabane:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMbabane
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMogadishu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMogadishu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashMonrovia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashMonrovia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNairobi:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashNairobi
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNdjamena:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashNdjamena
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNiamey:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashNiamey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashNouakchott:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashNouakchott
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashOuagadougou:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashOuagadougou
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashPortoMinusNovo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashSaoTome:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashSaoTome
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTimbuktu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashTimbuktu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTripoli:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashTripoli
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashTunis:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashTunis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAfricaSlashWindhoek:
+		*s = HelpdeskDeadlineCalendarTimeZoneAfricaSlashWindhoek
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAdak:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAdak
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnchorage:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnchorage
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnguilla:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAnguilla
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAntigua:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAntigua
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAraguaina:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAraguaina
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashBuenosAires
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCatamarca
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashComodRivadavia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashCordoba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashJujuy
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashLaRioja
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashMendoza
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashRioGallegos
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSalta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanJuan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashSanLuis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashTucuman
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashArgentinaSlashUshuaia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAruba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAruba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAsuncion:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAsuncion
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtikokan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtikokan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtka:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashAtka
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahiaBanderas:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBahiaBanderas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBarbados:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBarbados
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelem:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelem
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelize:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBelize
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBlancMinusSablon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoaVista:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoaVista
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBogota:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBogota
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoise:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBoise
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashBuenosAires:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashBuenosAires
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCambridgeBay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCambridgeBay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCampoGrande:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCampoGrande
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCancun:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCancun
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCaracas:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCaracas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCatamarca:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCatamarca
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayenne:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayenne
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayman:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCayman
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashChicago:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashChicago
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashChihuahua:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashChihuahua
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCiudadJuarez:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCiudadJuarez
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoralHarbour:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoralHarbour
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCordoba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCordoba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCostaRica:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCostaRica
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoyhaique:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCoyhaique
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCreston:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCreston
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuiaba:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuiaba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuracao:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashCuracao
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDanmarkshavn:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDanmarkshavn
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawson:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawson
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawsonCreek:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDawsonCreek
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDenver:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDenver
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDetroit:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDetroit
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashDominica:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashDominica
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEdmonton:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashEdmonton
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEirunepe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashEirunepe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashElSalvador:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashElSalvador
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashEnsenada:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashEnsenada
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortNelson:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortNelson
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortWayne:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortWayne
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortaleza:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashFortaleza
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGlaceBay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGlaceBay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGodthab:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGodthab
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGooseBay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGooseBay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrandTurk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrandTurk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrenada:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGrenada
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuadeloupe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuadeloupe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuatemala:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuatemala
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuayaquil:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuayaquil
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuyana:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashGuyana
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHalifax:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashHalifax
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHavana:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashHavana
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashHermosillo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashHermosillo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashIndianapolis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashKnox
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashMarengo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashPetersburg
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashTellCity
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVevay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashVincennes
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianaSlashWinamac
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianapolis:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIndianapolis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashInuvik:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashInuvik
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashIqaluit:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashIqaluit
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJamaica:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashJamaica
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJujuy:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashJujuy
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashJuneau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashJuneau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashLouisville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashKentuckySlashMonticello
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKnoxIN:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashKnoxIN
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashKralendijk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashKralendijk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLaPaz:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashLaPaz
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLima:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashLima
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLosAngeles:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashLosAngeles
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLouisville:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashLouisville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashLowerPrinces:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashLowerPrinces
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMaceio:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMaceio
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashManagua:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashManagua
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashManaus:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashManaus
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMarigot:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMarigot
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMartinique:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMartinique
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMatamoros:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMatamoros
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMazatlan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMazatlan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMendoza:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMendoza
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMenominee:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMenominee
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMerida:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMerida
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMetlakatla:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMetlakatla
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMexicoCity:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMexicoCity
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMiquelon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMiquelon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMoncton:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMoncton
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMonterrey:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMonterrey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontevideo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontevideo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontreal:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontreal
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontserrat:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashMontserrat
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNassau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNassau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNewYork:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNewYork
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNipigon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNipigon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNome:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNome
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNoronha:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNoronha
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashBeulah
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashCenter
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNorthDakotaSlashNewSalem
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashNuuk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashNuuk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashOjinaga:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashOjinaga
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPanama:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPanama
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPangnirtung:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPangnirtung
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashParamaribo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashParamaribo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPhoenix:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPhoenix
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortMinusAuMinusPrince
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortOfSpain:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortOfSpain
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoAcre:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoAcre
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoVelho:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPortoVelho
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuertoRico:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuertoRico
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuntaArenas:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashPuntaArenas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRainyRiver:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRainyRiver
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRankinInlet:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRankinInlet
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRecife:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRecife
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRegina:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRegina
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashResolute:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashResolute
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRioBranco:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRioBranco
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashRosario:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashRosario
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantaIsabel:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantaIsabel
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantarem:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantarem
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantiago:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantiago
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantoDomingo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSantoDomingo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSaoPaulo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSaoPaulo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashScoresbysund:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashScoresbysund
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashShiprock:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashShiprock
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSitka:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSitka
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStBarthelemy:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStBarthelemy
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStJohns:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStJohns
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStKitts:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStKitts
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStLucia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStLucia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStThomas:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStThomas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashStVincent:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashStVincent
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashSwiftCurrent:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashSwiftCurrent
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTegucigalpa:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashTegucigalpa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashThule:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashThule
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashThunderBay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashThunderBay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTijuana:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashTijuana
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashToronto:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashToronto
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashTortola:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashTortola
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashVancouver:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashVancouver
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashVirgin:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashVirgin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashWhitehorse:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashWhitehorse
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashWinnipeg:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashWinnipeg
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashYakutat:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashYakutat
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAmericaSlashYellowknife:
+		*s = HelpdeskDeadlineCalendarTimeZoneAmericaSlashYellowknife
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashCasey:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashCasey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDavis:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDavis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashDumontDUrville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMacquarie:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMacquarie
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMawson:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMawson
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMcMurdo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashMcMurdo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashPalmer:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashPalmer
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashRothera:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashRothera
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSouthPole:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSouthPole
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSyowa:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashSyowa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashTroll:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashTroll
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashVostok:
+		*s = HelpdeskDeadlineCalendarTimeZoneAntarcticaSlashVostok
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneArcticSlashLongyearbyen:
+		*s = HelpdeskDeadlineCalendarTimeZoneArcticSlashLongyearbyen
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAden:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAden
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAlmaty:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAlmaty
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAmman:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAmman
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAnadyr:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAnadyr
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtobe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAqtobe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshgabat:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshgabat
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshkhabad:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAshkhabad
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashAtyrau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashAtyrau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaghdad:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaghdad
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBahrain:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBahrain
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaku:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBaku
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBangkok:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBangkok
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBarnaul:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBarnaul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBeirut:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBeirut
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBishkek:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBishkek
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashBrunei:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashBrunei
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashCalcutta:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashCalcutta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChita:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashChita
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChoibalsan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashChoibalsan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChongqing:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashChongqing
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashChungking:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashChungking
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashColombo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashColombo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDacca:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDacca
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDamascus:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDamascus
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDhaka:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDhaka
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDili:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDili
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDubai:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDubai
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashDushanbe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashDushanbe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashFamagusta:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashFamagusta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashGaza:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashGaza
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHarbin:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashHarbin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHebron:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashHebron
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHoChiMinh:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashHoChiMinh
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHongKong:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashHongKong
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashHovd:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashHovd
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashIrkutsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashIrkutsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashIstanbul:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashIstanbul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJakarta:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashJakarta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJayapura:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashJayapura
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashJerusalem:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashJerusalem
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKabul:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKabul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKamchatka:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKamchatka
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKarachi:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKarachi
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKashgar:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKashgar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKathmandu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKathmandu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKatmandu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKatmandu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKhandyga:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKhandyga
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKolkata:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKolkata
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKrasnoyarsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKualaLumpur:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKualaLumpur
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuching:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuching
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuwait:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashKuwait
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacao:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacao
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacau:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashMacau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMagadan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashMagadan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMakassar:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashMakassar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashManila:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashManila
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashMuscat:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashMuscat
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNicosia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashNicosia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovokuznetsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovokuznetsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovosibirsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashNovosibirsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashOmsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashOmsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashOral:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashOral
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPhnomPenh:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashPhnomPenh
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPontianak:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashPontianak
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashPyongyang:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashPyongyang
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQatar:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashQatar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQostanay:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashQostanay
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashQyzylorda:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashQyzylorda
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashRangoon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashRangoon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashRiyadh:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashRiyadh
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSaigon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSaigon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSakhalin:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSakhalin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSamarkand:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSamarkand
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSeoul:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSeoul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashShanghai:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashShanghai
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSingapore:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSingapore
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashSrednekolymsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashSrednekolymsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTaipei:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTaipei
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTashkent:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTashkent
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTbilisi:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTbilisi
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTehran:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTehran
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTelAviv:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTelAviv
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimbu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimbu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimphu:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashThimphu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTokyo:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTokyo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashTomsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashTomsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUjungPandang:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashUjungPandang
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlaanbaatar:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlaanbaatar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlanBator:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashUlanBator
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUrumqi:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashUrumqi
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashUstMinusNera:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashUstMinusNera
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashVientiane:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashVientiane
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashVladivostok:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashVladivostok
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYakutsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashYakutsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYangon:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashYangon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYekaterinburg:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashYekaterinburg
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAsiaSlashYerevan:
+		*s = HelpdeskDeadlineCalendarTimeZoneAsiaSlashYerevan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashAzores:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashAzores
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashBermuda:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashBermuda
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCanary:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCanary
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCapeVerde:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashCapeVerde
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaeroe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaeroe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaroe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashFaroe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashJanMayen:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashJanMayen
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashMadeira:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashMadeira
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashReykjavik:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashReykjavik
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashSouthGeorgia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStHelena:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStHelena
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStanley:
+		*s = HelpdeskDeadlineCalendarTimeZoneAtlanticSlashStanley
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashACT:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashACT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashAdelaide:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashAdelaide
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrisbane:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrisbane
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrokenHill:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashBrokenHill
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCanberra:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCanberra
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCurrie:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashCurrie
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashDarwin:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashDarwin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashEucla:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashEucla
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashHobart:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashHobart
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLHI:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLHI
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLindeman:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLindeman
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLordHowe:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashLordHowe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashMelbourne:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashMelbourne
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNSW:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNSW
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNorth:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashNorth
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashPerth:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashPerth
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashQueensland:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashQueensland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSouth:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSouth
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSydney:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashSydney
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashTasmania:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashTasmania
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashVictoria:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashVictoria
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashWest:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashWest
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneAustraliaSlashYancowinna:
+		*s = HelpdeskDeadlineCalendarTimeZoneAustraliaSlashYancowinna
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashAcre:
+		*s = HelpdeskDeadlineCalendarTimeZoneBrazilSlashAcre
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashDeNoronha:
+		*s = HelpdeskDeadlineCalendarTimeZoneBrazilSlashDeNoronha
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashEast:
+		*s = HelpdeskDeadlineCalendarTimeZoneBrazilSlashEast
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneBrazilSlashWest:
+		*s = HelpdeskDeadlineCalendarTimeZoneBrazilSlashWest
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCET:
+		*s = HelpdeskDeadlineCalendarTimeZoneCET
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCST6CDT:
+		*s = HelpdeskDeadlineCalendarTimeZoneCST6CDT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashAtlantic:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashAtlantic
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashCentral:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashCentral
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashEastern:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashEastern
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashMountain:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashMountain
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashNewfoundland:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashNewfoundland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashPacific:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashPacific
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashSaskatchewan:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashSaskatchewan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCanadaSlashYukon:
+		*s = HelpdeskDeadlineCalendarTimeZoneCanadaSlashYukon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneChileSlashContinental:
+		*s = HelpdeskDeadlineCalendarTimeZoneChileSlashContinental
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneChileSlashEasterIsland:
+		*s = HelpdeskDeadlineCalendarTimeZoneChileSlashEasterIsland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneCuba:
+		*s = HelpdeskDeadlineCalendarTimeZoneCuba
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEET:
+		*s = HelpdeskDeadlineCalendarTimeZoneEET
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEST:
+		*s = HelpdeskDeadlineCalendarTimeZoneEST
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEST5EDT:
+		*s = HelpdeskDeadlineCalendarTimeZoneEST5EDT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEgypt:
+		*s = HelpdeskDeadlineCalendarTimeZoneEgypt
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEire:
+		*s = HelpdeskDeadlineCalendarTimeZoneEire
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus0:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus1:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus1
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus10:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus10
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus11:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus11
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus12:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus12
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus2:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus2
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus3:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus3
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus4:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus4
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus5:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus5
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus6:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus6
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus7:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus7
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus8:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus8
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus9:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTPlus9
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus0:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus1:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus1
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus10:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus10
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus11:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus11
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus12:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus12
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus13:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus13
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus14:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus14
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus2:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus2
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus3:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus3
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus4:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus4
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus5:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus5
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus6:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus6
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus7:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus7
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus8:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus8
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus9:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMTMinus9
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT0:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGMT0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashGreenwich:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashGreenwich
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUCT:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashUCT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUTC:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashUTC
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashUniversal:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashUniversal
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEtcSlashZulu:
+		*s = HelpdeskDeadlineCalendarTimeZoneEtcSlashZulu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAmsterdam:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashAmsterdam
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAndorra:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashAndorra
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAstrakhan:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashAstrakhan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashAthens:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashAthens
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelfast:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelfast
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelgrade:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBelgrade
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBerlin:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBerlin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBratislava:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBratislava
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBrussels:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBrussels
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBucharest:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBucharest
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBudapest:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBudapest
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashBusingen:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashBusingen
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashChisinau:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashChisinau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashCopenhagen:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashCopenhagen
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashDublin:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashDublin
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashGibraltar:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashGibraltar
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashGuernsey:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashGuernsey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashHelsinki:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashHelsinki
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashIsleOfMan:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashIsleOfMan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashIstanbul:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashIstanbul
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashJersey:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashJersey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKaliningrad:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashKaliningrad
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKiev:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashKiev
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKirov:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashKirov
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashKyiv:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashKyiv
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLisbon:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashLisbon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLjubljana:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashLjubljana
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLondon:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashLondon
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashLuxembourg:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashLuxembourg
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMadrid:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMadrid
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMalta:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMalta
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMariehamn:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMariehamn
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMinsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMinsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMonaco:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMonaco
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashMoscow:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashMoscow
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashNicosia:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashNicosia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashOslo:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashOslo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashParis:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashParis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashPodgorica:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashPodgorica
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashPrague:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashPrague
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashRiga:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashRiga
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashRome:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashRome
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSamara:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSamara
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSanMarino:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSanMarino
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSarajevo:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSarajevo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSaratov:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSaratov
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSimferopol:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSimferopol
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSkopje:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSkopje
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashSofia:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashSofia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashStockholm:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashStockholm
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTallinn:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashTallinn
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTirane:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashTirane
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashTiraspol:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashTiraspol
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashUlyanovsk:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashUlyanovsk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashUzhgorod:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashUzhgorod
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVaduz:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashVaduz
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVatican:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashVatican
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVienna:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashVienna
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVilnius:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashVilnius
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashVolgograd:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashVolgograd
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashWarsaw:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashWarsaw
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZagreb:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashZagreb
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZaporozhye:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashZaporozhye
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneEuropeSlashZurich:
+		*s = HelpdeskDeadlineCalendarTimeZoneEuropeSlashZurich
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneFactory:
+		*s = HelpdeskDeadlineCalendarTimeZoneFactory
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGB:
+		*s = HelpdeskDeadlineCalendarTimeZoneGB
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGBMinusEire:
+		*s = HelpdeskDeadlineCalendarTimeZoneGBMinusEire
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGMT:
+		*s = HelpdeskDeadlineCalendarTimeZoneGMT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGMTPlus0:
+		*s = HelpdeskDeadlineCalendarTimeZoneGMTPlus0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGMTMinus0:
+		*s = HelpdeskDeadlineCalendarTimeZoneGMTMinus0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGMT0:
+		*s = HelpdeskDeadlineCalendarTimeZoneGMT0
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneGreenwich:
+		*s = HelpdeskDeadlineCalendarTimeZoneGreenwich
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneHST:
+		*s = HelpdeskDeadlineCalendarTimeZoneHST
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneHongkong:
+		*s = HelpdeskDeadlineCalendarTimeZoneHongkong
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIceland:
+		*s = HelpdeskDeadlineCalendarTimeZoneIceland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashAntananarivo:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashAntananarivo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashChagos:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashChagos
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashChristmas:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashChristmas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashCocos:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashCocos
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashComoro:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashComoro
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashKerguelen:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashKerguelen
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMahe:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashMahe
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMaldives:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashMaldives
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMauritius:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashMauritius
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashMayotte:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashMayotte
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIndianSlashReunion:
+		*s = HelpdeskDeadlineCalendarTimeZoneIndianSlashReunion
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIran:
+		*s = HelpdeskDeadlineCalendarTimeZoneIran
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneIsrael:
+		*s = HelpdeskDeadlineCalendarTimeZoneIsrael
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneJamaica:
+		*s = HelpdeskDeadlineCalendarTimeZoneJamaica
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneJapan:
+		*s = HelpdeskDeadlineCalendarTimeZoneJapan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneKwajalein:
+		*s = HelpdeskDeadlineCalendarTimeZoneKwajalein
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneLibya:
+		*s = HelpdeskDeadlineCalendarTimeZoneLibya
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMET:
+		*s = HelpdeskDeadlineCalendarTimeZoneMET
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMST:
+		*s = HelpdeskDeadlineCalendarTimeZoneMST
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMST7MDT:
+		*s = HelpdeskDeadlineCalendarTimeZoneMST7MDT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaNorte:
+		*s = HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaNorte
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaSur:
+		*s = HelpdeskDeadlineCalendarTimeZoneMexicoSlashBajaSur
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneMexicoSlashGeneral:
+		*s = HelpdeskDeadlineCalendarTimeZoneMexicoSlashGeneral
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneNZ:
+		*s = HelpdeskDeadlineCalendarTimeZoneNZ
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneNZMinusCHAT:
+		*s = HelpdeskDeadlineCalendarTimeZoneNZMinusCHAT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneNavajo:
+		*s = HelpdeskDeadlineCalendarTimeZoneNavajo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePRC:
+		*s = HelpdeskDeadlineCalendarTimeZonePRC
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePST8PDT:
+		*s = HelpdeskDeadlineCalendarTimeZonePST8PDT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashApia:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashApia
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashAuckland:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashAuckland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashBougainville:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashBougainville
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashChatham:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashChatham
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashChuuk:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashChuuk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEaster:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashEaster
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEfate:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashEfate
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashEnderbury:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashEnderbury
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFakaofo:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashFakaofo
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFiji:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashFiji
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashFunafuti:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashFunafuti
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGalapagos:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashGalapagos
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGambier:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashGambier
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGuadalcanal:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashGuadalcanal
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashGuam:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashGuam
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashHonolulu:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashHonolulu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashJohnston:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashJohnston
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKanton:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashKanton
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKiritimati:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashKiritimati
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKosrae:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashKosrae
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashKwajalein:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashKwajalein
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMajuro:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashMajuro
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMarquesas:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashMarquesas
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashMidway:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashMidway
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNauru:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashNauru
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNiue:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashNiue
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNorfolk:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashNorfolk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashNoumea:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashNoumea
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPagoPago:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPagoPago
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPalau:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPalau
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPitcairn:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPitcairn
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPohnpei:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPohnpei
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPonape:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPonape
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashPortMoresby:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashPortMoresby
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashRarotonga:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashRarotonga
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashSaipan:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashSaipan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashSamoa:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashSamoa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTahiti:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashTahiti
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTarawa:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashTarawa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTongatapu:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashTongatapu
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashTruk:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashTruk
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashWake:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashWake
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashWallis:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashWallis
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePacificSlashYap:
+		*s = HelpdeskDeadlineCalendarTimeZonePacificSlashYap
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePoland:
+		*s = HelpdeskDeadlineCalendarTimeZonePoland
+		return nil
+	case HelpdeskDeadlineCalendarTimeZonePortugal:
+		*s = HelpdeskDeadlineCalendarTimeZonePortugal
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneROC:
+		*s = HelpdeskDeadlineCalendarTimeZoneROC
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneROK:
+		*s = HelpdeskDeadlineCalendarTimeZoneROK
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneSingapore:
+		*s = HelpdeskDeadlineCalendarTimeZoneSingapore
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneTurkey:
+		*s = HelpdeskDeadlineCalendarTimeZoneTurkey
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUCT:
+		*s = HelpdeskDeadlineCalendarTimeZoneUCT
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashAlaska:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashAlaska
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashAleutian:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashAleutian
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashArizona:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashArizona
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashCentral:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashCentral
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashEastMinusIndiana:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashEastMinusIndiana
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashEastern:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashEastern
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashHawaii:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashHawaii
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashIndianaMinusStarke:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashIndianaMinusStarke
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashMichigan:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashMichigan
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashMountain:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashMountain
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashPacific:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashPacific
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUSSlashSamoa:
+		*s = HelpdeskDeadlineCalendarTimeZoneUSSlashSamoa
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUTC:
+		*s = HelpdeskDeadlineCalendarTimeZoneUTC
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneUniversal:
+		*s = HelpdeskDeadlineCalendarTimeZoneUniversal
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneWMinusSU:
+		*s = HelpdeskDeadlineCalendarTimeZoneWMinusSU
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneWET:
+		*s = HelpdeskDeadlineCalendarTimeZoneWET
+		return nil
+	case HelpdeskDeadlineCalendarTimeZoneZulu:
+		*s = HelpdeskDeadlineCalendarTimeZoneZulu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -3161,6 +11598,52 @@ func (o OptHelpdeskDeadlineCalendarPeriod) Get() (v HelpdeskDeadlineCalendarPeri
 
 // Or returns value if set, or given parameter if does not.
 func (o OptHelpdeskDeadlineCalendarPeriod) Or(d HelpdeskDeadlineCalendarPeriod) HelpdeskDeadlineCalendarPeriod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHelpdeskDeadlineCalendarTimeZone returns new OptHelpdeskDeadlineCalendarTimeZone with value set to v.
+func NewOptHelpdeskDeadlineCalendarTimeZone(v HelpdeskDeadlineCalendarTimeZone) OptHelpdeskDeadlineCalendarTimeZone {
+	return OptHelpdeskDeadlineCalendarTimeZone{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHelpdeskDeadlineCalendarTimeZone is optional HelpdeskDeadlineCalendarTimeZone.
+type OptHelpdeskDeadlineCalendarTimeZone struct {
+	Value HelpdeskDeadlineCalendarTimeZone
+	Set   bool
+}
+
+// IsSet returns true if OptHelpdeskDeadlineCalendarTimeZone was set.
+func (o OptHelpdeskDeadlineCalendarTimeZone) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHelpdeskDeadlineCalendarTimeZone) Reset() {
+	var v HelpdeskDeadlineCalendarTimeZone
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHelpdeskDeadlineCalendarTimeZone) SetTo(v HelpdeskDeadlineCalendarTimeZone) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHelpdeskDeadlineCalendarTimeZone) Get() (v HelpdeskDeadlineCalendarTimeZone, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHelpdeskDeadlineCalendarTimeZone) Or(d HelpdeskDeadlineCalendarTimeZone) HelpdeskDeadlineCalendarTimeZone {
 	if v, ok := o.Get(); ok {
 		return v
 	}

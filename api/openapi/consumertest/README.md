@@ -21,6 +21,13 @@ instant의 별도 query 형식, 정확한 int64·Date/DateTime·required nullabl
 기존 여섯 profile 재생성·독립 build·HTTP 실행은 같은 부모 검증에서 요구하며, 기간 확장의 실제 실행은
 [TEST_EVIDENCE](../../../docs/status/TEST_EVIDENCE.md)에 기록하기 전까지 완료로 간주하지 않는다.
 
+`helpdesk_zoned_deadline_calendar`는 원래 여섯 Ticket을 보존하고 due_at fixture만 별도 PATCH로 준비한다.
+시간대 규칙이나 프레임워크를 import하지 않는 literal 지역 날짜로 뉴욕의 DST gap/overlap·US/Eastern alias,
+서울의 초 단위 과거 offset·연도 경계, Lord Howe의 30분 전환, Apia의 건너뛴 날짜를 대조한다.
+다섯 기간·지역 날짜 bound·NULL·empty page와 두 역할의 실제 HTTP, 지역 domain 초과의 전체 500·단일 전송·
+저장값 보존 및 원래 기한 복원을 요구한다. `time_zone`의 exact enum·필수 출력·query 전송·invalid 응답은
+기존 calendar wire 검증에도 포함한다. 재생성·compile과 실제 HTTP 실행 결과는 별개로 기록한다.
+
 Helpdesk 비용 미리보기의 `helpdesk_cost_preview`는 보존한 Ticket 응답을 표준 라이브러리 유리수로 계산해
 정확한 결과·NULL·음수/zero 배율·최소값·순서·페이지/총수를 실제 generated HTTP와 읽기 전용 역할에서 대조한다.
 `generated_cost_preview_wire`는 문자열 query·원본보다 큰 exact 결과·큰 int64·required nullable 출력·잘못된 응답과
