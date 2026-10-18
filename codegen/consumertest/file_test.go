@@ -2,6 +2,7 @@ package codegen_test
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,5 +142,17 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		}
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
-	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
+	output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
+		path := os.Getenv("GODJ_FILE_CONSUMER_CAPTURE")
+		if path == "" {
+			return nil
+		}
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		if err != nil {
+			return err
+		}
+		_, writeErr := file.Write(output)
+		return errors.Join(writeErr, file.Close())
+	})
+	assertGeneratedConsumerTests(t, output, required...)
 }

@@ -173,7 +173,23 @@ func runImages(t *testing.T, backend fileBackend, root storage.Backend, label st
 		t.Helper()
 		stored, publications, err := prepared.SaveFiles(ctx, saver(width, height))
 		if err != nil || len(publications) != 1 || publications[0].Outcome() != storage.Published {
-			t.Fatal("image publication failed", err)
+			// Keep the operation and classified cause without exposing the
+			// underlying URL, credentials or server response text.
+			var failure *storage.Error
+			var response interface{ HTTPStatusCode() int }
+			code, outcome, status := "none", "unavailable", 0
+			cause := err
+			if errors.As(err, &failure) {
+				code, outcome, cause = failure.Code, string(failure.Outcome), failure.Cause
+				if outcome == "" {
+					outcome = "uncertain"
+				}
+			}
+			if errors.As(err, &response) {
+				status = response.HTTPStatusCode()
+			}
+			t.Fatalf("image publication failed: test=%s backend=%s dimensions=%dx%d publications=%d code=%s outcome=%s status=%d cause=%T eof=%t unexpected_eof=%t canceled=%t",
+				t.Name(), label, width, height, len(publications), code, outcome, status, cause, errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF), ctx.Err() != nil)
 		}
 		value, err := stored.Model()
 		if err != nil {

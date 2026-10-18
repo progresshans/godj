@@ -1089,6 +1089,7 @@ jobs:
           GODJ_DECIMAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/decimal-expression-reference
           GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
           GODJ_CALENDAR_EXTRACTION_REFERENCE_DIR: ${{ runner.temp }}/calendar-extraction-reference
+          GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
@@ -1280,6 +1281,7 @@ jobs:
             ${{ runner.temp }}/decimal-expression-reference/
             ${{ runner.temp }}/temporal-expression-reference/
             ${{ runner.temp }}/calendar-extraction-reference/
+            ${{ runner.temp }}/file-consumer-native.jsonl
             ${{ runner.temp }}/zoned-calendar-data/build.json
             ${{ runner.temp }}/zoned-calendar-data/build.log
             ${{ runner.temp }}/zoned-calendar-data/tzdata.zi

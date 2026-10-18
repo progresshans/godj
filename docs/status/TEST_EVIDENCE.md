@@ -176,6 +176,108 @@ root용 `project.Using`에 전달한 동일한 비교 소비자 오류였다. �
 - 같은 디렉터리의 `after.log`: SHA-256 `5478c3d3f93e2db60e34e8eb703828b9c32a9edffc5c1625e11318f524b2b6c5`
 - source/관측 hash와 두 leaf·parent의 원 event 대조: `source-before.json`, `source-after.json`, `before.json`, `after.json`
 
+세션 생성자 수정은 `f13c775a1d3686b79f7df9ad41bbd1fe969faa11`로 제출했다.
+[CI 39158106908](https://github.com/progresshans/godj/actions/runs/39158106908), attempt 1의 plan 원본에서 checkout
+`129ed07440056a7db0eca3f84d0fd5b9e38046dd`와 제출 source가 tree `707bb6f04af4cb620aad315b86321c1f6293ea84`를
+공유함을 확인했다. 이전 `446a577d` 실행은 취소 종료했다. 현재 source의 normal/CGO0/race 독립 달력 관측 단계는
+성공했으며, Go 비교와 전체 제품 실행은 아직 진행 중이다.
+
+원본 기록 검증기에는 이전 source의 실제 양 DB 관측을 사용한 부정 대조도 적용했다. Source/runtime·provider/operation 누락,
+native 타입/행 수·정규화 결과·명시적 zone parameter·fold/UTC 변환·비대상 저장 값·실패 단계와 자기 일관적인 잘못된
+GNU awk receipt까지 13종 × 양 DB, 총 26개 변경을 모두 거부했다. 변경한 JSON의 parent hash도 다시 맞춰 단순 checksum
+불일치에만 의존하지 않도록 했고, 전후 정상 기록은 같은 결과로 검증됐다. 이 결과는 관측 문서 검증기의 범위다.
+현재 source의 Go 전체 event·누락/skip/fail 검출과 원격 성공을 대신하지 않는다. 상세는
+`gdj0133-95-calendar-diagnostic/reference-record-controls.json`에 보존했다.
+
+현재 `f13c775a`의 browser producer job `117765849833`과 artifact `12148171153`을 같은 checkout/tree에 결합해 대조했다.
+원본 명령 21개와 7개 흐름의 필수 검사 236개(기한 달력 55개), 로그인·저장/audit 보존·browser close·fixture exit 0·
+임시 DB 삭제를 확인했다. 모든 파일 hash가 receipt와 일치했고, 7개 desktop PNG는 이전 `95afb7d2` artifact와 byte 단위로
+같다. 그중 기한 달력·서비스 일정 두 화면은 앞서 직접 시각 확인했다. 이는 현재 browser 흐름의 실행 근거이며,
+진행 중인 native 비교·race·전체 CI의 완료를 뜻하지 않는다.
+
+- `gdj0133-f13-browser/artifact.zip`: SHA-256 `1f3832ee1bf125cb55a7470fe4f4e9200436a086a343c345dddee5c228c79bb6`
+- 같은 디렉터리의 `files/receipt.json`: SHA-256 `1319918b9788033a572b6347f8455bec683db836a2f22510e578adcf177876ab`
+- source·producer 원본 로그·명령·필수 검사·저장/정리·이미지 hash 대조: `gdj0133-f13-browser/audit.json`
+
+같은 현재 source의 normal/CGO0 core·integration 네 job 원본도 대조했다. 명령의 filter 부재와 전체 package 성공,
+시간대 입력/출력·query compiler·여섯 generated profile·필수 109개 client 검사와 저장 보존 경로를 확인했다.
+독립 client package는 각각 42.655초·45.767초에 통과했다. 이 근거는 앞서 구분한 전체 package 실행과 필수 source 경로의
+범위이며 개별 성공 client receipt는 보존하지 않는다. Source·job identity·원본 hash와 대조 결과는
+`gdj0133-f13-portable-api/audit.json`에 보존했다.
+
+현재 source의 PostgreSQL Helpdesk race job `117765849675`이 성공 종료했다. Artifact `12147744808`과 producer 원본
+checkout/tree를 대조하고, 원 JSON event에서 기한 달력의 필수 parent·하위 28개 경로가 run/pass 각 1회·skip/fail 0임을
+확인했다. 네 지역의 경계·group/range/page 및 전체 저장·관계·audit 보존 검사를 포함하며, PostgreSQL Helpdesk parent는
+762.38초에 통과했다.
+
+- `gdj0133-f13-helpdesk-postgres/artifact.zip`: SHA-256 `58aa2e0e26dbe619d096ffe97cf51d0ab667b06deb974b563f4966fdf84d88fc`
+- 같은 디렉터리의 `files/postgresql-product-race-core-helpdesk-postgres.json`: SHA-256 `84711d3169beb709e82e9fc6d78fef8462d2ebb60684f80bc822185633a51d09`
+- source·원본 로그·필수 경로 대조: `gdj0133-f13-helpdesk-postgres/audit.json`
+
+현재 source의 Portable race core job `117765849805`와 integration job `117765849855`도 성공 종료했다.
+실제 checkout과 filter 없는 `go test -race -count=1` 실행, 시간대 unit package와 여섯 profile·필수 109개 client 검사의
+source 경로를 대조했다. 독립 client package는 170.568초, Helpdesk 전체 package는 1,027.797초에 통과했으며 data race
+보고는 없다. 누적 race 예산 보완 뒤 앞서 중단됐던 통합 경로가 끝까지 실행됐음을 확인했다. Portable 로그의 증거 범위는
+전체 package와 필수 source 경로이며 개별 성공 client/Helpdesk child event는 보존하지 않는다. 전체 native 비교는 아직 진행 중이다.
+
+- `gdj0133-f13-portable-race/core.log`: SHA-256 `cb86ff47cda872c5ff87e7b5c7554fff7158755112669494e640d9b097d3e2a8`
+- 같은 디렉터리의 `integration.log`: SHA-256 `ade2c815d8e9bf84c19592999ad8de8a4e8b83373f7d092845616296d6dc6efa`
+- source·job identity·명령·package·필수 source 경로 대조: `gdj0133-f13-portable-race/audit.json`
+
+Native race core job `117765849668`도 성공 종료했다. 현재 artifact `12148821104`의 source/producer와 원 event를 대조하고,
+앞서 보존한 PostgreSQL Helpdesk 원 event를 결합해 양 DB의 달력 59개·서비스 일정 47개·라벨 시간 51개 필수 경로가
+정확히 한 번씩 실행·통과했음을 확인했다. 해당 경로의 skip/fail은 없다. PostgreSQL의
+`TestPostgresZonedCalendarFunctionsAndUpdates/truncated_utc_underflow`도 현재 source에서 run/pass 각 1회였다.
+이는 Helpdesk와 해당 회귀의 검증이며, 생성 앱의 전체 독립 시간대 비교와 전체 CI는 아직 진행 중이다.
+
+- `gdj0133-f13-native-race/artifact.zip`: SHA-256 `c9309110b0ff935ec05c47f6ad850b7e243441f9b2a4080f5f724f83c3a1ab15`
+- 같은 디렉터리의 `artifacts/postgres-product-race-core-1/postgresql-product-race-core.json`: SHA-256 `c9a5c26e5da0a8d0bf06469336d0e1f053a688a922403105ba490bc99d5ed4d5`
+- source·양 DB 원 event·필수 목록·회귀 대조: `gdj0133-f13-native-race/audit.json`
+
+같은 source의 native race 생성 소비자 job `117765849591`와 artifact `12148906074`도 대조했다.
+소스 3,745개를 Git blob/모드·SHA-256으로 확인한 뒤, 원본 하위 event 959개의 run/pass 각 1회·skip/fail 0과
+compile 부정 대조 30개를 확인했다. 시간대별 독립 관측 316개 × 양 DB와 전체 IANA 이름/alias·provider 검사를
+포함하며, 생성 소비자 parent는 66.56초에 통과했다. 현재 source의 완전한 race 원본을 기준으로 관측 JSON의
+13종 변경 × 양 DB 및 child skip/fail, 총 28종 부정 대조를 실행해 모두 거부했다. 변형한 관측의 parent hash를
+다시 맞췄고 전후 정상 원본도 통과했다.
+
+- `gdj0133-f13-calendar-race/artifact.zip`: SHA-256 `e0b142ea1dfca0fdbe399726728f01003dafc7c42ea632fb7502de5adab843e5`
+- 같은 디렉터리의 `files/calendar-extraction-reference/godj-calendar-native.jsonl`: SHA-256 `2bc0060d4ee21c97d8f7f6d16077da3c02d5d802b7045e45b4486f136806cedd`
+- source·독립 관측·전체 event·컴파일 대조: `gdj0133-f13-calendar-race/audit.json`
+- 검증기 실제 부정 대조: `gdj0133-f13-calendar-race/negative-controls.json`
+
+그러나 normal core job `117765849628`는 기존 `TestGeneratedFileConsumer`에서 실패했다.
+`image publication failed storage: publish_failed` 뒤 DB 재개방 시 Image 참조/차원 누락이 이어졌다.
+보존된 로그에는 실패한 하위 DB/저장소와 원인 오류가 없어 원격 실패의 구체적인 전송 원인을 확정하지 않는다.
+이 필수 job 실패로 `39158106908`은 전체 통합 성공으로 인정할 수 없다. 실패 producer·checkout/tree와 두 artifact를
+`gdj0133-f13-normal-failure/collection.json`에 결합해 보존했다.
+
+- `gdj0133-f13-normal-core-failure.log`: SHA-256 `932c5f74d44deba3dcff1b0fdd3e7759cb1194ba59d0e8e253740cc0b96f2d72`
+- 실패 core artifact `12148538440`: SHA-256 `fd4407406d301951577c831f6987eedef2c1a47eb99882b7e67c7a2a5f138248`
+- 같은 실행의 S3 service artifact `12148727294`: SHA-256 `402dded6619483225209ef4c9eb4a055aabec9b7b385f60e898d19895701ab1f`
+
+로컬 darwin/arm64에서 고정 MinIO `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`를 직접 빌드해 소유한 loopback
+서비스로 실패한 생성 소비자만 재현했다. 진단만 보강한 첫 실행과 추가 8회는 SQLite·filesystem/memory/S3에서
+모두 통과해 같은 소비자 실패는 재현하지 못했다. 별도 PNG 조건부 충돌 프로브(각 profile 128쌍·8 worker)는
+연결 재사용 시 GoDj 18회·독립 SDK 31회의 전송 실패를 관측했고, GoDj는 모두 `Uncertain`을 유지했다.
+새 연결을 사용하는 양쪽 대조에서는 각각 첫 게시/충돌 게시 128회·HTTP 412 128회·실패 0이었다.
+이는 연결 수명에 따른 실패 경로의 재현이며, 원격의 누락된 원인을 소급해서 증명하지 않는다.
+
+생성 File 소비자의 소유한 S3 transport에만 `DisableKeepAlives`와 기존 헤더 크기 상한을 적용했다.
+성공 조건·checksum·조건부 게시·DB/history 검사를 유지하고 재시도는 추가하지 않았다. 기본 transport와 불확실한
+게시/원본 객체 보존은 기존 `storage.TestS3LiveServer/conditional_publication`, `lost_publication_response` 및 저장소 단위 검증이
+계속 담당한다. 생성 child JSON은 실패 전에도 별도 artifact로 보존하며, Image 실패 메시지는 하위 test·저장소·차원과
+게시/HTTP/EOF 분류를 기록한다. 원인 오류의 URL·자격 정보·응답 본문은 출력하지 않는다.
+
+수정 후 같은 생성 소비자는 5.45초에 통과했고, 보존된 SQLite child 82개의 run/pass 각 1회·skip/fail 0을 확인했다.
+네 번의 소유한 서비스 실행은 모두 child/server 종료 0·reap·임시 데이터/설정 제거를 확인했다.
+이 로컬 결과는 실패 재현과 fixture 수정 범위이며, PostgreSQL·race·전체 플랫폼은 수정 source의 원격 검증 대상이다.
+YAML 파싱·gofmt·diff 검사와 현행 상태/증거/활성 work의 로컬 Markdown target 165개도 확인했다.
+
+- 수정 후 child 원본 `gdj0133-file-after-native.jsonl`: SHA-256 `2ba167885fa165e3a0983228d96a7d5d892d9c89b0e218448ddff83a0b29b56a`
+- 독립 프로브 source·원본·관측: `gdj0133-file-s3-probe/`
+- 전후 source·원본 hash·실제 실행·service 수명 대조 `gdj0133-file-s3-audit.json`: SHA-256 `82e8ebaeb43a0fb56e6509000b158099e8c58dae14bb0ee874f7f1bb9fb5a5aa`
+
 이 기록은 구현·수정과 부분 실행의 검증 상태이며, GDJ-0133의 전체 검증이나 프레임워크 전체의 완료를 뜻하지 않는다.
 
 ## GDJ-0131·0132 — 같은 source의 전체 통합 검증 완료
