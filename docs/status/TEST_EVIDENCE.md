@@ -109,7 +109,51 @@ GNU awk의 `PROCINFO["sorted_in"]`에서만 블록을 정렬한다. 로컬 BSD a
 순서만의 차이라는 독립 대조는 `gdj0133-iana-awk-order-comparison.json`, 전체 diff는
 `gdj0133-iana-compiled-source-platform.diff`에 보존했다. 새 profile은 원격에서 다시 검증하며 제품 query 실행으로 계산하지 않는다.
 
-이 기록은 compile/수정 진행 상태이며, GDJ-0133의 실제 실행이나 전체 프레임워크의 완료를 뜻하지 않는다.
+GNU profile 수정은 `95afb7d281fc861086e39aa244df7958ed5f918c`로 제출했다.
+[CI 39155115509](https://github.com/progresshans/godj/actions/runs/39155115509), attempt 1의 실제 checkout은
+`daa5b43e9404beb9bdb8e7a3165861d2cb0a303e`, tree는 `bb4a9d343dab6a31dea579213aee8c0c1c00b297`이며,
+두 parent가 base `c0c61979`와 제출 source이고 tree가 제출 source와 같음을 API·plan job 원본으로 확인했다.
+Normal/CGO0 core와 race core-consumers의 독립 달력 관측 단계가 모두 성공했다. Go 비교와 전체 제품 실행은
+아직 진행 중이며 이 단계 성공을 제품 parity로 수용하지 않는다.
+
+같은 실행의 Chromium artifact `12146389465`를 checksum과 source checkout/tree에 결합해 확인했다.
+7개 흐름의 원본 명령·정확한 필수 목록을 대조해 236개 검사(기한 달력 55개 포함), 저장/audit 보존,
+browser close·fixture exit 0·임시 DB 삭제를 확인했다. 기한 달력과 서비스 일정의 desktop 화면도 직접 확인했다.
+이는 해당 browser artifact의 검증이며, 아직 완료하지 않은 전체 CI나 개별 native 비교로 확대하지 않는다.
+
+- `gdj0133-95-browser/artifact.zip`: SHA-256 `b922ca62ddad680540a32596cc48fd15210451a6c18a1c0d0181c955e91cb5e6`
+- 같은 디렉터리의 `files/receipt.json`: SHA-256 `d3f5a963c484b2e8c2660cde073df3c4d1e87973ea8a21ad4cf988e813113621`
+- source·명령·필수 검사·정리 대조: `gdj0133-95-browser/audit.json`
+
+동일 source의 PostgreSQL Helpdesk race job `117756986016`이 성공 종료했다. Artifact `12147003866`의 envelope와
+실제 checkout을 대조하고, 원 JSON event에서 기한 달력 parent·하위 28개 필수 경로의 run/pass 각 1회·skip/fail 0을 확인했다.
+이 목록에는 네 지역의 DST/group/range/page와 전체 저장·관계·audit 보존 검사가 포함된다. PostgreSQL Helpdesk parent는
+767.57초에 통과했다. SQLite Helpdesk와 나머지 생성 소비자 비교는 아직 검증 중이다.
+
+- `gdj0133-95-helpdesk-postgres/artifact.zip`: SHA-256 `02fd756a1b95601e768a37b809de8616d02bfeb3824b8422414078a936581bd1`
+- 같은 디렉터리의 `files/postgresql-product-race-core-helpdesk-postgres.json`: SHA-256 `1d3d78f6acd7dcd96a0742771c7bb374e94c5fa3609f75fe1fc2f9a548c3f26d`
+- source·원 event·필수 경로 대조: `gdj0133-95-helpdesk-postgres/audit.json`
+
+Portable normal/CGO0의 core·integration 네 job도 성공 종료했다. 같은 checkout의 원본 명령에 test filter가 없고,
+TimeZone 입력/출력·불변 Zone·query compiler와 독립 OpenAPI client package가 모두 통과함을 확인했다.
+현재 parent/child source의 필수 109개 검사와 여섯 generated profile, zoned Helpdesk 검사의 필수 호출·receipt 검증·저장 보존을
+대조했다. Portable 로그는 성공한 개별 client receipt와 unit event를 보존하지 않으므로, 이 근거는 전체 package 실행과
+필수 source 경로의 결합 범위다. 네 job의 identity·원본 로그 hash와 결과는 `gdj0133-95-portable-api/audit.json`에 보존했다.
+
+이후 같은 source의 Portable race integration job `117756986240`이 실패했다. 원본
+`gdj0133-95-race-integration.log`의 SHA-256은 `416c80f7ebd44db23b0ea8a2dadeaa8b18abfebc181cc4c24544a0d79f6ed854`다.
+SQLite Helpdesk parent가 정확히 900.01초에 공용 context를 소진했으며, 마지막 priority Admin의 `commit_unknown`
+저장 확인에서 첫 deadline 오류가 발생한 뒤 나머지 검사도 같은 만료 context로 중단됐다. Data race 보고는 없다.
+앞서 완료한 제품 source `c12b5c0f`의 원 race event에서 같은 SQLite parent도 850.73초에 통과했음을 다시 확인했다.
+새 시간대 fixture를 정리한 뒤에도 누적 race 비용이 기존 15분 한도를 넘었으므로, race 공용 fixture 예산을 20분으로 조정한다.
+Normal/CGO0의 10분, Portable package의 25분·PostgreSQL core package의 18분,
+개별 동시성 20초·취소/실패·전체 저장/인가/audit 검사는 유지한다. 원본 시간 대조와 예산은
+`gdj0133-95-helpdesk-race-budget.json`에 보존했다. 이 수정의 실제 효과는 후속 source의 원격 실행에서 검증한다.
+`95afb7d2`의 전체 CI는 성공으로 수용하지 않는다.
+수정한 race build의 `go test -race -run '^$' -vet=off ./examples/helpdesk`는 exit 0이었다.
+이는 test body를 실행하지 않은 compile 확인이며, gofmt·221개 Markdown 링크·diff 검사도 통과했다.
+
+이 기록은 구현·수정과 부분 실행의 검증 상태이며, GDJ-0133의 전체 검증이나 프레임워크 전체의 완료를 뜻하지 않는다.
 
 ## GDJ-0131·0132 — 같은 source의 전체 통합 검증 완료
 

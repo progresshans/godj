@@ -3,6 +3,13 @@
 코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
 현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
+GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
+양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.
+Helpdesk 기한 달력의 지역별 DB grouping·입출력·HTML/API·독립 client와 브라우저 경로도 구현했다.
+공식 IANA의 독립 빌드와 Django 양 DB 관측은 생산됐지만, 현재 source의 Go 비교·제품·전체 플랫폼 검증은 진행 중이다.
+이 구현의 지원·검증 완료를 이전 source의 PASS에서 추론하지 않는다. 범위와 근거는
+[GDJ-0133](../../work/0133-named-timezones-and-local-deadline-calendar.md), TEST_EVIDENCE를 따른다.
+
 GDJ-0132는 Date/Time 이동·Date/DateTime과 Time의 차이·분수 결과 경계·원본 domain 검사를 같은 AST에 연결했다.
 두 생성 앱·독립 비교 기준과 Helpdesk 서비스 일정의 HTML/API·OpenAPI/독립 client·브라우저를 연결했다.
 Source `c12b5c0f`의 양 DB·세 mode 생성 소비자·독립 Django 비교와 Helpdesk 서비스 일정을
