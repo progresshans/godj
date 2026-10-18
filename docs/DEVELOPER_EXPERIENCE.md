@@ -72,15 +72,24 @@ Generic 함수에서는 `BindExpressionIn`/`BindPredicateIn`/`ProjectDynamicIn`�
 기간 산술을 연결한다. Collection 경로의 값·계산식은 완료된 집계 안에서 사용하며 일반 행 projection·WHERE·UPDATE의
 operand로 사용하지 않는다. Dynamic 집계는 `BindAggregateExpressionIn` 또는 생성 query의 `AggregateExpression`을
 사용한다. `DateTime(F(DueAt)).Date()/Time()`은 UTC 날짜/시계를 추출하고 `Date(F(ServiceOn)).ISOYear()`나
-`Time(F(ServiceAt)).Second()`는 해당 값의 달력/시계 part를 계산한다. 이 GDJ-0129 확장의 생성 ORM·Helpdesk는 양 DB의
-세 mode에서, 독립 client는 세 mode에서, 브라우저는 normal integration에서 확인했다. 전체 플랫폼 통합은 진행 중이며
-환경별 범위는 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+`Time(F(ServiceAt)).Second()`는 해당 값의 달력/시계 part를 계산한다.
 `DateTime(F(DueAt)).TruncMonth()`는 UTC 월 시작 DateTime, `Date(F(ServiceOn)).TruncWeek()`는 월요일 Date,
 `Time(F(ServiceAt)).TruncMinute()`는 초 이하를 버린 Time을 만든다. DateTime은 연·분기·월·주·일·시·분·초,
 Date는 연·분기·월·주·일, Time은 시·분·초를 지원하며 입력 타입과 NULL을 유지한다. Dynamic의 같은 이름 메서드도
-동일 AST를 사용한다. 이 GDJ-0130 구현 사본과 Helpdesk 기간별 기한 조회는 최소 compile까지 확인했으며 실제 실행은 남아 있다.
-JSON scalar 계산 비교·일반 named annotation·나머지 function/subquery/window·Date/Time 이동·Duration scaling/division은
-아직 지원하지 않는다. [Helpdesk 계산 조회](../examples/helpdesk/README.md)에서 실제 조립을 확인한다.
+동일 AST를 사용한다.
+
+`Date(...).Add(duration)`는 UTC 자정에서 이동한 DateTime을, `Time(...).Add(duration)`는 하루 안으로 정규화한 Time을
+만든다. Date/DateTime 사이의 차이와 Time 사이의 차이는 Duration이며, `ScaleDuration`·`DivideDuration`은
+Integer/Float/Decimal 배율과 나눗셈을 지원한다. 중간 분수를 유지하고 최종 Duration에서 half-even으로 반올림한다.
+`Duration(...).Ratio(...)`는 두 기간의 비율을 finite Float으로 반환한다.
+
+`timezone.Parse("Asia/Seoul")`로 검증한 zone을 `DateTime(F(DueAt)).InZone(zone).Date()`에 전달하면 해당 지역의 날짜를
+얻는다. `InZone(zone).TruncMonth()`는 지역 월 시작에 해당하는 UTC instant를 반환한다. 생략한 시간대는 UTC이며
+고정 IANA 데이터의 전체 이름/alias를 지원한다. 잘못된 이름이나 변환 범위 오류를 UTC·NULL로 대체하지 않는다.
+이 명시적 조회 기능과 locale 표시·naive 입력·일반 wall-time 산술·사용자 설정 저장은 별개다.
+
+JSON scalar 계산 비교·일반 named annotation·나머지 function/subquery/window는 아직 지원하지 않는다.
+[Helpdesk 계산 조회](../examples/helpdesk/README.md)에서 실제 조립을 확인한다.
 설계와 실제 환경별 검증은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md)·[TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 ## 프로젝트 명령

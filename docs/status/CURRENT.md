@@ -1,9 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-10-19
-- 현재: [GDJ-0133 명시적 시간대·지역별 기한 달력](../../work/0133-named-timezones-and-local-deadline-calendar.md)의 구현·검증
-- 최근 전체 검증 제품·생성기·소비자 source: `c12b5c0fb95afa439b37f660ffad081003ebae64`
-- 최근 전체 통합: [CI 39091754185](https://github.com/progresshans/godj/actions/runs/39091754185), attempt 1의 필수 실행·원본 증거 대조 완료
+- 현재: [GDJ-0133 명시적 시간대·지역별 기한 달력](../../work/0133-named-timezones-and-local-deadline-calendar.md)의 전체 통합 검증 완료; 다음 기반 선택
+- 최근 전체 검증 제품·생성기·소비자 source: `55928651beaa9e81f0d58805ee3c9e18a22c3080`
+- 최근 전체 통합: [CI 39166711424](https://github.com/progresshans/godj/actions/runs/39166711424), attempt 1의 필수 실행·원본 증거 대조 완료
 - Source·환경·실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -14,15 +14,14 @@ GDJ-0132의 Date/Time 산술과 서비스 일정 미리보기를 공통 AST·양
 실제 Chromium 브라우저·전체 플랫폼의 필수 실행 및 원본을 대조했다. [Draft PR #2](https://github.com/progresshans/godj/pull/2)의
 이 구현 범위는 완료했으며 프레임워크 전체 목표와 구분한다. 현재 외부 입력이 필요한 blocker는 없다.
 
-GDJ-0133은 UTC에 고정된 기한 달력에 명시적인 업무 시간대를 연결한다. 고정 IANA 데이터·불변 값·공통 AST와
-양 backend의 지역별 추출/절삭과 생성 소비자·Helpdesk HTML/API/client·브라우저 검증 경로를 작성했다.
-공식 IANA 독립 빌드와 Django/native 비교를 연결했으며, 원격에서 확인한 역변환 범위 오류와 fixture 수명을 수정했다.
-Native race의 시간대 비교와 소비자·Helpdesk 검증을 대조했다. 후속 File 소비자 실패를 조사해 S3 조건부 PUT의
-실제 본문 대기가 빠진 경로를 재현·수정하고, 기본 transport에서 파일 게시와 실패 처리의 로컬 검증을 마쳤다.
-수정 source의 양 DB·전체 원격 실행 대조는 아직 미완료다.
+GDJ-0133은 고정 IANA 데이터·불변 시간대 값·공통 AST를 통해 양 backend의 지역별 추출/절삭과
+Helpdesk 기한 달력의 HTML/API/client를 연결했다. S3 조건부 PUT의 실제 본문 대기 오류도 수정했다.
+같은 source의 공식 IANA 독립 빌드·Django/native 비교·생성 File/달력 소비자·Helpdesk 세 mode와
+실제 브라우저·capture 후속 소비·전체 플랫폼의 필수 실행 및 원본 대조를 완료했다.
+[Draft PR #3](https://github.com/progresshans/godj/pull/3)의 이 구현 범위는 완료했으며, 프레임워크 전체 목표는 계속 진행 중이다.
 
 ## 다음 행동
 
-수정 source의 File 소비자·양 backend 독립 관측·Helpdesk·입출력/client/browser와 전체 원격 검증을 대조한다.
-Locale·named annotation·나머지 function/subquery/window를 포함한
-[헌장](../CHARTER.md)의 전체 목표는 계속 완성 대상이다.
+현재 QuerySet·결과 scope와 실제 소비자의 요구를 기준으로 named annotation의 의존성과 다음 수직 단면을 정한다.
+Locale·나머지 function/subquery/window·추가 backend·Realtime·GIS를 포함한
+[헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 전체 목표는 계속 완성 대상이다.

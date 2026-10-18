@@ -3,7 +3,10 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0133 — 시간대 기반·생성 소비자·Helpdesk 진행 중
+## GDJ-0133 — 시간대 기반·생성 소비자·Helpdesk 전체 통합 검증 완료
+
+최종 제품 source `55928651`의 [전체 통합 대조](#55928651-전체-통합-대조)를 완료했다.
+아래 앞선 제출과 관측 기록의 미완료·실패 상태는 각 source와 당시 실행에 해당한다.
 
 2026-10-19 KST, `71aed8eb843c95409d51bd2c3dc8ba9cce7e56ee`에 IANA 2025c·불변 Zone·공통 AST·typed/dynamic API와
 양 backend의 전환표 기반 추출/절삭, native 실패/rollback 검증을 제출했다. [Draft PR #3](https://github.com/progresshans/godj/pull/3)의
@@ -371,7 +374,193 @@ normal/CGO0/race 필수 목록에 각각 한 번 소유된다. 이 로컬 검사
 - 수정 후 File child `gdj0133-s3-continue-file-native-after.jsonl`: SHA-256 `68c707ffcf0e7ec7d602fd76b8af575135ae1f07bdc181d41dfaf6f7c9233387`
 - 변경 source·전후 원본·정확한 child 목록·service 수명 `gdj0133-s3-continue-audit.json`: SHA-256 `94a3610890b3cdf350305d09baaa0818a95fa07b874b35a90e059ce2be104436`
 
-이 기록은 구현·수정과 부분 실행의 검증 상태이며, GDJ-0133의 전체 검증이나 프레임워크 전체의 완료를 뜻하지 않는다.
+S3 본문 대기 수정은 `55928651beaa9e81f0d58805ee3c9e18a22c3080`으로 제출했다.
+[CI 39166711424](https://github.com/progresshans/godj/actions/runs/39166711424), attempt 1의 plan 원본에서 실제 checkout
+`c2658767a5f771cdfe3254786cd03e1486bfba15`와 제출 source가 tree `722cebd3a02e8adbee54c0091a4c6f43f6b26145`를
+공유함을 확인했다. 테스트한 변경 파일과 생성 File 소비자 source도 제출 commit bytes에 결합했다.
+현재 전체 원격 실행은 진행 중이며, 이 source의 양 DB·File/달력 비교·browser·전체 플랫폼 대조는 아직 미완료다.
+
+같은 source의 Portable normal core-vet job `117791442375`와 CGO0 core job `117791442483`은 성공 종료했다.
+고정 checkout·실제 Go 1.26.5·필터 없는 Make 명령과 원 로그를 대조해 `timezone`, `internal/zonerules`,
+`api/openapi`, `api/output`, `api/parameters`의 전체 package가 각각 실제 실행·성공했음을 확인했다.
+이는 core package의 범위이며 생성 client integration·PostgreSQL native·전체 CI 완료와 구분한다.
+원본과 대조는 `gdj0133-559-portable-normal/core.log`, `gdj0133-559-portable-cgo0/core.log`,
+`gdj0133-559-portable-core-audit.json`에 보존했다.
+
+이후 같은 source의 CGO0 integration job `117791442527`도 성공 종료했다. Core와 integration의 원본 명령·checkout,
+여섯 generated profile과 필수 client 검사 109개의 source·실행 연결을 대조했다. 독립 client package는 44.108초에
+통과했다. 이 로그는 개별 성공 child receipt를 보관하지 않으므로 전체 package 실행·필수 source 경로의 근거로 한정한다.
+`gdj0133-559-portable-cgo0/integration.log` SHA-256은 `b5489add5fe0034c38f662de72575a673849d005ff27e8c515a89b13d59eebc5`,
+같은 디렉터리의 `audit.json` SHA-256은 `0241b51d63a05dab4e4d26f022835ed45fe7ae6a65aa7e2ba14c3ababd572ff7`다.
+
+Normal integration job `117791442423`도 성공 종료했다. 같은 source의 core/integration·여섯 generated profile·필수 109개
+client source 경로를 대조했고 독립 client package는 39.678초에 통과했다. 개별 성공 child receipt와 구분하는 범위는
+CGO0와 같다. `gdj0133-559-portable-normal/audit.json` SHA-256은 `6b838a426f5e6d4feaba5868c1220322f22d6679361c1102a437df594f2d9dfa`다.
+
+같은 job의 Chromium artifact `12150628112`는 현재 checkout/tree에 결합했다. 21개 명령과 7개 흐름의 필수 검사
+236개(기한 달력 55개), 실제 로그인·저장/audit 보존·browser close·fixture exit 0·임시 DB 삭제를 원본에서 대조했다.
+Receipt의 모든 파일 hash가 일치하고, 7개 desktop PNG는 앞서 확인한 `36235bf3` 이미지와 byte 단위로 같다.
+현재 산출물의 기한 달력과 서비스 일정 화면도 직접 확인했다. 이 증거는 해당 browser/normal integration의 범위이며
+현재 source의 File·달력 native 비교와 race·전체 플랫폼의 완료를 대신하지 않는다.
+
+- `ci-39166711424-browser/artifact.zip`: SHA-256 `19ad7c08e93d693956279b524c0544eab370e669ca1a63c4b7070a0f68b09267`
+- 같은 디렉터리의 `artifacts/helpdesk-summary-browser-1/receipt.json`: SHA-256 `d11c8b5e5c57ad7a221994f3b5b0b8951a02c5884e6aeeb76735b76a28ce172c`
+- source·원 명령·필수 검사·정리·이미지 대조: `audit.json`, `image-comparison.json`
+
+같은 source의 PostgreSQL Helpdesk race job `117791442319`와 artifact `12151063688`도 성공 종료했다.
+Producer·checkout/tree·source의 실행 계획과 원 event를 대조해 시간대 달력의 필수 parent/child 28개가 run/pass 각 1회,
+skip/fail 0임을 확인했다. 네 지역의 group/range/page·입력/인가·전체 저장/관계/audit 보존을 포함하며,
+PostgreSQL Helpdesk parent는 601.64초에 통과했다. SQLite의 개별 native 경로와 생성 File/달력 비교는 아직 검증 중이다.
+
+- `gdj0133-559-helpdesk-postgres/artifact.zip`: SHA-256 `beb0802caab80ac98224928206998ddf1a5ed638eb1cd0053296281c81fa54c8`
+- 같은 디렉터리의 `files/postgresql-product-race-core-helpdesk-postgres.json`: SHA-256 `5784173e8d727d86d047b28561ecf30c11bb2a14f4f02684ada9947e5a1dc9cb`
+- source·실행 계획·필수 단계·원 event 대조: `gdj0133-559-helpdesk-postgres/audit.json`
+
+Portable race core job `117791442545`와 integration job `117791442532`도 같은 source의 필터 없는 명령과
+여섯 generated profile·필수 109개 client source 경로를 대조했다. 독립 client package는 118.960초,
+Helpdesk 전체 package는 589.698초에 통과했고 data race 보고는 없다. 이로써 normal/CGO0/race의 Portable API
+package 실행·필수 source 연결을 확인했으며, 개별 성공 client/Helpdesk child event와 전체 CI의 완료로 확대하지 않는다.
+
+- `gdj0133-559-portable-race/integration.log`: SHA-256 `f85f6c0bab2969156d137d4434e68d95f6e0c241f396773a2a18d443c3509027`
+- 같은 디렉터리의 `audit.json`: SHA-256 `a6a547961dd9a1b8ca3700001f8ee8ac9a1d1d564314a067ef16665775997b3e`
+
+현재 실행의 operator capture artifact `12151436208`도 성공 producer `117791442339`·checkout·attempt·payload
+envelope에 결합했다. 현재 Git source에서 계산한 927개 파일·8,495,774 bytes의 binding
+`9c11931ee34604fed18bf130007b6642e9317745f0606c851f652f524c026e90`이 capture와 일치한다.
+원본은 `gdj0133-559-operator-capture/`에 보존했으며, 이 기록은 capture 생산·소스 결합의 검증이다.
+후속 conformance job에서 실제로 소비한 결과와 전체 CI 완료는 아직 검증 중이다.
+
+현재 source의 PostgreSQL operator-target 세 mode와 race core-processes의 원 JSON event·필수 manifest·생산 job을
+대조했다. Operator/targeted migration은 각 mode에서 필수 3개를 포함한 12개 parent/child가 run/pass 각 1회였고,
+race process는 필수 10개를 포함한 21개 경로가 run/pass 각 1회였다. 모두 test skip/fail 0이며, 실제 package 목록·
+source의 partition 계획과 job이 출력한 inventory도 일치했다. 이는 해당 네 job의 범위이며 아직 실행 중인 core·
+생성 File/달력 및 전체 플랫폼 성공으로 확대하지 않는다. 원본은 `gdj0133-559-native-processes/`에 보존했다.
+같은 디렉터리의 `audit.json` SHA-256은 `797c94872172a73e6b20ff47dd4a5f58774a7f05ed56d4d9218f649286faa703`이다.
+
+CGO0 native core job `117791442295`와 artifact `12151134839`가 성공 종료했다. 현재 checkout/tree·source의 실행 계획과
+필수 3,599개 항목을 원 event에 대조했고, 전체 outer event는 16개 package의 6,487개 run/pass·skip 0이었다.
+File 소비자의 양 DB·filesystem/memory/S3 child 162개를 정확히 대조했다. 독립 시간대 비교는 child 959개·compile 부정
+30개·source binding 부정 root와, 양 DB 각각 316개 zoned 관측·기존 UTC 118개·598개 zone의 provider/독립 빌드 원본을
+확인했다. 같은 JSON에서 양 DB Helpdesk 달력 59개·서비스 일정 47개·라벨 시간 51개 및 역변환 범위 회귀도 확인했다.
+
+실제 S3 parent·하위 7개는 큰 본문의 조건부 게시·16개 동시 게시 성공·원본/새 객체의 checksum/version·응답 유실
+뒤 후보 보존을 포함한다. S3 artifact `12151454040`의 고정 build/module hash·Go 1.26.5와 child/server 종료 0·reap·정리
+receipt도 대조했다. 현재 정상 비교 원본을 기준으로 parent hash까지 다시 맞춘 28개 변조를 모두 거부하고,
+검사 전후 정상 결과가 같음을 확인했다. 이 결과는 CGO0의 실제 native 검증이며 다른 mode·전체 CI의 완료와 구분한다.
+
+- `gdj0133-559-native-cgo0/postgres-product-cgo0-core-1.zip`: SHA-256 `e1287ee716a884b844731dab17f2a3c1c9752b5f0a3b86e01306870b947393f8`
+- 같은 디렉터리의 `artifacts/postgres-product-cgo0-core-1/file-consumer-native.jsonl`: SHA-256 `1901b10ddfc9c32aab7f98c5c290b71c928bd32fa946980c277525cf99dd934f`
+- 같은 artifact의 `calendar-extraction-reference/godj-calendar-native.jsonl`: SHA-256 `1e6591126159216e83abbfe96cd2c20b5ab6af6ac58e0c46aeb4b1e90373e3f3`
+- source·실행 계획·원 event·독립 관측·S3 수명 대조: `gdj0133-559-native-cgo0/audit.json`, SHA-256 `ee3c55625085f43779680836871003799476e7d576125815542e8faea6ca24ab`
+- 현재 원본을 사용한 비교 검증기 부정 대조: `gdj0133-559-native-cgo0/negative-controls.json`
+
+Native race core `117791442321`·core-consumers `117791442356`와 normal core `117791442298`도 성공 종료 후 원본을 대조했다.
+Race는 같은 source의 PostgreSQL Helpdesk·process 원본과 합쳐 전체 필수 3,599개 항목의 실행 소유권을 확인했다.
+Normal은 16개 package의 outer 6,487개 run/pass·skip 0이며 source의 필수 3,599개와 일치했다.
+이로써 normal/CGO0/race 각각 양 DB File child 162개·달력 child 959개·compile 부정 30개와 source binding 부정 root,
+양 DB의 독립 zoned 316개·UTC 118개 관측, Helpdesk 달력 59개·서비스 일정 47개·라벨 시간 51개의 실제 실행을 확인했다.
+각 mode의 S3 8개 parent/child 및 네 producer의 고정 서비스 build·정상 종료/정리도 대조했다.
+
+- Race 원본: `gdj0133-559-native-race/`; core-consumers ZIP SHA-256 `2b95358422ff5146d6e2d72a0309085a261e9e5b7bb00c19d297968a5f51edf3`
+- 같은 디렉터리의 `audit.json`: SHA-256 `bb2b8c5ed8b4134fa3702bdf46541ad9b07c3bc512b692d60a2378a6cb848ea3`
+- Normal 원본: `gdj0133-559-native-normal/`; core ZIP SHA-256 `070b0f460d21a83a3923e3ce70497f9723cbce0ee049acec960be1eee7989c7e`
+- 같은 디렉터리의 `audit.json`: SHA-256 `0441789a3e17baf9ef75372f80b57ce34bf1caefe8883a1c1e4aaa62456fbfdb`
+
+Normal system-state capture `12151658446`도 전체 현재 artifact/job 목록에서 성공 producer `117791442298`을 선택하고
+envelope·checksum·현재 source binding을 대조했다. 848개 파일·8,622,632 bytes의 binding
+`ed9bb1ec112c284d0c603410db50e2069c18f8e818a38b3a60e05b3f72673c9c`이 일치하며, 상세는 normal audit에 보존했다.
+후속 consumer job `117799560844`가 성공 종료한 뒤 두 capture의 실제 선택·소비를 원본 로그와 대조했다.
+같은 attempt의 성공 producer·artifact ID, envelope/checksum과 3,746개 Git 파일을 대조한 source 사본의 각 binding이 일치하며,
+source에 선언된 product conformance 26개가 같은 순서로 실행되어 모두 비교에 성공했다. Docs/format/generated drift와
+저장 oracle checksum·참조 파일 보존 단계도 통과했다. 원본은 `ci-39166711424-captures/`에 보존했다.
+
+32비트 Linux 명령은 compile-only와 실제 실행을 구분해 source의 package 목록·원본 결과를 대조했다.
+Migration/명령/project-check compile은 16개 package(테스트 파일 있는 15개·없는 1개), runserver는
+`-run '^$' -exec=/usr/bin/true`의 compile-only 1개다. 별도 관계 runtime 명령은 테스트가 있는 14개 package의
+`ok`와 테스트 파일이 없는 16개의 결과를 포함하며, source의 전체 30개 package와 정확히 일치했다.
+이 runtime 로그는 package 결과를 보존하며 개별 testcase event를 보존하지 않는다. Compile 성공을 실제 실행으로 세지 않는다.
+
+Consumer의 Python 384개 중 네 검사는 exact-profile owner가 담당하는 명시적 skip이다. 같은 source의
+darwin/arm64 job `117791442160` 원본에서 Python 3.14.3·Django 6.1·SQLite 3.50.4·Go 1.26.5와 384개 실제
+`ok`·skip 0을 확인했다. 네 검사의 이름도 모두 포함되어 환경별 분담이 누락되지 않았음을 대조했다.
+
+- `consumer-job.log`: SHA-256 `95de2d524a36c254d338219b76e3e3ff78da41bfce3de932e23369c9307b0fe8`
+- 같은 디렉터리의 `audit.json`: SHA-256 `9ad8a25924c588c1afbe86aa6c9e0d633679ce0313ba3dfa69249c36853cbfec`
+- `exact-profile-job.log`: SHA-256 `6a87b838a43ae3d581f33d9bb9ff20b7873b5b98043f63ddd07d6b5be001f28b`
+- 32비트 실제 package·compile 구분과 exact-profile 원본 대조 `supplement.json`: SHA-256 `36dfa130ea6bb41e3086fc8c0cb9ea271dd00b7838b77b458c36d53de780af03`
+
+완료된 Linux AMD64·ARM64 관계 작업 12개와 Portable 작업 12개의 원본도 현재 source에 대조했다.
+양 architecture의 normal/race/CGO0 여섯 좌표에서 생성 소비자 root 96개가 정확히 한 번씩 담당되며,
+source에서 계산한 필수 실행·package·분할 계획과 job의 실제 계획·root 검증·완료 inventory가 일치했다.
+관계 작업의 run/pass 수는 같고 skip 0이다. Portable의 mode별 core 112개·integration 24개·conformance 26개·
+products 4개 package 목록과 CI 도구 검사 68개·skip 0, browser 부정 대조 여덟 개도 확인했다.
+관계 작업은 필수 실행·root 검증 보고서를 보존하며 성공 child의 개별 JSON event를 보존하지 않는다.
+Portable conformance의 mode별 522 runs·6 skips는 해당 owner 보고서의 범위이며 native 필수 실행 증거와 구분한다.
+
+- 원본·소스 계획 대조: `ci-39166711424-linux-relation-portable-yktd22ji/audit.json`, SHA-256 `3cff2a1a33f09387ba575426a73ac2e2e267bfa58ae60f66bb304f4677923e28`
+- 같은 디렉터리의 `logs-manifest.json`: SHA-256 `af40ccdfa96de50a23674a3138b54902f483678654a2196aa9d9e4cfcdc31ad3`
+- 분석 후 source 3,746개·원본 로그 24개 무변경 및 검증기 identity: `integrity.json`, SHA-256 `8161f330bbd3e05e342aaaaa5e055c9fcdf3542bd6a8569cae082b29a59699ad`
+
+Linux AMD64/ARM64와 macOS Intel/ARM64의 normal/race/CGO0에서 CLI·project-check 작업 24개도 대조했다.
+현재 checkout·실제 Go OS/architecture·필수 단계·원본 package 결과와 49개 실행 inventory가 일치했고,
+Linux AMD64 normal의 별도 cold external CLI build도 통과했다. Command operator/targeted 양쪽 결과의 집계를
+확인했으며 project-check의 직접 실행 package 다섯 개도 source의 목록과 정확히 일치했다.
+플랫폼 runserver의 PostgreSQL skip 한 개는 같은 source의 native normal/CGO0 core와 race process 원 JSON에서
+`TestGlobalRunserverArticlePostgresDevelopmentLoop`의 run/pass 각 1회를 대조했다. 플랫폼 owner의 성공 JSON child
+원본은 보존하지 않으므로 이 부분은 필수 실행 검증 보고서·package 결과와 native 원본을 구분한다.
+원본은 `ci-39166711424-command-platform-cz6bd1rk/`에 보존했고, `audit.json` SHA-256은
+`08b3fba70b81b5c96f9e33f38b305368614193602e0c233261e2a2566e557c86`이다.
+
+Python compatibility 3.12.13/3.13.15/3.14.3/3.14.7 네 owner의 실제 runtime·원본 unittest 이름과 상태도 대조했다.
+각 380개 `ok`와 exact-profile로 분담한 네 skip의 합집합이 같은 source의 macOS 384개 검사 목록과 정확히 같다.
+네 Linux runtime의 SQLite는 3.45.1이며, source가 선언한 311개 시나리오·1,082,315 bytes payload의
+semantic digest assertion 단계가 모두 통과했다. 이 단계의 payload를 로컬에서 재실행하거나 원본으로 보존한 것은 아니다.
+대조 기록은 `ci-39166711424-python-compatibility-6p6l52r4/audit.json`, SHA-256
+`8a1ceb516aed21951e06f3ff7d748e2cc6989e07076d8cd8ad4e02f8b2ac9c0d`에 있다.
+
+macOS ARM64 normal/CGO0의 관계 작업 여덟 개도 성공 종료 후 현재 source의 계획과 원본을 대조했다.
+각 mode에서 생성 소비자 root 96개가 정확히 한 번씩 담당되고, 필수 실행 목록·실제 darwin/arm64·Go 1.26.5와
+완료 inventory가 일치했다. 모든 관계 작업의 run/pass는 같고 skip 0이다. 이 owner 역시 성공 child의 개별 JSON을
+보존하지 않으므로 source-bound 계획·필수 실행과 root 검증 보고서의 범위로 기록한다.
+원본과 source 무변경 확인은 `ci-39166711424-macos-arm-completed-btic_lf5/audit.json`에 보존했고,
+SHA-256은 `1b5f774bbd8ad2c6b114e228cded4fa9018edb53dd7d2ce5d19df60efb03a097`이다.
+
+이후 macOS ARM64 race의 네 관계 작업도 같은 source·실행 계획·원본에 대조했다. Runtime은 49개 package의
+8,881개 run/pass, 세 소비자 shard는 각각 111·67·100개 run/pass이며 모두 skip 0이다. 생성 소비자 root 96개가
+정확히 한 번씩 담당되어 ARM64의 세 mode를 모두 확인했다. 증거 보존 범위는 위 normal/CGO0와 같으며,
+`ci-39166711424-macos-arm-race-alg5be78/audit.json`의 SHA-256은
+`63c027065824d45a51bbfa1034e1cab0615c97023bda9780133478ea1d811a65`다.
+
+로컬은 source의 package·test 이름 목록을 확인했으며 제품 테스트 본문을 다시 실행하지 않았다.
+
+### 55928651 전체 통합 대조
+
+2026-10-19 KST, [CI 39166711424](https://github.com/progresshans/godj/actions/runs/39166711424) attempt 1이
+89개 job 모두 success로 종료됐다. 제출 source `55928651beaa9e81f0d58805ee3c9e18a22c3080`와 실제 checkout
+`c2658767a5f771cdfe3254786cd03e1486bfba15`의 tree `722cebd3a02e8adbee54c0091a4c6f43f6b26145`를 대조하고,
+전체 job 원본·16개 artifact·3,746개 Git 파일의 bytes와 mode 및 필수 실행을 확인했다.
+전체 대조 후에도 source 사본과 원본 로그·artifact ZIP의 hash가 그대로임을 확인했다.
+
+- Linux AMD64/ARM64·macOS Intel/ARM64의 normal/race/CGO0 12개 좌표, 관계 작업 36개에서 생성 소비자 root
+  96개가 각 좌표에 정확히 한 번씩 담당된다. 모든 source 계획·필수 실행·root 검증 보고서가 일치한다.
+- Native 세 mode의 core 필수 3,599개 항목은 source의 분할 계획과 원 JSON event가 일치하며 중복·누락·skip이 없다.
+  전체 native 작업 아홉 개, 양 DB File·달력·기존 계산/집계 소비자와 Helpdesk·HTML/API/client의 검증도 대조했다.
+- 명령·project-check와 cold CLI build, Portable·Python profile, 현재 두 capture의 생산/후속 소비와 product
+  conformance 26개, 실제 Chromium의 7개 흐름·236개 검사 및 저장/인가 보존·정리를 확인했다.
+- 최종 집계는 source에 선언한 모든 필수 CI owner를 포함한다. 전체 실행 inventory 보고서는 94개이며,
+  성공 child JSON을 보존하지 않는 플랫폼/API owner의 범위와 명시적 profile skip 분담은 위 개별 기록을 따른다.
+
+원본과 대조는 `hosted-full-pr-39166711424/`에 보존했다. `logs.zip`은 개별 GitHub job endpoint에서 받은
+원본 로그를 로컬에서 조립한 archive이며 출처 목록을 함께 보존한다.
+
+| 대조 기록 | SHA-256 |
+|---|---|
+| `collection.json` | `f3028840a8843b8782a34c8214e6ce0ef6282f5f4b221c0d9fb38f086de801dc` |
+| `audit.json` | `ebbf15eb98f565c04b52b5c3571ce297aa59547c18ece4958542c4e18cfd1819` |
+| `post-audit-integrity.json` | `43acaa9d06f6adf2ce100b6465aa73446e641e6d294d28582f8ea0622b6b5990` |
+
+이 결과로 GDJ-0133의 구현과 전체 통합 검증을 완료했다. Locale·localized naive 입력·일반 wall-time 산술·사용자 설정 저장,
+named annotation·나머지 function/subquery/window와 전체 카탈로그의 남은 기능은 계속 완성 대상이다.
 
 ## GDJ-0131·0132 — 같은 source의 전체 통합 검증 완료
 

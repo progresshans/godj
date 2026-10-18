@@ -168,7 +168,7 @@ PostgreSQL은 checked operand를 한 번 바인딩하고 UTC로 추출하며 ses
 반올림 때문에 59.999999초가 60이 되지 않도록 Second의 소수 부분을 먼저 버린다.
 
 기존 모델의 Date/Time output schema를 computed typed output과 공유하고 canonical query/header 입력은 별도의 엄격한
-spelling 정책을 가진다. 명시적 timezone은 아래 GDJ-0133 계약으로 구현 중이며 locale 선택은 미완료다. Truncation과 Date/Time 이동은 아래 및 GDJ-0132 계약을 따른다.
+spelling 정책을 가진다. 명시적 timezone은 아래 GDJ-0133 계약을 따르며 locale 선택은 미완료다. Truncation과 Date/Time 이동은 아래 및 GDJ-0132 계약을 따른다.
 고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측과 [DEV-0023](../DEVIATIONS.md#dev-0023--calendar-추출의-원본-값-검사와-불가능한-서명-거부)으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분하며 기존 source의 PASS를 전이하지 않는다.
 
@@ -337,7 +337,7 @@ Helpdesk의 `time_zone`은 공통 `parameters.TimeZone()`와 `output.TimeZone()`
 재분류하지 않는다. 반환한 기간 소속은 지역 civil date로 검증한다. Local midnight 생성이나 24시간짜리 하루를
 가정하지 않고, 9999년 마지막 기간의 exclusive end는 검증 안에서만 사용하는 year 10000 civil sentinel이다.
 
-설계 채택과 구현·환경별 검증은 별개다. 현재 구현과 미완료 소비자/독립 관측은 작업 기록, 실제 실행은
+설계 채택과 구현·환경별 검증은 별개다. 현재 구현과 남은 범위는 작업 기록, 실제 실행은
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다. Localized naive 입력·표시 locale·일반 wall-time 산술·사용자 설정 저장은
 이 query 기능의 완료로 간주하지 않는다. Python 객체·SQL 문자열을 복제하지 않고 외부 결과와 실패 의미를 비교한다.
 

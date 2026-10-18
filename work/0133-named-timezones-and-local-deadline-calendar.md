@@ -1,13 +1,13 @@
 # GDJ-0133: 명시적인 시간대와 업무 지역별 기한 달력
 
-- 상태: 기반·소비자·Helpdesk·독립 비교 경로 작성; 원격 실패 수정과 현재 source의 검증 진행 중
+- 상태: 구현과 source `55928651`의 양 DB·세 mode·브라우저·capture 후속 소비·전체 플랫폼 통합 검증 완료
 - 시작: 2026-10-19
 - 기준: `c0c61979cc7bcf5787f5de4cc8fecb120e4288ea` — 문서 변경 commit; 제품 source `c12b5c0f`의 전체 통합 검증 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [로드맵](../docs/ROADMAP.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md)
 
 ## 필요한 기반과 소비자
 
-현재 Helpdesk 기한 달력은 저장한 UTC instant의 날짜로 일·주·월·분기·연을 묶고 결과도 UTC 경계로 검증한다.
+작업 시작 시 Helpdesk 기한 달력은 저장한 UTC instant의 날짜로 일·주·월·분기·연을 묶고 결과도 UTC 경계로 검증했다.
 업무 지역의 날짜가 UTC와 다르면 다른 기간에 표시된다. 명시적인 IANA 시간대를 받아 같은 DB query에서 지역 날짜와
 기간을 계산하고 HTML/API·OpenAPI·독립 client·브라우저에 선택한 시간대를 유지한다. 집계 후 애플리케이션에서
 행을 재분류하거나 현재 페이지의 행만으로 합계를 바꾸지 않는다.
@@ -45,10 +45,10 @@ naive 시간 입력·일반 wall-time 산술은 이 조회와 별도로 남아 �
 
 ## 완료 조건
 
-- [ ] 데이터 출처·불변 값·cache·source binding과 공통 AST의 시간대 의미를 연결한다.
-- [ ] 추출/절삭·typed/dynamic·양 backend·생성 소비자·독립 비교와 실패/rollback을 구현한다.
-- [ ] 업무 시간대별 기한 달력의 HTML/API·입출력·client·브라우저 및 인가/저장 보존을 연결한다.
-- [ ] 같은 source의 필수 실행·원본 증거를 대조하고 현행 지원/미완료 범위를 갱신한다.
+- [x] 데이터 출처·불변 값·cache·source binding과 공통 AST의 시간대 의미를 연결한다.
+- [x] 추출/절삭·typed/dynamic·양 backend·생성 소비자·독립 비교와 실패/rollback을 구현한다.
+- [x] 업무 시간대별 기한 달력의 HTML/API·입출력·client·브라우저 및 인가/저장 보존을 연결한다.
+- [x] 같은 source의 필수 실행·원본 증거를 대조하고 현행 지원/미완료 범위를 갱신한다.
 
 ## 현재 구현
 
@@ -69,12 +69,14 @@ naive 시간 입력·일반 wall-time 산술은 이 조회와 별도로 남아 �
 출처·build receipt·SQL/native/변환/전체 저장·실패를 대조하며 UPDATE의 UTC instant 정책은
 [의도적 차이](../docs/DEVIATIONS.md#명시적-시간대의-변환-범위와-update)로 닫힌 검사를 둔다.
 원격에서 드러난 PostgreSQL 역변환 범위 검사 누락과 Helpdesk fixture 수명을 수정했으며,
-현재 source의 실제 실행은 계속 검증 대상이다. 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
+수정 source의 실제 실행과 기존 source의 통합 PASS는 구분한다.
 File 소비자의 후속 게시 실패 조사에서 조건부 S3 업로드의 HTTP 본문 대기 오류를 재현·수정했다. 기본 transport의
-실제 wire·고정 서비스·생성 소비자를 연결했으며, 전체 원격 검증은 이 수정도 포함한 source로 다시 대조한다.
+실제 wire·고정 서비스·생성 소비자를 연결했다.
 
-아직 timezone 쿼리·서비스의 검증 완료를 주장하지 않는다. 세부 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가
-소유하며, named annotation·나머지 function/subquery/window와 전체 카탈로그의 나머지 기반/기능도 계속 완성 대상이다.
+Source `55928651`의 양 DB·세 mode 독립 시간대 비교·생성 File 소비자·Helpdesk와 HTML/API/client·실제 브라우저를
+원본 증거로 대조했다. 현재 capture의 후속 소비·32비트 검사·고정 Python profile과 전체 플랫폼 CI의 종료 및 필수 실행 대조도 완료했다.
+세부 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유하며, named annotation·나머지 function/subquery/window와
+전체 카탈로그의 나머지 기반/기능도 계속 완성 대상이다.
 
 참조: 고정 [Django DateTime 함수](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/datetime.py),
 [PostgreSQL 17 시간대·절삭](https://www.postgresql.org/docs/17/functions-datetime.html),

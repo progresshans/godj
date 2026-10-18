@@ -143,7 +143,7 @@ DB가 지역별 그룹·전체 총수·페이지를 계산하고, 응답의 실�
 사용하므로 DST 하루 길이를 24시간으로 가정하거나 존재하지 않는 local midnight를 만들지 않는다.
 Ticket의 모든 저장 열·관계·Report·audit를 보존한다. `DeadlineCalendarPath`를 login allowed-next와 Admin 추가 경로에
 넣고 `deadlineCalendar.Routes()`를 등록한다. [GDJ-0133](../../work/0133-named-timezones-and-local-deadline-calendar.md)의
-시간대 확장은 구현 중이며 실제 양 DB·client·브라우저 검증은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+구현과 실제 양 DB·client·브라우저 및 플랫폼 검증 범위는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
 ## 우선순위별 업무 요약
 

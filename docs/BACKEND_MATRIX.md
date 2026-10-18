@@ -165,7 +165,14 @@ Time ± Duration은 최종 반올림 뒤 하루 안으로 정규화하고 Time �
 같은 행 UPDATE·집계·명시 결과 stage와 실패/rollback을 포함한 두 확장은 source `c12b5c0f`의 양 DB·세 mode·
 독립 Django 비교·생성/HTTP 소비자·전체 플랫폼 통합을 완료했다. 계약과 차이는
 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [DEV-0024/0025](DEVIATIONS.md)를 따른다.
-일반 timezone/locale·named annotation과 나머지 function/subquery/window는 별도 미완료 범위다.
+GDJ-0133은 명시적 IANA 시간대의 지역 Date/Time·구성요소 추출과 절삭을 같은 AST에 연결했다.
+SQLite는 고정 전환표의 binary search, PostgreSQL은 같은 전환표를 bound 배열과 `width_bucket`으로 조회한다.
+서버·session timezone에 의존하지 않으며 원본 UTC·지역 civil value·최종 UTC 결과의 전체 모델 범위를 검사한다.
+Overlap/gap의 절삭은 전환 전 offset을 사용하고, 양 DB의 SELECT와 UPDATE는 같은 UTC instant를 유지한다.
+Source `55928651`의 독립 Django 비교·생성 소비자·Helpdesk 양 DB 세 mode와 전체 플랫폼 통합 검증을 완료했다.
+환경별 실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md), 고정 Django와의 차이는 [DEV-0023](DEVIATIONS.md#명시적-시간대의-변환-범위와-update)을 따른다.
+Locale·localized naive 입력·일반 wall-time 산술·사용자 설정 저장과 named annotation·나머지 function/subquery/window는
+별도 미완료 범위다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 조건부 COUNT 소비자와
 runserver 준비·진단, macOS ARM relation 소비자 분할을 보완했으며 source `012191bf`의 양 DB·세 mode·전체 플랫폼에서
 필수 실행과 원본 증거 대조를 완료했다. 이전 실패와 보완의 실행 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
