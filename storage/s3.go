@@ -150,6 +150,7 @@ func NewS3(config S3Config) (*S3, error) {
 		Logger: logging.Nop{}, DisableLogOutputChecksumValidationSkipped: true,
 		RequestChecksumCalculation:     aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation:     aws.ResponseChecksumValidationWhenRequired,
+		ContinueHeaderThresholdBytes:   1,
 		DisableMultiRegionAccessPoints: true, DisableS3ExpressSessionAuth: aws.Bool(true),
 	})
 	var owner *string
@@ -409,6 +410,13 @@ func (t s3Transport) RoundTrip(request *http.Request) (*http.Response, error) {
 }
 
 func (c s3HTTPClient) Do(request *http.Request) (*http.Response, error) {
+	if request != nil && request.Proto == "" && request.ProtoMajor == 0 && request.ProtoMinor == 0 {
+		// Smithy leaves the protocol unset. Match http.NewRequest so net/http
+		// actually waits for 100 Continue before sending a conditional PUT body.
+		// This metadata does not select the negotiated wire protocol.
+		request = request.Clone(request.Context())
+		request.Proto, request.ProtoMajor, request.ProtoMinor = "HTTP/1.1", 1, 1
+	}
 	response, err := c.client.Do(request)
 	if response != nil && response.Body != nil && (response.StatusCode < 200 || response.StatusCode >= 300) {
 		response.Body = struct {

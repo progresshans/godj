@@ -147,6 +147,12 @@ S3 backend도 같은 파일 게시/DB 참조 경계를 따른다. Application이
 조건부 PUT과 full SHA256으로 게시한다. 확정된 이름 충돌만 새 이름으로 이어가고 결과 유실은 후보와 Uncertain을 보존한다.
 서비스의 성공 응답에 checksum 증거가 부족해도 이미 게시한 결과를 NotPublished로 바꾸거나 삭제하지 않는다.
 
+비어 있지 않은 조건부 PUT에는 `Expect: 100-continue`를 사용해 서버가 본문 수신 전에 충돌을 거절할 수 있게 한다.
+SDK가 비워 둔 HTTP 버전 metadata는 요청 사본에서 `http.NewRequest`와 같은 값으로 채운다. 헤더만 설정하면
+표준 transport의 본문 대기가 작동하지 않기 때문이다. 이 metadata는 실제 협상할 HTTP 버전을 고정하지 않는다.
+실제 wire 검사는 본문 없는 412 거절과 100 응답 뒤의 전체 내용 전송을 대조한다. 고정 서비스의 정상 충돌 검사는
+모든 게시 성공·원본/새 객체의 checksum과 version을 요구하며, 응답 유실의 `Uncertain` 보존은 별도 실패 경로로 검증한다.
+
 원격 Open은 하나의 GET body와 metadata를 결합한다. Immutable version을 가진 경우만 같은 version의 Range GET으로
 seek하며, mutable/null version의 이름을 새 snapshot인 것처럼 재개방하지 않는다. Backend Close와 caller가 소유한 reader
 수명을 분리한다. 이름 삭제는 현재 참조만 지우고 과거 version/prefix의 회수 정책은 application에 남긴다.

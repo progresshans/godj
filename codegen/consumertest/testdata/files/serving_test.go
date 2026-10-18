@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -25,6 +27,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/storage"
@@ -254,7 +257,40 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 			return web.FileResponse(capability, rows[0].File, web.FileOptions{})
 		})
 	}
-	application, err := web.NewApplication(web.Config{Settings: configured, MaxResponseBytes: 256, MaxStreamBytes: 2 << 20, Routes: []web.Route{
+	var diagnostics bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&diagnostics, &slog.HandlerOptions{ReplaceAttr: func(_ []string, attribute slog.Attr) slog.Attr {
+		if attribute.Key != "error" {
+			return attribute
+		}
+		err, _ := attribute.Value.Any().(error)
+		var publication *storage.Error
+		var database *query.Error
+		var response interface{ HTTPStatusCode() int }
+		storageCode, outcome, queryCode, status := "none", "unavailable", "none", 0
+		cause := err
+		if errors.As(err, &publication) {
+			storageCode, outcome, cause = publication.Code, string(publication.Outcome), publication.Cause
+			if outcome == "" {
+				outcome = "uncertain"
+			}
+		}
+		if errors.As(err, &database) {
+			queryCode = string(database.Code)
+		}
+		if errors.As(err, &response) {
+			status = response.HTTPStatusCode()
+		}
+		// Preserve a classified cause without exposing provider URLs, request
+		// values, credentials or private server response text.
+		return slog.Group("error",
+			slog.String("type", fmt.Sprintf("%T", err)),
+			slog.String("storage", storageCode), slog.String("outcome", outcome),
+			slog.String("query", queryCode), slog.Int("status", status),
+			slog.String("cause", fmt.Sprintf("%T", cause)),
+			slog.Bool("eof", errors.Is(err, io.EOF)), slog.Bool("unexpected_eof", errors.Is(err, io.ErrUnexpectedEOF)),
+			slog.Bool("canceled", errors.Is(err, context.Canceled)), slog.Bool("deadline", errors.Is(err, context.DeadlineExceeded)))
+	}}))
+	application, err := web.NewApplication(web.Config{Settings: configured, Logger: logger, MaxResponseBytes: 256, MaxStreamBytes: 2 << 20, Routes: []web.Route{
 		{Name: "files:login", Method: "GET", Path: "/login/", Handler: loginGet},
 		{Name: "files:login_post", Method: "POST", Path: "/login/", Handler: loginPost},
 		{Name: "files:upload", Method: "POST", Path: "/upload/", Handler: upload},
@@ -375,7 +411,7 @@ func runFileServing(t *testing.T, backend fileBackend, root storage.Backend, sco
 	}
 	response, _ := request(t, alice, "POST", "/upload/", multipartBody.Bytes(), http.Header{"Content-Type": {contentType}, "X-Test-CSRF": {aliceCSRF}})
 	if response.StatusCode != 201 || files.saves.Load() != 1 {
-		t.Fatal("authenticated multipart publication failed", response.StatusCode)
+		t.Fatalf("authenticated multipart publication failed: test=%s backend=%s status=%d saves=%d diagnostics=%s", t.Name(), scope, response.StatusCode, files.saves.Load(), diagnostics.String())
 	}
 	location := response.Header.Get("Location")
 	documents, err := models.DocumentObjects.Using(backend).Filter(models.DocumentFields.Title.Exact(titlePrefix + "alice")).All(ctx)

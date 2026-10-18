@@ -602,16 +602,6 @@ func newFileS3(t *testing.T) *storage.S3 {
 	t.Helper()
 	config := s3fixture.Config(t, true)
 	config.Random = zeroEntropy{}
-	// The pinned service can close a reused connection after a conditional
-	// rejection; the independent SDK exhibits the same transport failure.
-	// These model consumers require confirmed publication to check DB/history
-	// semantics. Own a fresh connection per request, without retrying a write.
-	// storage.TestS3LiveServer retains the default-transport uncertainty checks.
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DisableKeepAlives = true
-	transport.MaxResponseHeaderBytes = 64 << 10
-	t.Cleanup(transport.CloseIdleConnections)
-	config.Transport = transport
 	backend, err := storage.NewS3(config)
 	if err != nil {
 		t.Fatal(err)

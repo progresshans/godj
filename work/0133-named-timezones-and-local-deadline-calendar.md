@@ -70,6 +70,8 @@ naive 시간 입력·일반 wall-time 산술은 이 조회와 별도로 남아 �
 [의도적 차이](../docs/DEVIATIONS.md#명시적-시간대의-변환-범위와-update)로 닫힌 검사를 둔다.
 원격에서 드러난 PostgreSQL 역변환 범위 검사 누락과 Helpdesk fixture 수명을 수정했으며,
 현재 source의 실제 실행은 계속 검증 대상이다. 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
+File 소비자의 후속 게시 실패 조사에서 조건부 S3 업로드의 HTTP 본문 대기 오류를 재현·수정했다. 기본 transport의
+실제 wire·고정 서비스·생성 소비자를 연결했으며, 전체 원격 검증은 이 수정도 포함한 source로 다시 대조한다.
 
 아직 timezone 쿼리·서비스의 검증 완료를 주장하지 않는다. 세부 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가
 소유하며, named annotation·나머지 function/subquery/window와 전체 카탈로그의 나머지 기반/기능도 계속 완성 대상이다.

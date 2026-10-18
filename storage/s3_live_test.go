@@ -66,33 +66,18 @@ func TestS3LiveServer(t *testing.T) {
 			})
 		}
 		wait.Wait()
-		// With retries disabled the independent SDK also observes occasional EOF
-		// when MinIO closes an idle connection after a rejected conditional PUT.
-		// Every successful write must be present; an unknown result must retain
-		// its candidate without another attempt. Reconcile only in this observer.
-		confirmed, uncertain := map[string]int{}, 0
+		// A healthy service must confirm every distinct conditional publication.
+		// The lost-response case below separately checks uncertain outcomes.
+		confirmed := map[string]int{}
 		for i, info := range infos {
-			if failures[i] == nil {
-				if _, duplicate := confirmed[info.Name()]; !info.Valid() || duplicate {
-					t.Fatal("conditional publication lost uniqueness")
-				}
-				confirmed[info.Name()] = i
-				continue
+			if _, duplicate := confirmed[info.Name()]; failures[i] != nil || !info.Valid() || duplicate {
+				t.Fatal("conditional publication failed or lost uniqueness", failures[i])
 			}
-			var failure *storage.Error
-			var transport *url.Error
-			if !errors.As(failures[i], &failure) || failure.Code != "publish_failed" || failure.Outcome != storage.Uncertain || !errors.As(failures[i], &transport) || !info.Valid() || info.Size() != int64(len(fmt.Sprintf("content-%d", i))) || info.ContentMetadata().Version != "" {
-				t.Fatal("transport failure lost its unverified publication candidate", failures[i])
-			}
-			t.Logf("observed transport interruption: %v", transport.Err)
-			uncertain++
-		}
-		if len(confirmed) == 0 || len(confirmed)+uncertain != count {
-			t.Fatal("concurrent publication did not exercise successful writes")
+			confirmed[info.Name()] = i
 		}
 		peer := s3fixture.Client(config)
 		objects, err := peer.ListObjectsV2(t.Context(), &s3.ListObjectsV2Input{Bucket: aws.String(config.Bucket)})
-		if err != nil || aws.ToBool(objects.IsTruncated) || len(objects.Contents) < len(confirmed) || len(objects.Contents) > count {
+		if err != nil || aws.ToBool(objects.IsTruncated) || len(objects.Contents) != count {
 			t.Fatal("server inventory lost or duplicated a write", err)
 		}
 		seen := map[int]bool{}
@@ -112,7 +97,7 @@ func TestS3LiveServer(t *testing.T) {
 			if aws.ToString(object.Key) != config.Prefix+"/"+info.Name() || aws.ToString(response.ChecksumSHA256) != base64.StdEncoding.EncodeToString(digest[:]) || response.ChecksumType != types.ChecksumTypeFullObject || aws.ToString(response.VersionId) == "" {
 				t.Fatal("native GET differs from its recorded publication candidate")
 			}
-			if failures[index] == nil && (info.Size() != int64(len(content)) || info.ContentMetadata().Version != fmt.Sprintf("sha256-%x", digest[:])) {
+			if info.Size() != int64(len(content)) || info.ContentMetadata().Version != fmt.Sprintf("sha256-%x", digest[:]) {
 				t.Fatal("verified publication receipt differs from native content")
 			}
 		}
@@ -125,7 +110,7 @@ func TestS3LiveServer(t *testing.T) {
 		if err != nil || aws.ToBool(versions.IsTruncated) || len(versions.DeleteMarkers) != 0 || len(versions.Versions) != len(objects.Contents) {
 			t.Fatal("concurrent writes replaced a version or compensated a candidate", err)
 		}
-		t.Logf("confirmed=%d uncertain=%d native_objects=%d", len(confirmed), uncertain, len(objects.Contents))
+		t.Logf("confirmed=%d native_objects=%d", len(confirmed), len(objects.Contents))
 		rejectionTransport := http.DefaultTransport.(*http.Transport).Clone()
 		rejectionTransport.DisableKeepAlives = true
 		defer rejectionTransport.CloseIdleConnections()
@@ -151,6 +136,46 @@ func TestS3LiveServer(t *testing.T) {
 		}
 		if err := first.Delete(t.Context(), "absent"); err != nil {
 			t.Fatal("missing Delete was not idempotent", err)
+		}
+	})
+	t.Run("large_conditional_publication", func(t *testing.T) {
+		config := s3fixture.Config(t, true)
+		config.Prefix = "private/tenant"
+		backend := liveS3(t, config)
+		original := []byte("previous publication")
+		content := bytes.Repeat([]byte("<html>private uploaded document</html>\x00"), 33000)
+		first, err := backend.Save(t.Context(), "document.html", bytes.NewReader(original), storage.SaveOptions{})
+		if err != nil || !first.Valid() {
+			t.Fatal("initial publication failed", err)
+		}
+		second, err := backend.Save(t.Context(), first.Name(), bytes.NewReader(content), storage.SaveOptions{})
+		if err != nil || !second.Valid() || second.Name() == first.Name() {
+			t.Fatal("large collision did not confirm a distinct publication", err)
+		}
+		peer := s3fixture.Client(config)
+		wantVersions := map[string]string{}
+		for index, info := range []storage.Info{first, second} {
+			key, want := config.Prefix+"/"+info.Name(), [][]byte{original, content}[index]
+			response, err := peer.GetObject(t.Context(), &s3.GetObjectInput{Bucket: aws.String(config.Bucket), Key: aws.String(key), ChecksumMode: types.ChecksumModeEnabled})
+			if err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256(want)
+			if !bytes.Equal(liveS3Read(t, response.Body), want) || info.Size() != int64(len(want)) || info.ContentMetadata().Version != fmt.Sprintf("sha256-%x", digest[:]) || aws.ToString(response.ChecksumSHA256) != base64.StdEncoding.EncodeToString(digest[:]) || response.ChecksumType != types.ChecksumTypeFullObject || aws.ToString(response.VersionId) == "" {
+				t.Fatal("large collision changed original content or lost complete publication evidence")
+			}
+			wantVersions[key] = aws.ToString(response.VersionId)
+		}
+		versions, err := peer.ListObjectVersions(t.Context(), &s3.ListObjectVersionsInput{Bucket: aws.String(config.Bucket)})
+		if err != nil || aws.ToBool(versions.IsTruncated) || len(versions.DeleteMarkers) != 0 || len(versions.Versions) != 2 {
+			t.Fatal("large collision overwrote, duplicated or removed a publication", err)
+		}
+		for _, version := range versions.Versions {
+			key := aws.ToString(version.Key)
+			if want, ok := wantVersions[key]; !ok || want != aws.ToString(version.VersionId) || !aws.ToBool(version.IsLatest) {
+				t.Fatal("large collision native versions differ from confirmed publications")
+			}
+			delete(wantVersions, key)
 		}
 	})
 	t.Run("versioned_reader", func(t *testing.T) {

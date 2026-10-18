@@ -1908,6 +1908,7 @@ github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsume
 github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/admin_inlines/late_parent_scope
 github.com/progresshans/godj/storage|TestS3LiveServer
 github.com/progresshans/godj/storage|TestS3LiveServer/conditional_publication
+github.com/progresshans/godj/storage|TestS3LiveServer/large_conditional_publication
 github.com/progresshans/godj/storage|TestS3LiveServer/versioned_reader
 github.com/progresshans/godj/storage|TestS3LiveServer/unversioned_reader
 github.com/progresshans/godj/storage|TestS3LiveServer/signed_download
