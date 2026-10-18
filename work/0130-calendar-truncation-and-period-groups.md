@@ -1,6 +1,6 @@
 # GDJ-0130: 달력 구간 계산과 기간별 기한 조회
 
-- 상태: 구현 묶음과 원격 실패의 DATE scan·CASE/집계 비교·후속 native replay 보완 완료, 수정 source의 실제 동작·전체 통합 미검증
+- 상태: source `0ce12980`의 구현·양 DB/세 mode 소비자·전체 플랫폼 검증과 원본 증거 대조 완료
 - 시작: 2026-10-18
 - 기준: `153cf7652578db28fbad7bc9fae4bf107109cfce`
 - 근거: [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 판단 기준](../docs/DEVELOPMENT_CRITERIA.md), [함수 AST](../docs/adr/0090-query-update-and-scalar-expressions.md)
@@ -35,11 +35,13 @@ Helpdesk의 날짜별 기한 조회를 일·주·월·분기·연 단위로 확�
 ## 완료 조건
 
 - [x] 공통 AST·typed/dynamic·양 backend에 타입별 구간 계산과 원본 값 검사를 연결한다.
-- [ ] 실제 양 DB의 생성 소비자·compile 부정 대조·관계/집계/후속 결과·쓰기/실패/rollback과 고정 Django 비교를 연결한다.
+- [x] 실제 양 DB의 생성 소비자·compile 부정 대조·관계/집계/후속 결과·쓰기/실패/rollback과 고정 Django 비교를 연결한다.
 - [x] Helpdesk 구간 선택·기간별 출력·범위/페이지·HTML/API·OpenAPI/client·브라우저와 보안/저장 보존을 연결한다.
-- [ ] 영향에 맞는 원격 필수 실행과 원본 증거를 확인하고 구현·환경별 검증·미완료 범위를 기록한다.
+- [x] 영향에 맞는 원격 필수 실행과 원본 증거를 확인하고 구현·환경별 검증·미완료 범위를 기록한다.
 
-체크한 항목은 코드 연결 범위다. 최소 compile·재생성 이후의 실제 DB/HTTP/브라우저 검증은 남아 있다.
+Source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의 [CI 39074001761](https://github.com/progresshans/godj/actions/runs/39074001761)에서
+실제 양 DB·독립 관측·HTML/API/client·브라우저와 전체 플랫폼 검증을 완료했다. 필수 실행·원본 로그·artifact와
+source 결합을 대조했으며 실행 범위와 이전 실패는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다.
 
 GDJ-0129 source의 성공은 이 변경의 실행 증거가 아니다. 일반 timezone/locale·Date/Time 이동·Duration scaling/division·
 named annotation·나머지 function/subquery/window와 전체 카탈로그는 계속 완성 대상이다.

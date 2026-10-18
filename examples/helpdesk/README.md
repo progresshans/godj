@@ -79,6 +79,32 @@ HTML은 unset을 `Not set`, API는 모든 nullable 값을 명시적인 null로 �
 HTML 등록 시 `CostPreviewPath`도 login allowed-next와 Admin 추가 경로에 넣고 `costPreview.Routes()`를 연결한다.
 독립 client·브라우저·양 DB 검증의 실제 완료 여부는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
+## 서비스 일정 미리보기
+
+`application.ServicePreview(webAuth)`의 GET `/tickets/service-preview/`와 API GET `/api/tickets/service-preview/`는
+기존 `service_on`과 `service_at`을 UTC 시작 시각으로 합친다. `shift`를 더한 조정 시작에 저장 `elapsed`를 더해 종료를,
+`due_at - finish_at`으로 기한 여유를 계산한다. 날짜/시계가 하나라도 없으면 시작과 모든 종속 결과가 NULL이다.
+소요 시간이 없으면 종료·기한 여유가 NULL이며 기한만 없으면 여유만 NULL이다. 자정과 0 기간은 실제 값으로 유지한다.
+서버 시각이나 임의의 날짜/기간을 채우지 않는다.
+
+`shift`는 canonical Duration 문자열이며 기본 `00:00:00`이다. 선택 `min_start`는 offset이 있는 완전한 RFC 3339를
+받아 UTC microsecond로 정규화하며 추가 소수 자릿수는 자른다. 조정 시작의 inclusive 최소값을 적용한 뒤
+시작 오름차순·NULL 마지막·ID 오름차순으로 20건을 읽는다. `p`는 정규 decimal 1..50001이고 기본 1이다.
+전체 raw query는 512 bytes 이하이며 미지·중복·빈 입력·잘못된 encoding/값은 400이다.
+
+응답은 required `category`, `page`, `page_size`, `shift`, `min_start`, `total_tickets`, `results`다.
+각 행의 required `id`, `subject`, `service_on`, `service_at`, `elapsed`, `due_at`, `service_start`, `adjusted_start`,
+`finish_at`, `deadline_slack` 중 시간 값은 nullable이며 모두 canonical 문자열이다. `min_start`도 required nullable이다.
+Category와 필터 뒤 total/page는 같은 읽기 snapshot에 속한다. 양 표면은 파싱·조회 전에 `ViewTicket`을 요구하고,
+Category 누락은 404, 손상 원본·계산 범위 초과·취소·읽기/출력 실패에는 부분 응답을 게시하지 않는다.
+HTML/JSON은 `no-store`이며 저장 티켓·관계·감사 이력을 바꾸지 않는다.
+
+HTML 등록에는 `ServicePreviewPath`를 login allowed-next와 Admin 추가 경로에 넣고 `servicePreview.Routes()`를 연결한다.
+독립 client는 준비한 값의 표준 라이브러리 계산과 실제 HTTP를 대조한 뒤 원래 값을 복원한다. 브라우저는 view-only
+세션으로 입력·두 페이지·누락 성분·microsecond와 오류 화면을 검사하고 종료 시 전체 저장값을 다시 읽는다.
+구현과 실제 실행 상태는 [GDJ-0132](../../work/0132-calendar-arithmetic-and-service-schedule-preview.md) 및
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 기한 변경 미리보기
 
 `application.DeadlinePreview(webAuth)`의 GET `/tickets/deadline-preview/`와 API GET `/api/tickets/deadline-preview/`는

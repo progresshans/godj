@@ -45,6 +45,10 @@ type HelpdeskLabelUsageRes interface {
 	helpdeskLabelUsageRes()
 }
 
+type HelpdeskServicePreviewRes interface {
+	helpdeskServicePreviewRes()
+}
+
 type HelpdeskServiceReportCreateRes interface {
 	helpdeskServiceReportCreateRes()
 }

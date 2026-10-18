@@ -126,10 +126,31 @@ func TestMaterializationRoundsTheCombinedResultOnce(t *testing.T) {
 		if got := half.RoundOffset(origin); !got.IsInt64() || got.Int64() != want {
 			t.Fatal("DateTime rounded its period before the odd origin", origin, got, want)
 		}
+		if got := half.RoundSubtractFrom(origin); !got.IsInt64() || got.Int64() != origin-1 {
+			t.Fatal("temporal subtraction rounded its period before the odd origin", origin, got)
+		}
 	}
 	mean, err := durationcalc.FromNativeMean(0.5)
 	if err != nil || mean.Compare(half) != 0 {
 		t.Fatal("native mean lost fractional microseconds", err)
+	}
+}
+
+func TestTemporalOffsetDoesNotConstructAnOutOfDomainPeriod(t *testing.T) {
+	maximum, err := durationcalc.FromDuration(duration.Duration{Days: duration.MaxDays, Microseconds: duration.MicrosecondsPerDay - 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := maximum.Negate(); !errors.Is(err, duration.ErrRange) {
+		t.Fatal("Duration negation lost its independent domain check", err)
+	}
+	result := maximum.RoundSubtractFrom(0)
+	if result.String() != "-86399999999999999999" {
+		t.Fatal("temporal subtraction narrowed its checked input", result)
+	}
+	result.SetInt64(999)
+	if maximum.RoundSubtractFrom(0).String() != "-86399999999999999999" || maximum.RoundOffset(0).String() != "86399999999999999999" {
+		t.Fatal("a returned integer mutated its source or a later result")
 	}
 }
 

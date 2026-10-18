@@ -179,6 +179,26 @@ type Invoker interface {
 	//
 	// GET /api/labels/usage/
 	HelpdeskLabelUsage(ctx context.Context, params HelpdeskLabelUsageParams) (HelpdeskLabelUsageRes, error)
+	// HelpdeskServicePreview invokes helpdesk:service-preview operation.
+	//
+	// Read-only schedule preview for the application's category. service_start combines service_on and
+	// service_at in UTC; both must be present. adjusted_start adds shift, finish_at adds the stored
+	// elapsed duration, and deadline_slack is due_at minus finish_at. Missing date/time keeps the start
+	// and all dependent results null. Missing elapsed keeps finish_at and deadline_slack null; missing
+	// due_at keeps only deadline_slack null. Zero durations and midnight remain real values. No server
+	// clock, timezone inference or defaults for missing model values are used. shift defaults to 00:00:00
+	// and uses canonical normalized Duration text: an optional nonzero signed day count followed by
+	// HH:MM:SS, with six fractional digits when nonzero. Optional min_start filters adjusted_start before
+	// counting and pagination; it requires complete RFC 3339 text with an explicit offset and is
+	// normalized to UTC microseconds, truncating additional fractional digits. Results sort by
+	// adjusted_start ascending, nulls last, then ticket ID. p is a canonical positive page number,
+	// page_size is 20 and total_tickets counts all matches. Category, count and rows share one read
+	// snapshot. ViewTicket precedes parsing and lookup. Unknown/duplicate parameters, malformed encoding,
+	// empty values and raw queries longer than 512 bytes are rejected. Invalid stored operands or
+	// arithmetic outside the backend/model range fail the whole response without changing data.
+	//
+	// GET /api/tickets/service-preview/
+	HelpdeskServicePreview(ctx context.Context, params HelpdeskServicePreviewParams) (HelpdeskServicePreviewRes, error)
 	// HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
@@ -2032,6 +2052,150 @@ func (c *Client) sendHelpdeskLabelUsage(ctx context.Context, params HelpdeskLabe
 	}()
 
 	result, err := decodeHelpdeskLabelUsageResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServicePreview invokes helpdesk:service-preview operation.
+//
+// Read-only schedule preview for the application's category. service_start combines service_on and
+// service_at in UTC; both must be present. adjusted_start adds shift, finish_at adds the stored
+// elapsed duration, and deadline_slack is due_at minus finish_at. Missing date/time keeps the start
+// and all dependent results null. Missing elapsed keeps finish_at and deadline_slack null; missing
+// due_at keeps only deadline_slack null. Zero durations and midnight remain real values. No server
+// clock, timezone inference or defaults for missing model values are used. shift defaults to 00:00:00
+// and uses canonical normalized Duration text: an optional nonzero signed day count followed by
+// HH:MM:SS, with six fractional digits when nonzero. Optional min_start filters adjusted_start before
+// counting and pagination; it requires complete RFC 3339 text with an explicit offset and is
+// normalized to UTC microseconds, truncating additional fractional digits. Results sort by
+// adjusted_start ascending, nulls last, then ticket ID. p is a canonical positive page number,
+// page_size is 20 and total_tickets counts all matches. Category, count and rows share one read
+// snapshot. ViewTicket precedes parsing and lookup. Unknown/duplicate parameters, malformed encoding,
+// empty values and raw queries longer than 512 bytes are rejected. Invalid stored operands or
+// arithmetic outside the backend/model range fail the whole response without changing data.
+//
+// GET /api/tickets/service-preview/
+func (c *Client) HelpdeskServicePreview(ctx context.Context, params HelpdeskServicePreviewParams) (HelpdeskServicePreviewRes, error) {
+	res, err := c.sendHelpdeskServicePreview(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServicePreview(ctx context.Context, params HelpdeskServicePreviewParams) (res HelpdeskServicePreviewRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/tickets/service-preview/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "p" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "p",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.P.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "shift" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "shift",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Shift.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "min_start" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "min_start",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinStart.Get(); ok {
+				return e.EncodeValue(val.Format("2006-01-02T15:04:05.999999999Z07:00"))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServicePreviewOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServicePreviewResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

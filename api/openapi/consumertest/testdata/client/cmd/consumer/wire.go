@@ -58,6 +58,9 @@ func checkGeneratedWire(ctx context.Context) error {
 	if err := checkGeneratedDeadlineCalendarWire(ctx); err != nil {
 		return err
 	}
+	if err := checkGeneratedServicePreviewWire(ctx); err != nil {
+		return err
+	}
 	if err := checkGeneratedLabelUsageWire(ctx); err != nil {
 		return err
 	}

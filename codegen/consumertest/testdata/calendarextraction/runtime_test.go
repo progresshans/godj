@@ -164,7 +164,7 @@ func dynamicPart(value orm.DynamicExpression, name string) orm.DynamicExpression
 
 func withCalendarCorruption(t *testing.T, physical calendarPhysical, seed calendarSeed, vendor, name string, run func()) {
 	t.Helper()
-	name = strings.TrimPrefix(name, "trunc_")
+	name = strings.TrimPrefix(strings.TrimPrefix(name, "trunc_"), "arith_")
 	column, bad, restore := "day", "'not-a-date'", "'2021-01-01'"
 	if vendor == "postgres" {
 		bad = "DATE '10000-01-01'"
@@ -545,6 +545,7 @@ func TestCalendarRuntime(t *testing.T) {
 			assertCalendarJSON(t, rows, `[{"code":"a","value":2020}]`)
 		})
 		checkCalendarTruncation(t, backend, vendor, physical, seed, before)
+		checkCalendarArithmetic(t, backend, vendor, physical, seed, before)
 		if physical.Snapshot() != before {
 			t.Fatal("calendar runtime changed physical model/relation storage")
 		}

@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/query"
 )
@@ -15,6 +17,63 @@ func temporalNull(t *testing.T, kind query.FieldKind) query.ScalarExpression {
 		t.Fatal(err)
 	}
 	return value
+}
+
+func TestCalendarArithmeticRetainsExplicitDomainsAndPrecision(t *testing.T) {
+	day := scalarLiteral(t, query.Date(calendar.Date{Year: 2000, Month: 2, Day: 29}))
+	wall := scalarLiteral(t, query.Time(clock.Time{Hour: 23, Minute: 59, Second: 59, Microsecond: 999999}))
+	instant := scalarLiteral(t, query.DateTime(time.Date(2000, 2, 29, 0, 0, 0, 0, time.UTC)))
+	period := scalarLiteral(t, query.Duration(duration.FromMicroseconds(1)))
+	fraction, err := query.Arithmetic(query.ArithmeticDivide, period, scalarLiteral(t, query.Integer(2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name        string
+		operator    query.ArithmeticOperator
+		left, right query.ScalarExpression
+		kind        query.FieldKind
+	}{
+		{"date_add", query.ArithmeticAdd, day, fraction, query.FieldDateTime},
+		{"date_reverse", query.ArithmeticAdd, fraction, day, query.FieldDateTime},
+		{"date_subtract", query.ArithmeticSubtract, day, period, query.FieldDateTime},
+		{"date_difference", query.ArithmeticSubtract, day, day, query.FieldDuration},
+		{"date_instant_difference", query.ArithmeticSubtract, day, instant, query.FieldDuration},
+		{"instant_date_difference", query.ArithmeticSubtract, instant, day, query.FieldDuration},
+		{"clock_add", query.ArithmeticAdd, wall, fraction, query.FieldTime},
+		{"clock_reverse", query.ArithmeticAdd, fraction, wall, query.FieldTime},
+		{"clock_subtract", query.ArithmeticSubtract, wall, period, query.FieldTime},
+		{"clock_difference", query.ArithmeticSubtract, wall, wall, query.FieldDuration},
+		{"missing_date", query.ArithmeticAdd, temporalNull(t, query.FieldDate), fraction, query.FieldDateTime},
+		{"missing_clock", query.ArithmeticSubtract, wall, temporalNull(t, query.FieldTime), query.FieldDuration},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value, err := query.Arithmetic(test.operator, test.left, test.right)
+			if err != nil || value.ResultKind() != test.kind || value.Nullable() != (test.left.Nullable() || test.right.Nullable()) || value.RequiresDurationFraction() || value.RequiresDurationRounding() {
+				t.Fatal("calendar result acquired the wrong domain or precision", value, err)
+			}
+			operator, left, right, ok := value.Binary()
+			if !ok || operator != test.operator || !left.Equal(test.left) || !right.Equal(test.right) {
+				t.Fatal("a temporal boundary changed its exact source operands")
+			}
+		})
+	}
+	for _, test := range []struct {
+		operator    query.ArithmeticOperator
+		left, right query.ScalarExpression
+	}{
+		{query.ArithmeticAdd, day, wall}, {query.ArithmeticAdd, wall, wall}, {query.ArithmeticAdd, day, day},
+		{query.ArithmeticSubtract, period, day}, {query.ArithmeticSubtract, period, wall},
+		{query.ArithmeticSubtract, wall, day}, {query.ArithmeticSubtract, instant, wall},
+		{query.ArithmeticMultiply, day, period}, {query.ArithmeticDivide, wall, period},
+	} {
+		if _, err := query.Arithmetic(test.operator, test.left, test.right); err == nil {
+			t.Fatal("unsupported calendar arithmetic inferred a date or unit", test)
+		}
+	}
+	if !fraction.RequiresDurationFraction() || fraction.RequiresDurationRounding() {
+		t.Fatal("reusing a fractional period mutated its provenance")
+	}
 }
 
 func TestTemporalArithmeticPreservesOperandAndResultDomains(t *testing.T) {

@@ -726,6 +726,7 @@ func (*GoDjAPIError) helpdeskDeadlinePreviewRes()     {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
+func (*GoDjAPIError) helpdeskServicePreviewRes()      {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIError) helpdeskServiceReportStatusRes() {}
@@ -1255,6 +1256,30 @@ func (s *HelpdeskLabelUsageUsage) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type HelpdeskServicePreviewBadRequest GoDjAPIErrorHeaders
+
+func (*HelpdeskServicePreviewBadRequest) helpdeskServicePreviewRes() {}
+
+type HelpdeskServicePreviewInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServicePreviewInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServicePreviewInternalServerError) helpdeskServicePreviewRes() {}
+
+type HelpdeskServicePreviewNotFound GoDjAPIErrorHeaders
+
+func (*HelpdeskServicePreviewNotFound) helpdeskServicePreviewRes() {}
 
 type HelpdeskServiceReportCreateBadRequest GoDjAPIError
 
@@ -3050,6 +3075,52 @@ func (o OptDate) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewOptDateTime returns new OptDateTime with value set to v.
+func NewOptDateTime(v time.Time) OptDateTime {
+	return OptDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDateTime is optional time.Time.
+type OptDateTime struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDateTime was set.
+func (o OptDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDateTime) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptHelpdeskDeadlineCalendarPeriod returns new OptHelpdeskDeadlineCalendarPeriod with value set to v.
 func NewOptHelpdeskDeadlineCalendarPeriod(v HelpdeskDeadlineCalendarPeriod) OptHelpdeskDeadlineCalendarPeriod {
 	return OptHelpdeskDeadlineCalendarPeriod{
@@ -3958,6 +4029,228 @@ func (o OptString) Or(d string) string {
 		return v
 	}
 	return d
+}
+
+// Ref: #/components/schemas/ServicePreview
+type ServicePreview struct {
+	Category     CategorySummary             `json:"category"`
+	Page         int64                       `json:"page"`
+	PageSize     int64                       `json:"page_size"`
+	Shift        string                      `json:"shift"`
+	MinStart     NilDateTime                 `json:"min_start"`
+	TotalTickets int64                       `json:"total_tickets"`
+	Results      []ServicePreviewResultsItem `json:"results"`
+}
+
+// GetCategory returns the value of Category.
+func (s *ServicePreview) GetCategory() CategorySummary {
+	return s.Category
+}
+
+// GetPage returns the value of Page.
+func (s *ServicePreview) GetPage() int64 {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *ServicePreview) GetPageSize() int64 {
+	return s.PageSize
+}
+
+// GetShift returns the value of Shift.
+func (s *ServicePreview) GetShift() string {
+	return s.Shift
+}
+
+// GetMinStart returns the value of MinStart.
+func (s *ServicePreview) GetMinStart() NilDateTime {
+	return s.MinStart
+}
+
+// GetTotalTickets returns the value of TotalTickets.
+func (s *ServicePreview) GetTotalTickets() int64 {
+	return s.TotalTickets
+}
+
+// GetResults returns the value of Results.
+func (s *ServicePreview) GetResults() []ServicePreviewResultsItem {
+	return s.Results
+}
+
+// SetCategory sets the value of Category.
+func (s *ServicePreview) SetCategory(val CategorySummary) {
+	s.Category = val
+}
+
+// SetPage sets the value of Page.
+func (s *ServicePreview) SetPage(val int64) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *ServicePreview) SetPageSize(val int64) {
+	s.PageSize = val
+}
+
+// SetShift sets the value of Shift.
+func (s *ServicePreview) SetShift(val string) {
+	s.Shift = val
+}
+
+// SetMinStart sets the value of MinStart.
+func (s *ServicePreview) SetMinStart(val NilDateTime) {
+	s.MinStart = val
+}
+
+// SetTotalTickets sets the value of TotalTickets.
+func (s *ServicePreview) SetTotalTickets(val int64) {
+	s.TotalTickets = val
+}
+
+// SetResults sets the value of Results.
+func (s *ServicePreview) SetResults(val []ServicePreviewResultsItem) {
+	s.Results = val
+}
+
+// ServicePreviewHeaders wraps ServicePreview with response headers.
+type ServicePreviewHeaders struct {
+	XGodjCsrftoken OptString
+	Response       ServicePreview
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *ServicePreviewHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *ServicePreviewHeaders) GetResponse() ServicePreview {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *ServicePreviewHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ServicePreviewHeaders) SetResponse(val ServicePreview) {
+	s.Response = val
+}
+
+func (*ServicePreviewHeaders) helpdeskServicePreviewRes() {}
+
+type ServicePreviewResultsItem struct {
+	ID            int64       `json:"id"`
+	Subject       string      `json:"subject"`
+	ServiceOn     NilDate     `json:"service_on"`
+	ServiceAt     NilString   `json:"service_at"`
+	Elapsed       NilString   `json:"elapsed"`
+	DueAt         NilDateTime `json:"due_at"`
+	ServiceStart  NilDateTime `json:"service_start"`
+	AdjustedStart NilDateTime `json:"adjusted_start"`
+	FinishAt      NilDateTime `json:"finish_at"`
+	DeadlineSlack NilString   `json:"deadline_slack"`
+}
+
+// GetID returns the value of ID.
+func (s *ServicePreviewResultsItem) GetID() int64 {
+	return s.ID
+}
+
+// GetSubject returns the value of Subject.
+func (s *ServicePreviewResultsItem) GetSubject() string {
+	return s.Subject
+}
+
+// GetServiceOn returns the value of ServiceOn.
+func (s *ServicePreviewResultsItem) GetServiceOn() NilDate {
+	return s.ServiceOn
+}
+
+// GetServiceAt returns the value of ServiceAt.
+func (s *ServicePreviewResultsItem) GetServiceAt() NilString {
+	return s.ServiceAt
+}
+
+// GetElapsed returns the value of Elapsed.
+func (s *ServicePreviewResultsItem) GetElapsed() NilString {
+	return s.Elapsed
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *ServicePreviewResultsItem) GetDueAt() NilDateTime {
+	return s.DueAt
+}
+
+// GetServiceStart returns the value of ServiceStart.
+func (s *ServicePreviewResultsItem) GetServiceStart() NilDateTime {
+	return s.ServiceStart
+}
+
+// GetAdjustedStart returns the value of AdjustedStart.
+func (s *ServicePreviewResultsItem) GetAdjustedStart() NilDateTime {
+	return s.AdjustedStart
+}
+
+// GetFinishAt returns the value of FinishAt.
+func (s *ServicePreviewResultsItem) GetFinishAt() NilDateTime {
+	return s.FinishAt
+}
+
+// GetDeadlineSlack returns the value of DeadlineSlack.
+func (s *ServicePreviewResultsItem) GetDeadlineSlack() NilString {
+	return s.DeadlineSlack
+}
+
+// SetID sets the value of ID.
+func (s *ServicePreviewResultsItem) SetID(val int64) {
+	s.ID = val
+}
+
+// SetSubject sets the value of Subject.
+func (s *ServicePreviewResultsItem) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetServiceOn sets the value of ServiceOn.
+func (s *ServicePreviewResultsItem) SetServiceOn(val NilDate) {
+	s.ServiceOn = val
+}
+
+// SetServiceAt sets the value of ServiceAt.
+func (s *ServicePreviewResultsItem) SetServiceAt(val NilString) {
+	s.ServiceAt = val
+}
+
+// SetElapsed sets the value of Elapsed.
+func (s *ServicePreviewResultsItem) SetElapsed(val NilString) {
+	s.Elapsed = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *ServicePreviewResultsItem) SetDueAt(val NilDateTime) {
+	s.DueAt = val
+}
+
+// SetServiceStart sets the value of ServiceStart.
+func (s *ServicePreviewResultsItem) SetServiceStart(val NilDateTime) {
+	s.ServiceStart = val
+}
+
+// SetAdjustedStart sets the value of AdjustedStart.
+func (s *ServicePreviewResultsItem) SetAdjustedStart(val NilDateTime) {
+	s.AdjustedStart = val
+}
+
+// SetFinishAt sets the value of FinishAt.
+func (s *ServicePreviewResultsItem) SetFinishAt(val NilDateTime) {
+	s.FinishAt = val
+}
+
+// SetDeadlineSlack sets the value of DeadlineSlack.
+func (s *ServicePreviewResultsItem) SetDeadlineSlack(val NilString) {
+	s.DeadlineSlack = val
 }
 
 // Ref: #/components/schemas/ServiceReport

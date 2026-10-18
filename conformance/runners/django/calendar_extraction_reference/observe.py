@@ -36,6 +36,9 @@ def canonical(value):
     if isinstance(value, wall_time):
         assert value.tzinfo is None, 'converted Time acquired an offset'
         return value.isoformat(timespec='microseconds' if value.microsecond else 'seconds')
+    if isinstance(value, timedelta):
+        from django.utils.duration import duration_string
+        return duration_string(value)
     if isinstance(value, dict):
         return {key: canonical(item) for key, item in value.items()}
     if isinstance(value, (tuple, list)):
@@ -411,6 +414,54 @@ def observe(vendor):
         action('trunc_unselected_corrupt_date', lambda: scalar(Case(When(code='never', then=TruncYear('day')), default=Value(date(2000, 1, 1)))), setup=lambda: corrupt('day', bad_date))
         action('trunc_filtered_corrupt_date', lambda: aggregated(Event.objects.all(), first=Min(TruncMonth('day'), filter=~Q(code='a'))), setup=lambda: corrupt('day', bad_date))
 
+        # Use ordinary field-inferred CombinedExpression/TemporalSubtraction.
+        # Do not cast Date to DateTime or rewrite SQLite's mixed arithmetic:
+        # the observer records the pinned framework's actual external result.
+        period = timedelta(hours=1, microseconds=1)
+        clock_period = timedelta(days=2, hours=1, microseconds=1)
+        midnight = wall_time(0)
+        service_start = F('day') + (F('wall') - Value(midnight))
+        action('arith_date_add', lambda: scalar(F('day') + Value(period)))
+        action('arith_date_reverse', lambda: scalar(Value(period) + F('day')))
+        action('arith_date_subtract', lambda: scalar(F('day') - Value(period), base.exclude(code='g')))
+        action('arith_date_difference', lambda: scalar(F('day') - Value(date(2000, 1, 1))))
+        action('arith_date_instant_difference', lambda: scalar(F('day') - F('at')))
+        action('arith_instant_date_difference', lambda: scalar(F('at') - F('day')))
+        action('arith_time_add', lambda: scalar(F('wall') + Value(clock_period)))
+        action('arith_time_reverse', lambda: scalar(Value(clock_period) + F('wall')))
+        action('arith_time_subtract', lambda: scalar(F('wall') - Value(clock_period)))
+        action('arith_time_difference', lambda: scalar(F('wall') - Value(wall_time(12))))
+        action('arith_composed_start', lambda: scalar(service_start))
+        action('arith_filter_start', lambda: selected(base.annotate(value=service_start).filter(
+            value__gte=datetime(2020, 1, 1, tzinfo=timezone.utc),
+            value__lt=datetime(2022, 1, 1, tzinfo=timezone.utc)).values('code', 'value')))
+        action('arith_related_start', lambda: scalar(F('schedule__day') + (F('schedule__wall') - Value(midnight))))
+        action('arith_collection_start', lambda: selected(Schedule.objects.values('code').annotate(
+            first=Min(F('events__day') + (F('events__wall') - Value(midnight))),
+            last=Max(F('events__day') + (F('events__wall') - Value(midnight)), filter=Q(events__enabled=True)),
+            count=Count(F('events__day') + (F('events__wall') - Value(midnight))),
+        ).order_by('code')))
+        action('arith_aggregate_difference', lambda: aggregated(Event.objects.all(),
+            first=Min(F('wall') - Value(midnight)), last=Max(F('day') - Value(date(2000, 1, 1))),
+            total=Sum(F('wall') - Value(midnight), filter=Q(enabled=True))))
+        action('arith_case_time', lambda: scalar(Case(When(enabled=True, then=F('wall') + Value(clock_period)),
+                                                     default=F('wall') - Value(clock_period))))
+        half_tick = models.ExpressionWrapper(Value(timedelta(microseconds=1)) / Value(2), output_field=models.DurationField())
+        action('arith_date_fraction', lambda: scalar(F('day') + half_tick))
+        action('arith_time_fraction', lambda: scalar(F('wall') + half_tick))
+        action('arith_invalid_date_storage', lambda: scalar(F('day') + Value(timedelta())), setup=lambda: corrupt('day', bad_date))
+        action('arith_clock_24_storage', lambda: scalar(F('wall') + Value(timedelta())), setup=lambda: corrupt('wall', bad_clock))
+        action('arith_unselected_corrupt_date', lambda: scalar(Case(When(code='never', then=F('day') + Value(period)),
+            default=Value(datetime(2000, 1, 1, tzinfo=timezone.utc)))), setup=lambda: corrupt('day', bad_date))
+        action('arith_filtered_corrupt_date', lambda: aggregated(Event.objects.all(),
+            first=Min(F('day') + Value(period), filter=~Q(code='a'))), setup=lambda: corrupt('day', bad_date))
+
+        def update_arithmetic():
+            changed = Event.objects.update(at=service_start, wall=F('wall') + Value(timedelta(microseconds=1)))
+            return {'changed': changed, 'rows': list(base.values('code', 'at', 'day', 'wall', 'part'))}
+
+        action('update_arithmetic_calendar', update_arithmetic, replay=False)
+
         assert physical() == before
         with connection.schema_editor() as editor:
             for model in reversed(owned_models):
@@ -454,12 +505,12 @@ if __name__ == '__main__':
         json.dump(document, output, ensure_ascii=False, indent=2, allow_nan=False)
         output.write('\n')
     names = [case['name'] for case in document['cases']]
-    assert len(names) == len(set(names)) == 95
+    assert len(names) == len(set(names)) == 118
     assert document['storage_unchanged'] and document['storage_cleaned']
     allowed_errors = {'invalid_date_hour', 'invalid_time_year', 'invalid_duration_year', 'infinite_datetime_storage',
                       'invalid_trunc_date_hour', 'invalid_trunc_time_year', 'invalid_trunc_duration_day',
                       'trunc_invalid_date_storage', 'trunc_outside_date_storage',
-                      'trunc_invalid_datetime_storage', 'trunc_infinite_datetime_storage'}
+                      'trunc_invalid_datetime_storage', 'trunc_infinite_datetime_storage', 'arith_invalid_date_storage'}
     unexpected = {case['name']: case['error'] for case in document['cases'] if 'error' in case and case['name'] not in allowed_errors}
     assert not unexpected, json.dumps(unexpected, ensure_ascii=False, sort_keys=True)
     print(json.dumps({'backend': arguments.vendor, 'cases': len(names), 'sha256': hashlib.sha256(arguments.output.read_bytes()).hexdigest()}))

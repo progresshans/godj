@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/duration"
 )
 
 // These capabilities belong to the owned test database, never the application.
@@ -17,9 +20,11 @@ import (
 // the preview. Session tables can change during authenticated reads and are not
 // application data; durable object audit is checked separately through Runtime.
 type deadlineNative struct {
-	snapshot     func(context.Context) (string, error)
-	setDueAt     func(context.Context, int64, time.Time) error
-	corruptDueAt func(context.Context, int64) error
+	snapshot            func(context.Context) (string, error)
+	setDueAt            func(context.Context, int64, time.Time) error
+	corruptDueAt        func(context.Context, int64) error
+	setServiceValues    func(context.Context, int64, *calendar.Date, *clock.Time, *duration.Duration) error
+	corruptServiceValue func(context.Context, int64, string) error
 }
 
 func (native deadlineNative) Snapshot(t *testing.T) string {
@@ -100,6 +105,32 @@ func sqliteDeadlineNative(connection *sql.DB) deadlineNative {
 			_, err := connection.ExecContext(ctx, "UPDATE helpdesk_ticket SET due_at='not-a-time' WHERE id=?", id)
 			return err
 		},
+		setServiceValues: func(ctx context.Context, id int64, day *calendar.Date, wall *clock.Time, period *duration.Duration) error {
+			var dateValue, clockValue, elapsed any
+			if day != nil {
+				dateValue = day.String()
+			}
+			if wall != nil {
+				clockValue = wall.String()
+			}
+			if period != nil {
+				value, err := period.TotalMicroseconds()
+				if err != nil {
+					return err
+				}
+				elapsed = value
+			}
+			_, err := connection.ExecContext(ctx, "UPDATE helpdesk_ticket SET service_on=?,service_at=?,elapsed=? WHERE id=?", dateValue, clockValue, elapsed, id)
+			return err
+		},
+		corruptServiceValue: func(ctx context.Context, id int64, field string) error {
+			value, ok := map[string]string{"service_on": "'not-a-date'", "service_at": "'24:00:00'", "elapsed": "'not-a-period'"}[field]
+			if !ok {
+				return errors.New("unknown synthetic service field")
+			}
+			_, err := connection.ExecContext(ctx, "UPDATE helpdesk_ticket SET "+field+"="+value+" WHERE id=?", id)
+			return err
+		},
 	}
 }
 
@@ -157,6 +188,28 @@ func postgresDeadlineNative(connection *pgx.Conn, namespace string) deadlineNati
 		},
 		corruptDueAt: func(ctx context.Context, id int64) error {
 			_, err := connection.Exec(ctx, "UPDATE "+ticket+" SET due_at=TIMESTAMPTZ 'infinity' WHERE id=$1", id)
+			return err
+		},
+		setServiceValues: func(ctx context.Context, id int64, day *calendar.Date, wall *clock.Time, period *duration.Duration) error {
+			var dateValue, clockValue, elapsed any
+			if day != nil {
+				dateValue = day.String()
+			}
+			if wall != nil {
+				clockValue = wall.String()
+			}
+			if period != nil {
+				elapsed = period.String()
+			}
+			_, err := connection.Exec(ctx, "UPDATE "+ticket+" SET service_on=$1::date,service_at=$2::time,elapsed=$3::interval WHERE id=$4", dateValue, clockValue, elapsed, id)
+			return err
+		},
+		corruptServiceValue: func(ctx context.Context, id int64, field string) error {
+			value, ok := map[string]string{"service_on": "DATE '10000-01-01'", "service_at": "TIME '24:00:00'", "elapsed": "INTERVAL '1 month'"}[field]
+			if !ok {
+				return errors.New("unknown synthetic service field")
+			}
+			_, err := connection.Exec(ctx, "UPDATE "+ticket+" SET "+field+"="+value+" WHERE id=$1", id)
 			return err
 		},
 	}

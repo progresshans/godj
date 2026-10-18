@@ -19,9 +19,10 @@ import (
 
 type calendarReferenceFailure struct{ Type, Message, Stage, SQLState string }
 type calendarNativeValue struct {
-	Type  string
-	Value json.RawMessage
-	Aware bool
+	Type                        string
+	Value                       json.RawMessage
+	Aware                       bool
+	Days, Seconds, Microseconds *int64
 }
 type calendarReferenceStatement struct {
 	SQL         string
@@ -44,6 +45,9 @@ type calendarReferenceCase struct {
 }
 
 func calendarReferenceFields(name string) map[string]string {
+	if strings.HasPrefix(name, "arith_") || name == "update_arithmetic_calendar" {
+		return calendarArithmeticFields(name)
+	}
 	if strings.HasPrefix(name, "trunc_datetime_") {
 		return map[string]string{"value": "DateTimeField"}
 	}
@@ -593,11 +597,12 @@ func TestCalendarReference(t *testing.T) {
 		check(t, err)
 		var reference struct{ Cases []calendarReferenceCase }
 		check(t, json.Unmarshal(data, &reference))
-		if len(reference.Cases) != 95 {
+		if len(reference.Cases) != 118 {
 			t.Fatal("calendar reference incomplete")
 		}
 		seed := seedCalendar(t, backend)
 		before := physical.Snapshot()
+		arithmeticExpectations := readCalendarArithmeticExpectations(t)
 		for _, record := range reference.Cases {
 			t.Run(record.Name, func(t *testing.T) {
 				if !record.Unchanged || !maps.Equal(record.Fields, calendarReferenceFields(record.Name)) {
@@ -634,13 +639,16 @@ func TestCalendarReference(t *testing.T) {
 				run := func() {
 					rollbackCalendar(t, backend, func(session db.Session) { value, failure = observeCalendar(t, session, record.Name) })
 				}
-				if slices.Contains([]string{"invalid_date_storage", "outside_date_storage", "invalid_datetime_storage", "infinite_datetime_storage", "clock_24_storage", "unselected_corrupt_date", "filtered_corrupt_date"}, strings.TrimPrefix(record.Name, "trunc_")) {
+				if slices.Contains([]string{"invalid_date_storage", "outside_date_storage", "invalid_datetime_storage", "infinite_datetime_storage", "clock_24_storage", "unselected_corrupt_date", "filtered_corrupt_date"}, strings.TrimPrefix(strings.TrimPrefix(record.Name, "trunc_"), "arith_")) {
 					withCalendarCorruption(t, physical, seed, vendor, record.Name, run)
 				} else {
 					run()
 				}
 				if physical.Snapshot() != before {
 					t.Fatal("calendar observation changed model/relation storage", record.Name)
+				}
+				if verifyCalendarArithmeticReference(t, vendor, record, value, failure, arithmeticExpectations) {
+					return
 				}
 				if verifyCalendarTruncationDifference(t, vendor, record, value, failure) {
 					return

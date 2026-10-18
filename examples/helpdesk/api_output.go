@@ -21,6 +21,7 @@ type labelEnsureResponse struct {
 }
 
 type apiOutputs struct {
+	servicePreview   output.Output[servicePreviewPage]
 	deadlineCalendar output.Output[deadlineCalendarPage]
 	deadlinePreview  output.Output[deadlinePreviewPage]
 	costPreview      output.Output[costPreviewPage]
@@ -94,6 +95,9 @@ func prepareAPIOutputs(encoder serializers.ModelEncoder[ticketRecord], labelEnco
 		return apiOutputs{}, err
 	}
 	if result.deadlineCalendar, err = prepareDeadlineCalendarOutput(category); err != nil {
+		return apiOutputs{}, err
+	}
+	if result.servicePreview, err = prepareServicePreviewOutput(category); err != nil {
 		return apiOutputs{}, err
 	}
 	if result.labelUsage, err = prepareLabelUsageOutput(category); err != nil {

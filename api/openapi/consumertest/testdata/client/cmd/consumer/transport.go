@@ -149,10 +149,10 @@ func (transport *observedTransport) RoundTrip(request *http.Request) (*http.Resp
 		response.Body.Close()
 		return nil, fail("report status private response policy")
 	}
-	if request.URL.Path == "/api/tickets/deadline-preview/" && response.StatusCode == http.StatusOK &&
+	if (request.URL.Path == "/api/tickets/deadline-preview/" || request.URL.Path == "/api/tickets/service-preview/") && response.StatusCode == http.StatusOK &&
 		(response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("Referrer-Policy") != "same-origin") {
 		response.Body.Close()
-		return nil, fail("deadline preview private response policy")
+		return nil, fail("temporal preview private response policy")
 	}
 	transport.mu.Lock()
 	transport.status = response.StatusCode

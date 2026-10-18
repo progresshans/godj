@@ -43,6 +43,7 @@ format-check:
 	fi
 
 generate-check:
+	python3 codegen/consumertest/testdata/calendarextraction/generate_expectations.py --check
 	python3 internal/unicode16/generate.py --check
 	python3 -m unittest discover -s internal/unicode16 -p 'test_*.py'
 	go run ./cmd/godj generate --check --project ./identity/godj.toml

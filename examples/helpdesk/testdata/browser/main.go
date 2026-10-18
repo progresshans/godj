@@ -135,6 +135,9 @@ func run() error {
 	var reportsBefore []models.ServiceReport
 	var usageBefore labelUsageSnapshot
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
+		if err = seedServicePreview(ctx, runtime); err != nil {
+			return err
+		}
 		summaryBefore, err = models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
 		if err != nil {
 			return err
@@ -177,7 +180,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath)
+	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath, helpdesk.ServicePreviewPath)
 	persistence, err := runtime.LoginPersistence(manager)
 	if err != nil {
 		return err
@@ -186,7 +189,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath}, RenderLimits: helpdesk.AdminRenderLimits()})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication, AdditionalNextPaths: []string{helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath, helpdesk.ServicePreviewPath}, RenderLimits: helpdesk.AdminRenderLimits()})
 	if err != nil {
 		return err
 	}
@@ -234,6 +237,11 @@ func run() error {
 		return err
 	}
 	routes = append(routes, deadlineCalendar.Routes()...)
+	servicePreview, err := application.ServicePreview(authentication)
+	if err != nil {
+		return err
+	}
+	routes = append(routes, servicePreview.Routes()...)
 
 	app, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, MaxResponseBytes: helpdesk.TicketEditorMaxResponseBytes})
 	if err != nil {
@@ -286,6 +294,16 @@ func run() error {
 			if row.DueAt != nil {
 				evidence[index]["due_at"] = row.DueAt.UTC().Format("2006-01-02T15:04:05.000000Z")
 			}
+			evidence[index]["service_on"], evidence[index]["service_at"], evidence[index]["elapsed"] = nil, nil, nil
+			if row.ServiceOn != nil {
+				evidence[index]["service_on"] = row.ServiceOn.String()
+			}
+			if row.ServiceAt != nil {
+				evidence[index]["service_at"] = row.ServiceAt.String()
+			}
+			if row.Elapsed != nil {
+				evidence[index]["elapsed"] = row.Elapsed.String()
+			}
 		}
 		links, err := models.TicketLabelObjects.Using(runtime).OrderBy(models.TicketLabelFields.ID.Asc()).All(shutdown)
 		if err != nil {
@@ -317,6 +335,7 @@ func run() error {
 			reportEvidence[index] = map[string]any{"id": report.ID, "ticket": report.TicketID, "completed": report.Completed, "summary": report.Summary, "audit": history}
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
+			"service_preview_read_only_unchanged":   summaryBefore != nil,
 			"deadline_calendar_read_only_unchanged": summaryBefore != nil,
 			"deadline_preview_read_only_unchanged":  summaryBefore != nil,
 			"cost_preview_read_only_unchanged":      summaryBefore != nil,

@@ -47,6 +47,17 @@ func temporalScalarResultSQL(kind query.FieldKind, statement string) (string, er
 		` AS "value" OFFSET 0) AS "godj_temporal_result")`)
 }
 
+func temporalUTCClockSQL(kind query.FieldKind, statement string) (string, error) {
+	switch kind {
+	case query.FieldDate:
+		return queryplan.ScalarSQL("(", statement, ")::timestamp without time zone")
+	case query.FieldDateTime:
+		return queryplan.ScalarSQL("(", statement, " AT TIME ZONE 'UTC')")
+	default:
+		return "", invalidPlan("UTC calendar arithmetic requires a Date or DateTime")
+	}
+}
+
 func compilePostgresTemporalBinary(expression query.ScalarExpression, left, right string) (string, error) {
 	operator, leftOperand, rightOperand, valid := expression.Binary()
 	if !valid {
@@ -58,18 +69,36 @@ func compilePostgresTemporalBinary(expression query.ScalarExpression, left, righ
 	const l, r = `"godj_temporal_operands"."left"`, `"godj_temporal_operands"."right"`
 	operation := "(" + l + " " + string(operator) + " " + r + ")"
 	if expression.ResultKind() == query.FieldDateTime {
-		instant, elapsed := l, r
-		if leftOperand.ResultKind() == query.FieldDuration && rightOperand.ResultKind() == query.FieldDateTime {
-			instant, elapsed = r, l
+		instant, elapsed, kind := l, r, leftOperand.ResultKind()
+		if leftOperand.ResultKind() == query.FieldDuration {
+			instant, elapsed, kind = r, l, rightOperand.ResultKind()
+		}
+		clock, err := temporalUTCClockSQL(kind, instant)
+		if err != nil {
+			return "", err
 		}
 		// Model Duration is elapsed time. Native interval day arithmetic on a
 		// timestamptz follows the session timezone's DST calendar; do it on a
 		// UTC timestamp and convert back so checked-out sessions cannot alter it.
-		operation = "((" + instant + " AT TIME ZONE 'UTC') " + string(operator) + " " + elapsed + ") AT TIME ZONE 'UTC'"
+		operation = "(" + clock + " " + string(operator) + " " + elapsed + ") AT TIME ZONE 'UTC'"
+	} else if leftOperand.ResultKind() == query.FieldDate || rightOperand.ResultKind() == query.FieldDate {
+		// Date subtraction returns an interval, not PostgreSQL's integer day
+		// difference. Mixed Date/DateTime never uses the session's date cast.
+		first, err := temporalUTCClockSQL(leftOperand.ResultKind(), l)
+		if err != nil {
+			return "", err
+		}
+		second, err := temporalUTCClockSQL(rightOperand.ResultKind(), r)
+		if err != nil {
+			return "", err
+		}
+		operation = "(" + first + " - " + second + ")"
 	}
 	sqlType := "interval"
 	if expression.ResultKind() == query.FieldDateTime {
 		sqlType = "timestamp with time zone"
+	} else if expression.ResultKind() == query.FieldTime {
+		sqlType = "time without time zone"
 	} else if expression.ResultKind() == query.FieldFloat {
 		if operator != query.ArithmeticDivide || leftOperand.ResultKind() != query.FieldDuration || rightOperand.ResultKind() != query.FieldDuration {
 			return "", invalidPlan("temporal Float requires a ratio of durations")

@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/queryupdatetest"
 	"github.com/progresshans/godj/query"
 )
@@ -29,6 +32,109 @@ func TestPostgresCalendarFunctionsAndUpdates(t *testing.T) {
 			t.Fatal("calendar failure lost its native data-exception SQLSTATE", err)
 		}
 	})
+}
+
+func TestPostgresCalendarArithmetic(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	queryupdatetest.CheckCalendarArithmetic(t, backend, backend.database, func(name string) string {
+		quoted, err := quoteTable(namespace, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return quoted
+	}, true, func(t *testing.T, err error) {
+		t.Helper()
+		var native *pgconn.PgError
+		if !errors.As(err, &native) || !strings.HasPrefix(native.Code, "22") {
+			t.Fatal("calendar arithmetic lost its native data-exception SQLSTATE", err)
+		}
+	})
+}
+
+func TestPostgresCalendarArithmeticIgnoresSessionTimezone(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	table, err := quoteTable(namespace, "calendar_arithmetic_zone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backend.database.ExecContext(t.Context(), "CREATE TABLE "+table+" (id BIGINT PRIMARY KEY, day DATE, at TIMESTAMPTZ)"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backend.database.ExecContext(t.Context(), "INSERT INTO "+table+" VALUES(1,DATE '2021-03-14',TIMESTAMPTZ '2021-03-14 00:30:00+00')"); err != nil {
+		t.Fatal(err)
+	}
+	day := query.NewFieldRef("day", "day", query.FieldDate, false)
+	at := query.NewFieldRef("at", "at", query.FieldDateTime, false)
+	source := query.NewPlan("calendar_arithmetic_zone", []query.FieldRef{queryupdatetest.ID, day, at})
+	dayValue, atValue := queryupdatetest.Field(t, day), queryupdatetest.Field(t, at)
+	period := queryupdatetest.Literal(t, query.Duration(duration.Duration{Days: 1}))
+	fraction := queryupdatetest.Arithmetic(t, query.ArithmeticDivide, period, queryupdatetest.Literal(t, query.Integer(2)))
+	values := []query.ScalarExpression{
+		queryupdatetest.Arithmetic(t, query.ArithmeticAdd, dayValue, period),
+		queryupdatetest.Arithmetic(t, query.ArithmeticAdd, period, dayValue),
+		queryupdatetest.Arithmetic(t, query.ArithmeticAdd, dayValue, fraction),
+		queryupdatetest.Arithmetic(t, query.ArithmeticSubtract, atValue, dayValue),
+		queryupdatetest.Arithmetic(t, query.ArithmeticSubtract, dayValue, atValue),
+		queryupdatetest.Arithmetic(t, query.ArithmeticSubtract, dayValue, queryupdatetest.Literal(t, query.Date(calendar.Date{Year: 2021, Month: 3, Day: 13}))),
+		queryupdatetest.Arithmetic(t, query.ArithmeticAdd, queryupdatetest.Literal(t, query.Time(clock.Time{Hour: 23})), period),
+	}
+	selections := make([]query.ResultExpression, len(values))
+	for index, value := range values {
+		selections[index], err = query.ScalarResult(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	shape, err := query.NewProjectionResult(selections...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := source.WithResultShape(shape)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = backend.Atomic(t.Context(), func(borrowed db.Session) error {
+		session := borrowed.(*transactionSession)
+		if _, err := session.transaction.ExecContext(t.Context(), "SET LOCAL TIME ZONE 'America/New_York'"); err != nil {
+			return err
+		}
+		rows, err := session.Query(t.Context(), plan)
+		if err != nil {
+			return err
+		}
+		if !rows.Next() {
+			return errors.Join(errors.New("calendar arithmetic row missing"), rows.Err(), rows.Close())
+		}
+		var forward, reverse, fractional time.Time
+		var first, second, third, wall string
+		if err := rows.Scan(&forward, &reverse, &fractional, &first, &second, &third, &wall); err != nil {
+			return errors.Join(err, rows.Close())
+		}
+		if rows.Next() {
+			return errors.Join(errors.New("calendar arithmetic duplicated its source row"), rows.Close())
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return err
+		}
+		if forward.UTC().Format(time.RFC3339Nano) != "2021-03-15T00:00:00Z" || !reverse.Equal(forward) || fractional.UTC().Format(time.RFC3339Nano) != "2021-03-14T12:00:00Z" || first != duration.FromMicroseconds(1800000000).String() || second != duration.FromMicroseconds(-1800000000).String() || third != (duration.Duration{Days: 1}).String() || wall != "23:00:00" {
+			t.Fatal("calendar arithmetic used a session-local midnight or DST day", forward, reverse, fractional, first, second, third, wall)
+		}
+		var zone string
+		if err := session.transaction.QueryRowContext(t.Context(), "SELECT current_setting('TimeZone')").Scan(&zone); err != nil {
+			return err
+		}
+		if zone != "America/New_York" {
+			t.Fatal("calendar arithmetic mutated the caller's timezone", zone)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPostgresCalendarExtractionIgnoresSessionTimezone(t *testing.T) {

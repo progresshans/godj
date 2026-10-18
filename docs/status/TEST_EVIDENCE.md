@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0132 — Date/Time 산술 기반과 생성 소비자의 compile checkpoint
+
+2026-10-18 KST, `2d7ff454a0237cf3c409ddd73b1e6f4c50523550` 기반 미커밋 작업 사본에 Date±Duration·
+Duration+Date, Date/DateTime 차이, Time±Duration·Duration+Time·Time 차이를 같은 AST·typed API·양 backend로 연결했다.
+SQLite의 정확한 분수 뺄셈은 범위 밖 negated Duration을 중간에 만들지 않고 원 피연산자를 검사한 뒤 결과를 반올림한다.
+Time 결과만 하루 안으로 정규화하며 PostgreSQL의 Date/Time 입력도 NULL 전파 전에 원 모델 범위를 검사한다.
+
+구조가 다른 두 생성 앱에 typed/dynamic·UTC 시작 시각·관계/collection 집계·후속 stage·같은 행 갱신·savepoint·
+cache/context/cursor와 실패 경로를 작성했다. 독립 Django observer에는 23개 산술 사례를 추가했다.
+별도 literal 기대 fixture는 Python 표준 라이브러리 Date/DateTime/Duration/Fraction으로 구성한 **검사 기준**이며
+실제 Django 관측 결과가 아니다. 기존 95개와 새 23개의 원 SQL/type·변환·저장 보존 및 정확한 차이를 대조하고
+변조된 native 기록을 거부하도록 작성했다. 이 runtime·독립 비교는 아직 실행하지 않았다.
+
+- `go test -run '^$'`로 query·orm·durationcalc·공통 native harness·SQLite·PostgreSQL·생성 소비자 package를 compile했다.
+- 현재 Schema IR 선언과 생성기로 별도 module의 planning/records 앱을 만들고, 현행 소비자·독립 비교 코드를 복사해
+  `go test -mod=mod -run '^$' ./...`로 compile했다. 두 명령 모두 exit 0이며 테스트 본문·DB/HTTP 실행은 없었다.
+- `gdj0132-calendar-compile-iyzhx2o8/source.json`에 당시 변경 파일의 hash를 보존했다. Foundation receipt SHA-256은
+  `ca7476f09da218d4429482de5d81c256c052d01125dfb915b097d350328770c8`, generated receipt는 `88b57b4a14274dfb692bdb4c600728f24a5c58663a6efd21a1b909542429b954`다.
+
+이 checkpoint 당시 Helpdesk 서비스 일정의 HTML/API/client·브라우저 연결은 남아 있었다. 아래 후속 작업에서
+이를 연결했으며, 같은 source의 실제 원격 필수 실행은 여전히 미완료다.
+GDJ-0131의 다른 source CI 결과를 이 작업 사본으로 전이하지 않는다.
+
+### 서비스 일정·독립 클라이언트·브라우저 연결의 compile checkpoint
+
+기준은 준비 파일 경합 수정 `73ee17042b42b48701026e15c329405fe210afe1`이며 후속 변경은 아직 미커밋 작업 사본이다.
+기존 Date와 Time의 차이·Duration 이동을 조합해 시작/조정 시작/종료/기한 여유를 DB에서 계산하는 Helpdesk read service와
+HTML/API를 연결했다. 공통 canonical query/output·인가·같은 Category snapshot·필터 뒤 page·저장 보존을 사용한다.
+작성한 양 DB 테스트에는 45개 scoped 행과 외부 Category, 성분별 NULL/0, snapshot·native corruption·overflow·출력 실패를 포함한다.
+이 테스트 본문을 로컬에서 실행하지 않았다.
+
+- Helpdesk·브라우저 fixture·OpenAPI exporter를 `go test -run '^$'`로 compile해 exit 0을 확인했다.
+  `gdj0132-service-compile-__9j2a_w/receipt.json` SHA-256: `34a4f89620c99272d0288b28115fa5b90aef62bca5a620a37f37b7addb5ac378`.
+- 여섯 실제 schema를 export하고 고정 ogen으로 재생성했다. Helpdesk session의 schema와 생성 Go 파일 9개만 변경됐고
+  다른 profile·파일 목록·lock은 보존됐다. `gdj0132-service-client-generation-16yhz3p9/receipt.json` SHA-256:
+  `2fef037acf71cca827040a192630c280584d351c3d49668418d315ad757ec390`. 메타데이터·생성 검사이며 HTTP 실행은 아니다.
+- 독립 module에 두 역할의 실제 HTTP 계산/원본 복원과 별도 wire 거부 코드를 작성했다. 부모·child의 필수 receipt에
+  `helpdesk_service_preview`와 `generated_service_preview_wire`를 추가했다. 원래 bulk/priority audit 소유 범위를 유지한다.
+- SQLite·PostgreSQL·브라우저 fixture·OpenAPI 부모 package와 독립 client `cmd/consumer`를 각각
+  `go test -run '^$'`로 compile해 exit 0을 확인했다. 새 native AVG/분수 clock 경계 검사도 compile에 포함했다.
+  `gdj0132-consumer-compile-vidksfdc/receipt.json` SHA-256:
+  `64cb1be65f9eabffe917df0e5b5c9715aa2af8fa6720e13edf1c67f67e607c23`.
+  같은 receipt의 Go/lock source inventory는 실행 전후 byte 동일하며 SHA-256은 `50b0591cb8616ded11496806096a6f4cf868af75f038cc3205b4973beeb01c3a`다.
+- Chromium probe의 서비스 일정 검사 39개·독립 required 목록·누락/변조 거부, 실제 fixture의 Date/Time/Duration·전체 행·
+  관계/audit 종료 대조와 screenshot 보존을 연결했다. Python AST와 새 JavaScript syntax만 확인했으며 브라우저를 실행하지 않았다.
+- 표준 라이브러리 기반 기대 fixture recipe를 저장소에 추가하고 `--check`로 기존 literal과 byte 일치를 확인했다.
+  23개 사례·156,961 bytes, SHA-256 `4d091cec894af550d6217394bacd20749b91f9862ff26340a9861e3904559995`다.
+  생성 drift 검사는 independent Django 관측이나 제품 실행을 대신하지 않는다.
+
+현 시점의 최소 compile·생성 성공을 native DB·HTTP/client·브라우저·race·CGO0·전체 platform 성공으로 계산하지 않는다.
+새 118개 calendar 참조와 기존 55개 temporal 참조, 필수 native/소비자/실패 실행을 같은 원격 source에서 확인해야 한다.
+
 ## GDJ-0131 — 기간 배율·나눗셈의 기반 작성
 
 2026-10-18 KST, `e09a963417d76481d5598285908dabed7aa3669f`에서 시작한 별도 미커밋 작업 사본에
@@ -316,17 +368,103 @@ scaling savepoint 검사도 함께 실행해 parent 포함 7개 run/pass·skip/f
 `gdj0131-session-binding-repair-05aqe45z`의 `before-receipt.json` SHA-256은
 `ef590e9a21841ad14e2de2b3b47488d6e74dc712aa37bd9c6c55f3353becd446`, `after-receipt.json`은
 `f28660f6ff8ee3579f8992c5843c1fc9a0c7dfcf62c75cccacef3348ea327835`다. 수정 전후 생성물은 동일하고 비교 fixture 한 줄만
-달라진다. 이 로컬 재현은 새로운 PostgreSQL 또는 Django 실행이 아니며, 양 DB·세 mode·플랫폼 전체 검증을 대신하지 않는다.
+달라진다. 로컬 비교 양쪽에는 앞의 SQLite Float 분류 수정이 이미 포함됐으므로 원 CI checkout과 구분한다.
+`source-provenance-audit.json`의 SHA-256 `5f59c1ce16bde7da03de3951285575791f737addded0d17b8fb061c1763ad1dd`가
+그 제품 변경과 비교 fixture의 수정 전후 hash를 제출 source에 연결한다.
+이 로컬 재현은 새로운 PostgreSQL 또는 Django 실행이 아니며, 양 DB·세 mode·플랫폼 전체 검증을 대신하지 않는다.
 앞의 부분 성공은 `d1370569`에만 귀속한다. 이번 제품·검사 수정과 DEV-0024를 같은 변경 묶음으로 제출하고 전체 CI를 다시 대조한다.
+
+수정 source `2d7ff454a0237cf3c409ddd73b1e6f4c50523550`를 push한 뒤
+[CI 39082852903](https://github.com/progresshans/godj/actions/runs/39082852903)가 자동 시작됐다.
+Plan job `117543532477`의 checkout `56fa073d8e1325d9522bb5d33c295567a5ac5493`는 base `0ce12980`와 이
+source를 parent로 가지며 merge/head tree `4c25d5d653b59b93064f9192d62987d91e4f3a32`가 같다.
+`ci-39082852903-source-binding-and-plan.json` SHA-256은
+`8762eb55d7761d5429f66fc3da6cb022d1728f8f7e2b7ec794d65f2107ca8b47`다. 같은 source의 전체 검증은 진행 중이다.
+선행 `d1370569` CI는 후속 push에 따라 최종 cancelled로 종료했다. 추가 normal/CGO0 PostgreSQL과 Linux runtime도
+같은 세 원인으로 실패했으며 이를 전체 성공으로 계산하지 않는다.
+
+### macOS Intel race의 준비 파일 공개 경합 수정
+
+Source `2d7ff454a0237cf3c409ddd73b1e6f4c50523550`의 CI 39082852903에서 product job `117543557884`
+(macOS 15 Intel, race)가 실패했다. `TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup`이
+생성 직후 아직 비어 있는 준비 파일에서 PID를 읽어 parse 오류를 냈다. 다른 제품 오류나 runtime data race라는 뜻은 아니다.
+Run/job source를 대조한 원본 로그는 `ci-39082852903-failed-macos-race-zmx1_hsa/job.log`, SHA-256
+`f23e4604288888e7b9ee99b27cfbc53d1eca3b1b3cc5dfdb693ee7c138bc7e0c`이며 receipt SHA-256은 `62723d8018c1bb5c2c3c11cdf758572982759115e6922fac20c8a81738d271aa`다.
+
+별도 Git archive의 동일 source에서 파일 생성과 쓰기 사이를 100ms로 늘린 overlay로 그 한 테스트를 실행해
+같은 빈 PID 실패를 재현했다. 의도적으로 경쟁 구간을 확대한 재현이며 무변경 로컬 재현으로 표현하지 않는다.
+수정은 완성한 PID를 같은 디렉터리의 임시 경로에 쓴 뒤 rename으로 공개한다. PID의 엄격한 파싱·실제 자식
+process group 발견·강제 종료·부재 확인은 유지했다. 수정 후 공개 전 100ms 지연을 넣은 같은 테스트와
+계측하지 않은 실제 변경의 `-race` 테스트를 각각 실행했다. 둘 다 정확히 한 이름의 RUN/PASS·package 완료,
+exit 0을 확인했다. 로컬 환경은 darwin/arm64, Go 1.26.5이며 macOS Intel Hosted 재검증을 대신하지 않는다.
+
+- `gdj0131-harness-publication-rddt1hkc/before-receipt.json`: `71e86e436346d44c90383dbd063a67889df776005996f573839bb3cee41a64ec`.
+- `after-delayed-receipt.json`: `2675e151b53c3195cacc9509314fb4c80a64153e0d547caeb22e4b27f1e71b6f`; `after-race-receipt.json`: `964a80504cd6b7c9f76572869167723e22916cbf8070d0221dc9d26d9df52034`.
+- `source-provenance.json`: `cdf3c0b2256f3b6e77cf79da257139c2a284cd2d7b93d299f018c2bc1c1ace09`. Archive의 모든 Git 파일을 대조해 실제 수정은
+  `conformance/runserverproduct/product_unix_test.go` 한 개임을 확인했다. GDJ-0132의 작업 파일은 넣지 않았다.
+
+수정 source의 전체 원격 검증은 남아 있으며 실패 source의 부분 성공을 전체 완료로 전이하지 않는다.
+수정 파일 하나를 `73ee17042b42b48701026e15c329405fe210afe1`로 push해
+[CI 39085925758](https://github.com/progresshans/godj/actions/runs/39085925758)가 자동 시작됐다. 이전 실행은 새 push로 취소되어 89개 중 62 success·2 failure(원 실패와 CI gate)·25 cancelled로 종료됐으며
+GDJ-0132의 코드·검사 작업 사본은 이 제출에 포함하지 않았다. 보존 receipt는
+`gdj0132-held-before-harness-publish-cykltztf/receipt.json`, SHA-256
+`f7d5afaf5c684bc0a69f3e9a9b5a62c01b39a684320432652a4ad2ee8332f772`다.
+
+Plan job `117552609810`의 원 checkout 로그와 Git 객체를 대조했다. PR merge
+`02a9c876cf0204a5bcb52e20927610095df46bdd`의 parent는 base `0ce12980`와 제출 `73ee1704`이고,
+merge/head tree는 `e7a53d8acf571fbc1f7cbb88a82bada6b906d52f`로 같다.
+`ci-39085925758-source-binding-and-plan.json` SHA-256은
+`492c629f4c230c3bd828f1e158c72d136d4a6e8011e0fb9567346d8b291330b2`다.
+이는 해당 실행의 source 결합이며 전체 실행 완료나 GDJ-0132 작업 사본의 검증이 아니다.
 
 ## GDJ-0130 — 달력 구간 계산과 기간별 기한 조회
 
 후속 source `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8`의
-[CI 39074001761](https://github.com/progresshans/godj/actions/runs/39074001761)는 진행 중이다.
+[CI 39074001761](https://github.com/progresshans/godj/actions/runs/39074001761)는 attempt 1에서 전체 성공했다.
 PR checkout `e1e4a0cd040ba21edbb9e64ee207d2b5adc0877e`의 두 parent와 tree
 `85a4e318146a1bc36025c4f37603a93c01abbcd4`가 제출 source에 결합됨을 plan 원 로그와 Git 객체로 확인했다.
 `ci-39074001761-source-binding-and-plan.json` SHA-256은
-`a388641fb2b50a01d96d76cd7480f360f6c943b6f16a77adda7fc5d7c2684a4c`다. 이 source의 전체 성공은 아직 주장하지 않는다.
+`a388641fb2b50a01d96d76cd7480f360f6c943b6f16a77adda7fc5d7c2684a4c`다.
+
+### 전체 필수 실행과 같은 source 원본 대조 완료
+
+89개 job·8개 필수 owner·12개 플랫폼/mode 조합과 최종 gate가 성공했다. 각 job의 실제 checkout·필수 step·
+완료 상태와 source의 실행 계획을 대조했다. Relation 36개 shard가 각 조합의 실제 생성 소비자 root 95개를 중복·
+누락 없이 실행했으며, PostgreSQL 3,471개 필수 경로와 9개 원 JSON 로그의 run/pass·package 완료·skip을 확인했다.
+Normal/CGO0 core는 각 6,359 run/pass이고 race의 core·consumers·Helpdesk·processes도 각 담당 목록을 통과했다.
+플랫폼에서 PostgreSQL owner로 위임한 검사와 정확한 Python profile 검사는 지정한 실제 owner의 실행을 대조했다.
+4종 Python 호환 profile, 정확한 Darwin profile, 32-bit 실행/compile·cold 외부 CLI build·생성 drift·26개 제품 conformance,
+새 system-state/operator capture의 Git source 결합·실제 소비와 S3 process 수명도 확인했다.
+
+GDJ-0130의 필수 결과는 보존된 원 로그와 다음처럼 일치한다.
+
+- Normal·race·CGO0 각각에서 양 DB의 독립 Django 95개 관측씩과 생성 소비자의 222개 inner run/pass,
+  compile 부정 대조 15개를 확인했다. 여덟 Trunc·타입 조합·경계·관계/collection·후속 결과·같은 행 쓰기·
+  손상/범위 오류·context/cache/cursor/rollback 경로를 포함한다. Native replay·CASE/집계의 명시적 반환 타입 차이,
+  SQL/parameter·전체 저장 상태와 정리 증거를 대조했다. 이전 실패 source의 성공을 전이하지 않았다.
+- Helpdesk 기간별 조회의 양 DB·인가/Category·한 snapshot·범위/NULL/페이지·출력 실패와 저장 보존은
+  각 mode의 필수 49개 run/pass로 확인했다. 독립 OpenAPI client는 SQLite HTTP fixture에서 여섯 locked profile
+  재생성과 전체 package 실행 및 필수 source receipt 106개를 요구한다. Portable 로그에 개별 성공 child receipt가
+  모두 별도로 보존된 것은 아니므로 unfiltered package 성공과 의무 검사의 source 대조로 기록한다.
+- Chromium `155.0.8059.12`의 기간별 기한 검사 43개와 이전 요약 30·보고서 19·라벨 28·비용 22·기한 미리보기
+  34개도 통과했다. 모든 명령·source/tree·파일/로그 hash와 native SQLite 저장/audit 보존, browser/fixture 종료·
+  DB 제거를 대조했다. Desktop 화면의 Month 선택·기간 시작일 범위·2월 그룹·전체 UTC 최초/최종 기한과 마지막
+  NULL 그룹 표시를 확인했다. 다른 viewport를 검증한 결과는 아니다.
+
+원 자료는 `hosted-full-pr-39074001761/`에 보존했다. Source archive의 3,674개 파일은 Git blob·mode·hash와 같고,
+89개 개별 job 원 로그·16개 artifact는 API의 run/head/attempt·GitHub digest·크기와 일치한다.
+
+| 증거 | SHA-256 |
+|---|---|
+| 전체 검사 `audit.json` | `9c1779a0f2d22c1a520ebd87f04011238426248fea1dfa1b372e35dd0b774736` |
+| 수집 `collection.json` | `8ae215430dbba9351f11e3d5fdcc24dcb3c4ddd9c811239113f6bb02da77ec07` |
+| Source inventory | `ae2cf5d7e0d224f276a28235212bbba958598d5ac4c8f703e8d9f32f94ec0783` |
+| 개별 원 로그 manifest | `3760903c78c5f595cbc7115f5aaede14412b697f93548bb71ce3ce4a62de64e5` |
+| 개별 원 로그의 로컬 ZIP 묶음 | `a2a8ef708cc908c432e080f80814d0226dc899eb1bf6ec54a10d48e1b71e1320` |
+| Desktop 화면 확인 `visual-inspection.json` | `586a63276df7032a2d93dd5bfdc105833176723f0ebad2bb96db2676ae00b06b` |
+
+이 완료는 source `0ce12980`의 GDJ-0130 구현과 선언된 전체 검증 범위다. GDJ-0131의 기간 배율·라벨 시간 조정,
+일반 timezone/locale·Date/Time 이동·named annotation·나머지 function/subquery/window와 전체 카탈로그의 완료를 뜻하지 않는다.
 
 ### 후속 scalar replay에 남은 변환 가정 보완
 

@@ -226,6 +226,67 @@ DEADLINE_CALENDAR_CHECKS = (
 )
 
 
+SERVICE_PREVIEW_CHECKS = (
+    'service preview navigation',
+    'service preview default zero shift and first scoped page',
+    'service preview exact start finish and negative slack across leap midnight',
+    'service preview midnight remains a real clock',
+    'service preview missing elapsed retains the computed start',
+    'service preview shift updates the schedule and exact slack',
+    'service preview second page preserves the shift',
+    'service preview has no false next page',
+    'service preview independently missing date and clock propagate NULL',
+    'service preview zero elapsed and missing deadline remain distinct',
+    'service preview adjustment resets the page',
+    'service preview minimum normalizes offset and submicroseconds',
+    'service preview minimum filters adjusted starts before paging',
+    'service preview filtered page preserves all inputs',
+    'service preview past-end retains the filtered total',
+    'service preview previous link retains every input',
+    'service preview adjustment retains the minimum',
+    'service preview clear minimum preserves shift',
+    'service preview API exact envelope and ordering',
+    'service preview API exact original and computed temporal values',
+    'service preview API required NULL and zero duration',
+    'service preview API normalized inclusive minimum',
+    'service preview negative shift produces exact zero slack',
+    'service preview full-day shift crosses leap February',
+    'service preview last allowed page preserves total and minimum',
+    'service preview rejects empty shift',
+    'service preview rejects noncanonical shift',
+    'service preview rejects empty minimum',
+    'service preview rejects invalid calendar date',
+    'service preview rejects missing offset',
+    'service preview rejects duplicate input',
+    'service preview rejects supplied category',
+    'service preview rejects page outside its bound',
+    'service preview overflow fails the entire API',
+    'service preview overflow fails the entire HTML',
+    'service preview response is private and uncached',
+    'service preview contains no write form',
+    'service preview reset restores explicit zero shift',
+    'service preview complete schedule visible for visual review',
+)
+
+
+def verify_service_preview(result):
+    cases = result.get('cases')
+    if (type(result.get('passed')) is not int or result['passed'] != len(SERVICE_PREVIEW_CHECKS)
+            or not isinstance(cases, list) or len(cases) != len(SERVICE_PREVIEW_CHECKS)
+            or any(not isinstance(case, str) or not case for case in cases)
+            or set(cases) != set(SERVICE_PREVIEW_CHECKS)):
+        raise ValueError('service preview browser did not complete every declared check')
+    return result
+
+
+def expected_service_values(identity):
+    day = None if identity in (1, 5) else '2024-02-28' if identity == 2 else '2024-02-29' if identity <= 6 else f'2024-03-{identity - 6:02}'
+    wall = (None if identity in (1, 4) else '23:59:59.999999' if identity == 2
+            else '00:00:00' if identity in (3, 5) else '12:00:00' if identity == 6 else '12:34:56')
+    elapsed = {2: '00:00:00.000001', 3: '00:00:00.000002', 30: '00:00:00'}.get(identity)
+    return {'service_on': day, 'service_at': wall, 'elapsed': elapsed}
+
+
 def verify_deadline_calendar(result):
     cases = result.get('cases')
     if (type(result.get('passed')) is not int or result['passed'] != len(DEADLINE_CALENDAR_CHECKS)
@@ -318,6 +379,9 @@ def verify_committed(value):
             or value.get('deadline_preview_read_only_unchanged') is not True
             or any('due_at' not in row or row['due_at'] != due_at.get(row['id']) for row in rows)):
         raise ValueError('deadline preview browser did not preserve every stored microsecond and NULL')
+    if (value.get('service_preview_read_only_unchanged') is not True
+            or any(any(key not in row or row[key] != expected for key, expected in expected_service_values(row['id']).items()) for row in rows)):
+        raise ValueError('service preview browser did not preserve every stored date, clock, duration and NULL')
     reports = value.get('committed_reports')
     if (value.get('report_status_read_only_unchanged') is not True
             or value.get('initial_status_reports') != 30
@@ -363,7 +427,8 @@ def run(node_tools, output):
                'label_usage_probe_sha256': hashlib.sha256((FIXTURE / 'label_usage_probe.js').read_bytes()).hexdigest(),
                'cost_preview_probe_sha256': hashlib.sha256((FIXTURE / 'cost_preview_probe.js').read_bytes()).hexdigest(),
                'deadline_preview_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_preview_probe.js').read_bytes()).hexdigest(),
-               'deadline_calendar_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_calendar_probe.js').read_bytes()).hexdigest()}
+               'deadline_calendar_probe_sha256': hashlib.sha256((FIXTURE / 'deadline_calendar_probe.js').read_bytes()).hexdigest(),
+               'service_preview_probe_sha256': hashlib.sha256((FIXTURE / 'service_preview_probe.js').read_bytes()).hexdigest()}
     environment = os.environ | {'CI': '1', 'NO_UPDATE_NOTIFIER': '1', 'GOENV': 'off', 'GOWORK': 'off',
                                 'GOTOOLCHAIN': 'local', 'GOCACHEPROG': '', 'GOPROXY': 'off',
                                 'GONOPROXY': 'none', 'GOSUMDB': 'off', 'GOFLAGS': '-mod=readonly'}
@@ -475,6 +540,12 @@ def run(node_tools, output):
             calendar_screenshot = output / 'deadline-calendar-desktop.png'
             if not calendar_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or calendar_screenshot.stat().st_size < 1000:
                 raise ValueError('browser did not produce the deadline calendar screenshot')
+
+            receipt['service_preview'] = verify_service_preview(result_document(browser('service-preview', 'run-code', '--filename', str(FIXTURE / 'service_preview_probe.js'))))
+            browser('service-preview-screenshot', 'screenshot', '--filename=' + str(output / 'service-preview-desktop.png'))
+            service_screenshot = output / 'service-preview-desktop.png'
+            if not service_screenshot.read_bytes().startswith(b'\x89PNG\r\n\x1a\n') or service_screenshot.stat().st_size < 1000:
+                raise ValueError('browser did not produce the service preview screenshot')
 
         except Exception as error:
             failure = error

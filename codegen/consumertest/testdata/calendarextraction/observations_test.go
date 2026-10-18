@@ -44,7 +44,7 @@ func wall(text string) clock.Time {
 }
 
 type calendarValue interface {
-	time.Time | calendar.Date | clock.Time | int64 | float64
+	time.Time | calendar.Date | clock.Time | duration.Duration | int64 | float64
 }
 
 func wireCalendar[T calendarValue](value T) any {
@@ -54,6 +54,8 @@ func wireCalendar[T calendarValue](value T) any {
 	case calendar.Date:
 		return value.String()
 	case clock.Time:
+		return value.String()
+	case duration.Duration:
 		return value.String()
 	case int64:
 		return value
@@ -86,6 +88,9 @@ func dynamicCalendar(value query.Value) any {
 		return value.String()
 	}
 	if value, ok := value.Time(); ok {
+		return value.String()
+	}
+	if value, ok := value.Duration(); ok {
 		return value.String()
 	}
 	if value, ok := value.Integer(); ok {
@@ -195,6 +200,9 @@ func calendarParts(at orm.DateTimeExpression[records.Event], day orm.DateExpress
 // caller owns preparation and rollback, including raw corrupted storage.
 func observeCalendar(t *testing.T, reader db.Session, name string) (any, error) {
 	t.Helper()
+	if strings.HasPrefix(name, "arith_") || strings.HasPrefix(name, "update_arithmetic_") {
+		return observeCalendarArithmetic(t, reader, name)
+	}
 	if strings.HasPrefix(name, "trunc_") || strings.HasPrefix(name, "update_truncated_") || strings.HasPrefix(name, "invalid_trunc_") {
 		return observeCalendarTruncation(t, reader, name)
 	}

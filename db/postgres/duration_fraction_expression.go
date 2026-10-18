@@ -157,7 +157,7 @@ func compilePostgresFractionBinary(expression query.ScalarExpression, left, righ
 	if !ok {
 		return "", invalidPlan("duration fraction compiler requires a binary node")
 	}
-	if expression.ResultKind() == query.FieldDateTime {
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldTime {
 		return compilePostgresFractionShift(operator, leftOperand, rightOperand, left, right)
 	}
 	operand := func(value query.ScalarExpression, statement string) (string, error) {
@@ -204,17 +204,21 @@ func compilePostgresFractionBinary(expression query.ScalarExpression, left, righ
 }
 
 func compilePostgresFractionShift(operator query.ArithmeticOperator, leftOperand, rightOperand query.ScalarExpression, left, right string) (string, error) {
-	instant, period, periodOperand := left, right, rightOperand
+	instant, period, instantOperand, periodOperand := left, right, leftOperand, rightOperand
 	if leftOperand.ResultKind() == query.FieldDuration {
-		instant, period, periodOperand = right, left, leftOperand
+		instant, period, instantOperand, periodOperand = right, left, rightOperand, leftOperand
 	}
 	pair, err := postgresDurationOperandSQL(periodOperand, period)
 	if err != nil {
 		return "", err
 	}
+	epoch := "instant"
+	if instantOperand.ResultKind() == query.FieldDate {
+		epoch = "instant::timestamp without time zone"
+	}
 	sum, err := queryplan.ScalarSQL(`(SELECT CASE WHEN instant IS NULL OR period IS NULL THEN
  NULLIF(COALESCE(instant::text,'')||COALESCE(period::text,''),COALESCE(instant::text,'')||COALESCE(period::text,''))::numeric[]
- ELSE ARRAY[(EXTRACT(EPOCH FROM instant)*1000000)*period[2] `, string(operator), ` period[1],period[2]] END
+ ELSE ARRAY[(EXTRACT(EPOCH FROM `, epoch, `)*1000000)*period[2] `, string(operator), ` period[1],period[2]] END
  FROM (SELECT `, instant, ` AS instant, `, pair, ` AS period OFFSET 0) AS godj_fraction_shift)`)
 	if err != nil {
 		return "", err
@@ -223,9 +227,19 @@ func compilePostgresFractionShift(operator query.ArithmeticOperator, leftOperand
 	if err != nil {
 		return "", err
 	}
+	if instantOperand.ResultKind() == query.FieldTime {
+		whole, err = queryplan.ScalarSQL(`(SELECT pg_catalog.mod(pg_catalog.mod(value,86400000000)+86400000000,86400000000)
+ FROM (SELECT `, whole, ` AS value OFFSET 0) AS godj_clock_fraction_round)`)
+		if err != nil {
+			return "", err
+		}
+	}
 	interval, err := postgresMicrosecondsIntervalSQL(whole)
 	if err != nil {
 		return "", err
+	}
+	if instantOperand.ResultKind() == query.FieldTime {
+		return queryplan.ScalarSQL("(TIME '00:00:00' + ", interval, ")")
 	}
 	return queryplan.ScalarSQL("((TIMESTAMP '1970-01-01 00:00:00' + ", interval, ") AT TIME ZONE 'UTC')")
 }

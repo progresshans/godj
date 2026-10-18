@@ -103,6 +103,17 @@ type HelpdeskLabelUsageParams struct {
 	ElapsedDivisor OptString `json:",omitempty,omitzero"`
 }
 
+// HelpdeskServicePreviewParams is parameters of helpdesk:service-preview operation.
+type HelpdeskServicePreviewParams struct {
+	// Page number; canonical positive decimal integer.
+	P OptInt64 `json:",omitempty,omitzero"`
+	// Normalized elapsed shift added to each complete UTC service start; defaults to zero.
+	Shift OptString `json:",omitempty,omitzero"`
+	// Optional inclusive earliest adjusted start, with complete clock and explicit offset; normalized to
+	// UTC microseconds. Omission includes unset starts.
+	MinStart OptDateTime `json:",omitempty,omitzero"`
+}
+
 // HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.
 type HelpdeskServiceReportDeleteParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

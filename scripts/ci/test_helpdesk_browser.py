@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from helpdesk_browser import DEADLINE_CALENDAR_CHECKS, verify_deadline_calendar, DEADLINE_PREVIEW_CHECKS, verify_deadline_preview, COST_PREVIEW_CHECKS, verify_cost_preview, LABEL_USAGE_CHECKS, verify_label_usage, REPORT_STATUS_CHECKS, SUMMARY_CHECKS, result_document, verify_committed, verify_report_status, verify_summary
+from helpdesk_browser import SERVICE_PREVIEW_CHECKS, verify_service_preview, expected_service_values, DEADLINE_CALENDAR_CHECKS, verify_deadline_calendar, DEADLINE_PREVIEW_CHECKS, verify_deadline_preview, COST_PREVIEW_CHECKS, verify_cost_preview, LABEL_USAGE_CHECKS, verify_label_usage, REPORT_STATUS_CHECKS, SUMMARY_CHECKS, result_document, verify_committed, verify_report_status, verify_summary
 
 
 class BrowserEvidenceTest(unittest.TestCase):
@@ -19,8 +19,8 @@ class BrowserEvidenceTest(unittest.TestCase):
                 verify_summary(bad)
 
     def test_stored_result_requires_full_read_only_proof_and_no_audit(self):
-        result = {'deadline_calendar_read_only_unchanged': True, 'deadline_preview_read_only_unchanged': True, 'cost_preview_read_only_unchanged': True, 'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
-                  'committed_tickets': [{'id': i + 1, 'audit': [], 'expected_cost': {2: '0.1', 3: '0.2'}.get(i + 1),
+        result = {'service_preview_read_only_unchanged': True, 'deadline_calendar_read_only_unchanged': True, 'deadline_preview_read_only_unchanged': True, 'cost_preview_read_only_unchanged': True, 'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
+                  'committed_tickets': [{**expected_service_values(i + 1), 'id': i + 1, 'audit': [], 'expected_cost': {2: '0.1', 3: '0.2'}.get(i + 1),
                                          'due_at': {2: '2024-02-28T23:59:59.999999Z', 3: '2024-02-29T00:00:00.000001Z'}.get(i + 1)} for i in range(30)],
                   'committed_links': [{'ID': index + 1, 'TicketID': ticket, 'LabelID': label}
                                       for index, (ticket, label) in enumerate([(1, 1), (2, 1), (3, 1)] + [(1, label) for label in range(3, 27)])],
@@ -29,6 +29,15 @@ class BrowserEvidenceTest(unittest.TestCase):
                   'report_status_read_only_unchanged': True, 'initial_status_reports': 30,
                   'committed_reports': [{'id': i + 1, 'ticket': i + 1, 'audit': []} for i in range(30)]}
         verify_committed(result)
+        service_bad = [dict(result, service_preview_read_only_unchanged=False),
+                       {key: value for key, value in result.items() if key != 'service_preview_read_only_unchanged'}]
+        for field in ('service_on', 'service_at', 'elapsed'):
+            service_bad.append(dict(result, committed_tickets=[{key: value for key, value in row.items() if key != field} for row in result['committed_tickets']]))
+            for replacement in (None, 'wrong'):
+                service_bad.append(dict(result, committed_tickets=[dict(row, **{field: replacement}) for row in result['committed_tickets']]))
+        for bad in service_bad:
+            with self.subTest(result=bad), self.assertRaises(ValueError):
+                verify_committed(bad)
         for bad in ({}, dict(result, cost_preview_read_only_unchanged=False),
                     {key: value for key, value in result.items() if key != 'deadline_calendar_read_only_unchanged'},
                     dict(result, deadline_calendar_read_only_unchanged=False),
@@ -121,6 +130,23 @@ class BrowserEvidenceTest(unittest.TestCase):
             with self.subTest(missing=missing), self.assertRaises(ValueError):
                 verify_deadline_calendar({'passed': len(cases), 'cases': cases})
 
+
+
+    def test_service_preview_requires_every_check_once(self):
+        result = {'passed': len(SERVICE_PREVIEW_CHECKS), 'cases': list(SERVICE_PREVIEW_CHECKS)}
+        self.assertEqual(verify_service_preview(result), result)
+        for bad in ({}, dict(result, passed=True), dict(result, passed=float(result['passed'])),
+                    dict(result, passed=result['passed'] - 1), dict(result, cases=result['cases'][:-1]),
+                    dict(result, cases=result['cases'] + [result['cases'][0]]),
+                    dict(result, cases=[result['cases'][0]] * result['passed']),
+                    dict(result, cases=['foreign-' + str(i) for i in range(result['passed'])]),
+                    dict(result, cases=[None] + result['cases'][1:])):
+            with self.subTest(result=bad), self.assertRaises(ValueError):
+                verify_service_preview(bad)
+        for missing in SERVICE_PREVIEW_CHECKS:
+            cases = [name for name in SERVICE_PREVIEW_CHECKS if name != missing]
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                verify_service_preview({'passed': len(cases), 'cases': cases})
 
 
 if __name__ == '__main__':

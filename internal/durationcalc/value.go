@@ -161,11 +161,24 @@ func (value Value) Ratio(other Value) (float64, error) {
 }
 
 // RoundOffset rounds the exact sum with an integer origin. It is also used at a
-// DateTime result boundary, where rounding the period before adding an odd epoch
+// temporal result boundary, where rounding the period before adding an odd epoch
 // microsecond would change half-even ties. The returned Int is independently owned.
 func (value Value) RoundOffset(origin int64) *big.Int {
 	number := value.rat()
 	number.Add(number, new(big.Rat).SetInt64(origin))
+	return roundMicroseconds(number)
+}
+
+// RoundSubtractFrom rounds origin minus this period without constructing an
+// intermediate negated Duration. The model domain is asymmetric, so a valid
+// operand's negation can exceed it even when the resulting clock is valid.
+// Like RoundOffset, the returned Int is independently owned.
+func (value Value) RoundSubtractFrom(origin int64) *big.Int {
+	number := new(big.Rat).Sub(new(big.Rat).SetInt64(origin), value.rat())
+	return roundMicroseconds(number)
+}
+
+func roundMicroseconds(number *big.Rat) *big.Int {
 	var whole, remainder big.Int
 	whole.QuoRem(number.Num(), number.Denom(), &remainder)
 	remainder.Abs(&remainder)

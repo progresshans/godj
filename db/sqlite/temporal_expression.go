@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/durationcalc"
 	"github.com/progresshans/godj/internal/temporal"
@@ -89,6 +91,32 @@ func sqliteTemporalKind(expression query.ScalarExpression) string {
 
 func sqliteTemporalOperand(kind string, raw driver.Value) (driver.Value, error) {
 	switch kind {
+	case "date":
+		if raw == nil {
+			return nil, nil
+		}
+		text, ok := raw.(string)
+		if !ok {
+			return nil, temporalExpressionError(nil)
+		}
+		value, err := calendar.Parse(text)
+		if err != nil {
+			return nil, temporalExpressionError(err)
+		}
+		return time.Date(value.Year, value.Month, value.Day, 0, 0, 0, 0, time.UTC).UnixMicro(), nil
+	case "time":
+		if raw == nil {
+			return nil, nil
+		}
+		text, ok := raw.(string)
+		if !ok {
+			return nil, temporalExpressionError(nil)
+		}
+		value, err := clock.Parse(text)
+		if err != nil {
+			return nil, temporalExpressionError(err)
+		}
+		return int64(value.Hour*3600+value.Minute*60+value.Second)*1000000 + int64(value.Microsecond), nil
 	case "datetime":
 		if raw == nil {
 			return nil, nil
@@ -137,6 +165,27 @@ func roundTemporalMicroseconds(value *big.Rat) *big.Int {
 	return &whole
 }
 
+func sqliteTemporalShiftResult(kind string, whole *big.Int) (driver.Value, error) {
+	if kind == "time" {
+		// Full model periods may exceed int64 microseconds. Reduce only the
+		// checked, rounded clock result; never narrow its Duration operand.
+		microseconds := new(big.Int).Mod(whole, big.NewInt(duration.MicrosecondsPerDay)).Int64()
+		value := clock.Time{
+			Hour: int(microseconds / 3600000000), Minute: int(microseconds / 60000000 % 60),
+			Second: int(microseconds / 1000000 % 60), Microsecond: int(microseconds % 1000000),
+		}
+		return value.String(), nil
+	}
+	if kind != "date" && kind != "datetime" || !whole.IsInt64() {
+		return nil, temporalExpressionError(temporal.ErrInvalid)
+	}
+	value, err := temporal.Canonical(time.UnixMicro(whole.Int64()))
+	if err != nil {
+		return nil, temporalExpressionError(err)
+	}
+	return value.Format(temporal.SQLiteLayout), nil
+}
+
 func sqliteTemporalBinary(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {
 	if len(arguments) != 5 {
 		return nil, temporalExpressionError(nil)
@@ -151,14 +200,16 @@ func sqliteTemporalBinary(_ *modernsqlite.FunctionContext, arguments []driver.Va
 		return kind == "duration" || kind == "duration_mean" || kind == "duration_fraction"
 	}
 	isNumber := func(kind string) bool { return kind == "integer" || kind == "float" || kind == "decimal" }
+	isCalendar := func(kind string) bool { return kind == "date" || kind == "datetime" }
+	isTemporal := func(kind string) bool { return isCalendar(kind) || kind == "time" }
 	if isDuration(leftKind) && isNumber(rightKind) && (operator == "*" || operator == "/") || isNumber(leftKind) && isDuration(rightKind) && operator == "*" {
 		return sqliteDurationScale(operator, leftKind, rightKind, arguments[3], arguments[4])
 	}
 	durations := isDuration(leftKind) && isDuration(rightKind) && (operator == "+" || operator == "-")
 	ratio := isDuration(leftKind) && isDuration(rightKind) && operator == "/"
-	difference := leftKind == "datetime" && rightKind == "datetime" && operator == "-"
-	shift := leftKind == "datetime" && isDuration(rightKind) && (operator == "+" || operator == "-") ||
-		isDuration(leftKind) && rightKind == "datetime" && operator == "+"
+	difference := (isCalendar(leftKind) && isCalendar(rightKind) || leftKind == "time" && rightKind == "time") && operator == "-"
+	shift := isTemporal(leftKind) && isDuration(rightKind) && (operator == "+" || operator == "-") ||
+		isDuration(leftKind) && isTemporal(rightKind) && operator == "+"
 	if !durations && !ratio && !difference && !shift {
 		return nil, temporalExpressionError(nil)
 	}
@@ -175,28 +226,24 @@ func sqliteTemporalBinary(_ *modernsqlite.FunctionContext, arguments []driver.Va
 	if left == nil || right == nil {
 		return nil, nil
 	}
+	shiftKind := leftKind
+	if isDuration(leftKind) {
+		shiftKind = rightKind
+	}
 	if leftKind == "duration_fraction" || rightKind == "duration_fraction" {
 		if shift {
 			instant, period := left, right
-			if rightKind == "datetime" {
+			if isTemporal(rightKind) {
 				instant, period = right, left
 			}
 			value, err := decodeDurationFraction(period)
-			if err == nil && operator == "-" {
-				value, err = value.Negate()
-			}
 			if err != nil {
 				return nil, temporalExpressionError(err)
 			}
-			whole := value.RoundOffset(instant.(int64))
-			if !whole.IsInt64() {
-				return nil, temporalExpressionError(temporal.ErrInvalid)
+			if operator == "-" {
+				return sqliteTemporalShiftResult(shiftKind, value.RoundSubtractFrom(instant.(int64)))
 			}
-			result, err := temporal.Canonical(time.UnixMicro(whole.Int64()))
-			if err != nil {
-				return nil, temporalExpressionError(err)
-			}
-			return result.Format(temporal.SQLiteLayout), nil
+			return sqliteTemporalShiftResult(shiftKind, value.RoundOffset(instant.(int64)))
 		}
 		first, err := decodeDurationFraction(left)
 		if err != nil {
@@ -277,15 +324,7 @@ func sqliteTemporalBinary(_ *modernsqlite.FunctionContext, arguments []driver.Va
 	} else {
 		result.Sub(result, nativeMicrosecondsRatio(right))
 	}
-	whole := roundTemporalMicroseconds(result)
-	if !whole.IsInt64() {
-		return nil, temporalExpressionError(temporal.ErrInvalid)
-	}
-	instant, err := temporal.Canonical(time.UnixMicro(whole.Int64()))
-	if err != nil {
-		return nil, temporalExpressionError(err)
-	}
-	return instant.Format(temporal.SQLiteLayout), nil
+	return sqliteTemporalShiftResult(shiftKind, roundTemporalMicroseconds(result))
 }
 
 func sqliteTemporalNegate(_ *modernsqlite.FunctionContext, arguments []driver.Value) (driver.Value, error) {

@@ -61,7 +61,7 @@ DateTime/Duration 산술은 아래 GDJ-0128 계약을 따른다. 집계 뒤 계�
 DateTime ± Duration·Duration + DateTime·DateTime − DateTime을 같은 AST에 연결한다. 각 operand의 kind와
 결과 kind를 구분하며 temporal NULL은 명시적인 타입을 요구한다. Numeric bare NULL은 상대 숫자 kind로 새 node를
 만들고 원본은 보존한다. `orm.DateTime`/`orm.Duration`은 각 값 타입의 sealed capability를 제공한다.
-Date/Time 이동·Duration scaling/division·일반 function/subquery는 별도 미완료 범위다.
+Date/Time 이동과 Duration scaling/division은 아래 GDJ-0131·0132 계약을 따른다. 나머지 function/subquery는 미완료다.
 
 DateTime은 UTC 연도 1..9999와 microsecond를 유지한다. SQLite의 정확한 기간 연산은 int64 microseconds 범위를
 확인하며 날짜 차이에 Go `time.Duration`이나 Julian-day float를 사용하지 않는다. Stateless SQLite 함수가 statement
@@ -119,6 +119,35 @@ HTML/API는 `adjusted_elapsed_total`과 두 입력을 제공하고, 최종 합�
 Category FILTER·읽기 snapshot에 속하며 NULL과 실제 0, 빈 라벨, 기존 권한과 전체 저장 상태를 유지한다.
 이 소비자의 코드·schema 작성과 환경별 실행 완료는 TEST_EVIDENCE에서 구분한다.
 
+## Date와 Time 산술
+
+[GDJ-0132](../../work/0132-calendar-arithmetic-and-service-schedule-preview.md)는 Date/Time을 기존 산술 AST에 연결한다.
+`Date ± Duration`과 `Duration + Date`는 Date를 UTC 자정으로 놓고 subday·음수·microsecond까지 유지하는 DateTime이다.
+Date/DateTime 사이의 네 뺄셈 조합은 Duration이며 Date와 aware instant의 혼합도 UTC에서 계산한다.
+`Time ± Duration`과 `Duration + Time`은 하루를 주기로 정규화한 Time이다. `Time - Time`은 같은 날짜에 놓은
+두 시계의 부호 있는 Duration이며 자정 넘김을 추측하지 않는다. Date+Time이나 Time-DateTime처럼 정의하지 않은
+조합은 typed API와 dynamic AST에서 거부한다. `orm.Date`/`orm.Time`은 결과 타입에 맞는 다음 연산을 제공한다.
+
+분수 Duration은 시간 결과 경계까지 유지한다. 정수 Date/Time/DateTime과의 정확한 합·차를 microsecond half-even으로
+반올림하고, Time만 그 뒤 하루 안으로 정규화한다. 유효한 최대 기간을 빼면서 먼저 음수 Duration으로 만들면 비대칭
+모델 범위를 넘을 수 있으므로 원 피연산자를 검사한 뒤 직접 차이를 계산한다. 기존 native AVG와 새 분수 출처는
+구분하며 AVG의 backend 의미를 임의로 바꾸지 않는다.
+
+실제 원본의 물리 타입·Date 1..9999·Time 00:00:00..23:59:59.999999·Duration의 전체 모델 범위를 NULL 전파와
+계산 전에 검사한다. PostgreSQL의 24:00이나 범위 밖 날짜를 modulo·추출·NULL로 숨기지 않는다. DateTime 결과도
+UTC 1..9999다. PostgreSQL은 Date를 timezone 없는 timestamp로 바꿔 UTC wall clock에서 연산하며 session timezone과
+DST의 영향을 받지 않는다. SQLite는 검증한 canonical 값과 정확한 정수/분수 microseconds를 사용한다.
+
+같은 AST는 root·단일 관계·집계 전용 collection·CASE/FILTER·명시 결과 stage·group/predicate/order와 같은 행 UPDATE에
+연결된다. Source/cardinality·selected scope·불변 소유권·입력 예산, statement/savepoint rollback과 context/cursor 오류를
+유지한다. 고정 Django와의 결과 타입·timezone·NULL·정밀도·오류 차이는 [DEV-0025](../DEVIATIONS.md#dev-0025--date와-time-산술의-일관된-결과-도메인)에
+한정해 기록하고, 독립 관측의 전체 원본 값·type·native SQL/변환 단계를 명시적으로 대조한다.
+
+Helpdesk는 `Date + (Time - midnight)`로 서비스 시작을 만들고 `shift`를 더한 조정 시작, 저장 `elapsed`를 더한 종료,
+`due_at - finish`인 기한 여유를 같은 read service에서 조회한다. 누락한 날짜/시계/기간을 기본값이나 서버 시각으로
+채우지 않는다. 현재 Category·ViewTicket admission·하나의 읽기 snapshot·필터 뒤 DB page와 모든 저장/audit 보존을
+유지한다. 이 계약의 구현과 환경별 검증 완료는 별개이며 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 실제 결과를 소유한다.
+
 ## UTC 날짜와 시계 추출
 
 [GDJ-0129](../../work/0129-calendar-extraction-and-deadline-groups.md)은 닫힌 unary `FunctionExpression`을 같은 scalar AST에
@@ -139,7 +168,7 @@ PostgreSQL은 checked operand를 한 번 바인딩하고 UTC로 추출하며 ses
 반올림 때문에 59.999999초가 60이 되지 않도록 Second의 소수 부분을 먼저 버린다.
 
 기존 모델의 Date/Time output schema를 computed typed output과 공유하고 canonical query/header 입력은 별도의 엄격한
-spelling 정책을 가진다. 일반 timezone/locale 선택·truncation·Date/Time 이동은 미완료다.
+spelling 정책을 가진다. 일반 timezone/locale 선택은 미완료다. Truncation과 Date/Time 이동은 아래 및 GDJ-0132 계약을 따른다.
 고정 Django의 정상 값과 비정상 native source의 차이는 독립 관측과 [DEV-0023](../DEVIATIONS.md#dev-0023--calendar-추출의-원본-값-검사와-불가능한-서명-거부)으로 대조한다. 작성한 소비자/관측 코드와 실제 실행
 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분하며 기존 source의 PASS를 전이하지 않는다.
 
@@ -158,7 +187,7 @@ SQLite는 같은 canonical 입력 검사 뒤 Gregorian 날짜·시계 구성요�
 고정 Django PostgreSQL의 Trunc를 감싼 CASE/집계에서 Python 반환 타입이 유지되지 않는 차이는
 [DEV-0023](../DEVIATIONS.md#trunc를-감싼-식의-반환-타입)에 원본 그대로 기록하고, 명시적 UTC·native 타입/값을 확인해 비교한다.
 GoDj의 Date/Time/UTC DateTime 결과 도메인은 CASE/집계 뒤에도 유지한다.
-이 설계의 채택과 구현·환경별 검증은 [활성 작업](../../work/0130-calendar-truncation-and-period-groups.md)에서 구분한다.
+이 설계의 채택과 구현·환경별 검증은 [작업 기록](../../work/0130-calendar-truncation-and-period-groups.md)에서 구분한다.
 
 ## 조회 결과와 조건부 값
 

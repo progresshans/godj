@@ -12,6 +12,7 @@ import (
 )
 
 type apiQueries struct {
+	servicePreview   parameters.Query[servicePreviewQuery]
 	deadlineCalendar parameters.Query[deadlineCalendarQuery]
 	deadlinePreview  parameters.Query[deadlinePreviewQuery]
 	costPreview      parameters.Query[costPreviewQuery]
@@ -25,6 +26,14 @@ type apiQueries struct {
 func prepareAPIQueries() (apiQueries, error) {
 	var result apiQueries
 	var err error
+	result.servicePreview, err = parameters.New(512,
+		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, servicePreviewMaximumPage), 1), func(query *servicePreviewQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
+		parameters.Field("shift", parameters.Default(parameters.CanonicalDuration(), duration.Duration{}), func(query *servicePreviewQuery, value duration.Duration) { query.shift = value }, "Normalized elapsed shift added to each complete UTC service start; defaults to zero."),
+		parameters.Field("min_start", parameters.Optional(parameters.RFC3339DateTime(64)), func(query *servicePreviewQuery, value *time.Time) { query.minimum = value }, "Optional inclusive earliest adjusted start, with complete clock and explicit offset; normalized to UTC microseconds. Omission includes unset starts."),
+	)
+	if err != nil {
+		return apiQueries{}, err
+	}
 	result.deadlineCalendar, err = parameters.New(512,
 		parameters.Field("p", parameters.Default(parameters.CanonicalInt64(1, deadlineCalendarMaximumPage), 1), func(query *deadlineCalendarQuery, value int64) { query.page = int(value) }, "Page number; canonical positive decimal integer."),
 		parameters.Field("as_of", parameters.Required(parameters.RFC3339DateTime(64)), func(query *deadlineCalendarQuery, value time.Time) { query.asOf = value }, "Explicit reference instant for counting overdue open tickets; normalized to UTC microseconds."),

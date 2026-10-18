@@ -39,15 +39,21 @@ func arithmeticResultKind(operator ArithmeticOperator, left, right FieldKind) (F
 		switch {
 		case left == FieldDuration && right == FieldDuration:
 			return FieldDuration, nil
-		case left == FieldDateTime && right == FieldDuration, left == FieldDuration && right == FieldDateTime:
+		case (left == FieldDateTime || left == FieldDate) && right == FieldDuration,
+			left == FieldDuration && (right == FieldDateTime || right == FieldDate):
 			return FieldDateTime, nil
+		case left == FieldTime && right == FieldDuration, left == FieldDuration && right == FieldTime:
+			return FieldTime, nil
 		}
 	case ArithmeticSubtract:
 		switch {
-		case left == FieldDuration && right == FieldDuration, left == FieldDateTime && right == FieldDateTime:
+		case left == FieldDuration && right == FieldDuration, left == FieldTime && right == FieldTime,
+			(left == FieldDate || left == FieldDateTime) && (right == FieldDate || right == FieldDateTime):
 			return FieldDuration, nil
-		case left == FieldDateTime && right == FieldDuration:
+		case (left == FieldDateTime || left == FieldDate) && right == FieldDuration:
 			return FieldDateTime, nil
+		case left == FieldTime && right == FieldDuration:
+			return FieldTime, nil
 		}
 	}
 	return "", &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "arithmetic operands do not match a supported signature"}

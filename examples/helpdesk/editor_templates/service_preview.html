@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Service schedule preview</title><style>body{font-family:system-ui,sans-serif;margin:1.5rem}form{margin:1rem 0}label{font-weight:600}table{border-collapse:collapse;width:100%;table-layout:fixed}caption{text-align:left;margin:1rem 0}th,td{border:1px solid #ccc;padding:.5rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}thead{background:#f3f4f6}nav{margin-top:1rem}@media(max-width:900px){table{min-width:1000px}.schedule-table{overflow-x:auto}}</style></head>
+<body><main><h1>Service schedule preview</h1>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/deadline-preview/">Deadline preview</a> · <a href="/tickets/edit/">Ticket editor</a></p>
+<p>Combine each ticket's service date and time in UTC, shift its start, then add its recorded elapsed time to preview the finish. Stored tickets stay unchanged. A missing date or time leaves the start unset; missing elapsed time leaves the finish unset.</p>
+<p>Category: {{ category }}.</p>
+<form id="service-adjustment" method="get" action="/tickets/service-preview/">
+<label for="service-shift">Shift</label> <input id="service-shift" name="shift" value="{{ shift }}" maxlength="26" required aria-describedby="service-shift-help">
+<span id="service-shift-help">Use 01:30:00 for 90 minutes, 1 00:00:00 for one day, or -1 23:59:59.999999 for minus one microsecond. Zero is 00:00:00.</span>
+{% if has_minimum %}<input type="hidden" name="min_start" value="{{ minimum }}">{% endif %}
+<button type="submit">Preview schedule</button> <a href="/tickets/service-preview/">Reset preview</a>
+</form>
+<form id="service-minimum" method="get" action="/tickets/service-preview/">
+<input type="hidden" name="shift" value="{{ shift }}">
+<label for="service-min">Earliest adjusted start</label> <input id="service-min" name="min_start" value="{{ minimum }}" maxlength="64" required aria-describedby="service-min-help">
+<span id="service-min-help">Include a complete clock and timezone offset, for example 2026-10-18T09:00:00+09:00. Results use UTC.</span>
+<button type="submit">Filter current preview</button> {% if has_minimum %}<a href="{{ clear_minimum }}">Clear earliest start</a>{% endif %}
+</form>
+<p>{{ total }} tickets. Page {{ page }}.</p>
+<div class="schedule-table" role="region" aria-label="Service schedule results" tabindex="0"><table><caption>Tickets by adjusted start, earliest first; unset starts last. Positive deadline slack means time remains after the finish.</caption><thead><tr><th scope="col">Ticket</th><th scope="col">Service date</th><th scope="col">Service time (UTC)</th><th scope="col">Elapsed time</th><th scope="col">Deadline</th><th scope="col">Service start</th><th scope="col">Adjusted start</th><th scope="col">Finish</th><th scope="col">Deadline slack</th></tr></thead><tbody>
+{% for row in rows %}<tr data-ticket-id="{{ row.id }}"><th scope="row">{{ row.subject }}</th><td>{{ row.day }}</td><td>{{ row.clock }}</td><td>{{ row.elapsed }}</td><td>{{ row.due }}</td><td>{{ row.start }}</td><td>{{ row.adjusted }}</td><td>{{ row.finish }}</td><td>{{ row.slack }}</td></tr>{% empty %}<tr><td colspan="9">No tickets on this page.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav aria-label="Service preview pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+</main></body></html>

@@ -36,7 +36,7 @@ func readScalarField(field query.FieldRef, column string) (string, error) {
 	if field.Kind() == query.FieldDecimal {
 		return numericAggregateOperand(field, column)
 	}
-	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration {
+	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDate || field.Kind() == query.FieldTime {
 		return temporalResultSQL(field.Kind(), column)
 	}
 	return column, nil
@@ -50,7 +50,7 @@ func compileAssignedScalar(field query.FieldRef, expression query.ScalarExpressi
 			return "", err
 		}
 	}
-	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration {
+	if field.Kind() == query.FieldDateTime || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDate || field.Kind() == query.FieldTime {
 		return temporalScalarResultSQL(field.Kind(), statement)
 	}
 	return readScalarField(field, statement)

@@ -146,6 +146,29 @@ var calendarReferenceCases = []string{
 	"trunc_clock_24_storage",
 	"trunc_unselected_corrupt_date",
 	"trunc_filtered_corrupt_date",
+	"arith_date_add",
+	"arith_date_reverse",
+	"arith_date_subtract",
+	"arith_date_difference",
+	"arith_date_instant_difference",
+	"arith_instant_date_difference",
+	"arith_time_add",
+	"arith_time_reverse",
+	"arith_time_subtract",
+	"arith_time_difference",
+	"arith_composed_start",
+	"arith_filter_start",
+	"arith_related_start",
+	"arith_collection_start",
+	"arith_aggregate_difference",
+	"arith_case_time",
+	"arith_date_fraction",
+	"arith_time_fraction",
+	"arith_invalid_date_storage",
+	"arith_clock_24_storage",
+	"arith_unselected_corrupt_date",
+	"arith_filtered_corrupt_date",
+	"update_arithmetic_calendar",
 }
 
 func TestGeneratedCalendarExtraction(t *testing.T) {
@@ -154,7 +177,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "truncation_test.go"} {
+	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "truncation_test.go", "calendar_arithmetic_test.go", "arithmetic-expectations.json"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "calendarextraction", name))
 		if err != nil {
 			t.Fatal(err)
@@ -182,11 +205,13 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		t.Fatal("native consumer owner lacks its current Django reference")
 	}
 	if references != "" {
-		data, err := os.ReadFile(filepath.Join("testdata", "calendarextraction", "reference_test.go"))
-		if err != nil {
-			t.Fatal(err)
+		for _, name := range []string{"reference_test.go", "calendar_arithmetic_reference_test.go"} {
+			data, err := os.ReadFile(filepath.Join("testdata", "calendarextraction", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/"+name, data)
 		}
-		writeGeneratedTestFile(t, root, "consumer/reference_test.go", data)
 		for _, vendor := range []string{"sqlite", "postgres"} {
 			data, err := os.ReadFile(filepath.Join(references, "django61-"+vendor+".json"))
 			if err != nil {
@@ -224,7 +249,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 					t.Fatal("independent calendar case changed storage", vendor, record.Name)
 				}
 				if record.Error != nil && !slices.Contains([]string{"invalid_date_hour", "invalid_time_year", "invalid_duration_year", "infinite_datetime_storage",
-					"invalid_trunc_date_hour", "invalid_trunc_time_year", "invalid_trunc_duration_day", "trunc_invalid_date_storage", "trunc_outside_date_storage", "trunc_invalid_datetime_storage", "trunc_infinite_datetime_storage"}, record.Name) {
+					"invalid_trunc_date_hour", "invalid_trunc_time_year", "invalid_trunc_duration_day", "trunc_invalid_date_storage", "trunc_outside_date_storage", "trunc_invalid_datetime_storage", "trunc_infinite_datetime_storage", "arith_invalid_date_storage"}, record.Name) {
 					t.Fatal("unowned independent calendar error", vendor, record.Name, record.Error)
 				}
 				names = append(names, record.Name)
@@ -245,7 +270,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 			continue
 		}
 		required = append(required, "TestCalendarRuntime/"+vendor)
-		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "truncated_typed_dynamic_and_boundaries", "truncated_groups_relations_and_stages", "truncated_updates_and_failures"} {
+		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "truncated_typed_dynamic_and_boundaries", "truncated_groups_relations_and_stages", "truncated_updates_and_failures", "arithmetic_typed_dynamic_and_domains", "arithmetic_relations_groups_and_stages", "arithmetic_updates_savepoints_and_cache", "arithmetic_failures_context_and_cursor_ownership"} {
 			required = append(required, "TestCalendarRuntime/"+vendor+"/"+name)
 		}
 		if references != "" {
@@ -317,6 +342,14 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		{"wrong_trunc_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).TruncMonth(),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
 		{"wrong_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.At,orm.Date(orm.F(records.EventFields.Day)).TruncMonth())`, "does not match"},
 		{"foreign_trunc_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.Date(orm.F(planning.ScheduleFields.Day)).TruncMonth())`, "does not match"},
+		{"date_add_clock", `_ = orm.Date(orm.F(records.EventFields.Day)).AddExpression(orm.Time(orm.F(records.EventFields.Wall)))`, "does not match"},
+		{"clock_add_date", `_ = orm.Time(orm.F(records.EventFields.Wall)).AddExpression(orm.Date(orm.F(records.EventFields.Day)))`, "does not match"},
+		{"date_shift_integer", `_ = orm.Date(orm.F(records.EventFields.Day)).Add(int64(1))`, "cannot use"},
+		{"date_shift_date_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.Date(orm.F(records.EventFields.Day)).Add(duration.Duration{}))`, "does not match"},
+		{"clock_difference_clock_assignment", `_ = orm.AssignExpression(records.EventFields.Wall,orm.Time(orm.F(records.EventFields.Wall)).DifferenceExpression(orm.F(records.EventFields.Wall)))`, "does not match"},
+		{"foreign_calendar_operand", `_ = orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(planning.ScheduleFields.Day))`, "does not match"},
+		{"foreign_clock_operand", `_ = orm.Time(orm.F(records.EventFields.Wall)).DifferenceExpression(orm.F(planning.ScheduleFields.Wall))`, "does not match"},
+		{"date_difference_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(records.EventFields.Day)),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {
 			program := "package invalid\nimport(\"time\";\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/planning\";\"github.com/progresshans/godj/duration\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ _=records.EventFields; _=planning.ScheduleFields; _=time.Time{}; _=duration.Duration{};" + invalid.expression + "\n}\n"

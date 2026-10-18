@@ -75,7 +75,8 @@ func wrapReadScalar(expression query.ScalarExpression, statement string) (string
 		}
 		return statement, nil // Arithmetic and chosen CASE arms produce checked keys.
 	}
-	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration {
+	if expression.ResultKind() == query.FieldDateTime || expression.ResultKind() == query.FieldDuration ||
+		expression.ResultKind() == query.FieldDate || expression.ResultKind() == query.FieldTime {
 		if _, selected := expression.ResultReference(); selected {
 			return temporalResultSQL(expression.ResultKind(), statement)
 		}

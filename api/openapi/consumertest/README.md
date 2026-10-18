@@ -6,6 +6,13 @@
 Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
+Helpdesk 서비스 일정의 `helpdesk_service_preview`는 원래 Ticket을 보존하고 Date/Time/Duration/DateTime fixture를
+writable API로 준비한 뒤 두 역할의 generated HTTP 결과를 표준 라이브러리·정수 microseconds로 대조한다.
+연도 2/9998과 기한 1/9999, 양·음수·일 단위 shift, 자정/0, 성분별 NULL, offset/submicrosecond 최소값·페이지,
+입력 거부·전체 계산 오류의 단일 요청을 검사하고 원래 네 열을 복원한다. Bulk/priority의 별도 감사 이력 검증 전에 끝낸다.
+`generated_service_preview_wire`는 전체 scalar domain·int64·required nullable 열·잘못된 값의 decode/validation 분류와
+403/plain 500을 검사한다. 실제 산술·부모 DB 검증과 synthetic wire 검증은 서로 대체하지 않는다.
+
 Helpdesk 기간별 기한 집계의 `helpdesk_deadline_calendar`는 보존한 Ticket 응답을 표준 라이브러리로 묶어
 일·주·월·분기·연의 시작일·open/overdue·전체 최초/최종 시각·NULL·시작일의 inclusive range·page/total을
 두 역할의 실제 generated HTTP와 대조한다. `generated_deadline_calendar_wire`는 기간 enum, 날짜와 offset-bearing

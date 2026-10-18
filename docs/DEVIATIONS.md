@@ -44,6 +44,35 @@
 
 ## 원장
 
+## DEV-0025 — Date와 Time 산술의 일관된 결과 도메인
+
+- 상태: 계약·코드·엄격한 비교 기준 작성; 새 23개 사례의 실제 양 DB 관측과 제품 실행은 대기
+- 날짜: 2026-10-18
+- 기준: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, Python 3.14.3·SQLite/PostgreSQL 17.10
+- 범위: [GDJ-0132](../work/0132-calendar-arithmetic-and-service-schedule-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md#date와-time-산술), [독립 observer](../conformance/runners/django/calendar_extraction_reference/)
+
+GoDj는 Date를 UTC 자정으로 놓은 DateTime 이동, Date/DateTime 사이의 Duration 차이, 하루를 주기로 도는 Time 이동과
+두 Time의 선형 Duration 차이를 명시적인 타입 계약으로 제공한다. Date 이동에서 시계 성분을 버리거나 Time 이동을
+NULL로 바꾸지 않는다. PostgreSQL의 session timezone이 계산 결과나 UTC instant의 의미를 바꾸지 않는다.
+
+고정 upstream source를 바탕으로 비교 fixture에 선언한 **예상 차이**는 다음과 같다. 아직 실제 관측 성공을 뜻하지 않는다.
+SQLite의 Date±Duration은 날짜 수준으로 계산되고, Date/DateTime의 혼합 뺄셈은 날짜 문자열의 숫자 변환 차이를
+microseconds로 해석할 수 있다. Time±Duration은 NULL을 반환한다. PostgreSQL의 Date±Duration은 naive timestamp를
+돌려주며, 기존 Duration 배율은 native interval 경계에서 먼저 반올림한다. GoDj의 분수 이동은 원 시각과 합한 뒤
+한 번 반올림한다. `24:00 + 0`의 정규화나 범위 밖 날짜의 변환 결과와 달리 GoDj는 실제 입력의 전체 모델 범위를 먼저 검사한다.
+
+23개 새 비교는 이러한 가족 전체를 면제하지 않는다. 각 사례의 전체 결과·정확한 native type/value/aware·SQL·parameter·
+변환/실패 단계와 저장 보존을 닫힌 기대 기록에 대조하고, 변조한 기록을 거부한다. 기존 95개 비교를 그대로 유지한다.
+예상과 실제가 다르면 upstream 원본과 제품 의미를 다시 분석하며 일치 판정을 넓혀 통과시키지 않는다.
+기대 fixture는 Python 표준 라이브러리로 재생성 가능하고 관측의 입력으로 사용하지 않는다.
+
+모델 저장 형식이나 기존 유효 데이터를 migration하지 않는다. 새로운 산술의 사용자 의미와 오류 시점만 추가하며
+원본·중간 범위 검사, 선택되지 않은 CASE/FILTER의 지연 실행, query/UPDATE 원자성과 부분 결과 거부를 유지한다.
+Backend 차이를 그대로 API에 노출하는 대안은 같은 typed 결과가 NULL·정수·naive timestamp로 바뀌므로 채택하지 않는다.
+Upstream 버전이나 모델 시간 정책이 바뀌면 원 관측·명시 기대·소비자 계약을 함께 재검토한다.
+검증된 범위로 올리는 조건은 같은 source의 양 DB 생성 소비자·독립 native 비교·Helpdesk·client·브라우저 실행이며
+실제 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.
+
 ## DEV-0024 — 기간 배율의 정확한 중간값과 최종 반올림
 
 - 상태: ADR-0090의 계약 구현; 독립 양 DB 관측과 일부 PostgreSQL native 확인, 현재 source의 전체 검증은 진행 중
@@ -85,7 +114,7 @@ Upstream 산술이나 GoDj의 반올림 정책을 바꿀 때에는 양쪽의 원
 
 ## DEV-0023 — Calendar 추출의 원본 값 검사와 불가능한 서명 거부
 
-- 상태: source `153cf765`의 normal·race·CGO0 양 DB 독립 관측/native 비교와 전체 플랫폼 완료; GDJ-0130의 확장 비교는 검증 중
+- 상태: source `0ce12980`에서 GDJ-0130 확장 관측·normal/race/CGO0 양 DB native 비교와 전체 플랫폼 완료
 - 날짜: 2026-10-18
 - 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 calendar observer](../conformance/runners/django/calendar_extraction_reference/), SQLite/PostgreSQL 17.10
 - 범위: [GDJ-0129](../work/0129-calendar-extraction-and-deadline-groups.md), [GDJ-0130](../work/0130-calendar-truncation-and-period-groups.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [ADR-0091](adr/0091-grouped-results-and-having.md). Source·실행 상태는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
@@ -117,9 +146,10 @@ ValueError와 GoDj의 사전 거부를 각각 검사한다. 이 항목은 Django
 
 Native numeric의 scale은 의미 차이가 아니다. `59.000000`과 변환된 정수 59는 정확히 대조하되 fractional 값·Infinity·
 범위 초과를 반올림해 통과시키지 않는다. 원시 SQL/parameter/type·변환 단계·저장 상태를 함께 보존하며 일반 timezone/locale,
-Date/Time 이동은 별도 미완료 범위다. GDJ-0130의 타입별 truncation은 같은 원본 도메인 검사로 구현했으며,
-아래 관측기의 변환 보완을 포함한 실제 비교는 검증 중이다. 위 source의 55개 관측 성공을 확장된 95개 사례의
-완료 증거로 사용하지 않는다. 모델 도메인이나 upstream 의미를 바꾸면 독립 관측과 이 기록을 함께 재검토한다.
+Date/Time 이동은 GDJ-0132에서 구현·별도 검증한다. GDJ-0130의 타입별 truncation은 같은 원본 도메인 검사로 구현했으며,
+아래 관측기의 변환 보완을 포함한 확장 95개 사례를 source `0ce12980`에서 양 DB·세 mode로 실제 대조했다.
+이전 55개 관측의 성공과 구분한 실행 근거는 TEST_EVIDENCE에 있다. 모델 도메인이나 upstream 의미를 바꾸면
+독립 관측과 이 기록을 함께 재검토한다.
 
 ### Trunc를 감싼 식의 반환 타입
 

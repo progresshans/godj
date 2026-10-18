@@ -1,8 +1,8 @@
 # GDJ-0131: 기간 배율·나눗셈과 라벨별 소요 시간 미리보기
 
-- 상태: 기반·Helpdesk 소비자 구현, CI의 Float 분류·scanner 검사·독립 비교 세션 오류 보완; 수정 source의 전체 재검증 대상
+- 상태: 기반·Helpdesk 소비자 구현, CI의 Float 분류·scanner 검사·독립 비교 세션 및 준비 파일 공개 경합 보완; 수정 source의 전체 재검증 대상
 - 시작: 2026-10-18
-- 기준: `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` — GDJ-0130의 원격 검증은 해당 source에서 계속 진행
+- 기준: `0ce12980ffdf9c66b50d6e2e120e522e55ca6cf8` — GDJ-0130의 전체 원격 검증과 필수 실행·원본 대조 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [선택 기준](../docs/DEVELOPMENT_CRITERIA.md), [시각 계산식](../docs/adr/0090-query-update-and-scalar-expressions.md)
 
 ## 필요한 기반과 소비자
