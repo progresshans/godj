@@ -1,8 +1,8 @@
 # GDJ-0132: Date/Time 산술과 서비스 일정 미리보기
 
-- 상태: 산술·두 생성 앱·독립 비교·Helpdesk HTML/API·독립 client·브라우저 연결, 최소 compile 확인; 실제 원격 검증 전
+- 상태: 완료 — `c12b5c0f`의 양 DB·세 mode·HTML/API/client·브라우저·전체 플랫폼 필수 실행과 원본 대조 완료
 - 시작: 2026-10-18
-- 기준: `73ee17042b42b48701026e15c329405fe210afe1` — GDJ-0131의 수정 source; 별도 전체 CI 진행 중
+- 기준: `73ee17042b42b48701026e15c329405fe210afe1` — GDJ-0131의 수정 source; 이후 GDJ-0132를 포함한 같은 source의 전체 CI로 검증
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [선택 기준](../docs/DEVELOPMENT_CRITERIA.md), [산술 AST](../docs/adr/0090-query-update-and-scalar-expressions.md)
 
 ## 필요한 기반과 소비자
@@ -39,10 +39,12 @@ DB별 SQL을 직접 작성하지 않는다. 필요한 Date/Time 산술의 일반
 - [x] 공통 AST·typed/dynamic·양 backend의 Date/Time 산술과 정확한 분수/원본 범위 검사를 연결한다.
 - [x] 구조가 다른 두 앱의 생성 소비자·관계/집계/후속 결과·쓰기/실패/rollback·compile 부정 대조와 독립 Django 비교를 연결한다.
 - [x] 서비스 일정 미리보기의 HTML/API·입출력·OpenAPI/독립 client·브라우저와 인가/저장 보존을 연결한다.
-- [ ] 같은 source의 필요한 원격 필수 실행·원본 증거를 대조하고 현행 상태를 갱신한다.
+- [x] 같은 source의 필요한 원격 필수 실행·원본 증거를 대조하고 현행 상태를 갱신한다.
 
-위의 연결 완료는 코드 상태이며 테스트 실행 성공이 아니다. GDJ-0131의 진행 중인 CI는 이 후속 작업 사본을 검증하지 않는다. 일반 timezone/locale·named annotation·나머지
-function/subquery/window와 전체 카탈로그의 기능 및 기반은 계속 완성 대상이다.
+Source `c12b5c0f`의 [CI 39091754185](https://github.com/progresshans/godj/actions/runs/39091754185) attempt 1에서
+같은 source의 양 DB·세 mode·독립 Django·생성 소비자·Helpdesk·독립 client·브라우저와 전체 플랫폼을 검증했다.
+필수 실행·원본 대조와 실패 수정 근거는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+일반 timezone/locale·named annotation·나머지 function/subquery/window와 전체 카탈로그의 기능 및 기반은 계속 완성 대상이다.
 
 참조: 고정 Django의 [산술 signature와 dispatch](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/expressions.py),
 [SQLite 산술 함수](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/_functions.py),

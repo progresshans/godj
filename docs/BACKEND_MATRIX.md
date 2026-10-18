@@ -150,12 +150,22 @@ SUM/AVG를 구현했다. SQLite의 fractional 평균과 시각을 합친 뒤 최
 GDJ-0129는 UTC Date/Time 추출과 달력/시계 part의 함수 AST·typed/dynamic·양 backend 및 생성/HTTP 소비자를
 구현했다. SQLite의 canonical storage class와 PostgreSQL의 finite Date/DateTime·24:00 제외 Time 입력을 추출 전에
 검사한다. Source `153cf765`의 생성 ORM·독립 Django 비교·Helpdesk 양 DB 실행은 세 mode에서 확인했으며,
-같은 source의 전체 플랫폼 통합은 진행 중이다. 환경별 범위는 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
-GDJ-0130 구현 사본은 타입을 유지하는 TruncYear/Quarter/Month/Week/Day/Hour/Minute/Second를 같은 AST에 연결한다.
+같은 source의 전체 플랫폼 통합도 완료했다. 환경별 범위는 [실행 기록](status/TEST_EVIDENCE.md)을 따른다.
+GDJ-0130은 타입을 유지하는 TruncYear/Quarter/Month/Week/Day/Hour/Minute/Second를 같은 AST에 연결한다.
 PostgreSQL은 Date의 timestamp·Time의 interval 입력 타입과 DateTime의 UTC 변환을 명시하고,
 SQLite는 원본 전체를 검사한 뒤 Gregorian 구성요소를 절삭한다. 월요일 주 시작과 작은 구성요소의 제거를 따르며
-기존 Date()/Time() cast와 구분한다. 최소 compile을 확인했지만 이 확장의 실제 양 DB·독립 관측은 아직 미검증이다.
-Date/Time 이동·Duration scaling/division·일반 named annotation과 나머지 함수는 별도 미완료 범위다.
+기존 Date()/Time() cast와 구분한다. Source `0ce12980`의 양 DB·독립 관측·생성/HTTP 소비자·전체 플랫폼 통합을 완료했다.
+GDJ-0131의 Duration 배율·나눗셈은 Integer/Float/Decimal의 원 숫자 domain과 정확한 분수를 유지하고,
+최종 Duration 읽기/쓰기에서 half-even으로 반올림한다. Duration 사이의 비율은 정확한 나눗셈 결과를 finite Float으로 변환한다.
+SQLite는 독립 계산 값과 canonical query key, PostgreSQL은 NUMERIC pair와 BYTEA query key로 같은 AST를 실행한다.
+기존 native AVG 출처·SQLite 모델 저장 범위와 계산 결과의 전체 모델 범위를 구분한다.
+GDJ-0132의 Date ± Duration은 UTC 자정에서 이동한 DateTime, Date/DateTime 사이의 차이는 Duration이다.
+Time ± Duration은 최종 반올림 뒤 하루 안으로 정규화하고 Time 차이는 같은 날짜에 놓은 부호 있는 Duration이다.
+양 DB 모두 계산/NULL 전파 전에 실제 operand의 물리 타입과 전체 모델 범위를 검사하며 PostgreSQL session timezone을 따르지 않는다.
+같은 행 UPDATE·집계·명시 결과 stage와 실패/rollback을 포함한 두 확장은 source `c12b5c0f`의 양 DB·세 mode·
+독립 Django 비교·생성/HTTP 소비자·전체 플랫폼 통합을 완료했다. 계약과 차이는
+[ADR-0090](adr/0090-query-update-and-scalar-expressions.md), [DEV-0024/0025](DEVIATIONS.md)를 따른다.
+일반 timezone/locale·named annotation과 나머지 function/subquery/window는 별도 미완료 범위다.
 GDJ-0127은 collection 숫자/Decimal 계산·CASE·computed FILTER를 완료된 집계에 연결했다. 조건부 COUNT 소비자와
 runserver 준비·진단, macOS ARM relation 소비자 분할을 보완했으며 source `012191bf`의 양 DB·세 mode·전체 플랫폼에서
 필수 실행과 원본 증거 대조를 완료했다. 이전 실패와 보완의 실행 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.

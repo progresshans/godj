@@ -46,7 +46,7 @@
 
 ## DEV-0025 — Date와 Time 산술의 일관된 결과 도메인
 
-- 상태: 계약·코드·엄격한 비교 기준 작성; 새 23개 사례의 실제 양 DB 관측과 제품 실행은 대기
+- 상태: 검증됨 — source `c12b5c0f`의 양 DB·세 mode 독립 관측·생성 소비자·제품 실행과 전체 통합 완료
 - 날짜: 2026-10-18
 - 기준: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, Python 3.14.3·SQLite/PostgreSQL 17.10
 - 범위: [GDJ-0132](../work/0132-calendar-arithmetic-and-service-schedule-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md#date와-time-산술), [독립 observer](../conformance/runners/django/calendar_extraction_reference/)
@@ -55,7 +55,7 @@ GoDj는 Date를 UTC 자정으로 놓은 DateTime 이동, Date/DateTime 사이의
 두 Time의 선형 Duration 차이를 명시적인 타입 계약으로 제공한다. Date 이동에서 시계 성분을 버리거나 Time 이동을
 NULL로 바꾸지 않는다. PostgreSQL의 session timezone이 계산 결과나 UTC instant의 의미를 바꾸지 않는다.
 
-고정 upstream source를 바탕으로 비교 fixture에 선언한 **예상 차이**는 다음과 같다. 아직 실제 관측 성공을 뜻하지 않는다.
+고정 upstream의 독립 양 DB 관측과 제품 소비자에서 확인한 차이는 다음과 같다.
 SQLite의 Date±Duration은 날짜 수준으로 계산되고, Date/DateTime의 혼합 뺄셈은 날짜 문자열의 숫자 변환 차이를
 microseconds로 해석할 수 있다. Time±Duration은 NULL을 반환한다. PostgreSQL의 Date±Duration은 naive timestamp를
 돌려주며, 기존 Duration 배율은 native interval 경계에서 먼저 반올림한다. GoDj의 분수 이동은 원 시각과 합한 뒤
@@ -70,12 +70,12 @@ microseconds로 해석할 수 있다. Time±Duration은 NULL을 반환한다. Po
 원본·중간 범위 검사, 선택되지 않은 CASE/FILTER의 지연 실행, query/UPDATE 원자성과 부분 결과 거부를 유지한다.
 Backend 차이를 그대로 API에 노출하는 대안은 같은 typed 결과가 NULL·정수·naive timestamp로 바뀌므로 채택하지 않는다.
 Upstream 버전이나 모델 시간 정책이 바뀌면 원 관측·명시 기대·소비자 계약을 함께 재검토한다.
-검증된 범위로 올리는 조건은 같은 source의 양 DB 생성 소비자·독립 native 비교·Helpdesk·client·브라우저 실행이며
-실제 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.
+같은 source의 양 DB 생성 소비자·독립 native 비교·Helpdesk·client·브라우저와 전체 플랫폼을 검증했다.
+실제 결과와 원본은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록하며 이 사례를 등록 conformance 전체의 parity로 합산하지 않는다.
 
 ## DEV-0024 — 기간 배율의 정확한 중간값과 최종 반올림
 
-- 상태: ADR-0090의 계약 구현; 독립 양 DB 관측과 일부 PostgreSQL native 확인, 현재 source의 전체 검증은 진행 중
+- 상태: 검증됨 — source `c12b5c0f`의 양 DB·세 mode 독립 관측·생성 소비자·제품 실행과 전체 통합 완료
 - 날짜: 2026-10-18
 - 기준: Django 6.1·Python 3.14.3·psycopg 3.3.6의 [독립 temporal observer](../conformance/runners/django/temporal_expression_reference/), SQLite/PostgreSQL 17.10
 - 범위: [GDJ-0131](../work/0131-duration-scaling-and-label-time-preview.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md#기간-배율과-중간-정밀도). Source·환경별 실행은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유하며 기존 등록 conformance 완료 수를 변경하지 않는다.
