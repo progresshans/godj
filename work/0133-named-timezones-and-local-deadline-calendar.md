@@ -61,8 +61,10 @@ naive 시간 입력·일반 wall-time 산술은 이 조회와 별도로 남아 �
 전체 역사·미래 경계의 Go 독립 reader 대조와 DST/NULL/domain/CASE/FILTER/group/후속 결과/UPDATE/rollback 테스트를 작성했다.
 전환표의 UTC·지역 경계가 정렬되지 않거나 fixed footer가 마지막 offset과 다르면 데이터 오류로 거부한다.
 
-시간대 값·AST·ORM 및 양 backend의 최소 compile만 수행했다. 생성 소비자·독립 Django/native 비교·Helpdesk와 원격 실제 실행은
-계속 구현·검증 대상이다. 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
+구조가 다른 생성 앱의 typed/dynamic·관계/collection·group/page·후속 scope·갱신/rollback·cache/context/cursor 검증과
+컴파일 부정 대조를 작성했다. 최소 compile과 첫 원격 실행에서 확인한 생성 fixture 의존성 누락은
+[실행 기록](../docs/status/TEST_EVIDENCE.md)에 구분했다. 독립 Django/native 비교·Helpdesk와 원격 실제 실행은 계속 구현·검증
+대상이며, 기존 source의 통합 PASS를 이 변경에 전이하지 않는다.
 
 아직 timezone 쿼리·서비스의 검증 완료를 주장하지 않는다. 세부 실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가
 소유하며, named annotation·나머지 function/subquery/window와 전체 카탈로그의 나머지 기반/기능도 계속 완성 대상이다.

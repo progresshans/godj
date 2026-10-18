@@ -177,7 +177,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "truncation_test.go", "calendar_arithmetic_test.go", "arithmetic-expectations.json"} {
+	for _, name := range []string{"backend_test.go", "observations_test.go", "runtime_test.go", "truncation_test.go", "calendar_arithmetic_test.go", "zoned_calendar_test.go", "arithmetic-expectations.json"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "calendarextraction", name))
 		if err != nil {
 			t.Fatal(err)
@@ -270,7 +270,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 			continue
 		}
 		required = append(required, "TestCalendarRuntime/"+vendor)
-		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "truncated_typed_dynamic_and_boundaries", "truncated_groups_relations_and_stages", "truncated_updates_and_failures", "arithmetic_typed_dynamic_and_domains", "arithmetic_relations_groups_and_stages", "arithmetic_updates_savepoints_and_cache", "arithmetic_failures_context_and_cursor_ownership"} {
+		for _, name := range []string{"typed_dynamic_and_exact_values", "filter_order_and_page", "aggregates_and_empty", "related_and_collection_scope", "selected_result_stages", "assignment_and_atomicity", "case_null_and_corruption", "cache_context_and_session", "native_failure_cleanup", "resource_budgets", "truncated_typed_dynamic_and_boundaries", "truncated_groups_relations_and_stages", "truncated_updates_and_failures", "arithmetic_typed_dynamic_and_domains", "arithmetic_relations_groups_and_stages", "arithmetic_updates_savepoints_and_cache", "arithmetic_failures_context_and_cursor_ownership", "zoned_typed_dynamic_and_dst_values", "zoned_groups_relations_and_stages", "zoned_updates_boundaries_and_failures", "zoned_ownership_context_and_cursors"} {
 			required = append(required, "TestCalendarRuntime/"+vendor+"/"+name)
 		}
 		if references != "" {
@@ -327,6 +327,13 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 	}
 	t.Logf("calendar generated consumer: runs=%d passes=%d required=%d skips=0 log_sha256=%x", len(runs), len(passes), len(required), sha256.Sum256(output))
 	for _, invalid := range []struct{ name, expression, diagnostic string }{
+		{"date_has_no_zone", `_ = orm.Date(orm.F(records.EventFields.Day)).InZone(timezone.UTC())`, "InZone undefined"},
+		{"time_has_no_zone", `_ = orm.Time(orm.F(records.EventFields.Wall)).InZone(timezone.UTC())`, "InZone undefined"},
+		{"duration_has_no_zone", `_ = orm.Duration(orm.Value[records.Event](duration.Duration{})).InZone(timezone.UTC())`, "InZone undefined"},
+		{"zone_is_not_location", `_ = orm.DateTime(orm.F(records.EventFields.At)).InZone(time.UTC)`, "cannot use"},
+		{"zone_is_not_string", `_ = orm.DateTime(orm.F(records.EventFields.At)).InZone("UTC")`, "cannot use"},
+		{"zone_is_not_scalar", `_ = orm.AssignExpression(records.EventFields.At,orm.DateTime(orm.F(records.EventFields.At)).InZone(timezone.UTC()))`, "does not match"},
+		{"zoned_foreign_assignment", `_ = orm.AssignExpression(records.EventFields.Day,orm.DateTime(orm.F(planning.ScheduleFields.Anchor)).InZone(timezone.UTC()).Date())`, "does not match"},
 		{"date_clock_part", `_ = orm.Date(orm.F(records.EventFields.Day)).Hour()`, "Hour undefined"},
 		{"time_calendar_part", `_ = orm.Time(orm.F(records.EventFields.Wall)).Year()`, "Year undefined"},
 		{"duration_calendar_part", `_ = orm.Duration(orm.Value[records.Event](duration.Duration{})).Year()`, "Year undefined"},
@@ -352,7 +359,7 @@ func TestGeneratedCalendarExtraction(t *testing.T) {
 		{"date_difference_projection", `_ = orm.Project1(orm.Date(orm.F(records.EventFields.Day)).DifferenceExpression(orm.F(records.EventFields.Day)),func(value orm.Optional[time.Time])any{return value})`, "does not match"},
 	} {
 		t.Run(invalid.name, func(t *testing.T) {
-			program := "package invalid\nimport(\"time\";\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/planning\";\"github.com/progresshans/godj/duration\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ _=records.EventFields; _=planning.ScheduleFields; _=time.Time{}; _=duration.Duration{};" + invalid.expression + "\n}\n"
+			program := "package invalid\nimport(\"time\";\"example.com/godj-project-bundle/records\";\"example.com/godj-project-bundle/planning\";\"github.com/progresshans/godj/duration\";\"github.com/progresshans/godj/timezone\";\"github.com/progresshans/godj/orm\")\nfunc reject(){ _=records.EventFields; _=planning.ScheduleFields; _=time.Time{}; _=duration.Duration{};_=timezone.UTC();" + invalid.expression + "\n}\n"
 			writeGeneratedTestFile(t, root, invalid.name+"/invalid.go", []byte(program))
 			output, err := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-run", "^$", "./"+invalid.name).CombinedOutput()
 			if err == nil || !strings.Contains(string(output), invalid.diagnostic) {

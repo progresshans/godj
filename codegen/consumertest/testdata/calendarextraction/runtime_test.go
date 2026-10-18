@@ -115,16 +115,16 @@ func rollbackCalendar(t *testing.T, backend calendarBackend, callback func(db.Se
 	}
 }
 
-func assertCalendarParity[T calendarValue](t *testing.T, backend calendarBackend, typed orm.ScalarExpression[records.Event, T], expression orm.DynamicExpression) {
+func assertCalendarParity[T calendarValue](t *testing.T, backend calendarBackend, typed orm.ScalarExpression[records.Event, T], expression orm.DynamicExpression, filters ...orm.Predicate[records.Event]) {
 	t.Helper()
 	probe := &calendarReadProbe{calendarBackend: backend}
 	api, err := project.Using(probe)
 	check(t, err)
-	first, err := orm.SelectInto(t.Context(), records.EventObjects.Using(probe).OrderBy(records.EventFields.Code.Asc()), calendarProjection(typed))
+	first, err := orm.SelectInto(t.Context(), records.EventObjects.Using(probe).Filter(filters...).OrderBy(records.EventFields.Code.Asc()), calendarProjection(typed))
 	check(t, err)
 	dynamic, err := api.RecordsEvent.Expression(expression)
 	check(t, err)
-	second, err := project.SelectRecordsEventInto(t.Context(), api.RecordsEvent.OrderBy(records.EventFields.Code.Asc()), orm.Project2(records.EventFields.Code, dynamic, func(code string, value query.Value) map[string]any {
+	second, err := project.SelectRecordsEventInto(t.Context(), api.RecordsEvent.Filter(filters...).OrderBy(records.EventFields.Code.Asc()), orm.Project2(records.EventFields.Code, dynamic, func(code string, value query.Value) map[string]any {
 		return map[string]any{"code": code, "value": dynamicCalendar(value)}
 	}))
 	check(t, err)
@@ -546,6 +546,7 @@ func TestCalendarRuntime(t *testing.T) {
 		})
 		checkCalendarTruncation(t, backend, vendor, physical, seed, before)
 		checkCalendarArithmetic(t, backend, vendor, physical, seed, before)
+		checkZonedCalendarConsumer(t, backend, vendor, physical, seed, before)
 		if physical.Snapshot() != before {
 			t.Fatal("calendar runtime changed physical model/relation storage")
 		}
