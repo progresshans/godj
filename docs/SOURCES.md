@@ -359,6 +359,8 @@ IANA 2025c 전체 이름/alias 598개와 archive·컴파일된 source·개별 �
 IANA 배포 원본의 LICENSE와 public-domain notice를 보존하며 제품의 Go archive나 예상값을 관측 입력으로 읽지 않는다.
 같은 버전의 Python wheel은 다른 backzone 정책으로 95개 파일이 달라 동등한 데이터 기준으로 사용하지 않는다.
 관측은 별도 빌드 receipt와 source hash를 검사한 뒤 해당 경로만 Python ZoneInfo에 제공한다.
+빌드는 GNU awk를 명시한다. Upstream `zishrink.awk`가 GNU 구현에서만 시간대 블록을 정렬하므로,
+release mtime과 실제 GNU awk identity도 보존해 compact source의 byte identity를 일정하게 유지한다.
 Python ZoneInfo provider 관측과 Django의 실제 양 DB 쿼리 관측은 별도로 기록한다. PostgreSQL native 규칙의
 실제 offset도 같은 fixture 시각에서 대조한다. 관측 정의·생성 소비자의 비교·최종 실행 수용은 별개다.
 

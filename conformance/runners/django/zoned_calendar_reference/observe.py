@@ -85,6 +85,7 @@ def observe(vendor, data_directory):
     assert receipt['files'] == 598 and receipt['names_sha256'] == data_source['names_sha256']
     assert receipt['tzdata_zi_sha256'] == data_source['tzdata_zi']['sha256'] == digest((data_root / 'tzdata.zi').read_bytes())
     assert receipt['compiler'] and len(bytes.fromhex(receipt['zic_binary_sha256'])) == 32
+    assert receipt['awk'].startswith('GNU Awk ')
     verify_zone_data(data_root / 'zoneinfo', data_source)
     zoneinfo.reset_tzpath([str(data_root / 'zoneinfo')])
     zoneinfo.ZoneInfo.clear_cache()

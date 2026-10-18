@@ -87,7 +87,7 @@ Race core-consumers 원본 로그 `gdj0133-a6-race-core-consumers.log`와 artifa
 598개 TZif 파일 검사는 통과했지만, 수동 안전 추출이 archive의 수정 시각을 보존하지 않아 IANA Makefile이
 그대로인 source를 `2025c-dirty`로 재표기했고 `tzdata.zi`의 고정 hash가 달라졌다. 이 단계 뒤 Django/Go 비교는 실행되지 않았다.
 
-로컬에서는 source bytes를 그대로 둔 채 dependency 수정 시각만 앞당겨 같은 재표기를 재현했다.
+로컬에서는 source bytes를 그대로 둔 채 dependency 수정 시각만 변경해 같은 재표기를 재현했다.
 `gdj0133-iana-repro-before/timestamp-repro.json`은 정상 compiled source `7aaadaae…`에서
 `e14ef456627a4611a701cc99bab7a770c24d306bc2e270820f650e0e3aed17e9`로 바뀐 경위를 보존한다.
 추출 시 release의 mtime을 유지하고 빌드 뒤에도 version을 재검사하도록 수정했다. Checksum 조건을 변경하지 않았으며
@@ -96,6 +96,18 @@ release version이 모두 일치함을 확인했다. 이는 CI 준비 실패의 
 
 - `gdj0133-iana-repro-after/build.json`: SHA-256 `fce44b6f04aefb32102fc8e2b75c54e8a34dc19d6131c071e7935e9b5e977d2b`
 - 같은 디렉터리의 `build.log`: SHA-256 `b48401c64c826d6926f7675724ccdac0b5bc9793d5f2f360cf3e2f0e85442849`
+
+Timestamp 수정은 `069fcbd67ba7414272c4f5f5dbc0961f5442310a`로 제출했으며 `a6b23822` CI는 취소 종료했다.
+[CI 39154363351](https://github.com/progresshans/godj/actions/runs/39154363351)은 source version과 598개 TZif 검사를 통과했지만
+compact source의 hash에서 다시 멈췄다. 보존한 `tzdata.zi`를 로컬 원본과 대조한 결과 436개 Zone 블록,
+162개 Link·Rule·header의 내용은 전부 같고 Zone 블록의 출력 순서만 달랐다. 고정 IANA `zishrink.awk`는
+GNU awk의 `PROCINFO["sorted_in"]`에서만 블록을 정렬한다. 로컬 BSD awk의 순회 순서를 기준 hash로 삼았던 원인이다.
+
+빌드에 `AWK=gawk`를 명시하고 실제 GNU awk 버전을 receipt/관측/소비자에서 검사하도록 했다.
+현재 고정 compiled source는 GNU 순서의 SHA-256 `0c1aefc13fe49713410767c77fd7efc30cf2e2401d60f5c785b1a694e59abddf`,
+114390 bytes다. 별도 정규화나 여러 hash를 허용하지 않으며, 두 release archive와 598개 최종 TZif의 hash는 바뀌지 않았다.
+순서만의 차이라는 독립 대조는 `gdj0133-iana-awk-order-comparison.json`, 전체 diff는
+`gdj0133-iana-compiled-source-platform.diff`에 보존했다. 새 profile은 원격에서 다시 검증하며 제품 query 실행으로 계산하지 않는다.
 
 이 기록은 compile/수정 진행 상태이며, GDJ-0133의 실제 실행이나 전체 프레임워크의 완료를 뜻하지 않는다.
 

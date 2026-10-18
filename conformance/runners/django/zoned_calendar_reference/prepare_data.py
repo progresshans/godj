@@ -11,7 +11,7 @@ import tarfile
 import urllib.request
 
 DIRECTORY = Path(__file__).resolve().parent
-BUILD = {'target': 'posix_only', 'CFLAGS': '-DSTD_INSPIRED', 'AWK': 'awk',
+BUILD = {'target': 'posix_only', 'CFLAGS': '-DSTD_INSPIRED', 'AWK': 'gawk',
          'PACKRATDATA': 'backzone', 'PACKRATLIST': 'zone.tab'}
 ARCHIVES = {
     'tzcode2025c.tar.gz': '697ebe6625444aef5080f58e49d03424bbb52e08bf483d3ddb5acf10cbd15740',
@@ -99,7 +99,12 @@ def prepare(output):
     environment = dict(os.environ, LC_ALL='C')
     for name in ('MAKEFLAGS', 'MFLAGS'):
         environment.pop(name, None)
-    command = ['make', 'CFLAGS=-DSTD_INSPIRED', 'AWK=awk', 'TZDIR=' + str(output / 'zoneinfo'),
+    # zishrink.awk explicitly sorts complete zone blocks under GNU awk;
+    # other awk implementations can emit the same rules in hash-table order.
+    awk = subprocess.check_output(['gawk', '--version'], env=environment, timeout=10).decode().splitlines()[0]
+    if not awk.startswith('GNU Awk '):
+        raise ValueError('independent IANA build requires GNU awk')
+    command = ['make', 'CFLAGS=-DSTD_INSPIRED', 'AWK=gawk', 'TZDIR=' + str(output / 'zoneinfo'),
                'PACKRATDATA=backzone', 'PACKRATLIST=zone.tab', 'posix_only']
     with (output / 'build.log').open('x') as log:
         completed = subprocess.run(command, cwd=work, env=environment, stdout=log, stderr=subprocess.STDOUT, timeout=120)
@@ -117,7 +122,7 @@ def prepare(output):
                'data_source_sha256': digest(source_bytes), 'prepare_sha256': digest(Path(__file__).read_bytes()),
                'archives': ARCHIVES, 'names_sha256': source['names_sha256'], 'files': len(source['names']),
                'tzdata_zi_sha256': digest(packed), 'zic_binary_sha256': digest((work / 'zic').read_bytes()),
-               'compiler': compiler.decode().splitlines()[0], 'complete': True}
+               'compiler': compiler.decode().splitlines()[0], 'awk': awk, 'complete': True}
     with (output / 'build.json').open('x') as handle:
         json.dump(receipt, handle, sort_keys=True, indent=2)
         handle.write('\n')

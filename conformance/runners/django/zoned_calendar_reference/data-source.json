@@ -12,7 +12,7 @@
     }
   },
   "build": {
-    "AWK": "awk",
+    "AWK": "gawk",
     "CFLAGS": "-DSTD_INSPIRED",
     "PACKRATDATA": "backzone",
     "PACKRATLIST": "zone.tab",
@@ -3018,6 +3018,6 @@
   "names_sha256": "8725722643bf1f4ff4fc4b22268ade98b6fae047a86897219c3a13d4c4ced93d",
   "tzdata_zi": {
     "bytes": 114390,
-    "sha256": "7aaadaae8fcd324ba1c2e4243336050bcb0ad5fce1d46404893ae7a8011e4f3b"
+    "sha256": "0c1aefc13fe49713410767c77fd7efc30cf2e2401d60f5c785b1a694e59abddf"
   }
 }

@@ -60,6 +60,7 @@ type zonedBuildReceipt struct {
 	Packed   string `json:"tzdata_zi_sha256"`
 	Binary   string `json:"zic_binary_sha256"`
 	Compiler string
+	Awk      string
 	Complete bool
 }
 type zonedReferenceDocument struct {
@@ -150,14 +151,14 @@ func validateZonedReference(document zonedReferenceDocument, input zonedReferenc
 		return errors.New("timezone build receipt contains trailing input")
 	}
 	receiptHash := sha256.Sum256(receiptBytes)
-	build := map[string]string{"target": "posix_only", "CFLAGS": "-DSTD_INSPIRED", "AWK": "awk", "PACKRATDATA": "backzone", "PACKRATLIST": "zone.tab"}
+	build := map[string]string{"target": "posix_only", "CFLAGS": "-DSTD_INSPIRED", "AWK": "gawk", "PACKRATDATA": "backzone", "PACKRATLIST": "zone.tab"}
 	archives := map[string]string{}
 	for name, identity := range data.Archives {
 		archives[name] = identity.SHA256
 	}
 	if document.ReceiptHash != hex.EncodeToString(receiptHash[:]) || !reflect.DeepEqual(document.Receipt, receipt) || receipt.Kind != "independent-iana-build-v1" || !receipt.Complete || receipt.IANA != "2025c" ||
 		receipt.Data != hashes["data-source.json"] || receipt.Prepare != hashes["prepare_data.py"] || !maps.Equal(receipt.Build, build) || !maps.Equal(data.Build, build) || !maps.Equal(receipt.Archives, archives) ||
-		receipt.Names != data.NamesHash || receipt.Files != 598 || receipt.Packed != data.Packed.SHA256 || receipt.Compiler == "" {
+		receipt.Names != data.NamesHash || receipt.Files != 598 || receipt.Packed != data.Packed.SHA256 || receipt.Compiler == "" || !strings.HasPrefix(receipt.Awk, "GNU Awk ") {
 		return errors.New("independent IANA build receipt differs from its exact source and policy")
 	}
 	if binary, err := hex.DecodeString(receipt.Binary); err != nil || len(binary) != sha256.Size {
@@ -310,7 +311,7 @@ func TestGeneratedZonedCalendarReferenceBindingRejectsForeignEvidence(t *testing
 	// observations never supply expected calendar results to a consumer.
 	receipt := zonedBuildReceipt{Kind: "independent-iana-build-v1", IANA: "2025c", Build: maps.Clone(data.Build),
 		Data: hashes["data-source.json"], Prepare: hashes["prepare_data.py"], Archives: map[string]string{},
-		Names: data.NamesHash, Files: 598, Packed: data.Packed.SHA256, Binary: strings.Repeat("a", 64), Compiler: "synthetic compiler identity", Complete: true}
+		Names: data.NamesHash, Files: 598, Packed: data.Packed.SHA256, Binary: strings.Repeat("a", 64), Compiler: "synthetic compiler identity", Awk: "GNU Awk synthetic identity", Complete: true}
 	for name, identity := range data.Archives {
 		receipt.Archives[name] = identity.SHA256
 	}
@@ -418,6 +419,7 @@ func TestGeneratedZonedCalendarReferenceBindingRejectsForeignEvidence(t *testing
 		"incomplete":    func(v *zonedBuildReceipt) { v.Complete = false },
 		"compiled data": func(v *zonedBuildReceipt) { v.Packed = "other" },
 		"compiler":      func(v *zonedBuildReceipt) { v.Binary = "" },
+		"awk":           func(v *zonedBuildReceipt) { v.Awk = "" },
 	} {
 		changed := fresh()
 		mutate(&changed.Receipt)

@@ -2,9 +2,11 @@
 
 This observer uses pinned Django 6.1 and Python 3.14.3 with an independent build of the official IANA 2025c
 `tzcode` and `tzdata` release archives. `prepare_data.py` checks both archive hashes, compiles `posix_only` with
-`PACKRATDATA=backzone`, `PACKRATLIST=zone.tab`, `CFLAGS=-DSTD_INSPIRED` and `AWK=awk`, and verifies all 598 TZif
+`PACKRATDATA=backzone`, `PACKRATLIST=zone.tab`, `CFLAGS=-DSTD_INSPIRED` and `AWK=gawk`, and verifies all 598 TZif
 files plus the compiled `tzdata.zi` source against `data-source.json`. The complete build receipt, log, source identities,
-compiler identity and output file hashes remain bound to the observation. Existing output directories are never replaced.
+compiler/GNU awk identities and output file hashes remain bound to the observation. Release timestamps are preserved.
+GNU awk is required because upstream sorts complete zone blocks only with that implementation; the compact source has
+one exact ordering and hash across these reference builds. Existing output directories are never replaced.
 Python ZoneInfo reads only this verified directory. Neither preparation nor observation reads the GoDj timezone archive,
 implementation, expected results or runtime receipts. The existing UTC observer's encoders and upstream module fingerprints
 are explicit, separately hashed inputs. Its 118 cases remain unchanged.
