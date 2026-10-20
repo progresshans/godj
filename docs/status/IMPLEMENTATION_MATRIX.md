@@ -2,6 +2,8 @@
 
 코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
 현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
+아래 제한·후속 범위의 우선순위와 완료 책임은 [전체 범위 실행 계획](../EXECUTION_PLAN.md)에 연결한다.
+계획의 수립이나 다른 영역으로의 전환은 이 표의 미지원 기능을 지원으로 바꾸지 않는다.
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.

@@ -2,6 +2,7 @@
 
 지금 답이 필요한 질문만 유지한다. 과거 조사·phase·CI 이력은 [Git 기록](https://github.com/progresshans/godj/blob/da1bfc524c4f205075fc7fac7f00b437473a5e1f/docs/OPEN_QUESTIONS.md)에 있다.
 이미 선택한 개별 단면을 아래의 넓은 미결정 범위 때문에 다시 미구현으로 취급하지 않는다.
+각 질문의 담당 작업·해결 시점은 [전체 범위 실행 계획](EXECUTION_PLAN.md)의 의존성·환경 표를 따른다.
 
 | ID | 현재 남은 질문 | 현재 기준 |
 |---|---|---|
@@ -14,7 +15,7 @@
 | Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
 | Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |
 | Q-021 | token issuance/refresh, OAuth/OIDC/JWT, production BFF | injected Bearer resource-server와 Session 경계는 구현됨 |
-| Q-022 | 더 넓은 multi-user/credential lifecycle | provision/open과 explicit permission CAS·session 폐기 구현; GDJ-0100의 credential/session 결합 다음 사용자·그룹·권한 저장과 실제 관리 흐름 진행 |
+| Q-022 | custom user와 더 넓은 multi-user/credential lifecycle | 기본 User/Group/Permission 저장·관리, login/logout/password/reset과 session 폐기의 현행 구현·환경별 근거는 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따름; custom 모델 연결은 I1, token/provider는 I2에서 진행 |
 
 ## Q-017 — 모델 사용성과 생성물
 

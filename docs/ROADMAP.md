@@ -4,6 +4,14 @@
 [헌장](CHARTER.md)의 장기 제품 범위를 목표로, 필요한 기반과 기능 사이의 의존성에 따라 구현 순서를 정한다.
 문서·테스트 개수나 compatibility contract 총합을 제품 진행률로 삼지 않는다.
 
+## 실행 순서와 영역 전환
+
+[전체 범위 실행 계획](EXECUTION_PLAN.md)은 카탈로그 20개 영역의 잔여 범위·작업 묶음·선행 조건·완료 기준을 연결한다.
+현재 작업을 닫은 뒤에는 그 계획에서 가장 앞선 실행 가능한 묶음을 선택한다.
+GDJ-0134 named annotation의 전체 구현·실행과 G-ORM 전환 기준을 충족하면 주 작업은 모델 중심 Form/Admin/API 조립으로
+옮긴다. 일반 함수·subquery/window·고급 관계·추가 DB는 배정된 후속 묶음에서 끝까지 수행한다.
+ORM 전체의 완성을 다른 영역 착수의 선행 조건으로 추가하지 않는다.
+
 ## 완성 목표와 작업의 연결
 
 목표는 [기능 카탈로그](CAPABILITY_CATALOG.md)의 전체 범위를 실제로 사용할 수 있게 구현하고 검증하는 것이다.
@@ -16,7 +24,7 @@
 
 ## 다음 작업의 선택
 
-Article와 Category–Ticket Helpdesk에서 사용한 공개 API를 출발점으로, 실제 앱의 다음 요구를 한 가지 고른다.
+실행 계획의 선택된 묶음 안에서 Article와 Category–Ticket Helpdesk의 공개 API를 출발점으로 실제 앱의 다음 요구를 고른다.
 Schema→Migration→ORM→Form/Admin/API 중 어디까지 연결해야 하는지와 실패 의미를 정한 뒤 필요한 기능만 확장한다.
 
 [개발 판단 기준](DEVELOPMENT_CRITERIA.md)으로 그 흐름의 조립·변경·실패 진단 비용을 확인한다.
@@ -30,7 +38,8 @@ API 확장에서는 typed 입력/출력·endpoint·OpenAPI·client 연결을 함
 - 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.
 - Identity: 현재 User/Group/Permission·self-service/reset 지원 범위를 확인하고, 남은 custom user·인증 provider 요구에 필요한 credential/session 경계를 확장한다.
 
-이 목록은 다음 기능의 후보이며 동시에 진행할 작업 목록이 아니다. 활성 작업과 환경별 검증 상태는 CURRENT 한 곳에서 선택한다.
+이 목록은 선택된 묶음의 구체적인 소비자를 정하는 기준이며 실행 계획의 순서를 대체하지 않는다.
+활성 작업과 환경별 검증 상태는 CURRENT 한 곳에서 선택한다.
 
 ## 수직 단면의 선택
 
@@ -57,6 +66,7 @@ Relation·ownership 의미가 있으면 cross-app 흐름을 포함한다. 작은
 | Backend/Realtime/GIS | 사용 시나리오와 자원·운영 경계가 정해진 시점에 별도 수직 단면 |
 
 전체 기능 범위는 [CAPABILITY_CATALOG](CAPABILITY_CATALOG.md), 아직 닫지 않은 설계 질문은 [OPEN_QUESTIONS](OPEN_QUESTIONS.md)에 있다.
+구체적인 전환 시점·우선순위·환경 blocker 처리·최종 완료 판정은 [EXECUTION_PLAN](EXECUTION_PLAN.md)을 따른다.
 현재는 출시 일정을 두지 않고 목표한 기능과 기반의 구현·검증을 계속한다.
 출시 여부와 시점, 외부 지원 정책은 사용자가 출시를 결정하는 단계에서 별도로 정한다.
 

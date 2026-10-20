@@ -13,6 +13,7 @@
 | 테스트 선택·실행 | [TESTING](TESTING.md), [conformance 안내](../conformance/README.md) |
 | 실제 실행 증거 | [TEST_EVIDENCE](status/TEST_EVIDENCE.md) |
 | 다음 방향·열린 결정 | [ROADMAP](ROADMAP.md), [OPEN_QUESTIONS](OPEN_QUESTIONS.md) |
+| 전체 잔여 범위·실행 순서·영역 전환·완료 기준 | [EXECUTION_PLAN](EXECUTION_PLAN.md) |
 | 장기 범위 | [CAPABILITY_CATALOG](CAPABILITY_CATALOG.md) |
 | 왜 이 결정을 선택했는가 | [ADR 목록](adr/README.md)에서 해당 결정만 |
 | 기준 출처와 라이선스 | [SOURCES](SOURCES.md), [LICENSING](LICENSING.md) |
@@ -21,6 +22,7 @@
 ## 한 사실은 한 곳에
 
 현재 상태는 CURRENT, 구현 범위는 Matrix, 실행 상세는 Evidence, 장기 이유는 ADR이 소유한다.
+영역별 미완료 범위의 배정·의존성·전환 조건은 EXECUTION_PLAN이 소유하며 실제 착수한 work만 하위 요구로 구체화한다.
 CURRENT·ROADMAP·ADR에 CI run, 테스트 수, bytes, SHA 목록을 복사하지 않는다. 근거가 필요하면 소유 문서를 링크한다.
 
 설계는 Proposed/Accepted/Superseded, 구현은 코드 유무, 검증은 source와 환경별 실행 결과로 구분한다.
