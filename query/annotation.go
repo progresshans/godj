@@ -86,7 +86,7 @@ func (p Plan) WithAnnotation(name string, value ResultExpression, selected bool)
 		return Plan{}, AnnotationRef{}, groupUnsupported("annotating a terminal aggregate requires an explicit result stage")
 	}
 	for _, field := range p.sourceFields {
-		if name == field.Name() {
+		if name == field.Name() || name == field.Column() {
 			return Plan{}, AnnotationRef{}, invalidPlanError("annotation name conflicts with source field metadata")
 		}
 	}

@@ -72,6 +72,7 @@ type summaryBackend struct {
 	snapshots, queries, groups int
 	closed                     int
 	rowsets                    int
+	pagePlans                  []query.Plan
 	cancel                     context.CancelFunc
 	late                       func() error
 	started, release           chan struct{}
@@ -152,6 +153,7 @@ func (reader *summaryReader) Query(ctx context.Context, plan query.Plan) (db.Row
 	reader.owner.queries++
 	if plan.ResultShape().Kind() == query.ResultPage || plan.ResultShape().GroupMode() == query.GroupPage {
 		reader.owner.groups++
+		reader.owner.pagePlans = append(reader.owner.pagePlans, plan)
 		if reader.owner.mode == "query_failure" || reader.owner.mode == "swallowed_error" {
 			return nil, errors.New("private summary query failure")
 		}

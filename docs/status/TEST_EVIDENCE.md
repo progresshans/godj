@@ -3,6 +3,38 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — Helpdesk·독립 비교 연결과 Page 실패 수정
+
+2026-10-21, `82ccdc9d` 위에서 Helpdesk 기한 미리보기가 소유한 `adjusted_due_at`와 이에 의존하는 `remaining`을
+필터·정렬·DB Page·기존 HTML/API/client 출력으로 연결했다. Category·ViewTicket·하나의 읽기 snapshot과
+기존 저장/audit 보존 검사를 유지하며, 실제 page 입력의 두 정의와 dependency도 검사한다.
+
+고정 Django annotation observer를 변경하지 않고 양 DB에서 새로 실행하는 runner와 외부 생성 소비자를 연결했다.
+Source/runtime·정리·77개 전체 목록, 값·오류·PostgreSQL SQLSTATE와 네 모델의 전체 행·관계 rollback 보존을 대조한다.
+이름 세 사례·혼합 숫자 타입·SQLite int64 overflow의 명시적 Go 차이는 고정된 Django 결과까지 닫아서 검사한다.
+반대 증거의 결과/오류/입력 변조·누락·중복도 거부한다. 과거 관측을 쓰는 portable 실행과 fresh native 비교는 구분한다.
+이 경로의 실제 실행은 아직 원격 검증 전이다.
+
+Source `82ccdc9d`의 [CI 39548030288](https://github.com/progresshans/godj/actions/runs/39548030288)에서
+PostgreSQL race core-consumers `119050955540`과 relation runtime `119050955818`의 실패를 확인했다.
+Named Page는 보관용 `*any` 목적지를 scalar decoder가 받지 못했다. 복사한 raw cell을 받아 원래 모델/값 codec으로
+검증하는 경로를 추가했다. AST 동등성 검사는 저장 필드 선택과 scalar expression 선택을 혼용했다.
+Typed 입력도 `F(field)`로 바꾸어 같은 scalar AST를 비교하며 NULL·결과 값·foreign scope 검사를 유지한다.
+다른 실패 job `119050955826`, `119050955863`, `119050955992`에서도 같은 원인을 확인했고 원본 log를 보존했다.
+
+- 해당 ORM root의 수정 전 실패를 로컬에서 재현했다. 수정 후 root는 통과했다.
+- Generated scalar 실패 재현은 SQLite child 8개와 compile 부정 대조 7개 통과. 첫 실행의 collection child에서
+  같은 AST 입력 오류가 추가로 드러났으며, 수정한 collection만 재실행해 SQLite child 6개 통과를 확인했다.
+  이는 각 수정 시점의 제한된 실패 재현이며 전체 source·PostgreSQL·race PASS가 아니다.
+- 최종 host `codegen/consumertest`, `examples/helpdesk`, `query`, `orm`과 외부 reference module의
+  `go test -run '^$'` compile-only exit 0. 새 비교 및 Helpdesk 테스트 본문은 실행하지 않았다.
+- Python runner syntax, gofmt와 diff, Markdown 224개 링크를 검사했다.
+- 보존 경로 `gdj0134-reference-hkq7995b/source.json`: baseline·변경 비문서 source 17개 hash와 compile/재현/원격 실패 원본.
+  Receipt SHA-256 `4f71f57d57abbdecfe92c54b83ac857b33fe8b16aff1a898d3bef6e643701c97`.
+
+이전 CI의 일부 완료와 로컬 재현을 Q1/G-ORM 완료로 수용하지 않는다. 새 제출의 자동 전체 CI에서 native 비교,
+Helpdesk HTML/API/client·브라우저, race·process·전체 platform과 필수 실행 원본을 확인한다.
+
 ## GDJ-0134 — ORM·생성 facade와 두 소비자 제출
 
 2026-10-21, `f521f965` 위에서 `NamedQuery`/`NamedRow`/`NamedColumn`, typed annotation·alias와 ordered dynamic

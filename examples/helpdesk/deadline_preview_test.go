@@ -223,6 +223,17 @@ func verifyHelpdeskDeadlinePreview(t *testing.T, ctx context.Context, runtime *s
 				if backend.snapshots != 1 || backend.queries != 2 || backend.groups != 1 || backend.rowsets != 1 || backend.closed != 1 || *audits != 0 {
 					t.Fatal("deadline snapshot/page lifetime changed", backend)
 				}
+				if len(backend.pagePlans) != 1 {
+					t.Fatal("deadline preview did not submit one page plan")
+				}
+				source, _, ok := backend.pagePlans[0].PageInput()
+				adjusted, hasAdjusted := source.Annotation("adjusted_due_at")
+				remaining, hasRemaining := source.Annotation("remaining")
+				definition, defined := remaining.Expression()
+				scalar, computed := definition.Scalar()
+				if !ok || !hasAdjusted || !hasRemaining || !defined || !computed || !slices.ContainsFunc(scalar.AnnotationReferences(), adjusted.Equal) {
+					t.Fatal("deadline preview did not bind remaining to its owned adjusted deadline")
+				}
 			}
 		}
 	})

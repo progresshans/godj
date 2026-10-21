@@ -2804,3 +2804,6 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/scalars/named_update
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/scalars/named_delete
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/scalars/stage_operand_in_model
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotationReference
+github.com/progresshans/godj/codegen/consumertest|TestNamedAnnotationReferenceBoundaryEvidence
+github.com/progresshans/godj/query|TestAnnotationDefinitionsRejectInvalidNamesAndSourceMetadata/stored_amount

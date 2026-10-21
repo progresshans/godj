@@ -230,12 +230,16 @@ func TestNamedCollectionRuntime(t *testing.T) {
 				check(t, err)
 				dynamic, err := project.SelectCatalogCategoryNamedQuery(named, projection)
 				check(t, err)
-				typed, err := project.SelectCatalogCategoryNamedQuery(named, orm.Project3(catalog.CategoryFields.Code, filtered, double, func(code string, count int64, n orm.Optional[int64]) []query.Value {
+				typed, err := project.SelectCatalogCategoryNamedQuery(named, orm.Project3(orm.F(catalog.CategoryFields.Code), filtered, double, func(code orm.Optional[string], count int64, n orm.Optional[int64]) []query.Value {
+					key, present := code.Get()
+					if !present {
+						t.Fatal("required code expression is NULL")
+					}
 					value, ok := n.Get()
 					if !ok {
 						t.Fatal("non-null count arithmetic is NULL")
 					}
-					return []query.Value{query.String(code), query.Integer(count), query.Integer(value)}
+					return []query.Value{query.String(key), query.Integer(count), query.Integer(value)}
 				}))
 				check(t, err)
 				if !typed.Plan().Equal(dynamic.Plan()) {

@@ -266,6 +266,11 @@ func scanGroupValue(destination, raw any) error {
 		return scanner.Scan(raw)
 	}
 	switch destination := destination.(type) {
+	case *any:
+		// Named rows retain raw cells until their original model and value
+		// codecs validate them. Page uses the same owned raw-cell boundary.
+		*destination = raw
+		return nil
 	case *int64:
 		return scanGroupPrimitive(destination, raw)
 	case *string:

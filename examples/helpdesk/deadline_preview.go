@@ -64,13 +64,19 @@ func (a *Application) readDeadlinePreview(ctx context.Context, actor auth.Princi
 			return zero, err
 		}
 		fields := models.TicketFields
-		adjusted := orm.DateTime(orm.F(fields.DueAt)).Add(input.shift)
-		remaining := adjusted.Difference(input.asOf)
 		source := models.TicketObjects.Using(reader).Filter(fields.CategoryID.Exact(a.categoryID))
-		if input.minimum != nil {
-			source = source.Filter(remaining.GreaterThanOrEqual(*input.minimum))
+		named, adjusted, err := orm.Annotate(source, "adjusted_due_at", orm.DateTime(orm.F(fields.DueAt)).Add(input.shift))
+		if err != nil {
+			return zero, err
 		}
-		selected, err := orm.SelectQuery(source.OrderBy(remaining.Asc().NullsLast(), fields.ID.Asc()),
+		named, remaining, err := orm.Annotate(named, "remaining", orm.DateTime(orm.OptionalOperand(adjusted)).Difference(input.asOf))
+		if err != nil {
+			return zero, err
+		}
+		if input.minimum != nil {
+			named = named.Filter(remaining.GreaterThanOrEqual(orm.Some(*input.minimum)))
+		}
+		selected, err := orm.SelectNamed(named.OrderBy(remaining.Asc().NullsLast(), fields.ID.Asc()),
 			orm.Project5(fields.ID, fields.Subject, fields.DueAt, adjusted, remaining,
 				func(id int64, subject string, original *time.Time, adjusted orm.Optional[time.Time], remaining orm.Optional[duration.Duration]) deadlinePreviewRow {
 					return deadlinePreviewRow{id: id, subject: subject, original: original, adjusted: adjusted, remaining: remaining}

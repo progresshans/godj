@@ -89,7 +89,7 @@ func TestAnnotationDefinitionsRejectInvalidNamesAndSourceMetadata(t *testing.T) 
 	t.Parallel()
 	field := query.NewFieldRef("amount", "stored_amount", query.FieldInteger, false)
 	base := query.NewPlan("measures", []query.FieldRef{field})
-	for _, name := range []string{"", "amount", "1value", "bad name", "quote\"name", "comment--name", "path__value", "한글", strings.Repeat("x", 129)} {
+	for _, name := range []string{"", "amount", "stored_amount", "1value", "bad name", "quote\"name", "comment--name", "path__value", "한글", strings.Repeat("x", 129)} {
 		t.Run(name, func(t *testing.T) {
 			if _, _, err := base.WithAnnotation(name, query.FieldResult(field), true); err == nil {
 				t.Fatal("invalid annotation name was accepted")

@@ -1,6 +1,6 @@
 # GDJ-0134: 명명된 계산식과 조회 결과
 
-- 상태: 공통 AST·compiler·ORM·생성 facade와 두 생성 소비자 작성; 원격 검증·독립 비교·Helpdesk 연결 진행 중
+- 상태: 공통 AST·compiler·ORM·생성 facade·두 생성 소비자·독립 비교·Helpdesk 연결 작성; 원격 검증 진행 중
 - 시작: 2026-10-19
 - 기준: `90437ebc6b8508995de962660adc3b6cad66a839` — GDJ-0133 뒤 전체 실행 계획 포함; 제품 source `55928651`의 전체 통합 검증 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -76,10 +76,14 @@ AST의 참조/예산 부정 대조와 양 DB의 독립 seed 기반 검사 본문
 여러 collection 행 곱·DISTINCT, 혼합 OR, 숨긴 그룹 키, 이름 재정의, 명시 stage/slice/재집계와 native mean·fraction을
 포함한다. Typed/dynamic facade·원 모델 및 명명 결과 decoder를 작성하고 scalar 및 collection 구조의 두 생성
 소비자를 연결했다. 모델 wrapper/DTO·타입·NULL·선택/재정의·DB Page·cache/session/실패·저장 분리를 검사한다.
-이 소비자들의 원격 runtime·race 검증과 Helpdesk·독립 Django 비교는 아직 남아 있다.
+Helpdesk는 `adjusted_due_at`에 의존하는 `remaining`을 같은 명명 query에 bind하고 기존 필터·정렬·DB Page와
+HTML/API/client 계약을 사용한다. 고정 Django observer의 양 DB 77개 결과·오류와 명시한 Go 차이를 외부 생성
+소비자에 연결했다. 모든 비교는 rollback과 네 모델의 전체 저장 행·관계 보존을 확인하며, 의도한 차이의 Django
+결과도 고정 원본과 일치해야 한다. 원격 runtime·race·실제 Helpdesk 흐름의 검증 완료는 아직 남아 있다.
 코드와 검사 본문의 존재나 compile-only를 runtime PASS로 계산하지 않는다.
 
 기존 독립 Django 6.1 annotation observer와 보존된 양 DB 77개 관측을 읽었다. 앞선 정의 참조, forward reference 오류,
 재정의 후 기존 dependency 보존, 필드/관계 이름 충돌, alias 선택 거부, 집계 전후 Filter와 nested aggregate 오류를
-이번 요구의 근거로 사용한다. 이 관측이나 GDJ-0133의 PASS를 새 GoDj 기능의 구현·실행 성공으로 계산하지 않는다.
+이번 요구의 근거로 사용한다. 새 runner는 같은 observer를 소유한 DB에서 다시 실행하고 source·runtime·정리 상태와
+전체 목록을 대조한 뒤 Go 결과와 비교한다. 과거 관측이나 GDJ-0133의 PASS를 새 기능의 실행 성공으로 계산하지 않는다.
 실제 검증 상태는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

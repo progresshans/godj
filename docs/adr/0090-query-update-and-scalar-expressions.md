@@ -352,6 +352,9 @@ Helpdesk의 `time_zone`은 공통 `parameters.TimeZone()`와 `output.TimeZone()`
 산술·CASE의 양 operand·함수·조건은 원래 정의를 유지한다. 같은 이름·값을 가진 다른 query 분기의 참조는
 승인하지 않는다. Schema IR의 저장 필드와 명시적 ResultScope를 이름 저장소로 사용하지 않는다.
 
+Source의 field·column 이름은 selection에서 빠진 뒤에도 예약한다. 식별자의 선두 숫자와 `__`는 허용하지 않는다.
+고정 Django와 다른 세 이름 사례는 [DEV-0026](../DEVIATIONS.md#dev-0026--명명-조회의-예약-이름과-식별자-경계)에 한정한다.
+
 명명 참조의 완전한 producer 확장 비용을 scalar 깊이/노드 한도에 포함하고, 현재 정의와 보존한 과거 정의 및
 captured predicate를 전체 query 예산에 포함한다. 결과 kind/NULL·Decimal 원본 precision·Duration fraction과
 native mean·시간대는 producer에서 이어받는다. 완료된 집계의 참조와 aggregate operand는 구분하며 같은
@@ -385,3 +388,7 @@ I/O 전에 오류를 반환하며 scalar projection을 명시적으로 선택할
 취소 실패에는 부분 결과나 성공 cache를 게시하지 않는다. DTO builder는 성공한 cursor 종료 뒤 실행하며
 같은 cache에서 반환할 때마다 원 모델과 DTO를 다시 만든다. 모델 wrapper의 저장은 저장 필드만 처리하며
 이미 읽은 명명 cell은 바꾸지 않는다. `Fresh` 조회에서 새 DB 값으로 계산한다.
+
+Helpdesk 기한 미리보기는 `adjusted_due_at`을 등록하고 `remaining`이 그 소유된 정의를 참조하도록 구성한다.
+같은 명명 값을 projection·최소 잔여 기간 조건·정렬·단일 statement Page에 사용한다. 이름은 애플리케이션의
+고정 선언이며 HTTP 입력으로 받지 않는다. 기존 ViewTicket·Category 범위·한 읽기 snapshot과 전체 출력 검사를 유지한다.

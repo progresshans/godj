@@ -138,8 +138,11 @@ func TestNamedScalarRuntime(t *testing.T) {
 						t.Fatal("ordinary generated model wrapper is unusable", err)
 					}
 				}
-				typed, err := project.SelectRecordsMeasureNamedQuery(named, orm.Project2(f.Code, adjusted, func(code string, n orm.Optional[int64]) []query.Value {
-					return []query.Value{query.String(code), namedOptional(n, query.Integer)}
+				typed, err := project.SelectRecordsMeasureNamedQuery(named, orm.Project2(orm.F(f.Code), adjusted, func(code orm.Optional[string], n orm.Optional[int64]) []query.Value {
+					if !code.Valid() {
+						t.Fatal("required code expression is NULL")
+					}
+					return []query.Value{namedOptional(code, query.String), namedOptional(n, query.Integer)}
 				}))
 				check(t, err)
 				projection, err := named.ProjectExpressions(orm.DynamicF("code"), orm.DynamicF("adjusted"))

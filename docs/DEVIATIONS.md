@@ -44,6 +44,25 @@
 
 ## 원장
 
+## DEV-0026 — 명명 조회의 예약 이름과 식별자 경계
+
+- 상태: 구현됨; 독립 비교·환경별 검증은 진행 중이며 parity나 Verified로 계산하지 않음
+- 날짜: 2026-10-21
+- 기준: 고정 Django 6.1의 [77개 annotation 관측](../conformance/runners/django/annotation_reference/)
+- 범위: `projection_excluded_field_shadow`, `alias_name_1`, `alias_name_part__name` 세 사례만
+- 관련: [ADR-0090](adr/0090-query-update-and-scalar-expressions.md#명명된-scalar-참조), [GDJ-0134](../work/0134-named-query-annotations.md), [Evidence](status/TEST_EVIDENCE.md)
+
+Django는 projection에서 빠진 원 필드 이름을 annotation으로 다시 사용하거나 `1`, `part__name`을 선택 이름으로
+사용할 수 있다. GoDj는 원 source의 field·column 이름을 projection 이후에도 예약하고, 명명 정의의 이름을
+최대 128 bytes의 ASCII 식별자로 제한하며 `__`를 relation 경로 구분자로 남긴다. Project binding이 있는 query의
+forward/reverse/ManyToMany accessor도 예약한다. 이 세 입력은 I/O 전 `invalid_plan`이다.
+
+선택 순서에 따라 원 필드와 명명 값의 문자열 해석이 바뀌는 대안보다, 별도의 `NamedRow.Value`와 소유된 column을
+일관되게 구분하는 의미를 채택했다. 이름은 SQL alias와 다른 identity이며 같은 문자열로 foreign branch를 승인하지 않는다.
+기존 저장 형식이나 행을 migration하지 않는다. 결과·오류의 차이는 양 DB에서 정확한 사례별로 비교하며 모든 이름 오류를
+포괄적으로 면제하지 않는다. 원 필드 이름의 가림이나 더 넓은 문자열 이름을 지원하게 되면 binding·projection·관계 해석과
+이 세 selector를 함께 재검토한다.
+
 ## DEV-0025 — Date와 Time 산술의 일관된 결과 도메인
 
 - 상태: 검증됨 — source `c12b5c0f`의 양 DB·세 mode 독립 관측·생성 소비자·제품 실행과 전체 통합 완료
@@ -220,6 +239,12 @@ GoDj는 원본·중간·최종 DateTime/Duration의 모델 범위를 statement �
 - 날짜: 2026-10-06
 - 기준: [Django 6.1 독립 관찰](../conformance/runners/django/query_update_reference.py), Python 3.14.3·실제 SQLite/PostgreSQL 17.10
 - 범위: [GDJ-0111](../work/0111-query-update-and-writable-expressions.md), [ADR-0090](adr/0090-query-update-and-scalar-expressions.md). 기존 등록 conformance 완료 수를 변경하지 않는다.
+
+GDJ-0134의 명명 조회도 같은 정수·operand kind 계약을 유지한다. 독립 annotation 관측의
+`integer_constant_overflow`는 SQLite에서 9223372036854775808을 반환하지만 GoDj는 전체 조회를 `invalid_value`로
+거부한다. `mixed_integer_float`는 양 DB에서 implicit promotion 대신 I/O 전 `invalid_plan`이다.
+이 두 사례의 다른 동작을 값 parity로 계산하지 않으며 PostgreSQL의 native overflow SQLSTATE는 그대로 대조한다.
+명명 조회의 실제 검증 완료 여부는 해당 work와 TEST_EVIDENCE를 따른다.
 
 Django SQLite의 bigint 산술 overflow는 REAL로 승격해 갱신에 성공하며 affinity가 일부 값을 다시 INTEGER로
 반올림하기도 한다. GoDj는 정규화된 int64 모델 범위를 유지하기 위해 각 integer operand/result의 storage class를

@@ -8,13 +8,13 @@
 
 ## 다음
 
-1. Named AST·양 compiler·typed/dynamic ORM·생성 facade와 두 생성 소비자를 원격 CI에서 검증한다.
-2. Helpdesk의 실제 흐름과 독립 비교를 연결하고 원격 검증을 완성한다.
+1. Named AST·양 compiler·typed/dynamic ORM·생성 facade와 두 생성 소비자, Helpdesk 기한 미리보기의 원격 검증을 완성한다.
+2. 고정 Django의 양 DB 77개 관측과 실제 생성 소비자 결과·오류·저장 보존을 같은 source에서 대조한다.
 3. G-ORM 전환 기준 충족 후 주 작업을 A1의 모델 중심 Form/Admin/API 조립으로 옮긴다.
    나머지 ORM 기능과 다른 영역은 실행 계획의 담당 묶음과 완료 기준에 따라 계속 수행한다.
 
 ## 검증 경계
 
-정의 저장소·compiler·ORM·생성 facade와 검사 본문을 작성했다. 최초 CI의 fixture 오류를 수정하고,
-시간 제한에 걸린 PostgreSQL generated race 작업의 전체 root를 두 owner로 나누었다.
-GDJ-0134의 DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.
+Helpdesk와 독립 비교 경로까지 작성했다. 원격 CI에서 발견한 명명 결과 Page의 원시 셀 decoder 결함과
+동등하지 않은 AST를 비교하던 검사 입력을 수정했다. 제한된 로컬 실패 재현은 전체 검증과 구분한다.
+GDJ-0134의 같은 source에 대한 DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.

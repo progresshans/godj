@@ -1028,6 +1028,17 @@ jobs:
               --vendor "$vendor" --output "$RUNNER_TEMP/collection-aggregate-reference/django61-$vendor.json"
           done
 
+      - name: Observe independent Django named annotations on both native databases
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
+        run: |
+          for vendor in sqlite postgres; do
+            uv run --project conformance/reference/related-expressions --frozen python \
+              conformance/runners/django/annotation_reference/run.py \
+              --vendor "$vendor" --output "$RUNNER_TEMP/annotation-reference/django61-$vendor.json"
+          done
+
       - name: Observe independent Django Decimal expressions on both native databases
         if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
         env:
@@ -1093,6 +1104,7 @@ jobs:
           GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
           GODJ_CALENDAR_EXTRACTION_REFERENCE_DIR: ${{ runner.temp }}/calendar-extraction-reference
           GODJ_NAMED_ANNOTATION_CAPTURE_DIR: ${{ runner.temp }}/named-annotation-native
+          GODJ_ANNOTATION_REFERENCE_DIR: ${{ runner.temp }}/annotation-reference
           GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
@@ -1286,6 +1298,7 @@ jobs:
             ${{ runner.temp }}/temporal-expression-reference/
             ${{ runner.temp }}/calendar-extraction-reference/
             ${{ runner.temp }}/named-annotation-native/
+            ${{ runner.temp }}/annotation-reference/
             ${{ runner.temp }}/file-consumer-native.jsonl
             ${{ runner.temp }}/zoned-calendar-data/build.json
             ${{ runner.temp }}/zoned-calendar-data/build.log

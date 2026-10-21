@@ -151,7 +151,14 @@ func TestNamedQueryProjectionAndExplicitStageKeepAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typed, err := SelectNamed(named, Project2(fields.ID, column, func(id int64, n Optional[int64]) int64 { v, _ := n.Get(); return id + v }))
+	typed, err := SelectNamed(named, Project2(F(fields.ID), column, func(id, n Optional[int64]) int64 {
+		key, present := id.Get()
+		if !present {
+			t.Fatal("required ID expression is NULL")
+		}
+		v, _ := n.Get()
+		return key + v
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
