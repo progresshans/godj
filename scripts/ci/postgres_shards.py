@@ -2,7 +2,7 @@
 """Own every PostgreSQL core sentinel exactly once in each execution mode.
 
 Race partitions separate framework, the Helpdesk PostgreSQL consumer,
-generated consumers and process products.
+generated read consumers, generated write consumers and process products.
 Normal/CGO-disabled retain one core owner; the normal capture producer is stable.
 The required manifest stays authoritative for tests, including child-only roots.
 """
@@ -27,10 +27,19 @@ PROCESSES = (
 )
 HELPDESK_POSTGRES_PACKAGE = MODULE + 'examples/helpdesk'
 HELPDESK_POSTGRES_ROOT = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
+WRITE_CONSUMER_ROOTS = frozenset({
+    'TestGeneratedBulkCreate', 'TestGeneratedBulkCreateReference',
+    'TestGeneratedBulkUpdate', 'TestGeneratedBulkUpdateReference',
+    'TestGeneratedQueryUpdate', 'TestGeneratedQueryUpdateReference',
+    'TestGeneratedSingleObjectCreation', 'TestGeneratedSingleObjectReference',
+    'TestGeneratedUpdateOrCreate', 'TestGeneratedRowLocking',
+})
 PARTITIONS = {
     'core': FRAMEWORK,
     'core-helpdesk-postgres': ('./examples/helpdesk',),
     'core-consumers': CONSUMERS,
+    'core-consumer-writes': CONSUMERS,
     'core-processes': PROCESSES,
 }
 ALL_PACKAGES = (*FRAMEWORK, *CONSUMERS, *PROCESSES)
@@ -74,6 +83,14 @@ def plan(mode, shard, entries):
             return package == HELPDESK_POSTGRES_PACKAGE and test.split('/')[0] == HELPDESK_POSTGRES_ROOT
 
         selected = [entry for entry in selected if is_helpdesk_postgres(entry) == (shard == 'core-helpdesk-postgres')]
+    if mode == 'race' and shard in ('core-consumers', 'core-consumer-writes'):
+        # A complete generated root and all its children have one owner. New
+        # roots default to core-consumers until their execution cost is known.
+        def is_write_consumer(entry):
+            package, _, test = entry.partition('|')
+            return package == CONSUMER_PACKAGE and test.split('/')[0] in WRITE_CONSUMER_ROOTS
+
+        selected = [entry for entry in selected if is_write_consumer(entry) == (shard == 'core-consumer-writes')]
     if not selected:
         raise ValueError('PostgreSQL partition has no required execution')
     return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,

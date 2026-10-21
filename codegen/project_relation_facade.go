@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -608,6 +608,7 @@ func (_query %[1]s) SelectForUpdatePaths(_options orm.RowLockOptions,_paths ...s
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	renderProjectFacadeStream(output, model, model.queryType, "orm.MaterializeBatches(_ctx, _query.query, _query.state.models."+model.surface+", _size, _yield)", "_query.validate()")
+	renderProjectFacadeAnnotations(output, model)
 
 }
 

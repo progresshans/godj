@@ -154,7 +154,7 @@ func AnnotationNative(t *testing.T, backend db.Queryer, database *sql.DB, quote 
 	route := func(t *testing.T, table string, terminal query.FieldRef) query.RelationPath {
 		t.Helper()
 		path, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "annotations", ModelName: table}, table,
-			"owner", "owner_id", ir.ModelIdentity{AppLabel: "annotations", ModelName: "owner"}, "annotation_owners", "id", table, false, terminal, ir.RelationOneToMany)
+			"owner", "owner_id", ir.ModelIdentity{AppLabel: "annotations", ModelName: "owner"}, "annotation_owners", "id", table, false, id, ir.RelationOneToMany)
 		if err != nil {
 			t.Fatal(err)
 		}

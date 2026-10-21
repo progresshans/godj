@@ -247,13 +247,15 @@ python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
 `postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
 
 PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, generated consumer,
-process product를 core/core-consumers/core-processes로 나누고, Helpdesk의 PostgreSQL 소비자 root는
+process product를 core/core-consumers/core-processes로 나눈다. 생성 소비자 중 bulk create/update·query update·
+단일 객체 생성·update-or-create·행 잠금의 전체 root는 core-consumer-writes가 맡는다. Helpdesk의 PostgreSQL 소비자 root는
 core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
 두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
 필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
 누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
 Package별 18분 timeout과 no-skip 검사를 유지하며,
-generated consumer의 core-consumers race만 기존 30분 한도를 사용한다.
+generated consumer의 core-consumers/core-consumer-writes race는 각각 기존 30분 한도를 사용한다.
+생성 소비자 자체의 짧은 실행 제한과 필수 하위 검사는 분할 전후 동일하며, 새로운 root는 기본 core-consumers가 맡는다.
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
 개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.

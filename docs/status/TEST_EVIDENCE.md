@@ -3,6 +3,38 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — ORM·생성 facade와 두 소비자 제출
+
+2026-10-21, `f521f965` 위에서 `NamedQuery`/`NamedRow`/`NamedColumn`, typed annotation·alias와 ordered dynamic
+batch, metadata binding 및 원 모델/projection decoder를 작성했다. 생성 facade v28은 일반 모델 wrapper와
+명명 결과를 함께 반환하며 projection·집계·filter·order·slice·Page·Count/Exists·명시 stage를 같은 ORM 경로로 연결한다.
+두 생성 소비자에는 scalar 모델과 cross-app collection 모델, 실패/소유권 및 compile 부정 대조를 작성했다.
+기존 일곱 프로젝트 생성물을 표준 `godj generate`로 갱신했다. Helpdesk 업무 연결과 독립 Django 비교는 남아 있다.
+
+- ORM·codegen·생성 소비자 host의 필요한 compile-only: exit 0. 각 명령은 `-run '^$'`이며 본문을 실행하지 않았다.
+- 두 외부 생성 모듈의 `go test -mod=mod -run '^$' ./consumer`: 각각 exit 0. 생성 API의 타입 연결만 확인했다.
+- PostgreSQL partition 검사 8개와 실제 Bash child/root selector 검사 1개: exit 0.
+  모든 필수 sentinel이 mode마다 정확히 한 owner를 갖고, write root의 새 child도 같은 owner를 따르는지 검사했다.
+- `gofmt`·`git diff --check`, Markdown 223개 링크 검사 성공.
+- 보존 경로 `gdj0134-orm-facade-01xxntcd/`의 `source.json`은 baseline과 변경 비문서 source 127개 hash,
+  생성·외부 compile 원본과 검증 경계를 담는다. Receipt SHA-256:
+  `5765976f0680c42272d0be3f69562f378be68d02b2b2c9ae5a4adb4481e3f8dc`.
+
+최초 [CI 39543417792](https://github.com/progresshans/godj/actions/runs/39543417792)는 source `f521f965`의 실행이다.
+SQLite job `119036140551`과 PostgreSQL job `119036140066`의 새 annotation fixture가 nullable Duration terminal을
+제한된 단일-hop constructor에 바로 넘겨 setup에서 실패했다. Primary-key hop을 만든 뒤 공통 relation chain의
+terminal을 지정하도록 수정했고, 해당 SQLite root의 11개 시나리오만 로컬 실패 재현으로 실행해 통과했다.
+이는 새 ORM·생성 facade 또는 현재 source의 전체 DB PASS가 아니다.
+
+같은 CI의 race core-consumers job `119036139969`는 36개 root를 완료한 뒤 `TestGeneratedURLConsumer`가 시작된
+상태에서 package 전체 30분 제한으로 종료됐다. 해당 root가 멈췄다는 증거는 없으며 완료 root 시간 합은 1,795.46초다.
+Bulk create/update·query update·단일 생성·update-or-create·행 잠금의 전체 root를 새 race core-consumer-writes에
+배정했다. 전체 필수 목록·각 consumer의 제한·no-skip 검사는 유지한다. Normal/CGO0 core의 소유권은 동일하다.
+위 세 failed job의 원본 log·metadata는 같은 보존 경로에 있으며 후속 source의 성공으로 취급하지 않는다.
+
+이번 ORM·생성 소비자의 runtime·native DB·race·process·전체 platform 검증은 다음 자동 전체 CI에서 수행한다.
+아직 Q1/G-ORM 또는 기능 완료로 계산하지 않는다.
+
 ## GDJ-0134 — 명명 참조·집계 compiler checkpoint
 
 2026-10-21, 복구 commit `c5415723` 위에서 공통 `ScalarAnnotation`의 source 권한·dependency·확장 예산,

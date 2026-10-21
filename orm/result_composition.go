@@ -57,6 +57,13 @@ func combineResultDecoders[A, B, R any](left func() resultDecoder[A], right func
 		return resultDecoder[R]{
 			destinations: append(slices.Clone(a.destinations), b.destinations...),
 			decode:       func() R { return build(a.decode(), b.decode()) },
+			err:          firstError(a.err, b.err),
+			validate: func() error {
+				if err := a.validateScanned(); err != nil {
+					return err
+				}
+				return b.validateScanned()
+			},
 		}
 	}
 }

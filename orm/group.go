@@ -31,7 +31,7 @@ func GroupBy[M, K, A, R any](source QuerySet[M], keys Projection[M, K], aggregat
 	if source.materialization != nil && (len(source.materialization.targets) > 0 || len(source.materialization.selections) > 0) {
 		return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "grouping requires a source without eager or prefetch selections"}
 	}
-	return newGroupedQuery(resultOrigin{source.backend, source.validateTerminal}, source.plan, keys, aggregate, build)
+	return newGroupedQuery(resultOriginFor(source), source.plan, keys, aggregate, build)
 }
 
 func newGroupedQuery[M, K, A, R any](origin resultOrigin, input query.Plan, keys Projection[M, K], aggregate Aggregate[M, A], build func(K, A) R) (GroupedQuery[M, R], error) {

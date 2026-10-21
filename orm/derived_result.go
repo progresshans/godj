@@ -194,11 +194,13 @@ func (column ResultColumn[M, V]) Desc() Ordering[M] { return column.order(query.
 
 // OptionalOperand and NullableOperand remove a Go result wrapper from the
 // operand type. SQL NULL remains NULL; no coalescing or value conversion occurs.
-func OptionalOperand[M, V any](column ResultColumn[M, Optional[V]]) ScalarExpression[M, V] {
-	return resultOperand[M, V](column.value.expression, column.value.err)
+func OptionalOperand[M, V any](column ScalarOperand[M, Optional[V]]) ScalarExpression[M, V] {
+	expression, err := operandExpression(column)
+	return resultOperand[M, V](expression, err)
 }
-func NullableOperand[M, V any](column ResultColumn[M, *V]) ScalarExpression[M, V] {
-	return resultOperand[M, V](column.value.expression, column.value.err)
+func NullableOperand[M, V any](column ScalarOperand[M, *V]) ScalarExpression[M, V] {
+	expression, err := operandExpression(column)
+	return resultOperand[M, V](expression, err)
 }
 func resultOperand[M, V any](expression query.ScalarExpression, err error) ScalarExpression[M, V] {
 	if err == nil && (scalarKind[V]() == "" || scalarKind[V]() != expression.ResultKind()) {

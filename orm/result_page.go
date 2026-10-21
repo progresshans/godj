@@ -82,6 +82,13 @@ func readResultPage[R any](ctx context.Context, backend db.Queryer, plan query.P
 			break
 		}
 		decoder := newDecoder()
+		if err = decoder.err; err != nil {
+			break
+		}
+		if len(decoder.destinations) != len(raw)-2 {
+			err = invalidResultBuilder("result page decoder does not match its selected columns")
+			break
+		}
 		for index, destination := range decoder.destinations {
 			if err = scanGroupValue(destination, raw[index+2]); err != nil {
 				err = fmt.Errorf("scan result page cell %d: %w", index, err)
@@ -89,6 +96,9 @@ func readResultPage[R any](ctx context.Context, backend db.Queryer, plan query.P
 			}
 		}
 		if err != nil {
+			break
+		}
+		if err = decoder.validateScanned(); err != nil {
 			break
 		}
 		values = append(values, decoder)

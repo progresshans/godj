@@ -235,6 +235,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         coordinates = [('normal', 'core', '18m'), ('normal', 'operator-target', '18m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
                        ('race', 'core-consumers', '30m'),
+                       ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
                        ('cgo0', 'core', '18m'), ('cgo0', 'operator-target', '18m')]
         for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):

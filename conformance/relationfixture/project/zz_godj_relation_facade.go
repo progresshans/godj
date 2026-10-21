@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
-const GoDjProjectRelationFacadeInputSHA256 = "034727920762193e8362908a65157646edbfbb03598795ea6880bf58871c28be"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
+const GoDjProjectRelationFacadeInputSHA256 = "4451e3fcfaba9f9af888852963f721f73b30afdb5264a9d59a91d63c30f165b2"
 
 type Backend interface {
 	db.Queryer
@@ -759,6 +759,279 @@ func (_query AuthorsAuthorQuery) Iterate(_ctx context.Context, _size int, _callb
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AuthorsAuthor, _size, _yield)
+}
+
+type AuthorsAuthorNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[authors.Author, authors.Author]
+}
+type AuthorsAuthorAnnotationSource interface {
+	relationFacadeAuthorsAuthorNames() (AuthorsAuthorNamedQuery, error)
+}
+
+func (_query AuthorsAuthorQuery) relationFacadeAuthorsAuthorNames() (AuthorsAuthorNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AuthorsAuthor)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	return AuthorsAuthorNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AuthorsAuthorNamedQuery) relationFacadeAuthorsAuthorNames() (AuthorsAuthorNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AuthorsAuthorNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AuthorsAuthorNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[authors.Author, *AuthorsAuthor], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AuthorsAuthorNamedQuery) wrapRows(_rows []orm.NamedRow[authors.Author, authors.Author]) ([]orm.NamedRow[authors.Author, *AuthorsAuthor], error) {
+	_result := make([]orm.NamedRow[authors.Author, *AuthorsAuthor], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value authors.Author) (*AuthorsAuthor, error) {
+			return _query.state.wrapAuthorsAuthor(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AuthorsAuthorNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[authors.Author, *AuthorsAuthor]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[authors.Author, *AuthorsAuthor]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[authors.Author, *AuthorsAuthor]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AuthorsAuthorNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AuthorsAuthorNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AuthorsAuthorNamedQuery) Derive() (orm.ResultSource[authors.Author], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[authors.Author]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AuthorsAuthorNamedQuery) Column(_name string) (orm.NamedColumn[authors.Author, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[authors.Author, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AuthorsAuthorNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[authors.Author], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[authors.Author]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AuthorsAuthorNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[authors.Author, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[authors.Author, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AuthorsAuthorNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[authors.Author], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[authors.Author]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AuthorsAuthorNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[authors.Author, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[authors.Author, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAuthorsAuthorNamedQuery[R any](_source AuthorsAuthorNamedQuery, _projection orm.Projection[authors.Author, R]) (orm.ResultQuery[authors.Author, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[authors.Author, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AuthorsAuthorNamedQuery) Filter(_predicates ...orm.Predicate[authors.Author]) AuthorsAuthorNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AuthorsAuthorNamedQuery) OrderBy(_orderings ...orm.Ordering[authors.Author]) AuthorsAuthorNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AuthorsAuthorNamedQuery) Distinct() AuthorsAuthorNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AuthorsAuthorNamedQuery) Fresh() AuthorsAuthorNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AuthorsAuthorNamedQuery) Limit(_value int) (AuthorsAuthorNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AuthorsAuthorNamedQuery) Offset(_value int) (AuthorsAuthorNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AuthorsAuthorQuery) Annotate(_values ...orm.NamedExpression) (AuthorsAuthorNamedQuery, error) {
+	_source, _err := _query.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AuthorsAuthorQuery) Alias(_values ...orm.NamedExpression) (AuthorsAuthorNamedQuery, error) {
+	_source, _err := _query.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AuthorsAuthorNamedQuery) Annotate(_values ...orm.NamedExpression) (AuthorsAuthorNamedQuery, error) {
+	_source, _err := _query.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AuthorsAuthorNamedQuery) Alias(_values ...orm.NamedExpression) (AuthorsAuthorNamedQuery, error) {
+	_source, _err := _query.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAuthorsAuthor[V any](_input AuthorsAuthorAnnotationSource, _name string, _value orm.ScalarField[authors.Author, V]) (AuthorsAuthorNamedQuery, orm.NamedColumn[authors.Author, V], error) {
+	var _column orm.NamedColumn[authors.Author, V]
+	if relationFacadeNil(_input) {
+		return AuthorsAuthorNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAuthorsAuthorAggregate[V any](_input AuthorsAuthorAnnotationSource, _name string, _value orm.AggregateExpression[authors.Author, V]) (AuthorsAuthorNamedQuery, orm.NamedColumn[authors.Author, V], error) {
+	var _column orm.NamedColumn[authors.Author, V]
+	if relationFacadeNil(_input) {
+		return AuthorsAuthorNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAuthorsAuthor[V any](_input AuthorsAuthorAnnotationSource, _name string, _value orm.ScalarField[authors.Author, V]) (AuthorsAuthorNamedQuery, orm.NamedColumn[authors.Author, V], error) {
+	var _column orm.NamedColumn[authors.Author, V]
+	if relationFacadeNil(_input) {
+		return AuthorsAuthorNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAuthorsAuthorAggregate[V any](_input AuthorsAuthorAnnotationSource, _name string, _value orm.AggregateExpression[authors.Author, V]) (AuthorsAuthorNamedQuery, orm.NamedColumn[authors.Author, V], error) {
+	var _column orm.NamedColumn[authors.Author, V]
+	if relationFacadeNil(_input) {
+		return AuthorsAuthorNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAuthorsAuthorNames()
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AuthorsAuthorNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type authorsAuthorModel = authors.Author
@@ -1730,6 +2003,277 @@ func (_query BlogPostQuery) Iterate(_ctx context.Context, _size int, _callback f
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.BlogPost, _size, _yield)
+}
+
+type BlogPostNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[blog.Post, blog.Post]
+}
+type BlogPostAnnotationSource interface {
+	relationFacadeBlogPostNames() (BlogPostNamedQuery, error)
+}
+
+func (_query BlogPostQuery) relationFacadeBlogPostNames() (BlogPostNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.BlogPost)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	return BlogPostNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query BlogPostNamedQuery) relationFacadeBlogPostNames() (BlogPostNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query BlogPostNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query BlogPostNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[blog.Post, *BlogPost], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query BlogPostNamedQuery) wrapRows(_rows []orm.NamedRow[blog.Post, blog.Post]) ([]orm.NamedRow[blog.Post, *BlogPost], error) {
+	_result := make([]orm.NamedRow[blog.Post, *BlogPost], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value blog.Post) (*BlogPost, error) { return _query.state.wrapBlogPost(_value, false) })
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query BlogPostNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[blog.Post, *BlogPost]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[blog.Post, *BlogPost]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[blog.Post, *BlogPost]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query BlogPostNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query BlogPostNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query BlogPostNamedQuery) Derive() (orm.ResultSource[blog.Post], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[blog.Post]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query BlogPostNamedQuery) Column(_name string) (orm.NamedColumn[blog.Post, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[blog.Post, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query BlogPostNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[blog.Post], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[blog.Post]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query BlogPostNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[blog.Post, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[blog.Post, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query BlogPostNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[blog.Post], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[blog.Post]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query BlogPostNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[blog.Post, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[blog.Post, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectBlogPostNamedQuery[R any](_source BlogPostNamedQuery, _projection orm.Projection[blog.Post, R]) (orm.ResultQuery[blog.Post, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[blog.Post, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query BlogPostNamedQuery) Filter(_predicates ...orm.Predicate[blog.Post]) BlogPostNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query BlogPostNamedQuery) OrderBy(_orderings ...orm.Ordering[blog.Post]) BlogPostNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query BlogPostNamedQuery) Distinct() BlogPostNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query BlogPostNamedQuery) Fresh() BlogPostNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query BlogPostNamedQuery) Limit(_value int) (BlogPostNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query BlogPostNamedQuery) Offset(_value int) (BlogPostNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query BlogPostQuery) Annotate(_values ...orm.NamedExpression) (BlogPostNamedQuery, error) {
+	_source, _err := _query.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query BlogPostQuery) Alias(_values ...orm.NamedExpression) (BlogPostNamedQuery, error) {
+	_source, _err := _query.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query BlogPostNamedQuery) Annotate(_values ...orm.NamedExpression) (BlogPostNamedQuery, error) {
+	_source, _err := _query.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query BlogPostNamedQuery) Alias(_values ...orm.NamedExpression) (BlogPostNamedQuery, error) {
+	_source, _err := _query.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateBlogPost[V any](_input BlogPostAnnotationSource, _name string, _value orm.ScalarField[blog.Post, V]) (BlogPostNamedQuery, orm.NamedColumn[blog.Post, V], error) {
+	var _column orm.NamedColumn[blog.Post, V]
+	if relationFacadeNil(_input) {
+		return BlogPostNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateBlogPostAggregate[V any](_input BlogPostAnnotationSource, _name string, _value orm.AggregateExpression[blog.Post, V]) (BlogPostNamedQuery, orm.NamedColumn[blog.Post, V], error) {
+	var _column orm.NamedColumn[blog.Post, V]
+	if relationFacadeNil(_input) {
+		return BlogPostNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasBlogPost[V any](_input BlogPostAnnotationSource, _name string, _value orm.ScalarField[blog.Post, V]) (BlogPostNamedQuery, orm.NamedColumn[blog.Post, V], error) {
+	var _column orm.NamedColumn[blog.Post, V]
+	if relationFacadeNil(_input) {
+		return BlogPostNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasBlogPostAggregate[V any](_input BlogPostAnnotationSource, _name string, _value orm.AggregateExpression[blog.Post, V]) (BlogPostNamedQuery, orm.NamedColumn[blog.Post, V], error) {
+	var _column orm.NamedColumn[blog.Post, V]
+	if relationFacadeNil(_input) {
+		return BlogPostNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeBlogPostNames()
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return BlogPostNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type blogPostModel = blog.Post
@@ -3118,4 +3662,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_2ca7c9c9042082273df0b65261e94c9c88c05250247156ed5c8ddea52cba6417
+var _ goDjProjectSnapshot_8a1ca9c7ed478683067c11ffd37105c9340f3c2e20ea5b6ff92f10e8b2e2182a

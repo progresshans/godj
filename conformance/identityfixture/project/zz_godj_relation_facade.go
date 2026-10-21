@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
-const GoDjProjectRelationFacadeInputSHA256 = "5cb23de712e81748d98fd725fe743d00d5c9e2cfd33dbc1e38ba21e9353b467c"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
+const GoDjProjectRelationFacadeInputSHA256 = "cb3e02853aa5f32336e4aad98a51e026c3845e1b0cdc72ddc1aa6bcbca087b97"
 
 type Backend interface {
 	db.Queryer
@@ -770,6 +770,279 @@ func (_query AccountsGroupQuery) Iterate(_ctx context.Context, _size int, _callb
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsGroup, _size, _yield)
+}
+
+type AccountsGroupNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.Group, accounts.Group]
+}
+type AccountsGroupAnnotationSource interface {
+	relationFacadeAccountsGroupNames() (AccountsGroupNamedQuery, error)
+}
+
+func (_query AccountsGroupQuery) relationFacadeAccountsGroupNames() (AccountsGroupNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsGroup)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	return AccountsGroupNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsGroupNamedQuery) relationFacadeAccountsGroupNames() (AccountsGroupNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsGroupNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsGroupNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.Group, *AccountsGroup], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsGroupNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.Group, accounts.Group]) ([]orm.NamedRow[accounts.Group, *AccountsGroup], error) {
+	_result := make([]orm.NamedRow[accounts.Group, *AccountsGroup], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.Group) (*AccountsGroup, error) {
+			return _query.state.wrapAccountsGroup(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsGroupNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.Group, *AccountsGroup]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.Group, *AccountsGroup]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.Group, *AccountsGroup]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsGroupNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsGroupNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsGroupNamedQuery) Derive() (orm.ResultSource[accounts.Group], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.Group]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsGroupNamedQuery) Column(_name string) (orm.NamedColumn[accounts.Group, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.Group, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsGroupNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.Group], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.Group]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsGroupNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.Group, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.Group, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsGroupNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.Group], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.Group]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsGroupNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.Group, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.Group, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsGroupNamedQuery[R any](_source AccountsGroupNamedQuery, _projection orm.Projection[accounts.Group, R]) (orm.ResultQuery[accounts.Group, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Group, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsGroupNamedQuery) Filter(_predicates ...orm.Predicate[accounts.Group]) AccountsGroupNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsGroupNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.Group]) AccountsGroupNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsGroupNamedQuery) Distinct() AccountsGroupNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsGroupNamedQuery) Fresh() AccountsGroupNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsGroupNamedQuery) Limit(_value int) (AccountsGroupNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsGroupNamedQuery) Offset(_value int) (AccountsGroupNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsGroupQuery) Annotate(_values ...orm.NamedExpression) (AccountsGroupNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupQuery) Alias(_values ...orm.NamedExpression) (AccountsGroupNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsGroupNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsGroupNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsGroup[V any](_input AccountsGroupAnnotationSource, _name string, _value orm.ScalarField[accounts.Group, V]) (AccountsGroupNamedQuery, orm.NamedColumn[accounts.Group, V], error) {
+	var _column orm.NamedColumn[accounts.Group, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsGroupAggregate[V any](_input AccountsGroupAnnotationSource, _name string, _value orm.AggregateExpression[accounts.Group, V]) (AccountsGroupNamedQuery, orm.NamedColumn[accounts.Group, V], error) {
+	var _column orm.NamedColumn[accounts.Group, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsGroup[V any](_input AccountsGroupAnnotationSource, _name string, _value orm.ScalarField[accounts.Group, V]) (AccountsGroupNamedQuery, orm.NamedColumn[accounts.Group, V], error) {
+	var _column orm.NamedColumn[accounts.Group, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsGroupAggregate[V any](_input AccountsGroupAnnotationSource, _name string, _value orm.AggregateExpression[accounts.Group, V]) (AccountsGroupNamedQuery, orm.NamedColumn[accounts.Group, V], error) {
+	var _column orm.NamedColumn[accounts.Group, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupNames()
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type accountsGroupModel = accounts.Group
@@ -2081,6 +2354,279 @@ func (_query AccountsGroupPermissionsLinkQuery) Iterate(_ctx context.Context, _s
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsGroupPermissionsLink, _size, _yield)
+}
+
+type AccountsGroupPermissionsLinkNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.GroupPermissionsLink, accounts.GroupPermissionsLink]
+}
+type AccountsGroupPermissionsLinkAnnotationSource interface {
+	relationFacadeAccountsGroupPermissionsLinkNames() (AccountsGroupPermissionsLinkNamedQuery, error)
+}
+
+func (_query AccountsGroupPermissionsLinkQuery) relationFacadeAccountsGroupPermissionsLinkNames() (AccountsGroupPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsGroupPermissionsLink)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	return AccountsGroupPermissionsLinkNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) relationFacadeAccountsGroupPermissionsLinkNames() (AccountsGroupPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.GroupPermissionsLink, accounts.GroupPermissionsLink]) ([]orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink], error) {
+	_result := make([]orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.GroupPermissionsLink) (*AccountsGroupPermissionsLink, error) {
+			return _query.state.wrapAccountsGroupPermissionsLink(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.GroupPermissionsLink, *AccountsGroupPermissionsLink]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Derive() (orm.ResultSource[accounts.GroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.GroupPermissionsLink]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Column(_name string) (orm.NamedColumn[accounts.GroupPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.GroupPermissionsLink, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.GroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.GroupPermissionsLink]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.GroupPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.GroupPermissionsLink, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.GroupPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.GroupPermissionsLink]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.GroupPermissionsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.GroupPermissionsLink, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsGroupPermissionsLinkNamedQuery[R any](_source AccountsGroupPermissionsLinkNamedQuery, _projection orm.Projection[accounts.GroupPermissionsLink, R]) (orm.ResultQuery[accounts.GroupPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.GroupPermissionsLink, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Filter(_predicates ...orm.Predicate[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.GroupPermissionsLink]) AccountsGroupPermissionsLinkNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Distinct() AccountsGroupPermissionsLinkNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Fresh() AccountsGroupPermissionsLinkNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Limit(_value int) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Offset(_value int) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsGroupPermissionsLinkQuery) Annotate(_values ...orm.NamedExpression) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupPermissionsLinkQuery) Alias(_values ...orm.NamedExpression) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsGroupPermissionsLinkNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsGroupPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsGroupPermissionsLink[V any](_input AccountsGroupPermissionsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.GroupPermissionsLink, V]) (AccountsGroupPermissionsLinkNamedQuery, orm.NamedColumn[accounts.GroupPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.GroupPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsGroupPermissionsLinkAggregate[V any](_input AccountsGroupPermissionsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.GroupPermissionsLink, V]) (AccountsGroupPermissionsLinkNamedQuery, orm.NamedColumn[accounts.GroupPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.GroupPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsGroupPermissionsLink[V any](_input AccountsGroupPermissionsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.GroupPermissionsLink, V]) (AccountsGroupPermissionsLinkNamedQuery, orm.NamedColumn[accounts.GroupPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.GroupPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsGroupPermissionsLinkAggregate[V any](_input AccountsGroupPermissionsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.GroupPermissionsLink, V]) (AccountsGroupPermissionsLinkNamedQuery, orm.NamedColumn[accounts.GroupPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.GroupPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsGroupPermissionsLinkNames()
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsGroupPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type accountsGroupPermissionsLinkModel = accounts.GroupPermissionsLink
@@ -3732,6 +4278,279 @@ func (_query AccountsPermissionQuery) Iterate(_ctx context.Context, _size int, _
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsPermission, _size, _yield)
 }
 
+type AccountsPermissionNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.Permission, accounts.Permission]
+}
+type AccountsPermissionAnnotationSource interface {
+	relationFacadeAccountsPermissionNames() (AccountsPermissionNamedQuery, error)
+}
+
+func (_query AccountsPermissionQuery) relationFacadeAccountsPermissionNames() (AccountsPermissionNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsPermission)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	return AccountsPermissionNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsPermissionNamedQuery) relationFacadeAccountsPermissionNames() (AccountsPermissionNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsPermissionNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsPermissionNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.Permission, *AccountsPermission], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsPermissionNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.Permission, accounts.Permission]) ([]orm.NamedRow[accounts.Permission, *AccountsPermission], error) {
+	_result := make([]orm.NamedRow[accounts.Permission, *AccountsPermission], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.Permission) (*AccountsPermission, error) {
+			return _query.state.wrapAccountsPermission(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsPermissionNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.Permission, *AccountsPermission]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.Permission, *AccountsPermission]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.Permission, *AccountsPermission]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsPermissionNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsPermissionNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsPermissionNamedQuery) Derive() (orm.ResultSource[accounts.Permission], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.Permission]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsPermissionNamedQuery) Column(_name string) (orm.NamedColumn[accounts.Permission, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.Permission, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsPermissionNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.Permission], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.Permission]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsPermissionNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.Permission, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.Permission, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsPermissionNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.Permission], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.Permission]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsPermissionNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.Permission, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.Permission, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsPermissionNamedQuery[R any](_source AccountsPermissionNamedQuery, _projection orm.Projection[accounts.Permission, R]) (orm.ResultQuery[accounts.Permission, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.Permission, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsPermissionNamedQuery) Filter(_predicates ...orm.Predicate[accounts.Permission]) AccountsPermissionNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsPermissionNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.Permission]) AccountsPermissionNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsPermissionNamedQuery) Distinct() AccountsPermissionNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsPermissionNamedQuery) Fresh() AccountsPermissionNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsPermissionNamedQuery) Limit(_value int) (AccountsPermissionNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsPermissionNamedQuery) Offset(_value int) (AccountsPermissionNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsPermissionQuery) Annotate(_values ...orm.NamedExpression) (AccountsPermissionNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsPermissionQuery) Alias(_values ...orm.NamedExpression) (AccountsPermissionNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsPermissionNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsPermissionNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsPermissionNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsPermissionNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsPermission[V any](_input AccountsPermissionAnnotationSource, _name string, _value orm.ScalarField[accounts.Permission, V]) (AccountsPermissionNamedQuery, orm.NamedColumn[accounts.Permission, V], error) {
+	var _column orm.NamedColumn[accounts.Permission, V]
+	if relationFacadeNil(_input) {
+		return AccountsPermissionNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsPermissionAggregate[V any](_input AccountsPermissionAnnotationSource, _name string, _value orm.AggregateExpression[accounts.Permission, V]) (AccountsPermissionNamedQuery, orm.NamedColumn[accounts.Permission, V], error) {
+	var _column orm.NamedColumn[accounts.Permission, V]
+	if relationFacadeNil(_input) {
+		return AccountsPermissionNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsPermission[V any](_input AccountsPermissionAnnotationSource, _name string, _value orm.ScalarField[accounts.Permission, V]) (AccountsPermissionNamedQuery, orm.NamedColumn[accounts.Permission, V], error) {
+	var _column orm.NamedColumn[accounts.Permission, V]
+	if relationFacadeNil(_input) {
+		return AccountsPermissionNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsPermissionAggregate[V any](_input AccountsPermissionAnnotationSource, _name string, _value orm.AggregateExpression[accounts.Permission, V]) (AccountsPermissionNamedQuery, orm.NamedColumn[accounts.Permission, V], error) {
+	var _column orm.NamedColumn[accounts.Permission, V]
+	if relationFacadeNil(_input) {
+		return AccountsPermissionNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsPermissionNames()
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsPermissionNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type accountsPermissionModel = accounts.Permission
 
 type AccountsPermission struct {
@@ -5036,6 +5855,277 @@ func (_query AccountsUserQuery) Iterate(_ctx context.Context, _size int, _callba
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsUser, _size, _yield)
+}
+
+type AccountsUserNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.User, accounts.User]
+}
+type AccountsUserAnnotationSource interface {
+	relationFacadeAccountsUserNames() (AccountsUserNamedQuery, error)
+}
+
+func (_query AccountsUserQuery) relationFacadeAccountsUserNames() (AccountsUserNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsUser)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	return AccountsUserNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsUserNamedQuery) relationFacadeAccountsUserNames() (AccountsUserNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsUserNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsUserNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.User, *AccountsUser], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsUserNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.User, accounts.User]) ([]orm.NamedRow[accounts.User, *AccountsUser], error) {
+	_result := make([]orm.NamedRow[accounts.User, *AccountsUser], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.User) (*AccountsUser, error) { return _query.state.wrapAccountsUser(_value, false) })
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsUserNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.User, *AccountsUser]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.User, *AccountsUser]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.User, *AccountsUser]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsUserNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsUserNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsUserNamedQuery) Derive() (orm.ResultSource[accounts.User], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.User]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsUserNamedQuery) Column(_name string) (orm.NamedColumn[accounts.User, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.User, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsUserNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.User], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.User]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsUserNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.User, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.User, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsUserNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.User], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.User]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsUserNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.User, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.User, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsUserNamedQuery[R any](_source AccountsUserNamedQuery, _projection orm.Projection[accounts.User, R]) (orm.ResultQuery[accounts.User, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.User, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsUserNamedQuery) Filter(_predicates ...orm.Predicate[accounts.User]) AccountsUserNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsUserNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.User]) AccountsUserNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsUserNamedQuery) Distinct() AccountsUserNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsUserNamedQuery) Fresh() AccountsUserNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsUserNamedQuery) Limit(_value int) (AccountsUserNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserNamedQuery) Offset(_value int) (AccountsUserNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserQuery) Alias(_values ...orm.NamedExpression) (AccountsUserNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsUserNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsUser[V any](_input AccountsUserAnnotationSource, _name string, _value orm.ScalarField[accounts.User, V]) (AccountsUserNamedQuery, orm.NamedColumn[accounts.User, V], error) {
+	var _column orm.NamedColumn[accounts.User, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsUserAggregate[V any](_input AccountsUserAnnotationSource, _name string, _value orm.AggregateExpression[accounts.User, V]) (AccountsUserNamedQuery, orm.NamedColumn[accounts.User, V], error) {
+	var _column orm.NamedColumn[accounts.User, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUser[V any](_input AccountsUserAnnotationSource, _name string, _value orm.ScalarField[accounts.User, V]) (AccountsUserNamedQuery, orm.NamedColumn[accounts.User, V], error) {
+	var _column orm.NamedColumn[accounts.User, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUserAggregate[V any](_input AccountsUserAnnotationSource, _name string, _value orm.AggregateExpression[accounts.User, V]) (AccountsUserNamedQuery, orm.NamedColumn[accounts.User, V], error) {
+	var _column orm.NamedColumn[accounts.User, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserNames()
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type accountsUserModel = accounts.User
@@ -6347,6 +7437,279 @@ func (_query AccountsUserGroupsLinkQuery) Iterate(_ctx context.Context, _size in
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsUserGroupsLink, _size, _yield)
+}
+
+type AccountsUserGroupsLinkNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.UserGroupsLink, accounts.UserGroupsLink]
+}
+type AccountsUserGroupsLinkAnnotationSource interface {
+	relationFacadeAccountsUserGroupsLinkNames() (AccountsUserGroupsLinkNamedQuery, error)
+}
+
+func (_query AccountsUserGroupsLinkQuery) relationFacadeAccountsUserGroupsLinkNames() (AccountsUserGroupsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsUserGroupsLink)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	return AccountsUserGroupsLinkNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) relationFacadeAccountsUserGroupsLinkNames() (AccountsUserGroupsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsUserGroupsLinkNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.UserGroupsLink, accounts.UserGroupsLink]) ([]orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink], error) {
+	_result := make([]orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.UserGroupsLink) (*AccountsUserGroupsLink, error) {
+			return _query.state.wrapAccountsUserGroupsLink(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.UserGroupsLink, *AccountsUserGroupsLink]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Derive() (orm.ResultSource[accounts.UserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.UserGroupsLink]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Column(_name string) (orm.NamedColumn[accounts.UserGroupsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.UserGroupsLink, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.UserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.UserGroupsLink]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.UserGroupsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.UserGroupsLink, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.UserGroupsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.UserGroupsLink]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.UserGroupsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.UserGroupsLink, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsUserGroupsLinkNamedQuery[R any](_source AccountsUserGroupsLinkNamedQuery, _projection orm.Projection[accounts.UserGroupsLink, R]) (orm.ResultQuery[accounts.UserGroupsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserGroupsLink, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Filter(_predicates ...orm.Predicate[accounts.UserGroupsLink]) AccountsUserGroupsLinkNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsUserGroupsLinkNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.UserGroupsLink]) AccountsUserGroupsLinkNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Distinct() AccountsUserGroupsLinkNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Fresh() AccountsUserGroupsLinkNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Limit(_value int) (AccountsUserGroupsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Offset(_value int) (AccountsUserGroupsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserGroupsLinkQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserGroupsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserGroupsLinkQuery) Alias(_values ...orm.NamedExpression) (AccountsUserGroupsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserGroupsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserGroupsLinkNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsUserGroupsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsUserGroupsLink[V any](_input AccountsUserGroupsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.UserGroupsLink, V]) (AccountsUserGroupsLinkNamedQuery, orm.NamedColumn[accounts.UserGroupsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserGroupsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsUserGroupsLinkAggregate[V any](_input AccountsUserGroupsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.UserGroupsLink, V]) (AccountsUserGroupsLinkNamedQuery, orm.NamedColumn[accounts.UserGroupsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserGroupsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUserGroupsLink[V any](_input AccountsUserGroupsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.UserGroupsLink, V]) (AccountsUserGroupsLinkNamedQuery, orm.NamedColumn[accounts.UserGroupsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserGroupsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUserGroupsLinkAggregate[V any](_input AccountsUserGroupsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.UserGroupsLink, V]) (AccountsUserGroupsLinkNamedQuery, orm.NamedColumn[accounts.UserGroupsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserGroupsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserGroupsLinkNames()
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserGroupsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type accountsUserGroupsLinkModel = accounts.UserGroupsLink
@@ -8005,6 +9368,279 @@ func (_query AccountsUserPermissionsLinkQuery) Iterate(_ctx context.Context, _si
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountsUserPermissionsLink, _size, _yield)
 }
 
+type AccountsUserPermissionsLinkNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accounts.UserPermissionsLink, accounts.UserPermissionsLink]
+}
+type AccountsUserPermissionsLinkAnnotationSource interface {
+	relationFacadeAccountsUserPermissionsLinkNames() (AccountsUserPermissionsLinkNamedQuery, error)
+}
+
+func (_query AccountsUserPermissionsLinkQuery) relationFacadeAccountsUserPermissionsLinkNames() (AccountsUserPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountsUserPermissionsLink)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	return AccountsUserPermissionsLinkNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) relationFacadeAccountsUserPermissionsLinkNames() (AccountsUserPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) wrapRows(_rows []orm.NamedRow[accounts.UserPermissionsLink, accounts.UserPermissionsLink]) ([]orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink], error) {
+	_result := make([]orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accounts.UserPermissionsLink) (*AccountsUserPermissionsLink, error) {
+			return _query.state.wrapAccountsUserPermissionsLink(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accounts.UserPermissionsLink, *AccountsUserPermissionsLink]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Derive() (orm.ResultSource[accounts.UserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accounts.UserPermissionsLink]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Column(_name string) (orm.NamedColumn[accounts.UserPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accounts.UserPermissionsLink, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accounts.UserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accounts.UserPermissionsLink]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accounts.UserPermissionsLink, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accounts.UserPermissionsLink, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accounts.UserPermissionsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accounts.UserPermissionsLink]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accounts.UserPermissionsLink, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accounts.UserPermissionsLink, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountsUserPermissionsLinkNamedQuery[R any](_source AccountsUserPermissionsLinkNamedQuery, _projection orm.Projection[accounts.UserPermissionsLink, R]) (orm.ResultQuery[accounts.UserPermissionsLink, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accounts.UserPermissionsLink, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Filter(_predicates ...orm.Predicate[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) OrderBy(_orderings ...orm.Ordering[accounts.UserPermissionsLink]) AccountsUserPermissionsLinkNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Distinct() AccountsUserPermissionsLinkNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Fresh() AccountsUserPermissionsLinkNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Limit(_value int) (AccountsUserPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Offset(_value int) (AccountsUserPermissionsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountsUserPermissionsLinkQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserPermissionsLinkQuery) Alias(_values ...orm.NamedExpression) (AccountsUserPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountsUserPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountsUserPermissionsLinkNamedQuery) Alias(_values ...orm.NamedExpression) (AccountsUserPermissionsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountsUserPermissionsLink[V any](_input AccountsUserPermissionsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.UserPermissionsLink, V]) (AccountsUserPermissionsLinkNamedQuery, orm.NamedColumn[accounts.UserPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountsUserPermissionsLinkAggregate[V any](_input AccountsUserPermissionsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.UserPermissionsLink, V]) (AccountsUserPermissionsLinkNamedQuery, orm.NamedColumn[accounts.UserPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUserPermissionsLink[V any](_input AccountsUserPermissionsLinkAnnotationSource, _name string, _value orm.ScalarField[accounts.UserPermissionsLink, V]) (AccountsUserPermissionsLinkNamedQuery, orm.NamedColumn[accounts.UserPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountsUserPermissionsLinkAggregate[V any](_input AccountsUserPermissionsLinkAnnotationSource, _name string, _value orm.AggregateExpression[accounts.UserPermissionsLink, V]) (AccountsUserPermissionsLinkNamedQuery, orm.NamedColumn[accounts.UserPermissionsLink, V], error) {
+	var _column orm.NamedColumn[accounts.UserPermissionsLink, V]
+	if relationFacadeNil(_input) {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountsUserPermissionsLinkNames()
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountsUserPermissionsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type accountsUserPermissionsLinkModel = accounts.UserPermissionsLink
 
 type AccountsUserPermissionsLink struct {
@@ -9659,6 +11295,279 @@ func (_query WorkAccessGuardQuery) Iterate(_ctx context.Context, _size int, _cal
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkAccessGuard, _size, _yield)
+}
+
+type WorkAccessGuardNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[work.AccessGuard, work.AccessGuard]
+}
+type WorkAccessGuardAnnotationSource interface {
+	relationFacadeWorkAccessGuardNames() (WorkAccessGuardNamedQuery, error)
+}
+
+func (_query WorkAccessGuardQuery) relationFacadeWorkAccessGuardNames() (WorkAccessGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.WorkAccessGuard)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	return WorkAccessGuardNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query WorkAccessGuardNamedQuery) relationFacadeWorkAccessGuardNames() (WorkAccessGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkAccessGuardNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query WorkAccessGuardNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[work.AccessGuard, *WorkAccessGuard], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query WorkAccessGuardNamedQuery) wrapRows(_rows []orm.NamedRow[work.AccessGuard, work.AccessGuard]) ([]orm.NamedRow[work.AccessGuard, *WorkAccessGuard], error) {
+	_result := make([]orm.NamedRow[work.AccessGuard, *WorkAccessGuard], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value work.AccessGuard) (*WorkAccessGuard, error) {
+			return _query.state.wrapWorkAccessGuard(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[work.AccessGuard, *WorkAccessGuard]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[work.AccessGuard, *WorkAccessGuard]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[work.AccessGuard, *WorkAccessGuard]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query WorkAccessGuardNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query WorkAccessGuardNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query WorkAccessGuardNamedQuery) Derive() (orm.ResultSource[work.AccessGuard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[work.AccessGuard]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query WorkAccessGuardNamedQuery) Column(_name string) (orm.NamedColumn[work.AccessGuard, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[work.AccessGuard, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query WorkAccessGuardNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[work.AccessGuard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[work.AccessGuard]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query WorkAccessGuardNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[work.AccessGuard, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[work.AccessGuard, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query WorkAccessGuardNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[work.AccessGuard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[work.AccessGuard]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query WorkAccessGuardNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[work.AccessGuard, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[work.AccessGuard, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectWorkAccessGuardNamedQuery[R any](_source WorkAccessGuardNamedQuery, _projection orm.Projection[work.AccessGuard, R]) (orm.ResultQuery[work.AccessGuard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessGuard, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query WorkAccessGuardNamedQuery) Filter(_predicates ...orm.Predicate[work.AccessGuard]) WorkAccessGuardNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query WorkAccessGuardNamedQuery) OrderBy(_orderings ...orm.Ordering[work.AccessGuard]) WorkAccessGuardNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query WorkAccessGuardNamedQuery) Distinct() WorkAccessGuardNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query WorkAccessGuardNamedQuery) Fresh() WorkAccessGuardNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query WorkAccessGuardNamedQuery) Limit(_value int) (WorkAccessGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkAccessGuardNamedQuery) Offset(_value int) (WorkAccessGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkAccessGuardQuery) Annotate(_values ...orm.NamedExpression) (WorkAccessGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessGuardQuery) Alias(_values ...orm.NamedExpression) (WorkAccessGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessGuardNamedQuery) Annotate(_values ...orm.NamedExpression) (WorkAccessGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessGuardNamedQuery) Alias(_values ...orm.NamedExpression) (WorkAccessGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateWorkAccessGuard[V any](_input WorkAccessGuardAnnotationSource, _name string, _value orm.ScalarField[work.AccessGuard, V]) (WorkAccessGuardNamedQuery, orm.NamedColumn[work.AccessGuard, V], error) {
+	var _column orm.NamedColumn[work.AccessGuard, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateWorkAccessGuardAggregate[V any](_input WorkAccessGuardAnnotationSource, _name string, _value orm.AggregateExpression[work.AccessGuard, V]) (WorkAccessGuardNamedQuery, orm.NamedColumn[work.AccessGuard, V], error) {
+	var _column orm.NamedColumn[work.AccessGuard, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkAccessGuard[V any](_input WorkAccessGuardAnnotationSource, _name string, _value orm.ScalarField[work.AccessGuard, V]) (WorkAccessGuardNamedQuery, orm.NamedColumn[work.AccessGuard, V], error) {
+	var _column orm.NamedColumn[work.AccessGuard, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkAccessGuardAggregate[V any](_input WorkAccessGuardAnnotationSource, _name string, _value orm.AggregateExpression[work.AccessGuard, V]) (WorkAccessGuardNamedQuery, orm.NamedColumn[work.AccessGuard, V], error) {
+	var _column orm.NamedColumn[work.AccessGuard, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessGuardNames()
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type workAccessGuardModel = work.AccessGuard
@@ -11367,6 +13276,279 @@ func (_query WorkAccessNoteQuery) Iterate(_ctx context.Context, _size int, _call
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkAccessNote, _size, _yield)
 }
 
+type WorkAccessNoteNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[work.AccessNote, work.AccessNote]
+}
+type WorkAccessNoteAnnotationSource interface {
+	relationFacadeWorkAccessNoteNames() (WorkAccessNoteNamedQuery, error)
+}
+
+func (_query WorkAccessNoteQuery) relationFacadeWorkAccessNoteNames() (WorkAccessNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.WorkAccessNote)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	return WorkAccessNoteNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query WorkAccessNoteNamedQuery) relationFacadeWorkAccessNoteNames() (WorkAccessNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkAccessNoteNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query WorkAccessNoteNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[work.AccessNote, *WorkAccessNote], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query WorkAccessNoteNamedQuery) wrapRows(_rows []orm.NamedRow[work.AccessNote, work.AccessNote]) ([]orm.NamedRow[work.AccessNote, *WorkAccessNote], error) {
+	_result := make([]orm.NamedRow[work.AccessNote, *WorkAccessNote], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value work.AccessNote) (*WorkAccessNote, error) {
+			return _query.state.wrapWorkAccessNote(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query WorkAccessNoteNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[work.AccessNote, *WorkAccessNote]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[work.AccessNote, *WorkAccessNote]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[work.AccessNote, *WorkAccessNote]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query WorkAccessNoteNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query WorkAccessNoteNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query WorkAccessNoteNamedQuery) Derive() (orm.ResultSource[work.AccessNote], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[work.AccessNote]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query WorkAccessNoteNamedQuery) Column(_name string) (orm.NamedColumn[work.AccessNote, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[work.AccessNote, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query WorkAccessNoteNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[work.AccessNote], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[work.AccessNote]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query WorkAccessNoteNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[work.AccessNote, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[work.AccessNote, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query WorkAccessNoteNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[work.AccessNote], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[work.AccessNote]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query WorkAccessNoteNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[work.AccessNote, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[work.AccessNote, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectWorkAccessNoteNamedQuery[R any](_source WorkAccessNoteNamedQuery, _projection orm.Projection[work.AccessNote, R]) (orm.ResultQuery[work.AccessNote, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.AccessNote, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query WorkAccessNoteNamedQuery) Filter(_predicates ...orm.Predicate[work.AccessNote]) WorkAccessNoteNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query WorkAccessNoteNamedQuery) OrderBy(_orderings ...orm.Ordering[work.AccessNote]) WorkAccessNoteNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query WorkAccessNoteNamedQuery) Distinct() WorkAccessNoteNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query WorkAccessNoteNamedQuery) Fresh() WorkAccessNoteNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query WorkAccessNoteNamedQuery) Limit(_value int) (WorkAccessNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkAccessNoteNamedQuery) Offset(_value int) (WorkAccessNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkAccessNoteQuery) Annotate(_values ...orm.NamedExpression) (WorkAccessNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessNoteQuery) Alias(_values ...orm.NamedExpression) (WorkAccessNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessNoteNamedQuery) Annotate(_values ...orm.NamedExpression) (WorkAccessNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkAccessNoteNamedQuery) Alias(_values ...orm.NamedExpression) (WorkAccessNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateWorkAccessNote[V any](_input WorkAccessNoteAnnotationSource, _name string, _value orm.ScalarField[work.AccessNote, V]) (WorkAccessNoteNamedQuery, orm.NamedColumn[work.AccessNote, V], error) {
+	var _column orm.NamedColumn[work.AccessNote, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateWorkAccessNoteAggregate[V any](_input WorkAccessNoteAnnotationSource, _name string, _value orm.AggregateExpression[work.AccessNote, V]) (WorkAccessNoteNamedQuery, orm.NamedColumn[work.AccessNote, V], error) {
+	var _column orm.NamedColumn[work.AccessNote, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkAccessNote[V any](_input WorkAccessNoteAnnotationSource, _name string, _value orm.ScalarField[work.AccessNote, V]) (WorkAccessNoteNamedQuery, orm.NamedColumn[work.AccessNote, V], error) {
+	var _column orm.NamedColumn[work.AccessNote, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkAccessNoteAggregate[V any](_input WorkAccessNoteAnnotationSource, _name string, _value orm.AggregateExpression[work.AccessNote, V]) (WorkAccessNoteNamedQuery, orm.NamedColumn[work.AccessNote, V], error) {
+	var _column orm.NamedColumn[work.AccessNote, V]
+	if relationFacadeNil(_input) {
+		return WorkAccessNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkAccessNoteNames()
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkAccessNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type workAccessNoteModel = work.AccessNote
 
 type WorkAccessNote struct {
@@ -13045,6 +15227,277 @@ func (_query WorkGuardQuery) Iterate(_ctx context.Context, _size int, _callback 
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkGuard, _size, _yield)
 }
 
+type WorkGuardNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[work.Guard, work.Guard]
+}
+type WorkGuardAnnotationSource interface {
+	relationFacadeWorkGuardNames() (WorkGuardNamedQuery, error)
+}
+
+func (_query WorkGuardQuery) relationFacadeWorkGuardNames() (WorkGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.WorkGuard)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	return WorkGuardNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query WorkGuardNamedQuery) relationFacadeWorkGuardNames() (WorkGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkGuardNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query WorkGuardNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[work.Guard, *WorkGuard], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query WorkGuardNamedQuery) wrapRows(_rows []orm.NamedRow[work.Guard, work.Guard]) ([]orm.NamedRow[work.Guard, *WorkGuard], error) {
+	_result := make([]orm.NamedRow[work.Guard, *WorkGuard], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value work.Guard) (*WorkGuard, error) { return _query.state.wrapWorkGuard(_value, false) })
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query WorkGuardNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[work.Guard, *WorkGuard]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[work.Guard, *WorkGuard]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[work.Guard, *WorkGuard]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query WorkGuardNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query WorkGuardNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query WorkGuardNamedQuery) Derive() (orm.ResultSource[work.Guard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[work.Guard]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query WorkGuardNamedQuery) Column(_name string) (orm.NamedColumn[work.Guard, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[work.Guard, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query WorkGuardNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[work.Guard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[work.Guard]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query WorkGuardNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[work.Guard, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[work.Guard, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query WorkGuardNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[work.Guard], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[work.Guard]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query WorkGuardNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[work.Guard, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[work.Guard, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectWorkGuardNamedQuery[R any](_source WorkGuardNamedQuery, _projection orm.Projection[work.Guard, R]) (orm.ResultQuery[work.Guard, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Guard, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query WorkGuardNamedQuery) Filter(_predicates ...orm.Predicate[work.Guard]) WorkGuardNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query WorkGuardNamedQuery) OrderBy(_orderings ...orm.Ordering[work.Guard]) WorkGuardNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query WorkGuardNamedQuery) Distinct() WorkGuardNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query WorkGuardNamedQuery) Fresh() WorkGuardNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query WorkGuardNamedQuery) Limit(_value int) (WorkGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkGuardNamedQuery) Offset(_value int) (WorkGuardNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkGuardQuery) Annotate(_values ...orm.NamedExpression) (WorkGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkGuardQuery) Alias(_values ...orm.NamedExpression) (WorkGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkGuardNamedQuery) Annotate(_values ...orm.NamedExpression) (WorkGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkGuardNamedQuery) Alias(_values ...orm.NamedExpression) (WorkGuardNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateWorkGuard[V any](_input WorkGuardAnnotationSource, _name string, _value orm.ScalarField[work.Guard, V]) (WorkGuardNamedQuery, orm.NamedColumn[work.Guard, V], error) {
+	var _column orm.NamedColumn[work.Guard, V]
+	if relationFacadeNil(_input) {
+		return WorkGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateWorkGuardAggregate[V any](_input WorkGuardAnnotationSource, _name string, _value orm.AggregateExpression[work.Guard, V]) (WorkGuardNamedQuery, orm.NamedColumn[work.Guard, V], error) {
+	var _column orm.NamedColumn[work.Guard, V]
+	if relationFacadeNil(_input) {
+		return WorkGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkGuard[V any](_input WorkGuardAnnotationSource, _name string, _value orm.ScalarField[work.Guard, V]) (WorkGuardNamedQuery, orm.NamedColumn[work.Guard, V], error) {
+	var _column orm.NamedColumn[work.Guard, V]
+	if relationFacadeNil(_input) {
+		return WorkGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkGuardAggregate[V any](_input WorkGuardAnnotationSource, _name string, _value orm.AggregateExpression[work.Guard, V]) (WorkGuardNamedQuery, orm.NamedColumn[work.Guard, V], error) {
+	var _column orm.NamedColumn[work.Guard, V]
+	if relationFacadeNil(_input) {
+		return WorkGuardNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkGuardNames()
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkGuardNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type workGuardModel = work.Guard
 
 type WorkGuard struct {
@@ -14472,6 +16925,277 @@ func (_query WorkNoteQuery) Iterate(_ctx context.Context, _size int, _callback f
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkNote, _size, _yield)
 }
 
+type WorkNoteNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[work.Note, work.Note]
+}
+type WorkNoteAnnotationSource interface {
+	relationFacadeWorkNoteNames() (WorkNoteNamedQuery, error)
+}
+
+func (_query WorkNoteQuery) relationFacadeWorkNoteNames() (WorkNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.WorkNote)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	return WorkNoteNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query WorkNoteNamedQuery) relationFacadeWorkNoteNames() (WorkNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkNoteNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query WorkNoteNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[work.Note, *WorkNote], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query WorkNoteNamedQuery) wrapRows(_rows []orm.NamedRow[work.Note, work.Note]) ([]orm.NamedRow[work.Note, *WorkNote], error) {
+	_result := make([]orm.NamedRow[work.Note, *WorkNote], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value work.Note) (*WorkNote, error) { return _query.state.wrapWorkNote(_value, false) })
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query WorkNoteNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[work.Note, *WorkNote]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[work.Note, *WorkNote]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[work.Note, *WorkNote]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query WorkNoteNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query WorkNoteNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query WorkNoteNamedQuery) Derive() (orm.ResultSource[work.Note], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[work.Note]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query WorkNoteNamedQuery) Column(_name string) (orm.NamedColumn[work.Note, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[work.Note, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query WorkNoteNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[work.Note], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[work.Note]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query WorkNoteNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[work.Note, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[work.Note, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query WorkNoteNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[work.Note], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[work.Note]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query WorkNoteNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[work.Note, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[work.Note, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectWorkNoteNamedQuery[R any](_source WorkNoteNamedQuery, _projection orm.Projection[work.Note, R]) (orm.ResultQuery[work.Note, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[work.Note, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query WorkNoteNamedQuery) Filter(_predicates ...orm.Predicate[work.Note]) WorkNoteNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query WorkNoteNamedQuery) OrderBy(_orderings ...orm.Ordering[work.Note]) WorkNoteNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query WorkNoteNamedQuery) Distinct() WorkNoteNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query WorkNoteNamedQuery) Fresh() WorkNoteNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query WorkNoteNamedQuery) Limit(_value int) (WorkNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkNoteNamedQuery) Offset(_value int) (WorkNoteNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query WorkNoteQuery) Annotate(_values ...orm.NamedExpression) (WorkNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkNoteQuery) Alias(_values ...orm.NamedExpression) (WorkNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkNoteNamedQuery) Annotate(_values ...orm.NamedExpression) (WorkNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query WorkNoteNamedQuery) Alias(_values ...orm.NamedExpression) (WorkNoteNamedQuery, error) {
+	_source, _err := _query.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateWorkNote[V any](_input WorkNoteAnnotationSource, _name string, _value orm.ScalarField[work.Note, V]) (WorkNoteNamedQuery, orm.NamedColumn[work.Note, V], error) {
+	var _column orm.NamedColumn[work.Note, V]
+	if relationFacadeNil(_input) {
+		return WorkNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateWorkNoteAggregate[V any](_input WorkNoteAnnotationSource, _name string, _value orm.AggregateExpression[work.Note, V]) (WorkNoteNamedQuery, orm.NamedColumn[work.Note, V], error) {
+	var _column orm.NamedColumn[work.Note, V]
+	if relationFacadeNil(_input) {
+		return WorkNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkNote[V any](_input WorkNoteAnnotationSource, _name string, _value orm.ScalarField[work.Note, V]) (WorkNoteNamedQuery, orm.NamedColumn[work.Note, V], error) {
+	var _column orm.NamedColumn[work.Note, V]
+	if relationFacadeNil(_input) {
+		return WorkNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasWorkNoteAggregate[V any](_input WorkNoteAnnotationSource, _name string, _value orm.AggregateExpression[work.Note, V]) (WorkNoteNamedQuery, orm.NamedColumn[work.Note, V], error) {
+	var _column orm.NamedColumn[work.Note, V]
+	if relationFacadeNil(_input) {
+		return WorkNoteNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeWorkNoteNames()
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return WorkNoteNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type workNoteModel = work.Note
 
 type WorkNote struct {
@@ -15700,4 +18424,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_da08f6e8d86142b8419b3cd00e9da88adc25c133a7184a2fa1316ac53756a68a
+var _ goDjProjectSnapshot_2db28a371131af7bf0f3d34f43f4636e5b949dcffab2bd97eda91a6356cbc6b2

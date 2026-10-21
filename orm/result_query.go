@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -10,8 +11,14 @@ import (
 // resultOrigin retains the original query's session and configuration checks
 // without inventing a model descriptor for a result relation.
 type resultOrigin struct {
-	backend  db.Queryer
-	validate func(context.Context) error
+	backend    db.Queryer
+	validate   func(context.Context) error
+	metadata   *preparedModel
+	descriptor reflect.Type
+}
+
+func resultOriginFor[M any](source QuerySet[M]) resultOrigin {
+	return resultOrigin{backend: source.backend, validate: source.validateTerminal, metadata: source.prepared, descriptor: reflect.TypeOf(source.descriptor)}
 }
 
 // ResultQuery is a lazy scalar read. Copies share private successfully scanned
@@ -23,6 +30,8 @@ type ResultQuery[M, R any] struct {
 	newDecoder func() resultDecoder[R]
 	evaluation *evaluationState[resultDecoder[R]]
 	err        error
+	named      []namedBinding
+	bound      *BoundModel[M]
 }
 
 func SelectQuery[M, R any](source QuerySet[M], projection Projection[M, R]) (ResultQuery[M, R], error) {
@@ -44,7 +53,7 @@ func SelectQuery[M, R any](source QuerySet[M], projection Projection[M, R]) (Res
 	if err != nil {
 		return zero, err
 	}
-	return newResultQuery[M](resultOrigin{source.backend, source.validateTerminal}, plan, projection.newDecoder), nil
+	return newResultQuery[M](resultOriginFor(source), plan, projection.newDecoder), nil
 }
 
 func AggregateQuery[M, R any](source QuerySet[M], aggregate Aggregate[M, R]) (ResultQuery[M, R], error) {
@@ -68,7 +77,7 @@ func AggregateQuery[M, R any](source QuerySet[M], aggregate Aggregate[M, R]) (Re
 	if err != nil {
 		return zero, err
 	}
-	return newResultQuery[M](resultOrigin{source.backend, source.validateTerminal}, plan, aggregate.newDecoder), nil
+	return newResultQuery[M](resultOriginFor(source), plan, aggregate.newDecoder), nil
 }
 
 func newResultQuery[M, R any](origin resultOrigin, plan query.Plan, decoder func() resultDecoder[R]) ResultQuery[M, R] {
@@ -299,7 +308,13 @@ func scanResultCells[R any](ctx context.Context, backend db.Queryer, plan query.
 			break
 		}
 		decoder := newDecoder()
+		if err = decoder.err; err != nil {
+			break
+		}
 		if err = rows.Scan(decoder.destinations...); err != nil {
+			break
+		}
+		if err = decoder.validateScanned(); err != nil {
 			break
 		}
 		values = append(values, decoder)

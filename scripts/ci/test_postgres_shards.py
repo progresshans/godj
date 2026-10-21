@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-from postgres_shards import ALL_PACKAGES, CONSUMERS, FRAMEWORK, MODULE, PARTITIONS, PROCESSES, audit, matches, plan, required_entries
+from postgres_shards import ALL_PACKAGES, CONSUMERS, FRAMEWORK, MODULE, PARTITIONS, PROCESSES, WRITE_CONSUMER_ROOTS, audit, matches, plan, required_entries
 
 
 class PostgreSQLPartitionTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(6, result['core_coordinates'])
+        self.assertEqual(7, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assertEqual(self.required, plan(mode, 'core', self.required)['required'])
             self.assertEqual(list(ALL_PACKAGES), plan(mode, 'core', self.required)['packages'])
@@ -73,6 +73,23 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         self.assertNotIn(entry, plan('race', 'core-helpdesk-postgres', required)['required'])
         with self.assertRaisesRegex(ValueError, 'test selector reaches another partition'):
             audit(required)
+
+    def test_generated_write_roots_keep_all_children_and_read_roots_separate(self):
+        for root in WRITE_CONSUMER_ROOTS:
+            entry = MODULE + 'codegen/consumertest|' + root + '/new_child/deep_failure'
+            required = [*self.required, entry]
+            audit(required)
+            for shard in PARTITIONS:
+                self.assertEqual(shard == 'core-consumer-writes', entry in plan('race', shard, required)['required'])
+        read = MODULE + 'codegen/consumertest|TestGeneratedNamedAnnotations/scalars'
+        if read not in self.required:
+            required = [*self.required, read]
+        else:
+            required = self.required
+        self.assertIn(read, plan('race', 'core-consumers', required)['required'])
+        self.assertNotIn(read, plan('race', 'core-consumer-writes', required)['required'])
+        for mode in ('normal', 'cgo0'):
+            self.assertEqual(required, plan(mode, 'core', required)['required'])
 
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],

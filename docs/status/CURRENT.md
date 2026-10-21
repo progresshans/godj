@@ -8,12 +8,13 @@
 
 ## 다음
 
-1. 작성한 named scalar·집계·정의 시점 JOIN과 양 compiler를 원격 CI에서 검증한다.
-2. Typed/dynamic ORM·생성 API·모델/명명 결과·실제 소비자와 독립 비교를 연결하고 원격 검증을 완성한다.
+1. Named AST·양 compiler·typed/dynamic ORM·생성 facade와 두 생성 소비자를 원격 CI에서 검증한다.
+2. Helpdesk의 실제 흐름과 독립 비교를 연결하고 원격 검증을 완성한다.
 3. G-ORM 전환 기준 충족 후 주 작업을 A1의 모델 중심 Form/Admin/API 조립으로 옮긴다.
    나머지 ORM 기능과 다른 영역은 실행 계획의 담당 묶음과 완료 기준에 따라 계속 수행한다.
 
 ## 검증 경계
 
-정의 저장소를 복구하고 scalar 참조·집계 compiler 및 양 DB 검사 본문을 작성했다.
+정의 저장소·compiler·ORM·생성 facade와 검사 본문을 작성했다. 최초 CI의 fixture 오류를 수정하고,
+시간 제한에 걸린 PostgreSQL generated race 작업의 전체 root를 두 owner로 나누었다.
 GDJ-0134의 DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.

@@ -92,9 +92,11 @@ func (expression DynamicExpression) binary(operator query.ArithmeticOperator, ri
 // dynamicBinding keeps model-name and result-column authority separate while
 // both binding paths traverse the same immutable expression grammar.
 type dynamicBinding struct {
-	model   *preparedModel
-	scope   query.ResultScope
-	related func(string) (query.ScalarExpression, error)
+	model       *preparedModel
+	scope       query.ResultScope
+	related     func(string) (query.ScalarExpression, error)
+	fields      map[string]query.FieldRef
+	annotations query.Plan
 }
 
 func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExpression, error) {
@@ -161,8 +163,20 @@ func (expression DynamicExpression) bind(source dynamicBinding) (query.ScalarExp
 		}
 		return query.SelectedExpression(ref)
 	}
-	if source.model == nil || source.scope.Valid() {
+	if ref, named := source.annotations.Annotation(node.name); named {
+		return query.AnnotationExpression(ref)
+	}
+	if source.scope.Valid() {
 		return query.ScalarExpression{}, invalidResultBuilder("model field names cannot cross a result stage")
+	}
+	if field, found := source.fields[node.name]; found {
+		return query.FieldExpression(field)
+	}
+	if source.model == nil {
+		if source.related != nil && strings.Contains(node.name, "__") {
+			return source.related(node.name)
+		}
+		return query.ScalarExpression{}, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: node.name, Detail: "expression name is not part of this source"}
 	}
 	index, found := source.model.byName[node.name]
 	if !found {

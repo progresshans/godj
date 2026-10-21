@@ -136,6 +136,18 @@ func (f BooleanField[M]) scalarResultField(M, bool) (query.ResultExpression, fun
 type resultDecoder[R any] struct {
 	destinations []any
 	decode       func() R
+	validate     func() error
+	err          error
+}
+
+func (decoder resultDecoder[R]) validateScanned() error {
+	if decoder.err != nil {
+		return decoder.err
+	}
+	if decoder.validate != nil {
+		return decoder.validate()
+	}
+	return nil
 }
 
 // Projection describes an ordered scalar row and a pure typed DTO builder.

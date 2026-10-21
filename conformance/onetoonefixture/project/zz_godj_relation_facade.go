@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v27"
-const GoDjProjectRelationFacadeInputSHA256 = "5c50914df46f77749836427ab49b0384b629483620866e8444b00f7e47a77a75"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
+const GoDjProjectRelationFacadeInputSHA256 = "5599a057d18a523a2b0b425bac9d7c6d429cc12ba25c2eee81d4cd9e0c0906b1"
 
 type Backend interface {
 	db.Queryer
@@ -769,6 +769,279 @@ func (_query ReportsCertificateQuery) Iterate(_ctx context.Context, _size int, _
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsCertificate, _size, _yield)
+}
+
+type ReportsCertificateNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[reports.Certificate, reports.Certificate]
+}
+type ReportsCertificateAnnotationSource interface {
+	relationFacadeReportsCertificateNames() (ReportsCertificateNamedQuery, error)
+}
+
+func (_query ReportsCertificateQuery) relationFacadeReportsCertificateNames() (ReportsCertificateNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.ReportsCertificate)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	return ReportsCertificateNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query ReportsCertificateNamedQuery) relationFacadeReportsCertificateNames() (ReportsCertificateNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsCertificateNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query ReportsCertificateNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[reports.Certificate, *ReportsCertificate], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query ReportsCertificateNamedQuery) wrapRows(_rows []orm.NamedRow[reports.Certificate, reports.Certificate]) ([]orm.NamedRow[reports.Certificate, *ReportsCertificate], error) {
+	_result := make([]orm.NamedRow[reports.Certificate, *ReportsCertificate], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value reports.Certificate) (*ReportsCertificate, error) {
+			return _query.state.wrapReportsCertificate(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query ReportsCertificateNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[reports.Certificate, *ReportsCertificate]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[reports.Certificate, *ReportsCertificate]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[reports.Certificate, *ReportsCertificate]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query ReportsCertificateNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query ReportsCertificateNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query ReportsCertificateNamedQuery) Derive() (orm.ResultSource[reports.Certificate], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[reports.Certificate]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query ReportsCertificateNamedQuery) Column(_name string) (orm.NamedColumn[reports.Certificate, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[reports.Certificate, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query ReportsCertificateNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[reports.Certificate], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[reports.Certificate]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query ReportsCertificateNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[reports.Certificate, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[reports.Certificate, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query ReportsCertificateNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[reports.Certificate], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[reports.Certificate]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query ReportsCertificateNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[reports.Certificate, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[reports.Certificate, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectReportsCertificateNamedQuery[R any](_source ReportsCertificateNamedQuery, _projection orm.Projection[reports.Certificate, R]) (orm.ResultQuery[reports.Certificate, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[reports.Certificate, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query ReportsCertificateNamedQuery) Filter(_predicates ...orm.Predicate[reports.Certificate]) ReportsCertificateNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query ReportsCertificateNamedQuery) OrderBy(_orderings ...orm.Ordering[reports.Certificate]) ReportsCertificateNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query ReportsCertificateNamedQuery) Distinct() ReportsCertificateNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query ReportsCertificateNamedQuery) Fresh() ReportsCertificateNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query ReportsCertificateNamedQuery) Limit(_value int) (ReportsCertificateNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsCertificateNamedQuery) Offset(_value int) (ReportsCertificateNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsCertificateQuery) Annotate(_values ...orm.NamedExpression) (ReportsCertificateNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsCertificateQuery) Alias(_values ...orm.NamedExpression) (ReportsCertificateNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsCertificateNamedQuery) Annotate(_values ...orm.NamedExpression) (ReportsCertificateNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsCertificateNamedQuery) Alias(_values ...orm.NamedExpression) (ReportsCertificateNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateReportsCertificate[V any](_input ReportsCertificateAnnotationSource, _name string, _value orm.ScalarField[reports.Certificate, V]) (ReportsCertificateNamedQuery, orm.NamedColumn[reports.Certificate, V], error) {
+	var _column orm.NamedColumn[reports.Certificate, V]
+	if relationFacadeNil(_input) {
+		return ReportsCertificateNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateReportsCertificateAggregate[V any](_input ReportsCertificateAnnotationSource, _name string, _value orm.AggregateExpression[reports.Certificate, V]) (ReportsCertificateNamedQuery, orm.NamedColumn[reports.Certificate, V], error) {
+	var _column orm.NamedColumn[reports.Certificate, V]
+	if relationFacadeNil(_input) {
+		return ReportsCertificateNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsCertificate[V any](_input ReportsCertificateAnnotationSource, _name string, _value orm.ScalarField[reports.Certificate, V]) (ReportsCertificateNamedQuery, orm.NamedColumn[reports.Certificate, V], error) {
+	var _column orm.NamedColumn[reports.Certificate, V]
+	if relationFacadeNil(_input) {
+		return ReportsCertificateNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsCertificateAggregate[V any](_input ReportsCertificateAnnotationSource, _name string, _value orm.AggregateExpression[reports.Certificate, V]) (ReportsCertificateNamedQuery, orm.NamedColumn[reports.Certificate, V], error) {
+	var _column orm.NamedColumn[reports.Certificate, V]
+	if relationFacadeNil(_input) {
+		return ReportsCertificateNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsCertificateNames()
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsCertificateNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type reportsCertificateModel = reports.Certificate
@@ -2219,6 +2492,277 @@ func (_query ReportsLinkQuery) Iterate(_ctx context.Context, _size int, _callbac
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsLink, _size, _yield)
 }
 
+type ReportsLinkNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[reports.Link, reports.Link]
+}
+type ReportsLinkAnnotationSource interface {
+	relationFacadeReportsLinkNames() (ReportsLinkNamedQuery, error)
+}
+
+func (_query ReportsLinkQuery) relationFacadeReportsLinkNames() (ReportsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.ReportsLink)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	return ReportsLinkNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query ReportsLinkNamedQuery) relationFacadeReportsLinkNames() (ReportsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsLinkNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query ReportsLinkNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[reports.Link, *ReportsLink], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query ReportsLinkNamedQuery) wrapRows(_rows []orm.NamedRow[reports.Link, reports.Link]) ([]orm.NamedRow[reports.Link, *ReportsLink], error) {
+	_result := make([]orm.NamedRow[reports.Link, *ReportsLink], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value reports.Link) (*ReportsLink, error) { return _query.state.wrapReportsLink(_value, false) })
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query ReportsLinkNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[reports.Link, *ReportsLink]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[reports.Link, *ReportsLink]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[reports.Link, *ReportsLink]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query ReportsLinkNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query ReportsLinkNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query ReportsLinkNamedQuery) Derive() (orm.ResultSource[reports.Link], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[reports.Link]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query ReportsLinkNamedQuery) Column(_name string) (orm.NamedColumn[reports.Link, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[reports.Link, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query ReportsLinkNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[reports.Link], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[reports.Link]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query ReportsLinkNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[reports.Link, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[reports.Link, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query ReportsLinkNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[reports.Link], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[reports.Link]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query ReportsLinkNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[reports.Link, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[reports.Link, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectReportsLinkNamedQuery[R any](_source ReportsLinkNamedQuery, _projection orm.Projection[reports.Link, R]) (orm.ResultQuery[reports.Link, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[reports.Link, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query ReportsLinkNamedQuery) Filter(_predicates ...orm.Predicate[reports.Link]) ReportsLinkNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query ReportsLinkNamedQuery) OrderBy(_orderings ...orm.Ordering[reports.Link]) ReportsLinkNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query ReportsLinkNamedQuery) Distinct() ReportsLinkNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query ReportsLinkNamedQuery) Fresh() ReportsLinkNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query ReportsLinkNamedQuery) Limit(_value int) (ReportsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsLinkNamedQuery) Offset(_value int) (ReportsLinkNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsLinkQuery) Annotate(_values ...orm.NamedExpression) (ReportsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsLinkQuery) Alias(_values ...orm.NamedExpression) (ReportsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsLinkNamedQuery) Annotate(_values ...orm.NamedExpression) (ReportsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsLinkNamedQuery) Alias(_values ...orm.NamedExpression) (ReportsLinkNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateReportsLink[V any](_input ReportsLinkAnnotationSource, _name string, _value orm.ScalarField[reports.Link, V]) (ReportsLinkNamedQuery, orm.NamedColumn[reports.Link, V], error) {
+	var _column orm.NamedColumn[reports.Link, V]
+	if relationFacadeNil(_input) {
+		return ReportsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateReportsLinkAggregate[V any](_input ReportsLinkAnnotationSource, _name string, _value orm.AggregateExpression[reports.Link, V]) (ReportsLinkNamedQuery, orm.NamedColumn[reports.Link, V], error) {
+	var _column orm.NamedColumn[reports.Link, V]
+	if relationFacadeNil(_input) {
+		return ReportsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsLink[V any](_input ReportsLinkAnnotationSource, _name string, _value orm.ScalarField[reports.Link, V]) (ReportsLinkNamedQuery, orm.NamedColumn[reports.Link, V], error) {
+	var _column orm.NamedColumn[reports.Link, V]
+	if relationFacadeNil(_input) {
+		return ReportsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsLinkAggregate[V any](_input ReportsLinkAnnotationSource, _name string, _value orm.AggregateExpression[reports.Link, V]) (ReportsLinkNamedQuery, orm.NamedColumn[reports.Link, V], error) {
+	var _column orm.NamedColumn[reports.Link, V]
+	if relationFacadeNil(_input) {
+		return ReportsLinkNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsLinkNames()
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsLinkNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type reportsLinkModel = reports.Link
 
 type ReportsLink struct {
@@ -3644,6 +4188,279 @@ func (_query ReportsOptionalReportQuery) Iterate(_ctx context.Context, _size int
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsOptionalReport, _size, _yield)
+}
+
+type ReportsOptionalReportNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[reports.OptionalReport, reports.OptionalReport]
+}
+type ReportsOptionalReportAnnotationSource interface {
+	relationFacadeReportsOptionalReportNames() (ReportsOptionalReportNamedQuery, error)
+}
+
+func (_query ReportsOptionalReportQuery) relationFacadeReportsOptionalReportNames() (ReportsOptionalReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.ReportsOptionalReport)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	return ReportsOptionalReportNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query ReportsOptionalReportNamedQuery) relationFacadeReportsOptionalReportNames() (ReportsOptionalReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsOptionalReportNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query ReportsOptionalReportNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query ReportsOptionalReportNamedQuery) wrapRows(_rows []orm.NamedRow[reports.OptionalReport, reports.OptionalReport]) ([]orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport], error) {
+	_result := make([]orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value reports.OptionalReport) (*ReportsOptionalReport, error) {
+			return _query.state.wrapReportsOptionalReport(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query ReportsOptionalReportNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[reports.OptionalReport, *ReportsOptionalReport]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query ReportsOptionalReportNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query ReportsOptionalReportNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query ReportsOptionalReportNamedQuery) Derive() (orm.ResultSource[reports.OptionalReport], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[reports.OptionalReport]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query ReportsOptionalReportNamedQuery) Column(_name string) (orm.NamedColumn[reports.OptionalReport, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[reports.OptionalReport, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query ReportsOptionalReportNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[reports.OptionalReport], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[reports.OptionalReport]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query ReportsOptionalReportNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[reports.OptionalReport, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[reports.OptionalReport, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query ReportsOptionalReportNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[reports.OptionalReport], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[reports.OptionalReport]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query ReportsOptionalReportNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[reports.OptionalReport, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[reports.OptionalReport, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectReportsOptionalReportNamedQuery[R any](_source ReportsOptionalReportNamedQuery, _projection orm.Projection[reports.OptionalReport, R]) (orm.ResultQuery[reports.OptionalReport, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[reports.OptionalReport, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query ReportsOptionalReportNamedQuery) Filter(_predicates ...orm.Predicate[reports.OptionalReport]) ReportsOptionalReportNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query ReportsOptionalReportNamedQuery) OrderBy(_orderings ...orm.Ordering[reports.OptionalReport]) ReportsOptionalReportNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query ReportsOptionalReportNamedQuery) Distinct() ReportsOptionalReportNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query ReportsOptionalReportNamedQuery) Fresh() ReportsOptionalReportNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query ReportsOptionalReportNamedQuery) Limit(_value int) (ReportsOptionalReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsOptionalReportNamedQuery) Offset(_value int) (ReportsOptionalReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsOptionalReportQuery) Annotate(_values ...orm.NamedExpression) (ReportsOptionalReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsOptionalReportQuery) Alias(_values ...orm.NamedExpression) (ReportsOptionalReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsOptionalReportNamedQuery) Annotate(_values ...orm.NamedExpression) (ReportsOptionalReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsOptionalReportNamedQuery) Alias(_values ...orm.NamedExpression) (ReportsOptionalReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateReportsOptionalReport[V any](_input ReportsOptionalReportAnnotationSource, _name string, _value orm.ScalarField[reports.OptionalReport, V]) (ReportsOptionalReportNamedQuery, orm.NamedColumn[reports.OptionalReport, V], error) {
+	var _column orm.NamedColumn[reports.OptionalReport, V]
+	if relationFacadeNil(_input) {
+		return ReportsOptionalReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateReportsOptionalReportAggregate[V any](_input ReportsOptionalReportAnnotationSource, _name string, _value orm.AggregateExpression[reports.OptionalReport, V]) (ReportsOptionalReportNamedQuery, orm.NamedColumn[reports.OptionalReport, V], error) {
+	var _column orm.NamedColumn[reports.OptionalReport, V]
+	if relationFacadeNil(_input) {
+		return ReportsOptionalReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsOptionalReport[V any](_input ReportsOptionalReportAnnotationSource, _name string, _value orm.ScalarField[reports.OptionalReport, V]) (ReportsOptionalReportNamedQuery, orm.NamedColumn[reports.OptionalReport, V], error) {
+	var _column orm.NamedColumn[reports.OptionalReport, V]
+	if relationFacadeNil(_input) {
+		return ReportsOptionalReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsOptionalReportAggregate[V any](_input ReportsOptionalReportAnnotationSource, _name string, _value orm.AggregateExpression[reports.OptionalReport, V]) (ReportsOptionalReportNamedQuery, orm.NamedColumn[reports.OptionalReport, V], error) {
+	var _column orm.NamedColumn[reports.OptionalReport, V]
+	if relationFacadeNil(_input) {
+		return ReportsOptionalReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsOptionalReportNames()
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsOptionalReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type reportsOptionalReportModel = reports.OptionalReport
@@ -5099,6 +5916,279 @@ func (_query ReportsReportQuery) Iterate(_ctx context.Context, _size int, _callb
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsReport, _size, _yield)
+}
+
+type ReportsReportNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[reports.Report, reports.Report]
+}
+type ReportsReportAnnotationSource interface {
+	relationFacadeReportsReportNames() (ReportsReportNamedQuery, error)
+}
+
+func (_query ReportsReportQuery) relationFacadeReportsReportNames() (ReportsReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.ReportsReport)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	return ReportsReportNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query ReportsReportNamedQuery) relationFacadeReportsReportNames() (ReportsReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsReportNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query ReportsReportNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[reports.Report, *ReportsReport], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query ReportsReportNamedQuery) wrapRows(_rows []orm.NamedRow[reports.Report, reports.Report]) ([]orm.NamedRow[reports.Report, *ReportsReport], error) {
+	_result := make([]orm.NamedRow[reports.Report, *ReportsReport], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value reports.Report) (*ReportsReport, error) {
+			return _query.state.wrapReportsReport(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query ReportsReportNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[reports.Report, *ReportsReport]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[reports.Report, *ReportsReport]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[reports.Report, *ReportsReport]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query ReportsReportNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query ReportsReportNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query ReportsReportNamedQuery) Derive() (orm.ResultSource[reports.Report], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[reports.Report]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query ReportsReportNamedQuery) Column(_name string) (orm.NamedColumn[reports.Report, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[reports.Report, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query ReportsReportNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[reports.Report], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[reports.Report]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query ReportsReportNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[reports.Report, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[reports.Report, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query ReportsReportNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[reports.Report], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[reports.Report]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query ReportsReportNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[reports.Report, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[reports.Report, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectReportsReportNamedQuery[R any](_source ReportsReportNamedQuery, _projection orm.Projection[reports.Report, R]) (orm.ResultQuery[reports.Report, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[reports.Report, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query ReportsReportNamedQuery) Filter(_predicates ...orm.Predicate[reports.Report]) ReportsReportNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query ReportsReportNamedQuery) OrderBy(_orderings ...orm.Ordering[reports.Report]) ReportsReportNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query ReportsReportNamedQuery) Distinct() ReportsReportNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query ReportsReportNamedQuery) Fresh() ReportsReportNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query ReportsReportNamedQuery) Limit(_value int) (ReportsReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsReportNamedQuery) Offset(_value int) (ReportsReportNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsReportQuery) Annotate(_values ...orm.NamedExpression) (ReportsReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReportQuery) Alias(_values ...orm.NamedExpression) (ReportsReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReportNamedQuery) Annotate(_values ...orm.NamedExpression) (ReportsReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReportNamedQuery) Alias(_values ...orm.NamedExpression) (ReportsReportNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateReportsReport[V any](_input ReportsReportAnnotationSource, _name string, _value orm.ScalarField[reports.Report, V]) (ReportsReportNamedQuery, orm.NamedColumn[reports.Report, V], error) {
+	var _column orm.NamedColumn[reports.Report, V]
+	if relationFacadeNil(_input) {
+		return ReportsReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateReportsReportAggregate[V any](_input ReportsReportAnnotationSource, _name string, _value orm.AggregateExpression[reports.Report, V]) (ReportsReportNamedQuery, orm.NamedColumn[reports.Report, V], error) {
+	var _column orm.NamedColumn[reports.Report, V]
+	if relationFacadeNil(_input) {
+		return ReportsReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsReport[V any](_input ReportsReportAnnotationSource, _name string, _value orm.ScalarField[reports.Report, V]) (ReportsReportNamedQuery, orm.NamedColumn[reports.Report, V], error) {
+	var _column orm.NamedColumn[reports.Report, V]
+	if relationFacadeNil(_input) {
+		return ReportsReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsReportAggregate[V any](_input ReportsReportAnnotationSource, _name string, _value orm.AggregateExpression[reports.Report, V]) (ReportsReportNamedQuery, orm.NamedColumn[reports.Report, V], error) {
+	var _column orm.NamedColumn[reports.Report, V]
+	if relationFacadeNil(_input) {
+		return ReportsReportNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReportNames()
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReportNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type reportsReportModel = reports.Report
@@ -6707,6 +7797,279 @@ func (_query ReportsReviewQuery) Iterate(_ctx context.Context, _size int, _callb
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsReview, _size, _yield)
 }
 
+type ReportsReviewNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[reports.Review, reports.Review]
+}
+type ReportsReviewAnnotationSource interface {
+	relationFacadeReportsReviewNames() (ReportsReviewNamedQuery, error)
+}
+
+func (_query ReportsReviewQuery) relationFacadeReportsReviewNames() (ReportsReviewNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.ReportsReview)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	return ReportsReviewNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query ReportsReviewNamedQuery) relationFacadeReportsReviewNames() (ReportsReviewNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query ReportsReviewNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query ReportsReviewNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[reports.Review, *ReportsReview], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query ReportsReviewNamedQuery) wrapRows(_rows []orm.NamedRow[reports.Review, reports.Review]) ([]orm.NamedRow[reports.Review, *ReportsReview], error) {
+	_result := make([]orm.NamedRow[reports.Review, *ReportsReview], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value reports.Review) (*ReportsReview, error) {
+			return _query.state.wrapReportsReview(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query ReportsReviewNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[reports.Review, *ReportsReview]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[reports.Review, *ReportsReview]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[reports.Review, *ReportsReview]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query ReportsReviewNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query ReportsReviewNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query ReportsReviewNamedQuery) Derive() (orm.ResultSource[reports.Review], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[reports.Review]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query ReportsReviewNamedQuery) Column(_name string) (orm.NamedColumn[reports.Review, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[reports.Review, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query ReportsReviewNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[reports.Review], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[reports.Review]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query ReportsReviewNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[reports.Review, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[reports.Review, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query ReportsReviewNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[reports.Review], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[reports.Review]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query ReportsReviewNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[reports.Review, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[reports.Review, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectReportsReviewNamedQuery[R any](_source ReportsReviewNamedQuery, _projection orm.Projection[reports.Review, R]) (orm.ResultQuery[reports.Review, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[reports.Review, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query ReportsReviewNamedQuery) Filter(_predicates ...orm.Predicate[reports.Review]) ReportsReviewNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query ReportsReviewNamedQuery) OrderBy(_orderings ...orm.Ordering[reports.Review]) ReportsReviewNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query ReportsReviewNamedQuery) Distinct() ReportsReviewNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query ReportsReviewNamedQuery) Fresh() ReportsReviewNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query ReportsReviewNamedQuery) Limit(_value int) (ReportsReviewNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsReviewNamedQuery) Offset(_value int) (ReportsReviewNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query ReportsReviewQuery) Annotate(_values ...orm.NamedExpression) (ReportsReviewNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReviewQuery) Alias(_values ...orm.NamedExpression) (ReportsReviewNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReviewNamedQuery) Annotate(_values ...orm.NamedExpression) (ReportsReviewNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query ReportsReviewNamedQuery) Alias(_values ...orm.NamedExpression) (ReportsReviewNamedQuery, error) {
+	_source, _err := _query.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateReportsReview[V any](_input ReportsReviewAnnotationSource, _name string, _value orm.ScalarField[reports.Review, V]) (ReportsReviewNamedQuery, orm.NamedColumn[reports.Review, V], error) {
+	var _column orm.NamedColumn[reports.Review, V]
+	if relationFacadeNil(_input) {
+		return ReportsReviewNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateReportsReviewAggregate[V any](_input ReportsReviewAnnotationSource, _name string, _value orm.AggregateExpression[reports.Review, V]) (ReportsReviewNamedQuery, orm.NamedColumn[reports.Review, V], error) {
+	var _column orm.NamedColumn[reports.Review, V]
+	if relationFacadeNil(_input) {
+		return ReportsReviewNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsReview[V any](_input ReportsReviewAnnotationSource, _name string, _value orm.ScalarField[reports.Review, V]) (ReportsReviewNamedQuery, orm.NamedColumn[reports.Review, V], error) {
+	var _column orm.NamedColumn[reports.Review, V]
+	if relationFacadeNil(_input) {
+		return ReportsReviewNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasReportsReviewAggregate[V any](_input ReportsReviewAnnotationSource, _name string, _value orm.AggregateExpression[reports.Review, V]) (ReportsReviewNamedQuery, orm.NamedColumn[reports.Review, V], error) {
+	var _column orm.NamedColumn[reports.Review, V]
+	if relationFacadeNil(_input) {
+		return ReportsReviewNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeReportsReviewNames()
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return ReportsReviewNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
 type reportsReviewModel = reports.Review
 
 type ReportsReview struct {
@@ -8160,6 +9523,279 @@ func (_query TicketsTicketQuery) Iterate(_ctx context.Context, _size int, _callb
 		return true, nil
 	}
 	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.TicketsTicket, _size, _yield)
+}
+
+type TicketsTicketNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[tickets.Ticket, tickets.Ticket]
+}
+type TicketsTicketAnnotationSource interface {
+	relationFacadeTicketsTicketNames() (TicketsTicketNamedQuery, error)
+}
+
+func (_query TicketsTicketQuery) relationFacadeTicketsTicketNames() (TicketsTicketNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.TicketsTicket)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	return TicketsTicketNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query TicketsTicketNamedQuery) relationFacadeTicketsTicketNames() (TicketsTicketNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query TicketsTicketNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query TicketsTicketNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[tickets.Ticket, *TicketsTicket], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query TicketsTicketNamedQuery) wrapRows(_rows []orm.NamedRow[tickets.Ticket, tickets.Ticket]) ([]orm.NamedRow[tickets.Ticket, *TicketsTicket], error) {
+	_result := make([]orm.NamedRow[tickets.Ticket, *TicketsTicket], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value tickets.Ticket) (*TicketsTicket, error) {
+			return _query.state.wrapTicketsTicket(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query TicketsTicketNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[tickets.Ticket, *TicketsTicket]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[tickets.Ticket, *TicketsTicket]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[tickets.Ticket, *TicketsTicket]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query TicketsTicketNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query TicketsTicketNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query TicketsTicketNamedQuery) Derive() (orm.ResultSource[tickets.Ticket], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[tickets.Ticket]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query TicketsTicketNamedQuery) Column(_name string) (orm.NamedColumn[tickets.Ticket, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[tickets.Ticket, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query TicketsTicketNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[tickets.Ticket], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[tickets.Ticket]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query TicketsTicketNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[tickets.Ticket, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[tickets.Ticket, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query TicketsTicketNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[tickets.Ticket], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[tickets.Ticket]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query TicketsTicketNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[tickets.Ticket, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[tickets.Ticket, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectTicketsTicketNamedQuery[R any](_source TicketsTicketNamedQuery, _projection orm.Projection[tickets.Ticket, R]) (orm.ResultQuery[tickets.Ticket, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[tickets.Ticket, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query TicketsTicketNamedQuery) Filter(_predicates ...orm.Predicate[tickets.Ticket]) TicketsTicketNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query TicketsTicketNamedQuery) OrderBy(_orderings ...orm.Ordering[tickets.Ticket]) TicketsTicketNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query TicketsTicketNamedQuery) Distinct() TicketsTicketNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query TicketsTicketNamedQuery) Fresh() TicketsTicketNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query TicketsTicketNamedQuery) Limit(_value int) (TicketsTicketNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query TicketsTicketNamedQuery) Offset(_value int) (TicketsTicketNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query TicketsTicketQuery) Annotate(_values ...orm.NamedExpression) (TicketsTicketNamedQuery, error) {
+	_source, _err := _query.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query TicketsTicketQuery) Alias(_values ...orm.NamedExpression) (TicketsTicketNamedQuery, error) {
+	_source, _err := _query.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query TicketsTicketNamedQuery) Annotate(_values ...orm.NamedExpression) (TicketsTicketNamedQuery, error) {
+	_source, _err := _query.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query TicketsTicketNamedQuery) Alias(_values ...orm.NamedExpression) (TicketsTicketNamedQuery, error) {
+	_source, _err := _query.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateTicketsTicket[V any](_input TicketsTicketAnnotationSource, _name string, _value orm.ScalarField[tickets.Ticket, V]) (TicketsTicketNamedQuery, orm.NamedColumn[tickets.Ticket, V], error) {
+	var _column orm.NamedColumn[tickets.Ticket, V]
+	if relationFacadeNil(_input) {
+		return TicketsTicketNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateTicketsTicketAggregate[V any](_input TicketsTicketAnnotationSource, _name string, _value orm.AggregateExpression[tickets.Ticket, V]) (TicketsTicketNamedQuery, orm.NamedColumn[tickets.Ticket, V], error) {
+	var _column orm.NamedColumn[tickets.Ticket, V]
+	if relationFacadeNil(_input) {
+		return TicketsTicketNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasTicketsTicket[V any](_input TicketsTicketAnnotationSource, _name string, _value orm.ScalarField[tickets.Ticket, V]) (TicketsTicketNamedQuery, orm.NamedColumn[tickets.Ticket, V], error) {
+	var _column orm.NamedColumn[tickets.Ticket, V]
+	if relationFacadeNil(_input) {
+		return TicketsTicketNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasTicketsTicketAggregate[V any](_input TicketsTicketAnnotationSource, _name string, _value orm.AggregateExpression[tickets.Ticket, V]) (TicketsTicketNamedQuery, orm.NamedColumn[tickets.Ticket, V], error) {
+	var _column orm.NamedColumn[tickets.Ticket, V]
+	if relationFacadeNil(_input) {
+		return TicketsTicketNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeTicketsTicketNames()
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return TicketsTicketNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
 }
 
 type ticketsTicketModel = tickets.Ticket
@@ -9639,4 +11275,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_2bedb304c279bdec07d7e338298c0dca8377333aa3e43683865a3920bff03c05
+var _ goDjProjectSnapshot_dd16740dcffadee6f87a47bed6c3b17d432d8259885ab7e672ec6dbdc28b6785

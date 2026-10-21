@@ -969,6 +969,9 @@ jobs:
             shard: core-consumers
             timeout_minutes: 40
           - mode: race
+            shard: core-consumer-writes
+            timeout_minutes: 40
+          - mode: race
             shard: core-processes
             timeout_minutes: 45
           - mode: race
@@ -1089,6 +1092,7 @@ jobs:
           GODJ_DECIMAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/decimal-expression-reference
           GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
           GODJ_CALENDAR_EXTRACTION_REFERENCE_DIR: ${{ runner.temp }}/calendar-extraction-reference
+          GODJ_NAMED_ANNOTATION_CAPTURE_DIR: ${{ runner.temp }}/named-annotation-native
           GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
@@ -1106,7 +1110,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-helpdesk-postgres|core-consumers|core-processes)
+            core|core-helpdesk-postgres|core-consumers|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
@@ -1140,8 +1144,8 @@ jobs:
           done
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_timeout=18m
-          if [ "$mode" = race ] && [ "$shard" = core-consumers ]; then
-            # One sequential package owns all native generated consumers.
+          if [ "$mode" = race ] && { [ "$shard" = core-consumers ] || [ "$shard" = core-consumer-writes ]; }; then
+            # Each complete generated root has one owner in the two partitions.
             # Keep per-consumer deadlines and the full required inventory.
             test_timeout=30m
           fi
@@ -1281,6 +1285,7 @@ jobs:
             ${{ runner.temp }}/decimal-expression-reference/
             ${{ runner.temp }}/temporal-expression-reference/
             ${{ runner.temp }}/calendar-extraction-reference/
+            ${{ runner.temp }}/named-annotation-native/
             ${{ runner.temp }}/file-consumer-native.jsonl
             ${{ runner.temp }}/zoned-calendar-data/build.json
             ${{ runner.temp }}/zoned-calendar-data/build.log

@@ -360,3 +360,28 @@ stage의 중첩 집계는 거부한다. 재집계는 명시적 결과 stage에�
 현재 작성한 공통 경계는 명명 값을 원본 row assignment로 쓰거나 명명 query를 UPDATE/BulkUpdate source로
 전달하는 것을 오류로 처리한다. Row write 권한을 이름이나 read decoder에서 얻지 않는다. API·생성 소비자와
 환경별 검증은 활성 work 및 TEST_EVIDENCE를 따르며 이 설계 채택을 기능 완료로 계산하지 않는다.
+
+### Go의 모델과 명명 결과
+
+`orm.Annotate`/`Alias`는 원 모델 또는 projection과 scalar를 받아 `NamedQuery[M,R]`와
+`NamedColumn[M,V]`를 반환한다. Aggregate는 `AnnotateAggregate`/`AliasAggregate`로 같은 정의 저장소에
+bind한다. `NamedRow[M,R].Value`는 원래 모델·DTO이고, 명명 값은 해당 query의 column으로 `Get`한다.
+모델 struct나 Schema IR에 임시 필드를 넣지 않으며 SQL alias나 같은 문자열은 다른 정의의 값을 읽을 권한이 아니다.
+
+`Named`/`NamedCount`의 동적 배치는 입력 순서대로 앞선 정의를 해석한다. `Expression`, `Predicate`,
+`ProjectExpressions`도 같은 Plan의 이름을 해석하며 batch 중 오류는 원 query를 바꾸지 않는다.
+`NamesIn`은 정확히 같은 descriptor·metadata·source에 속한 project binding만 받는다. 이 binding을 사용하는
+생성 facade에서는 forward/reverse/ManyToMany accessor도 예약된 이름이다. `SelectNamed`로 selection을
+바꾼 뒤에도 project 권한을 유지하되, 선택하지 않은 명명 값을 다시 결과에 추가하지 않는다.
+
+생성된 `Annotate<Model>` 함수와 `<Model>Query.Annotate`는 같은 generic runtime을 사용한다.
+모델 행의 `Value`에는 일반 generated model wrapper가 들어가므로 명명 결과와 저장 모델을 함께 사용할 수 있다.
+모델 decoder는 `ProjectionDescriptor`와 primary-key capability가 필요하다. 지원하지 않는 descriptor는
+I/O 전에 오류를 반환하며 scalar projection을 명시적으로 선택할 수 있다. Eager/prefetch가 붙은 model source는
+현재 named decoder로 처리하지 않고 오류를 반환한다.
+
+명명 결과는 일반 ResultQuery의 cache·session·Page 경로를 사용한다. 각 행의 저장 필드와 추가 cell은 cursor가
+다음 행으로 이동하기 전에 검사하고 가변 driver bytes를 복사한다. 모델 presence/key 오류·scan/iteration/close·
+취소 실패에는 부분 결과나 성공 cache를 게시하지 않는다. DTO builder는 성공한 cursor 종료 뒤 실행하며
+같은 cache에서 반환할 때마다 원 모델과 DTO를 다시 만든다. 모델 wrapper의 저장은 저장 필드만 처리하며
+이미 읽은 명명 cell은 바꾸지 않는다. `Fresh` 조회에서 새 DB 값으로 계산한다.
