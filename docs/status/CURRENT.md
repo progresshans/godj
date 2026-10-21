@@ -1,19 +1,19 @@
 # 현재 상태
 
-- 갱신: 2026-10-20
-- 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)에 카탈로그 20개 영역의 잔여 범위·우선순위·의존성·완료 기준을 수립했다.
+- 갱신: 2026-10-21
+- 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의 B0 복구를 완료하고
+  [Q1 / GDJ-0134 named annotation](../../work/0134-named-query-annotations.md)을 진행한다.
 - 최근 제품 완료 범위: [GDJ-0133 시간대·지역별 기한 달력](../../work/0133-named-timezones-and-local-deadline-calendar.md).
-  제품 source·환경별 검증 및 계획 문서 검사는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
+  제품 source·환경별 검증 및 복구 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 ## 다음
 
-1. 실행 계획 B0: 최신 통합 기준에서 GDJ-0134의 이전 미커밋 작업 보존 여부를 확인하고 복구 또는 재작성 범위를 정한다.
-2. Q1 / GDJ-0134: named annotation의 scalar·집계·JOIN 순서·typed/dynamic·생성 API와 실제 소비자·원격 검증을 완성한다.
+1. 복구한 불변 명명 정의 기반에 scalar 참조·집계·JOIN 순서와 양 compiler의 실행을 연결한다.
+2. Typed/dynamic ORM·생성 API·모델/명명 결과·실제 소비자와 독립 비교·원격 검증을 완성한다.
 3. G-ORM 전환 기준 충족 후 주 작업을 A1의 모델 중심 Form/Admin/API 조립으로 옮긴다.
    나머지 ORM 기능과 다른 영역은 실행 계획의 담당 묶음과 완료 기준에 따라 계속 수행한다.
 
-## 확인할 일
+## 검증 경계
 
-이전 GDJ-0134 작업 사본은 원래 경로에서 확인되지 않으며 남아 있는 branch의 commit에도 해당 구현이 없다.
-이전 compile 기록은 현재 코드의 완료 증거가 아니다. B0에서 확인하되 복구 불가 시 Q1의 재작성으로 진행한다.
-전체 프레임워크의 기능이나 필수 검증 범위를 이 계획으로 축소하지 않는다.
+정의 저장소와 여덟 검사 본문을 복구했으며, 이전 기록은 compile-only다.
+GDJ-0134의 SQL·DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.

@@ -3,6 +3,23 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 보존된 명명 정의 기반 복구
+
+2026-10-21, Git snapshot `37b2107222ea5c71a0fa9edf91dd88097c77ec51`에서 `query/annotation.go`,
+`query/annotation_test.go`, `query/plan.go`, `scripts/ci/relation-required.txt`와
+[활성 work](../../work/0134-named-query-annotations.md)를 복구했다. Snapshot의 부모는 `b2a86276`이다.
+`90437ebc`의 전체 실행 계획을 유지한 `codex/named-query-annotations` 작업 사본에서 복구 후 bytes를 다시 대조했다.
+
+기존 `gdj0134-annotation-scope-final-compile-_f2ycz7w/source.json`의 코드 세 파일·필수 목록 SHA-256과
+snapshot 및 복구 후 파일이 모두 일치했다. Receipt SHA-256은
+`1cac5566b9334ea09268ae38d978cc9ce1a08626ec2e6ff74b8938073f333a55`다.
+이 기록은 Go 1.26.5 darwin/arm64의 `go test -trimpath -run '^$' -vet=off ./query` exit 0인
+과거 compile-only이며 테스트 본문을 실행하지 않았다. 복구 대조를 새로운 runtime PASS로 계산하지 않는다.
+
+복구한 범위는 이름별 불변 정의·재정의 이력·정의 시점 Plan·source/result 소유권·자원 예산과 여덟 검사 root다.
+Scalar operand·SQL·집계 JOIN 순서·ORM/생성 API·실제 소비자 연결 및 현재 source의 실행 검증은 남아 있다.
+이름을 받아 주는 것만으로 Q1이나 G-ORM이 완료된 것으로 표시하지 않는다.
+
 ## 2026-10-20 — 전체 범위 실행 계획의 문서 검증
 
 기준 `b2a862766a298cf640dcf67c1c292f193aa77d27` 위에서 [실행 계획](../EXECUTION_PLAN.md)을 작성하고

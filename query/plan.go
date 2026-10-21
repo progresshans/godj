@@ -491,6 +491,7 @@ type Plan struct {
 	rowLock               *RowLock
 	derived               *derivedSource
 	page                  *resultPageSource
+	annotations           *annotationScope
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -912,7 +913,7 @@ func (p Plan) Equal(other Plan) bool {
 	if leftLocked != rightLocked || leftLocked && !leftLock.Equal(rightLock) {
 		return false
 	}
-	if !equalPageSources(p.page, other.page) || !equalDerivedSources(p.derived, other.derived) || p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
+	if p.annotations != other.annotations || !equalPageSources(p.page, other.page) || !equalDerivedSources(p.derived, other.derived) || p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
 		p.distinct != other.distinct || !p.result.Equal(other.result) || p.collectionFilters != other.collectionFilters || p.reuseCollectionFilter != other.reuseCollectionFilter {
 		return false
 	}
