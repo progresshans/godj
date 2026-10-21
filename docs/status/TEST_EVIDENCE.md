@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 52d의 native 실행과 전체 패키지 시간 예산
+
+Source `52d9770cb7da929cef94e6e0598731075c38b9ae`의
+[CI 39555192118](https://github.com/progresshans/godj/actions/runs/39555192118), attempt 1은
+checkout `bfee0ac9956df9426f7864df82e5b2f38797f2f8`, tree `a4daf340e14206f428bbbd8359d35a728eb7defb`다.
+Validation-plan 원본과 API의 parent·tree가 제출 source와 일치한다. 아래는 완료한 부분의 증거이며 전체 CI 성공이 아니다.
+
+- PostgreSQL normal core job `119074908184`: 16 package, 6,511 run/pass, 필수 3,623, skip 0.
+  Race core-consumers `119074908207`: 155 run/pass, 필수 128, skip 0.
+  두 owner 모두 fresh Django 양 DB 각 77개와 Go 결과·오류를 대조한 child 157개,
+  scalar·collection 생성 소비자의 child 17개·11개와 compile 부정 대조를 원본으로 확인했다.
+  정의·입력·runtime·저장/정리 상태, 정확한 실행 목록과 parent에 기록된 child log hash가 일치한다.
+- Race Helpdesk는 812 run/pass·필수 741, generated writes는 32 run/pass·필수 26,
+  process는 21 run/pass·필수 10이다. 모두 skip 0이며 현재 partition의 필수 목록·원본을 대조했다.
+- Chromium artifact `12325833015`: 7개 흐름의 정확한 236개 check, 저장 행·관계·audit 보존과 종료/정리를 확인했다.
+  기한 미리보기 34개를 포함하며 해당 screenshot bytes는 앞서 검토한 `654e9cc4` 화면과 동일하다.
+
+CGO 비활성 core job `119074908373`은 전체 40분 제한으로 취소됐다. 보존 artifact `12327516677`에서
+`codegen/consumertest`가 먼저 패키지 전체의 18분 제한으로 종료됐음을 확인했다. 완료한 38개 root의 시간 합은
+1,038.43초이며, 당시 `TestGeneratedUpdateOrCreate`는 시작 후 42초였다. 같은 source의 normal은 42개 root를
+1,027.59초에 모두 완료했고 해당 root는 63.48초였다. 이 기록은 단일 consumer의 정지를 증명하지 않는다.
+CGO 비활성 실행은 이후 process 검사 중 job 한도에도 도달했으므로 미완료 테스트를 성공으로 계산하지 않는다.
+
+생성 소비자를 포함하는 normal·CGO 비활성 core의 패키지 예산을 기존 race consumer와 같은 30분으로 맞추고,
+두 전체 core job에 60분을 배정했다. 개별 consumer/process 제한, 실행 목록, 필수 sentinel, no-skip 및
+callback·저장/취소 검사는 변경하지 않았다. Product·generator·consumer source도 이 수정에서는 바뀌지 않는다.
+수정된 workflow의 필수 전체 실행은 다음 제출에서 다시 확인한다.
+
+원본은 `gdj0134-52d-ci-39555192118/`의 각 artifact zip·metadata·job log·audit와 `native-timeout/`에 있다.
+Normal core audit SHA-256은 `a1d2a9f0a2ae6b6b71b73b67bf976229ca02c5d12f3c2ce69eef7f3538c5dcc0`,
+race core-consumers는 `020e0db9404b0b8d859315b3083a855273bb0601e373b8923ab919194e8a41c9`다.
+브라우저 원본은 `ci-39555192118-browser/`에 있으며 audit SHA-256은
+`d9e0840e3666948738c5d8fb0b37ee356f00261906cd06f7a8b7407bc33ca4ab`다.
+
 ## GDJ-0134 — 독립 비교 adapter 수정과 654e의 부분 실행
 
 Source `654e9cc4`의 [CI 39551969187](https://github.com/progresshans/godj/actions/runs/39551969187), attempt 1은

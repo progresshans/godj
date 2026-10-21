@@ -955,7 +955,7 @@ jobs:
         include:
           - mode: normal
             shard: core
-            timeout_minutes: 45
+            timeout_minutes: 60
           - mode: normal
             shard: operator-target
             timeout_minutes: 35
@@ -979,7 +979,7 @@ jobs:
             timeout_minutes: 35
           - mode: cgo0
             shard: core
-            timeout_minutes: 40
+            timeout_minutes: 60
           - mode: cgo0
             shard: operator-target
             timeout_minutes: 35
@@ -1156,9 +1156,11 @@ jobs:
           done
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_timeout=18m
-          if [ "$mode" = race ] && { [ "$shard" = core-consumers ] || [ "$shard" = core-consumer-writes ]; }; then
-            # Each complete generated root has one owner in the two partitions.
-            # Keep per-consumer deadlines and the full required inventory.
+          if { [ "$shard" = core ] && [ "$mode" != race ]; } ||
+             { [ "$mode" = race ] && { [ "$shard" = core-consumers ] || [ "$shard" = core-consumer-writes ]; }; }; then
+            # The generated roots share one package deadline, including the
+            # unsplit normal/CGO-disabled core owners. Individual consumer
+            # deadlines and the complete required inventory remain unchanged.
             test_timeout=30m
           fi
           test_flags=(-p=1 -timeout="$test_timeout" -json -count=1 -run "$required_regex")

@@ -15,6 +15,6 @@
 
 ## 검증 경계
 
-Helpdesk와 독립 비교 경로까지 작성했다. 원격 CI의 명명 결과 Page decoder·AST 비교 입력과
-코드 검토에서 재현한 첫 집계의 숨긴 명명 값 grouping 결함을 수정했다. 제한된 로컬 실패 재현은 전체 검증과 구분한다.
-GDJ-0134의 같은 source에 대한 DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.
+Helpdesk와 독립 비교 경로까지 작성했으며 normal·race의 양 DB 명명 조회 비교와 실제 소비자 원본을 확인했다.
+CGO 비활성 생성 소비자의 패키지 전체 시간 제한을 보완해 전체 CI를 다시 검증한다.
+완료한 부분과 미완료 환경은 [TEST_EVIDENCE](TEST_EVIDENCE.md)에서 구분한다. 현재 외부 입력이 필요한 blocker는 없다.
