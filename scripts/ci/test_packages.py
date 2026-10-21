@@ -232,12 +232,12 @@ class ExecutionOwnerTests(unittest.TestCase):
         # but no separate top-level sentinel. Never rely on that duplication.
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
-        coordinates = [('normal', 'core', '18m'), ('normal', 'operator-target', '18m'),
+        coordinates = [('normal', 'core', '30m'), ('normal', 'operator-target', '18m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
                        ('race', 'core-consumers', '30m'),
                        ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
-                       ('cgo0', 'core', '18m'), ('cgo0', 'operator-target', '18m')]
+                       ('cgo0', 'core', '30m'), ('cgo0', 'operator-target', '18m')]
         for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
             with self.subTest(child_only=required is child_only, mode=mode, shard=shard):
                 script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'

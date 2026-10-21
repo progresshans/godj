@@ -31,6 +31,11 @@ CGO 비활성 실행은 이후 process 검사 중 job 한도에도 도달했으�
 callback·저장/취소 검사는 변경하지 않았다. Product·generator·consumer source도 이 수정에서는 바뀌지 않는다.
 수정된 workflow의 필수 전체 실행은 다음 제출에서 다시 확인한다.
 
+첫 예산 수정 source `913a08a7`의 CI `39560944037`에서는 기존 Bash 선택기 검사의 normal·CGO 비활성
+예상값 두 곳이 여전히 18분이어서 `Verify CI tooling`이 실패했다. 해당 단일 검사의 네 실패를 로컬에서 재현하고
+두 예상 예산을 30분으로 갱신했다. 실제 Bash 실행, child-only 필수 목록의 root 선택, 미등록 root 제외와
+정확한 실행 flag 비교는 유지한다. 수정 후 같은 제한된 검사는 통과했으며 제품 전체의 로컬 실행은 하지 않았다.
+
 원본은 `gdj0134-52d-ci-39555192118/`의 각 artifact zip·metadata·job log·audit와 `native-timeout/`에 있다.
 Normal core audit SHA-256은 `a1d2a9f0a2ae6b6b71b73b67bf976229ca02c5d12f3c2ce69eef7f3538c5dcc0`,
 race core-consumers는 `020e0db9404b0b8d859315b3083a855273bb0601e373b8923ab919194e8a41c9`다.
