@@ -377,6 +377,11 @@ bind한다. `NamedRow[M,R].Value`는 원래 모델·DTO이고, 명명 값은 해
 생성 facade에서는 forward/reverse/ManyToMany accessor도 예약된 이름이다. `SelectNamed`로 selection을
 바꾼 뒤에도 project 권한을 유지하되, 선택하지 않은 명명 값을 다시 결과에 추가하지 않는다.
 
+첫 aggregate 정의의 grouping key는 그 직전의 실제 선택 목록에서 정한다. Projection으로 숨긴 scalar나
+이번 aggregate가 같은 이름으로 대체하는 자동 선택 scalar는 그룹을 나누지 않는다. 명시적 projection에 남겨 둔
+이전 정의의 참조는 재정의와 독립된 key로 유지한다. 이후 projection은 이미 정한 grouping 경계를 바꾸지 않는다.
+동적 배치도 같은 순서와 선택 목록을 사용하며 정의의 과거 `Selected` 표시만으로 key를 다시 추가하지 않는다.
+
 생성된 `Annotate<Model>` 함수와 `<Model>Query.Annotate`는 같은 generic runtime을 사용한다.
 모델 행의 `Value`에는 일반 generated model wrapper가 들어가므로 명명 결과와 저장 모델을 함께 사용할 수 있다.
 모델 decoder는 `ProjectionDescriptor`와 primary-key capability가 필요하다. 지원하지 않는 descriptor는

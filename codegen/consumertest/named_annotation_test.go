@@ -20,7 +20,7 @@ func TestGeneratedNamedAnnotations(t *testing.T) {
 		t.Run(variant, func(t *testing.T) {
 			spec := computedExpressionProject(t)
 			backend, rootTest := "expressioncommon", "TestNamedScalarRuntime"
-			cases := []string{"model_rows_and_typed_dynamic_projection", "rebind_alias_and_projection_ownership", "grouping_page_and_explicit_stage", "nullable_decimal_and_duration_codecs", "cache_failure_and_session_lifetime", "concurrent_copies_and_pre_io_errors"}
+			cases := []string{"model_rows_and_typed_dynamic_projection", "rebind_alias_and_projection_ownership", "grouping_page_and_explicit_stage", "projection_controls_first_aggregate", "nullable_decimal_and_duration_codecs", "cache_failure_and_session_lifetime", "concurrent_copies_and_pre_io_errors"}
 			if variant == "collections" {
 				spec = collectionAggregateProject(t)
 				backend, rootTest = "collectionaggregate", "TestNamedCollectionRuntime"

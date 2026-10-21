@@ -3,6 +3,20 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 첫 집계의 실제 선택 목록 보존
+
+2026-10-21, `8325c30f` 코드 검토에서 집계 전에 projection으로 뺀 명명 scalar가 첫 grouping에 재등장할 수 있음을
+발견했다. Generated scalar 소비자에서 두 그룹이 네 그룹으로 갈라지는 실패를 SQLite로 재현했다.
+ORM이 실제 선택 목록을 첫 집계 source에 전달하고, 공통 AST는 과거 정의의 selection intent로 key를 추가하지 않도록
+수정했다. 같은 이름으로 대체되는 자동 선택 값은 제외하고, 명시적으로 선택한 이전 참조는 독립 key로 유지한다.
+
+같은 실패 root를 다시 실행해 SQLite child 9개와 compile 부정 대조 7개를 통과했다. 추가 시나리오는 숨긴 scalar 제외,
+선택한 scalar 유지, scalar→aggregate 재정의, 명시적 이전 참조와 ordered dynamic batch의 그룹을 확인한다.
+이는 로컬 normal의 제한된 실패 재현이다. PostgreSQL·race·독립 비교와 전체 원격 실행을 대체하지 않는다.
+`gofmt`, diff와 Markdown 224개 링크를 확인했다. Baseline·변경 source 네 파일과 전후 원본은
+`gdj0134-reference-hkq7995b/group-selection-source.json`에 있으며 receipt SHA-256은
+`818fc2944ee16b934083eca0f579eb12c1e69e1cd94cbdcc07daf3e976ed1c74`다.
+
 ## GDJ-0134 — Helpdesk·독립 비교 연결과 Page 실패 수정
 
 2026-10-21, `82ccdc9d` 위에서 Helpdesk 기한 미리보기가 소유한 `adjusted_due_at`와 이에 의존하는 `remaining`을

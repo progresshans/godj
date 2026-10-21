@@ -239,7 +239,25 @@ func bindNamedValue[M, R, V any](input annotationInput[M, R], name string, expre
 	if err := input.validateName(name); err != nil {
 		return annotationInput[M, R]{}, column, err
 	}
-	plan, ref, err := input.plan.WithAnnotation(name, expression, selected)
+	plan := input.plan
+	if _, grouped := plan.AnnotationGroupKeys(); expression.IsAggregate() && !grouped {
+		// Capture the actual output before grouping. A rebind replaces its
+		// automatically published scalar, but an explicitly selected older
+		// definition in the base projection retains its own identity.
+		values, _, _, err := input.selection(name)
+		if err != nil {
+			return annotationInput[M, R]{}, column, err
+		}
+		shape, err := query.NewProjectionResult(values...)
+		if err != nil {
+			return annotationInput[M, R]{}, column, err
+		}
+		plan, err = plan.WithResultShape(shape)
+		if err != nil {
+			return annotationInput[M, R]{}, column, err
+		}
+	}
+	plan, ref, err := plan.WithAnnotation(name, expression, selected)
 	if err != nil {
 		return annotationInput[M, R]{}, column, err
 	}
@@ -271,28 +289,9 @@ func newNamedQuery[M, R any](input annotationInput[M, R]) (NamedQuery[M, R], err
 	if err := input.validateNames(); err != nil {
 		return zero, err
 	}
-	selected := slices.Clone(input.base)
-	var bindings []namedBinding
-	var indices []int
-	for _, binding := range input.bindings {
-		if !binding.publish {
-			continue
-		}
-		value, err := query.AnnotationExpression(binding.reference)
-		if err != nil {
-			return zero, err
-		}
-		expression, err := query.ScalarResult(value)
-		if err != nil {
-			return zero, err
-		}
-		index := slices.IndexFunc(selected, expression.Equal)
-		if index < 0 {
-			index = len(selected)
-			selected = append(selected, expression)
-		}
-		indices = append(indices, index)
-		bindings = append(bindings, binding)
+	selected, bindings, indices, err := input.selection("")
+	if err != nil {
+		return zero, err
 	}
 	shape, err := query.NewProjectionResult(selected...)
 	if err != nil {
@@ -354,6 +353,33 @@ func newNamedQuery[M, R any](input annotationInput[M, R]) (NamedQuery[M, R], err
 		return zero, probe.err
 	}
 	return NamedQuery[M, R]{input: input, rows: newResultQuery[M](input.origin, plan, factory)}, nil
+}
+
+func (input annotationInput[M, R]) selection(replacing string) ([]query.ResultExpression, []namedBinding, []int, error) {
+	selected := slices.Clone(input.base)
+	var bindings []namedBinding
+	var indices []int
+	for _, binding := range input.bindings {
+		if !binding.publish || binding.reference.Name() == replacing {
+			continue
+		}
+		value, err := query.AnnotationExpression(binding.reference)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		expression, err := query.ScalarResult(value)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		index := slices.IndexFunc(selected, expression.Equal)
+		if index < 0 {
+			index = len(selected)
+			selected = append(selected, expression)
+		}
+		indices = append(indices, index)
+		bindings = append(bindings, binding)
+	}
+	return selected, bindings, indices, nil
 }
 
 func copyNamedRaw(value any) any {

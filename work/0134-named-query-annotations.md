@@ -87,3 +87,23 @@ HTML/API/client 계약을 사용한다. 고정 Django observer의 양 DB 77개 �
 이번 요구의 근거로 사용한다. 새 runner는 같은 observer를 소유한 DB에서 다시 실행하고 source·runtime·정리 상태와
 전체 목록을 대조한 뒤 Go 결과와 비교한다. 과거 관측이나 GDJ-0133의 PASS를 새 기능의 실행 성공으로 계산하지 않는다.
 실제 검증 상태는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+
+## G-ORM의 다음 소비자 준비
+
+A1의 기존 공개 경로를 source `8325c30f`에서 확인했다. 아래 준비는 새 자동 CRUD의 구현이나 사용자 실험을 뜻하지 않는다.
+
+| 소비자 | 현재 사용 가능한 공개 경계 | A1에서 함께 유지할 책임 |
+|---|---|---|
+| Article 단일 모델 CRUD | `Manager.Metadata/ModelValues/ApplyValues`, typed create/patch·선택 열 Save, `forms/model.BindInstance/PrepareInstance`, model serializer·typed endpoint | 입력 생략/NULL/default와 PUT/PATCH, 대상 조회·body 해석 순서, 저장 안의 응답 준비·commit 결과, publish 명령·감사 기록 |
+| Helpdesk 관계 모델 CRUD | 같은 모델 준비, project relation binding·현재 scope 조회, `SaveCollections/SaveManyToMany`, 관계 transaction과 model Admin | Category·객체/관계 선택의 현재 권한, update-only와 제외 열, revision·unique·관계/audit 원자성, 파일 게시의 별도 outcome |
+| 계산 결과 목록 | 명명 query·명시 projection·단일 statement Page, typed output/endpoint와 기존 Helpdesk 미리보기 | 명명 셀의 source 권한·read-only, 원 저장 모델과 분리, 현재 읽기 인가·snapshot 및 입력/응답 allowlist |
+
+실제 연결은 [Article Admin](../examples/article/adminapp/registration.go),
+[Article 수정 endpoint](../examples/article/apiapp/typed_update.go),
+[모델 Form 준비/저장](../forms/model/README.md),
+[Helpdesk Form 저장](../examples/helpdesk/form_save.go),
+[Label 수정 endpoint](../examples/helpdesk/label_update_endpoint.go),
+[명명 기한 조회](../examples/helpdesk/deadline_preview.go)에 있다.
+Source 검토에서 이 세 흐름을 위해 추가로 먼저 구현해야 할 ORM 기능은 찾지 못했다.
+A1은 이미 있는 public 기능의 반복 DTO·snapshot·입력 매핑과 저장 연결을 줄이는 작업으로 시작할 수 있다.
+권한·transaction·응답 준비를 일반 CRUD로 바꾸면서 생략하지 않으며, G-ORM의 현재 실행 조건은 별도로 끝낸다.

@@ -135,19 +135,9 @@ func (p Plan) WithAnnotation(name string, value ResultExpression, selected bool)
 		default:
 			return Plan{}, AnnotationRef{}, invalidPlanError("aggregate annotation requires a row or grouped source")
 		}
-		for _, previous := range current {
-			if previous.Selected() && !previous.definition.expression.IsAggregate() {
-				scalar, err := AnnotationExpression(previous)
-				if err != nil {
-					return Plan{}, AnnotationRef{}, err
-				}
-				selected, err := ScalarResult(scalar)
-				if err != nil {
-					return Plan{}, AnnotationRef{}, err
-				}
-				scope.keys = append(scope.keys, selected)
-			}
-		}
+		// The planner supplies the current selection. A definition's original
+		// selection intent cannot reintroduce a value omitted by projection or
+		// replaced before this first aggregate. Later projections keep keys.
 	}
 	if index < 0 {
 		scope.current = append(scope.current, ref)

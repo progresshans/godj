@@ -282,6 +282,90 @@ func TestNamedScalarRuntime(t *testing.T) {
 				}
 			})
 		})
+		t.Run("projection_controls_first_aggregate", func(t *testing.T) {
+			within(t, func(session db.Session) {
+				api, err := project.UsingSession(session)
+				check(t, err)
+				rowNames, _, err := project.AnnotateRecordsMeasure(api.RecordsMeasure, "varying", orm.Add(orm.F(f.Amount), int64(1)))
+				check(t, err)
+				groupKeys, err := project.SelectRecordsMeasureNamedQuery(rowNames, orm.Project1(f.GroupKey, func(key *string) *string { return key }))
+				check(t, err)
+				grouped, total, err := orm.AnnotateAggregate(groupKeys, "total", orm.Sum(f.Amount))
+				check(t, err)
+				rows, err := grouped.OrderBy(f.GroupKey.Asc()).All(t.Context())
+				check(t, err)
+				if len(rows) != 2 {
+					t.Fatal("unselected annotation split the first groups", len(rows))
+				}
+				for i, want := range []int64{-2, 3} {
+					value, err := total.Get(rows[i])
+					check(t, err)
+					if n, ok := value.Get(); !ok || n != want || *rows[i].Value != []string{"x", "y"}[i] {
+						t.Fatal("projection grouping differs", rows, value)
+					}
+				}
+
+				base, err := project.SelectRecordsMeasureQuery(api.RecordsMeasure, orm.Project1(f.GroupKey, func(key *string) *string { return key }))
+				check(t, err)
+				visible, varying, err := orm.Annotate(base, "varying", orm.Add(orm.F(f.Amount), int64(1)))
+				check(t, err)
+				retained, sum, err := orm.AnnotateAggregate(visible, "total", orm.Sum(f.Amount))
+				check(t, err)
+				retainedRows, err := retained.OrderBy(f.GroupKey.Asc(), varying.Asc()).All(t.Context())
+				check(t, err)
+				if len(retainedRows) != 4 {
+					t.Fatal("selected annotation was omitted from the first groups", len(retainedRows))
+				}
+				for i, want := range []int64{-7, 5, 0, 3} {
+					value, err := sum.Get(retainedRows[i])
+					check(t, err)
+					key, err := varying.Get(retainedRows[i])
+					check(t, err)
+					n, valid := value.Get()
+					k, present := key.Get()
+					if !valid || !present || n != want || k != want+1 {
+						t.Fatal("selected grouping key changed", value, key)
+					}
+				}
+				replaced, count, err := orm.AnnotateAggregate(visible, "varying", orm.CountRows[records.Measure]())
+				check(t, err)
+				replacedRows, err := replaced.OrderBy(f.GroupKey.Asc()).All(t.Context())
+				check(t, err)
+				if len(replacedRows) != 2 {
+					t.Fatal("replaced scalar still split the first groups", len(replacedRows))
+				}
+				for _, row := range replacedRows {
+					value, err := count.Get(row)
+					check(t, err)
+					if value != 2 {
+						t.Fatal("rebound aggregate changed membership", value)
+					}
+				}
+				explicit, err := orm.SelectNamed(visible, orm.Project2(f.GroupKey, varying, func(key *string, n orm.Optional[int64]) *string { return key }))
+				check(t, err)
+				explicitGroup, explicitCount, err := orm.AnnotateAggregate(explicit, "varying", orm.CountRows[records.Measure]())
+				check(t, err)
+				explicitRows, err := explicitGroup.All(t.Context())
+				check(t, err)
+				if len(explicitRows) != 4 {
+					t.Fatal("rebind removed an explicitly selected older key", len(explicitRows))
+				}
+				for _, row := range explicitRows {
+					value, err := explicitCount.Get(row)
+					check(t, err)
+					if value != 1 {
+						t.Fatal("explicit older key lost its group", value)
+					}
+				}
+				batch, err := orm.AnnotateDynamic(base, orm.Named("varying", orm.DynamicF("amount").Add(1)), orm.NamedCount("counted"))
+				check(t, err)
+				batchRows, err := batch.All(t.Context())
+				check(t, err)
+				if len(batchRows) != 4 {
+					t.Fatal("ordered batch omitted its selected scalar grouping key", len(batchRows))
+				}
+			})
+		})
 		t.Run("nullable_decimal_and_duration_codecs", func(t *testing.T) {
 			within(t, func(session db.Session) {
 				api, err := project.UsingSession(session)
