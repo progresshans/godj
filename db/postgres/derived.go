@@ -23,6 +23,9 @@ func compileResultStage(schema string, plan, input query.Plan) (string, []any, e
 			return "", nil, err
 		}
 	}
+	if plan.HasAnnotations() {
+		return compileAnnotated(schema, plan, statement, arguments)
+	}
 	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
 		ComparisonValue: postgresComparisonValue, GroupComparisonLiteral: postgresGroupComparisonLiteral,
 		CompleteAggregates: finishPostgresAggregates,

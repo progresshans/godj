@@ -8,12 +8,12 @@
 
 ## 다음
 
-1. 복구한 불변 명명 정의 기반에 scalar 참조·집계·JOIN 순서와 양 compiler의 실행을 연결한다.
-2. Typed/dynamic ORM·생성 API·모델/명명 결과·실제 소비자와 독립 비교·원격 검증을 완성한다.
+1. 작성한 named scalar·집계·정의 시점 JOIN과 양 compiler를 원격 CI에서 검증한다.
+2. Typed/dynamic ORM·생성 API·모델/명명 결과·실제 소비자와 독립 비교를 연결하고 원격 검증을 완성한다.
 3. G-ORM 전환 기준 충족 후 주 작업을 A1의 모델 중심 Form/Admin/API 조립으로 옮긴다.
    나머지 ORM 기능과 다른 영역은 실행 계획의 담당 묶음과 완료 기준에 따라 계속 수행한다.
 
 ## 검증 경계
 
-정의 저장소와 여덟 검사 본문을 복구했으며, 이전 기록은 compile-only다.
-GDJ-0134의 SQL·DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.
+정의 저장소를 복구하고 scalar 참조·집계 compiler 및 양 DB 검사 본문을 작성했다.
+GDJ-0134의 DB·runtime·실제 소비자 검증은 아직 완료하지 않았다. 현재 외부 입력이 필요한 blocker는 없다.

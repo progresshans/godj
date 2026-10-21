@@ -1,6 +1,6 @@
 # GDJ-0134: 명명된 계산식과 조회 결과
 
-- 상태: 보존된 명명 정의 기반 복구 완료; scalar 참조·양 compiler·ORM/소비자 연결 진행 중
+- 상태: 공통 scalar 참조·양 compiler 작성; 원격 검증과 ORM·생성 API·소비자 연결 진행 중
 - 시작: 2026-10-19
 - 기준: `90437ebc6b8508995de962660adc3b6cad66a839` — GDJ-0133 뒤 전체 실행 계획 포함; 제품 source `55928651`의 전체 통합 검증 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -62,10 +62,20 @@ Helpdesk의 기한 미리보기에서 조정 기한·남은 시간을 명명된 
 모델의 추가 열 decoder에는 기존 generated `ProjectionDescriptor`/`ProjectionScan`을 사용할 수 있으며,
 이 capability와 일반 `ModelDescriptor`의 지원 경계도 구현에서 검증한다.
 
-`query.AnnotationRef`와 Plan의 불변 정의 저장소를 작성했다. 재정의는 새 identity를 만들고 이전 참조의 소유권을
-보존한다. 현재 이름 목록·정의 당시 source·결과 kind/NULL·선택 의도·자원 예산과 result stage 분리를 다룬다.
-조회 시 이름을 실제 scalar operand·SQL·집계·모델 결과로 사용하는 경로는 아직 연결 전이다.
-검사 root 여덟 개를 작성해 relation 실행 목록에 연결했으며 현재 checkpoint는 최소 compile까지만 확인했다.
+`query.AnnotationRef`와 Plan의 불변 정의에 `ScalarAnnotation`을 연결했다. 재정의는 새 identity를 만들고 이전
+조건·계산식의 참조를 보존한다. CASE 양 operand·함수·산술·결과 stage의 source 권한과 집계/NULL/Duration
+provenance를 전파하며 실제 dependency 확장을 scalar 한도에 포함한다. Field 목록이나 ResultScope만으로
+명명 참조를 승인하지 않는다. Alias 직접 선택·중첩 집계·명명 query에서의 쓰기는 명시적으로 거부한다.
+
+공통 compiler는 각 정의가 볼 수 있던 collection Filter까지만 JOIN을 재사용한다. 첫 명명 정의 뒤의
+Filter가 unfiltered occurrence를 재사용하지 않도록 scope를 분리했다. 첫 aggregate가 만든 grouping 경계는
+projection·재정의 뒤에도 유지한다. 집계 결과와 의존 계산식을 물리적으로 분리해 PostgreSQL의 정확한 Duration
+fraction accumulator를 완료한 뒤 참조하며, 명시적 result stage의 소유권이나 slice 의미를 바꾸지 않는다.
+
+AST의 참조/예산 부정 대조와 양 DB의 독립 seed 기반 검사 본문을 필수 실행 목록에 연결했다. 필터 전후 JOIN,
+여러 collection 행 곱·DISTINCT, 혼합 OR, 숨긴 그룹 키, 이름 재정의, 명시 stage/slice/재집계와 native mean·fraction을
+포함한다. Typed/dynamic facade·생성물·원 모델 및 명명 결과 decoder·실제 소비자와 독립 Django 비교는 아직 남아 있다.
+코드와 검사 본문의 존재를 runtime PASS로 계산하지 않는다.
 
 기존 독립 Django 6.1 annotation observer와 보존된 양 DB 77개 관측을 읽었다. 앞선 정의 참조, forward reference 오류,
 재정의 후 기존 dependency 보존, 필드/관계 이름 충돌, alias 선택 거부, 집계 전후 Filter와 nested aggregate 오류를

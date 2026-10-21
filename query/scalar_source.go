@@ -16,10 +16,19 @@ func (p Plan) ValidateScalar(expression ScalarExpression) error {
 // It preserves field and result-scope authority while allowing collection
 // paths; no bound occurrence from another query may enter this context.
 func (p Plan) ValidateAggregateScalar(expression ScalarExpression) error {
+	if expression.ContainsAggregate() {
+		return groupUnsupported("nested aggregation requires an explicit result stage")
+	}
 	return p.validateScalarSource(expression, true)
 }
 
 func (p Plan) validateScalarSource(expression ScalarExpression, aggregate bool) error {
+	if err := expression.Validate(); err != nil {
+		return err
+	}
+	if expression.HasAnnotations() {
+		return p.validateNamedScalarSource(expression, aggregate)
+	}
 	if p.derived != nil {
 		return expression.ValidateResultSource(p.derived.scope)
 	}
@@ -36,6 +45,47 @@ func (p Plan) validateScalarSource(expression ScalarExpression, aggregate bool) 
 			}
 		} else if !path.SingleValued() {
 			return groupUnsupported("scalar values require single-valued relation paths")
+		}
+	}
+	return nil
+}
+
+func (p Plan) validateNamedScalarSource(expression ScalarExpression, aggregate bool) error {
+	if ref, present := expression.AnnotationReference(); present {
+		if !p.OwnsAnnotation(ref) {
+			return invalidPlanError("named scalar belongs to a different query branch or result stage")
+		}
+		// The definition was checked against its captured source before being
+		// published. Descendants retain that identity and cannot mutate it.
+		return nil
+	}
+	if _, left, right, present := expression.Binary(); present {
+		if err := p.validateScalarSource(left, aggregate); err != nil {
+			return err
+		}
+		return p.validateScalarSource(right, aggregate)
+	}
+	if child, present := expression.Negated(); present {
+		return p.validateScalarSource(child, aggregate)
+	}
+	if _, arguments, present := expression.Function(); present {
+		for _, argument := range arguments {
+			if err := p.validateScalarSource(argument, aggregate); err != nil {
+				return err
+			}
+		}
+	}
+	if fallback, branches, present := expression.Case(); present {
+		if err := p.validateScalarSource(fallback, aggregate); err != nil {
+			return err
+		}
+		for _, branch := range branches {
+			if err := p.validateWhereNode(branch.when.node, true, aggregate); err != nil {
+				return err
+			}
+			if err := p.validateScalarSource(branch.value, aggregate); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

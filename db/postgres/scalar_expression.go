@@ -12,8 +12,11 @@ func compileReadScalar(expression query.ScalarExpression, source queryplan.Scala
 	return queryplan.CompileScalar(expression, expression.ResultKind(), arguments, queryplan.ScalarDialect{
 		ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder,
 		Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, Function: compilePostgresFunction, CaseArm: compilePostgresCaseArm, Expression: wrapReadScalar,
+		Annotation: source.Annotation, Selected: source.Selected, Reference: source.Reference,
 		Predicate: func(value query.Expression, arguments *[]any) (string, error) {
-			return compileScalarPredicate(value, source, arguments)
+			nested := source
+			nested.Exists = nil
+			return compileScalarPredicate(value, nested, arguments)
 		},
 		Field: func(field query.FieldRef) (string, error) {
 			column, err := source.ResolveField(field, quoteIdentifier, quoteQualified)

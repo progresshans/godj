@@ -144,6 +144,9 @@ func (p Plan) WithoutRowLock() Plan {
 // ValidateRowLock binds root-owned declarations before any backend can elide
 // an empty result. Join occurrence availability remains a compiler concern.
 func (p Plan) ValidateRowLock() error {
+	if err := p.ValidateAnnotations(); err != nil {
+		return err
+	}
 	lock, present := p.RowLock()
 	if !present {
 		return nil

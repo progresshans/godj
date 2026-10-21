@@ -34,12 +34,27 @@ func compileScalarPredicate(expression query.Expression, source queryplan.Scalar
 	if err != nil {
 		return "", err
 	}
-	for _, leaf := range analysis.leaves {
+	for index, leaf := range analysis.leaves {
 		if _, computed := leaf.condition.Scalar(); computed {
 			leaf.scalarSource = source
 			continue
 		}
-		leaf.fieldSQL, err = source.ResolveCondition(leaf.condition, quoteIdentifier, quoteQualified)
+		if exists, present := source.Exists[index]; present {
+			if source.QuoteTable == nil || len(exists.Joins) > 63 {
+				return "", unsupportedResult("collection predicate has no bounded table source")
+			}
+			qualify := source.ExistsQualify
+			if qualify == nil {
+				qualify = quoteQualified
+			}
+			leaf.existsPrefix, err = queryplan.CollectionExistsPrefix(exists, source.QuoteTable, quoteIdentifier, qualify)
+			if err != nil {
+				return "", err
+			}
+			leaf.fieldSQL, err = quoteQualified(exists.TerminalAlias, leaf.condition.Field().Column())
+		} else {
+			leaf.fieldSQL, err = source.ResolveCondition(leaf.condition, quoteIdentifier, quoteQualified)
+		}
 		if err != nil {
 			return "", err
 		}

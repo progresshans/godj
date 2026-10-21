@@ -217,7 +217,7 @@ Duration/숫자 physical 값은 각 backend에서 검사하고 결과 scanner가
 같은 scalar tree를 사용하지만 원 행 FieldRef와 결과 scope는 구분하며 선택 결과를 모델 UPDATE에 전달하지 않는다.
 GDJ-0127의 collection computed operand는 같은 AST의 완료된 집계에서만 실행하며 [ADR-0091](0091-grouped-results-and-having.md)의
 cardinality·JOIN 계약을 따른다. 일반 행 projection·computed WHERE·정렬·UPDATE는 여전히 single-valued 값만 받는다.
-일반 named annotation과 dependency/재바인딩 API, subquery/window와 위에 열거하지 않은 function은 아직 포함하지 않는다. GDJ-0128의
+Named annotation과 dependency/재바인딩은 아래 GDJ-0134 확장에서 다룬다. Subquery/window와 위에 열거하지 않은 function은 아직 포함하지 않는다. GDJ-0128의
 시각·기간 계산과 computed Duration SUM/AVG는 위 계약을 따르며, 독립 관찰의 지원 범위와
 현재 제품 실행은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)로 구분한다.
 
@@ -344,3 +344,19 @@ Helpdesk의 `time_zone`은 공통 `parameters.TimeZone()`와 `output.TimeZone()`
 출처: [고정 Django converter](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/base/operations.py),
 [make_aware](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/utils/timezone.py),
 [ZoneInfo fold](https://docs.python.org/3/library/zoneinfo.html#using-zoneinfo), [TZif RFC 9636](https://www.rfc-editor.org/rfc/rfc9636.html).
+
+## 명명된 scalar 참조
+
+[GDJ-0134](../../work/0134-named-query-annotations.md)는 `ScalarAnnotation`으로 query가 소유한 불변 정의를
+참조한다. 이름은 현재 정의를 찾는 입력이며 참조의 identity나 SQL alias가 아니다. 재정의 이후에도 앞서 만든
+산술·CASE의 양 operand·함수·조건은 원래 정의를 유지한다. 같은 이름·값을 가진 다른 query 분기의 참조는
+승인하지 않는다. Schema IR의 저장 필드와 명시적 ResultScope를 이름 저장소로 사용하지 않는다.
+
+명명 참조의 완전한 producer 확장 비용을 scalar 깊이/노드 한도에 포함하고, 현재 정의와 보존한 과거 정의 및
+captured predicate를 전체 query 예산에 포함한다. 결과 kind/NULL·Decimal 원본 precision·Duration fraction과
+native mean·시간대는 producer에서 이어받는다. 완료된 집계의 참조와 aggregate operand는 구분하며 같은
+stage의 중첩 집계는 거부한다. 재집계는 명시적 결과 stage에서 선택한 cell을 사용한다.
+
+현재 작성한 공통 경계는 명명 값을 원본 row assignment로 쓰거나 명명 query를 UPDATE/BulkUpdate source로
+전달하는 것을 오류로 처리한다. Row write 권한을 이름이나 read decoder에서 얻지 않는다. API·생성 소비자와
+환경별 검증은 활성 work 및 TEST_EVIDENCE를 따르며 이 설계 채택을 기능 완료로 계산하지 않는다.

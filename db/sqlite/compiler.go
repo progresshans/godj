@@ -42,6 +42,9 @@ func compileReadPlan(plan query.Plan) (string, []any, error) {
 	if err := plan.ValidatePrefetch(); err != nil {
 		return "", nil, err
 	}
+	if plan.HasAnnotations() {
+		return compileAnnotated(plan, "", nil)
+	}
 	if err := validateOrderings(plan); err != nil {
 		return "", nil, err
 	}

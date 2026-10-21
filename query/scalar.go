@@ -26,6 +26,7 @@ const (
 	ScalarSelected
 	ScalarRelated
 	ScalarFunction
+	ScalarAnnotation
 )
 
 type ArithmeticOperator string
@@ -64,6 +65,9 @@ type scalarNode struct {
 	function         FunctionKind
 	zone             timezone.Zone
 	arguments        []ScalarExpression
+	annotation       AnnotationRef
+	hasAnnotations   bool
+	aggregate        bool
 }
 
 // ScalarWhen pairs a same-row Boolean predicate with a value. Both handles
@@ -101,6 +105,8 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 	durationMean := fallback.RequiresDurationRounding()
 	durationFraction := fallback.RequiresDurationFraction()
 	hasRelations := fallback.HasRelations()
+	hasAnnotations := fallback.HasAnnotations()
+	aggregate := fallback.ContainsAggregate()
 	for _, branch := range branches {
 		if _, err := WhenScalar(branch.when, branch.value); err != nil {
 			return ScalarExpression{}, err
@@ -119,6 +125,8 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		durationMean = durationMean || branch.value.RequiresDurationRounding()
 		durationFraction = durationFraction || branch.value.RequiresDurationFraction()
 		hasRelations = hasRelations || branch.value.HasRelations() || branch.when.HasRelations()
+		hasAnnotations = hasAnnotations || branch.value.HasAnnotations() || branch.when.HasAnnotations()
+		aggregate = aggregate || branch.value.ContainsAggregate() || branch.when.ContainsAggregate()
 		for _, condition := range expressionConditions(branch.when) {
 			resultDepth = max(resultDepth, condition.scalar.resultReferenceDepth())
 			if right, present := condition.RHSScalar(); present {
@@ -133,7 +141,8 @@ func CaseScalar(fallback ScalarExpression, branches ...ScalarWhen) (ScalarExpres
 		return ScalarExpression{}, invalidPlanError("conditional scalar has no explicit result kind")
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarCase, result: result, nullable: nullable, left: fallback,
-		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, durationFraction: durationFraction, hasRelations: hasRelations}}, nil
+		branches: slices.Clone(branches), depth: depth, nodes: nodes, resultDepth: resultDepth, durationMean: durationMean, durationFraction: durationFraction,
+		hasRelations: hasRelations, hasAnnotations: hasAnnotations, aggregate: aggregate}}, nil
 }
 
 // RequiresDurationRounding identifies native duration averages and exact
@@ -214,6 +223,8 @@ func (expression ScalarExpression) HasRelations() bool {
 }
 
 // RelationPaths returns owned traversal-order paths, including CASE tests.
+// Annotation producers retain their own source context; visit them separately
+// through AnnotationReferences instead of rebinding their paths to this tree.
 func (expression ScalarExpression) RelationPaths() []RelationPath {
 	var paths []RelationPath
 	var visit func(ScalarExpression)
@@ -291,7 +302,9 @@ func Arithmetic(operator ArithmeticOperator, left, right ScalarExpression) (Scal
 		depth:    depth, nodes: nodes, resultDepth: max(left.resultReferenceDepth(), right.resultReferenceDepth()),
 		durationMean:     result == FieldDuration && (left.RequiresDurationRounding() || right.RequiresDurationRounding()),
 		durationFraction: result == FieldDuration && (operator == ArithmeticMultiply || operator == ArithmeticDivide || left.RequiresDurationFraction() || right.RequiresDurationFraction()),
-		hasRelations:     left.HasRelations() || right.HasRelations()}}, nil
+		hasRelations:     left.HasRelations() || right.HasRelations(),
+		hasAnnotations:   left.HasAnnotations() || right.HasAnnotations(),
+		aggregate:        left.ContainsAggregate() || right.ContainsAggregate()}}, nil
 }
 
 func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
@@ -306,7 +319,8 @@ func NegateScalar(value ScalarExpression) (ScalarExpression, error) {
 	}
 	return ScalarExpression{&scalarNode{kind: ScalarNegate, left: value, result: value.node.result, nullable: value.node.nullable,
 		depth: value.node.depth + 1, nodes: value.node.nodes + 1, resultDepth: value.resultReferenceDepth(),
-		durationMean: value.RequiresDurationRounding(), durationFraction: value.RequiresDurationFraction(), hasRelations: value.HasRelations()}}, nil
+		durationMean: value.RequiresDurationRounding(), durationFraction: value.RequiresDurationFraction(), hasRelations: value.HasRelations(),
+		hasAnnotations: value.HasAnnotations(), aggregate: value.ContainsAggregate()}}, nil
 }
 
 func (expression ScalarExpression) Validate() error {
@@ -399,7 +413,7 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 		return false
 	}
 	left, right := expression.node, other.node
-	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.relation.Equal(right.relation) && left.function == right.function && left.zone == right.zone &&
+	return left.kind == right.kind && left.result == right.result && left.value == right.value && left.field == right.field && left.operator == right.operator && left.reference.Equal(right.reference) && left.annotation.Equal(right.annotation) && left.relation.Equal(right.relation) && left.function == right.function && left.zone == right.zone &&
 		slices.EqualFunc(left.arguments, right.arguments, ScalarExpression.Equal) &&
 		left.left.Equal(right.left) && left.right.Equal(right.right) && slices.EqualFunc(left.branches, right.branches, func(a, b ScalarWhen) bool {
 		return a.when.Equal(b.when) && a.value.Equal(b.value)
@@ -410,6 +424,9 @@ func (expression ScalarExpression) Equal(other ScalarExpression) bool {
 // are selected. Callers cannot replace a field's kind or precision to describe
 // the result of an operation on that field.
 func (expression ScalarExpression) ValidateSource(source []FieldRef) error {
+	if expression.HasAnnotations() {
+		return invalidPlanError("named scalar requires its owning query plan")
+	}
 	if expression.HasRelations() {
 		return invalidPlanError("related scalar requires a plan with relation source authority")
 	}
@@ -462,6 +479,9 @@ func (expression ScalarExpression) validateSource(fields map[string]FieldRef) er
 	}
 	if expression.resultReferenceDepth() != 0 {
 		return invalidPlanError("selected result cannot be used as an original row value")
+	}
+	if expression.HasAnnotations() {
+		return invalidPlanError("named scalar requires its owning query plan")
 	}
 	if field, ok := expression.Field(); ok {
 		if fields[field.Column()] != field {
@@ -541,6 +561,9 @@ func (assignment ScalarAssignment) Validate() error {
 	}
 	if assignment.expression.resultReferenceDepth() != 0 {
 		return invalidPlanError("selected result cannot be assigned to an original row")
+	}
+	if assignment.expression.HasAnnotations() {
+		return invalidPlanError("named values require an explicit read result before assignment")
 	}
 	if assignment.expression.HasRelations() {
 		return invalidPlanError("related values and predicates cannot be assigned to an original row")

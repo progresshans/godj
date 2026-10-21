@@ -165,7 +165,7 @@ func (e ResultExpression) ResultNullable() bool {
 	if e.kind == ResultCountAll || e.kind == ResultCount {
 		return false
 	}
-	return e.IsAggregate() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable() || e.scalar.Nullable()
+	return e.IsAggregateCall() || e.relation != nil || e.kind == ResultJSONPath || e.field.Nullable() || e.scalar.Nullable()
 }
 
 func (e ResultExpression) RequiresDurationRounding() bool {

@@ -6,10 +6,17 @@ import "github.com/progresshans/godj/query"
 // same prepared read. A write may supply Field to resolve its original row.
 // No callback creates source authority from an expression's own leaves.
 type ScalarSource struct {
-	Plan  query.Plan
-	Alias string
-	Joins map[RelationKey]Join
-	Field func(query.FieldRef) (string, error)
+	Plan          query.Plan
+	Alias         string
+	Joins         map[RelationKey]Join
+	Field         func(query.FieldRef) (string, error)
+	Related       func(query.RelationPath) (string, error)
+	Selected      func(query.ResultRef) (string, error)
+	Annotation    func(query.AnnotationRef, *[]any) (string, error)
+	Reference     func(query.ScalarExpression) (string, bool, error)
+	Exists        map[int]CollectionExists
+	QuoteTable    func(string) (string, error)
+	ExistsQualify func(string, string) (string, error)
 	// Aggregate binds value and CASE/FILTER routes to prepared aggregate joins.
 	// It never changes the source plan or authorizes a row WHERE expression.
 	Aggregate bool
@@ -40,6 +47,9 @@ func (source ScalarSource) ResolveField(field query.FieldRef, quote func(string)
 }
 
 func (source ScalarSource) ResolveRelated(path query.RelationPath, qualify func(string, string) (string, error)) (string, error) {
+	if source.Related != nil {
+		return source.Related(path)
+	}
 	alias := source.Alias
 	if key, joined := ConditionJoinKey(path); joined {
 		join, present := source.Joins[key]

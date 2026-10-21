@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 명명 참조·집계 compiler checkpoint
+
+2026-10-21, 복구 commit `c5415723` 위에서 공통 `ScalarAnnotation`의 source 권한·dependency·확장 예산,
+정의 시점 collection JOIN·암묵 grouping 및 양 backend의 실행 경로를 작성했다. Native 검사 본문은 두 DB 각각
+11개 시나리오로 독립 seed를 사용하며 필수 실행 목록에 연결했다. Typed/dynamic ORM·생성 API·실제 소비자와
+고정 Django 비교는 아직 연결 전이며 Q1/G-ORM 완료로 계산하지 않는다.
+
+- `go test ./query ./db/internal/queryplan ./db/sqlite ./db/postgres -run '^$'`: 네 package compile-only exit 0.
+  테스트 본문·DB 쿼리·ORM 소비자 실행이 아니다. 해당 compile 동안 제품 source를 변경하지 않았다.
+- 변경한 Go 34개 파일의 `gofmt -l` 출력 없음; `git diff --check` 성공.
+- `python3 scripts/check_docs.py`: Markdown 223개 로컬 링크 검사 성공.
+- `gdj0134-named-core-compile-_341nr7v/source.json`: 변경 비문서 source 36개 SHA-256 및 compile 경계.
+  Receipt SHA-256은 `083917b3171fdf6727a57cb7f43ca3b89e57fec3f97c8335029a0101aa6d2c5f`다.
+
+이 checkpoint의 native/runtime·race·process·platform 실행은 원격 CI 대기다. 현재 작성된 경계는 hidden alias의
+직접 선택·같은 stage의 중첩 집계·명명 query의 쓰기를 명시적으로 거부한다. 추가 public API와 생성 소비자를
+연결하고 같은 source의 원본 실행을 대조한 뒤 현재 지원과 남은 범위를 갱신한다.
+
 ## GDJ-0134 — 보존된 명명 정의 기반 복구
 
 2026-10-21, Git snapshot `37b2107222ea5c71a0fa9edf91dd88097c77ec51`에서 `query/annotation.go`,
@@ -17,7 +35,7 @@ snapshot 및 복구 후 파일이 모두 일치했다. Receipt SHA-256은
 과거 compile-only이며 테스트 본문을 실행하지 않았다. 복구 대조를 새로운 runtime PASS로 계산하지 않는다.
 
 복구한 범위는 이름별 불변 정의·재정의 이력·정의 시점 Plan·source/result 소유권·자원 예산과 여덟 검사 root다.
-Scalar operand·SQL·집계 JOIN 순서·ORM/생성 API·실제 소비자 연결 및 현재 source의 실행 검증은 남아 있다.
+복구 시점에는 scalar operand·SQL·집계 JOIN 순서·ORM/생성 API·실제 소비자 연결 및 현재 source의 실행 검증이 남아 있었다.
 이름을 받아 주는 것만으로 Q1이나 G-ORM이 완료된 것으로 표시하지 않는다.
 
 ## 2026-10-20 — 전체 범위 실행 계획의 문서 검증

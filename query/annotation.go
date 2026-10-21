@@ -27,6 +27,8 @@ type annotationScope struct {
 	current []AnnotationRef
 	history []AnnotationRef
 	nodes   int
+	grouped bool
+	keys    []ResultExpression
 }
 
 func (ref AnnotationRef) Valid() bool { return ref.definition != nil }
@@ -80,6 +82,9 @@ func (p Plan) WithAnnotation(name string, value ResultExpression, selected bool)
 	if p.page != nil || p.prefetchWindow != nil || p.result.Kind() == ResultPrefetch || p.table == "" && p.derived == nil {
 		return Plan{}, AnnotationRef{}, invalidPlanError("annotation requires a row or explicit result source")
 	}
+	if p.result.Kind() == ResultAggregate {
+		return Plan{}, AnnotationRef{}, groupUnsupported("annotating a terminal aggregate requires an explicit result stage")
+	}
 	for _, field := range p.sourceFields {
 		if name == field.Name() {
 			return Plan{}, AnnotationRef{}, invalidPlanError("annotation name conflicts with source field metadata")
@@ -113,14 +118,100 @@ func (p Plan) WithAnnotation(name string, value ResultExpression, selected bool)
 	}
 	ref := AnnotationRef{&annotationDefinition{name: name, expression: value, selected: selected, source: p}}
 	scope := &annotationScope{current: slices.Clone(current), history: append(slices.Clone(history), ref), nodes: nodes}
+	if p.annotations != nil {
+		scope.grouped, scope.keys = p.annotations.grouped, p.annotations.keys
+	}
+	if value.IsAggregate() && !scope.grouped {
+		scope.grouped = true
+		switch p.result.Kind() {
+		case ResultModel:
+			for _, field := range p.sourceFields {
+				scope.keys = append(scope.keys, FieldResult(field))
+			}
+		case ResultProjection:
+			scope.keys = p.result.Expressions()
+		case ResultGrouped:
+			scope.keys = p.result.GroupKeys()
+		default:
+			return Plan{}, AnnotationRef{}, invalidPlanError("aggregate annotation requires a row or grouped source")
+		}
+		for _, previous := range current {
+			if previous.Selected() && !previous.definition.expression.IsAggregate() {
+				scalar, err := AnnotationExpression(previous)
+				if err != nil {
+					return Plan{}, AnnotationRef{}, err
+				}
+				selected, err := ScalarResult(scalar)
+				if err != nil {
+					return Plan{}, AnnotationRef{}, err
+				}
+				scope.keys = append(scope.keys, selected)
+			}
+		}
+	}
 	if index < 0 {
 		scope.current = append(scope.current, ref)
 	} else {
 		scope.current[index] = ref
 	}
 	p.annotations = scope
+	// Scope zero is also the unfiltered collection occurrence. Reserve it
+	// before later Filter calls so they cannot rewrite an earlier definition's
+	// unfiltered JOIN. A prior collection Filter already consumed this scope.
+	if p.derived == nil {
+		p.collectionFilters = max(1, p.collectionFilters)
+	}
 	p = p.WithoutCollectionFilterReuse()
+	if err := p.ValidateAnnotations(); err != nil {
+		return Plan{}, AnnotationRef{}, err
+	}
 	return p, ref, nil
+}
+
+// AnnotationBindings returns declaration order, including definitions retained
+// by old dependencies. Compilers use this to preserve JOIN introduction order;
+// Annotations remains the current public name inventory.
+func (p Plan) AnnotationBindings() []AnnotationRef {
+	if p.annotations == nil {
+		return nil
+	}
+	return slices.Clone(p.annotations.history)
+}
+
+func (p Plan) HasAnnotations() bool { return p.annotations != nil }
+
+// AnnotationGroupKeys captures the grouping boundary introduced by the first
+// aggregate definition. A later projection or rebind cannot merge those groups.
+func (p Plan) AnnotationGroupKeys() ([]ResultExpression, bool) {
+	if p.annotations == nil || !p.annotations.grouped {
+		return nil, false
+	}
+	return slices.Clone(p.annotations.keys), true
+}
+
+// CollectionFilterLimit is the exclusive bound of filter occurrences visible
+// in this immutable source. Annotation compilers must not reuse a later JOIN.
+func (p Plan) CollectionFilterLimit() uint32 { return p.collectionFilters }
+
+func (p Plan) ValidateAnnotations() error {
+	if p.annotations == nil {
+		return nil
+	}
+	if p.page != nil || p.prefetchWindow != nil || p.result.Kind() == ResultPrefetch {
+		return groupUnsupported("annotations require an ordinary row or explicit result stage")
+	}
+	if p.annotations.grouped {
+		if p.rowLock != nil || len(p.relationProjections) != 0 {
+			return groupUnsupported("aggregate annotations cannot combine with row locks or eager model selection")
+		}
+		if p.result.Kind() == ResultAggregate {
+			return groupUnsupported("aggregate annotated groups through an explicit result stage")
+		}
+	}
+	if p.resultStageNodes() > MaximumDerivedNodes {
+		return invalidPlanError("annotated query exceeds its total expression budget")
+	}
+	return nil
 }
 
 // Annotation resolves the latest definition. Callers cannot resolve an old

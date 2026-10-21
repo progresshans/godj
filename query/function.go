@@ -78,6 +78,7 @@ func functionExpression(function FunctionKind, zone timezone.Zone, explicitZone 
 		kind: ScalarFunction, function: function, zone: zone, arguments: slices.Clone(arguments), result: result,
 		nullable: argument.Nullable(), depth: argument.Depth() + 1, nodes: argument.NodeCount() + 1,
 		resultDepth: argument.resultReferenceDepth(), hasRelations: argument.HasRelations(),
+		hasAnnotations: argument.HasAnnotations(), aggregate: argument.ContainsAggregate(),
 	}}, nil
 }
 

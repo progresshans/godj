@@ -94,6 +94,12 @@ func (p Plan) resultStageNodes() int {
 	if p.page != nil {
 		nodes += p.page.nodes + len(p.page.order)
 	}
+	if p.annotations != nil {
+		nodes += p.annotations.nodes
+		for _, key := range p.annotations.keys {
+			nodes += 1 + key.scalar.NodeCount()
+		}
+	}
 	if p.where.node != nil {
 		nodes += p.where.node.nodes
 	}
@@ -118,6 +124,9 @@ func (p Plan) resultStageNodes() int {
 // ValidateDerived checks the active stage before empty/aggregate execution can
 // elide its expressions. Its private input was validated when snapshotted.
 func (p Plan) ValidateDerived() error {
+	if err := p.ValidateAnnotations(); err != nil {
+		return err
+	}
 	if p.derived == nil {
 		return nil
 	}

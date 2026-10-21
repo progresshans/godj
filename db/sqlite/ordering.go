@@ -37,8 +37,12 @@ func validateOrderings(plan query.Plan) error {
 }
 
 func appendResultValue(statement *strings.Builder, expression query.ResultExpression, plan query.Plan, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments *[]any, ordering bool) error {
+	return appendSourceResultValue(statement, expression, queryplan.ScalarSource{Plan: plan, Alias: alias, Joins: joins, Aggregate: expression.IsAggregateCall()}, arguments, ordering)
+}
+
+func appendSourceResultValue(statement *strings.Builder, expression query.ResultExpression, source queryplan.ScalarSource, arguments *[]any, ordering bool) error {
 	if scalar, present := expression.Scalar(); present {
-		value, err := compileReadScalar(scalar, queryplan.ScalarSource{Plan: plan, Alias: alias, Joins: joins, Aggregate: expression.IsAggregate()}, arguments)
+		value, err := compileReadScalar(scalar, source, arguments)
 		if err != nil {
 			return err
 		}
@@ -50,19 +54,12 @@ func appendResultValue(statement *strings.Builder, expression query.ResultExpres
 		return nil
 	}
 	field, _ := expression.Field()
-	if path, related := expression.RelationPath(); related {
-		joined, ok := joins[queryplan.KeyForPath(path.Hops())]
-		if !ok {
-			return invalidPlan("value relation was not materialized")
-		}
-		alias = joined.Alias
-	}
 	var column string
 	var err error
-	if alias == "" {
-		column, err = quoteIdentifier(field.Column())
+	if path, related := expression.RelationPath(); related {
+		column, err = source.ResolveRelated(path, quoteQualified)
 	} else {
-		column, err = quoteQualified(alias, field.Column())
+		column, err = source.ResolveField(field, quoteIdentifier, quoteQualified)
 	}
 	if err != nil {
 		return err

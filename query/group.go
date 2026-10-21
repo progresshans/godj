@@ -15,6 +15,12 @@ func CountResult(operand ResultExpression) (ResultExpression, error) {
 }
 
 func (e ResultExpression) IsAggregate() bool {
+	return e.IsAggregateCall() || e.scalar.ContainsAggregate()
+}
+
+// IsAggregateCall distinguishes a COUNT/SUM/etc. operand from a composed
+// value containing bound aggregate references in the same SQL stage.
+func (e ResultExpression) IsAggregateCall() bool {
 	return e.kind == ResultCountAll || e.kind == ResultCount || e.kind == ResultMin || e.kind == ResultMax || e.kind == ResultSum || e.kind == ResultAvg
 }
 
@@ -83,6 +89,9 @@ func (e ResultExpression) WithFilter(filter Expression) (ResultExpression, error
 	if err := e.validateAggregate(); err != nil {
 		return ResultExpression{}, err
 	}
+	if !e.IsAggregateCall() {
+		return ResultExpression{}, groupUnsupported("FILTER belongs to an aggregate call, not a computed aggregate result")
+	}
 	if e.kind == ResultCountAll {
 		return ResultExpression{}, groupUnsupported("filtered count requires an explicit field")
 	}
@@ -104,6 +113,13 @@ func (e ResultExpression) WithFilter(filter Expression) (ResultExpression, error
 }
 
 func (e ResultExpression) validateAggregate() error {
+	if e.kind == ResultScalar && e.scalar.ContainsAggregate() {
+		if e.field != (FieldRef{}) || e.relation != nil || e.path.Valid() || e.distinct || e.filter.node != nil {
+			return invalidPlanError("computed aggregate result contains field or aggregate modifiers")
+		}
+		_, err := ScalarResult(e.scalar)
+		return err
+	}
 	if e.path.Valid() {
 		return groupUnsupported("aggregate JSON paths are not implemented")
 	}
@@ -119,6 +135,9 @@ func (e ResultExpression) validateAggregate() error {
 	if e.scalar.node != nil {
 		if err := e.scalar.validateTypedValue(); err != nil {
 			return err
+		}
+		if e.scalar.ContainsAggregate() {
+			return groupUnsupported("nested aggregation requires an explicit result stage")
 		}
 		for _, path := range e.scalar.RelationPaths() {
 			if err := path.validateUnboundAggregateRoute(); err != nil {
@@ -165,6 +184,9 @@ func validateAggregateFilter(e Expression) error {
 	if err := e.validate(); err != nil {
 		return err
 	}
+	if e.ContainsAggregate() {
+		return groupUnsupported("aggregate FILTER cannot contain a nested aggregate")
+	}
 	for _, path := range e.RelationPaths() {
 		if err := path.Validate(); err != nil {
 			return err
@@ -196,6 +218,9 @@ func (p RelationPath) validateUnboundAggregateRoute() error {
 }
 
 func validateGroupKey(e ResultExpression) error {
+	if e.IsAggregate() {
+		return groupUnsupported("aggregate result cannot be a group key in the same stage")
+	}
 	if (e.kind != ResultField && e.kind != ResultScalar) || e.distinct || e.filter.node != nil || e.path.Valid() {
 		return groupUnsupported("group keys require row scalar values")
 	}
@@ -538,6 +563,9 @@ func (p Plan) WithGroupMode(mode GroupResultMode) (Plan, error) {
 }
 
 func (p Plan) ValidateGrouping() error {
+	if err := p.ValidateAnnotations(); err != nil {
+		return err
+	}
 	if p.result.kind != ResultGrouped {
 		if p.result.group != nil {
 			return invalidPlanError("non-grouped result contains grouping state")

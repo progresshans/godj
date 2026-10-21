@@ -702,6 +702,9 @@ func (p Plan) ValidatePredicate(expression Expression) error {
 // ValidateAggregatePredicate checks CASE and FILTER against aggregate source
 // authority. This validates a value context, never creates an executable WHERE.
 func (p Plan) ValidateAggregatePredicate(expression Expression) error {
+	if expression.ContainsAggregate() {
+		return groupUnsupported("aggregate FILTER or CASE operand cannot contain a nested aggregate")
+	}
 	if err := validateAggregateFilter(expression); err != nil {
 		return err
 	}
@@ -855,6 +858,11 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 		}
 	} else {
 		for _, expression := range result.Expressions() {
+			if expression.Kind() == ResultScalar {
+				if ref, named := expression.scalar.AnnotationReference(); named && !ref.Selected() {
+					return Plan{}, invalidPlanError("hidden alias requires promotion to an annotation before selection")
+				}
+			}
 			if err := p.validateResultSource(expression); err != nil {
 				return Plan{}, err
 			}
@@ -884,7 +892,7 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 		}
 	}
 	if scalar, present := expression.Scalar(); present {
-		if expression.IsAggregate() {
+		if expression.IsAggregateCall() {
 			return p.ValidateAggregateScalar(scalar)
 		}
 		return p.ValidateScalar(scalar)

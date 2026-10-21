@@ -47,7 +47,7 @@ GDJ-0125에서 collection field aggregate와 조건을, GDJ-0127에서 집계 �
 int64/float64 산술·CASE와 GDJ-0126의 Decimal 계산식은 SUM/AVG operand로 사용할 수 있다. 원본 source의 metadata와 결과 domain을 분리한다.
 Typed 숫자 결과는 Optional이고 dynamic 결과는 NULL tag를 가진 query.Value다. Decimal AVG는 정확한 Decimal이다.
 GDJ-0128의 computed Duration SUM/AVG는 아래 native 정밀도 계약을 따른다.
-일반 named annotation·subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
+Named annotation은 아래 GDJ-0134 확장에서 다루고 subquery/window는 후속 범위다. 집계 뒤 명시적 결과 stage는 아래 경계를 따른다.
 새 filtered/related aggregate를 기존 terminal `AggregateInto`에 사용할 때 source slice/distinct/eager 조합도
 아직 지원하지 않는다. 기존 unfiltered root aggregate의 지원 범위를 축소하지 않는다.
 GDJ-0124에서 relation-filtered root MIN/MAX도 SUM/AVG와 같은 grouping compiler로 연결한다.
@@ -308,3 +308,21 @@ HTML과 API는 같은 query codec과 snapshot을 사용하고 페이지 링크�
 두 view 권한·query 검증은 snapshot 시작 전에, Category와 group Page는 한 snapshot에서 처리한다.
 TicketSummary·ServiceReportStatus·LabelUsage는 같은 callback/cleanup 소유권 검사를 사용하며,
 누락·반복·동시·늦거나 미완료인 callback과 오류 삼킴·취소·cursor/출력 실패 때 결과를 게시하지 않는다.
+
+## 명명 정의의 집계 시점
+
+[GDJ-0134](../../work/0134-named-query-annotations.md)의 명명 aggregate는 정의 당시 Plan을 소유한다.
+Collection 경로는 그 시점까지 materialize한 Filter occurrence 중 같은 첫 collection의 최신 JOIN을 사용한다.
+이후 Filter는 앞선 정의의 JOIN을 바꾸지 않는다. Unfiltered occurrence와 첫 후속 Filter도 분리한다.
+여러 정의와 여러 collection의 실제 JOIN 행 곱을 유지하며 DISTINCT/FILTER를 자동 추가하지 않는다.
+
+첫 aggregate가 만든 그룹 키는 당시 모델 행 또는 명시 projection에서 정해진다. 이후 키를 결과에서 숨기거나
+이름을 재정의해도 그룹을 합치지 않는다. Aggregate를 포함하지 않은 AND 항은 원 행 WHERE로, aggregate를
+포함한 OR/NOT 묶음은 전체를 집계 뒤 조건으로 둔다. 후자의 원 행 의존 값과 collection EXISTS의 상관 key도
+같은 그룹 결과에서 해석한다. 일반 collection 행 projection·정렬의 cardinality 경계는 그대로다.
+
+물리 compiler는 필요한 그룹 키와 aggregate cell을 먼저 계산하고 의존 scalar·집계 뒤 조건을 적용한다.
+PostgreSQL의 exact Duration fraction aggregate도 원래 집계 수준에서 입력을 모으고 완료한 cell을 참조한다.
+이 lowering은 사용자 result stage·evaluation cache를 추가하지 않으며 최종 DISTINCT·정렬·slice를 유지한다.
+별도 집계로 다시 소비할 때에는 명시적 result stage를 사용한다. Aggregate annotation의 행 잠금·eager model
+선택은 오류로 처리한다. 구현·양 DB 실행·공개 ORM와 실제 소비자 완료는 활성 work 및 TEST_EVIDENCE로 구분한다.

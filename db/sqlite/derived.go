@@ -24,6 +24,9 @@ func compileResultStage(plan, input query.Plan) (string, []any, error) {
 			return "", nil, err
 		}
 	}
+	if plan.HasAnnotations() {
+		return compileAnnotated(plan, statement, arguments)
+	}
 	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
 		ComparisonValue: sqliteComparisonValue, GroupComparisonLiteral: sqliteGroupComparisonLiteral,
 		Scalar: queryplan.ScalarDialect{

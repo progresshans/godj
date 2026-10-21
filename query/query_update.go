@@ -27,6 +27,9 @@ func NewQueryUpdatePlan(source Plan, key FieldRef, assignments []ScalarAssignmen
 
 // All native update forms retain the same predicate and collection scopes.
 func updateSelection(source Plan, key FieldRef) (Plan, error) {
+	if source.HasAnnotations() {
+		return Plan{}, groupUnsupported("writes from a named query require an explicit model selection")
+	}
 	if source.derived != nil || source.page != nil {
 		return Plan{}, groupUnsupported("updates require a model source, not a derived result")
 	}

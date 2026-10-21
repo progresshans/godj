@@ -137,6 +137,9 @@ func (expression ScalarExpression) resultReferenceDepth() int {
 // Original row fields require an explicit selection before crossing a stage;
 // matching names or kinds cannot turn them into result-column references.
 func (expression ScalarExpression) ValidateResultSource(scope ResultScope) error {
+	if expression.HasAnnotations() {
+		return invalidPlanError("named scalar requires its owning query plan")
+	}
 	if !scope.Valid() {
 		return invalidPlanError("selected scalar requires an initialized source scope")
 	}

@@ -192,7 +192,9 @@ func TestAnnotationScopeBoundsExpressionAndCapturedPredicateCost(t *testing.T) {
 		t.Fatal(err)
 	}
 	definitions := base
-	for range query.MaximumAnnotationNodes / (large.NodeCount() + 1) {
+	// The total retained-query budget includes one source field and the plan
+	// node as well as definitions, even when no result selects those aliases.
+	for range (query.MaximumDerivedNodes - 2) / (large.NodeCount() + 1) {
 		definitions, _, err = definitions.WithAnnotation("large", value, false)
 		if err != nil {
 			t.Fatal(err)
@@ -206,7 +208,10 @@ func TestAnnotationScopeBoundsExpressionAndCapturedPredicateCost(t *testing.T) {
 		t.Fatal(err)
 	}
 	filtered := querytest.Conditions(t, base, condition)
-	for range 63 {
+	// Keep the live predicate and captured copies in the same total budget;
+	// the implicit model group also retains its one source-field key.
+	predicateNodes := large.NodeCount() + 1
+	for range (query.MaximumDerivedNodes - 2 - predicateNodes - 1) / (predicateNodes + 1) {
 		next, _, err := filtered.WithAnnotation("small", query.CountAllResult(), true)
 		if err != nil {
 			t.Fatal("captured-predicate budget rejected a valid prefix", err)

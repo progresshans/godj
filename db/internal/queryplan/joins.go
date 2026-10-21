@@ -21,6 +21,7 @@ type Joins struct {
 	ByKey       map[RelationKey]Join
 	ResultByKey map[RelationKey]Join
 	Exists      map[int]CollectionExists
+	Annotations map[query.AnnotationRef]map[RelationKey]Join
 }
 
 // PrepareJoins validates the private occurrence graph and declaration inventory.
@@ -126,7 +127,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 	// materialized occurrence of its first collection. Descendants use that
 	// same occurrence; another filter's similarly named child is not reusable.
 	resultKeys := make(map[RelationKey]RelationKey)
-	addAggregatePath := func(path query.RelationPath) error {
+	addAggregatePath := func(path query.RelationPath, limit uint32, bindings map[RelationKey]RelationKey) error {
 		hops := path.Hops()
 		var scope uint32
 		for index, hop := range hops {
@@ -138,7 +139,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			for candidate := range edges {
 				unbound := candidate
 				unbound.FilterScope = 0
-				if unbound == key && candidate.FilterScope > scope {
+				if unbound == key && candidate.FilterScope < limit && candidate.FilterScope > scope {
 					scope = candidate.FilterScope
 				}
 			}
@@ -158,17 +159,17 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		for index := 0; index < materialized; index++ {
 			key, resolved := KeyForPath(hops[:index+1]), KeyForPath(boundHops[:index+1])
-			if previous, present := resultKeys[key]; present && previous != resolved {
+			if previous, present := bindings[key]; present && previous != resolved {
 				return invalidPlan("aggregate route resolved to conflicting occurrences")
 			}
-			resultKeys[key] = resolved
+			bindings[key] = resolved
 		}
 		return nil
 	}
-	addScalar := func(value query.ScalarExpression, aggregate bool) error {
-		validate := plan.ValidateScalar
+	addScalarFor := func(value query.ScalarExpression, aggregate bool, source query.Plan, bindings map[RelationKey]RelationKey) error {
+		validate := source.ValidateScalar
 		if aggregate {
-			validate = plan.ValidateAggregateScalar
+			validate = source.ValidateAggregateScalar
 		}
 		if err := validate(value); err != nil {
 			return err
@@ -177,7 +178,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			// A value or CASE branch does not prove that an optional row exists.
 			var err error
 			if aggregate {
-				err = addAggregatePath(path)
+				err = addAggregatePath(path, source.CollectionFilterLimit(), bindings)
 			} else {
 				err = addPath(path, false, true)
 			}
@@ -186,6 +187,9 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 		return nil
+	}
+	addScalar := func(value query.ScalarExpression, aggregate bool) error {
+		return addScalarFor(value, aggregate, plan, resultKeys)
 	}
 	addComputedCondition := func(condition query.Condition, aggregate bool) error {
 		left, _ := condition.Scalar()
@@ -242,37 +246,42 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			return Joins{}, err
 		}
 	}
-	for _, expression := range plan.ResultShape().Expressions() {
+	addResult := func(expression query.ResultExpression, source query.Plan, bindings map[RelationKey]RelationKey) error {
 		if scalar, present := expression.Scalar(); present {
-			if err := addScalar(scalar, expression.IsAggregate()); err != nil {
-				return Joins{}, err
+			if err := addScalarFor(scalar, expression.IsAggregateCall(), source, bindings); err != nil {
+				return err
 			}
 		}
 		if path, related := expression.RelationPath(); related {
 			var err error
-			if expression.IsAggregate() {
-				err = addAggregatePath(path)
+			if expression.IsAggregateCall() {
+				err = addAggregatePath(path, source.CollectionFilterLimit(), bindings)
 			} else {
 				err = addPath(path, false, true)
 			}
 			if err != nil {
-				return Joins{}, err
+				return err
 			}
 		}
 		if filter, present := expression.Filter(); present {
 			var visit func(query.Expression) error
 			visit = func(value query.Expression) error {
 				if condition, leaf := value.Condition(); leaf {
-					if err := addComputedCondition(condition, true); err != nil {
-						return err
+					left, _ := condition.Scalar()
+					right, _ := condition.RHSScalar()
+					for _, scalar := range []query.ScalarExpression{left, right} {
+						if scalar.Kind() != 0 {
+							if err := addScalarFor(scalar, true, source, bindings); err != nil {
+								return err
+							}
+						}
 					}
 					if path, related := condition.RelationPath(); related {
-						if err := RelationCondition(plan, condition, path, backendName); err != nil {
+						if err := RelationCondition(source, condition, path, backendName); err != nil {
 							return err
 						}
-						// A conditional aggregate must retain rows that do not meet
-						// the condition. Its optional routes never require a join.
-						return addAggregatePath(path)
+						// FILTER must preserve rows that do not match it.
+						return addAggregatePath(path, source.CollectionFilterLimit(), bindings)
 					}
 				}
 				for _, child := range value.Children() {
@@ -282,7 +291,28 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 				}
 				return nil
 			}
-			if err := visit(filter); err != nil {
+			return visit(filter)
+		}
+		return nil
+	}
+	annotationKeys := make(map[query.AnnotationRef]map[RelationKey]RelationKey)
+	for _, ref := range plan.AnnotationBindings() {
+		value, _ := ref.Expression()
+		source, _ := ref.Source()
+		bindings := make(map[RelationKey]RelationKey)
+		if err := addResult(value, source, bindings); err != nil {
+			return Joins{}, err
+		}
+		annotationKeys[ref] = bindings
+	}
+	for _, expression := range plan.ResultShape().Expressions() {
+		if err := addResult(expression, plan, resultKeys); err != nil {
+			return Joins{}, err
+		}
+	}
+	if keys, grouped := plan.AnnotationGroupKeys(); grouped {
+		for _, key := range keys {
+			if err := addResult(key, plan, resultKeys); err != nil {
 				return Joins{}, err
 			}
 		}
@@ -373,7 +403,22 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			resultJoins[key] = join
 		}
 	}
-	result := Joins{Keys: keys, ByKey: joins, ResultByKey: resultJoins, Exists: make(map[int]CollectionExists, len(existences))}
+	var annotationJoins map[query.AnnotationRef]map[RelationKey]Join
+	if len(annotationKeys) != 0 {
+		annotationJoins = make(map[query.AnnotationRef]map[RelationKey]Join, len(annotationKeys))
+	}
+	for ref, bindings := range annotationKeys {
+		resolvedJoins := maps.Clone(joins)
+		for key, resolved := range bindings {
+			join, present := joins[resolved]
+			if !present {
+				return Joins{}, invalidPlan("annotation occurrence was not materialized")
+			}
+			resolvedJoins[key] = join
+		}
+		annotationJoins[ref] = resolvedJoins
+	}
+	result := Joins{Keys: keys, ByKey: joins, ResultByKey: resultJoins, Exists: make(map[int]CollectionExists, len(existences)), Annotations: annotationJoins}
 	for index, request := range existences {
 		exists, err := prepareCollectionExists(plan, request.condition, request.correlationDepth, result, backendName)
 		if err != nil {

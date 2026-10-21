@@ -17,6 +17,8 @@ type ScalarDialect struct {
 	Field          func(query.FieldRef) (string, error)
 	Related        func(query.RelationPath) (string, error)
 	Selected       func(query.ResultRef) (string, error)
+	Annotation     func(query.AnnotationRef, *[]any) (string, error)
+	Reference      func(query.ScalarExpression) (string, bool, error)
 	Value          func(query.Value) (any, error)
 	Placeholder    func(int) string
 	Literal        func(query.Value, query.FieldKind, string) (string, error)
@@ -57,7 +59,17 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 		}
 		var statement string
 		var err error
-		if value, ok := expression.Literal(); ok {
+		resolved := false
+		if dialect.Reference != nil {
+			statement, resolved, err = dialect.Reference(expression)
+			if err != nil {
+				return "", err
+			}
+		}
+		if resolved {
+			// The owning read planner substituted a completed group key.
+			// Its scalar domain still passes through the backend wrapper below.
+		} else if value, ok := expression.Literal(); ok {
 			statement, err = bindParameter(value)
 			if err != nil {
 				return "", err
@@ -86,6 +98,14 @@ func CompileScalar(expression query.ScalarExpression, expected query.FieldKind, 
 				return "", invalidPlan("scalar compiler does not provide selected result columns")
 			}
 			statement, err = dialect.Selected(ref)
+			if err != nil {
+				return "", err
+			}
+		} else if ref, ok := expression.AnnotationReference(); ok {
+			if dialect.Annotation == nil {
+				return "", invalidPlan("scalar compiler does not provide bound annotations")
+			}
+			statement, err = dialect.Annotation(ref, arguments)
 			if err != nil {
 				return "", err
 			}
