@@ -3,6 +3,34 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 독립 비교 adapter 수정과 654e의 부분 실행
+
+Source `654e9cc4`의 [CI 39551969187](https://github.com/progresshans/godj/actions/runs/39551969187), attempt 1은
+checkout `7e0de5e6752e9d496b2b8cf55b36488b243a9367`, tree `57f1d8950455fc3f33bc24e084e2e5e5d4955e40`이며
+두 parent와 제출 source의 tree 일치를 API·validation-plan 원본으로 확인했다. 전체 실행은 완료하지 않았다.
+
+macOS Intel normal shard 1의 job `119063493868`과 PostgreSQL race core-consumers `119063493525`가
+독립 비교 adapter의 여섯 사례에서 실패했다. Artifact `12324703445`의 native child는 양 DB 모두 77개를 실행했으며,
+각각 DISTINCT 두 사례와 collection filter 네 사례만 실패했다. Collection을 row scalar 조건으로 사용하고,
+DISTINCT의 정렬 표현식을 해당 projection에 선택하지 않은 연결 오류다. 기존 ADR-0090의 공개 경계에 맞춰
+relation lookup과 정확한 선택 표현식을 사용하도록 수정했다. Django가 암묵적으로 선택하는 정렬 ID는 Go SQL
+projection에 명시하고 DTO에서 제외한다. 기대 값·비교 범위·제품 compiler의 거부 조건은 변경하지 않았다.
+
+실패한 reference를 로컬 SQLite에서 재현했고, 수정 후 77개 사례와 root/backend를 포함한 79개 child가 모두 통과했다.
+현재 generator로 다시 만든 parent root도 79 run/pass, 필수 79, skip 0이었다. PostgreSQL·race 재검증은 원격에 남는다.
+전후 원본과 변경 source는 `gdj0134-reference-hkq7995b/reference-adapter-source.json`에 보존했으며 SHA-256은
+`e3b59a024d6c3dde2f8c45ceb4d2797f51330c19f9131629d904f5ee7697cc5f`다.
+
+동일한 `654e9cc4`에서 아래 부분 검증은 성공했으며 후속 source의 전체 PASS로 옮기지 않는다.
+
+- Chromium artifact `12324523290`의 digest·32개 파일 hash·21개 명령과 실제 probe별 목록을 대조했다.
+  총 236개 check 중 기한 미리보기 34개를 포함한다. 전체 저장 행·관계·audit 보존, browser close·fixture exit 0·
+  임시 DB 제거를 확인했고 실제 desktop 기한 미리보기의 값 표시를 검토했다.
+- PostgreSQL race Helpdesk: 812 run/pass, 필수 741, skip 0. Race generated writes: 32 run/pass, 필수 26, skip 0.
+  Race process: 21 run/pass, 필수 10, skip 0. 각 artifact의 원본과 현재 partition 필수 목록을 대조했다.
+- 원본과 source/브라우저/세 native 목록 audit는 `gdj0134-654e-ci-39551969187/`에 보존했다.
+  브라우저 receipt SHA-256은 `7e294e32b99f68f71c660b972663fa44ca7d969665cf4b080b2a283652cb45b6`다.
+
 ## GDJ-0134 — 첫 집계의 실제 선택 목록 보존
 
 2026-10-21, `8325c30f` 코드 검토에서 집계 전에 projection으로 뺀 명명 scalar가 첫 grouping에 재등장할 수 있음을

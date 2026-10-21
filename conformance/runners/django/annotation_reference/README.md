@@ -19,3 +19,9 @@ Go 생성 소비자는 전체 관측 이름과 source/runtime/정리 상태를 �
 Go 계약이 다른 이름 세 사례·혼합 수치 타입과 SQLite int64 overflow는 Django의 실제 결과도 보존된 고정 관측과
 일치해야 한다. 결과·오류·입력 변경과 누락·중복을 거부하며, 나머지 모든 사례는 새 관측과 실제 Go 결과를 비교한다.
 관측 목록의 존재나 설계상 차이 선언만으로 제품 실행 성공을 대신하지 않는다.
+
+Go adapter는 같은 DB 연산과 결과를 공개 Go API로 표현하며 Python 호출 모양을 복제하지 않는다.
+Collection 조건은 project relation lookup으로 bind한다. DISTINCT projection은 ADR-0090에 따라 정렬 표현식을
+직접 선택한다. Django가 암묵적으로 더하는 ID 정렬 열도 SQL 선택에 명시하고 공개 DTO에는 요청한 두 값만 반환한다.
+집계 결과를 다시 집계하거나 empty aggregate의 기본값을 선택할 때는 명시적 result stage를 사용한다.
+이 연결은 Go에서 기대 값을 계산하거나 조회 행을 다시 정렬·필터링하는 방식으로 결과 차이를 숨기지 않는다.

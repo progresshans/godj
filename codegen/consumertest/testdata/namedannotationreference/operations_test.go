@@ -62,6 +62,31 @@ func (q annotationSelection) filter(input orm.DynamicPredicate) annotationSelect
 	}
 	return q
 }
+
+func (q annotationSelection) filterRelated(key string, value any) annotationSelection {
+	if q.err != nil {
+		return q
+	}
+	relations, err := project.BindRelations()
+	if err != nil {
+		q.err = err
+		return q
+	}
+	// Collection filtering uses the relation lookup vocabulary. A row scalar
+	// expression deliberately cannot turn a collection into one row value.
+	predicates, err := relations.RecordsMeasure.ParseDynamic(nil, []orm.LookupInput{{Key: key, Value: value}})
+	if err != nil {
+		q.err = err
+		return q
+	}
+	if q.bound {
+		q.named = q.named.Filter(predicates...)
+	} else {
+		q.model = q.model.Filter(predicates...)
+	}
+	return q
+}
+
 func (q annotationSelection) order(values ...orm.Ordering[records.Measure]) annotationSelection {
 	if q.bound {
 		q.named = q.named.OrderBy(values...)
@@ -351,6 +376,8 @@ func runAnnotationReference(t *testing.T, reader db.Session, writer db.Session, 
 		source := base.model
 		if name == "distinct_projection_with_annotation" {
 			source = source.OrderBy()
+		} else {
+			source = source.OrderBy(orm.Scalar(orm.F(f.ID)).Asc())
 		}
 		selected, err := project.SelectRecordsMeasureQuery(source, orm.Project1(f.GroupKey, func(s *string) *string { return s }))
 		if err != nil {
@@ -366,9 +393,16 @@ func runAnnotationReference(t *testing.T, reader db.Session, writer db.Session, 
 			if err != nil {
 				return nil, err
 			}
-			named = named.OrderBy(f.GroupKey.Asc(), value.Asc())
+			named = named.OrderBy(orm.Scalar(orm.F(f.GroupKey)).Asc(), value.Asc())
 		}
-		projection, err := named.ProjectExpressions(orm.DynamicF("group_key"), orm.DynamicF("adjusted"))
+		inputs := []orm.DynamicExpression{orm.DynamicF("group_key"), orm.DynamicF("adjusted")}
+		if name == "distinct_projection_order_expands_selection" {
+			// Django implicitly adds this ordering column to DISTINCT's SQL
+			// selection. Go requires that selection explicitly (ADR-0090).
+			// The public DTO retains only the two requested output values.
+			inputs = append(inputs, orm.DynamicF("id"))
+		}
+		projection, err := named.ProjectExpressions(inputs...)
 		if err != nil {
 			return nil, err
 		}
@@ -388,9 +422,9 @@ func runAnnotationReference(t *testing.T, reader db.Session, writer db.Session, 
 	case "related_count_mixed_or":
 		return base.annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).filter(orm.DynamicOr(orm.DynamicF("tag_count").GreaterThanOrEqual(2), orm.DynamicF("code").Exact("d"))).values(t, "code", "tag_count")
 	case "filter_then_related_annotation":
-		return base.filter(orm.DynamicF("tags__name").Exact("red")).annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).values(t, "code", "tag_count")
+		return base.filterRelated("tags__name", "red").annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).values(t, "code", "tag_count")
 	case "related_annotation_then_filter":
-		return base.annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).filter(orm.DynamicF("tags__name").Exact("red")).values(t, "code", "tag_count")
+		return base.annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).filterRelated("tags__name", "red").values(t, "code", "tag_count")
 	case "related_annotate_then_slice":
 		return base.annotate(orm.Named("tag_count", orm.DynamicF("tags__id")).Count()).limit(2).values(t, "code", "tag_count")
 	case "related_slice_then_annotate":
@@ -559,12 +593,19 @@ func annotationReverseReference(t *testing.T, api project.Models, name string) (
 	base := api.RecordsCategory.OrderBy(records.CategoryFields.ID.Asc())
 	count := orm.Named("total", orm.DynamicF("measures__id")).Count()
 	names := []string{"name", "total"}
-	if name == "reverse_count_filter_before" {
-		predicate, err := base.ExpressionPredicate(orm.DynamicF("measures__enabled").Exact(true))
+	var predicates []orm.Predicate[records.Category]
+	if name == "reverse_count_filter_before" || name == "reverse_count_filter_after" {
+		relations, err := project.BindRelations()
 		if err != nil {
 			return nil, err
 		}
-		base = base.Filter(predicate)
+		predicates, err = relations.RecordsCategory.ParseDynamic(nil, []orm.LookupInput{{Key: "measures__enabled", Value: true}})
+		if err != nil {
+			return nil, err
+		}
+	}
+	if name == "reverse_count_filter_before" {
+		base = base.Filter(predicates...)
 	}
 	values := []orm.NamedExpression{count}
 	if name == "reverse_count_and_sum" {
@@ -585,11 +626,7 @@ func annotationReverseReference(t *testing.T, api project.Models, name string) (
 		return nil, err
 	}
 	if name == "reverse_count_filter_after" {
-		predicate, err := named.ExpressionPredicate(orm.DynamicF("measures__enabled").Exact(true))
-		if err != nil {
-			return nil, err
-		}
-		named = named.Filter(predicate)
+		named = named.Filter(predicates...)
 	}
 	rows, err := named.All(t.Context())
 	if err != nil {
