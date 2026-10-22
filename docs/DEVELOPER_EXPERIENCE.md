@@ -4,6 +4,10 @@
 아래는 현재 명령과 코드 경계를 설명한다. 제품 지원 폭은 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따른다.
 새 기능의 작성·변경·진단 편의를 평가할 때는 [개발 판단 기준](DEVELOPMENT_CRITERIA.md)을 사용한다.
 
+설치한 도구는 `godj version` 또는 `godj version --json`으로 확인한다. 프로젝트 runtime은
+공개 `version.Current()`로 자신의 GoDj dependency를 조회한다. 개발 source와 replacement의 표시 규칙은
+[버전 조회](../version/README.md)를 따른다. 두 결과의 출력만으로 호환성 검증이 끝난 것은 아니다.
+
 ## 모델에서 query까지
 
 [modeldef/schema.go](../examples/article/modeldef/schema.go)는 선언만 소유하고 generated model을 import하지 않는다.

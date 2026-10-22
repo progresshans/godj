@@ -27,7 +27,8 @@ F1의 검증 대기 동안 독립 요구와 설계를 준비하며, F1의 완료
   loopback 실행·종료·자손 회수 경계는 있지만 watch/reload와 일반 project command 등록은 없다.
 - Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
   새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
-- 명령별 wire version과 생성 ABI는 이미 있다. 설치한 전역 도구·linked runtime·생성물의
+- 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
+  replacement 조회를 작성했다. 설치한 전역 도구·linked runtime·생성물의
   호환성을 사용자 관점에서 진단하는 공통 경계는 아직 없다.
 
 ## 하위 요구와 수용 시나리오
@@ -104,4 +105,6 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL의 URL identity·TLS file 소유권과
 ambient `PG*`/기본 credential 파일 차단도 작성했다. 실제 독립 프로젝트·pool 재연결과 현재 source의 원격 검증은 남아 있다.
 App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종료·재진입과 외부 generated 모델/SQLite 소비자도 작성했다.
+전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
+소비자 검증 및 C1-05의 실행 전 호환성 검사·generated ABI 연결은 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

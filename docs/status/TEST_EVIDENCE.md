@@ -23,6 +23,41 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 원격 컬렉션 browser 중단의 재현과 진단
+
+`c1ba9ab4`의 [CI 39850681169](https://github.com/progresshans/godj/actions/runs/39850681169)에서 normal integration
+job `120076536681`의 컬렉션 browser probe가 중단됐다. 38개 중 33번째 console 확인 뒤 concurrent 편집의 DB commit은
+남았지만 stale/권한 browser 확인과 최종 probe 반환이 없다. Native 최종 DB·파일·resource 정리는 통과했으나 browser 전체는 실패다.
+기존 receipt는 timeout과 signal을 모두 `interrupted`로 기록하므로 중단의 세부 원인을 확정하지 않는다.
+
+원본은 `gdj0137-c1ba9ab4-ci-39850681169/`에 있다. Job log SHA-256은
+`56f0d9c04c9bcd5ebb132d67d144cb458ca8e7a6d731b4b298c3029109248673`, 전체 browser receipt는
+`37f331d3b8ecbd8fddc7a096524cbe9ab32826acdc5c08a5914276d07d81caf1`이다.
+같은 source archive와 같은 pinned Chromium `155.0.8059.12`의 분리된 local macOS 재현에서는 38개·native 상태·정리가 통과했다.
+`gdj0137-c1ba9ab4-browser-repro-v1/output/playwright/receipt.json` SHA-256은
+`f5837f1e0a38c7fdbaa889761b5ba2c9afa7e8a027a19b70ee36d14a97fdd151`이다. 원격 실패가 해결됐다는 근거는 아니다.
+
+중단 동작을 구분할 concurrent 편집 phase와 예외 종류·실제 대기 시간을 receipt에 추가한다. 기존 38개 assertion,
+native 대조·60초 command 제한·process/DB 정리 조건을 유지하며 다음 원격 실행에서 확인한다.
+
+## GDJ-0137 — 설치 도구와 linked framework의 버전 조회 작성
+
+`c1ba9ab4fd93aec1752635e5f69f930857c6eeb1` 기반에서 `godj version [--json]`과 공개 `version.Current()`를 작성했다.
+Compiler metadata에서 실제 framework module을 찾고 고정 version·개발 source·로컬/원격 replacement를 구분한다.
+요구한 version을 local replacement의 실제 version으로 표시하지 않으며 프로젝트의 VCS revision을 dependency에 붙이지 않는다.
+프로젝트 탐색·Go 실행·DB/네트워크 I/O 없이 조회하고 local path·build flags·환경과 raw writer 오류는 출력하지 않는다.
+
+순수 metadata 검사와 실제 global CLI, 출력 실패·이미 취소된 호출, 고정 module proxy fixture·local replace·workspace의
+외부 실행 파일을 검사하도록 작성했다. Proxy fixture는 현재 `version` package source를 담은 검사용 module이다.
+이를 GoDj 전체 release의 설치나 C1-05의 도구/runtime/generated ABI 호환성 검증으로 계산하지 않는다.
+
+`gdj0137-version-compile-v1/receipt.json` SHA-256은
+`7a2f8f90ee684638c572b347ef0e6674fc6497f484e4f738dd8137e278dfa115`다.
+두 package의 `go test -run '^$' -vet=off` 최소 compile만 수행했고 본문·외부 process·race/platform은 실행하지 않았다.
+이후 closed stdout process 검사도 같은 제출 묶음에 포함했다. 최종 Go source와 최소 compile·236개 문서·diff,
+browser 진단의 Python/JavaScript 구문 검사는 `final-source.json`에 있으며 SHA-256은
+`357bcaa0f2223cfa03e24acf5a8846d2175e43fdb14e19eca743b1bc4e10ae73`이다. 실제 본문 검증은 원격 CI에 남아 있다.
+
 ## GDJ-0137 — 생성된 설치 앱 의존성 검사 수정
 
 `11f801e6`의 [CI 39846006086](https://github.com/progresshans/godj/actions/runs/39846006086)에서 Linux amd64 race

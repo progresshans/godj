@@ -6,6 +6,7 @@ async (page) => {
     page.context().setDefaultNavigationTimeout(20000);
     const edit = origin + "/admin/assets/collection-set/edit/";
     const cases = [];
+    const phase = async name => page.evaluate(name => console.info("COLLECTION_PHASE: " + name), name);
     const check = async (ok, name) => {
         if (!ok) throw new Error(name);
         cases.push(name);
@@ -155,15 +156,23 @@ async (page) => {
     await check(await submit() === 200 && await page.locator('[data-error-code="writer_review"]').count() === 1, "late audit rejection redisplays only after the native transaction rolls back");
     await check(await input("assets-0-code").inputValue() === "rolled back first" && await input("assets-3-code").inputValue() === "audit_fail" && await page.locator('[data-file-reselect="assets-0-attachment"]').count() === 1 && await page.locator('[data-file-reselect="assets-3-attachment"]').count() === 1, "late rejection retains raw text and requests both files again");
     await check(same(await storedState(), added), "fresh read confirms rollback of earlier scalar membership revision and file-reference writes");
+    await phase("loading stale cohort");
     await page.goto(edit);
     const stale = await state(page);
+    await phase("opening concurrent editor");
     const mutator = await page.context().newPage();
     try {
+        await phase("loading concurrent editor");
         await mutator.goto(edit);
+        await phase("filling concurrent editor");
         await input("assets-1-code", mutator).fill("concurrent");
+        await phase("submitting concurrent editor");
         if (await submit(mutator) !== 302) throw new Error("concurrent collection write failed");
+        await phase("concurrent editor committed; closing page");
     } finally { await mutator.close(); }
+    await phase("concurrent editor closed");
     await input("assets-0-code").fill("stale overwrite");
+    await phase("submitting stale cohort");
     await check(await submit() === 409, "an older collection revision is rejected before its write callback");
     const current = await storedState();
     await check(current[0].code === stale[0].code && current[0].revision === stale[0].revision && current[1].code === "CONCURRENT" && current[1].revision === "2" && current[2].code === stale[2].code, "stale rejection preserves the newer committed cohort");

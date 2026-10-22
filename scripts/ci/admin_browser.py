@@ -271,12 +271,13 @@ def digest(path):
 
 def command(receipt, output, environment, name, arguments, timeout=60):
     path = output / (name + '.log')
+    started = time.monotonic()
     with path.open('wb') as destination:
         child = subprocess.Popen(arguments, cwd=ROOT, env=environment, stdout=destination,
                                  stderr=subprocess.STDOUT, start_new_session=True)
         try:
             code = child.wait(timeout=timeout)
-        except BaseException:
+        except BaseException as error:
             try:
                 os.killpg(child.pid, signal.SIGTERM)
             except ProcessLookupError:
@@ -286,7 +287,9 @@ def command(receipt, output, environment, name, arguments, timeout=60):
             except subprocess.TimeoutExpired:
                 os.killpg(child.pid, signal.SIGKILL)
                 child.wait()
-            receipt['commands'].append({'name': name, 'interrupted': True, 'log_sha256': digest(path)})
+            receipt['commands'].append({'name': name, 'interrupted': True, 'failure_type': type(error).__name__,
+                                        'timeout_seconds': timeout, 'elapsed_seconds': round(time.monotonic() - started, 3),
+                                        'log_sha256': digest(path)})
             raise
     receipt['commands'].append({'name': name, 'exit_code': code, 'log_sha256': digest(path)})
     if code != 0 or path.stat().st_size > 8 << 20:
@@ -351,6 +354,7 @@ def run_flow(flow, binary, cli, browser_path, browser_version, environment, outp
         except BaseException as error:
             failure = error
             receipt['failure_phase'] = phase
+            receipt['failure_type'] = type(error).__name__
         finally:
             if opened:
                 try:

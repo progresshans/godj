@@ -4,7 +4,7 @@
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [F1 / GDJ-0136 Form/Admin 일반화](../../work/0136-form-admin-generalization.md)를 구현 중이다.
 - 독립 작성: [C1 / GDJ-0137 Project/Core](../../work/0137-project-core-startup.md)의 환경 snapshot,
-  공통 DB 설정·생성된 설치 앱 목록과 앱 시작·종료를 별도 작업트리에서 작성한다.
+  공통 DB 설정·생성된 설치 앱 목록·앱 시작/종료와 버전 조회를 별도 작업트리에서 작성한다.
   F1의 전체 검증 완료와 주 작업 전환은 아직 이루어지지 않았다.
 - 최근 제품 완료 범위: [A1 / GDJ-0135 모델 중심 Form/Admin/API 조립](../../work/0135-model-centered-form-admin-api.md).
   같은 source의 전체 CI·원본 대조와 선행 Q1/G-ORM 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.

@@ -195,6 +195,10 @@ Backend renderer는 operation마다 ordered statement group을 반환한다. Roo
 
 ## CLI와 프로젝트
 
+`godj version`과 `version.Current()`는 각각 실행 중인 도구/프로젝트 바이너리에 링크된 framework의
+build metadata를 읽는다. 고정 module·개발 source·로컬/원격 replacement를 구분하고 외부 프로젝트의 VCS 정보를
+framework dependency에 귀속하지 않는다. [버전 조회](../version/README.md)는 호환성 검증이나 자동 upgrade를 수행하지 않는다.
+
 전역 `godj`는 `godj.toml`로 project-owned runner를 찾는다. Runner는 선언 schema·migration catalog·backend opener·operator
 정책을 조립한다. 전역 도구와 프로젝트의 명시적 protocol을 구분하여 host의 다른 설정이나 source를 암묵적으로 섞지 않는다.
 
