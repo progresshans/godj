@@ -51,17 +51,12 @@ func cleanModelChoice(field Field, raw string) (Value, validation.Code) {
 		}
 		return Null(), ""
 	}
-	if strings.ContainsRune(raw, 0) {
-		return Null(), "null_characters_not_allowed"
+	value, code := parseModelChoiceKey(raw)
+	if code == "invalid_pk_value" {
+		code = "invalid_choice"
 	}
-	// AutoField converts the lookup value as an integer, rather than using
-	// IntegerField's additional zero-fraction form syntax.
-	if strings.Contains(raw, ".") {
-		return Null(), "invalid_choice"
-	}
-	value, code := cleanInteger(raw)
-	if code != "" || value.IsNull() {
-		return Null(), "invalid_choice"
+	if code != "" {
+		return Null(), code
 	}
 	for _, choice := range field.choices {
 		if value.Equal(choice.Value) {
@@ -77,4 +72,64 @@ func modelChoiceInitial(value Value) string {
 	}
 	key, _ := value.AsInteger()
 	return strconv.FormatInt(key, 10)
+}
+
+// ModelChoiceKeys extracts syntactically valid lookup keys without validating
+// membership, requiredness or running field/model validators. A false second
+// result means malformed input: skip selection I/O and let normal Bind produce
+// the original diagnostic. Even a successful result is not authorization.
+// Single choice retains integer aliases; multiple choice requires canonical
+// spelling and deduplicates identical raw keys in first-submitted order.
+// The caller must use server values instead of raw input for read-only rows.
+func (field Field) ModelChoiceKeys(data Data) ([]int64, bool, error) {
+	if !field.modelChoice || field.inlineParent {
+		return nil, false, &ConfigError{Path: "fields." + field.name, Code: "not_model_choice"}
+	}
+	raw, _ := data.raw(field.name)
+	if field.kind != FieldIntegerList {
+		if len(raw) > 1 {
+			return nil, false, nil
+		}
+		if len(raw) == 0 || raw[0] == "" {
+			return nil, true, nil
+		}
+		value, code := parseModelChoiceKey(raw[0])
+		if code != "" {
+			return nil, false, nil
+		}
+		key, _ := value.AsInteger()
+		return []int64{key}, true, nil
+	}
+	keys := make([]int64, 0, len(raw))
+	seen := make(map[int64]bool, len(raw))
+	for _, text := range raw {
+		value, code := parseModelChoiceKey(text)
+		if code != "" {
+			return nil, false, nil
+		}
+		key, _ := value.AsInteger()
+		if strconv.FormatInt(key, 10) != text {
+			return nil, false, nil
+		}
+		if !seen[key] {
+			keys = append(keys, key)
+			seen[key] = true
+		}
+	}
+	return keys, true, nil
+}
+
+func parseModelChoiceKey(raw string) (Value, validation.Code) {
+	if strings.ContainsRune(raw, 0) {
+		return Null(), "null_characters_not_allowed"
+	}
+	// AutoField lookup preparation excludes IntegerField's zero-fraction syntax.
+	if strings.Contains(raw, ".") {
+		return Null(), "invalid_pk_value"
+	}
+	value, code := cleanInteger(raw)
+	if code != "" || value.IsNull() {
+		return Null(), "invalid_pk_value"
+	}
+	return value, ""
 }

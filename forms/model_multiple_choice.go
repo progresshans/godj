@@ -3,7 +3,6 @@ package forms
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 
 	"github.com/progresshans/godj/validation"
 )
@@ -62,14 +61,10 @@ func cleanModelMultipleChoice(field Field, raw []string) (Value, validation.Code
 	}
 	selected := make(map[string]bool, len(raw))
 	for _, text := range raw {
-		if strings.ContainsRune(text, 0) {
-			return Null(), "null_characters_not_allowed"
-		}
-		// Match AutoField's integer preparation before checking the original key
-		// spelling. Multiple selection rejects aliases that single choice accepts.
-		value, code := cleanInteger(text)
-		if code != "" || value.IsNull() || strings.Contains(text, ".") {
-			return Null(), "invalid_pk_value"
+		// Preserve original spelling for membership after shared integer parsing.
+		_, code := parseModelChoiceKey(text)
+		if code != "" {
+			return Null(), code
 		}
 		selected[text] = true
 	}

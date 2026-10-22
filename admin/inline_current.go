@@ -11,13 +11,15 @@ import (
 )
 
 // InlineCurrent is a freshly authorized snapshot in the writer's borrowed
-// scope. Choices contains the complete current selection for each editable
-// relation field, not a search-results page. Children.Related reads only the
-// supplied snapshot; neither relation data nor choices may hide later I/O.
+// scope. Children.Related reads only the supplied snapshot. ResolveChoices is
+// invoked synchronously after parent/cohort/management admission, while that
+// scope is still borrowed. It resolves each admitted row separately; a search
+// page or another row's selections must never authorize this row. No callback
+// is retained by the bound result.
 type InlineCurrent[P, C any] struct {
-	Parent   P
-	Children InlineSnapshot[C]
-	Choices  map[string][]forms.Choice
+	Parent         P
+	Children       InlineSnapshot[C]
+	ResolveChoices func(context.Context, formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error)
 }
 
 // ModelInline retains the typed form and canonical relation policy used by
@@ -46,7 +48,8 @@ func (bound BoundInline[P, C]) Access() InlineAccess           { return bound.ac
 // submission and the current principal. It checks the declaration, actor and
 // admitted operation rights before calling load exactly once, synchronously.
 // The loader must use the caller's transaction and return the current parent,
-// complete child cohort and authorized relation selections. No initial view
+// complete child cohort and a row-scoped selection resolver. The resolver is
+// skipped for rejected admission. No initial view
 // loader or read-only Validate callback is invoked here.
 // The supplied principal keeps the application's authentication policy; this
 // method does not reload credentials or retroactively revoke admitted work.
@@ -138,34 +141,6 @@ func validateInlineAccess(ctx context.Context, actor auth.Principal, parentID in
 		}
 	}
 	return nil
-}
-
-func currentInlineChoices(form forms.Spec, access InlineAccess, choices map[string][]forms.Choice) (forms.Spec, error) {
-	known := map[string]bool{}
-	for _, field := range form.Fields() {
-		if !field.ModelChoice() {
-			continue
-		}
-		known[field.Name()] = true
-		if !access.Add && !access.Change {
-			continue
-		}
-		selected, present := choices[field.Name()]
-		if !present {
-			return forms.Spec{}, &ConfigError{Path: "inline.current.choices." + field.Name(), Code: "missing"}
-		}
-		var err error
-		form, err = form.WithModelChoices(field.Name(), selected...)
-		if err != nil {
-			return forms.Spec{}, &ConfigError{Path: "inline.current.choices." + field.Name(), Code: "invalid", Cause: err}
-		}
-	}
-	for name := range choices {
-		if !known[name] {
-			return forms.Spec{}, &ConfigError{Path: "inline.current.choices", Code: "not_selected_relation"}
-		}
-	}
-	return form, nil
 }
 
 func (ModelInline[P, C]) Format(state fmt.State, _ rune) {

@@ -1,6 +1,6 @@
 # GDJ-0136: Form/Admin의 관계 선택과 typed 편집 일반화
 
-- 상태: F1 준비·typed inline 구현 묶음; 선행 A1의 전체 실행 검증을 기다리는 별도 작업트리
+- 상태: F1 준비·typed inline과 관계 조회/행별 선택 기반 구현; 선행 A1의 전체 실행 검증을 기다리는 별도 작업트리
 - 시작: 2026-10-22
 - 구현 기준: `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879` — A1 구현, 전체 CI 검증 중
 - 근거: [전체 실행 계획의 F1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -87,6 +87,11 @@ Go 고유 source·수명·게시 결과는 독립 native 실패/경합 검사로
 검사를 작성했다. 별도 생성 Directory–Inventory의 baseline·필드/권한 변경 버전은 같은 typed 선언으로 현재 값,
 새 부모·삭제·read-only·scope 거부·cohort 변동·늦은 실패 rollback을 검사하도록 연결했다.
 기존 inline·업로드 probe는 원격 browser owner에 연결했고 native 저장/정리 증거를 추가했다.
+`RelationChoices`는 canonical FK/OneToOne/M2M의 bounded Search와 선택 key Resolve를 구분한다. 읽기 전용 target
+key capability, 안정된 root PK 보조 정렬, 실제 DB scope/취소/수명·오류 검사를 추가했다. `SetPreflight`와
+`InlinePreflight`는 management·PK/cohort·parent를 먼저 검사하고, Admin writer는 행별 선택 snapshot으로 검증을
+이어간다. 기본/현재 FK를 입력 누락으로 보존하는 경우에도 선택 범위를 확인하며 기존 PostClean 순서는 유지한다.
 로컬의 최소 compile과 아직 실행하지 않은 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
-관계 검색·일반 여러 행/모델 파일·widget 확장과 외부 소비자의 추가 범용성은 미완료다.
+Admin의 실제 검색 route·선택 widget과 초기 view의 행별 Resolve, 일반 여러 행/모델 파일·widget 확장,
+외부 소비자의 추가 범용성과 새 기반의 원격 실행 검증은 미완료다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

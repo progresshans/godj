@@ -49,7 +49,10 @@ extra, Delete가 없는 삭제 제어, Change가 없는 ORDER 제출은 거부�
 `ModelInline.BindCurrent`는 등록된 부모의 writer에서 받은 `InlineSubmission`과 현재 principal로 같은 Form·Set·
 canonical 관계 정책을 재사용한다. 다른 선언이나 actor의 입력, 등록 writer의 검사를 통과하지 않은 입력은
 거부한다. 제출 시 허용한 동작과 현재 모델/choice 권한을 확인한 뒤 전달한 loader를 한 번 호출한다.
-Loader는 writer가 소유한 session으로 현재 parent·전체 child cohort·관계 선택을 읽어 `InlineCurrent`를 반환한다.
+Loader는 writer가 소유한 session으로 현재 parent·전체 child cohort를 읽어 `InlineCurrent`를 반환한다.
+`ResolveChoices`는 parent·management·PK/cohort admission 뒤 같은 borrowed scope 안에서 동기 호출한다.
+순서가 바뀐 행도 preflight의 `Current(index)`로 확인하며 각 행에 허용된 선택을 `RowModelChoices`로 따로 반환한다.
+Admission이 실패하면 선택 조회를 실행하지 않는다.
 초기 화면의 `Load`나 읽기용 `Validate`는 다시 호출하지 않으므로 저장 검사가 별도 DB 연결로 빠지지 않는다.
 
 ```go
@@ -62,8 +65,9 @@ bound, present, err := reportInline.BindCurrent(ctx, currentPrincipal, submissio
 
 `bound.Set()`에는 현재 값으로 다시 만든 typed `InlineSet`이 있으며 순수 Form/모델 검증의 오류도 유지한다.
 `bound.Access()`는 제출 때의 deny overlay를 포함한 허용 범위다. 새로 얻은 권한으로 이 범위를 넓히지 않는다.
-현재 parent key·cohort와 child revision은 원래 입력과 다시 대조한다. 현재 선택을 재사용하는 필드는
-`InlineCurrent.Choices`에 명시하며 검색 결과 한 페이지만으로 제출한 key 전체를 검증하지 않는다.
+현재 parent key·cohort와 child revision은 원래 입력과 다시 대조한다. 현재 선택은
+`InlineCurrent.ResolveChoices`에서 조회한다. 누락한 행/필드는 빈 허용 집합이며 다른 행이나 새 행 prototype의
+선택으로 대체하지 않는다. 검색 결과 한 페이지만으로 제출한 key 전체를 검증하지 않는다.
 현재 DB의 고유성·객체 정책·revision fencing·저장과 audit는 writer가 계속 소유한다.
 
 저장 callback은 다음 작업을 하나의 transaction에서 수행해야 한다.

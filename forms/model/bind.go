@@ -268,6 +268,7 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 	byName, many := binding.byName, binding.many
 	data := form.Submitted()
 	var changed []string
+	var choiceFailures []validation.Violation
 	for _, field := range fields {
 		value, present := form.Cleaned().Get(field.Name())
 		if !present || !form.Errors().ByField(validation.Field(field.Name())).Empty() {
@@ -316,13 +317,26 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 
 			continue
 		}
-		_, submitted := data.Get(field.Name())
 		// Checkbox/select-multiple omission is an actual false/empty value.
 		// Other widgets may leave an existing/default value unchanged.
-		if scalar && metadata.Default != nil && !submitted && field.Widget() != forms.Checkbox && field.Widget() != forms.SelectMultiple && emptyInput(value) {
+		if scalar && retainsOmittedDefault(metadata, field, data, value) {
+			// The retained candidate did not pass ModelChoice field cleaning:
+			// that stage saw an omitted optional NULL. It must still belong to
+			// this request's explicit selection before it can become input.
+			retained := candidate[field.Name()]
+			if field.ModelChoice() && !retained.IsNull() && !hasModelChoice(field, retained) {
+				choiceFailures = append(choiceFailures, validation.New(validation.Field(field.Name()), "invalid_choice"))
+			}
 			continue
 		}
 		candidate[field.Name()] = value
+	}
+	if len(choiceFailures) != 0 {
+		var err error
+		form, err = form.WithErrors(validation.NewErrors(choiceFailures...))
+		if err != nil {
+			return BoundForm{}, err
+		}
 	}
 	bound := BoundForm{form: form, candidate: forms.NewValues(candidate), model: model.Clone(), fields: fields, changed: changed}
 	excluded := make(map[string]bool)
@@ -341,6 +355,20 @@ func (binding modelBinding) finish(form forms.Form) (BoundForm, error) {
 		return BoundForm{}, err
 	}
 	return binding.postClean.apply(bound)
+}
+
+func retainsOmittedDefault(metadata ir.Field, field forms.Field, data forms.Data, value forms.Value) bool {
+	_, submitted := data.Get(field.Name())
+	return metadata.Default != nil && !submitted && field.Widget() != forms.Checkbox && field.Widget() != forms.SelectMultiple && emptyInput(value)
+}
+
+func hasModelChoice(field forms.Field, value forms.Value) bool {
+	for _, choice := range field.Choices() {
+		if choice.Value.Equal(value) {
+			return true
+		}
+	}
+	return false
 }
 
 func (definition Definition) Bind(ctx context.Context, model ir.Model, data forms.Data, initial map[string]forms.Value) (BoundForm, error) {

@@ -3,8 +3,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strconv"
 
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/orm"
@@ -132,34 +130,11 @@ func (spec InlineSpec[P, C]) Unbound(parent P, current []C, related ...func(C, i
 }
 
 func (spec InlineSpec[P, C]) Bind(ctx context.Context, data forms.Data, parent P, current []C, postClean PostClean, related ...func(C, ir.ManyToManyField) ([]int64, bool)) (InlineSet[P, C], error) {
-	result, row, err := spec.start(parent, current)
+	input, err := spec.Preflight(ctx, data, parent, current, postClean, related...)
 	if err != nil {
 		return InlineSet[P, C]{}, err
 	}
-	if slices.Contains(postClean.Fields, spec.foreignKey) {
-		return InlineSet[P, C]{}, &Error{Path: "inline.post_clean", Code: "parent_is_server_owned"}
-	}
-	result.set, err = bindSet(ctx, spec.child, row, data, current, postClean, related, spec.foreignKey)
-	if err != nil {
-		return InlineSet[P, C]{}, err
-	}
-	// Parent mismatch is admission, not deletable row data. Check even rows
-	// which skipped cleaning because they are unchanged optional extras.
-	expected := ""
-	if key, present := result.key.AsInteger(); present {
-		expected = strconv.FormatInt(key, 10)
-	}
-	var failures []validation.Violation
-	for _, item := range result.set.FormSet().Forms() {
-		name := item.Prefix() + "-" + spec.foreignKey
-		if raw, present := data.Get(name); present && (len(raw) != 1 || raw[0] != "" && (result.key.IsNull() || raw[0] != expected)) {
-			failures = append(failures, validation.New(validation.NonField, "invalid_parent", validation.NewParam("index", strconv.Itoa(item.Index()))))
-		}
-	}
-	if len(failures) != 0 {
-		result.set, err = result.set.WithErrors(validation.NewErrors(failures...))
-	}
-	return result, err
+	return input.bind(ctx, nil)
 }
 
 func (spec InlineSpec[P, C]) start(parent P, current []C) (InlineSet[P, C], forms.SetSpec, error) {

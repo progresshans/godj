@@ -178,7 +178,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		}
 		return nil
 	}
-	bindSnapshot := func(ctx context.Context, parentID int64, access InlineAccess, owner P, snapshot InlineSnapshot[C], currentForm forms.Spec, submitted *forms.Data) (formmodel.InlineSet[P, C], inlineBound, error) {
+	bindSnapshot := func(ctx context.Context, parentID int64, access InlineAccess, owner P, snapshot InlineSnapshot[C], currentForm forms.Spec, submitted *forms.Data, resolve func(context.Context, formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error)) (formmodel.InlineSet[P, C], inlineBound, error) {
 		if err := validateParent(owner, parentID); err != nil {
 			return formmodel.InlineSet[P, C]{}, inlineBound{}, err
 		}
@@ -213,8 +213,24 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		var bound formmodel.InlineSet[P, C]
 		if submitted == nil {
 			bound, err = requestSpec.Unbound(owner, snapshot.Current, related...)
-		} else {
+		} else if resolve == nil {
 			bound, err = requestSpec.Bind(ctx, *submitted, owner, snapshot.Current, postClean, related...)
+		} else {
+			input, preflightErr := requestSpec.Preflight(ctx, *submitted, owner, snapshot.Current, postClean, related...)
+			if preflightErr != nil {
+				return formmodel.InlineSet[P, C]{}, inlineBound{}, preflightErr
+			}
+			var selections forms.RowModelChoices
+			if input.AdmissionValid() {
+				selections, err = resolve(ctx, input)
+				if contextErr := ctx.Err(); contextErr != nil {
+					err = errors.Join(err, contextErr)
+				}
+				if err != nil {
+					return formmodel.InlineSet[P, C]{}, inlineBound{}, err
+				}
+			}
+			bound, err = input.Bind(ctx, selections)
 		}
 		if err != nil {
 			return formmodel.InlineSet[P, C]{}, inlineBound{}, err
@@ -301,7 +317,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 				return inlineBound{}, err
 			}
 		}
-		bound, result, err := bindSnapshot(ctx, parentID, access, owner, snapshot, currentForm, submitted)
+		bound, result, err := bindSnapshot(ctx, parentID, access, owner, snapshot, currentForm, submitted, nil)
 		if err != nil {
 			return inlineBound{}, err
 		}
@@ -325,11 +341,20 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		return result, nil
 	}
 	return ModelInline[P, C]{view: definition, bindCurrent: func(ctx context.Context, parentID int64, access InlineAccess, data forms.Data, current InlineCurrent[P, C]) (formmodel.InlineSet[P, C], error) {
-		form, err := currentInlineChoices(rows.FormSpec(), access, current.Choices)
-		if err != nil {
-			return formmodel.InlineSet[P, C]{}, err
+		resolve := func(work context.Context, input formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error) {
+			if current.ResolveChoices != nil {
+				return current.ResolveChoices(work, input)
+			}
+			if access.Add || access.Change {
+				for _, field := range rows.FormSpec().Fields() {
+					if field.ModelChoice() {
+						return forms.RowModelChoices{}, &ConfigError{Path: "inline.current.choices", Code: "missing"}
+					}
+				}
+			}
+			return forms.RowModelChoices{}, nil
 		}
-		bound, _, err := bindSnapshot(ctx, parentID, access, current.Parent, current.Children, form, &data)
+		bound, _, err := bindSnapshot(ctx, parentID, access, current.Parent, current.Children, rows.FormSpec(), &data, resolve)
 		return bound, err
 	}}, nil
 }

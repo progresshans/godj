@@ -79,6 +79,37 @@ Int64/중복 입력·기존 Boolean/Choice parser 경계는 [ADR-0081](../docs/a
 렌더러는 `InlineParent()`의 서버 값을 사용한다. 이 저수준 field만으로는 검증을 건너뛰는 빈 행이나 삭제 행의 전체 admission을
 보장하지 않는다. 모델 InlineSpec이 그런 행의 원래 제출도 검사하고 parent cohort·pending key·여러 행 제약을 함께 소유한다.
 
+## 관계 조회 전에 입력 구조 확인하기
+
+`SetSpec.Preflight(ctx, data, initialCount)`는 management와 bounded 행 수만 검사한다. `AdmissionValid()`가
+거짓이면 선택 조회를 시작하지 않는다. `TOTAL > AbsoluteMax`도 이 단계에서 거부하지만 삭제·빈 추가 행에 따라
+달라지는 MaxForms/MinForms는 최종 Bind가 검사한다. Row/model/set validator는 preflight에서 실행하지 않는다.
+
+`RowData(index)`는 해당 행의 prefix를 제거한 원래 문자열·파일 capability이며 cleaning이나 readonly 처리를 하지 않는다.
+`Field.ModelChoiceKeys(data)`는 기존 단일/복수 관계 parser의 문법만 사용해 조회할 key를 얻는다. malformed 입력이면
+두 번째 반환값이 false이므로 조회를 생략하고 최종 Bind에서 기존 오류를 만든다. required·membership·validator는
+이 accessor가 검사하지 않는다. 모델 default/current 값의 보존과 readonly 조회 key는 typed 모델 preflight를 사용한다.
+
+```go
+input, err := spec.Preflight(ctx, data, len(initial))
+if err != nil { return forms.Set{}, err }
+var choices forms.RowModelChoices
+if input.AdmissionValid() {
+    choices, err = resolveCurrentRowChoices(ctx, input)
+    if err != nil { return forms.Set{}, err }
+}
+return input.Bind(ctx, initial, choices)
+```
+
+`NewRowModelChoices(rows, prototype)`는 행 index→field 이름→선택 slice를 복사한다. `input.Bind`에 명시적으로
+전달하면 모든 ModelChoice를 행별 snapshot으로 대체한다. 누락한 행/field는 빈 허용 집합이며 기존 명세·다른 행·
+prototype의 선택으로 대체하지 않는다. prototype은 `EmptyForm`만 사용한다. 일반 scalar·알 수 없는 field·서버 FK의
+구조를 바꾸는 snapshot과 실제 행 수 밖 index는 오류다. 일반 `Bind`는 선언한 고정 선택을 계속 사용한다.
+
+`WithRowModelChoices`로 파생한 명세는 Unbound/EmptyForm에도 같은 정책을 적용한다. WithConfig/WithFormField는
+행별 snapshot을 보존·재검사한다. Current identity/cohort·parent를 검증하고 재정렬까지 소유해야 하는 모델은
+[typed preflight](model/README.md#여러-모델-행의-준비)를 사용한다. 이 단계들은 현재 저장 권한을 대신하지 않는다.
+
 ## 조회 전용 기존 행과 편집 가능한 추가 행
 
 `SetConfig.ReadOnlyInitial`은 기존 행의 일반 field를 서버 initial에 고정한다. `Form.ReadOnly()`로 표시 정책을 읽는다.

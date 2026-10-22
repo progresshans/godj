@@ -15,7 +15,7 @@ import re
 
 MODULE = 'github.com/progresshans/godj/'
 FRAMEWORK = (
-    './storage', './admin', './conformance/internal/dbstate', './cmd/godj',
+    './storage', './admin', './forms', './forms/model', './orm', './conformance/internal/dbstate', './cmd/godj',
     './db/postgres', './examples/article', './examples/helpdesk',
 )
 CONSUMERS = ('./codegen/consumertest',)

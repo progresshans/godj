@@ -30,7 +30,8 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         self.assertEqual(set(self.required), seen)
 
     def test_new_child_sentinel_inherits_its_real_package_owner(self):
-        for package, owner in (('examples/helpdesk', 'core'), ('codegen/consumertest', 'core-consumers'),
+        for package, owner in (('examples/helpdesk', 'core'), ('forms', 'core'), ('forms/model', 'core'), ('orm', 'core'),
+                               ('codegen/consumertest', 'core-consumers'),
                                ('conformance/systemstate/product', 'core-processes'),
                                ('conformance/postgresproduct/newproduct', 'core-processes')):
             entry = MODULE + package + '|TestNewCapability/required_child'
@@ -93,7 +94,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
 
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],
-                        [MODULE + 'orm|TestForeign'], [MODULE + 'storage|not-a-test'], [MODULE + 'storage|TestBad\tName']):
+                        [MODULE + 'orm/unregistered|TestForeign'], [MODULE + 'storage|not-a-test'], [MODULE + 'storage|TestBad\tName']):
             with self.subTest(entries=entries), tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / 'required.txt'
                 path.write_text('\n'.join(entries) + '\n')

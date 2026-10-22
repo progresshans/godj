@@ -3,6 +3,32 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — bounded 관계 조회와 행별 선택 사전 검사
+
+F1 준비 branch의 `d0b51098` 뒤에 `RelationChoices`의 bounded Search/Resolve, read-only target PK 읽기,
+FormSet/typed inline preflight와 행별 선택 snapshot을 작성했다. Admin writer는 현재 parent·cohort admission 뒤에만
+동기 선택 resolver를 호출한다. 초기 view의 전체 선택 loader와 검색 widget은 아직 다음 연결 범위다.
+
+독립 source 검토에서 관련 모델의 PK 정렬을 대상 모델 PK로 잘못 인식하는 경로와 optional FK의 누락 default가
+빈 선택 snapshot을 우회하는 경로를 확인하고 수정했다. 관련 정렬/대상 PK의 구별과 default·현재 값·명시적 빈값·
+readonly·PostClean 순서의 회귀 검사를 추가했다. 전자는 실제 SQLite/PostgreSQL의 동률 페이지에도 연결했고,
+후자는 후보·원래 입력을 유지하면서 선택 범위 오류만 추가한다. 이 추가 guard를 Django FK 전체 동등성으로 주장하지 않는다.
+
+Go 1.26.5 darwin/arm64에서 아래 최소 compile이 통과했다. `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`를 사용했다.
+
+```sh
+go test -run '^$' -vet=off ./forms ./forms/model ./orm ./admin ./examples/helpdesk ./admin/testdata/browser ./codegen/consumertest
+# 각각 현재 작업트리를 replace하는 기존 baseline/changed 외부 생성 모듈에서 실행
+go test -mod=mod -run '^$' -vet=off ./...
+```
+
+테스트 본문·실제 DB/HTTP·race·브라우저를 로컬에서 실행하지 않았다. 변경 코드·CI 정책·외부 모듈의 hash와 로그는
+검증 보관 디렉터리 `gdj0136-bounded-core-compile-v1/receipt.json`에 보존했다. Receipt SHA-256은
+`7d59a08750493d6b89ba5343da2ba0ef9461a8194e33b62a34d3a90520c6d33d`다.
+Gofmt·Python 문법·문서 228개의 local link·diff와 PostgreSQL 필수 실행 3,764개의 3모드/7분할 소유권을 정적으로 확인했다.
+새 실제 DB·취소·수명·기본값/권한 검사의 실행과 전체 source 대조는 원격 CI에 남아 있다.
+이 compile-only 결과는 F1 완료나 A1의 전체 검증 완료를 뜻하지 않는다.
+
 ## GDJ-0136 — typed inline과 실제 쓰기 브라우저 준비
 
 `ffc8b5ad`에서 분리한 F1 준비 작업이다. `ModelInline[P, C]`은 초기 화면과 writer의 현재 snapshot 바인딩에

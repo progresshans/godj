@@ -169,7 +169,9 @@ func TestModelInlineCurrentParentCohortAndLoaderErrors(t *testing.T) {
 					current.Children.Current[0] = models.NewServiceReportWithID(12)
 					current.Children.Current[0].TicketID = 7
 				case "extra choices":
-					current.Choices = map[string][]forms.Choice{"summary": nil}
+					current.ResolveChoices = func(context.Context, formmodel.InlinePreflight[models.Ticket, models.ServiceReport]) (forms.RowModelChoices, error) {
+						return forms.NewRowModelChoices(map[int]map[string][]forms.Choice{0: {"summary": nil}}, nil), nil
+					}
 				case "overflow":
 					current.Children.Current = []models.ServiceReport{child, child, child}
 				case "loader error":
@@ -302,7 +304,9 @@ func TestModelInlineCurrentRelationChoicesUseWriterScope(t *testing.T) {
 	submission := checkedInlineSubmission(t, inline, actor, 7, InlineAccess{View: true, Change: true}, data)
 	for _, selected := range []int64{1, 2} {
 		bound, present, err := inline.BindCurrent(t.Context(), actor, submission, func(context.Context, InlineAccess) (InlineCurrent[models.Category, models.Ticket], error) {
-			return InlineCurrent[models.Category, models.Ticket]{Parent: models.NewCategoryWithID(7), Children: childSnapshot, Choices: map[string][]forms.Choice{"labels": {{Value: forms.Integer(selected), Label: "Current label"}}}}, nil
+			return InlineCurrent[models.Category, models.Ticket]{Parent: models.NewCategoryWithID(7), Children: childSnapshot, ResolveChoices: func(context.Context, formmodel.InlinePreflight[models.Category, models.Ticket]) (forms.RowModelChoices, error) {
+				return forms.NewRowModelChoices(map[int]map[string][]forms.Choice{0: {"labels": {{Value: forms.Integer(selected), Label: "Current label"}}}}, nil), nil
+			}}, nil
 		})
 		if err != nil || !present || bound.Set().Valid() != (selected == 1) {
 			t.Fatal("writer reused admission choices", selected, present, err)
@@ -315,5 +319,131 @@ func TestModelInlineCurrentRelationChoicesUseWriterScope(t *testing.T) {
 		return InlineCurrent[models.Category, models.Ticket]{}, nil
 	}); err == nil || calls != 0 {
 		t.Fatal("revoked choice permission reached snapshot loader", err, calls)
+	}
+}
+
+func TestModelInlineCurrentChoicesRemainPerRowAfterReordering(t *testing.T) {
+	report, _ := reportInlineFixture(t)
+	permissions := Permissions{View: "helpdesk.view_ticket", Add: "helpdesk.add_ticket", Change: "helpdesk.change_ticket", Delete: "helpdesk.delete_ticket"}
+	actor := sitePrincipal(t, "writer", true, permissions.View, permissions.Change, "helpdesk.view_label")
+	first, second := models.NewTicketWithID(11), models.NewTicketWithID(12)
+	first.CategoryID, first.Subject = 7, "First"
+	second.CategoryID, second.Subject = 7, "Second"
+	children := InlineSnapshot[models.Ticket]{Current: []models.Ticket{first, second}, Related: func(row models.Ticket, _ ir.ManyToManyField) ([]int64, bool) {
+		return []int64{row.ID - 10}, true
+	}}
+	config := forms.DefaultSetConfig()
+	config.Prefix, config.ExtraForms, config.MaxForms, config.AbsoluteMax = "tickets", 0, 3, 4
+	inline, err := NewInline(InlineConfig[models.Category, models.Ticket]{
+		Project: report.Project, Parent: models.CategoryObjects, Child: models.TicketObjects, ParentWithID: models.NewCategoryWithID,
+		ForeignKey: "category", Label: "Tickets", Set: config, Permissions: permissions,
+		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "labels"}}, RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+			return []forms.Choice{{Value: forms.Integer(1), Label: "One"}, {Value: forms.Integer(2), Label: "Two"}}, nil
+		}}}},
+		Load: func(context.Context, auth.Principal, int64) (InlineSnapshot[models.Ticket], error) {
+			return children, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"own", "cross_row", "missing_row", "prototype_only", "cohort_changed", "parent_changed", "resolver_error", "resolver_canceled"} {
+		t.Run(mode, func(t *testing.T) {
+			selected := "2"
+			if mode == "cross_row" {
+				selected = "1"
+			}
+			data := forms.NewData(map[string][]string{
+				"tickets-TOTAL_FORMS": {"2"}, "tickets-INITIAL_FORMS": {"2"},
+				"tickets-0-id": {"12"}, "tickets-0-category": {"7"}, "tickets-0-subject": {"Changed second"}, "tickets-0-labels": {selected},
+				"tickets-1-id": {"11"}, "tickets-1-category": {"7"}, "tickets-1-subject": {"Changed first"}, "tickets-1-labels": {"1"},
+			})
+			submission := checkedInlineSubmission(t, inline, actor, 7, InlineAccess{View: true, Change: true}, data)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			failure := errors.New("selection read failed")
+			calls := 0
+			bound, present, err := inline.BindCurrent(ctx, actor, submission, func(context.Context, InlineAccess) (InlineCurrent[models.Category, models.Ticket], error) {
+				snapshot := InlineCurrent[models.Category, models.Ticket]{Parent: models.NewCategoryWithID(7), Children: children}
+				if mode == "cohort_changed" {
+					snapshot.Children.Current = []models.Ticket{first}
+				}
+				if mode == "parent_changed" {
+					snapshot.Parent = models.NewCategoryWithID(8)
+				}
+				snapshot.ResolveChoices = func(work context.Context, input formmodel.InlinePreflight[models.Category, models.Ticket]) (forms.RowModelChoices, error) {
+					calls++
+					if work != ctx || !input.AdmissionValid() || input.TotalForms() != 2 || input.InitialForms() != 2 {
+						t.Fatal("selection resolver received unadmitted input")
+					}
+					if mode == "resolver_error" || mode == "resolver_canceled" {
+						if mode == "resolver_canceled" {
+							cancel()
+						}
+						return forms.RowModelChoices{}, failure
+					}
+					rows := make(map[int]map[string][]forms.Choice)
+					for index, expected := range []int64{12, 11} {
+						current, exists, err := input.Current(index)
+						if err != nil || !exists || current.ID != expected {
+							t.Fatal("resolver lost reordered current identity", index, err)
+						}
+						readonly, err := input.ReadOnly(index)
+						if err != nil || readonly {
+							t.Fatal("resolver lost admitted writable policy", err)
+						}
+						rowData, err := input.RowData(index)
+						if err != nil {
+							t.Fatal(err)
+						}
+						keyField, err := forms.ModelMultipleChoiceField("labels")
+						if err != nil {
+							t.Fatal(err)
+						}
+						keys, valid, err := keyField.ModelChoiceKeys(rowData)
+						if err != nil || !valid || len(keys) != 1 {
+							t.Fatal("row lookup input lost", keys, valid, err)
+						}
+						want := expected - 10
+						if mode == "cross_row" && index == 0 {
+							want = 1
+						}
+						if keys[0] != want {
+							t.Fatal("row lookup read another input index", index, keys)
+						}
+						rows[index] = map[string][]forms.Choice{"labels": {{Value: forms.Integer(current.ID - 10), Label: "Own label"}}}
+					}
+					if mode == "missing_row" {
+						delete(rows, 0)
+					}
+					if mode == "prototype_only" {
+						return forms.NewRowModelChoices(nil, rows[0]), nil
+					}
+					return forms.NewRowModelChoices(rows, nil), nil
+				}
+				return snapshot, nil
+			})
+			if mode == "parent_changed" || mode == "cohort_changed" {
+				if calls != 0 || err == nil && (!present || bound.Set().Valid()) {
+					t.Fatal("rejected identity reached selection I/O", calls, err)
+				}
+				return
+			}
+			if mode == "resolver_error" || mode == "resolver_canceled" {
+				if calls != 1 || !errors.Is(err, failure) || mode == "resolver_canceled" && !errors.Is(err, context.Canceled) {
+					t.Fatal("selection execution error lost", calls, err)
+				}
+				return
+			}
+			if err != nil || !present || calls != 1 || bound.Set().Valid() != (mode == "own") {
+				t.Fatal("row choices leaked or authorized selections rejected", mode, calls, err)
+			}
+			if mode == "own" {
+				prepared, err := bound.Set().Prepare()
+				if err != nil || len(prepared.Rows()) != 2 {
+					t.Fatal("scoped rows did not prepare", err)
+				}
+			}
+		})
 	}
 }

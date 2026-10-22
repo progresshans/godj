@@ -58,7 +58,73 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 장기 의미는 [ADR-0080](../../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
+## 관계 선택의 검색과 선택 key 해석
+
+`NewRelationChoices(project, sourceIdentity, field, targetManager, config)`는 canonical 프로젝트의
+FK·OneToOne·M2M target과 전체 target metadata를 확인한다. 재사용 선언에는 순수한 `Label`, 검색어를 typed
+predicate로 바꾸는 `Search`, `Order`를 두며 PK 정렬을 tie-breaker로 유지한다. 현재 IR의 AutoField PK를
+사용하며, target descriptor는 `orm.PrimaryKeyDescriptor` 읽기 capability만 필요하고 writer는 필요 없다.
+`Manager.PrimaryKeyField()`로 등록 시 capability와 key metadata를 검사하며 zero 모델의 callback을 호출하지 않는다.
+
+```go
+choices, err := formmodel.NewRelationChoices(
+    project, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+    "labels", models.LabelObjects,
+    formmodel.RelationChoiceConfig[models.Label]{
+        Label: func(row models.Label) (string, error) { return row.Name, nil },
+        Search: func(term string) ([]orm.Predicate[models.Label], error) {
+            if term == "" { return nil, nil }
+            return []orm.Predicate[models.Label]{models.LabelFields.Name.IContains(term)}, nil
+        },
+        Order: []orm.Ordering[models.Label]{models.LabelFields.Name.Asc()},
+    },
+)
+if err != nil { return err }
+// actor와 서버 source/parent/row의 현재 권한을 먼저 확인한다.
+scoped := choices.Filter(models.LabelFields.CategoryID.Exact(authorizedCategoryID))
+page, err := scoped.Search(ctx, reader, formmodel.ChoiceRequest{Term: term, Limit: 20})
+if err != nil { return err }
+selected, err := scoped.Resolve(ctx, reader, submittedKeys)
+if err != nil { return err }
+currentSpec, err := spec.WithModelChoices("labels", selected.Items()...)
+```
+
+`Search`는 명시한 page limit보다 한 행 더 읽어 `More()`를 결정하며 전체 목록을 읽거나 count하지 않는다.
+`Resolve`는 검색어·페이지와 별개로 요청한 key의 `IN` query를 실행한다. 최대 page 100행, offset 1,000,000,
+검색어 UTF-8 256 bytes, distinct 선택 key 1,024개, label UTF-8 4,096 bytes를 허용한다. 반환 중복·알 수 없는
+key·잘못된 label·한도 초과·cursor 실패·취소는 부분 결과를 버리고 오류로 반환한다. 없는/권한 밖 key는 결과에
+포함하지 않아 원래 raw 입력을 그대로 바인딩하면 `invalid_choice`가 된다. 단일/복수 field의 기존 변환·중복 입력
+의미는 바꾸지 않으며 PK 0·음수·큰 int64도 유지한다. 브라우저에서는 key를 문자열로 다룬다.
+
+`ChoicePage`와 `ChoiceSelection`은 `Metadata()`로 source 관계를 보존하고 모든 slice/model accessor를 복사한다.
+`ChoiceSelection.Keys()`는 첫 요청 순서의 distinct key이며 `Items()`는 target 정렬 순서다. `Initialized()`는
+zero와 정상적인 빈 결과를 구분한다. 페이지 밖 현재 선택은 별도로 Resolve하여 표시하고, 승인되지 않은 key의
+과거 label을 오류 화면에 재사용하지 않는다. 검색 결과를 제출 membership으로 사용하지 않는다.
+
+Backend·actor·QuerySet·결과 cache는 선언에 보관하지 않으며 Search/Resolve는 전달한 backend의 scope 안에서
+동기적으로 끝난다. 일반 Form·FormSet·inline의 순수 Bind에는 I/O를 추가하지 않는다. 현재 저장 권한·scope를 확인하고
+최종 transaction에서 다시 Resolve하는 책임은 caller에게 있다. 행별 권한이 다르면 row별 결과를 준비해야 하며,
+여러 행의 선택을 한 membership 목록으로 합쳐 다른 행에 권한을 전달해서는 안 된다.
+
 ## 여러 모델 행의 준비
+
+관계 선택 조회가 필요한 POST는 `PreflightSet(ctx, manager, setSpec, data, current, postClean, related...)` 또는
+`InlineSpec.Preflight`로 시작한다. 현재 행의 복사본과 제출 순서의 PK 매핑·부모·management를 먼저 검사하며,
+`AdmissionValid()`가 거짓이면 조회를 실행하지 않는다. `Current(index)`는 검증한 제출 순서의 행을 복사해 반환한다.
+`ChoiceKeys(index, fieldName)`는 같은 행의 raw 관계 key와 필요한 IR default/current 보존 key를 제공하고,
+readonly 행은 서버 initial key만 제공한다. malformed 입력은 lookup 없이 최종 Bind에서 오류를 만든다.
+단일 선택의 숫자 alias와 다중 선택의 canonical spelling·중복 key 의미를 유지한다.
+
+검증된 각 행에 대해 현재 scope로 Resolve한 결과를 `forms.NewRowModelChoices`에 담아 `input.Bind(ctx, choices)`로
+이어간다. 원래 spec/data/current를 다시 받지 않으며 row/model/set validation을 한 번 실행한다. 누락한 행의 선택은
+빈 집합이고 prototype이나 다른 행의 허용 목록을 가져오지 않는다. readonly는 candidate를 저장 가능하게 만들지 않는다.
+관리값·PK/cohort·parent 오류는 DELETE로 감출 수 없다. 새 부모 key는 여전히 `PrepareWithParent`로만 전달한다.
+
+선택된 optional FK의 입력 누락이 현재/default key를 보존할 때에는 그 key도 해당 선택 snapshot에 있어야 한다.
+이 추가 선택 범위 검사는 candidate와 원래 입력을 보존하며 `invalid_choice`를 붙인다. 일반 scalar default나
+명시적인 `PostClean` 변경 뒤의 필드 재검증 의미는 바꾸지 않는다. 이 범위 검사를 Django의 narrowed-queryset FK
+전체 동등성으로 주장하지 않으며, 최종 writer의 현재 객체/관계 권한 검사는 계속 필요하다.
+
 
 `UnboundSet(manager, setSpec, current)`는 화면용 모델/identity snapshot을 만들고,
 `BindSet(ctx, manager, setSpec, data, current, postClean)`은 [Formset](../formset.md)의 여러 행에 같은 모델 후보 검증을 연결한다.

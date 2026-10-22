@@ -135,115 +135,11 @@ func BindSet[M any](ctx context.Context, manager orm.Manager[M], spec forms.SetS
 }
 
 func bindSet[M any](ctx context.Context, manager orm.Manager[M], spec forms.SetSpec, data forms.Data, current []M, postClean PostClean, related []func(M, ir.ManyToManyField) ([]int64, bool), parent string) (InstanceSet[M], error) {
-	metadata, primary, snapshots, err := setSnapshots(manager, spec, current, related)
+	input, err := preflightSet(ctx, manager, spec, data, current, postClean, related, parent)
 	if err != nil {
 		return InstanceSet[M]{}, err
 	}
-	postClean = postClean.Clone()
-	if _, _, err := prepareModelBinding(metadata, spec.FormSpec().Fields(), nil, postClean); err != nil {
-		return InstanceSet[M]{}, err
-	}
-	choices := make([]forms.Choice, len(snapshots))
-	byKey := make(map[int64]setModelSnapshot[M], len(snapshots))
-	for index, snapshot := range snapshots {
-		choices[index] = forms.Choice{Value: forms.Integer(snapshot.key), Label: strconv.FormatInt(snapshot.key, 10)}
-		byKey[snapshot.key] = snapshot
-	}
-	keyField, err := forms.ModelChoiceField(primary, forms.WithChoices(choices...))
-	if err != nil {
-		return InstanceSet[M]{}, err
-	}
-	keySpec, err := forms.NewSpec([]forms.Field{keyField})
-	if err != nil {
-		return InstanceSet[M]{}, err
-	}
-	var identityErrors []validation.Violation
-	seen := make(map[int64]bool, len(snapshots))
-	for index := range snapshots {
-		name := spec.Config().Prefix + "-" + strconv.Itoa(index) + "-" + primary
-		raw, present := data.Get(name)
-		values := map[string][]string{}
-		if present {
-			values[primary] = raw
-		}
-		bound, err := keySpec.Bind(ctx, forms.NewData(values), nil)
-		if err != nil {
-			return InstanceSet[M]{}, err
-		}
-		key, parsed := bound.Cleaned().Integer(primary)
-		if !bound.Valid() || !parsed || seen[key] {
-			identityErrors = append(identityErrors, invalidSetIdentity(index))
-			continue
-		}
-		seen[key] = true
-		snapshots[index] = byKey[key]
-	}
-	initial, err := setFormInitial(manager, metadata, spec.FormSpec(), snapshots, related)
-	if err != nil {
-		return InstanceSet[M]{}, err
-	}
-	instances := make(map[int]InstanceForm[M])
-	set, err := spec.BindWith(ctx, data, initial, forms.SetProcessor{Form: func(row forms.SetForm) (forms.Form, error) {
-		var source M
-		var values map[string]forms.Value
-		hasInstance := row.Index() < len(snapshots)
-		if hasInstance {
-			snapshot := snapshots[row.Index()]
-			source = snapshot.value
-			values = copyFormValues(snapshot.values)
-			for name, value := range initial[row.Index()] {
-				values[name] = value
-			}
-		}
-		if parent != "" {
-			if values == nil {
-				values = map[string]forms.Value{}
-			}
-			// The server parent wins over a model default, including NULL
-			// while its generated key is still pending.
-			values[parent], _ = row.Form().Initial().Get(parent)
-		}
-		binding, _, err := prepareModelBinding(metadata, row.Fields(), values, postClean)
-		if err != nil {
-			return forms.Form{}, err
-		}
-		var bound BoundForm
-		if row.Form().ReadOnly() {
-			bound = BoundForm{form: row.Form(), candidate: forms.NewValues(binding.candidate), model: binding.model, fields: binding.fields}
-		} else {
-			bound, err = binding.finish(row.Form())
-			if err != nil {
-				return forms.Form{}, err
-			}
-		}
-		bound.parent = parent
-		snapshot, err := manager.ApplyValues(source, nil)
-		if err != nil {
-			return forms.Form{}, err
-		}
-		instances[row.Index()] = InstanceForm[M]{bound: bound, manager: manager, instance: snapshot, hasInstance: hasInstance}
-		return bound.Form(), nil
-	}, Clean: func(set forms.Set) (forms.Set, error) {
-		return validateSetUnique(metadata, set, instances, parent)
-	}})
-	if err != nil {
-		return InstanceSet[M]{}, err
-	}
-	// Empty optional extras skipped row processing, but an injected identity
-	// must still be rejected before any typed/persistence selection is offered.
-	for index := len(snapshots); index < set.TotalForms(); index++ {
-		name := spec.Config().Prefix + "-" + strconv.Itoa(index) + "-" + primary
-		if raw, present := data.Get(name); present && (len(raw) != 1 || raw[0] != "") {
-			identityErrors = append(identityErrors, invalidSetIdentity(index))
-		}
-	}
-	if len(identityErrors) != 0 {
-		set, err = set.WithErrors(validation.NewErrors(identityErrors...))
-		if err != nil {
-			return InstanceSet[M]{}, err
-		}
-	}
-	return InstanceSet[M]{set: set, manager: manager, primary: primary, current: snapshots, instances: instances}, nil
+	return input.bind(ctx, nil)
 }
 
 func invalidSetIdentity(index int) validation.Violation {

@@ -62,6 +62,7 @@ type SetSpec struct {
 	management Spec
 	config     SetConfig
 	validators []SetValidator
+	rowChoices *RowModelChoices
 	valid      bool
 }
 
@@ -120,7 +121,7 @@ func (s SetSpec) WithFormField(field Field) (SetSpec, error) {
 	if err != nil {
 		return SetSpec{}, err
 	}
-	return NewSetSpec(row, s.config, s.validators...)
+	return s.rebuild(row, s.config)
 }
 
 // WithConfig keeps the row and validators while validating new server policy.
@@ -128,7 +129,15 @@ func (s SetSpec) WithConfig(config SetConfig) (SetSpec, error) {
 	if !s.valid {
 		return SetSpec{}, &ConfigError{Path: "set", Code: "uninitialized"}
 	}
-	return NewSetSpec(s.row, config, s.validators...)
+	return s.rebuild(s.row, config)
+}
+
+func (s SetSpec) rebuild(row Spec, config SetConfig) (SetSpec, error) {
+	result, err := NewSetSpec(row, config, s.validators...)
+	if err != nil || s.rowChoices == nil {
+		return result, err
+	}
+	return result.WithRowModelChoices(*s.rowChoices)
 }
 
 // SetForm identifies one display row. FieldName returns its prefixed HTML
@@ -205,6 +214,9 @@ func (s SetSpec) Unbound(initial []map[string]Value) (Set, error) {
 	} else {
 		count += s.config.ExtraForms
 	}
+	if err := s.checkChoiceRows(count); err != nil {
+		return Set{}, err
+	}
 	management, err := s.management.Unbound(map[string]Value{
 		"TOTAL_FORMS": Integer(int64(count)), "INITIAL_FORMS": Integer(int64(len(initial))),
 		"MIN_NUM_FORMS": Integer(int64(s.config.MinForms)), "MAX_NUM_FORMS": Integer(int64(s.config.MaxForms)),
@@ -241,32 +253,15 @@ func (s SetSpec) BindWith(ctx context.Context, data Data, initial []map[string]V
 }
 
 func (s SetSpec) bind(ctx context.Context, data Data, initial []map[string]Value, processor SetProcessor) (Set, error) {
-	if err := s.checkInitial(initial); err != nil {
-		return Set{}, err
-	}
-	management, err := s.management.Bind(ctx, prefixedData(data, s.config.Prefix, s.management.fields), nil)
+	input, err := s.Preflight(ctx, data, len(initial))
 	if err != nil {
 		return Set{}, err
 	}
-	total, totalPresent := management.Cleaned().Integer("TOTAL_FORMS")
-	claimed, initialPresent := management.Cleaned().Integer("INITIAL_FORMS")
-	var invalidCounts []validation.Violation
-	if totalPresent && total < 0 {
-		invalidCounts = append(invalidCounts, validation.New("TOTAL_FORMS", "invalid_count"))
-	}
-	if initialPresent && (claimed < 0 || claimed != int64(len(initial)) || totalPresent && claimed > total) {
-		invalidCounts = append(invalidCounts, validation.New("INITIAL_FORMS", "invalid_count"))
-	}
-	if len(invalidCounts) != 0 {
-		management, err = management.WithErrors(validation.NewErrors(invalidCounts...))
-		if err != nil {
-			return Set{}, err
-		}
-	}
-	count := s.config.AbsoluteMax
-	if total < int64(count) {
-		count = int(max(total, 0))
-	}
+	return input.bind(ctx, initial, processor, nil)
+}
+
+func (s SetSpec) bindPreflight(ctx context.Context, input SetPreflight, initial []map[string]Value, processor SetProcessor) (Set, error) {
+	data, management, total, count := input.data, input.management, input.total, input.count
 	set := Set{binding: &formBindingToken{}, config: s.config, submitted: data, initial: len(initial), management: management, bound: true, rows: make([]SetForm, 0, count)}
 	if !management.Valid() {
 		set.errors = validation.NewErrors(validation.New(validation.NonField, "missing_management_form"))
@@ -365,7 +360,11 @@ func (s SetSpec) checkInitial(initial []map[string]Value) error {
 }
 
 func (s SetSpec) makeRow(ctx context.Context, index int, initial []map[string]Value, data Data, bound bool) (SetForm, error) {
-	fields := s.row.Fields()
+	rowSpec, err := s.rowFor(index)
+	if err != nil {
+		return SetForm{}, err
+	}
+	fields := rowSpec.Fields()
 	values := map[string]Value{}
 	if index >= 0 && index < len(initial) {
 		values = cloneValueMap(initial[index])
@@ -390,7 +389,7 @@ func (s SetSpec) makeRow(ctx context.Context, index int, initial []map[string]Va
 		}
 		fields = append(fields, field)
 	}
-	spec, err := NewSpec(fields, s.row.cross...)
+	spec, err := NewSpec(fields, rowSpec.cross...)
 	if err != nil {
 		return SetForm{}, err
 	}
