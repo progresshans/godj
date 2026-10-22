@@ -12,6 +12,9 @@ Directory–Inventory의 별도 생성 baseline·변경 모듈에는 현재 비�
 새 행, 현재 scope 거부, 위조/cohort 변동, 늦은 저장·audit 실패 rollback과 typed 오용 compile 검사를 연결했다.
 Admin inline·업로드 browser 두 흐름은 Portable normal integration에서 실행하고 source·원본 check·native 저장 행과
 종료/임시 DB 삭제를 별도 artifact에 보존하도록 연결했다.
+업로드 실패 probe는 부모 이름을 먼저 변경해 실제 부모 쓰기를 발생시키고, 별도 인증된 GET의 부모값·자식
+identity/cohort로 rollback을 검사하도록 보강했다. 원래 raw 부모 입력 보존과 성공 후 부모값도 포함해 20개 check다.
+이 보강은 JavaScript/Python 문법과 diff만 확인했으며 실제 브라우저 실행은 원격 CI에 남아 있다.
 
 로컬에서는 Go 1.26.5 darwin/arm64의 `admin`, Helpdesk, browser fixture, `codegen/consumertest`와 두 외부 생성 모듈을
 `go test -run '^$' -vet=off`로 컴파일했다. 외부 모듈은 `-mod=mod`를 사용하며 현재 작업트리를 replace하고

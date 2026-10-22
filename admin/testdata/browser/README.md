@@ -28,9 +28,11 @@ Probe는 초기 DB를 전제로 데이터를 저장하므로 반복할 때 서�
 SQLite/PostgreSQL 검증은 [Helpdesk HTTP 검사](../../../examples/helpdesk/admin_inlines_test.go)와 별도다. 정확한 실행 환경과
 성공/실패 기록은 [TEST_EVIDENCE](../../../docs/status/TEST_EVIDENCE.md)에 있다.
 
-파일 입력 검증은 새 fixture와 새 브라우저 세션에서 `uploads_probe.js`를 같은 run-code 방식으로 실행한다. 17개 조건을
-검사하며 label의 선택 파일 내용이 입력한 이름과 같은지 transaction 안에서 확인한다. 이름이 다르면 field 오류와 rollback,
-재선택 후에는 SQLite label 저장을 확인한다. 이는 비저장 파일 명령의 소비자이며 영구 파일 storage의 예제가 아니다.
+파일 입력 검증은 새 fixture와 새 브라우저 세션에서 `uploads_probe.js`를 같은 run-code 방식으로 실행한다. 20개 조건을
+검사하며 label의 선택 파일 내용이 입력한 이름과 같은지 transaction 안에서 확인한다. 일부러 잘못된 파일을 제출할 때
+부모 이름도 바꿔 파일 검증 전에 부모를 저장하게 한다. 오류 화면의 원래 부모 입력 보존과 별도 인증된 조회의 부모 저장값
+복원·자식 cohort 보존을 확인한다. 부모 입력을 원래 값으로 되돌리고 파일을 재선택한 뒤에는 SQLite label 저장과 부모값
+보존을 확인한다. 이는 비저장 파일 명령의 소비자이며 영구 파일 storage의 예제가 아니다.
 파일 선택 유지/재번호, 오류 재표시, readonly의 disabled/successful control 제외도 검사한다. 기본 `probe.js`의 33개 조건은
 파일이 없는 multipart 제출에서도 그대로 적용한다. 두 probe는 각각 새 DB를 사용한다.
 
