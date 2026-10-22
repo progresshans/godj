@@ -8,7 +8,7 @@
 
 ## 다음
 
-1. 외부 생성 소비자의 동일 변경을 독립 SDK까지 연결하고 전체 CI를 다시 확인한다.
+1. 독립 SDK의 인증 오류 검증을 수정한 source로 전체 CI를 다시 확인한다.
 2. 같은 필드·권한·응답 변경과 source·read-only·실패 경로를 포함한 native DB·race·process·browser·전체 platform CI를 확인한다.
 3. 현재 source의 필수 실행과 원본을 대조하고 남은 결함을 해소한 뒤 다음 F1로 연결한다.
 

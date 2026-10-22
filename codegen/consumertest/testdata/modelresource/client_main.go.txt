@@ -12,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -83,16 +84,29 @@ func run() (receipt, error) {
 	makeClient := func(token string) (*sdk.Client, error) {
 		return sdk.NewClient(input.URL, security(token), sdk.WithClient(httpClient))
 	}
-	anonymous, err := makeClient("")
+	malformed, err := makeClient("")
 	if err != nil {
-		return receipt{}, stage("anonymous client")
+		return receipt{}, stage("malformed client")
 	}
-	denied, err := anonymous.InventoryCreate(ctx, &sdk.AssetInput{Code: "anonymous"})
-	if _, ok := denied.(*sdk.InventoryCreateUnauthorized); err != nil || !ok || observed.status.Load() != http.StatusUnauthorized {
-		return receipt{}, stage("anonymous admission")
+	// The required security source always writes a Bearer header. An empty
+	// token is malformed syntax, not an absent Authorization field.
+	denied, err := malformed.InventoryCreate(ctx, &sdk.AssetInput{Code: "malformed"})
+	badRequest, ok := denied.(*sdk.InventoryCreateBadRequest)
+	if err != nil || !ok || observed.status.Load() != http.StatusBadRequest || badRequest.Response.Code != "not_authenticated" || !strings.Contains(badRequest.WWWAuthenticate.Value, "invalid_request") {
+		return receipt{}, stage("malformed credentials")
 	}
 	result := receipt{Evolved: evolved, Race: raceEnabled, Rows: map[string]int64{}}
-	result.Checks = append(result.Checks, "anonymous_admission")
+	result.Checks = append(result.Checks, "malformed_credentials")
+	invalidCredentials, err := makeClient("invalid")
+	if err != nil {
+		return receipt{}, stage("invalid credentials client")
+	}
+	denied, err = invalidCredentials.InventoryCreate(ctx, &sdk.AssetInput{Code: "unauthorized"})
+	unauthorized, ok := denied.(*sdk.InventoryCreateUnauthorized)
+	if err != nil || !ok || observed.status.Load() != http.StatusUnauthorized || unauthorized.Response.Code != "not_authenticated" || !strings.Contains(unauthorized.WWWAuthenticate.Value, "invalid_token") {
+		return receipt{}, stage("invalid credentials")
+	}
+	result.Checks = append(result.Checks, "invalid_credentials")
 	old, err := makeClient("old")
 	if err != nil {
 		return receipt{}, stage("prior client")

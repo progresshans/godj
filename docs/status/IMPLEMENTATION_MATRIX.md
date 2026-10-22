@@ -17,7 +17,7 @@ Named eager/prefetch 조합은 Q2, named 표현식 쓰기는 Q3의 미완료 요
 GDJ-0135는 source가 결합된 `ModelInput`, IR default·fresh current 기반의 모델 준비와 명시적 allowlist의
 `crud.Resource`, 확정 transaction 뒤의 결과 반환을 Article·Helpdesk의 Form/Admin/API에 연결했다.
 외부 Directory–Inventory 생성 프로젝트의 동일 필드·권한·응답 변경과 기존 수동 변환 방식의 비교 사례를 추가했다.
-현재 로컬 최소 compile만 확인했으며 이 A1 source의 native DB·보안/무결성·browser·전체 CI 실행 검증은 미완료다.
+최소 compile과 확인된 원격 실패의 좁힌 로컬 재현은 통과했다. 수정된 전체 A1 source의 native DB·race·browser·전체 CI 검증은 미완료다.
 공통 CRUD는 일반 router/viewset, 파일 게시·formset/inline 전체의 일반화나 새 인증 정책을 대신하지 않는다.
 [GDJ-0135](../../work/0135-model-centered-form-admin-api.md)와 [ADR-0092](../adr/0092-model-input-and-crud-assembly.md)를 따른다.
 

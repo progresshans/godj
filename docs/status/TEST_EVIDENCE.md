@@ -3,6 +3,41 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — 독립 SDK 인증 오류 검증 수정
+
+Source `738ae3773749e64a9f0ba0d805a1edce8ccdf580`의
+[CI 39728359488](https://github.com/progresshans/godj/actions/runs/39728359488), attempt 1에서
+Linux amd64 relation race shard 3 `119657971054`와 PostgreSQL race core-consumers `119657970549`가
+두 모델 버전의 생성 SDK 실행 실패를 보고했다. 실제 checkout `044bfde61293b8acb48132bbdbbe49c4b6bfa0b5`,
+두 parent와 tree `b10f38626a642b58c8bd1c9e2810ac1c87468293`를 제출 source와 대조했다.
+원본 job log는 검증 보관 디렉터리의 `gdj0135-738ae377-ci-39728359488/`에 있다.
+
+고정 SDK는 빈 토큰에도 Bearer header를 보낸다. 이를 header가 없는 요청처럼 401로 예상한 fixture가 잘못됐다.
+제품의 malformed Bearer 400 의미는 유지하고, SDK의 빈 토큰 400과 유효하지 않은 토큰 401을 각각 검사한다.
+테스트 verifier는 선언된 두 fixture token만 승인하며, SDK는 상태·오류 코드·challenge를 대조한다.
+기존 직접 HTTP의 header 누락 401 검사는 그대로 유지했다. SDK 실패의 알려진 단계만 진단 첫 줄에 넣고
+임의 child 출력·URL·응답 body를 게시하지 않는다.
+
+위 SDK subcase만 기본·변경 생성 모듈의 normal SQLite에서 재현했고, 수정 뒤 두 버전 모두 통과했다.
+각 버전은 root·SQLite·SDK subcase의 3개 run/pass·skip 0이며, 별도 SDK의 완료 항목 10개·실제 HTTP 6회,
+native 저장 값과 기존 행 보존을 확인했다. 실제 문서·생성 SDK 전체 source·잠금·완료 receipt·원본 event를
+독립 감사기로 대조했다. 나머지 시나리오나 PostgreSQL·race를 로컬에서 다시 실행하지 않았다.
+
+```sh
+go test -json -count=1 -timeout=3m -run '^TestModelResourceAssembly/sqlite/generated_client_change$' ./consumer
+```
+
+전후 source hash·로그와 생성 client 증거는 위 디렉터리의 `local-sdk-correction/`에 보존했다.
+`audit.json` SHA-256은 `f7e26dce97e7a15c3d3df082fe24d1fb576621beb56ddb17dc380a01af713c0e`다.
+수정한 검증 source의 native DB·race·전체 CI는 다시 확인해야 하며, A1 완료 근거로 아직 계산하지 않는다.
+
+같은 `738ae377` 실행의 normal·CGO 비활성 Portable integration과 normal browser는 통과했다.
+Browser artifact `12404174952`의 7개 흐름·236개 check, source·원본과 native read-only·정리를 확인했다.
+7개 screenshot은 이전에 검토한 bytes와 일치한다. `ci-39728359488-browser/audit.json`의 SHA-256은
+`50e1831f21da8ff837f8fadf0d2674281973a4984e911a54af9ebf6915111f03`다.
+PostgreSQL race의 Helpdesk·process·consumer-writes partition도 각각 필수 목록과 원본을 대조했다.
+이 부분 성공은 실패한 SDK나 전체 CI의 성공을 뜻하지 않는다.
+
 ## GDJ-0135 — 동일 변경의 독립 SDK 검증 연결
 
 `b309f8d0` 위에서 A1-04의 변경 실험을 외부 생성 클라이언트까지 연결했다. 선행 외부 소비자는 실제 HTML/API와

@@ -110,5 +110,6 @@ SDK 호출과 결과 검사는 전후 타입에 맞춘 별도 테스트 소비�
 현재 `ModelInput`·공통 모델 준비·`crud.Resource`·확정 transaction 결과 경계를 구현하고 Article·Helpdesk에
 연결했다. [ADR-0092](../docs/adr/0092-model-input-and-crud-assembly.md)에 장기 의미를 기록한다.
 로컬은 포맷·최소 compile과 원격 실패를 좁힌 재현에 사용했다. 선행 표현 정책 검증의 실패 재현은 수정 후 통과했다.
-추가한 독립 SDK는 생성·compile까지 확인했으며, 이를 포함한 현재 source의 실제 HTTP·PostgreSQL·race·전체 CI 검증은 남아 있다.
+추가한 독립 SDK의 인증 예상값 오류도 좁힌 SQLite 호출에서 수정 후 통과했다.
+수정한 현재 source의 전체 시나리오·PostgreSQL·race·전체 CI 검증은 남아 있다.
 구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

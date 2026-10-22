@@ -81,10 +81,14 @@ func (a assembly) httpApplication() (*web.Application, openapi.Document, error) 
 		return nil, openapi.Document{}, err
 	}
 	authentication, err := bearerauth.New(bearerauth.Config{Authorizer: auth.PrincipalAuthorizer{}, Verifier: verifierFunc(func(_ context.Context, token bearerauth.Token) (auth.Principal, error) {
-		if token.Encoded() == "old" {
+		switch token.Encoded() {
+		case "old":
 			return old, nil
+		case "writer":
+			return current, nil
+		default:
+			return auth.Principal{}, auth.ErrInvalidCredentials
 		}
-		return current, nil
 	})})
 	if err != nil {
 		return nil, openapi.Document{}, err

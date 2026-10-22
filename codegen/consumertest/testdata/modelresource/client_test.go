@@ -26,7 +26,7 @@ import (
 )
 
 var clientChecks = []string{
-	"anonymous_admission", "prior_permission", "model_defaults", "typed_write", "response_projection",
+	"malformed_credentials", "invalid_credentials", "prior_permission", "model_defaults", "typed_write", "response_projection",
 	"request_projection", "normalized_input", "invalid_length", "canceled_request",
 }
 
@@ -101,7 +101,7 @@ func verifyGeneratedClient(t *testing.T, backend resourceBackend) {
 	got, wanted := slices.Clone(result.Checks), slices.Clone(clientChecks)
 	slices.Sort(got)
 	slices.Sort(wanted)
-	if !slices.Equal(got, wanted) || result.Evolved == nil || *result.Evolved != evolved || result.Race == nil || *result.Race != clientRace || requests.Load() != 5 {
+	if !slices.Equal(got, wanted) || result.Evolved == nil || *result.Evolved != evolved || result.Race == nil || *result.Race != clientRace || requests.Load() != 6 {
 		t.Fatal("generated client omitted or duplicated required work, changed mode or retried", result, requests.Load())
 	}
 	verifyClientDatabase(t, a, before, result)
@@ -240,6 +240,21 @@ func clientCommand(t *testing.T, root, stage string, race bool, input []byte, na
 		t.Fatal("generated client command output truncated", stage)
 	}
 	if err != nil || stage == "execute" && stderr.Len() != 0 {
+		if stage == "execute" {
+			// Keep only known fixture stages on the diagnostic's first line.
+			// The outer compiler summary deliberately redacts arbitrary child
+			// output, including continuation lines, URLs and response bodies.
+			failure := strings.TrimSpace(string(stderr.Bytes()))
+			switch failure {
+			case "fixture input", "fixture framing", "malformed client", "malformed credentials",
+				"invalid credentials client", "invalid credentials", "prior client", "prior permission response",
+				"changed permission", "baseline permission", "writer client", "model defaults", "typed model write",
+				"normalized input", "response field change", "request field change", "invalid model length", "canceled request":
+			default:
+				failure = "unrecognized client failure"
+			}
+			t.Fatalf("generated client execute: %v; check=%s", err, failure)
+		}
 		t.Fatalf("generated client %s: %v\n%s\n%s", stage, err, stdout.Bytes(), stderr.Bytes())
 	}
 	return bytes.Clone(stdout.Bytes())
