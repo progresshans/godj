@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — 외부 소비자의 표현 정책 검증 수정
+
+Source `80fb8223fec41ec03c93c5fc4cca4d93370f3ff2`의
+[CI 39722185123](https://github.com/progresshans/godj/actions/runs/39722185123), attempt 1에서
+Linux amd64 relation race shard 3 `119638447926`과 PostgreSQL race core-consumers `119638447304`가
+새 `TestGeneratedModelResources`의 같은 예상값 오류를 보고했다. 두 job 원본은 검증 보관 디렉터리의
+`gdj0135-80fb8223-ci-39722185123/`에 보존했다. 제출 head와 실제 checkout `842cd8b5e27b2235ceeacaf9be41b80313372399`,
+두 parent, tree `901a7eed21e1874f609c039f5d99e49c42e22203`의 일치는 validation-plan 원본과 GitHub API로 확인했다.
+
+- Nullable Text의 JSON 생략은 NULL이고 빈 HTML Text 입력은 빈 문자열이다. 각각의 결과를 유지하며,
+  같은 빈 문자열을 명시한 JSON과 Form을 실제 저장한 뒤 같은 모델 값으로 비교하도록 검증을 수정했다.
+- 정수 선택 필드의 모델 default는 필수 HTML control의 누락을 대체하지 않는다. 누락의 `required` 거부를
+  명시적으로 검사하고 정상 Form에서는 해당 값을 제출한다. JSON 생략 default와 별도로 확인한다.
+- 문자열 길이는 공백 제거 뒤 적용한다. 원래 raw `maxLength` 예상 대신 기존 `x-godj-normalization`의
+  `maxLengthAfterTrim`을 검사하고, raw 길이는 초과하지만 정규화 후 유효한 HTTP 생성도 확인한다.
+
+제품 의미는 변경하지 않았다. 위 실패 root만 로컬 normal SQLite에서 재현한 뒤 같은 root를 다시 실행해 통과했다.
+기본·변경 버전의 child는 각각 root·SQLite·6개 시나리오가 정확히 한 번 run/pass이며 skip 0이다.
+네 compile 부정 대조도 통과했고 parent에 기록된 child 원본 hash와 실제 JSON 이벤트가 일치한다.
+
+```sh
+go test -json -count=1 -run '^TestGeneratedModelResources$' ./codegen/consumertest
+```
+
+전후 로그와 `local-after-model-resource.audit.json`을 위 디렉터리에 보존했다. Audit SHA-256은
+`c38f4802a46624ac44280249cca324b4613368423cb087ea26246b0a2e73ad1f`다. 이 로컬 실행은 PostgreSQL·race를
+대체하지 않는다. 보완한 검증 source의 전체 CI는 다시 확인해야 한다.
+
+같은 `80fb8223` 실행의 normal·CGO 비활성 Portable integration과 normal browser는 통과했다.
+Browser artifact `12401564075`의 7개 흐름·236개 check, source/로그/파일 hash, 저장 행·관계·audit 보존과
+종료·임시 DB 정리를 원본으로 대조했다. 7개 screenshot은 Q1에서 검토한 bytes와 동일하다.
+부분 근거는 `ci-39722185123-browser/`에 있으며 audit SHA-256은
+`7655381c4b4230adb4aaad1cfc1e69f9944543505e8dcb67c4f5ff9e19fbc8f0`다. 전체 CI 성공 근거는 아니다.
+
 ## GDJ-0135 — 첫 원격 실패와 오류 응답 경계 수정
 
 제출 source `d03984dacfdac5fa300a87ba6e660b9b490adbea`의

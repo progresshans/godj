@@ -145,6 +145,19 @@ func verifyHTTP(t *testing.T, backend resourceBackend) {
 	if !slices.Equal(keys, want) || evolved && string(decoded["priority"]) != "9" {
 		t.Fatal("response projection differs from policy", keys, want)
 	}
+	// The model limit applies after trimming. A raw JSON Schema maxLength
+	// would incorrectly reject this input even though its stored code fits.
+	trimmed, _ := send("writer", `{"code":"    trimmed    "}`)
+	if trimmed.Code != http.StatusCreated {
+		t.Fatal("normalized model constraint rejected valid raw input", trimmed.Code)
+	}
+	var normalized struct {
+		Code string `json:"code"`
+	}
+	check(t, json.Unmarshal(trimmed.Body.Bytes(), &normalized))
+	if normalized.Code != "trimmed" {
+		t.Fatal("HTTP input did not apply model string normalization", normalized.Code)
+	}
 	beforeWrites = probe.writes.Load()
 	invalid, _ := send("writer", `{"code":"too-long-asset-code"}`)
 	if invalid.Code != http.StatusBadRequest || probe.writes.Load() != beforeWrites {
@@ -163,10 +176,15 @@ func verifyHTTP(t *testing.T, backend resourceBackend) {
 		Components struct {
 			Schemas map[string]struct {
 				Properties map[string]struct {
-					Type      string            `json:"type"`
-					MaxLength int               `json:"maxLength"`
-					Default   json.RawMessage   `json:"default"`
-					Enum      []json.RawMessage `json:"enum"`
+					Type          string            `json:"type"`
+					MaxLength     *int              `json:"maxLength"`
+					Default       json.RawMessage   `json:"default"`
+					Enum          []json.RawMessage `json:"enum"`
+					Normalization struct {
+						TrimWhitespace     bool `json:"trimWhitespace"`
+						AllowEmpty         bool `json:"allowEmptyAfterTrim"`
+						MaxLengthAfterTrim int  `json:"maxLengthAfterTrim"`
+					} `json:"x-godj-normalization"`
 				} `json:"properties"`
 			} `json:"schemas"`
 		} `json:"components"`
@@ -176,8 +194,9 @@ func verifyHTTP(t *testing.T, backend resourceBackend) {
 		t.Fatal("OpenAPI permission did not change with actual admission")
 	}
 	requestProperties := wire.Components.Schemas["AssetInput"].Properties
-	if requestProperties["code"].MaxLength != 12 {
-		t.Fatal("model constraint absent from request schema")
+	code := requestProperties["code"]
+	if code.Type != "string" || code.MaxLength != nil || !code.Normalization.TrimWhitespace || code.Normalization.AllowEmpty || code.Normalization.MaxLengthAfterTrim != 12 {
+		t.Fatal("request schema does not describe post-normalization model constraints", code)
 	}
 	_, hasPriority := requestProperties["priority"]
 	if hasPriority != evolved || evolved && (requestProperties["priority"].Type != "integer" || string(requestProperties["priority"].Default) != "5" || len(requestProperties["priority"].Enum) != 3) {

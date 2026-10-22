@@ -46,8 +46,29 @@ func verifyFormJSON(t *testing.T, backend resourceBackend) {
 	if priority, present := values["priority"]; present != evolved || evolved && !priority.Equal(query.Integer(5)) {
 		t.Fatal("added field default was not generated and prepared", values)
 	}
-	formInput := a.bindForm(t, map[string][]string{"code": {"from-form"}, "enabled": {"on"}}, nil)
+	formData := map[string][]string{"code": {"from-form"}, "enabled": {"on"}, "note": {""}}
+	if evolved {
+		// A model default supplies HTML initial data, not a missing required
+		// submitted control. JSON omission has a separate default policy.
+		missing, err := formmodel.BindInstance(t.Context(), inventory.AssetObjects, a.form, forms.NewData(formData), nil, formmodel.PostClean{})
+		check(t, err)
+		failures := missing.BoundForm().Form().Errors().All()
+		if missing.BoundForm().Form().Valid() || len(failures) != 1 || failures[0].Field() != "priority" || failures[0].Code() != "required" {
+			t.Fatal("required Form control was replaced by its model default", failures)
+		}
+		formData["priority"] = []string{"5"}
+	}
+	formInput := a.bindForm(t, formData, nil)
 	fromForm, err := a.create(t.Context(), formInput)
+	check(t, err)
+	// An empty Text control is an explicit empty string. It must not be
+	// confused with the omitted nullable JSON field checked above.
+	if fromForm.Note == nil || *fromForm.Note != "" {
+		t.Fatal("empty Text Form input lost its representation policy", fromForm)
+	}
+	equivalent, err := a.create(t.Context(), a.bindJSON(t, `{"code":"json-form","note":""}`, serializers.ModeFull))
+	check(t, err)
+	values, err = inventory.AssetObjects.ModelValues(equivalent)
 	check(t, err)
 	formValues, err := inventory.AssetObjects.ModelValues(fromForm)
 	check(t, err)
@@ -147,7 +168,11 @@ func verifySources(t *testing.T, backend resourceBackend) {
 	}
 	current := inventory.NewAssetWithID(7)
 	current.Code = "bound"
-	input = a.bindForm(t, map[string][]string{"code": {"bound"}, "enabled": {"on"}}, &current)
+	formData := map[string][]string{"code": {"bound"}, "enabled": {"on"}}
+	if evolved {
+		formData["priority"] = []string{"5"}
+	}
+	input = a.bindForm(t, formData, &current)
 	if _, err := a.resource.UpdateInSession(t.Context(), forbiddenSession{}, 8, input, crud.SaveOptions[inventory.Asset]{}); err == nil {
 		t.Fatal("Form target binding was discarded")
 	}

@@ -92,6 +92,11 @@ DTO/setter·Form-to-builder 패턴을 현재 공개 API로 재현한 테스트 �
 응답과 schema·권한을 비교하고 관측 write를 rollback한다. 제품에 과거 DTO 호환 계층을 남기지 않는다.
 필드별 수동 변환의 제거를 평가하며 개발 시간·실행 성능이나 모든 앱의 비용 감소를 수치로 주장하지 않는다.
 
+공통 모델 준비는 HTML과 JSON의 표현 차이를 없애지 않는다. 빈 Text Form 값은 빈 문자열이고 nullable JSON
+입력의 생략·명시적 NULL과 다르다. 필수 HTML 선택 필드는 initial/default가 있어도 제출해야 한다.
+같은 값의 비교에는 이에 맞는 입력을 사용하며, 원래 표현 차이와 누락 오류도 따로 확인한다.
+공백 제거 뒤의 문자열 길이 제한은 실제 HTTP 입력과 OpenAPI의 정규화 메타데이터를 함께 대조한다.
+
 ## 완료 조건
 
 - [ ] A1-01~02의 공통 모델 입력·Form 준비·저장을 타입·presence·기본값·실패 의미까지 연결한다.
@@ -101,6 +106,6 @@ DTO/setter·Form-to-builder 패턴을 현재 공개 API로 재현한 테스트 �
 
 현재 `ModelInput`·공통 모델 준비·`crud.Resource`·확정 transaction 결과 경계를 구현하고 Article·Helpdesk에
 연결했다. [ADR-0092](../docs/adr/0092-model-input-and-crud-assembly.md)에 장기 의미를 기록한다.
-로컬 포맷·최소 compile만 확인했으며 새 테스트 본문·원격 CI는 아직 실행하지 않았다.
-외부 생성 소비자와 동일 변경 실험의 사례를 작성했다. 현재 source의 테스트 본문·전체 CI 검증은 남아 있다.
+로컬은 포맷·최소 compile과 원격 실패를 좁힌 재현에 사용했다. 외부 생성 소비자의 SQLite 두 버전과
+잘못된 타입 연결의 compile 부정 대조는 수정 후 통과했다. 현재 source의 PostgreSQL·race·전체 CI 검증은 남아 있다.
 구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
