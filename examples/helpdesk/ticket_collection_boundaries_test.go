@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk"
@@ -286,8 +287,20 @@ func verifyTicketCollectionBoundaries(t *testing.T, ctx context.Context, runtime
 		}
 		changePath := fmt.Sprintf("/admin/tickets/change/?id=%d", owner.ID)
 		form := client.request("GET", changePath, "", false)
-		if form.Code != 200 || !strings.Contains(form.Body.String(), `<select name="labels" multiple>`) || !strings.Contains(form.Body.String(), fmt.Sprintf(`<option value="%d">Collection candidate 24</option>`, candidates[24])) || strings.Contains(form.Body.String(), "Collection reference 12") {
-			t.Fatal("candidate scope or completeness", form.Code, form.Body)
+		control, present := adminChoiceControls(t, form, changePath)["labels"]
+		selected := []string{fmt.Sprint(keys[7]), fmt.Sprint(keys[9])}
+		slices.Sort(selected)
+		_, offPageRendered := control.option(fmt.Sprint(candidates[24]))
+		if !present || !control.Multiple || control.Required || control.Disabled || control.Limit != admin.DefaultListLimit || control.pageCount() != control.Limit || len(control.Options) > control.Limit+len(selected) || !control.More || !slices.Equal(control.selected(), selected) || offPageRendered || strings.Contains(form.Body.String(), "Collection reference 12") {
+			t.Fatal("candidate page, current selection or source scope", form.Code, form.Body)
+		}
+		searchPath := fmt.Sprintf("/admin/tickets/change/choices/labels/?id=%d", owner.ID)
+		if control.SearchURL != searchPath {
+			t.Fatal("choice search lost current owner identity", control.SearchURL)
+		}
+		page := readHelpdeskAdminChoicePage(t, client.request("GET", searchPath+"&q="+url.QueryEscape("Collection candidate 24")+"&limit=1", "", false))
+		if page.Offset != 0 || page.Limit != 1 || page.More || len(page.Items) != 1 || page.Items[0].Value != fmt.Sprint(candidates[24]) || page.Items[0].Label != "Collection candidate 24" {
+			t.Fatal("choice outside the initial page is not discoverable", page)
 		}
 		input := url.Values{"subject": {"Admin replacement"}, "csrfmiddlewaretoken": {client.csrf}, "labels": {fmt.Sprint(keys[7]), fmt.Sprint(candidates[24]), fmt.Sprint(keys[7])}}
 		if response := client.request("POST", changePath, input.Encode(), false); response.Code != 302 {

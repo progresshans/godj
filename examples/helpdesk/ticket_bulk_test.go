@@ -694,7 +694,8 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 		}); err != nil {
 			t.Fatal(err)
 		}
-		application, err := helpdesk.New(runtime, category.ID)
+		counter := &helpdeskReadCounter{Backend: runtime}
+		application, err := helpdesk.New(counter, category.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -711,14 +712,64 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 		path := "/admin/tickets/collection-set/create/"
 		page := client.request("GET", path, "", false)
 		values, _ := adminFormSubmission(t, page, path)
+		initial, present := adminChoiceControls(t, page, path)["tickets-0-labels"]
+		if !present || initial.Required || !initial.Multiple || initial.Disabled || initial.Limit != admin.DefaultListLimit || initial.pageCount() != initial.Limit || len(initial.Options) != initial.Limit || !initial.More {
+			t.Fatal("initial collection row did not bound its native choice page", initial)
+		}
+		selected := readHelpdeskAdminChoicePage(t, client.request("GET", initial.SearchURL+"?index=0&q=000255&limit=1", "", false))
+		if selected.Offset != 0 || selected.Limit != 1 || selected.More || len(selected.Items) != 1 || selected.Items[0].Label != strings.Repeat("<", 58)+"000255" {
+			t.Fatal("large-catalog choice outside the first page is not discoverable", selected)
+		}
+		if _, rendered := initial.option(selected.Items[0].Value); rendered {
+			t.Fatal("large catalog was fully rendered in the first page")
+		}
+		values.Set("tickets-0-labels", selected.Items[0].Value)
 		values.Set("tickets-TOTAL_FORMS", "40")
 		for index := 0; index < 40; index++ {
 			values.Set(fmt.Sprintf("tickets-%d-subject", index), "Large form row")
 		}
 		values.Set("tickets-39-subject", strings.Repeat("x", 121))
+		counter.queries, counter.plans = 0, nil
 		response := client.request("POST", path, values.Encode(), false)
-		if response.Code != 200 || response.Body.Len() <= 1<<20 || response.Body.Len() > helpdesk.AdminRenderLimits().MaxOutputBytes || !strings.Contains(response.Body.String(), `data-error-code="max_length"`) || audits != 0 {
+		if response.Code != 200 || response.Body.Len() > helpdesk.AdminRenderLimits().MaxOutputBytes || !strings.Contains(response.Body.String(), `data-error-field="tickets-39-subject" data-error-code="max_length"`) || strings.Contains(response.Body.String(), `data-error-field="tickets-0-labels"`) || audits != 0 {
 			t.Fatal("bounded large Admin form cannot redisplay", response.Code, response.Body.Len())
+		}
+		targetReads := 0
+		for _, plan := range counter.plans {
+			if plan.Table() != "helpdesk_label" {
+				continue
+			}
+			targetReads++
+			// One chosen key uses Resolve's key-count lookahead. POST must
+			// neither query nor reuse a Search page for any of the forty rows.
+			if limit, bounded := plan.Limit(); !bounded || limit != 2 {
+				t.Fatal("POST expanded selected-key resolution into a search page", limit, bounded)
+			}
+		}
+		if targetReads != 1 {
+			t.Fatal("POST did not resolve only its one selected key", targetReads)
+		}
+		controls := adminChoiceControls(t, response, path)
+		redisplayed, _ := adminFormSubmission(t, response, path)
+		if redisplayed.Get("tickets-TOTAL_FORMS") != "40" || redisplayed.Get("tickets-0-labels") != selected.Items[0].Value || redisplayed.Get("tickets-39-subject") != strings.Repeat("x", 121) {
+			t.Fatal("invalid large form lost management, valid off-page selection or rejected text")
+		}
+		for index := 0; index < 40; index++ {
+			name := fmt.Sprintf("tickets-%d-labels", index)
+			control, present := controls[name]
+			expectedOptions := 0
+			var expectedSelected []string
+			if index == 0 {
+				expectedOptions++
+				expectedSelected = []string{selected.Items[0].Value}
+			}
+			if !present || control.Name != name || control.Required || !control.Multiple || control.Disabled || control.Limit != admin.DefaultListLimit || control.SearchURL != initial.SearchURL || control.pageCount() != 0 || len(control.Options) != expectedOptions || control.More || !slices.Equal(control.selected(), expectedSelected) {
+				t.Fatal("redisplayed row lost Resolve-only choices, search capability or native selection semantics", index, control)
+			}
+		}
+		chosen, present := controls["tickets-0-labels"].option(selected.Items[0].Value)
+		if !present || !chosen.Selected || chosen.Page || chosen.Disabled || chosen.Label != selected.Items[0].Label {
+			t.Fatal("valid off-page selection was dropped or falsely included in the page", chosen)
 		}
 		count, err := models.TicketObjects.Using(runtime).Filter(relations.ModelsTicket.Category.ID.Exact(category.ID)).Count(ctx)
 		if err != nil || count != 0 {

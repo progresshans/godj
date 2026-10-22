@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk"
@@ -232,8 +234,11 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 		assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/{id}/service-report/", response)
 	}
 	response := client.request("GET", "/admin/service-reports/add/", "", false)
-	if response.Code != 200 || !strings.Contains(response.Body.String(), `<select name="ticket" required>`) || !strings.Contains(response.Body.String(), html.EscapeString(first.Subject)) || strings.Contains(response.Body.String(), "Other category ticket") || strings.Contains(response.Body.String(), "<script>") {
-		t.Fatal("chooser scope/escaping", response.Code, response.Body)
+	control, present := adminChoiceControls(t, response, "/admin/service-reports/add/")["ticket"]
+	option, found := control.option(strconv.FormatInt(first.ID, 10))
+	blank, hasBlank := control.option("")
+	if !present || !control.Required || control.Multiple || control.Disabled || control.SearchURL != "/admin/service-reports/add/choices/ticket/" || control.Limit != admin.DefaultListLimit || control.pageCount() > control.Limit || !found || option.Label != first.Subject || !option.Page || option.Selected || option.Disabled || !hasBlank || !blank.Selected || !strings.Contains(response.Body.String(), html.EscapeString(first.Subject)) || strings.Contains(response.Body.String(), "Other category ticket") || strings.Contains(response.Body.String(), "<script>") {
+		t.Fatal("chooser scope/escaping or native select semantics", response.Code, response.Body)
 	}
 	for _, permission := range []auth.Permission{helpdesk.AddServiceReport, helpdesk.ViewTicket} {
 		denied := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermissions{permission})
@@ -323,8 +328,12 @@ func verifyHelpdeskReports(t *testing.T, ctx context.Context, runtime *systemsta
 		t.Fatal("reverse report", response.Code, response.Body)
 	}
 	change := fmt.Sprintf("/admin/service-reports/change/?id=%d", report.ID)
-	if response = client.request("GET", change, "", false); response.Code != 200 || !strings.Contains(response.Body.String(), fmt.Sprintf(`<option value="%d" selected>`, first.ID)) {
-		t.Fatal("report initial choice", response.Code, response.Body)
+	response = client.request("GET", change, "", false)
+	control, present = adminChoiceControls(t, response, change)["ticket"]
+	option, found = control.option(strconv.FormatInt(first.ID, 10))
+	selected := control.selected()
+	if !present || !control.Required || control.Multiple || control.Disabled || control.SearchURL != fmt.Sprintf("/admin/service-reports/change/choices/ticket/?id=%d", report.ID) || !found || !option.Selected || option.Disabled || option.Label != first.Subject || len(selected) != 1 || selected[0] != strconv.FormatInt(first.ID, 10) {
+		t.Fatal("report initial choice or native select semantics", response.Code, response.Body)
 	}
 	invalidForm := url.Values{"ticket": {fmt.Sprint(first.ID)}, "summary": {"<script>raw report</script>"}, "csrfmiddlewaretoken": {client.csrf}}
 	response = client.request("POST", "/admin/service-reports/add/", invalidForm.Encode(), false)

@@ -6,15 +6,19 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/systemstate"
+	xhtml "golang.org/x/net/html"
 )
 
 func verifyHelpdeskAdminChoices(t *testing.T, ctx context.Context, runtime *systemstate.Runtime, authenticated *helpdeskClient) {
@@ -158,13 +162,163 @@ func verifyHelpdeskAdminChoices(t *testing.T, ctx context.Context, runtime *syst
 		if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), `data-error-field="labels" data-error-code="invalid_choice"`) || strings.Contains(result.Body.String(), "Bounded label 124 &lt;safe&gt;") {
 			t.Fatal("stale scope leaked a label or bypassed validation", result.Code, result.Body.String())
 		}
-		stored, found, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(ticket.ID)).First(ctx)
+		stored, found, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(ticket.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 		if err != nil || !found || stored.Subject != "Valid off-page selection" {
 			t.Fatal("rejected selection changed parent", err)
 		}
-		storedLink, found, err := models.TicketLabelObjects.Using(runtime).Filter(models.TicketLabelFields.ID.Exact(link.ID)).First(ctx)
+		storedLink, found, err := models.TicketLabelObjects.Using(runtime).Filter(models.TicketLabelFields.ID.Exact(link.ID)).OrderBy(models.TicketLabelFields.ID.Asc()).First(ctx)
 		if err != nil || !found || storedLink != link {
 			t.Fatal("rejected selection changed membership", err)
 		}
 	})
+}
+
+// Inspect the successful form's DOM semantics without depending on attribute
+// order. Inert prototypes do not count as submitted controls or rendered rows.
+type adminChoiceOption struct {
+	Value, Label             string
+	Selected, Page, Disabled bool
+}
+type adminChoiceControl struct {
+	Name, SearchURL                    string
+	Required, Multiple, Disabled, More bool
+	Limit                              int
+	Options                            []adminChoiceOption
+}
+
+func (control adminChoiceControl) selected() []string {
+	var selected []string
+	for _, option := range control.Options {
+		if option.Selected {
+			selected = append(selected, option.Value)
+		}
+	}
+	slices.Sort(selected)
+	return selected
+}
+func (control adminChoiceControl) pageCount() int {
+	count := 0
+	for _, option := range control.Options {
+		if option.Page {
+			count++
+		}
+	}
+	return count
+}
+func (control adminChoiceControl) option(value string) (adminChoiceOption, bool) {
+	for _, option := range control.Options {
+		if option.Value == value {
+			return option, true
+		}
+	}
+	return adminChoiceOption{}, false
+}
+func adminChoiceControls(t *testing.T, response *httptest.ResponseRecorder, expectedAction string) map[string]adminChoiceControl {
+	t.Helper()
+	if response.Code != http.StatusOK {
+		t.Fatalf("Admin choice form: %d %s", response.Code, response.Body.String())
+	}
+	document, err := xhtml.Parse(strings.NewReader(response.Body.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := make(map[string]adminChoiceControl)
+	var content func(*xhtml.Node) string
+	content = func(node *xhtml.Node) string {
+		if node.Type == xhtml.TextNode {
+			return node.Data
+		}
+		var value string
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			value += content(child)
+		}
+		return value
+	}
+	var controls func(*xhtml.Node, bool)
+	controls = func(node *xhtml.Node, disabled bool) {
+		if node.Type == xhtml.ElementNode && node.Data == "template" {
+			return
+		}
+		_, off := adminInlineAttribute(node, "disabled")
+		disabled = disabled || off
+		if node.Type == xhtml.ElementNode && node.Data == "select" {
+			name, named := adminInlineAttribute(node, "name")
+			if !named || name == "" {
+				t.Fatal("select lacks its submitted field name")
+			}
+			if _, exists := result[name]; exists {
+				t.Fatalf("duplicate select %s", name)
+			}
+			control := adminChoiceControl{Name: name, Disabled: disabled}
+			_, control.Required = adminInlineAttribute(node, "required")
+			_, control.Multiple = adminInlineAttribute(node, "multiple")
+			for ancestor := node.Parent; ancestor != nil && ancestor.Data != "form"; ancestor = ancestor.Parent {
+				if address, found := adminInlineAttribute(ancestor, "data-choice-url"); found {
+					control.SearchURL = address
+					limit, _ := adminInlineAttribute(ancestor, "data-choice-limit")
+					control.Limit, err = strconv.Atoi(limit)
+					if err != nil || control.Limit < 1 || control.Limit > admin.MaximumListLimit {
+						t.Fatal("invalid choice page limit", limit)
+					}
+					more, _ := adminInlineAttribute(ancestor, "data-choice-more")
+					if more != "true" && more != "false" {
+						t.Fatal("invalid choice page boundary", more)
+					}
+					control.More = more == "true"
+					break
+				}
+			}
+			for option := node.FirstChild; option != nil; option = option.NextSibling {
+				if option.Type != xhtml.ElementNode || option.Data != "option" {
+					continue
+				}
+				value, _ := adminInlineAttribute(option, "value")
+				_, selected := adminInlineAttribute(option, "selected")
+				_, page := adminInlineAttribute(option, "data-choice-page")
+				_, off := adminInlineAttribute(option, "disabled")
+				control.Options = append(control.Options, adminChoiceOption{Value: value, Label: content(option), Selected: selected, Page: page, Disabled: disabled || off})
+			}
+			result[name] = control
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			controls(child, disabled)
+		}
+	}
+	forms := 0
+	var visit func(*xhtml.Node)
+	visit = func(node *xhtml.Node) {
+		if node.Type == xhtml.ElementNode && node.Data == "form" {
+			if action, _ := adminInlineAttribute(node, "action"); action == expectedAction {
+				forms++
+				controls(node, false)
+				return
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+	}
+	visit(document)
+	if forms != 1 {
+		t.Fatal("expected exactly one submitted Admin form", forms)
+	}
+	return result
+}
+
+type helpdeskAdminChoicePage struct {
+	Items         []struct{ Value, Label string } `json:"items"`
+	Offset, Limit int
+	More          bool
+}
+
+func readHelpdeskAdminChoicePage(t *testing.T, response *httptest.ResponseRecorder) helpdeskAdminChoicePage {
+	t.Helper()
+	var page helpdeskAdminChoicePage
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || page.Items == nil || page.Limit < 1 || len(page.Items) > page.Limit {
+		t.Fatal("invalid bounded choice response", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Content-Type") != "application/json; charset=utf-8" || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("choice endpoint lost its content or cache boundary")
+	}
+	return page
 }

@@ -49,20 +49,20 @@ async (page) => {
     await page.goto(edit);
     await ready("labels");
     check(same(await selected("labels"), [large]), "selected int64 key outside the first page remains selected");
-    check(await input("labels").locator("option[data-choice-page]").count() === 25 && await input("labels").locator("option").count() === 26 && await field("labels").locator("[data-choice-next]").isEnabled(), "initial choices are bounded to one page plus selection");
+    check(await input("labels").locator("option[data-choice-page]").count() === 20 && await input("labels").locator("option").count() === 21 && await field("labels").locator("[data-choice-next]").isEnabled(), "initial choices are bounded to one page plus selection");
     const plainContext = await page.context().browser().newContext({javaScriptEnabled: false});
     try {
         await plainContext.addCookies(await page.context().cookies());
         const plain = await plainContext.newPage();
         const response = await plain.goto(edit);
-        check(response !== null && response.status() === 200 && same(await selected("labels", plain), [large]) && await field("labels", plain).locator("[data-choice-controls]").isHidden() && await input("labels", plain).locator("option[data-choice-page]").count() === 25, "no JavaScript retains selection and the initial native choices");
+        check(response !== null && response.status() === 200 && same(await selected("labels", plain), [large]) && await field("labels", plain).locator("[data-choice-controls]").isHidden() && await input("labels", plain).locator("option[data-choice-page]").count() === 20, "no JavaScript retains selection and the initial native choices");
     } finally { await plainContext.close(); }
     await field("labels").locator("[data-choice-next]").click();
     await page.waitForFunction(() => document.querySelector('[data-field-name="labels"] [data-choice-status]').textContent.startsWith("Page 2:"));
-    check(await input("labels").locator("option[data-choice-page]").count() === 10 && same(await selected("labels"), [large]) && await field("labels").locator("[data-choice-next]").isDisabled(), "next page replaces prior results while retaining selected keys");
+    check(await input("labels").locator("option[data-choice-page]").count() === 15 && same(await selected("labels"), [large]) && await field("labels").locator("[data-choice-next]").isDisabled(), "next page replaces prior results while retaining selected keys");
     await field("labels").locator("[data-choice-previous]").click();
     await page.waitForFunction(() => document.querySelector('[data-field-name="labels"] [data-choice-status]').textContent.startsWith("Page 1:"));
-    check(await input("labels").locator("option[data-choice-page]").count() === 25 && await field("labels").locator("[data-choice-previous]").isDisabled(), "previous page restores a bounded first page");
+    check(await input("labels").locator("option[data-choice-page]").count() === 20 && await field("labels").locator("[data-choice-previous]").isDisabled(), "previous page restores a bounded first page");
     const unsafe = await search("labels", "<img");
     check(unsafe.items.length === 1 && unsafe.items[0].value === "32" && await input("labels").locator('option[value="32"]').textContent() === 'Choice <img src=x onerror="window.choiceInjected=true">' && await field("labels").locator("img").count() === 0 && await page.evaluate(() => window.choiceInjected !== true), "search labels remain escaped text in JSON and native options");
     const zero = await search("labels", "zero");

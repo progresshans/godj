@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — Helpdesk 관계 선택의 통합 실패 정정
+
+Source `52b1441f`의 [CI 39751087055](https://github.com/progresshans/godj/actions/runs/39751087055)에서
+normal/cgo0 integration의 동일한 Helpdesk 네 시나리오가 실패했다. 기존 select/option의 속성 순서와 전체
+catalog 렌더링을 기대한 검사를 DOM의 required/multiple/disabled·현재 선택·검색 범위 검사로 바꿨다.
+새 저장 readback의 `First` 두 곳에는 명시적인 PK 정렬을 추가했다.
+
+초기 GET은 20개 검색 페이지와 페이지 밖 선택을 구분하고, POST 오류 재표시는 제출 key의 Resolve만 사용함을
+확인한다. 40행 중 마지막 입력이 잘못된 경우 선택과 원문을 보존하고, target 조회는 선택 key의 단 한 번 해석으로
+제한되며 DB·audit 쓰기가 없어야 한다. 기존 페이지 밖 선택 저장·clear·scope 거부 검사도 유지한다.
+브라우저 fixture의 35개 대상에 맞춰 정적 기대를 첫 페이지 20개·다음 15개·선택 포함 첫 옵션 21개로 정정했다.
+34개 브라우저 check의 이름과 개수는 같으며 아직 실제 브라우저 실행 결과가 아니다.
+
+`6fec99a2` 기준 Go 1.26.5 darwin/arm64에서 CI 실패 네 SQLite subtest만 수정 전 재현한 뒤 수정 후 모두 통과했다.
+필수 네 사례의 Go JSON 실행·종료와 skip 0, 전후 source hash를 대조했다. 전체 Helpdesk·PostgreSQL·브라우저는
+로컬에서 실행하지 않았다. 원본은 `gdj0136-52b1441f-ci-39751087055/helpdesk-four-failure-repro-20261022T091341Z/`에
+보존했으며 `completion-summary.json` SHA-256은
+`b274677c576e80e9d36df002dbfc2900ccb5fbe8c1af9f9099b5eb29ec310249`이다.
+수정 source의 전체 원격 실행은 미완료다.
+
+## GDJ-0136 — 검색 asset의 증거 소스 바인딩 정정
+
+Source `52b1441f`의 [CI 39751087055](https://github.com/progresshans/godj/actions/runs/39751087055)에서
+normal/cgo0 conformance의 두 `TestSourceBindingOwnsNativeProductDependencies`가 새 embed asset
+`admin/site_assets/choices.js`의 소스 바인딩 누락을 거절했다. 이 실패를 무시하거나 실행 범위에서 제외하지 않고,
+systemstate·projectoperatorproduct의 원본 hash 대상에 asset을 추가했다. 기존 소스 변조·경로 소유 회귀에도
+같은 asset을 포함했다. 원격 로그는 `gdj0136-52b1441f-ci-39751087055/`에 보존했다.
+
+`6fec99a2` 기준 Go 1.26.5 darwin/arm64에서 실패한 두 dependency audit root만 로컬 재현하고 수정 후 통과했다
+(각 0.854s, 0.497s). 추가한 변조 회귀 본문은 원격 실행 대상이며 로컬 전체·DB·race·브라우저는 실행하지 않았다.
+명령·전후 source·출력은 `gdj0136-choice-asset-binding-repro-v1/`에 있고 `after.json` SHA-256은
+`8648a386c006c2078ea9e32b1553a9d843067b93d44c1b7766c5417c11e49bb5`이다.
+수정 source의 전체 원격 실행과 실제 producer 원본 대조는 아직 미완료다.
+
 ## GDJ-0136 — 선택 fixture의 signed key와 오류 계약 정정
 
 Source `52b1441f24acd85378ad1684fe58a0808d649201`의
