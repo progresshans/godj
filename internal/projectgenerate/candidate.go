@@ -181,9 +181,9 @@ func (verifier *goCandidateVerifier) validateStage(ctx context.Context, stageRoo
 }
 
 func (verifier *goCandidateVerifier) compileOverlay(ctx context.Context, replacements map[string]string) (resultErr error) {
-	workspace, err := createCandidateWorkspace(verifier.projectRoot)
+	workspace, err := createCandidateWorkspace(ctx, verifier.projectRoot)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrCandidateVerification, err)
+		return fmt.Errorf("%w: %w", ErrCandidateVerification, err)
 	}
 	defer func() {
 		if err := os.RemoveAll(workspace.root); err != nil {
@@ -275,7 +275,13 @@ type candidateWorkspace struct {
 	environment []string
 }
 
-func createCandidateWorkspace(projectRoot string) (candidateWorkspace, error) {
+func createCandidateWorkspace(ctx context.Context, projectRoot string) (candidateWorkspace, error) {
+	if ctx == nil {
+		return candidateWorkspace{}, fmt.Errorf("create candidate workspace: context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return candidateWorkspace{}, err
+	}
 	temporaryBase := filepath.Clean(os.TempDir())
 	physicalBase, err := filepath.EvalSymlinks(temporaryBase)
 	if err != nil {
@@ -289,8 +295,7 @@ func createCandidateWorkspace(projectRoot string) (candidateWorkspace, error) {
 		return candidateWorkspace{}, fmt.Errorf("create candidate workspace: %w", err)
 	}
 	fail := func(cause error) (candidateWorkspace, error) {
-		_ = os.RemoveAll(root)
-		return candidateWorkspace{}, cause
+		return candidateWorkspace{}, errors.Join(cause, os.RemoveAll(root))
 	}
 	directories := []string{"output", "tmp", "gotmp", "gocache", "home", "xdg-config", "xdg-cache", "gopath", "gomodcache"}
 	for _, name := range directories {
@@ -300,6 +305,15 @@ func createCandidateWorkspace(projectRoot string) (candidateWorkspace, error) {
 	}
 	ambient := os.Environ()
 	environment := gobuild.Environment(candidateCommandEnvironment(projectRoot, root, ambient), ambient, projectRoot)
+	// Go's telemetry sidecar can outlive a successful command and recreate a
+	// removed private HOME. Disable it through the supported command before
+	// starting Go inspection/builds. The sanitized environment confines this
+	// setting to the owned workspace; the user's Go configuration is untouched.
+	if output, err := runCandidateCommand(ctx, projectRoot, environment, maxCandidateDiagnosticBytes, "go", "telemetry", "off"); err != nil {
+		return fail(fmt.Errorf("initialize private Go telemetry mode: %w", &gobuild.Error{
+			Cause: err, Diagnostic: gobuild.Summary(nil, []byte(output), environment),
+		}))
+	}
 	return candidateWorkspace{root: root, output: filepath.Join(root, "output"), environment: environment}, nil
 }
 
@@ -315,6 +329,7 @@ func candidateCommandEnvironment(projectRoot, workspace string, ambient []string
 	for _, key := range []string{
 		"GOFLAGS", "GOWORK", "GOTOOLCHAIN", "GOENV", "GOCACHE", "GOCACHEPROG", "GOTMPDIR",
 		"TMPDIR", "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "GOPATH", "GOMODCACHE",
+		"TEST_TELEMETRY_DIR", "GO_TELEMETRY_CHILD", "GO_TELEMETRY_CHILD_UPLOAD", "GOTELEMETRY", "GOTELEMETRYDIR",
 	} {
 		delete(values, key)
 	}

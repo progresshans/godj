@@ -47,6 +47,9 @@ compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](
 `codegen.ProjectSpec`은 app schema와 project layout을 연결한다. 생성기는 전체 후보를 검증한 뒤 publication하며,
 실패 시 기존 정상 결과를 보존한다. 결정적 output, gofmt, 입력 identity, generated drift와 전체 후보 compile은 의미 있는
 검증이다. 과거 파일 수·test 이름·byte 길이를 그대로 유지하는 것은 제품 계약이 아니다.
+후보 compile과 외부 앱 metadata 검사는 소유한 임시 환경에서 먼저 `go telemetry off`를 실행한다.
+Go의 백그라운드 telemetry가 명령 종료 후 임시 경로를 다시 만들지 않도록 하며, 설정은 해당 환경 안에 둔다.
+초기화와 정리 오류·취소는 호출자에게 전달한다.
 
 재사용 앱은 `AppSpec.External`과 비어 있는 Directory로 라이브러리의 파일 소유권을 표시한다.
 호스트는 외부 app의 정규화 schema·네 companion ABI를 확인하고 전체 관계 graph와 project binding을 소유한다.

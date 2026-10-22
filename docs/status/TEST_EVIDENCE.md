@@ -3,6 +3,34 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — PostgreSQL 선택 준비와 생성기 임시 경로 수명 정정
+
+Source `6fec99a2`의 [CI 39753263759](https://github.com/progresshans/godj/actions/runs/39753263759) 원본을
+`gdj0136-6fec99a2-ci-39753263759/`에 보존했다. PostgreSQL normal/race core의 `TestRelationChoicesNative/postgres`는
+선택 조회 전 fixture 준비에서 미지원 명시적 generated-key assignment를 호출해 실패했다. 준비만 매개변수 SQL로
+바꿔 signed key가 이미 있는 DB를 제공하고, 실제 Search/Resolve·현재 범위·borrowed 수명·취소 검사를 유지했다.
+PostgreSQL 생성키 쓰기의 미지원 경계를 변경하거나 해당 native 검사를 생략하지 않았다.
+
+같은 실행의 `Command products (macos-15-intel, normal)`은 성공한 `godj generate` 뒤 `godj-candidate-*` 경로가
+남아 실패했다. 로컬 Go 1.26.5 darwin/arm64의 같은 CLI 사례는 수정 전에도 통과해 원격 실패를 직접 재현하지 못했다.
+대신 동일한 private Go 환경으로 원인을 좁힌 6회 중 2회에서, Go 종료와 경로 삭제 뒤 telemetry 파일이 해당 경로를
+다시 생성하는 것을 관측했다. 원격 로그에는 잔여 경로 내부가 없어 이 현상과 동일한 원인인지는 직접 입증하지 못했다.
+고정 Go 소스의 telemetry sidecar 수명도 대조하고, candidate 초기화에서 소유 환경에만 `go telemetry off`를 적용했다.
+외부 telemetry 경로/child 제어 환경을 제거하고 context·초기화·정리 오류를 전달한다.
+
+좁힌 재현과 수정 확인은 다음 원본으로 구분한다.
+
+- `gdj0136-candidate-telemetry-probe-v1/results.json`: 실제 재생성 경로와 명령 결과,
+  SHA-256 `d2f74b9e21b6834f0cc44d87dc8dc0d49d4b6ab34f5b189fc8ba0aca63f2a922`.
+- `gdj0136-operator-workspace-failure-repro-v1/after-receipt.json`: telemetry 초기화 패치의 같은 CLI 사례가
+  29.522s에 통과했다. 원격 Intel 결과를 대신하지 않으며 source 복사본을 함께 보존했다.
+  SHA-256 `2e39cf58cff773b40f30d1c4cb36ebaddf8cfc8dd9da1357139875b25d66d6f2`.
+- `gdj0136-pg-seed-telemetry-compile-v1/receipt.json`: 최종 Go 변경의 최소 compile과 실제 private mode off·
+  ambient 설정 보존·환경 격리 회귀 두 root만 통과했다(0.265s).
+  SHA-256 `e57479b6cf03c6b365ad8c84cc97a956c697b0aa455b173acdcd70def091b71d`.
+
+로컬 전체·PostgreSQL 본문·race·브라우저는 실행하지 않았다. 수정 source의 전체 원격 검증은 미완료다.
+
 ## GDJ-0136 — Helpdesk 관계 선택의 통합 실패 정정
 
 Source `52b1441f`의 [CI 39751087055](https://github.com/progresshans/godj/actions/runs/39751087055)에서

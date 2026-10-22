@@ -60,7 +60,7 @@ func captureExternalAppNamespace(ctx context.Context, projectRoot string, app so
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	workspace, err := createCandidateWorkspace(projectRoot)
+	workspace, err := createCandidateWorkspace(ctx, projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("%w: prepare external app inspection: %w", ErrGeneratedConflict, err)
 	}

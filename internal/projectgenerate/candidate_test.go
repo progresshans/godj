@@ -189,6 +189,7 @@ func TestCandidateCommandEnvironmentSanitizesGoControlsAndUsesExternalPaths(t *t
 	environment := candidateCommandEnvironment(projectRoot, workspace, []string{
 		"PATH=/bin", "GOFLAGS=-run=evil", "GOWORK=/project/go.work", "GOTOOLCHAIN=evil", "GOENV=/project/go.env",
 		"GOCACHE=/project/cache", "GOTMPDIR=/project/tmp", "GOMODCACHE=/project/mod", "GOPATH=/project/gopath",
+		"TEST_TELEMETRY_DIR=/outside/telemetry", "GO_TELEMETRY_CHILD=1", "GO_TELEMETRY_CHILD_UPLOAD=1",
 	})
 	values := make(map[string]string)
 	for _, entry := range environment {
@@ -198,6 +199,11 @@ func TestCandidateCommandEnvironmentSanitizesGoControlsAndUsesExternalPaths(t *t
 	for key, want := range map[string]string{"GOFLAGS": "-modcacherw", "GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off"} {
 		if values[key] != want {
 			t.Fatalf("%s = %q, want %q", key, values[key], want)
+		}
+	}
+	for _, key := range []string{"TEST_TELEMETRY_DIR", "GO_TELEMETRY_CHILD", "GO_TELEMETRY_CHILD_UPLOAD"} {
+		if _, present := values[key]; present {
+			t.Fatalf("ambient telemetry control survived: %s", key)
 		}
 	}
 	for _, key := range []string{"GOCACHE", "GOTMPDIR", "TMPDIR", "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "GOPATH", "GOMODCACHE"} {
@@ -247,6 +253,59 @@ func TestCandidateCommandEnvironmentRejectsAmbientCacheSymlinkIntoProject(t *tes
 	}
 	if _, err := os.Lstat(filepath.Join(projectCache, "probe")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("private cache write reached project: %v", err)
+	}
+}
+
+func TestCandidateWorkspaceDisablesBackgroundTelemetryInOwnedConfiguration(t *testing.T) {
+	projectRoot := t.TempDir()
+	writeProjectGenerateTestFile(t, projectRoot, "go.mod", []byte("module example.com/private-telemetry\n\ngo 1.26.0\n"), 0o600)
+	writeProjectGenerateTestFile(t, projectRoot, "input.go", []byte("package input\n"), 0o600)
+	ambient := t.TempDir()
+	modePath := filepath.Join(ambient, "mode")
+	mode := []byte("on 2026-01-01\n")
+	if err := os.WriteFile(modePath, mode, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TEST_TELEMETRY_DIR", ambient)
+	t.Setenv("GO_TELEMETRY_CHILD", "1")
+	t.Setenv("GO_TELEMETRY_CHILD_UPLOAD", "1")
+	workspace, err := createCandidateWorkspace(t.Context(), projectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(workspace.root); err != nil {
+			t.Error(err)
+		}
+	})
+	output, diagnostics, err := runCandidateStructuredCommand(t.Context(), projectRoot, workspace.environment,
+		maxCandidateDiagnosticBytes, "go", "env", "-json", "GOTELEMETRY", "GOTELEMETRYDIR")
+	if err != nil || diagnostics != "" {
+		t.Fatalf("inspect private toolchain telemetry: %v %s", err, diagnostics)
+	}
+	var actual struct{ GOTELEMETRY, GOTELEMETRYDIR string }
+	if err := json.Unmarshal([]byte(output), &actual); err != nil || actual.GOTELEMETRY != "off" ||
+		!sameOrDescendantPath(actual.GOTELEMETRYDIR, workspace.root) {
+		t.Fatalf("private Go command can retain a background telemetry writer: mode=%q owned=%t error=%v",
+			actual.GOTELEMETRY, sameOrDescendantPath(actual.GOTELEMETRYDIR, workspace.root), err)
+	}
+	if _, err := runCandidateCommand(t.Context(), projectRoot, workspace.environment, maxCandidateDiagnosticBytes,
+		"go", "list", "-mod=readonly", "./..."); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := os.ReadFile(modePath)
+	if err != nil || string(stored) != string(mode) {
+		t.Fatal("candidate inspection changed ambient telemetry configuration", err)
+	}
+	entries, err := os.ReadDir(ambient)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "mode" {
+		t.Fatal("candidate inspection wrote ambient telemetry state", err)
+	}
+	if err := os.RemoveAll(workspace.root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(workspace.root); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("candidate workspace survived synchronous cleanup", err)
 	}
 }
 

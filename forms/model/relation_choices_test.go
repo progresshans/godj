@@ -568,7 +568,10 @@ func TestRelationChoicesNative(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		exec := func(statement string) error { _, err := backend.ExecContext(t.Context(), statement); return err }
+		exec := func(statement string, values ...any) error {
+			_, err := backend.ExecContext(t.Context(), statement, values...)
+			return err
+		}
 		verifyNativeRelationChoices(t, backend, exec, func(name string) string { return pgx.Identifier{name}.Sanitize() })
 	})
 	t.Run("postgres", func(t *testing.T) {
@@ -608,12 +611,15 @@ func TestRelationChoicesNative(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		exec := func(statement string) error { _, err := connection.Exec(t.Context(), statement); return err }
+		exec := func(statement string, values ...any) error {
+			_, err := connection.Exec(t.Context(), statement, values...)
+			return err
+		}
 		verifyNativeRelationChoices(t, backend, exec, func(table string) string { return pgx.Identifier{name, table}.Sanitize() })
 	})
 }
 
-func verifyNativeRelationChoices(t *testing.T, backend choiceNativeDatabase, exec func(string) error, table func(string) string) {
+func verifyNativeRelationChoices(t *testing.T, backend choiceNativeDatabase, exec func(string, ...any) error, table func(string) string) {
 	t.Helper()
 	categoryTable := table((models.CategoryDescriptor{}).Metadata().DBTable)
 	labelTable := table((models.LabelDescriptor{}).Metadata().DBTable)
@@ -625,22 +631,23 @@ func verifyNativeRelationChoices(t *testing.T, backend choiceNativeDatabase, exe
 			t.Fatal(err)
 		}
 	}
+	// The fixture supplies an existing database with explicit signed keys.
+	// PostgreSQL's ORM generated-key assignment/sequence reconciliation is a
+	// separate unsupported write capability, not a prerequisite for reading
+	// these valid target keys through the bounded choice API.
 	for _, key := range []int64{1, 2} {
-		category := models.NewCategoryWithID(key)
-		category.Name = fmt.Sprint("Category ", key)
-		if err := models.CategoryObjects.Save(t.Context(), backend, &category, orm.ForceInsert[models.Category]()); err != nil {
+		if err := exec("INSERT INTO "+categoryTable+" (id, name) VALUES ($1, $2)", key, fmt.Sprint("Category ", key)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for index, key := range []int64{-4, 0, 7, 1 << 60, math.MaxInt64} {
-		label := models.NewLabelWithID(key)
 		// Name order deliberately opposes PK order so a category/name index
 		// cannot accidentally make an omitted root tie-breaker appear stable.
-		label.Name, label.CategoryID = fmt.Sprintf("Visible %d", 3-index), 1
+		name, categoryID := fmt.Sprintf("Visible %d", 3-index), int64(1)
 		if key == math.MaxInt64 {
-			label.Name, label.CategoryID = "Private", 2
+			name, categoryID = "Private", 2
 		}
-		if err := models.LabelObjects.Save(t.Context(), backend, &label, orm.ForceInsert[models.Label]()); err != nil {
+		if err := exec("INSERT INTO "+labelTable+" (id, name, category_id) VALUES ($1, $2, $3)", key, name, categoryID); err != nil {
 			t.Fatal(err)
 		}
 	}
