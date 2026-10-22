@@ -12,7 +12,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -88,9 +87,7 @@ func Open(ctx context.Context, config Config) (*Backend, error) {
 
 	connectionConfig, err := currentConnectionConfig(config.URL)
 	if err != nil {
-		// Do not retain the parse error: pgx errors may echo a URL containing
-		// credentials. The stable diagnostic is intentionally secret-free.
-		return nil, backendInvalid("PostgreSQL URL is invalid")
+		return nil, err
 	}
 	database := stdlib.OpenDB(
 		*connectionConfig,
@@ -143,9 +140,18 @@ func validateAndCloseInvalidPostgresPhysicalSession(ctx context.Context, connect
 }
 
 func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
-	connectionConfig, err := pgx.ParseConfig(rawURL)
+	explicitURL, err := explicitConnectionURL(rawURL)
 	if err != nil {
 		return nil, err
+	}
+	if err := rejectAmbientPostgresService(); err != nil {
+		return nil, err
+	}
+	connectionConfig, err := pgx.ParseConfig(explicitURL)
+	if err != nil {
+		// Parse errors may retain credentials, file contents or paths. Keep no
+		// raw driver cause, including when a concurrent service change fails.
+		return nil, connectionConfigInvalid("url", "PostgreSQL connection options or explicit TLS files are invalid")
 	}
 	if connectionConfig.RuntimeParams == nil {
 		connectionConfig.RuntimeParams = make(map[string]string)
@@ -172,7 +178,7 @@ func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
 			continue
 		}
 		if strings.TrimSpace(value) != "" {
-			return nil, fmt.Errorf("unsupported PostgreSQL startup parameter %s", parameter)
+			return nil, connectionConfigInvalid("url", "unsupported PostgreSQL startup parameter")
 		}
 		delete(connectionConfig.RuntimeParams, parameter)
 	}
@@ -284,7 +290,7 @@ func (failure postgresPhysicalSessionProfileError) Error() string {
 }
 func (failure postgresPhysicalSessionProfileError) Unwrap() error { return failure.publicError() }
 
-// ValidateConfig checks the URL shape and application schema without reading
+// ValidateConfig checks explicit URL identity/options and the schema without reading
 // the environment, opening certificate files, or contacting a database. Driver
 // options and the physical server profile are validated by Open.
 func ValidateConfig(config Config) error {
@@ -293,13 +299,8 @@ func ValidateConfig(config Config) error {
 		failure.Field = field
 		return failure
 	}
-	if strings.TrimSpace(config.URL) == "" {
-		return invalid("url", "PostgreSQL URL is empty")
-	}
-	parsed, err := url.Parse(config.URL)
-	if err != nil || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") ||
-		parsed.Host == "" || parsed.Path == "" || parsed.Path == "/" || parsed.Fragment != "" {
-		return invalid("url", "PostgreSQL URL must identify a database with a postgres or postgresql URL")
+	if _, err := explicitConnectionURL(config.URL); err != nil {
+		return err
 	}
 	if err := validateSchemaIdentifier(config.Schema); err != nil {
 		return invalid("schema", err.Error())

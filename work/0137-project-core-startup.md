@@ -100,6 +100,6 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 유지하도록 확장했다. 생성된 `InstalledApps`를 Article Web/Admin 설정에 연결해 수동 앱 이름·label 반복을 제거했다.
 값 보존·환경 격리·동시 읽기·secret 비노출과 빈/외부/관계 앱·첫 모델 추가·혼합 생성물 거부 검사를 작성했다.
 새 소비자의 실제 실행은 원격 CI 대상이다. 다음 구현은 이 기반을 사용하는 scaffold·resource/lifecycle 조립이다.
-공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL driver가 사용하는 ambient `PG*` 값과
-service/passfile·TLS file의 입력 소유권도 C1-02의 후속 정리·독립 프로젝트 격리 검증에 남아 있다.
+공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL의 URL identity·TLS file 소유권과
+ambient `PG*`/기본 credential 파일 차단도 작성했다. 실제 독립 프로젝트·pool 재연결과 현재 source의 원격 검증은 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

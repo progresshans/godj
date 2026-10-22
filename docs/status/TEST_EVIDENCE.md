@@ -23,6 +23,28 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — PostgreSQL 연결 입력과 resource 소유권 작성
+
+`74841b232351712420d5e82cc9b7a5aff01cf7f6` 기반에서 URL의 사용자·호스트·DB와 명시적 옵션만으로 pgx 설정을 만든다.
+Driver가 보충하던 ambient `PG*`와 기본 password/TLS 파일을 차단하고, service 선택은 명시적으로 거부한다.
+기본 TLS는 verify-full이며 명시한 TLS 파일은 각 Open이 읽고 해당 pool이 소유한다. 중복/미지원 옵션·query identity override는
+파일 접근 전에 거부한다. 여러 호스트의 생략 포트는 각 5432로 정하고, raw driver/TLS 오류는 credential·경로와 함께 폐기한다.
+공통 opener도 service와 TLS 실패의 field를 값 노출 없이 전달하도록 연결했다.
+
+같은 source archive에 새 회귀 검사만 추가해 환경 유입·identity/포트·모호한 입력·service·TLS 오류의 5개 root 실패를
+재현했다. Adapter의 연결 설정과 기존 test URL의 명시적 username을 수정한 사본에서 같은 5개 root가 skip 없이 통과했다.
+`gdj0137-postgres-explicit-input-repro-v1/receipt.json` SHA-256은
+`a696ec87625e71d8b06ee9d21c2920bfc039c9846fb62dbb300a46794cfca17c`다.
+처음 작성한 복수 host+IPv6 혼합 URL fixture는 고정 parser의 URL 문법에서 거부됐다. 복수 DNS host와 독립 IPv6로 나눈
+동일 검사에서 원래 실패와 수정 후 성공을 다시 확인했고 첫 시도의 test bytes와 실패 로그도 보존했다.
+
+공통 opener의 field 검사와 실제 두 PostgreSQL 프로젝트의 pool 재연결 검사를 추가했다. 새로운 PostgreSQL root 6개를
+필수 목록에 연결해 4,255개 경로가 normal/race/cgo0에서 각각 정확히 한 owner를 갖는 계획을 확인했다.
+Go 1.26.5 darwin/arm64에서 adapter·공통 설정·Article 정책/runner/서버 5개 package의 최소 compile만 확인했으며,
+`final-compile.json` SHA-256은 `83dccc84b43b06511417ba5618f04685377677ba7d7497620e9d65730d8ee6c0`다.
+이 compile은 새 본문 실행을 뜻하지 않는다. 실제 DB 재연결·전체 physical profile·공통 opener·race/platform과
+현재 source의 전체 원본 대조는 원격 CI에 남아 있다. TLS parser/파일 소유 검사를 실제 서버와의 TLS handshake로 표현하지 않는다.
+
 ## GDJ-0137 — 공통 DB 설정과 실제 소비자 연결 작성
 
 `4bded61f` 기반에서 `settings/database`에 불변 DB 선택, 프로젝트별 환경 key/기본값/명시적 override,

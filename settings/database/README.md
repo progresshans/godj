@@ -30,8 +30,21 @@ DB 설정 문법은 값의 양끝 공백을 제거하며 원래 `Environment` �
 - Custom key 집합이 잘못됐거나 조회 함수가 nil이면 조회 전에 거부한다. 실패는 사용할 수 있는 부분 Config를 반환하지 않는다.
 
 `SQLite`는 비어 있거나 NUL이 있는 파일/URI를 거부한다. `PostgreSQL`은 backend의
-`postgres.ValidateConfig`로 URL 형태와 schema namespace를 검증한다. Driver 옵션·인증서·접속과 실제 서버 profile은
+`postgres.ValidateConfig`로 명시적인 URL identity/옵션과 schema namespace를 검증한다. Driver 옵션의 값·인증서·접속과 실제 서버 profile은
 `Open`의 검증 영역이다. DB/schema 생성 권한은 caller가 준비한다.
+
+PostgreSQL URL에는 사용자·호스트·DB를 명시한다. 생략한 포트는 각 호스트에서 5432이고, 생략한 password는 빈 값이다.
+Query의 host/port/user/password/database/dbname으로 URL identity를 덮거나 같은 옵션을 반복하면 거부한다.
+`PG*` 환경과 사용자 홈의 기본 password/certificate 파일에서 값을 보충하지 않는다. `PGSERVICE`는 드라이버의
+암묵적인 service 파일 로딩을 막기 위해 Open 전에 명시적인 오류로 거부한다. 다른 goroutine이 검사 이후 이를
+바꾸더라도 강제로 비운 servicefile 경로 때문에 연결 게시 전에 실패한다. 프로세스 환경을 변경하지 않는다.
+
+TLS 기본값은 `sslmode=verify-full`이며 hostname/인증서 검증과 함께 plaintext fallback을 허용하지 않는다.
+TLS를 끄는 로컬 DB에는 `?sslmode=disable`을 명시한다. URL의 `sslcert`/`sslkey`/`sslrootcert`만 Open 시 읽고,
+해당 pool의 후속 연결은 이미 읽은 설정을 사용한다. 파일 변경은 새 Open에 반영되며 기존 pool에 자동 reload하지 않는다.
+Root certificate를 명시하지 않은 검증 모드는 Go의 시스템 신뢰 저장소를 사용한다. `service`, `servicefile`, `passfile`,
+임의 startup parameter는 지원하지 않는다. 명시적인 TLS·인증·timeout·pgx cache 옵션과 고정 세션 profile은
+[PostgreSQL 설정 결정](../../docs/adr/0037-postgresql-current-contract-backend.md#명시적-연결-입력과-소유권)을 따른다.
 
 `MigrationSQLRenderer()`는 고정된 DB 선택에서 credential 없는 SQL profile을 만든다. Zero Config에서는 nil을
 반환하므로 기존 명령의 정의 로딩·대상 검증이 먼저 이루어질 수 있다. Zero Config로 backend를 열 수는 없다.

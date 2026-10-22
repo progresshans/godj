@@ -201,6 +201,9 @@ Backend renderer는 operation마다 ordered statement group을 반환한다. Roo
 `settings.Environment`가 진입점의 환경 snapshot을, `settings/database`가 명시적 DB 선택과 설정 진단을 소유한다.
 프로젝트는 환경 key·default/override 정책과 backend opener를 조립한다. 전역 CLI는 이 opener를 직접 import하거나
 실행하지 않는다. 설정 생성은 I/O를 하지 않으며 열린 backend의 수명은 해당 invocation/runtime owner가 맡는다.
+PostgreSQL adapter는 명시한 URL identity와 TLS 파일을 사용하고, 드라이버의 ambient 설정과 기본 credential 파일을
+연결 입력에서 제외한다. 기본 TLS는 verify-full이며 service 선택·중복/미지원 옵션은 명시적으로 거부한다.
+동작과 검증 경계는 [DB 설정](../settings/database/README.md)에 둔다.
 
 잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되

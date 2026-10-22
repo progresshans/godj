@@ -383,9 +383,9 @@ func TestConfigValidationAndConnectionErrorRedaction(t *testing.T) {
 		{Config{}, "url"},
 		{Config{URL: "mysql://localhost/database", Schema: "godj_app"}, "url"},
 		{Config{URL: "postgresql://localhost", Schema: "godj_app"}, "url"},
-		{Config{URL: "postgresql://localhost/database", Schema: "pg_catalog"}, "schema"},
-		{Config{URL: "postgresql://localhost/database", Schema: "Godj"}, "schema"},
-		{Config{URL: "postgresql://localhost/database", Schema: strings.Repeat("s", 64)}, "schema"},
+		{Config{URL: "postgresql://user@localhost/database", Schema: "pg_catalog"}, "schema"},
+		{Config{URL: "postgresql://user@localhost/database", Schema: "Godj"}, "schema"},
+		{Config{URL: "postgresql://user@localhost/database", Schema: strings.Repeat("s", 64)}, "schema"},
 	}
 	for _, test := range invalid {
 		if err := ValidateConfig(test.config); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Field: test.field}) {
@@ -471,7 +471,7 @@ func TestCurrentConnectionConfigOverridesEveryRequiredRuntimeParameter(t *testin
 	t.Parallel()
 
 	connectionConfig, err := currentConnectionConfig(
-		"postgresql://localhost/database?application_name=godj-test&client_encoding=LATIN1&default_transaction_deferrable=on&default_transaction_isolation=serializable&default_transaction_read_only=on&search_path=public&standard_conforming_strings=off&synchronous_commit=off&timezone=Asia%2FSeoul",
+		"postgresql://user@localhost/database?application_name=godj-test&client_encoding=LATIN1&default_transaction_deferrable=on&default_transaction_isolation=serializable&default_transaction_read_only=on&search_path=public&standard_conforming_strings=off&synchronous_commit=off&timezone=Asia%2FSeoul",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -503,9 +503,9 @@ func TestCurrentConnectionConfigRejectsUnsupportedStartupOverrides(t *testing.T)
 	t.Parallel()
 
 	for _, rawURL := range []string{
-		"postgresql://localhost/database?session_replication_role=replica",
-		"postgresql://localhost/database?options=-c%20session_replication_role%3Dreplica",
-		"postgresql://localhost/database?statement_timeout=1",
+		"postgresql://user@localhost/database?session_replication_role=replica",
+		"postgresql://user@localhost/database?options=-c%20session_replication_role%3Dreplica",
+		"postgresql://user@localhost/database?statement_timeout=1",
 	} {
 		if _, err := currentConnectionConfig(rawURL); err == nil {
 			t.Fatalf("currentConnectionConfig(%q) error = nil", rawURL)

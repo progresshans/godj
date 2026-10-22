@@ -181,7 +181,7 @@ func SQLite(value string) (Config, error) {
 	return Config{kind: KindSQLite, sqliteDatabase: value}, nil
 }
 
-// PostgreSQL validates the backend-owned URL shape and schema namespace.
+// PostgreSQL validates the explicit URL identity/options and schema namespace.
 // Credentials, TLS options and server availability are checked when opened.
 func PostgreSQL(rawURL, schema string) (Config, error) {
 	rawURL, schema = strings.TrimSpace(rawURL), strings.TrimSpace(schema)
@@ -190,7 +190,7 @@ func PostgreSQL(rawURL, schema string) (Config, error) {
 		if errors.As(err, &failure) && failure.Field == "schema" {
 			return Config{}, &Error{Field: "postgres_schema", Detail: "is not a supported application schema"}
 		}
-		return Config{}, &Error{Field: "postgres_url", Detail: "must identify a database with a postgres or postgresql URL"}
+		return Config{}, &Error{Field: "postgres_url", Detail: "must explicitly identify a user, host and database with supported, unambiguous URL options"}
 	}
 	return Config{kind: KindPostgres, postgresURL: rawURL, postgresSchema: schema}, nil
 }
@@ -231,6 +231,15 @@ func Open(ctx context.Context, config Config) (Backend, error) {
 	if err != nil {
 		if canceled := ctx.Err(); canceled != nil {
 			return nil, canceled
+		}
+		var failure *query.Error
+		if config.kind == KindPostgres && errors.As(err, &failure) && failure.Code == query.CodeInvalidPlan {
+			switch failure.Field {
+			case "environment":
+				return nil, &Error{Field: "environment", Detail: "PGSERVICE is unsupported; configure the project PostgreSQL URL explicitly"}
+			case "url":
+				return nil, &Error{Field: "postgres_url", Detail: "connection options or explicit TLS files are invalid"}
+			}
 		}
 		return nil, &Error{Field: "database", Detail: "opening the selected backend failed"}
 	}

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,27 @@ import (
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+func TestDatabaseOpenReportsClosedPostgresConfigurationFields(t *testing.T) {
+	t.Setenv("PGSERVICE", "service-private-secret")
+	config, err := PostgreSQL("postgres://user:connection-private-secret@localhost/database?sslmode=disable", "application")
+	if err != nil {
+		t.Fatal("pure constructor consulted the process environment")
+	}
+	if backend, err := Open(t.Context(), config); backend != nil || !errors.Is(err, &Error{Field: "environment"}) ||
+		strings.Contains(fmt.Sprintf("%v %#v", err, err), "private-secret") {
+		t.Fatalf("service failure lost its closed field diagnostic: %v", err)
+	}
+	t.Setenv("PGSERVICE", "")
+	config, err = PostgreSQL("postgres://user:connection-private-secret@localhost/database?sslmode=verify-full&sslrootcert=/nonexistent/private-secret.pem", "application")
+	if err != nil {
+		t.Fatal("pure constructor attempted to load TLS material")
+	}
+	if backend, err := Open(t.Context(), config); backend != nil || !errors.Is(err, &Error{Field: "postgres_url"}) ||
+		strings.Contains(fmt.Sprintf("%v %#v", err, err), "private-secret") {
+		t.Fatalf("TLS failure retained its credential-bearing cause: %v", err)
+	}
+}
 
 func TestOpenSQLiteAndRejectInvalidConfiguration(t *testing.T) {
 	if _, err := Open(context.Background(), Config{}); err == nil {

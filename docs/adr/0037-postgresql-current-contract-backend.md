@@ -67,6 +67,34 @@ transaction, schema migration, recorder/revision fence와 restart를 실제 실�
 12. Support claim은 actual generated CRUD/relation query, Atomic, schema editor, migration recorder/revision, two-connection
     contention, close/reopen와 server restart 뒤 durable resume를 모두 실행한 exact gate 뒤에만 허용합니다.
 
+## 명시적 연결 입력과 소유권
+
+C1의 프로젝트별 불변 설정에 맞춰 URL의 userinfo·authority·path를 사용자·호스트·DB identity의 유일한 원본으로
+사용한다. 각 호스트의 생략 포트는 5432, 생략 password는 빈 값이다. 중복 옵션과 query identity override,
+잘못된 escape·NUL·64 KiB 초과 입력은 I/O 없이 거부한다. 복수 DNS host와 독립 IPv6 주소는 고정 드라이버가
+해석하는 URL 문법 안에서 처리한다. Schema IR·query/transaction·physical-session profile은 바꾸지 않는다.
+
+`pgx` v5.10.0의 [설정 parser](https://github.com/jackc/pgx/blob/v5.10.0/pgconn/config.go)와
+[기본값](https://github.com/jackc/pgx/blob/v5.10.0/pgconn/defaults.go)은 process 환경·사용자 홈을 직접 읽으며,
+환경 조회를 주입하는 API가 없다. 따라서 adapter가 URL에서 만들지 않은 `PG*` 설정값과 기본 password/TLS 파일 경로를
+명시적인 값으로 덮는다. Process 환경을 바꾸거나 전역 mutex로 별도 프로젝트를 직렬화하지 않는다.
+Service는 존재 자체로 파일 로딩을 시작하므로 `PGSERVICE`를 Open 전에 거부한다. 검사 뒤 concurrent 변경도
+빈 servicefile 경로로 실패하게 하여 다른 service의 설정·credential을 사용하지 못하게 한다.
+이는 service 환경에 대한 성공적인 무시가 아니라 명시적인 미지원 오류다.
+
+기본 TLS mode는 `verify-full`이다. 명시적인 `disable`/`allow`/`prefer`/`require`/`verify-ca`/`verify-full`의 의미는
+드라이버가 소유한다. URL의 `sslcert`, `sslkey`, `sslrootcert`, `sslpassword`, `sslsni`, `sslnegotiation`을 지원하며
+명시된 파일은 Open마다 읽고 pool의 후속 physical connection은 이미 읽은 TLS 설정을 사용한다. 별도 root certificate가
+없는 검증 모드는 Go의 시스템 신뢰 저장소를 따른다. 환경이나 홈에 certificate가 존재한다는 이유로 client 인증을 추가하지 않는다.
+
+명시적인 `connect_timeout`, `target_session_attrs`, `application_name`, `min_protocol_version`, `max_protocol_version`,
+`channel_binding`, `require_auth`, `statement_cache_capacity`, `description_cache_capacity`, `default_query_exec_mode`도
+드라이버에서 검증한다. 기존 profile-owned startup 값은 URL에 있어도 고정값으로 덮는다. 나머지 옵션과
+`service`/`servicefile`/`passfile`은 파일 접근 전에 거부하며 raw parse/TLS 오류와 그 credential·경로를 공개 오류에 보관하지 않는다.
+
+환경 격리·여러 호스트의 포트·TLS material 수명·service 중간 변경·기존 physical profile과 실제 독립 프로젝트
+재연결은 별도 검증한다. 작성과 환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
+
 ## 첫 packet 범위
 
 - Scalar/current one-hop relation Query
