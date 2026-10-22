@@ -1,27 +1,51 @@
 # Admin의 여러 행 폼
 
-## 기존 객체 없이 여러 건 생성하기
+## 부모 없는 모델 집합 생성과 편집
 
-`NewCollectionFormSet[M]`는 typed manager와 공통 `FormConfig`, bounded `forms.SetConfig`를 결합한다.
-결과를 같은 모델의 `ModelConfig.CollectionFormSets`에 등록하면 목록 링크와
-`/<model>/collection-set/<name>/`의 GET/POST 폼을 제공한다. [Helpdesk의 여러 티켓 생성](../examples/helpdesk/ticket_bulk_admin.go)이
-실제 소비자다. 기존 객체 선택이나 부모 inline이 없는 생성 전용 표면이다.
+`NewCollectionFormSet[M]`는 canonical `Project`/`Source`, typed manager와 공통 `FormConfig`, bounded
+`forms.SetConfig`를 결합한다. 반환된 `ModelCollectionFormSet[M]`은 writer에 유지하고 `View()`를 같은 source의
+`ModelConfig.CollectionFormSets`에 등록한다. 목록 링크와 `/<model>/collection-set/<name>/` GET/POST 폼을 제공한다.
+[Helpdesk 생성](../examples/helpdesk/ticket_bulk_admin.go)은 빈 cohort를,
+[Helpdesk 편집](../examples/helpdesk/ticket_edit_admin.go)은 서버 category의 전체 현재 cohort를 사용한다.
+별도의 부모 객체를 만들거나 관계 선택에서 source identity를 추측하지 않는다.
 
-Site는 active staff, 모델 조회 권한, 선언한 실행 권한과 추가/choice 권한을 데이터 조회·입력 파싱 전에 확인한다.
-POST는 CSRF와 management admission 뒤 각 행의 제출 key를 현재 범위에서 해석해 한 번 바인딩한다.
-검색 페이지는 [관계 선택](choices.md)의 표시용 결과이며 검증 허용 목록으로 사용하지 않는다. `Run`은 검증된 `InstanceSet[M]`을 받아 `Prepare`로
-typed 후보를 얻으며 Form clean을 반복하지 않는다. Form에서 제외한 서버 소유 필드는 `Definition.PostClean`으로
-typed 준비 전에 설정한다. Callback은 저장 transaction에서 현재 scope·고유성·관계를 다시 확인하고 모든 저장과
-감사 기록을 수행한다. 범용 bulk 저장이나 audit callback을 Admin이 자동으로 추측하지 않는다.
+`Load`는 허용된 전체 현재 행과 이미 읽은 M2M 값의 순수 snapshot을 반환한다. 제출 ID만 조회하거나 상한에서
+조용히 자르면 안 된다. Site는 active staff·모델 조회 권한과 각 View/Add/Change/Delete, 추가 권한 및 choice 권한을
+먼저 확인한다. Change가 없는 기존 행은 read-only이며 Add가 있으면 새 행을 추가할 수 있다. Delete와 ORDER는
+각각 명시적 정책과 권한으로 제한한다. PK·management·선택한 `RevisionField`는 read-only와 DELETE 행에도 검사한다.
+새 행에는 기존 PK를 허용하지 않는다. 조회 전용 모델이나 쓰기 동작이 전혀 없는 요청은 이 편집 경로에 들어오지 않는다.
 
-`Run`은 commit이 확인된 뒤 활성 입력 순서의 서로 다른 양수 ID를 반환해야 한다. 개수·ID가 잘못되면
-`ErrReconciliationRequired`이며 성공 redirect를 하지 않는다. 확인된 입력 오류는 `RejectCollectionFormSet`의
-원래 0-based 행 index 또는 전체 집합 진단으로 재표시한다. Wrapped/joined 오류, 취소, DB/rollback/commit 불확실성은
-실행 오류를 유지한다. 재표시는 원래 입력과 clean 결과를 보존하며 자동 재시도하지 않는다.
+POST는 CSRF와 management/PK admission 뒤 행별 선택 key를 현재 범위에서 해석해 바인딩한다.
+[검색 페이지](choices.md)는 표시용이며 제출 선택의 허용 목록이 아니다. 검색도 기존 `row_id`의 현재 cohort와
+Change를 확인하며 새 행 검색은 Add가 필요하다. 같은 key라도 다른 행의 resolver 결과를 재사용하지 않는다.
 
-MinForms는 1 이상이며 min/max 검사가 필수다. AbsoluteMax는 최대 100, 전체 기본 입력 개수는 최대 1,024다.
-파일·기존 행·정렬·삭제·ReadOnlyInitial은 지원하지 않으며 잘못된 설정을 시작 시 거부한다. URL-encoded 요청은
-64 KiB·총 1,024개 값·값당 4 KiB다. 아래의 동적 추가/제거 UI와 서버 count/field allowlist 검사를 함께 사용한다.
+`Run`은 해당 선언·호출·actor에 묶인 `CollectionSetSubmission`을 받는다. Writer의 borrowed transaction 안에서
+유지한 선언의 `BindCurrent`를 호출해 같은 Form/Set 정책과 원래 입력을 현재 전체 cohort에 다시 적용한다.
+Loader는 한 번 호출하며 초기 `Load`나 읽기 전용 `Validate`를 재실행하지 않는다. 순수 Form/모델 검증은 현재 값으로
+반복한다. `CollectionSetCurrent.ResolveChoices`는 management·PK/cohort·revision·금지된 제어의 검사 뒤 호출한다.
+행 순서가 바뀌어도 preflight의 `Current(index)`/`ChoiceKeys`를 사용한다. 제출 시 Site의 deny overlay는 넓힐 수 없고,
+현재 객체 권한·DB 고유성·revision fencing·삭제 관계 정책·audit는 application이 같은 저장 scope에서 확인한다.
+
+`bound.Set().Prepare()`의 `SavePlan` 또는 명시적 bulk writer로 신규/변경/삭제 intent를 저장한다. `ORDER`는
+폼의 순서이며 모델의 위치 필드를 추측해 저장하지 않는다. Helpdesk는 ORDER만 바뀌면 모델 값과 audit를 추가하지 않는다.
+`bound.Result`에 원래 행 index, create/update/delete, 실제 양수 ID를 넘겨 현재 intent와 정확히 대조한다.
+미변경·read-only·삭제된 extra를 쓰기로 보고하거나 기존 행의 ID를 바꾸거나 새 ID를 생존 행과 충돌시키면 오류다.
+이 검사는 rollback 가능한 transaction 내부에서 수행하고 `Run`은 확정 commit 뒤 결과를 반환한다.
+결과 자체는 commit 증거가 아니며 다른 호출의 결과 재사용과 불완전한 결과는 `ErrReconciliationRequired`다.
+
+모델 파일과 extra file 입력은 multipart의 행별 allowlist와 request 수명을 유지한다. 모델의 pending upload는
+기존 `PreparedSet.SaveFiles`로 명시적으로 게시해야 `SavePlan`을 만들 수 있다. 삭제/미변경/read-only 행은 게시하지 않는다.
+부분 게시·unknown outcome·뒤쪽 writer/DB 실패에서도 게시 receipt를 보존한다. 파일 게시를 DB rollback이나 자동 삭제로
+감추지 않는다. 파일의 실제 모델 이름·clear·보존은 Schema IR과 공통 파일 준비가 소유한다.
+
+확인된 입력 오류는 `RejectCollectionFormSet`의 원래 0-based 행 또는 전체 집합 진단으로 재표시한다.
+DELETE로 무시될 행 오류만 반환해 유효한 집합이 되는 결과는 거부한다. Wrapped/joined 오류·실제 취소·DB/rollback/commit
+불확실성은 실행 오류를 유지하며 자동 재시도하지 않는다. 확정 commit 뒤 context가 취소돼도 성공을 미확정으로 바꾸지 않는다.
+Writer가 거절한 관계 key의 이전 label은 재표시 권한으로 사용하지 않으며 파일은 다시 선택하도록 안내한다.
+
+MinForms는 0 이상이며 min/max 검사가 필수다. AbsoluteMax는 1~100, 선언한 입력 이름과 요청의 전체 값은 최대 1,024다.
+URL-encoded 요청은 64 KiB·값당 4 KiB이며 multipart에는 명시한 `SiteConfig.Uploads` 정책도 적용한다.
+아래의 동적 추가/제거 UI와 서버 count/field allowlist 검사를 함께 사용한다.
 `SiteConfig.RenderLimits`는 template의 전체 loop/output 예산을 명시하며 0은 기존 기본값이다. 큰 선택 목록을
 여러 행에 표시하는 소비자는 `web.Config.MaxResponseBytes`도 같은 출력 정책에 맞춰 설정해야 한다.
 

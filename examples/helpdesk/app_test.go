@@ -546,6 +546,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("ticket_editor", func(t *testing.T) {
 		verifyHelpdeskTicketEditor(t, ctx, runtime, open, client, after)
 	})
+	t.Run("admin_collection_edit", func(t *testing.T) {
+		verifyHelpdeskAdminCollectionEdit(t, ctx, runtime, client)
+	})
 	t.Run("bulk_tickets", func(t *testing.T) {
 		verifyHelpdeskBulkTickets(t, ctx, runtime, client)
 		t.Run("concurrent_requests", func(t *testing.T) {

@@ -74,11 +74,17 @@ Bulk는 일반 model save/clean callback과 감사 이벤트를 암묵적으로 
 표현과 digest·라벨을 검증하고 전체 응답을 인코딩한 뒤 행마다 add audit를 기록한다. 어느 단계든 실패하면
 모든 티켓·라벨 연결·audit를 함께 rollback하며 key·부분 응답을 게시하거나 자동 재시도하지 않는다.
 
-Admin의 `CollectionFormSet`은 기존 객체가 없는 생성 전용 typed `InstanceSet`을 callback에 전달한다. Form clean을
-반복하지 않고 현재 관계/고유성·transaction·audit는 application이 소유한다. Callback은 commit을 확인한 뒤
-활성 입력 순서대로 서로 다른 양수 ID를 반환한다. 잘못된 개수·ID는 결과 불확실성 오류이며 성공 redirect로 바꾸지 않는다.
-파일·기존 객체·정렬·삭제의 정책을 이 API에 암묵적으로 확장하지 않는다. 기존 여러 티켓 편집기는 기존 행의
-수정/삭제와 새 행의 bulk 생성·audit를 하나의 부모 transaction에서 수행한다.
+Admin의 [typed CollectionFormSet](../../admin/inlines.md)은 canonical source와 명시적인 현재 cohort·CRUD·Form/Set
+정책을 선언한다. 생성 전용 소비자는 빈 cohort를 사용한다. `Run`은 선언/호출/actor에 묶인 제출을 받고,
+같은 선언의 `BindCurrent`로 writer의 borrowed scope에서 현재 cohort·선택·권한과 원래 입력을 다시 검사한다.
+순수 clean은 현재 값으로 반복하고, 초기 화면의 loader나 읽기용 Validate는 다시 실행하지 않는다.
+현재 관계/고유성·transaction·삭제·파일 게시·audit는 application이 명시적으로 소유한다.
+
+`BoundCollectionFormSet.Result`는 원래 행 index별 create/update/delete와 실제 ID를 현재 저장 intent에 대조한다.
+검사를 rollback 가능한 scope 안에서 끝내고 callback은 확정 commit 뒤 결과를 반환한다. 잘못된 개수·ID·다른 호출의
+결과는 불확실성 오류이며 성공 redirect로 바꾸지 않는다. 기존 행과 파일의 지원은 이 계약을 완화하지 않는다.
+여러 티켓 편집기는 scalar/collection·삭제·새 행·audit를 같은 외부 transaction에 연결한다. ORDER는 폼의 순서이며
+위치 필드 저장을 추측하지 않는다. 파일 게시 receipt는 DB 결과와 별도로 보존한다.
 
 API 배열은 하나의 공유 JSON byte/depth/value 예산을 사용하며 항목마다 기존 TicketCreate 정책도 적용한다.
 권한/CSRF는 입력 바인딩 전에 확인한다. 원래 입력 index를 가진 진단과 전체 집합 진단을 구별한다. 확인된

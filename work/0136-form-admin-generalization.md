@@ -19,7 +19,7 @@ A1의 같은 source 전체 검증·원본 대조를 확인해 주 작업을 전�
   SetConfig와 canonical 관계를 다시 구성해 현재 권한·행으로 바인딩한다. 이 반복과 정책 불일치 위험을 줄인다.
 - `RelatedChoices.Load`는 전체 `[]forms.Choice`를 읽는다. 선택한 key 확인과 검색 결과의 페이지를 구분하는
   공통 경계가 없으며, 목록이 커질 때 모델 Form마다 전체 선택지를 반복해서 렌더링한다.
-- Admin의 `CollectionFormSet`은 현재 새 객체 생성만 지원한다. 기존 행 편집·삭제·정렬·파일과 관련된
+- F1 시작 시 Admin의 `CollectionFormSet`은 새 객체 생성만 지원했다. 기존 행 편집·삭제·정렬·파일과 관련된
   공통 준비는 하위 FormSet에 있지만 Admin의 반복 가능한 화면·현재 저장 연결은 더 넓게 검증해야 한다.
 - 필드·cross-field·모델 clean·집합 validator와 고정 widget을 지원한다. 등록한 widget의 표현과
   검증/저장 의미를 분리하고 원래 입력·복합 오류·read-only·secret 값을 안전하게 전달하는 확장 경계를 정리한다.
@@ -99,5 +99,11 @@ readonly 취소 소거를 수정하고 회귀 검사를 추가했다. 새 실제
 고정 Django Admin의 autocomplete·Form 관측기와 Go의 native 비교를 작성했다. 두 DB의 94개 입력 가운데
 49개 공통 동작과 45개 정책 차이를 분리하고, 실제 HTTP commit·현재 scope·source 원본·정리 결과를 보존한다.
 이 비교의 로컬 최소 compile만 확인했으며 독립 관측과 native 본문은 원격 CI에서 실행해야 한다.
-일반 여러 행/모델 파일·widget 확장과 외부 소비자의 추가 범용성은 미완료다.
+`ModelCollectionFormSet`에 canonical source·현재 전체 cohort와 CRUD deny overlay를 선언하고, sealed 제출을
+같은 선언의 `BindCurrent`로 writer에서 재검사하도록 연결했다. Helpdesk의 생성은 기존 native bulk writer를 유지하며
+새 편집은 `SavePlan`과 같은 borrowed transaction에서 scalar/collection·생성·삭제·audit를 처리한다.
+행 순서·PK·revision·관리 입력·선택 범위·읽기 전용과 정확한 결과 대조, 실제 HTTP 혼합 저장과 늦은 실패,
+multipart 모델 파일의 현재 바인딩·부분/unknown 게시·request 수명 검사를 작성했다.
+이 검사의 본문과 실제 DB 저장은 원격 CI에서 확인해야 한다. 최소 compile은 실행 성공의 근거가 아니다.
+모델 파일의 DB 실패 연결·독립 생성/cross-app 컬렉션 편집·실제 브라우저 편집과 widget 확장은 계속 미완료다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

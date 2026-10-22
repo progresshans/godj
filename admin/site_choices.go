@@ -260,7 +260,7 @@ func choiceRowIndex(values url.Values, maximum int) (int, error) {
 }
 func (site *Site) collectionSetChoiceSearch(model registeredModel, definition CollectionFormSet, source RelatedChoices) sessionauth.AuthenticatedHandler {
 	return func(request *web.Request, actor auth.Principal) (web.Response, error) {
-		values, err := parseSiteQuery(request, inputRules{"q": 1, "offset": 1, "limit": 1, "index": 1})
+		values, err := parseSiteQuery(request, inputRules{"q": 1, "offset": 1, "limit": 1, "index": 1, "row_id": 1})
 		if err != nil {
 			return siteBadRequest()
 		}
@@ -271,13 +271,28 @@ func (site *Site) collectionSetChoiceSearch(model registeredModel, definition Co
 		if _, err := choiceRowIndex(values, definition.config.AbsoluteMax); err != nil {
 			return siteBadRequest()
 		}
-		if allowed, err := site.collectionFormSetAllowed(request.Context(), actor, model, definition); err != nil {
+		access, err := site.collectionFormSetAccess(request.Context(), actor, model, definition)
+		if err != nil {
+			return operationResponse(err)
+		} else if !access.visible() || !access.writable() {
+			return siteForbidden()
+		}
+		if allowed, err := site.permissionGranted(request, actor, source.choicePermission()); err != nil {
 			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
 		}
-		origin := model.origin(ChoiceCollectionSet, 0)
-		origin.name = definition.name
+		var key int64
+		if values.Has("row_id") {
+			key, err = positiveID(values, "row_id")
+			if err != nil {
+				return siteBadRequest()
+			}
+		}
+		origin, err := definition.searchOrigin(request.Context(), actor, access, key)
+		if err != nil {
+			return operationResponse(err)
+		}
 		page, err := source.search(request.Context(), actor, origin, search)
 		if err != nil {
 			return operationResponse(err)

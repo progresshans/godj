@@ -142,6 +142,58 @@ func verifyHelpdeskAdminChoices(t *testing.T, ctx context.Context, runtime *syst
 			}
 		}
 	})
+	t.Run("collection_rows_admit_the_current_source_before_search", func(t *testing.T) {
+		path := "/admin/tickets/collection-set/edit/"
+		page := client.request("GET", path, "", false)
+		values, _ := adminFormSubmission(t, page, path)
+		if values.Get("tickets-0-labels") != strconv.FormatInt(selected.ID, 10) || !strings.Contains(page.Body.String(), "Bounded label 124 &lt;safe&gt;") || strings.Contains(page.Body.String(), "Bounded label 100 &lt;safe&gt;") {
+			t.Fatal("collection lost off-page selected key or expanded whole target catalog")
+		}
+		search := path + "choices/labels/"
+		for _, suffix := range []string{"?index=0&row_id=" + strconv.FormatInt(ticket.ID, 10), "?index=1"} {
+			response := client.request("GET", search+suffix+"&offset=100&limit=100", "", false)
+			var result choicePage
+			if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &result) != nil || len(result.Items) != 25 || result.Items[24].Value != strconv.FormatInt(selected.ID, 10) {
+				t.Fatal("row-scoped bounded search", response.Code, response.Body.String())
+			}
+		}
+		for _, test := range []struct {
+			query  string
+			status int
+		}{
+			{"?index=0&row_id=" + strconv.FormatInt(foreign.ID, 10), 404},
+			{"?index=0&row_id=0", 400}, {"?index=40", 400}, {"?index=0&row_id=1&row_id=2", 400},
+		} {
+			counter.plans = nil
+			response := client.request("GET", search+test.query, "", false)
+			if response.Code != test.status {
+				t.Fatal("collection search source admission", response.Code, test.status)
+			}
+			for _, plan := range counter.plans {
+				if plan.Table() == "helpdesk_label" {
+					t.Fatal("rejected source read target labels")
+				}
+			}
+		}
+		for _, test := range []struct {
+			deny  auth.Permission
+			query string
+		}{
+			{helpdesk.AddTicket, "?index=1"}, {helpdesk.ChangeTicket, "?index=0&row_id=" + strconv.FormatInt(ticket.ID, 10)}, {helpdesk.ViewLabel, "?index=1"},
+		} {
+			denied := helpdeskHTTPRegistry(t, app, registry, runtime, helpdeskDeniedPermissions{test.deny})
+			denied.cookies = maps.Clone(authenticated.cookies)
+			counter.plans = nil
+			if response := denied.request("GET", search+test.query, "", false); response.Code != 403 {
+				t.Fatal("denied collection search", response.Code)
+			}
+			for _, plan := range counter.plans {
+				if plan.Table() == "helpdesk_label" {
+					t.Fatal("denied collection search read targets")
+				}
+			}
+		}
+	})
 	t.Run("outside_page_selection_survives_then_stale_scope_is_rejected", func(t *testing.T) {
 		response := client.request("GET", changePath, "", false)
 		values, action := adminFormSubmission(t, response, changePath)

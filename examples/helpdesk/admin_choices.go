@@ -17,20 +17,7 @@ import (
 // category scope through both paged search and submitted-key resolution.
 // The final writers still recheck these relations in their write transaction.
 func (a *Application) labelChoiceSource(source, field string) (admin.RelatedChoices, error) {
-	binding, err := project.Bind()
-	if err != nil {
-		return nil, err
-	}
-	choices, err := formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: source}, field, models.LabelObjects, formmodel.ModelChoiceConfig[models.Label]{
-		Label: func(row models.Label) (string, error) { return row.Name, nil },
-		Search: func(term string) ([]orm.Predicate[models.Label], error) {
-			if term == "" {
-				return nil, nil
-			}
-			return []orm.Predicate[models.Label]{models.LabelFields.Name.IContains(term)}, nil
-		},
-		Order: []orm.Ordering[models.Label]{models.LabelFields.ID.Asc()},
-	})
+	choices, err := labelModelChoices(source, field)
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +26,23 @@ func (a *Application) labelChoiceSource(source, field string) (admin.RelatedChoi
 		Scope: func(_ context.Context, _ auth.Principal, _ admin.ChoiceOrigin, visit func(db.Queryer, []orm.Predicate[models.Label]) error) error {
 			return visit(a.backend, []orm.Predicate[models.Label]{models.LabelFields.ID.GreaterThan(0), a.relations.ModelsLabel.Category.ID.Exact(a.categoryID)})
 		},
+	})
+}
+
+func labelModelChoices(source, field string) (formmodel.ModelChoices[models.Label], error) {
+	binding, err := project.Bind()
+	if err != nil {
+		return formmodel.ModelChoices[models.Label]{}, err
+	}
+	return formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: source}, field, models.LabelObjects, formmodel.ModelChoiceConfig[models.Label]{
+		Label: func(row models.Label) (string, error) { return row.Name, nil },
+		Search: func(term string) ([]orm.Predicate[models.Label], error) {
+			if term == "" {
+				return nil, nil
+			}
+			return []orm.Predicate[models.Label]{models.LabelFields.Name.IContains(term)}, nil
+		},
+		Order: []orm.Ordering[models.Label]{models.LabelFields.ID.Asc()},
 	})
 }
 

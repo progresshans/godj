@@ -99,6 +99,35 @@ func fileFieldNamed(fields []forms.Field, name string) bool {
 	return false
 }
 
+func (site *Site) parseCollectionFormSet(request *web.Request, definition CollectionFormSet) (siteForm, error) {
+	if !multipartRequest(request) {
+		values, err := parseSiteForm(request, definition.rules)
+		return siteForm{values: values}, err
+	}
+	parsed, err := request.Multipart(site.uploads)
+	if err != nil {
+		return siteForm{}, err
+	}
+	input := siteForm{values: parsed.Values(), files: parsed.Files()}
+	if err := validateSiteValues(input.values, definition.rules); err != nil {
+		return siteForm{}, err
+	}
+	count := 0
+	for _, values := range input.values {
+		count += len(values)
+	}
+	for name, files := range input.files {
+		if !definition.files[name] {
+			return siteForm{}, &ConfigError{Path: "request.files", Code: "undeclared_field"}
+		}
+		count += len(files)
+		if count > MaximumInputValues {
+			return siteForm{}, &ConfigError{Path: "request.files", Code: "limit_exceeded"}
+		}
+	}
+	return input, nil
+}
+
 // Only known direct input failures are client errors. Storage, cancellation,
 // cleanup and policy/lifecycle failures remain execution errors.
 func siteFormResponse(err error) (web.Response, error) {

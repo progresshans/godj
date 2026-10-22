@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-10-22
+- 갱신: 2026-10-23
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [F1 / GDJ-0136 Form/Admin 일반화](../../work/0136-form-admin-generalization.md)를 구현 중이다.
 - 최근 제품 완료 범위: [A1 / GDJ-0135 모델 중심 Form/Admin/API 조립](../../work/0135-model-centered-form-admin-api.md).
@@ -9,7 +9,7 @@
 ## 다음
 
 1. F1의 typed inline·bounded 관계 선택·독립 Django Admin 비교와 원격 browser 중단을 현재 source에서 확인한다.
-2. 기존 행의 여러 행 편집·삭제·정렬, 모델 파일, widget/validation 확장을 같은 typed 준비·저장에 연결한다.
+2. 여러 행 편집·삭제·정렬과 multipart 현재 바인딩의 원격 검증을 확인하고, 모델 파일의 DB 실패 연결과 widget/validation 확장을 마무리한다.
 3. 구조가 다른 앱·외부 cross-app 소비자의 전체 시나리오와 필수 CI 원본을 대조한 뒤 C1로 연결한다.
 
 ## 검증 경계

@@ -23,6 +23,31 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 현재 cohort 기반 컬렉션 편집과 파일 바인딩 작성
+
+`ModelCollectionFormSet`의 canonical 선언과 sealed 제출/결과를 도입했다. 초기 Form과 writer의 `BindCurrent`는
+같은 Form/Set·권한 overlay·PK/cohort·revision·행별 선택 정책을 사용한다. Helpdesk의 기존 생성 경로는 같은
+borrowed transaction의 native bulk 저장을 유지하고 새 Admin 편집 경로는 `SavePlan`으로 기존/신규/삭제·collection·audit를 연결한다.
+ORDER만 바뀐 Helpdesk 행은 폼 저장 intent를 확인하되 모델 위치나 audit를 추측해 추가하지 않는다.
+
+양 DB의 공개 Helpdesk 소비자에 실제 HTML을 제출하는 31개 컬렉션 편집 사례를 작성했다. 혼합/미변경/정렬/collection-only,
+read-only+추가, 금지된 동작/PK/management, 보호된 삭제, 늦은 cohort·선택 범위 변경과 audit/collection/read 실패,
+취소·rollback/commit 불확실성을 DB의 scalar·membership·audit 재조회로 대조하도록 했다.
+기존 행과 새 행의 검색은 현재 source·권한과 bounded page를 검사한다. 별도 framework 검사는 선언/actor/result 재사용,
+현재 값, 행별 선택 격리, read-only/DELETE revision 및 정확한 결과 intent를 검사한다.
+
+15개 multipart 사례는 모델 파일의 현재 바인딩·교체/clear/보존·read-only/삭제, 위조된 파일 필드, request 수명,
+filesystem 부분 게시·unknown outcome·게시 후 writer 오류와 receipt/기존 파일 보존을 검사한다.
+이 framework 파일 검사는 typed plan까지 확인하며 실제 DB 저장을 수행하지 않는다. 생성된 FileField 소비자의 DB 실패
+연결과 독립 cross-app 컬렉션 편집·실제 브라우저·widget 확장은 계속 남아 있다.
+
+gofmt 후 `go test ./admin ./examples/helpdesk -run '^$' -count=1`, 문서 229개 링크와 diff 검사를 통과했다.
+`gdj0136-collection-current-compile-v1/receipt.json` SHA-256
+`144c5c086b8d9ea070e134c16e97eb1b86fb7e44593e01ce5cf9e5533b7173a5`는 Go 1.26.5 darwin/arm64의
+명령·원본 로그와 변경 source 21개의 SHA/복사본을 보존한다. 로컬 test 본문·DB·race·browser·전체 제품을 실행하지 않았다.
+CI 필수 manifest에 118개 경로를 추가했고 전체 4,185개가 normal/race/cgo0 각각에서 유일한 owner를 갖는 것을 정적으로 확인했다.
+현재 source의 실제 실행 검증은 미완료이며 이 구현/compile을 F1 PASS로 기록하지 않는다.
+
 ## GDJ-0136 — 독립 Admin 비교의 표시 fixture 정정
 
 Source `799f468b`의 [CI 39799859303](https://github.com/progresshans/godj/actions/runs/39799859303)에서

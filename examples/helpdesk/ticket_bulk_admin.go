@@ -6,9 +6,12 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
 )
@@ -77,54 +80,104 @@ func (a *Application) ticketBulkFormSets(fields []string, overrides []formmodel.
 	if err != nil {
 		return nil, err
 	}
-	definition, err := admin.NewCollectionFormSet(admin.CollectionFormSetConfig[models.Ticket]{
-		Name: "create", Label: "Create multiple tickets", Manager: models.TicketObjects, Permission: AddTicket,
+	binding, err := project.Bind()
+	if err != nil {
+		return nil, err
+	}
+	choices, err := labelModelChoices("ticket", "labels")
+	if err != nil {
+		return nil, err
+	}
+	choices = choices.Filter(models.LabelFields.ID.GreaterThan(0), a.relations.ModelsLabel.Category.ID.Exact(a.categoryID))
+	var definition admin.ModelCollectionFormSet[models.Ticket]
+	definition, err = admin.NewCollectionFormSet(admin.CollectionFormSetConfig[models.Ticket]{
+		Name: "create", Label: "Create multiple tickets", Manager: models.TicketObjects,
+		Project: binding, Source: ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+		Permissions:           admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
+		AdditionalPermissions: []auth.Permission{AddTicket},
 		Form: admin.FormConfig{Definition: formmodel.Definition{Fields: fields, Overrides: overrides,
 			PostClean: formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 				return forms.NewValues(map[string]forms.Value{"category": forms.Integer(a.categoryID)}), validation.NewErrors()
 			}},
 		}, RelatedChoices: []admin.RelatedChoices{labelChoices}},
 		Set: policy,
-		Run: func(ctx context.Context, actor auth.Principal, set formmodel.InstanceSet[models.Ticket]) ([]int64, error) {
-			prepared, err := set.Prepare()
-			if err != nil {
-				return nil, err
-			}
-			rows := prepared.Rows()
-			candidates := make([]ticketBulkCandidate, len(rows))
-			for position, row := range rows {
-				value, err := row.Model()
+		Load: func(context.Context, auth.Principal, admin.CollectionSetAccess) (admin.CollectionSetSnapshot[models.Ticket], error) {
+			return admin.CollectionSetSnapshot[models.Ticket]{}, nil
+		},
+		Run: func(ctx context.Context, actor auth.Principal, submission admin.CollectionSetSubmission) (admin.CollectionSetResult, error) {
+			result, err := runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (admin.CollectionSetResult, error) {
+				bound, err := definition.BindCurrent(ctx, actor, submission, func(context.Context, admin.CollectionSetAccess) (admin.CollectionSetCurrent[models.Ticket], error) {
+					return admin.CollectionSetCurrent[models.Ticket]{ResolveChoices: func(work context.Context, input formmodel.SetPreflight[models.Ticket]) (forms.RowModelChoices, error) {
+						selections := make(map[int]map[string][]forms.Choice)
+						for index := 0; index < input.TotalForms(); index++ {
+							keys, valid, err := input.ChoiceKeys(index, "labels")
+							if err != nil {
+								return forms.RowModelChoices{}, err
+							}
+							if !valid {
+								continue
+							}
+							selected, err := choices.Resolve(work, session, keys)
+							if err != nil {
+								return forms.RowModelChoices{}, err
+							}
+							selections[index] = map[string][]forms.Choice{"labels": selected.Items()}
+						}
+						return forms.NewRowModelChoices(selections, nil), nil
+					}}, nil
+				})
 				if err != nil {
-					return nil, err
+					return admin.CollectionSetResult{}, err
 				}
-				labels, _ := row.Prepared().Collections().Integers("labels")
-				candidates[position] = ticketBulkCandidate{index: row.Index(), value: value, labels: labels}
-			}
-			created, err := a.createTickets(ctx, actor, candidates, a.adminAudit)
-			if failures, rejected := validation.Rejected(err); rejected {
-				rowFailures := make(map[int]validation.Errors)
-				var whole validation.Errors
-				for _, failure := range failures.All() {
-					if index, present := bulkFailureIndex(failure); present {
-						rowFailures[index] = validation.Join(rowFailures[index], validation.NewErrors(failure))
-					} else {
-						whole = validation.Join(whole, validation.NewErrors(failure))
+				if !bound.Set().Valid() {
+					return admin.CollectionSetResult{}, rejectTicketCollectionSet(bound.Set().FormSet())
+				}
+				prepared, err := bound.Set().Prepare()
+				if err != nil {
+					return admin.CollectionSetResult{}, err
+				}
+				rows := prepared.Rows()
+				candidates := make([]ticketBulkCandidate, len(rows))
+				for position, row := range rows {
+					value, err := row.Model()
+					if err != nil {
+						return admin.CollectionSetResult{}, err
 					}
+					labels, _ := row.Prepared().Collections().Integers("labels")
+					candidates[position] = ticketBulkCandidate{index: row.Index(), value: value, labels: labels}
 				}
-				return nil, admin.RejectCollectionFormSet(rowFailures, whole, err)
-			}
+				created, err := a.createTicketsInSession(ctx, session, actor, candidates, a.adminAudit)
+				if err != nil {
+					return admin.CollectionSetResult{}, err
+				}
+				writes := make([]admin.CollectionSetWrite, len(created.records))
+				for index, value := range created.records {
+					writes[index] = admin.CollectionSetWrite{Index: rows[index].Index(), Kind: "create", ID: value.ID}
+				}
+				return bound.Result(writes)
+			})
 			if err != nil {
-				return nil, err
+				return admin.CollectionSetResult{}, ticketCollectionRejection(err)
 			}
-			identities := make([]int64, len(created.records))
-			for index, value := range created.records {
-				identities[index] = value.ID
-			}
-			return identities, nil
+			return result, err
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	return []admin.CollectionFormSet{definition}, nil
+	edit, err := a.ticketEditFormSet(fields, overrides)
+	if err != nil {
+		return nil, err
+	}
+	return []admin.CollectionFormSet{definition.View(), edit}, nil
+}
+
+func rejectTicketCollectionSet(set forms.Set) error {
+	rows := make(map[int]validation.Errors)
+	for _, row := range set.Forms() {
+		if !row.Form().Errors().Empty() {
+			rows[row.Index()] = row.Form().Errors()
+		}
+	}
+	return admin.RejectCollectionFormSet(rows, validation.Join(set.NonFormErrors(), set.Management().Errors()), nil)
 }

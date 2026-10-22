@@ -346,7 +346,7 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 						page := client.request("GET", path, "", false)
 						if len(deny) == 0 {
 							form, _ = adminFormSubmission(t, page, path)
-							if form.Get("tickets-TOTAL_FORMS") != "2" || form.Get("tickets-INITIAL_FORMS") != "0" || form.Has("tickets-0-id") || form.Has("tickets-0-category") || form.Has("tickets-0-external_payload_digest") || !strings.Contains(page.Body.String(), "data-inline-empty") || strings.Contains(page.Body.String(), "private outside bulk label") {
+							if form.Get("tickets-TOTAL_FORMS") != "2" || form.Get("tickets-INITIAL_FORMS") != "0" || form.Get("tickets-0-id") != "" || form.Has("tickets-0-category") || form.Has("tickets-0-external_payload_digest") || !strings.Contains(page.Body.String(), "data-inline-empty") || strings.Contains(page.Body.String(), "private outside bulk label") {
 								t.Fatal("bulk form ownership or discovery")
 							}
 						} else {
@@ -414,7 +414,7 @@ func verifyHelpdeskBulkTickets(t *testing.T, ctx context.Context, runtime *syste
 						want, committed = 403, false
 					case "forged_id":
 						inputs[1]["id"] = old.ID
-						want, committed = 400, false
+						want, committed = validationStatus, false
 					case "forged_category":
 						inputs[1]["category"] = outside.ID
 						want, committed = 400, false

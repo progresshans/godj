@@ -271,10 +271,10 @@ func (site *Site) buildRoutes() error {
 		for _, definition := range model.collectionFormSets {
 			path := site.collectionFormSetPath(model, definition)
 			for _, source := range definition.choiceSources {
-				addChoiceRoute(modelName("collection-set-"+definition.name+"-choice-"+source.choiceField()), path+"choices/"+source.choiceField()+"/", definition.permissions[0], site.collectionSetChoiceSearch(model, definition, source))
+				addChoiceRoute(modelName("collection-set-"+definition.name+"-choice-"+source.choiceField()), path+"choices/"+source.choiceField()+"/", "", site.collectionSetChoiceSearch(model, definition, source))
 			}
 			routes = append(routes,
-				web.Route{Name: modelName("collection-set-" + definition.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(definition.permissions[0], site.collectionFormSetGet(model, definition))},
+				web.Route{Name: modelName("collection-set-" + definition.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire("", site.collectionFormSetGet(model, definition))},
 				web.Route{Name: modelName("collection-set-" + definition.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionFormSetPost(model, definition)},
 			)
 		}
