@@ -16,13 +16,15 @@ import (
 )
 
 type adminChoiceHTTPProof struct {
-	GetStatus  int                   `json:"get_status"`
-	PostStatus *int                  `json:"post_status"`
-	Options    []adminChoiceOption   `json:"rendered_options"`
-	Disabled   bool                  `json:"disabled"`
-	Before     adminChoiceSource     `json:"stored_before"`
-	After      adminChoiceSource     `json:"stored_after"`
-	Writer     adminChoiceWriteStats `json:"writer"`
+	GetStatus      int                   `json:"get_status"`
+	PostStatus     *int                  `json:"post_status"`
+	Options        []adminChoiceOption   `json:"rendered_options"`
+	Disabled       bool                  `json:"disabled"`
+	ReadOnlyDetail bool                  `json:"readonly_detail"`
+	DetailValue    string                `json:"detail_value"`
+	Before         adminChoiceSource     `json:"stored_before"`
+	After          adminChoiceSource     `json:"stored_after"`
+	Writer         adminChoiceWriteStats `json:"writer"`
 }
 type adminChoiceNativeCase struct {
 	adminChoiceCase
@@ -116,6 +118,10 @@ func (native *adminChoiceNative) observeHTTPForm(t *testing.T, c adminChoiceCase
 		if err != nil {
 			t.Fatal(err)
 		}
+		proof.ReadOnlyDetail, proof.DetailValue, err = adminChoiceDetail(response.Body.String(), c.Relation)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	afterGet, err := native.domain(t.Context(), native.database)
 	if err != nil {
@@ -156,8 +162,16 @@ func (native *adminChoiceNative) observeHTTPForm(t *testing.T, c adminChoiceCase
 	if c.Name == c.Relation+"/no_source_permission" && response.Code != http.StatusForbidden {
 		t.Fatal("native form admitted a source without view or change")
 	}
-	if c.Name == c.Relation+"/view_only" && (response.Code != http.StatusOK || !proof.Disabled) {
-		t.Fatal("native viewer did not receive a disabled choice control")
+	if c.Name == c.Relation+"/view_only" {
+		value := before.Source.Foreign
+		if c.Relation == "one_to_one" {
+			value = before.Source.Single
+		} else if c.Relation == "many" {
+			value = strings.Join(before.Source.Many, ", ")
+		}
+		if response.Code != http.StatusOK || !proof.ReadOnlyDetail || proof.DetailValue != value || len(proof.Options) != 0 || proof.Disabled {
+			t.Fatal("native viewer lost its readonly detail or acquired a choice control")
+		}
 	}
 	if input.Bound {
 		// Revocation follows the actual GET, so a label previously displayed by
@@ -255,6 +269,7 @@ func TestAdminChoiceMatchesIndependentDjango(t *testing.T) {
 			}
 			t.Run("reference_negative_controls", func(t *testing.T) {
 				adminChoiceReferenceNegatives(t, raw, inputRaw, observerRaw, verificationRaw, backend)
+				adminChoiceDetailNegatives(t)
 			})
 			native := adminChoiceOpen(t, backend, inputs)
 			original, err := native.domain(t.Context(), native.database)

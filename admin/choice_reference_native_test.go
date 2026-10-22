@@ -482,7 +482,10 @@ func (native *adminChoiceNative) observeForm(t *testing.T, caseInput adminChoice
 			if err != nil {
 				return err
 			}
-			if _, err := spec.Unbound(adminChoiceInitial(current)); err != nil {
+			// Model binding retains all stored scalar values. The ordinary Form
+			// accepts only this observation's selected relation as display initial.
+			initial := adminChoiceInitial(current)
+			if _, err := spec.Unbound(map[string]forms.Value{caseInput.Relation: initial[caseInput.Relation]}); err != nil {
 				return err
 			}
 		}
@@ -743,4 +746,79 @@ func adminChoiceOptions(body, field string) ([]adminChoiceOption, bool, error) {
 		return nil, false, errors.New("duplicate native choice control")
 	}
 	return options, disabled, nil
+}
+
+// A source-view-only request uses Admin's detail document, with no mutation
+// control. Observe that actual representation instead of inventing a disabled
+// select. The logout form is unrelated to the source's write authority.
+func adminChoiceDetail(body, field string) (bool, string, error) {
+	root, err := html.Parse(strings.NewReader(body))
+	if err != nil {
+		return false, "", err
+	}
+	attr := func(node *html.Node, name string) string {
+		for _, a := range node.Attr {
+			if a.Key == name {
+				return a.Val
+			}
+		}
+		return ""
+	}
+	detail, fields, editable := false, 0, 0
+	var value strings.Builder
+	var content func(*html.Node)
+	content = func(node *html.Node) {
+		if node.Type == html.TextNode {
+			value.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			content(child)
+		}
+	}
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			if node.Data == "body" && attr(node, "data-admin-view") == "detail" {
+				detail = true
+			}
+			if node.Data == "dd" && attr(node, "data-field-name") == field {
+				fields++
+				content(node)
+			}
+			if (node.Data == "input" || node.Data == "select" || node.Data == "textarea") && attr(node, "name") == field {
+				editable++
+			}
+			if node.Data == "form" && strings.HasPrefix(attr(node, "action"), "/admin/sources/change/") {
+				editable++
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(root)
+	if detail && (fields != 1 || editable != 0) {
+		return false, "", errors.New("readonly detail has missing/duplicate data or an editable source control")
+	}
+	if !detail {
+		return false, "", nil
+	}
+	return true, value.String(), nil
+}
+
+func adminChoiceDetailNegatives(t *testing.T) {
+	t.Helper()
+	const prefix = `<body data-admin-view="detail"><dd data-field-name="foreign_key">9007199254740993 &amp; 7</dd>`
+	detail, value, err := adminChoiceDetail(prefix+`<form action="/admin/logout/"><input name="csrfmiddlewaretoken"></form></body>`, "foreign_key")
+	if err != nil || !detail || value != "9007199254740993 & 7" {
+		t.Fatal("readonly detail positive control", err)
+	}
+	for _, extra := range []string{`<select name="foreign_key"></select>`, `<input name="foreign_key">`, `<textarea name="foreign_key"></textarea>`, `<form action="/admin/sources/change/?id=1"></form>`, `<dd data-field-name="foreign_key">other</dd>`} {
+		if _, _, err := adminChoiceDetail(prefix+extra+`</body>`, "foreign_key"); err == nil {
+			t.Fatal("readonly detail accepted writable or duplicated markup")
+		}
+	}
+	if _, _, err := adminChoiceDetail(`<body data-admin-view="detail"></body>`, "foreign_key"); err == nil {
+		t.Fatal("readonly detail accepted missing field")
+	}
 }

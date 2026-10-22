@@ -23,6 +23,30 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 독립 Admin 비교의 표시 fixture 정정
+
+Source `799f468b`의 [CI 39799859303](https://github.com/progresshans/godj/actions/runs/39799859303)에서
+PostgreSQL normal core job `119898087938`의 비교 fixture가 실패했다. 원본 job API/log와 artifact
+`12437946668`을 `gdj0136-799f468b-ci-39799859303/`에 보존했다. artifact SHA-256은
+`e5f202c6ffd89b8dbac55702e68a22978e2f822c2d573d2b78d779e0ae796b91`다.
+
+세 관계의 unbound Form은 선택한 필드만 받는 `Spec.Unbound`에 전체 모델 초기값을 넘겨 거부됐다.
+모델 바인딩의 전체 현재 값은 유지하고 일반 Form의 표시 초기값만 해당 관계로 투영했다.
+source View만 허용된 Admin은 편집 control이 없는 `detail.html`을 사용한다. 이를 disabled select로
+판정하던 검사를 실제 상세 화면·저장된 값·편집 control 부재로 정정했다. 누락/중복 표시와 input/select/
+textarea/변경 form을 넣은 HTML은 부정 대조에서 거부한다. 제품의 권한·Form 동작은 바꾸지 않았다.
+
+고정 source archive에 위 두 비교 파일만 적용해 로컬 실패 범위를 재현했다. 수정 전 SQLite 6개 사례가
+CI와 같은 이유로 실패했고, 수정 후 `TestAdminChoiceMatchesIndependentDjango/sqlite`의 108개 실행 경로가
+누락·skip 없이 통과했다. 94개 입력(공통 49, 정책 차이 45)의 원본 비교, HTTP durable 저장과 별도 Form
+rollback, 각 사례 복원 및 소유 SQLite 파일 제거도 capture에서 확인했다. 환경은 Go 1.26.5 darwin/arm64,
+SQLite 3.53.3이다. Django 결과는 해당 CI의 독립 관측 artifact를 그대로 사용했다.
+
+`gdj0136-admin-choice-failure-repro-v1/receipt.json` SHA-256
+`db492ba72cb194e291e07036acd718f1aeb034f4510f7b9ef5bc90d05492a201`에 전후 명령·로그·source와 capture를 기록했다.
+로컬 PostgreSQL·race·전체 제품 실행은 하지 않았다. 함께 작성 중인 컬렉션 폼셋 변경도 이 재현 source에서
+제외했다. 수정 source의 전체 원격 검증은 미완료이며 이 로컬 결과는 F1 완료가 아니다.
+
 ## GDJ-0136 — 독립 Django Admin 선택 비교 작성
 
 [고정 입력](../../conformance/runners/django/admin_choice_fixture/input.json)의 94개 사례(검색 63, Form 31)를
@@ -44,7 +68,8 @@ normal/race/cgo0 PostgreSQL core owner마다 독립 SQLite·PostgreSQL 관측과
 각각 유일한 owner를 가진다. Python AST, workflow actionlint 1.7.7, Go 최소 compile을 확인했다.
 `gdj0136-admin-choice-oracle-compile-v1/receipt.json` SHA-256
 `ba15a46e8c2479205a77b348c4def77ae1333cca8adab25ae45b7900b3c831a3`은 `-run '^$'` 결과와 source 복사본을 가리킨다.
-새 Django 관측·Go native 비교·race 본문은 로컬에서 실행하지 않았으며 원격 검증 전이다. 이 작성 상태는 F1 PASS가 아니다.
+최초 작성 시에는 새 Django 관측·Go native 비교·race 본문을 로컬에서 실행하지 않았다.
+후속 원격 실패와 좁힌 로컬 재현은 위 절에 구분하며 이 작성 상태를 F1 PASS로 계산하지 않는다.
 
 ## GDJ-0136 — runserver 명령 감사 정정과 선택 browser 진단
 
