@@ -8,6 +8,8 @@
 [Helpdesk 생성](../examples/helpdesk/ticket_bulk_admin.go)은 빈 cohort를,
 [Helpdesk 편집](../examples/helpdesk/ticket_edit_admin.go)은 서버 category의 전체 현재 cohort를 사용한다.
 별도의 부모 객체를 만들거나 관계 선택에서 source identity를 추측하지 않는다.
+[외부 Directory–Inventory 소비자](../codegen/consumertest/testdata/admincollection/runtime_test.go)는 실제 생성 FileField,
+revision과 보호된 관계를 같은 공개 경로에 연결한다. 두 모델 버전의 필드/권한 차이도 같은 writer로 처리한다.
 
 `Load`는 허용된 전체 현재 행과 이미 읽은 M2M 값의 순수 snapshot을 반환한다. 제출 ID만 조회하거나 상한에서
 조용히 자르면 안 된다. Site는 active staff·모델 조회 권한과 각 View/Add/Change/Delete, 추가 권한 및 choice 권한을

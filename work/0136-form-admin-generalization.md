@@ -105,5 +105,9 @@ readonly 취소 소거를 수정하고 회귀 검사를 추가했다. 새 실제
 행 순서·PK·revision·관리 입력·선택 범위·읽기 전용과 정확한 결과 대조, 실제 HTTP 혼합 저장과 늦은 실패,
 multipart 모델 파일의 현재 바인딩·부분/unknown 게시·request 수명 검사를 작성했다.
 이 검사의 본문과 실제 DB 저장은 원격 CI에서 확인해야 한다. 최소 compile은 실행 성공의 근거가 아니다.
-모델 파일의 DB 실패 연결·독립 생성/cross-app 컬렉션 편집·실제 브라우저 편집과 widget 확장은 계속 미완료다.
+별도 생성 Directory–Inventory 컬렉션 소비자에 FileField·revision fencing·보호된 삭제·transactional audit를 연결했다.
+기본/필드·권한 변경 모델에서 같은 공개 선언과 writer를 사용하고, 양 DB의 19개 사례와 잘못된 typed loader/file saver
+compile 거부를 필수 실행으로 작성했다. 파일 게시 뒤 DB rollback/unknown 결과, 읽기 전용/삭제의 stale revision,
+현재 scope/cohort와 오래된 권한을 대조한다. 두 생성 모듈의 최소 compile만 확인했으며 실제 native 실행은 미검증이다.
+실제 브라우저 컬렉션 편집과 widget 확장, 전체 원격 원본 대조는 계속 남아 있다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

@@ -23,6 +23,27 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 독립 생성 컬렉션과 파일/DB 결과 검증 작성
+
+`TestGeneratedAdminCollections`는 별도 Directory–Inventory project를 기본/변경 버전으로 생성한다.
+FileField·revision·PROTECT 관계와 native audit 모델을 추가하고 같은 공개 `ModelCollectionFormSet` writer에 연결한다.
+필드/choice와 권한 변경은 IR 및 명시적 표면 정책만 바꾸며 새로운 필드별 저장 매핑을 만들지 않는다.
+현재 workspace 정책·전체 cohort·revision을 같은 borrowed transaction에서 확인하고 revision 조건부 갱신으로
+수정/삭제를 fence한다. 파일의 게시와 실제 이름, DB scalar/삭제/audit 및 최종 commit은 별도로 확인한다.
+
+각 DB의 19개 사례에는 mixed·read-only+추가·clear/보존·현재 값·순서 변경, 보호된 삭제와 늦은 audit rollback,
+부분/unknown 파일 게시, DB commit/rollback unknown, 확정 commit 뒤 취소, 현재 scope/cohort·revision·오래된 권한
+거부가 포함된다. 게시 receipt/파일 bytes·원래 파일·DB 모델/audit를 재조회하며 upload/borrowed session 수명도 확인한다.
+두 버전 모두 잘못된 모델의 현재 loader와 FileSaver는 compile 실패를 요구한다. 본문/부정 compile은 원격 실행 대상이다.
+
+Go 1.26.5 darwin/arm64에서 parent 패키지와 실제 생성한 두 모듈의 `-run '^$'` 최소 compile을 확인했다.
+생성 모듈의 snapshot SHA는 기본 `12cda05814253aff8840bfc7e48050ca877b36e31efc890597f67a4c4703e41f`,
+변경 `c4738ac6d239584368fe83efcf048c1c1c315b100723885d907da861b328c66c`다.
+`gdj0136-generated-collection-compile-v1/receipt.json` SHA-256은
+`c57de59f50cf8041701675fb1355768d3b565d8af27e580d51591fe4a46497d1`이며 입력 source·생성 helper·모듈·compile 원본을 보존한다.
+로컬 native DB/HTTP/storage 본문·race·부정 compile을 실행하지 않았다. PostgreSQL/관계 manifest에 parent/버전/부정 경로
+7개씩을 추가했으며 PostgreSQL 전체 4,209개 경로의 세 mode owner가 유일하다. 현재 source의 원격 결과는 미완료다.
+
 ## GDJ-0136 — 컬렉션의 빈 초기값과 현재 management 오류 수정
 
 Source `1944b224`의 [CI 39811818947](https://github.com/progresshans/godj/actions/runs/39811818947)에서
