@@ -44,10 +44,6 @@ func Normalize(input Schema) (Schema, error) {
 	if !identifiers.SQL(schema.AppLabel) {
 		return Schema{}, validation("app_label", "invalid_identifier", schema.AppLabel)
 	}
-	if len(schema.Models) == 0 {
-		return Schema{}, validation("models", "empty", "at least one model is required")
-	}
-
 	modelNames := make(map[string]struct{}, len(schema.Models))
 	goNames := make(map[string]struct{}, len(schema.Models))
 	tables := make(map[string]struct{}, len(schema.Models))

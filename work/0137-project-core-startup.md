@@ -1,6 +1,6 @@
 # GDJ-0137: Project/Core와 새 앱의 기본 개발 흐름
 
-- 상태: C1 공통 환경 기반 작성 — F1의 같은 source 원격 검증은 별도 작업트리에서 진행 중
+- 상태: C1 환경·모델 없는 앱 기반 작성 — F1의 같은 source 원격 검증은 별도 작업트리에서 진행 중
 - 시작: 2026-10-23
 - 현재 기반: `680b6cd297c731a15f0e4aee5da924bbc92f07f9`; 이 source의 F1 전체 실행 완료를 뜻하지 않는다.
 - 근거: [전체 실행 계획 C1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -95,6 +95,8 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 - [ ] C1-08의 서로 다른 앱과 동일 변경·오용/실패·독립 기준을 대조한다.
 - [ ] 같은 source의 전체 필수 CI 원본과 현행 문서를 대조하고 다음 I1의 요구·경계를 유지한다.
 
-공통 `settings.Environment`의 불변 snapshot과 입력·중복·자원 한도/진단을 작성하고 기존 Article의 두 진입점에
-연결했다. 값 보존·환경 격리·동시 읽기·secret 비노출 검사를 작성했으며 최소 compile만 확인했다.
+공통 `settings.Environment`를 Article 진입점에 연결했고, IR과 생성기는 모델 없는 앱의 identity·snapshot을
+유지하도록 확장했다. 생성된 `InstalledApps`를 Article Web/Admin 설정에 연결해 수동 앱 이름·label 반복을 제거했다.
+값 보존·환경 격리·동시 읽기·secret 비노출과 빈/외부/관계 앱·첫 모델 추가·혼합 생성물 거부 검사를 작성했다.
+새 소비자의 실제 실행은 원격 CI 대상이다. 다음 구현은 이 기반을 사용하는 scaffold·resource/lifecycle 조립이다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

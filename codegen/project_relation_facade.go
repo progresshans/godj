@@ -80,6 +80,9 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 		fmt.Fprintln(&output, "strings \"strings\"")
 	}
 	for _, app := range canonical {
+		if len(app.storage.Models) == 0 {
+			continue
+		}
 		fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 	}
 	fmt.Fprintln(&output, "\tdb \"github.com/progresshans/godj/db\"")

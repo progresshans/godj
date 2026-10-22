@@ -37,3 +37,7 @@ scalar default의 존재를 추가하기로 했습니다. Default는 DSL이나 c
 재해석하지 않고 IR validation, hash, generated write builder와 migration state가 함께
 소비합니다. 상세 write 의미는 [ADR-0009](0009-m2-explicit-write-change-state.md)를
 따릅니다.
+
+GDJ-0137에서 현재 IR의 앱은 모델이 없는 상태도 표현한다. 유효한 app label과 format은 유지하고,
+nil/빈 모델 목록은 동일한 빈 JSON 배열로 정규화한다. 아직 없는 모델·테이블·관계를 만들지 않으며,
+첫 모델 추가는 같은 앱의 새 schema hash가 된다. 빈 앱을 별도 registry 원본이나 가짜 모델로 표현하지 않는다.

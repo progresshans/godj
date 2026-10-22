@@ -63,6 +63,15 @@ mixed-generation compile seal을 결합해 제공 가능한 보장을 정확히 
 
 ## Current bundle roster
 
+GDJ-0137에서 모델이 없는 앱도 같은 bundle에 포함한다. 앱 label·package·schema hash와 snapshot marker는
+유지하고 모델용 import·descriptor·관계 wiring만 생략한다. 첫 모델 추가와 빈 앱의 추가/삭제도 project snapshot을
+변경하며 기존 manifest 게시·복구·혼합 세대 거부 경계를 그대로 거친다. external 빈 앱에도 각 companion의 seal을 요구한다.
+
+생성된 `InstalledApps() []apps.Config`는 같은 app package들의 import path와 IR app label을 caller 소유 목록으로
+반환한다. 별도의 수동 설치 앱 선언 없이 `settings.New`에 전달할 수 있다. 순서는 canonical package alias 순서이며
+startup hook 실행 순서·의존성을 선언하는 기능이 아니다. 함수는 resource를 열거나 callback을 실행하지 않는다.
+추가된 생성 export는 project binding ABI `godj-codegen-rel-project-v2`에 포함한다.
+
 App마다 다음 네 파일을 소유합니다.
 
 - `zz_godj_generated.go`

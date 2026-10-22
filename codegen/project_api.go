@@ -29,7 +29,8 @@ type PackageSpec struct {
 
 // AppSpec declares one app schema in the project generation universe.
 // GenerateProject owns a normalized deep snapshot and never retains the
-// caller's Schema slices.
+// caller's Schema slices. An app may have no models; it still participates in
+// namespace validation, snapshot sealing and the generated InstalledApps inventory.
 type AppSpec struct {
 	Alias   string
 	Package PackageSpec

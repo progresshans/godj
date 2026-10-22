@@ -73,7 +73,7 @@ func projectGeneratorABIRoster() []projectGeneratorABI {
 		{Role: "app.relation_metadata", Filename: "zz_godj_relation.go", Version: RelationMetadataGeneratorVersion},
 		{Role: "app.relation_object", Filename: "zz_godj_relation_object.go", Version: RelationObjectGeneratorVersion},
 		{Role: "app.relation_projection", Filename: "zz_godj_relation_projection.go", Version: RelationProjectionGeneratorVersion},
-		{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: projectBindingGeneratorVersion},
+		{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: ProjectBindingGeneratorVersion},
 		{Role: "project.relation_query", Filename: "zz_godj_relation_query.go", Version: ProjectRelationQueryGeneratorVersion},
 		{Role: "project.relation_object", Filename: "zz_godj_relation_object.go", Version: ProjectRelationObjectGeneratorVersion},
 		{Role: "project.relation_reverse", Filename: "zz_godj_relation_reverse.go", Version: ProjectRelationReverseGeneratorVersion},

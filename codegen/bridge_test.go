@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/internal/testschema"
 )
 
-func TestGenerateProjectBridgeIsCanonicalAndImportsOnlyAppsAndORM(t *testing.T) {
+func TestGenerateProjectBridgeOwnsCanonicalBindingsAndInstalledAppInventory(t *testing.T) {
 	t.Parallel()
 
 	input := []codegen.BridgePackage{
@@ -30,7 +30,8 @@ func TestGenerateProjectBridgeIsCanonicalAndImportsOnlyAppsAndORM(t *testing.T) 
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v1"`),
+		[]byte(`const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"`),
+		[]byte("func InstalledApps() []_godjapps.Config"),
 		[]byte("func Bind() (orm.ProjectBinding, error)"),
 		[]byte(`"github.com/progresshans/godj/orm"`),
 		[]byte(`authors "example.com/relation/authors/models"`),
@@ -89,6 +90,9 @@ func TestGenerateProjectBridgeRejectsInvalidOrAmbiguousImports(t *testing.T) {
 		{name: "init alias", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "init", ImportPath: "example.com/app"}}},
 		{name: "reserved orm alias", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "orm", ImportPath: "example.com/app"}}},
 		{name: "fixed function collision", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "Bind", ImportPath: "example.com/app"}}},
+		{name: "inventory function collision", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "InstalledApps", ImportPath: "example.com/app"}}},
+		{name: "inventory import collision", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "_godjapps", ImportPath: "example.com/app"}}},
+		{name: "inventory import path collision", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "app", ImportPath: "github.com/progresshans/godj/apps"}}},
 		{name: "duplicate alias", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "app", ImportPath: "example.com/one"}, {Alias: "app", ImportPath: "example.com/two"}}},
 		{name: "duplicate path", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "one", ImportPath: "example.com/app"}, {Alias: "two", ImportPath: "example.com/app"}}},
 		{name: "blank path", pkg: "binding", packages: []codegen.BridgePackage{{Alias: "app"}}},

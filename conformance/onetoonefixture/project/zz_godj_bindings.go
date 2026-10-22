@@ -3,12 +3,22 @@
 package project
 
 import (
+	_godjapps "github.com/progresshans/godj/apps"
 	reports "github.com/progresshans/godj/conformance/onetoonefixture/reports"
 	tickets "github.com/progresshans/godj/conformance/onetoonefixture/tickets"
 	"github.com/progresshans/godj/orm"
 )
 
-const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
+const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"
+
+// InstalledApps returns a caller-owned inventory in canonical package alias order.
+// It includes apps without models and does not run lifecycle hooks or open resources.
+func InstalledApps() []_godjapps.Config {
+	return []_godjapps.Config{
+		{Name: "github.com/progresshans/godj/conformance/onetoonefixture/reports", Label: reports.GoDjRelationSchema().AppLabel},
+		{Name: "github.com/progresshans/godj/conformance/onetoonefixture/tickets", Label: tickets.GoDjRelationSchema().AppLabel},
+	}
+}
 
 func Bind() (orm.ProjectBinding, error) {
 	return orm.BindProject(
@@ -17,8 +27,8 @@ func Bind() (orm.ProjectBinding, error) {
 	)
 }
 
-type goDjProjectSnapshot_dd16740dcffadee6f87a47bed6c3b17d432d8259885ab7e672ec6dbdc28b6785 struct{}
+type goDjProjectSnapshot_c22e9a05891d7857b5ace9eb833360099b9e8ed793df1074fcbd5216d3a84285 struct{}
 
-var _ goDjProjectSnapshot_dd16740dcffadee6f87a47bed6c3b17d432d8259885ab7e672ec6dbdc28b6785
-var _ reports.GoDjProjectSnapshot_dd16740dcffadee6f87a47bed6c3b17d432d8259885ab7e672ec6dbdc28b6785
-var _ tickets.GoDjProjectSnapshot_dd16740dcffadee6f87a47bed6c3b17d432d8259885ab7e672ec6dbdc28b6785
+var _ goDjProjectSnapshot_c22e9a05891d7857b5ace9eb833360099b9e8ed793df1074fcbd5216d3a84285
+var _ reports.GoDjProjectSnapshot_c22e9a05891d7857b5ace9eb833360099b9e8ed793df1074fcbd5216d3a84285
+var _ tickets.GoDjProjectSnapshot_c22e9a05891d7857b5ace9eb833360099b9e8ed793df1074fcbd5216d3a84285

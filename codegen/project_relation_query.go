@@ -65,6 +65,9 @@ func generateProjectRelationQuery(packageName string, plan *relationProjectPlan)
 		fmt.Fprintf(&output, "\torm %s\n", strconv.Quote("github.com/progresshans/godj/orm"))
 		fmt.Fprintf(&output, "\tir %s\n", strconv.Quote("github.com/progresshans/godj/schema/ir"))
 		for _, app := range canonical {
+			if len(app.storage.Models) == 0 {
+				continue
+			}
 			fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 		}
 		fmt.Fprintln(&output, ")")

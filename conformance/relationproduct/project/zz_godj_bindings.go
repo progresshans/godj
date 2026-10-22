@@ -3,12 +3,22 @@
 package project
 
 import (
+	_godjapps "github.com/progresshans/godj/apps"
 	authors "github.com/progresshans/godj/conformance/relationproduct/authors"
 	blog "github.com/progresshans/godj/conformance/relationproduct/blog"
 	"github.com/progresshans/godj/orm"
 )
 
-const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
+const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"
+
+// InstalledApps returns a caller-owned inventory in canonical package alias order.
+// It includes apps without models and does not run lifecycle hooks or open resources.
+func InstalledApps() []_godjapps.Config {
+	return []_godjapps.Config{
+		{Name: "github.com/progresshans/godj/conformance/relationproduct/authors", Label: authors.GoDjRelationSchema().AppLabel},
+		{Name: "github.com/progresshans/godj/conformance/relationproduct/blog", Label: blog.GoDjRelationSchema().AppLabel},
+	}
+}
 
 func Bind() (orm.ProjectBinding, error) {
 	return orm.BindProject(

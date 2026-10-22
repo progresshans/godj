@@ -3,12 +3,22 @@
 package project
 
 import (
+	_godjapps "github.com/progresshans/godj/apps"
 	models "github.com/progresshans/godj/examples/article/models"
 	identity "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 )
 
-const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
+const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"
+
+// InstalledApps returns a caller-owned inventory in canonical package alias order.
+// It includes apps without models and does not run lifecycle hooks or open resources.
+func InstalledApps() []_godjapps.Config {
+	return []_godjapps.Config{
+		{Name: "github.com/progresshans/godj/identity/models", Label: identity.GoDjRelationSchema().AppLabel},
+		{Name: "github.com/progresshans/godj/examples/article/models", Label: models.GoDjRelationSchema().AppLabel},
+	}
+}
 
 func Bind() (orm.ProjectBinding, error) {
 	return orm.BindProject(
@@ -17,10 +27,10 @@ func Bind() (orm.ProjectBinding, error) {
 	)
 }
 
-type goDjProjectSnapshot_55ba21d05e600ace0f19cf25d59760056a1eba6f13521ef6b4d74409a57eb77b struct{}
+type goDjProjectSnapshot_8d0ecc62b43f3a01507de378c1c1897317971756581d80a217efddd4eacd0a3a struct{}
 
-var _ goDjProjectSnapshot_55ba21d05e600ace0f19cf25d59760056a1eba6f13521ef6b4d74409a57eb77b
-var _ models.GoDjProjectSnapshot_55ba21d05e600ace0f19cf25d59760056a1eba6f13521ef6b4d74409a57eb77b
+var _ goDjProjectSnapshot_8d0ecc62b43f3a01507de378c1c1897317971756581d80a217efddd4eacd0a3a
+var _ models.GoDjProjectSnapshot_8d0ecc62b43f3a01507de378c1c1897317971756581d80a217efddd4eacd0a3a
 var _ identity.GoDjAppPart0_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94
 var _ identity.GoDjAppPart1_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94
 var _ identity.GoDjAppPart2_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94

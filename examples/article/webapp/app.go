@@ -14,7 +14,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/progresshans/godj/apps"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	articleproject "github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/orm"
@@ -77,11 +76,8 @@ func newApplication(
 		return nil, fmt.Errorf("article web application: bind backend: %w", err)
 	}
 	configured, err := settings.New(settings.Definition{
-		ProjectName: "article_example",
-		InstalledApps: []apps.Config{{
-			Name:  "github.com/progresshans/godj/examples/article/models",
-			Label: "godj_conformance",
-		}},
+		ProjectName:   "article_example",
+		InstalledApps: articleproject.InstalledApps(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article web application: settings: %w", err)

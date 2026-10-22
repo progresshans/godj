@@ -69,6 +69,9 @@ func generateProjectRelationObject(packageName string, plan *relationProjectPlan
 			fmt.Fprintln(&output, "\tcontext \"context\"")
 		}
 		for _, app := range canonical {
+			if len(app.storage.Models) == 0 {
+				continue
+			}
 			fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 		}
 		if len(sources) > 0 {

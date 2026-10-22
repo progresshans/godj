@@ -12,7 +12,6 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
-	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/adminapp"
 	"github.com/progresshans/godj/examples/article/apiapp"
@@ -166,11 +165,8 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		return nil, errors.New("article site application: authenticated Admin/API mode requires a loopback listener")
 	}
 	projectSettings, err := settings.New(settings.Definition{
-		ProjectName: "article_example",
-		InstalledApps: []apps.Config{{
-			Name:  "github.com/progresshans/godj/examples/article/models",
-			Label: apiapp.Namespace,
-		}, {Name: "github.com/progresshans/godj/identity/models", Label: "godj_identity"}},
+		ProjectName:   "article_example",
+		InstalledApps: project.InstalledApps(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: settings: %w", err)

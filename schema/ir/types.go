@@ -15,6 +15,8 @@ import (
 // format generation.
 const CurrentFormatVersion = 1
 
+// Schema retains an app's identity even when it has no models. Normalization
+// represents both nil and empty Models as an empty JSON array.
 type Schema struct {
 	FormatVersion int     `json:"format_version"`
 	AppLabel      string  `json:"app_label"`

@@ -34,7 +34,7 @@ var currentManifestABI = []manifestABI{
 	{Role: "app.relation_metadata", Filename: "zz_godj_relation.go", Version: codegen.RelationMetadataGeneratorVersion},
 	{Role: "app.relation_object", Filename: "zz_godj_relation_object.go", Version: codegen.RelationObjectGeneratorVersion},
 	{Role: "app.relation_projection", Filename: "zz_godj_relation_projection.go", Version: codegen.RelationProjectionGeneratorVersion},
-	{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: "godj-codegen-rel-project-v1"},
+	{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: codegen.ProjectBindingGeneratorVersion},
 	{Role: "project.relation_query", Filename: "zz_godj_relation_query.go", Version: codegen.ProjectRelationQueryGeneratorVersion},
 	{Role: "project.relation_object", Filename: "zz_godj_relation_object.go", Version: codegen.ProjectRelationObjectGeneratorVersion},
 	{Role: "project.relation_reverse", Filename: "zz_godj_relation_reverse.go", Version: codegen.ProjectRelationReverseGeneratorVersion},

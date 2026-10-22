@@ -9,7 +9,9 @@ import (
 	"github.com/progresshans/godj/internal/identifiers"
 )
 
-const projectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
+// ProjectBindingGeneratorVersion identifies the generated project binding and
+// installed-app inventory contract consumed by the bundle publisher.
+const ProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"
 
 type BridgePackage struct {
 	Alias      string
@@ -17,7 +19,8 @@ type BridgePackage struct {
 }
 
 // GenerateProjectBridge renders the import-cycle-free project owner that
-// passes every generated app schema companion to orm.BindProject at once.
+// passes every generated app schema companion to orm.BindProject at once and
+// exposes their installed-app identities without a second runtime declaration.
 func GenerateProjectBridge(packageName string, packages []BridgePackage) ([]byte, error) {
 	return finalizeSource(generateProjectBridge(packageName, packages))
 }
@@ -36,13 +39,24 @@ func generateProjectBridge(packageName string, packages []BridgePackage) ([]byte
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	fmt.Fprintln(&output, "\t_godjapps \"github.com/progresshans/godj/apps\"")
 	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/orm\"")
 	for _, app := range canonical {
 		fmt.Fprintf(&output, "\t%s %s\n", app.Alias, strconv.Quote(app.ImportPath))
 	}
 	fmt.Fprintln(&output, ")")
 	fmt.Fprintln(&output)
-	fmt.Fprintf(&output, "const GoDjProjectBindingGeneratorVersion = %s\n\n", strconv.Quote(projectBindingGeneratorVersion))
+	fmt.Fprintf(&output, "const GoDjProjectBindingGeneratorVersion = %s\n\n", strconv.Quote(ProjectBindingGeneratorVersion))
+	fmt.Fprintln(&output, "// InstalledApps returns a caller-owned inventory in canonical package alias order.")
+	fmt.Fprintln(&output, "// It includes apps without models and does not run lifecycle hooks or open resources.")
+	fmt.Fprintln(&output, "func InstalledApps() []_godjapps.Config {")
+	fmt.Fprintln(&output, "\treturn []_godjapps.Config{")
+	for _, app := range canonical {
+		fmt.Fprintf(&output, "\t\t{Name: %s, Label: %s.GoDjRelationSchema().AppLabel},\n", strconv.Quote(app.ImportPath), app.Alias)
+	}
+	fmt.Fprintln(&output, "\t}")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output)
 	fmt.Fprintln(&output, "func Bind() (orm.ProjectBinding, error) {")
 	if len(canonical) == 0 {
 		fmt.Fprintln(&output, "\treturn orm.BindProject()")
@@ -73,7 +87,8 @@ func canonicalBridgePackages(packages []BridgePackage) ([]BridgePackage, error) 
 		"GoDjProjectBindingGeneratorVersion": {},
 	}
 	paths := map[string]struct{}{
-		"github.com/progresshans/godj/orm": {},
+		"github.com/progresshans/godj/orm":  {},
+		"github.com/progresshans/godj/apps": {},
 	}
 	for _, app := range canonical {
 		if !validGeneratedPackageName(app.Alias) || app.Alias == "init" {

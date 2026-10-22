@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+// Definition declares one app. Models may be empty; the app still owns its
+// validated label and can add its first model without changing app identity.
 type Definition struct {
 	AppLabel string
 	Models   []Model

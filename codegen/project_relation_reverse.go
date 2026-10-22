@@ -74,6 +74,9 @@ func generateProjectRelationReverse(packageName string, plan *relationProjectPla
 	if len(objectModels) > 0 || len(collections) > 0 {
 		fmt.Fprintln(&output, "import (")
 		for _, app := range usedApps {
+			if len(app.storage.Models) == 0 {
+				continue
+			}
 			fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 		}
 		fmt.Fprintln(&output, "\torm \"github.com/progresshans/godj/orm\"")

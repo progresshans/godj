@@ -23,6 +23,32 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 모델 없는 앱과 생성된 설치 앱 목록 작성
+
+`260bb5d0` 기반 작업 사본에서 현재 IR이 모델 없는 앱의 label·format·hash를 유지하도록 확장했다.
+빈 앱도 project namespace와 snapshot에 포함하고, 없는 모델을 관계 대상으로 참조하거나 중복 앱을 넣으면 거부한다.
+생성된 `InstalledApps()`는 같은 app package의 import path와 IR label을 caller 소유 목록으로 반환한다.
+Article Web/Admin 설정을 이 목록으로 연결했으며 project binding ABI v2를 생성기·게시기가 같은 상수에서 읽는다.
+
+`gdj0137-empty-app-preflight-v1/receipt.json` SHA-256은
+`6e99324f08166246d7874e5f28c2639195bed7f0788a988ab96c3fb9ee95a9e1`이다. IR·codegen·외부 소비자·게시기,
+Article Web/siteapp·browser fixture를 `go test -run '^$' -vet=off`로 compile했다. 공식 CLI로 기존 7개 project
+생성물을 갱신했고, browser fixture와 독립 relation bridge도 순수 생성 결과로 갱신했다.
+첫 생성 시도는 게시기에 남은 ABI v1 기대값 때문에 candidate 검증에서 중단됐으며 기존 Identity 생성물은 그대로였다.
+공통 버전 상수로 수정한 뒤 정상 게시됐다. 실패 CLI·진단 원본은 같은 경로의 `before-abi-owner-fix/`에 보존한다.
+
+별도 module의 빈 앱과 FK/M2M+빈 앱 구성은 생성 후 테스트 본문을 실행하지 않고 최소 compile했다.
+`minimum-consumer-receipt.json` SHA-256은 `24ee47cdf35e5db72701df43474faba5c0b5046e3a336e6fb4b2ccd909928ea0`이다.
+외부 settings 소비자가 소유한 임시 module에 전이 의존성을 기록하도록 `-mod=mod`를 명시한 뒤 해당 소비자 package를
+다시 최소 compile했다. 최종 129개 Go 파일 hash와 앞선 기록을 묶은 `final-source.json` SHA-256은
+`cf1ef54862a71c3c7ce6e35b0c96760ea46657f679b42c496a254d93432db0e6`이다.
+117개 생성 파일 중 binding/manifest 외의 변경은 project snapshot marker뿐임을 diff로 대조했다.
+
+IR identity/format·중복/잘못된 관계·namespace 검사를 작성했고, 외부 module의 빈 project·빈 앱·external 빈 앱·
+기존 관계/M2M 혼합·첫 모델 추가와 오래된 빈 metadata 혼입 거부를 필수 관계 CI 목록에 추가했다.
+이 검사들의 실제 본문·DB/race/platform·generated drift의 실행과 원본 대조는 원격 CI에서 이어 간다.
+위 최소 compile/생성 결과를 scaffold·migration·lifecycle·C1 전체 완료로 표현하지 않는다.
+
 ## GDJ-0137 — 공통 환경 snapshot과 실제 진입점 연결 작성
 
 F1 검증과 별도 작업트리에서 `settings.Environment`를 작성했다. Caller가 전달한 환경 목록을 한 번 고정하고
