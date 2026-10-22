@@ -23,6 +23,20 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 원격 process 조회 제한과 진단 조정
+
+`74841b23`의 [CI 39842470210](https://github.com/progresshans/godj/actions/runs/39842470210)에서
+Linux arm64 race project-check job `120047811440`은 Article readiness를 확인한 뒤 `ps` 조회가 `signal: killed`로
+끝나 실패했다. 당시 2초 조회 제한이 있었지만 기존 오류에는 context 종료 여부가 없으므로 원인을 단정하지 않는다.
+조회 제한을 10초로 조정하고 실패 시 context 오류를 함께 남긴다. 부분 process tree는 성공으로 허용하지 않으며
+자손 group 검사·종료·reap·잔존 거부 조건은 유지한다.
+
+원본 metadata/log는 `gdj0137-74841b23-ci-39842470210/`에 있다. Log SHA-256은
+`ada5821603926dbe80cff0e1ee0e30f0da85de767860921f715402d21ef58f72`다.
+같은 경로의 `process-inspection-compile.json` SHA-256은
+`bc5c8e7d1c81dde4297da79422a7d7d709e806f5d4f78196d7e441c914b14af7`이며 helper와 runserver product의 최소 compile만 확인했다.
+이 Hosted arm64 실패를 로컬에서 재현했거나 해결을 검증한 것으로 기록하지 않는다. 다음 원격 실제 실행에서 확인한다.
+
 ## GDJ-0137 — PostgreSQL 연결 입력과 resource 소유권 작성
 
 `74841b232351712420d5e82cc9b7a5aff01cf7f6` 기반에서 URL의 사용자·호스트·DB와 명시적 옵션만으로 pgx 설정을 만든다.

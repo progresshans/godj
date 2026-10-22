@@ -28,11 +28,13 @@ func Wait(waited <-chan error, timeout time.Duration) error {
 }
 
 func OwnedGroups(rootPID int) ([]int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// Process inspection can contend with race-instrumented builds on hosted
+	// runners. Keep a finite discovery budget without accepting a partial tree.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	output, err := exec.CommandContext(ctx, "ps", "-Ao", "pid=,ppid=,pgid=").Output()
 	if err != nil {
-		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", err)
+		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", errors.Join(err, ctx.Err()))
 	}
 	return parseOwnedGroups(output, rootPID, syscall.Getpgrp())
 }
