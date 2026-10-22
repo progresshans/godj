@@ -15,6 +15,7 @@ import (
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
+	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/web"
 )
 
@@ -85,7 +86,11 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	database, err := databaseConfigForServe(config, os.LookupEnv)
+	environment, err := settings.NewEnvironment(os.Environ())
+	if err != nil {
+		return err
+	}
+	database, err := databaseConfigForServe(config, environment.Lookup)
 	if err != nil {
 		return err
 	}

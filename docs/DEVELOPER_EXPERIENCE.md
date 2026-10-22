@@ -114,6 +114,10 @@ README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사
 `godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 project runner와 runserver package를 지정한다.
 명령은 그 프로젝트의 schema/catalog/backend/policy를 사용한다. 임의 Python settings나 generated model package를 schema 입력으로 읽지 않는다.
 
+Process 진입점은 [환경 snapshot](../settings/README.md)을 한 번 만든 뒤 같은 `Lookup`을 설정 파서에 전달할 수 있다.
+원래 값과 존재 여부를 유지하며 DB 선택·필수 값·타입의 의미는 프로젝트 설정에서 검증한다.
+값이 secret일 수 있으므로 환경 snapshot이나 DB URL의 내용을 진단으로 출력하지 않는다.
+
 ## 기존 operator 이전
 
 Article/Helpdesk의 선언은 재사용 `identity` 앱을 포함한다. `systemstate.IdentityMigrationSources()`는 기존 system `0001`,

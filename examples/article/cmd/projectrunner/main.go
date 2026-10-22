@@ -9,13 +9,19 @@ import (
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	godjproject "github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/systemstate"
 )
 
 func main() {
-	err := godjproject.Run(
+	environment, err := settings.NewEnvironment(os.Environ())
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "project runner configuration failed")
+		os.Exit(1)
+	}
+	err = godjproject.Run(
 		context.Background(),
-		articleProjectConfig(os.LookupEnv),
+		articleProjectConfig(environment.Lookup),
 		os.Args[1:],
 		os.Stdin,
 		os.Stdout,

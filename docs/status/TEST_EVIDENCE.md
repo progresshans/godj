@@ -23,6 +23,22 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 공통 환경 snapshot과 실제 진입점 연결 작성
+
+F1 검증과 별도 작업트리에서 `settings.Environment`를 작성했다. Caller가 전달한 환경 목록을 한 번 고정하고
+존재/빈 값·공백·추가 구분자·newline을 보존한다. 중복·잘못된 항목·자원 초과는 부분 snapshot 없이 거부하며,
+환경 값은 formatting/JSON/오류에 포함하지 않는다. Article project runner와 Web 서버가 각 실행의 snapshot을
+기존 DB 설정 파서에 전달한다. 앱의 DB 선택·권한·초기 사용자 정책은 유지한다.
+
+`74a7ad54` 기반 작업 사본에서 변경한 4개 Go 파일의 hash를 compile 전후 대조하고,
+`go test ./settings ./examples/article/cmd/projectrunner ./examples/article/cmd/site -run '^$'`를 확인했다.
+`gdj0137-environment-compile-v1/receipt.json` SHA-256은
+`8d5d014edbb26190be80728950d984568b4850b639a571cb69f2942cf1ce7ce1`이다.
+이후 F1의 fixture migration 수정 `680b6cd2`를 fast-forward로 받아 보존했다. Compile 대상의 변경 파일은 같으며
+이 기록을 다른 source의 실제 테스트 본문 실행으로 표현하지 않는다.
+새 3개 root와 잘못된 환경 8개 하위 사례, 실제 명령/서버·DB·race·platform은 원격 검증 대상이며 아직 실행하지 않았다.
+요구 정리와 이 기반 작성은 C1 전체 완료가 아니다. F1의 현재 source 전체 원본 대조도 계속 진행 중이다.
+
 ## GDJ-0136 — 컬렉션 브라우저 초기 migration과 실제 흐름 재현
 
 `74a7ad540e679ac8c3056c93f9db457fca7f8c14`의
