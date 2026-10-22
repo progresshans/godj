@@ -2814,3 +2814,10 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/ba
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed/foreign_input
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed/foreign_form_manager
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/baseline
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/baseline/foreign_current_loader
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/baseline/foreign_saved_parent
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/changed
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/changed/foreign_current_loader
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminInlines/changed/foreign_saved_parent

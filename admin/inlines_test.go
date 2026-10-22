@@ -52,7 +52,8 @@ func TestInlineAdmissionOwnershipReadOnlyAndDiagnostics(t *testing.T) {
 		checks++
 		return nil
 	}
-	inline, err := NewInline(config)
+	inlineModel, err := NewInline(config)
+	inline := inlineModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,13 +169,15 @@ func TestInlineConfigurationAndInputBounds(t *testing.T) {
 			}
 		})
 	}
-	inline, err := NewInline(base)
+	inlineModel, err := NewInline(base)
+	inline := inlineModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}
 	config := base
 	config.ParentWithID = func(int64) models.Ticket { return models.NewTicketWithID(99) }
-	bad, err := NewInline(config)
+	badModel, err := NewInline(config)
+	bad := badModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +276,8 @@ func TestInlineRevisionConditionCoversDeletedAndReadOnlyRows(t *testing.T) {
 	config.Child = orm.NewManager[models.ServiceReport](revisionReportDescriptor{})
 	config.Form.Definition.Fields = []string{"summary"}
 	config.RevisionField = "completed"
-	inline, err := NewInline(config)
+	inlineModel, err := NewInline(config)
+	inline := inlineModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +304,8 @@ func TestInlineRevisionConditionCoversDeletedAndReadOnlyRows(t *testing.T) {
 
 func TestInlineConcurrentBindingsKeepSubmissionAndCurrentDetached(t *testing.T) {
 	config, actor := reportInlineFixture(t)
-	inline, err := NewInline(config)
+	inlineModel, err := NewInline(config)
+	inline := inlineModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}

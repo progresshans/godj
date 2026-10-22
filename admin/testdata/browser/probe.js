@@ -102,5 +102,5 @@ async (page) => {
     await page.getByRole("button", {name: "Add", exact: true}).click();
     await page.getByRole("row").filter({has:page.getByRole("cell", {name:"New via browser", exact:true})}).getByRole("link", {name:"Change",exact:true}).click();
     check(await input("labels-INITIAL_FORMS").inputValue() === "1" && await input("labels-0-name").inputValue() === "New child __prefix__" && await input("labels-0-category").inputValue() !== "", "new parent and browser-added child receive stored keys together");
-    return {passed: passed.length, cases: passed};
+    return {passed: passed.length, cases: passed, browser_version: page.context().browser().version()};
 }

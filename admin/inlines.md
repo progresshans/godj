@@ -27,7 +27,8 @@ MinForms는 1 이상이며 min/max 검사가 필수다. AbsoluteMax는 최대 10
 ## 부모와 자식의 inline 편집
 
 `NewInline[P, C]`로 canonical project FK, 양 typed manager, 부모 생성자, 자식 Form과 bounded SetConfig를 선언한다.
-그 결과를 부모의 `ModelConfig.Inlines`에 넣는다. 부모의 등록 타입은 별도 조회 record여도 된다. 저장 모델의 metadata와
+반환된 `ModelInline[P, C]`을 저장 쪽에도 유지하고 `View()`를 부모의 `ModelConfig.Inlines`에 넣는다.
+부모의 등록 타입은 별도 조회 record여도 된다. 저장 모델의 metadata와
 app/model identity는 canonical 부모와 일치해야 한다. 실제 예제는 [Helpdesk](../examples/helpdesk/admin_inlines.go)에 있다.
 
 Site는 부모의 Add/Change/View와 별도로 각 자식의 View/Add/Change/Delete를 확인한다. 권한은 인증된 principal에 대한
@@ -45,10 +46,31 @@ extra, Delete가 없는 삭제 제어, Change가 없는 ORDER 제출은 거부�
 반환한다. 이 값은 Site의 registration/parent binding에 묶이며 다른 등록·부모의 값이나 unbound/invalid 결과를 저장할 수 없다.
 검증 결과만으로 DB 쓰기 권한이나 commit을 증명하지 않는다.
 
+`ModelInline.BindCurrent`는 등록된 부모의 writer에서 받은 `InlineSubmission`과 현재 principal로 같은 Form·Set·
+canonical 관계 정책을 재사용한다. 다른 선언이나 actor의 입력, 등록 writer의 검사를 통과하지 않은 입력은
+거부한다. 제출 시 허용한 동작과 현재 모델/choice 권한을 확인한 뒤 전달한 loader를 한 번 호출한다.
+Loader는 writer가 소유한 session으로 현재 parent·전체 child cohort·관계 선택을 읽어 `InlineCurrent`를 반환한다.
+초기 화면의 `Load`나 읽기용 `Validate`는 다시 호출하지 않으므로 저장 검사가 별도 DB 연결로 빠지지 않는다.
+
+```go
+bound, present, err := reportInline.BindCurrent(ctx, currentPrincipal, submission,
+    func(work context.Context, access admin.InlineAccess) (admin.InlineCurrent[Ticket, Report], error) {
+        // 같은 borrowed session에서 허용된 현재 행과 선택을 읽는다.
+        return loadCurrentReports(work, session, parentID, access)
+    })
+```
+
+`bound.Set()`에는 현재 값으로 다시 만든 typed `InlineSet`이 있으며 순수 Form/모델 검증의 오류도 유지한다.
+`bound.Access()`는 제출 때의 deny overlay를 포함한 허용 범위다. 새로 얻은 권한으로 이 범위를 넓히지 않는다.
+현재 parent key·cohort와 child revision은 원래 입력과 다시 대조한다. 현재 선택을 재사용하는 필드는
+`InlineCurrent.Choices`에 명시하며 검색 결과 한 페이지만으로 제출한 key 전체를 검증하지 않는다.
+현재 DB의 고유성·객체 정책·revision fencing·저장과 audit는 writer가 계속 소유한다.
+
 저장 callback은 다음 작업을 하나의 transaction에서 수행해야 한다.
 
 1. 인증된 principal과 제출 시 허용한 동작을 유지하고, 현재 parent/category·자식 cohort·관계와 필요한 revision을 다시 확인한다.
 2. 현재 snapshot으로 같은 입력을 다시 바인딩해 부모·자식 Form/고유성·DB 제약을 검증한다.
+   자식은 유지한 `ModelInline.BindCurrent`를 사용해 Form·Set·관계 구성을 다시 선언하지 않는다.
 3. 새 부모를 먼저 저장하고 `InlineSet.PrepareWithParent`로 받은 key를 자식 준비에 연결한다.
 4. 해당 모델의 삭제 정책, 모든 scalar/collection 변경, 감사 기록을 같은 borrowed session에서 처리한다.
 5. 뒤의 실패는 outer callback 밖으로 반환한다. 부모나 개별 자식마다 commit하거나 실패한 작업을 자동 재시도하지 않는다.

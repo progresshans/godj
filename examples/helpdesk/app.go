@@ -59,6 +59,7 @@ type Backend interface {
 type Application struct {
 	resources       modelResources
 	adminAudit      func(context.Context, db.Session, admin.PreparedEvent) error
+	reportInline    admin.ModelInline[models.Ticket, models.ServiceReport]
 	backend         Backend
 	categoryID      int64
 	registry        admin.Registry

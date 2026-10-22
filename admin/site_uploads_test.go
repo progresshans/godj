@@ -460,7 +460,8 @@ func TestAdminInlineUploadUsesActualChangeRouteAndAdmittedRows(t *testing.T) {
 					return InlineSnapshot[models.ServiceReport]{}, nil
 				}
 			}
-			inline, err := NewInline(inlineConfig)
+			inlineModel, err := NewInline(inlineConfig)
+			inline := inlineModel.View()
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -102,8 +102,9 @@ func (model registeredModel) checkedInlines(ctx context.Context, actor auth.Prin
 			}
 		}
 	}
-	// Read-only validation is not write authority. The single application
-	// writer rechecks current rows/choices in its own authorized transaction.
+	// This is only the registration/actor binding for the writer. Its current
+	// principal and stored authority are checked again before reloading rows.
+	submission.writerActor = actor.ID()
 	return submission, nil
 }
 

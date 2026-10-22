@@ -78,7 +78,8 @@ func (a *Application) ticketAdminInlines() ([]admin.Inline, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []admin.Inline{inline}, nil
+	a.reportInline = inline
+	return []admin.Inline{inline.View()}, nil
 }
 
 func (a *Application) adminReports(ctx context.Context, reader db.Queryer, id int64) ([]models.ServiceReport, error) {
@@ -137,67 +138,30 @@ type adminReportSet struct {
 }
 
 func (a *Application) bindAdminReports(ctx context.Context, session db.RelationSession, actor auth.Principal, id int64, submission admin.InlineSubmission) (adminReportSet, bool, error) {
-	data, access, present := submission.Lookup(reportInlinePrefix)
-	if !present {
+	if _, _, present := submission.Lookup(reportInlinePrefix); !present {
 		return adminReportSet{}, false, nil
 	}
 	if a.adminAudit == nil {
 		return adminReportSet{}, false, errors.New("helpdesk: inline audit is missing")
 	}
-	for _, right := range []struct {
-		enabled    bool
-		permission auth.Permission
-	}{{access.Add, AddServiceReport}, {access.Change, ChangeServiceReport}, {access.Delete, DeleteServiceReport}} {
-		if right.enabled && !actor.Has(right.permission) {
-			return adminReportSet{}, false, admin.NewOperationError(admin.OperationDenied, nil)
-		}
-	}
-	if access.View && !actor.Has(ViewServiceReport) && !actor.Has(ChangeServiceReport) {
-		return adminReportSet{}, false, admin.NewOperationError(admin.OperationDenied, nil)
-	}
-	var parent models.Ticket
-	var current []models.ServiceReport
-	var err error
-	if id != 0 {
-		parent = models.NewTicketWithID(id)
-		if access.View || access.Change {
-			current, err = a.adminReports(ctx, session, id)
-			if err != nil {
-				return adminReportSet{}, false, err
+	bound, present, err := a.reportInline.BindCurrent(ctx, actor, submission, func(work context.Context, access admin.InlineAccess) (admin.InlineCurrent[models.Ticket, models.ServiceReport], error) {
+		var current admin.InlineCurrent[models.Ticket, models.ServiceReport]
+		if id != 0 {
+			current.Parent = models.NewTicketWithID(id)
+			if access.View || access.Change {
+				var err error
+				current.Children.Current, err = a.adminReports(work, session, id)
+				if err != nil {
+					return current, err
+				}
 			}
 		}
-	}
-	row, err := formmodel.NewSpecForFields(models.ServiceReportDescriptor{}.Metadata(), []string{"summary", "completed"})
-	if err != nil {
+		return current, nil
+	})
+	if err != nil || !present {
 		return adminReportSet{}, false, err
 	}
-	policy := reportInlineConfig()
-	policy.ReadOnlyInitial = !access.Change
-	policy.CanDelete = access.Delete
-	if !access.Add {
-		policy.ExtraForms = 0
-	}
-	rows, err := forms.NewSetSpec(row, policy)
-	if err != nil {
-		return adminReportSet{}, false, err
-	}
-	binding, err := project.Bind()
-	if err != nil {
-		return adminReportSet{}, false, err
-	}
-	spec, err := formmodel.NewInlineSpec(binding, models.TicketObjects, models.ServiceReportObjects, "ticket", rows)
-	if err != nil {
-		return adminReportSet{}, false, err
-	}
-	set, err := spec.Bind(ctx, data, parent, current, formmodel.PostClean{})
-	if err != nil {
-		return adminReportSet{}, false, err
-	}
-	for _, row := range set.FormSet().Forms() {
-		if row.DeletionRequested() && !access.Delete || row.Index() >= set.FormSet().InitialForms() && len(row.Form().Changed()) > 0 && !access.Add {
-			return adminReportSet{}, false, admin.NewOperationError(admin.OperationDenied, nil)
-		}
-	}
+	set := bound.Set()
 	if !set.Valid() {
 		return adminReportSet{}, false, admin.RejectInline(reportInlinePrefix, -1, validation.NewErrors(validation.New(validation.NonField, "stale_inline")), nil)
 	}
@@ -206,7 +170,7 @@ func (a *Application) bindAdminReports(ctx context.Context, session db.RelationS
 	if err := a.checkAdminReports(ctx, session, set); err != nil {
 		return adminReportSet{}, false, err
 	}
-	return adminReportSet{set: set, access: access}, true, nil
+	return adminReportSet{set: set, access: bound.Access()}, true, nil
 }
 
 func (a *Application) saveAdminReports(ctx context.Context, session db.RelationSession, actor auth.Principal, parent models.Ticket, input adminReportSet) (bool, error) {

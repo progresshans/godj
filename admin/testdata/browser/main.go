@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/progresshans/godj/admin"
@@ -29,7 +31,6 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/validation"
@@ -42,19 +43,23 @@ func main() {
 		log.Fatal(err)
 	}
 }
-func run() error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+func run() (runErr error) {
+	mode := os.Getenv("GODJ_ADMIN_BROWSER_MODE")
+	if mode != "" && mode != "inline" && mode != "uploads" {
+		return errors.New("invalid Admin browser fixture mode")
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	directory, err := os.MkdirTemp("", "godj-inline-browser-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(directory)
+	defer func() { runErr = errors.Join(runErr, os.RemoveAll(directory)) }()
 	backend, err := sqlite.Open(ctx, "file:"+filepath.Join(directory, "fixture.sqlite3")+"?_busy_timeout=5000")
 	if err != nil {
 		return err
 	}
-	defer backend.Close()
+	defer func() { runErr = errors.Join(runErr, backend.Close()) }()
 	sources, _, err := definition.Load(helpdesk.MigrationSources()...)
 	if err != nil {
 		return err
@@ -66,10 +71,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if _, err = models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Original __prefix__", category.ID)); err != nil {
+	originalLabel, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Original __prefix__", category.ID))
+	if err != nil {
 		return err
 	}
-	if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Existing ticket", category.ID)); err != nil {
+	originalTicket, err := models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Existing ticket", category.ID))
+	if err != nil {
 		return err
 	}
 	configured, err := settings.New(settings.Definition{ProjectName: "inline_browser", InstalledApps: helpdesk.InstalledApps()})
@@ -158,10 +165,10 @@ func run() error {
 			}
 			for index, save := range []func() (bool, error){
 				func() (bool, error) {
-					return saveRows(ctx, session, actor, binding, models.LabelObjects, before, parent, "labels", []string{"name"}, 0, 4, input, loadLabels, deleters.ModelsLabel.DeleteInSession)
+					return saveRows(ctx, session, actor, labels, before, parent, "labels", input, loadLabels, deleters.ModelsLabel.DeleteInSession)
 				},
 				func() (bool, error) {
-					return saveRows(ctx, session, actor, binding, models.TicketObjects, before, parent, "tickets", []string{"subject", "closed"}, 1, 3, input, loadTickets, deleters.ModelsTicket.DeleteInSession)
+					return saveRows(ctx, session, actor, tickets, before, parent, "tickets", input, loadTickets, deleters.ModelsTicket.DeleteInSession)
 				},
 			} {
 				any, err := save()
@@ -176,7 +183,7 @@ func run() error {
 		})
 		return parent, changed, err
 	}
-	err = admin.RegisterModel(builder, admin.ModelConfig[models.Category]{AppLabel: "helpdesk", Slug: "categories", Model: models.CategoryDescriptor{}.Metadata(), FormFields: []string{"name"}, ListFields: []string{"id", "name"}, Inlines: []admin.Inline{labels, tickets}, Permissions: permissions("category"),
+	err = admin.RegisterModel(builder, admin.ModelConfig[models.Category]{AppLabel: "helpdesk", Slug: "categories", Model: models.CategoryDescriptor{}.Metadata(), FormFields: []string{"name"}, ListFields: []string{"id", "name"}, Inlines: []admin.Inline{labels.View(), tickets.View()}, Permissions: permissions("category"),
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
 			rows := models.CategoryObjects.Using(backend).OrderBy(models.CategoryFields.ID.Asc())
 			total, err := rows.Count(ctx)
@@ -290,14 +297,119 @@ func run() error {
 	result := make(chan error, 1)
 	go func() { result <- server.Serve(listener) }()
 	fmt.Printf("http://%s/admin/categories/change/?id=%d\n", listener.Addr(), category.ID)
+	fmt.Printf("fixture_pid=%d\n", os.Getpid())
 	select {
 	case err := <-result:
 		return err
 	case <-ctx.Done():
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return server.Shutdown(shutdown)
+		if err := server.Shutdown(shutdown); err != nil {
+			return err
+		}
+		select {
+		case err := <-result:
+			if !errors.Is(err, http.ErrServerClosed) {
+				return err
+			}
+		case <-shutdown.Done():
+			return shutdown.Err()
+		}
+		if mode != "" {
+			return recordNativeState(shutdown, backend, category, originalLabel, originalTicket)
+		}
+		return nil
 	}
+}
+
+func recordNativeState(ctx context.Context, reader db.Queryer, category models.Category, label models.Label, ticket models.Ticket) error {
+	categoryQuery, err := models.CategoryObjects.Using(reader).OrderBy(models.CategoryFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	categories, err := categoryQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	labelQuery, err := models.LabelObjects.Using(reader).OrderBy(models.LabelFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	labels, err := labelQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	ticketQuery, err := models.TicketObjects.Using(reader).OrderBy(models.TicketFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	tickets, err := ticketQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(categories) < 1 || len(categories) > 100 || len(labels) < 1 || len(labels) > 100 || len(tickets) < 1 || len(tickets) > 100 {
+		return errors.New("fixture native state outside its complete row budget")
+	}
+	for _, same := range []func() (bool, error){
+		func() (bool, error) { return unchangedStored(models.CategoryObjects, category, categories[0]) },
+		func() (bool, error) { return unchangedStored(models.LabelObjects, label, labels[0]) },
+		func() (bool, error) { return unchangedStored(models.TicketObjects, ticket, tickets[0]) },
+	} {
+		unchanged, err := same()
+		if err != nil {
+			return err
+		}
+		if !unchanged {
+			return errors.New("browser changed a preexisting fixture row")
+		}
+	}
+	state := struct {
+		InitialRowsUnchanged bool             `json:"initial_rows_unchanged"`
+		Categories           []map[string]any `json:"categories"`
+		Labels               []map[string]any `json:"labels"`
+		Tickets              []map[string]any `json:"tickets"`
+		Links                int64            `json:"links"`
+		Reports              int64            `json:"reports"`
+	}{InitialRowsUnchanged: true}
+	for _, value := range categories {
+		state.Categories = append(state.Categories, map[string]any{"id": value.ID, "name": value.Name})
+	}
+	for _, value := range labels {
+		state.Labels = append(state.Labels, map[string]any{"id": value.ID, "category": value.CategoryID, "name": value.Name})
+	}
+	for _, value := range tickets {
+		state.Tickets = append(state.Tickets, map[string]any{"id": value.ID, "category": value.CategoryID, "subject": value.Subject, "closed": value.Closed})
+	}
+	state.Links, err = models.TicketLabelObjects.Using(reader).Count(ctx)
+	if err != nil {
+		return err
+	}
+	state.Reports, err = models.ServiceReportObjects.Using(reader).Count(ctx)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(state)
+}
+
+func unchangedStored[M any](manager orm.Manager[M], before, after M) (bool, error) {
+	left, err := manager.ModelValues(before)
+	if err != nil {
+		return false, err
+	}
+	right, err := manager.ModelValues(after)
+	if err != nil {
+		return false, err
+	}
+	if len(left) != len(right) {
+		return false, nil
+	}
+	for name, value := range left {
+		current, found := right[name]
+		if !found || !value.Equal(current) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func permissions(model string) admin.Permissions {
@@ -318,10 +430,10 @@ func policy(prefix string, extra, maximum int) forms.SetConfig {
 	c.CanDelete = true
 	return c
 }
-func newInline[C any](binding orm.ProjectBinding, manager orm.Manager[C], prefix string, fields []string, extra, maximum int, reader db.Queryer, load func(context.Context, db.Queryer, int64) ([]C, error)) (admin.Inline, error) {
+func newInline[C any](binding orm.ProjectBinding, manager orm.Manager[C], prefix string, fields []string, extra, maximum int, reader db.Queryer, load func(context.Context, db.Queryer, int64) ([]C, error)) (admin.ModelInline[models.Category, C], error) {
 	definition, err := browserFormDefinition(prefix, fields)
 	if err != nil {
-		return admin.Inline{}, err
+		return admin.ModelInline[models.Category, C]{}, err
 	}
 	return admin.NewInline(admin.InlineConfig[models.Category, C]{Project: binding, Parent: models.CategoryObjects, Child: manager, ParentWithID: models.NewCategoryWithID, ForeignKey: "category", Label: prefix, Form: admin.FormConfig{Definition: definition}, Set: policy(prefix, extra, maximum), Permissions: permissions(prefix), Load: func(ctx context.Context, _ auth.Principal, id int64) (admin.InlineSnapshot[C], error) {
 		current, err := load(ctx, reader, id)
@@ -332,45 +444,22 @@ func newInline[C any](binding orm.ProjectBinding, manager orm.Manager[C], prefix
 	}})
 }
 
-func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth.Principal, binding orm.ProjectBinding, manager orm.Manager[C], before, parent models.Category, prefix string, fields []string, extra, maximum int, input admin.InlineSubmission, load func(context.Context, db.Queryer, int64) ([]C, error), remove func(context.Context, db.RelationSession, C) (int64, error)) (bool, error) {
-	data, access, present := input.Lookup(prefix)
-	if !present {
-		return false, nil
-	}
-	var current []C
-	var err error
-	if before.ID != 0 && (access.View || access.Change) {
-		current, err = load(ctx, session, before.ID)
-		if err != nil {
-			return false, err
+func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth.Principal, inline admin.ModelInline[models.Category, C], before, parent models.Category, prefix string, input admin.InlineSubmission, load func(context.Context, db.Queryer, int64) ([]C, error), remove func(context.Context, db.RelationSession, C) (int64, error)) (bool, error) {
+	bound, present, err := inline.BindCurrent(ctx, actor, input, func(work context.Context, access admin.InlineAccess) (admin.InlineCurrent[models.Category, C], error) {
+		current := admin.InlineCurrent[models.Category, C]{Parent: before}
+		if before.ID != 0 && (access.View || access.Change) {
+			var err error
+			current.Children.Current, err = load(work, session, before.ID)
+			if err != nil {
+				return current, err
+			}
 		}
-	}
-	metadata, err := manager.Metadata()
-	if err != nil {
+		return current, nil
+	})
+	if err != nil || !present {
 		return false, err
 	}
-	row, err := browserRowSpec(prefix, metadata, fields)
-	if err != nil {
-		return false, err
-	}
-	config := policy(prefix, extra, maximum)
-	config.ReadOnlyInitial = !access.Change
-	config.CanDelete = access.Delete
-	if !access.Add {
-		config.ExtraForms = 0
-	}
-	rows, err := forms.NewSetSpec(row, config)
-	if err != nil {
-		return false, err
-	}
-	spec, err := formmodel.NewInlineSpec(binding, models.CategoryObjects, manager, "category", rows)
-	if err != nil {
-		return false, err
-	}
-	set, err := spec.Bind(ctx, data, before, current, formmodel.PostClean{})
-	if err != nil {
-		return false, err
-	}
+	set, access := bound.Set(), bound.Access()
 	if !set.Valid() {
 		return false, admin.RejectInline(prefix, -1, validation.NewErrors(validation.New(validation.NonField, "stale_inline")), nil)
 	}
@@ -428,13 +517,7 @@ func browserFormDefinition(prefix string, fields []string) (formmodel.Definition
 	}
 	return definition, nil
 }
-func browserRowSpec(prefix string, metadata ir.Model, fields []string) (forms.Spec, error) {
-	definition, err := browserFormDefinition(prefix, fields)
-	if err != nil {
-		return forms.Spec{}, err
-	}
-	return definition.Spec(metadata)
-}
+
 func validateLabelUpload(ctx context.Context, prefix string, index int, input forms.Values) error {
 	if prefix != "labels" {
 		return nil

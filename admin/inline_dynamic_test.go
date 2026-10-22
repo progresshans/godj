@@ -17,7 +17,8 @@ import (
 func TestInlineDynamicPrototypeRetainsOnlyServerParentAndDefaults(t *testing.T) {
 	config, actor := reportInlineFixture(t)
 	config.Set.ExtraForms = 0
-	inline, err := NewInline(config)
+	inlineModel, err := NewInline(config)
+	inline := inlineModel.View()
 	if err != nil {
 		t.Fatal(err)
 	}

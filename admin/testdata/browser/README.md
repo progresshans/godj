@@ -21,6 +21,7 @@ npx --yes --package @playwright/cli@0.1.22 playwright-cli -s=godj-inline close
 서버는 Ctrl-C로 종료한다. `editor`, `noadd`, `readonly`, `viewer`는 fixture 전용 계정이고 비밀번호는 모두
 `demo-password`다. Probe는 실제 로그인·폼 제출을 통해 33개 조건을 검사하고 마지막에 `passed: 33`을 반환한다.
 CLI의 exit code만으로 성공을 판단하지 말고 `### Error`가 없고 Result에 실제 33개가 있는지 확인한다.
+Result에는 실제 실행한 Chromium 버전도 포함된다.
 
 Probe는 초기 DB를 전제로 데이터를 저장하므로 반복할 때 서버를 다시 시작한다. Script 응답을 바꾸는 부정 대조 후에도
 브라우저 세션을 새로 열어 immutable asset의 변조된 응답/실행 상태가 정상 검증에 남지 않게 한다. 실제 저장·rollback·audit의
@@ -32,3 +33,10 @@ SQLite/PostgreSQL 검증은 [Helpdesk HTTP 검사](../../../examples/helpdesk/ad
 재선택 후에는 SQLite label 저장을 확인한다. 이는 비저장 파일 명령의 소비자이며 영구 파일 storage의 예제가 아니다.
 파일 선택 유지/재번호, 오류 재표시, readonly의 disabled/successful control 제외도 검사한다. 기본 `probe.js`의 33개 조건은
 파일이 없는 multipart 제출에서도 그대로 적용한다. 두 probe는 각각 새 DB를 사용한다.
+
+원격 CI에서는 Portable normal integration이 [Admin browser runner](../../../scripts/ci/admin_browser.py)로 두 흐름을
+각각 새 fixture·별도 브라우저 세션에서 실행한다. 기존 Helpdesk browser owner와 동일한 고정 CLI/Chromium을 쓰며
+추가 npm 잠금이나 전역 도구 설치는 필요하지 않다. 각 흐름의 검사 목록·실제 버전, native 저장 행/부모 연결,
+기존 행의 모든 scalar 보존, browser/server 종료와 임시 DB 삭제를 확인한다. 원본 로그·snapshot·screenshot·source와
+receipt는 `admin-inline-browser` artifact에 보존한다. 이 브라우저의 파일은 여전히 비저장 검증 명령이며
+모델 파일 storage 게시와 실제 PostgreSQL의 검증을 대신하지 않는다.

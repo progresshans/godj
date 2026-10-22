@@ -3,6 +3,27 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — typed inline과 실제 쓰기 브라우저 준비
+
+`ffc8b5ad`에서 분리한 F1 준비 작업이다. `ModelInline[P, C]`은 초기 화면과 writer의 현재 snapshot 바인딩에
+같은 Form·Set·canonical FK 정책을 사용한다. Helpdesk와 Admin browser의 중복 선언을 제거하고 현재 principal,
+등록된 제출·parent·cohort·선택·revision과 원래 파일 capability를 함께 유지하도록 작성했다.
+Directory–Inventory의 별도 생성 baseline·변경 모듈에는 현재 비노출 값 보존, 새 부모 key, 삭제, read-only 기존 행과
+새 행, 현재 scope 거부, 위조/cohort 변동, 늦은 저장·audit 실패 rollback과 typed 오용 compile 검사를 연결했다.
+Admin inline·업로드 browser 두 흐름은 Portable normal integration에서 실행하고 source·원본 check·native 저장 행과
+종료/임시 DB 삭제를 별도 artifact에 보존하도록 연결했다.
+
+로컬에서는 Go 1.26.5 darwin/arm64의 `admin`, Helpdesk, browser fixture, `codegen/consumertest`와 두 외부 생성 모듈을
+`go test -run '^$' -vet=off`로 컴파일했다. 외부 모듈은 `-mod=mod`를 사용하며 현재 작업트리를 replace하고
+네트워크 module 조회를 끈다. incoming 관계가 없는 Asset의 생성 삭제 도우미 참조를 일반 모델 삭제로 수정한 뒤
+두 버전 모두 컴파일을 통과했다. 테스트 본문·DB·HTTP·race·실제 browser는 실행하지 않았다.
+Go format, 추가 Python/JavaScript의 문법, workflow YAML과 변경 문서의 링크·diff만 로컬에서 확인했다.
+Source와 외부 생성 모듈 hash는 검증 보관 디렉터리의 `gdj0136-typed-inline-external-compile.json`에 있다.
+Receipt SHA-256은 `713dfc93a83280da90bafc480620f05c83cc1694df453e5f29fb0f44f12d003f`다.
+
+이 근거는 compile-only이며 F1 기능이나 선행 A1의 전체 검증 완료를 뜻하지 않는다.
+새 source의 원격 필수 실행·원본 대조와 F1의 관계 검색·일반 여러 행/모델 파일·widget 확장 등은 미완료다.
+
 ## GDJ-0135 — 독립 SDK 인증 오류 검증 수정
 
 Source `738ae3773749e64a9f0ba0d805a1edce8ccdf580`의

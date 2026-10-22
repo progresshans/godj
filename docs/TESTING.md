@@ -94,6 +94,11 @@ Helpdesk 요약의 실제 브라우저는 Portable normal integration이 한 번
 고정 CLI/Chromium으로 페이지/HAVING·지표·우선순위 미리보기를 검사하고 native readback으로 원본 행/링크/audit
 보존을 확인한다. CLI의 오류 텍스트·불완전한 결과, 서버 종료/DB 정리 실패를 통과시키지 않으며 source/version·로그·
 screenshot·receipt를 같은 run의 artifact로 보존한다. 이 단일 브라우저 좌표와 양 DB/세 mode 제품 검사는 서로 구분한다.
+같은 normal integration owner는 Admin inline·업로드 UI도 두 개의 별도 임시 SQLite·브라우저 세션에서 실행한다.
+동적 행 추가/제거, 기존/새 부모 저장, 권한별 control, 파일 내용 검증과 rollback·재선택을 검사한다.
+Go fixture의 종료 시 native readback에서 제출한 행·부모 연결과 기존 행의 전체 scalar 보존을 확인하고,
+`admin-inline-browser` artifact에 모든 명령·검사·source·저장 결과와 정리 receipt를 남긴다.
+Helpdesk 조회 화면의 read-only 증거와 Admin의 실제 쓰기 증거는 별도 receipt로 구분한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 기본 build cache와 병렬 실행을 유지한다. 로컬 디스크 여유가 부족해
 cache 정리가 필요하면 활성 Go 작업이 종료된 뒤 정리한다. 이후 무거운 재빌드와 검증은 원격 CI에서 수행한다.
 중복 build·검증 범위·cache 누적과 실행 중 임시 공간을 구분하며, 같은 검증을 로컬과 원격에서 관성적으로 반복하지 않는다.

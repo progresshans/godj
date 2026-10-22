@@ -47,5 +47,5 @@ async (page) => {
     check(await input("labels-0-document").isDisabled(), "read-only child file widget is disabled");
     check(await page.locator('form[action^="/admin/categories/"]').getAttribute("enctype") === null, "read-only child uploads do not change parent transport");
     check(await page.evaluate(() => !Array.from(new FormData(document.querySelector('form[action^="/admin/categories/"]')).keys()).includes("labels-0-document")), "read-only upload is not a successful control");
-    return {passed:cases.length,cases};
+    return {passed:cases.length,cases,browser_version:page.context().browser().version()};
 }

@@ -304,6 +304,23 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Run isolated Admin inline browser
+        id: admin-browser
+        if: matrix.mode == 'normal' && matrix.shard == 'integration'
+        run: |
+          python3 scripts/ci/admin_browser.py \
+            --node-tools "${RUNNER_TEMP}/helpdesk-browser-tools" \
+            --output-dir "${RUNNER_TEMP}/admin-inline/output/playwright"
+
+      - name: Publish Admin browser evidence
+        if: always() && matrix.mode == 'normal' && matrix.shard == 'integration' && steps.admin-browser.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: admin-inline-browser-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/admin-inline/output/playwright/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Require a clean worktree
         run: |
           git diff --exit-code
