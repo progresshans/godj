@@ -80,6 +80,14 @@ dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=o
 `[no test files]` 종료는 compile 성공을 뜻하며, runtime test의 skip은 허용하지 않는다.
 환경 준비는 `internal/testenv`가 마지막 값·플랫폼별 키 비교·정렬·제거를 소유한다. 공통 offline Go profile은
 host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
+
+`TestGeneratedModelResources`는 전후 생성 모델의 실제 OpenAPI에서 별도 SDK를 만들고 HTTP로 실행한다.
+기존 OpenAPI client의 고정 `go.mod`·`go.sum`·`ogen.yml`을 재사용하며, 이 root를 소유한 relation/PostgreSQL 작업은
+`make api-client-dependencies`로 해당 잠금을 먼저 준비한다. 필요한 로컬 실패 재현에도 같은 준비가 선행한다.
+SDK에는 GoDj 의존성과 DB 환경을 넘기지 않고, 부모의 race·CGO/OS/arch를 유지한다. 부모는 정확한 완료 항목·HTTP
+전송 횟수·실제 DB와 기존 행 보존을 확인한다. Native artifact에는 두 모델 버전과 양 DB별 문서·전체 생성 source·잠금·
+완료 receipt와 hash를 보존하며, 모델 소비자의 원본 JSON 이벤트에 이 출처를 함께 기록한다.
+
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 Helpdesk 요약의 실제 브라우저는 Portable normal integration이 한 번 실행한다. 별도 임시 SQLite·실제 로그인·

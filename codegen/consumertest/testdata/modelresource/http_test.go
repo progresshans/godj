@@ -62,28 +62,39 @@ func (f verifierFunc) Verify(ctx context.Context, token bearerauth.Token) (auth.
 
 func principal(t *testing.T, id string, permission auth.Permission) auth.Principal {
 	t.Helper()
-	value, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Staff: true, Permissions: []auth.Permission{"inventory.view_asset", permission}})
+	value, err := resourcePrincipal(id, permission)
 	check(t, err)
 	return value
 }
 
-func verifyHTTP(t *testing.T, backend resourceBackend) {
-	probe := &observedBackend{resourceBackend: backend}
-	a := newAssembly(t, probe, "http")
-	current, old := principal(t, "writer", editPermission()), principal(t, "old", oldPermission)
+func resourcePrincipal(id string, permission auth.Permission) (auth.Principal, error) {
+	return auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Staff: true, Permissions: []auth.Permission{"inventory.view_asset", permission}})
+}
+
+func (a assembly) httpApplication() (*web.Application, openapi.Document, error) {
+	current, err := resourcePrincipal("writer", editPermission())
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
+	old, err := resourcePrincipal("old", oldPermission)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	authentication, err := bearerauth.New(bearerauth.Config{Authorizer: auth.PrincipalAuthorizer{}, Verifier: verifierFunc(func(_ context.Context, token bearerauth.Token) (auth.Principal, error) {
 		if token.Encoded() == "old" {
 			return old, nil
 		}
 		return current, nil
 	})})
-	check(t, err)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	create, err := endpoint.New(authentication, endpoint.Config[orm.ModelInput[inventory.Asset], inventory.Asset]{
 		Route:     web.Route{Name: "inventory:create", Method: http.MethodPost, Path: "/api/assets/"},
 		Admission: endpoint.All(editPermission()), Input: endpoint.JSONBody("AssetInput", a.body, serializers.ModeFull, "Asset input."), Output: a.out,
 		Success: []endpoint.Status{{Code: http.StatusCreated, Description: "Created asset."}},
 		Handle: func(request *web.Request, _ auth.Principal, input orm.ModelInput[inventory.Asset]) (output.Prepared[inventory.Asset], error) {
-			return db.AtomicResult(request.Context(), probe, func(ctx context.Context, session db.Session) (output.Prepared[inventory.Asset], error) {
+			return db.AtomicResult(request.Context(), a.backend, func(ctx context.Context, session db.Session) (output.Prepared[inventory.Asset], error) {
 				mutation, err := a.resource.CreateInSession(ctx, session, input, a.saveOptions(true))
 				if err != nil {
 					return output.Prepared[inventory.Asset]{}, err
@@ -92,14 +103,32 @@ func verifyHTTP(t *testing.T, backend resourceBackend) {
 			})
 		},
 	})
-	check(t, err)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	operations, schemas, err := endpoint.Collect([]endpoint.Endpoint{create})
-	check(t, err)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	document, err := openapi.New(openapi.Config{Title: "Inventory", Version: "1", Authentication: authentication, Operations: operations, Schemas: schemas})
-	check(t, err)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	configured, err := settings.New(settings.Definition{ProjectName: "resource_consumer", InstalledApps: []apps.Config{{Name: "example.com/godj-project-bundle/inventory", Label: "inventory"}}})
-	check(t, err)
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
 	application, err := web.NewApplication(web.Config{Settings: configured, Routes: document.Routes()})
+	if err != nil {
+		return nil, openapi.Document{}, err
+	}
+	return application, document, nil
+}
+
+func verifyHTTP(t *testing.T, backend resourceBackend) {
+	probe := &observedBackend{resourceBackend: backend}
+	a := newAssembly(t, probe, "http")
+	application, document, err := a.httpApplication()
 	check(t, err)
 	send := func(token, raw string) (*httptest.ResponseRecorder, int64) {
 		body := &bodyProbe{Reader: strings.NewReader(raw)}

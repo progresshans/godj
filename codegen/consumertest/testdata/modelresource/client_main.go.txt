@@ -1,0 +1,169 @@
+package main
+
+// This process has no GoDj dependency. All requests and responses use the
+// client generated from the running model-resource application's document.
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"reflect"
+	"slices"
+	"sync/atomic"
+	"time"
+
+	sdk "example.com/godj-openapi-client/inventoryapi"
+)
+
+type target struct {
+	URL string `json:"url"`
+}
+type receipt struct {
+	Checks  []string         `json:"checks"`
+	Rows    map[string]int64 `json:"rows"`
+	Evolved bool             `json:"evolved"`
+	Race    bool             `json:"race"`
+}
+
+type security string
+
+func (value security) BearerAuth(context.Context, sdk.OperationName) (sdk.BearerAuth, error) {
+	return sdk.BearerAuth{Token: string(value)}, nil
+}
+
+type transport struct {
+	base   *http.Transport
+	status atomic.Int64
+}
+
+func (value *transport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := value.base.RoundTrip(request)
+	if response != nil {
+		value.status.Store(int64(response.StatusCode))
+	}
+	return response, err
+}
+
+func main() {
+	result, err := run()
+	if err != nil {
+		// Only fixed stages leave the process. URLs, tokens and response bodies
+		// are never diagnostics or a substitute for the completion receipt.
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+		os.Exit(1)
+	}
+}
+
+func stage(name string) error { return errors.New(name) }
+
+func run() (receipt, error) {
+	var input target
+	decoder := json.NewDecoder(io.LimitReader(os.Stdin, 4096))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.URL == "" {
+		return receipt{}, stage("fixture input")
+	}
+	var trailing any
+	if !errors.Is(decoder.Decode(&trailing), io.EOF) {
+		return receipt{}, stage("fixture framing")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	base := http.DefaultTransport.(*http.Transport).Clone()
+	base.Proxy = nil
+	defer base.CloseIdleConnections()
+	observed := &transport{base: base}
+	httpClient := &http.Client{Transport: observed, Timeout: 5 * time.Second}
+	makeClient := func(token string) (*sdk.Client, error) {
+		return sdk.NewClient(input.URL, security(token), sdk.WithClient(httpClient))
+	}
+	anonymous, err := makeClient("")
+	if err != nil {
+		return receipt{}, stage("anonymous client")
+	}
+	denied, err := anonymous.InventoryCreate(ctx, &sdk.AssetInput{Code: "anonymous"})
+	if _, ok := denied.(*sdk.InventoryCreateUnauthorized); err != nil || !ok || observed.status.Load() != http.StatusUnauthorized {
+		return receipt{}, stage("anonymous admission")
+	}
+	result := receipt{Evolved: evolved, Race: raceEnabled, Rows: map[string]int64{}}
+	result.Checks = append(result.Checks, "anonymous_admission")
+	old, err := makeClient("old")
+	if err != nil {
+		return receipt{}, stage("prior client")
+	}
+	prior, err := old.InventoryCreate(ctx, &sdk.AssetInput{Code: "client-old"})
+	if err != nil {
+		return receipt{}, stage("prior permission response")
+	}
+	if evolved {
+		if _, ok := prior.(*sdk.InventoryCreateForbidden); !ok || observed.status.Load() != http.StatusForbidden {
+			return receipt{}, stage("changed permission")
+		}
+	} else {
+		asset, ok := prior.(*sdk.Asset)
+		if !ok || observed.status.Load() != http.StatusCreated || asset.ID <= 0 {
+			return receipt{}, stage("baseline permission")
+		}
+		result.Rows["old"] = asset.ID
+	}
+	result.Checks = append(result.Checks, "prior_permission")
+	writer, err := makeClient("writer")
+	if err != nil {
+		return receipt{}, stage("writer client")
+	}
+	created, err := writer.InventoryCreate(ctx, &sdk.AssetInput{Code: "client-def"})
+	defaults, ok := created.(*sdk.Asset)
+	if err != nil || !ok || observed.status.Load() != http.StatusCreated || defaults.ID <= 0 || defaults.Code != "client-def" || !defaults.Enabled || !defaultProjection(defaults) {
+		return receipt{}, stage("model defaults")
+	}
+	result.Rows["default"] = defaults.ID
+	result.Checks = append(result.Checks, "model_defaults")
+	request := &sdk.AssetInput{Code: "   client-value   ", Enabled: sdk.NewOptBool(false), Note: sdk.NewOptNilString("  client note  ")}
+	setNewField(request)
+	response, err := writer.InventoryCreate(ctx, request)
+	value, ok := response.(*sdk.Asset)
+	if err != nil || !ok || observed.status.Load() != http.StatusCreated || value.ID <= 0 || value.Enabled || !explicitProjection(value) {
+		return receipt{}, stage("typed model write")
+	}
+	result.Rows["value"] = value.ID
+	result.Checks = append(result.Checks, "typed_write")
+	if value.Code != "client-value" {
+		return receipt{}, stage("normalized input")
+	}
+	result.Checks = append(result.Checks, "normalized_input")
+	if !slices.Equal(fields(reflect.TypeFor[sdk.Asset]()), responseFields()) {
+		return receipt{}, stage("response field change")
+	}
+	result.Checks = append(result.Checks, "response_projection")
+	if !slices.Equal(fields(reflect.TypeFor[sdk.AssetInput]()), requestFields()) || !requestPolicy() {
+		return receipt{}, stage("request field change")
+	}
+	result.Checks = append(result.Checks, "request_projection")
+	invalid, err := writer.InventoryCreate(ctx, &sdk.AssetInput{Code: "client-too-long-code"})
+	if _, ok := invalid.(*sdk.InventoryCreateBadRequest); err != nil || !ok || observed.status.Load() != http.StatusBadRequest {
+		return receipt{}, stage("invalid model length")
+	}
+	result.Checks = append(result.Checks, "invalid_length")
+	canceled, stop := context.WithCancel(ctx)
+	stop()
+	if _, err := writer.InventoryCreate(canceled, &sdk.AssetInput{Code: "canceled"}); !errors.Is(err, context.Canceled) {
+		return receipt{}, stage("canceled request")
+	}
+	result.Checks = append(result.Checks, "canceled_request")
+	return result, nil
+}
+
+func fields(value reflect.Type) []string {
+	names := make([]string, value.NumField())
+	for index := range names {
+		names[index] = value.Field(index).Name
+	}
+	slices.Sort(names)
+	return names
+}

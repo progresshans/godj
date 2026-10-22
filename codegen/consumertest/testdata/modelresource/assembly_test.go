@@ -61,10 +61,22 @@ func newAssembly(t *testing.T, backend resourceBackend, name string) assembly {
 	t.Helper()
 	workspace := directory.Workspace{Name: name, Writable: true}
 	check(t, directory.WorkspaceObjects.Save(t.Context(), backend, &workspace))
+	result, err := newModelAssembly(backend, workspace)
+	check(t, err)
+	return result
+}
+
+// Model/transport policy construction performs no I/O. The same declaration
+// supplies both live endpoints and the external generated-client document.
+func newModelAssembly(backend resourceBackend, workspace directory.Workspace) (assembly, error) {
 	resource, err := crud.New(inventory.AssetObjects, crud.Config{Fields: inputFields()})
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	relations, err := project.BindRelations()
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	resource = resource.Filter(relations.InventoryAsset.Workspace.ID.Exact(workspace.ID))
 	model := (inventory.AssetDescriptor{}).Metadata()
 	fields := []serializers.ModelField{{Name: "id"}}
@@ -72,22 +84,34 @@ func newAssembly(t *testing.T, backend resourceBackend, name string) assembly {
 		fields = append(fields, serializers.ModelField{Name: name, Optional: name == "note", AllowEmpty: name == "note"})
 	}
 	spec, err := serializers.FromModel(model, fields...)
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	body, err := bodyinput.NewResource(resource, spec, api.ParserConfig{})
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	var projection []serializers.ModelField
 	for _, name := range responseFields() {
 		projection = append(projection, serializers.ModelField{Name: name, ReadOnly: true, AllowEmpty: name == "note"})
 	}
 	response, err := serializers.FromModel(model, projection...)
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	encoder, err := serializers.NewModelEncoder(response, model, (inventory.AssetDescriptor{}).WriteFieldValue)
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	out, err := output.New(output.Named("Asset", output.Model(encoder)), serializers.Limits{})
-	check(t, err)
+	if err != nil {
+		return assembly{}, err
+	}
 	form, err := formmodel.NewSpecForFields(model, resource.Fields())
-	check(t, err)
-	return assembly{backend: backend, workspace: workspace, resource: resource, body: body, spec: spec, out: out, form: form}
+	if err != nil {
+		return assembly{}, err
+	}
+	return assembly{backend: backend, workspace: workspace, resource: resource, body: body, spec: spec, out: out, form: form}, nil
 }
 
 var deniedWorkspace = errors.New("workspace no longer writable")

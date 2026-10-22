@@ -3,6 +3,23 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — 동일 변경의 독립 SDK 검증 연결
+
+`b309f8d0` 위에서 A1-04의 변경 실험을 외부 생성 클라이언트까지 연결했다. 선행 외부 소비자는 실제 HTML/API와
+OpenAPI를 검사하고 기존 Article/Helpdesk SDK는 회귀를 검사했지만, 새 Directory–Inventory의 전후 문서로 만든
+SDK 실행은 빠져 있었다. 같은 모델·정책·endpoint 구성에서 문서를 생성하고, 기존 client module의 고정 `ogen`과
+잠금으로 GoDj 의존성이 없는 새 client를 만든다. 두 버전과 양 DB의 추가 시나리오는 typed 요청/응답·현재 권한·
+새 필드/default·정규화·취소를 HTTP로 호출하고 부모가 native 저장 값과 기존 행 보존을 대조하도록 작성했다.
+실행 root의 relation/PostgreSQL owner에 잠금 준비를 연결하고, native artifact에 각 client의 전체 source·문서·잠금·
+완료 receipt를 보존하도록 했다. 필수 root·부정 대조나 기존 검증 범위는 줄이지 않았다.
+
+로컬에서는 부모 `codegen/consumertest`와 별도 생성 모듈 두 개의 테스트 코드를 `go test -run '^$'`로 컴파일했다.
+같은 모델/endpoint의 순수 설정 구성으로 문서를 만든 뒤 고정 `ogen` 생성과 SDK `go build`도 두 버전에서 통과했다.
+이 과정에서는 테스트 본문, HTTP 요청이나 실제 DB 작업을 실행하지 않았다. 추가 시나리오의 실행 결과와 현재
+source의 전체 CI는 미완료이며, 아래 선행 source의 부분 성공이나 로컬 실패 재현을 새 SDK의 PASS로 옮기지 않는다.
+설정·생성 source와 compile 결과의 hash는 검증 보관 디렉터리의 `gdj0135-independent-sdk-compile.json`에 남겼다.
+Receipt SHA-256은 `27517385391f9a7e2e9ab6994d6201c81d99fe7e6c41b4b5cf1157ba90a77ff3`다.
+
 ## GDJ-0135 — 외부 소비자의 표현 정책 검증 수정
 
 Source `80fb8223fec41ec03c93c5fc4cca4d93370f3ff2`의

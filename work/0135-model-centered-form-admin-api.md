@@ -73,6 +73,8 @@ F1은 Form/Admin의 더 넓은 widget·관계 UI·formset/inline 확장, A2는 �
 
 [외부 생성 소비자](../codegen/consumertest/model_resource_test.go)는 Directory.Workspace와 Inventory.Asset를
 독립 모듈로 생성한다. 기본 버전과 변경 버전에 같은 native DB·Form·실제 HTTP/Admin 검증을 적용한다.
+각 실제 문서에서 고정 `ogen`으로 독립 SDK도 생성한다. SDK의 typed 입력·출력·권한 거부·기본값·취소를 HTTP로
+실행하고, 생산자 쪽에서 저장 값과 기존 행 보존을 별도로 대조한다. 문서·생성 source·잠금·완료 receipt를 함께 남긴다.
 변경은 `priority` 정수(default 5, choices 1/5/9) 추가, 쓰기 권한 교체, 응답에서 `note`를 제외하고 `priority`를
 포함하는 것으로 고정한다. 기존 선택 목록을 유지한 대조에서는 새 필드가 입력에 자동 노출되지 않아야 한다.
 
@@ -82,7 +84,7 @@ F1은 Form/Admin의 더 넓은 widget·관계 UI·formset/inline 확장, A2는 �
 | 입력 노출 | Model Spec/Form 선택과 별도의 입력 DTO | 명시적 Resource 목록에서 Form·JSON을 구성; JSON별 required/empty는 별도 정책 |
 | 새 필드 전달 | DTO 필드·codec/setter·create builder·partial patch·Form typed 값 변환을 함께 변경 | `NewResource`·`PrepareInput`·공통 CRUD 구현을 변경하지 않음 |
 | 권한 교체 | 명시적 권한을 admission/Admin에 연결 | 동일한 책임을 유지; 권한 선언 자체의 비용 감소는 주장하지 않음 |
-| 응답 교체 | ModelEncoder의 명시적 투영 | 같은 투영을 사용; 실제 JSON·OpenAPI·Admin 목록이 함께 변경되는지 확인 |
+| 응답 교체 | ModelEncoder의 명시적 투영 | 같은 투영을 사용; 실제 JSON·OpenAPI·독립 SDK·Admin 목록이 함께 변경되는지 확인 |
 | 현재 객체와 결과 | scope·선택·unique·transaction·출력/감사 소유 | 공통 조회·준비·선택 열 저장 위에 앱 정책과 확정 결과 경계를 연결 |
 
 비교용 [기본 수동 연결](../codegen/consumertest/testdata/modelresource/manual_baseline.go.txt)과
@@ -91,6 +93,7 @@ DTO/setter·Form-to-builder 패턴을 현재 공개 API로 재현한 테스트 �
 [대조 본문](../codegen/consumertest/testdata/modelresource/comparison_test.go)은 같은 JSON/Form·PATCH의 저장 값,
 응답과 schema·권한을 비교하고 관측 write를 rollback한다. 제품에 과거 DTO 호환 계층을 남기지 않는다.
 필드별 수동 변환의 제거를 평가하며 개발 시간·실행 성능이나 모든 앱의 비용 감소를 수치로 주장하지 않는다.
+SDK 호출과 결과 검사는 전후 타입에 맞춘 별도 테스트 소비자다. 클라이언트 호출 코드의 변경 비용까지 없어진다고 주장하지 않는다.
 
 공통 모델 준비는 HTML과 JSON의 표현 차이를 없애지 않는다. 빈 Text Form 값은 빈 문자열이고 nullable JSON
 입력의 생략·명시적 NULL과 다르다. 필수 HTML 선택 필드는 initial/default가 있어도 제출해야 한다.
@@ -106,6 +109,6 @@ DTO/setter·Form-to-builder 패턴을 현재 공개 API로 재현한 테스트 �
 
 현재 `ModelInput`·공통 모델 준비·`crud.Resource`·확정 transaction 결과 경계를 구현하고 Article·Helpdesk에
 연결했다. [ADR-0092](../docs/adr/0092-model-input-and-crud-assembly.md)에 장기 의미를 기록한다.
-로컬은 포맷·최소 compile과 원격 실패를 좁힌 재현에 사용했다. 외부 생성 소비자의 SQLite 두 버전과
-잘못된 타입 연결의 compile 부정 대조는 수정 후 통과했다. 현재 source의 PostgreSQL·race·전체 CI 검증은 남아 있다.
+로컬은 포맷·최소 compile과 원격 실패를 좁힌 재현에 사용했다. 선행 표현 정책 검증의 실패 재현은 수정 후 통과했다.
+추가한 독립 SDK는 생성·compile까지 확인했으며, 이를 포함한 현재 source의 실제 HTTP·PostgreSQL·race·전체 CI 검증은 남아 있다.
 구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

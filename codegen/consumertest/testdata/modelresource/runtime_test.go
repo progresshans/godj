@@ -30,6 +30,7 @@ func TestModelResourceAssembly(t *testing.T) {
 		t.Run("http_permission_response_and_schema", func(t *testing.T) { verifyHTTP(t, backend) })
 		t.Run("admin_form_permission_and_csrf", func(t *testing.T) { verifyAdmin(t, backend) })
 		t.Run("same_change_manual_and_model_assembly", func(t *testing.T) { verifyComparison(t, backend) })
+		t.Run("generated_client_change", func(t *testing.T) { verifyGeneratedClient(t, backend) })
 	})
 }
 

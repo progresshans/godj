@@ -454,6 +454,9 @@ jobs:
           python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --shard "$shard" --shards "$shards" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir"
           required="$shard_dir/required.txt"
           expected_packages="$shard_dir/packages.txt"
+          if grep -Fqx "$consumer_package|TestGeneratedModelResources" "$required"; then
+            make api-client-dependencies
+          fi
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
           if [ "$shards" -eq 1 ]; then
@@ -1106,6 +1109,7 @@ jobs:
           GODJ_NAMED_ANNOTATION_CAPTURE_DIR: ${{ runner.temp }}/named-annotation-native
           GODJ_ANNOTATION_REFERENCE_DIR: ${{ runner.temp }}/annotation-reference
           GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
+          GODJ_MODEL_RESOURCE_CLIENT_EVIDENCE: ${{ runner.temp }}/model-resource-client
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
@@ -1182,6 +1186,9 @@ jobs:
           stderr_log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.stderr"
           required="$RUNNER_TEMP/postgresql-${mode}-${shard}-required-tests.txt"
           printf '%s\n' "${required_passes[@]}" > "$required"
+          case " ${required_tests[*]} " in
+            *" TestGeneratedModelResources "*) make api-client-dependencies ;;
+          esac
           status=0
           if [ "$shard" = "core" ] || [ "$shard" = "core-consumers" ]; then
             python3 scripts/ci/s3_service.py run --directory "$RUNNER_TEMP/s3-reference" -- \
@@ -1302,6 +1309,7 @@ jobs:
             ${{ runner.temp }}/named-annotation-native/
             ${{ runner.temp }}/annotation-reference/
             ${{ runner.temp }}/file-consumer-native.jsonl
+            ${{ runner.temp }}/model-resource-client/
             ${{ runner.temp }}/zoned-calendar-data/build.json
             ${{ runner.temp }}/zoned-calendar-data/build.log
             ${{ runner.temp }}/zoned-calendar-data/tzdata.zi

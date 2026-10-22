@@ -1,0 +1,17 @@
+package main
+
+import sdk "example.com/godj-openapi-client/inventoryapi"
+
+const evolved = true
+
+func setNewField(value *sdk.AssetInput) {
+	value.Priority = sdk.NewOptAssetInputPriority(sdk.AssetInputPriority(9))
+}
+func defaultProjection(value *sdk.Asset) bool  { return value.Priority == 5 }
+func explicitProjection(value *sdk.Asset) bool { return value.Priority == 9 }
+func requestFields() []string                  { return []string{"Code", "Enabled", "Note", "Priority"} }
+func responseFields() []string                 { return []string{"Code", "Enabled", "ID", "Priority"} }
+func requestPolicy() bool {
+	invalid := sdk.AssetInput{Code: "invalid", Priority: sdk.NewOptAssetInputPriority(sdk.AssetInputPriority(2))}
+	return invalid.Validate() != nil
+}
