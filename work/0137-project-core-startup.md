@@ -15,8 +15,9 @@ F1의 검증 대기 동안 독립 요구와 설계를 준비하며, F1의 완료
 
 ## 현재 출발점
 
-- `settings.New`는 프로젝트 이름·설치 앱·storage alias의 불변 snapshot을 만든다. 일반 환경 설정은
-  아직 예제의 `databaseconfig` 등에 나뉘어 있다. `apps.Registry`는 선언 순서의 identity 목록이며 lifecycle은 없다.
+- `settings.New`는 프로젝트 이름·설치 앱·storage alias의 불변 snapshot을 만든다. `settings.Environment`와
+  `settings/database`는 공통 환경 snapshot·DB 선택·opener를 제공하며 예제는 환경 key/기본값 정책만 소유한다.
+  `apps.Registry`는 선언 순서의 identity 목록이며 lifecycle은 없다.
 - 전역 `godj`는 project 선택과 build/process를 소유한다. 선언만 import하는 `project.Run`은
   generate·migration·초기 사용자 protocol을 실행하고, generated package를 import하는 Web runtime은 별도다.
 - `generate`는 canonical IR과 generator ABI를 snapshot하며 기존 bundle을 보존하는 게시·복구 경계가 있다.
@@ -99,4 +100,6 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 유지하도록 확장했다. 생성된 `InstalledApps`를 Article Web/Admin 설정에 연결해 수동 앱 이름·label 반복을 제거했다.
 값 보존·환경 격리·동시 읽기·secret 비노출과 빈/외부/관계 앱·첫 모델 추가·혼합 생성물 거부 검사를 작성했다.
 새 소비자의 실제 실행은 원격 CI 대상이다. 다음 구현은 이 기반을 사용하는 scaffold·resource/lifecycle 조립이다.
+공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL driver가 사용하는 ambient `PG*` 값과
+service/passfile·TLS file의 입력 소유권도 C1-02의 후속 정리·독립 프로젝트 격리 검증에 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

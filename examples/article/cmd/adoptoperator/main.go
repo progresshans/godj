@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	os.Exit(code)
 }
 
-func run(ctx context.Context, args []string, lookup databaseconfig.LookupEnvFunc, output io.Writer) int {
+func run(ctx context.Context, args []string, lookup database.LookupEnvFunc, output io.Writer) int {
 	result, code := execute(ctx, args, lookup)
 	if err := json.NewEncoder(output).Encode(result); err != nil {
 		// A failed output is not permission to replay an ownership transfer.
@@ -42,7 +43,7 @@ func run(ctx context.Context, args []string, lookup databaseconfig.LookupEnvFunc
 	return code
 }
 
-func execute(ctx context.Context, args []string, lookup databaseconfig.LookupEnvFunc) (result outcome, code int) {
+func execute(ctx context.Context, args []string, lookup database.LookupEnvFunc) (result outcome, code int) {
 	result = outcome{Status: "failed", Code: "invalid_arguments"}
 	flags := flag.NewFlagSet("adoptoperator", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -68,7 +69,7 @@ func execute(ctx context.Context, args []string, lookup databaseconfig.LookupEnv
 	if err != nil {
 		return outcome{Status: "failed", Code: "database_config"}, 2
 	}
-	backend, err := databaseconfig.Open(ctx, selected)
+	backend, err := database.Open(ctx, selected)
 	if err != nil {
 		return outcome{Status: "failed", Code: "backend_open"}, 3
 	}

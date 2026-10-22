@@ -690,6 +690,7 @@ func migrationCommandAssertGlobalSourceOwnership(repository string) error {
 		"github.com/progresshans/godj/db/sqlite":                       {},
 		"github.com/progresshans/godj/db/postgres":                     {},
 		"github.com/progresshans/godj/examples/article/databaseconfig": {},
+		"github.com/progresshans/godj/settings/database":               {},
 	}
 	for _, relative := range []string{"cmd/godj", "internal/projectcheck"} {
 		root := filepath.Join(repository, filepath.FromSlash(relative))

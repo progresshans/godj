@@ -373,20 +373,23 @@ func TestMigrationPrimaryKeyViolationClassificationUsesExplicitConstraint(t *tes
 func TestConfigValidationAndConnectionErrorRedaction(t *testing.T) {
 	t.Parallel()
 
-	if err := validateConfig(Config{URL: "postgresql://user:secret@localhost/database", Schema: "godj_app"}); err != nil {
+	if err := ValidateConfig(Config{URL: "postgresql://user:secret@localhost/database", Schema: "godj_app"}); err != nil {
 		t.Fatalf("valid config error = %v", err)
 	}
-	invalid := []Config{
-		{},
-		{URL: "mysql://localhost/database", Schema: "godj_app"},
-		{URL: "postgresql://localhost", Schema: "godj_app"},
-		{URL: "postgresql://localhost/database", Schema: "pg_catalog"},
-		{URL: "postgresql://localhost/database", Schema: "Godj"},
-		{URL: "postgresql://localhost/database", Schema: strings.Repeat("s", 64)},
+	invalid := []struct {
+		config Config
+		field  string
+	}{
+		{Config{}, "url"},
+		{Config{URL: "mysql://localhost/database", Schema: "godj_app"}, "url"},
+		{Config{URL: "postgresql://localhost", Schema: "godj_app"}, "url"},
+		{Config{URL: "postgresql://localhost/database", Schema: "pg_catalog"}, "schema"},
+		{Config{URL: "postgresql://localhost/database", Schema: "Godj"}, "schema"},
+		{Config{URL: "postgresql://localhost/database", Schema: strings.Repeat("s", 64)}, "schema"},
 	}
-	for _, config := range invalid {
-		if err := validateConfig(config); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
-			t.Fatalf("validateConfig(%#v) = %v", config, err)
+	for _, test := range invalid {
+		if err := ValidateConfig(test.config); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Field: test.field}) {
+			t.Fatalf("ValidateConfig() = %v, want field %s", err, test.field)
 		}
 	}
 	redacted := redactConnectionError(errors.New("connect postgresql://user:secret@localhost/database"))

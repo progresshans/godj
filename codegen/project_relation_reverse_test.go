@@ -224,7 +224,7 @@ func TestRelationReversePackageAliasesStayASCIIAndAliasImpossibleLocals(t *testi
 	t.Parallel()
 
 	authors, blog := testschema.QueryRelation()
-	for _, alias := range []string{"r", "context", "binding", "err", "model0", "relation0", "related0", "snapshot", "value", "factory"} {
+	for _, alias := range []string{"r", "binding", "err", "model0", "relation0", "related0", "snapshot", "value", "factory"} {
 		packages := relationReverseGenerationPackages(authors, blog)
 		packages[1].Alias = alias
 		packages[1].ImportPath = "example.com/" + strings.ToLower(alias)
@@ -235,6 +235,24 @@ func TestRelationReversePackageAliasesStayASCIIAndAliasImpossibleLocals(t *testi
 		if !bytes.Contains(generated, []byte(alias+` "example.com/`+strings.ToLower(alias)+`"`)) {
 			t.Fatalf("generated source omitted safe alias %q:\n%s", alias, generated)
 		}
+	}
+
+	packages := relationReverseGenerationPackages(authors, blog)
+	packages[1].Alias = "context"
+	packages[1].ImportPath = "example.com/context"
+	generated, err := codegen.GenerateProjectRelationReverse("project", packages)
+	if err == nil || !strings.Contains(err.Error(), "duplicate generated import alias context") || generated != nil {
+		t.Fatalf("prerequisite object imports accepted conflicting context alias: %v", err)
+	}
+
+	// An empty app does not import its package or the standard context package.
+	// Validate the actual rendered companions instead of reserving every alias.
+	generated, err = codegen.GenerateProjectRelationReverse("project", []codegen.RelationReversePackage{{
+		Alias: "context", ImportPath: "example.com/context",
+		Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "empty"},
+	}})
+	if err != nil || len(generated) == 0 {
+		t.Fatalf("empty app alias rejected without an import collision: %v", err)
 	}
 }
 

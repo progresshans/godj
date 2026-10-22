@@ -20,11 +20,13 @@ import (
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/systemstate"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -80,13 +82,15 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 		name        string
 		config      serveConfig
 		environment map[string]string
-		want        databaseConfig
+		wantKind    database.Kind
+		wantValue   string
+		wantSchema  string
 		wantError   string
 	}{
 		{
 			name:        "sqlite environment",
 			environment: map[string]string{articleSQLiteDatabaseEnv: " file:article.sqlite3 "},
-			want:        databaseConfig{kind: databaseKindSQLite, sqliteDatabase: "file:article.sqlite3"},
+			wantKind:    database.KindSQLite, wantValue: "file:article.sqlite3",
 		},
 		{
 			name: "postgres environment",
@@ -94,16 +98,12 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 				articlePostgresURLEnv:    " postgres://article:secret@127.0.0.1/article ",
 				articlePostgresSchemaEnv: " article_runtime ",
 			},
-			want: databaseConfig{
-				kind:           databaseKindPostgres,
-				postgresURL:    "postgres://article:secret@127.0.0.1/article",
-				postgresSchema: "article_runtime",
-			},
+			wantKind: database.KindPostgres, wantValue: "postgres://article:secret@127.0.0.1/article", wantSchema: "article_runtime",
 		},
 		{
-			name:   "direct sqlite compatibility",
-			config: serveConfig{database: "article.sqlite3", databaseSpecified: true},
-			want:   databaseConfig{kind: databaseKindSQLite, sqliteDatabase: "article.sqlite3"},
+			name:     "direct SQLite override",
+			config:   serveConfig{database: "article.sqlite3", databaseSpecified: true},
+			wantKind: database.KindSQLite, wantValue: "article.sqlite3",
 		},
 		{
 			name:      "missing configuration",
@@ -112,17 +112,17 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 		{
 			name:        "empty sqlite",
 			environment: map[string]string{articleSQLiteDatabaseEnv: " "},
-			wantError:   articleSQLiteDatabaseEnv + " is empty",
+			wantError:   articleSQLiteDatabaseEnv + ": is empty",
 		},
 		{
 			name:        "postgres URL without schema",
 			environment: map[string]string{articlePostgresURLEnv: "postgres://article:secret@127.0.0.1/article"},
-			wantError:   articlePostgresSchemaEnv + " is required",
+			wantError:   articlePostgresSchemaEnv + ": is required",
 		},
 		{
 			name:        "postgres schema without URL",
 			environment: map[string]string{articlePostgresSchemaEnv: "article_runtime"},
-			wantError:   articlePostgresURLEnv + " is required",
+			wantError:   articlePostgresURLEnv + ": is required",
 		},
 		{
 			name: "backend conflict",
@@ -140,7 +140,7 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 				articlePostgresURLEnv:    "postgres://article:secret@127.0.0.1/article",
 				articlePostgresSchemaEnv: "article_runtime",
 			},
-			wantError: "--database and database environment are mutually exclusive",
+			wantError: "explicit database and environment are mutually exclusive",
 		},
 	}
 	for _, test := range tests {
@@ -149,7 +149,7 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 				value, exists := test.environment[name]
 				return value, exists
 			}
-			got, err := databaseConfigForServe(test.config, lookup)
+			got, err := databaseconfig.ForServe(test.config.database, test.config.databaseSpecified, lookup)
 			if test.wantError != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantError) {
 					t.Fatalf("databaseConfigForServe() error = %v, want containing %q", err, test.wantError)
@@ -162,8 +162,12 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != test.want {
-				t.Fatalf("databaseConfigForServe() = %#v, want %#v", got, test.want)
+			value := got.SQLiteDatabase()
+			if got.Kind() == database.KindPostgres {
+				value = got.PostgresURL()
+			}
+			if got.Kind() != test.wantKind || value != test.wantValue || got.PostgresSchema() != test.wantSchema {
+				t.Fatal("selected database kind, value or schema differs")
 			}
 		})
 	}
@@ -482,7 +486,7 @@ func TestRunRejectsProvisionedAuthenticatedNonLoopbackBeforeListener(t *testing.
 	provisionArticleSiteOperator(t, context.Background(), backend, "admin", "non-loopback-secret-marker")
 	var backendCalls atomic.Int32
 	var listenCalls atomic.Int32
-	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
+	openBackend := func(context.Context, database.Config) (database.Backend, error) {
 		backendCalls.Add(1)
 		return backend, nil
 	}
@@ -521,7 +525,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 	explicitlyMigrateArticleSiteSystemState(t, backend)
 	provisionArticleSiteOperator(t, context.Background(), backend, username, password)
 	var opened atomic.Int32
-	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
+	openBackend := func(context.Context, database.Config) (database.Backend, error) {
 		opened.Add(1)
 		return backend, nil
 	}
@@ -628,18 +632,14 @@ func TestArticleSiteProductionSourceHasNoRawOperatorCredentialEnvironment(t *tes
 	}
 }
 
-func TestOpenArticleBackendPostgresDiagnosticDoesNotExposeURLSecret(t *testing.T) {
+func TestSiteDatabaseConstructorDoesNotExposeURLSecret(t *testing.T) {
 	const secret = "runtime-password"
-	_, err := openArticleBackend(context.Background(), databaseConfig{
-		kind:           databaseKindPostgres,
-		postgresURL:    "https://article:" + secret + "@example.invalid/article",
-		postgresSchema: "article_runtime",
-	})
+	_, err := database.PostgreSQL("https://article:"+secret+"@example.invalid/article", "article_runtime")
 	if err == nil {
-		t.Fatal("openArticleBackend() error = nil")
+		t.Fatal("database.PostgreSQL() error = nil")
 	}
 	if strings.Contains(err.Error(), secret) {
-		t.Fatalf("openArticleBackend() exposed PostgreSQL URL secret: %v", err)
+		t.Fatalf("database.PostgreSQL() exposed PostgreSQL URL secret: %v", err)
 	}
 }
 
@@ -661,8 +661,8 @@ func TestRunClosesBackendAndListenerOnceWhenContextCancelsBeforeServeOwnership(t
 	var backendCloses atomic.Int32
 	backend := newArticleSiteTestBackend(t, "site-cancel-window")
 	explicitlyMigrateArticleSiteSystemState(t, backend)
-	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
-		return &countingArticleBackend{articleBackend: backend, closes: &backendCloses}, nil
+	openBackend := func(context.Context, database.Config) (database.Backend, error) {
+		return &countingArticleBackend{Backend: backend, closes: &backendCloses}, nil
 	}
 	var listener *countingListener
 	listen := func(network, address string) (net.Listener, error) {
@@ -697,7 +697,7 @@ func TestRunClosesBackendAndListenerOnceWhenContextCancelsBeforeServeOwnership(t
 }
 
 type countingArticleBackend struct {
-	articleBackend
+	database.Backend
 	closes *atomic.Int32
 }
 
@@ -953,7 +953,7 @@ func articleSiteReadBody(t *testing.T, response *http.Response) string {
 
 func (backend *countingArticleBackend) Close() error {
 	backend.closes.Add(1)
-	return backend.articleBackend.Close()
+	return backend.Backend.Close()
 }
 
 func clearArticleDatabaseEnvironment(t *testing.T) {

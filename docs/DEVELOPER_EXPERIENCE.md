@@ -272,7 +272,8 @@ Reset 메일 조회는 fixture만 제공하며 제품 endpoint가 아니다. 임
 
 ## PostgreSQL
 
-예제의 backend 설정은 [databaseconfig](../examples/article/databaseconfig/config.go)가 소유한다.
+공통 선택·검증·backend opener는 [settings/database](../settings/database/README.md)가 제공한다.
+예제의 환경변수 이름과 명시적 선택 정책은 [databaseconfig](../examples/article/databaseconfig/config.go)가 소유한다.
 SQLite 환경변수를 해제하고 caller-owned URL/schema를 사용한다. URL에 있는 credential은 출력하거나 문서에 복사하지 않는다.
 
 ```sh

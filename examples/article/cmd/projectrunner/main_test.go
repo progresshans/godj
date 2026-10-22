@@ -21,6 +21,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	godjproject "github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -559,7 +560,7 @@ func TestArticleProjectRunnerSQLMigrateSelectionFailurePrecedenceAndRedaction(t 
 	}
 }
 
-func environmentLookup(values map[string]string) databaseconfig.LookupEnvFunc {
+func environmentLookup(values map[string]string) database.LookupEnvFunc {
 	return func(name string) (string, bool) {
 		value, ok := values[name]
 		return value, ok

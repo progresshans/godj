@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/examples/article/modeldef"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -35,7 +36,7 @@ func main() {
 	}
 }
 
-func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Config {
+func articleProjectConfig(lookup database.LookupEnvFunc) godjproject.Config {
 	selected, selectionErr := databaseconfig.FromEnvironment(lookup)
 	initialSuperuser, principalErr := operatorconfig.InitialSuperuser()
 	identityConfig, identityConfigErr := operatorconfig.IdentityRuntimeConfig()
@@ -47,7 +48,7 @@ func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Confi
 			if selectionErr != nil {
 				return nil, selectionErr
 			}
-			return databaseconfig.Open(ctx, selected)
+			return database.Open(ctx, selected)
 		},
 		MigrationSQLRenderer: selected.MigrationSQLRenderer(),
 		OpenSystemStateBackend: func(ctx context.Context) (godjproject.SystemStateBackend, error) {
@@ -60,7 +61,7 @@ func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Confi
 			if selectionErr != nil {
 				return nil, selectionErr
 			}
-			return databaseconfig.Open(ctx, selected)
+			return database.Open(ctx, selected)
 		},
 		InitialSuperuser: initialSuperuser,
 		PasswordHasher:   identityConfig.PasswordHasher,

@@ -118,12 +118,12 @@ func TestMigrationSQLRenderingActualSourceIsOracleBlindAndBoundaryLocked(t *test
 		{
 			name: "migration_sql_rendering_scenarios.go",
 			wantCalls: map[string]int{
-				"databaseconfig.Open":                                1,
-				"databaseconfig.PostgreSQL":                          1,
-				"definition.Load":                                    2,
-				"io.ReadFull":                                        1,
-				"io.WriteString":                                     1,
-				"linked.RunSQLMigrate":                               2,
+				"database.Open":        1,
+				"database.PostgreSQL":  1,
+				"definition.Load":      2,
+				"io.ReadFull":          1,
+				"io.WriteString":       1,
+				"linked.RunSQLMigrate": 2,
 				"migrationCommandAssertActualDirectoryEmpty":         1,
 				"migrationCommandReadActualFile":                     2,
 				"migrationCommandWaitForActualMarker":                1,

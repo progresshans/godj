@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/web"
 )
 
@@ -32,24 +33,6 @@ type serveConfig struct {
 	databaseSpecified bool
 }
 
-type databaseKind uint8
-
-const (
-	databaseKindSQLite databaseKind = iota + 1
-	databaseKindPostgres
-)
-
-type databaseConfig struct {
-	kind           databaseKind
-	sqliteDatabase string
-	postgresURL    string
-	postgresSchema string
-}
-
-type articleBackend = databaseconfig.Backend
-
-type lookupEnvFunc = databaseconfig.LookupEnvFunc
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -60,18 +43,18 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) error {
-	return runWithListener(ctx, arguments, stdout, stderr, net.Listen, openArticleBackend)
+	return runWithListener(ctx, arguments, stdout, stderr, net.Listen, database.Open)
 }
 
 type listenFunc func(network, address string) (net.Listener, error)
-type openArticleBackendFunc func(context.Context, databaseConfig) (articleBackend, error)
+type backendOpener func(context.Context, database.Config) (database.Backend, error)
 
 func runWithListener(
 	ctx context.Context,
 	arguments []string,
 	stdout, stderr io.Writer,
 	listen listenFunc,
-	openBackend openArticleBackendFunc,
+	openBackend backendOpener,
 ) (resultErr error) {
 	if ctx == nil {
 		return errors.New("article site: nil context")
@@ -90,11 +73,11 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	database, err := databaseConfigForServe(config, environment.Lookup)
+	selected, err := databaseconfig.ForServe(config.database, config.databaseSpecified, environment.Lookup)
 	if err != nil {
 		return err
 	}
-	backend, err := openBackend(ctx, database)
+	backend, err := openBackend(ctx, selected)
 	if err != nil {
 		return err
 	}
@@ -131,7 +114,7 @@ func runWithListener(
 
 func applicationForServe(
 	ctx context.Context,
-	backend articleBackend,
+	backend database.Backend,
 	allowLoopbackAuthentication bool,
 ) (*web.Application, error) {
 	config := siteapp.NewConfig(backend)
@@ -185,25 +168,6 @@ func parseServeConfig(arguments []string, stderr io.Writer) (serveConfig, error)
 	return config, nil
 }
 
-func databaseConfigForServe(config serveConfig, lookup lookupEnvFunc) (databaseConfig, error) {
-	shared, err := databaseconfig.ForServe(config.database, config.databaseSpecified, lookup)
-	if err != nil {
-		return databaseConfig{}, err
-	}
-	switch shared.Kind() {
-	case databaseconfig.KindSQLite:
-		return databaseConfig{kind: databaseKindSQLite, sqliteDatabase: shared.SQLiteDatabase()}, nil
-	case databaseconfig.KindPostgres:
-		return databaseConfig{
-			kind:           databaseKindPostgres,
-			postgresURL:    shared.PostgresURL(),
-			postgresSchema: shared.PostgresSchema(),
-		}, nil
-	default:
-		return databaseConfig{}, errors.New("article site: database configuration is invalid")
-	}
-}
-
 func loopbackListenAddress(address string) bool {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil || host == "" {
@@ -211,21 +175,4 @@ func loopbackListenAddress(address string) bool {
 	}
 	parsed := net.ParseIP(host)
 	return parsed != nil && parsed.IsLoopback()
-}
-
-func openArticleBackend(ctx context.Context, config databaseConfig) (articleBackend, error) {
-	var shared databaseconfig.Config
-	var err error
-	switch config.kind {
-	case databaseKindSQLite:
-		shared, err = databaseconfig.SQLite(config.sqliteDatabase)
-	case databaseKindPostgres:
-		shared, err = databaseconfig.PostgreSQL(config.postgresURL, config.postgresSchema)
-	default:
-		return nil, errors.New("article site: database configuration is invalid")
-	}
-	if err != nil {
-		return nil, err
-	}
-	return databaseconfig.Open(ctx, shared)
 }

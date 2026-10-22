@@ -112,6 +112,7 @@ import (
 	"example.com/godj-operator-product/modeldef"
 	"example.com/godj-operator-product/operatorpolicy"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
 	"golang.org/x/sys/unix"
@@ -201,7 +202,7 @@ func main() {
 			if selectionErr != nil {
 				return nil, selectionErr
 			}
-			return databaseconfig.Open(ctx, selected)
+			return database.Open(ctx, selected)
 		},
 		MigrationSQLRenderer: selected.MigrationSQLRenderer(),
 		OpenSystemStateBackend: func(ctx context.Context) (project.SystemStateBackend, error) {
@@ -210,7 +211,7 @@ func main() {
 			}
 			if policyErr != nil { return nil, policyErr }
 			if runtimeConfigErr != nil { return nil, runtimeConfigErr }
-			opened, err := databaseconfig.Open(ctx, selected)
+			opened, err := database.Open(ctx, selected)
 			if err != nil {
 				return nil, err
 			}
@@ -385,6 +386,7 @@ import (
 
 	"example.com/godj-operator-product/application"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/web"
 )
 
@@ -415,7 +417,7 @@ func run(ctx context.Context, arguments []string, stdout io.Writer) (resultErr e
 	if err != nil {
 		return errors.New("database configuration")
 	}
-	backend, err := databaseconfig.Open(ctx, selected)
+	backend, err := database.Open(ctx, selected)
 	if err != nil {
 		return errors.New("database open")
 	}

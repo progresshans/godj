@@ -4,7 +4,7 @@
 이를 만든 애플리케이션이 소유한다. 설정 생성이 DB나 파일 backend를 몰래 열지 않는다.
 
 `settings.NewEnvironment`는 process 진입점에서 한 번 읽은 환경을 별도 snapshot으로 만든다.
-Library는 `os.Getenv`, `os.Setenv` 또는 전역 registry를 사용하지 않는다.
+Environment의 생성·조회는 `os.Getenv`, `os.Setenv` 또는 전역 registry를 사용하지 않는다.
 
 ```go
 environment, err := settings.NewEnvironment(os.Environ())
@@ -28,3 +28,6 @@ databaseURL, configured := environment.Lookup("APP_DATABASE_URL")
 Article의 [project runner](../examples/article/cmd/projectrunner/main.go)와
 [서버 진입점](../examples/article/cmd/site/main.go)은 각각 이 snapshot을 만들고 기존의 엄격한 DB 선택 정책에
 `environment.Lookup`을 전달한다. 실행·환경별 검증 상태는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
+
+공통 [DB 설정](database/README.md)은 이 lookup과 명시적 default/override에서 불변 DB 선택을 만든다.
+환경변수 이름과 기본값 정책은 프로젝트가, 실제 접속과 닫기는 invocation/runtime owner가 정한다.

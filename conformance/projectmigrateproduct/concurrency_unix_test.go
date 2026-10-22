@@ -396,6 +396,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/migrations/backend"
 	godjproject "github.com/progresshans/godj/project"
@@ -737,7 +738,7 @@ func runMain() int {
 				if err != nil {
 					return nil, err
 				}
-				migrationBackend, err := databaseconfig.Open(ctx, opened)
+				migrationBackend, err := database.Open(ctx, opened)
 				if err != nil {
 					return nil, err
 				}

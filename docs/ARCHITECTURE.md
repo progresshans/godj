@@ -198,6 +198,10 @@ Backend renderer는 operation마다 ordered statement group을 반환한다. Roo
 전역 `godj`는 `godj.toml`로 project-owned runner를 찾는다. Runner는 선언 schema·migration catalog·backend opener·operator
 정책을 조립한다. 전역 도구와 프로젝트의 명시적 protocol을 구분하여 host의 다른 설정이나 source를 암묵적으로 섞지 않는다.
 
+`settings.Environment`가 진입점의 환경 snapshot을, `settings/database`가 명시적 DB 선택과 설정 진단을 소유한다.
+프로젝트는 환경 key·default/override 정책과 backend opener를 조립한다. 전역 CLI는 이 opener를 직접 import하거나
+실행하지 않는다. 설정 생성은 I/O를 하지 않으며 열린 backend의 수명은 해당 invocation/runtime owner가 맡는다.
+
 잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되
 credential·사용자 secret·원문 private path를 공개 오류에 붙이지 않는다. Build 실패만 category/code 뒤에 제한된 sanitized 원인을 추가한다.

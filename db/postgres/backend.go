@@ -82,7 +82,7 @@ func Open(ctx context.Context, config Config) (*Backend, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := validateConfig(config); err != nil {
+	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
 
@@ -284,17 +284,25 @@ func (failure postgresPhysicalSessionProfileError) Error() string {
 }
 func (failure postgresPhysicalSessionProfileError) Unwrap() error { return failure.publicError() }
 
-func validateConfig(config Config) error {
+// ValidateConfig checks the URL shape and application schema without reading
+// the environment, opening certificate files, or contacting a database. Driver
+// options and the physical server profile are validated by Open.
+func ValidateConfig(config Config) error {
+	invalid := func(field, detail string) error {
+		failure := backendInvalid(detail)
+		failure.Field = field
+		return failure
+	}
 	if strings.TrimSpace(config.URL) == "" {
-		return backendInvalid("PostgreSQL URL is empty")
+		return invalid("url", "PostgreSQL URL is empty")
 	}
 	parsed, err := url.Parse(config.URL)
 	if err != nil || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") ||
 		parsed.Host == "" || parsed.Path == "" || parsed.Path == "/" || parsed.Fragment != "" {
-		return backendInvalid("PostgreSQL URL must identify a database with a postgres or postgresql URL")
+		return invalid("url", "PostgreSQL URL must identify a database with a postgres or postgresql URL")
 	}
 	if err := validateSchemaIdentifier(config.Schema); err != nil {
-		return backendInvalid(err.Error())
+		return invalid("schema", err.Error())
 	}
 	return nil
 }

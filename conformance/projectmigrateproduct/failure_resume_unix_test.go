@@ -168,6 +168,7 @@ import (
 	"os"
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	"github.com/progresshans/godj/settings/database"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/schema/ir"
@@ -245,7 +246,7 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
-			backend, err := databaseconfig.Open(ctx, config)
+			backend, err := database.Open(ctx, config)
 			if err != nil {
 				return nil, err
 			}

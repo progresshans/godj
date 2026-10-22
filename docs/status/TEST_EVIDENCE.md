@@ -23,6 +23,44 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 공통 DB 설정과 실제 소비자 연결 작성
+
+`4bded61f` 기반에서 `settings/database`에 불변 DB 선택, 프로젝트별 환경 key/기본값/명시적 override,
+credential 없는 migration SQL profile과 caller가 닫는 공통 opener를 작성했다. Article의 package는 기존
+환경 이름과 flag 정책만 소유하고, 선언 runner·서버·operator와 외부 migration/operator 소비자는 공통 경계를 사용한다.
+사이트에 중복됐던 DB 종류·설정 복사·opener를 제거했다. PostgreSQL URL/schema의 순수 검증은 adapter가 소유한다.
+
+누락·빈 값·상충/잘못된 입력은 기본값으로 숨기지 않으며 field별 닫힌 진단을 반환한다. 복사·동시 읽기·format/JSON
+비노출·환경 key 검증·I/O 전 nil/canceled context 거부 검사를 작성했다. 기존 SQLite open과 SQL renderer 검사는
+공통 package로 옮겼고, Article 정책 검사와 adapter의 잘못된 SQL renderer/secret 비노출 검사는 유지했다.
+
+`gdj0137-database-compile-v1/receipt.json` SHA-256은
+`106787fa597d851212f915a46b5d3bd91ac924a58107b060864ff1fd7e254c09`다. Go 1.26.5 darwin/arm64에서
+변경한 18개 Go 파일의 hash를 기록하고 공통 설정·adapter·Article 세 명령·관련 conformance의 9개 package를
+`go test -run '^$' -vet=off`로 compile했다. 실제 테스트 본문은 실행하지 않았다.
+외부 소비자의 세 raw template을 임시 module로 추출해 `go build ./...`를 확인했다.
+`templates.json` SHA-256은 `6b1d868616a3df9a06e1713b454d69d1efc2fed8d4684fb01305f24ccd026541`이다.
+최종 import 정리 후 source hash·공통 package 최소 compile·문서 검사를 기록한 `final-source.json`의 SHA-256은
+`f49e757640b3118b374598c04ea62587ec9b8a1e50eaea416ef66375f22553b3`이다.
+
+새 선택·resource·SQLite/PostgreSQL 소비자·실제 process·race/platform 검사는 원격 CI에서 이어 간다.
+Driver의 ambient `PG*`·service/passfile·TLS 입력 소유권은 C1-02의 후속 구현·격리 검증으로 남는다.
+이 기록은 전체 effective PostgreSQL 연결의 격리나 scaffold·lifecycle·C1 완료를 뜻하지 않는다.
+
+## GDJ-0137 — prerequisite import에 맞춘 별칭 검사 수정
+
+`4bded61fe889ac7c875ffce5e4d68eb300aa9742`의
+[CI 39839275950](https://github.com/progresshans/godj/actions/runs/39839275950)에서 Portable core 세 작업은
+기존 reverse 검사 하나가 `context`를 안전한 앱 별칭으로 간주해 실패했다. 실제 prerequisite object 파일은
+표준 `context`도 import하므로 새 AST 검사가 이를 거부하는 것이 맞다. 세 job 원본은
+`gdj0137-4bded61f-ci-39839275950/`에 보존한다.
+
+제품 검사나 alias 정책을 완화하지 않고 해당 기대값을 충돌 거부로 수정했다. 실제 import가 없는 빈 앱에서는
+같은 별칭을 허용하는 대조도 넣었다. 같은 source archive에서 원래 root의 실패와 test 파일만 바꾼 뒤 성공을 재현했다.
+`gdj0137-4bded61f-context-alias-repro-v1/receipt.json` SHA-256은
+`dd594cbde16f746f226302cf5a100d7a73b0aef28dcf65f2c39b2a9f2e0c4255`다.
+이 한 root는 skip 없이 통과했으며 공통 DB 변경은 재현 사본에 포함하지 않았다. 전체 CI 원본 대조는 남아 있다.
+
 ## GDJ-0137 — 생성 import 충돌과 외부 소비자 의존성 수정
 
 `b8b41da5c109d6f52b69796bd97d1ef239d25803`의

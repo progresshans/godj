@@ -26,7 +26,6 @@ import (
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
-	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/internal/gobuild"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
@@ -36,6 +35,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/settings/database"
 )
 
 const (
@@ -836,7 +836,7 @@ func migrationSQLRenderingPostgres(ctx context.Context, contract protocol.Contra
 	selectionEvidence, err := migrationSQLRenderingObserveConfiguredRenderer(
 		ctx,
 		fixture,
-		func(databaseconfig.Config) migrationbackend.MigrationSQLRenderer { return renderer },
+		func(database.Config) migrationbackend.MigrationSQLRenderer { return renderer },
 		false,
 	)
 	if err != nil {
@@ -2183,7 +2183,7 @@ func migrationSQLRenderingObserveOneSelection(
 	return migrationSQLRenderingObserveConfiguredRenderer(
 		ctx,
 		fixture,
-		func(selected databaseconfig.Config) migrationbackend.MigrationSQLRenderer {
+		func(selected database.Config) migrationbackend.MigrationSQLRenderer {
 			return selected.MigrationSQLRenderer()
 		},
 		true,
@@ -2193,7 +2193,7 @@ func migrationSQLRenderingObserveOneSelection(
 func migrationSQLRenderingObserveConfiguredRenderer(
 	ctx context.Context,
 	fixture migrationSQLRenderingFixture,
-	rendererFor func(databaseconfig.Config) migrationbackend.MigrationSQLRenderer,
+	rendererFor func(database.Config) migrationbackend.MigrationSQLRenderer,
 	coherent bool,
 ) (evidence migrationSQLRenderingSelectionEvidence, resultErr error) {
 	if rendererFor == nil {
@@ -2216,11 +2216,11 @@ func migrationSQLRenderingObserveConfiguredRenderer(
 	if err := poisonNetwork.verifyAttemptObservation(ctx); err != nil {
 		return migrationSQLRenderingSelectionEvidence{}, fmt.Errorf("verify migration SQL poison network: %w", err)
 	}
-	selected, err := databaseconfig.PostgreSQL(
+	selected, err := database.PostgreSQL(
 		poisonNetwork.databaseURL(),
 		"public",
 	)
-	if err != nil || selected.Kind() != databaseconfig.KindPostgres {
+	if err != nil || selected.Kind() != database.KindPostgres {
 		return migrationSQLRenderingSelectionEvidence{}, fmt.Errorf("construct frozen Article PostgreSQL selection: %w", err)
 	}
 	renderer := rendererFor(selected)
@@ -2236,7 +2236,7 @@ func migrationSQLRenderingObserveConfiguredRenderer(
 		MigrationDefinitionSources: fixture.sources,
 		OpenMigrationBackend: func(openContext context.Context) (project.MigrationBackend, error) {
 			backendOpens++
-			return databaseconfig.Open(openContext, selected)
+			return database.Open(openContext, selected)
 		},
 		MigrationSQLRenderer: renderer,
 	}
