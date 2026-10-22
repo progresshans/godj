@@ -23,6 +23,21 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 생성된 설치 앱 의존성 검사 수정
+
+`11f801e6`의 [CI 39846006086](https://github.com/progresshans/godj/actions/runs/39846006086)에서 Linux amd64 race
+relation shard 1의 두 root가 생성 project의 새 공개 `apps` import를 거부했다. Query/object와 bridge 소비자의
+세 허용 목록에 설치 앱 목록을 반환하는 데 필요한 같은 의존성을 반영했다. 앱끼리 직접/간접 import하는 것을
+거부하는 검사와 허용되지 않은 project import 거부는 유지했다. 제품 생성기나 생성 ABI는 바꾸지 않았다.
+
+Job `120060214539`의 metadata/log는 `gdj0137-11f801e6-ci-39846006086/`에 있다. Log SHA-256은
+`6b97a260ee63c73005a243daeabac7aa8998834d05baa13b86e29a893fdcd1f9`다.
+같은 source archive의 분리 사본에서 두 root와 같은 bridge 검사를 사용하는 두 root까지 모두 실패를 재현했다.
+세 test 파일만 수정한 뒤 네 root의 실제 외부 생성·compile·binding 검사가 skip 없이 통과했다.
+`gdj0137-generated-app-dependency-repro-v1/receipt.json` SHA-256은
+`a5ebdfe1109b82668ed20cc46a97692977df801310bfa4313441f15ecf2714df`다.
+새 app lifecycle 변경은 이 재현 사본에 포함하지 않았다. 전체 race/platform 및 현재 source의 원본 대조는 여전히 남아 있다.
+
 ## GDJ-0137 — 명시적 앱 lifecycle과 외부 생성 소비자 작성
 
 `11f801e6324b41572d7174cef909e30908a90f30` 기반에서 설치 identity와 별도로 startup hook/dependency를 조립하는

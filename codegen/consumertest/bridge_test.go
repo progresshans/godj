@@ -162,7 +162,7 @@ func validateGeneratedImportGraph(t *testing.T, directory string) {
 		}
 	}
 
-	wantBridgeImports := []string{authorsPath, blogPath, ormPath}
+	wantBridgeImports := []string{authorsPath, blogPath, ormPath, "github.com/progresshans/godj/apps"}
 	for _, required := range wantBridgeImports {
 		if !slices.Contains(binding.Imports, required) {
 			t.Errorf("generated bridge does not directly import %s: %v", required, binding.Imports)

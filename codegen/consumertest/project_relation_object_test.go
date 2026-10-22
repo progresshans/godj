@@ -283,6 +283,7 @@ func validateGeneratedRelationObjectImportGraph(
 		"context",
 		targetPath,
 		sourcePath,
+		"github.com/progresshans/godj/apps",
 		"github.com/progresshans/godj/db",
 		"github.com/progresshans/godj/orm",
 		"github.com/progresshans/godj/query",

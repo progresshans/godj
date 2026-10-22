@@ -288,7 +288,7 @@ func validateGeneratedRelationQueryImportGraph(t *testing.T, directory string) {
 			t.Errorf("generated app direct import/dependency edge exists: %s", check.name)
 		}
 	}
-	wantProjectImports := []string{authorsPath, blogPath, ormPath, irPath}
+	wantProjectImports := []string{authorsPath, blogPath, ormPath, irPath, "github.com/progresshans/godj/apps"}
 	for _, required := range wantProjectImports {
 		if !slices.Contains(project.Imports, required) {
 			t.Errorf("generated project does not directly import %s: %v", required, project.Imports)
