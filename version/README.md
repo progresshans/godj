@@ -9,8 +9,8 @@
 
 | `origin` | 의미 | `version` |
 |---|---|---|
-| `module` | 고정 module version으로 링크됨 | 실제 링크된 version |
-| `development` | framework main module 또는 Go workspace 개발 source | 없음 |
+| `module` | compiler metadata에 module version이 기록됨 | 실제 기록된 version |
+| `development` | version이 없는 framework main module 또는 Go workspace source | 없음 |
 | `local_replacement` | 로컬 source를 가리키는 `replace` | 없음 |
 | `module_replacement` | version이 있는 다른 module 또는 version으로 `replace` | 대체 module의 version |
 | `unknown` | metadata가 없거나 식별 불가능 | 없음 |
@@ -20,6 +20,8 @@ Versioned replacement만 `replacement_module`을 표시하고 로컬 경로는 �
 `revision`과 `modified`는 GoDj 자체가 main module일 때만 포함한다. 외부 프로젝트의 Git revision은
 GoDj dependency나 workspace source의 revision으로 사용하지 않는다. `go_version`은 실행 파일을 만든
 컴파일러의 정보이며 GoDj의 최소 Go version을 뜻하지 않는다.
+Go는 깨끗한 Git 체크아웃에도 tag나 pseudo-version을 기록할 수 있다. 따라서 `module`은 `go install`로 설치했다는
+증명이나 해당 version을 registry에서 다운로드할 수 있다는 보장이 아니다. Compiler가 기록한 version을 그대로 구분한다.
 
 Build flags·다른 dependency·프로젝트 module 이름·환경·credential·로컬 replacement 경로는 결과에 포함하지 않는다.
 텍스트 token은 길이와 문자 범위를 제한한다. 정보를 찾지 못하면 `unknown`을 유지하며 `latest`나 가짜 version을 만들지 않는다.

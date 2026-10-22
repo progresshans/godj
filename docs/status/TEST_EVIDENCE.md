@@ -23,6 +23,26 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 버전 CI fixture 수정과 원격 browser 반환 확인
+
+`9fb5dccb`의 [CI 39854009866](https://github.com/progresshans/godj/actions/runs/39854009866)에서 Linux normal project-check
+job `120088104543`의 두 version root가 실패했다. 깨끗한 Git source에 Go가 부여한 실제 pseudo-version을 테스트가
+`development`로 잘못 예상했고, 고정 module fixture의 읽기 전용 cache directory는 TempDir cleanup이 삭제하지 못했다.
+Compiler `BuildInfo.Main.Version`과 직접 대조하도록 기대값을 고치고 fixture 소유 private cache에만 `-modcacherw`를 적용한다.
+제품 버전 해석 코드는 바꾸지 않는다. `module` origin이 설치 방법이나 registry 접근성을 증명하지 않는다는 설명도 명확히 했다.
+
+원본 metadata/log는 `gdj0137-9fb5dccb-ci-39854009866/`에 있으며 log SHA-256은
+`49febafc8f35bfea3c1ae6fd643ff52a18b878e7ca52e20782894e5c1b2182dd`다.
+동일 HEAD의 깨끗한 분리 Git 사본에서 두 root의 같은 실패를 재현했고 test 파일만 바꾼 뒤 두 root와 closed-stdout 하위 검사가
+skip 없이 통과했다. `gdj0137-version-ci-repro-v1/receipt.json` SHA-256은
+`e44005156ee88afe9fb8660f7a61e27e6a204af1b454e63fbb556bcfc49e4e66`이다. 다른 platform/race 및 전체 CI 완료는 아니다.
+
+같은 `9fb5dccb` run의 integration job `120088104221`에서는 Admin browser 네 흐름이 정상 반환했다.
+Inline 33·upload 20·choices 34·collections 38개와 native 결과·browser/DB 정리를 확인했고 receipt의 파일 digest를 대조했다.
+Artifact `12459566511`의 ZIP SHA-256은 `5739123ee78022613aff42c595646158e4ab89fe3793594e654d57fa6a41582f`,
+browser `receipt.json`은 `80829d262bbbaa7250358882adabc085a0731fe27c717270681ceaaf660e9e02`다.
+이전 중단의 세부 원인이 확정된 것은 아니며, 현재 변경과 F1 source의 전체 검증을 대신하지 않는다.
+
 ## GDJ-0137 — 원격 컬렉션 browser 중단의 재현과 진단
 
 `c1ba9ab4`의 [CI 39850681169](https://github.com/progresshans/godj/actions/runs/39850681169)에서 normal integration

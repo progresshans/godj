@@ -81,7 +81,11 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 		FormatVersion int          `json:"format_version"`
 		Framework     version.Info `json:"framework"`
 	}
-	if err := json.Unmarshal(output, &document); err != nil || document.FormatVersion != 1 || document.Framework.Origin != version.Development || document.Framework.Module != version.Module || document.Framework.Version != "" || document.Framework.GoVersion != compiled.GoVersion {
+	wantOrigin, wantVersion := version.ModuleVersion, compiled.Main.Version
+	if wantVersion == "" || wantVersion == "(devel)" {
+		wantOrigin, wantVersion = version.Development, ""
+	}
+	if err := json.Unmarshal(output, &document); err != nil || document.FormatVersion != 1 || document.Framework.Origin != wantOrigin || document.Framework.Module != version.Module || document.Framework.Version != wantVersion || document.Framework.GoVersion != compiled.GoVersion {
 		t.Fatalf("tool version: %s (%v)", output, err)
 	}
 	revision := ""
@@ -98,7 +102,11 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 		t.Fatalf("tool VCS identity differs from compiler: %+v", document.Framework)
 	}
 	plain := versionCommand(t, root, runtimeEnvironment, binary, "version")
-	if !strings.HasPrefix(string(plain), "godj development "+revision) {
+	wantLabel := wantVersion
+	if wantLabel == "" {
+		wantLabel = string(wantOrigin)
+	}
+	if !strings.HasPrefix(string(plain), "godj "+wantLabel+" "+revision) {
 		t.Fatalf("plain version = %q", plain)
 	}
 	for _, private := range []string{repository, root, "secret-marker", "invalid private descriptor"} {
@@ -214,7 +222,12 @@ func main() { if err := json.NewEncoder(os.Stdout).Encode(version.Current()); er
 	versionWrite(t, filepath.Join(proxy, fixtureVersion+".info"), []byte(`{"Version":"`+fixtureVersion+`","Time":"2026-10-23T00:00:00Z"}`))
 	versionWrite(t, filepath.Join(project, "go.mod"), []byte(module))
 	proxyURL := (&url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Join(root, "proxy"))}).String()
-	fixedEnvironment := testenv.With(environment, map[string]string{"GOPROXY": proxyURL, "GOMODCACHE": filepath.Join(root, "module-cache")})
+	// This cache belongs to the fixture's TempDir. Go's default read-only
+	// module directories cannot be removed by ordinary TempDir cleanup.
+	fixedEnvironment := testenv.With(environment, map[string]string{
+		"GOPROXY": proxyURL, "GOMODCACHE": filepath.Join(root, "module-cache"),
+		"GOFLAGS": strings.TrimSpace(testenv.Map(environment)["GOFLAGS"] + " -modcacherw"),
+	})
 	fixed := buildAndRead(fixedEnvironment)
 	if fixed.Origin != version.ModuleVersion || fixed.Version != fixtureVersion || fixed.RequestedVersion != "" || fixed.ReplacementModule != "" {
 		t.Fatalf("fixed dependency lost effective version: %+v", fixed)
