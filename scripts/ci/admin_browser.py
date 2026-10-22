@@ -134,6 +134,8 @@ CHECKS['collections'] = (
     'membership-only reload preserves scalar and cleared file state',
     'read-only existing rows disable custom fields and omit mutation controls',
     'read-only successful controls retain identity and revision without editable payloads',
+    'an invalid added row redisplays while existing collection rows stay read-only',
+    'a prototype added after redisplay retains denied order and delete permissions',
     'add permission creates a file row while all existing rows stay read-only',
     'stored reload confirms read-only preservation and the new row ownership',
     'late audit rejection redisplays only after the native transaction rolls back',

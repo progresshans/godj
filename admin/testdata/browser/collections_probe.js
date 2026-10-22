@@ -132,6 +132,11 @@ async (page) => {
         return data.get("assets-0-id") === "1" && data.get("assets-0-expected_revision") === "4" && !data.has("assets-0-code") && !data.has("assets-0-attachment") && !data.has("assets-0-labels");
     }), "read-only successful controls retain identity and revision without editable payloads");
     await add().click();
+    await input("assets-2-code").fill("reject readonly");
+    await check(await submit() === 200 && await page.locator('[data-error-field="assets-2-code"][data-error-code="code_review"]').count() === 1, "an invalid added row redisplays while existing collection rows stay read-only");
+    await add().click();
+    await check(await input("assets-3-code").isEnabled() && await input("assets-3-ORDER").count() === 0 && await input("assets-3-DELETE").count() === 0 && await input("assets-0-code").isDisabled(), "a prototype added after redisplay retains denied order and delete permissions");
+    await group().getByRole("button", {name: "Remove item 4", exact: true}).click();
     await input("assets-2-code").fill("readonlyadd");
     await upload("assets-2-attachment", "readonly.txt", "readonly attachment");
     await search("assets-2-labels", "05", "5");

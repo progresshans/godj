@@ -348,7 +348,11 @@ func NewCollectionFormSet[M any](config CollectionFormSetConfig[M]) (ModelCollec
 					return collectionFormSetBound{}, err
 				}
 			} else if access.Add {
-				prototypeRows, err := rows.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
+				prototypeRows, err := rows.WithConfig(bound.policy)
+				if err != nil {
+					return collectionFormSetBound{}, err
+				}
+				prototypeRows, err = prototypeRows.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
 				if err != nil {
 					return collectionFormSetBound{}, err
 				}

@@ -418,7 +418,11 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 				}
 				result.choiceViews = views
 			} else if access.Add {
-				prototypeRows, prototypeErr := rows.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
+				prototypeRows, prototypeErr := rows.WithConfig(result.policy)
+				if prototypeErr != nil {
+					return inlineBound{}, prototypeErr
+				}
+				prototypeRows, prototypeErr = prototypeRows.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
 				if prototypeErr != nil {
 					return inlineBound{}, prototypeErr
 				}

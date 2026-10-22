@@ -23,6 +23,25 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 오류 재표시의 새 행 권한 유지
+
+`48151ba2` source 검토에서 관계 선택을 가진 Inline/collection의 오류 재표시 prototype이 최초 등록의
+SetConfig를 사용해, 현재 요청에서 금지한 ORDER/DELETE control을 다시 만드는 문제를 확인했다.
+서버의 제출 거부는 유지됐지만 오류를 고친 뒤 새 행을 추가하면 거부된 control 때문에 정상 저장도 막힐 수 있었다.
+Prototype에도 현재 바인딩의 제한된 정책을 적용했다. 권한과 바인딩 규칙 자체를 완화하지 않았다.
+
+`48151ba2445f8e9aebdbc65f7133028aaf4a0003` archive에 회귀 검사만 추가한 분리 source에서
+`go test -json -count=1 -run '^TestChoiceRedisplayPrototypeRetainsAdmittedRowPolicy$' ./admin`을 실행했다.
+Inline/collection 각각 허용·정렬 거부·삭제 거부·둘 다 거부의 8개 사례 중 6개 거부 사례가 수정 전 실패했다.
+두 제품 파일을 수정한 뒤 같은 8개 사례와 root/group을 포함한 11개 경로가 모두 통과했고 skip은 없었다.
+`gdj0136-prototype-policy-repro-v1/receipt.json` SHA-256은
+`3312ccddf36a7f706e84543e43361da907f081b04ad3be920c809639ba4aafe7`다.
+이 경로만 로컬에서 재현했으며 전체 테스트·DB/race를 다시 실행하지 않았다.
+
+해당 11개 경로를 PostgreSQL 필수 목록에 추가했다. 컬렉션 browser에도 readonly 상태의 invalid POST 뒤
+새 행을 추가해 ORDER/DELETE가 없는지 검사하는 2개 항목을 작성해 총 38개로 확장했다.
+Native DB/파일/시도 기대 상태는 그대로다. 새 browser 항목과 같은 source의 전체 원격 검증은 아직 미완료다.
+
 ## GDJ-0136 — 실제 컬렉션 브라우저 소비자 작성
 
 `admin/testdata/browser/modeldef`의 Inventory Asset/FileField·AssetLabel·Audit를 생성하고,

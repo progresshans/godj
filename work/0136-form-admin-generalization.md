@@ -114,6 +114,8 @@ compile 거부를 필수 실행으로 작성했다. 파일 게시 뒤 DB rollbac
 기존 multipart와 외부 생성 소비자는 code/file의 실제 등록 템플릿을 사용한다. 최소 compile만 확인했으며
 widget 본문과 현재 source의 전체 원격 원본 대조는 계속 남아 있다.
 브라우저 소비자에는 외부 Helpdesk와 연결한 생성 Inventory 모델·FileField·M2M·revision·audit를 추가했다.
-같은 공개 typed collection/위젯 선언을 36개 Chromium 흐름에 연결하고, 전체 DB/파일/시도 결과와 정리의 대조 및
+같은 공개 typed collection/위젯 선언을 38개 Chromium 흐름에 연결하고, 전체 DB/파일/시도 결과와 정리의 대조 및
 누락/중복/변조 부정 검사를 작성했다. 새 browser 흐름·native 종료 대조는 실행하지 않았으며 원격 CI에서 확인해야 한다.
+오류 재표시 뒤 관계 선택 prototype이 초기 등록의 정렬/삭제 정책을 되살리는 문제를 Inline과 collection에서
+재현하고, 요청별 제한을 유지하도록 수정했다. 좁힌 재현 결과와 추가 browser 검사의 미실행 범위는 TEST_EVIDENCE에 둔다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.
