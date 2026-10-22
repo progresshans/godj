@@ -2847,3 +2847,4 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminCollections/
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminCollections/changed
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminCollections/changed/foreign_current_loader
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAdminCollections/changed/foreign_file_saver
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAppsOwnOrderedStartupAndCleanup

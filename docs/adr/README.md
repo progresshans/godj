@@ -99,6 +99,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 
 | [0092](0092-model-input-and-crud-assembly.md) | Accepted design; 검증 진행 | 모델 입력 source·Form target binding·명시적 CRUD와 확정 transaction 결과 |
 
+| [0093](0093-explicit-app-startup-and-shutdown.md) | Accepted design; 검증 진행 | 명시적 앱 의존 순서·callback 수명·부분 시작 rollback과 한 번 종료 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

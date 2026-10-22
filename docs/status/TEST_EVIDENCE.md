@@ -23,6 +23,30 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 명시적 앱 lifecycle과 외부 생성 소비자 작성
+
+`11f801e6324b41572d7174cef909e30908a90f30` 기반에서 설치 identity와 별도로 startup hook/dependency를 조립하는
+`apps.Start`를 작성했다. 전체 graph를 먼저 검사하고 순서대로 초기화하며 Stop+error의 부분 획득도 역순으로 정리한다.
+협력적 취소·panic/Goexit 때 callback을 완료까지 기다리고, 명시적 Shutdown의 한 번 실행·재진입 거부·별도 Wait를 연결했다.
+Callback cause는 명시적으로 검사할 수 있지만 기본 진단에는 원문을 넣지 않으며 저장된 종료 결과는 caller 수정으로 바뀌지 않는다.
+App label도 Schema IR의 같은 lexical 규칙을 사용해 `_storage` 같은 정상 label을 유지하고 암묵적인 공백 변경을 제거했다.
+
+의존 순서·입력 snapshot·전체 preflight·partial/error/abnormal exit·취소 중 callback 수명·동시/재귀 종료·독립 lifecycle을
+검사하도록 작성했다. 실제 외부 module은 생성한 model-free storage 앱과 Note 모델 앱을 사용한다. 명시적인 사전 migration 뒤
+SQLite resource를 열고, 의존 app worker·생성 모델 저장·역순 종료와 부분 시작 실패·재연결 후 데이터 보존을 검사한다.
+이 흐름의 본문을 아직 로컬에서 실행하지 않았으며 아래 compile을 그 성공으로 계산하지 않는다.
+
+`gdj0137-app-startup-compile-v1/receipt.json` SHA-256은
+`a63760a3df1fad6839fa51995dbbed786251374675871f3d62abf8657a97b06d`다. 실제 생성기로 독립 module을 만든 뒤
+child `go test -run '^$' -vet=off` 최소 compile만 확인했다. 임시 parent helper와 생성된 module·원본 로그를 보존했으며
+helper는 제출 source에 포함하지 않는다. Child app/DB/worker 테스트 본문은 실행하지 않았다.
+
+최종 6개 Go source와 apps/settings/consumer 최소 compile·문서 235개·diff·compiled test inventory를 묶은
+`final-source.json` SHA-256은 `f0723c431f8d282bf361b52471e2bfaa062ff4a0c9ba32b6c22b23a5fbe27289`다.
+Consumer의 실제 binary에서 105개 root를 열거했고, 새 필수 root가 12개 OS/arch/mode 좌표에서 각각 한 shard에 속함을 확인했다.
+이는 실행 계획 검사다. 실제 lifecycle·SQLite 소비자·race/platform·전체 CI 원본 대조는 원격 실행에 남아 있다.
+Scaffold·project command·event/logging·reload와 C1 전체 완료는 이 작성 범위에 포함되지 않는다.
+
 ## GDJ-0137 — 원격 process 조회 제한과 진단 조정
 
 `74841b23`의 [CI 39842470210](https://github.com/progresshans/godj/actions/runs/39842470210)에서

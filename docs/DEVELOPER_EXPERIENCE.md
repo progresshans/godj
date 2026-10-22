@@ -26,7 +26,9 @@ var Definition = schema.Definition{
 `schema.Build`가 normalized IR을 만들고 declaration-owned `ProjectSpec`이 app/project package 위치를 연결한다.
 `schema.Definition{AppLabel: "notifications"}`처럼 모델이 없는 앱도 선언할 수 있다. 생성된
 `project.InstalledApps()`를 `settings.Definition.InstalledApps`에 전달하면 동일한 앱 이름·label을 사용한다.
-목록은 caller 소유 복사이며 canonical package alias 순서다. 이 순서로 startup callback을 실행하는 기능은 아니다.
+목록은 caller 소유 복사이며 canonical package alias 순서다. 목록 생성 자체는 startup callback을 실행하지 않는다.
+`apps.Start`에 이 registry와 명시적 hook/dependency를 전달하면 앱 초기화와 resource 종료를 연결한다.
+설정과 같은 canonical label을 사용하며 [실패 정리와 종료 소유권](../apps/README.md)을 따른다.
 나중에 첫 모델을 추가하면 같은 앱 identity에 새 schema/project snapshot을 생성한다.
 생성된 FieldSet과 Manager를 사용한 query는 다음 형태다. `sqliteBackend`는 application이 연 backend다.
 

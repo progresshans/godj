@@ -204,6 +204,9 @@ Backend renderer는 operation마다 ordered statement group을 반환한다. Roo
 PostgreSQL adapter는 명시한 URL identity와 TLS 파일을 사용하고, 드라이버의 ambient 설정과 기본 credential 파일을
 연결 입력에서 제외한다. 기본 TLS는 verify-full이며 service 선택·중복/미지원 옵션은 명시적으로 거부한다.
 동작과 검증 경계는 [DB 설정](../settings/database/README.md)에 둔다.
+설치 app registry는 Schema IR과 같은 label 규칙을 사용한다. [앱 lifecycle](../apps/README.md)은 전체 dependency graph를
+검사한 뒤 callback을 순서대로 실행하고, 실패 또는 명시적인 종료에서 resource를 역순 정리한다.
+선언 snapshot과 resource lifetime을 분리하며 startup이 migration·repair를 암묵적으로 수행하지 않는다.
 
 잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되

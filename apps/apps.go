@@ -5,7 +5,8 @@ package apps
 
 import (
 	"strings"
-	"unicode"
+
+	"github.com/progresshans/godj/internal/identifiers"
 )
 
 // Config identifies one installed application. Name is its stable project
@@ -32,15 +33,14 @@ func New(configs []Config) (Registry, error) {
 	byName := make(map[string]struct{}, len(configs))
 	for index, config := range configs {
 		config.Name = strings.TrimSpace(config.Name)
-		config.Label = strings.TrimSpace(config.Label)
 		if config.Name == "" {
 			return Registry{}, &Error{Code: CodeInvalidConfig, Field: "name", Detail: "name is empty"}
 		}
-		if !validLabel(config.Label) {
+		if !identifiers.SQL(config.Label) {
 			return Registry{}, &Error{
 				Code:   CodeInvalidConfig,
 				Field:  "label",
-				Detail: "label must start with a letter and contain only letters, digits, or underscores",
+				Detail: "label must use the canonical schema namespace: lowercase ASCII letters, digits and underscores, without a leading digit",
 			}
 		}
 		if _, exists := byName[config.Name]; exists {
@@ -68,19 +68,4 @@ func (r Registry) Lookup(label string) (Config, bool) {
 		return Config{}, false
 	}
 	return r.configs[index], true
-}
-
-func validLabel(label string) bool {
-	for index, character := range label {
-		if index == 0 {
-			if !unicode.IsLetter(character) {
-				return false
-			}
-			continue
-		}
-		if !unicode.IsLetter(character) && !unicode.IsDigit(character) && character != '_' {
-			return false
-		}
-	}
-	return label != ""
 }
