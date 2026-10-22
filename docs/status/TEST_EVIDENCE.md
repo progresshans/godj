@@ -23,6 +23,19 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 전역 도구의 version source를 operator 증거에 포함
+
+`ea6bc611`의 [CI 39857082918](https://github.com/progresshans/godj/actions/runs/39857082918)에서 normal conformance
+job `120098837252`가 전역 CLI의 새 `version/version.go`를 SYS-029 source binding에서 찾지 못했다.
+Operator 검증의 제품 source 목록에 `version/`을 추가해 같은 source hashing과 symlink 치환 거부 대상에 포함했다.
+Native dependency 검사를 우회하거나 source 대조 범위를 줄이지 않았다.
+
+원본 metadata/log는 `gdj0137-ea6bc611-ci-39857082918/`에 있으며 log SHA-256은
+`d693b11bb625dcb6317182be58ffe16b7b8fe74ea91fc2767e63be2fd1122683`이다.
+같은 HEAD archive에서 기존 dependency 검사의 동일 실패를 재현했고 해당 목록 한 줄만 바꾼 뒤 통과했다.
+`gdj0137-version-binding-repro-v1/receipt.json` SHA-256은
+`158570518b4c027c75ac2d92834dfdc655b53509cdd6557d06f4e1d997e6d974`다. 아직 작성 중인 공통 project server는 이 사본에 포함하지 않았다.
+
 ## GDJ-0137 — 강제 HTTP 종료 뒤 application resource 수명 보완
 
 새 프로젝트의 공통 서버 조립을 준비하면서 `web.Server.Serve`가 graceful drain 기한 뒤 연결을 닫고,

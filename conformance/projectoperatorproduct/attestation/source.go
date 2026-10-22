@@ -97,6 +97,7 @@ var productSourcePrefixes = []string{
 	"identity/",
 	"templates/",
 	"validation/",
+	"version/",
 	"web/",
 	"examples/article/",
 }
