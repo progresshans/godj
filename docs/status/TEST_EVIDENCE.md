@@ -23,6 +23,22 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 강제 HTTP 종료 뒤 application resource 수명 보완
+
+새 프로젝트의 공통 서버 조립을 준비하면서 `web.Server.Serve`가 graceful drain 기한 뒤 연결을 닫고,
+handler/stream cleanup이 계속 실행 중인데도 반환하는 경로를 확인했다. 호출자가 곧바로 DB를 닫으면 application의 수명과 겹친다.
+`9fb5dccb` archive에 새 실제 HTTP 검사를 추가해 handler 취소 후 정리, stream Close, permanent Accept 실패 후 정리의
+세 경우에서 조기 반환을 재현했다. 제품의 요청 진입·완료 barrier만 반영한 사본에서는 세 경우가 skip 없이 통과했다.
+늦은 application 진입을 막고 이미 진입한 호출은 stream Close까지 기다린다. 기존 graceful 기한·연결 강제 종료와 오류 cause는 유지한다.
+
+`gdj0137-http-cleanup-repro-v1/receipt.json` SHA-256은
+`8c94bffd6f95407b7d3a8286ced1a19857a5f5ab79c2e1fe5bc2a45ad22b1a71`이다. 초기 fixture의 route namespace 누락은
+제품 실패 재현으로 세지 않고 source/log를 따로 보존했으며 수정된 동일 fixture에서 before/after를 모두 실행했다.
+이 검사는 세 수명 실패 경로에 한정된다. 전체 HTTP·Article·race/platform 및 공통 새 프로젝트 runtime의 검증은 남아 있다.
+비협력적인 handler/reader를 강제로 종료할 수는 없으며 이를 버리고 resource를 닫는 방식으로 성공을 만들지 않는다.
+같은 경로의 `final-source.json` SHA-256은 `19bb2fc452ea4596278dd13987c60e552237a1f5bb7494e81a7be0315bb0dd90`이며
+web·Article site·runserver product의 최소 compile, 236개 문서 링크와 diff를 확인했다. 추가 test 본문은 실행하지 않았다.
+
 ## GDJ-0137 — 버전 CI fixture 수정과 원격 browser 반환 확인
 
 `9fb5dccb`의 [CI 39854009866](https://github.com/progresshans/godj/actions/runs/39854009866)에서 Linux normal project-check

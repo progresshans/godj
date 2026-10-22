@@ -105,6 +105,8 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL의 URL identity·TLS file 소유권과
 ambient `PG*`/기본 credential 파일 차단도 작성했다. 실제 독립 프로젝트·pool 재연결과 현재 source의 원격 검증은 남아 있다.
 App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종료·재진입과 외부 generated 모델/SQLite 소비자도 작성했다.
+공통 서버 조립 전에 강제 연결 종료 후에도 남은 handler/stream 정리를 기다리는 경계를 보완했다. 실제 세 실패 경로의
+분리 재현과 수정 확인은 실행 증거에 있으며, 서버·앱·DB를 묶는 새 프로젝트 기본 runtime은 아직 작성 중이다.
 전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
 소비자 검증 및 C1-05의 실행 전 호환성 검사·generated ABI 연결은 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

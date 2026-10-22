@@ -243,7 +243,10 @@ child가 실행 중이거나 pipe writer가 남아 있는데 성공으로 반환
 처리하고 원래 exit status와 실패 종류를 보존한다. Test fixture가 외부 process를 쓸 때도 같은 수명 규칙을 적용한다.
 
 Web request의 context를 background job의 영구 상태로 보관하지 않는다. Server shutdown은 listener를 닫고 정해진 범위에서
-in-flight request를 정해진 shutdown 기한까지 drain한다. 유한 HTTP stream은 전체 middleware 성공 뒤 reader를 열고 전송/close까지
+in-flight request를 정해진 shutdown 기한까지 drain한다. 기한 후 연결을 강제로 닫더라도 application 진입을 봉인하고 기존
+handler와 stream Close가 반환할 때까지 기다린다. 연결 close를 callback 종료로 간주하지 않으며 owner는 Serve 반환 후 resource를
+닫는다. Context에 협력하지 않는 Go callback을 강제로 종료하거나 기다리지 않고 버리지 않는다.
+유한 HTTP stream은 전체 middleware 성공 뒤 reader를 열고 전송/close까지
 해당 요청이 소유한다. 고정 크기 read/write와 byte 상한을 사용하며 취소를 검사하고, header 이후 오류는 transport를 abort한다.
 빌린 Request/upload/DB session은 stream closure에 보관하지 않는다. 임의 reader의 context 비협조 Read는 강제로 중단하지 않는다.
 [전송 경계](../web/streaming.md)를 따른다. SSE/WebSocket·일반 장시간 작업은 별도 미완료 범위다.

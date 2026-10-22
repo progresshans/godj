@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -55,7 +56,11 @@ func NewServer(application *Application, options ServerOptions) (*Server, error)
 
 // Serve blocks until the listener fails or ctx requests shutdown. Graceful
 // shutdown uses a separate bounded cleanup context; a timeout force-closes
-// active connections and is returned to the caller.
+// active connections. Serve then joins all admitted application calls,
+// including response-stream cleanup, before returning the shutdown error.
+// Handlers and readers must cooperate with cancellation; closing a connection
+// cannot forcibly stop Go code. The caller may close application resources
+// only after Serve returns.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	if s == nil {
 		return invalidServerField("server", "server is nil", nil)
@@ -73,8 +78,10 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		return invalidServerField("server", "server has already been started", nil)
 	}
 
+	requests := &serverRequests{application: s.application, done: make(chan struct{})}
+	defer requests.join()
 	httpServer := &http.Server{
-		Handler:           s.application,
+		Handler:           requests,
 		ReadHeaderTimeout: s.options.ReadHeaderTimeout,
 		MaxHeaderBytes:    s.options.MaxHeaderBytes,
 	}
@@ -94,6 +101,47 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		serveErr := <-serveResult
 		return errors.Join(shutdownErr, normalizeServeError(serveErr))
 	}
+}
+
+// net/http.Close closes connections without waiting for their handlers. This
+// admission barrier prevents a late connection goroutine from entering the
+// application after join and keeps existing calls alive through stream Close.
+type serverRequests struct {
+	application *Application
+	mu          sync.Mutex
+	closing     bool
+	active      int
+	done        chan struct{}
+}
+
+func (requests *serverRequests) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	requests.mu.Lock()
+	if requests.closing {
+		requests.mu.Unlock()
+		http.Error(writer, "server is shutting down", http.StatusServiceUnavailable)
+		return
+	}
+	requests.active++
+	requests.mu.Unlock()
+	defer func() {
+		requests.mu.Lock()
+		requests.active--
+		if requests.closing && requests.active == 0 {
+			close(requests.done)
+		}
+		requests.mu.Unlock()
+	}()
+	requests.application.ServeHTTP(writer, request)
+}
+
+func (requests *serverRequests) join() {
+	requests.mu.Lock()
+	requests.closing = true
+	if requests.active == 0 {
+		close(requests.done)
+	}
+	requests.mu.Unlock()
+	<-requests.done
 }
 
 func (s *Server) drain(httpServer *http.Server) error {

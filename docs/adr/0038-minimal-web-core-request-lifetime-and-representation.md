@@ -53,7 +53,9 @@ implicit I/O가 생길 수 있습니다. 첫 Web slice 전에 request lifetime�
    Header만 바꾸는 session/API adapter는 body를 다시 복사하지 않으며 zero response는 파생할 수 없습니다.
 9. Server shutdown은 canceled serve context를 재사용하지 않고 별도 bounded cleanup context로 in-flight request를 drain한
    뒤 반환합니다. Context cancellation뿐 아니라 permanent listener/serve failure에서도 같은 bounded drain과 force-close를
-   완료하고 나서 반환합니다. Application owner가 server 종료 뒤 backend를 닫습니다.
+   수행합니다. 연결을 닫는 것만으로 Go handler가 끝나는 것은 아니므로, 새 application 진입을 봉인하고 이미 진입한 handler와
+   response stream의 Close까지 완료한 뒤 반환합니다. ShutdownTimeout은 graceful drain의 제한이며 협력하지 않는 Go callback을
+   강제로 종료하는 제한은 아닙니다. Application owner가 이 반환 뒤 backend를 닫습니다.
 10. Model representation은 `wrapper.Unwrap()`으로 clone된 raw model을 얻은 뒤 app-owned DTO로 명시 변환합니다.
     JSON과 template에는 DTO만 전달하며 wrapper automatic unwrap/reflection/`MarshalJSON` codegen은 만들지 않습니다.
 11. First Article slice는 startup에서 `html/template`를 error-returning parse하고 escaped HTML을 만듭니다. 이는 Go-native
