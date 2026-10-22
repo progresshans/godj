@@ -1,0 +1,75 @@
+# [[.Module]]
+
+This project contains an empty `site` app and GoDj's identity app. The declaration
+runner, generated model bundle, database configuration and HTTP application are
+ready to extend. `startproject` has generated and compiled the project; database
+migrations and the initial account are explicit operations.
+
+## Run locally
+
+Use the `godj` executable that created this project, with Go 1.26 or later in PATH.
+Run these commands from this directory:
+
+```sh
+godj generate --check
+godj migrations check
+godj migrate
+godj createsuperuser
+godj runserver
+```
+
+`createsuperuser` prompts for the first administrator's username and password on
+the terminal. Open `http://127.0.0.1:8000/admin/` and sign in. The application also
+provides the identity JSON API at `/api/identity/`; unsafe requests require the
+authenticated session and its masked CSRF token. The OpenAPI document at
+`/api/identity/openapi.json` requires identity model permissions.
+
+The default database is `site.sqlite3`. Apply migrations before serving. Without
+an initial account, the migrated application serves only its public home page.
+After provisioning, restarting loads the stored identity and permissions without
+requiring the password again.
+
+The supplied server accepts literal loopback addresses only. Its session cookies
+allow local HTTP. Review the deployment, TLS and cookie policy before creating a
+separate production entrypoint.
+
+## Change the application
+
+- Declare apps and model fields in `modeldef/apps.go`. This file uses Schema DSL
+  and imports no generated model code.
+- `modeldef/project.go` binds each app to `apps/<label>/models` and creates the
+  generated project binding in `project/`.
+- Edit `internal/config/config.go` for database and identity policy. It reads an
+  explicit environment snapshot and opens no resources.
+- Add Admin resources and authenticated API routes in `internal/site/models.go`.
+  Choose exposed fields and permissions explicitly; adding a model does not
+  automatically publish its fields as HTTP input.
+- Keep generated Go source, `go.mod`, `go.sum`, migrations and
+  `.godj/generated-manifest.json` with the project source.
+
+After changing a model, run `godj generate`, `godj makemigrations`, inspect the
+new migration, then run `godj migrate`. Stop and restart `godj runserver` to load
+the changes. Generation and server startup do not apply migrations or change
+stored account permissions automatically.
+
+To select another SQLite database, set `GODJ_SQLITE_DATABASE`. To select
+PostgreSQL, unset that variable and set `GODJ_POSTGRES_URL` and
+`GODJ_POSTGRES_SCHEMA` to a database/schema you own. Use the same configuration
+for migration, account provisioning and the server. Do not commit credentials.
+
+[[if .FrameworkSource]]This project uses an explicitly selected local framework checkout through the
+`replace` entry in `go.mod`. Moving or sharing the project requires choosing an
+available checkout or an explicit published module version.
+[[else]]The framework dependency is pinned to `[[.FrameworkVersion]]` in `go.mod`.
+[[end]]
+## Creation failures
+
+`startproject` publishes only to a new directory whose parent already exists.
+It rejects existing files, directories and symbolic links. A failed candidate
+build or generation leaves the destination absent and removes its owned staging
+directory. Dependency resolution may need network access to the configured Go
+module proxy.
+
+A `published_...` error means the directory was already created; inspect it
+before retrying. A durability or cleanup error does not mean creation was rolled
+back. Errors requiring staging recovery leave the owned work for inspection.

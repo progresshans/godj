@@ -8,6 +8,35 @@
 공개 `version.Current()`로 자신의 GoDj dependency를 조회한다. 개발 source와 replacement의 표시 규칙은
 [버전 조회](../version/README.md)를 따른다. 두 결과의 출력만으로 호환성 검증이 끝난 것은 아니다.
 
+## 새 프로젝트
+
+`godj startproject MODULE DIRECTORY`는 identity와 모델이 없는 `site` 앱, 선언 runner, generated runtime과
+설정을 만든다. 대상의 부모 디렉터리는 있어야 하고 대상 이름은 없어야 한다. 기존 빈 디렉터리도 덮어쓰지 않는다.
+고정 module에서 설치한 도구는 그 version을 사용하며 `--framework-version VERSION`으로 명시할 수도 있다.
+개발 checkout은 `--framework-source PATH`로 선택한다. 설치 도구의 위치나 현재 폴더에서 dependency를 추측하지 않는다.
+
+README에서 만든 도구를 사용해 저장소 루트에서 실행하는 개발 예시는 다음과 같다.
+
+```sh
+"$godj_demo_dir/godj" startproject example.com/my-site ../my-site --framework-source "$PWD"
+cd ../my-site
+"$godj_demo_dir/godj" generate --check
+"$godj_demo_dir/godj" migrations check
+"$godj_demo_dir/godj" migrate
+"$godj_demo_dir/godj" createsuperuser
+"$godj_demo_dir/godj" runserver
+```
+
+생성 명령은 실제 generator와 runtime compile을 마친 후보를 게시한다. 기본 `site.sqlite3`의 migration과 초기 계정은
+위 명시적 명령으로 만든다. `/admin/`과 `/api/identity/`는 같은 저장된 identity·권한·Session/CSRF를 사용한다.
+기본 runtime은 literal loopback만 허용하며 local HTTP cookie 정책을 쓴다. 운영 network/TLS 설정은 별도 entrypoint의 책임이다.
+
+생성된 `README.md`가 모델 선언·Admin/API 노출·DB 설정과 변경 후 명령을 설명한다. 업무 모델을 추가해도 모든 field를
+자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
+Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
+`startapp`·일반 command·설치 호환성 검사·reload는 [C1](../work/0137-project-core-startup.md)의 남은 구현이다.
+이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
 ## 모델에서 query까지
 
 [modeldef/schema.go](../examples/article/modeldef/schema.go)는 선언만 소유하고 generated model을 import하지 않는다.

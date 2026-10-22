@@ -507,13 +507,14 @@ func runGlobalArticleServerOnce(
 ) string {
 	t.Helper()
 	var body string
-	runGlobalArticleServer(
+	runGlobalProjectServer(
 		t,
 		globalBinary,
 		repository,
 		descriptor,
 		expectedAddress,
 		environment,
+		articleReadinessPrefix,
 		nil,
 		func(address string) error {
 			var err error
@@ -524,10 +525,11 @@ func runGlobalArticleServerOnce(
 	return body
 }
 
-func runGlobalArticleServer(
+func runGlobalProjectServer(
 	t *testing.T,
 	globalBinary, repository, descriptor, expectedAddress string,
 	environment []string,
+	readinessPrefix string,
 	sensitiveValues *[]string,
 	exercise func(string) error,
 ) {
@@ -535,7 +537,7 @@ func runGlobalArticleServer(
 	if exercise == nil {
 		t.Fatal("global runserver exercise is nil")
 	}
-	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, articleReadinessPrefix)
+	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, readinessPrefix)
 	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(
 		globalBinary,
@@ -574,10 +576,10 @@ func runGlobalArticleServer(
 		t.Logf("runserver preparation ready: %s", runserverPreparationProgress(environment, preparationStarted, time.Now()))
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 		if err := validateArticleReadinessAddress(address); err != nil {
-			t.Fatalf("invalid Article readiness address %q: %v", address, err)
+			t.Fatalf("invalid project readiness address %q: %v", address, err)
 		}
 		if address != expectedAddress {
-			t.Fatalf("Article readiness address = %q, want reserved %q", address, expectedAddress)
+			t.Fatalf("project readiness address = %q, want reserved %q", address, expectedAddress)
 		}
 		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		knownProcessGroups = groups
@@ -600,7 +602,7 @@ func runGlobalArticleServer(
 		cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 		finished = true
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
-		t.Fatalf("exercise global Article runtime: %v; cleanup=%+v stdout_bytes=%d stderr_bytes=%d", exerciseErr, cleanup, len(stdout.String()), len(stderr.String()))
+		t.Fatalf("exercise global project runtime: %v; cleanup=%+v stdout_bytes=%d stderr_bytes=%d", exerciseErr, cleanup, len(stdout.String()), len(stderr.String()))
 	}
 	cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 	finished = true
@@ -614,7 +616,7 @@ func runGlobalArticleServer(
 	if stderr.String() != "" {
 		t.Fatalf("global runserver stderr bytes = %d, want 0", len(stderr.String()))
 	}
-	readinessLine := articleReadinessPrefix + address + "\n"
+	readinessLine := readinessPrefix + address + "\n"
 	if output := stdout.String(); strings.Count(output, readinessLine) != 1 || output != readinessLine {
 		t.Fatalf("global runserver stdout bytes = %d, want exact readiness bytes = %d", len(output), len(readinessLine))
 	}

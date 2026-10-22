@@ -38,6 +38,15 @@ func execute(
 	stdout, stderr io.Writer,
 	interrupt <-chan struct{},
 ) int {
+	if len(args) != 0 && args[0] == "startproject" {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		return projectcheck.RunStartProject(projectcheck.StartProjectInvocation{
+			Context: ctx, CWD: cwd, Args: args, Environment: environment,
+			Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+		}).ExitCode
+	}
 	if len(args) != 0 && args[0] == "version" {
 		// Preserve the explicit output-failure exit for a closed stdout pipe.
 		brokenPipe := make(chan os.Signal, 1)

@@ -622,6 +622,7 @@ jobs:
           fi
           runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
           runserver_required=(
+            "TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime"
             "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
             "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
             "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"

@@ -86,13 +86,14 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 	address := reserveRunserverLoopbackAddress(t, "")
 	sensitiveValues := []string{username, password}
 
-	runGlobalArticleServer(
+	runGlobalProjectServer(
 		t,
 		globalBinary,
 		repository,
 		descriptor,
 		address,
 		environment,
+		articleReadinessPrefix,
 		&sensitiveValues,
 		func(readyAddress string) error {
 			return exerciseAuthenticatedRunserverArticle(

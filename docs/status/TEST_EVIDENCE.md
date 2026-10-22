@@ -3,6 +3,49 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — F1 전체 검증 완료와 C1 전환
+
+제품 source `680b6cd297c731a15f0e4aee5da924bbc92f07f9`의
+[CI 39829567840 attempt 2](https://github.com/progresshans/godj/actions/runs/39829567840/attempts/2)는 성공했다.
+Attempt 1의 reference/capture consumer가 시간 제한으로 취소된 뒤 해당 consumer와 최종 집계만 같은 source에서 재실행했다.
+최종 90개 작업은 attempt 1의 실제 성공 88개와 attempt 2의 실제 성공 2개다. 재사용 job의 원래 시간·소스·log bytes를
+대조했고 GitHub가 부여한 새 ID를 새 실행으로 세지 않았다. 실패/취소 이력과 producer의 원래 artifact는 보존했다.
+
+`hosted-full-pr-39829567840/audit.json`은 `pass=true`, `declared_ci_scope_verified=true`,
+`new_required_execution_verified=true`, `audit_findings=[]`다. SHA-256은
+`62b8c9116e38cacf53fc97554988482e76d61d3c34a537d69b2cfb7f74590f72`다.
+Checkout `ca7afef82d82ea2760df2f2c8a461c67b0c725ed`의 tree `e2ca9def5972c10db1d2c63d3cef511921682d2f`는
+제품 source와 같다. 3,885개 source 파일, artifact 18개, Go inventory 95개와 필수 source/환경별 실행을 대조했다.
+PostgreSQL 필수 4,249개 경로는 normal/race/cgo0 각각의 owner에서 누락·skip 없이 실행됐으며,
+전체 consumer root 102개는 12개 OS/arch/mode 좌표에서 각각 한 번 실행됐다. Conformance 26개 product suite,
+32비트 실행/compile, cold 외부 CLI, 고정 Python profile·4개 버전과 원래 SYS-025/029 capture 소비를 확인했다.
+
+F1 전용 `f1-evidence-audit.json` SHA-256은
+`24851dd7c8174327f63104227a46f1b05225562393bd05a20dec900922dc5fa2`다.
+이 receipt 자체는 전체 완료 판정이 아니며 위 전체 audit와 아래 요구 대조를 함께 사용한다.
+
+| F1 요구 | 같은 source에서 확인한 실행 |
+|---|---|
+| F1-01 typed inline | 독립 Directory–Inventory 기본/필드·정책 변경 소비자의 SQLite/PostgreSQL, normal/race/cgo0. 각 버전 15개 native event와 source/부모/현재 loader의 잘못된 typed 사용 거부, Helpdesk 현재 바인딩 |
+| F1-02 bounded 선택 | 각 mode의 현재 scope·선택 key·페이지/중복/위조·취소와 실제 native HTTP. 독립 고정 Django 6.1의 DB별 94개 관측에서 공통 49개와 명시적 정책 차이 45개, HTTP commit과 Form rollback·정리를 구분 |
+| F1-03~04 여러 행·파일 | 외부 기본/변경 소비자의 버전별 41개 event, 두 DB·세 mode에서 scalar/M2M·revision·보호 삭제·audit rollback, 파일의 partial/unknown과 DB unknown/rollback 구분. Read-only·stale/cohort·정책 변경·typed 오용 거부 포함 |
+| F1-05 확장 | 일반 Form·command·inline·collection의 widget/validation·현재 권한·secret/hidden/escaping·readonly·request 수명, source에 바인딩한 필수 Go event와 CI 도구 75개·skip 0 |
+| F1-06 실제 브라우저 | Chromium 155.0.8059.12에서 inline 33·uploads 20·choices 34·collections 38개, 독립 cross-app Inventory의 파일/M2M/revision/audit와 native 최종 값·정리. 원본 데스크톱 화면 네 개의 표시도 확인 |
+
+외부 소비자의 정상 compile과 negative compile은 실행한 parent event 및 source의 오류 assertion으로 확인했다.
+성공한 negative compiler의 진단 원문과 browser fixture executable 자체는 artifact에 없으므로 독립 binary hash 재검사로
+표현하지 않는다. 보존된 child event·정확한 source·시나리오/정리 receipt와 원본 파일 hash가 실제 증거다.
+
+원본 `collection.json` SHA-256은 `d245053eaefa76a0e61af0155505f662e87328ab0fe7321eff97300b4e099a0f`다.
+전체 감사 도구의 독립 Django observer 조건을 frozen workflow의 실제 owner와 일치시키는 revision을 따로 보존했다.
+`gdj0136-final-audit-tools-v2/preparation.json` SHA-256은
+`0c443751afa1a870bfdfe2865f2458623562fd3385ec3b0d98f7c1c9783cdd78`이며 원래 수집본·도구·F1 receipt를 수정하지 않았다.
+전체 대조의 source-binding 입력에 처음 사용한 상대경로는 별도로 보존하고 절대경로 입력으로 다시 생성했다.
+제품 test 본문·DB·browser를 로컬에서 다시 실행하지 않았고, source hash reader와 root 목록/최소 compile만 사용했다.
+
+F1-01~06과 공통 품질 기준을 충족해 C1로 주 작업을 전환한다. C1의 새 source나 이후 browser 진단은 별도 검증 대상이다.
+S1/S2/G1/I1/L1 및 전체 카탈로그의 잔여 요구는 실행 계획에 유지한다. F1 완료로 이 범위를 줄이거나 완료 처리하지 않는다.
+
 ## GDJ-0135 — A1 전체 검증 완료와 F1 전환
 
 제품 source `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879`의
@@ -22,6 +65,36 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
+
+## GDJ-0137 — startproject와 기본 identity runtime 작성
+
+`2af6172f` 기반에서 `godj startproject MODULE DIRECTORY`를 작성했다. 명시한 fixed module version 또는
+local source로 새 프로젝트의 순수 선언 runner·identity/빈 site 앱·실제 생성 bundle·Web runtime을 준비한다.
+기존 command workspace와 process owner로 declaration dependency→generate→module tidy→readonly runtime build→
+generate check를 수행하고, retained parent/stage 아래의 파일 sync·exclusive rename으로 완성한 디렉터리를 게시한다.
+기존 대상은 빈 디렉터리를 포함해 거부한다. 실패/취소의 join·소유 staging 정리와 이미 게시된 결과의 durability/output 실패를 구분한다.
+
+기본 runtime은 공통 DB opener와 project server를 사용한다. 명시적 migrate/createsuperuser 후 같은 저장 identity의
+Admin·Session/CSRF API·권한으로 보호한 OpenAPI를 연결한다. Loopback listener를 DB opening 전에 확인한다.
+모델 선언과 명시적인 Admin/API 노출·권한을 수정하는 위치, DB 선택과 변경 후 명령은 생성한 README에 둔다.
+
+새 검사에는 source/dependency injection·결정적 caller-owned template·기존 파일/빈 디렉터리/symlink 보존,
+준비 실패/panic/Goexit·취소 join·parent/stage 치환·동시 생성 한 승자·게시 후 취소를 포함한다.
+실제 전역 CLI 소비자는 생성→drift/migration→초기 계정 생성 전 홈→PTY 초기 사용자→인증/CSRF 저장→두 재시작과 데이터 보존,
+게시 후 stdout 실패와 재시도 충돌·기존 bundle 보존을 검사한다. 이 root는 기존 12개 platform/mode owner의 필수 목록에 추가했다.
+검사 본문·DB·process·browser·race/platform 실행은 원격 CI 대상이며 아직 이 source의 성공을 주장하지 않는다.
+
+`gdj0137-startproject-compile-v1/final-source.json` SHA-256은
+`a73d901dc7248a2cad148b0c0a6b1dd90ad30792bd7da9df6d238157a8fc0390`다. 내부 generate의 cleanup 실패가 외부 취소에 가려지지 않는 경계도 포함했다.
+Go/template source 25개와 5개 영향 package의 `go test -run '^$' -vet=off` 최소 compile을 기록했다. 본문은 실행하지 않았다.
+Native dependency/embedded source 목록의 Go 파일 3개와 template 12개가 SYS-029 source prefix에 포함된다.
+`source-ownership.json` SHA-256은 `341a215e3dcc1a075a8484753987a0ca05f61446c9ec1ceda49a3082cfe4e1d6`이다.
+전체 attestation guard·symlink 치환 검사의 실제 실행은 원격에서 확인한다.
+
+별도 template 초안의 실제 generator/외부 module 최소 compile은 `gdj0137-scaffold-template-compile-v2/receipt.json`
+SHA-256 `3386ec7ad0e1c4c567170f1b3c9d245f8581c8ca9ba04b2f1892f17776902b63`에 있다.
+그때 compile한 template 11개는 현재 bytes와 같고 이후 README template 하나를 추가했다. 이를 실제 scaffold CLI 성공으로 계산하지 않는다.
+237개 현행 문서의 링크와 diff를 확인했다. App 추가·고정 module 전체 설치·기존 데이터 모델 변경·command/compatibility/event/logging/reload는 남아 있다.
 
 ## GDJ-0137 — 공통 서버의 process 오류 표현과 browser 중단 진단
 

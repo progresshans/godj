@@ -27,3 +27,25 @@ Django의 project-aware command 경험을 Go build/deployment 모델에 맞게 �
 ## 의도적으로 결정하지 않은 것
 
 project entrypoint API, `godj.toml` schema, temporary runner 구현, binary command protocol은 정하지 않았습니다.
+
+## 현재 startproject 게시
+
+2026-10-23 C1에서 전역 도구의 새 프로젝트 생성을 연결한다. `startproject MODULE DIRECTORY`의 dependency는
+고정된 설치 module version 또는 명시한 `--framework-version`/`--framework-source`다. 개발 source는 실제 절대경로로
+해석하며 current directory나 실행 파일 위치를 framework source로 추정하지 않는다. `latest`나 자동 upgrade는 사용하지 않는다.
+
+새 프로젝트는 `modeldef`의 순수 Schema DSL 선언, 선언만 import하는 runner, generated binding을 import하는 HTTP runtime을
+분리한다. 기존 generator가 canonical bundle/manifest를 소유하며 scaffold는 private ABI bytes를 작성하지 않는다.
+Identity 앱과 모델이 없는 site 앱을 기본으로 제공하고 업무 모델·field 노출·권한은 프로젝트의 명시적 정책으로 남긴다.
+
+대상 이름이 없는 parent 아래에 0700 staging 디렉터리를 만들고 declaration dependency 확인→실제 `generate`→module 정리→
+readonly runtime build→`generate --check`를 마친다. 기존 command의 private workspace/process 수명과 정리를 재사용한다.
+파일과 디렉터리를 sync하고 retained parent/stage identity를 재확인한 뒤 Linux/macOS의 exclusive rename으로 게시한다.
+현재 기존 파일·빈/비어 있지 않은 디렉터리·symlink 모두 거부한다. Parent/stage가 바뀌면 다른 경로를 지우거나 채택하지 않는다.
+
+완료 전 취소/준비 실패에는 callback/process를 join한 후 소유한 staging만 정리한다. 이미 rename한 결과와 이후 parent fsync·
+cleanup·stdout 실패를 구분한다. `published_...`는 기존 정상 생성물을 보존하며 자동 rollback이나 재시도를 하지 않는다.
+출력은 `format_version=1`, `status=created`, `directory`의 JSON 한 문서다. Credential·DB provisioning·server start는 생성 과정에 없다.
+
+이 결정의 구현과 환경별 실행은 [C1](../../work/0137-project-core-startup.md) 및
+[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다. App 추가의 기존 source 수정·일반 command·호환성/reload 완료를 뜻하지 않는다.

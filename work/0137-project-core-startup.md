@@ -1,8 +1,8 @@
 # GDJ-0137: Project/Core와 새 앱의 기본 개발 흐름
 
-- 상태: C1 환경·앱 lifecycle 기반 작성 — F1의 같은 source 원격 검증은 별도 작업트리에서 진행 중
+- 상태: C1 구현 중 — F1 전체 검증과 원본 대조 완료 후 주 작업 전환
 - 시작: 2026-10-23
-- 현재 기반: `680b6cd297c731a15f0e4aee5da924bbc92f07f9`; 이 source의 F1 전체 실행 완료를 뜻하지 않는다.
+- 현재 기반: `680b6cd297c731a15f0e4aee5da924bbc92f07f9`; 이 source의 F1 전체 검증을 완료했으며 C1 변경은 별도로 검증한다.
 - 근거: [전체 실행 계획 C1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
   [CLI와 프로젝트](../docs/ARCHITECTURE.md#cli와-프로젝트), [개발 흐름](../docs/DEVELOPER_EXPERIENCE.md),
   [전역 도구와 프로젝트](../docs/adr/0004-cli-and-project-binary.md),
@@ -11,7 +11,8 @@
 
 빈 디렉터리에서 공개 명령으로 프로젝트와 앱을 시작하고, 같은 모델·설정·권한 경계를 유지한 채
 생성·migration·초기 사용자·관리 화면·업무 명령·재시작과 수정 후 reload를 수행할 수 있게 한다.
-F1의 검증 대기 동안 독립 요구와 설계를 준비하며, F1의 완료 기록을 앞당기거나 미실행 검사를 지우지 않는다.
+F1의 검증 대기 동안 독립 요구와 기반을 작성했다. 같은 source의 필수 실행·원본 대조를 확인해 주 작업을 전환했다.
+F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위는 별도로 유지한다.
 
 ## 현재 출발점
 
@@ -94,7 +95,7 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 
 ## 완료 조건
 
-- [ ] F1 전체 검증 완료와 C1 주 작업 전환을 확인한다.
+- [x] F1 전체 검증 완료와 C1 주 작업 전환을 확인한다.
 - [ ] C1-01~05를 빈 디렉터리와 독립 설치/외부 module에서 실제 사용한다.
 - [ ] C1-06~07의 기존 데이터·reload·event/logging·process 실패 경계를 연결하고 검증한다.
 - [ ] C1-08의 서로 다른 앱과 동일 변경·오용/실패·독립 기준을 대조한다.
@@ -112,4 +113,8 @@ App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종�
 요청 drain 중 저장·worker/DB 역순 정리·재시작 소비자를 작성했으며 실제 원격 검증은 남아 있다.
 전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
 소비자 검증 및 C1-05의 실행 전 호환성 검사·generated ABI 연결은 남아 있다.
+`startproject`에 명시한 dependency·새 디렉터리·기존 generator와 readonly runtime compile을 연결했다.
+기본 identity/Admin/API·SQLite 설정과 선언/노출 정책의 수정 위치를 담은 안내를 생성한다. 실제 CLI의 빈 앱 생성→
+migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보존과 게시 후 출력 실패 검사를 원격 CI에 연결했다.
+현재 대상 이름은 없어야 하며 기존 빈 디렉터리도 거부한다. App 추가·기존 데이터가 있는 모델 변경과 나머지 C1 요구는 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

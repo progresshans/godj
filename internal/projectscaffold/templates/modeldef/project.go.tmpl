@@ -1,0 +1,41 @@
+// Package modeldef declares apps and models without importing generated code.
+package modeldef
+
+import (
+	"context"
+	"errors"
+
+	"github.com/progresshans/godj/codegen"
+	identitydef "github.com/progresshans/godj/identity/modeldef"
+	"github.com/progresshans/godj/schema"
+)
+
+func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
+	if ctx == nil {
+		return codegen.ProjectSpec{}, errors.New("project definition: nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	identity, err := identitydef.AppSpec()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	result := codegen.ProjectSpec{
+		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "[[.Module]]/project", Directory: "project"},
+		Apps: []codegen.AppSpec{identity},
+	}
+	for _, definition := range Applications() {
+		appSchema, err := schema.Build(definition)
+		if err != nil {
+			return codegen.ProjectSpec{}, err
+		}
+		directory := "apps/" + appSchema.AppLabel + "/models"
+		result.Apps = append(result.Apps, codegen.AppSpec{
+			Alias: appSchema.AppLabel,
+			Package: codegen.PackageSpec{PackageName: "models", ImportPath: "[[.Module]]/" + directory, Directory: directory},
+			Schema: appSchema,
+		})
+	}
+	return result, nil
+}

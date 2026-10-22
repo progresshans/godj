@@ -108,6 +108,7 @@ var commandAndInternalSourcePrefixes = []string{
 	"internal/migrationautodetect/",
 	"internal/projectcheck/",
 	"internal/projectgenerate/",
+	"internal/projectscaffold/",
 	"internal/projectmigration/",
 	"internal/projectspec/",
 	"internal/projectwire/",
@@ -166,6 +167,9 @@ func sourcePathOwned(path string) bool {
 	}
 	if strings.HasPrefix(path, captureFixturePrefix) {
 		return false
+	}
+	if strings.HasPrefix(path, "internal/projectscaffold/templates/") && strings.HasSuffix(path, ".tmpl") {
+		return true
 	}
 	for _, prefix := range embeddedAssetPrefixes {
 		if strings.HasPrefix(path, prefix) && filepath.Ext(path) == ".html" {

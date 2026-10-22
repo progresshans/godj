@@ -9,7 +9,7 @@ GDJ-0134는 query가 소유하는 명명 scalar·aggregate와 alias, 정의 순�
 명시적 결과 stage를 공통 AST·양 compiler에 연결했다. Typed/dynamic ORM과 생성 facade는 원 모델/projection과
 별도 명명 셀을 반환한다. 구조가 다른 두 생성 소비자, 고정 Django 77개 관측의 native 비교와 Helpdesk 기한
 미리보기의 HTML/API/client 경로를 연결했다. Source `82142bbf`의 양 DB·세 mode·독립 비교·생성 소비자와
-전체 CI 90개 작업의 필수 실행·원본 대조를 완료해 Q1/G-ORM을 충족했다. 후속 A1도 완료해 주 작업은 F1이다.
+전체 CI 90개 작업의 필수 실행·원본 대조를 완료해 Q1/G-ORM을 충족했다. 후속 A1·F1도 완료해 주 작업은 C1이다.
 Named eager/prefetch 조합은 Q2, named 표현식 쓰기는 Q3의 미완료 요구로 유지한다.
 이름·도메인의 명시적 차이는 [DEV-0026](../DEVIATIONS.md#dev-0026--명명-조회의-예약-이름과-식별자-경계)과
 [DEV-0021](../DEVIATIONS.md#dev-0021--query-update의-정확한-정수와-명시적-변환), 실행 상태는 TEST_EVIDENCE를 따른다.
@@ -22,9 +22,12 @@ Source `ffc8b5ad`의 native DB·race·browser·process·generated drift와 전�
 공통 CRUD는 일반 router/viewset, 파일 게시·formset/inline 전체의 일반화나 새 인증 정책을 대신하지 않는다.
 [GDJ-0135](../../work/0135-model-centered-form-admin-api.md)와 [ADR-0092](../adr/0092-model-input-and-crud-assembly.md)를 따른다.
 
-GDJ-0136은 같은 typed inline 선언의 현재 재바인딩과 bounded 관계 선택, 행별 management/PK 사전 검사,
-독립 Django Admin 선택 비교를 구현 중이다. 일반 여러 행 편집·모델 파일·widget 확장과 추가 범용성은 남아 있다.
-현재 변경의 전체 원격 검증은 미완료이며 A1의 성공을 F1 결과로 옮기지 않는다.
+GDJ-0136은 같은 typed inline/collection 선언의 현재 재바인딩, bounded 관계 검색·선택 key 검증,
+여러 행의 파일·revision·audit 저장과 등록 widget/validation 확장을 연결했다.
+Source `680b6cd2`의 두 DB·세 mode·독립 Django Admin 비교·외부 cross-app 기본/변경 모델·실제 브라우저와
+전체 CI 90개 작업의 필수 실행·원본 대조를 완료했다. 현재 권한·부모/PK/cohort·rollback·파일 게시 결과를 유지한다.
+새 field/key/GIS·custom user·지역화 연결은 S1/S2/G1/I1/L1에 남는다. F1 완료는 이 기능들의 지원을 뜻하지 않는다.
+[GDJ-0136](../../work/0136-form-admin-generalization.md)과 TEST_EVIDENCE를 따른다.
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.

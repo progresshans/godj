@@ -1,6 +1,6 @@
 # GDJ-0136: Form/Admin의 관계 선택과 typed 편집 일반화
 
-- 상태: F1 구현 중 — A1 완료 후 주 작업 전환; typed inline·bounded 선택·독립 비교의 원격 검증 진행
+- 상태: 완료 — 같은 source의 전체 CI·필수 native/browser 실행과 원본 대조 후 C1 전환
 - 시작: 2026-10-22
 - 구현 기준: `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879` — A1 구현과 같은 source의 전체 CI 원본 대조 완료
 - 근거: [전체 실행 계획의 F1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -78,46 +78,34 @@ Go 고유 source·수명·게시 결과는 독립 native 실패/경합 검사로
 ## 완료 조건
 
 - [x] A1의 현재 source 전체 검증을 확인하고 F1으로의 주 작업 전환을 기록한다.
-- [ ] F1-01~02의 재사용 선언·현재 바인딩·관계 선택을 실제 앱에서 사용한다.
-- [ ] F1-03~05의 여러 행·파일·read-only·확장과 실패 경계를 연결한다.
-- [ ] F1-06의 두 앱·외부 cross-app·동일 변경·실제 브라우저와 native DB 증거를 확인한다.
-- [ ] 같은 source의 전체 CI 원본과 필수 실행을 대조하고 현행 문서 및 다음 C1 경계를 갱신한다.
+- [x] F1-01~02의 재사용 선언·현재 바인딩·관계 선택을 실제 앱에서 사용한다.
+- [x] F1-03~05의 여러 행·파일·read-only·확장과 실패 경계를 연결한다.
+- [x] F1-06의 두 앱·외부 cross-app·동일 변경·실제 브라우저와 native DB 증거를 확인한다.
+- [x] 같은 source의 전체 CI 원본과 필수 실행을 대조하고 현행 문서 및 다음 C1 경계를 갱신한다.
 
-현재 `ModelInline`의 공통 재바인딩과 Helpdesk·Admin browser fixture 연결, 관련 권한/source·현재 값·revision
-검사를 작성했다. 별도 생성 Directory–Inventory의 baseline·필드/권한 변경 버전은 같은 typed 선언으로 현재 값,
-새 부모·삭제·read-only·scope 거부·cohort 변동·늦은 실패 rollback을 검사하도록 연결했다.
-기존 inline·업로드 probe는 원격 browser owner에 연결했고 native 저장/정리 증거를 추가했다.
-`ModelChoices`는 canonical FK/OneToOne/M2M 및 명시적 target-only 선택의 bounded Search와 선택 key Resolve를 구분한다. 읽기 전용 target
-key capability, 안정된 root PK 보조 정렬, 실제 DB scope/취소/수명·오류 검사를 추가했다. `SetPreflight`와
-`InlinePreflight`는 management·PK/cohort·parent를 먼저 검사하고, Admin writer는 행별 선택 snapshot으로 검증을
-이어간다. 지원되는 정수 ModelChoice의 기본값/현재 값을 입력 누락으로 보존하는 경우에도 선택 범위를 확인하며 기존 PostClean 순서는 유지한다. canonical FK default는 현재 IR에서 지원하지 않는다.
-로컬의 최소 compile과 아직 실행하지 않은 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
-Admin의 일반 Form·command·inline·여러 건 생성에 선택 key Resolve와 별도의 검색 페이지를 연결했다.
-Helpdesk와 identity는 전체 target loader 대신 canonical 선언과 현재 범위를 사용한다. 검색 widget은 native select와
-문자열 ID를 유지한다. source 검토에서 기존 inline control initial의 혼입, 저장 직전 거절된 label의 재사용,
-readonly 취소 소거를 수정하고 회귀 검사를 추가했다. 새 실제 browser 흐름과 같은 source의 전체 실행 검증은 진행 중이다.
-고정 Django Admin의 autocomplete·Form 관측기와 Go의 native 비교를 작성했다. 두 DB의 94개 입력 가운데
-49개 공통 동작과 45개 정책 차이를 분리하고, 실제 HTTP commit·현재 scope·source 원본·정리 결과를 보존한다.
-이 비교의 로컬 최소 compile만 확인했으며 독립 관측과 native 본문은 원격 CI에서 실행해야 한다.
-`ModelCollectionFormSet`에 canonical source·현재 전체 cohort와 CRUD deny overlay를 선언하고, sealed 제출을
-같은 선언의 `BindCurrent`로 writer에서 재검사하도록 연결했다. Helpdesk의 생성은 기존 native bulk writer를 유지하며
-새 편집은 `SavePlan`과 같은 borrowed transaction에서 scalar/collection·생성·삭제·audit를 처리한다.
-행 순서·PK·revision·관리 입력·선택 범위·읽기 전용과 정확한 결과 대조, 실제 HTTP 혼합 저장과 늦은 실패,
-multipart 모델 파일의 현재 바인딩·부분/unknown 게시·request 수명 검사를 작성했다.
-이 검사의 본문과 실제 DB 저장은 원격 CI에서 확인해야 한다. 최소 compile은 실행 성공의 근거가 아니다.
-별도 생성 Directory–Inventory 컬렉션 소비자에 FileField·revision fencing·보호된 삭제·transactional audit를 연결했다.
-기본/필드·권한 변경 모델에서 같은 공개 선언과 writer를 사용하고, 양 DB의 19개 사례와 잘못된 typed loader/file saver
-compile 거부를 필수 실행으로 작성했다. 파일 게시 뒤 DB rollback/unknown 결과, 읽기 전용/삭제의 stale revision,
-현재 scope/cohort와 오래된 권한을 대조한다. 두 생성 모듈의 최소 compile만 확인했으며 실제 native 실행은 미검증이다.
-등록 widget 이름과 제한된 표시 context·시작 시 compile/검사를 일반 Form·명령·inline·collection에 연결했다.
-필드/모델 입력과 기존 검증은 유지하고 원래 입력·합성 진단·readonly·파일 재선택·출력 한도/취소 검사를 작성했다.
-기존 multipart와 외부 생성 소비자는 code/file의 실제 등록 템플릿을 사용한다. 최소 compile만 확인했으며
-widget 본문과 현재 source의 전체 원격 원본 대조는 계속 남아 있다.
-브라우저 소비자에는 외부 Helpdesk와 연결한 생성 Inventory 모델·FileField·M2M·revision·audit를 추가했다.
-같은 공개 typed collection/위젯 선언을 38개 Chromium 흐름에 연결하고, 전체 DB/파일/시도 결과와 정리의 대조 및
-누락/중복/변조 부정 검사를 작성했다. 원격에서 발견한 fixture 초기 migration 순서/외부 의존성 문제를
-분리 재현해 고쳤고 collections의 38개 흐름·완전한 native 결과·종료/정리를 확인했다.
-수정한 source의 전체 원격 실행·원본 대조는 계속 필요하다.
-오류 재표시 뒤 관계 선택 prototype이 초기 등록의 정렬/삭제 정책을 되살리는 문제를 Inline과 collection에서
-재현하고, 요청별 제한을 유지하도록 수정했다. 좁힌 재현 결과와 추가 browser 검사의 미실행 범위는 TEST_EVIDENCE에 둔다.
-이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.
+## 구현된 공개 경계
+
+- `ModelInline`은 초기 화면과 writer의 현재 행 바인딩에 같은 typed 자식 Form·Set·canonical 관계를 사용한다.
+  Helpdesk와 독립 Directory–Inventory에서 새 부모 전달, read-only, FK/OneToOne, source·cohort·revision을 검사한다.
+- `ModelChoices`의 Search와 Resolve는 검색 페이지와 현재 선택 key를 구분한다. 안정된 PK 보조 정렬과 현재
+  target scope를 사용하며 일반 Form·command·inline·collection 모두 저장 직전 현재 선택을 확인한다.
+- `ModelCollectionFormSet.BindCurrent`는 서버에서 읽은 전체 cohort와 제출 PK·순서·revision을 다시 바인딩한다.
+  동일 borrowed transaction의 `SavePlan`이 scalar·M2M·생성·삭제·audit와 늦은 실패 rollback을 처리한다.
+- 모델 파일은 명시적 게시 결과를 보존한다. DB rollback·unknown outcome을 파일 게시 취소로 바꾸지 않으며,
+  read-only·clear·보존·여러 행의 부분/unknown 게시와 request 종료 후 수명은 별도 경계로 유지한다.
+- 등록 widget은 제한된 표시 context와 시작 시 검사를 사용한다. 기존 입력·IR·검증 의미, field/model/set 오류,
+  read-only·password·파일 재선택·escaping을 유지하고 요청별 ordering/deletion 제한을 prototype에 반영한다.
+
+## 수용 결과
+
+F1-01~06의 실제 앱·외부 생성 소비자·동일 필드/정책 변경과 잘못된 typed 사용, 두 DB의 실패/권한/경합,
+독립 Django 비교와 브라우저 흐름을 제품 source `680b6cd297c731a15f0e4aee5da924bbc92f07f9`에서 확인했다.
+실행 환경·원본 hash·재실행·필수 경로와 제한은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0136--f1-전체-검증-완료와-c1-전환)에 둔다.
+
+전후 조립 책임은 실제 선언으로 비교한다. Helpdesk writer가 재선언하던 자식 Form·Set·canonical 관계는
+재사용 typed inline에 모이고, 여러 행 writer는 같은 collection 선언으로 현재 값을 바인딩한다.
+외부 기본/변경 모델은 필드 노출과 업무 권한만 명시적으로 바꾸며 공통 저장·revision·파일 경계를 재작성하지 않는다.
+개발 시간이나 성능 개선 수치를 추정하지 않는다.
+
+주 작업을 [C1 / GDJ-0137](0137-project-core-startup.md)로 전환한다. 새 타입·key·GIS·custom user·지역화,
+일반 API/router와 template 언어 확장은 실행 계획의 해당 묶음에 남는다. F1의 검증된 작업트리는 보존한다.
